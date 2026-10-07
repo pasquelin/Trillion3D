@@ -51,7 +51,7 @@ test(
           return {
             metrics,
             size: [world.canvas.width, world.canvas.height],
-            ...readLandscape(new Uint8Array(world.capture())),
+            ...readLandscape(new Uint8Array(await world.capture())),
           }
         } finally {
           world.dispose()

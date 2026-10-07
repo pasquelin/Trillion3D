@@ -29,7 +29,7 @@ export function updateWebgpuDeformation(
   if (!deformation?.any || !device || !pool) return false
   const roots = rt.layout.selectionRoots,
     frame = deformation.frame
-  const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError)
+  const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError, rt.run.frame)
   for (let i = 0; i < roots.length; i++) {
     if (!frame.bases[i]) continue
     const root = roots[i],

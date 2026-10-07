@@ -1,5 +1,6 @@
 import type { WebgpuRunState } from '../state/run.ts'
-import { UNTEXTURED_MATERIALS, VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts'
+import { markWebgpuLost } from './lost.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * The temporal pyramid no longer describes this image. It is reread only for a view identical to the
@@ -28,34 +29,21 @@ function resetHizHistory(run: WebgpuRunState) {
 }
 
 /**
- * Fallback to the CPU cut, announced. GPU selection is dropped only on a real failure — identifier
- * capacity, send error, lost encode, failed sample — never because a wanted page has not arrived yet.
- * A bench that would measure the CPU cut while thinking it measures the GPU cut reads it in
- * `gpuSelectionFallback` and in this diagnostic, emitted once per session.
+ * The GPU cut failed — a readback the device could not map, a send or an encode it refused. It is
+ * the engine's one cut (#1483): nothing else draws, so the device is declared lost as for any error
+ * of its own (`./lost.ts`), and the host opens the session again on a new one.
  */
-export function fallbackToCpuCut(
-  rt: WebgpuPagesRuntime,
-  reason: string,
-  details: Record<string, unknown> = {},
-) {
-  if (!rt.gpu.selectionFallback) {
-    rt.gpu.selectionFallback = true
-    rt.diag.engineDiagnostic(
-      'gpu-selection-fallback',
-      'Warning: GPU selection dropped, the CPU cut now draws',
-      { reason, ...details },
-    )
-  }
-  dropGpuSelection(rt)
+export function loseGpuSelection(rt: WebgpuPagesRuntime, reason: string, error?: unknown) {
+  const message = error === undefined ? reason : `${reason}: ${String(error)}`
+  markWebgpuLost(rt, { reason: 'gpu-selection', message })
 }
 
+/** Releases the GPU cut, at dispose. */
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
-  // Origin of the resource change: GPU selection is no longer a capability of this engine, and the
-  // next image rebuilds its cut without it.
+  // Origin of the resource change: the cut's tables leave.
   rt.run.gate.resourcesChanged()
   rt.run.gpuSelection?.dispose()
   rt.run.gpuSelection = undefined
-  rt.capabilities.gpuDriven = false
 }
 
 /** The partition lives with the pyramid and compaction: it writes one and reads the other. */
@@ -69,7 +57,7 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   rt.vis.gpuPartition = undefined
 }
 
-export function dropGpuHiz(rt: WebgpuPagesRuntime) {
+function dropGpuHiz(rt: WebgpuPagesRuntime) {
   const { vis } = rt
   dropGpuPartition(rt)
   vis.gpuHiz?.dispose()
@@ -87,23 +75,20 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
   rt.vis.gpuRestCompact = undefined
   rt.vis.gpuDraw?.dispose()
   rt.vis.gpuDraw = undefined
-  if (!rt.capabilities.unsupported.includes('indirect draw'))
-    rt.capabilities.unsupported.push('indirect draw')
 }
 
-export function dropVis(rt: WebgpuPagesRuntime) {
-  const { vis, capabilities } = rt,
+/** Releases the visibility path's GPU resources, at dispose. */
+export function disposeVis(rt: WebgpuPagesRuntime) {
+  const { vis } = rt,
     { rows } = rt.layout
-  // Origin of the resource change: the visibility buffer is no longer a capability.
-  rt.run.gate.resourcesChanged()
-  vis.visEnabled = false
   vis.visPipelineBack = undefined
-  vis.visPipelineBackCw = undefined
   vis.visPipelineNone = undefined
   vis.visPipelineFront = undefined
-  vis.visPipelineFrontCw = undefined
   vis.visLayerPipelines.length = 0
   vis.drawLayerSlots = 1
+  // Their bundles hold the pipelines and groups that go.
+  for (const bundles of vis.visBundles) bundles.clear()
+  vis.shadeBundles.clear()
   vis.shadeClasses = undefined
   vis.shadeCensus = undefined
   vis.materialTiles?.dispose()
@@ -133,6 +118,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
     vis.concatUv?.destroy()
   }
   vis.pageTable?.destroy()
+  vis.physicalTable.dispose()
   vis.shadeUniform?.destroy()
   vis.visUniform?.destroy()
   vis.zeroFlags?.destroy()
@@ -149,16 +135,4 @@ export function dropVis(rt: WebgpuPagesRuntime) {
       undefined
   rows.pageTableFloats = undefined
   rows.pageTableInts = undefined
-  rows.rowPageIndex.fill(-1)
-  rows.rowOffsetWords.fill(-1)
-  rows.rowEpoch.fill(0)
-  rows.rowCount = 0
-  rows.rowsRevision++
-  rows.clearDirty()
-  rows.candidateCount = 0
-  rows.packedCount = 0
-  rows.rowsChanged = true
-  capabilities.materials = UNTEXTURED_MATERIALS
-  for (const item of VIS_FEATURES)
-    if (!capabilities.unsupported.includes(item)) capabilities.unsupported.push(item)
 }

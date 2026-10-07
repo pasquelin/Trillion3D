@@ -68,11 +68,11 @@ export interface TableTexture {
   minFilter: TextureFilter
 }
 /**
- * A surface as the engine reads it. One glTF material is one entry per tangent variant: a host
- * that has to rebuild the tangent frame from screen derivatives flips `normalScaleY`, so the
- * table names a rank a node points at rather than the glTF material rank. `derivativeTangents`
- * says which variant the entry was written for — the autonomous scene publishes its primitives
- * without tangents, so a reader flips the sign back when the geometry it holds disagrees.
+ * A surface as the engine reads it. One glTF material is one entry per tangent variant: a primitive
+ * that declares no tangent is shaded in a frame rebuilt from its triangle, which flips
+ * `normalScaleY`, so the table names a rank a node points at rather than the glTF material rank.
+ * `derivativeTangents` says which variant the entry was written for, so a reader flips the sign
+ * back when the geometry it holds disagrees.
  * @property lit - Whether lights shade it.
  * @property doubleSided - Whether both faces are drawn.
  * @property backSide - Whether only the back face is drawn.

@@ -16,9 +16,9 @@ test("captureSurfaceView: cameraWorld is the world pose under a rig, not the hos
     await backend.prepare()
     const main = camera()
     backend.render(main)
-    await backend.flush?.()
+    await backend.flush()
     backend.render(main)
-    await backend.flush?.()
+    await backend.flush()
 
     // Two-level rig, which nobody but this test walks: the local camera keeps a trivial pose, and it
     // is the rig alone that carries translation and rotation.

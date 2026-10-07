@@ -10,7 +10,7 @@ import {
   encodeComposedRoots,
   encodeComposedRows,
 } from './gpuCompose.ts'
-import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/fullscreen.ts'
+import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { createPlacementRows } from './rows.ts'
 import { NONE } from './gpuComposeWgsl.ts'
@@ -40,7 +40,16 @@ function session() {
   }))
   let revision = 0
   const selection = {
-    worldRanges: [{ first: 0, count: 2, buffer: device.createBuffer({ size: 128, usage: 0 }) }],
+    worldRanges: [
+      {
+        first: 0,
+        count: 2,
+        buffer: device.createBuffer({
+          size: 128,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        }),
+      },
+    ],
     worldsMovedOnGpu: () => void revision++,
   }
   const rt = composeRuntime(roots, {
@@ -108,7 +117,14 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   await pipelinesSettled(device, true)
   assert.equal(pipelinesCompiling(device), false)
   frame()
-  Object.assign(rt, { vis: { pageTable: device.createBuffer({ size: 64, usage: 0 }) } })
+  Object.assign(rt, {
+    vis: {
+      pageTable: device.createBuffer({
+        size: 64,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      }),
+    },
+  })
   Object.assign(rt.layout, { rows: { rowCount: 2 } })
   encodeComposedRows(rt, device, encoder)
   assert.deepEqual(compiled, { sync: 0, async: 2 }, 'both kernels compiled off the frame, once')
@@ -116,7 +132,10 @@ test('the compose kernels are asked once a parent links rows, the frames held un
 
 test("the linked roots' motion waits for the temporal pass's decision, written before the image leaves", () => {
   const { rt, rows, frame, device, writes } = session()
-  const motionBuffer = device.createBuffer({ size: 128, usage: 0 })
+  const motionBuffer = device.createBuffer({
+    size: 128,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   const held = new Float64Array(turn(0.25))
   ;(rt.gpu as { temporal?: unknown }).temporal = {
     frame: { active: true },

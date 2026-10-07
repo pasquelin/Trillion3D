@@ -6,12 +6,12 @@ import type { PlacementIndex } from './placements.ts'
  * through the placement tables to its root and the root's shared `pages`, a cluster being its
  * primitive's page offset plus the instance's base.
  */
-export type PackedPages = {
+type PackedPages = {
   readonly length: number
   recordOf(packed: number): PageRec | undefined
 }
 
-/** A list of packed pages: a flat array (a fixture, the autonomous backend) or a layout's view. */
+/** A list of packed pages: a flat array (a fixture) or a layout's view. */
 export type PageList = readonly PageRec[] | PackedPages
 
 /** The packed pages of `roots` as `placement` ranks them, read live: a growth that rewrites the
@@ -42,7 +42,7 @@ export function createPackedPages(
  * exist, and a reader that needs one takes it from the placement tables the layout owns.
  *
  * The cut and the residency route by packed ranks; no consumer builds a second catalogue or a
- * second record reference beside this one (#483 rule 4). Both backends share it (#1233, #1234).
+ * second record reference beside this one (#483 rule 4).
  */
 export type PageCatalogue = ReturnType<typeof createPageCatalogue>
 

@@ -16,7 +16,7 @@ import { installGpuGlobals } from '../kit/gpu/globals.ts'
 import { mockGpu } from '../kit/gpu/mockGpu.ts'
 import { byteRange } from '../../scripts/static-server.ts'
 import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts'
-import type { BackendDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { EngineDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts'
 
 /** The exit code of a process that ran out of memory, as a killed renderer's. */
 const OUT_OF_MEMORY = 137
@@ -40,8 +40,8 @@ const M2_LIMITS = {
 const [WIDTH, HEIGHT] = [1728 * 2, 1117 * 2]
 const MB = 1 << 20
 
-/** A canvas of the boss's case whose WebGPU context presents into a mock texture; the WebGL2
- *  context the world probes answers every call. */
+/** A canvas of the boss's case whose WebGPU context presents into a mock texture, and that
+ *  grants no other context. */
 function canvasOf(device: GPUDevice) {
   const context = {
     configure() {},
@@ -49,17 +49,6 @@ function canvasOf(device: GPUDevice) {
     getCurrentTexture: () =>
       device.createTexture({ size: [WIDTH, HEIGHT], format: 'bgra8unorm', usage: 16 }),
   }
-  const answers: Record<string, unknown> = {
-    then: undefined, // not a promise
-    isContextLost: () => false,
-    getSupportedExtensions: () => ['EXT_color_buffer_half_float'],
-    getExtension: (name: string) => (name === 'EXT_color_buffer_half_float' ? {} : null),
-    checkFramebufferStatus: () => 1, // every constant is 1: complete
-  }
-  const gl = new Proxy(answers, {
-    get: (_, key: string) =>
-      key in answers ? answers[key] : /^[A-Z_0-9]+$/.test(key) ? 1 : () => ({}),
-  })
   return {
     nodeName: 'CANVAS',
     width: WIDTH,
@@ -69,7 +58,7 @@ function canvasOf(device: GPUDevice) {
     style: {},
     addEventListener() {},
     removeEventListener() {},
-    getContext: (kind: string) => (kind === 'webgpu' ? context : gl),
+    getContext: (kind: string) => (kind === 'webgpu' ? context : null),
     ownerDocument: { defaultView: undefined },
   } as unknown as HTMLCanvasElement
 }
@@ -78,7 +67,7 @@ function canvasOf(device: GPUDevice) {
  *  what it held at its peak, and how the image was cut. */
 async function openUnderCap(manifest: string, capMb: number) {
   installGpuGlobals()
-  const gpu = mockGpu({ compute: true, limits: M2_LIMITS })
+  const gpu = mockGpu({ limits: M2_LIMITS })
   const deviceBytes = () =>
     gpu.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
     gpu.writes.reduce((sum, write) => sum + write.bytes.byteLength, 0)
@@ -124,14 +113,13 @@ async function openUnderCap(manifest: string, capMb: number) {
   }))
     Object.defineProperty(globalThis, name, { value, configurable: true })
   const seen: { drawn?: unknown; cut?: string } = {}
-  const onDiagnostic = ({ phase, context }: BackendDiagnostic) => {
+  const onDiagnostic = ({ phase, context }: EngineDiagnostic) => {
     if (phase === 'first-render-path') seen.drawn = context
-    if (phase === 'gpu-selection-fallback') seen.cut = String(context?.reason)
+    if (phase === 'gpu-selection-refused') seen.cut = String(context?.reason)
   }
   const world = await openMeasuredWorld(canvas, {
     manifestUrl: pathToFileURL(manifest).href,
     scope: 'full',
-    renderer: 'webgpu',
     gpuDevice: gpu.device,
     width: WIDTH,
     height: HEIGHT,
@@ -149,7 +137,7 @@ async function openUnderCap(manifest: string, capMb: number) {
 }
 
 /** Opens `manifest` in a child process, its JS heap capped at `heapMb` and the renderer's memory at
- *  `capMb` (`openUnderCap`): it must draw its first image on the CPU cut, under the cap. */
+ *  `capMb` (`openUnderCap`): it must draw its first image on the GPU cut, under the cap. */
 export function assertOpensUnderCap(
   t: TestContext,
   manifest: string,
@@ -173,7 +161,7 @@ export function assertOpensUnderCap(
   assert.equal(run.status, 0, run.stderr.slice(-2000))
   const opened = JSON.parse(last) as { drawn: boolean; cut: string; peakMb: number }
   assert.ok(opened.drawn, 'its first image is drawn')
-  assert.equal(opened.cut, 'view rows', 'cut on the CPU, a row per cluster it selects')
+  assert.equal(opened.cut, 'gpu', 'cut on the GPU, its rows a cache of what it draws (#1483)')
   assert.ok(opened.peakMb <= capMb)
 }
 

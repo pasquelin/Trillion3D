@@ -8,7 +8,7 @@ import { DRAW_FLOATS, writeDrawWords } from '../../particles/drawWords.ts'
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts'
 import { createWebgpuParticles } from './webgpuParticles.ts'
 import { askParticles, encodeParticles } from './webgpuParticleFrame.ts'
-import { pipelinesCompiling } from '../../lighting/deferred/fullscreen.ts'
+import { pipelinesCompiling } from '../../lighting/deferred/compileLedger.ts'
 import { gatedDevice } from '../../lighting/deferred/gatedDevice.fixture.ts'
 import { families } from '../../host/families.ts'
 import { PARTICLE_DRAW_PASS as P } from '../../stage/passLabels.ts'
@@ -37,7 +37,7 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
   assert.deepEqual(got, [-0.001, 0, 1, 0.001, 0.001, 0.5, 1, 0.8, 0.5, 1, 0.5].map(Math.fround))
 })
 
-/** An encoder that logs its render passes, and each draw's pipeline, vertices and instances. */
+/** An encoder that logs its render passes, and each draw's pipeline and indirect arguments. */
 function renderRecorder() {
   const log: string[] = [],
     attached: unknown[][] = []
@@ -49,7 +49,8 @@ function renderRecorder() {
       setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
       setBindGroup() {},
       setViewport() {},
-      draw: (...counts: number[]) => void log.push([pipeline.label, ...counts].join(' ')),
+      drawIndirect: (args: GPUBuffer, at: number) =>
+        void log.push([pipeline.label, args.label, at].join(' ')),
       end() {},
     }
   }
@@ -58,9 +59,17 @@ function renderRecorder() {
 
 const view = {} as GPUTextureView,
   reactive = { label: 'reactive' } as unknown as GPUTextureView,
-  kept = () => ({}) as never
-const frame = (encoder: GPUCommandEncoder) =>
-  [encoder, view, reactive, view, [8, 8], IDENTITY, [0, 0, 0]] as const
+  // A pool's step state: the draw reads its instances from the window its step wrote there.
+  kept = () => ({ state: { label: 'state' } }) as never
+const frame = (encoder: GPUCommandEncoder) => ({
+  encoder,
+  target: view,
+  reactive,
+  depth: view,
+  size: [8, 8],
+  viewProj: IDENTITY,
+  eye: [0, 0, 0],
+})
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
@@ -68,10 +77,10 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   const draw = createWebgpuParticleDraw(gpu.device, kept, (e) => assert.fail(`${e}`))
   await tick()
   const { encoder, log, attached } = renderRecorder()
-  assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0)
+  assert.equal(draw.draw([], frame(encoder)) + draw.draw([pools[2]], frame(encoder)), 0)
   assert.deepEqual(log, [], 'no particle alive: no pass, no pixel')
-  assert.equal(draw.draw(pools, ...frame(encoder)), 2)
-  assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near')
+  assert.equal(draw.draw(pools, frame(encoder)), 2)
+  assert.deepEqual(log, [P, `${P} additive state 0`, `${P} premultiplied state 0`], 'far to near')
   // The lit image, then the reactive value their coverage is written in (#833).
   assert.deepEqual(attached, [[view, reactive]])
   const blends = gpu.renderPipelines.map(({ fragment }) => {
@@ -96,10 +105,7 @@ test('WebGPU: the routed draw is asked off the frame, and the image that routes 
   assert.equal(pipelinesCompiling(gpu.device), false)
   const filter = { attachments: () => [], maskGroup: {} } as never
   const { encoder, log } = renderRecorder()
-  assert.equal(
-    draw.draw(pools, encoder, view, reactive, view, [8, 8], IDENTITY, [0, 0, 0], filter),
-    2,
-  )
+  assert.equal(draw.draw(pools, { ...frame(encoder), filter }), 2)
   assert.equal(log.length, 3, 'one pass, two routed draws')
   assert.equal(routedMade().length, 2, 'one per blend')
   assert.equal(gpu.compiled.sync, 0, 'compiled off the frame')
@@ -113,24 +119,9 @@ test('WebGPU: a draw that cannot compile is heard, and the next step keeps its p
   const step = createWebgpuParticles(device, (e) => heard.push(e))
   await tick()
   const { encoder, log } = renderRecorder()
-  assert.equal(step.draw([smoke], ...frame(encoder)), 0)
+  assert.equal(step.draw([smoke], frame(encoder)), 0)
   step.run([smoke], encoder)
   assert.deepEqual([heard.length, smoke.refused, log.length], [1, true, 0])
-})
-
-test('WebGPU without the visibility buffer refuses the pools by name, heard once, and frees the step', () => {
-  const [heard, [smoke]] = [[] as string[], scene()],
-    particlesRefused = (reason: string) => void heard.push(reason),
-    freed: string[] = [],
-    gpu = { particles: { dispose: () => void freed.push('step') } as object | undefined },
-    rt = { context: { particles: [smoke], particlesRefused }, vis: { visEnabled: false }, gpu }
-  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder)
-  ;[0, 1].forEach(encode)
-  assert.deepEqual(
-    [smoke.refused, heard.length, freed, gpu.particles],
-    [true, 1, ['step'], undefined],
-  )
-  assert.match(heard[0], /^PARTICLES_UNSUPPORTED: particles draw on the visibility buffer/)
 })
 
 test('WebGPU: the pools step once a frame, on the main view; another view draws them as they are', () => {
@@ -139,7 +130,7 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
     main = {},
     views = { main, active: {} },
     gpu = { particles: { run: () => (steps++, 1) } },
-    rt = { context: { particles: [smoke] }, vis: { visEnabled: true }, gpu, run: {}, views }
+    rt = { context: { particles: [smoke] }, gpu, run: {}, views }
   const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder)
   encode()
   assert.equal(steps, 0, 'another view steps nothing')
@@ -152,7 +143,7 @@ test("WebGPU: the step is made at the frame's entry on the particles' code the f
   const [smoke] = scene(),
     main = {},
     gpu: { particles?: object } = {},
-    rt = { context: { particles: [] }, vis: { visEnabled: true }, gpu, run: {}, views: { main } }
+    rt = { context: { particles: [] }, gpu, run: {}, views: { main } }
   Object.assign(rt.views, { active: main })
   const enter = () => askParticles(rt as never, fakeDevice().device)
   enter()

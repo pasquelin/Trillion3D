@@ -32,11 +32,6 @@ export function growRowState(
   rows.rowPageIndex = widened(rows.rowPageIndex, new Int32Array(drawSlots), -1)
   rows.rowOffsetWords = widened(rows.rowOffsetWords, new Int32Array(drawSlots), -1)
   rows.rowEpoch = widened(rows.rowEpoch, new Int32Array(drawSlots), 0)
-  rows.newRowPage = new Int32Array(drawSlots)
-  rows.newRowSource = new Int32Array(drawSlots)
-  rows.rowRewrites = new Int32Array(drawSlots)
-  rows.packedPositions.length = drawSlots
-  rows.packedPositions.fill(undefined, held)
   // The caster arrays keep their visibility rows alone: the casters' rows behind are taken again.
   rows.packedPageIndex = widened(
     rows.packedPageIndex.subarray(0, held),

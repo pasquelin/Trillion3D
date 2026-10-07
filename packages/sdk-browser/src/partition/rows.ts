@@ -12,7 +12,7 @@ import {
   growPlacementRows,
   type PlacementRows,
 } from '../placement/rows.ts'
-import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts'
+import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
@@ -20,7 +20,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows }
 
 /** One mesh the cells place: its primitives' links, sharing one row numbering, and the host mesh
- *  of each, which a session mounts once the view read its primitive (#751). */
+ *  of each. */
 export type PlacedMesh = {
   readonly links: readonly RowLink[]
   readonly nodes: readonly Object3D[]

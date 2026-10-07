@@ -15,14 +15,12 @@
  * straight from the table, with no host declaration in between, is the next step (#275).
  *
  * A record is held BY its declaration and refilled IN PLACE, so every page of every placement of
- * one surface shares a single record and comparing two surfaces is comparing two references. The
- * host declaration itself stays reachable where a host boundary needs to hand it back to the
- * library that owns it — `PageRec.declaration` — and the closed list of
- * `tests/integration/engine-without-three.test.ts` says who may read that field.
+ * one surface shares a single record and comparing two surfaces is comparing two references. A
+ * page keeps the record alone, never the host declaration it was read from.
  */
 import type { Side } from '../../../sdk-core/src/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
-import { isAssignment, type AlphaChange } from '../placement/backendSceneUpdates.ts'
+import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
 import { unreadMapRefusal } from '../scene/surfaceModel.ts'
 import {
@@ -64,7 +62,7 @@ const held = new WeakMap<object, PageSurface>()
 const declarations = new WeakMap<PageSurface, HostMaterials>()
 
 /** Fills a record from a declaration, reusing the object so every holder sees the new fields. A
- *  map its model never reads is refused by name, as the WebGL2 gate refuses it (`unreadMapRefusal`). */
+ *  map its model never reads is refused by name (`unreadMapRefusal`). */
 function fill(into: PageSurface, material: HostMaterials): PageSurface {
   const host = firstMaterial(material) as HostShadedMaterial | undefined,
     unread = host && unreadMapRefusal(host)
@@ -75,8 +73,8 @@ function fill(into: PageSurface, material: HostMaterials): PageSurface {
 /**
  * The engine record of a host declaration, built at its first page and reread when the host
  * rewrites the declaration in place. Called at the boundaries that hold a host material — the
- * collection, a witness that repaints its pages, the WebGL2 binder's frame, the WebGPU refresh of
- * surfaces a page changed the alpha of — and nowhere else.
+ * collection, a witness that repaints its pages, the refresh of surfaces a page changed the alpha
+ * of — and nowhere else.
  */
 export function surfaceOf(material: HostMaterials): PageSurface {
   const kept = held.get(material as object)
@@ -152,11 +150,7 @@ export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alph
   if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
 }
 
-/** A record wears `declaration` from now on, its surface record read at this boundary. */
-export function wearDeclaration(
-  rec: { declaration: HostMaterials; material: PageSurface },
-  declaration: HostMaterials,
-) {
-  rec.declaration = declaration
+/** A record wears `declaration` from now on: its surface record, read at this boundary. */
+export function wearDeclaration(rec: { material: PageSurface }, declaration: HostMaterials) {
   rec.material = surfaceOf(declaration)
 }

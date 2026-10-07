@@ -138,7 +138,7 @@ function errors(
 }
 
 const normal = new Float64Array(3)
-/** Whether triangle `t` of `triangles` shows from `eye`: every backend culls a single-sided
+/** Whether triangle `t` of `triangles` shows from `eye`: the engine culls a single-sided
  *  triangle seen from behind, a double-sided one (`twoSided[t] === 1`) shows from both sides. */
 function shows(triangles: Float32Array, t: number, eye: number[], twoSided?: Uint8Array) {
   if (twoSided?.[t] === 1) return true

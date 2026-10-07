@@ -92,13 +92,14 @@ fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao
   }
  }
  var result=vec3f(0.0);
+ let shading=lobeSurface(rgb,metal,rough,N,V);
  for(var slot=0u;slot<used;slot++){
   let light=directLights.items[tileLights[first+chosen[slot]%TILE_LIGHTS]];
   // An exact light counts once; a drawn one is divided by its probability, the points it holds
   // on average: its share of the total, times the points.
   var factor=1.0;
   if(chosen[slot]<TILE_LIGHTS){factor=total/(f32(LIGHT_SAMPLES)*lightWeight(light,N,P));}
-  result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factor;
+  result+=declaredLight(light,rgb,metal,rough,N,V,P,ao,shading)*factor;
  }
  return result;
 }`

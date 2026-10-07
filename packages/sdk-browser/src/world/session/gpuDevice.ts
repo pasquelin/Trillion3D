@@ -1,4 +1,4 @@
-import { WEBGPU_REQUIRED_LIMITS } from '../../backend/common.ts'
+import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
 import { BLOCK_FEATURES } from '../../texture/blockFormats.ts'
 
 /**
@@ -22,8 +22,8 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
 
 /**
  * The WebGPU device of a session: the optional features the adapter offers, minus those the host
- * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the fallback's proof on
- * a machine that has them), and the adapter's own limits up to what the engine binds
+ * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the proof, on a
+ * machine that has them, of each shader variant written without them), and the adapter's own limits up to what the engine binds
  * (`WEBGPU_REQUIRED_LIMITS`).
  */
 export async function requestExplorerDevice(

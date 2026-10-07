@@ -1,8 +1,8 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
-import type { BackendDiagnostic } from '../../backend/types.ts'
+import type { EngineDiagnostic } from '../../engine/types.ts'
 import { presentationColorDiagnostic } from '../../diagnostic/presentationDiagnostic.ts'
 import { sessionOf } from '../core/worldSession.ts'
-import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts'
+import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
 import { listenWorldNotices } from './worldNotices.ts'
 
 /**
@@ -17,7 +17,7 @@ export const diagnostic = {
    */
   createChannel(p: { detail?: 'summary' | 'full' } = {}) {
     const observers = new Set<(d: { kind: string; message: string }) => void>()
-    const deliver = (d: BackendDiagnostic) => {
+    const deliver = (d: EngineDiagnostic) => {
       for (const observer of observers) observer({ ...d, kind: d.phase })
     }
     const channel = createDiagnosticChannel(deliver, {
@@ -42,12 +42,12 @@ export const diagnostic = {
    * The clear colour asked against the pixels the view shows (`presentationColorDiagnostic`).
    * @param world - The world to check.
    */
-  presentationColor(world: { scene: { background: unknown } }) {
+  async presentationColor(world: { scene: { background: unknown } }) {
     const session = sessionOf(world)
     const { width, height } = session.canvas
     const background = world.scene.background as { getHex?: () => number } | null
     const clear = background?.getHex?.() ?? DEFAULT_CLEAR_COLOR
-    return presentationColorDiagnostic(session.capture(), width, height, clear)
+    return presentationColorDiagnostic(await session.capture(), width, height, clear)
   },
   /**
    * Checks how the frame split its work between passes.

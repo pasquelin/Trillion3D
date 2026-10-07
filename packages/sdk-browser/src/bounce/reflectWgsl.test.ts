@@ -22,10 +22,12 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
   // The term is part of the lit sum, fed the pixel's own roughness.
   assert.match(
     BOUNCE_LIGHTING_SHADER,
-    /var rgb=lit\+ambient\+emissive\.rgb\+bounceSurfaceLighting\([^)]*\)\+thinBounce\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\);if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,/,
+    /var rgb=lit\+ambient\+emissive\.rgb\+bounceSurfaceLighting\([^)]*\)\*lobeThrough\(\)\+thinBounce\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\);if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,/,
   )
-  const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting')
-  assert.ok(mirror.includes('reflectedRadiance(P,N,reflect(-V,N),rough)'))
+  const mirror = body(BOUNCE_LIGHTING_SHADER, 'surfaceMirrorLighting')
+  assert.ok(mirror.includes('mirrorRadiance(P,N,reflect(-V,N),rough)'))
+  const radiance = body(BOUNCE_LIGHTING_SHADER, 'mirrorRadiance')
+  assert.ok(radiance.includes('reflectedRadiance(P,N,R,rough)'))
   // Weighed by the GGX lobe's directional albedo, the table the rectangular light reads.
   assert.match(mirror, /ltcLookup\(rough,[^;]*,1u\)/)
   // The radiance is the proxy face the ray hits, read in the cache: the reflected scene.
@@ -44,7 +46,7 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
 })
 
 test('diffuse and toon keep no specular lobe, while rough physical materials retain their probe lobe', () => {
-  const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting')
+  const mirror = body(BOUNCE_LIGHTING_SHADER, 'surfaceMirrorLighting')
   assert.match(
     mirror,
     new RegExp('if\\(surfaceModel==4u\\|\\|surfaceModel==5u\\)\\{return vec3f\\(0\\.0\\);\\}'),
@@ -87,7 +89,7 @@ test('the direct base has no proxy fallback; the bounce variant binds its surfac
 test('water and probes read the same ray: one reflection model', () => {
   assert.match(
     WATER_COMPOSITE_SHADER,
-    /reflected=F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+    /reflected=waterCoatMirror\(F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)\*lobeThrough\(\),/,
   )
   assert.doesNotMatch(WATER_COMPOSITE_SHADER, /sampleBounce\(P,reflect/)
   assert.ok(BOUNCE_PROBE_SHADER.includes(SURFACE_RAY_WGSL))
@@ -99,7 +101,7 @@ test('water preserves its exact mirror ray and transitions into filtered probe r
   assert.ok(WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);`))
   assert.match(
     WATER_COMPOSITE_SHADER,
-    /reflected=F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+    /reflected=waterCoatMirror\(F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)\*lobeThrough\(\),/,
   )
   const reflected = body(WATER_COMPOSITE_SHADER, 'reflectedRadiance')
   assert.match(reflected, /if\(weight==1\.0\)\{return proxyReflectionRay\(P,N,R\);\}/)

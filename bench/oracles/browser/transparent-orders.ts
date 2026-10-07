@@ -64,23 +64,16 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
 const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
   keyA < keyB || (keyA === keyB && rankA > rankB)
 
-/** Insertion sort of the plan, on the buffer the previous frame left. */
-function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
+/** Insertion sort of the plan, on the buffer the previous frame left: `keys` by item, its index
+ *  the rank. */
+function sortPlanFarToNear(order: Uint32Array, keys: Float64Array) {
   for (let i = 1; i < order.length; i++) {
     const entry = order[i],
-      moved = items[planItem(entry)]
+      moved = planItem(entry)
     let j = i - 1
     while (j >= 0) {
-      const held = items[planItem(order[j])]
-      if (
-        !precedes(
-          held.orderKey ?? 0,
-          held.orderRank ?? 0,
-          moved.orderKey ?? 0,
-          moved.orderRank ?? 0,
-        )
-      )
-        break
+      const held = planItem(order[j])
+      if (!precedes(keys[held], held, keys[moved], moved)) break
       order[j + 1] = order[j]
       j--
     }
@@ -88,14 +81,15 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
   }
 }
 
+/** The items' keys, reused from frame to frame as the items held them. */
+let keys = new Float64Array(0)
+
 /** The previous ranking: keys, a source rank, and nothing else. */
 export function classementReference(scene: ReferenceScene, order: Uint32Array, eye: number[]) {
   const items = scene.items
-  for (let i = 0; i < items.length; i++) {
-    items[i].orderRank = i
-    items[i].orderKey = eyeKey(items[i], eye[0], eye[1], eye[2])
-  }
-  sortPlanFarToNear(order, items)
+  if (keys.length < items.length) keys = new Float64Array(items.length)
+  for (let i = 0; i < items.length; i++) keys[i] = eyeKey(items[i], eye[0], eye[1], eye[2])
+  sortPlanFarToNear(order, keys)
 }
 
 /** Previous indirect arguments: four words per item, rewritten as integers every frame. */

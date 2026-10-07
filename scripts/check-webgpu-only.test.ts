@@ -20,6 +20,9 @@ const SAMPLES = [
   ['UNPACK_', 'FLIP_Y'],
   [GL, '_FragColor'],
   [GL, '_Position'],
+  [GL.toUpperCase(), '_LINES'],
+  ['ctx.tex', 'Image3D('],
+  ['ctx.tex', 'SubImage2D('],
   ['#version ', '300 es'],
   ['Open', GL],
   [word],
@@ -48,6 +51,19 @@ test('each pattern of the GL family is found, case-insensitive, on its line', (t
     assert.equal(hits[0]?.file, 'src/a.ts')
     assert.equal(hits[0]?.line, 3)
   }
+})
+
+test('the WebGPU texture calls and constants are not hits', (t) => {
+  const root = repository({
+    'src/a.ts': [
+      'queue.copyExternalImageToTexture(source, { texture }, size)',
+      'queue.writeTexture({ texture }, data, layout, size)',
+      'const usage = GPUTextureUsage.COPY_DST | GPUBufferUsage.MAP_READ',
+      'const image = createImageBitmap(blob)',
+    ].join('\n'),
+  })
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  assert.deepEqual(glHits(root), [])
 })
 
 test('a file name of the GL family is a hit on line 0', (t) => {

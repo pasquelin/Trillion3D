@@ -1,7 +1,7 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts'
 import { createGpuPageCache, httpPageSource } from '../../gpu/page/pages.ts'
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
-import { DEFAULT_PAGE_WORKERS } from '../../backend/common.ts'
+import { families } from '../../host/families.ts'
+import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 
 /** Where pages are read from, and the address they are read against. */
 export type WorldPageSource = PageSource & {
@@ -20,7 +20,8 @@ export interface PageStreamer {
 /**
  * The `page` family: geometry cut into pages, which enter and leave memory by what the frame
  * reads. `createCache` is the GPU page pool (`createGpuPageCache`), `decode` the cluster page
- * decoder (`decodeGeometryPage`).
+ * decoder (`decodeGeometryPage`), a chunk of its own the first call downloads: the engine draws
+ * pages on the GPU and never decodes one on the CPU.
  */
 export const page = {
   /**
@@ -44,9 +45,12 @@ export const page = {
    */
   createCache: createGpuPageCache,
   /**
-   * Unpacks one compressed geometry page into triangles and vertices.
+   * Unpacks one compressed geometry page into triangles and vertices, once the decoder's chunk
+   * has arrived (`FAMILY_LOAD_FAILED` when it cannot).
    * @param bytes - The compressed page.
    */
-  decode: (bytes: ArrayBuffer | Uint8Array) =>
-    decodeGeometryPage(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)),
+  decode: async (bytes: ArrayBuffer | Uint8Array) =>
+    (await families.pageCodec.load()).decodeGeometryPage(
+      bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
+    ),
 }

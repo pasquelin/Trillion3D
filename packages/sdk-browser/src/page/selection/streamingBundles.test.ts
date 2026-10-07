@@ -6,12 +6,12 @@ import {
   collectPendingUrls,
   indexPagesByUrl,
   pageRequestUrl,
-  selectVisiblePages,
 } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { withBundles } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
   const fixture = dagFixture()

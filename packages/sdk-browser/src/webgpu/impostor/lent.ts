@@ -1,13 +1,22 @@
 /**
- * What the WebGPU core lends the impostor family (#1335, `../../impostor/lent.ts`): the shared
- * pieces, and the surfaces, depth, visibility targets, view, attachments, texture bytes, device
- * check, validation scope and pipeline build of the card passes.
+ * What the core lends the impostor family (#1335, #1336): the shared sprite basis, card bit, pixel
+ * scale, held-level read, eviction and diagnostics, and the surfaces, depth, visibility targets,
+ * view, attachments, texture bytes, device check, validation scope and pipeline build of the card
+ * passes. `loadImpostorCode` hands this lend to the family when it arrives
+ * (`../../impostor/borrowed.ts`), and the family reads its types alone: imported by the family,
+ * these core modules would be shared by its chunk and split the CDN core into more chunks, which
+ * gzip worse (`check-bundle-size.ts`).
  */
-export * from '../../impostor/lent.ts'
+export { markCard, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
+export { pixelScaleOf } from '../../streaming/priority.ts'
+export { grownCapacity } from '../../placement/rows.ts'
+export { createHeldLevels, readHeldLevel } from '../../texture/heldLevels.ts'
+export { evictOldest } from '../../streaming/evictOldest.ts'
+export { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 export { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
 export { EMISSIVE_AO_SURFACE_FLAG } from '../../scene/surfaceModel.ts'
 export { DEPTH_CLEAR, DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
-export { VIS_DEPTH, scoped, visTargets } from '../visibility/pipelines.ts'
+export { VIS_DEPTH, VIS_TARGETS, scoped } from '../visibility/pipelines.ts'
 export { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
 export { viewProj } from '../pages/helpers.ts'
 export { surfaceLoadAttachments } from '../pages/prepare/attachments.ts'

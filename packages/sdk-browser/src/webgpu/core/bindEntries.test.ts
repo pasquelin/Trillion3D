@@ -98,8 +98,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     vis,
     gpu: {
       cache: { buffer: {} },
-      surfaces: { subsurfaceView: {}, receiverView: {} },
-      uniformBuffer: {},
+      surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},
       targetSize: [4, 4],
       colorView: {},
@@ -112,15 +111,15 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       },
       gpuDrawCalls: 0,
     },
-    lights: { buffer: {}, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
     blendState,
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime
 
-  // Both constructors of `visBindGroupLayout`: the direct group and that of an indirect slot.
-  ensureWebgpuVisibilityBindings(rt, device)
+  // The constructor of `visBindGroupLayout`: the group of an indirect slot.
+  ensureWebgpuVisibilityBindings(rt)
   assert.ok(visGroupFor(rt, device, BASE_SLOTS, false), 'the slot group is built')
   // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device)
@@ -128,8 +127,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   assert.equal(PAGE_INFO_STRIDE, 272)
   for (const [index, binding] of [
     [0, VIS_BINDINGS.pageTable],
-    [1, VIS_BINDINGS.pageTable],
-    [2, SHADE_BINDINGS.pageTable],
+    [1, SHADE_BINDINGS.pageTable],
   ]) {
     const group = groups[index] as unknown as GPUBindGroupDescriptor
     const entry = [...group.entries].find((entry) => entry.binding === binding)!
@@ -183,18 +181,17 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   raster.encodeOccluders(smallEncoder, rasterInput)
   raster.encodeIds(smallEncoder, rasterInput)
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length])
-  assert.equal(counted.length, 7, 'the six constructors ran, the resolver included')
+  assert.equal(counted.length, 6, 'the five constructors ran, the resolver included')
   for (const [built, expected] of counted)
     assert.equal(built, expected, `a group binds ${built} entries for a layout of ${expected}`)
   assert.deepEqual(
-    counted.slice(0, 5),
+    counted.slice(0, 4),
     [
-      [visCount, visCount],
       [visCount, visCount],
       [shadeCount, shadeCount],
       [blendCount, blendCount],
       [blendCount, blendCount],
     ],
-    'in order: direct group, slot group, hardware resolve, paged then unpaged transparents',
+    'in order: slot group, hardware resolve, paged then unpaged transparents',
   )
 })

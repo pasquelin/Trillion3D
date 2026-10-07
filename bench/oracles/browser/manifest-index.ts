@@ -23,7 +23,6 @@ export function referenceIndexManifestPages(metadata: ClusterManifest) {
         .map((page) => [page.geometry.url, page.geometry]),
     ).values(),
   ]
-  const geometryUrls = new Set(geometryPages.map((page) => page.url))
   const pageIdByUrl = new Map<string, number>([
     ...pages.map((page): [string, number] => [page.url, page.id]),
     ...metadata.primitives
@@ -31,7 +30,7 @@ export function referenceIndexManifestPages(metadata: ClusterManifest) {
       .filter(hasGeometry)
       .map((page): [string, number] => [page.geometry.url, page.id]),
   ])
-  return { pages, geometryPages, geometryUrls, pageIdByUrl }
+  return { pages, geometryPages, pageIdByUrl }
 }
 
 /** Streaming bundles before batch F: one more `flatMap`. */

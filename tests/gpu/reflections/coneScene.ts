@@ -5,10 +5,10 @@
 // host functions the shipped walks read are the proof's — the projection, the depth and its bounds
 // pyramid, the hit and each mip level's colour, as the WebGPU adapter defines them on textures
 // (`screenWgsl.ts`, `coneWgsl.ts`); the walks, the cone and the bands are the engine's text.
-import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts'
-import { screenTraceShader } from '../../../packages/sdk-browser/src/reflections/traceShader.ts'
-import { reflectionConeShader } from '../../../packages/sdk-browser/src/reflections/coneShader.ts'
-import { reflectionConeFilterShader } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts'
+import { REFLECTION_BANDS_WGSL } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts'
+import { SCREEN_TRACE_WGSL } from '../../../packages/sdk-browser/src/reflections/traceShader.ts'
+import { REFLECTION_CONE_TRACE_WGSL } from '../../../packages/sdk-browser/src/reflections/coneShader.ts'
+import { REFLECTION_CONE_FILTER_WGSL } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts'
 
 /** The image's side, in pixels, and its mip levels above the pixels: 32, 16, … 1. */
 const SIDE = 64
@@ -22,17 +22,16 @@ fn reflectionProject(p:vec4f)->vec4f{return p;}
 fn reflectionSize()->vec2f{return vec2f(${SIDE}.0);}
 fn reflectionLastMip()->f32{return ${LEVELS}.0;}
 fn reflectionBoundsLevels()->i32{return ${LEVELS};}
-fn reflectionClearDepth()->f32{return 0.0;}
 fn reflectionDepthAt(p:vec2i)->f32{return 0.2;}
 fn reflectionHitAt(p:vec2i)->vec4f{return vec4f(1.0,(f32(p.x)+0.5)/${SIDE}.0,0.0,1.0);}
 fn reflectionBoundsAt(p:vec2i,level:i32)->vec2f{return vec2f(0.2);}
 fn reflectionMipColorAt(p:vec2i,level:i32)->vec4f{
  return vec4f(1.0,(f32(p.x)+0.5)*exp2(f32(level))/${SIDE}.0,f32(level),1.0);
 }
-${screenTraceShader('wgsl')}
-${reflectionConeFilterShader('wgsl')}
-${reflectionConeShader('wgsl')}
-${reflectionBandsShader('wgsl')}
+${SCREEN_TRACE_WGSL}
+${REFLECTION_CONE_FILTER_WGSL}
+${REFLECTION_CONE_TRACE_WGSL}
+${REFLECTION_BANDS_WGSL}
 @group(0) @binding(0) var<storage,read_write> output:array<vec4f>;
 @group(0) @binding(1) var<storage,read> inputs:array<vec4f>;
 @group(0) @binding(2) var<storage,read_write> control:array<vec4u>;

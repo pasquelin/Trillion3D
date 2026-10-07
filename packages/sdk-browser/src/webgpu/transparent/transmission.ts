@@ -6,10 +6,17 @@ import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
 import { volumeAttenuation } from './volumeLaw.ts'
 
 /** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
- *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the fog word: one record per
- *  transmissive item, read by water rank in a storage buffer. The per-volume terms are computed
+ *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the marks word: one record
+ *  per transmissive item, read by water rank in a storage buffer. The per-volume terms are computed
  *  here once, in f64, not per pixel in f32. */
 export const VOLUME_WORDS = 8
+/** The marks word's bits, a small integer in a float: the surface takes no fog, and it carries an
+ *  anisotropic or clear-coat lobe, whose texel the water composite reads
+ *  (`../water/waterLobesWgsl.ts`). */
+export const VOLUME_FOG_FREE = 1
+export const VOLUME_LOBED = 2
+/** Whether volume `vol`'s marks word holds `bit`: every read of the word in a composite. */
+export const VOLUME_MARKED_WGSL = `fn volumeMarked(vol:Volume,bit:u32)->bool{return (u32(vol.attenuation.w)&bit)!=0u;}`
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
@@ -81,7 +88,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed[base + 2] = mat.thickness
     packed[base + 3] = reflectance * reflectance
     packed.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), base + 4)
-    packed[base + 7] = mat.fog === false ? 1 : 0
+    packed[base + 7] = (mat.fog === false ? VOLUME_FOG_FREE : 0) | (item.lobed ? VOLUME_LOBED : 0)
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed)
 }

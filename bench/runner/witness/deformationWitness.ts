@@ -1,9 +1,10 @@
 // Recette-only reference pose: original public glTF, independent Three animation evaluation.
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
 import { octets } from './threeBareScene.ts'
 import { posterCapture } from '../harness/measurePage.ts'
+import { readWitnessImage } from './threeRenderer.ts'
 
 /** Source graph and mixers for the walking/crowd and morph examples; no engine implementation. */
 export async function deformationWitness(source: string, count: 1 | 10 | 100) {
@@ -45,18 +46,15 @@ export async function deformationWitness(source: string, count: 1 | 10 | 100) {
   }
 }
 
-/** Use the existing capture transport/image-diff path; caller supplies identical lights/camera. */
+/** Use the existing capture transport/image-diff path; caller supplies identical lights/camera and
+ *  a renderer from `createWitnessRenderer` (`threeRenderer.ts`). */
 export async function captureDeformationWitness(
-  renderer: THREE.WebGLRenderer,
+  renderer: THREE.WebGPURenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
   file: string,
 ) {
-  renderer.render(scene, camera)
-  const gl = renderer.getContext(),
-    width = gl.drawingBufferWidth,
-    height = gl.drawingBufferHeight
-  const pixels = new Uint8Array(width * height * 4)
-  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+  const { x: width, y: height } = renderer.getDrawingBufferSize(new THREE.Vector2())
+  const pixels = await readWitnessImage(renderer, scene, camera)
   return posterCapture(file, pixels, width, height)
 }

@@ -3,9 +3,11 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import { compactDrawnPages } from './globals.ts'
-import { TRANSPARENT_STAGES, words } from './mockComputeBlend.ts'
-import { childBase, selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
+import { floats, words } from './mockBuffers.ts'
+import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
+import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
@@ -18,40 +20,23 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import {
-  keepSnapshot,
-  writeDifference,
-} from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
+  stagedPage,
+  stagedPriority,
+} from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
+import { LIST_KERNELS, mirrorListStage } from './mockLists.ts'
 
-/** The camera cut's kernels the double replays, all on the selection's one bind group. */
+/** The camera cut's kernels the double replays, on the selection's bind group or one of its
+ *  entries (a kept list's: `rankGroups`). */
 const DAG_STAGES = new Set([
   'dagMask',
   'dagDrawScatter',
   'dagSortRequests',
   'dagListEvictions',
-  'dagCutDifference',
-  'dagCutKeep',
+  ...LIST_KERNELS,
 ])
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>
-}
-
-/** The DAG selection uniform block as the shader reads it: the camera, and the resident-cut switch. */
-function readDagUniforms(data: Uint8Array) {
-  const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
-  const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4)
-  return {
-    uniforms: {
-      planes: f32.slice(0, 24),
-      view: f32.slice(24, 40),
-      pixelScale: [f32[40], f32[41]] as [number, number],
-      pixelError: f32[42],
-      near: f32[43],
-      cameraWorld: [f32[48], f32[49], f32[50]] as [number, number, number],
-      cameraStretch: f32[51],
-    },
-    residentCut: !!u32[47],
-  }
 }
 
 export function simulateComputeDispatch(
@@ -68,24 +53,13 @@ export function simulateComputeDispatch(
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
     )
-    const uniBytes = byBinding.get(1)!.data
-    const uni = new Uint32Array(uniBytes.buffer, uniBytes.byteOffset, uniBytes.byteLength / 4)
+    const uni = words(byBinding.get(1)!.data)
     const count = uni[0],
       maxVertexCount = uni[1],
       slotCap = uni[2]
-    const itemBytes = byBinding.get(0)!.data
-    const itemInts = new Uint32Array(
-      itemBytes.buffer,
-      itemBytes.byteOffset,
-      itemBytes.byteLength / 4,
-    )
+    const itemInts = words(byBinding.get(0)!.data)
     const n = Math.min(count, slotCap)
-    const restBytes = byBinding.get(7)!.data
-    const restInts = new Uint32Array(
-      restBytes.buffer,
-      restBytes.byteOffset,
-      restBytes.byteLength / 4,
-    )
+    const restInts = words(byBinding.get(7)!.data)
     const restAt = (i: number) => ((restInts[i >> 5] >> (i & 31)) & 1) as 0 | 1
     const items: DrawItem[] = []
     for (let i = 0; i < n; i++)
@@ -105,28 +79,19 @@ export function simulateComputeDispatch(
           )
         : items
     const maskBytes = byBinding.get(6)?.data
-    const mask = maskBytes ? new Uint32Array(maskBytes.buffer) : undefined
+    const mask = maskBytes ? words(maskBytes) : undefined
     const filtered =
       uni[4] && mask
         ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0)
         : source
     const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
-    const offsets = byBinding.get(5)!.data
-    new Uint32Array(offsets.buffer).set(
-      result.counts.map((_, slot) => result.indirect[slot * 4 + 3]),
-    )
-    const instBytes = byBinding.get(2)!.data
-    new Uint32Array(instBytes.buffer, instBytes.byteOffset, instBytes.byteLength / 4).set(
-      result.instances,
-    )
-    const indBytes = byBinding.get(3)!.data
-    new Uint32Array(indBytes.buffer, indBytes.byteOffset, indBytes.byteLength / 4).set(
-      indirectForDraw(result),
-    )
+    words(byBinding.get(5)!.data).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
+    words(byBinding.get(2)!.data).set(result.instances)
+    words(byBinding.get(3)!.data).set(indirectForDraw(result))
     return
   }
   const stage = computePipeline?.entryPoint
-  if (!packed || !computeBind || !DAG_STAGES.has(stage ?? '')) return
+  if (!computeBind || !DAG_STAGES.has(stage ?? '')) return
   // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error.
   const slots = Object.keys(DAG_BINDING).length
   if (computeBind.entries.length !== slots)
@@ -134,56 +99,57 @@ export function simulateComputeDispatch(
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   )
-  if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, packed.pageCount)
-  // The difference against the snapshot kept, then this one kept, through the kernels' mirror.
-  if (stage === 'dagCutDifference' || stage === 'dagCutKeep')
-    return (stage === 'dagCutDifference' ? writeDifference : keepSnapshot)(
-      words(byBinding.get(DAG_BINDING.out)!.data),
-      selectionListCap(packed.pageCount),
-    )
-  if (stage === 'dagListEvictions') return mockEvictions(byBinding, packed).list()
+  // A test that hands no DAG reads the one the session uploaded (`mockDag.ts`).
+  const dag = packed ?? packedFromBindings(byBinding),
+    listCap = boundListCap(byBinding)
+  if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
+  if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
+  if (stage === 'dagListEvictions') return mockEvictions(byBinding, dag).list()
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
       byBinding.get(DAG_BINDING.flags)!.data,
       byBinding.get(DAG_BINDING.out)!.data,
-      packed.nodeCount,
-      packed.pageCount,
+      dag.nodeCount,
+      dag.pageCount,
     )
   if (stage !== 'dagMask') return
-  const { uniforms, residentCut } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data)
+  const { uniforms } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data)
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
   const cold = words(byBinding.get(DAG_BINDING.cold)!.data)
-  const resident = residentCut
-    ? {
-        ready: residentFlags(cold, packed.pageCount),
-        childReady: residentFlags(cold, packed.pageCount, childBase(packed.pageCount)),
-      }
-    : undefined
+  const resident = {
+    ready: residentFlags(cold, dag.pageCount),
+    childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
+  }
   // World matrices are read IN THE BOUND BUFFER, where the shader reads them: image entry writes
   // them there brought back to the eye, and the view and planes of the same uniform block are of
   // that frame. A copy made at packing would put absolute worlds under a view with no translation
   // — two frames in one formula, and not a single page kept.
-  const tampon = byBinding.get(DAG_BINDING.worlds)!.data
-  const worlds = new Float32Array(tampon.buffer, tampon.byteOffset, packed.worlds.length)
+  const worlds = floats(byBinding.get(DAG_BINDING.worlds)!.data).subarray(0, dag.worlds.length)
   // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
   // (`parkWorld`), and the cut skips it as the shader does.
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data)
-  const rootNodes = packed.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
-  const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident)
-  mockEvictions(byBinding, packed).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
-  // `dagMask` posts a draw flag for every page, resident cut or not: `dagDrawScatter` compacts them.
-  const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer)
-  flags.fill(0, packed.nodeCount, packed.nodeCount + packed.pageCount)
-  for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1
-  const out = byBinding.get(DAG_BINDING.out)!.data
-  const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4)
+  const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
+  const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
+  mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
+  // `dagMask` posts a draw flag for every drawn page: `dagDrawScatter` compacts them.
+  const flags = words(byBinding.get(DAG_BINDING.flags)!.data)
+  flags.fill(0, dag.nodeCount, dag.nodeCount + dag.pageCount)
+  for (const id of result.drawablePageIds ?? []) flags[dag.nodeCount + id] = 1
+  const ints = words(byBinding.get(DAG_BINDING.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
   writeTriangleTotals(ints, result)
-  // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads.
-  const list = result.requestWords
+  // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads:
+  // two words each, the page then its priority.
+  const list = result.requestWords,
+    at = stagedRequestsWord(listCap)
   ints[0] = list.length
-  ints.set(list, stagedRequestsWord(selectionListCap(packed.pageCount)))
+  // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
+  ints[3] = list.length > listCap ? 1 : 0
+  list.slice(0, listCap).forEach((staged, s) => {
+    ints[at + 2 * s] = stagedPage(staged)
+    ints[at + 2 * s + 1] = stagedPriority(staged)
+  })
 }

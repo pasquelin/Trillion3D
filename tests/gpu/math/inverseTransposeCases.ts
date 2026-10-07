@@ -8,14 +8,12 @@ import {
   frustumPlanesFromMatrix,
 } from '../../../packages/sdk-core/src/index.ts'
 import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
-import {
-  coneContextFor,
-  coneCullsPageWith,
-  createConeContext,
-  type NormalCone,
-} from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import {
   createEngineCamera,
@@ -121,7 +119,7 @@ export function rawOrientation(lit: Case) {
     const centre = v[0].clone().add(v[1]).add(v[2]).divideScalar(3)
     const facing = normal.dot(camera.position.clone().sub(centre).normalize())
     const ndc = v.map((p) => project(p.clone(), camera))
-    const inView = ndc.every((p) => Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && Math.abs(p.z) < 1)
+    const inView = ndc.every((p) => Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && p.z > 0 && p.z < 1)
     const cross2 =
       (ndc[1].x - ndc[0].x) * (ndc[2].y - ndc[0].y) - (ndc[2].x - ndc[0].x) * (ndc[1].y - ndc[0].y)
     const areaPixels = (Math.abs(cross2) * (VIEWPORT[0] / 2) * (VIEWPORT[1] / 2)) / 2
@@ -188,7 +186,6 @@ export function cpuDecision(lit: Case) {
   const root = {
     world: lit.world,
     pages: [page],
-    cones: true,
     worldBox: new Float64Array([...box.min.toArray(), ...box.max.toArray()]),
   }
   const triangles = selectVisiblePages([root], view, {

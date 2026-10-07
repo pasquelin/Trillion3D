@@ -41,6 +41,9 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc7-rgba-unorm-srgb': 16,
   'astc-4x4-unorm': 16,
   'astc-4x4-unorm-srgb': 16,
+  'etc2-rgba8unorm': 16,
+  'etc2-rgba8unorm-srgb': 16,
+  'eac-rg11unorm': 16,
 }
 
 function extent(size: GPUExtent3D): [number, number, number] {

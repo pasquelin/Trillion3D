@@ -30,10 +30,11 @@ for (const [kernel, bindings] of KERNELS) {
   })
 }
 
-// The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
-// frame ranges, which bind the selection kernel's group 0 per range for the camera cut.
+// The two probes (the selection kernel's group is built with its case, `selectionCase.ts`), the
+// cut oracle whose frozen descent still binds the shipped group 0, and the frame ranges, which
+// bind the selection kernel's group 0 per range for the camera cut.
 const BUILDERS = [
-  '../../../../../tests/gpu/dag/selectionKernel.ts',
+  '../../../../../tests/gpu/dag/selectionCase.ts',
   '../../../../../tests/gpu/blend/scatterKernel.ts',
   '../../../../../bench/oracles/browser/cut-dispatches.ts',
   './frameRanges.ts',

@@ -28,8 +28,57 @@ export function createGpuRaster(
   height: number,
   capacity: number,
 ) {
-  // One storage buffer for the image and for the lists: the compute stage is allowed only eight
-  // buffers on the poorest device WebGPU guarantees, and the raster uses them all.
+  const { targetBytes, listOffset, work, indirect } = rasterBuffers(device, width, height, capacity)
+  const { computeLayout, ...pipelines } = rasterPipelines(device, capacity, listOffset)
+  const r: Raster = {
+    ...{ width, height, work, indirect, listOffset, ...pipelines },
+    resolves: createRasterResolves(device, RESOLVE, work, targetBytes),
+    bindings: createRasterBindings(device, computeLayout, work),
+    group: undefined,
+  }
+  return {
+    width,
+    height,
+    capacity,
+    /**
+     * Occluder half: binning the cut, occluder depth, and its merge into pyramid level zero and
+     * the depth buffer the hardware raster just wrote. Returns the number of compute dispatches
+     * encoded.
+     */
+    encodeOccluders: (encoder: GPUCommandEncoder, input: GpuRasterInput) =>
+      encodeOccluders(r, encoder, input),
+    /** Surviving tested half, after the pyramid verdict. */
+    encodeRest(encoder: GPUCommandEncoder) {
+      encodeMode(r, encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth')
+      return RASTER_CLASSES.length
+    },
+    /** Identifier resolve over everything that was drawn, and the frame closed. */
+    encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
+      encodeMode(r, encoder, MODE_ID, 'Trillion3D raster identifiers')
+      r.resolves.encodeFinal(encoder, input, width, height)
+      return RASTER_CLASSES.length
+    },
+    dispose() {
+      work.destroy()
+      indirect.destroy()
+    },
+  }
+}
+
+type Raster = Omit<ReturnType<typeof rasterPipelines>, 'computeLayout'> & {
+  width: number
+  height: number
+  work: GPUBuffer
+  indirect: GPUBuffer
+  listOffset: number
+  resolves: ReturnType<typeof createRasterResolves>
+  bindings: ReturnType<typeof createRasterBindings>
+  group: GPUBindGroup | undefined
+}
+
+/** One storage buffer for the image and for the lists: the compute stage is allowed only eight
+ *  buffers on the poorest device WebGPU guarantees, and the raster uses them all. */
+function rasterBuffers(device: GPUDevice, width: number, height: number, capacity: number) {
   const targetBytes = Math.max(8, width * height * 8),
     listOffset = targetBytes
   const work = device.createBuffer({
@@ -44,6 +93,10 @@ export function createGpuRaster(
     size: DISPATCH_WORDS * 4,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   })
+  return { targetBytes, listOffset, work, indirect }
+}
+
+function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number) {
   const b = SMALL_BINDINGS
   const compute = GPUShaderStage.COMPUTE
   const computeLayout = device.createBindGroupLayout({
@@ -79,66 +132,42 @@ export function createGpuRaster(
       pipelineFor(rasterEntry(klass, mode)),
     ),
   )
-  const resolves = createRasterResolves(device, RESOLVE, work, targetBytes)
-  const bindings = createRasterBindings(device, computeLayout, work)
-  let group: GPUBindGroup | undefined
-  /** The four indirect dispatches of a mode, in a single compute pass. */
-  const encodeMode = (encoder: GPUCommandEncoder, mode: number, label: string) => {
-    const pass = encoder.beginComputePass({ label })
-    pass.setBindGroup(0, group!)
-    for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
-      pass.setPipeline(raster[klass]![mode]!.get())
-      pass.dispatchWorkgroupsIndirect(indirect, klass * 12)
-    }
-    pass.end()
+  return { computeLayout, clear, bin, plan, raster }
+}
+
+/** The four indirect dispatches of a mode, in a single compute pass. */
+function encodeMode(r: Raster, encoder: GPUCommandEncoder, mode: number, label: string) {
+  const pass = encoder.beginComputePass({ label })
+  pass.setBindGroup(0, r.group!)
+  for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
+    pass.setPipeline(r.raster[klass]![mode]!.get())
+    pass.dispatchWorkgroupsIndirect(r.indirect, klass * 12)
   }
-  return {
-    width,
-    height,
-    capacity,
-    /**
-     * Occluder half: binning the cut, occluder depth, and its merge into pyramid level zero and
-     * the depth buffer the hardware raster just wrote. Returns the number of compute dispatches
-     * encoded.
-     */
-    encodeOccluders(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      group = bindings(input)
-      encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES)
-      const rows = Math.max(1, input.pageRows),
-        spanY = Math.min(rows, DISPATCH_SPAN),
-        spanZ = Math.ceil(rows / DISPATCH_SPAN)
-      const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' })
-      binning.setBindGroup(0, group)
-      binning.setPipeline(clear.get())
-      binning.dispatchWorkgroups(Math.ceil((width * height) / 64))
-      binning.setPipeline(bin.get())
-      binning.dispatchWorkgroups(Math.max(1, Math.ceil(input.maxTriangles / 64)), spanY, spanZ)
-      binning.setPipeline(plan.get())
-      binning.dispatchWorkgroups(1)
-      binning.end()
-      encoder.copyBufferToBuffer(work, listOffset + 24, indirect, 0, DISPATCH_WORDS * 4)
-      // One pass per raster dispatch: two consecutive dispatches already see each other's
-      // writes, so every class has written its depth before any chooses an identifier. An
-      // identifier chosen before a class has written its depth would name a losing triangle.
-      encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth')
-      if (input.tested) resolves.encodeHiz(encoder, input, width, height)
-      return 3 + RASTER_CLASSES.length
-    },
-    /** Surviving tested half, after the pyramid verdict. */
-    encodeRest(encoder: GPUCommandEncoder) {
-      encodeMode(encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth')
-      return RASTER_CLASSES.length
-    },
-    /** Identifier resolve over everything that was drawn, and the frame closed. */
-    encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      encodeMode(encoder, MODE_ID, 'Trillion3D raster identifiers')
-      resolves.encodeFinal(encoder, input, width, height)
-      return RASTER_CLASSES.length
-    },
-    dispose() {
-      work.destroy()
-      indirect.destroy()
-    },
-  }
+  pass.end()
+}
+
+function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRasterInput) {
+  const { width, height, work, listOffset } = r
+  const group = (r.group = r.bindings(input))
+  encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES)
+  const rows = Math.max(1, input.pageRows),
+    spanY = Math.min(rows, DISPATCH_SPAN),
+    spanZ = Math.ceil(rows / DISPATCH_SPAN)
+  const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' })
+  binning.setBindGroup(0, group)
+  binning.setPipeline(r.clear.get())
+  binning.dispatchWorkgroups(Math.ceil((width * height) / 64))
+  binning.setPipeline(r.bin.get())
+  binning.dispatchWorkgroups(Math.max(1, Math.ceil(input.maxTriangles / 64)), spanY, spanZ)
+  binning.setPipeline(r.plan.get())
+  binning.dispatchWorkgroups(1)
+  binning.end()
+  encoder.copyBufferToBuffer(work, listOffset + 24, r.indirect, 0, DISPATCH_WORDS * 4)
+  // One pass per raster dispatch: two consecutive dispatches already see each other's
+  // writes, so every class has written its depth before any chooses an identifier. An
+  // identifier chosen before a class has written its depth would name a losing triangle.
+  encodeMode(r, encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth')
+  if (input.tested) r.resolves.encodeHiz(encoder, input, width, height)
+  return 3 + RASTER_CLASSES.length
 }
 export type GpuRaster = ReturnType<typeof createGpuRaster>

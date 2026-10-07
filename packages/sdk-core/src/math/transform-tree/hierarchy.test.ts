@@ -1,5 +1,6 @@
 // Parent/child rules of the hierarchy and the camera, each stated and checked on its own
-// (the replay against a host library lives in the bench, `bench/perf/browser/hierarchy.perf.ts`).
+// (the replay against the witness library lives in the bench,
+// `bench/perf/browser/hierarchy.perf.ts`).
 // Rules: a world matrix is the parent's world matrix times the local one; a mirrored or
 // zero-scale ancestor stays finite; a reparent moves the world pose with the new parent; `lookAt`
 // puts the node's axis on the line of sight and has a defined answer when the eye is on the

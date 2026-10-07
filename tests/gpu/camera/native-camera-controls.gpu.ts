@@ -85,7 +85,7 @@ async function playGestures() {
       const moved = gesture(probe)
       played.push({ kind, home, moved, ...(await probe.end()) })
     }
-    return { backend: probe.world.backend, played }
+    return played
   } finally {
     probe.dispose()
   }
@@ -96,14 +96,13 @@ test(
   { timeout: 300_000 },
   async () => {
     const errors: string[] = []
-    const { backend, played } = await runOnDawn(playGestures, null, errors)
+    const played = await runOnDawn(playGestures, null, errors)
     console.log(
       JSON.stringify(
         played.map(({ kind, changes, differences }) => ({ kind, changes, differences })),
       ),
     )
     assert.deepEqual(errors, [])
-    assert.equal(backend, 'webgpu-page-raster')
     for (const { kind, home, moved, pose, changes, bytes, differences } of played) {
       assert.ok(changes > 0, `${kind} emitted no change`)
       assert.ok(bytes > 0, `${kind} drew nothing`)

@@ -10,7 +10,7 @@ import {
   primitiveUsesClusterErrors,
   type ClusterManifest,
 } from '../../../packages/sdk-core/src/index.ts'
-import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type {
   PageRec,
   ClusterRoot,
@@ -44,7 +44,7 @@ export function referenceCollectClusterPages(
   source: Object3D,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
-  associations: BackendContext['associations'],
+  associations: EngineContext['associations'],
   options: { allowMissing?: boolean } = {},
 ) {
   const roots: ReferenceRoot[] = [],
@@ -116,7 +116,6 @@ export function referenceCollectClusterPages(
         depthLayer: page.depthLayer ?? 0,
         attributes: mesh.geometry.attributes,
         material: surfaceOf(mesh.material),
-        declaration: mesh.material,
         transparent,
         sourceMesh: mesh,
         sourceOrder: sourceOrder[pageIndex],

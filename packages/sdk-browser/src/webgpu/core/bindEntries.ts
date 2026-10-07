@@ -1,7 +1,6 @@
 import { bufferEntry, resourceEntry } from './liveEntries.ts'
 import type { WebgpuTileStreamer } from '../tile/streamer.ts'
 import {
-  BLEND_BINDINGS,
   SHADE_BINDINGS,
   SMALL_BINDINGS,
   VIS_BINDINGS,
@@ -10,7 +9,7 @@ import {
 } from './bindLayout.ts'
 /** What every pass that samples an atlas needs to bind: the streamer, which holds each atlas's
  *  pool and page table, and the sampler. */
-type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler }
+export type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler }
 /** Direct and indirect visibility paths supply their own flags and slot buffers. */
 export type VisBindResources = AtlasResources & {
   cache: GPUBuffer
@@ -38,50 +37,10 @@ export type ShadeBindResources = AtlasResources & {
   uniform: GPUBuffer
   /** The frame's cache (`../../visibility/shader/shadeCacheWgsl.ts`). */
   shadeCache: GPUBuffer
+  /** The physical records (`../visibility/physicalTable.ts`) and the lobes target the resolve writes. */
+  physical: GPUTextureView
+  lobes: GPUTextureView
 }
-/** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
-export type BlendLighting = {
-  directLights: GPUBuffer
-  /** The virtual shadow maps a transparent samples (`BLEND_VSM_BINDINGS`), on the old shadow
-   *  numbers: page table, projection data, uniforms and the pool's dynamic slice. */
-  shadowData: GPUBuffer
-  shadowAtlas: GPUBuffer
-  shadowSampler: GPUBuffer
-  /** The translucent casters' transmission atlas (`vsmTransmissionReadWgsl`), or its one-texel
-   *  stand-in. */
-  shadowTransmittance: GPUTextureView
-  shadowTranslucentDepth: GPUBuffer
-  bounceGrid: GPUBuffer
-  /** The probes' atlas (`../../bounce/atlas.ts`). */
-  probes: GPUTextureView
-  /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
-  tileLights: GPUBuffer
-  /** The resident proxy, the very one the opaque resolve binds. */
-  proxy: GPUBuffer
-  /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
-  surfaceCache: GPUTextureView
-}
-
-/** Resources of a transparent-mesh group: the mesh itself and the scene. */
-export type BlendBindResources = AtlasResources &
-  BlendLighting & {
-    indices: GPUBuffer
-    positions: GPUBuffer
-    uvs: GPUBuffer
-    /** One VIEW uniform for the pass: projection, eye, lamp tiles and diagnostic flags. */
-    uniform: GPUBuffer
-    uniformSize: number
-    /** Item records, indexed by the item's rank in the scene (`../blend/items.ts`). */
-    items: GPUBuffer
-    /** The float pool's normal atlas, or the empty one. */
-    normals: GPUTextureView
-    /** Identity of a transparent cluster, one per draw-table entry. */
-    clusterDiagnostic: GPUBuffer
-    /** Instance list expanded for the image, and each cluster's span in the cache. */
-    planInstances: GPUBuffer
-    clusterSpans: GPUBuffer
-  }
-
 /** Resources of the software raster of small triangles: it only reads the alpha cutout. */
 export type SmallBindResources = AtlasResources & {
   indices: GPUBuffer
@@ -97,7 +56,7 @@ export type SmallBindResources = AtlasResources & {
 }
 
 /** The four entries of an atlas: one view per lane, in `POOL_LANES` order, and its page table. */
-const atlasEntries = (
+export const atlasEntries = (
   bindings: AtlasBindings,
   read: () => WebgpuTileStreamer['color'],
 ): GPUBindGroupEntry[] => [
@@ -105,9 +64,8 @@ const atlasEntries = (
   bufferEntry(bindings.pages, () => read()?.pages.buffer),
 ]
 
-/** The unique entry list of `visBindGroupLayout`. Both of its constructors — the direct group and
- *  that of an indirect slot — go through here, so a binding added to the layout can no longer be
- *  missing from either. */
+/** The unique entry list of `visBindGroupLayout`: every indirect slot's group goes through here, so
+ *  a binding added to the layout can no longer be missing from one. */
 export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
   const b = VIS_BINDINGS
   return [
@@ -147,41 +105,8 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.uniform, () => r.uniform),
     ...atlasEntries(b.data, () => r.textures?.data),
     bufferEntry(b.shadeCache, () => r.shadeCache),
-  ]
-}
-
-/** The unique entry list of `blendBindGroupLayout`. */
-export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
-  const b = BLEND_BINDINGS
-  return [
-    bufferEntry(b.indices, () => r.indices),
-    bufferEntry(b.positions, () => r.positions),
-    bufferEntry(b.uvs, () => r.uvs),
-    bufferEntry(
-      b.uniform,
-      () => r.uniform,
-      undefined,
-      () => r.uniformSize,
-    ),
-    bufferEntry(b.items, () => r.items),
-    ...atlasEntries(b.color, () => r.textures?.color),
-    resourceEntry(b.sampler, () => r.sampler),
-    ...atlasEntries(b.data, () => r.textures?.data),
-    resourceEntry(b.normals, () => r.normals),
-    bufferEntry(b.directLights, () => r.directLights),
-    bufferEntry(b.clusterDiagnostic, () => r.clusterDiagnostic),
-    bufferEntry(b.planInstances, () => r.planInstances),
-    bufferEntry(b.clusterSpans, () => r.clusterSpans),
-    bufferEntry(b.shadowData, () => r.shadowData),
-    bufferEntry(b.shadowAtlas, () => r.shadowAtlas),
-    bufferEntry(b.shadowSampler, () => r.shadowSampler),
-    resourceEntry(b.shadowTransmittance, () => r.shadowTransmittance),
-    bufferEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
-    bufferEntry(b.bounceGrid, () => r.bounceGrid),
-    resourceEntry(b.probes, () => r.probes),
-    bufferEntry(b.tileLights, () => r.tileLights),
-    bufferEntry(b.proxy, () => r.proxy),
-    resourceEntry(b.surfaceCache, () => r.surfaceCache),
+    resourceEntry(b.physical, () => r.physical),
+    resourceEntry(b.lobes, () => r.lobes),
   ]
 }
 

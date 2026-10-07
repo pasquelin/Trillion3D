@@ -1,5 +1,6 @@
 import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
-import { collectClusterPages, selectVisiblePages } from '../../page/selection/selection.ts'
+import { collectClusterPages } from '../../page/selection/selection.ts'
+import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { packDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'

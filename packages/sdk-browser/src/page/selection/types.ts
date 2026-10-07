@@ -1,5 +1,5 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
-import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts'
+import type { HostAttributes, HostMesh } from '../../host/resources.ts'
 import type { PageSurface } from '../surface.ts'
 import type { MatrixElements } from '../../math/matrixElements.ts'
 import type { NormalCone } from '../cone/cone.ts'
@@ -31,10 +31,6 @@ export type PageRec = {
    *  transparent cluster — its forward draw still reads an index buffer — and on a cache that
    *  carries no geometry page, both of which keep the source float buffers. */
   geometryPage?: GeometryPageDescriptor
-  /** The cluster page cut again from its source vertices on the grids of the class its material
-   *  moved to in the session, when that class is not the one the compiler cut it for (#846): the
-   *  WebGL2 page path draws it in place of the page it reads at `url`. */
-  recut?: Uint8Array
   min: number[]
   max: number[]
   /** Where a dynamic page's vertices are this frame (#573), set by each rewrite its session takes
@@ -66,11 +62,6 @@ export type PageRec = {
   /** The engine's own record of the surface this cluster wears (`../surface.ts`). Every reader
    *  on the way to the image takes it from here and nothing else. */
   material: PageSurface
-  /** The host declaration the record was read from, carried for the ONE use that needs the object
-   *  itself: handing a surface back to the library that owns it — the WebGL2 witness draw, the
-   *  transparent copy, the diagnostic materials. The closed list of
-   *  `tests/integration/engine-without-three.test.ts` says who may read it. */
-  declaration: HostMaterials
   transparent?: boolean
   sourceMesh?: HostMesh
   /** GPU deformation output (#357): in this page's cache slot, in words from its start; or, for a
@@ -80,12 +71,13 @@ export type PageRec = {
   deformationOutput?: DeformationOutput
   sourceOrder?: number
   renderOrder: number
+  /** The cone of its triangles' normals the compiler cooked, opened at collection on a surface
+   *  that shows its back (`./collectRecords.ts`); absent on a page that keeps none. */
   cone?: NormalCone
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number
-  /** The residency's key of the page: its rank in the WebGPU host catalogue, set once, or the
-   *  WebGL2 residency's key, checked against the URL it names (`backend/autonomous/pageKeys.ts`).
-   *  Residency and pinning without hashing. */
+  /** The residency's key of the page: its rank in the host catalogue, set once. Residency and
+   *  pinning without hashing. */
   keyIndex?: number
   /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
    *  first (`../../residency/minimumCapacity.ts`). */
@@ -123,9 +115,6 @@ export type ClusterRoot<T> = {
    *  its packed rank, and its root is the one the layout ranked here. Posted by the layout, read
    *  by the cut (`page/cut/take.ts`) to publish the instances as packed ranks. */
   packedBase?: number
-  /** WebGL placement control record, zero when the placement is rigid: per placement, so on the
-   *  root, never on its shared pages (#1235). */
-  deformRecord?: number
   /** Compiled mesh number of its primitive (`Primitive.mesh`), the key the compiler bakes each
    *  `impostors` entry under: the runtime impostor switch looks the mesh up by exactly this number
    *  (#1239), never through a table of its own. */
@@ -146,12 +135,6 @@ export type ClusterRoot<T> = {
   stretch?: number
   stretchKey?: Float64Array
   structure?: ClusterStructureIndex
-  /** What the root declares of its normal cones, once and for all at prepare time: `false` says
-   *  the cut reads none of its pages' cones — they may carry the cooked one (`collect.ts`) — and
-   *  then stops reading `cone` per cluster. Absent or `true`, the cut tests every page as before.
-   *  Whoever posts a cone for the cut sets this flag on its root: that is the only contract that
-   *  makes the omission visible. */
-  cones?: boolean
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node
    *  entirely inside the frustum. Absent or `false`, it tests every page as before. Whoever
@@ -168,8 +151,7 @@ export type ClusterRoot<T> = {
    *  `SHADOWLESS_ROOT` while its mesh or row casts no shadow (`followPlacementRows`,
    *  `followHostVisibility`). */
   mark?: number
-  /** The instance-buffer row this root reads its world from, when it was collected from one: an
-   *  engine drawn by the host renderer draws its pages instanced, one mesh per page and surface. */
+  /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */

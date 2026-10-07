@@ -1,4 +1,4 @@
-import type { BackendDiagnostic } from '../backend/types.ts'
+import type { EngineDiagnostic } from '../engine/types.ts'
 import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
 
@@ -63,7 +63,7 @@ export interface PageStreamerOptions {
   /** Bytes the transfer queue may hold; 8 MiB by default. */
   maxTransferBytes?: number
   /** Hears each step of every read. */
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+  onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
   maxCachedBytes?: number
@@ -96,7 +96,7 @@ export type StreamContext = {
   maxPages?: number
   maxTransferBytes: number
   onEvict?: (url: string) => void
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+  onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   state: {
     order: number
     active: number

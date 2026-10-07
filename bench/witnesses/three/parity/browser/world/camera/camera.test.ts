@@ -1,18 +1,17 @@
 // Batch M4a, camera.ts: framing by flat bounds and core `sphereFromBounds` instead of
 // a host box's centre and half-diagonal. Confronted bit for bit (Object.is) with the old
-// path, autonomous and non-autonomous, on hostile bounds.
+// path on hostile bounds.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { createExplorerCamera } from '../../../../../../../packages/sdk-browser/src/world/camera/camera.ts'
-import type { ClusterManifest } from '../../../../../../../packages/sdk-core/src/index.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { threeGraph } from '../../../../fromGraphNodes.ts'
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement
 
-/** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
+/** The old path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
 function referenceFraming(graph: G.Object3D) {
   const source = threeGraph(graph)
   const bounds = new THREE.Box3()
@@ -42,17 +41,10 @@ function hostileScene() {
   return rootNode
 }
 
-test('createExplorerCamera (non-autonomous) yields the same bounds, centre and radius as expandByObject + getCenter/getSize().length()/2', () => {
+test('createExplorerCamera yields the same bounds, centre and radius as expandByObject + getCenter/getSize().length()/2', () => {
   const source = hostileScene()
   const { bounds: b, center, radius } = referenceFraming(source)
-  const rendered = createExplorerCamera(
-    hostileScene(),
-    false,
-    new Map(),
-    { primitives: [] } as unknown as ClusterManifest,
-    canvas,
-    { manifestUrl: '' },
-  )
+  const rendered = createExplorerCamera(hostileScene(), canvas, { manifestUrl: '' })
   assertBits(
     [rendered.bounds.min.x, rendered.bounds.min.y, rendered.bounds.min.z],
     [b.min.x, b.min.y, b.min.z],
@@ -68,49 +60,11 @@ test('createExplorerCamera (non-autonomous) yields the same bounds, centre and r
   assert.ok(Object.is(rendered.radius, radius), `radius: ${rendered.radius} !== ${radius}`)
 })
 
-test('createExplorerCamera (autonomous) yields the same bounds, centre and radius as the reference pagesBounds/expandByObject', () => {
-  const geometry = new G.Geometry()
-  const source = new G.Group()
-  const mesh = G.mesh(geometry, G.basicSurface())
-  mesh.position.set(4, -2, 0)
-  source.add(mesh)
-  const metadata = {
-    primitives: [{ mesh: 0, primitive: 0, pages: [{ id: 0, min: [-1, -1, -1], max: [1, 1, 1] }] }],
-  } as unknown as ClusterManifest
-  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
-    [mesh, { meshes: 0, primitives: 0 }],
-  ])
-  const rendered = createExplorerCamera(source, true, associations, metadata, canvas, {
-    manifestUrl: '',
-  })
-  // Reference: the same page transformed by the mesh world matrix, as a host box transforms.
-  // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
-  source.updateMatrixWorld(true)
-  const expected = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1)).applyMatrix4(
-    mesh.matrixWorld,
-  )
-  const center = expected.getCenter(new G.Vector3()),
-    radius = expected.getSize(new G.Vector3()).length() / 2
-  assertBits(
-    [rendered.center.x, rendered.center.y, rendered.center.z],
-    [center.x, center.y, center.z],
-  )
-  assert.ok(Object.is(rendered.radius, radius))
-})
-
 test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
   const source = new G.Group()
   source.add(new G.Group())
   assert.throws(
-    () =>
-      createExplorerCamera(
-        source,
-        false,
-        new Map(),
-        { primitives: [] } as unknown as ClusterManifest,
-        canvas,
-        { manifestUrl: '' },
-      ),
+    () => createExplorerCamera(source, canvas, { manifestUrl: '' }),
     /Empty scene bounds/,
   )
 })

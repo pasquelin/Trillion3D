@@ -1,7 +1,7 @@
 /**
  * The `WGP3` quantized cluster page as every reader must know it (`docs/FORMAT.md`): the shared
  * Rust codec (`packages/page-codec-wasm/src/bits.rs`) is the source of these numbers, the
- * JavaScript decoder (`../page/decode/geometryPage.ts`) and the WGSL routines (`decodeWgsl.ts`) repeat
+ * JavaScript decoder (`../page/codec/geometryPage.ts`) and the WGSL routines (`decodeWgsl.ts`) repeat
  * them here so the three decode the same bytes to the same floats. The format version itself is
  * the manifest's (`GEOMETRY_PAGE_FORMAT_VERSION`, `sdk-core`).
  */

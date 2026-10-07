@@ -25,11 +25,7 @@ import {
 } from '../../vsm/traceWgsl.ts'
 import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts'
 import { PCF_TAPS } from './pcfTaps.ts'
-import {
-  VSM_MASK_TABLE_BINDING,
-  VSM_MASK_TILES_BINDING,
-  vsmMaskTableReadWgsl,
-} from '../../vsm/projectionMaskTable.ts'
+import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { interleavedGradientWgsl } from '../../math/interleavedGradientWgsl.ts'
 import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts'
@@ -474,7 +470,7 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
 const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) => `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
-${vsmMaskTableReadWgsl(VSM_MASK_TABLE_BINDING)}
+${VSM_MASK_TABLE_READ_WGSL}
 /** The resolve's pixel: the mask is read there; (−1, −1) in a pass that reads no mask. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
 /** The layer last loaded at \`vsmMaskPixel\` and its word: every light of a layer shares one load

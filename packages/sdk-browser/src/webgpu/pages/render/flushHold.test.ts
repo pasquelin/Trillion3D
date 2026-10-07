@@ -35,7 +35,6 @@ function flushState(adopts?: () => boolean, armed = true) {
     blendDrawCalls: 0,
     blendSubmittedTriangles: 0,
     imageRevision: 0,
-    gpuFrameActive: !!adopts,
     gpuSelection: adopts ? { flush: async () => {}, failed: () => false } : undefined,
     lastCamera: undefined,
   }
@@ -54,12 +53,13 @@ function flushState(adopts?: () => boolean, armed = true) {
     services: {
       bootstrapState: { ready: true, ensure: async () => {} },
       residency: { pending: Promise.resolve() },
-      adoptGpuCut: adopts ?? (() => false),
+      adoptViewCut: adopts ?? (() => false),
     },
     setup: { bootstrap: [] },
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [] },
-    lights: { changes: { deferred: () => false } },
+    // An unlit scene: the frame entry asks no lit program of the device (`askLobedPrograms`).
+    lights: { changes: { deferred: () => false }, store: { unlit: true, count: 0 } },
   } as unknown as WebgpuPagesRuntime
   return { rt, gate, frameHold, revisions }
 }

@@ -3,7 +3,11 @@ import {
   PROBE_REFLECTION_FILTER_WGSL,
 } from '../reflections/probeFilterWgsl.ts'
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
-import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts'
+import {
+  MIRROR_LIGHTING_WGSL,
+  MIRROR_WEIGHT_WGSL,
+  PROBE_MIRROR_RADIANCE_WGSL,
+} from '../reflections/modelShader.ts'
 import { MODEL_FLAG } from '../scene/surfaceModel.ts'
 import { BOUNCE_FIELDS_WGSL } from './gridWgsl.ts'
 
@@ -42,7 +46,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 export const bounceReflectionWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var surface:texture_2d<f32>;
 ${SURFACE_RAY_WGSL}
-${mirrorWeightShader('wgsl')}
+${MIRROR_WEIGHT_WGSL}
 ${PROBE_REFLECTION_FILTER_WGSL}
 fn proxyReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
  let reach=bounce.reach.x;
@@ -63,26 +67,14 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  return mix(filtered,proxyReflectionRay(P,N,R),weight);
 }`
 
-/**
- * The specular a smooth opaque surface returns from what it reflects (#31): the radiance along the
- * mirror direction, weighed by the GGX lobe's directional albedo the rectangular light already
- * reads (\`ltcLookup\`, texel 1: magnitude and Fresnel share) — the split-sum's second factor.
- *
- * The delta-direction contribution has full weight at the mirror limit and fades once over one
- * LTC roughness sample above it. Read at the floor so the shared water transition does not
- * also attenuate the proxy contribution inside this fade.
- * Beyond that interval the existing order-2 probe field is convolved with the rough lobe.
- * A diffuse or toon surface has no specular lobe and reflects nothing.
- */
-export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl')
-
 /** The direct-only program's reflection: no proxy and no probe, the environment alone (#1341). */
 export const DIRECT_REFLECTION_WGSL = `
-${mirrorWeightShader('wgsl')}
+${MIRROR_WEIGHT_WGSL}
 ${ENVIRONMENT_REFLECTION_WGSL}
 fn filteredReflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
-${MIRROR_LIGHTING_WGSL}`
+${MIRROR_LIGHTING_WGSL}
+${PROBE_MIRROR_RADIANCE_WGSL}`
 
 /**
  * The deferred resolve's bounced diffuse light (\`bounceLighting\`), for a pixel whose mirror term

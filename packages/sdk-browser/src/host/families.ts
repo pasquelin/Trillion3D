@@ -18,30 +18,31 @@ const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load,
  * could not load keeps the frames that draw with it waiting, and is asked again (`onDemand.ts`).
  */
 export const families = {
-  /** The WebGPU renderer: the page raster and every pass it draws with (`../backend/engines.ts`). */
+  /** The engine's renderer: the page raster and every pass it draws with (`../engine/factory.ts`). */
   webgpu: family('WebGPU renderer', () => import('../webgpu/pages/webgpuCode.ts')),
-  /** The WebGL2 renderer, on a machine that grants no WebGPU device (`../backend/engines.ts`). */
-  webgl2: family('WebGL2 renderer', () => import('../backend/autonomous/webglCode.ts')),
   /** The physics session and its worker (`../physics/worldPhysics.ts`). */
   physics: family('physics', () => import('../physics/session/session.ts')),
-  /** The particle steps and draws of both renderers. */
+  /** The particle steps and draws. */
   particles: family('particles', () => import('../particles/particleCode.ts')),
   /** WebGPU transmission: the water pass every transmissive surface draws through, glass too. */
   transmission: family('transmission', () => import('../webgpu/water/transmissionCode.ts')),
   /** WebGPU skinning, morphing and the waves of `mesh.waves`. */
   deformation: family('deformation', () => import('../deformation/deformationCode.ts')),
-  /** The effect chain's passes on both renderers. */
+  /** The effect chain's passes. */
   effects: family('effects', () => import('../effects/effectCode.ts')),
-  /** The guide passes of both renderers. */
+  /** The guide passes. */
   guides: family('guides', () => import('../guides/guideCode.ts')),
-  /** The diagnostic views: the host graph's, and the WebGPU feedback A/B measurements. */
+  /** The WebGPU feedback A/B measurements. */
   diagnostics: family('diagnostics', () => import('../diagnostic/viewCode.ts')),
-  /** The measurement's build provenance table and comparison compositor. */
+  /** The measurement's build provenance table and frame report. */
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
   /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
-  /** The impostor draw of both renderers: card plan, pipelines or program, atlas feed. */
+  /** The impostor draw: card plan, pipelines, atlas feed. */
   impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
+  /** The CPU geometry-page decoder behind the public `page.decode`: the engine itself decodes no
+   *  page on the CPU (the GPU reads them in place), so only a page that asks downloads it. */
+  pageCodec: family('page decoder', () => import('../page/codec/geometryPage.ts')),
 }
 export type FamilyName = keyof typeof families
 

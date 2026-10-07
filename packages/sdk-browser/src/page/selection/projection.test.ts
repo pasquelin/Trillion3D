@@ -4,17 +4,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { clusterSphereValid, pageCarriesClusterError } from '../../../../sdk-core/src/index.ts'
-import { clusterPixels, projectedClusterError, type ClusterCut } from './math.ts'
-import { drawsCluster } from '../cut/rule.ts'
+import { projectedClusterError, type ClusterCut } from './math.ts'
+import { clusterPixels } from './frame.fixture.ts'
+import { drawsCluster } from '../cut/rule.fixture.ts'
 import {
-  pixelsAtZero,
-  errorFloorAt,
   projectedErrorAt,
   viewDepth,
   viewDepthOf,
   viewLateral,
   viewLateralOf,
 } from './projection.ts'
+import { pixelsAtZero } from './projection.fixture.ts'
+import { errorFloorAt } from './projection.fixture.ts'
 import {
   referenceErrorFloorPixels,
   referenceProjectCentre,

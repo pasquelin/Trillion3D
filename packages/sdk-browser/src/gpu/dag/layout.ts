@@ -22,13 +22,20 @@
  * read it no longer walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
-import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts'
+import {
+  CLUSTER_LEVEL_SHIFT,
+  CLUSTER_NEVER,
+  CLUSTER_ROOT_CHILD,
+  CLUSTER_TRANSPARENT,
+} from './clusterFlags.ts'
+import { REQUEST_STAGED_WORDS } from './request.ts'
 import { stagedRequestsWord } from './readoutWords.ts'
 export {
   SELECTION_HEADER_WORDS,
   evictionWord,
   EVICTION_BURST,
   differenceWord,
+  levelCountsWord,
 } from './readoutWords.ts'
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
@@ -38,11 +45,17 @@ export const CLUSTER_WORDS = 12
 export const COLD_WORDS = 13
 const CLUSTER_LEVEL_MAX = 0xffffff
 
-export function packClusterFlags(never: boolean, level: number, transparent = false) {
+export function packClusterFlags(
+  never: boolean,
+  level: number,
+  transparent = false,
+  rootChild = false,
+) {
   const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX)
   return (
     ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
+      (rootChild ? CLUSTER_ROOT_CHILD : 0) |
       (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
   )
@@ -61,9 +74,9 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
  * threshold 64, 31,250 at threshold 16. It is where a cut STARTS: overflow remains possible — a
  * camera placed in the geometry at a tiny threshold, hundreds of thousands of placements — and
  * it is SAID: the kernel sets the overflow bit, and the cut grows its list within the device
- * (`listCap.ts`). Only a list the device cannot hold stays truncated, and the frame falls back
- * to the CPU cut, which knows how to pick a representable subset. A truncated readout is never
- * adopted as if it were whole. The pool's list (`poolBase`) keeps this cap.
+ * (`listCap.ts`). Only a list the device cannot hold stays truncated: the frame still draws by its
+ * mask, and the host adopts the head of each list, never an exit from it
+ * (`../../webgpu/cut/adoption.ts`). The pool's list (`poolBase`) keeps this cap.
  */
 export const SELECTION_LIST_CAP = 262144
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
@@ -76,22 +89,30 @@ export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(lis
  *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
 const aheadRequestCap = (listCap: number) => listCap >>> 1
 /** Word of `out` where the snapshot the next difference is taken against waits, behind the staged
- *  requests and outside what the frame copies (`keptAt` of `shader/differenceWgsl.ts`): its two
- *  lengths (`KEPT_HEADER_WORDS`), then the requests' pages and the drawn pages, a list each. */
+ *  requests — two words each, page and priority (`request.ts`) — and outside what the frame copies
+ *  (`keptAt` of `shader/differenceWgsl.ts`): its two lengths (`KEPT_HEADER_WORDS`), then the
+ *  requests' pages and the drawn pages, a list each. */
 export const keptSnapshotWord = (listCap: number) =>
-  stagedRequestsWord(listCap) + listCap + aheadRequestCap(listCap)
+  stagedRequestsWord(listCap) + REQUEST_STAGED_WORDS * (listCap + aheadRequestCap(listCap))
 /** Words ahead of the kept lists: the length of each of the two. */
 export const KEPT_HEADER_WORDS = 2
-/** Bytes of `out` with the staged requests behind, the camera's then those ahead, and the kept
- *  snapshot: what the kernels write, more than the frame copies. */
-export const stagedOutputBytes = (listCap: number) =>
-  (keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap) * 4
+/** Word of `out` where region `v`'s saved drawn journal lies, behind the kept snapshot: its
+ *  length, then `listCap` pages (`shader/swapWgsl.ts`); region 0 the main view's, one more a view
+ *  drawn aside (`swap.ts`). */
+const savedJournalWord = (listCap: number, v: number) =>
+  keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap + v * (1 + listCap)
+/** Bytes of `out` with the staged requests behind, the camera's then those ahead, the kept
+ *  snapshot and `regions` saved journals — none until a view is drawn aside: what the kernels
+ *  write, more than the frame copies. */
+export const stagedOutputBytes = (listCap: number, regions = 0) =>
+  savedJournalWord(listCap, regions) * 4
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
  *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
  *  step with each region the readout gains. */
 export function listCapHeld(bytes: number) {
+  // A rank is a word: past 2^32 ranks no list is named, and the halving stays exact.
   let low = 0,
-    high = Math.max(0, Math.floor(bytes / 4))
+    high = Math.min(2 ** 32, Math.max(0, Math.floor(bytes / 4)))
   while (low < high) {
     const mid = Math.ceil((low + high) / 2)
     if (stagedOutputBytes(mid) <= bytes) low = mid

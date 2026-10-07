@@ -1,6 +1,4 @@
-import { copyDrawnFromShown } from '../helpers.ts'
 import type { HostCamera } from '../../../camera/world.ts'
-import { encodeDraws } from '../render/encodeDraws.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { grantFrameTargets } from '../prepare/targetGrant.ts'
 import { poolFundingPending } from '../prepare/targetFunding.ts'
@@ -79,30 +77,54 @@ export async function renderForCapture(
   }
 }
 
+/** Rounds a capture waits through at most before it says its cut never settled: a round reads
+ *  the cut back and asks for its pages and rows, a growing table or a time budget adds rounds. */
+const CAPTURE_ROUNDS = 64
+
 /**
- * Waits until every page of the displayed cut is resident, then draws it for the current image's
- * view. No camera enters here: `renderForCapture` has just entered its own through the contract, and
- * encode reads only the engine camera. The hooks let a capture refuse a cut the budget or the host
- * has dropped, before any send and any draw.
+ * Whether the capture's cut is whole: every page of it the pool accepted is resident, its instance
+ * ready for the GPU cut — bytes and row (`../../row/slots.ts`) —, and no row is owed. A page past
+ * the budget is drawn by its nearest resident ancestor, as on any image.
+ */
+function captureSettled(rt: WebgpuPagesRuntime) {
+  const { run, services, views } = rt,
+    { rows } = rt.layout
+  if (!views.active.cut?.adopted || !services.bootstrapState.ready) return false
+  if (services.rowsOwed() || rows.rowsDenied) return false
+  for (let i = 0; i < run.desired.length; i++) {
+    const rec = run.desired[i]
+    if (!services.residencySets.accepts(rec)) continue
+    if (!services.poolHolds(rec) || !rows.residentFlags[run.desiredPacked[i]]) return false
+  }
+  return true
+}
+
+/**
+ * Draws the capture's cut once it is whole. Each round reads back the cut the last image of the
+ * view drew (`../../../gpu/dag/aside.ts`), adopts it — its requests join the queue, ranked first
+ * under the one budget (#268) —, waits for the queue, and draws again: the GPU cut then draws the
+ * pages that landed and the rows they took. The hooks let a capture refuse a cut the budget or the
+ * host has dropped, before any draw.
  */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
+  camera: HostCamera,
+  aspect: number,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {
   const { run, services } = rt
-  await services.residency.pending
-  hooks.admitted?.()
-  await services.ensureResident(run.shown, run.frame, services.residency.nextJobId())
-  if (!run.shown.every(services.poolHolds)) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE')
-  copyDrawnFromShown(run)
-  hooks.beforeEncode?.()
-  run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam)
-  if (targetsMoving(rt)) {
-    await grantFrameTargets(rt, gpuDevice)
+  for (let round = 0; ; round++) {
+    await run.asideCut?.flush()
+    services.adoptViewCut()
+    services.queueCutResidency()
+    await services.residency.pending
+    await rt.layout.growing
+    hooks.admitted?.()
+    const settled = captureSettled(rt)
+    if (!settled && round + 1 >= CAPTURE_ROUNDS) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE')
     hooks.beforeEncode?.()
-    run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam)
-    if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE')
+    await renderForCapture(rt, camera, aspect)
+    if (settled) return
   }
 }
 

@@ -63,9 +63,6 @@ instances-12 | twelve copies of the model | --views overview --pixelError 1 MOVI
 pool-geo-8 | 8 MiB geometry pool: residency under extreme pressure, full image expected | ALL_VIEWS --pixelError 1 MOVING FULL --geometry-pool 8
 pool-tex-64 | 64 MiB texture pool: one layer per atlas, coarse levels expected | ALL_VIEWS --pixelError 1 MOVING FULL --texture-pool 64
 pool-4k | 3840×2160: targets follow resolution, no cap refuses | TWO_VIEWS --pixelError 1 MOVING --width 3840 --height 2160
-witness-three | SDK Three witness (before) vs WebGPU engine (after), no shadows | --engine-before webgl --engine-after webgpu TWO_SIDES TWO_VIEWS --pixelError 1 --sun --shadows off FULL
-webgl | WebGL engine (exact-cluster-pages) | --engine webgl ALL_VIEWS --pixelError 1 MOVING FULL
-webgl2 | standalone WebGL2 engine (refusal expected if the cache carries blend) | --engine webgl2 TWO_VIEWS --pixelError 1 MOVING FULL
 three-nu | Three vanilla (before) vs WebGPU engine (after), sun and shadows, moving camera | BARE ALL_VIEWS --pixelError 1 MOVING FULL
 three-nu-1248 | Three vanilla vs the engine at 1248×702 | BARE TWO_VIEWS --pixelError 1 MOVING QUARTER
 three-nu-no-shadows | Three vanilla vs the engine without shadows: materials and lighting fidelity | BARE TWO_VIEWS --pixelError 1 --sun --shadows off FULL

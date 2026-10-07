@@ -20,7 +20,7 @@ export function reflectionShaders() {
   }
   for (const bounce of [false, true])
     for (const narrow of [false, true]) {
-      const shader = contractLightingShader(bounce, narrow)
+      const shader = contractLightingShader(bounce, { narrow, lobeless: true })
       const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}`
       shaders[`${key}_TRACE`] = stochasticReflectionShader(shader)
       shaders[`${key}_TRACE_REFERENCE`] = stochasticReflectionShader(shader, true)

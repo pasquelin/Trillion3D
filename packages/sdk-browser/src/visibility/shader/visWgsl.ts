@@ -101,14 +101,8 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
  if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
  out.id=in.id;out.depth=in.position.z;return out;
 }
-@fragment fn vis_fs(in:VSOut)->@location(0) u32{
- let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
- if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
- return in.id;
-}
-// The two stages above for a slot that holds no cutout row (no \`FLAG_MASK\`): \`maskKeep\` keeps
-// every pixel of such a row, so these write the same words without reading its page or discarding,
-// and a tile GPU's hidden-surface removal resolves their overdraw before they run (#831).
+// The stage above for a slot that holds no cutout row (no \`FLAG_MASK\`): \`maskKeep\` keeps every
+// pixel of such a row, so it writes the same words without reading its page or discarding, and a
+// tile GPU's hidden-surface removal resolves its overdraw before it runs (#831).
 @fragment fn vis_hiz_opaque_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
-@fragment fn vis_opaque_fs(in:VSOut)->@location(0) u32{return in.id;}
 `

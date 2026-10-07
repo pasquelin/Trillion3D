@@ -12,9 +12,9 @@ import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * A MOVE BY NAME, whichever engine draws (#972): the node a name finds, and its local pose set so
- * that its world is the one requested. WebGPU's move (`webgpu/pages/render/transform.ts`), WebGL2's
- * (`placement/autonomousPlacements.ts`) and a world's (`world/core/worldRuntime.ts`) pose alike.
+ * A MOVE BY NAME (#972): the node a name finds, and its local pose set so that its world is the
+ * one requested. The engine's move (`webgpu/pages/render/transform.ts`) and a world's
+ * (`world/core/worldSceneMethods.ts`) pose through this one implementation.
  */
 
 const local = new Float64Array(16),
@@ -51,8 +51,7 @@ export function namedNode(source: Object3D, nodeName: string, matrix: Float32Arr
 /**
  * Sets the local pose of `node` so that its world is `matrix`: brought back into the parent's
  * space, then set as-is as the local matrix, so that a host update finds it identical.
- * False when that moves nothing. WebGL2's move by name poses the same way
- * (`placement/autonomousPlacements.ts`).
+ * False when that moves nothing.
  */
 export function poseNode(node: Object3D, matrix: Float32Array) {
   // A non-finite pose is refused here, before any inversion: further on it would become a NaN
@@ -110,7 +109,7 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   return true
 }
 
-/** A move by name (WebGL2's, a world's): the node posed, or null when the move moves nothing. */
+/** A world's move by name: the node posed, or null when the move moves nothing. */
 export function poseNamed(source: Object3D, nodeName: string, matrix: Float32Array) {
   const node = namedNode(source, nodeName, matrix)
   return poseNode(node, matrix) ? node : null

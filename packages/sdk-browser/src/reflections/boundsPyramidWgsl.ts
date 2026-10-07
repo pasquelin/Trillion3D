@@ -1,5 +1,5 @@
 import { cellReductionWgsl } from '../texture/cellReduction.ts'
-import { reflectionPlaneShader } from './traceShader.ts'
+import { REFLECTION_PLANE_WGSL } from './traceShader.ts'
 
 /** Threads of a reduction workgroup on each axis. */
 export const BOUNDS_WORKGROUP = 8
@@ -11,14 +11,13 @@ export const BOUNDS_WORKGROUP = 8
 const DEPTH_READ_WGSL = `
 fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(source,p,0);}
 fn reflectionSize()->vec2f{return vec2f(extent.xy);}
-fn reflectionClearDepth()->f32{return 0.0;}
-${reflectionPlaneShader('wgsl')}
+${REFLECTION_PLANE_WGSL}
 fn mipRead(p:vec2i)->vec4f{return vec4f(reflectionPixelBounds(p),0.0,1.0);}`
 
 /**
  * One level of the reflection's nearest/farthest depth pyramid (`boundsPyramid.ts`): a texel is
- * the range of the source cells it covers — the reduction the radiance levels and the WebGL
- * pyramid share (`cellReductionWgsl`, its range: an odd tail folded into the last cell) —, read
+ * the range of the source cells it covers — the reduction the radiance levels share
+ * (`cellReductionWgsl`, its range: an odd tail folded into the last cell) —, read
  * from the level below, or from the depth for level 0 (`fromDepth`). `extent`: the source's size,
  * then the image's, which the range does not depend on.
  */

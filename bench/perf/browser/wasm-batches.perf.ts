@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measure, rapport } from '../../core/index.ts'
 import type { MeasureCase } from '../../core/index.ts'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/math/wasm/sdkWasm.ts'
 import {
   prepareMathBatch,
   mathBatchMetrics,
@@ -19,7 +19,7 @@ import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.t
 
 await prepareSdkWasm(
   readFileSync(
-    join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
+    join(import.meta.dirname, '../../../packages/sdk-browser/src/math/wasm/kernels.wasm'),
   ),
 )
 await prepareMathBatch('auto')

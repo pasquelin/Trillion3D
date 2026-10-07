@@ -1,9 +1,8 @@
-// #364: a sprite is a picture that always faces the camera. The real
-// text of both shaders and its CPU twin turn its quad toward the image, and every raster that
-// draws a sprite reads that one text.
+// #364: a sprite is a picture that always faces the camera. The real shader text and its CPU twin
+// turn its quad toward the image, and every raster that draws a sprite reads that one text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SPRITE_GLSL, SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
+import { SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -41,7 +40,7 @@ function place(at: number[], turn: number, scale: number[]) {
   return m.elements
 }
 
-const RUNS = { wgsl: runShaderText(SPRITE_WGSL), glsl: runShaderText(SPRITE_GLSL) }
+const run = runShaderText(SPRITE_WGSL)
 const CASES = [
   { eye: [0, 0, 6], at: [0.4, -0.2, 1], turn: 0, scale: [1, 1, 1], rotation: 0, attenuate: true },
   { eye: [7, 2, 0], at: [0, 1, 0], turn: 1.1, scale: [3, 1.5, 1], rotation: 0.7, attenuate: true },
@@ -55,25 +54,24 @@ const CASES = [
   },
 ]
 
-// The WGSL text, the GLSL text and the CPU twin are one formula: the same corner, in every case.
-for (const [language, run] of Object.entries(RUNS))
-  test(`${language}: the shader text turns a corner where the CPU twin does`, () => {
-    for (const c of CASES) {
-      const toClip = camera(c.eye).viewProjection,
-        world = place(c.at, c.turn, c.scale)
-      const sprite = { rotation: c.rotation, sizeAttenuation: c.attenuate }
-      for (const [x, y] of [
-        [0.5, 0.5],
-        [-0.5, 0.25],
-        [0, 0],
-      ]) {
-        const cpu = spriteAt(new Float64Array(4), toClip, world, x, y, sprite)
-        const words = [c.rotation, c.attenuate ? 1 : -1]
-        const text = run(columns(toClip), columns(world), [x, y], words)
-        for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - text[i]) < 1e-9, `${x},${y} ${i}`)
-      }
+// The WGSL text and the CPU twin are one formula: the same corner, in every case.
+test('the shader text turns a corner where the CPU twin does', () => {
+  for (const c of CASES) {
+    const toClip = camera(c.eye).viewProjection,
+      world = place(c.at, c.turn, c.scale)
+    const sprite = { rotation: c.rotation, sizeAttenuation: c.attenuate }
+    for (const [x, y] of [
+      [0.5, 0.5],
+      [-0.5, 0.25],
+      [0, 0],
+    ]) {
+      const cpu = spriteAt(new Float64Array(4), toClip, world, x, y, sprite)
+      const words = [c.rotation, c.attenuate ? 1 : -1]
+      const text = run(columns(toClip), columns(world), [x, y], words)
+      for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - text[i]) < 1e-9, `${x},${y} ${i}`)
     }
-  })
+  }
+})
 
 // The corner lies in the image plane at its origin's depth, as far from it on screen as the
 // projection of its view-space origin plus the corner offset puts it, whatever the sprite's turn.

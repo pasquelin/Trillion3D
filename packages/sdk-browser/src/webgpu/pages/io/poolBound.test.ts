@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 
@@ -15,31 +15,33 @@ import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 function budgetedQuad(geometryPoolBytes: number) {
   const fixture = coarseQuadScene(),
     { device } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     viewport: [32, 32],
     geometryPoolBytes,
-    geometryPoolCeilingBytes: 1 << 20,
   })
   return { fixture, backend }
 }
 
 /** Renders and waits for the loads it asked, until the resident set stops moving; `each` reads
- *  every image's metrics. Returns the pages resident at the end. */
+ *  every image's metrics. Returns the pages resident at the end. The GPU cut's requests come with
+ *  the readback the drain adopts, and their loads leave at the image after it (#1483): one image
+ *  without a move is that wait, two are the end. */
 async function stream(
   backend: ReturnType<typeof budgetedQuad>['backend'],
   each: (metrics: ReturnType<typeof backend.metrics>) => void,
 ) {
-  let before = -1,
+  let still = 0,
     resident = backend.metrics().residentPages ?? 0
-  for (let round = 0; round < 8 && resident !== before; round++) {
-    before = resident
+  for (let round = 0; round < 12 && still < 2; round++) {
+    const before = resident
     backend.render(camera())
     const metrics = backend.metrics()
     each(metrics)
     resident = metrics.residentPages ?? 0
-    await backend.flush!()
+    still = resident === before ? still + 1 : 0
+    await backend.flush()
   }
   return resident
 }

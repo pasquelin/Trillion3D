@@ -12,21 +12,16 @@ test('a frame opens one command, whatever the depth', () => {
   // indirectly and therefore had to arm its argument; then six, three arming copies cutting three
   // passes. Descent dispatches flat and the arming is a dispatch of the pass: one pass, period.
   for (const levelCount of [1, 3, 5]) {
-    for (const residentCut of [true, false]) {
-      const { encoder, copies, passes } = witnessEncoder()
-      encodeDagKernels(
-        encoder as unknown as GPUCommandEncoder,
-        cutResources(residentCut, levelCount),
-      )
-      assert.deepEqual(passes, ['Trillion3D DAG selection'])
-      assert.deepEqual(copies, [], 'nothing copied outside the pass')
-    }
+    const { encoder, copies, passes } = witnessEncoder()
+    encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(levelCount))
+    assert.deepEqual(passes, ['Trillion3D DAG selection'])
+    assert.deepEqual(copies, [], 'nothing copied outside the pass')
   }
 })
 
 test('each list is armed in the pass after the kernel that fills it, before the one that walks it', () => {
   const { encoder, dispatches, armements, boundGroups } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(true))
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
   const kernels = dispatches.map((l) => l.kernel)
   // Before the journal's clear (the previous frame's drawn count), after the descent (the
   // candidates), after `dagWanted` (the live clusters).
@@ -53,7 +48,7 @@ test('each list is armed in the pass after the kernel that fills it, before the 
 test('a flat dispatch past the device width runs in rows of it', () => {
   // Stages [2, 9, 40, 150, 600], capped at 1000 queued nodes: 1, 1, 1, 3 and 10 groups, on a
   // device four groups wide.
-  const base = cutResources(true, 5),
+  const base = cutResources(5),
     device = { limits: { maxComputeWorkgroupsPerDimension: 4 } }
   const wide = { ...base, nodeCount: 1000, device } as unknown as typeof base
   const { encoder, dispatches } = witnessEncoder()
@@ -65,14 +60,12 @@ test('a flat dispatch past the device width runs in rows of it', () => {
 })
 
 test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
-  for (const residentCut of [true, false]) {
-    const { encoder, dispatches } = witnessEncoder()
-    encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(residentCut))
-    const last = residentCut ? ['dagSortRequests', 'dagListEvictions'] : ['dagSortRequests']
-    assert.deepEqual(
-      dispatches.slice(-last.length),
-      last.map((kernel) => ({ kernel, groups: 1 })),
-    )
-    assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)
-  }
+  const { encoder, dispatches } = witnessEncoder()
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
+  const last = ['dagSortRequests', 'dagListEvictions']
+  assert.deepEqual(
+    dispatches.slice(-last.length),
+    last.map((kernel) => ({ kernel, groups: 1 })),
+  )
+  assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)
 })

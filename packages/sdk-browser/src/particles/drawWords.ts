@@ -7,10 +7,6 @@ import { usedSlots } from './poolStates.ts'
  *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw. */
 export const DRAW_FLOATS = 48
 
-/** A disc's two triangles, corner by corner, in both shading languages (`vec2` infers in WGSL). */
-export const DISC_CORNERS =
-  'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)'
-
 /** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
  *  adds light and leaves the coverage. */
 const OVER = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const

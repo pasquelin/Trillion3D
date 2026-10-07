@@ -3,7 +3,7 @@ import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './tempo
 import { restartTaaAverage } from './landing.ts'
 import { grantCapability } from '../webgpu/pages/io/drops.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { isCancelled } from '../backend/common.ts'
+import { isCancelled } from '../engine/common.ts'
 import { mainViewGpu, viewGpu, type WebgpuView } from '../webgpu/pages/state/view.ts'
 import { TAA_CAPABILITIES } from './capability.ts'
 

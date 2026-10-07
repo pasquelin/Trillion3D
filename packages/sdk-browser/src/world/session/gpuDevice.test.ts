@@ -5,7 +5,7 @@ import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
 import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts'
 import type { ExplorerSession } from './session.ts'
 import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts'
-import { WEBGPU_REQUIRED_LIMITS } from '../../backend/common.ts'
+import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
 
 /** An adapter offering `offered`; its device grants exactly what was asked. */
 function adapterOffering(offered: string[], limits: Record<string, number> = {}) {
@@ -62,33 +62,25 @@ test("the device asks the adapter's own colour bytes per sample, above or below 
   }
 })
 
-// The opaque resolve with bounce binds more sampled textures in its fragment stage than WebGPU's
-// default 16: the device asks for the engine's count, never more, never above the adapter's.
-test('the device asks the sampled textures a stage binds, up to what the adapter offers', async () => {
+// Every stage binds at most WebGPU's guaranteed 16 sampled textures (`gpu/core/stageLimits.test.ts`):
+// the device asks no more, from an adapter that offers more as from one that offers the default.
+test('the device asks the sampled textures a stage binds: the guaranteed 16, whatever is offered', async () => {
   const need = WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage
-  assert.ok(need > 16, "the engine binds above WebGPU's default")
-  for (const [offered, asked] of [
-    [48, need],
-    [need, need],
-    [16, 16],
-  ]) {
+  assert.equal(need, 16, "the engine binds within WebGPU's default")
+  for (const offered of [48, 16]) {
     const { adapter, limitsAsked } = adapterOffering([], {
       maxSampledTexturesPerShaderStage: offered,
       maxTextureDimension2D: 16384,
     })
     await requestExplorerDevice(adapter, '')
-    assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, asked)
+    assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, 16)
     assert.equal(limitsAsked[0].maxTextureDimension2D, 16384, 'an uncapped limit: all offered')
   }
 })
 
 test('the session says which optional features its WebGPU device was granted', async () => {
-  const canvas = {
-    getContext: () => ({ getSupportedExtensions: () => [], getExtension: () => null }),
-  }
   const said: [string, Record<string, unknown> | undefined][] = []
   const session = {
-    canvas,
     options: {
       gpuDevice: { features: new Set(['subgroups', 'timestamp-query']) } as unknown as GPUDevice,
     },
@@ -97,12 +89,7 @@ test('the session says which optional features its WebGPU device was granted', a
     diagnose: (_phase: string, message: string, context?: Record<string, unknown>) =>
       said.push([message, context]),
   } as unknown as ExplorerSession
-  Object.assign(globalThis, { document: { createElement: () => canvas } })
-  try {
-    await probeExplorerCapabilities(session)
-  } finally {
-    delete (globalThis as { document?: unknown }).document
-  }
+  await probeExplorerCapabilities(session)
   const granted = said.find(([message]) => message === 'WebGPU device granted')
   assert.deepEqual(granted?.[1]?.features, ['timestamp-query', 'subgroups'])
 })

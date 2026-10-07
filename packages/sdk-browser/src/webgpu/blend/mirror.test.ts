@@ -7,22 +7,28 @@ import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'
 import assert from 'node:assert/strict'
 import { voidStaleBlendGroups } from './identity.ts'
 import { createWebgpuBlendState } from './state.ts'
+import { blendShader } from './shader.ts'
 import {
   blendBindEntries,
   type BlendBindResources,
   type BlendLighting,
-} from '../core/bindEntries.ts'
+} from '../core/blendBindEntries.ts'
 import { BLEND_BINDINGS } from '../core/bindLayout.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { BLEND_SHADER, BOUNCE_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
-  for (const name of ['mirrorLighting', 'reflectedRadiance', 'rayRadiance'])
+  // The programs without lobes; the lobed ones put the same term under the coat (`lobeMirror`).
+  const blend = blendShader({ lobeless: true })
+  const names = ['mirrorLighting', 'surfaceMirrorLighting', 'mirrorRadiance', 'reflectedRadiance']
+  for (const name of [...names, 'rayRadiance'])
     assert.equal(
-      functionText(BLEND_SHADER, name),
+      functionText(blend, name),
       functionText(withScreenReflections(BOUNCE_LIGHTING_SHADER), name),
     )
+  for (const name of names)
+    assert.equal(functionText(BLEND_SHADER, name), functionText(blend, name), name)
   assert.match(BLEND_SHADER, /rgb\+=mirrorLighting\(s.rgb,m,clamped,s.N,V,in.view\)/)
   const surfaceCache = {} as GPUTextureView
   const atlas = { views: [], pages: { buffer: {} } }
@@ -39,7 +45,7 @@ test('a replaced surface cache invalidates both blend groups, unchanged radiance
   const blendState = createWebgpuBlendState()
   const item = { group: undefined as GPUBindGroup | undefined }
   blendState.blendGpu.push(item as (typeof blendState.blendGpu)[number])
-  const rt = { gpu: {}, vis: {}, blendState } as unknown as WebgpuPagesRuntime
+  const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
   const lighting = { surfaceCache: {} } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
@@ -75,8 +81,6 @@ test('accepted diffuse/toon roughness maps retain their model in the transparent
         flags: 1,
         count: 3,
         sourceGeometry: new G.Geometry(),
-        orderKey: 0,
-        orderRank: 0,
       },
       { mapLayer: new Map(), dataLayer: new Map([[surface.roughnessMap!, 1]]) },
     )

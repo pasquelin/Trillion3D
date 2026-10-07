@@ -18,11 +18,20 @@ import { waterCompositeShader } from './compositeWgsl.ts'
 
 type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
-const WATER = waterCompositeShader()
-const SINGLE = `${declaredLightingWgsl(13, 18)}${STANDARD_LIGHTING_WGSL}`
+// The program without lobe code; the lobed one's pair is `lobedPair.test.ts`'s.
+const WATER = waterCompositeShader(false, { lobeless: true })
+const SINGLE = `${declaredLightingWgsl({ proxy: 13, transmittance: 18 })}${STANDARD_LIGHTING_WGSL}`
 const K = wgslConstants(WATER)
 const SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
-const SHADING = ['standardLighting', 'ggxDistribution', 'modelLight', 'thinTransmission']
+const SHADING = [
+  'lobeSurface',
+  'surfaceLight',
+  'standardLobe',
+  'fresnelSchlick',
+  'ggxDistribution',
+  'modelLight',
+  'thinTransmission',
+]
 
 const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 
@@ -82,13 +91,14 @@ test('every term of the pair is the single term, then the same on a null albedo'
   assert.equal(terms.length, 5)
   for (const both of terms) {
     if (both === 'vec3f(0.0),vec3f(0.0)') continue
-    const [first, second] = both.split(/,(?=(?:rectLight|\(modelLight|\(standardLighting)\()/)
+    const [first, second] = both.split(/,(?=(?:rectLight|\(modelLight|\(surfaceLight)\()/)
     assert.ok(single.includes(`return ${first};`), first)
     assert.equal(
       second,
       first
         .replace('(light,rgb,metal,', '(light,vec3f(0.0),0.0,')
-        .replace(/\(rgb,metal,/, '(vec3f(0.0),0.0,'),
+        .replace(/\(rgb,metal,/, '(vec3f(0.0),0.0,')
+        .replace('(shading,', '(dielectric,'),
     )
   }
   // The same shared prefix: the pair's body is the single's with its returns as pairs.

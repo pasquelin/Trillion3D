@@ -58,14 +58,8 @@ function expandApi(
   // The arrays encoding rereads in place: one dynamic offset, four expansion dispatches.
   const offsets = [0],
     launches = [0, 0, 0, 0]
-  const write = (buffer: GPUBuffer, word: number, source: Uint32Array, words = source.length) =>
-    device.queue.writeBuffer(
-      buffer,
-      word * 4,
-      source.buffer as ArrayBuffer,
-      source.byteOffset,
-      words * 4,
-    )
+  const write = (buffer: GPUBuffer, word: number, source: Uint32Array, words?: number) =>
+    writeWords(device.queue, buffer, word, source, words)
   return {
     /** Static description of each item: paged rank, chunks, table base, vertices. */
     uploadDraws(packed: Uint32Array) {
@@ -97,14 +91,7 @@ function expandApi(
       steps: readonly OrderStep[],
       counts: { entries: number; runs: number },
     ) {
-      let bound: GPUComputePipeline | undefined
-      for (const step of steps) {
-        const pipeline = order.pipelines[step.entry]
-        if (pipeline !== bound) encoder.setPipeline((bound = pipeline))
-        offsets[0] = step.uniform * ORDER_STEP_STRIDE
-        encoder.setBindGroup(0, order.group, offsets)
-        encoder.dispatchWorkgroups(step.groups)
-      }
+      encodeOrder(encoder, order, steps, offsets)
       offsets[0] = pass * UNIFORM_STRIDE
       encoder.setBindGroup(0, expansion.group, offsets)
       blendExpandDispatch(launches, counts.entries, counts.runs)
@@ -119,6 +106,50 @@ function expandApi(
   }
 }
 
+/** `words` of `source` — all of them by default — written from word `word` of `buffer`. */
+const writeWords = (
+  queue: GPUQueue,
+  buffer: GPUBuffer,
+  word: number,
+  source: Uint32Array,
+  words = source.length,
+) => queue.writeBuffer(buffer, word * 4, source.buffer as ArrayBuffer, source.byteOffset, words * 4)
+
+/** The order's dispatches of one pass, each step at its uniform's dynamic offset (`offsets`, the
+ *  array the encoding rereads in place). */
+function encodeOrder(
+  encoder: GPUComputePassEncoder,
+  order: Kernel,
+  steps: readonly OrderStep[],
+  offsets: number[],
+) {
+  let bound: GPUComputePipeline | undefined
+  for (const step of steps) {
+    const pipeline = order.pipelines[step.entry]
+    if (pipeline !== bound) encoder.setPipeline((bound = pipeline))
+    offsets[0] = step.uniform * ORDER_STEP_STRIDE
+    encoder.setBindGroup(0, order.group, offsets)
+    encoder.dispatchWorkgroups(step.groups)
+  }
+}
+
+/** A kernel's stages on a pipeline layout of its one group's `layout`. */
+const stagesOn = <E extends string>(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  module: GPUShaderModule,
+  entries: readonly E[],
+) =>
+  buildComputeStages(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    module,
+    entries,
+  )
+
+/** A device's refusal of the kernels: the scene's, by name. */
+const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
+
 /**
  * The two kernels of the transparent pass — the order, then the expansion of the sorted plan — and
  * the scene buffers they read.
@@ -126,115 +157,111 @@ function expandApi(
  * Nothing is allocated per frame. What a frame gives fits in two writes: the eye with the own
  * entries' keys and order, and the frustum verdict when it moved. What it gets is the instance list
  * the blend shader reads and one indirect argument per slot — never per item. Both kernels compile
- * together, off the thread, while the scene prepares: no frame compiles one.
+ * together, off the thread, while the scene prepares: no frame compiles one. The transparents are
+ * expanded on the GPU alone (#1483): a device that refuses the kernels refuses the scene by name
+ * (`WEBGPU_BLEND_EXPANSION_UNAVAILABLE`), what was made for them released.
  */
 export async function createBlendExpand(
   device: GPUDevice,
-  sizes: { items: number; entries: number; planWords: number; scratchWords: number },
+  sizes: ExpandSizes,
   shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
   outputs: { expanded: GPUBuffer; args: GPUBuffer },
 ) {
-  if (typeof device.createComputePipeline !== 'function' || sizes.items < 1) return undefined
   const made: GPUBuffer[] = []
+  try {
+    const buffers = expandBuffers(device, sizes, made)
+    const built = await validated(device, () => expandKernels(device, buffers, shared, outputs))
+    if (built) return expandApi(device, buffers, built.order, built.expansion, sizes.items, made)
+  } catch (error) {
+    cleanupFailedHiz(made)
+    throw new Error(EXPANSION_REFUSED, { cause: error })
+  }
+  // The device refused the kernels: no error to carry.
+  cleanupFailedHiz(made)
+  throw new Error(EXPANSION_REFUSED)
+}
+
+type ExpandSizes = { items: number; entries: number; planWords: number; scratchWords: number }
+
+/** The kernels' scene buffers, each kept in `made`: what the frame writes, then their own work
+ *  memory — the expansion's scratch, the order's network and places. */
+function expandBuffers(device: GPUDevice, sizes: ExpandSizes, made: GPUBuffer[]) {
   const make = (label: string, size: number, usage: number) => {
     const buffer = device.createBuffer({ label, size: Math.max(16, size), usage })
     made.push(buffer)
     return buffer
   }
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  const bail = () => {
-    for (const buffer of made) buffer.destroy()
-    return undefined
+    uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    work = GPUBufferUsage.STORAGE
+  const steps = EXPAND_PASSES * orderStepCount(sizes.entries) * ORDER_STEP_STRIDE
+  return {
+    uniforms: make('Trillion3D blend expand uniforms', UNIFORM_STRIDE * EXPAND_PASSES, uniform),
+    plan: make('Trillion3D blend sorted plan', sizes.planWords * 4, storage),
+    keep: make('Trillion3D blend frustum verdicts', ((sizes.items + 31) >> 5) * 4, storage),
+    draws: make('Trillion3D blend draw descriptions', sizes.items * 16, storage),
+    steps: make('Trillion3D blend order steps', steps, uniform),
+    keyed: make('Trillion3D blend key records', sizes.items * KEY_RECORD_WORDS * 4, storage),
+    frame: make(
+      'Trillion3D blend order frame',
+      orderFrameWords(sizes.items, sizes.entries) * 4,
+      storage,
+    ),
+    scratch: make('Trillion3D blend expand scratch', sizes.scratchWords * 4, work),
+    sorted: make('Trillion3D blend order network', sortSize(sizes.entries) * 16, work),
+    placed: make('Trillion3D blend order places', sizes.entries * 4, work),
   }
-  try {
-    const buffers = {
-      uniforms: make('Trillion3D blend expand uniforms', UNIFORM_STRIDE * EXPAND_PASSES, uniform),
-      plan: make('Trillion3D blend sorted plan', sizes.planWords * 4, storage),
-      keep: make('Trillion3D blend frustum verdicts', ((sizes.items + 31) >> 5) * 4, storage),
-      draws: make('Trillion3D blend draw descriptions', sizes.items * 16, storage),
-      steps: make(
-        'Trillion3D blend order steps',
-        EXPAND_PASSES * orderStepCount(sizes.entries) * ORDER_STEP_STRIDE,
-        uniform,
-      ),
-      keyed: make('Trillion3D blend key records', sizes.items * KEY_RECORD_WORDS * 4, storage),
-      frame: make(
-        'Trillion3D blend order frame',
-        orderFrameWords(sizes.items, sizes.entries) * 4,
-        storage,
-      ),
-    }
-    const scratch = make(
-      'Trillion3D blend expand scratch',
-      sizes.scratchWords * 4,
-      GPUBufferUsage.STORAGE,
-    )
-    const sorted = make(
-      'Trillion3D blend order network',
-      sortSize(sizes.entries) * 16,
-      GPUBufferUsage.STORAGE,
-    )
-    const placed = make('Trillion3D blend order places', sizes.entries * 4, GPUBufferUsage.STORAGE)
-    const built = await validated(device, async () => {
-      const expandModule = device.createShaderModule({ code: BLEND_EXPAND_SHADER })
-      const orderModule = device.createShaderModule({ code: BLEND_ORDER_SHADER })
-      if ((await shaderFailed(expandModule)) || (await shaderFailed(orderModule))) return undefined
-      const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
-      const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
-      const [expandStages, orderStages] = await Promise.all([
-        buildComputeStages(
-          device,
-          device.createPipelineLayout({ bindGroupLayouts: [expandLayout] }),
-          expandModule,
-          BLEND_EXPAND_ENTRIES,
-        ),
-        buildComputeStages(
-          device,
-          device.createPipelineLayout({ bindGroupLayouts: [orderLayout] }),
-          orderModule,
-          BLEND_ORDER_ENTRIES,
-        ),
-      ])
-      // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
-      // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
-      const expansion: Kernel = {
-        group: device.createBindGroup({
-          layout: expandLayout,
-          entries: namedBufferEntries(EXPAND_BINDING, {
-            uni: { buffer: buffers.uniforms, size: UNI_WORDS * 4 },
-            plan: { buffer: buffers.plan },
-            keep: { buffer: buffers.keep },
-            draws: { buffer: buffers.draws },
-            counts: { buffer: shared.counts ?? buffers.draws },
-            clusters: { buffer: shared.clusters ?? buffers.draws },
-            scratch: { buffer: scratch },
-            expanded: { buffer: outputs.expanded },
-            args: { buffer: outputs.args },
-          }),
-        }),
-        pipelines: BLEND_EXPAND_ENTRIES.map((entry) => expandStages[entry]),
-      }
-      const order: Kernel = {
-        group: device.createBindGroup({
-          layout: orderLayout,
-          entries: namedBufferEntries(ORDER_BINDING, {
-            uni: { buffer: buffers.steps, size: ORDER_UNI_WORDS * 4 },
-            plan: { buffer: buffers.plan },
-            keyed: { buffer: buffers.keyed },
-            frame: { buffer: buffers.frame },
-            sorted: { buffer: sorted },
-            placed: { buffer: placed },
-          }),
-        }),
-        pipelines: BLEND_ORDER_ENTRIES.map((entry) => orderStages[entry]),
-      }
-      return { order, expansion }
-    })
-    if (!built) return bail()
-    return expandApi(device, buffers, built.order, built.expansion, sizes.items, made)
-  } catch {
-    cleanupFailedHiz(made)
-    return undefined
+}
+
+/** The two kernels on their buffers, compiled together off the thread; `undefined` when a module
+ *  does not compile. */
+async function expandKernels(
+  device: GPUDevice,
+  buffers: ReturnType<typeof expandBuffers>,
+  shared: { counts: GPUBuffer | undefined; clusters: GPUBuffer | undefined },
+  outputs: { expanded: GPUBuffer; args: GPUBuffer },
+) {
+  const expandModule = device.createShaderModule({ code: BLEND_EXPAND_SHADER })
+  const orderModule = device.createShaderModule({ code: BLEND_ORDER_SHADER })
+  if ((await shaderFailed(expandModule)) || (await shaderFailed(orderModule))) return undefined
+  const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
+  const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
+  const [expandStages, orderStages] = await Promise.all([
+    stagesOn(device, expandLayout, expandModule, BLEND_EXPAND_ENTRIES),
+    stagesOn(device, orderLayout, orderModule, BLEND_ORDER_ENTRIES),
+  ])
+  // Without a paged primitive there is neither a count nor a cluster list to read: the kernel
+  // never touches those two bindings, and `draws` fills them — the same group cannot stay empty.
+  const expansion: Kernel = {
+    group: device.createBindGroup({
+      layout: expandLayout,
+      entries: namedBufferEntries(EXPAND_BINDING, {
+        uni: { buffer: buffers.uniforms, size: UNI_WORDS * 4 },
+        plan: { buffer: buffers.plan },
+        keep: { buffer: buffers.keep },
+        draws: { buffer: buffers.draws },
+        counts: { buffer: shared.counts ?? buffers.draws },
+        clusters: { buffer: shared.clusters ?? buffers.draws },
+        scratch: { buffer: buffers.scratch },
+        expanded: { buffer: outputs.expanded },
+        args: { buffer: outputs.args },
+      }),
+    }),
+    pipelines: BLEND_EXPAND_ENTRIES.map((entry) => expandStages[entry]),
   }
+  const order: Kernel = {
+    group: device.createBindGroup({
+      layout: orderLayout,
+      entries: namedBufferEntries(ORDER_BINDING, {
+        uni: { buffer: buffers.steps, size: ORDER_UNI_WORDS * 4 },
+        plan: { buffer: buffers.plan },
+        keyed: { buffer: buffers.keyed },
+        frame: { buffer: buffers.frame },
+        sorted: { buffer: buffers.sorted },
+        placed: { buffer: buffers.placed },
+      }),
+    }),
+    pipelines: BLEND_ORDER_ENTRIES.map((entry) => orderStages[entry]),
+  }
+  return { order, expansion }
 }

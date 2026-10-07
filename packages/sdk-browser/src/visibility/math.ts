@@ -54,11 +54,7 @@ export function mapTexel(
   return (y * image.width + x) * 4
 }
 
-/** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it. */
-export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255)
-
-/** ×31 polynomial by code points. `hashId` (../diagnostic/colors.ts) walks UTF-16 units: same
- *  polynomial, two walks, two results outside the BMP — not two copies of one. */
+/** ×31 polynomial by code points: a cluster identifier's colour seed. */
 export function clusterHash(id: string) {
   return Array.from(id).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0)
 }

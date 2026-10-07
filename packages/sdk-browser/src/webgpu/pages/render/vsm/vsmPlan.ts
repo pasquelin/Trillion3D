@@ -4,7 +4,6 @@ import type { SceneLight } from '../../../../../../sdk-core/src/index.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { EngineCamera } from '../../../../camera/world.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { VSM_STILL_FRAMES } from '../../../../vsm/constants.ts'
 import {
   planVirtualShadowFrame,
   vsmLightSeen,
@@ -14,8 +13,7 @@ import {
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../sdk-core/src/math/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
-import { noteResidenceChange, uploadRowMobility } from '../../../shadow/bounds.ts'
-import { composedSlotBox } from '../../../../placement/composeBoxes.ts'
+import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
 import {
   directionalCount,
   ensureMask,
@@ -33,14 +31,7 @@ import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
 import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
-import {
-  grantEngineVsm,
-  growEngineVsm,
-  reserveProjection,
-  regrowEngineVsm,
-  vsmFirstSetLayout,
-  vsmSetBytes,
-} from './vsmGrant.ts'
+import { grantEngineVsm, growEngineVsm, vsmFirstSetLayout, vsmSetBytes } from './vsmGrant.ts'
 import { shadowHeldBytes } from './vsmStats.ts'
 import { shadowRowBytes } from '../../../shadow/rowBuffers.ts'
 
@@ -48,8 +39,6 @@ const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
 /** Each runtime's light lists, rewritten in place: the plan's, and the reserve's (`vsmReserveBytes`),
  *  apart so that neither rewrites the other's while it is read. */
 const LISTS = new WeakMap<WebgpuPagesRuntime, { plan: VsmFrameLight[]; reserve: VsmFrameLight[] }>()
-/** The plan's mask channel of each light id, emptied each frame (`planVsmFrame`). */
-const channels = new Map<string, number>()
 
 /** The light store as the frame plan reads it, into `lights`: every declared light, at its slot.
  *  Seen from `cam`, a local light no lit point of the frame is in reach of is not `visible`
@@ -208,45 +197,13 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     { store } = lights
   const list = frameLights(rt, 'plan', cam)
   const [width, height] = gpu.targetSize
-  let vsm = lights.vsm
-  const wanted = fullMapsFor(list)
-  // More maps or suns than the tables hold: grown in place, else the set made again.
-  const short =
-    !!vsm && (vsm.res.layout.fullMapCapacity < wanted || vsm.suns < directionalCount(list))
-  if (!vsm || (short && !growEngineVsm(device, list, vsm, wanted)))
-    vsm = grantEngineVsm(rt, device, list, wanted)
-  else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)
-  if (!vsm || !reserveProjection(rt, device, vsm, list)) {
+  const vsm = heldVsm(rt, device, list)
+  if (!vsm) {
     unshadowLights(store)
     return false
   }
   const { state } = vsm
-  // Residency changed since the last frame: a cluster that entered or left is another caster;
-  // its box joins the change list at once, as the old scheduler's did (#831).
-  const { rows, recordOf, selectionRoots, placement } = rt.layout
-  lights.residence.flush(
-    rows.residentFlags,
-    rows.residentOffsetWords,
-    rt.run.gpuFrameActive,
-    (page) =>
-      noteResidenceChange(
-        lights,
-        selectionRoots,
-        placement.rootOfPacked,
-        page,
-        recordOf(page)!,
-        undefined,
-        true,
-      ),
-  )
-  // The cached-as-dynamic update: a placement at rest past the static threshold frames
-  // caches as static again; its box invalidates the static pages it now belongs to — a follower
-  // of a parent composed on the GPU, its slot's box where the parent now holds it.
-  const settled = lights.mobility.settle(VSM_STILL_FRAMES, (rank, lead) => {
-    const box = lead >= 0 ? composedSlotBox(rt, lead) : rt.layout.selectionRoots[rank]?.worldBox
-    if (box) lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), false)
-  })
-  if (settled) uploadRowMobility(rt, device, 0, -1)
+  followCasters(rt, device)
   // The invalidations: the world's change boxes against the PREVIOUS frame's maps,
   // read before the plan gives this frame its ids. Representation changes held for the camera to
   // rest enter now: they invalidate at once.
@@ -259,7 +216,6 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   // keep the drawn size.
   // More maps than the page table holds: twice the room, in the same frame when the tables grow
   // in place.
-  const held = vsm
   const plan = planVirtualShadowFrame(
     state,
     list,
@@ -274,8 +230,8 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
       growEngineVsm(
         device,
         list,
-        held,
-        wholeTableRows(Math.max(maps, 2 * held.res.layout.fullMapCapacity + 1)),
+        vsm,
+        wholeTableRows(Math.max(maps, 2 * vsm.res.layout.fullMapCapacity + 1)),
       ),
   )
   if (plan.overflow) {
@@ -289,19 +245,6 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   vsm.plan = plan
   vsm.pendingBoxes = boxes
   vsm.prevSlots = prevSlots
-  // Mask channels, in the plan's light order; every other light reads no shadow.
-  channels.clear()
-  for (let k = 0; k < plan.lights.length; k++) channels.set(plan.lights[k].id, k)
-  // i32 words on the GPU: −1 (no map) is 0xFFFFFFFF.
-  if (vsm.lightIdsData.length < store.count) vsm.lightIdsData = new Uint32Array(store.count * 2)
-  vsm.lightIdsData.fill(0xffffffff)
-  for (let slot = 0; slot < store.count; slot++) {
-    const id = store.ids[slot],
-      k = channels.get(id)
-    // `params.y` = first VSM id · 64 + mask channel (`directShadowWgsl`); past 64 shadowed
-    // lights a light reads no shadow.
-    store.assignSlice(slot, k !== undefined && k < 64 ? plan.lights[k].firstId * 64 + k : -1)
-    if (k !== undefined) vsm.lightIdsData[slot] = plan.lights[k].firstId
-  }
+  assignChannels(store, vsm, plan)
   return true
 }

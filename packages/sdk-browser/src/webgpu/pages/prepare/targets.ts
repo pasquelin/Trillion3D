@@ -1,19 +1,15 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
+import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { createScreenReflection, reflectionPlan } from '../../../reflections/gpu.ts'
-import {
-  DISPLAY_FORMAT,
-  FEEDBACK_FORMAT,
-  createSurfaceBuffer,
-} from '../../../scene/surfaceBuffer.ts'
-import { dropGpuHiz } from '../io/drops.ts'
+import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
+import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop } from '../../transparent/transmission.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { displayApart, type FrameSize } from '../state/renderScale.ts'
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
-import { pyramidHeldBytes } from '../../../gpu/hiz/pyramid.ts'
-import { ownsDisplayColor } from './targetAllocation.ts'
+import { makesDisplayColor } from './targetAllocation.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
@@ -22,14 +18,15 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     pyramid = gpu.reflection?.pyramid
   return (
     !!gpu.hdrTexture &&
-    !!gpu.colorTexture === ownsDisplayColor(rt, size) &&
+    !!gpu.colorTexture === makesDisplayColor(rt, size) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
     gpu.displaySize[1] === size.height &&
     displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
-    gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
+    holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
+    // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
     // Judged by the plan the targets were made from (`makeTargets`): a fit that asked otherwise
     // would remake them every image, and a prepare would never settle.
     gpu.reflection?.active === plan.active &&
@@ -37,7 +34,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     !!pyramid === plan.pyramid &&
     !!gpu.reflection?.mirror === plan.mirror &&
     !!pyramid?.radiance === plan.cone &&
-    (!vis.visEnabled || !!vis.visTexture)
+    !!vis.visTexture
   )
 }
 
@@ -93,10 +90,9 @@ export function makeTargets(
     !!gpu.hdrTexture && gpu.displaySize[0] === size.width && gpu.displaySize[1] === size.height,
   )
   buildTargets(rt, device, size, targetBytes)
-  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) {
-    dropGpuHiz(rt)
-    gpu.targetBytes -= pyramidHeldBytes(width, height)
-  }
+  // The view's pyramid is one of its targets (#1483): refused, the targets are, for memory.
+  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height))
+    throw new Error('GPU_BUDGET_EXCEEDED: the Hi-Z pyramid')
   return { allocation: targetAllocationOf(rt), destroy: () => releaseTargets(rt) }
 }
 
@@ -133,7 +129,7 @@ export function buildTargets(
     targetUsage = usage,
     extent: GPUExtent3DDict = { width, height },
   ) => device.createTexture({ label, size: extent, format, usage: targetUsage })
-  gpu.colorTexture = ownsDisplayColor(rt, size)
+  gpu.colorTexture = makesDisplayColor(rt, size)
     ? target('Trillion3D display color', DISPLAY_FORMAT)
     : undefined
   gpu.depthTexture = target(
@@ -143,13 +139,11 @@ export function buildTargets(
   )
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float')
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
-  gpu.surfaces = createSurfaceBuffer(
-    device,
-    width,
-    height,
-    wantsSubsurface(rt),
-    vis.writesEmissiveAo,
-  )
+  gpu.surfaces = createSurfaceBuffer(device, width, height, {
+    subsurface: wantsSubsurface(rt),
+    emissiveAo: vis.writesEmissiveAo,
+    lobes: wantsPhysicalLobes(rt),
+  })
   if (wantsAsIsShare(rt)) makeAsIsShare(rt, device, width, height)
   gpu.displayTexture = size.apart
     ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
@@ -160,7 +154,7 @@ export function buildTargets(
   gpu.displayView = gpu.displayTexture.createView()
   // Apart, the water's word alone draws into a display colour: its own below the display's size,
   // the display's at it — the view shared, never the texture, which would make the targets the
-  // display's (`displayApart`) —, none without water (`ownsDisplayColor`).
+  // display's (`displayApart`) —, none without water (`makesDisplayColor`).
   gpu.colorView = gpu.colorTexture
     ? size.apart
       ? gpu.colorTexture.createView()

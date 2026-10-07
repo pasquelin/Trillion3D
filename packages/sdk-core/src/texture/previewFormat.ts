@@ -15,8 +15,10 @@
  *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
  *  in that family, and its entry's layout word says so. Version 5 counts the coverage-preserving
  *  chains' coverage on the filtered cut (#43), in the same layout. Version 6 lays a block level
- *  file out in tile records, one HTTP Range each (#962, `sdk-browser/src/texture/tileRecords.ts`). */
-export const TEXTURE_PREVIEW_VERSION = 6
+ *  file out in tile records, one HTTP Range each (#962, `sdk-browser/src/texture/tileRecords.ts`).
+ *  Version 7 adds the ETC2 family — ETC2 RGBA8, EAC RG11 — beside BC and ASTC, a third block
+ *  column and layout word, and the compiler cooks every family by default. */
+export const TEXTURE_PREVIEW_VERSION = 7
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
@@ -32,7 +34,7 @@ export const PREVIEW_TEXTURE = 0,
   PREVIEW_BAKED_LEVELS = 11,
   /** One layout word per block family, `PREVIEW_BLOCK_FORMATS` order. */
   PREVIEW_LAYOUTS = 12
-export const PREVIEW_WORDS = 14
+export const PREVIEW_WORDS = 15
 /** A preview whose bytes came from an image `uri`; anything else names a glTF buffer view. */
 export const PREVIEW_SOURCE_URI = 0
 /** The atlas a preview serves: colour (`rgba8unorm-srgb`, base colour and emissive) or data
@@ -65,15 +67,17 @@ export function previewAtlasName(atlas: number): string | undefined {
 export const previewAtlasOf = (atlas: number) =>
   atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
- *  entry's layout words, each named by its RGBA codec; `png` is the lossless file beside them. */
-export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc'] as const
+ *  entry's layout words, each named by its RGBA codec: BC for desktop cards, ASTC 4×4 and ETC2 for
+ *  mobile ones; `png` is the lossless file beside them, what a device with none of them reads. */
+export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc', 'etc2'] as const
 /** A block family a texture can be baked in. */
 export type TextureBlockFormat = (typeof PREVIEW_BLOCK_FORMATS)[number]
 /** The lossless file format beside the block families. */
 export const PREVIEW_LOSSLESS_FORMAT = 'png'
 /** What a family holds of a chain, by layout word: nothing — the chain stays lossless there —,
- *  RGBA blocks (BC7 mode 6, ASTC colour endpoint mode 12), or two-channel blocks for a normal map
- *  (BC5, ASTC luminance + alpha on two planes: X in R, Y in G or A, Z rebuilt by the shader). */
+ *  RGBA blocks (BC7 mode 6, ASTC colour endpoint mode 12, ETC2 RGBA8), or two-channel blocks for a
+ *  normal map (BC5, ASTC luminance + alpha on two planes, EAC RG11: X in R, Y in G or A, Z rebuilt
+ *  by the shader). */
 export const PREVIEW_LAYOUT_NAMES = ['lossless', 'rgba', 'two-channel'] as const
 /** What a block family holds of a texture: nothing, colour blocks, or two-channel blocks. */
 export type TextureLayout = (typeof PREVIEW_LAYOUT_NAMES)[number]
@@ -84,6 +88,7 @@ export const PREVIEW_LAYOUT_FILES: Record<
 > = {
   bc7: { rgba: 'bc7', 'two-channel': 'bc5' },
   astc: { rgba: 'astc', 'two-channel': 'astc-la' },
+  etc2: { rgba: 'etc2', 'two-channel': 'eac-rg' },
 }
 /** Texels along a block's side, and bytes of one block, in every format. */
 export const PREVIEW_BLOCK_SIDE = 4

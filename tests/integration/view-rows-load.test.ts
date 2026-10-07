@@ -4,8 +4,9 @@
 // thousand) is cooked by this checkout's native compiler and opened in a child process at the
 // boss's case (`view-rows-load.fixture.ts`, one byte range served alone). On develop with #1235
 // merged (161933f0b), the rows sized by residency × placements, the child's renderer peaked at
-// 579 MB before its first image; here, the rows sized by what the view's cut selects, at 258 MB.
-// The cap sits between.
+// 579 MB before its first image; with the rows sized by what the view's cut selects, at 258 MB.
+// The GPU cut draws it now, its rows a cache of what it draws and asks for (#1483). The cap sits
+// between.
 import test from 'node:test'
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'

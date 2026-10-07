@@ -82,7 +82,7 @@ export function liveScenario(size: number, images: number, rareteHostile: number
       else if (r < 0.8)
         ops.push(['vise', liveNode(false), [dans(60), dans(60), dans(60)], tire(HAUTS)])
       else if (r < 0.88) ops.push(['lis', liveNode(false)])
-      else if (r < 0.94 && cameras.size) ops.push(['image', tire([...cameras]), alea() < 0.5])
+      else if (r < 0.94 && cameras.size) ops.push(['image', tire([...cameras])])
       else ops.push(['maj', liveNode(false), alea() < 0.3])
     }
     ops.push(['maj', 0, alea() < 0.2], ['instantane', 0])

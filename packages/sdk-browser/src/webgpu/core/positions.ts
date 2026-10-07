@@ -15,7 +15,7 @@ export async function loadUnpaged(pages: readonly PageRec[], copies: readonly Bl
   return unpaged
 }
 
-/** Uploads shared source positions once for opaque and transparent draws. */
+/** Uploads the source positions a transparent item draws from, once per geometry. */
 export function ensureWebgpuPositionBuffer(
   device: GPUDevice,
   attributes: HostAttributes,

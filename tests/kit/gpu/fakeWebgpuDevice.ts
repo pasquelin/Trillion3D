@@ -1,11 +1,16 @@
+import { validating } from './validation.ts'
+
 /**
  * A device as WebGPU writes one, around the members a test device provides: an `EventTarget` (a
  * test raises `uncapturederror` with `raise`), a `lost` that settles on `lose`, one stack of error
- * scopes (an error raised under one is caught there, not dispatched), and creations that refuse a
+ * scopes (an error raised under one is caught there, not dispatched), WebGPU's validation of every
+ * creation, write and copy (`validation.ts`), and creations that refuse a
  * `this` that is not the device ("Illegal invocation"). `given` records every descriptor a
  * creation received, `labels` the label each carried at that moment.
  */
 export function asWebgpuDevice(members: Record<string, unknown>) {
+  // Every call checked by WebGPU's rules before it is made (`validation.ts`).
+  validating(members)
   let settle: (info: { reason: string; message: string }) => void = () => {}
   const lost = new Promise<{ reason: string; message: string }>((resolve) => (settle = resolve))
   const given: Array<{ label?: string } | undefined> = [],

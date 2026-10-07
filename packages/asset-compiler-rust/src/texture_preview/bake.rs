@@ -2,7 +2,7 @@
 //! what it decodes and where it writes it; it does not know what a cutout is, and
 //! receives the list of textures to measure.
 use super::bake_write::{write_lossless, LEVEL_WRITE_FAILED};
-use super::blocks::Layout;
+use super::blocks::{Layout, FAMILIES};
 use super::collect::AtlasTexture;
 use super::gate::{cook_chain, Cooked, Gate, GateSheet};
 use super::reduce::AtlasKind;
@@ -112,8 +112,8 @@ pub(super) fn one_image(
         };
         let pixels = reduce::tail(&levels, first_level);
         let sheet = GateSheet::of(&of_kind);
-        let mut layouts: [Option<Layout>; 2] = [None; 2];
-        let mut blocks: [Vec<u8>; 2] = [Vec::new(), Vec::new()];
+        let mut layouts: [Option<Layout>; FAMILIES] = [None; FAMILIES];
+        let mut blocks: [Vec<u8>; FAMILIES] = Default::default();
         for format in &inputs.o.texture_formats {
             let (gate, cooked) =
                 cook_chain(inputs.o, &sha256, kind, *format, &sheet, &levels, size);

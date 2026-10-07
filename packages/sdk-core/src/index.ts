@@ -7,7 +7,12 @@ export * from './bounce/cascades.ts'
 export * from './bounce/occupancy.ts'
 export * from './bounce/budget.ts'
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'
-export { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER, depthLayerUnits } from './lod/depthLayer.ts'
+export {
+  DEPTH_LAYER_BIAS_UNITS,
+  MAX_DEPTH_LAYER,
+  TRANSPARENT_DEPTH_LAYER,
+  depthLayerUnits,
+} from './lod/depthLayer.ts'
 export { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from './manifest/binaryFormat.ts'
 export {
   PREVIEW_BASE,
@@ -49,7 +54,6 @@ export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts'
 export type { LodQualityId } from './lod/policy.ts'
 export { frameStatistics, summarize } from './runtime/stats.ts'
 export * from './runtime/stageProfile.ts'
-export * from './page/decodeContracts.ts'
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,

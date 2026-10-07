@@ -28,11 +28,8 @@ export function measurePayload(
     manifestUrl,
     backend: ENGINE.backend,
     engineId: ENGINE.id,
-    autonomous: ENGINE.autonomous === true,
-    // Modules the page imports by URL, and the witness: an engine that draws through Three does
-    // not read the light store, so the host places the same lights in Three.
+    // Modules the page imports by URL.
     modulesUrl: '/runner/',
-    witness: ENGINE.three === true,
     // The engine measurement page, and the source it loads when it is not the cache.
     page: ENGINE.page,
     gltfUrl: side.sourceUrl ?? null,

@@ -7,9 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
 import { createHostSceneWatch } from './watch.ts'
-import { createWebglFrameGate } from '../../webgl/core/frameGate.ts'
-import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts'
-import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.fixture.ts'
+import { createFrameGateCore } from '../../frame/gateCore.ts'
 
 function graphe() {
   const source = new G.Group()
@@ -85,24 +83,8 @@ test("a directional lamp's target, outside the source graph, is seen", () => {
   assert.equal(watch.take(), 0)
 })
 
-test('the frame gate no longer holds a frame when the host has written the scene', () => {
-  const gate = createWebglFrameGate()
-  const { source, mesh } = graphe()
-  const coupe = [{ id: 1 }] as Array<{ id: number }>
-  const draws = drawn(mesh)
-  gate.readScene(source, draws)
-  gate.keep(1, 3, coupe, 0, false)
-  gate.readScene(source, draws)
-  gate.keep(1, 3, coupe, 0, false)
-  gate.readScene(source, draws)
-  assert.equal(gate.held(), true, 'with no write, the frame must be held')
-  mesh.position.x = 100
-  gate.readScene(source, draws)
-  assert.equal(gate.held(), false, 'the scene moved under the held frame')
-})
-
 test('a write the engine made itself is settled with its revision, not announced twice', () => {
-  const gate = createWebglFrameGate()
+  const gate = createFrameGateCore(1)
   const { source, mesh } = graphe()
   const draws = drawn(mesh)
   gate.readScene(source, draws)
@@ -124,7 +106,7 @@ test('a write the engine made itself is settled with its revision, not announced
 })
 
 test("a lamp's target moved under another node: the new parent is hooked, its later pose is seen", () => {
-  const gate = createWebglFrameGate()
+  const gate = createFrameGateCore(1)
   const { source, sun } = graphe()
   const parent = new G.Group()
   source.add(parent)
@@ -139,30 +121,6 @@ test("a lamp's target moved under another node: the new parent is hooked, its la
   assert.equal(gate.revisions.scene, after + 1, 'the new parent moved: seen')
   gate.readScene(source, [])
   assert.equal(gate.revisions.scene, after + 1, 'a pose write rebuilt nothing and repeats nothing')
-})
-
-/** The host-library engine with a lamp declared in the source graph, which the host will write directly. */
-function litEngine() {
-  const { geometry, material, source, context } = quadRootsContext(true)
-  const light = G.pointLight(0xffffff, 1)
-  source.add(light)
-  const backend = exactPagesBackend(context)
-  const copie = () => backend.scene.children.find(G.isPlacedLight) as G.Light
-  return { backend, light, copie, dispose: () => (geometry.dispose(), material.dispose()) }
-}
-
-test('a lamp written directly by the host is copied on the next frame', () => {
-  const { backend, light, copie, dispose } = litEngine()
-  const camera = frontCamera()
-  backend.render(camera)
-  assert.equal(copie().intensity, 1, 'the declared lamp is copied as-is')
-  light.intensity = 7
-  light.position.x = 9
-  backend.render(camera)
-  assert.equal(copie().intensity, 7, 'the intensity written by the host did not follow')
-  assert.equal(copie().position.x, 9, 'the pose written by the host did not follow')
-  backend.dispose()
-  dispose()
 })
 
 test('a bone posed by the host is seen: it moves the skin it deforms (#357)', () => {

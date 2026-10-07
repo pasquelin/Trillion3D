@@ -1,5 +1,5 @@
 import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts'
-import { probeBackendContext } from './backends.fixture.ts'
+import { probeEngineContext } from './engine.fixture.ts'
 import { createExplorerPageSources } from './pageSources.ts'
 import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
@@ -116,12 +116,11 @@ export async function openSession(
     options,
     root,
     undefined,
-    true,
-    [],
+    () => undefined,
     channel,
     () => {},
   )
-  const context = await probeBackendContext(metadata, pageSources, {
+  const context = await probeEngineContext(metadata, pageSources, {
     options,
     base: root,
     session: { signal },

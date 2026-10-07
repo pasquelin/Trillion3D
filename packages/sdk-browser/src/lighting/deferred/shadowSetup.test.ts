@@ -20,7 +20,7 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     [true, true, true],
     [false, false, false],
   ] as const) {
-    const shader = contractLightingShader(bounce, narrow, shadowed)
+    const shader = contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true })
     const surface = surfaceOf(shader)
     assert.ok(surface.includes('let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);'))
     assert.ok(surface.includes('if(shadowed){shadowSetup(coord,pixel,z,P);}'))
@@ -44,7 +44,7 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
 })
 
 test("cellShadowed reads its cell count's high bit: set where the list holds a shadowed light", () => {
-  const shader = contractLightingShader(false, false)
+  const shader = contractLightingShader(false)
   const K = wgslConstants(shader)
   const tileLights = new Uint32Array(3 * K.TILE_STRIDE)
   tileLights[K.TILE_STRIDE] = K.TILE_SHADOWED | 5 // the second cell: five lights, one shadowed

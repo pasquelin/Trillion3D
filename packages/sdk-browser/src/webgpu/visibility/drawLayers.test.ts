@@ -13,7 +13,8 @@ import {
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { WebgpuVisState } from '../pages/state/vis.ts'
+import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
+import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords } from './itemWords.ts'
 import { drawVis } from './drawer.ts'
@@ -22,7 +23,7 @@ import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { createWebgpuCoplanarLayerPipelines } from './pipelines.ts'
 
 // Follow-up of `../pages/layersState.test.ts`: the per-image draw modules, where the coplanar-
-// layer lot was reapplied too. `../row/pageRow.ts` stays covered by `../row/pageRowDepthBias.test.ts` and has
+// layer lot was reapplied too. `../row/pageRowWriter.ts` stays covered by `../row/pageRowDepthBias.test.ts` and has
 // no test here.
 
 // itemWords.ts
@@ -78,6 +79,7 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
     drawIndirect(_buffer: unknown, offset: number) {
       drawCalls.push(offset)
     },
+    executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
   } as unknown as GPURenderPassEncoder
   const { device } = fakeDevice()
   const rt = {
@@ -98,13 +100,14 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       gpuHiz: undefined,
       visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
       gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, slotOffsetsBuffer: {} },
+      visBundles: createWebgpuVisState().visBundles,
     },
     gpu: { cache: { buffer: {} } },
     run: { gpuDrawCalls: 0 },
     layout: { rows: { packedCount: 0 }, itemWordsHold: createDrawItemWordsHold(1) },
   } as unknown as WebgpuPagesRuntime
 
-  drawVis(rt, device, pass, false, true)
+  drawVis(rt, device, pass, false)
 
   // The call count depends only on the slots: each layer's occluder half, its opaque then its
   // cutout bins, each at its own indirect offset. An empty slot draws zero instances, the GPU knows
@@ -135,19 +138,19 @@ test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the 
 })
 
 // pipelines.ts
-test('createWebgpuCoplanarLayerPipelines builds five cull pipelines per extra layer, each biased, and none for layerSlots = 1', async () => {
+test('createWebgpuCoplanarLayerPipelines builds three cull pipelines per half and extra layer, each biased, and none for layerSlots = 1', async () => {
   const { device, renderPipelines } = fakeDevice()
   const visModule = {} as GPUShaderModule
   const bindGroupLayout = {} as GPUBindGroupLayout
 
-  const none = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, true, 1)
+  const none = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, 1)
   assert.deepEqual(none, [], 'a scene with no stacked coplanar surface creates no layer pipeline')
 
-  const two = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, true, 2)
-  assert.equal(two.length, 10, 'five cull modes, occluder and tested, for the one extra layer')
+  const two = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, 2)
+  assert.equal(two.length, 6, 'three cull modes, occluder and tested, for the one extra layer')
   assert.ok(
     renderPipelines
-      .slice(-10)
+      .slice(-6)
       .every((entry) => entry.depthStencil?.depthBias === depthLayerUnits(1)),
     'every pipeline of layer 1 carries that layer’s depth bias',
   )

@@ -11,8 +11,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { NodeDomWorker } from '../../oracles/browser/pageDecodeNodeWorker.ts'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
+import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/math/wasm/sdkWasm.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/math/batchAnimation.ts'
 import { sampleAhead } from '../../../packages/sdk-browser/src/math/animationAhead.ts'
 import { countingSampler } from '../../../packages/sdk-browser/src/math/animationAhead.fixture.ts'
@@ -24,7 +24,7 @@ import { FRAME, animationRigs } from './support/animationRigs.ts'
 
 await prepareSdkWasm(
   readFileSync(
-    join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
+    join(import.meta.dirname, '../../../packages/sdk-browser/src/math/wasm/kernels.wasm'),
   ),
 )
 const { sampler, counts: aheadCounts } = countingSampler((await lendAnimationSampler())!)

@@ -87,19 +87,13 @@
   "BOX_VALUES": {
     "summary": "以扁平方式存储的包围盒浮点数。"
   },
-  "BackendCapabilities": {
-    "summary": "一个渲染器能做什么:材质、层级结构、GPU 驱动的工作。",
+  "EngineCapabilities": {
+    "summary": "引擎此刻按名称扣留的内容：设备、某项设置或仍在编译的程序使其无法进入图像的能力（`'temporal antialiasing'`，…）；一旦得到满足就离开列表。",
     "members": {
-      "renderer": "它的名称。",
-      "materials": "它能绘制哪些材质。",
-      "hierarchy": "它是否读取层级结构。",
-      "gpuDriven": "是否由 GPU 决定绘制内容。",
-      "simplification": "是否进行简化。",
-      "eviction": "是否淘汰页面。",
-      "unsupported": "它做不到的事情。"
+      "unsupported": "被扣留的能力。"
     }
   },
-  "BackendDiagnostic": {
+  "EngineDiagnostic": {
     "summary": "渲染器注意到的一件事,通过诊断通道报告出来。",
     "members": {
       "phase": "它发生的阶段。",
@@ -346,7 +340,8 @@
       "texturePreviewAstc": "预览图的 ASTC 数据块。",
       "bundleDependencyCount": "每个包依赖多少个包。",
       "bundleDependency": "每个包依赖的包，一直到根。",
-      "pageCone": "每个页面的法线锥：轴，然后是半角。"
+      "pageCone": "每个页面的法线锥：轴，然后是半角。",
+      "texturePreviewEtc2": "预览图的 ETC2 数据块。"
     }
   },
   "COMPILER_LINE_LIMIT": {
@@ -406,7 +401,7 @@
       "fitAspect": "高度如声明、宽度随画面形状而定的正交视框。",
       "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
       "updateProjectionMatrix": "重新组成 `projectionMatrix`；每次写入光学参数都已这样做，并会重绘。",
-      "projectionMatrix": "光学参数组成到裁剪立方体上的投影，深度从近平面的 −1 到有限远平面的 1，供用它绘制的渲染器使用；每次写入光学参数都会重新组成它。世界用自己的投影绘制（`engineCamera.ts`）。",
+      "projectionMatrix": "光学参数组成的投影，引擎自己的投影：深度反转到 [0, 1]，近平面处为 1（`referenceProjection.ts`）；每次写入光学参数都会重新组成它。",
       "matrixWorldInverse": "最近一次组成的世界矩阵的逆矩阵：渲染器读取的视图。",
       "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
       "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
@@ -523,7 +518,6 @@
       "selectedTriangles": "被保留的三角形数。",
       "selectedNodes": "被保留的节点数。",
       "totalNodes": "节点总数。",
-      "autonomousScene": "它内置的场景。",
       "primitives": "它的图元。",
       "worstStalls": "编译器的停滞表：至多十个图元，其停滞组在第 0 级留下了根，最差的在前。在它之前编译的缓存中没有。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
@@ -574,9 +568,6 @@
   },
   "ColumnKind": {
     "summary": "二进制清单中某一列的存储方式。"
-  },
-  "ComparisonLayout": {
-    "summary": "两个渲染结果如何并排展示以便比较。"
   },
   "CompilationJob": {
     "summary": "一次正在进行的编译。",
@@ -884,7 +875,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`：在时间抗锯齿之后、图像到达 canvas 之前绘制在图像上的有序通道。",
-    "description": "色调映射之前的通道按添加顺序读取线性辐射亮度；之后的通道按它们的顺序读取显示图像。空链不花任何代价：没有通道、没有复制、没有目标。在 WebGL2 上，绘制以 `multiply` 或 `subtractive` 混合的透明表面的帧会在没有链的情况下完整绘制，世界的诊断通道会报告一次 `effects-refused-blending`；WebGPU 两者都绘制。",
+    "description": "在色调映射之前运行的遍读取线性辐射度，按添加的顺序；之后运行的遍读取显示图像，按它们自己的顺序。空链不花任何代价：没有遍，没有拷贝，没有目标。以 `multiply` 或 `subtractive` 混合的透明表面，与其他表面一样画在链之下。",
     "members": {
       "revision": "统计变更：在另一个修订号下绘制的图像已经过时。",
       "passes": "按运行顺序排列的通道。",
@@ -940,9 +931,6 @@
       "INVALID_VIEWPORT": "画布没有可用的尺寸或像素比。",
       "INVALID_PIXEL_RATIO": "画布没有可用的尺寸或像素比。",
       "WEBGPU_UNAVAILABLE": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
-      "WEBGL2_UNAVAILABLE": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
-      "NO_WEBGL2": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
-      "NO_ENGINE_BACKEND": "这台机器无法按要求的方式绘制,或者根本无法绘制。",
       "RESOURCE_HTTP_ERROR": "无法获取某个文件(若失败可能是暂时的,会先再次请求),或者它的内容不符合预期。",
       "INVALID_JSON_RESPONSE": "无法获取某个文件(若失败可能是暂时的,会先再次请求),或者它的内容不符合预期。",
       "INVALID_POINTER": "已编译模型的指针已损坏、未完成,或属于另一种范围。",
@@ -955,12 +943,7 @@
       "INVALID_SCENE_TABLES": "模型的节点表和材质表缺失、版本不同,或与其场景不一致。",
       "UNSUPPORTED_SCENE_TABLES": "模型的节点表和材质表缺失、版本不同,或与其场景不一致。",
       "PREPARED_SCENE_MISMATCH": "模型的节点表和材质表缺失、版本不同,或与其场景不一致。",
-      "AUTONOMOUS_SCENE_UNAVAILABLE": "引擎自身的 WebGL2 路径无法绘制这个模型。",
-      "AUTONOMOUS_ASSOCIATION_MISSING": "引擎自身的 WebGL2 路径无法绘制这个模型。",
-      "AUTONOMOUS_COVERAGE_MISSING": "引擎自身的 WebGL2 路径无法绘制这个模型。",
-      "CLUSTER_MATERIAL_UNSUPPORTED": "引擎自身的 WebGL2 路径无法绘制这个模型。",
       "PAGE_BUDGET": "视图所需的页面超出了内存预算,或者这条路径根本没有预算概念。",
-      "UNSUPPORTED_MEMORY_BUDGETS": "视图所需的页面超出了内存预算,或者这条路径根本没有预算概念。",
       "INVALID_SCENE_LIGHT": "某个光源格式错误、重复、未知,或者没有可去的地方。",
       "DUPLICATE_SCENE_LIGHT": "某个光源格式错误、重复、未知,或者没有可去的地方。",
       "UNKNOWN_SCENE_LIGHT": "某个光源格式错误、重复、未知,或者没有可去的地方。",
@@ -989,11 +972,10 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
-      "SURFACE_CAPTURE_UNSUPPORTED": "向一条无法在独立视图中绘制材质表面的绘制路径请求了表面捕获（`captureSurfaceView`）：WebGL2 路径没有这一能力。",
       "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
-      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors、WebGPU renderer、WebGL2 renderer）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
+      "FAMILY_LOAD_FAILED": "引擎的一个可选家族（physics、particles、transmission、deformation、effects、guides、diagnostics、measurement、world stream、impostors、WebGPU renderer）在先重试导入后仍未加载（`T3D-E090`）：`details.family` 在 `world.diagnostic.error` 上给出其名称。使用它绘制的帧会等待它，下次使用时会再次请求它。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
@@ -1115,9 +1097,6 @@
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
-      "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
-      "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
-      "transmissionBackdropBytes": "自视野中第一个透射副本出现以来,WebGL2 透射背景所占用的字节数。",
       "triangles": "按 `totalSubmittedTriangles` 的统计方式,提交给本帧绘制的三角形数。引擎未统计时为 `null`:若为 0 会被误读为空帧。",
       "clusters": "已绘制的簇数。",
       "selectedTriangles": "裁切所选中的三角形数。",
@@ -1145,17 +1124,12 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长，永远不加到 `cpu*` 字段上。每隔几幅图像采样一次，所以数字可能是几幅图像之前的。第一次采样之前、从保持的图像到设备下一次采样之间、以及没有 `timestamp-query` 时为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "gpuDeviceLost": "GPU 设备丢失的原因；设备保持期间为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
-      "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
-      "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
-      "pagesDecodedOffThread": "主线程之外的页面解码。`pagesDecodedOffThread` 统计的是某个工作线程完成的任务(SHA-256 完整性校验或逐顶点属性读取),绝不包括回退方案在主线程上运行的部分。`pageDecodeMs` 是这些任务的累计耗时,无论在哪个线程上都由执行者本身测量得出:这是解码时间,绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何页面被解码之前,两者均为 `null`——表示未测量,而不是零。",
-      "pagesDecodedWasm": "由 WebAssembly 编译的解码器(而非 JavaScript 解码器)读取其属性的页面数。两者产出的字节完全相同;这个计数器只说明运行的是哪一个,也就是说,当前这个宿主是否找到并实例化了那个 `.wasm` 资源。",
-      "pageDecodeMs": "花在解码页面上的时间。",
       "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
       "pagePlanMs": "花在规划到达上的时间。",
@@ -1164,11 +1138,10 @@
       "displayRefreshMs": "显示器的刷新间隔,单位毫秒,由引擎根据其各帧的 rAF 时间戳测得(渲染比例预算所用的时钟);在找到之前为 null。",
       "gpuIdleMs": "最近一次采样图像之前设备的空闲时间,单位毫秒:从其前一张图像的最后一个时间戳到它自己的第一个时间戳,即 `gpuHostGapMs` 无法容纳的间隙(只提交一次的图像不含这部分)。当其前一张图像或这张图像没有被完整计时(某个未计时的 pass,或其时间戳无法读取的 pass;被驱动跳过的 pass 不计入)、在暂停之后、以及没有 `timestamp-query` 时为 null(#1451)。",
       "renderHeight": "图像绘制时的像素高度,与 `renderWidth` 相对。",
-      "renderWidth": "在时间抗锯齿或重采样把图像重建到显示尺寸之前,图像绘制时的像素宽度:渲染比例为 1 时即显示器自身的宽度。在出现图像之前为 null。"
+      "renderWidth": "在时间抗锯齿或重采样把图像重建到显示尺寸之前,图像绘制时的像素宽度:渲染比例为 1 时即显示器自身的宽度。在出现图像之前为 null。",
+      "pagesChecked": "页面完整性检查。`pagesChecked` 统计已获取且计算了 SHA-256 摘要的页面（`crypto.subtle`，在主线程之外）。`pageCheckMs` 是从每次检查开始到得出摘要的累计时间：它从不计入每帧的 `cpu*` 或 `gpu*`。只要还没有页面被检查，两者都为 `null`——未测量，而非零。",
+      "pageCheckMs": "花在检查页面上的时间。"
     }
-  },
-  "FramePass": {
-    "summary": "为正在绘制的帧的各遍命名；每次调用都会关闭上一遍并开启下一遍。"
   },
   "Frustum": {
     "summary": "六个平面,由核心模块(`math/frustum/frustum.ts`)从一个视图投影矩阵中读取而来。",
@@ -1322,7 +1295,7 @@
     }
   },
   "GpuTimingMethod": {
-    "summary": "GPU 是如何被计时的:WebGPU 时间戳,或是 WebGL2 的计时器查询。"
+    "summary": "GPU 如何计时：WebGPU 时间戳。"
   },
   "Group": {
     "summary": "一个只用来分组其他节点的节点。",
@@ -1422,8 +1395,6 @@
       "matrixAutoUpdate": "当宿主通过矩阵来摆放摄像机姿态时为 false:此时 `matrix` 就是姿态本身,不会有任何东西根据那三个局部字段重新合成它。",
       "matrix": "**局部**矩阵,姿态的另一面:某次恢复操作会把它和那三个字段一起写回。",
       "matrixWorld": "它的世界矩阵。",
-      "projectionMatrix": "按**宿主**的深度约定给出的投影矩阵,包含有限的远平面。引擎会组合出自己的投影(`engineCamera.ts`),只有当某次绘制由宿主的渲染器自己负责时,才会读取这一个。",
-      "projectionMatrixInverse": "它的逆矩阵,宿主渲染器会把它与之一起保留,并交给自己的着色器使用。",
       "updateWorldMatrix": "更新它的世界矩阵。",
       "updateMatrixWorld": "更新它的世界矩阵,子节点也一并更新。",
       "updateProjectionMatrix": "重新构建它的投影。",
@@ -1440,60 +1411,11 @@
       "b": "蓝色分量,线性值。"
     }
   },
-  "HostDiagnosticFactory": {
-    "summary": "诊断视图用来替换的宿主对象,由拥有显示图的边界层创建并注入到各个视图中;色调、颜色和面向都以计算好的形式提供。",
-    "members": {
-      "triangleGeometry": "宿主几何体的一份拷贝,其中每个三角形都拥有自己独立的三个顶点。",
-      "vertexColors": "把引擎计算出的逐顶点颜色写入某个宿主几何体。",
-      "triangleMaterial": "一种无光照表面,原样显示那些顶点颜色。",
-      "clusterMaterial": "一种无光照表面,呈现某个簇的颜色——由核心模块根据其标识符计算出的色相。"
-    }
-  },
-  "HostDiagnosticGeometry": {
-    "summary": "一个诊断视图可以释放的宿主几何体。",
-    "members": {
-      "attributes": "它的顶点属性。",
-      "dispose": "释放它。"
-    }
-  },
-  "HostDiagnosticMaterial": {
-    "summary": "诊断视图临时挂到某个网格上、之后再释放的宿主表面:它所挂载的内容都通过 `HostDiagnosticFactory` 传入,绝不通过 import 获得,因此没有任何视图会点名某个渲染库。",
-    "members": {
-      "side": "绘制哪一面,以宿主的常量形式表示。",
-      "dispose": "释放它。",
-      "clone": "该表面的一份拷贝。"
-    },
-    "description": "诊断视图也服务于见证者，其网格属于它们自己的库：它们挂上的东西经由 `HostDiagnosticFactory` 到达，并且只通过这个形状被读取。"
-  },
   "HostDisposable": {
     "summary": "当其来源的图被释放时,引擎会随之释放的宿主资源:一个几何体、一个表面、一个纹理。",
     "description": "引擎从不会自己创建这类对象,因此释放它就等同于把它归还。",
     "members": {
       "dispose": "释放它。"
-    }
-  },
-  "HostDrawCamera": {
-    "summary": "引擎交出的、宿主用来绘制一帧所需的矩阵和深度范围。",
-    "members": {
-      "projection": "投影矩阵。",
-      "world": "摄像机的世界矩阵。",
-      "view": "视图矩阵。",
-      "eye": "眼睛所在的位置。",
-      "near": "最近距离。",
-      "far": "最远距离。"
-    }
-  },
-  "HostDrawOutput": {
-    "summary": "宿主的绘制结果落在哪里——当帧缓冲为 `null` 时,就是页面自己的绘图缓冲区——以及场景的光照是否需要色调映射;`width` 和 `height` 是视口的尺寸。",
-    "members": {
-      "toneMapped": "是否应用显示曲线。",
-      "toneMapping": "场景选定的显示曲线;缺省时为 ACES。",
-      "framebuffer": "绘制到哪里;屏幕对应 `null`。",
-      "width": "宽度,单位像素。",
-      "height": "高度,单位像素。",
-      "displayWidth": "图像以低于该宽度绘制时（`world.renderScale`）所显示的宽度：纹理级别和线宽随该比例变化。缺省时为 `width`。",
-      "linear": "线性辐射亮度，不经曲线也不编码，叠在透明黑之上：效果链的输入，其 alpha 即覆盖率。",
-      "pass": "在有人读取时，按顺序为该绘制的 GPU 通道命名，交给帧计时器（`../core/frameTimer.ts`）；无人计时的绘制则没有此项。"
     }
   },
   "HostMaterial": {
@@ -1763,10 +1685,7 @@
     "summary": "一个引擎对契约规定的光源实际能做到什么。",
     "description": "一次被存储层接受的调用,并不能证明真的产生了光照效果:一个不重新读取存储层的引擎会让画面保持原样,而宿主必须能够在相信这张画面之前先知道这一点。每个字段说明的是**当前生效**的引擎实际应用了什么,绝不是契约所公开声明的内容。",
     "members": {
-      "sceneLights": "声明的光源是否真的照亮了这个引擎的画面。",
-      "lightingView": "`setLightingView` 是否真的改变了这个引擎的画面。",
       "shadows": "这个引擎的光源是否携带阴影。",
-      "transforms": "`setTransform` 是否真的在这个引擎上移动了某个具名节点。",
       "reason": "用一句话说明引擎没有做到的事情,以及原因;当一切都已应用时省略此项。"
     }
   },
@@ -1837,7 +1756,8 @@
       "texturePreviews": "渐进式层级部分的条目数;当源数据没有可解码图像时为零。",
       "texturePreviewBytes": "像素列的字节数:各条目没有固定步长,因此它们的总和记录在这里。",
       "texturePreviewBc7Bytes": "各个数据块列的字节数——按族分别记录保留链条的尾部——也记录在这里。",
-      "texturePreviewAstcBytes": "ASTC 数据块列的字节数。"
+      "texturePreviewAstcBytes": "ASTC 数据块列的字节数。",
+      "texturePreviewEtc2Bytes": "ETC2 数据块列的字节数。"
     }
   },
   "Material-common": {
@@ -2309,14 +2229,6 @@
       "fitAspect": "高度如声明、宽度随画面形状而定的正交视框。"
     }
   },
-  "PAGE_DECODE_FAILURES": {
-    "summary": "失败语义,封闭列表。",
-    "description": "前六项是页面解码的拒绝原因,逐字取自 `geometryPage.ts`:调用者按原有方式区分它们。`PAGE_DECODE_FAILED` 承载来自解压缩库的其他任何拒绝原因。`PAGE_DECODE_CANCELLED` 对应被取消的情况,`PAGE_DECODE_WORKER` 对应某个消失了的执行者——只有后者才允许启用回退方案。"
-  },
-  "PAGE_DECODE_PROTOCOL": {
-    "summary": "主线程之外的页面解码契约,第 7 版:解码后的几何体连同其量化误差作为一个整体块传输;`cut` 把被绘制的三角形转换成一个个页面,这些页面随其描述符以字节形式返回;自第 6 版起还带有其法线锥,打包的三角形标明其页面是否保留法线锥;自第 7 版起,`cells` 把分区的单元文件读成它所放置的行,`cellPage` 读取其单元索引的一个页面(#575)。",
-    "description": "调用方线程发送一个 `PageDecodeRequest`,执行者返回一个携带相同 `id` 的 `PageDecodeAnswer`。这里的内容不涉及任何平台细节:没有 `Worker`,没有网络请求,没有时钟——这些都由浏览器适配层负责,这份契约只承载消息的形状、封闭的失败原因列表,以及池的边界。缓冲区所有权:`source` 会随请求一起被**转移**,因此发送方之后不再拥有它。`verify` 的响应会把它转移回来;`decode` 的响应则改为返回解码后的缓冲区,同样以转移方式给出。一个不进行任何转移的执行者(同步回退方案)返回的值完全相同:这份契约不规定工作是如何传递的,只规定返回什么。"
-  },
   "PAGE_INTEGRATION_FAILURES": {
     "summary": "封闭的拒绝原因列表。",
     "description": "`PAGE_INTEGRATION_UNKNOWN` 对应某个执行者没有对应记录单的到达情况——可能是消息丢失,也可能是执行者被重启;`PAGE_INTEGRATION_WORKER` 对应某个消失了的执行者。这两种情况都允许使用内联回退方案,在主线程上重新制定同样的计划。"
@@ -2420,104 +2332,6 @@
       "streamOffset": "它在该资源包内的字节偏移量。",
       "depthLayer": "共面深度层,对于编译器未做处理的每个簇均为 0。层为 n 的簇会带着 n 个完整层级步长的深度偏移进行绘制,这正是决定两个精确共面的不透明表面之间谁获胜的因素。缺失和 0 表示同一件事:未经处理的绘制。",
       "cone": "包住其三角形法线的锥：`axis` 为单位向量，`angle` 为以弧度计的半角，不剔除任何内容的锥为 π。编译器根据三角形计算它；WebGPU 裁剪会跳过相机从锥背面看到的单面簇。"
-    }
-  },
-  "PageCutPage": {
-    "summary": "某次 `cut` 写出的一个页面:它的索引和几何体字节数据、它们各自的摘要,以及它的描述符。",
-    "members": {
-      "index": "三角形索引。",
-      "geometry": "顶点字节数据。",
-      "indexSha256": "索引的指纹。",
-      "geometrySha256": "顶点的指纹。",
-      "count": "该页面中的三角形数。",
-      "start": "它的第一个源三角形。",
-      "min": "最小角点。",
-      "max": "最大角点。",
-      "sphere": "包围球。",
-      "vertexCount": "该页面中的顶点数。",
-      "indexCount": "该页面中的索引数。",
-      "flags": "它携带了哪些属性。",
-      "uncompressedBytes": "解包后的大小。",
-      "cone": "其三角形法线的包围锥，若已构建。"
-    }
-  },
-  "PageCutPayload": {
-    "summary": "一次 `cut` 返回的内容:写出的页面,以及它们被量化时所依据的网格。",
-    "members": {
-      "pages": "写出的页面。",
-      "positionExponent": "位置网格的步长,以 2 的幂次表示。",
-      "uvExponent": "纹理坐标网格的步长,以 2 的幂次表示。",
-      "maxPositionError": "该网格上的最大位置误差。"
-    }
-  },
-  "PageDecodeAnswer": {
-    "summary": "工作线程对某个页面请求的响应:成功或失败。"
-  },
-  "PageDecodeCancel": {
-    "summary": "取消一个仍在队列中的请求。",
-    "description": "已经开始的工作会运行到完成,然后回复 `PAGE_DECODE_CANCELLED`:执行者在解码过程中没有中断点。",
-    "members": {
-      "protocol": "消息格式版本。",
-      "id": "要取消的请求。",
-      "op": "始终为 `'cancel'`。"
-    }
-  },
-  "PageDecodeDone": {
-    "summary": "当一个页面请求成功时,工作线程给出的响应。",
-    "members": {
-      "protocol": "消息格式版本。",
-      "id": "被响应的请求。",
-      "ok": "始终为 `true`。",
-      "sha256": "`verify` 时:小写十六进制摘要。`decode` 时:`null`。",
-      "source": "`verify` 时:返回原始缓冲区。`decode` 时:`null`,原始数据已被消耗。",
-      "decoded": "`decode` 时:解包后的页面。",
-      "cut": "`cut` 时:各页面,其字节以转移方式给出。其他情况下不存在。",
-      "cells": "`cells` 时:每个节点在 `ranks` 中以两个 32 位整数给出其核心父节点的序号(`-1`:场景根)和其网格的序号,在 `locals` 中以十六个双精度数给出引擎为其姿态合成的局部矩阵;两者都以转移方式给出。其他情况下不存在。",
-      "cellPage": "`cellPage` 时:页面的槽位,或其单元(`readCellPage`)。其他情况下不存在。",
-      "wasm": "当由 WebAssembly 编译的解码器完成这项工作时为 true,由 JavaScript 解码器完成时为 false。两者产出的字节完全相同;只有这个计数器能区分它们。",
-      "taskMs": "任务耗时,由执行者自身测量。"
-    }
-  },
-  "PageDecodeFailed": {
-    "summary": "当一个页面请求失败时,工作线程给出的响应。",
-    "members": {
-      "protocol": "消息格式版本。",
-      "id": "被响应的请求。",
-      "ok": "始终为 `false`。",
-      "code": "失败的原因。",
-      "message": "原始的错误信息,原样传递:调用者会抛出与同步路径完全相同的 `Error`。",
-      "refusal": "任务遇到的引擎具名拒绝的代码（`EngineError`），调用方以该代码再次抛出；其他任何失败时不存在。"
-    }
-  },
-  "PageDecodeFailureCode": {
-    "summary": "页面请求失败方式的名称。"
-  },
-  "PageDecodeGeometryPayload": {
-    "summary": "一个已解码页面,表示为单个 `decodedBytes` 缓冲区:32 位索引,随后是 `names` 所列出的每个属性的浮点数,按解码时的写入顺序排列——正是这个顺序,才使得逐字段比对与 `Record` 完全一致成为可能。",
-    "members": {
-      "block": "索引,随后是各属性。",
-      "names": "各属性,按顺序排列。",
-      "vertexCount": "顶点数。",
-      "flags": "它携带了哪些属性。",
-      "decodedBytes": "`block` 的大小。",
-      "quantizationError": "页面头中记录的最大位置偏移量,单位为对象自身单位。",
-      "skinInfluences": "每个顶点原始骨骼影响的准确宽度。",
-      "morphTargets": "`morph` 中的目标数：每个目标、每个顶点使用六个浮点数；无变形目标时省略。"
-    }
-  },
-  "PageDecodeOp": {
-    "summary": "`verify`:某个页面的 SHA-256 摘要。",
-    "description": "`decode`:它的索引和逐顶点属性。`cut`:被绘制的三角形,先打包成五个长度值和其页面是否保留法线锥,再打包成五个四字节数组,然后被切分成若干页面。 `cells`:分区的单元文件,读成每个节点的父节点、网格和局部矩阵。`cellPage`:其单元索引的一个页面,读成它列出的页面或其单元。"
-  },
-  "PageDecodeRequest": {
-    "summary": "请求某个工作线程校验、解包或切分某个页面的消息。",
-    "members": {
-      "protocol": "消息格式版本。",
-      "id": "请求编号。",
-      "op": "要执行的操作。",
-      "source": "随消息一起转移:发送方之后不再拥有它。",
-      "maxDecodedBytes": "一个几何体页面解码后字节数的上限;`verify` 会忽略这一项。",
-      "name": "`cells`、`cellPage`：读取源数据的文件，拒绝时会指明它。"
     }
   },
   "PageHome": {
@@ -3276,7 +3090,6 @@
       "selectedTriangles": "被保留的三角形数。",
       "selectedNodes": "被保留的节点数。",
       "totalNodes": "节点总数。",
-      "autonomousScene": "它内置的场景。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
       "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。",
@@ -3381,7 +3194,7 @@
   },
   "StageProfile": {
     "summary": "在一段滑动的帧窗口上得到的完整性能剖析。",
-    "description": "`gpuImageMs` 是该帧的 GPU 整体耗时:从它第一个通道开始到最后一个通道结束。各阶段的耗时**不会**累加进这个值——一个能让两个通道重叠执行的设备,在求和时会把它们计算两次,但在整体耗时里绝不会这样。这也是 WebGL2 引擎唯一可用的度量方式,因为它无法把一帧拆分成多个通道。",
+    "description": "`gpuImageMs` 是帧的 GPU 包络：从第一遍的开始到最后一遍的结束。各阶段的时长不会加进去 —— 让两遍重叠的设备在求和里会把它们算两次，在包络里则从不如此。",
     "members": {
       "version": "格式版本。",
       "enabled": "性能剖析是否在运行。",
@@ -3457,10 +3270,11 @@
       "dispose": "释放它。",
       "subsurface": "薄表面的独立透射颜色；禁用时使用数值为零的 1×1 纹理。",
       "subsurfaceView": "薄表面透射纹理的视图。",
-      "hasSubsurface": "薄表面透射是否具有全尺寸目标。",
       "hasEmissiveAo": "自发光与遮挡层是否有其像素;否则为 1×1 的 `(0, 0, 0, 1)`。",
       "receiver": "每个像素的阴影接收体(`../visibility/shader/receiverTargetWgsl.ts`)。",
-      "receiverView": "着色 pass 写入、光照读取的 `receiver` 视图。"
+      "receiverView": "着色 pass 写入、光照读取的 `receiver` 视图。",
+      "lobes": "每个像素的各向异性波瓣与清漆波瓣（`./physicalLobes.ts`）；没有表面携带时为 1×1 纹理。",
+      "lobesView": "解析写入、光照读取的 `lobes` 视图。"
     }
   },
   "SurfaceCapture": {
@@ -4026,9 +3840,6 @@
       "vehicle": "仅载具：`'vehicle'` 控制所驾驶的对象——任何带有 `drive(input)` 的对象，按键每次变化时它都会收到油门、刹车、转向和手刹。默认 `null`；为 `null` 时 `kind = 'vehicle'` 会抛出 `NO_VEHICLE`。"
     }
   },
-  "world.renderer": {
-    "summary": "`'webgpu'` 或 `'webgl2'`:世界的绘制方式;在 `ready` 之前为 `null`。"
-  },
   "world.camera": {
     "summary": "透过它来观看画面的摄像机;设置另一个即可切换。"
   },
@@ -4047,7 +3858,7 @@
   },
   "world.temporalAntialiasing": {
     "summary": "时间性抗锯齿：跨帧累积的亚像素抖动；默认开启。",
-    "description": "写入后从下一帧生效，丢弃历史，不重新打开会话。读取时是图像实际带有的：在 WebGL2 上为 false，开启后程序编译期间也为 false。"
+    "description": "写入时在下一帧生效，丢弃历史，不重新打开会话。读取时是图像所携带的：开启之后程序编译期间为 false。"
   },
   "world.renderScale": {
     "summary": "图像按每个轴绘制的显示比例（`WorldOptions.renderScale`），从下一帧起生效。",
@@ -4062,7 +3873,7 @@
       "geometryPoolCeiling": "一个世界可以请求的最大池:引擎的初始预算。",
       "texturePoolCeiling": "一个世界可以请求的最大纹理池,单位字节。",
       "geometryPool": "为几何页面保留的 GPU 内存字节数；设置它以改变范围，限于 `gpu` 在阴影、反弹探针和纹理池之外剩下的部分。",
-      "texturePool": "为纹理页面保留的 GPU 内存字节数，在没有纹理池的引擎（WebGL2）上为 `null`；设置它以改变范围，限于 `gpu` 在阴影、反弹探针和几何池之外剩下的部分。",
+      "texturePool": "为纹理页保留的 GPU 内存字节数；设置它可改变包络，范围在 `gpu` 留在阴影、反弹探针和几何池旁边的部分之内。",
       "physics": "物理的上限（物体、装饰物体、内存），启动时读取一次；超出任一项会抛出 `PHYSICS_BUDGET`。",
       "raycastTrees": "`raycast` 为三角形树保留的 CPU 内存字节数，由页面上的所有世界共享；超出后，最久未使用的树会被丢弃。设置它即可更改上限。",
       "gpu": "世界可占用的 GPU 内存字节数（所有池合计）；设置后按分配规则（`split`）重新划分每个池。低于三个固定份额（阴影池、反弹探针和效果目标）的总量会被拒绝（`GPU_BUDGET_UNDER_SHADOW_POOL`）。从不从机器读取。未设置时取默认总量（`defaultGpuBudget`）：固定份额、会话持有它们时所绘画布上全分辨率的帧目标，然后是两个取默认值的池——静止的帧绝不会因内存不足而绘制得低于显示器。已设置时页面的总量生效：超过它,帧会低八分之一绘制。",
@@ -4153,9 +3964,6 @@
       "cpuFrameMs": "该帧的 CPU 耗时。",
       "cpuSubmitMs": "提交工作所耗费的 CPU 时间。",
       "drawCalls": "引擎统计出的本帧绘制调用数。未统计时为 `null`:若为 0 会被误读为“没有绘制的一帧”。",
-      "autonomousClusterDrawsTotal": "本会话中,引擎自有的 WebGL2 程序发出的按页绘制的簇数量。",
-      "autonomousCopyDraws": "引擎自有的 WebGL2 程序在本帧绘制的场景副本数——即透射表面。",
-      "transmissionBackdropBytes": "自视野中第一个透射副本出现以来,WebGL2 透射背景所占用的字节数。",
       "triangles": "按 `totalSubmittedTriangles` 的统计方式,提交给本帧绘制的三角形数。引擎未统计时为 `null`:若为 0 会被误读为空帧。",
       "clusters": "已绘制的簇数。",
       "selectedTriangles": "裁切所选中的三角形数。",
@@ -4183,17 +3991,12 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长，永远不加到 `cpu*` 字段上。每隔几幅图像采样一次，所以数字可能是几幅图像之前的。第一次采样之前、从保持的图像到设备下一次采样之间、以及没有 `timestamp-query` 时为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "gpuDeviceLost": "GPU 设备丢失的原因；设备保持期间为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
-      "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
-      "gpuSelectionFallback": "当引擎原本拥有 GPU 选择结果却将其放弃时为 true:此后测量到的就是回退用的 CPU 裁切。发生回退时还会发出一次 `gpu-selection-fallback` 诊断信息,宿主会原样复制它;在没有 GPU 选择功能的引擎上不存在该字段。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
-      "pagesDecodedOffThread": "主线程之外的页面解码。`pagesDecodedOffThread` 统计的是某个工作线程完成的任务(SHA-256 完整性校验或逐顶点属性读取),绝不包括回退方案在主线程上运行的部分。`pageDecodeMs` 是这些任务的累计耗时,无论在哪个线程上都由执行者本身测量得出:这是解码时间,绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何页面被解码之前,两者均为 `null`——表示未测量,而不是零。",
-      "pagesDecodedWasm": "由 WebAssembly 编译的解码器(而非 JavaScript 解码器)读取其属性的页面数。两者产出的字节完全相同;这个计数器只说明运行的是哪一个,也就是说,当前这个宿主是否找到并实例化了那个 `.wasm` 资源。",
-      "pageDecodeMs": "花在解码页面上的时间。",
       "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
       "pagePlanMs": "花在规划到达上的时间。",
@@ -4269,20 +4072,21 @@
       "shadowVsmProjectionMs": "阴影投影的 GPU 时间,单位毫秒,取自各 pass 的计时。",
       "shadowVsmProjectionPasses": "本帧的投影 pass,每个四个光源。",
       "shadowVsmRenderMs": "页面渲染的 GPU 时间,单位毫秒,取自各 pass 的计时。",
-      "shadowVsmTransmissionMs": "半透明投射体的透射图集(清除、绘制、resolve)的 GPU 时间,单位毫秒。"
+      "shadowVsmTransmissionMs": "半透明投射体的透射图集(清除、绘制、resolve)的 GPU 时间,单位毫秒。",
+      "pagesChecked": "页面完整性检查。`pagesChecked` 统计已获取且计算了 SHA-256 摘要的页面（`crypto.subtle`，在主线程之外）。`pageCheckMs` 是从每次检查开始到得出摘要的累计时间：它从不计入每帧的 `cpu*` 或 `gpu*`。只要还没有页面被检查，两者都为 `null`——未测量，而非零。",
+      "pageCheckMs": "花在检查页面上的时间。"
     }
   },
   "WorldOptions": {
     "summary": "页面创建一个世界时可以设置的内容;通常情况下什么都不需要设置。",
     "members": {
-      "renderer": "世界如何绘制,`'webgpu'` 或 `'webgl2'`。省略时,世界会采用机器所能提供的最佳选项;机器不具备的渲染器会按名称被拒绝,绝不会被替换成另一个。",
       "interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "renderScale": "图像绘制时每轴占显示的比例，在时间抗锯齿把它重建到显示之前：`'auto'` 让帧预算在 `min` 与 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则固定它。静止图像同样按这个比例、即预算的比例绘制，并在整轮抖动相位被平均之后保持。之后可由 `world.renderScale` 更改。",
       "debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。",
       "quality": "质量:一个预设、各自有自己级别的组、分辨率(`world.quality`)。"
     }
@@ -4297,9 +4101,6 @@
       "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。对已在读取中的页面发出的更紧急读取会被再次请求以提升其优先级：接受 `priority` 的来源应将其并入正在进行的读取，而不是把页面传输两次。",
       "baseUrl": "所有页面据以读取的地址。"
     }
-  },
-  "WorldRenderer": {
-    "summary": "世界可以绘制的两种方式:WebGPU,或者在没有 WebGPU 时使用 WebGL2。"
   },
   "WorldTarget": {
     "summary": "一个画布、一个用来在其内部绘制的元素,或者两者之一的原始文档 ID(不带选择器前缀)。"
@@ -4827,7 +4628,26 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU 分配/队列边界。",
-    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。"
+    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。",
+    "parameters": {
+      "options.homes": "每个页面自己的位置，在 `slots` 容纳整个目录期间占用（`homes.ts`）。",
+      "options": "GPU 页缓存如何确定大小，以及向何处报告（`createGpuPageCache`）。",
+      "options.pageBytes": "一个槽位的字节数：四的倍数。",
+      "options.slots": "池容纳多少个槽位。",
+      "options.onDiagnostic": "接收缓存的报告：它的布局、被取消的加载和拒绝。"
+    }
+  },
+  "GpuPageCacheOptions": {
+    "summary": "GPU 页面缓存如何确定大小以及向何处报告（`createGpuPageCache`）。",
+    "members": {
+      "pageBytes": "一个槽位的字节数：四的倍数。",
+      "slots": "池容纳的槽位数。",
+      "homes": "每个页面自己的位置，在 `slots` 容纳整个目录期间占用（`homes.ts`）。",
+      "onDiagnostic": "接收缓存报告的内容：其布局、被取消的加载和拒绝。"
+    }
+  },
+  "PagePinTier": {
+    "summary": "已加载页面的固定方式：调整大小时排在普通固定之前的 `'held'`，否则为 `'pinned'`。"
   },
   "createJob": {
     "summary": "没有计时器、DOM、文件系统或 UI。"
@@ -4888,14 +4708,13 @@
     "parameters": {
       "target": "要绘制到的画布、要在其内部绘制的元素,或者两者之一的 ID。",
       "options": "世界如何绘制、如何监听;通常情况下什么都不需要指定。",
-      "options.renderer": "世界如何绘制,`'webgpu'` 或 `'webgl2'`。省略时,世界会采用机器所能提供的最佳选项;机器不具备的渲染器会按名称被拒绝,绝不会被替换成另一个。",
       "options.interactive": "世界是否运行自己的循环:有变化时就绘制,连续 120 帧没有新内容后就休息。设为 `false` 则由页面自己调用 `world.render()`。",
       "options.pixelRatio": "每个屏幕像素对应多少个图像像素。",
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。",
+      "options.renderScale": "图像绘制时每轴占显示的比例，在时间抗锯齿把它重建到显示之前：`'auto'` 让帧预算在 `min` 与 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则固定它。静止图像同样按这个比例、即预算的比例绘制，并在整轮抖动相位被平均之后保持。之后可由 `world.renderScale` 更改。",
       "options.debug": "调试模式，即开发构建相对于发布构建的工具：只有在此模式下，帧才会记录到 CPU 步骤概况（`world.cpuSteps`）和帧报告中。它属于整个页面，地址中的 `?profile` 也会开启它；之后用 `world.diagnostic.debug` 切换。",
       "options.quality": "质量:一个预设、各自有自己级别的组、分辨率(`world.quality`)。"
     }
@@ -4929,6 +4748,15 @@
   },
   "detectCapabilities": {
     "summary": "检测这台机器能用什么方式绘制,并在无法绘制时说明原因。"
+  },
+  "GpuCapabilities": {
+    "summary": "这台机器的 WebGPU 所授予的内容，在任何会话打开之前读取。",
+    "members": {
+      "tier": "有 GPU 时间戳时为 `'full'`，没有时为 `'degraded'`，没有适配器时为 `'unavailable'`。",
+      "extensions": "适配器提供的可选功能。",
+      "reason": "一句话说明授予了什么，或为何什么都没有授予。",
+      "adapter": "向其请求设备的适配器；未授予任何适配器或已传入设备时为 `null`。"
+    }
   },
   "determinantMatrix4": {
     "summary": "列主序 4×4 矩阵的行列式，按固定的项和符号顺序沿最后一行展开；奇异矩阵为 0。"
@@ -6090,7 +5918,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "根据每个点到摄像机的距离来上明暗：在 `camera.near` 处为白色，在 `camera.far` 处为黑色，中间为直线渐变，在 WebGPU 和 WebGL2 上相同。",
+    "summary": "按每个点到相机的距离着色：在 `camera.near` 处为白，在 `camera.far` 处为黑，其间为直线渐变。",
     "parameters": {
       "parameters": "页面可以传给材质成员的内容;每个字段都是可选的。",
       "parameters.color": "基础颜色。",
@@ -6502,7 +6330,11 @@
     "parameters": {
       "device": "用于分配内存的 GPU 设备。",
       "source": "页面读取的来源。",
-      "options": "每页的字节数,以及槽位数量。"
+      "options": "每页的字节数,以及槽位数量。",
+      "options.homes": "每个页面自己的位置，在 `slots` 容纳整个目录期间占用（`homes.ts`）。",
+      "options.pageBytes": "一个槽位的字节数：四的倍数。",
+      "options.slots": "池容纳多少个槽位。",
+      "options.onDiagnostic": "接收缓存的报告：它的布局、被取消的加载和拒绝。"
     }
   },
   "page.decode": {
@@ -6513,13 +6345,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "一个携带自身屏幕误差带的簇不需要层级结构:选择过程就是一次按页面进行的扁平测试。"
-  },
-  "pageDecodeFailureCode": {
-    "summary": "与某条消息匹配的、已命名的拒绝原因,其余情况一律归为 `PAGE_DECODE_FAILED`。"
-  },
-  "pageDecodeWorkerCount": {
-    "summary": "解码池的大小:绝不超过机器报告的核心数,绝不超过软件包设定的上限,绝不超过传输操作已经生效的准入上限,并且至少为一。",
-    "description": "缺失或非整数的值等同于单个执行者:在一个什么都不报告的平台上,我们不会凭空捏造出并行能力。"
   },
   "perspectiveProjection": {
     "summary": "垂直 `fov`(角度)、比例 `aspect`、近平面 `near`、缩放 `zoom` 决定的摄像机透视投影。"
@@ -6551,6 +6376,14 @@
       "world": "要移动的世界。",
       "poses": "要依次经过的各个视角。",
       "p": "整条路径总共占用多少帧。"
+    }
+  },
+  "PathRun": {
+    "summary": "一次测量过的路径运行：每帧的指标、其 CPU 摘要以及显示节奏。",
+    "members": {
+      "frames": "每个测量帧的指标，按路径顺序。",
+      "cpu": "它们的 CPU 帧时间摘要。",
+      "cadence": "它们所占用的显示帧的节奏。"
     }
   },
   "prepare": {
@@ -6586,7 +6419,7 @@
     }
   },
   "presentationColorDiagnostic": {
-    "summary": "供截图和报告使用的、针对最终 WebGL 合成结果的一份范围受限的证据记录。"
+    "summary": "针对一幅捕获图像（`capture()`，底行在先）的有界证据记录，从引擎的 WebGPU 颜色目标读取。"
   },
   "previewBlockBytes": {
     "summary": "所携带各个层级经数据块压缩后的字节,按从最精细到最粗糙的顺序拼接而成。"
@@ -6611,9 +6444,9 @@
   "primitiveUsesClusterErrors": {
     "summary": "一个图元的每一个页面是否都携带自己的误差带。"
   },
-  "probeWorldRenderer": {
-    "summary": "在加载任何场景之前机器所允许的内容:一个世界将用来绘制的路径。",
-    "description": "机器不具备的强制指定路径会按名称被拒绝;交由引擎决定时,若获得了一个适配器就使用 WebGPU(其设备只请求一次),否则使用 WebGL2,两者都不具备的机器会被拒绝。当会话打开时,`chooseBackends` 会在该设备上重复同样的判断。"
+  "probeWorldDevice": {
+    "summary": "世界用于绘制的 WebGPU 设备，在加载任何场景之前请求，并在世界的整个生命周期内保持：它打开的每个会话都在其上绘制。",
+    "description": "不授予任何适配器的机器，或拒绝其设备的适配器，会按名称被拒绝（`WEBGPU_UNAVAILABLE`）。"
   },
   "readCameraWorld": {
     "summary": "把宿主摄像机复制到引擎摄像机中,祖先节点已解析完毕。"
@@ -7426,9 +7259,6 @@
       "depthWrite": "是否写入深度。",
       "depthFunc": "深度测试所用的比较方式。",
       "colorWrite": "是否写入颜色。",
-      "polygonOffset": "深度是否被偏移。",
-      "polygonOffsetFactor": "偏移量中的斜率部分。",
-      "polygonOffsetUnits": "偏移量中的常数部分。",
       "transparent": "是否进行混合。",
       "opacity": "不透明程度。",
       "alphaTest": "低于该值的像素会被丢弃的 alpha 阈值。",
@@ -7856,7 +7686,7 @@
   },
   "world.setTransform": {
     "summary": "移动节点 `nodeName`，使其世界位姿为 `matrix`：页面未持有引用的节点通过其名称（`object.name`）在场景中查找而抵达。",
-    "description": "位姿是世界位姿——引擎把它带回节点的父空间——因此已移动父节点下的名称仍落在要求之处。与 WebGPU 和 WebGL2 为页面按名称移动所走的同一条路径，而非第二条。下一帧绘制它；不改变任何东西的请求不会请求帧。",
+    "description": "姿态是世界姿态 —— 引擎把它带回节点父级的空间 —— 所以移动过的父级之下的名字仍会落在所要求的位置。引擎按名字移动页时走的是同一条路径，而不是第二条。下一帧会绘制它；不改变任何东西的请求不要求帧。",
     "parameters": {
       "nodeName": "要移动节点的 `name`。",
       "matrix": "其世界位姿，列主序的十六个浮点数。"
@@ -8020,5 +7850,8 @@
       "set": "在预设之上把 `group` 设为 `level`,之后的任何预设都不会改变它;`'preset'` 把该组交还给预设。"
     },
     "summary": "质量:一个预设、其上每个组的级别,以及图像绘制时的分辨率。"
+  },
+  "TRANSPARENT_DEPTH_LAYER": {
+    "summary": "透明遍绘制所在的层：恰好贴在不透明面上的玻璃、贴花或水面会画在它之上 —— 透明表面从不进入编译器的阶段，所以它的页带层 0 —，比不透明光栅与它自己的光栅之间的浮点舍入高出一个层级，永远不足以触及位于其上方的表面。"
   }
 }

@@ -1,9 +1,9 @@
 // Page of the water-cost measure (#232, `bench/runner/waterCost.ts`), run only when the recette
 // invokes it: no engine optimisation, no pass timing reconstruction.
 import type {
-  BackendDiagnostic,
-  BackendFactory,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
+  EngineDiagnostic,
+  EngineFactory,
+} from '../../../packages/sdk-browser/src/engine/types.ts'
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts'
 import { animationFrame } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -27,7 +27,7 @@ export interface WaterCostOptions {
   warmup: number
 }
 
-export async function run(factory: BackendFactory, options: WaterCostOptions) {
+export async function run(factory: EngineFactory, options: WaterCostOptions) {
   const adapter = await navigator.gpu?.requestAdapter()
   if (!adapter) return { unavailable: 'no WebGPU adapter' }
   if (!adapter.features.has('timestamp-query'))
@@ -43,9 +43,8 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device, errors } = gpu
   const scene = waterCostScene(options.fraction, options.enabled)
-  const diagnostics: BackendDiagnostic[] = []
+  const diagnostics: EngineDiagnostic[] = []
   const { backend, canvas } = engine(
-    factory,
     scene,
     device,
     (e) => {
@@ -59,6 +58,7 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       clearColor: BACKGROUND,
       temporalAntialiasing: false,
     },
+    factory,
   )
   const camera = waterCostCamera()
   const observedPassNames = new Set<string>()
@@ -71,7 +71,6 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
     maxCoverage = 0
   try {
     await backend.prepare()
-    if (!backend.setClearColor) throw new Error('same-camera redraw API unavailable')
     for (let frame = 0; frame < options.warmup + options.frames; frame++) {
       await animationFrame()
       const offset = poseWaterCost(camera, frame, options.moving)
@@ -80,10 +79,10 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       // Applied equally to both camera regimes and both water states.
       backend.setClearColor(BACKGROUND)
       backend.render(camera)
-      ;(backend as { cpuFrameEnd?: () => void }).cpuFrameEnd?.()
+      backend.cpuFrameEnd()
       // Like the existing anisotropy cost fixture, serialize frames, but skip image readback.
       // This host wait is outside the engine's timestamp spans; no wall-clock GPU estimate.
-      await backend.flush!({ image: false })
+      await backend.flush({ image: false })
       const metrics = backend.metrics()
       const sample = metrics.gpuPassMs
       const fresh = sample && sample.frame !== lastSample

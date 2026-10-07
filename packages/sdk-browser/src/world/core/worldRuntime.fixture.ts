@@ -64,10 +64,13 @@ export function sessionStandIn() {
     },
     setLightingView: (view: string) => void (written.view = view),
     invalidate() {},
-    growsPlacements: () => false,
-    mountsPlacements: () => false,
+    /** Grows no buffer in place: a held batch seats on its free rows alone. */
+    growsInPlace: () => false,
+    growPlacements() {},
     refreshMaterials: () => true,
     updatePlacements() {},
+    /** Composes no row on the GPU: the world writes them itself. */
+    composePlacements: () => false,
     setEnvironment: (environment: { irradiance?: number[] }) =>
       void (written.irradiance = environment.irradiance),
     addLight: (record: SceneLight) => void written.lights.push(record),
@@ -77,7 +80,6 @@ export function sessionStandIn() {
     render: () => ({}),
     /** No optional family on its way: every frame draws (`../session/familyUse.ts`). */
     familiesPending: (): Promise<void> | undefined => undefined,
-    measureFrame: () => false,
     dispose() {},
   }
   return { session, written }

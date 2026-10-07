@@ -1,7 +1,7 @@
 import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/backend/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
 import {
   locationOf,
   type PageLocations,

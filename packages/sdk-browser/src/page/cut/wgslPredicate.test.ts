@@ -2,7 +2,8 @@
 // the TypeScript rule on every operand order, and refuses what it does not understand.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CUT_RULE_WGSL, drawsCluster } from './rule.ts'
+import { CUT_RULE_WGSL } from './rule.ts'
+import { drawsCluster } from './rule.fixture.ts'
 import { wgslPredicate } from './wgslPredicate.fixture.ts'
 
 test('the WGSL cut rule agrees with the TypeScript rule on every case', () => {

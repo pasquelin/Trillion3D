@@ -2,12 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import {
+  FEEDBACK_BYTES,
   SURFACE_BYTES_PER_PIXEL,
   SURFACE_FORMATS,
   checkSurfaceSize,
   frameTargetBytes,
-  createSurfaceBuffer,
 } from './surfaceBuffer.ts'
+import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { EMISSIVE_AO_SURFACE_FLAG, SURFACE_MODEL } from './surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 
@@ -19,25 +20,28 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 33, 'targets follow resolution')
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, odd levels at ceil dimensions',
+    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, odd levels at ceil dimensions; the 1×1 thin transmission and lobes',
   )
 })
 
 test('the per-pixel frame holds the shadow receiver target: 25 B/px and its 8', () => {
   assert.equal(SURFACE_BYTES_PER_PIXEL, 25 + 8)
+  // Read off the formats (`textureBytesOf`): the feedback's 4, the frame's 24 beside the surfaces.
+  assert.equal(FEEDBACK_BYTES, 4)
+  assert.equal(frameTargetBytes(1, 1, false), 24 + 25 + 8 + 8 + 16)
   const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } })
   const surface = createSurfaceBuffer(gpu.device, 3840, 2160)
-  assert.equal(surface.allocationBytes, 3840 * 2160 * SURFACE_BYTES_PER_PIXEL + 8)
+  assert.equal(surface.allocationBytes, 3840 * 2160 * SURFACE_BYTES_PER_PIXEL + 8 + 16)
   assert.equal(gpu.buffers.length, 0, 'no per-pixel buffer beside the targets')
   assert.equal(
     gpu.textures.length,
-    6,
-    'disabled transmission has one 1×1 texture, beside the receiver target',
+    7,
+    'disabled transmission and lobes have one 1×1 texture each, beside the receiver target',
   )
   surface.dispose()
   surface.dispose()
-  assert.equal(gpu.destroyed.length, 6, 'six textures, each exactly once')
+  assert.equal(gpu.destroyed.length, 7, 'seven textures, each exactly once')
 })
 
 test('a partial surface allocation failure destroys all textures already allocated', () => {

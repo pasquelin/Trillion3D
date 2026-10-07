@@ -4,7 +4,7 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
+import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
@@ -105,7 +105,7 @@ test('a frame sets the physics’ time before the controller moves, and runs the
 
 test('the GPU frame time the engine measured reaches the page hook; an unmeasured one reads null', () => {
   // The host's own path, without a browser: the engine's `metrics()`, copied key by key through
-  // `BACKEND_METRIC_KEYS` into the host sample, dispatched to the world's frame hook.
+  // `ENGINE_METRIC_KEYS` into the host sample, dispatched to the world's frame hook.
   const streamer = {
     stats: () => ({
       evictions: 0,
@@ -117,7 +117,10 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       misses: 0,
     }),
   } as unknown as ReturnType<typeof createPageStreamer>
+  let published: object = {}
+  const engine = { metrics: () => published } as unknown as Engine
   const { metricsScratch, fillMetrics } = createExplorerMetrics(
+    engine,
     {} as ClusterManifest,
     {} as MeasuredWorldOptions,
     streamer,
@@ -135,8 +138,9 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
   const frames = createWorldFrames()
   const seen: (number | null | undefined)[] = []
   frames.add((frame) => seen.push(frame.metrics.gpuFrameMs))
-  for (const published of [{ gpuFrameMs: 3.2 }, {}]) {
-    fillMetrics({ metrics: () => published } as unknown as RenderBackend)
+  for (const frame of [{ gpuFrameMs: 3.2 }, {}]) {
+    published = frame
+    fillMetrics()
     frames.dispatch(metricsScratch)
   }
   assert.deepEqual(seen, [3.2, null])

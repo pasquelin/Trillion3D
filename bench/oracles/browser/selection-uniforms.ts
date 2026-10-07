@@ -63,7 +63,6 @@ const FIELDS = [
   ['clusterCount', 'u', 1],
   ['nodeCount', 'u', 1],
   ['worldCount', 'u', 1],
-  ['residentCut', 'u', 1],
   ['cameraWorld', 'f', 3],
   ['cameraStretch', 'f', 1],
   ['listCap', 'u', 1],
@@ -95,7 +94,6 @@ export function readViewBlock(target: Float32Array, index: number): Block {
 export function referenceViewBlocks(
   packed: { pageCount: number; nodeCount: number; worldCount: number },
   u: DagViewUniforms,
-  residentCut: boolean,
   listCap: number,
   blocks: number,
 ) {
@@ -110,7 +108,6 @@ export function referenceViewBlocks(
     clusterCount: [packed.pageCount],
     nodeCount: [packed.nodeCount],
     worldCount: [packed.worldCount],
-    residentCut: [residentCut ? 1 : 0],
     cameraWorld: u.cameraWorld.map(f32),
     cameraStretch: [f32(u.cameraStretch ?? 1)],
     listCap: [listCap],

@@ -19,7 +19,15 @@ export const PAGE_INFO_STRIDE = 272
 /** Deformation metadata follows the physical-material block; all offsets are u32 words. */
 export const PAGE_DEFORM_WORD = 64,
   PAGE_DEFORM_COUNT_WORD = 65,
-  PAGE_DEFORM_OUTPUT_WORD = 66
+  PAGE_DEFORM_OUTPUT_WORD = 66,
+  /** The surface's physical record rank plus one (`PageInfo.physical`), 0 without a lobe. */
+  PAGE_PHYSICAL_WORD = 67
+/** The high bit of a physical word (`PageInfo.physical`, a blend item's `physical`): the row reads
+ *  its geometry as floats and its geometry carries a second UV set, at the tail of the normal atlas
+ *  it reads (`vertUv1`, `../webgpu/core/geometryPoolLayout.ts`). A quantized page says so in its
+ *  own header. Below it, the record's rank plus one. */
+export const PHYSICAL_SECOND_UV = 0x80000000,
+  PHYSICAL_RECORD_MASK = 0x7fffffff
 /** The bits of `PAGE_DEFORM_OUTPUT_WORD`: results in the float pool rather than a slot's tail; a
  *  float-pool block with no source header (`../deformation/slotLayout.ts`); the address, the
  *  results' first word plus one. */
@@ -60,7 +68,14 @@ export const FLAG_LIT = 1,
   FLAG_BLEND_CASTER = 65536,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
-  FLAG_DIAGNOSTIC_VIEW = 0x40000000
+  FLAG_DIAGNOSTIC_VIEW = 0x40000000,
+  /** Beside it, which view: the triangles' edges, the clusters, their level of detail, their screen
+   *  error — the last three read the cluster's identifier (`FLAG_DIAGNOSTIC_CLUSTER_VIEWS`). */
+  FLAG_DIAGNOSTIC_WIREFRAME = 0x20000000,
+  FLAG_DIAGNOSTIC_CLUSTERS = 0x10000000,
+  FLAG_DIAGNOSTIC_LOD = 0x08000000,
+  FLAG_DIAGNOSTIC_SCREEN_ERROR = 0x04000000,
+  FLAG_DIAGNOSTIC_CLUSTER_VIEWS = 0x1c000000
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
 export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21
@@ -89,7 +104,7 @@ export const texelsReason = ({ format, image }: { format?: number; image: unknow
 
 /** Why the texels a record holds in memory cannot be read as `textureRgba` reads them, in
  *  `texelsReason`'s words: its host's format for raw texels, RGBA for any other picture. The
- *  WebGPU fill throws it (#43), as the WebGL2 gate refuses the host by `texelsReason`. */
+ *  texture fill throws it (#43). */
 export const texelsRefusal = (texture: Texture) =>
   texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image })
 

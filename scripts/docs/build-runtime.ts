@@ -22,7 +22,7 @@ export async function buildRuntime(root: string, outdir: string) {
     absWorkingDir: root,
     metafile: true,
     entryPoints: {
-      pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
+      pageWorker: 'packages/sdk-browser/src/page/work/pageWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
       // The physics worker, spawned only by a world that turns physics on.
       physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
@@ -55,7 +55,7 @@ export async function buildRuntime(root: string, outdir: string) {
   if (folded.length)
     throw new Error(`the runtime folds in a rendering library:\n${folded.join('\n')}`)
   for (const wasm of [
-    'page/decode/pageCodec.wasm',
+    'math/wasm/kernels.wasm',
     'physics/joltPhysics.wasm',
     'physics/joltPhysicsThreads.wasm',
   ])

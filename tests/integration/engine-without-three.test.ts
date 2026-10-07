@@ -16,12 +16,10 @@ const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witness
  * = rec` and `const [{ declaration }] = pages`, which a `.declaration` pattern all missed. A key
  * written as a string is the one form the stripping hides, so it is looked for on the raw text.
  *
- * What it cannot see: a host material reached under another name. The WebGL2 owner draws HOST
- * MESHES, and a host mesh's own field is `material` (`WholeMesh`, `packages/sdk-browser/src/cluster/batchMesh.ts`);
- * renaming it would be renaming the host library's. Three files read it there — the draw record
- * that hands it to the renderer, the frustum classification that must see a diagnostic repaint
- * live (`packages/sdk-browser/src/webgl/cluster/copyCulling.ts`) and the whole-mesh raster oracle — and none of them is on
- * the engine's page path, which holds the record. The transparent copy, which was the one
+ * What it cannot see: a host material reached under another name. A host mesh's own field is
+ * `material` (`WholeMesh`, `packages/sdk-browser/src/cluster/batchMesh.ts`); renaming it would be
+ * renaming the host library's, and no file on the engine's page path, which holds the record,
+ * reads it. The transparent copy, which was the one
  * contract to hand a host material out under that name, no longer declares one at all
  * (`blendCopyContract.ts`).
  */

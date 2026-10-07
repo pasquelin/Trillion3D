@@ -10,7 +10,8 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.webgpu.js",
+          "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.webgpu.js",
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
         }
       }
@@ -20,13 +21,14 @@
     <canvas id="view"></canvas>
     <script type="module">
       // --- Imports
-      import * as THREE from 'three';
+      import * as THREE from 'three/webgpu';
       import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
       import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
       // --- Renderer
       const canvas = document.getElementById('view');
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
+      await renderer.init();
       renderer.setPixelRatio(devicePixelRatio);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.shadowMap.enabled = true;

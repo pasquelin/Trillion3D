@@ -5,7 +5,7 @@ import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.
 import { installSceneLighting } from '../../../../../../packages/sdk-browser/src/lighting/sceneLighting.ts'
 import { lighting } from '../../../displayObjects.ts'
 
-test('reference adapter copies the authored directional target in world space', () => {
+test('the witness scene copies the authored directional target in world space', () => {
   const source = new G.Group(),
     parent = new G.Group()
   parent.position.set(4, 0, 0)
@@ -91,7 +91,7 @@ test('a point, an ambient and a probe are placed with no aim node', () => {
 })
 
 // #558 (D): a casting lamp shown or hidden after the copy is heard at the placement that sees it,
-// so WebGL2 never draws it unshadowed silently.
+// so the engine never draws it unshadowed silently.
 test('a source lamp shown, hidden or set to cast after the copy changes the casting list', () => {
   const sun = G.directionalLight()
   sun.name = 'sun'

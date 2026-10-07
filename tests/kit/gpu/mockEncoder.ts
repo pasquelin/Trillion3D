@@ -1,6 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { simulateComputeDispatch, type ComputeBind } from './mockCompute.ts'
 import { createUsageScope } from './usageScope.ts'
+import { replayBundles } from './fakeBundles.ts'
 
 export type MockDraw = {
   vertexCount: number
@@ -73,7 +74,7 @@ export function createMockCommandEncoderFactory(inputs: {
         colorCount: colors.length,
         formats: colors.map((color) => color?.view?.format ?? ''),
       })
-      return {
+      const pass = {
         setPipeline(pipeline: { entryPoint?: string; fragment?: string; blend?: GPUBlendState }) {
           currentRenderEntry = pipeline.entryPoint ?? ''
           currentFragment = pipeline.fragment ?? ''
@@ -118,8 +119,11 @@ export function createMockCommandEncoderFactory(inputs: {
             entryPoint: currentRenderEntry,
           })
         },
+        // A bundle's commands run in the pass, its usage scope included.
+        executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
         end: () => scope.end(),
       }
+      return pass
     },
     beginComputePass: (desc?: { label?: string }) => {
       commands.push(`compute ${desc?.label ?? ''}`)
@@ -176,6 +180,10 @@ export function createMockCommandEncoderFactory(inputs: {
     },
     copyTextureToTexture() {
       commands.push('copy')
+    },
+    copyBufferToTexture(...args: unknown[]) {
+      commands.push('copy')
+      imageCopies.push(args)
     },
     finish: () => ({}),
   })

@@ -4,13 +4,13 @@ import assert from 'node:assert/strict'
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
-import { webgpuPagesBackend } from './pages.ts'
-import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts'
+import { webgpuPagesEngine } from './pages.ts'
+import { type ClusterRoot } from '../../page/selection/selection.ts'
+import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts'
+import { dagLevel, dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { camera, quadScene } from './testScenes.fixture.ts'
 import type { Placements } from '../../page/selection/placements.ts'
-import type { RasterView } from './runtime.ts'
 import {
   backendRasterRgba,
   backendVisibilityIds,
@@ -97,9 +97,7 @@ export function coarseQuadScene(error = 1) {
 /** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
  *  survives in the visibility identifiers. */
 export function assertOccluderImage(
-  backend: ReturnType<typeof webgpuPagesBackend> & {
-    rasterView(): RasterView
-  },
+  backend: ReturnType<typeof webgpuPagesEngine>,
   shown: PageRec[],
   roots: Placements,
   camera: G.Camera,
@@ -174,7 +172,7 @@ export function twoCoarseQuadsScene(
 }
 
 /** The occluder scene on a pages backend over `device`, four resident pages, prepared with
- *  occlusion culling on, and the CPU cut its Hi-Z result must stay inside. */
+ *  occlusion culling on, and the oracle's cut (`selectVisiblePages`) its Hi-Z result must stay inside. */
 export async function preparedOccluderRun(
   scene: ReturnType<typeof occluderScene>,
   metadata: ClusterManifest,
@@ -183,7 +181,7 @@ export async function preparedOccluderRun(
   viewport: [number, number],
 ) {
   const { source, indices, associations } = scene
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,

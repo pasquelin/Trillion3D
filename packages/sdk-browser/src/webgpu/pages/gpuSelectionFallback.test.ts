@@ -1,17 +1,16 @@
 import test from 'node:test'
-import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts'
-import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts'
+import { MANIFEST_IDENTITY } from '../../engine/pagesEngine.fixture.ts'
+import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import {
   backendRasterRgba,
   backendVisibilityIds,
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
-import type { RasterView } from './runtime.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
@@ -19,14 +18,6 @@ import { quadScene, camera, rootPage, twoPrimitives } from './testScenes.fixture
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
-
-/** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
- *  general `RenderBackend` contract leaves optional or omits. */
-type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
-  flush(): Promise<void>
-  selectedPageIds(): string[]
-  rasterView(): RasterView
-}
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals()
@@ -52,7 +43,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const packed = packDagSelection(collected.roots)
   const { device } = mockGpu({ packed })
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -60,7 +51,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
-  }) as PagesBackend
+  })
   const cam = G.perspectiveCamera(55, 1, 0.1, 100)
   cam.position.set(9, 0, 5)
   cam.lookAt(9, 0, 0)
@@ -76,13 +67,15 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   material.dispose()
 })
 
-test('a failed GPU selection readback falls back to the CPU cut and clears gpuDriven', async () => {
+// #1483: a mapping the device refuses reads nothing and is copied again; only `device.lost` says
+// the device is lost, never a readback.
+test('a failed GPU selection readback keeps the device: the cut is read again', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const collected = collectClusterPages(source, metadata, indices, associations)
   const packed = packDagSelection(collected.roots)
   const { device } = mockGpu({ packed, failMap: true })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -90,14 +83,11 @@ test('a failed GPU selection readback falls back to the CPU cut and clears gpuDr
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as PagesBackend
+  })
   await backend.prepare()
-  assert.equal(backend.capabilities.gpuDriven, true)
   backend.render(camera())
-  await backend.flush()
-  assert.equal(backend.capabilities.gpuDriven, false)
-  backend.render(camera())
-  assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+  await backend.flush({ image: false })
+  assert.doesNotThrow(() => backend.render(camera()), 'no lost device')
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -107,7 +97,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   installGpuGlobals()
   const { device, textures } = mockGpu()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -115,10 +105,9 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as PagesBackend
+  })
   const cam = camera()
   await backend.prepare()
-  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false)
   backend.render(cam)
   await backend.flush()
   backend.render(cam)

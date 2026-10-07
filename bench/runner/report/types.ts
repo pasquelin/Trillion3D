@@ -103,7 +103,6 @@ export type ImageDiff =
 /** One row of the series table: one side, one view, one threshold (`series/series.ts::runSeries`). */
 export interface Row {
   cpuFrameMs: Distribution
-  cpuSelectMs: Distribution
   engine: string
   gpuFrameMs: Distribution
   imageSyncMs: Distribution
@@ -123,7 +122,6 @@ export interface Row {
   totalSubmittedTriangles: number | null
   recordedFrame: number | null
   frameHeld: boolean | null
-  gpuSelectionFallback: boolean | null
   hiZ: HiZCounters
   selection: { source: CutSelection['source']; sha256: string | null; count: number }
   geometryBytes: number | null
@@ -132,6 +130,8 @@ export interface Row {
   mathBatch: FrameMetrics['mathBatch'] | null
   lights: LightsSummary | null
   importedLights: { count: number; ids: string[] } | null
+  /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,
+   *  which draws its own light store. */
   witnessLights: unknown
   movingNode: MovingNode
   load: { start: number[]; end: number[] }

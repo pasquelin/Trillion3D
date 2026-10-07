@@ -1,6 +1,6 @@
 /**
- * Orientation of a world transformation, sixteen numbers input and nothing else: no host library, no
- * GPU, no DOM. Stored here alongside `maxStretch`, it tests without a browser and the CPU
+ * Orientation of a world transformation, sixteen numbers input and nothing else: no rendering
+ * library, no GPU, no DOM. Stored here alongside `maxStretch`, it tests without a browser and the CPU
  * visbuffer rasterizer no longer needs to import it from a `webgpu*` module.
  */
 import { linearPartDeterminant } from './matrix4.ts'

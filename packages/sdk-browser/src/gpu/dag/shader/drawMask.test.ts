@@ -1,7 +1,8 @@
 // `dagDrawScatter` ranks a drawn page in its block off the block's two draw-mask words, which
 // `dagMask` sets with the draw flag: the rank must be the sum of the block's flags before the page,
 // the walk it replaces, on every flag pattern. The mask words' place in `work` must be the one
-// `dagWorkLayout` allocates. The kernel's own functions run in Node (`wgslScope`).
+// `dagWorkLayout` allocates, with no word per page in `work`. The kernel's own functions run in
+// Node (`wgslScope`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
@@ -26,7 +27,6 @@ function kernel(clusterCount: number) {
   return {
     blockCount: fn('blockCount')(),
     drawMaskBase: fn('drawMaskBase')(),
-    ranks: [fn('keptRankAt')(0, 0), fn('keptRankAt')(1, 0)],
     liveCounter: fn('liveCounter')(),
     word: fn('drawMaskWord'),
     bit: fn('drawBit'),
@@ -71,7 +71,7 @@ test('the mask rank is the walked rank, on every density and block edge', () => 
     }
 })
 
-test('the mask and kept ranks sit between the block offsets and the counters the layout allocates', () => {
+test('the mask sits between the block offsets and the counters the layout allocates', () => {
   for (const count of [1, 64, 65, 4096, 100_000]) {
     const k = kernel(count),
       layout = dagWorkLayout(k.blockCount)
@@ -80,11 +80,8 @@ test('the mask and kept ranks sit between the block offsets and the counters the
       assert.equal(k.word(b * 64), k.drawMaskBase + 2 * b, `block ${b}, first half`)
       assert.equal(k.word(b * 64 + 32), k.drawMaskBase + 2 * b + 1, `block ${b}, second half`)
     }
-    // The draw mask, two words per block; then the two kept lists' rank of every page
-    // (`differenceWgsl.ts`), sixty-four words per block each; then the counters.
-    const ranks = k.drawMaskBase + 2 * k.blockCount
-    k.ranks.forEach((base, l) => assert.equal(base, ranks + 64 * l * k.blockCount))
-    assert.equal(k.liveCounter, ranks + 128 * k.blockCount, 'then the counters')
+    // The draw mask, two words per block, then the counters: no word per page in `work`.
+    assert.equal(k.liveCounter, k.drawMaskBase + 2 * k.blockCount, 'then the counters')
     assert.equal(layout.liveCounter, k.liveCounter, 'the layout the engine allocates')
   }
 })

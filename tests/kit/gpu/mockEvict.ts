@@ -5,8 +5,19 @@ import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
 import { canonicalPage } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
-import { words } from './mockComputeBlend.ts'
+import {
+  sortStaged,
+  stagedPage,
+  stagedRank,
+  stagedRequest,
+} from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
+import {
+  ADMISSION_BUCKETS,
+  ADMISSION_ERROR_BITS,
+  REQUEST_AHEAD,
+} from '../../../packages/sdk-browser/src/gpu/dag/request.ts'
+import { words } from './mockBuffers.ts'
+import { boundListCap } from './mockDag.ts'
 import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
@@ -20,7 +31,7 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
     stamps = dagFlagsWords(packed.nodeCount, pageCount, false),
     keys = cold.subarray(L.keyBase(pageCount)),
     pool = L.poolBase(pageCount),
-    listCap = L.selectionListCap(pageCount)
+    listCap = boundListCap(byBinding)
   return {
     /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its canonical page. */
     stamp(used: Iterable<number>) {
@@ -42,14 +53,18 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
   }
 }
 
-/** `dagSortRequests`: the staged requests into the sample, by rank, through the kernel's mirror. */
-export function sortStagedRequests(
-  byBinding: Map<number, { data: Uint8Array }>,
-  pageCount: number,
-) {
+/** `dagSortRequests`: the staged requests' pages into the sample, by rank, through the kernel's
+ *  mirror; each waits as two words, its page then its priority. */
+export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>, listCap: number) {
   const ints = words(byBinding.get(DAG_BINDING.out)!.data),
-    listCap = L.selectionListCap(pageCount),
     at = L.residentReadbackBytes(listCap) / 4,
     count = Math.min(ints[0], listCap)
-  ints.set(sortRequestWords(ints.subarray(at, at + count)), L.SELECTION_HEADER_WORDS)
+  const staged = Array.from({ length: count }, (_, s) =>
+    stagedRequest(ints[at + 2 * s], ints[at + 2 * s + 1]),
+  )
+  ints.set(sortStaged(staged).map(stagedPage), L.SELECTION_HEADER_WORDS)
+  // Each admission bucket's count of the camera's requests (`levelCountsWord`).
+  const counts = new Uint32Array(ADMISSION_BUCKETS)
+  for (const word of staged) counts[(stagedRank(word) - REQUEST_AHEAD) >> ADMISSION_ERROR_BITS]++
+  ints.set(counts, L.levelCountsWord(listCap))
 }

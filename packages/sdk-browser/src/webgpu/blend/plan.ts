@@ -4,14 +4,7 @@ import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
 import { buildBlendHierarchy } from './hierarchy.ts'
-import {
-  EXPAND_PASSES,
-  RUN_WORDS,
-  blendChunkWords,
-  blendVertexShift,
-  planRegions,
-  slotCapacity,
-} from './planLayout.ts'
+import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
 import { FRAME_EYE_WORDS, NOT_OWN, orderFrameWords } from './orderWgsl.ts'
 import { ORDER_STEP_STRIDE, orderStepCount, planOrderSteps } from './orderSteps.ts'
@@ -34,7 +27,7 @@ const PIPELINE_NONE = 0,
   PIPELINE_BACK = 2
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
-export const planVertexCull = (entry: number) =>
+const planVertexCull = (entry: number) =>
   entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE
 /** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry)
@@ -78,9 +71,8 @@ function instanceCapacity(libres: readonly number[], shift: number, capacity: nu
  * Static tables of the transparent pass: what an instance draws, and where its item is named.
  *
  * A paged instance draws a cluster, an unpaged instance a chunk of at most one index stride. The
- * vertex index no longer carries the item rank but the rank of its run's first instance
- * (`runs.ts`): that is what lets a whole run fit in ONE draw, and all paged items share
- * ONE bind group.
+ * vertex index carries the rank of its run's first instance, not the item rank (`runs.ts`): that
+ * is what lets a whole run fit in ONE draw, and all paged items share ONE bind group.
  */
 export function buildBlendStatics(blendState: BlendState) {
   const items = blendState.blendGpu,
@@ -127,8 +119,6 @@ export function buildBlendStatics(blendState: BlendState) {
   const entries = Math.max(1, items.length) * MAX_SIDES
   blendState.maxPlanEntries = entries
   blendState.planRegions = planRegions(entries)
-  const slots = slotCapacity(entries) * RUN_WORDS
-  blendState.runs = [new Uint32Array(slots), new Uint32Array(slots)]
   blendState.runCount.fill(0)
   blendState.orderKeys = new Float64Array(Math.max(1, items.length))
   blendState.ownRanks = new Uint32Array(items.length)
@@ -146,7 +136,7 @@ const modeBase = (surface: PageSurface, transmissive: boolean) =>
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
-  // One determinant: the call used to yield the same value twice to pick the two faces.
+  // One determinant, taken once, picks both faces.
   const renverse = matrixWindingCw(item.matrix.elements)
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT

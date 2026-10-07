@@ -13,7 +13,7 @@ import { createWebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
 import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts'
 import { createWebgpuRunState } from '../pages/state/run.ts'
-import { dropVis } from '../pages/io/drops.ts'
+import { disposeVis } from '../pages/io/drops.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts'
 import { WATER_BYTES_PER_PIXEL } from '../transparent/waterBytes.ts'
@@ -119,17 +119,18 @@ test('without the pass, or without a backdrop, nothing of it is encoded', () => 
     capture: {},
   } as unknown as WebgpuPagesRuntime
   assert.equal(encodeWaterPass(rt, encoder as never), false, 'no pass')
-  blendState.water = { surfaces: [{}, {}, {}] as never, frame: {} as never }
+  blendState.water = { surfaces: [{}, {}, {}] as never, frame: {} as never, lobed: {} as never }
   gpu.backdrop = undefined
   assert.equal(encodeWaterPass(rt, encoder as never), false, 'no backdrop')
 })
 
-test('dropping the visibility path disposes the water pass with the blend pipelines', () => {
+test('disposing the visibility path disposes the water pass with the blend pipelines', () => {
   const blendState = createWebgpuBlendState()
   let disposed = 0
   blendState.water = {
     surfaces: [{}, {}, {}] as never,
     frame: { dispose: () => disposed++ } as never,
+    lobed: {} as never,
   }
   const vis = createWebgpuVisState()
   const rt = {
@@ -142,11 +143,9 @@ test('dropping the visibility path disposes the water pass with the blend pipeli
       pageBytes: 12,
     } as never),
     run: createWebgpuRunState(),
-    gpu: { bindGroups: new Map() },
     blendState,
-    capabilities: { materials: '', unsupported: [] as string[] },
   } as unknown as WebgpuPagesRuntime
-  dropVis(rt)
+  disposeVis(rt)
   assert.equal(disposed, 1, 'the frame released its group')
   assert.equal(blendState.water, undefined, 'and the frame no longer has a pass to encode')
 })

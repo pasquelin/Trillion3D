@@ -1,13 +1,9 @@
 // The real WebGPU engine on a real cluster DAG, with a residency budget too small for its leaves:
 // the kernel wants missing pages, and the cut climbs to the resident ancestor — the very path where
-// GPU selection used to be thrown away. Nothing is read from the inside: the public counters
-// `cpuSelectMs` (null while the GPU cut chooses) and `gpuSelectionFallback`, and the drawn cut the
-// engine publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
-import type {
-  BackendDiagnostic,
-  RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
+// GPU selection used to be thrown away. Nothing is read from the inside: the drawn cut the engine
+// publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   dagFixture,
   wideCamera,
@@ -19,21 +15,15 @@ const FRAMES = 30
 /** The fixture strip runs along x from -2 to 2, one leaf per unit: the units each page spans. */
 type PageSpan = { url: string; units: [number, number] }
 
-/** What the pages backend carries beside the public `RenderBackend`. */
-interface PagesBackend extends RenderBackend {
-  cpuFrameEnd?(): void
-  selectedPageIds(): string[]
-}
-
 export async function runHeldCut() {
   const gpu = await openGpuDevice()
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device } = gpu
-  const events: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = []
+  const events: Pick<EngineDiagnostic, 'phase' | 'message' | 'context'>[] = []
   const fixture = dagFixture()
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,
@@ -48,10 +38,9 @@ export async function runHeldCut() {
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
     onDiagnostic: (e) => events.push({ phase: e.phase, message: e.message, context: e.context }),
-  }) as PagesBackend
+  })
   const camera = wideCamera()
   const frames = []
-  if (!backend.flush) throw new Error('the backend has no flush')
   try {
     await backend.prepare()
     // Loading: the pages the cut asks for arrive, then the measured frames begin.
@@ -61,13 +50,11 @@ export async function runHeldCut() {
     }
     for (let frame = 0; frame < FRAMES; frame++) {
       backend.render(camera)
-      backend.cpuFrameEnd?.()
+      backend.cpuFrameEnd()
       await backend.flush()
       const m = backend.metrics()
       frames.push({
         frame,
-        cpuSelectMs: m.cpuSelectMs ?? null,
-        gpuSelectionFallback: m.gpuSelectionFallback ?? null,
         drawn: backend.selectedPageIds(),
         clusters: m.clusters ?? null,
         residentPages: m.residentPages ?? null,

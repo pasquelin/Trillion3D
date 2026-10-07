@@ -35,7 +35,7 @@ function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = tr
       displayTexture: apart ? {} : colorTexture,
     },
     run: { diagnostic: 'beauty' },
-    vis: { visEnabled: true, gpuHiz: { extent: (w: number, h: number) => extents.push([w, h]) } },
+    vis: { gpuHiz: { extent: (w: number, h: number) => extents.push([w, h]) } },
   } as unknown as WebgpuPagesRuntime
   return { rt, extents }
 }
@@ -75,7 +75,6 @@ test('the frame is drawn below the display only when the temporal resolve recons
   const changes: [string, (view: WebgpuPagesRuntime) => void][] = [
     ['a diagnostic view', (view) => (view.run.diagnostic = 'normals' as never)],
     ['no pass: a capture view', (view) => (view.gpu.temporal = undefined)],
-    ['the fallback draw', (view) => (view.vis.visEnabled = false)],
     ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-compute' as never)],
     ['resolves compiling', (view) => Object.assign(view.gpu.temporal!, { upscales: () => false })],
   ]

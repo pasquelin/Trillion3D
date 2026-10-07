@@ -23,17 +23,13 @@ const clampScale = (value: number | undefined, fallback: number) =>
     ? fallback
     : Math.min(1, Math.max(MIN_RENDER_SCALE, value))
 
-/** The bounds of `option`: fixed at 1 when absent, the display's own size. `floor` is the
- *  minimum a page that names none gets: `MIN_RENDER_SCALE` where the image is reconstructed, 1 on
- *  an engine that only resamples it (WebGL2), which then loses nothing unless a page lowers it. */
-export function renderScaleBounds(
-  option: RenderScale | undefined,
-  floor = MIN_RENDER_SCALE,
-): RenderScaleBounds {
-  if (option === 'auto') return { auto: true, min: floor, max: 1 }
+/** The bounds of `option`: fixed at 1 when absent, the display's own size. A page that names no
+ *  minimum gets `MIN_RENDER_SCALE`, which temporal antialiasing reconstructs to the display. */
+export function renderScaleBounds(option: RenderScale | undefined): RenderScaleBounds {
+  if (option === 'auto') return { auto: true, min: MIN_RENDER_SCALE, max: 1 }
   if (option && typeof option === 'object') {
     const max = clampScale(option.max, 1)
-    return { auto: true, min: Math.min(max, clampScale(option.min, floor)), max }
+    return { auto: true, min: Math.min(max, clampScale(option.min, MIN_RENDER_SCALE)), max }
   }
   const fixed = clampScale(option, 1)
   return { auto: false, min: fixed, max: fixed }

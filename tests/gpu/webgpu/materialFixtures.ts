@@ -1,6 +1,6 @@
 // The material fixtures of the witness comparison, one per feature the engine claims: base
 // colour, its map — repeated and turned, nearest, anisotropic —, alpha MASK at its cutoff, BLEND,
-// emissive, metal-roughness, normal map, double-sided and glass. Each fixture is a square facing
+// emissive, metal-roughness, normal map and double-sided. Each fixture is a square facing
 // the camera — turned to a grazing angle for anisotropy —, its material, where it is read and how
 // far the two images may differ there — and why.
 //
@@ -8,8 +8,6 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import * as img from './materialImages.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
-import { hostSurface } from '../../../packages/sdk-browser/src/world/core/worldSurface.ts'
-import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 
 /** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
 const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' }
@@ -67,8 +65,8 @@ const BLEND = (): G.SurfaceParameters => ({
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
  * behind it, and no hole — the engine shows the background where the witness does not —; `points`
  * are read on both images, and the largest channel gap at each must fall within `difference`, for
- * the `reason` given; `pair` names the two renderers read, the witness and WebGPU unless it says
- * otherwise. Every fixture must publish a held frame.
+ * the `reason` given, between the witness and the WebGPU engine. Every fixture must publish a
+ * held frame.
  */
 export const fixtures: Fixture[] = [
   unlit('base colour', () => ({ color: 0x993322 })),
@@ -168,23 +166,4 @@ export const fixtures: Fixture[] = [
     () => ({ color: 0x808080, roughness: 0.8, normalMap: img.texture(img.TILTED_NORMAL) }),
     { tangents: true },
   ),
-  // #479: glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
-  // takes on either renderer) over an opaque square under the sun, as #337's repro, read on WebGL2
-  // against WebGPU. Both draw it with the engine's one lighting model, transmitted over a frozen
-  // linear backdrop (#120, #337): the same value, so the same window as any value two engines
-  // quantise.
-  {
-    name: 'world glass over an opaque surface',
-    material: () =>
-      hostSurface(
-        material.meshPhysical({ roughness: 0, transmission: 1, ior: 1.5, thickness: 0.5 }),
-        false,
-        new Map(),
-      ),
-    lit: true,
-    points: INSIDE,
-    behind: 0x2244aa,
-    pair: ['webgpu', 'webgl2'],
-    ...QUANTISATION,
-  },
 ]

@@ -11,8 +11,10 @@ import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
  */
 /** Former atlas padding carries physical transmission and subsurface data. The final aligned
  *  block holds deformation metadata without aliasing those material values. `deform` is the
- *  float-pool record address plus one; zero means no deformation. */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,padDeform:u32,}`
+ *  float-pool record address plus one; zero means no deformation. `physical` is the surface's
+ *  physical record rank plus one, zero without an anisotropic or clear-coat lobe
+ *  (`../../webgpu/visibility/physicalTable.ts`). */
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,physical:u32,}`
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
@@ -56,10 +58,15 @@ export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
  *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
- *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. */
+ *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. Its second UV set, where
+ *  the geometry has one: two floats a vertex counted back from the atlas's last texel
+ *  (`../../webgpu/core/geometryPoolLayout.ts`), so neither the normals nor a growth move it. */
 const VERT_NORMAL_WGSL = `${floatAtlasWgsl('normals', 'normalAt')}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
-fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}`
+fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}
+/** The atlas's texels, where a second UV set's tail ends: read once by a caller of \`vertUv1\`. */
+fn normalTexels()->u32{let d=textureDimensions(normals);return d.x*d.y*textureNumLayers(normals);}
+fn vertUv1(end:u32,base:u32,idx:u32)->vec2f{let i=end-2u*(base+idx)-2u;return vec2f(normalAt(i),normalAt(i+1u));}`
 /** The normal atlas bound at `binding`, and the reads of `VERT_NORMAL_WGSL`: what a pass inserts. */
 export const normalAtlasWgsl = (binding: number) =>
   `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;\n${VERT_NORMAL_WGSL}`

@@ -1,30 +1,19 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
-import { PORTABLE_TEXTURE_SIDE } from '../frame/referenceTilePlacement.ts'
 
 /**
  * THE BOUNCE ATLASES (#1410): the probe cascades and the surface cache are float textures read
  * with `textureLoad` and written by their compute passes as storage textures — like a surface
  * cache atlas —, no longer storage buffers: the deferred lighting holds its storage buffers
  * within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit. A surface cache
- * texel `i` sits at `(i % width, i / width)`, row by row; a probe at its column, row and layer
+ * texel `i` sits at `(i % width, i / width)`, row by row, in the extent every one-layer atlas
+ * takes (`atlasExtent`, `floatAtlas.ts`); a probe at its column, row and layer
  * (`probeAtlasExtent`); no entry is ever dropped: a size the device cannot hold is refused before
  * anything is made (`limits.ts`).
  */
 export const BOUNCE_ATLAS_FORMAT: GPUTextureFormat = 'rgba32float'
 
-/** The widest and tallest 2D texture every WebGPU device holds (`maxTextureDimension2D`). */
-const ATLAS_DIMENSION = PORTABLE_TEXTURE_SIDE
-
 /** Vectors of a probe: its texels in the atlas. */
 export const PROBE_TEXELS = PROBE_FLOATS / 4
-
-/** Width and height of an atlas of `texels` texels: the fewest rows of at most `ATLAS_DIMENSION`,
- *  filled evenly, so that under one texel per row is padding. */
-export function atlasExtent(texels: number): [number, number] {
-  const count = Math.max(1, texels)
-  const height = Math.ceil(count / ATLAS_DIMENSION)
-  return [Math.ceil(count / height), height]
-}
 
 /**
  * The probe cascades' atlas: one layer per cascade level, each exactly `side³` probes — `side`

@@ -6,7 +6,6 @@ import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts'
 import { prepared } from '../water/pass.fixture.ts'
 import { uploadWorlds } from './render/worldUpload.ts'
 import { orderBlendPasses } from '../blend/order.ts'
-import { selectWebgpuBlend } from '../blend/selection.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
 import type { EngineCamera } from '../../camera/world.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
@@ -24,7 +23,7 @@ test('the WebGPU path hides a compiled node the host hid, and draws it again onc
   /** One frame, as the interactive loop runs it: drawn, then its pending work awaited. */
   const frame = async () => {
     run.render(camera())
-    assert.equal(typeof (await run.pendingFrame!()), 'boolean', 'the frame settles')
+    assert.equal(typeof (await run.pendingFrame()), 'boolean', 'the frame settles')
     return run.selectedPageIds().sort()
   }
   try {
@@ -79,6 +78,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
       worldUploadOrigin: new Float64Array(3),
     },
     setup: { worlds: {} },
+    vis: {},
     layout: { selectionRoots: [root], worldUpdates: [], rows: { tableEpoch: 0 } },
     timing: { worldCounts: {} },
     blendState,
@@ -96,9 +96,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(changed, [[-1, -2, -3, 1, 2, 3]], 'its shadow pages are drawn again')
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
   orderBlendPasses(blendState, [0, 0, 0])
-  assert.equal(blendState.keepPacked[0] & 1, 0, 'the GPU path keeps it out')
-  selectWebgpuBlend(blendState)
-  assert.ok(!blendState.visibleBlend.includes(item), 'the fallback path leaves it out')
+  assert.equal(blendState.keepPacked[0] & 1, 0, 'the frustum verdict keeps it out')
   uploadWorlds(rt, cam)
   assert.equal(changed.length, 1, 'a revision that changes nothing stales nothing')
   group.visible = true
@@ -112,8 +110,6 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(touched, [0, 0])
   orderBlendPasses(blendState, [0, 0, 0])
   assert.equal(blendState.keepPacked[0] & 1, 1)
-  selectWebgpuBlend(blendState)
-  assert.ok(blendState.visibleBlend.includes(item))
   // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
   node.castShadow = false
   uploadWorlds(rt, cam)

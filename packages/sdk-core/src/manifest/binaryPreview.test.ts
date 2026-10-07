@@ -164,9 +164,9 @@ test('an unknown atlas, or more baked levels than lie above the tail, is refused
 test('block tails round-trip by layout and dimension, and a column of the wrong length is refused', () => {
   const lossless = {
     ...preview(1, 16, 16, 3),
-    layouts: { bc7: 'lossless', astc: 'rgba' } as const,
+    layouts: { bc7: 'lossless', astc: 'rgba', etc2: 'lossless' } as const,
   }
-  lossless.blocks = { bc7: [], astc: lossless.blocks.astc }
+  lossless.blocks = { bc7: [], astc: lossless.blocks.astc, etc2: [] }
   const previews = [preview(0, 40, 24, 1), lossless, preview(2, 8, 8, 5)]
   const { slim, buffer } = encode(previews)
   assert.equal(
@@ -176,6 +176,10 @@ test('block tails round-trip by layout and dimension, and a column of the wrong 
   assert.equal(
     slim.binary.texturePreviewAstcBytes,
     previewBlockBytes(40, 24) + previewBlockBytes(16, 16) + previewBlockBytes(8, 8),
+  )
+  assert.equal(
+    slim.binary.texturePreviewEtc2Bytes,
+    previewBlockBytes(40, 24) + previewBlockBytes(8, 8),
   )
   const decoded = decodeManifestBinary(slim, buffer).texturePreviews!
   decoded.forEach((entry, index) => {
@@ -190,11 +194,14 @@ test('block tails round-trip by layout and dimension, and a column of the wrong 
   previewWord(buffer, 1, PREVIEW_LAYOUTS)[0] = 3
   refused(buffer, slim)
   assert.throws(
-    () => encode([{ ...preview(0, 8, 8, 1), blocks: { bc7: [], astc: [] } }]),
+    () => encode([{ ...preview(0, 8, 8, 1), blocks: { bc7: [], astc: [], etc2: [] } }]),
     /wrong length/,
   )
   assert.throws(
-    () => encode([{ ...preview(0, 8, 8, 1), layouts: { bc7: 'lossless', astc: 'rgba' } }]),
+    () =>
+      encode([
+        { ...preview(0, 8, 8, 1), layouts: { bc7: 'lossless', astc: 'rgba', etc2: 'rgba' } },
+      ]),
     /lossless texture preview carries blocks/,
   )
 })

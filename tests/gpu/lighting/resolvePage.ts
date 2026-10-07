@@ -36,28 +36,33 @@ import {
 import { RESIDENT_PROXY_BINDING } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts'
 import { RECEIVER_BINDINGS } from '../../../packages/sdk-browser/src/visibility/shader/receiverOffsetWgsl.ts'
 import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts'
+import { PHYSICAL_LOBES_BINDING } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
-/** The resolve's bindings the harness never reads: the surfaces, the receiver offset's and the
- *  subsurface. */
+/** The resolve's bindings the harness never reads: the surfaces, the receiver offset's, the
+ *  subsurface and the lobes, which its entries set by hand. */
 const UNREAD = new Set([
   ...RECEIVER_BINDINGS.map((_, i) => LIGHTING_RECEIVER_BINDING + i),
   SUBSURFACE_BINDING,
+  PHYSICAL_LOBES_BINDING,
 ])
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
- *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone;
- *  `name` the key its sums are read back under. */
+ *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with
+ *  `perLight` its surface taken per light (`resolveHarness`); `name` its sums' key. */
 type ResolveRecord = {
   name: string
   narrow: boolean
   words: number[]
   drawn?: boolean
+  perLight?: boolean
   /** Through the program with no shadow code (#1249). */
   unshadowed?: boolean
   /** Through the program with no rectangle code (#1369). */
   rectless?: boolean
+  /** Through the program with the lobes (`resolveHarness`), at this entry. */
+  lobes?: 'main' | 'zeroLobes' | 'isoAniso'
 }
 /** A scene; `rank` the view's sampled rank (0, a still image, by default), `slots` the shadow slot
  *  of some lights by their index. */
@@ -100,16 +105,15 @@ export async function run(scenes: ResolveScene[]) {
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const compilation: string[] = []
-  /** A record's program, compiled the first time a record asks for it — narrow or wide, with or
-   *  without its shadow and rectangle code —, and its pipelines at the `main` and `drawn` entries. */
+  /** A record's program, compiled once a record asks for it, and its pipelines by entry point. */
   const programs = new Map<string, Promise<Record<string, GPUComputePipeline> | undefined>>()
-  const programOf = ({ narrow, unshadowed = false, rectless = false }: ResolveRecord) => {
-    const key = `${narrow}/${unshadowed}/${rectless}`
+  const programOf = (r: ResolveRecord) => {
+    const key = `${r.narrow}/${!!r.unshadowed}/${!!r.rectless}/${!!r.lobes}/${!!r.perLight}`
     if (!programs.has(key))
       programs.set(
         key,
         opened
-          .compile(resolveHarness(narrow, !unshadowed, !rectless))
+          .compile(resolveHarness(r.narrow, !r.unshadowed, !r.rectless, !!r.lobes, r.perLight))
           .then(({ module, compilation: errors }) => {
             compilation.push(...errors.map((error) => `${key}: ${error}`))
             if (errors.length) return undefined
@@ -118,7 +122,8 @@ export async function run(scenes: ResolveScene[]) {
                 layout: pipelineLayout,
                 compute: { module, entryPoint },
               })
-            return { main: pipeline('main'), drawn: pipeline('drawn') }
+            const names = ['main', 'drawn', ...(r.lobes ? ['zeroLobes', 'isoAniso'] : [])]
+            return Object.fromEntries(names.map((name) => [name, pipeline(name)]))
           }),
       )
     return programs.get(key)!
@@ -151,7 +156,9 @@ export async function run(scenes: ResolveScene[]) {
     const count = scene.samples.length / SAMPLE_FLOATS
     const sums: Record<string, number[]> = {}
     for (const record of scene.records) {
-      const pipeline = (await programOf(record))?.[record.drawn ? 'drawn' : 'main']
+      const pipeline = (await programOf(record))?.[
+        record.drawn ? 'drawn' : (record.lobes ?? 'main')
+      ]
       if (!pipeline) continue
       const tiles = storage(new Uint32Array(record.words))
       const output = storage(new Uint32Array(count * 4), true)

@@ -17,6 +17,8 @@ import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/w
 import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
+import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
 import { worldBufferWords } from '../../../packages/sdk-browser/src/gpu/dag/worldBuffer.fixture.ts'
@@ -27,8 +29,8 @@ import {
   stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 
-/** One cut to run: a packed scene, the camera's uniforms and, for a cut rule on missing pages,
- *  each page's residency. */
+/** One cut to run: a packed scene, the camera's uniforms and each page's residency, every page
+ *  resident when none is given. */
 export interface SelectionCase {
   name: string
   packed: PackedDag
@@ -73,17 +75,18 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
  *  engine gives the ones it writes. */
 export function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
   // Before the node words are read: readiness writes each node's open count into them.
-  const cold = resident ? withResidency(packed, resident) : packed.pageCones
+  const cold = withResidency(packed, resident ?? new Uint8Array(packed.pageCount).fill(1))
   const listCap = selectionListCap(packed.pageCount)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
-  writeDagUniforms(views, packed, uniforms, !!resident, listCap)
+  writeDagUniforms(views, packed, uniforms, listCap)
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),
     flagsWords: dagFlagsWords(packed.nodeCount, packed.pageCount),
-    /** `out` with the staged requests behind the readout. */
+    /** `out` with the staged requests behind the readout, for a list of `listCap` ranks. */
     outBytes: stagedOutputBytes(listCap),
+    listCap,
     worldCount,
     clusters: packed.clusters,
     nodes: packed.nodes,
@@ -96,4 +99,46 @@ export function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
     range: new Uint32Array([0, worldCount, 0, 0]),
     views,
   }
+}
+
+/** Writes a case's output words before the kernel runs (requests staged by hand). */
+export type StageOutput = (out: Uint32Array, at: ReturnType<typeof caseBuffers>) => void
+
+/** `selection`'s buffers on `device` as the engine lays them out, and their bind group on
+ *  `layout`; `stage`, when given, writes the output's words first. `destroy` frees them. */
+export function bindCase(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  selection: SelectionCase,
+  stage?: StageOutput,
+) {
+  const at = caseBuffers(selection)
+  const made: GPUBuffer[] = []
+  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+  const buffer = (size: number, data?: ArrayBufferView, usage = storage) => {
+    const created = device.createBuffer({ size: Math.max(16, size, data?.byteLength ?? 0), usage })
+    if (data) device.queue.writeBuffer(created, 0, data.buffer, data.byteOffset, data.byteLength)
+    made.push(created)
+    return { buffer: created }
+  }
+  let out: Uint32Array | undefined
+  if (stage) stage((out = new Uint32Array(at.outBytes / 4)), at)
+  const uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  const buffers = {
+    clusters: buffer(64, at.clusters),
+    nodes: buffer(64, at.nodes),
+    views: buffer(256, at.views, uniform),
+    flags: buffer(at.flagsWords * 4),
+    out: buffer(at.outBytes, out),
+    work: buffer(at.work.words * 4),
+    worlds: buffer(64, at.worlds),
+    frames: buffer(at.framesBytes, at.frames),
+    cold: buffer(48, at.cold),
+    range: buffer(16, at.range, uniform),
+  }
+  const group = device.createBindGroup({
+    layout,
+    entries: namedBufferEntries(DAG_BINDING, buffers),
+  })
+  return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

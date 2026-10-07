@@ -215,11 +215,7 @@ fn vsmMaskRectHits(mask2x2:vec4u,mn:vec2u,mx:vec2u)->bool{
  let yRun=vsmBitRun(yBits,yFirst4);
  let rowsLow=0x1111u&yRun;
  let rowsHigh=0x1111u&(yRun>>16u);
- var cellBits:vec4u;
- cellBits.w=xLow*rowsLow;
- cellBits.x=xLow*rowsHigh;
- cellBits.z=xHigh*rowsLow;
- cellBits.y=xHigh*rowsHigh;
+ let cellBits=vec4u(xLow*rowsHigh,xHigh*rowsHigh,xHigh*rowsLow,xLow*rowsLow);
  return (mask2x2.x&cellBits.x)!=0u||(mask2x2.y&cellBits.y)!=0u||(mask2x2.z&cellBits.z)!=0u||(mask2x2.w&cellBits.w)!=0u;
 }
 /** Whether any valid page overlaps a pixel rect clamped to the valid page region. */

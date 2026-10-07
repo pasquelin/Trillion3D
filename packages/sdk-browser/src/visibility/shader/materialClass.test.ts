@@ -127,32 +127,21 @@ test('one production class also compiles a direct surface pipeline', async () =>
   assert.equal(diagnostic.shadeClasses.single(5), undefined)
 })
 
-test('the materials view colours a pixel by the class that resolved it, on the WebGPU path only', () => {
+test('the materials view colours a pixel by the class that resolved it', () => {
   assert.equal(DIAGNOSTICS.materials.available, true)
   assert.match(
     SHADE_SHADER,
     /if\(uni\.mode==7u\)\{return diagnosticSurface\(hashColor\(CLASS_KEY\),request\);\}/,
   )
   const modes: string[] = []
-  const backend = (id: string) =>
-    ({ id, setDiagnostic: (mode: string) => modes.push(`${id}:${mode}`) }) as never
-  const forward = backend('exact-cluster-pages'),
-    visibility = backend('webgpu-page-raster')
-  const api = (active: never) =>
-    createExplorerDiagnosticApi({
-      check() {},
-      active: () => active,
-      backends: [forward, visibility],
-      beautyMaterials: new Map(),
-      overlays: [],
-      setMode: (mode) => modes.push(`mode:${mode}`),
-    })
-  assert.throws(() => api(forward).setDiagnostic('materials'), /WebGPU visibility path/)
-  assert.deepEqual(modes, [])
-  api(visibility).setDiagnostic('materials')
-  assert.deepEqual(modes, [
-    'exact-cluster-pages:materials',
-    'webgpu-page-raster:materials',
-    'mode:materials',
-  ])
+  const engine = {
+    id: 'webgpu-page-raster',
+    setDiagnostic: (mode: string) => modes.push(`engine:${mode}`),
+  } as never
+  createExplorerDiagnosticApi({
+    check() {},
+    engine,
+    setMode: (mode) => modes.push(`mode:${mode}`),
+  }).setDiagnostic('materials')
+  assert.deepEqual(modes, ['engine:materials', 'mode:materials'])
 })

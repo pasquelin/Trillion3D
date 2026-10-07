@@ -5,6 +5,7 @@ import { createCpuStepProfile } from '../../../stage/cpuProfile.ts'
 import { CPU_STEP_NAMES } from '../render/cpuStepTable.ts'
 import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts'
 import { WEBGPU_STAGES } from '../../../stage/mapping.ts'
+import { WEBGPU_ENGINE_ID } from '../../../engine/factory.ts'
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
@@ -102,7 +103,7 @@ export interface WebgpuTimingState {
 /** Per-stage profile of the WebGPU engine, mounted only when the host has asked for it. */
 export function createWebgpuStageProfiler(): StageProfiler {
   const stages = createStageProfiler({
-    backend: 'webgpu-page-raster',
+    backend: WEBGPU_ENGINE_ID,
     stages: WEBGPU_STAGES,
     gpuMethod: 'timestamp-query',
   })
@@ -137,7 +138,7 @@ export function createWebgpuTimingState(
       pyramidWithdrawn: 0,
       sampledFrame: -1,
     },
-    // Read live: placements grown in place join the roots (`placement/webgpuGrowth.ts`).
+    // Read live, never a count kept beside the roots.
     worldCounts: {
       get roots() {
         return roots()

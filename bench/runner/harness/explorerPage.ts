@@ -1,19 +1,8 @@
 // Settings passed to `openMeasuredWorld` by the measurement page. This module is served to the page
 // and imported by its URL, like `series/cutPage.ts`: `measureView` is serialised by Playwright and
 // cannot read any module variable.
-import type {
-  BackendFactory,
-  MeasuredWorld,
-  MeasuredWorldOptions,
-} from '../../witnesses/measurement.ts'
+import type { EngineFactory, MeasuredWorldOptions } from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions } from './measureOptions.ts'
-import type { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-
-/** The witness light group, of the engine's graph, and its store-tracking function. */
-export interface WitnessLighting {
-  group: Group
-  suivre: (explorer: MeasuredWorld) => unknown
-}
 
 /**
  * MeasuredWorld settings for a series: what the bench asked for, and nothing else. A missing
@@ -21,8 +10,7 @@ export interface WitnessLighting {
  */
 export function explorerOptions(
   options: MeasureViewOptions,
-  factory: BackendFactory,
-  lighting: WitnessLighting | null,
+  factory: EngineFactory,
 ): MeasuredWorldOptions {
   return {
     manifestUrl: options.manifestUrl,
@@ -40,12 +28,8 @@ export function explorerOptions(
     maxResidentPages: options.maxPages ?? undefined,
     geometryPoolBytes: options.geometryPoolBytes ?? undefined,
     texturePoolBytes: options.texturePoolBytes ?? undefined,
-    geometryPoolCeilingBytes: options.geometryPoolCeilingBytes ?? undefined,
     preload: 'visible',
-    ...(options.autonomous ? { autonomousGeometry: true } : { backends: [factory] }),
-    // The witness light group: empty at creation, filled from the store right after.
-    ...(lighting ? { sceneLighting: lighting.group } : {}),
-    comparisonLayout: 'single',
+    engine: factory,
     clearColor: 0x2a303c,
     // An engine DIAGNOSTIC variant, when the bench asks for one: it produces a different
     // image by construction, and the SDK refuses it outside the "trace" detail.

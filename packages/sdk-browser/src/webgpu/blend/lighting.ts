@@ -1,5 +1,5 @@
 import { directLightResources } from '../pages/prepare/lightResources.ts'
-import type { BlendLighting } from '../core/bindEntries.ts'
+import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /**

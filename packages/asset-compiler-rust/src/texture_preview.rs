@@ -9,10 +9,11 @@
 //! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage[-<C>]>-<k>.png`),
 //! shared across scenes sharing image, never rewritten if present. Beside each
 //! PNG, when a quality gate lets it, the same level block-compressed in the
-//! families the cook asked for — the BC family for desktop cards, ASTC for
-//! mobile ones — and the tail carried in those blocks too (`blocks.rs`): one
-//! byte per texel in the pool instead of four, and no visible loss, since a
-//! chain the read-back cannot reproduce within the bar stays lossless.
+//! families the cook asked for — every one by default: BC for desktop cards,
+//! ASTC and ETC2 for mobile ones — and the tail carried in those blocks too
+//! (`blocks.rs`): one byte per texel in the pool instead of four, and no
+//! visible loss, since a chain the read-back cannot reproduce within the bar
+//! stays lossless.
 //!
 //! Reduction rule matches GPU (`reduce.rs`): baking instead of
 //! regenerating does not change image. Covers both engine atlases — base color
@@ -53,11 +54,13 @@ pub use levels::*;
 /// chain's coverage on the filtered cut (#43): its bytes move under the same
 /// names, and level files are written only when missing. Version 6 lays a block
 /// level file out in tile records, one HTTP Range each (#962, `tile_records`);
-/// the manifest's `textures.version` names it for the engine.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 6;
+/// the manifest's `textures.version` names it for the engine. Version 7 adds
+/// the ETC2 family (ETC2 RGBA8, EAC RG11): a third block column and layout
+/// word, and every family cooked by default.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 7;
 pub(crate) use bake_write::png;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
-pub use blocks::{BlockFormat, Layout};
+pub use blocks::{BlockFormat, Layout, FAMILIES};
 pub(crate) use curves::linear_to_srgb;
 pub use reduce::AtlasKind;
 /// Baked level template path, relative to `native/`; `bake_write::level_path`

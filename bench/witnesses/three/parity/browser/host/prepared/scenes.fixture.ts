@@ -125,7 +125,7 @@ const DECLARED: Record<string, readonly string[]> = {
 
 const SURFACE_FIELDS = (
   'name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
-  'depthFunc colorWrite polygonOffset polygonOffsetFactor polygonOffsetUnits transparent ' +
+  'depthFunc colorWrite transparent ' +
   'opacity alphaTest shininess matcap color map metalness roughness metalnessMap ' +
   'roughnessMap normalMap normalMapType normalScale aoMap aoMapIntensity emissive ' +
   'emissiveIntensity emissiveMap transmission ior thickness attenuationDistance ' +

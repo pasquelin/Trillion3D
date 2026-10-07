@@ -73,7 +73,7 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
   for (let i = 0; i < f.rows; i++) partition.projectRow(i)
   for (let i = 0; i < f.rows; i++) partition.classifyRow(i)
   // What `encodeTest` cleared before this change: `min(cap, tableRows)` words, `tableRows` being
-  // the drawable count (`row/commit.ts`, `row/slots.ts` set both together).
+  // the drawable count (`row/slots.ts` sets it).
   if (clear) m.flags.fill(0, 0, Math.min(f.flags.length, f.rows))
   for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
     const box = Object.fromEntries(

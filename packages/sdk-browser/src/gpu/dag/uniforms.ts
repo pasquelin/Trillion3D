@@ -1,5 +1,4 @@
 import type { DagViewUniforms, PackedDag } from './types.ts'
-import { requestPage } from './request.ts'
 import {
   OUT_AHEAD_PLACED,
   OUT_COUNT,
@@ -14,6 +13,8 @@ import {
 import type { SelectionResult } from '../core/selection.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
+import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
+import { ADMISSION_BUCKETS } from './request.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -25,6 +26,7 @@ export type DagOutputScratch = {
   drawable: number[]
   ahead: number[]
   evict: number[]
+  levels: Uint32Array
 }
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: {
@@ -38,6 +40,7 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   drawable: [],
   ahead: [],
   evict: [],
+  levels: new Uint32Array(ADMISSION_BUCKETS),
 })
 
 /** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
@@ -56,14 +59,15 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). Every word is written through
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
  * and the shader together. The camera runs one view on buffers sized for one, whose queues hold
- * every node. `listCap` is the ranks its readout holds (`listCap.ts`).
+ * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
+ * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none.
  */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
   uniforms: DagViewUniforms,
-  residentCut: boolean,
   listCap: number,
+  saveRegion = REGION_NONE,
 ) {
   const W = viewWord
   target.fill(0)
@@ -77,7 +81,6 @@ export function writeDagUniforms(
   ints[W('clusterCount')] = packed.pageCount
   ints[W('nodeCount')] = packed.nodeCount
   ints[W('worldCount')] = packed.worldCount
-  ints[W('residentCut')] = residentCut ? 1 : 0
   const cw = uniforms.cameraWorld
   if (cw) {
     target[W('cameraWorld')] = cw[0]
@@ -94,16 +97,21 @@ export function writeDagUniforms(
   ints[W('viewCount')] = 1
   ints[W('viewCapacity')] = 1
   ints[W('queueCap')] = packed.nodeCount
+  // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
+  ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
+  ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
   writeAheadBlock(target, ints, uniforms)
 }
 
-/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
+/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none;
+ *  `levelsWord`: where its admission counts lie (`levelCountsWord`), 0 when it has none. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
   byteLength: number,
   drawnWordOffset: number,
   scratch: DagOutputScratch = createDagOutputScratch(),
+  levelsWord = 0,
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4))
   const head = SELECTION_HEADER_WORDS,
@@ -115,15 +123,15 @@ export function parseDagOutput(
   // the arrays it grew; a typed-array iterator is never unrolled.
   const { result, drawable, evict } = scratch,
     pageIds = result.pageIds
-  // Each rank is a REQUEST: the page and its priority in one word (`request.ts`). The GPU wrote
-  // them SORTED (`shader/snapshotWgsl.ts`): the camera's, counted on their own, then as many of the
-  // view ahead's as the cap left. The host reads them in that order and ranks nothing.
+  // Each rank is a REQUEST: the page, a whole word (`request.ts`). The GPU wrote them SORTED
+  // (`shader/snapshotWgsl.ts`): the camera's, counted on their own, then as many of the view
+  // ahead's as the cap left. The host reads them in that order and ranks nothing.
   const ahead = scratch.ahead,
     visible = Math.min(ints[OUT_COUNT] ?? 0, held),
     count = visible + Math.min(ints[OUT_AHEAD_PLACED] ?? 0, held - visible)
-  for (let i = 0; i < visible; i++) pageIds[i] = requestPage(ints[head + i])
+  for (let i = 0; i < visible; i++) pageIds[i] = ints[head + i]
   pageIds.length = visible
-  for (let i = visible; i < count; i++) ahead[i - visible] = requestPage(ints[head + i])
+  for (let i = visible; i < count; i++) ahead[i - visible] = ints[head + i]
   ahead.length = count - visible
   result.aheadPageIds = ahead
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0
@@ -139,13 +147,26 @@ export function parseDagOutput(
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
   result.drawablePageIds = undefined
+  if (levelsWord) result.levelCounts = readLevelCounts(ints, levelsWord, scratch.levels)
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
     result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable)
-    result.evictPageIds = readCountedList(ints, evictionWord(drawnWordOffset - head), evict)
+    // A sample whose counts lie where the eviction queue would carries none (a view's aside).
+    const evictAt = evictionWord(drawnWordOffset - head)
+    if (levelsWord && levelsWord <= evictAt) evict.length = 0
+    else readCountedList(ints, evictAt, evict)
+    result.evictPageIds = evict
   }
   return result
+}
+
+/** The admission counts at word `at` (`levelCountsWord`) into `into`, or none when the sample does
+ *  not hold them. */
+function readLevelCounts(ints: Uint32Array, at: number, into: Uint32Array) {
+  if (ints.length < at + ADMISSION_BUCKETS) return undefined
+  into.set(ints.subarray(at, at + ADMISSION_BUCKETS))
+  return into
 }
 
 /** A list the GPU wrote behind a header at word `at`: its count, bounded by what the readback

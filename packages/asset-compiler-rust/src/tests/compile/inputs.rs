@@ -77,6 +77,28 @@ fn parse_accepts_five_to_eight_args() {
     )
     .is_err());
 }
+// Behaviour: a cook writes every block family unless told otherwise — each device then streams
+// the blocks it samples, PNG the last fallback —, one family by name, or none.
+#[test]
+fn every_block_family_is_cooked_by_default() {
+    use crate::texture_preview::BlockFormat;
+    let args = |extra: &[&str]| -> Vec<String> {
+        let mut args: Vec<String> = ["s", "c", "slice", "12", "/a/"].map(String::from).to_vec();
+        args.extend(extra.iter().map(|arg| arg.to_string()));
+        args
+    };
+    let formats = |extra: &[&str]| {
+        parse_compiler_args(&args(extra), Arc::new(AtomicBool::new(false)))
+            .map(|o| o.texture_formats)
+    };
+    assert_eq!(formats(&[]), Ok(BlockFormat::ALL.to_vec()));
+    assert_eq!(
+        formats(&["--textures-format=etc2"]),
+        Ok(vec![BlockFormat::Etc2])
+    );
+    assert_eq!(formats(&["--textures-format=none"]), Ok(Vec::new()));
+    assert!(formats(&["--textures-format=both"]).is_err());
+}
 #[test]
 fn malformed_accessor_is_rejected() {
     let g = json!({"accessors":[{"bufferView":0,"componentType":5125,"type":"SCALAR","count":1}],"bufferViews":[{"buffer":0,"byteLength":4}]});
@@ -109,14 +131,17 @@ fn compile_writes_pages_and_namespaced_pointer() {
     let key = result["key"].as_str().expect("key");
     let directory = options.cache.join("native/slice").join(key);
     assert!(directory.join("source.gltf").exists());
-    assert!(directory.join("scene.gltf").exists());
+    assert!(
+        !directory.join("scene.gltf").exists(),
+        "no second scene beside the pages"
+    );
     assert_eq!(result["geometryPages"]["formatVersion"], 7);
     assert_eq!(result["geometryPages"]["codec"], "quantized");
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
     assert!(geometry.get("formatVersion").is_none());
     assert!(result["primitives"][0]["quantization"]["positionExponent"].is_number());
     let page = fs::read(directory.join(geometry["url"].as_str().expect("page URL")))
-        .expect("autonomous geometry page");
+        .expect("geometry page");
     let decoded = trillion3d_page_codec::decode(&page, 1 << 20).expect("decode");
     assert_eq!(decoded.indices(), [0, 1, 2]);
     fs::remove_dir_all(root).expect("cleanup");

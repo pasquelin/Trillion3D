@@ -1,8 +1,8 @@
-// The cut's three indirect arguments are armed by a dispatch of its pass (`dagArm`), where three
-// copies of `work` to `dispatchArgs` cut that pass. The shipped kernel runs over its three lanes:
-// each list's record holds what the copy of its two words gave the argument, z still one; and the
-// kernel binds nothing of the selection's group, so no dispatch reads an argument a group it uses
-// binds writable.
+// The cut's six indirect arguments are armed by a dispatch of its pass (`dagArm`), where six
+// copies of `work` to `dispatchArgs` would cut that pass. The shipped kernel runs over its six
+// lanes: each list's record holds what the copy of its two words gave the argument, z still one —
+// the drawn journal one workgroup at least —; and the kernel binds nothing of the selection's
+// group, so no dispatch reads an argument a group it uses binds writable.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -25,15 +25,31 @@ test('each record holds the words the arming copy carried, z one', () => {
       DRAWN_GROUPS: layout.drawnGroups,
       CAND_GROUPS: layout.candGroups,
       LIVE_GROUPS: layout.liveGroups,
+      LIST_GROUPS: layout.listGroups,
     })
-    for (let lane = 0; lane < 3; lane++) dagArm(lane)
+    for (let lane = 0; lane < 6; lane++) dagArm(lane)
     // `copyBufferToBuffer(work, groups * 4, dispatchArgs, 0, 8)`: x and y, then the one z.
     const copied = (groups: number) => [work[groups], work[groups + 1], 1]
     const record = (offset: number) => args.slice(offset / 4, offset / 4 + 3)
     assert.deepEqual(record(DAG_ARGS.drawn), copied(layout.drawnGroups), `${blockCount}: drawn`)
     assert.deepEqual(record(DAG_ARGS.cand), copied(layout.candGroups), `${blockCount}: cand`)
     assert.deepEqual(record(DAG_ARGS.live), copied(layout.liveGroups), `${blockCount}: live`)
+    assert.deepEqual(record(DAG_ARGS.list0), copied(layout.listGroups), `${blockCount}: list 0`)
+    assert.deepEqual(record(DAG_ARGS.list1), copied(layout.listGroups + 2), `${blockCount}: list 1`)
+    assert.deepEqual(record(DAG_ARGS.restore), copied(layout.listGroups + 4), `${blockCount}: back`)
   }
+  // An empty journal still arms one workgroup: its first thread saves the length it leaves.
+  const layout = dagWorkLayout(1),
+    args = [...DAG_ARGS_INITIAL]
+  const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_SHADER, ['dagArm'], {
+    work: new Array(layout.words).fill(0),
+    args,
+    ...{ DRAWN_GROUPS: layout.drawnGroups, CAND_GROUPS: layout.candGroups },
+    ...{ LIVE_GROUPS: layout.liveGroups, LIST_GROUPS: layout.listGroups },
+  })
+  for (let lane = 0; lane < 6; lane++) dagArm(lane)
+  assert.deepEqual(args.slice(0, 3), [1, 1, 1], 'the empty journal: one workgroup')
+  assert.deepEqual(args.slice(3, 6), [0, 0, 1], 'an empty candidate list: none')
 })
 
 test('the arming group binds the counts read-only and the arguments, nothing of the selection', async () => {
@@ -59,6 +75,7 @@ test('the arming group binds the counts read-only and the arguments, nothing of 
         DRAWN_GROUPS: dagWorkLayout(4).drawnGroups,
         CAND_GROUPS: dagWorkLayout(4).candGroups,
         LIVE_GROUPS: dagWorkLayout(4).liveGroups,
+        LIST_GROUPS: dagWorkLayout(4).listGroups,
       },
     ],
   )

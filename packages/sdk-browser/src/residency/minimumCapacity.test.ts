@@ -1,7 +1,7 @@
 // #1237: the pool's floor is the root cover and the pages its groups replace, admitted first.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { admissionLevel, floorFirst, rootChildren } from './minimumCapacity.ts'
+import { admissionLevel, rootChildren } from './minimumCapacity.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
@@ -37,12 +37,10 @@ test('the floor holds the pages the group of a root replaces, and nothing finer'
   assert.deepEqual(rootChildren([root]), [], 'a page already marked is not counted twice')
 })
 
-test('the floor is admitted before any level, then the coarsest level first', () => {
+test('the floor is ranked past every level', () => {
   const { pages, root } = placement()
   rootChildren([root])
   const coarse = { url: 'other', level: 5 } as PageRec
-  const order = [pages[0], coarse, pages[4], pages[1]].sort(floorFirst).map((page) => page.url)
-  assert.deepEqual(order, ['p4', 'other', 'p0', 'p1'])
   assert.equal(admissionLevel(pages[4], 5), 7, 'ranked past the highest level')
   assert.equal(admissionLevel(coarse, 5), 5)
 })

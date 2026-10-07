@@ -36,7 +36,6 @@ for (let i = 0; i < PAGES; i++)
     depthLayer: 0,
     attributes: DUMMY_ATTRIBUTES,
     material: surfaceOf([]),
-    declaration: [],
     renderOrder: 0,
     transparent: alea() < 0.1,
     array: alea() < 0.995 ? new Uint32Array(3) : undefined,

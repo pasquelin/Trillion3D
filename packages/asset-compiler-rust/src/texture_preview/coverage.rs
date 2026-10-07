@@ -1,6 +1,6 @@
 //! Coverage-preserving alpha: the rule every builder of a coverage chain applies
-//! after the median of four — this compiler, and the card's WebGPU and WebGL2
-//! chains, which mirror it step for step (`texture/coverageRule.ts`, #748, #769).
+//! after the median of four — this compiler, and the card's compute chains,
+//! which mirror it step for step (`texture/coverageRule.ts`, #748).
 //!
 //! A masked material keeps a texel when its alpha times the material's
 //! `baseColorFactor` alpha reaches the cutoff (glTF 2.0), and the median of four
@@ -39,7 +39,7 @@ use super::reduce::AtlasKind;
 
 /// The smallest byte `b` a material keeps at `cutoff` under a `baseColorFactor`
 /// alpha `factor`: `b / 255 × factor >= cutoff` in `f32`, the product glTF 2.0
-/// cuts and both backends compute (`maskKeep`, #748; `baseFactor`, #769) —
+/// cuts and the engine computes (`maskKeep`, #748) —
 /// dividing the cutoff by the factor instead would land a byte off on exact ties.
 /// The quality gate cuts at the same product (`keeps`, `blocks/quality.rs`). 255
 /// when no byte reaches it — a factor of 0 or below, or a cutoff above the factor,

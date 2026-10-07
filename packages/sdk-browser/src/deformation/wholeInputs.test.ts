@@ -10,7 +10,7 @@ import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
 import { GraphSurface } from '../host/graph/surface.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { wholeDeformationInputs, wholeMorphDeltas } from './wholeInputs.ts'
+import { wholeDeformationInputs } from './wholeInputs.ts'
 import { createSessionDeformation } from './session.ts'
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'
 import { meshSurface } from '../page/surface.ts'
@@ -32,7 +32,6 @@ function sample() {
 test('whole-copy inputs preserve source skin IDs and convert absolute morph targets once', () => {
   const data = wholeDeformationInputs(sample())
   assert.deepEqual([...data], [16, 1, 1, 14, 3, 2, 1, 0, 0.5, 0.5, 0, 0, 1, 2, 3, 0, 0, 0])
-  assert.deepEqual([...wholeMorphDeltas(sample())], [1, 2, 3, 0, 0, 0])
 })
 
 test('whole transmission keeps no pages and distinct placement outputs in the existing pool', () => {
@@ -57,7 +56,10 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const layout = wholeDeformationPool(items, session)
   assert.equal(layout.floats, wholeDeformationInputs(g).length + 2 * 11)
   const gpu = fakeDevice()
-  const buffer = gpu.device.createBuffer({ size: 1024, usage: GPUBufferUsage.STORAGE })
+  const buffer = gpu.device.createBuffer({
+    size: 1024,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   const rows = layout.upload(gpu.device, buffer, 64, () => ({
     ...emptyGeometryBlock(),
     vertexBase: 7,

@@ -1,7 +1,7 @@
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
 /** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
  *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. The

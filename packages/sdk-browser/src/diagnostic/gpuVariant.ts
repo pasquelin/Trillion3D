@@ -1,4 +1,4 @@
-import type { DiagnosticDetail } from '../backend/types.ts'
+import type { DiagnosticDetail } from '../engine/types.ts'
 import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts'
 
 export type DiagnosticGpuVariant = (typeof DIAGNOSTIC_GPU_VARIANTS)[number]

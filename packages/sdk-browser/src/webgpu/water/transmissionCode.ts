@@ -4,4 +4,4 @@
 // that transmits awaits it at prepare (`../blend/pipelines.ts`); its frame side stays in the core
 // (`pass.ts`, `rank.ts`).
 export { createWaterPass, waterWithoutFeedback } from './waterPass.ts'
-export { WATER_SURFACE_WGSL } from './surfaceWgsl.ts'
+export { waterSurfaceWgsl } from './surfaceWgsl.ts'

@@ -9,8 +9,8 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
 import { ORDER_STEP_STRIDE } from './orderSteps.ts'
 import { writeKeyRecords } from './keyRecords.ts'
-import { orderBlendPasses, refreshEyeKeys } from './order.ts'
-import { orderBlendPlanCpu } from './expandCpu.ts'
+import { orderBlendPasses } from './order.ts'
+import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
 import { planWords, RUN_WORDS } from './planLayout.ts'
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
@@ -155,7 +155,7 @@ export function checkKernel(blendState: BlendState, eye: number[], what: string)
     assert.deepEqual(got.order, model, `${what}, pass ${pass}: order`)
     assert.deepEqual(
       got.runs,
-      Array.from(blendState.runs[pass].subarray(0, got.runs.length)),
+      Array.from(cpuModel(blendState).runs[pass].subarray(0, got.runs.length)),
       `${what}, pass ${pass}: slots`,
     )
   }

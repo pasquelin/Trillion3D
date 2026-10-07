@@ -1,4 +1,4 @@
-import { createRadianceMipChain } from '../../../packages/sdk-browser/src/texture/mipBatch.ts'
+import { createRadianceMipChain } from '../../../packages/sdk-browser/src/texture/radianceMips.ts'
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

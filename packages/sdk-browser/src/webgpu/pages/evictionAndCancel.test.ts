@@ -1,39 +1,40 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { dagLevel } from '../../backend/pagesBackend.fixture.ts'
-import { quadScene, camera } from './testScenes.fixture.ts'
+import { dagLevel } from '../../engine/pagesEngine.fixture.ts'
+import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
 import { coarseQuadScene } from './testOccluder.fixture.ts'
+import { settledImage } from './settledImage.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { WebgpuPagesBackend } from './runtime.ts'
+import type { Engine } from '../../engine/types.ts'
 import { LAST_USE_WINDOW } from '../residency/lastUseWindow.ts'
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
     { device } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 3,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
-    backend.render(camera())
-    await backend.flush()
-    backend.render(camera())
-    backend.dropPage!('0')
+    // The GPU cut's readback lands one image later (#1483): the first asks for the leaves, which
+    // enter the residency the image after their bytes; drawn and drained until they are drawn.
+    await settledImage(backend)
+    backend.dropPage('0')
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
     const cam = camera()
     cam.lookAt(0, 0, 10)
-    // The drop waits out the window of the page the image stopped drawing.
-    for (let i = 0; i <= LAST_USE_WINDOW; i++) backend.render(cam)
-    await backend.flush()
+    // The drop waits out the window of the page the images stopped drawing, each read back.
+    for (let i = 0; i <= LAST_USE_WINDOW; i++) await flushedImage(backend, cam)
+    await flushedImage(backend)
     backend.render(camera())
     assert.deepEqual(backend.selectedPageIds(), ['2'])
     assert.deepEqual(backend.pendingUrls!(), ['0'])
@@ -55,7 +56,7 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     ...fixture.metadata,
     primitives: [{ ...fixture.metadata.primitives[0], ...level }],
   }
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     metadata,
     indices: new Map(),
@@ -63,15 +64,13 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
-    backend.render(camera())
+    await flushedImage(backend)
     assert.deepEqual(backend.selectedPageIds(), ['2'])
-    backend.acceptPage!('0', fixture.indices.get('2')!)
-    backend.render(camera())
-    await backend.flush()
-    backend.render(camera())
+    backend.acceptPage('0', fixture.indices.get('2')!)
+    await settledImage(backend)
     assert.deepEqual(backend.selectedPageIds(), ['0'])
   } finally {
     backend.dispose()
@@ -92,7 +91,7 @@ test('cancelling initial coverage loading cannot publish a ready backend', async
     gate = new Promise<void>((resolve) => {
       release = resolve
     })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
     readPage: async (url) => {
@@ -133,13 +132,13 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
     const cam = camera()

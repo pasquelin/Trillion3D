@@ -15,26 +15,14 @@ import {
   encodeVsmPageCarry,
   type VsmPageManagementFrame,
 } from '../../../../vsm/pageManagementPass.ts'
-import {
-  encodeVirtualShadowProjection,
-  type VsmProjectionLight,
-} from '../../../../vsm/projectionPass.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
+import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { encodeVsmInvalidations } from '../../../../vsm/invalidationPass.ts'
-import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
-import { taaRenderMatrix } from '../../../../taa/frame.ts'
-import { invertMatrix4 } from '../../../../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4 } from '../../../../../../sdk-core/src/math/matrix/matrix4.ts'
-import { ensureMask, lightIdsBuffer, maskLayersFor, type EngineVsm } from './engineVsm.ts'
-import { projectionLight } from './vsmPlan.ts'
-import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
+import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
+import { encodeVsmProjection, encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
 
 /** The page marking's one compute pass (`markingPass.ts`). */
 const MARKING_PASS: GPUComputePassDescriptor = { label: 'vsm.marking' }
-const viewInverse = new Float64Array(16),
-  renderMatrix = new Float64Array(16),
-  jitteredProjection = new Float64Array(16),
-  forwardZViewToClip = new Float32Array(16)
+const forwardZViewToClip = new Float32Array(16)
 
 /** What a set's frames rebuild in place (`frameScratch`): the per-page entries and their bins, the
  *  suns' ids and the lights the projection reads. */
@@ -57,16 +45,6 @@ const frameScratch = (vsm: EngineVsm) => {
     )
   return scratch
 }
-/** The projection the raster drew this image with, the TAA jitter in it (\`taaRenderMatrix\`):
- *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
- *  reconstructs it with the jittered view (#1363). */
-function rasterProjection(rt: WebgpuPagesRuntime, cam: EngineCamera) {
-  invertMatrix4(viewInverse, cam.view)
-  renderMatrix.set(taaRenderMatrix(rt, cam))
-  multiplyMatrix4(jitteredProjection, renderMatrix, viewInverse)
-  return jitteredProjection
-}
-
 /**
  * The frame's GPU work of the virtual shadow maps, after the light lists and before the lighting:
  * invalidation, page management, marking, allocation, raster, post-render and projection.
@@ -77,12 +55,11 @@ export function encodeVsmFrame(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
 ) {
-  const { lights, gpu, vis, layout, run } = rt,
+  const { lights, gpu } = rt,
     vsm = lights.vsm,
     plan = vsm?.plan
   if (!vsm || !plan || !gpu.surfaces || !gpu.depthView || !gpu.deferred) return
   const { res, state } = vsm
-  const [width, height] = gpu.targetSize
   const stats = vsm.stats
   stats.lights = plan.lights.length
   stats.fullMaps = plan.fullMapCount
@@ -115,10 +92,25 @@ export function encodeVsmFrame(
     options: { stats: vsm.countersOn },
   }
   if (vsm.countersOn) encoder.clearBuffer(res.stats)
+  const frame: VsmFrame = { rt, device, encoder, cam, vsm, plan }
+  const views = encodeVsmMarking(frame, scratch, perPage, pmFrame)
+  encodeVsmRaster(frame)
+  encodeVsmAfterRaster(encoder, res, pmFrame)
+  if (encodeVsmProjection(frame, scratch.projected, views)) stats.projectionPasses = 1
+}
 
-  // The page marking, one compute pass: the physical page addresses remapped to this frame's ids,
-  // then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
-  // and the light ids go up only where they changed.
+/** The page marking, one compute pass: the physical page addresses remapped to this frame's ids,
+ *  then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
+ *  and the light ids go up only where they changed. */
+function encodeVsmMarking(
+  { rt, device, encoder, cam, vsm, plan }: VsmFrame,
+  scratch: FrameScratch,
+  perPage: ReturnType<typeof vsmCachePerPageBins>,
+  pmFrame: VsmPageManagementFrame,
+) {
+  const { lights, gpu } = rt,
+    { res } = vsm
+  const [width, height] = gpu.targetSize
   const suns = scratch.suns
   let directional = 0
   for (const light of plan.lights)
@@ -130,7 +122,7 @@ export function encodeVsmFrame(
     vsm.lightIds = lightIdsBuffer(device, vsm.lightIdsData.byteLength)
   }
   vsmWriteChanged(device, vsm.lightIds, vsm.lightIdsData, 0, vsm.lightIdsData.length)
-  const views = gpu.surfaces.views()
+  const views = gpu.surfaces!.views()
   const tiles = lights.tiles?.buffer
   const markingFrame: VsmMarkingFrame = {
     fullMapCount: plan.fullMapCount,
@@ -139,10 +131,10 @@ export function encodeVsmFrame(
     view:
       lights.buffer && tiles
         ? {
-            depth: gpu.depthView,
+            depth: gpu.depthView!,
             normalRough: views[1],
             flags: views[3],
-            view: gpu.deferred.uniform,
+            view: gpu.deferred!.uniform,
             directLights: lights.buffer,
             tileLights: tiles,
             lightVsmIds: vsm.lightIds,
@@ -162,84 +154,5 @@ export function encodeVsmFrame(
   vsm.marking.encode(marking, markingFrame)
   marking.end()
   encodeVsmPageMapping(encoder, res, pmFrame)
-
-  // The non-cluster raster: the resident cluster rows at the main view's detail.
-  const pageGroup = shadowPageGroup(rt, device)
-  const { spheres, mobilityRows, rowLods, pageLayout } = lights
-  if (pageGroup && spheres && mobilityRows && rowLods && pageLayout && vis.pageTable) {
-    const p = cam.projection
-    vsm.renderedPlan = plan
-    stats.render = encodeVsmRenderAndTransmission(
-      rt,
-      vsm,
-      encoder,
-      res,
-      { device, lights: plan.lights },
-      {
-        rowCount: layout.rows.packedCount,
-        pageTable: vis.pageTable,
-        spheres: spheres.buffer,
-        mobility: mobilityRows,
-        rowLods: rowLods.buffer,
-        pageLayout,
-        pageGroup,
-        rowSpheres: spheres,
-        camera: {
-          eye: cam.eye,
-          view: cam.view,
-          focalPixels: Math.max((p[0] * width) / 2, (p[5] * height) / 2),
-          near: cam.near,
-          perspective: cam.perspective === 1,
-          threshold: run.gate.pixelError,
-        },
-      },
-    )
-  }
-  encodeVsmAfterRaster(encoder, res, pmFrame)
-
-  // Projection: one pass, every light a channel reads (`planVsmFrame`: the first 64), four a layer
-  // of the mask array. None when the plan holds no light — every lamp culled, its cache entries
-  // still counted —: every light then reads no shadow (`planVsmFrame` assigns −1), so no pixel
-  // reads the mask, and a pass of no light would store no texel of it.
-  const store = lights.store
-  const projected = scratch.projected,
-    reads = Math.min(plan.lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS)
-  projected.length = reads
-  for (let k = 0; k < reads; k++) {
-    const l = plan.lights[k]
-    projected[k] = projectionLight(store.light(l.id)!, l.firstId)
-  }
-  if (!projected.length) return
-  const layers = maskLayersFor(projected.length)
-  // At the targets' size, as the scene textures are at theirs: the view rect is its
-  // top-left, and a dynamic-resolution step does not remake it.
-  const mask = ensureMask(device, vsm, gpu.allocatedSize[0], gpu.allocatedSize[1], layers)
-  // The engine's shadow receiver, as the resolve wrote it (`receiverTargetWgsl.ts`).
-  const receiver = gpu.surfaces.receiverView
-  const camera = {
-    view: cam.view,
-    projection: rasterProjection(rt, cam),
-    perspective: cam.perspective === 1,
-  }
-  encodeVirtualShadowProjection(
-    encoder,
-    res,
-    {
-      device,
-      depth: gpu.depthView,
-      normalRough: views[1],
-      flags: views[3],
-      width,
-      height,
-      bufferWidth: gpu.allocatedSize[0],
-      bufferHeight: gpu.allocatedSize[1],
-      camera,
-      frameIndex: run.frame,
-      mask: mask.view,
-      maskTiles: mask.tilesView,
-      receiver,
-    },
-    projected,
-  )
-  stats.projectionPasses = 1
+  return views
 }

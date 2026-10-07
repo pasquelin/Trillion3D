@@ -61,7 +61,7 @@ export type HostShadedMaterial = HostMaterial & {
   readonly thickness?: number
   readonly attenuationDistance?: number
   readonly attenuationColor?: unknown
-  /** Blend and raster state the gate refuses when the autonomous programs cannot preserve it. */
+  /** Blend and raster state the host declares. */
   readonly alphaHash?: boolean
   readonly blending?: number
   readonly premultipliedAlpha?: boolean
@@ -86,7 +86,4 @@ export type HostShadedMaterial = HostMaterial & {
   readonly bumpMap?: HostMap
   readonly displacementMap?: HostMap
   readonly alphaMap?: HostMap
-  /** The compile hook a host may install on a material; `surfaceGate.ts` reads only whether
-   *  one was installed, never what it does. */
-  readonly onBeforeCompile?: unknown
 }

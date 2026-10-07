@@ -116,7 +116,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const { device, uniformWrites } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag, { residentCut: true })
+  const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   const mask = () =>
     [
@@ -148,26 +148,30 @@ test('the resident mask recomputes for residency changes with an unchanged camer
   fixture.geometry.dispose()
 })
 
-test('a failed readback marks GPU selection dead', async () => {
+// #1483: a mapping the device refuses reads nothing, and the next dispatch copies the cut again; a
+// lost device says so on its own (`device.lost`), never a readback.
+test('a failed readback is read again at the next dispatch, the selection kept', async () => {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag, { failMap: true }).device, dag)
+  const gpu = mockDagDevice(dag, { failMap: true })
+  const selection = await createGpuDagSelection(gpu.device, dag)
   assert.ok(selection)
   selection.dispatch(uniforms)
   assert.equal(await selection.flush(), null)
-  assert.equal(selection.failed(), true)
-  assert.equal(selection.peek(), null)
+  assert.equal(selection.failed(), false, 'the selection stays')
+  assert.equal(selection.peek(), null, 'nothing read')
+  const copies = gpu.readbackCopies()
+  selection.dispatch(uniforms)
+  assert.equal(gpu.readbackCopies(), copies + 1, 'the same cut copied again')
   selection.dispose()
   fixture.geometry.dispose()
 })
 
 test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
-  const selection = await createGpuDagSelection(device, dag, {
-    residentCut: true,
-  })
+  const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   selection.updateResidency(
     Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),

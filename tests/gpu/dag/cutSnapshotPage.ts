@@ -47,11 +47,11 @@ async function measure(
   { packed, uniforms }: ReturnType<typeof sceneView>,
   { frames, rounds, thresholds }: Omit<Sweep, 'sizes' | 'levels'>,
 ) {
-  const cut = await createDagResources(device, packed, true)
+  const cut = await createDagResources(device, packed)
   if (!cut) return undefined
   const block = new Float32Array(DAG_VIEW_WORDS)
   const setThreshold = (pixelError: number) => {
-    writeDagUniforms(block, packed, { ...uniforms, pixelError }, true, cut.listCap)
+    writeDagUniforms(block, packed, { ...uniforms, pixelError }, cut.listCap)
     device.queue.writeBuffer(cut.uniforms, 0, block)
   }
   // The readout before the cap: the header and a rank per page, for each of its two lists.

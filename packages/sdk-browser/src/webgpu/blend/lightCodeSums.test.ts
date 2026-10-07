@@ -17,7 +17,7 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
 import { shadedLightScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
@@ -37,11 +37,13 @@ const NO_SLOT =
 /** The pass's program at a key, and the loop it walks its lights with. */
 const PASSES = {
   blend: {
-    text: (key: Partial<ContractKey>) => blendShader(key),
+    // The programs of a scene without lobes; the lobed ones sum as they do (`lobedSums.test.ts`).
+    text: (key: Partial<ContractKey>) => blendShader({ ...key, lobeless: true }),
     loop: ['sliceLighting', 'declaredLight'],
   },
   water: {
-    text: (key: Partial<ContractKey>) => waterCompositeShader(false, key),
+    // The same, the lobed pair summing as it does (`../water/lobedPair.test.ts`).
+    text: (key: Partial<ContractKey>) => waterCompositeShader(false, { ...key, lobeless: true }),
     loop: ['sliceLightingPair', 'declaredLightPair'],
   },
 }

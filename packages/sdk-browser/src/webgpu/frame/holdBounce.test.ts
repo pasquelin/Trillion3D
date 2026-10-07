@@ -2,7 +2,7 @@
 // never reached the held frame a capture waits for. Only a series still working keeps it now.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { unsettledMask, unsettledReasons } from './hold.ts'
+import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 
 test('#1281: probes still converging keep the frame drawn, a closed series lets it hold', () => {

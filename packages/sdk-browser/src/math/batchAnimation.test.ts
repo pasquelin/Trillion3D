@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { prepareSdkWasm } from '../page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from './wasm/sdkWasm.ts'
 import { mathGovernor, prepareMathBatch } from './batchState.ts'
 import { lendAnimationSampler } from './batchAnimation.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -19,7 +19,7 @@ import {
 import type { Clip, Track } from '../../../sdk-core/src/world/animation/clip.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
 
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../page/decode/pageCodec.wasm')))
+await prepareSdkWasm(readFileSync(join(import.meta.dirname, './wasm/kernels.wasm')))
 
 let seed = 7
 const random = () => ((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0), seed / 4294967296)

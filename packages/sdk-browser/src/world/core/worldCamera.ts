@@ -2,8 +2,6 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import type { OrthographicBox } from '../../camera/engineCamera.ts'
-import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts'
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts'
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts'
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts'
@@ -45,19 +43,10 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   into.aspect = aspect
   const { left, right, top, bottom, fitAspect } = camera
   const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null
-  // The box is handed on as declared, fitted where each projection is composed, at the shape it
-  // is drawn at. The engine composes its own projection from it (`engineCamera.ts`); the host
-  // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here.
+  // The box is handed on as declared, fitted where the projection is composed, at the shape it
+  // is drawn at: the engine composes its own projection from it (`engineCamera.ts`).
   into.orthographic = box
   into.updateProjectionMatrix()
-  if (box)
-    hostOrthographic(
-      into.projectionMatrix.elements as number[],
-      into.projectionMatrixInverse?.elements as number[] | undefined,
-      box,
-      camera,
-      aspect,
-    )
   into.updateMatrixWorld()
 }
 
@@ -66,38 +55,6 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
 export const followPageCamera =
   (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
     copyWorldCamera(camera(), into, drawnAspect(canvas))
-
-const view = new Float64Array(4)
-/** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
- *  the box a camera sees at `aspect` (`drawnView`), scaled by its zoom about the box centre, and
- *  its inverse. */
-export function hostOrthographic(
-  out: number[],
-  inverse: number[] | undefined,
-  box: OrthographicBox,
-  camera: Pick<Camera, 'zoom' | 'near' | 'far'>,
-  aspect: number,
-) {
-  const [x, y, w, h] = drawnView(box, aspect, camera.zoom, view),
-    depth = camera.far - camera.near
-  out.fill(0)
-  out[0] = 1 / w
-  out[5] = 1 / h
-  out[10] = -2 / depth
-  out[12] = -x / w
-  out[13] = -y / h
-  out[14] = -(camera.far + camera.near) / depth
-  out[15] = 1
-  if (!inverse) return
-  inverse.fill(0)
-  inverse[0] = w
-  inverse[5] = h
-  inverse[10] = -depth / 2
-  inverse[12] = x
-  inverse[13] = y
-  inverse[14] = -(camera.far + camera.near) / 2
-  inverse[15] = 1
-}
 
 /**
  * The CSS box a session draws at. A session's own loop tracks it; a world the page leads has

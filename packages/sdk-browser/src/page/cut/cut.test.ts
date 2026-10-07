@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, selectVisiblePages, type PageRec } from '../selection/selection.ts'
+import { collectClusterPages, type PageRec } from '../selection/selection.ts'
+import { createSelectionResult, selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from './held.ts'
-import { createSelectionResult } from './state.ts'
+import { createHeldResidency } from './held.fixture.ts'
 
 const ASK = {
   pixelError: 0,

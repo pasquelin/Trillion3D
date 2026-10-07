@@ -7,10 +7,13 @@ import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { coneContextFor, coneCullsPageWith, createConeContext, type NormalCone } from './cone.ts'
-import { selectVisiblePages } from '../cut/cut.ts'
+import { type NormalCone } from './cone.ts'
+import { coneCullsPageWith } from './cone.fixture.ts'
+import { coneContextFor } from './cone.fixture.ts'
+import { createConeContext } from './cone.fixture.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import type { ClusterRoot } from '../selection/types.ts'
-import type { PageRecord } from '../cut/state.ts'
+import type { PageRecord } from '../cut/state.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
@@ -38,7 +41,7 @@ function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.Camera) {
     triangles: TRIANGLES,
     lodError: 0,
   } as unknown as PageRecord
-  const root = { world, pages: [page], cones: true } as unknown as ClusterRoot<PageRecord>
+  const root = { world, pages: [page] } as unknown as ClusterRoot<PageRecord>
   return selectVisiblePages([root], engineCamera(cam), { pixelError: 0, viewport: VIEWPORT })
     .displayedTriangles
 }

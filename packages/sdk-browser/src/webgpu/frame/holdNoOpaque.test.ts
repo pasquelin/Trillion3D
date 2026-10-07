@@ -4,7 +4,7 @@
 // change flag was consumed by the opaque path alone as well: every submitted image now does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { unsettledMask, unsettledReasons } from './hold.ts'
+import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.ts'
@@ -13,8 +13,6 @@ import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 test('#198: a view without a packed row owes no occluder history', () => {
   const rt = settledRt()
   rt.run.noOccluderHistory = true
-  assert.equal(unsettledMask(rt), 0, 'no partition — Hi-Z dropped —: no history to establish')
-  Object.assign(rt.vis, { gpuPartition: {} })
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['noOccluderHistory'])
   rt.layout.rows.packedCount = 0
   assert.equal(unsettledMask(rt), 0, 'nothing to partition: the frame may be held')
@@ -31,7 +29,7 @@ test('#198: a view without a packed row owes no occluder history', () => {
 async function firstHeld(backend: Awaited<ReturnType<typeof flushedGpuScene>>['backend']) {
   for (let frame = 0; frame < TAA_STILL_FRAMES + 8; frame++) {
     backend.render(camera())
-    await backend.flush!()
+    await backend.flush()
     if (backend.metrics().frameHeld) return frame
   }
   return -1
@@ -50,6 +48,22 @@ test('#198: a still view of blend clusters alone holds its frame, and a moved on
     scene.source.updateMatrixWorld(true)
     backend.render(camera())
     assert.equal(backend.metrics().frameHeld, false, 'a moved blend surface is drawn again')
+  } finally {
+    backend.dispose()
+    scene.geometry.dispose()
+    scene.material.dispose()
+  }
+})
+
+test('a still view with no cluster DAG — unpaged surfaces alone — holds its frame', async () => {
+  installGpuGlobals()
+  const scene = quadScene()
+  scene.metadata.primitives = []
+  scene.material.transparent = true
+  scene.material.opacity = 0.5
+  const { backend } = await flushedGpuScene(scene)
+  try {
+    assert.notEqual(await firstHeld(backend), -1, 'no cut to move: the still view is held')
   } finally {
     backend.dispose()
     scene.geometry.dispose()

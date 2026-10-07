@@ -5,11 +5,10 @@
  * The share bit is in the entry, so the plan splits a pass into its main class and its own entries
  * (`plan.ts`, `runs.ts`) from the entries alone.
  *
- * VERTEX CULL: the back and the face of a double-sided paged item used to set two pipelines, so
- * each broke the run of the other and a double-sided scene drew one call per entry. Its entries
- * now keep their cull mode but set the pipeline that culls nothing, and the vertex stage drops the
- * triangles that mode would have culled (`shader.ts`): the back and the face then share one run,
- * still in the same order, back first. An unpaged item keeps the hardware cull: its own buffers
+ * VERTEX CULL: the back and the face of a double-sided paged item keep their cull mode but set the
+ * pipeline that culls nothing, and the vertex stage drops the triangles that mode culls
+ * (`shader.ts`): the back and the face share one run, in the same order, back first — two
+ * pipelines would each break the other's run, one call per entry on a double-sided scene. An unpaged item keeps the hardware cull: its own buffers
  * give it its own draw anyway. `runs.ts` and `expandWgsl.ts` read the low six bits from here:
  * shifting the rank without following them would let the other sites compile and decode wrong.
  */

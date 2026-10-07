@@ -1,15 +1,12 @@
 // Fog is a term of the one lighting model (#345): every program that lights a surface — the
-// opaque resolve with and without bounce, the blended surfaces, the water composite and the
-// WebGL2 program — hands its lit colour through `fogged` before the display chain, measured from
+// opaque resolve with and without bounce, the blended surfaces and the water composite — hands
+// its lit colour through `fogged` before the display chain, measured from
 // the eye each pass carries. An unlit material is fogged too; a normal or depth
 // material, the diagnostic views and the composition are left as they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CONTRACT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './deferred/shaders.ts'
-import { BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts'
-import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts'
-import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts'
-import { SURFACE_MODEL } from '../scene/surfaceModel.ts'
+import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL } from '../webgpu/blend/viewLayout.ts'
 import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts'
 import {
   BLEND_SHADER,
@@ -50,23 +47,11 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   )
   assert.match(
     WATER_COMPOSITE_SHADER,
-    /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|vol\.attenuation\.w!=0\.0\)/,
+    /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|volumeMarked\(vol,1u\)\)/,
   )
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
   // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
   // layers' exposure and curve (#558) follow it, in the struct's 16-byte alignment.
   assert.match(BLEND_VIEW_WGSL, /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/)
   assert.equal(BLEND_VIEW_SIZE, 144)
-})
-
-test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {
-  // A diagnostic view's surface declares itself fog-free (`materialBinding.test.ts`).
-  const fogAt = CLUSTER_FRAGMENT.indexOf(
-    '\nif(!fogFree&&!reflectionCapture&&!reflectionOutput)rgb=fogged(rgb);',
-  )
-  assert.ok(fogAt > CLUSTER_FRAGMENT.indexOf('if(lit)rgb+=mirrorLighting('))
-  assert.ok(fogAt > 0)
-  // A depth material's ramp is written over the fogged colour.
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${SURFACE_MODEL.depth})rgb=`))
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb);'))
 })

@@ -3,8 +3,7 @@
 // without temporal accumulation: still, under a camera pan, then after a move of the tile. Nothing
 // internal is read: `setTransform` on one side, read-back pixels and `frameHeld` on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   VIEWPORT,
   batisseur as sceneBuilder,
@@ -36,18 +35,11 @@ function scene() {
   return builder.fini()
 }
 
-/** A held image and what preceded it: the last rendered image and the count rendered. */
-const held = async (...args: Parameters<typeof untilHeld>) => {
-  const { rendered, held, rendues } = await untilHeld(...args)
-  return { rendered: rendered, held, count: rendues }
-}
-
 /** One run: still, panned, then the tile moved. `temporal` picks the option. */
 async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) {
   const prepared = scene(),
-    own: BackendDiagnostic[] = []
+    own: EngineDiagnostic[] = []
   const { backend, canvas } = engine(
-    webgpuPagesBackend,
     prepared,
     device,
     (event) => {
@@ -59,7 +51,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
   const camera = facingCamera()
   try {
     await backend.prepare()
-    const still = await held(backend, camera)
+    const still = await untilHeld(backend, camera)
     // The pan: the camera slides about two thirds of a pixel per frame, for sixteen frames.
     // Nothing is held; the last rendered image is the one read.
     let pannedPixels: Uint8Array = new Uint8Array()
@@ -71,7 +63,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
       'tile',
       toApiMatrix(new G.Matrix4().makeRotationZ(TURN).setPosition(0.5, 0, 0)),
     )
-    const moved = await held(backend, camera)
+    const moved = await untilHeld(backend, camera)
     const capabilities = own.find((e) => e.phase === 'render-capabilities')?.context ?? null
     return { still, panned, moved, capabilities }
   } finally {

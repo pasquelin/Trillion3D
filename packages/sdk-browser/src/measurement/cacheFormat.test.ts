@@ -54,8 +54,8 @@ for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
       throw new Error('source-load-boundary')
     })
     // #274: the machine is read before the source. An accepted format therefore stops at the
-    // capability floor here — no WebGL2 under Node — and never asks for the glTF.
-    await assertOpenRejects('NO_WEBGL2')
+    // capability floor here — no WebGPU under Node — and never asks for the glTF.
+    await assertOpenRejects('WEBGPU_UNAVAILABLE')
     assert.equal(load.mock.callCount(), 0)
   })
 test('explorer rejects an unsupported pointer format before requesting metadata', async (t) => {

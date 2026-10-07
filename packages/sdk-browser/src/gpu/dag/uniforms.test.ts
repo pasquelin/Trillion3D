@@ -10,7 +10,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseDagOutput } from './uniforms.ts'
 import { OUT_AHEAD_PLACED, SELECTION_HEADER_WORDS } from './layout.ts'
-import { REQUEST_AHEAD, packRequest } from './request.ts'
 import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts'
 import type { SelectionResult } from '../core/selection.ts'
 
@@ -29,7 +28,9 @@ const HEAD_ORACLE = 4
  * difference only the GPU takes (`shader/differenceWgsl.ts`), and the four totals — are STRIPPED
  * and asserted separately: comparing them would ask a side for something it never knew.
  */
-const champs = (reading: (Partial<SelectionResult> & { complete?: boolean }) | null) => {
+const champs = (
+  reading: (Partial<SelectionResult> & { complete?: boolean; requestPriorities?: number[] }) | null,
+) => {
   if (!reading) return reading
   const {
     truncated: _t,
@@ -92,19 +93,14 @@ test('a readback that fits under the cap is never declared truncated', () => {
 })
 
 test('the host reads the requests in the order the GPU wrote them, and ranks nothing', () => {
-  // Each rank is a request word, page and priority mixed (`request.ts`). The GPU wrote them sorted
-  // (`shader/snapshotWgsl.ts`); the reader keeps that order, even one it would not have chosen.
-  const requests = [
-    packRequest(70, 12),
-    packRequest(11, 400),
-    packRequest(42, 300),
-    packRequest(8, REQUEST_AHEAD | 3),
-    packRequest(7, REQUEST_AHEAD | 500),
-  ]
+  // Each rank is a request's page, a whole word (`request.ts`): past the old twenty-two bits too.
+  // The GPU wrote them sorted (`shader/snapshotWgsl.ts`); the reader keeps that order, even one it
+  // would not have chosen.
+  const requests = [70, 11, 2 ** 31 + 42, 8, 7]
   // The camera's three are counted on their own; the two ahead the sort placed behind them.
   const { neuf } = pair([3, 0, 0, 0, 0, 0, 2, 2], requests)
   const reading = lire(neuf)!
-  assert.deepEqual(reading.pageIds, [70, 11, 42])
+  assert.deepEqual(reading.pageIds, [70, 11, 2 ** 31 + 42])
   // The view ahead's requests, after every visible one, leave for their own list (`request.ts`).
   assert.deepEqual(reading.aheadPageIds, [8, 7])
 })
@@ -112,7 +108,7 @@ test('the host reads the requests in the order the GPU wrote them, and ranks not
 test('requests ahead never make a crowded sample truncated, nor take the camera’s place', () => {
   // A sample of four ranks the camera fills whole, while the view ahead asked for nine more: the
   // camera's requests are all read, none ahead, and nothing says truncated (`shader/snapshotWgsl.ts`).
-  const camera = [1, 2, 3, 4].map((page) => packRequest(page, 100))
+  const camera = [1, 2, 3, 4]
   const header = [4, 0, 0, 0, 0, 0, 0, 0]
   header[OUT_AHEAD] = 9
   header[OUT_AHEAD_PLACED] = 0

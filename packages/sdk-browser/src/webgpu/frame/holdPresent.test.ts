@@ -1,6 +1,6 @@
 // S13: a canvas keeps the image last presented into it — WebGPU replaces its drawing buffer only
 // when a texture is taken from it, when it is configured or sized. A held frame whose image the
-// canvas still shows whole encodes nothing, and a capture reads it without presenting it again.
+// canvas still shows whole encodes nothing, and a capture reads the display image, never the canvas.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
@@ -8,7 +8,11 @@ import { settledRt } from './hold.fixture.ts'
 import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 import { captureImage } from '../pages/io/hostApi.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { pipelinesSettled } from '../../lighting/deferred/fullscreen.ts'
+import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
+
+/** A display image's usage, as the engine's targets have it: drawn, sampled, copied out. */
+const display = () =>
+  GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC
 
 /** A settled runtime whose last frame was drawn and presented whole, as `submitColorCopy` does,
  *  into a canvas that counts the textures taken from it, on a device that counts its encoders; the
@@ -20,12 +24,15 @@ async function presented() {
   const pass = { setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }
   device.createCommandEncoder = (descriptor) => {
     counts.encoders++
-    return Object.assign(encoder(descriptor), { beginRenderPass: () => pass })
+    return Object.assign(encoder(descriptor), {
+      beginRenderPass: () => pass,
+      copyTextureToBuffer() {},
+    })
   }
   const texture = () => (counts.taken++, { createView: () => ({}) })
   const context = { configure() {}, unconfigure() {}, getCurrentTexture: texture }
   const canvas = { width: 4, height: 4, getContext: () => context } as unknown as HTMLCanvasElement
-  const image = device.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 })
+  const image = device.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: display() })
   const rt = settledRt()
   const presenter = createGpuPresenter(device, canvas)
   await pipelinesSettled(device)
@@ -81,20 +88,26 @@ test('S13: after its canvas is sized, or a view presented on it, a held frame pr
   holdWebgpuFrame(rt, device)
   assert.deepEqual(spent(), [1, 1])
   // Another display image, the same canvas: what it shows is not that image.
-  rt.gpu.displayTexture = device.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 })
+  rt.gpu.displayTexture = device.createTexture({
+    size: [4, 4],
+    format: 'rgba8unorm',
+    usage: display(),
+  })
   holdWebgpuFrame(rt, device)
   assert.deepEqual(spent(), [1, 1])
 })
 
-test('S13: a capture after a presented frame reads the canvas without encoding', async () => {
+test('S13: a capture copies the display image once, never presents nor takes the canvas', async () => {
   const { rt, presenter, spent } = await presented()
-  const pixels = new Uint8Array(64)
-  let read = 0
-  rt.gpu.synchronousCapture = { read: () => (read++, pixels), dispose() {} }
-  assert.equal(captureImage(rt), pixels)
-  assert.deepEqual([...spent(), read], [0, 0, 1], 'the canvas already holds the image')
   presenter.forget()
-  rt.capture.capturedPixels = undefined
-  captureImage(rt)
-  assert.deepEqual([...spent(), read], [1, 1, 2], 'a canvas that may not hold it is presented')
+  // A frame was drawn: the camera it was drawn from is kept.
+  Object.assign(rt.run, { lastCamera: {} })
+  const pixels = await captureImage(rt)
+  assert.equal(pixels.length, 4 * 4 * 4)
+  assert.deepEqual(spent(), [1, 0], 'one copy encoded, no canvas texture taken')
+  assert.equal(await captureImage(rt), pixels, 'the same image is read once')
+  assert.deepEqual(spent(), [0, 0])
+  rt.run.imageRevision++
+  assert.notEqual(await captureImage(rt), pixels, 'a new image is read again')
+  assert.deepEqual(spent(), [1, 0])
 })

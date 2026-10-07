@@ -2,18 +2,17 @@ import { meshes as objects } from '../../scene/meshes.ts'
 import type { HostBoundedNode } from '../../host/scene/graphNodes.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
-import { emptyWorldBox, hostBoundsLot } from '../../host/world/bounds.ts'
+import { emptyWorldBox } from '../../host/world/bounds.ts'
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts'
+import type { BoxTransformLot } from '../../math/batchRuntime.ts'
 import { boxUnionCollector } from '../../math/batchBoxes.ts'
-import type { BackendContext } from '../../backend/types.ts'
+import type { EngineContext } from '../../engine/types.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * World bounds of the exact pages of a prepared scene: what framing and replication read from
- * an autonomous scene, whose bounds are not those of the host geometries but those the
- * compiler wrote page by page.
+ * World bounds of the exact pages of a prepared scene: not those of the host geometries but those
+ * the compiler wrote page by page.
  *
  * World matrices are the transform tree's after its frame pass (`pass.ts`), as host bounds read
  * them: a pose written without composition is taken as-is. Transform and union are the core's,
@@ -36,7 +35,7 @@ function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
 
 /** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
-function placedBox(mesh: HostMesh, associations: BackendContext['associations']) {
+function placedBox(mesh: HostMesh, associations: EngineContext['associations']) {
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined
 }
 
@@ -44,7 +43,7 @@ function placedBox(mesh: HostMesh, associations: BackendContext['associations'])
  *  its box whether or not the view read its primitive yet (#751). */
 function exactPagesCount(
   source: Object3D,
-  associations: BackendContext['associations'],
+  associations: EngineContext['associations'],
   metadata: ClusterManifest,
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives)
@@ -57,34 +56,13 @@ function exactPagesCount(
   return n
 }
 
-/** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
-async function pagesLot(
-  source: Object3D,
-  associations: BackendContext['associations'],
-  metadata: ClusterManifest,
-) {
-  const n = exactPagesCount(source, associations, metadata)
-  return n ? await createBoxTransformLot(n) : null
-}
-
-/** Scene-bounds buffer, at the exact size of the compute that follows: exact pages of an
- *  autonomous scene, host boxes otherwise. */
-export function sceneBoundsLot(
-  source: Object3D,
-  associations: BackendContext['associations'],
-  metadata: ClusterManifest,
-  autonomous: boolean,
-) {
-  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source)
-}
-
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`: a mesh placed
  *  by rows by the box they place it in, whether or not the view read its primitive yet (#751).
  *  `onMissing` decides what another mesh without a prepared primitive does; it is skipped once
  *  that returns. */
 export function pagesBounds(
   source: Object3D,
-  associations: BackendContext['associations'],
+  associations: EngineContext['associations'],
   metadata: ClusterManifest,
   onMissing: (mesh: HostMesh) => void,
   into = emptyWorldBox(),

@@ -44,32 +44,3 @@ export function referenceCollectPendingUrls<
   }
   return into
 }
-
-interface ResidencyOracleEnv {
-  bootstrapUrls: Set<string>
-  modifiedPages: Set<string>
-  shown: { url: string; array?: Uint32Array }[]
-  desired: { url: string; array?: Uint32Array }[]
-  pending: string[]
-  retained: string[]
-}
-
-/** `packages/sdk-browser/src/backend/autonomous/residency.ts:24-37` before batch A: `includes` in a loop, `Set` and three spreads. */
-export function referenceResidency(env: ResidencyOracleEnv) {
-  const { bootstrapUrls, modifiedPages, shown, desired, pending, retained } = env
-  return {
-    pendingUrls() {
-      pending.length = 0
-      for (const rec of desired) if (!rec.array && !pending.includes(rec.url)) pending.push(rec.url)
-      return pending
-    },
-    pageUrls() {
-      retained.length = 0
-      const unique = new Set([...bootstrapUrls, ...modifiedPages])
-      for (const rec of shown) unique.add(rec.url)
-      for (const rec of desired) unique.add(rec.url)
-      retained.push(...unique)
-      return retained
-    },
-  }
-}

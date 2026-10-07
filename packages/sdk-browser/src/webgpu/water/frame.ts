@@ -4,30 +4,26 @@ import { createWaterDepthRestore } from './depthRestore.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { drawBlendRuns } from '../blend/draw.ts'
 import { feedbackAttachment, surfaceColorAttachments } from '../pages/prepare/attachments.ts'
-import type { BlendLighting } from '../core/bindEntries.ts'
+import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { BlendPipelines } from '../blend/stagePipelines.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { WATER_BINDINGS } from './compositeWgsl.ts'
+import { nameWaterResources, waterCompositeEntries } from './compositeGroup.ts'
 import { createWaterCompositeLayout, createWaterComposites } from './pipelines.ts'
 import { routedFilter } from '../blend/displayFilter.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { WATER_SURFACE_PASS, WATER_COMPOSITE_PASS } from './passLabels.ts'
-import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { createReach, type Reach } from '../blend/reach.ts'
-import {
-  createForwardVariants,
-  type ContractKey,
-  type ForwardLit,
-} from '../../lighting/deferred/contractVariants.ts'
+import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
+import { FULL_CONTRACT, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
 /**
  * The frame side of the water pass: the composite program, and everything an image reuses as long
  * as what it names does not change — the bind group, the two copies that freeze the backdrop, the
- * surface pass and the composite pass. The targets change on a resize, the lighting resources
- * when the shadow atlas or the probe grid arrive: `bind` writes their identities and rebuilds only
- * when one moved, so a still frame builds and allocates nothing.
+ * surface pass and the composite pass (`createWaterPasses`). The targets change on a resize, the
+ * lighting resources when the shadow atlas or the probe grid arrive: `bind` writes their identities
+ * and rebuilds only when one moved, so a still frame builds and allocates nothing.
  */
 export async function createWaterFrame(
   device: GPUDevice,
@@ -37,189 +33,218 @@ export async function createWaterFrame(
   reach: Reach = createReach({ modes: [], share: false, filtered: false }),
 ) {
   const layout = createWaterCompositeLayout(device)
-  // The opaque depth's restore: the surface pass's first draw, on its targets.
-  // The composite lit with the code the scene's lights need (`createForwardVariants`).
-  const [compositesOf, restore] = await Promise.all([
+  const [composites, restore] = await Promise.all([
+    // The composite lit with the code the scene's lights need (`createForwardVariants`).
     createForwardVariants(
       (key) => createWaterComposites(device, layout, unbounded, key, reach),
       lit,
     ),
-    createWaterDepthRestore(device, waterSurfaceTargets(feedback)),
+    // The opaque depth's restore: the surface pass's first draw, on its targets.
+    createWaterDepthRestore(device, feedback),
   ])
-  const freeze = createWaterFreeze()
-  const identity = createWebgpuBindIdentity()
-  let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined
-  // Cleared, then restored over the surface rectangle by the pass's first draw: the only texels a
-  // surface draw tests and the composite reads (where the word is set).
-  const surfaceDepth: GPURenderPassDepthStencilAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    depthLoadOp: 'clear',
-    depthClearValue: 0,
-    depthStoreOp: 'store',
+  const frame: WaterFrameState = {
+    device,
+    layout,
+    composites,
+    restore,
+    freeze: createWaterFreeze(),
+    identity: createWebgpuBindIdentity(),
+    passes: createWaterPasses(),
   }
-  // The three material surfaces, the water word — cleared: zero says "no water here" to the
-  // composite —, then the feedback target, whose load `feedbackAttachment` decides per image.
-  const word: GPURenderPassColorAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'clear',
-    storeOp: 'store',
-    clearValue: [0, 0, 0, 0],
-  }
-  // The water's scene keeps every surface layer (\`wantsEmissiveAo\`): no slot is empty.
-  const attachments: Array<GPURenderPassColorAttachment | null> = []
-  const surfacePass: GPURenderPassDescriptor = {
-    label: WATER_SURFACE_PASS,
-    colorAttachments: attachments,
-    depthStencilAttachment: surfaceDepth,
-  }
-  const target: GPURenderPassColorAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'load',
-    storeOp: 'store',
-  }
-  const compositePass: GPURenderPassDescriptor = {
-    label: WATER_COMPOSITE_PASS,
-    colorAttachments: [target],
-  }
-  const plain = compositePass.colorAttachments
-  /** The share's attachment, its view named each image that has one (`asIsShare.ts`). */
-  const shareTarget: GPURenderPassColorAttachment = { ...target }
   return {
+    /** The opaque depth's restore, whose lobed pipeline the lobed stage prepares
+     *  (`lobedStage.ts`). */
+    restore,
+    /** The compile a frame of lobed transmissive items waits for while no composite with the lobe
+     *  code is ready: the one with every code path, which lights any (`askLobedPrograms`). */
+    lobedAwaited: () => composites.awaited(FULL_CONTRACT),
     /** Names the frame's targets and resources; false while one of them does not exist. */
-    bind(gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting) {
-      const { backdrop, deferred, volumeBuffer } = gpu
-      if (
-        !gpu.surfaces ||
-        !gpu.hdrTexture ||
-        !gpu.hdrView ||
-        !gpu.depthTexture ||
-        !gpu.depthView ||
-        !gpu.colorView ||
-        !backdrop?.active ||
-        !deferred ||
-        !volumeBuffer
-      )
-        return false
-      const { next } = identity
-      next[0] = gpu.surfaces
-      next[1] = gpu.hdrView
-      next[2] = gpu.depthView
-      next[3] = backdrop
-      next[4] = volumeBuffer
-      next[5] = uniform
-      next[6] = deferred.uniform
-      next[7] = lighting.directLights
-      next[8] = lighting.tileLights
-      next[9] = lighting.shadowData
-      next[10] = lighting.shadowAtlas
-      next[11] = lighting.shadowSampler
-      next[12] = lighting.bounceGrid
-      next[13] = lighting.probes
-      next[14] = lighting.proxy
-      // The translucent depth is made and dropped with it.
-      next[15] = lighting.shadowTransmittance
-      next[16] = lighting.surfaceCache
-      next[17] = gpu.colorView
-      next[18] = lighting.shadowTranslucentDepth
-      if (!identity.moved()) return true
-      surfaces = gpu.surfaces
-      freeze.bind(gpu.hdrTexture, backdrop)
-      restore.bind(gpu.depthView)
-      surfaceDepth.view = backdrop.waterDepthView
-      target.view = gpu.hdrView
-      word.view = gpu.colorView
-      attachments.length = 0
-      attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
-      const b = WATER_BINDINGS
-      group = device.createBindGroup({
-        layout,
-        entries: [
-          ...surfaces
-            .views()
-            .slice(0, 3)
-            .map((resource, binding) => ({ binding, resource })),
-          { binding: b.word, resource: gpu.colorView },
-          { binding: b.depth, resource: backdrop.waterDepthView },
-          { binding: b.view, resource: { buffer: deferred.uniform } },
-          { binding: b.directLights, resource: { buffer: lighting.directLights } },
-          { binding: b.tileLights, resource: { buffer: lighting.tileLights } },
-          { binding: b.shadowData, resource: { buffer: lighting.shadowData } },
-          // The virtual shadow maps on the contract's numbers (`CONTRACT_VSM_BINDINGS`).
-          { binding: b.shadowAtlas, resource: { buffer: lighting.shadowAtlas } },
-          { binding: b.shadowSampler, resource: { buffer: lighting.shadowSampler } },
-          { binding: b.shadowTransmittance, resource: lighting.shadowTransmittance },
-          {
-            binding: b.shadowTranslucentDepth,
-            resource: { buffer: lighting.shadowTranslucentDepth },
-          },
-          { binding: b.bounceGrid, resource: { buffer: lighting.bounceGrid } },
-          { binding: b.probes, resource: lighting.probes },
-          { binding: b.proxy, resource: { buffer: lighting.proxy } },
-          { binding: b.surface, resource: lighting.surfaceCache },
-          { binding: b.backdrop, resource: backdrop.colorView },
-          { binding: b.backdropDepth, resource: gpu.depthView },
-          { binding: b.uniform, resource: { buffer: uniform } },
-          { binding: b.volumes, resource: { buffer: volumeBuffer } },
-        ],
-      })
-      return true
-    },
-    /**
-     * Encodes the water pass on the image the blends left. The backdrop is frozen (`freeze.ts`) —
-     * the lit image copied, the opaque depth restored, by the surface pass's first draw, into the
-     * depth the surface stage tests —, the
-     * transmissive surfaces draw into the opaque resolve's material surfaces, free since that
-     * resolve consumed them, and the water word into the display colour the composition writes
-     * later — the surface flags stay the opaque resolve's, read by temporal antialiasing and the
-     * composition after this pass —, with hardware depth written so the nearest surface of a pixel
-     * is the one kept; then one fullscreen triangle lights and composes every water pixel into the
-     * HDR target, which keeps what it held wherever no water is (the display layers where their
-     * mask is set), and, when the frame has a share, its coverage as the reactive value the blends
-     * and particles also write (`asIsShare.ts`). Both passes are scissored to the kept surfaces
-     * (`bounds.ts`); the word clear stays full-target, a scissor does not bound a load clear.
-     * The composite is the program of the frame's lights' `key` (`createForwardVariants`).
-     * Returns the surface draws encoded.
-     */
-    encode(
+    bind: (gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting) =>
+      bindWaterFrame(frame, gpu, uniform, lighting),
+    /** Encodes the water pass on the image the blends left (`encodeWaterFrame`). */
+    encode: (
       rt: WebgpuPagesRuntime,
       encoder: GPUCommandEncoder,
       pipelines: BlendPipelines,
       key: Partial<ContractKey>,
-    ) {
-      if (!group || !surfaces) throw new Error('WATER_NOT_BOUND')
-      const rect = freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize)
-      if (rt.vis.writesFeedback) attachments[4] = feedbackAttachment(rt)
-      else attachments.length = 4
-      const pass = encoder.beginRenderPass(surfacePass)
-      pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
-      scissorTo(pass, rect)
-      restore.draw(pass)
-      rt.run.gpuDrawCalls++
-      const encoded = drawBlendRuns(rt, device, pass, 1, pipelines)
-      pass.end()
-      const share = activeAsIsShare(rt),
-        filter = routedFilter(rt.gpu.displayFilter)
-      if (share) shareTarget.view = share.view
-      // The attachments in the order of the composite's targets (`waterCompositeTargets`).
-      compositePass.colorAttachments =
-        filter || share
-          ? [target, ...(filter ? filter.attachments() : []), ...(share ? [shareTarget] : [])]
-          : plain
-      const composite = encoder.beginRenderPass(compositePass)
-      scissorTo(composite, rect)
-      composite.setPipeline(compositesOf(key).at(!!filter, !!share))
-      composite.setBindGroup(0, group)
-      if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group)
-      if (filter) composite.setBindGroup(2, filter.maskGroup)
-      composite.draw(3)
-      composite.end()
-      return encoded
-    },
+      lobed = false,
+    ) => encodeWaterFrame(frame, rt, encoder, pipelines, key, lobed),
     dispose() {
       restore.dispose()
-      group = undefined
-      surfaces = undefined
+      frame.group = undefined
+      frame.surfaces = undefined
     },
+  }
+}
+
+type WaterComposites = Awaited<ReturnType<typeof createWaterComposites>>
+/** What a water frame holds from image to image: its programs, its passes and its bind group. */
+type WaterFrameState = {
+  device: GPUDevice
+  layout: GPUBindGroupLayout
+  composites: Awaited<ReturnType<typeof createForwardVariants<WaterComposites>>>
+  restore: Awaited<ReturnType<typeof createWaterDepthRestore>>
+  freeze: ReturnType<typeof createWaterFreeze>
+  identity: ReturnType<typeof createWebgpuBindIdentity>
+  passes: ReturnType<typeof createWaterPasses>
+  group?: GPUBindGroup
+  surfaces?: SurfaceBuffer
+}
+
+/** The frame's targets and resources named; rebuilt only where one of them moved. */
+function bindWaterFrame(
+  frame: WaterFrameState,
+  gpu: WebgpuGpuState,
+  uniform: GPUBuffer,
+  lighting: BlendLighting,
+) {
+  const { surfaces, backdrop, deferred, volumeBuffer, hdrTexture, hdrView, depthView } = gpu
+  if (!surfaces || !hdrTexture || !hdrView || !gpu.depthTexture || !depthView) return false
+  if (!gpu.colorView || !backdrop?.active || !deferred || !volumeBuffer) return false
+  nameWaterResources(frame.identity.next, gpu, uniform, lighting)
+  if (!frame.identity.moved()) return true
+  frame.surfaces = surfaces
+  frame.freeze.bind(hdrTexture, backdrop)
+  frame.restore.bind(depthView)
+  frame.passes.bind(surfaces, backdrop.waterDepthView, hdrView, gpu.colorView)
+  frame.group = frame.device.createBindGroup({
+    layout: frame.layout,
+    entries: waterCompositeEntries(gpu, uniform, lighting),
+  })
+  return true
+}
+
+/**
+ * Encodes the water pass on the image the blends left. The backdrop is frozen (`freeze.ts`) — the
+ * lit image copied, the opaque depth restored, by the surface pass's first draw, into the depth the
+ * surface stage tests —, the transmissive surfaces draw into the opaque resolve's material
+ * surfaces, free since that resolve consumed them, and the water word into the display colour the
+ * composition writes later — the surface flags stay the opaque resolve's, read by temporal
+ * antialiasing and the composition after this pass —, with hardware depth written so the nearest
+ * surface of a pixel is the one kept; then one fullscreen triangle lights and composes every water
+ * pixel into the HDR target, which keeps what it held wherever no water is (the display layers
+ * where their mask is set), and, when the frame has a share, its coverage as the reactive value
+ * the blends and particles also write (`asIsShare.ts`). Both passes are scissored to the kept
+ * surfaces (`bounds.ts`); the word clear stays full-target, a scissor does not bound a load clear.
+ * The composite is the program of the frame's lights' `key` (`createForwardVariants`). With
+ * `lobed`, `pipelines` are the lobed stage's (`lobedStage.ts`): the lobes target is one more
+ * attachment, and the composite the program that reads it (`waterLobesWgsl.ts`); without, the
+ * program without lobe code. Returns the surface draws encoded.
+ */
+function encodeWaterFrame(
+  frame: WaterFrameState,
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  pipelines: BlendPipelines,
+  key: Partial<ContractKey>,
+  lobed: boolean,
+) {
+  const { group, passes } = frame
+  if (!group || !frame.surfaces) throw new Error('WATER_NOT_BOUND')
+  const rect = frame.freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize)
+  const written = rt.vis.writesFeedback ? feedbackAttachment(rt) : undefined
+  const pass = encoder.beginRenderPass(passes.surface(lobed, written))
+  pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
+  scissorTo(pass, rect)
+  frame.restore.draw(pass, lobed)
+  rt.run.gpuDrawCalls++
+  const encoded = drawBlendRuns(rt, frame.device, pass, 1, pipelines)
+  pass.end()
+  const share = activeAsIsShare(rt),
+    filter = routedFilter(rt.gpu.displayFilter)
+  const composite = encoder.beginRenderPass(passes.composite(filter, share?.view))
+  scissorTo(composite, rect)
+  composite.setPipeline(frame.composites.pick(key, lobed).at(!!filter, !!share))
+  composite.setBindGroup(0, group)
+  if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group)
+  if (filter) composite.setBindGroup(2, filter.maskGroup)
+  composite.draw(3)
+  composite.end()
+  return encoded
+}
+
+/**
+ * The water pass's two render passes, built once and named again at `bind`: the surface pass —
+ * the three material surfaces, the water word (cleared: zero says "no water here" to the
+ * composite), the lobes the lobed stage writes (loaded, a pixel's read only where its word is set,
+ * by the fragment that set it), the feedback target, whose load `feedbackAttachment` decides per
+ * image —, its depth cleared then restored over the surface rectangle by the pass's first draw
+ * (the only texels a surface draw tests and the composite reads); and the composite pass
+ * (`createCompositePass`).
+ */
+function createWaterPasses() {
+  const unnamed = undefined as unknown as GPUTextureView
+  const depth: GPURenderPassDepthStencilAttachment = {
+    view: unnamed,
+    depthLoadOp: 'clear',
+    depthClearValue: 0,
+    depthStoreOp: 'store',
+  }
+  const word: GPURenderPassColorAttachment = {
+    view: unnamed,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  }
+  const lobes: GPURenderPassColorAttachment = { view: unnamed, loadOp: 'load', storeOp: 'store' }
+  // The water's scene keeps every surface layer (`wantsEmissiveAo`): no slot is empty.
+  const attachments: Array<GPURenderPassColorAttachment | null> = []
+  const surfacePass: GPURenderPassDescriptor = {
+    label: WATER_SURFACE_PASS,
+    colorAttachments: attachments,
+    depthStencilAttachment: depth,
+  }
+  const target: GPURenderPassColorAttachment = { view: unnamed, loadOp: 'load', storeOp: 'store' }
+  return {
+    bind(
+      surfaces: SurfaceBuffer,
+      waterDepth: GPUTextureView,
+      hdr: GPUTextureView,
+      color: GPUTextureView,
+    ) {
+      depth.view = waterDepth
+      target.view = hdr
+      word.view = color
+      lobes.view = surfaces.lobesView
+      attachments.length = 0
+      attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word)
+    },
+    /** The surface pass, with the lobes target where `lobed`, and the feedback `written`. */
+    surface(lobed: boolean, written: GPURenderPassColorAttachment | undefined) {
+      attachments.length = 4
+      if (lobed) attachments.push(lobes)
+      if (written) attachments.push(written)
+      return surfacePass
+    },
+    composite: createCompositePass(target),
+  }
+}
+
+/** The composite pass: the HDR `target`, then the display layers of `filter` and the share at
+ *  `share` where the frame has them (`waterCompositeTargets`), in lists kept from frame to frame —
+ *  an image allocates none. */
+function createCompositePass(target: GPURenderPassColorAttachment) {
+  /** The share's attachment, its view named each image that has one (`asIsShare.ts`). */
+  const shareTarget: GPURenderPassColorAttachment = { ...target }
+  const plain = [target],
+    routed: GPURenderPassColorAttachment[] = []
+  const pass: GPURenderPassDescriptor = {
+    label: WATER_COMPOSITE_PASS,
+    colorAttachments: plain,
+  }
+  return (filter: ReturnType<typeof routedFilter>, share: GPUTextureView | undefined) => {
+    if (!filter && !share) pass.colorAttachments = plain
+    else {
+      routed.length = 0
+      routed.push(target)
+      if (filter) for (const layer of filter.attachments()) routed.push(layer)
+      if (share) {
+        shareTarget.view = share
+        routed.push(shareTarget)
+      }
+      pass.colorAttachments = routed
+    }
+    return pass
   }
 }
 

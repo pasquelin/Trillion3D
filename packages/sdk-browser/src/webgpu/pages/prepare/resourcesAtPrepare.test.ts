@@ -1,21 +1,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { Engine } from '../../../engine/types.ts'
 import { importHostTexture } from '../../../host/textureImport.ts'
 import type { HostTexture } from '../../../host/resources.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = quadScene(),
     { device } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
     readPage: async () => {
@@ -24,7 +24,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   } as never)
   try {
     await assert.rejects(backend.prepare(), /PAGE_STREAM_FAILED/)
@@ -55,13 +55,13 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     emissiveMap: emissive,
   })
   ;(fixture.source.children[0] as G.HostMesh).material = material
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
     maxTextureTransferBytesPerFrame: 16,
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     // Three queues per atlas — the fill texel and two textures — placed before any image: what
     // the screen shows while no tile is requested.
@@ -118,17 +118,22 @@ test('vis pipeline layout stores the page table at binding 2', async () => {
   fixture.material.dispose()
 })
 
+// The indirect slots instance every packed row of the page table: their counts are the GPU's.
 test('vis draws instance each packed page from the page table', async () => {
   installGpuGlobals()
   const { device, draws } = mockGpu()
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
+  const before = draws.length
   backend.render(camera())
-  const instances = new Set(draws.map((draw) => draw.firstInstance))
-  assert.ok(instances.has(0))
-  assert.ok(instances.has(1))
+  const image = draws.slice(before).filter((draw) => draw.indirect && draw.entryPoint === 'vis_vs')
+  assert.equal(
+    image.reduce((rows, draw) => rows + (draw.instanceCount ?? 0), 0),
+    2,
+    'both packed rows, instanced by the slots',
+  )
   backend.dispose()
   fixture.geometry.dispose()
   fixture.material.dispose()
@@ -147,7 +152,7 @@ test('texture pools are allocated at the first map, copy destinations at the siz
   assert.equal(pools().length, 0, 'no map: no layer')
   assert.equal(backend.metrics().texturePoolBytes, 0)
   const map = importHostTexture(G.dataTexture(new Uint8Array(64), 4, 4) as unknown as HostTexture)
-  await (backend as WebgpuPagesBackend).appendTexture(map, 'color')
+  await (backend as Engine).appendTexture(map, 'color')
   assert.equal(pools().length, 1, 'its colour pool alone, the data atlas still has no map')
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT

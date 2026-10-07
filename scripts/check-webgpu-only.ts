@@ -1,6 +1,6 @@
 // The engine is WebGPU only: no file of the repository, and no file name, may bring back the GL
-// family of APIs (its context, its shading language, its extensions, its shader built-ins). There
-// is no allowlist; this file assembles its patterns from pieces so that it never matches itself.
+// family of APIs (its context, its shading language, its extensions, its shader built-ins, its
+// named constants, its texture upload calls). There is no allowlist; this file assembles its patterns from pieces so that it never matches itself.
 // One process reads the files one after the other, in 64 KiB chunks: memory stays bounded whatever
 // the file, binaries are skipped, and so is any file over 2 MB that is not JSON. A hit in a file
 // name is reported on line 0. `pnpm run check:webgpu-only`.
@@ -21,6 +21,8 @@ const PATTERNS = [
   join('UNPACK_', 'FLIP_Y'),
   join(GL, '_FragColor'),
   join(GL, '_Position'),
+  join('\\b', GL, '_[A-Z0-9_]+'),
+  join('tex', '(Sub)?', 'Image[23]D'),
   join('#version ', '300 es'),
   join('\\bO', 'ES_\\w+'),
   join('Open', GL),

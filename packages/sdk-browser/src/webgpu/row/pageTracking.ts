@@ -48,52 +48,6 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   const unmarkPinned = (key: number) => {
     if (pinned.remove(key)) unpinned.push(key)
   }
-  const traceSets = new Map<string, { revision: number; count: number; sample: string[] }>()
-  /**
-   * A trace sample never walks a list proportional to the cut or the catalogue: it publishes the
-   * NUMBER of entries, already held, and a probe of at most `TRACE_SAMPLE` addresses spaced evenly
-   * over the list. Comparing and copying that probe bounds the cost of trace mode, where the full
-   * list made it proportional to the image — and allocated as many arrays per image.
-   *
-   * Age therefore rises only on a change the probe sees; that is what a bounded diagnostic promises,
-   * and never the exact inventory of a set.
-   */
-  const scratch: string[] = []
-  const publish = (name: string, count: number, urlAt: (index: number) => string) => {
-    const size = Math.min(count, TRACE_SAMPLE)
-    scratch.length = 0
-    for (let k = 0; k < size; k++) scratch.push(urlAt(Math.floor((k * count) / size)))
-    const previous = traceSets.get(name)
-    const sampled = count > size
-    if (
-      previous &&
-      previous.count === count &&
-      previous.sample.length === size &&
-      previous.sample.every((url, index) => url === scratch[index])
-    )
-      return { revision: previous.revision, changed: false, count, sampled }
-    const next = { revision: (previous?.revision ?? 0) + 1, count, sample: [...scratch] }
-    traceSets.set(name, next)
-    return {
-      revision: next.revision,
-      changed: true,
-      count,
-      sampled,
-      pageIds: pageRefs(next.sample),
-    }
-  }
-  const traceSet = (name: string, urls: readonly string[]) =>
-    publish(name, urls.length, (index) => urls[index])
-  /** The same sample, taken from the records themselves: no address list is built for it. `count`
-   *  bounds the list when only its start is valid, like the row table. */
-  const traceRecs = (name: string, pages: PageList, count = pages.length) =>
-    publish(name, count, (index) => {
-      const rec = pages[index]
-      return rec ? pageAddress(rec) : ''
-    })
-  /** The same sample, taken from a dense key set, without copying a single address from it. */
-  const traceKeys = (name: string, set: { list: Int32Array; count: number }) =>
-    publish(name, set.count, (index) => pageCatalog[set.list[index]])
   return {
     pageCatalog,
     pageCatalogIds,
@@ -108,9 +62,68 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     unpinned,
     markPinned,
     unmarkPinned,
-    traceSets,
-    traceSet,
-    traceRecs,
-    traceKeys,
+    ...createTraceSamples(pageCatalog, pageRefs),
+  }
+}
+
+type TraceSample = { revision: number; count: number; sample: string[] }
+type Samples = {
+  traceSets: Map<string, TraceSample>
+  scratch: string[]
+  pageRefs: (urls: string[]) => (string | number)[]
+}
+
+/** The trace's bounded samples of the residency sets (`publish`): by address list, by record list,
+ *  by dense key set. */
+function createTraceSamples(pageCatalog: readonly string[], pageRefs: Samples['pageRefs']) {
+  const t: Samples = { traceSets: new Map(), scratch: [], pageRefs }
+  return {
+    traceSets: t.traceSets,
+    traceSet: (name: string, urls: readonly string[]) =>
+      publish(t, name, urls.length, (index) => urls[index]),
+    /** The same sample, taken from the records themselves: no address list is built for it. `count`
+     *  bounds the list when only its start is valid, like the row table. */
+    traceRecs: (name: string, pages: PageList, count = pages.length) =>
+      publish(t, name, count, (index) => {
+        const rec = pages[index]
+        return rec ? pageAddress(rec) : ''
+      }),
+    /** The same sample, taken from a dense key set, without copying a single address from it. */
+    traceKeys: (name: string, set: { list: Int32Array; count: number }) =>
+      publish(t, name, set.count, (index) => pageCatalog[set.list[index]]),
+  }
+}
+
+/**
+ * A trace sample never walks a list proportional to the cut or the catalogue: it publishes the
+ * NUMBER of entries, already held, and a probe of at most `TRACE_SAMPLE` addresses spaced evenly
+ * over the list. Comparing and copying that probe bounds the cost of trace mode, where the full
+ * list made it proportional to the image — and allocated as many arrays per image.
+ *
+ * Age therefore rises only on a change the probe sees; that is what a bounded diagnostic promises,
+ * and never the exact inventory of a set.
+ */
+function publish(t: Samples, name: string, count: number, urlAt: (index: number) => string) {
+  const { scratch, traceSets } = t
+  const size = Math.min(count, TRACE_SAMPLE)
+  scratch.length = 0
+  for (let k = 0; k < size; k++) scratch.push(urlAt(Math.floor((k * count) / size)))
+  const previous = traceSets.get(name)
+  const sampled = count > size
+  if (
+    previous &&
+    previous.count === count &&
+    previous.sample.length === size &&
+    previous.sample.every((url, index) => url === scratch[index])
+  )
+    return { revision: previous.revision, changed: false, count, sampled }
+  const next = { revision: (previous?.revision ?? 0) + 1, count, sample: [...scratch] }
+  traceSets.set(name, next)
+  return {
+    revision: next.revision,
+    changed: true,
+    count,
+    sampled,
+    pageIds: t.pageRefs(next.sample),
   }
 }

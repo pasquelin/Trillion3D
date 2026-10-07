@@ -8,11 +8,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts'
-import {
-  clusterPixels,
-  projectedClusterError,
-} from '../../../packages/sdk-browser/src/page/selection/math.ts'
-import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.ts'
+import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts'
+import { clusterPixels } from '../../../packages/sdk-browser/src/page/selection/frame.fixture.ts'
+import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'

@@ -9,7 +9,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 installGpuGlobals()
 
-const empty = { levels: [], blocks: { bc7: [], astc: [] } }
+const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
 
 // Behaviour: an atlas opens one pool per lane its textures take, each texture's tiles and tail
 // in its lane's pool — a lossless chain beside a block one never shares a texture —, the tap of

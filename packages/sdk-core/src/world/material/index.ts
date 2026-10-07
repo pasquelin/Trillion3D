@@ -29,7 +29,7 @@ export const material = {
   /** Lit by a picture of a lit ball instead of the scene's lights. */
   meshMatcap: kind('meshMatcap'),
   /** Shades each point by how far it is from the camera: white at `camera.near`, black at
-   *  `camera.far`, a straight ramp between, the same on WebGPU and WebGL2. */
+   *  `camera.far`, a straight ramp between. */
   meshDepth: kind('meshDepth'),
   /** Draws each vertex as a dot. */
   points: kind('points', { size: 1, sizeAttenuation: true }),

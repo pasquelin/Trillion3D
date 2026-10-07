@@ -2,12 +2,11 @@
 // that view parallax takes the slab out from behind the wall and its clusters' occlusion verdict
 // flips with the camera.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import type {
-  BackendContext,
-  BackendDiagnostic,
-  RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
+  EngineContext,
+  EngineDiagnostic,
+  Engine,
+} from '../../../packages/sdk-browser/src/engine/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { batisseur, square, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
 
@@ -38,11 +37,11 @@ export function slabPixels(pixels: Uint8Array | number[]): number {
 /** An engine of `options` mounted on a fresh occluding scene: the witness of a pose. */
 export function occluderEngine(
   device: GPUDevice,
-  onDiagnostic: (e: BackendDiagnostic) => void,
-  options: Partial<BackendContext> = {},
+  onDiagnostic: (e: EngineDiagnostic) => void,
+  options: Partial<EngineContext> = {},
 ) {
   const scene = occluderScene()
-  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiagnostic, options)
+  const { backend, canvas } = engine(scene, device, onDiagnostic, options)
   return { backend, release: () => release(backend, canvas, scene) }
 }
 
@@ -53,18 +52,18 @@ export function occluderEngine(
  * errors, or the error that stopped it.
  */
 export async function onOccluderScene<Step>(
-  options: Partial<BackendContext>,
+  options: Partial<EngineContext>,
   body: (
-    backend: RenderBackend,
+    backend: Engine,
     device: GPUDevice,
-    onDiagnostic: (e: BackendDiagnostic) => void,
+    onDiagnostic: (e: EngineDiagnostic) => void,
     steps: Step[],
   ) => Promise<void>,
 ) {
   const gpu = await openGpuDevice()
   if (!gpu) return { unavailable: 'no WebGPU adapter', steps: [] as Step[] }
-  const events: BackendDiagnostic[] = []
-  const onDiagnostic = (e: BackendDiagnostic) => void events.push(e)
+  const events: EngineDiagnostic[] = []
+  const onDiagnostic = (e: EngineDiagnostic) => void events.push(e)
   const { backend, release } = occluderEngine(gpu.device, onDiagnostic, options)
   const steps: Step[] = []
   try {

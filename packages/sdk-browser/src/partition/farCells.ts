@@ -10,10 +10,10 @@
  *
  * The super-roots' bound per cell comes from the world stream (`WorldRootsHold.stream`), opened
  * here on the first frame whose cut packs the world DAG: a load never reads the DAG file (#1232).
- * A far cell's bundles are held as a placed cell's are (`createCellPages`), counted once per cell.
+ * A far cell's bundles are held as a placed cell's are (`createCellHolds`), counted once per cell.
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
-import { createCellPages } from './cellPages.ts'
+import { createCellHolds } from './cellHolds.ts'
 import { planCells, type SuperRootPlan } from './plan.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
@@ -23,7 +23,7 @@ type World = Pick<WorldRootsHold, 'hold' | 'release'> & Partial<Pick<WorldRootsH
 /** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
 export function createFarCells(world: World | undefined, placed: ReadonlyMap<number, unknown>) {
   const far = new Set<number>()
-  const holds = createCellPages(undefined, () => [], world)
+  const holds = createCellHolds(world)
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
   let bounds: Float64Array | undefined,
     opening = false

@@ -4,8 +4,6 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldBatches } from '../world/core/worldBatches.ts'
 import type { Cut } from '../world/core/worldCuts.ts'
 import type { MaterialEntry } from '../world/core/worldMaterials.ts'
-import { drawnInstancedAt } from '../placement/autonomousPlacements.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/selection.ts'
 
 test('deformation row growth requests a structural reopen while stable owners retain their rows', () => {
   const batches = createWorldBatches(() => {})
@@ -31,16 +29,4 @@ test('deformation row growth requests a structural reopen while stable owners re
   batches.reopen()
   assert.notEqual(batch.rows, rows)
   assert.equal(batch.rows!.sources![batches.seats.get(second)!.row], second)
-})
-
-test('WebGL keeps deformation placements separate when their records differ', () => {
-  const page = { transparent: false } as unknown as PageRec
-  // One record, two placements (#1235): the deformed one is drawn on its own, the rigid one
-  // instanced, whatever the order they were posted in.
-  const roots = [
-    { placement: {}, deformRecord: 1 },
-    { placement: {}, deformRecord: 0 },
-  ] as ClusterRoot<PageRec>[]
-  assert.equal(drawnInstancedAt(roots, 0, page), false)
-  assert.equal(drawnInstancedAt(roots, 1, page), true)
 })

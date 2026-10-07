@@ -142,11 +142,11 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       targetSize: [32, 32],
       allocatedSize: [32, 32],
       displaySize: [32, 32],
-      surfaces: { hasSubsurface: false },
+      surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
       reflection: { active: false },
       targetGrant: undefined,
     },
-    vis: {},
+    vis: { visTexture: {} },
     scale: createScaleControl(undefined),
   } as unknown as WebgpuPagesRuntime
   // A bare device: any creation or error scope would throw.
@@ -165,13 +165,13 @@ test('a frame drawn below the display costs its render targets and the display c
   Object.assign(rt.gpu, {
     hdrTexture: {},
     displayTexture: {},
-    surfaces: { hasSubsurface: false },
+    surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
     feedbackTexture: {},
     reflection: { active: false },
     allocatedSize: [32, 16],
     displaySize: [64, 32],
   })
-  Object.assign(rt, { feedbackAB: undefined, vis: {} })
+  Object.assign(rt, { feedbackAB: undefined, vis: { visTexture: {} } })
   assert.equal(targetsFit(rt, scaled), true)
   assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade')
 })

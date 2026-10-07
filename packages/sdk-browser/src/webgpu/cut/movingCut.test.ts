@@ -20,9 +20,7 @@ async function bench() {
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag, {
-    residentCut: true,
-  })
+  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
   assert.ok(selection)
   selection.updateResidency(new Uint32Array(dag.pageCount).fill(1))
   const { adopter } = mountCutAdopter({

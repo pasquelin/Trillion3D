@@ -87,19 +87,13 @@
   "BOX_VALUES": {
     "summary": "Números de ponto flutuante de uma caixa guardados de forma linear."
   },
-  "BackendCapabilities": {
-    "summary": "O que um renderizador consegue fazer: materiais, hierarquia, trabalho guiado pela GPU.",
+  "EngineCapabilities": {
+    "summary": "O que o motor retém agora, por nome: uma capacidade que o dispositivo, uma configuração ou um programa ainda em compilação mantém fora da imagem (`'temporal antialiasing'`, …); ela sai da lista assim que é atendida.",
     "members": {
-      "renderer": "Seu nome.",
-      "materials": "Quais materiais ele desenha.",
-      "hierarchy": "Se ele lê a hierarquia.",
-      "gpuDriven": "Se a GPU escolhe o que desenhar.",
-      "simplification": "Se ele simplifica.",
-      "eviction": "Se ele remove páginas.",
-      "unsupported": "O que ele não consegue fazer."
+      "unsupported": "As capacidades retidas."
     }
   },
-  "BackendDiagnostic": {
+  "EngineDiagnostic": {
     "summary": "Uma coisa que um renderizador percebeu, relatada em um canal de diagnóstico.",
     "members": {
       "phase": "A etapa em que aconteceu.",
@@ -346,7 +340,8 @@
       "texturePreviewAstc": "Os blocos ASTC das pré-visualizações.",
       "bundleDependencyCount": "Quantos pacotes cada pacote precisa.",
       "bundleDependency": "Os pacotes de que cada pacote precisa, até as raízes.",
-      "pageCone": "O cone de normais de cada página: o eixo e depois o semiângulo."
+      "pageCone": "O cone de normais de cada página: o eixo e depois o semiângulo.",
+      "texturePreviewEtc2": "Os blocos ETC2 das pré-visualizações."
     }
   },
   "COMPILER_LINE_LIMIT": {
@@ -406,7 +401,7 @@
       "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a faz.",
       "copy": "Toma os valores de nó de `source` e, de uma câmera, a sua ótica; a sua própria `projection` permanece.",
       "updateProjectionMatrix": "Compõe `projectionMatrix` de novo; toda escrita de ótica já o faz, e redesenha.",
-      "projectionMatrix": "A projeção que a ótica compõe sobre o cubo de recorte, profundidade −1 no plano próximo a 1 em um plano distante finito, para um renderizador que desenha com ela; toda escrita de ótica a compõe de novo. O mundo desenha com a sua própria (`engineCamera.ts`).",
+      "projectionMatrix": "A projeção que a ótica compõe, a do próprio motor: profundidade invertida sobre [0, 1], com 1 no plano próximo (`referenceProjection.ts`); toda escrita de ótica a compõe de novo.",
       "matrixWorldInverse": "A inversa da matriz de mundo como composta por último, calculada a cada leitura: a vista que um renderizador lê.",
       "rayThrough": "O raio de mundo através de um ponto da imagem, na projeção própria do motor (`engineCamera.ts`): do olho ao longo da vista para uma câmera em perspectiva, reto ao longo da vista a partir da caixa para uma ortográfica. A sua direção é um vetor unitário.",
       "set": "Põe o olho em `pose.position`, olhando para `pose.target`, no campo que ela indica."
@@ -523,7 +518,6 @@
       "selectedTriangles": "Triângulos mantidos.",
       "selectedNodes": "Nós mantidos.",
       "totalNodes": "Nós ao todo.",
-      "autonomousScene": "Sua cena embutida.",
       "primitives": "Suas primitivas.",
       "worstStalls": "A tabela de bloqueios do compilador: no máximo dez primitivas com um grupo bloqueado que manteve raízes no nível 0, a pior primeiro. Ausente de um cache compilado antes dela.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
@@ -574,9 +568,6 @@
   },
   "ColumnKind": {
     "summary": "Como uma coluna do manifesto binário é armazenada."
-  },
-  "ComparisonLayout": {
-    "summary": "Como dois renders são mostrados lado a lado para comparação."
   },
   "CompilationJob": {
     "summary": "Uma compilação em andamento.",
@@ -884,7 +875,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: os passes ordenados desenhados sobre a imagem depois do antialiasing temporal e antes de ela chegar ao canvas.",
-    "description": "Os passes antes do tone mapping leem a radiância linear, na ordem em que foram adicionados; os depois leem a imagem exibida, na deles. Uma cadeia vazia não custa nada: nenhum passe, nenhuma cópia, nenhum alvo. No WebGL2, um quadro que desenha uma superfície transparente com mistura `multiply` ou `subtractive` é desenhado inteiro sem a cadeia, e o canal de diagnóstico do mundo diz `effects-refused-blending` uma vez; o WebGPU desenha ambos.",
+    "description": "As passagens que correm antes do tone mapping leem a radiância linear, pela ordem em que foram adicionadas; as que correm depois leem a imagem de exibição, na sua. Uma cadeia vazia não custa nada: nenhuma passagem, nenhuma cópia, nenhum alvo. Uma superfície transparente com mistura `multiply` ou `subtractive` é desenhada sob a cadeia como qualquer outra.",
     "members": {
       "revision": "Conta as mudanças: uma imagem desenhada em outra revisão está desatualizada.",
       "passes": "Os passes, na ordem em que rodam.",
@@ -940,9 +931,6 @@
       "INVALID_VIEWPORT": "O canvas não tem um tamanho ou proporção de pixel utilizável.",
       "INVALID_PIXEL_RATIO": "O canvas não tem um tamanho ou proporção de pixel utilizável.",
       "WEBGPU_UNAVAILABLE": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
-      "WEBGL2_UNAVAILABLE": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
-      "NO_WEBGL2": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
-      "NO_ENGINE_BACKEND": "A máquina não consegue desenhar da forma pedida, ou não consegue desenhar de jeito nenhum.",
       "RESOURCE_HTTP_ERROR": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
       "INVALID_JSON_RESPONSE": "Um arquivo não pôde ser buscado — pedido de novo antes, quando a falha pode passar —, ou não era o que deveria ser.",
       "INVALID_POINTER": "O ponteiro do modelo compilado está corrompido, incompleto, ou de outro escopo.",
@@ -955,12 +943,7 @@
       "INVALID_SCENE_TABLES": "As tabelas de nós e materiais do modelo estão ausentes, são de outra versão, ou discordam de sua cena.",
       "UNSUPPORTED_SCENE_TABLES": "As tabelas de nós e materiais do modelo estão ausentes, são de outra versão, ou discordam de sua cena.",
       "PREPARED_SCENE_MISMATCH": "As tabelas de nós e materiais do modelo estão ausentes, são de outra versão, ou discordam de sua cena.",
-      "AUTONOMOUS_SCENE_UNAVAILABLE": "O caminho WebGL2 próprio do motor não consegue desenhar esse modelo.",
-      "AUTONOMOUS_ASSOCIATION_MISSING": "O caminho WebGL2 próprio do motor não consegue desenhar esse modelo.",
-      "AUTONOMOUS_COVERAGE_MISSING": "O caminho WebGL2 próprio do motor não consegue desenhar esse modelo.",
-      "CLUSTER_MATERIAL_UNSUPPORTED": "O caminho WebGL2 próprio do motor não consegue desenhar esse modelo.",
       "PAGE_BUDGET": "As páginas de que a visão precisa não cabem no orçamento de memória, ou esse caminho não tem orçamentos.",
-      "UNSUPPORTED_MEMORY_BUDGETS": "As páginas de que a visão precisa não cabem no orçamento de memória, ou esse caminho não tem orçamentos.",
       "INVALID_SCENE_LIGHT": "Uma luz está malformada, duplicada, desconhecida, ou não tem para onde ir.",
       "DUPLICATE_SCENE_LIGHT": "Uma luz está malformada, duplicada, desconhecida, ou não tem para onde ir.",
       "UNKNOWN_SCENE_LIGHT": "Uma luz está malformada, duplicada, desconhecida, ou não tem para onde ir.",
@@ -989,11 +972,10 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
-      "SURFACE_CAPTURE_UNSUPPORTED": "Foi pedida uma captura de superfícies (`captureSurfaceView`) a um caminho de desenho que não sabe desenhar as superfícies de material numa vista própria: o caminho WebGL2 não tem.",
       "VERTICES_NOT_LOADED": "Os vértices de um modelo carregado foram lidos antes de `await geometry.loadVertices()`: uma sessão os lê na primeira necessidade, nunca antecipadamente.",
       "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
       "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
-      "FAMILY_LOAD_FAILED": "Uma família opcional do motor (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) não foi carregada, depois de a sua importação ser tentada de novo (`T3D-E090`): `details.family` nomeia-a, em `world.diagnostic.error`. Os fotogramas que desenham com ela esperam por ela, e ela é pedida de novo na próxima utilização.",
+      "FAMILY_LOAD_FAILED": "Uma família opcional do motor (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer) não foi carregada, depois de a sua importação ser tentada de novo (`T3D-E090`): `details.family` nomeia-a, em `world.diagnostic.error`. Os fotogramas que desenham com ela esperam por ela, e ela é pedida de novo na próxima utilização.",
       "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "PHYSICS_BUDGET": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`), ou a pose ou os vértices de um corpo deixaram de ser finitos e ele saiu da simulação (`PHYSICS_DIVERGED`): em `world.physics.error`.",
@@ -1115,9 +1097,6 @@
       "cpuFrameMs": "Tempo de CPU do quadro.",
       "cpuSubmitMs": "Tempo de CPU para enviar o trabalho.",
       "drawCalls": "Chamadas de desenho deste quadro, como o motor as contou. `null` quando não as contou: um zero seria lido como um quadro sem desenho.",
-      "autonomousClusterDrawsTotal": "Desenhos de cluster paginados emitidos pelo programa WebGL2 próprio do motor nesta sessão.",
-      "autonomousCopyDraws": "Cópias de cena — as superfícies transmissivas — que o programa WebGL2 próprio do motor desenhou neste quadro.",
-      "transmissionBackdropBytes": "Bytes que o pano de fundo de transmissão do WebGL2 mantém desde a primeira cópia transmissiva na visão.",
       "triangles": "Triângulos enviados ao desenho deste quadro, como `totalSubmittedTriangles` os conta. `null` quando o motor não os contou: um zero seria lido como um quadro vazio.",
       "clusters": "Clusters desenhados.",
       "selectedTriangles": "Triângulos que o corte selecionou.",
@@ -1145,17 +1124,12 @@
       "frameHeld": "Verdadeiro quando o quadro foi mantido: nem a cena, nem a visão, nem os recursos se moveram, nenhum trabalho assíncrono estava pendente, e nenhuma etapa de CPU rodou. Os pixels exibidos são os do quadro original, exatos bit a bit. O que o quadro mantido FEZ é publicado como está, nunca copiado do último render completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contam apenas o presente, e as durações de CPU e GPU por etapa são zero quando a etapa não rodou, `null` quando nada a cronometrou. Um motor cuja imagem é uma cena que o adaptador testemunha desenha conta o que esse adaptador enviou neste quadro — nada, em um quadro mantido. O que o quadro mantido MOSTRA continua descrito pelo corte que ele reexibe: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` são os do quadro original, já que é o mesmo corte. Ausente de um motor que não mantém seus quadros.",
       "streamingError": "Erro de carregamento persistente; URLs que falham exigem um recarregamento do explorador depois de três tentativas.",
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
-      "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2 sem `EXT_disjoint_timer_query_webgl2`.",
+      "gpuFrameMs": "Duração em GPU da imagem que `gpuPassMs.frame` descreve, nunca somada a um campo `cpu*`. Amostrada a cada poucas imagens, por isso um número pode ter algumas imagens de idade. Null antes da primeira amostra, desde uma imagem retida até à próxima amostra do dispositivo, e sem `timestamp-query`.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
       "gpuDeviceLost": "Por que o dispositivo GPU foi perdido; null enquanto ele se mantém.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
       "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
-      "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
-      "gpuSelectionFallback": "Verdadeiro quando o motor tinha uma seleção de GPU e a abandonou: o que é medido desde então é o corte de fallback na CPU. Um fallback também emite o diagnóstico `gpu-selection-fallback`, uma vez; o host o copia como está, e ele está ausente de um motor sem seleção de GPU.",
       "cpuSelectNodesTested": "Nós de hierarquia sobre os quais o corte deste quadro fez um teste — decisão de frustum ou de nível de detalhe. Um nó já decidido e totalmente visível não recebe nenhum: ele é percorrido, não testado. Esta é a medida do trabalho real de um corte hierárquico; um corte plano testa zero deles e percorre cada cluster. Nulo em um motor que não escolhe seu corte na CPU, ou que não o conta.",
-      "pagesDecodedOffThread": "Decodificação de página fora da thread principal. `pagesDecodedOffThread` conta as tarefas — verificação de integridade SHA-256 ou leitura de atributo por vértice — que um worker completou, nunca as que o fallback rodou na thread principal. `pageDecodeMs` é o tempo cumulativo dessas tarefas, medido pelo próprio executor, seja qual for a thread: é tempo de decodificação, nunca somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma página foi decodificada — não medido, não zero.",
-      "pagesDecodedWasm": "Páginas cujos atributos foram lidos pelo decodificador compilado em WebAssembly em vez do decodificador JavaScript. Ambos produzem os mesmos bytes; este contador só diz qual rodou, portanto se o recurso `.wasm` foi encontrado e instanciado por este host.",
-      "pageDecodeMs": "Tempo gasto decodificando páginas.",
       "mathBatch": "Estado do regulador de caminho de compute (`../math/path/governor.ts`): caminho atual de cada operação em lote, medianas de ambos os caminhos, trocas. `null` em um host que não abriu um lote — não medido, não \"caminho JavaScript\".",
       "pagesPlannedOffThread": "Integração de página fora da thread principal. `pagesPlannedOffThread` conta chegadas cujo plano — o lugar de cada cluster no pacote e as posições de página que move — foi calculado por um worker, nunca as que o fallback planejou na thread principal. `pagePlanMs` é o tempo cumulativo desses planos, medido pelo próprio executor, seja qual for a thread: nunca é somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma chegada foi planejada — não medido, não zero.",
       "pagePlanMs": "Tempo gasto planejando chegadas.",
@@ -1164,11 +1138,10 @@
       "displayRefreshMs": "O intervalo de atualização do ecrã, em ms, como o motor o mediu nos carimbos de tempo rAF dos seus quadros (o relógio do orçamento da escala de render); null até encontrar um.",
       "gpuIdleMs": "Inatividade do dispositivo antes da última imagem amostrada, em ms: do último carimbo de tempo da imagem anterior até ao primeiro da própria, a lacuna que `gpuHostGapMs` não consegue conter (uma imagem que submete uma só vez não leva nada dela). Null quando a imagem anterior, ou esta, não foi cronometrada por inteiro (um passe sem medição, ou cujos carimbos não puderam ser lidos; um passe que o driver saltou não conta), depois de uma pausa e sem `timestamp-query` (#1451).",
       "renderHeight": "Altura em pixels com que a imagem foi desenhada, ao lado de `renderWidth`.",
-      "renderWidth": "Largura em pixels com que a imagem foi desenhada, antes de o antialiasing temporal ou a reamostragem a reconstruírem para o ecrã: a do ecrã com uma escala de render de 1. Null antes de uma imagem."
+      "renderWidth": "Largura em pixels com que a imagem foi desenhada, antes de o antialiasing temporal ou a reamostragem a reconstruírem para o ecrã: a do ecrã com uma escala de render de 1. Null antes de uma imagem.",
+      "pagesChecked": "Verificações de integridade das páginas. `pagesChecked` conta as páginas buscadas cujo resumo SHA-256 foi calculado (`crypto.subtle`, fora da thread principal). `pageCheckMs` é o tempo acumulado do início de cada verificação até o seu resumo: nunca é somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma página foi verificada — não medido, não zero.",
+      "pageCheckMs": "Tempo gasto verificando páginas."
     }
-  },
-  "FramePass": {
-    "summary": "Nomeia as passagens do quadro em desenho; cada chamada fecha a anterior e abre a seguinte."
   },
   "Frustum": {
     "summary": "Seis planos, lidos a partir de uma view-projection pelo núcleo (`math/frustum/frustum.ts`).",
@@ -1322,7 +1295,7 @@
     }
   },
   "GpuTimingMethod": {
-    "summary": "Como a GPU é cronometrada: timestamps do WebGPU, ou a consulta de timer do WebGL2."
+    "summary": "Como a GPU é cronometrada: marcas de tempo WebGPU."
   },
   "Group": {
     "summary": "Um nó que só agrupa outros.",
@@ -1422,8 +1395,6 @@
       "matrixAutoUpdate": "Falso quando o host posiciona a câmera por matriz: `matrix` É a pose e nada a recompõe a partir dos três campos locais.",
       "matrix": "Matriz LOCAL, a outra face da pose: o que uma restauração devolve ao lado dos três campos.",
       "matrixWorld": "A sua matriz de mundo.",
-      "projectionMatrix": "Projeção na convenção de profundidade do HOST, plano distante finito incluído. O motor compõe a sua própria (`engineCamera.ts`) e lê esta apenas para um desenho que o renderizador do host possui.",
-      "projectionMatrixInverse": "A sua inversa, que o renderizador do host mantém ao lado dela e entrega aos seus próprios shaders.",
       "updateWorldMatrix": "Atualiza a sua matriz de mundo.",
       "updateMatrixWorld": "Atualiza a sua matriz de mundo, e a dos filhos também.",
       "updateProjectionMatrix": "Reconstrói a sua projeção.",
@@ -1440,60 +1411,11 @@
       "b": "Azul, linear."
     }
   },
-  "HostDiagnosticFactory": {
-    "summary": "Os objetos de host que uma visão de diagnóstico troca, feitos pela fronteira que possui o grafo de exibição e injetados nas visões; o sal, as cores e o lado chegam todos já calculados.",
-    "members": {
-      "triangleGeometry": "Cópia de uma geometria de host com cada triângulo em seus próprios três vértices.",
-      "vertexColors": "Escreve as cores por vértice que o motor calculou em uma geometria de host.",
-      "triangleMaterial": "Superfície sem sombreamento mostrando essas cores de vértice como estão.",
-      "clusterMaterial": "Superfície sem sombreamento da cor de um cluster, o matiz que o núcleo calculou a partir de seu identificador."
-    }
-  },
-  "HostDiagnosticGeometry": {
-    "summary": "Uma geometria de host que uma visão de diagnóstico pode liberar.",
-    "members": {
-      "attributes": "Seus atributos de vértice.",
-      "dispose": "A libera."
-    }
-  },
-  "HostDiagnosticMaterial": {
-    "summary": "Uma superfície de host que uma visão de diagnóstico troca em um mesh, e depois libera: o que ela pendura chega através de `HostDiagnosticFactory`, nunca através de uma importação, então nenhuma visão nomeia uma biblioteca de renderização.",
-    "members": {
-      "side": "Quais faces, como a constante do host.",
-      "dispose": "A libera.",
-      "clone": "Uma cópia da superfície."
-    },
-    "description": "As vistas de diagnóstico também servem as testemunhas, cujas malhas são as da sua biblioteca: o que penduram chega por `HostDiagnosticFactory`, e são lidas apenas por esta forma."
-  },
   "HostDisposable": {
     "summary": "Um recurso de host que o motor libera quando o grafo de onde veio é liberado: uma geometria, uma superfície, uma textura.",
     "description": "O motor nunca constrói um, então liberá-lo é devolvê-lo.",
     "members": {
       "dispose": "O libera."
-    }
-  },
-  "HostDrawCamera": {
-    "summary": "As matrizes e o intervalo de profundidade com que um host desenha um quadro, como o motor os entrega.",
-    "members": {
-      "projection": "A projeção.",
-      "world": "A matriz de mundo da câmera.",
-      "view": "A matriz de view.",
-      "eye": "Onde está o olho.",
-      "near": "Distância mais próxima.",
-      "far": "Distância mais distante."
-    }
-  },
-  "HostDrawOutput": {
-    "summary": "Onde um desenho do host aterrissa — o buffer de desenho da página para um framebuffer `null` — e se a luz da cena pede mapeamento de tons; `width` e `height` são os do viewport.",
-    "members": {
-      "toneMapped": "Se a curva de exibição se aplica.",
-      "toneMapping": "A curva de exibição que a cena escolheu; ACES quando ausente.",
-      "framebuffer": "Onde desenhar; `null` para a tela.",
-      "width": "Largura em pixels.",
-      "height": "Altura em pixels.",
-      "displayWidth": "A largura a que a imagem é mostrada quando é desenhada abaixo dela (`world.renderScale`): os níveis de textura e as larguras de linha seguem a proporção. `width` quando ausente.",
-      "linear": "Radiância linear, sem curva nem codificação, sobre preto transparente: a entrada da cadeia de efeitos, cujo alfa é a cobertura.",
-      "pass": "Nomeia os passes de GPU deste desenho para o cronômetro de quadro, em ordem, quando alguém lê (`../core/frameTimer.ts`); ausente num desenho que nada mede."
     }
   },
   "HostMaterial": {
@@ -1763,10 +1685,7 @@
     "summary": "O que um motor realmente consegue fazer com as luzes do contrato.",
     "description": "Uma chamada aceita pelo armazenamento não é prova de iluminação: um motor que não relê o armazenamento deixa a imagem como está, e o host precisa poder saber isso antes de acreditar em sua imagem. Cada campo é o que o motor ATIVO aplica, nunca o que o contrato publica.",
     "members": {
-      "sceneLights": "Luzes declaradas realmente iluminam a imagem deste motor.",
-      "lightingView": "`setLightingView` realmente muda a imagem deste motor.",
       "shadows": "As luzes deste motor carregam sombras.",
-      "transforms": "`setTransform` realmente move um nó nomeado neste motor.",
       "reason": "O que o motor não faz e por quê, em uma frase; ausente quando tudo é aplicado."
     }
   },
@@ -1837,7 +1756,8 @@
       "texturePreviews": "Entradas da seção de nível progressivo; zero quando a origem não tem imagem decodificável.",
       "texturePreviewBytes": "Bytes da coluna de pixels: as entradas não têm passo fixo, então seu total é escrito aqui.",
       "texturePreviewBc7Bytes": "Bytes de cada coluna de blocos — as caudas das cadeias mantidas, família por família — também escritas aqui.",
-      "texturePreviewAstcBytes": "Bytes da coluna de blocos ASTC."
+      "texturePreviewAstcBytes": "Bytes da coluna de blocos ASTC.",
+      "texturePreviewEtc2Bytes": "Bytes da coluna de blocos ETC2."
     }
   },
   "Material-common": {
@@ -2309,14 +2229,6 @@
       "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a torna."
     }
   },
-  "PAGE_DECODE_FAILURES": {
-    "summary": "Semântica de falhas, lista fechada.",
-    "description": "As primeiras seis são as rejeições de decodificação de página, tomadas palavra por palavra de `geometryPage.ts`: um chamador as distingue como antes. `PAGE_DECODE_FAILED` carrega qualquer outra rejeição da biblioteca de descompressão. `PAGE_DECODE_CANCELLED` responde a um cancelamento, `PAGE_DECODE_WORKER` a um executor que desapareceu — só esse permite o fallback."
-  },
-  "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrato de decodificação de página fora da thread principal, versão 7: a geometria decodificada viaja como um único bloco com seu erro de quantização; `cut` transforma triângulos desenhados em páginas, que voltam como bytes com seus descritores, e, desde a versão 6, com seu cone de normais, os triângulos empacotados dizendo se suas páginas mantêm um; desde a versão 7, `cells` lê o arquivo de célula de uma partição nas linhas que ele posiciona, e `cellPage` uma página do seu índice de células (#575).",
-    "description": "A thread chamadora envia um `PageDecodeRequest`, o executor devolve um `PageDecodeAnswer` carregando o mesmo `id`. Nada aqui toca a plataforma: nenhum `Worker`, nenhum fetch, nenhum relógio — o adaptador do navegador carrega tudo isso, este arquivo só carrega a forma da mensagem, a lista fechada de falhas e o limite do pool. Propriedade do buffer: `source` é **transferido** com a requisição, então o remetente não o possui mais. Uma resposta `verify` o devolve, transferido por sua vez; uma resposta `decode` devolve os buffers decodificados em vez disso, também transferidos. Um executor que não transfere nada (o fallback síncrono) devolve exatamente os mesmos valores: o contrato não diz como o trabalho viaja, só o que ele devolve."
-  },
   "PAGE_INTEGRATION_FAILURES": {
     "summary": "Lista fechada de rejeições.",
     "description": "`PAGE_INTEGRATION_UNKNOWN` responde a uma chegada cujo executor não tem ficha — uma mensagem perdida, ou um executor reiniciado; `PAGE_INTEGRATION_WORKER` a um executor que desapareceu. Ambos permitem o fallback embutido, que refaz o mesmo plano na thread principal."
@@ -2420,104 +2332,6 @@
       "streamOffset": "Seu deslocamento de bytes nesse pacote.",
       "depthLayer": "Camada de profundidade coplanar, 0 para cada cluster que o compilador deixou intacto. Um cluster da camada n desenha com um viés de profundidade de n passos de camada inteiros, o que decide o vencedor entre duas superfícies opacas que compartilham exatamente um plano. Ausente e 0 significam a mesma coisa: o desenho intocado.",
       "cone": "O cone que delimita as normais dos seus triângulos: `axis` um vetor unitário, `angle` o semiângulo em radianos, π para um cone que não rejeita nada. O compilador o calcula a partir dos triângulos; o corte WebGPU ignora um cluster de face única que a câmera vê por trás do seu cone."
-    }
-  },
-  "PageCutPage": {
-    "summary": "Uma página que um `cut` escreveu: seus bytes de índice e geometria, seus digests, e seu descritor.",
-    "members": {
-      "index": "Os índices dos triângulos.",
-      "geometry": "Os bytes de vértice.",
-      "indexSha256": "Impressão digital dos índices.",
-      "geometrySha256": "Impressão digital dos vértices.",
-      "count": "Triângulos na página.",
-      "start": "Seu primeiro triângulo de origem.",
-      "min": "Canto mais baixo.",
-      "max": "Canto mais alto.",
-      "sphere": "Esfera delimitadora.",
-      "vertexCount": "Vértices na página.",
-      "indexCount": "Índices na página.",
-      "flags": "Quais atributos carrega.",
-      "uncompressedBytes": "Seu tamanho depois de descompactada.",
-      "cone": "O cone das normais dos seus triângulos, quando foi construído."
-    }
-  },
-  "PageCutPayload": {
-    "summary": "O que um `cut` devolve: suas páginas, e as grades sobre as quais foram quantizadas.",
-    "members": {
-      "pages": "As páginas escritas.",
-      "positionExponent": "Passo da grade de posições, como uma potência de dois.",
-      "uvExponent": "Passo da grade de coordenadas de textura, como uma potência de dois.",
-      "maxPositionError": "Maior erro de posição nessa grade."
-    }
-  },
-  "PageDecodeAnswer": {
-    "summary": "A resposta de um worker a uma requisição de página: concluída ou falhou."
-  },
-  "PageDecodeCancel": {
-    "summary": "Cancelamento de uma requisição ainda na fila.",
-    "description": "Trabalho já iniciado roda até o fim e depois responde `PAGE_DECODE_CANCELLED`: o executor não tem ponto de interrupção no meio de uma decodificação.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "A requisição a cancelar.",
-      "op": "Sempre `'cancel'`."
-    }
-  },
-  "PageDecodeDone": {
-    "summary": "A resposta de um worker quando uma requisição de página teve sucesso.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "A requisição respondida.",
-      "ok": "Sempre `true`.",
-      "sha256": "`verify`: o digest hexadecimal minúsculo. `decode`: `null`.",
-      "source": "`verify`: o buffer de origem devolvido. `decode`: `null`, a origem é consumida.",
-      "decoded": "`decode`: a página descompactada.",
-      "cut": "`cut`: as páginas, seus bytes transferidos. Ausente caso contrário.",
-      "cells": "`cells`: por nó, o posto do seu pai do núcleo (`-1`: a raiz da cena) e o da sua malha em `ranks`, dois inteiros de 32 bits, e a matriz local que o motor compõe para sua pose em `locals`, dezesseis doubles; ambos transferidos. Ausente caso contrário.",
-      "cellPage": "`cellPage`: os slots da página, ou suas células (`readCellPage`). Ausente caso contrário.",
-      "wasm": "Verdadeiro quando o decodificador compilado em WebAssembly fez o trabalho, falso para o decodificador JavaScript. Ambos produzem os mesmos bytes; só o contador os distingue.",
-      "taskMs": "Tempo da tarefa, medido pelo próprio executor."
-    }
-  },
-  "PageDecodeFailed": {
-    "summary": "A resposta de um worker quando uma requisição de página falhou.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "A requisição respondida.",
-      "ok": "Sempre `false`.",
-      "code": "Por que falhou.",
-      "message": "A mensagem original, como está: o chamador lança o mesmo `Error` que o caminho síncrono.",
-      "refusal": "O código da recusa nomeada do motor que a tarefa encontrou (`EngineError`), que o chamador lança de novo com esse código; ausente em qualquer outra falha."
-    }
-  },
-  "PageDecodeFailureCode": {
-    "summary": "O nome de uma forma pela qual uma requisição de página pode falhar."
-  },
-  "PageDecodeGeometryPayload": {
-    "summary": "Uma página decodificada como um único buffer de `decodedBytes`: os índices de 32 bits, depois os floats de cada atributo que `names` lista, na ordem de escrita da decodificação — essa ordem é o que produz um `Record` idêntico campo a campo.",
-    "members": {
-      "block": "Índices, depois atributos.",
-      "names": "Os atributos, em ordem.",
-      "vertexCount": "Vértices.",
-      "flags": "Quais atributos carrega.",
-      "decodedBytes": "Tamanho de `block`.",
-      "quantizationError": "O maior deslocamento de posição do cabeçalho da página, em unidades do objeto.",
-      "skinInfluences": "Largura exata das influências ósseas originais por vértice.",
-      "morphTargets": "Número de alvos em `morph`: seis floats por alvo e vértice; ausente sem morphing."
-    }
-  },
-  "PageDecodeOp": {
-    "summary": "`verify`: o digest SHA-256 de uma página.",
-    "description": "`decode`: seus índices e atributos por vértice. `cut`: triângulos desenhados, empacotados como cinco comprimentos, se suas páginas mantêm um cone, e depois cinco arrays de quatro bytes, cortados em páginas. `cells`: o arquivo de célula de uma partição, lido no pai, na malha e na matriz local de cada nó. `cellPage`: uma página do seu índice de células, lida nas páginas que lista ou nas suas células."
-  },
-  "PageDecodeRequest": {
-    "summary": "Uma mensagem pedindo a um worker que verifique, descompacte ou corte uma página.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "Número da requisição.",
-      "op": "O que fazer.",
-      "source": "Transferido com a mensagem: o remetente não é mais o dono.",
-      "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`.",
-      "name": "`cells`, `cellPage`: o arquivo de onde a fonte foi lida, que uma recusa nomeia."
     }
   },
   "PageHome": {
@@ -3276,7 +3090,6 @@
       "selectedTriangles": "Triângulos mantidos.",
       "selectedNodes": "Nós mantidos.",
       "totalNodes": "Nós ao todo.",
-      "autonomousScene": "Sua cena embutida.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
       "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar. `version` é a dos níveis (`TEXTURE_PREVIEW_VERSION`): um leitor não lê nenhum nível de outra.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está.",
@@ -3381,7 +3194,7 @@
   },
   "StageProfile": {
     "summary": "O perfil completo, sobre um intervalo deslizante de quadros.",
-    "description": "`gpuImageMs` é o envelope de GPU do quadro: do início de seu primeiro passo ao fim de seu último. As durações por etapa NÃO somam nele — um dispositivo que sobrepõe dois passos os conta duas vezes em uma soma, nunca no envelope. É também a única medição de um motor WebGL2, que não consegue dividir um quadro em passos.",
+    "description": "`gpuImageMs` é o envelope GPU do fotograma: do início da sua primeira passagem ao fim da última. As durações por etapa NÃO se somam nele — um dispositivo que sobrepõe duas passagens conta-as duas vezes numa soma, nunca no envelope.",
     "members": {
       "version": "Versão do formato.",
       "enabled": "Se o perfilamento roda.",
@@ -3457,10 +3270,11 @@
       "dispose": "A libera.",
       "subsurface": "Cor independente de transmissão de superfícies finas; textura de zeros de 1×1 quando desativada.",
       "subsurfaceView": "Vista da textura de transmissão de superfícies finas.",
-      "hasSubsurface": "Se a transmissão de superfícies finas tem um destino de tamanho completo.",
       "hasEmissiveAo": "Se a camada de emissão e oclusão tem os seus pixels; caso contrário, um `(0, 0, 0, 1)` de 1×1.",
       "receiver": "O recetor de sombra de cada pixel (`../visibility/shader/receiverTargetWgsl.ts`).",
-      "receiverView": "A vista de `receiver` que o passe de sombreamento escreve e a iluminação lê."
+      "receiverView": "A vista de `receiver` que o passe de sombreamento escreve e a iluminação lê.",
+      "lobes": "Os lóbulos anisotrópico e de verniz de cada pixel (`./physicalLobes.ts`); uma textura 1×1 quando nenhuma superfície carrega um.",
+      "lobesView": "A vista de `lobes` que a resolução escreve e a iluminação lê."
     }
   },
   "SurfaceCapture": {
@@ -4026,9 +3840,6 @@
       "vehicle": "Só veículo: o que os controlos `'vehicle'` conduzem — qualquer coisa com `drive(input)`, que recebe acelerador, travão, direção e travão de mão sempre que as teclas mudam. `null` por omissão, e `kind = 'vehicle'` lança `NO_VEHICLE` enquanto o for."
     }
   },
-  "world.renderer": {
-    "summary": "`'webgpu'` ou `'webgl2'`: como o mundo desenha; `null` antes de `ready`."
-  },
   "world.camera": {
     "summary": "A câmera através da qual a imagem é vista; defina outra para trocar."
   },
@@ -4047,7 +3858,7 @@
   },
   "world.temporalAntialiasing": {
     "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
-    "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
+    "description": "Escrita, tem efeito no fotograma seguinte, histórico descartado, sem reabrir sessão. Lida, é o que a imagem transporta: false enquanto o programa compila depois de a ligar."
   },
   "world.renderScale": {
     "summary": "A fração do ecrã por eixo a que a imagem é desenhada (`WorldOptions.renderScale`), a partir da imagem seguinte.",
@@ -4062,7 +3873,7 @@
       "geometryPoolCeiling": "Os maiores pools que um mundo pode pedir: os orçamentos iniciais do motor.",
       "texturePoolCeiling": "O maior pool de textura que um mundo pode pedir, em bytes.",
       "geometryPool": "Bytes de memória GPU reservados para páginas de geometria; defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras, das sondas de ressalto e do reservatório de texturas.",
-      "texturePool": "Bytes de memória GPU reservados para páginas de textura, `null` num motor sem reservatório de texturas (WebGL2); defina-o para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras, das sondas de ressalto e do reservatório de geometria.",
+      "texturePool": "Bytes de memória GPU reservados para as páginas de textura; defina-a para mudar o envelope, dentro do que `gpu` deixa ao lado das sombras, das sondas de ressalto e do pool de geometria.",
       "physics": "Os limites da física (corpos, corpos decorativos, memória), lidos uma vez no arranque; exceder um lança `PHYSICS_BUDGET`.",
       "raycastTrees": "Bytes de memória de CPU que `raycast` guarda para as árvores de triângulos, partilhados por todos os mundos da página; além disso, a árvore usada há mais tempo é descartada. Defina-o para mudar o envelope.",
       "gpu": "Bytes de memória GPU que o mundo pode ocupar, todos os reservatórios juntos; defina-o para redesenhar cada reservatório pela regra de divisão (`split`). Um total abaixo das três partes fixas — o reservatório de sombras, as sondas de ressalto e os alvos de efeitos — é recusado (`GPU_BUDGET_UNDER_SHADOW_POOL`). Nunca lido da máquina. Sem definir, vale o total por omissão (`defaultGpuBudget`): as partes fixas, os alvos do quadro em resolução total no canvas desenhado quando uma sessão os detém, depois os dois reservatórios nos seus valores por omissão — o quadro em repouso nunca é desenhado abaixo do ecrã por falta de memória. Definido, vale o total da página: acima dele, o quadro é desenhado um oitavo mais baixo.",
@@ -4153,9 +3964,6 @@
       "cpuFrameMs": "Tempo de CPU do quadro.",
       "cpuSubmitMs": "Tempo de CPU para enviar o trabalho.",
       "drawCalls": "Chamadas de desenho deste quadro, como o motor as contou. `null` quando não as contou: um zero seria lido como um quadro sem desenho.",
-      "autonomousClusterDrawsTotal": "Desenhos de cluster paginados emitidos pelo programa WebGL2 próprio do motor nesta sessão.",
-      "autonomousCopyDraws": "Cópias de cena — as superfícies transmissivas — que o programa WebGL2 próprio do motor desenhou neste quadro.",
-      "transmissionBackdropBytes": "Bytes que o pano de fundo de transmissão do WebGL2 mantém desde a primeira cópia transmissiva na visão.",
       "triangles": "Triângulos enviados ao desenho deste quadro, como `totalSubmittedTriangles` os conta. `null` quando o motor não os contou: um zero seria lido como um quadro vazio.",
       "clusters": "Clusters desenhados.",
       "selectedTriangles": "Triângulos que o corte selecionou.",
@@ -4183,17 +3991,12 @@
       "frameHeld": "Verdadeiro quando o quadro foi mantido: nem a cena, nem a visão, nem os recursos se moveram, nenhum trabalho assíncrono estava pendente, e nenhuma etapa de CPU rodou. Os pixels exibidos são os do quadro original, exatos bit a bit. O que o quadro mantido FEZ é publicado como está, nunca copiado do último render completo: `drawCalls`, `triangles`, `submittedTriangles` e `totalSubmittedTriangles` contam apenas o presente, e as durações de CPU e GPU por etapa são zero quando a etapa não rodou, `null` quando nada a cronometrou. Um motor cuja imagem é uma cena que o adaptador testemunha desenha conta o que esse adaptador enviou neste quadro — nada, em um quadro mantido. O que o quadro mantido MOSTRA continua descrito pelo corte que ele reexibe: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` e `residentPages` são os do quadro original, já que é o mesmo corte. Ausente de um motor que não mantém seus quadros.",
       "streamingError": "Erro de carregamento persistente; URLs que falham exigem um recarregamento do explorador depois de três tentativas.",
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
-      "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2 sem `EXT_disjoint_timer_query_webgl2`.",
+      "gpuFrameMs": "Duração em GPU da imagem que `gpuPassMs.frame` descreve, nunca somada a um campo `cpu*`. Amostrada a cada poucas imagens, por isso um número pode ter algumas imagens de idade. Null antes da primeira amostra, desde uma imagem retida até à próxima amostra do dispositivo, e sem `timestamp-query`.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
       "gpuDeviceLost": "Por que o dispositivo GPU foi perdido; null enquanto ele se mantém.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
       "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
-      "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
-      "gpuSelectionFallback": "Verdadeiro quando o motor tinha uma seleção de GPU e a abandonou: o que é medido desde então é o corte de fallback na CPU. Um fallback também emite o diagnóstico `gpu-selection-fallback`, uma vez; o host o copia como está, e ele está ausente de um motor sem seleção de GPU.",
       "cpuSelectNodesTested": "Nós de hierarquia sobre os quais o corte deste quadro fez um teste — decisão de frustum ou de nível de detalhe. Um nó já decidido e totalmente visível não recebe nenhum: ele é percorrido, não testado. Esta é a medida do trabalho real de um corte hierárquico; um corte plano testa zero deles e percorre cada cluster. Nulo em um motor que não escolhe seu corte na CPU, ou que não o conta.",
-      "pagesDecodedOffThread": "Decodificação de página fora da thread principal. `pagesDecodedOffThread` conta as tarefas — verificação de integridade SHA-256 ou leitura de atributo por vértice — que um worker completou, nunca as que o fallback rodou na thread principal. `pageDecodeMs` é o tempo cumulativo dessas tarefas, medido pelo próprio executor, seja qual for a thread: é tempo de decodificação, nunca somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma página foi decodificada — não medido, não zero.",
-      "pagesDecodedWasm": "Páginas cujos atributos foram lidos pelo decodificador compilado em WebAssembly em vez do decodificador JavaScript. Ambos produzem os mesmos bytes; este contador só diz qual rodou, portanto se o recurso `.wasm` foi encontrado e instanciado por este host.",
-      "pageDecodeMs": "Tempo gasto decodificando páginas.",
       "mathBatch": "Estado do regulador de caminho de compute (`../math/path/governor.ts`): caminho atual de cada operação em lote, medianas de ambos os caminhos, trocas. `null` em um host que não abriu um lote — não medido, não \"caminho JavaScript\".",
       "pagesPlannedOffThread": "Integração de página fora da thread principal. `pagesPlannedOffThread` conta chegadas cujo plano — o lugar de cada cluster no pacote e as posições de página que move — foi calculado por um worker, nunca as que o fallback planejou na thread principal. `pagePlanMs` é o tempo cumulativo desses planos, medido pelo próprio executor, seja qual for a thread: nunca é somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma chegada foi planejada — não medido, não zero.",
       "pagePlanMs": "Tempo gasto planejando chegadas.",
@@ -4269,20 +4072,21 @@
       "shadowVsmProjectionMs": "Tempo de GPU da projeção de sombras, em ms, a partir dos tempos dos passes.",
       "shadowVsmProjectionPasses": "Passes de projeção neste quadro, quatro luzes cada.",
       "shadowVsmRenderMs": "Tempo de GPU da renderização de páginas, em ms, a partir dos tempos dos passes.",
-      "shadowVsmTransmissionMs": "Tempo de GPU do atlas de transmissão dos emissores translúcidos (limpeza, desenho, resolução), em ms."
+      "shadowVsmTransmissionMs": "Tempo de GPU do atlas de transmissão dos emissores translúcidos (limpeza, desenho, resolução), em ms.",
+      "pagesChecked": "Verificações de integridade das páginas. `pagesChecked` conta as páginas buscadas cujo resumo SHA-256 foi calculado (`crypto.subtle`, fora da thread principal). `pageCheckMs` é o tempo acumulado do início de cada verificação até o seu resumo: nunca é somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma página foi verificada — não medido, não zero.",
+      "pageCheckMs": "Tempo gasto verificando páginas."
     }
   },
   "WorldOptions": {
     "summary": "O que uma página pode definir ao criar um mundo; não dizer nada é o caso normal.",
     "members": {
-      "renderer": "Como o mundo desenha, `'webgpu'` ou `'webgl2'`. Se omitido, o mundo toma o melhor que a máquina permite; um renderizador que a máquina não tem é recusado pelo nome, nunca trocado pelo outro.",
       "interactive": "Se o mundo roda seu próprio laço: ele desenha quando algo muda e descansa depois de 120 quadros sem nada novo. `false` deixa a página chamar `world.render()` ela mesma.",
       "pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
       "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
-      "renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão; em WebGL2, que apenas reamostra, `min` é 1 por omissão), um número fixa-a. Em WebGPU uma imagem parada também é desenhada a essa escala e reconstruída a partir das suas fases de jitter; em WebGL2 é desenhada no máximo. Alterada depois por `world.renderScale`.",
+      "renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, antes de o antisserrilhado temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de fotograma escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a. Uma imagem parada também é desenhada a essa escala, a do orçamento, e retida quando ciclos inteiros das suas fases de jitter estão calculados em média. Alterada depois por `world.renderScale`.",
       "debug": "O modo de depuração, as ferramentas de uma build de desenvolvimento face a uma de distribuição: os quadros só são registados no perfil de passos de CPU (`world.cpuSteps`) e no relatório de quadros neste modo. Pertence à página, tal como `?profile` no seu endereço o liga; `world.diagnostic.debug` muda-o depois.",
       "quality": "A qualidade: uma predefinição, grupos com níveis próprios, a resolução (`world.quality`)."
     }
@@ -4297,9 +4101,6 @@
       "read": "Lê os bytes de uma página; `priority`, quando dada, é a do streamer (a menor primeiro). Uma leitura mais urgente de uma página já em curso é pedida de novo para subi-la: uma fonte que aceita `priority` junta-a à leitura em curso em vez de transferir a página duas vezes.",
       "baseUrl": "O endereço contra o qual cada página é lida."
     }
-  },
-  "WorldRenderer": {
-    "summary": "As duas formas pelas quais um mundo pode desenhar: WebGPU, ou WebGL2 quando o WebGPU está ausente."
   },
   "WorldTarget": {
     "summary": "Um canvas, um elemento para desenhar dentro, ou o ID literal de documento de qualquer um dos dois (sem prefixo de seletor)."
@@ -4827,7 +4628,26 @@
   },
   "createGpuPageCache": {
     "summary": "Fronteira de alocação/fila do WebGPU.",
-    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove."
+    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove.",
+    "parameters": {
+      "options.homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "options": "Como uma cache de páginas GPU é dimensionada e onde reporta (`createGpuPageCache`).",
+      "options.pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
+      "options.slots": "Quantos slots o pool comporta.",
+      "options.onDiagnostic": "Ouve o que a cache reporta: o seu layout, os carregamentos cancelados e as recusas."
+    }
+  },
+  "GpuPageCacheOptions": {
+    "summary": "Como um cache de páginas GPU é dimensionado e para onde reporta (`createGpuPageCache`).",
+    "members": {
+      "pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
+      "slots": "Quantos slots o pool contém.",
+      "homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "onDiagnostic": "Ouve o que o cache reporta: o seu layout, os carregamentos cancelados e as recusas."
+    }
+  },
+  "PagePinTier": {
+    "summary": "Como uma página carregada é fixada: `'held'` à frente das fixações comuns num redimensionamento, senão `'pinned'`."
   },
   "createJob": {
     "summary": "Sem timers, DOM, sistema de arquivos ou UI."
@@ -4888,14 +4708,13 @@
     "parameters": {
       "target": "O canvas para desenhar, um elemento para desenhar dentro, ou o ID de qualquer um dos dois.",
       "options": "Como o mundo desenha e escuta; não dizer nada é o caso normal.",
-      "options.renderer": "Como o mundo desenha, `'webgpu'` ou `'webgl2'`. Se omitido, o mundo toma o melhor que a máquina permite; um renderizador que a máquina não tem é recusado pelo nome, nunca trocado pelo outro.",
       "options.interactive": "Se o mundo roda seu próprio laço: ele desenha quando algo muda e descansa depois de 120 quadros sem nada novo. `false` deixa a página chamar `world.render()` ela mesma.",
       "options.pixelRatio": "Quantos pixels de imagem por pixel de tela.",
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
       "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
-      "options.renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão; em WebGL2, que apenas reamostra, `min` é 1 por omissão), um número fixa-a. Em WebGPU uma imagem parada também é desenhada a essa escala e reconstruída a partir das suas fases de jitter; em WebGL2 é desenhada no máximo. Alterada depois por `world.renderScale`.",
+      "options.renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, antes de o antisserrilhado temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de fotograma escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a. Uma imagem parada também é desenhada a essa escala, a do orçamento, e retida quando ciclos inteiros das suas fases de jitter estão calculados em média. Alterada depois por `world.renderScale`.",
       "options.debug": "O modo de depuração, as ferramentas de uma build de desenvolvimento face a uma de distribuição: os quadros só são registados no perfil de passos de CPU (`world.cpuSteps`) e no relatório de quadros neste modo. Pertence à página, tal como `?profile` no seu endereço o liga; `world.diagnostic.debug` muda-o depois.",
       "options.quality": "A qualidade: uma predefinição, grupos com níveis próprios, a resolução (`world.quality`)."
     }
@@ -4929,6 +4748,15 @@
   },
   "detectCapabilities": {
     "summary": "Verifica com o que esta máquina pode desenhar, e diz por que quando não pode."
+  },
+  "GpuCapabilities": {
+    "summary": "O que o WebGPU desta máquina concede, lido antes de qualquer sessão abrir.",
+    "members": {
+      "tier": "`'full'` com carimbos de tempo da GPU, `'degraded'` sem eles, `'unavailable'` sem adaptador.",
+      "extensions": "Os recursos opcionais que o adaptador oferece.",
+      "reason": "Uma frase dizendo o que foi concedido, ou por que nada foi.",
+      "adapter": "O adaptador ao qual um dispositivo é pedido; `null` quando nenhum foi concedido ou um dispositivo foi entregue."
+    }
   },
   "determinantMatrix4": {
     "summary": "Determinante de uma matriz 4×4 em ordem de colunas, expandido ao longo da última linha numa ordem fixa de termos e sinais; 0 para uma matriz singular."
@@ -5919,7 +5747,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Sombreia cada ponto por quão longe está da câmera: branco em `camera.near`, preto em `camera.far`, uma rampa reta entre eles, a mesma no WebGPU e no WebGL2.",
+    "summary": "Sombreia cada ponto conforme a distância à câmara: branco em `camera.near`, preto em `camera.far`, uma rampa reta entre os dois.",
     "parameters": {
       "parameters": "O que uma página pode passar a um membro de material; todo campo é opcional.",
       "parameters.color": "A cor base.",
@@ -6502,7 +6330,11 @@
     "parameters": {
       "device": "O dispositivo de GPU no qual alocar.",
       "source": "De onde as páginas são lidas.",
-      "options": "Bytes por página, e quantos slots."
+      "options": "Bytes por página, e quantos slots.",
+      "options.homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "options.pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
+      "options.slots": "Quantos slots o pool comporta.",
+      "options.onDiagnostic": "Ouve o que a cache reporta: o seu layout, os carregamentos cancelados e as recusas."
     }
   },
   "page.decode": {
@@ -6513,13 +6345,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "Um cluster que carrega sua própria faixa de erro de tela não precisa de hierarquia: a seleção é um teste linear por página."
-  },
-  "pageDecodeFailureCode": {
-    "summary": "A rejeição nomeada que corresponde a uma mensagem, ou `PAGE_DECODE_FAILED` para tudo o mais."
-  },
-  "pageDecodeWorkerCount": {
-    "summary": "Tamanho do pool de decodificação: nunca mais que os núcleos que a máquina relata, nunca mais que o teto do pacote, nunca mais que o limite de admissão já em vigor sobre transferências, e pelo menos um.",
-    "description": "Um valor ausente ou não inteiro equivale a um único executor: em uma plataforma que não relata nada, não inventamos paralelismo."
   },
   "perspectiveProjection": {
     "summary": "Projeção em perspectiva de uma câmera com `fov` vertical em graus, proporção `aspect`, plano próximo `near`, zoom `zoom`."
@@ -6551,6 +6376,14 @@
       "world": "O mundo a mover.",
       "poses": "As visões pelas quais passar.",
       "p": "Quantos quadros o caminho inteiro leva."
+    }
+  },
+  "PathRun": {
+    "summary": "Um percurso medido: as métricas de cada quadro, o seu resumo de CPU e a cadência da tela.",
+    "members": {
+      "frames": "As métricas de cada quadro medido, na ordem do percurso.",
+      "cpu": "Os seus tempos de quadro de CPU resumidos.",
+      "cadence": "A cadência dos quadros de tela que eles levaram."
     }
   },
   "prepare": {
@@ -6586,7 +6419,7 @@
     }
   },
   "presentationColorDiagnostic": {
-    "summary": "Um registro de evidência limitado para a composição final do WebGL usado por capturas e relatórios."
+    "summary": "Um registo de evidência limitado para uma imagem capturada (`capture()`, linha de baixo primeiro), lido do alvo de cor WebGPU do motor."
   },
   "previewBlockBytes": {
     "summary": "Bytes comprimidos em blocos de cada nível carregado, concatenados do mais fino ao mais grosseiro."
@@ -6611,9 +6444,9 @@
   "primitiveUsesClusterErrors": {
     "summary": "Se cada página de uma primitiva carrega sua própria faixa de erro."
   },
-  "probeWorldRenderer": {
-    "summary": "O que a máquina concede antes de qualquer cena ser carregada: o caminho com que um mundo vai desenhar.",
-    "description": "Um caminho forçado que a máquina não tem é recusado pelo nome; deixado ao motor, WebGPU quando um adaptador é concedido — e seu dispositivo, pedido uma vez —, WebGL2 caso contrário, e uma máquina sem nenhum dos dois é recusada. `chooseBackends` repete a mesma decisão nesse dispositivo quando uma sessão abre."
+  "probeWorldDevice": {
+    "summary": "O dispositivo WebGPU com que um mundo desenha, pedido antes de qualquer cena ser carregada e mantido durante toda a vida do mundo: cada sessão que ele abre desenha nele.",
+    "description": "Uma máquina que não concede nenhum adaptador, ou um adaptador que recusa o seu dispositivo, é recusado pelo nome (`WEBGPU_UNAVAILABLE`)."
   },
   "readCameraWorld": {
     "summary": "Copia a câmera do host para a câmera do motor, com os ancestrais resolvidos."
@@ -7426,9 +7259,6 @@
       "depthWrite": "Se escreve a profundidade.",
       "depthFunc": "A comparação do teste de profundidade.",
       "colorWrite": "Se escreve a cor.",
-      "polygonOffset": "Se a profundidade é deslocada.",
-      "polygonOffsetFactor": "Parte de inclinação do deslocamento.",
-      "polygonOffsetUnits": "Parte constante do deslocamento.",
       "transparent": "Se faz mistura.",
       "opacity": "Quão opaca é.",
       "alphaTest": "Alfa abaixo do qual os pixels são descartados.",
@@ -7856,7 +7686,7 @@
   },
   "world.setTransform": {
     "summary": "Move o nó `nodeName` para que sua pose de mundo seja `matrix`: um nó de que a página não guarda referência é alcançado pelo nome (`object.name`), procurado na cena.",
-    "description": "A pose é uma pose de mundo — o motor a traz de volta ao espaço do pai do nó —, então um nome sob um pai movido ainda chega onde pedido. A mesma rota que WebGPU e WebGL2 tomam para um movimento por nome de uma página, não uma segunda. O próximo quadro o desenha; um pedido que não muda nada não pede nenhum.",
+    "description": "A pose é uma pose de mundo — o motor traz-a de volta ao espaço do pai do nó — por isso um nome sob um pai movido continua a chegar onde foi pedido. O mesmo caminho que o motor segue para mover uma página por nome, não um segundo. O fotograma seguinte desenha-a; um pedido que não muda nada não pede fotograma.",
     "parameters": {
       "nodeName": "O `name` do nó a mover.",
       "matrix": "Sua pose de mundo, dezesseis floats em ordem por colunas."
@@ -8020,5 +7850,8 @@
       "set": "Define `group` como `level` por cima da predefinição, que nenhuma predefinição posterior altera; `'preset'` devolve o grupo à predefinição."
     },
     "summary": "A qualidade: uma predefinição, o nível de cada grupo por cima dela e a resolução a que a imagem é desenhada."
+  },
+  "TRANSPARENT_DEPTH_LAYER": {
+    "summary": "A camada em que as passagens transparentes desenham: um vidro, um decalque ou uma lâmina de água assentes exatamente sobre uma face opaca é desenhado por cima dela — uma superfície transparente nunca entra na etapa do compilador, por isso as suas páginas levam a camada 0 —, um degrau de camada acima do arredondamento de vírgula flutuante entre o raster opaco e o seu, nunca o bastante para alcançar uma superfície que está acima."
   }
 }

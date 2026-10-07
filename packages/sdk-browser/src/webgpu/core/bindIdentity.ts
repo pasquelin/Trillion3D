@@ -1,4 +1,5 @@
 import { entriesIdentity } from './entriesIdentity.ts'
+import { adoptEntries } from '../../gpu/core/sameEntries.ts'
 
 /** Resource snapshots for a family. Entry descriptors and snapshot arrays grow only at setup;
  *  stable images read the same descriptors without rebuilding entry arrays or bindings. */
@@ -9,32 +10,22 @@ export type WebgpuBindIdentity = {
   entries: GPUBindGroupEntry[][]
   /** True when `next` differs from what was held; the identity then holds `next`. */
   moved(): boolean
-  /** Writes the family's layouts then every list of `entries` into `next`, and returns `moved()`. */
-  entriesMoved(layout: unknown, other?: unknown): boolean
+  /** Writes the family's layout then every list of `entries` into `next`, and returns `moved()`. */
+  entriesMoved(layout: unknown): boolean
 }
 
 export function createWebgpuBindIdentity(): WebgpuBindIdentity {
   const held: unknown[] = [],
     next: unknown[] = [],
     entries: GPUBindGroupEntry[][] = []
-  const moved = () => {
-    let moved = held.length !== next.length
-    held.length = next.length
-    for (let i = 0; i < next.length; i++)
-      if (held[i] !== next[i]) {
-        held[i] = next[i]
-        moved = true
-      }
-    return moved
-  }
+  const moved = () => adoptEntries(held, next)
   return {
     next,
     entries,
     moved,
-    entriesMoved(layout, other) {
+    entriesMoved(layout) {
       next[0] = layout
-      next[1] = other
-      let at = 2
+      let at = 1
       for (let i = 0; i < entries.length; i++) at = entriesIdentity(entries[i], next, at)
       next.length = at
       return moved()

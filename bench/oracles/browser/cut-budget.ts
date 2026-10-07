@@ -1,4 +1,4 @@
-// Oracles of the WebGL2 cut from before batch 4c: the general path, the one that projects.
+// Oracles of the cut from before batch 4c: the general path, the one that projects.
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts'

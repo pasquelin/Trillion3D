@@ -61,7 +61,7 @@ export function sameValues(a: ArrayLike<number>, b: ArrayLike<number>) {
 /**
  * In both directions: HOST matrix copied into owned buffer, or core result set
  * into HOST matrix. Core only computes in `Float64Array` — single buffer type for
- * product and inverse (`packages/sdk-core/src/math/matrix/matrix4.ts`) — and host library matrices are plain arrays:
+ * product and inverse (`packages/sdk-core/src/math/matrix/matrix4.ts`) — and host matrices are plain arrays:
  * result destined for host is composed separately then copied here.
  */
 export function copyElements(into: { [index: number]: number }, from: ArrayLike<number>) {
@@ -70,7 +70,7 @@ export function copyElements(into: { [index: number]: number }, from: ArrayLike<
 
 /**
  * Column-major 4×4 matrix owned by HOST — pose of a node in its scene. Engine only reads
- * its sixteen floats: no host library structure crosses a signature.
+ * its sixteen floats: no host structure crosses a signature.
  */
 export type MatrixElements = {
   /** The sixteen numbers, column by column. */
@@ -88,3 +88,6 @@ export type HostNodeMatrix = {
 }
 
 export { IDENTITY_MATRIX4 as IDENTITY_ELEMENTS }
+
+/** The identity pose, shared: a root placed at the origin reads it. */
+export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_MATRIX4 }

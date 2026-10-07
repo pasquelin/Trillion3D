@@ -1,29 +1,20 @@
-// #725, #483 rule 5: out of memory on a frame target is absorbed. The targets are granted under
-// the device's out-of-memory check before a frame draws with them; a refusal drops Hi-Z first,
-// and what cannot be made is refused by name, never reported as a lost device.
+// #725, #483 rule 5: out of memory on a frame target is absorbed. The targets — the Hi-Z pyramid
+// among them, the one occlusion path (#1483) — are granted under the device's out-of-memory check
+// before a frame draws with them; what cannot be made is refused by name, never reported as a lost
+// device, and nothing is dropped to make room.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import {
-  assertBothQuadPagesDrawn,
-  camera,
-  disposeQuadRun,
-  quadBackend,
-  quadScene,
-} from '../testScenes.fixture.ts'
+import { camera, disposeQuadRun, quadBackend, quadScene } from '../testScenes.fixture.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { refusing } from './refusing.fixture.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
-import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts'
-import { frameQueue } from '../../../world/render/frameQueue.fixture.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
 
 /** The label of the Hi-Z pyramid's level 0 (`gpu/hiz/pyramid.ts`). */
 const HI_Z_LEVEL_0 = 'Trillion3D Hi-Z level 0'
 
 const COLOR = 'Trillion3D display color'
-type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> }
 
 /** A quad backend drawn once at 32 × 32, on a device that answers the `label` target made at
  *  48 × 48 with `answer`, told whether the Hi-Z pyramid is alive; then resized to 48 × 48. */
@@ -49,13 +40,13 @@ async function resized(
     },
   )
   const viewport: [number, number] = [32, 32]
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const mounted = quadBackend(gpu.device, {
     viewport,
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   })
   const { fixture } = mounted,
-    backend = mounted.backend as Backend
+    backend = mounted.backend
   await backend.prepare()
   const cam = camera()
   backend.render(cam)
@@ -73,28 +64,28 @@ async function resized(
   return { gpu, backend, cam, said, widths, dispose }
 }
 
-test('under pressure, Hi-Z goes first: the targets are granted without it, all others kept', async () => {
-  // The device lacks what Hi-Z holds: the targets fit once it is released.
+test('under pressure, the targets are refused whole: Hi-Z and its pipelines are kept', async () => {
+  // The device lacks what Hi-Z holds: before, Hi-Z left to make room; now the pyramid is a target.
   const s = await resized((raise, hizAlive) => hizAlive && raise('Out of memory'))
   try {
+    const visPipelines = () =>
+      (s.gpu.given as Array<{ vertex?: { entryPoint: string } }>).filter(
+        (made) => made?.vertex?.entryPoint === 'vis_vs',
+      ).length
+    const made = visPipelines()
     s.backend.render(s.cam)
     assert.equal(await s.backend.pendingFrame(), true)
     s.backend.render(s.cam)
-    const [refused] = s.said('gpu-out-of-memory')
-    assert.equal(refused?.context.pool, 'frame-targets')
-    assert.equal(refused?.context.dropped, 'hi-z')
-    for (const label of [COLOR, 'Trillion3D opaque depth', 'Trillion3D HDR lighting'])
-      assert.deepEqual(s.widths(label), [48], `${label} is granted at the new size`)
-    assert.equal(s.said('frame-targets-refused').length, 0)
-    // Its pass writes one target fewer: the visibility pipelines are made again for it.
-    const targets = (
-      s.gpu.given as Array<{ vertex?: { entryPoint: string }; fragment?: { targets: [] } }>
+    assert.equal(s.said('frame-targets-refused')[0]?.context.reason, 'gpu-out-of-memory')
+    assert.ok(
+      s.said('gpu-out-of-memory').every((event) => event.context.dropped !== 'hi-z'),
+      'Hi-Z is never dropped',
     )
-      .filter((made) => made?.vertex?.entryPoint === 'vis_vs')
-      .map((made) => made.fragment?.targets.length)
-    assert.deepEqual([targets[0], targets.at(-1)], [2, 1])
-    await s.backend.flush()
-    assertBothQuadPagesDrawn(s.backend)
+    assert.equal(visPipelines(), made, 'no visibility pipeline made again without Hi-Z')
+    assert.ok(
+      s.gpu.textures.some((texture) => texture.label === HI_Z_LEVEL_0 && !texture.destroyed),
+      'a pyramid is held',
+    )
   } finally {
     s.dispose()
   }
@@ -130,40 +121,32 @@ test('frame targets refused at prepare are refused by name', async () => {
   }
 })
 
-// A refused grant holds the frame, draws nothing into targets not granted, then draws it complete.
-// And `world/session-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame
-// held while the device answers must not say it: a still scene then schedules no more work.
-test('a refused target grant holds the frame, then draws it complete; then nothing is scheduled', async () => {
+// A refused grant holds the frame, draws nothing into targets not granted, and is asked again after
+// its wait (`retryAfterRefusal`), never every frame: then the frame is drawn complete. And
+// `world/session-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame held
+// while the device answers must not say it.
+test('a refused target grant holds the frame, asks again after its wait, then draws it complete', async () => {
   let refusals = 1
   const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'))
-  let asked = 0,
-    stillAt: number | undefined
-  const requested = frameQueue()
-  const scheduler = createExplorerFrameScheduler({
-    request: (callback) => (asked++, requested.request(callback)),
-    cancel: requested.cancel,
-    render: () => s.backend.render(s.cam),
-    pending: () => s.backend.pendingFrame(),
-    error: (error) => assert.fail(String(error)),
-    limited: () => assert.fail('the loop hit its frame limit'),
-  })
   try {
     const draws = s.gpu.draws.length
-    scheduler.invalidate()
-    requested.run()
-    assert.equal(s.gpu.draws.length, draws, 'held: nothing is drawn into targets not granted')
+    s.backend.render(s.cam)
     assert.equal(s.backend.metrics().frameHeld, false, 'not the still frame while asked')
-    for (let round = 0; round < 200 && (requested.size || stillAt === undefined); round++) {
-      await new Promise((done) => setImmediate(done))
-      if (s.backend.metrics().frameHeld) stillAt ??= asked
-      requested.run()
+    await s.backend.pendingFrame()
+    assert.equal(s.gpu.draws.length, draws, 'held: nothing is drawn into targets not granted')
+    assert.equal(s.said('frame-targets-refused').length, 1, 'refused by name, once')
+    let frames = 0
+    for (; frames < 1000 && s.gpu.draws.length === draws; frames++) {
+      s.backend.render(s.cam)
+      await s.backend.pendingFrame()
     }
-    assert.equal(asked, stillAt, 'no request once the scene says it is still')
+    assert.ok(frames > 1, 'asked again after a wait, not at the next frame')
     assert.ok(s.gpu.draws.length > draws, 'the frame is drawn once granted')
     assert.deepEqual(s.widths(COLOR), [48], 'drawn into the granted targets, at the new size')
+    await s.backend.flush()
+    s.backend.render(s.cam)
     assert.deepEqual(s.backend.selectedPageIds().sort(), ['0', '1'], 'the frame is complete')
   } finally {
-    scheduler.dispose()
     s.dispose()
   }
 })
@@ -173,7 +156,7 @@ test('a visibility target the device cannot make is refused by name, once, the m
     throw new TypeError('refused')
   }, 'Trillion3D visibility')
   try {
-    const { materials } = s.backend.capabilities
+    const withheld = [...s.backend.capabilities.unsupported]
     for (let i = 0; i < 3; i++) {
       s.backend.render(s.cam)
       await s.backend.pendingFrame()
@@ -183,7 +166,7 @@ test('a visibility target the device cannot make is refused by name, once, the m
     assert.equal(refused[0]?.context.code, 'WEBGPU_FRAME_TARGETS_REFUSED')
     assert.deepEqual([refused[0]?.context.width, refused[0]?.context.height], [48, 48])
     assert.equal(s.backend.metrics().frameHeld, true, 'the previous image stays')
-    assert.equal(s.backend.capabilities.materials, materials, 'the visibility buffer is kept')
+    assert.deepEqual(s.backend.capabilities.unsupported, withheld, 'nothing the image has is lost')
   } finally {
     s.dispose()
   }

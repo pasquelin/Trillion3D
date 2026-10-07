@@ -16,9 +16,9 @@ import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLa
  * The two blocks of a frame that can be set against a published profile, and nothing else.
  * `visibility` is building the visibility buffer: selection, partition, Hi-Z and raster.
  * `materials` is writing surfaces from that buffer. Everything else is `other`: shadows, light
- * lists, bounce, transparents, deferred lighting, present, and the fallback path that does not go
- * through the buffer — putting any of those in a block would inflate a comparison instead of
- * serving it, so they stay outside AND named, each pass keeping its duration.
+ * lists, bounce, transparents, deferred lighting and present — putting any of those in a block
+ * would inflate a comparison instead of serving it, so they stay outside AND named, each pass
+ * keeping its duration.
  */
 export type GpuPassBlock = 'visibility' | 'materials' | 'other'
 
@@ -34,7 +34,8 @@ export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: Shado
  * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
  * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
  * The labels come from `passLabels.ts`, which every pass reads its own from: an import of the
- * passes would put them and their shaders in the CDN core, on a WebGL2 page too (#1353).
+ * passes would put them and their shaders in the CDN core, ahead of the renderer's own chunk,
+ * which the page downloads beside the scene (#1353).
  */
 export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D DAG selection': ['selection', 'visibility'],
@@ -58,7 +59,6 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D empty surfaces': ['geometry', 'materials'],
   [MATERIAL_COMPUTE_PASS]: ['geometry', 'materials'],
   [MATERIAL_SURFACES_PASS]: ['geometry', 'materials'],
-  'Trillion3D opaque fallback': ['geometry', 'other'],
   'Trillion3D transparents': ['transparents', 'other'],
   'Trillion3D transmission': ['transparents', 'other'],
   [WATER_SURFACE_PASS]: ['transparents', 'other'],

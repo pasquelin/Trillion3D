@@ -9,7 +9,16 @@ import {
 import { shareText, taaHistoryBlend } from './historyWgsl.ts'
 import { BLACKMAN_HARRIS_WGSL } from './filterWeights.ts'
 import { layerWgsl, taaOut } from './layers.ts'
-import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts'
+import { PI } from '../lighting/shaderConstants.ts'
+
+/** Lanczos-2, `sinc(x)·sinc(x/2)` on `|x| < 2`: the kernel the current image is resampled with. */
+const LANCZOS2_WGSL = `
+fn lanczos2(x:f32)->f32{
+ if(x<1e-4){return 1.0;}
+ if(x>=2.0){return 0.0;}
+ let p=${PI}*x;
+ return 2.0*sin(p)*sin(0.5*p)/(p*p);
+}`
 
 /** The 2×2 render texels nearest the display pixel, the box the Lanczos sum is clamped to: read
  *  again after the 3×3 — the cache's texels —, in its row order, so its box holds no registers

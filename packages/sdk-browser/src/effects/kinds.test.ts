@@ -1,4 +1,4 @@
-// Per-kind dispatch (#349): each renderer runs a pass through the one table entry of its kind,
+// Per-kind dispatch (#349): the renderer runs a pass through the one table entry of its kind,
 // which receives the pass itself and its rank among the passes of that kind — the place where the
 // other built-ins and the custom pass plug in.
 import test from 'node:test'
@@ -6,10 +6,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../sdk-core/src/world/effect/index.ts'
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts'
-import { createTestContext } from '../webgl/core/testContext.fixture.ts'
-import { createWebglEffects } from '../webgl/effects/webglEffects.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
-import { WEBGL_KINDS } from '../webgl/effects/webglKinds.ts'
 import { WEBGPU_KINDS } from '../webgpu/effects/webgpuKinds.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
@@ -26,35 +23,17 @@ function spy() {
   return {
     drawn,
     sized,
-    webgl: { ...kind, draw },
     webgpu: { ...kind, encode: (...args: unknown[]) => draw(args[1] as Bloom, args[2] as number) },
   }
 }
 
 const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 })]
 
-test('both renderers have one implementation per kind, the kinds the budget reserves', () => {
-  const kinds = Object.keys(EFFECT_KIND_BYTES).sort()
-  assert.deepEqual(Object.keys(WEBGL_KINDS).sort(), kinds)
-  assert.deepEqual(Object.keys(WEBGPU_KINDS).sort(), kinds)
+test('the renderer has one implementation per kind, the kinds the budget reserves', () => {
+  assert.deepEqual(Object.keys(WEBGPU_KINDS).sort(), Object.keys(EFFECT_KIND_BYTES).sort())
 })
 
-test('WebGL2 hands each pass to its kind, with its rank among that kind', (t) => {
-  const kind = spy(),
-    made = WEBGL_KINDS.bloom
-  t.after(() => void (WEBGL_KINDS.bloom = made))
-  WEBGL_KINDS.bloom = () => kind.webgl
-  const effects = createWebglEffects(createTestContext().gl)
-  effects.begin(chain, 8, 4)
-  effects.end(chain, null, { toneMapped: true, toneCurve: 0, background: [0, 0, 0] })
-  assert.deepEqual(kind.sized, [[8, 4, 2]], 'sized once for its two passes')
-  assert.deepEqual(kind.drawn, [
-    [chain[0], 0],
-    [chain[1], 1],
-  ])
-})
-
-test('WebGPU hands each pass to its kind, with its rank among that kind', async (t) => {
+test('the renderer hands each pass to its kind, with its rank among that kind', async (t) => {
   const kind = spy(),
     made = WEBGPU_KINDS.bloom
   t.after(() => void (WEBGPU_KINDS.bloom = made))

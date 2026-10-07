@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { importHostSurface } from '../host/surfaceImport.ts'
-import { createSurfaceBuffer } from './surfaceBuffer.ts'
+import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
@@ -10,7 +10,6 @@ import { hostSide } from './materialSide.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../world/core/worldSurface.ts'
-import { eachMap, SUBSURFACE_UNIT } from '../webgl/cluster/materialMaps.ts'
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts'
 import {
   RECEIVER_TARGET_BYTES,
@@ -51,7 +50,7 @@ test('a transmission map enters the existing color atlas and keeps its own slot'
 test('enabled transmission allocates exactly eight bytes per pixel, without another MRT', () => {
   const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } })
   const disabled = createSurfaceBuffer(gpu.device, 13, 7)
-  const enabled = createSurfaceBuffer(gpu.device, 13, 7, true)
+  const enabled = createSurfaceBuffer(gpu.device, 13, 7, { subsurface: true })
   assert.equal(enabled.allocationBytes - disabled.allocationBytes, (13 * 7 - 1) * 8)
   assert.equal(enabled.views().length, 4)
   assert.equal(enabled.subsurface.width, 13)
@@ -66,8 +65,8 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   }
   disabled.dispose()
   enabled.dispose()
-  // Six textures each, the shadow receiver target included.
-  assert.equal(gpu.destroyed.length, 12)
+  // Seven textures each, the shadow receiver target and the lobes' 1×1 included.
+  assert.equal(gpu.destroyed.length, 14)
 })
 
 test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {
@@ -83,7 +82,7 @@ test('shipped thin diffuse transmission integrates to its color, dark front and 
   assert.ok(Math.abs(integral - 1) < 1e-6)
 })
 
-test('public material reaches both backends, and a color edit repaints without an API rebuild', () => {
+test('public material reaches the engine, and a color edit repaints without an API rebuild', () => {
   const map = new Texture({ width: 1, height: 1 })
   const paint = material.meshStandard({
     side: 'double',
@@ -97,10 +96,8 @@ test('public material reaches both backends, and a color edit repaints without a
   paint.subsurfaceColor.set(0xff0000)
   assert.ok(paint.version > version)
   repaintHostSurface(surface, paint)
-  assert.deepEqual(importHostSurface(surface)?.subsurfaceColor, [1, 0, 0])
-  const units: number[] = []
-  eachMap(surface, (unit, image) => {
-    if (image) units.push(unit)
-  })
-  assert.deepEqual(units, [SUBSURFACE_UNIT], 'GL binds the same independent texture')
+  const repainted = importHostSurface(surface)!
+  assert.deepEqual(repainted.subsurfaceColor, [1, 0, 0])
+  const layers = { mapLayer: new Map([[repainted.subsurfaceMap!, 3]]), dataLayer: new Map() }
+  assert.equal(rowMaterial(repainted, undefined, layers).subsurface, 3, 'its own atlas slot')
 })

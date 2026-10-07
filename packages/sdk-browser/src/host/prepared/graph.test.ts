@@ -10,7 +10,6 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../resources.ts'
 import { GraphSurface } from '../graph/surface.ts'
 import { preparedGraph } from './graph.ts'
-import { pagedGeometry } from './pagedSource.ts'
 import { shownChain } from '../../placement/hidden.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -82,49 +81,6 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
     (part) => part instanceof Mesh && records.push(visMaterial(part.material).vertexColors),
   )
   assert.deepEqual(records, [true, false])
-})
-
-// #846: the autonomous document's primitives hold one degenerate triangle, positions only; the
-// pages they are drawn from carry the source primitive's normals, so their surface is not flat.
-test('a primitive of the autonomous document is flat only where its source primitive has no normal', async () => {
-  const { tables, meshes } = oneNode('paged', null)
-  const pagedFrom = [
-    {
-      ...meshes[0],
-      primitives: [{ attributes: { POSITION: 0, NORMAL: 1 } }, { attributes: { POSITION: 0 } }],
-    },
-  ] as unknown as TableDocument['meshes']
-  const geometryOf = () => {
-    const geometry = new Geometry()
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
-    return geometry
-  }
-  const flat: boolean[] = []
-  const materialOf = (_rank: number, variant: { flatShading: boolean }) => {
-    flat.push(variant.flatShading)
-    return Promise.resolve(new GraphSurface('standard'))
-  }
-  await preparedGraph({ tables, meshes, pagedFrom, geometryOf, materialOf })
-  assert.deepEqual(flat, [false, true])
-})
-
-// #846: a class change cuts a primitive's pages again from the vertices they were cut from: for
-// a stand-in of the autonomous document, its source primitive's, at the same ranks.
-test('a mesh of the autonomous document is paged from its source primitive, any other from its own', async () => {
-  const { tables, meshes } = oneNode('paged', null)
-  const stand = new Geometry(),
-    sources = [new Geometry(), new Geometry()]
-  const materialOf = () => Promise.resolve(new GraphSurface('standard'))
-  const read = async (pagedGeometryOf?: (mesh: number, primitive: number) => Geometry) => {
-    const { ranks } = await preparedGraph({
-      ...{ tables, meshes, geometryOf: () => stand, materialOf, pagedGeometryOf },
-    })
-    return [...ranks.keys()].flatMap((mesh) =>
-      mesh instanceof Mesh ? [pagedGeometry(mesh as HostMesh)] : [],
-    )
-  }
-  assert.deepEqual(await read((mesh, primitive) => sources[mesh + primitive]), sources)
-  assert.deepEqual(await read(), [stand, stand])
 })
 
 // #519: a node declaring `KHR_node_visibility` `visible: false` is built hidden, so the pages it

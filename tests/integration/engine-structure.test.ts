@@ -4,6 +4,15 @@ import { readFile, readdir } from 'node:fs/promises'
 import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts'
 const core = new URL('../../packages/sdk-core/src/', import.meta.url)
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
+/** The code of `text` a browser global could be reached from: no string, no comment, and no
+ *  member or key of the core's own data under such a name — the scene tables' `document`
+ *  (`scene/core/tableContracts.ts`) is the layout of the published file, never the DOM's. A member
+ *  of a global object (`globalThis.document`) stays. */
+const globalReach = (text: string) =>
+  text
+    .replace(/'[^'\n]*'|"[^"\n]*"/g, "''")
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+    .replace(/(?<!\b(?:globalThis|self))\.(?=document\b)\w+|\bdocument(?=\??:)/g, '')
 test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   const files = (await readdir(core, { recursive: true })).filter(
     // Tests and their fixtures are not shipped (`packages/sdk-core/package.json`, `files`).
@@ -18,7 +27,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
       file,
     )
     assert.doesNotMatch(
-      text,
+      globalReach(text),
       /\b(?:document|window|HTMLElement|HTMLCanvasElement|GPUDevice)\b/,
       file,
     )
@@ -48,16 +57,15 @@ const POSE_LOCALE: Record<string, string> = {
   'world/camera/camera.ts': 'the host POSES its camera; the local pose is what it writes',
   'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
-  'world/render/hostState.ts': 'the host restores the local pose it had recorded',
+  'world/render/sessionState.ts': 'the session sets the local pose it is handed (`setPose`)',
   'gpu/dag/oracle/predicates.fixture.ts':
     'the oracle POSES a parentless camera from a world position',
   'page/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
   'page/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
   'visibility/buffer.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/cut/resume.fixture.ts': 'test scene builder: it poses the camera',
-  'backend/pagesBackendScenes.fixture.ts': 'test scene builder: it poses the camera',
+  'engine/pagesEngineScenes.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
-  'backend/autonomous/triangle.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/pages/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
 }
 

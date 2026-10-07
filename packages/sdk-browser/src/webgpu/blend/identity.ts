@@ -2,10 +2,9 @@ import {
   blendBindEntries,
   type BlendBindResources,
   type BlendLighting,
-} from '../core/bindEntries.ts'
+} from '../core/blendBindEntries.ts'
 import { liveResources } from '../core/liveEntries.ts'
-import { fallbackBindEntries } from '../core/fallbackEntries.ts'
-import { BLEND_VIEW_SIZE } from './uniforms.ts'
+import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -40,20 +39,19 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       tileLights: () => rt.blendState.lighting?.tileLights,
       proxy: () => rt.blendState.lighting?.proxy,
       surfaceCache: () => rt.blendState.lighting?.surfaceCache,
+      physical: () => rt.vis.physicalTable.view,
     }),
   )
 }
 
-/** The representative paged and fallback groups cover the resources shared by every item. Also
- *  publishes the image's `lighting` on `blendState`, which the live entries and the water pass
- *  read: the fallback pass calls it without, and names no lighting. */
-export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLighting) {
-  const { gpu, vis, blendState } = rt,
+/** The representative paged group covers the resources shared by every item. Also publishes the
+ *  image's `lighting` on `blendState`, which the live entries and the water pass read. */
+export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting: BlendLighting) {
+  const { vis, blendState } = rt,
     identity = blendState.identity
   blendState.lighting = lighting
   identity.entries[0] ??= blendEntries(rt)
-  identity.entries[1] ??= fallbackBindEntries(rt)
-  if (!identity.entriesMoved(vis.blendBindGroupLayout, gpu.bindGroupLayout)) return
+  if (!identity.entriesMoved(vis.blendBindGroupLayout)) return
   blendState.pagedGroup = undefined
   for (const item of blendState.blendGpu) item.group = undefined
 }

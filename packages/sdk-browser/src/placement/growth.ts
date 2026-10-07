@@ -3,9 +3,9 @@
  *
  * A session holds each resource's instance buffer at a capacity. When its owner needs more rows,
  * it does not open the session again: once the engine said it takes the growth
- * (`BackendSceneUpdates.growsInPlace`), it replaces the buffer `from` by a larger one `to` whose
+ * (`EngineSceneUpdates.growsInPlace`), it replaces the buffer `from` by a larger one `to` whose
  * first rows are `from`'s, the rows past them parked, and hands both to the engine
- * (`BackendSceneUpdates.growPlacements`). The engine then
+ * (`EngineSceneUpdates.growPlacements`). The engine then
  *   1. rebinds every root, page and copy that read a row of `from` onto the same row of `to`;
  *   2. appends one root per new row, cloned from a root of the same buffer: its pages name the
  *      same clusters, geometry and surface, only the world and the per-placement marks are its own;
@@ -47,7 +47,7 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
  * the same row of `to`, and one item per new row is `clone`-d from the first of them, returned
  * with it. `items` itself is not extended.
  */
-export function growPlaced<T extends { readonly placement?: PlacementOf }>(
+function growPlaced<T extends { readonly placement?: PlacementOf }>(
   items: readonly T[],
   from: PlacementRows,
   to: PlacementRows,

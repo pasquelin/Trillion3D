@@ -82,23 +82,16 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
 const nextFrame = () => new Promise<number>((done) => requestAnimationFrame(done))
 
 /** Builds the scene, waits for every body to be simulated, then measures `frames` frames. */
-export async function measureFluids({
-  sdkUrl,
-  renderer,
-  settings,
-  captureFile,
-  scene,
-}: FluidsPayload) {
+export async function measureFluids({ sdkUrl, settings, captureFile, scene }: FluidsPayload) {
   const { width, height, warmup, frames, temporalAntialiasing } = settings
   const sdk = (await import(sdkUrl)) as Sdk
   const canvas = document.createElement('canvas')
   canvas.style.cssText = `display:block;width:${width}px;height:${height}px`
   document.body.append(canvas)
-  // A lost context is published where the bench rereads it (`withGpuIncidents`).
+  // GPU incidents are published where the bench rereads them (`withGpuIncidents`).
   const lost: string[] = (globalThis.gpuIncidents = [])
-  canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'))
   // The world leads its own loop, as every physics example does.
-  const world = sdk.createWorld(canvas, { renderer, physics: true, temporalAntialiasing })
+  const world = sdk.createWorld(canvas, { physics: true, temporalAntialiasing })
   try {
     await world.ready
     world.scene.background = sdk.math.color('#9cc3d9')

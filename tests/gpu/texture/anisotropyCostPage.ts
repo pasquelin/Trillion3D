@@ -4,7 +4,6 @@
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU
 // globals.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import { batisseur, engine, release } from '../kit/sharedSceneProof.ts'
 import { median } from '../../../scripts/median.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -66,7 +65,7 @@ async function measure(
   builder.source.add(floor)
   builder.add(floor, 'exact-clusters', HALF)
   const scene = builder.fini()
-  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, () => {}, {
+  const { backend, canvas } = engine(scene, device, () => {}, {
     viewport: size,
     stageProfile: true,
   })
@@ -81,8 +80,8 @@ async function measure(
       camera.lookAt(0, 0.7, 0)
       camera.updateMatrixWorld(true)
       backend.render(camera)
-      ;(backend as { cpuFrameEnd?: () => void }).cpuFrameEnd?.()
-      await backend.flush!()
+      backend.cpuFrameEnd()
+      await backend.flush()
       const metrics = backend.metrics() as {
         gpuFrameMs?: number | null
         gpuPassMs?: { frame: number; totalMs: number | null } | null

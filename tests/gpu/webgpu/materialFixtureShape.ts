@@ -20,11 +20,10 @@ export const SUN: SceneLight = {
   castsShadow: false,
 }
 
-/** A renderer that draws a fixture: the witness renderer, the engine on WebGPU, the engine on
- *  WebGL2 (the shipping autonomous pages backend, whose copies the engine's program draws, #120). */
-export type Renderer = 'witness' | 'webgpu' | 'webgl2'
+/** A renderer that draws a fixture: the witness renderer, or the engine. */
+export type Renderer = 'witness' | 'webgpu'
 
-/** The pair a fixture is read on unless it names another: the engine against the witness. */
+/** The pair every fixture is read on: the engine against the witness. */
 export const WITNESS_PAIR: readonly [Renderer, Renderer] = ['witness', 'webgpu']
 
 export interface Fixture {
@@ -39,8 +38,6 @@ export interface Fixture {
   tilt?: number
   behind?: number
   tangents?: boolean
-  /** The reference then the renderer read against it, `WITNESS_PAIR` when absent. */
-  pair?: readonly [Renderer, Renderer]
   /** Measured against its ground truth (#443, `groundTruth.ts`): the pixels over one level the
    *  engine may show there beyond the witness's — CONTRIBUTING's 0 px, 4 on a masked cut-out —,
    *  `null` when both gaps are only reported. */

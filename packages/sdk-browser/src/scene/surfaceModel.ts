@@ -42,7 +42,7 @@ export const EMISSIVE_AO_SURFACE_FLAG = 16
 /** The forward item's model lane has one free bit after the three model bits. */
 export const FOG_FREE_MODEL_BIT = 8
 
-/** The one rule for debug views on both paths: a normal or depth surface is output untouched —
+/** The one rule for debug views: a normal or depth surface is output untouched —
  *  no exposure, no tone mapping —: a debug view shows the raw value, never a tone-mapped one. */
 export const shownAsIs = (model: number | undefined) =>
   model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth
@@ -69,8 +69,7 @@ export const litModel = (host: HostShadedMaterial) =>
 /**
  * Why a surface declares a map that its model never reads, or `undefined`: a
  * toon's tone ramp, a matcap's colour map, the normal map of a surface drawn unlit. The one
- * refusal the WebGL2 gate (`../host/surfaceGate.ts`) and the page record (`../page/surface.ts`)
- * share, so no path drops one from the image.
+ * refusal the page record holds (`../page/surface.ts`), so no surface drops one from the image.
  */
 export function unreadMapRefusal(host: HostShadedMaterial) {
   const named = (map: string) =>
@@ -79,11 +78,6 @@ export function unreadMapRefusal(host: HostShadedMaterial) {
   if (host.family === 'matcap' && host.map) return named('map')
   if (host.normalMap && !litModel(host)) return named('normalMap')
 }
-
-/** Whether a surface's occlusion map darkens it: a lit one does, and a plain colour one on the
- *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths. */
-export const readsOcclusion = (host: HostShadedMaterial) =>
-  litModel(host) || host.family === 'basic'
 
 /**
  * The roughness a Blinn–Phong exponent `n` reads as, `(2 / (n + 2))^¼`. The shaders square a
@@ -95,8 +89,8 @@ export const readsOcclusion = (host: HostShadedMaterial) =>
 export const shininessRoughness = (shininess: number) =>
   Math.sqrt(Math.sqrt(2 / (Math.max(0, shininess) + 2)))
 
-// The formulas of the models, written once: WGSL and GLSL spell these expressions alike, so both
-// GPU paths shade a diffuse, toon or matcap surface from the same text, never a restated copy.
+// The formulas of the models, written once: every pass shades a diffuse, toon or matcap surface
+// from the same text, never a restated copy.
 /** The diffuse lobe of a lamp's `energy`, occlusion `ao` included. */
 const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`
 /** Toon's two bands of the cosine `nl`, 0.7 and 1. */
@@ -106,7 +100,6 @@ const DIFFUSE_COSINE = 'max(nl,0.0)'
 /** The matcap coordinate of the view-space normal `n`. */
 const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495'
 export const NORMAL_VIEW_COLOR_WGSL = `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`
-export const NORMAL_VIEW_COLOR_GLSL = `vec3 normalViewColor(vec3 N){return ${NORMAL_VIEW_COLOR};}`
 
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
@@ -121,16 +114,6 @@ fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
  if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
  return diffuse*${DIFFUSE_COSINE};
 }`
-
-/**
- * The same models in the WebGL2 program (`../webgl/cluster/shaders.ts`), whose `surfaceModel`
- * uniform is the surface's `SURFACE_MODEL` rank: a lamp's diffuse or toon light, and the matcap
- * coordinate of a view-space normal — the program's normals are in view space already.
- */
-export const SURFACE_MODEL_GLSL = `
-vec3 modelLight(vec3 rgb,float metal,vec3 N,vec3 L,float energy,float ao){vec3 diffuse=${MODEL_DIFFUSE};float nl=dot(N,L);
-if(surfaceModel==${SURFACE_MODEL.toon})return diffuse*${TOON_BANDS};return diffuse*${DIFFUSE_COSINE};}
-vec2 matcapUv(vec3 n){return vec2(${MATCAP_UV});}`
 
 /**
  * The unlit models in the surface pass: the view basis read off the view-projection (its first two

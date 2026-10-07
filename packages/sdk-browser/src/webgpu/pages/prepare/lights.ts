@@ -3,7 +3,7 @@ import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import { shadowPageLayout } from '../../shadow/pageGroup.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { isCancelled } from '../../../backend/common.ts'
+import { isCancelled } from '../../../engine/common.ts'
 import { prepareVsmPipelines } from '../render/vsm/vsmPlan.ts'
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
@@ -18,7 +18,7 @@ const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas'
  */
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, vis, capabilities, diag } = rt
-  if (!lights.buffer || !vis.visEnabled || !vis.visBindGroupLayout) {
+  if (!lights.buffer || !vis.visBindGroupLayout) {
     lights.shadowReason = 'visibility buffer unavailable'
     return
   }

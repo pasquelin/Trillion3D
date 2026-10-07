@@ -21,7 +21,7 @@ function heldBy(rt: Awaited<ReturnType<typeof drawnQuad>>['rt']) {
 }
 
 test('no reader keeps the main view once another is drawn, and switching back finds it whole', async () => {
-  const { rt } = await drawnQuad(true)
+  const { rt } = await drawnQuad()
   const main = heldBy(rt),
     shown = [...rt.run.shown],
     eye = [...rt.run.gate.cam.eye],
@@ -55,8 +55,10 @@ test('no reader keeps the main view once another is drawn, and switching back fi
   assert.equal(rt.gpu.temporal, temporal, 'its targets fit: history kept')
 })
 
-test('a Hi-Z pyramid the device refuses another view is dropped, the session kept', async () => {
-  const { rt, gpu, events } = await drawnQuad(true)
+// The pyramid is one of a view's targets (#1483): refused, it is refused as they are, by name,
+// and Hi-Z stays the one occlusion path.
+test('a Hi-Z pyramid the device refuses another view is refused as its targets, Hi-Z kept', async () => {
+  const { rt, gpu, events } = await drawnQuad()
   const side = createWebgpuView(16, 16)
   const pop = gpu.device.popErrorScope.bind(gpu.device)
   let refused = false
@@ -67,20 +69,24 @@ test('a Hi-Z pyramid the device refuses another view is dropped, the session kep
   useWebgpuView(rt, side)
   renderWebgpuPages(rt, awayCamera())
   await flushWebgpuPages(rt)
+  assert.ok(refused)
+  const said = events.findLast((event) => event.phase === 'frame-targets-refused')
+  assert.equal(said?.context.reason, 'gpu-out-of-memory', 'the refusal is said, never silent')
+  assert.ok(
+    events.every((event) => event.context?.dropped !== 'hi-z'),
+    'Hi-Z is never dropped',
+  )
   releaseWebgpuView(rt, side)
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
-  assert.ok(refused)
-  assert.equal(rt.vis.gpuHiz, undefined)
-  const said = events.findLast((event) => event.phase === 'gpu-out-of-memory')
-  assert.equal(said?.context.dropped, 'hi-z', 'the drop is said, never silent')
+  assert.ok(rt.vis.gpuHiz, 'Hi-Z kept')
   assert.equal(rt.run.lost, false)
   renderWebgpuPages(rt, camera())
-  assert.equal(rt.gpu.targetGrant, undefined, 'frames draw again, without Hi-Z')
+  assert.equal(rt.gpu.targetGrant, undefined, 'the main view draws again, with its pyramid')
 })
 
 test('a host resize while another view is drawn lands on the main view', async () => {
-  const { rt } = await drawnQuad(false)
+  const { rt } = await drawnQuad()
   const host = rt.setup.viewport,
     side = createWebgpuView(16, 16)
   useWebgpuView(rt, side)
@@ -93,15 +99,16 @@ test('a host resize while another view is drawn lands on the main view', async (
   releaseWebgpuView(rt, side)
 })
 
-test('the row table follows the cut of the view drawn, not the one it was built on', async () => {
-  const { rt } = await drawnQuad(false)
+// The rows are a cache of what the GPU cut draws (`../row/slots.ts`): a view that draws nothing
+// keeps them, and the main view finds its own back.
+test('the drawn list follows the cut of the view drawn, the rows its cache', async () => {
+  const { rt } = await drawnQuad()
   assert.equal(rt.run.drawn.length, 2)
   const side = createWebgpuView(32, 32)
   useWebgpuView(rt, side)
   renderWebgpuPages(rt, awayCamera())
   await flushWebgpuPages(rt)
-  assert.equal(rt.run.drawn.length, 0)
-  assert.equal(rt.layout.rows.packedCount, 0, 'no row is drawn for a cut the view does not hold')
+  assert.equal(rt.run.drawn.length, 0, 'nothing is drawn for a cut the view does not hold')
   useWebgpuView(rt, rt.views.main)
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
@@ -112,7 +119,7 @@ test('the row table follows the cut of the view drawn, not the one it was built 
 test("each view keeps its own packed ranks: another view's cut never lands on the main view", async () => {
   // One record serves every placement (#1235): the lists are read by packed rank, so the packed
   // lists are the view's as much as its records are.
-  const { rt } = await drawnQuad(false)
+  const { rt } = await drawnQuad()
   const packed = () =>
     [rt.run.desiredPacked, rt.run.shownPacked, rt.run.drawnPacked].map((l) => [...l])
   const main = packed()
@@ -128,7 +135,7 @@ test("each view keeps its own packed ranks: another view's cut never lands on th
 })
 
 test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', async () => {
-  const { rt, gpu } = await drawnQuad(true)
+  const { rt, gpu } = await drawnQuad()
   const main = heldBy(rt),
     temporal = rt.gpu.temporal!,
     frame = { ...temporal.frame },

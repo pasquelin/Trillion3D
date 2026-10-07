@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 import { TILE_REQUEST_WGSL } from './requestWgsl.ts'
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts'
-import { BLEND_REQUEST_WGSL } from '../blend/requestWgsl.ts'
+import { blendRequestWgsl } from '../blend/requestWgsl.ts'
 import {
   convergeBound,
   drainsAgain,
@@ -48,7 +48,8 @@ test('a convergence image names, per pixel, the first of all its picks whose til
   )
   for (const [name, text, choices] of [
     ['shade', SHADE_REQUEST_WGSL, 'choices'],
-    ['blend', BLEND_REQUEST_WGSL, 'choices'],
+    ['blend', blendRequestWgsl(false), 'choices'],
+    ['lobed blend', blendRequestWgsl(true), 'choices'],
   ]) {
     const loop = new RegExp(
       `if\\(feedbackEvery\\(uni\\.feedback\\)\\)\\{\\n  for\\(var turn=0u;turn<${choices}\\*PICK_TURNS;turn\\+\\+\\)\\{\\n` +

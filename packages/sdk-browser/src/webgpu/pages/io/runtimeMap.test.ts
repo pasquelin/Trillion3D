@@ -7,15 +7,15 @@ import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { tileBytes } from '../../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
+import { webgpuPagesEngine } from '../pages.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
 
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
 function open(map?: ImageBitmap) {
   installGpuGlobals()
   const gpu = mockGpu(),
     copies: unknown[] = [],
-    diagnostics: BackendDiagnostic[] = []
+    diagnostics: EngineDiagnostic[] = []
   gpu.device.queue.copyExternalImageToTexture = (source, destination, size) => {
     copies.push({ source, premultipliedAlpha: destination.premultipliedAlpha, size })
   }
@@ -26,7 +26,7 @@ function open(map?: ImageBitmap) {
     texture.colorSpace = 'srgb'
     fixture.material.map = texture
   }
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     viewport: [32, 32],
@@ -35,8 +35,7 @@ function open(map?: ImageBitmap) {
   const api = createExplorerMaterialApi({
     check() {},
     ...fixture,
-    backends: [backend],
-    active: () => backend,
+    engine: backend,
   })
   return { ...gpu, fixture, backend, api, copies, diagnostics }
 }

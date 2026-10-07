@@ -14,10 +14,15 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         first_level: preview_first_level(width, height),
         baked_levels: preview_first_level(width, height),
         pixels: vec![fill; preview_pixel_bytes(width, height)],
-        layouts: [Some(Layout::Rgba), Some(Layout::TwoChannel)],
+        layouts: [
+            Some(Layout::Rgba),
+            Some(Layout::TwoChannel),
+            Some(Layout::Rgba),
+        ],
         blocks: [
             vec![fill; preview_block_bytes(width, height)],
             vec![fill.wrapping_add(1); preview_block_bytes(width, height)],
+            vec![fill.wrapping_add(2); preview_block_bytes(width, height)],
         ],
     }
 }
@@ -89,7 +94,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         offset += length;
     }
     // The block columns follow the same order, one contiguous range per entry that has a
-    // layout in the family, nothing for a lossless one, both families.
+    // layout in the family, nothing for a lossless one, every family.
     for (format, index) in TEXTURE_PREVIEW_BLOCKS.iter().enumerate() {
         let (blocks_off, blocks_len) = column(*index);
         let mut at = 0usize;

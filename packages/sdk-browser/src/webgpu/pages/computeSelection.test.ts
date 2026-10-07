@@ -1,27 +1,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from './pages.ts'
-import { collectClusterPages, selectVisiblePages } from '../../page/selection/selection.ts'
+import { webgpuPagesEngine } from './pages.ts'
+import { collectClusterPages } from '../../page/selection/selection.ts'
+import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
 import { coarseQuadScene } from './testOccluder.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import type { WebgpuPagesBackend } from './runtime.ts'
+import type { Engine } from '../../engine/types.ts'
 
-test('webgpu pages without compute keep the CPU cut, name its clusters, report gpuDriven false', async () => {
+test('webgpu pages cut on the GPU name its clusters once the readback lands', async () => {
   installGpuGlobals()
   const { device } = mockGpu({
     limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
   })
   const { fixture, backend } = quadBackend(device)
   await backend.prepare()
-  assert.equal(backend.capabilities.gpuDriven, false)
   backend.render(camera())
-  assert.deepEqual((backend as WebgpuPagesBackend).selectedPageIds().sort(), ['0', '1'])
+  await backend.flush()
+  backend.render(camera())
+  assert.deepEqual((backend as Engine).selectedPageIds().sort(), ['0', '1'])
   // By mesh, primitive and page: unique where two clusters share one index page URL.
-  assert.deepEqual((backend as WebgpuPagesBackend).selectedClusterIds().sort(), ['0/0/0', '0/0/1'])
+  assert.deepEqual((backend as Engine).selectedClusterIds().sort(), ['0/0/0', '0/0/1'])
   backend.dispose()
   fixture.geometry.dispose()
   fixture.material.dispose()
@@ -37,7 +39,7 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
     limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
   })
   const viewport: [number, number] = [960, 540]
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -46,14 +48,13 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
     maxResidentPages: 4,
     viewport,
     pixelError: 0,
-  }) as WebgpuPagesBackend
+  }) as Engine
   const cam = camera()
   const cpu = selectVisiblePages(collected.roots, engineCamera(cam), {
     pixelError: 0,
     viewport,
   })
   await backend.prepare()
-  assert.equal(backend.capabilities.gpuDriven, true)
   backend.render(cam)
   await backend.flush()
   backend.render(cam)
@@ -83,7 +84,7 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
     packed,
     limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
   })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices: allIndices,
@@ -92,7 +93,7 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
     maxResidentPages: 4,
     viewport,
     pixelError: 10,
-  }) as WebgpuPagesBackend
+  }) as Engine
   const cam = camera()
   const cpu = selectVisiblePages(collected.roots, engineCamera(cam), {
     pixelError: 10,
@@ -102,7 +103,6 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
   backend.render(cam)
   await backend.flush()
   backend.render(cam)
-  assert.equal(backend.capabilities.gpuDriven, true)
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort())
   assert.equal(backend.metrics().clusters, cpu.visible)
   assert.equal(backend.metrics().lodLevel, cpu.lodLevel)

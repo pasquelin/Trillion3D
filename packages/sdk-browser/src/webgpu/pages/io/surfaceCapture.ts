@@ -1,11 +1,12 @@
-import { wantsSubsurface, subsurfaceBytes } from '../../../scene/subsurface.ts'
+import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
 import {
   SURFACE_BYTES_PER_PIXEL,
   checkSurfaceSize,
-  createSurfaceBuffer,
+  holds,
   type SurfaceCapture,
 } from '../../../scene/surfaceBuffer.ts'
+import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { collectPendingUrls } from '../../../page/selection/selection.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
 import { viewProj } from '../helpers.ts'
@@ -24,14 +25,10 @@ function copySurfaces(
 ): SurfaceCapture {
   const { gpu, capture, diag } = rt,
     eye = rt.run.gate.cam.eye
-  if (!rt.vis.visEnabled || !gpu.surfaces || !gpu.depthTexture)
-    throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
-  const owned = createSurfaceBuffer(
-    gpuDevice,
-    options.width,
-    options.height,
-    gpu.surfaces.hasSubsurface,
-  )
+  if (!gpu.surfaces || !gpu.depthTexture) throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
+  const owned = createSurfaceBuffer(gpuDevice, options.width, options.height, {
+    subsurface: holds(gpu.surfaces, gpu.surfaces.subsurface),
+  })
   let depth: GPUTexture
   try {
     depth = gpuDevice.createTexture({
@@ -100,7 +97,7 @@ function copySurfaces(
   encoder.copyTextureToTexture(
     { texture: gpu.surfaces.subsurface },
     { texture: owned.subsurface },
-    owned.hasSubsurface ? [options.width, options.height] : [1, 1],
+    [owned.subsurface.width, owned.subsurface.height],
   )
   gpuDevice.queue.submit([encoder.finish()])
   return result
@@ -118,13 +115,12 @@ export async function captureSurfaceView(
   options.signal?.throwIfAborted()
   if (capture.capturing || capture.surfaceCapture)
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first')
-  if (run.lost || !gpuDevice || !rt.vis.visEnabled || !run.lastCamera)
-    throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
+  if (run.lost || !gpuDevice || !run.lastCamera) throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
   // The owned surfaces and depth. Other views and temporal histories stay live and are
   // charged once by the device ledger during admission, not again as owned capture bytes.
   const reserve =
     checkSurfaceSize(gpuDevice, options.width, options.height, SURFACE_BYTES_PER_PIXEL + 4) +
-    subsurfaceBytes(options.width, options.height, wantsSubsurface(rt))
+    SUBSURFACE_TARGET.bytes(options.width, options.height, wantsSubsurface(rt))
   // Capture entry: the camera comes from the host like an image's, and the engine reads it as
   // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
   // written into rather than the one the camera declares for the host's own canvas.
@@ -147,9 +143,9 @@ export async function captureSurfaceView(
       throwIfAborted()
       run.diagnostic = 'beauty'
       await renderForCapture(rt, camera, aspect)
-      await drawResidentCut(rt, gpuDevice, {
+      await drawResidentCut(rt, camera, aspect, {
         admitted: () => {
-          // Before the cover is resident a view's CPU cut publishes nothing (`../render/cpu.ts`):
+          // Before the cover is resident a view's cut publishes nothing (`../render/gpuCut.ts`):
           // the capture's own `desired` is still empty, so it awaits the cover.
           const asked = rt.services.bootstrapState.ready ? run.desired : rt.layout.gpuWanted
           const missing = collectPendingUrls(awaitedPages(asked, run.awaitedScratch), [])

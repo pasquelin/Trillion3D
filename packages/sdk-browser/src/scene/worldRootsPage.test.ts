@@ -1,42 +1,14 @@
 // #1238: a world super-root page — raw world-space `f32` vertices and `u16` local indices — is not
 // a `WGP3` page. Read at its world address from the cook's own fixture, every page becomes a decoded
-// page whose indices are widened to `u32` one-to-one, a position list in world space and no pose,
-// and it is uploaded and drawn by the WebGL2 cluster path unchanged.
+// page whose indices are widened to `u32` one-to-one, a position list in world space and no pose.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
-import { WebglClusterGeometry } from '../webgl/cluster/geometry.ts'
-import { submitRanges } from '../webgl/cluster/submit.ts'
 import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts'
 import { worldRootsPageAddress } from './worldPageServe.ts'
 
-/** A WebGL2 context that records the buffer uploads and the draws, and no-ops the rest. */
-function recordingGl() {
-  const uploads: [number, number][] = [],
-    draws: [number, number, number, number][] = [],
-    call = () => {}
-  const gl = new Proxy(
-    {
-      ARRAY_BUFFER: 34962,
-      ELEMENT_ARRAY_BUFFER: 34963,
-      FLOAT: 5126,
-      UNSIGNED_INT: 5125,
-      TRIANGLES: 4,
-      createBuffer: () => ({}),
-      createVertexArray: () => ({}),
-      bufferData: (target: number, array: ArrayBufferView) =>
-        void uploads.push([target, array.byteLength]),
-      bufferSubData: () => {},
-      drawElements: (mode: number, count: number, type: number, offset: number) =>
-        void draws.push([mode, count, type, offset]),
-    },
-    { get: (known, name: string) => (known as Record<string, unknown>)[name] ?? call },
-  )
-  return { gl: gl as unknown as WebGL2RenderingContext, uploads, draws }
-}
-
-test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit indexed (#1238)', async () => {
+test('every page of the cooked world is served in world space, its indices widened to 32 bits (#1238)', async () => {
   const { table, source } = worldRootsPageFixtureSource()
   assert.equal(table.pages.count, 4)
   for (let at = 0; at < table.pages.count; at++) {
@@ -46,31 +18,9 @@ test('every page of the cooked world is drawn by WebGL2 in world space, 32-bit i
       x = bundle // the fixture's page `bundle` is the triangle at x = bundle
     assert.deepEqual([...page.positions], [x, 0, 0, x + 1, 0, 0, x, 1, 0], `page ${bundle}`)
     assert.ok(page.indices instanceof Uint16Array, 'the page holds 16-bit local indices')
-    const geometry = await source.geometry(address)
-    assert.ok(geometry.index!.array instanceof Uint32Array, 'the draw reads UNSIGNED_INT')
-    assert.deepEqual([...geometry.index!.array], [0, 1, 2], 'widened one-to-one')
-    assert.deepEqual([...geometry.attributes.position.array], [...page.positions])
-    const box = geometry.boundingBox!
-    assert.deepEqual(
-      [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z],
-      [x, 0, 0, x + 1, 1, 0],
-      'the world-space span, no pose',
-    )
-    // The engine's own upload path: the widened index list and the world position list reach GL.
-    const { gl, uploads, draws } = recordingGl(),
-      cache = new WebglClusterGeometry(gl, { position: 0, normal: -1, uv: -1, uv1: -1, color: -1 })
-    cache.beginFrame()
-    cache.bind(geometry)
-    assert.deepEqual(
-      uploads.sort(([a], [b]) => a - b),
-      [
-        [gl.ARRAY_BUFFER, 36],
-        [gl.ELEMENT_ARRAY_BUFFER, 12],
-      ],
-      'three world-space vertices, three 32-bit indices',
-    )
-    submitRanges(gl, null, Int32Array.of(0), Int32Array.of(3), 1)
-    assert.deepEqual(draws, [[gl.TRIANGLES, 3, gl.UNSIGNED_INT, 0]], 'one triangle, 32-bit indexed')
+    // The bytes a GPU page slot holds: the same triangle, widened one-to-one to `u32` words.
+    const words = new Uint32Array((await source.read(address)).slice().buffer)
+    assert.deepEqual([...words], [0, 1, 2], 'widened one-to-one')
   }
 })
 
@@ -136,7 +86,7 @@ test('a bundle is fetched once for both WebGPU views of its page, asked apart (#
 test('a page owing its other WebGPU view holds its bundle within the pending budget (#1238)', async () => {
   const { source, reads } = worldRootsPageFixtureSource(1),
     at = (bundle: number) => worldRootsPageAddress('world-roots.bin', bundle, 0)
-  // Only `read` is asked of bundle 1 (a WebGL2 run, an evicted slot): bundle 2 owing a view next
+  // Only `read` is asked of bundle 1 (an evicted slot): bundle 2 owing a view next
   // pushes it past a budget of one, so it is let go and never held for the life of the scene.
   await source.read(at(1))
   await source.read(at(2))

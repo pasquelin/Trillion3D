@@ -2,7 +2,7 @@
 import {
   DEFAULT_PIXEL_RATIO,
   devicePixels,
-} from '../../../packages/sdk-browser/src/backend/common.ts'
+} from '../../../packages/sdk-browser/src/engine/common.ts'
 import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts'
 import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts'
@@ -61,7 +61,7 @@ const resRow = await measure({
 
 const resPixels = await measure({
   name: 'device pixels from logical size',
-  fichier: 'packages/sdk-browser/src/backend/common.ts',
+  fichier: 'packages/sdk-browser/src/engine/common.ts',
   cas: single('2 000 sizes and ratios', tailles, tailles.length),
   calculation: parElement((t: (typeof tailles)[number]) => devicePixels(t.logical, t.ratio)),
   expected: (list) =>

@@ -18,7 +18,12 @@ export function recorder(lighting: Awaited<ReturnType<typeof createDeferredLight
   const views = [0, 1, 2, 3].map(() => ({}) as GPUTextureView),
     surface = { views: () => views } as unknown as SurfaceBuffer,
     view = {} as GPUTextureView
-  const draw = (direct: { narrow?: boolean; unshadowed?: boolean; rectless?: boolean }) => {
+  const draw = (direct: {
+    narrow?: boolean
+    unshadowed?: boolean
+    rectless?: boolean
+    lobeless?: boolean
+  }) => {
     lighting.bind(surface, view, view, true, { lights: {} as GPUBuffer, ...direct })
     if (lighting.usesContract) lighting.light(encoder, view)
     return lighting.usesContract

@@ -56,12 +56,83 @@ function placeAt(into: AimNode, from: Object3D) {
   into.position.y = elements[13]
   into.position.z = elements[14]
 }
+/** One copied light; `aim` only where the source's light aims. `casts` when the last placement
+ *  found it shown and asking to cast (`lampCastsShadow`), named by `name`. */
+type LightPair = { original: Light; copy: HostLight; aim?: Aim; name: string; casts?: boolean }
+
+/** Poses one copy as its source light stands now, shown when `enabled` and the source is; true
+ *  when the lamp started or stopped casting since the last placement. */
+function placePair(pair: LightPair, enabled: boolean) {
+  const { original, copy, aim } = pair
+  original.updateWorldMatrix(true, false)
+  placeAt(copy, original)
+  copy.quaternion.x = 0
+  copy.quaternion.y = 0
+  copy.quaternion.z = 0
+  copy.quaternion.w = 1
+  copy.scale.x = 1
+  copy.scale.y = 1
+  copy.scale.z = 1
+  copy.color.r = original.color.r
+  copy.color.g = original.color.g
+  copy.color.b = original.color.b
+  copy.intensity = original.intensity
+  const shown = shownChain(original)
+  copy.visible = enabled && shown
+  const casts = shown && lampCastsShadow(original)
+  const moved = casts !== pair.casts
+  pair.casts = casts
+  if (aim) {
+    aim.from.updateWorldMatrix(true, false)
+    placeAt(aim.to, aim.from)
+  }
+  if (original.kind === 'point' || original.kind === 'spot') {
+    copy.distance = original.distance
+    copy.decay = original.decay
+  }
+  if (original.kind === 'spot') {
+    copy.angle = original.angle
+    copy.penumbra = original.penumbra
+  }
+  return moved
+}
+
+/** Takes the copies, and their targets, out of `scene`. */
+function removeCopies(scene: HostLightScene, pairs: readonly LightPair[]) {
+  for (const { copy, aim } of pairs) {
+    scene.remove(copy)
+    if (aim) scene.remove(aim.to)
+  }
+}
+
+/** The copies of the lights `source` declares, each added to `scene` with its own target. */
+function copyPairs(
+  scene: HostLightScene,
+  source: Object3D,
+  copyOf: (light: Light) => HostLight,
+): LightPair[] {
+  const pairs: LightPair[] = []
+  for (const original of sceneLights(source)) {
+    const copy = copyOf(original)
+    let aim: Aim | undefined
+    // A light that aims aims its copy at the copy's own target, posed here: the source's own
+    // target stays in the graph its owner walks and resolves.
+    const from = aimOf(original)
+    if (from && copy.target) {
+      aim = { from, to: copy.target }
+      scene.add(aim.to)
+    }
+    scene.add(copy)
+    pairs.push({ original, copy, aim, name: original.name || `light_${pairs.length}` })
+  }
+  return pairs
+}
+
 /**
  * Copy into the render scene the lights the source graph declares, and nothing else.
  *
  * No light without a declared source: a source that carries none yields a scene without
- * a light, not an invented hemisphere and sun. Same rule as the contract path,
- * on every engine that draws a display graph.
+ * a light, not an invented hemisphere and sun.
  */
 export function installSceneLighting(
   scene: HostLightScene,
@@ -71,79 +142,28 @@ export function installSceneLighting(
    *  the engine poses; the source's own target stays in the source graph. */
   copyOf: (light: Light) => HostLight = (light) => numbered(light.clone()),
 ) {
-  /** One entry per copied light; `aim` only where the source's light aims. `casts` when the last
-   *  placement found it shown and asking to cast (`lampCastsShadow`), named by `name`. */
-  let pairs: Array<{ original: Light; copy: HostLight; aim?: Aim; name: string; casts?: boolean }> =
-    []
+  let pairs: LightPair[] = []
   // Off while another lighting contract governs: two stacked light sets light nobody's way.
   let enabled = true
-  // The shown lamps asking to cast (`ContractShadows`), a new list at each copy and each time one
+  // The shown lamps asking to cast, a new list at each copy and each time one
   // starts or stops: shown or hidden, its `castShadow` set or cleared.
   let casting: readonly string[] = []
   const recount = () => {
     casting = pairs.flatMap(({ name, casts }) => (casts ? [name] : []))
     lighting.castingChanged?.()
   }
-  /** Places the copies; true when a lamp started or stopped casting since. */
+  /** Places the copies, every one; true when a lamp started or stopped casting since. */
   const place = () => {
     let moved = false
-    for (const pair of pairs) {
-      const { original, copy, aim } = pair
-      original.updateWorldMatrix(true, false)
-      placeAt(copy, original)
-      copy.quaternion.x = 0
-      copy.quaternion.y = 0
-      copy.quaternion.z = 0
-      copy.quaternion.w = 1
-      copy.scale.x = 1
-      copy.scale.y = 1
-      copy.scale.z = 1
-      copy.color.r = original.color.r
-      copy.color.g = original.color.g
-      copy.color.b = original.color.b
-      copy.intensity = original.intensity
-      const shown = shownChain(original)
-      copy.visible = enabled && shown
-      const casts = shown && lampCastsShadow(original)
-      if (casts !== pair.casts) moved = true
-      pair.casts = casts
-      if (aim) {
-        aim.from.updateWorldMatrix(true, false)
-        placeAt(aim.to, aim.from)
-      }
-      if (original.kind === 'point' || original.kind === 'spot') {
-        copy.distance = original.distance
-        copy.decay = original.decay
-      }
-      if (original.kind === 'spot') {
-        copy.angle = original.angle
-        copy.penumbra = original.penumbra
-      }
-    }
+    for (const pair of pairs) if (placePair(pair, enabled)) moved = true
     return moved
   }
   const update = () => {
     if (place()) recount()
   }
   const refresh = () => {
-    for (const { copy, aim } of pairs) {
-      scene.remove(copy)
-      if (aim) scene.remove(aim.to)
-    }
-    pairs = []
-    for (const original of sceneLights(source)) {
-      const copy = copyOf(original)
-      let aim: Aim | undefined
-      // A light that aims aims its copy at the copy's own target, posed here: the source's own
-      // target stays in the graph its owner walks and resolves.
-      const from = aimOf(original)
-      if (from && copy.target) {
-        aim = { from, to: copy.target }
-        scene.add(aim.to)
-      }
-      scene.add(copy)
-      pairs.push({ original, copy, aim, name: original.name || `light_${pairs.length}` })
-    }
+    removeCopies(scene, pairs)
+    pairs = copyPairs(scene, source, copyOf)
     place()
     recount()
   }
@@ -173,28 +193,4 @@ export function installSceneLighting(
   }
   refresh()
   return lighting
-}
-
-/**
- * What an engine drawing a display graph publishes of its lighting: enough to refresh it, and
- * the view it renders. With no light installed, the host composites by identity rather than
- * exposure and ACES.
- *
- * `sceneLit` is a function, not a getter: engines spread this object into theirs, and a getter
- * would be read once, at construction. A light placed afterwards — the case of every contract
- * host — must relight the display chain on the next frame.
- */
-export function sceneLightingApi(
-  lighting: ReturnType<typeof installSceneLighting>,
-  /** Notified when source-graph lights change: this is a scene write. An engine that
-   *  rewalks the scene every frame has nothing to do with it and says so with an empty call. */
-  sceneChanged: () => void,
-) {
-  return {
-    refreshSceneLighting: () => {
-      lighting.refresh()
-      sceneChanged()
-    },
-    sceneLit: () => lighting.lit,
-  }
 }

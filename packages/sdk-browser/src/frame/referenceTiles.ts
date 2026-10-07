@@ -1,8 +1,8 @@
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
-import { devicePixels } from '../backend/common.ts'
+import { devicePixels } from '../engine/common.ts'
+import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
 import {
-  PORTABLE_TEXTURE_SIDE,
   type ReferenceTile,
   resolveSupersampled,
   placeTile,
@@ -14,8 +14,8 @@ import {
  * pixel and axis needs a target `factor` times the display on each side; the portable
  * `maxTextureDimension2D` (8192) caps that at 2 at the boss's case. The reference is therefore
  * drawn TILE by TILE — each tile's supersampled target fits the 8192 side — and every tile is
- * box-filtered and placed in linear light into the full display image. One renderer: the tiles
- * are the engine's own capture of the same camera, its projection scaled and shifted per tile
+ * box-filtered and placed in linear light into the full display image. The tiles are the engine's
+ * own capture of the same camera, its projection scaled and shifted per tile
  * (`../camera/engineCamera.ts::ViewTile`).
  */
 
@@ -50,7 +50,7 @@ export function referenceTilePlan(
   for (;;) {
     // A tile no wider or taller than `side` output pixels has a supersampled target no larger
     // than `side · samples`, which the choice of `side` keeps within the portable side.
-    const side = Math.max(1, Math.floor(PORTABLE_TEXTURE_SIDE / samples))
+    const side = Math.max(1, Math.floor(GUARANTEED_SIDE / samples))
     cols = Math.max(1, Math.ceil(outW / side))
     rows = Math.max(1, Math.ceil(outH / side))
     if (cols * rows <= maxTiles || samples === 1) break

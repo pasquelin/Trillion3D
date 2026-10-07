@@ -136,8 +136,7 @@ function fillPlacement(host: HostTexture, placed: Float64Array) {
  * or image read, the matrix left to the follow —, so what reads it at prepare (`tileCatalogue`)
  * or on the CPU (`../visibility/math.ts`, `../visibility/raster.ts`) reads the host's image. The
  * record ALIASES the host's UV matrix (`transform`). A host that disposes of a texture it still
- * draws keeps its record: the picture is sent again at the next follow, as the host's own
- * renderer uploads it again at its next use.
+ * draws keeps its record: the picture is sent again at the next follow.
  */
 export function importHostTexture(host: HostTexture): Texture {
   const held = imported.get(host)

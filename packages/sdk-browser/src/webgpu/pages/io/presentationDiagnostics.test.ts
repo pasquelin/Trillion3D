@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { presentationColorDiagnostic } from '../../../measurement/measurement.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
@@ -19,29 +19,16 @@ test('the GPU readback diagnostic distinguishes the requested clear color from t
   })
 })
 
-test('the presentation diagnostic exposes the final capture pixel separately from the WebGPU target', () => {
-  const pixels = new Uint8Array([42, 48, 60, 255, 1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255])
+test('the presentation diagnostic reads a capture bottom row first, from the WebGPU colour target', () => {
+  // A capture's first row is the image's bottom one: the top-left pixel is the third.
+  const pixels = new Uint8Array([1, 2, 3, 255, 7, 8, 9, 255, 42, 48, 60, 255, 4, 5, 6, 255])
   assert.deepEqual(presentationColorDiagnostic(pixels, 2, 2, 0x2a303c), {
     clearColor: '#2a303c',
     topLeft: '#2a303c',
     center: '#070809',
     matchesClearAtTopLeft: true,
-    surface: 'webgl-capture-target',
+    surface: 'webgpu-color-target',
   })
-})
-
-test('the presentation diagnostic identifies a pixel read from the visible WebGL framebuffer', () => {
-  const pixels = new Uint8Array([42, 48, 60, 255])
-  assert.deepEqual(
-    presentationColorDiagnostic(pixels, 1, 1, 0x2a303c, 'default-webgl-framebuffer'),
-    {
-      clearColor: '#2a303c',
-      topLeft: '#2a303c',
-      center: '#2a303c',
-      matchesClearAtTopLeft: true,
-      surface: 'default-webgl-framebuffer',
-    },
-  )
 })
 
 test('WebGPU forwards its internal color diagnostics to the host report sink, never to the console', async (t) => {
@@ -83,7 +70,7 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     fixture.associations,
   )
   const { device } = mockGpu({ packed: packDagSelection(collected.roots) })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

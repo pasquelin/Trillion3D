@@ -1,5 +1,5 @@
 // The SDK's source entries are public; the GPU proofs run on the bench, outside pnpm test.
-// `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
+// `pageWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
 // integration lane load them by URL, never by import; so do `physicsWorker.ts`, the physics session,
 // and `animationWorker.ts`, the animation samples taken ahead.
 import type { KnipConfig } from 'knip'
@@ -12,7 +12,7 @@ const config: KnipConfig = {
       entry: [
         'site/app/main.tsx',
         'site/examples/kit/index.ts',
-        'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
+        'packages/sdk-browser/src/page/work/pageWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
         'packages/sdk-browser/src/math/animationWorker.ts',

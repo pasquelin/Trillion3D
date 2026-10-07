@@ -1,4 +1,4 @@
-/** Label of each level's reduction render pass of a material texture's chain. */
+/** Label of the compute pass that builds a batch of material chains, counts and reductions. */
 export const TEXTURE_MIPS_PASS = 'Trillion3D texture mips'
 /** The reflection's pyramids, built each image they are read (`../reflections/conePyramid.ts`):
  *  named apart from the material textures', whose chains are built once, so a frame's passes

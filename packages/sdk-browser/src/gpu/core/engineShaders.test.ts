@@ -49,6 +49,7 @@ const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
   'webgpu/shadow/computePass.ts',
   'gpu/raster/resolve.ts',
+  'texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
   'vsm/invalidationPass.ts',
@@ -92,8 +93,10 @@ test('the list holds the text of every call that compiles a module', () => {
     if (read.length !== text.split(/create(?:Checked)?ShaderModule\(/).length - 1)
       unlisted.push(`${file}: a call not read`)
     for (const [, checked, plain] of read) {
-      // The blend module appends checked feedback-free entries to listed source texts.
-      if (file === 'webgpu/blend/pipelines.ts' && plain?.trim() === 'code') {
+      // The blend module appends checked feedback-free entries to listed source texts, in its
+      // own helper (`blendModuleCode`).
+      const helper = /^blendModuleCode\(/.test(plain?.trim() ?? '')
+      if (file === 'webgpu/blend/pipelines.ts' && helper) {
         assert.match(text, /let code\s*=\s*blendShader\(/)
         assert.match(text, /code = feedbackFreeEntry\(/)
         continue

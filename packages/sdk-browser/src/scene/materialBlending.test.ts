@@ -9,8 +9,6 @@ import {
   hostBlending,
   weighsByAlpha,
 } from './materialBlending.ts'
-import * as G from '../host/graph/graph.fixture.ts'
-import { clusterMaterialReason } from '../host/surfaceGate.ts'
 
 test('every engine mode maps to a host constant and back; an unnamed one is undefined', () => {
   for (const mode of BLEND_MODES) assert.equal(blendingOf(hostBlending(mode)), mode, mode)
@@ -56,23 +54,15 @@ test('each mode composes source and background by its own equation', () => {
   assert.equal(BLEND_EQUATIONS.none, undefined, 'none replaces the target')
 })
 
-// One refusal: what the admission gate names is what a draw would throw, word for word.
-test('the gate and the draws refuse a blending by the same words', () => {
-  const position = new G.BufferAttribute(new Float32Array(9), 3),
-    normal = new G.BufferAttribute(new Float32Array(9), 3)
-  const refusal = (mode: Parameters<typeof drawnBlending>[0], transmissive: boolean) => {
-    try {
-      drawnBlending(mode, transmissive)
-    } catch (error) {
-      return (error as Error).message
-    }
-  }
-  const custom = G.basicSurface({ transparent: true, blending: 5 })
-  assert.ok(clusterMaterialReason(custom, { position })!.includes(refusal(undefined, false)!))
-  const glass = G.physicalSurface({ transmission: 1, blending: hostBlending('additive') })
-  assert.ok(
-    clusterMaterialReason(glass, { position, normal }, true)!.includes(refusal('additive', true)!),
+// One refusal: a mode no path draws is thrown by name, never drawn as normal.
+test('the draws refuse an unnamed mode, and a transmissive one other than normal, by name', () => {
+  assert.throws(
+    () => drawnBlending(undefined, false),
+    /a surface declares a blending no path draws/,
   )
+  assert.throws(() => drawnBlending('additive', true), /transmissive material cannot use additive/)
+  assert.equal(drawnBlending('normal', true), 'normal')
+  assert.equal(drawnBlending('multiply', false), 'multiply')
 })
 
 test('only the modes that weigh the source colour by its alpha take that alpha as coverage', () => {

@@ -15,7 +15,7 @@ test("an error of a closed session's object is a warning, never the next one's l
   const first = owner(),
     second = owner()
   const closing = claimGpuDevice(device, first)
-  closing.device.createBuffer({ size: 4, usage: 0, label: 'DAG readback' })
+  closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'DAG readback' })
   const old = gpu.labels.at(-1)!
   // The next session opens while the closing one's read is still queued.
   const next = claimGpuDevice(device, second)
@@ -26,7 +26,11 @@ test("an error of a closed session's object is a warning, never the next one's l
   assert.equal(second.closed.length, 2)
   assert.equal(warned.mock.callCount(), 2, 'one line per error')
   // One of its own objects, or one no tag names: the live session's.
-  next.device.createTexture({ size: [1, 1], format: 'r8unorm', usage: 0 })
+  next.device.createTexture({
+    size: [1, 1],
+    format: 'r8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
   const mine = gpu.labels.at(-1)!
   gpu.raise(`[TextureView of Texture "${mine}"] is invalid`)
   gpu.raise('[Queue] Submit failed')
@@ -39,7 +43,7 @@ test('with no session live, the last error of a closed one waits for the next cl
   const gpu = mockGpu(),
     { device } = gpu
   const closing = claimGpuDevice(device, owner())
-  closing.device.createBuffer({ size: 4, usage: 0, label: 'readback' })
+  closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'readback' })
   const old = gpu.labels.at(-1)!
   closing.release()
   gpu.raise(`${destroyed(old)} first`)
@@ -68,7 +72,7 @@ test("running out of memory is the live sessions' loss, unless it names a closed
     second = owner()
   const closing = claimGpuDevice(device, first)
   claimGpuDevice(device, second)
-  closing.device.createBuffer({ size: 4, usage: 0, label: 'pages' })
+  closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'pages' })
   const old = gpu.labels.at(-1)!
   closing.release()
   const named = `[Buffer "${old}"] out of memory`

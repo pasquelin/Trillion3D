@@ -175,6 +175,4 @@ export function pose(state: BenchSide, image: Frame) {
   state.blendState.blendPlanes.set(image.planes)
   state.scene.itemCounts = image.counts
   state.scene.instances = image.instances
-  state.blendState.cpuItemCounts = image.counts
-  state.blendState.cpuInstances = image.instances
 }

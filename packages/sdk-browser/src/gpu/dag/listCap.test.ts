@@ -62,7 +62,7 @@ async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) 
   const pass = new Proxy({}, { get: () => () => {} })
   fake.device.createCommandEncoder = () =>
     Object.assign(encode(), { beginComputePass: () => pass }) as unknown as GPUCommandEncoder
-  const resources = await createDagResources(fake.device, dag, true, null, cap)
+  const resources = await createDagResources(fake.device, dag, null, cap)
   assert.ok(resources)
   held = () => resources.listCap
   const selection = createDagRuntime(resources)
@@ -105,8 +105,13 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
 })
 
 test('a list the device cannot hold stays truncated, for the host to fall back', async () => {
+  // A binding this small splits every table in parts: the device binds them all, as the cut's
+  // refusal asks of a real one (`deviceRefusal.ts`).
   const { resources, frame } = await cut(4, {
-    limits: { maxStorageBufferBindingSize: stagedOutputBytes(4) },
+    limits: {
+      maxStorageBufferBindingSize: stagedOutputBytes(4),
+      maxStorageBuffersPerShaderStage: 64,
+    },
   })
   const drawn = Array.from({ length: 10 }, (_, page) => page)
   assert.equal((await frame(drawn))?.result.truncated, true)

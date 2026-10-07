@@ -11,6 +11,7 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts'
 import { LAST_USE_WINDOW as W } from './lastUseWindow.ts'
+import { readbackOf } from './sets.fixture.ts'
 
 /** A binary DAG of `leaves` leaves, heap-ordered: page `i` depends on page `(i - 1) >> 1`. All
  *  resident. Returns an image driver and the work counter every cache and DAG read feeds. */
@@ -32,7 +33,7 @@ function tree(leaves: number, room: number) {
       { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
       packed,
     ),
-    admission = createRequestAdmission(sets, tracking, closure)
+    admission = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
   const cache = lruCache(packed.length)
   for (const page of packed) void cache.load(page.url)
   for (const name of ['get', 'pin', 'unpin', 'touch'] as const) {
@@ -60,7 +61,7 @@ function tree(leaves: number, room: number) {
     // Past the budget the image draws what the pool holds, not the cut: the queue alone keeps it.
     drawn.apply(room < span ? [] : ids)
     sets.applyDrawn(drawn)
-    admission.held(room)
+    admission(room, { cuts: [readbackOf(ids, packed, tracking.topLevel)], first: null })
     // Every key the pin step is handed is a record it reads.
     work.reads += sets.entering.count + sets.leaving.count
     pins(cache as never, [], frame, () => {})

@@ -7,8 +7,7 @@
 // The PROJECTION, for its part, is no longer the host's: the engine composes it from the
 // declared optics, in reversed depth and infinite far plane (`depthConvention.ts`). The
 // reference therefore receives that projection, and its six planes are the engine's with the
-// last two swapped — in reversed depth, the plane that bounds near is the one forward depth
-// called far.
+// last two swapped — in reversed depth, the plane that bounds near is the reference's far plane.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
@@ -70,23 +69,20 @@ function threeReference(camera: HostCamera) {
   return { view: flat.matrixWorldInverse, viewProjection, planes, projection, eye }
 }
 
-for (const webgpu of [false, true]) {
-  test(`readCameraWorld under a hostile rig (shear, negative non-uniform scale), convention ${webgpu ? 'WebGPU' : 'WebGL'}`, () => {
-    const camera = hostileRig()
-    if (webgpu) camera.coordinateSystem = THREE.WebGPUCoordinateSystem
-    camera.updateProjectionMatrix()
-    const ref = threeReference(camera)
-    const into = readCameraWorld(createEngineCamera(), camera)
-    assertBits(into.world, camera.matrixWorld.elements)
-    // The engine projection no longer depends on the host convention: the same sixteen numbers
-    // for both loop passes.
-    assertBits(into.projection, ref.projection)
-    assertBits(into.view, ref.view.elements)
-    assertBits(into.viewProjection, ref.viewProjection.elements)
-    assertBits(into.planes, ref.planes)
-    assertBits(into.eye, ref.eye.toArray())
-  })
-}
+test('readCameraWorld under a hostile rig (shear, negative non-uniform scale), WebGPU convention', () => {
+  const camera = hostileRig()
+  camera.coordinateSystem = THREE.WebGPUCoordinateSystem
+  camera.updateProjectionMatrix()
+  const ref = threeReference(camera)
+  const into = readCameraWorld(createEngineCamera(), camera)
+  assertBits(into.world, camera.matrixWorld.elements)
+  // The engine projection is its own, composed from the declared optics, never the host's.
+  assertBits(into.projection, ref.projection)
+  assertBits(into.view, ref.view.elements)
+  assertBits(into.viewProjection, ref.viewProjection.elements)
+  assertBits(into.planes, ref.planes)
+  assertBits(into.eye, ref.eye.toArray())
+})
 
 test('readCameraWorld: idempotent, and the second read allocates no new buffer', () => {
   const camera = hostileRig()

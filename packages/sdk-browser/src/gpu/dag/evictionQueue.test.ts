@@ -16,7 +16,7 @@ async function residentCut(leaves = 256) {
   const scene = requestScene(4, leaves, 4),
     { packed } = scene
   const gpu = mockGpu({ packed })
-  const selection = await createGpuDagSelection(gpu.device, packed, { residentCut: true })
+  const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   selection.updateResidency(new Uint32Array(packed.pageCount).fill(1))
   const keys = new Uint32Array(packed.pageCones.buffer).subarray(L.keyBase(packed.pageCount))

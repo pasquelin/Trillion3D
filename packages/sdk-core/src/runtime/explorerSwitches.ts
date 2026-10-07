@@ -6,8 +6,6 @@ const EXPLORER_SWITCHES = {
   lodAdaptive: false,
   bounce: false,
   importedLights: true,
-  /** Static WebGL2 pages without the source geometry buffers. */
-  autonomousGeometry: false,
   stageProfile: false,
 } as const
 

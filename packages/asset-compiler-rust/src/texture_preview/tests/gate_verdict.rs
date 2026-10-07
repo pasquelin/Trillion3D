@@ -39,7 +39,7 @@ fn a_kept_verdict_is_read_back_and_a_verdict_without_its_files_is_not() {
     )
     .unwrap();
     let (previews, report) = stage_scene(&dir, &scene);
-    assert_eq!(previews[0].layouts, [None; 2]);
+    assert_eq!(previews[0].layouts, [None; 3]);
     assert_eq!(report["lossless"][0]["maxDelta"], json!(200));
     // A kept verdict whose level file is gone: cooked anew, the file and the tail are back.
     fs::write(
@@ -50,7 +50,7 @@ fn a_kept_verdict_is_read_back_and_a_verdict_without_its_files_is_not() {
     fs::remove_file(native.join(level_path(&previews[0].sha256, AtlasKind::Data, 0, "bc5")))
         .unwrap();
     let (previews, _) = stage_scene(&dir, &scene);
-    assert_eq!(previews[0].layouts, [Some(Layout::TwoChannel), None]);
+    assert_eq!(previews[0].layouts, [Some(Layout::TwoChannel), None, None]);
     assert!(native
         .join(level_path(&previews[0].sha256, AtlasKind::Data, 0, "bc5"))
         .exists());

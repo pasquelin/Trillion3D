@@ -98,7 +98,7 @@ fn the_material_table_carries_every_field_the_engine_reads() {
             "magFilter":"nearest","minFilter":"linear-mip-nearest"})
     );
     assert_eq!(
-        tables["documents"]["source.gltf"]["meshes"][0]["primitives"][0]["material"],
+        tables["document"]["meshes"][0]["primitives"][0]["material"],
         json!(0)
     );
     // What the host builds the surface as: physical, since the transmission volume is declared;

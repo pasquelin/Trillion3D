@@ -1,30 +1,26 @@
-import type { BackendContext, RenderBackend } from '../../backend/types.ts'
-import {
-  chooseBackends,
-  loadsOwnVertices,
-  resolveTextureSource,
-} from '../../backend/defaultBackends.ts'
-import { loadHostVertices, meshes } from '../../scene/meshes.ts'
+import type { EngineContext, Engine } from '../../engine/types.ts'
+import { resolveTextureSource } from '../../engine/textureSource.ts'
 import { configureExplorer } from './capabilities.ts'
-import { directWebgpu } from './interactiveOptions.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
-import { prepareExplorerBackends } from './backends.ts'
+import { prepareExplorerEngine } from './engine.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
 import { createExplorerPageSources } from './pageSources.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
-import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts'
+import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
-import { loadRenderers } from '../../backend/engines.ts'
+import { loadEngine, webgpuEngine } from '../../engine/factory.ts'
 import type { ExplorerSession } from './session.ts'
-import type { WebglSurface } from '../../webgl/core/surface.ts'
 import type { HostCamera } from '../../camera/world.ts'
 
+/** What a session owns as it opens, released by whoever ends it: by its failure path before the
+ *  runtime exists (`explorer.ts`), by the runtime's disposal after. */
 export type ExplorerResources = {
-  source?: BackendContext['source']
-  webglSurface?: WebglSurface
+  source?: EngineContext['source']
   gpuDevice?: GPUDevice
+  /** The session's one engine, once prepared. */
+  engine?: Engine
 }
 
 /** The scene a loader builds: what `loadPreparedScene` returns. */
@@ -51,37 +47,21 @@ type Inputs = {
   manifestUrl: string
   metadataUrl: string
   base: string
-  backends: RenderBackend[]
   resources: ExplorerResources
   progress: (phase: string, completed: number, total: number, message: string) => void
 }
 
-export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session
-  const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs
-  // The optional families the first frame draws with load beside the scene (#1353).
-  const families = sessionFamilies(options, diagnosticChannel.enabled)
-  // The machine is read before the scene: which engine path renders decides which file the
-  // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
-  const { capabilities, gpuDevice } = await probeExplorerCapabilities(session)
-  resources.gpuDevice = gpuDevice
-  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer)
-  const renderers = loadRenderers(choice.factories) // its own chunk (#1353), beside the scene
-  const autonomous = choice.autonomous
-  // What the loader opens follows what will draw: a path that samples the host images needs
-  // them read, however the host set `textureSource`.
-  const textureSource = resolveTextureSource(options.textureSource, choice.factories)
-  diagnose('backend-choice', 'Backend chosen for this session', {
+/** The scene the session draws: the one handed in, or the one the cache prepared, its world tops
+ *  said. `textureSource` is the loader's, resolved against what the platform can read. */
+async function sessionScene(session: ExplorerSession, inputs: Inputs) {
+  const { options, metadata, scope, signal, diagnose } = session
+  const { base, resources, progress } = inputs
+  const textureSource = resolveTextureSource(options.textureSource)
+  diagnose('texture-source', 'Texture source of this session', {
     kind: 'configuration',
     scope,
-    origin: choice.origin,
-    reason: choice.reason,
-    renderer: choice.renderer,
-    autonomous,
-    webgpuDevice: !!gpuDevice,
     textureSource,
   })
-  const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf'
   progress(
     'scene',
     0,
@@ -93,17 +73,15 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     (await loadPreparedScene(
       { ...options, textureSource },
       metadata,
-      sceneFile,
       base,
       scope,
-      autonomous,
       signal,
       diagnose,
       (source) => {
         resources.source = source
       },
     ))
-  const source = (resources.source = loadedScene.source)
+  resources.source = loadedScene.source
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {
@@ -113,88 +91,88 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       pinnedBytes: pinned.bytes,
       heldBytes: bytes() - pinned.bytes,
     })
-  if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source))
+  return loadedScene
+}
+
+/** The pages and cells the first camera reaches, placed before the engine reads their rows: the
+ *  first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands one
+ *  in (a world), else the framing one, which sees the whole scene. */
+async function primeFirstView(
+  session: ExplorerSession,
+  scene: ExplorerScene,
+  camera: HostCamera,
+  streamer: Awaited<ReturnType<typeof createExplorerPageSources>>['streamer'],
+) {
+  const { options, scope, signal, diagnose } = session
+  if (!scene.partitions.length) return
+  const bytes = await primePartitions(
+    scene.partitions,
+    camera,
+    streamer,
+    !!options.onPartitionOutgrown,
+    signal,
+  )
+  diagnose('partition', 'Pages and cells read before the first frame', {
+    kind: 'preparation',
+    scope,
+    bytes,
+    cells: scene.partitions.map((cells) => cells.stats()),
+  })
+}
+
+export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
+  const { canvas, options, metadata, signal, diagnosticChannel } = session
+  const { manifestUrl, metadataUrl, base, resources, progress } = inputs
+  // The optional families the first frame draws with load beside the scene (#1353).
+  const families = sessionFamilies(options, diagnosticChannel.enabled)
+  // The machine is read before the scene: a browser that grants no WebGPU device is refused by
+  // name before anything is read for it.
+  const { capabilities, gpuDevice } = await probeExplorerCapabilities(session)
+  resources.gpuDevice = gpuDevice
+  // The WebGPU page raster on the device granted above: its renderer is its own chunk (#1353),
+  // loaded beside the scene. A measured page's factory (`options.engine`) carries its own code.
+  const factory = options.engine ?? webgpuEngine
+  const renderer = options.engine ? undefined : loadEngine()
+  const loadedScene = await sessionScene(session, inputs)
+  const { source } = loadedScene
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
     base,
     signal,
-    autonomous,
-    backends,
+    () => resources.engine,
     diagnosticChannel,
     progress,
     loadedScene.partitions.flatMap((cells) => cells.pages),
   )
-  const directGpu = directWebgpu(options, choice.factories, gpuDevice)
-  await configureExplorer(session, {
-    choice,
-    directGpu,
-    manifestUrl,
-    metadataUrl,
-    sceneFile,
-    base,
-    source,
-    pageSources,
-    resources,
-  })
+  await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(
-    source,
-    autonomous,
-    loadedScene.associations,
-    metadata,
-    canvas,
-    options,
-    loadedScene.framingLot,
-  )
+  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
-  // The pages and cells the first camera reaches are placed before the engines read their rows:
-  // the first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands
-  // one in (a world), else the framing one, which sees the whole scene.
-  if (loadedScene.partitions.length) {
-    const bytes = await primePartitions(
-      loadedScene.partitions,
-      cameraState.camera,
-      pageSources.streamer,
-      !!options.onPartitionOutgrown,
-      signal,
-    )
-    diagnose('partition', 'Pages and cells read before the first frame', {
-      kind: 'preparation',
-      scope,
-      bytes,
-      cells: loadedScene.partitions.map((cells) => cells.stats()),
-    })
-  }
+  await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
-  await renderers // the engines are built once their renderer has arrived
-  const { viewport, context } = await prepareExplorerBackends(session, {
-    source,
+  await renderer // the engine is built once its renderer has arrived
+  const { viewport, context, engine } = await prepareExplorerEngine(session, {
+    ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
     textureIndices: loadedScene.textureIndices,
-    pageSources,
-    gpuDevice,
-    webglContext: resources.webglSurface?.context,
-    directGpu,
-    factories: choice.factories,
-    backends,
-    base,
-    frameBudget,
     worldRoots: loadedScene.worldRoots,
   })
+  resources.engine = engine
   await families
+  const { partitions } = loadedScene
   return {
     source,
-    partitions: loadedScene.partitions,
+    partitions,
     pageSources,
     capabilities,
-    directGpu,
     viewport,
     context,
     frameBudget,
+    engine,
     ...cameraState,
   }
 }

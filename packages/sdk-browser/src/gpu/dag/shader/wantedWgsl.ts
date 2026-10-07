@@ -34,7 +34,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  setFlag(coneCache(i),select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t));
  if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- emitOne(i,replacementPixels(cluster,pixels));
+ emitOne(i,cameraPriority(cluster.flags,replacementPixels(cluster,pixels)));
  stampUse(i);
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what

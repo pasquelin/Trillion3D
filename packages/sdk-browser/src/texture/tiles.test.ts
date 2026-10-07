@@ -5,7 +5,9 @@ import {
   entryLevel,
   packEntry,
   placeOf,
+  PLACE_AXIS_BITS,
   POOL_LAYER_SIDE,
+  POOL_MAX_LAYERS,
   tailOffset,
   TILE_BORDER,
   TILE_PITCH,
@@ -14,8 +16,9 @@ import {
   TILES_PER_LAYER,
 } from './tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
+import { PORTABLE_TEXTURE_LAYERS } from '../gpu/core/textureLimits.ts'
 import { noTails } from './noTails.fixture.ts'
-import { entryPlace, placeIndex } from './tiles.fixture.ts'
+import { entryPlace, placeIndex, TILES_PER_ROW } from './tiles.fixture.ts'
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048)
@@ -48,13 +51,20 @@ test('tail levels sit side by side on block boundaries, the 1×1 block ending in
 })
 
 test('a pool slot has a unique rank, and the table entry keeps place and level', () => {
-  const place = { x: 29, y: 7, layer: 3 }
-  assert.deepEqual(placeOf(placeIndex(place)), place)
+  // A row's columns fit their field; a layer past 255 keeps its bits apart from the level's.
+  assert.ok(TILES_PER_ROW <= 1 << PLACE_AXIS_BITS)
+  for (const place of [
+    { x: 29, y: 7, layer: 3 },
+    { x: 29, y: 29, layer: 256 },
+    { x: 0, y: 29, layer: POOL_MAX_LAYERS - 1 },
+  ]) {
+    assert.deepEqual(placeOf(placeIndex(place)), place)
+    const word = packEntry(place, 15)
+    assert.equal(entryLevel(word), 15)
+    assert.deepEqual(entryPlace(word), place)
+    assert.ok(word > 0x7fffffff, 'the high bit says the entry is served')
+  }
   assert.equal(placeIndex({ x: 0, y: 0, layer: 1 }), TILES_PER_LAYER)
-  const word = packEntry(place, 9)
-  assert.equal(entryLevel(word), 9)
-  assert.deepEqual(entryPlace(word), place)
-  assert.ok(word > 0x7fffffff, 'the high bit says the entry is served')
 })
 
 const MiB = 1024 * 1024
@@ -158,4 +168,24 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
   )
   assert.deepEqual(mixed.layers.color, lanes(1, 6, 6))
   assert.equal(mixed.clamp, null)
+})
+
+// Behaviour: a lane takes the layers the device grants, never more than a table entry addresses;
+// with no device named, the layers every WebGPU device grants.
+test('a lane pool takes the array layers the device grants, within what a place addresses', () => {
+  const demand = { color: lanes(0, 1e7), data: lanes(0, 0) }
+  const drawn = (maxTextureArrayLayers: number) =>
+    texturePoolFor(
+      2 ** 50,
+      fakeDevice({ limits: { maxTextureArrayLayers } }).device,
+      demand,
+      blocks,
+      noTails,
+    )
+  assert.deepEqual([drawn(2048).layers.color.rgba, drawn(2048).clamp], [2048, 'device-limit'])
+  assert.equal(drawn(8192).layers.color.rgba, POOL_MAX_LAYERS)
+  assert.equal(
+    texturePoolFor(2 ** 50, undefined, demand, blocks, noTails).layers.color.rgba,
+    PORTABLE_TEXTURE_LAYERS,
+  )
 })

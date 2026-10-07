@@ -20,9 +20,7 @@ export interface MeasureViewOptions {
   manifestUrl: string
   backend: string | null
   engineId: string
-  autonomous: boolean
   modulesUrl: string
-  witness: boolean
   page: string
   gltfUrl: string | null
   pose: CameraPose
@@ -34,7 +32,6 @@ export interface MeasureViewOptions {
   maxPages: number | null
   geometryPoolBytes: number | null
   texturePoolBytes: number | null
-  geometryPoolCeilingBytes: number | null
   livePools: LivePools | null
   instances: number
   width: number
@@ -65,7 +62,6 @@ export interface MeasureViewOptions {
 interface MeasureViewSuccess {
   error?: undefined
   cpuFrameMs: number[]
-  cpuSelectMs: number[]
   gpuFrameMs: number[]
   /** Device idle before a sampled image, from its neighbour's last timestamp, one reading per
    *  sampled image that carries one (#1451): read beside `gpuFrameMs`, from the same run. */
@@ -73,6 +69,8 @@ interface MeasureViewSuccess {
   syncFrameMs?: number[]
   rafIntervalMs: number[]
   importedLights: { count: number; ids: string[] } | null
+  /** The lights a Three witness placed (`witness/threeMeasurePage.ts`); null on the engine's side,
+   *  which draws its own light store. */
   witnessLights: unknown
   movingNode: MovingNode
   stageProfile: StageProfile | null

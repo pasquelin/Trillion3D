@@ -78,8 +78,8 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
 // the first. The oracle rule is in tests/gpu/texture/addressingCases.ts, written
 // independently of `wrapLinear` and already checked against the real WebGPU sampler by
 // `tests/gpu/texture/texture-addressing.gpu.ts`: the low rank comes from the coordinate shifted by
-// a half-texel, and each of the two ranks undergoes the mode for itself (OpenGL ES 3.0 § 3.8.10,
-// the same rule as WebGPU). Copying it here used to make a third write of the same rule.
+// a half-texel, and each of the two ranks undergoes the mode for itself (WebGPU's sampler rule).
+// Copying it here used to make a third write of the same rule.
 const regle = linearTexels
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
 const valeur = ([i0, i1, weights]: [number, number, number]) => i0 * (1 - weights) + i1 * weights

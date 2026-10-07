@@ -2,7 +2,7 @@
 // engine pass rebuilds a page's frame from its triangle, and a surface the material table wrote for
 // vertex tangents gives that frame the factor of its other variant: the one the prepared scene's
 // own surface, written for a rebuilt frame, carries. Before, `source.gltf` and the prepared scene
-// shaded one cache's normal maps with opposite second factors (22,102 px on WebGL2).
+// shaded one cache's normal maps with opposite second factors (22,102 px apart).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { preparedMaterials } from './materials.ts'

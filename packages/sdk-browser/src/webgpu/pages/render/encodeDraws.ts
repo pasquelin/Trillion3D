@@ -1,32 +1,19 @@
 import { wantsReflections } from '../../../reflections/gpu.ts'
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { followCutRows } from '../prepare/growTables.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
-import { drawWebgpuFallback } from '../../frame/fallbackDraw.ts'
 import { viewProj } from '../helpers.ts'
 import { taaRenderMatrix } from '../../../taa/frame.ts'
-import { ensureUniform } from '../prepare/pipelineFor.ts'
-import {
-  abandonFrameEncoder,
-  openFrameEncoder,
-  createRenderEncoder,
-  encodeClear,
-  submitColorCopy,
-} from './encoder.ts'
-import { encodeBlend, prepareBlend } from './encodeBlend.ts'
+import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
 import { ensurePageTable } from './pageTable.ts'
-import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { encodeVis } from './encodeVis.ts'
-import { dropVis } from '../io/drops.ts'
 import { uploadRowCorners } from '../../visibility/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
 import { visLayerTop } from '../../visibility/uniforms.ts'
 import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts'
 import { uploadRowLods } from '../../shadow/rowLods.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { displayApart } from '../state/renderScale.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
@@ -59,10 +46,9 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
- * the marks. Both encode paths call it: the fallback draw clears the marks too, and a witness it
- * skipped — draw records, spheres, mobility, corners — would keep another occupant's words once
- * the visibility pass comes back on the same targets (#198). Each costs the rows that changed.
+ * Brings every reader of the row table's dirty marks up to date — draw records, spheres, mobility,
+ * corners —, then uploads the rows and clears the marks: a reader skipped would keep another
+ * occupant's words (#198). Each costs the rows that changed.
  */
 export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw)
@@ -71,13 +57,9 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   uploadDirtyRows(rt)
 }
 
-/** The visibility pass can encode this image. */
-const visReady = ({ vis }: WebgpuPagesRuntime) =>
-  vis.visEnabled && !!vis.visPipelineBack && !!vis.shadeClasses && !!vis.visView
-
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
 export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
-  const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
+  const { gpu, vis, run, timing, blendState, diag } = rt,
     { rows } = rt.layout,
     { viewport } = rt.setup
   run.gpuDrawCalls = 0
@@ -89,20 +71,14 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   timing.transparentPrepareMs = 0
   timing.transparentDrawMs = 0
   timing.transparentSpanUploadBytes = 0
-  // The visibility path draws without a display colour of its own (`ownsDisplayColor`); the
-  // fallback draws at the display's size, where it has one.
-  if (!gpu.bindGroupLayout || !gpu.cache || !gpu.depthView) return 0
+  if (!gpu.cache || !gpu.depthView) return 0
   // Frustum planes and view-projection are those image entry posted: the engine has one depth
   // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
   blendState.blendPlanes.set(cam.planes)
   // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
   viewProj.set(taaRenderMatrix(rt, cam))
   ensurePageTable(rt, device)
-  if (!run.gpuFrameActive) {
-    run.cameraRows = rt.services.syncRowsFromCut()
-    // The rows this cut selected size the table, the placements never do (#1232).
-    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked))
-  } else if (run.rowsSyncedFrame !== run.frame) {
+  if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging)
     run.rowsSyncedFrame = run.frame
   }
@@ -133,54 +109,24 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   }
   if (vis.deformationCompute)
     vis.deformationCode!.encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device))
-  if (visReady(rt)) {
-    try {
-      return encodeVis(rt, device, cam)
-    } catch (error) {
-      abandonFrameEncoder(rt)
-      timing.gpuTiming?.cancelUnsubmitted()
-      diag.diagnosticFailure('visibility-render-failed', error)
-      if (vis.deformation?.any) throw error
-      dropVis(rt)
-      run.gpuDrawCalls = 0
-      if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error
-    }
-  }
-  // The fallback draws into the colour target: targets drawn below the display are remade at its
-  // size first, never presenting a display colour this image did not write.
-  if (displayApart(gpu)) {
+  // The engine draws through the visibility pass alone (#1483): pipelines a prepare left missing
+  // are its failure, never another image.
+  if (!vis.visPipelineBack || !vis.shadeClasses)
+    throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE')
+  // Targets not made yet — refused, or late after a resize — draw nothing: the last image stays
+  // shown, and they are asked for. Past this, the image's encoders read them as made.
+  if (!vis.visView || !gpu.surfaces || !gpu.hdrView || !gpu.displayView) {
     abandonFrameEncoder(rt)
     void requestFrameTargets(rt, device)
     return 0
   }
-  if (!gpu.pipelineBack) return 0
-  followDirtyRows(rt, device)
-  if (!rows.packedCount) {
-    const encoder = createRenderEncoder(rt, device)
-    encodeClear(rt, encoder)
-    submitFallback(rt, device, encoder, cam, 0)
-    return run.blendSubmittedTriangles
+  try {
+    return encodeVis(rt, device, cam)
+  } catch (error) {
+    abandonFrameEncoder(rt)
+    timing.gpuTiming?.cancelUnsubmitted()
+    diag.diagnosticFailure('visibility-render-failed', error)
+    run.gpuDrawCalls = 0
+    throw error
   }
-  ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length))
-  const { encoder, vertices } = drawWebgpuFallback(rt, device)
-  submitFallback(rt, device, encoder, cam, rows.packedCount)
-  return vertices / 3 + run.blendSubmittedTriangles
-}
-
-/**
- * The end of every fallback image — blend, guides, copy — in one place: a branch that submits
- * without it would drop the guides and never record their revision, so no frame would hold again.
- */
-function submitFallback(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  cam: EngineCamera,
-  uniformBase: number,
-) {
-  const [width, height] = rt.gpu.targetSize
-  // No composition follows: the water word may not borrow the display colour (`encodeWaterPass`).
-  encodeBlend(rt, device, encoder, uniformBase, false, prepareBlend(rt, device, encoder, false))
-  if (guidesShown(rt)) encodeWebgpuGuides(rt, encoder, cam)
-  submitColorCopy(rt, device, encoder, height, width)
 }

@@ -32,16 +32,23 @@ function argumentsOf(text: string, open: number) {
 
 /** Whether the descriptor expression `argument` of the pass begun at `at` has a label: it opens
  *  with one, inline or made once (`list[i] ??= { label …`); or it is a name whose last assignment
- *  or property before the call opens with one; or it is a parameter, and every call of its
- *  function passes a labelled one. */
+ *  or property before the call opens with one, or a member whose every assignment does; or a
+ *  helper's result, every descriptor the module types opening with one; or it is a parameter, and
+ *  every call of its function passes a labelled one. */
 function labelled(file: string, text: string, argument: string, at: number): boolean {
   const expr = argument.trim().replace(/!$/, '')
   if (new RegExp(`^${LABEL_FIRST}`).test(expr)) return true
   if (/^\(\s*[\w.]+(?:\[[^\]]*\])?\s*\?\?=\s*\{\s*label\b/.test(expr)) return true
+  const opens = (from: number) => new RegExp(`^${LABEL_FIRST}`).test(text.slice(from))
+  // A descriptor a helper of the module hands back (`passes.surface(…)`): every pass descriptor
+  // the module types opens with its label.
+  if (/^[\w.]+\(/.test(expr)) {
+    const typed = [...text.matchAll(/:\s*GPU(?:Render|Compute)PassDescriptor\s*=/g)]
+    return typed.length > 0 && typed.every((m) => opens(m.index + m[0].length))
+  }
   const name = expr.split('.').pop()!
   if (!name || !/^[\w.]+$/.test(expr)) return false
   const before = text.slice(0, at)
-  const opens = (from: number) => new RegExp(`^${LABEL_FIRST}`).test(text.slice(from))
   const assigned = new RegExp(String.raw`\b${name}\b(?:\s*:[^=;{\n]*)?\s*=(?![=>])`, 'g')
   const last = [...before.matchAll(assigned)].at(-1)
   // A property of an object made once (`cull: { label … }`): written after the name's last
@@ -55,6 +62,11 @@ function labelled(file: string, text: string, argument: string, at: number): boo
   )
     return true
   if (last) return opens(last.index + last[0].length)
+  // A holder's member a helper rebuilds before the call (`z.finalPass = { label …`): every such
+  // assignment in the module opens with one.
+  const rebuilt = [...text.matchAll(new RegExp(String.raw`\.${name}\s*=(?![=>])`, 'g'))]
+  if (expr.includes('.') && rebuilt.length)
+    return rebuilt.every((m) => opens(m.index + m[0].length))
   // A parameter: the function's callers hand it over.
   const parameter = [
     ...before.matchAll(

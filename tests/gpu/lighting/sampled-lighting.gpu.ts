@@ -19,7 +19,7 @@ import {
 
 interface Run {
   held: number[] | null
-  rendered: number
+  count: number
   heldWhileShaken: number
   first: number[]
   last: number[]
@@ -60,13 +60,13 @@ test('a still image shades every light, a moving one a drawn subset that history
 
   assert.ok(result.lights > LIGHT_SETTINGS.samplesPerPixel, 'the scene must exceed the samples')
   for (const [name, run] of Object.entries({ plain, accumulated, witness })) {
-    assert.ok(run.held, `${name}: never held while still, ${run.rendered} frames rendered`)
+    assert.ok(run.held, `${name}: never held while still, ${run.count} frames rendered`)
     assert.equal(run.heldWhileShaken, 0, `${name}: a shaken image was held`)
   }
   const still = accumulated.held!
   assert.ok(
-    accumulated.rendered >= 16,
-    `with accumulation, held after ${accumulated.rendered} frames; a full cycle is expected`,
+    accumulated.count >= 16,
+    `with accumulation, held after ${accumulated.count} frames; a full cycle is expected`,
   )
   assert.deepEqual(witness.held, still, 'two identical runs differ while still')
 

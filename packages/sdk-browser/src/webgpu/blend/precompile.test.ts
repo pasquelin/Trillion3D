@@ -1,13 +1,10 @@
-// The blending modes a scene declares are compiled off the frame, at prepare, on both transparent
-// paths: the first draw in such a mode finds its pipeline and compiles nothing. What is compiled is
+// The blending modes a scene declares are compiled off the frame, at prepare: the first draw in such a mode finds its pipeline and compiles nothing. What is compiled is
 // what the draw would have compiled itself, descriptor for descriptor: the image cannot change.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { BLEND_MODES, hostBlending } from '../../scene/materialBlending.ts'
-import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { declaredBlendModes, pipelinesByMode } from './stagePipelines.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
@@ -53,23 +50,4 @@ test('a precompiled mode is drawn without a compile; a mode a draw compiled firs
   assert.equal(built.length, 3, 'no draw compiles a precompiled mode')
   await set.precompile(['additive'])
   assert.equal(built.length, 3, 'a compiled mode is never compiled again')
-})
-
-test('the fallback pass precompiles, off the frame, the very pipeline a draw would compile', async () => {
-  const lazy = fakeDevice(),
-    eager = fakeDevice()
-  const drawnLazily = (await createWebgpuPagesPipelines(lazy.device, 256)).pipelineBlend
-  const precompiled = (await createWebgpuPagesPipelines(eager.device, 256)).pipelineBlend
-  const modes = declaredBlendModes(items(BLEND_MODES.map(hostBlending)))
-  await precompiled.precompile(modes)
-  const compiledAtPrepare = eager.renderPipelines.length
-  // The fake's pipeline is its descriptor; each device builds its own module, so the descriptors
-  // are compared as data.
-  for (const mode of modes)
-    assert.equal(
-      JSON.stringify(precompiled.at(mode, 0)),
-      JSON.stringify(drawnLazily.at(mode, 0)),
-      mode,
-    )
-  assert.equal(eager.renderPipelines.length, compiledAtPrepare, 'no draw compiled a pipeline')
 })

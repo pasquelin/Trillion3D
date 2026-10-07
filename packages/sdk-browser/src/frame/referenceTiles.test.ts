@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { referenceTilePlan } from './referenceTiles.ts'
 import { createEngineCamera, writeEngineCamera } from '../camera/engineCamera.ts'
-import { PORTABLE_TEXTURE_SIDE, placeTile, REFERENCE_MAX_TILES } from './referenceTilePlacement.ts'
+import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
+import { placeTile, REFERENCE_MAX_TILES } from './referenceTilePlacement.ts'
 
 const BOSS = { width: 1728, height: 1117, pixelRatio: 2 }
 
@@ -15,8 +16,8 @@ test('the plan tiles the display, each tile’s supersampled target within the p
   // Every output pixel lies in exactly one tile, and none overflows one.
   const covered = new Uint8Array(plan.width * plan.height)
   for (const tile of plan.tiles) {
-    assert.ok(tile.width * plan.factor <= PORTABLE_TEXTURE_SIDE)
-    assert.ok(tile.height * plan.factor <= PORTABLE_TEXTURE_SIDE)
+    assert.ok(tile.width * plan.factor <= GUARANTEED_SIDE)
+    assert.ok(tile.height * plan.factor <= GUARANTEED_SIDE)
     for (let row = 0; row < tile.height; row++)
       for (let col = 0; col < tile.width; col++) {
         const cell: number = (tile.y + row) * plan.width + tile.x + col

@@ -2,13 +2,12 @@
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { frontCamera } from '../../../backend/pagesBackendScenes.fixture.ts'
+import { frontCamera } from '../../../engine/pagesEngineScenes.fixture.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
 import { createWebgpuPagesRuntime } from '../runtime.ts'
 import { prepareWebgpuBackend } from '../prepare/prepare.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { flushWebgpuPages } from '../render/flush.ts'
-import { fallbackToCpuCut } from './drops.ts'
 import { disposeWebgpuPages } from './metrics.ts'
 import { SHADOW_LIMITS } from '../testScenes.fixture.ts'
 
@@ -23,13 +22,13 @@ export const SUN: SceneLight = {
 }
 
 /** The deep quad (`../deepQuad.fixture.ts`), on a pool at its floor — the root and the coarse page
- *  its group replaces, no slot for the leaves — and tables sized for it, the CPU cut drawing at
+ *  its group replaces, no slot for the leaves — and tables sized for it, the GPU cut drawing at
  *  full detail, lit by `light` when given. The device answers out-of-memory scopes, and refuses
  *  the page table while `refusing.on`. */
 export async function coarseSession(light?: SceneLight) {
   installGpuGlobals()
   const scene = deepQuadScene()
-  const gpu = mockGpu({ compute: true, limits: SHADOW_LIMITS }),
+  const gpu = mockGpu({ limits: SHADOW_LIMITS }),
     { device } = gpu
   const sceneLights = createSceneLightStore()
   if (light) sceneLights.add(light)
@@ -66,13 +65,13 @@ export async function coarseSession(light?: SceneLight) {
   }
   try {
     await prepareWebgpuBackend(rt, device)
-    fallbackToCpuCut(rt, 'the rows follow the CPU cut')
     await draw(3)
   } catch (error) {
     dispose()
     throw error
   }
-  const drawn = () =>
-    rt.layout.rows.packedRecs.slice(0, rt.layout.rows.packedCount).map((rec) => rec!.url)
+  // What the image draws: the drawn list of its adopted readback. The row table holds more — the
+  // groups and ancestors a drawn page's readiness closes over (`../../row/rowDemand.ts`).
+  const drawn = () => rt.run.shown.map((rec) => rec.url)
   return { rt, gpu, refusing, draw, drawn, dispose }
 }

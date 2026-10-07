@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { placements } from './cutRuleBackends.fixture.ts'
-import { createHeldResidency } from './held.ts'
+import { createHeldResidency } from './held.fixture.ts'
 import { postPackedBases } from '../selection/placements.ts'
 import type { PageRec } from '../selection/types.ts'
 

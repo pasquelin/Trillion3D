@@ -2,7 +2,6 @@
 // named `tile` under a `pivot` node. The engine tells the tile apart only by its declared pass and
 // its material.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   batisseur,
   cameraFace,
@@ -47,9 +46,7 @@ export function transformScene(paged: boolean): ScenePreparee {
  *  `events`, the `setTransform` both proofs drive, and the camera facing the tile. */
 export function openPass(device: GPUDevice, paged: boolean, events: unknown[]) {
   const s = transformScene(paged)
-  const { backend, canvas } = engine(webgpuPagesBackend, s, device, (e) =>
-    events.push({ paged, ...e }),
-  )
+  const { backend, canvas } = engine(s, device, (e) => events.push({ paged, ...e }))
   if (!backend.setTransform) throw new Error('backend missing setTransform')
   return { s, backend, canvas, setTransform: backend.setTransform, camera: cameraFace() }
 }

@@ -1,7 +1,6 @@
-// #362: the WebGPU working texture of a page texture is uploaded the way the WebGL2 binder uploads
-// it (`UNPACK_FLIP_Y_WEBGL`) and three's Texture reads it: a canvas, a video frame or a turned and
-// tiled picture, `flipY` by default, lands with its last row at v = 0; a picture that says
-// `flipY: false` (a decoded glTF image, raw texels) lands as it is.
+// #362: the working texture of a page texture is uploaded the way a host texture reads it: a
+// canvas, a video frame or a turned and tiled picture, `flipY` by default, lands with its last row
+// at v = 0; a picture that says `flipY: false` (a decoded glTF image, raw texels) lands as it is.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTileScratch } from './scratch.ts'
@@ -47,7 +46,7 @@ function upload(page: Texture | HostTexture, [width, height]: [number, number]) 
   return { copies, rows }
 }
 
-test('a canvas is copied with its rows flipped, as the WebGL2 upload does', () => {
+test('a canvas is copied with its rows flipped, its last row at v = 0', () => {
   const canvas = { width: 1, height: 1 } as HTMLCanvasElement
   const { copies } = upload(texture.canvas(canvas), [1, 1])
   assert.equal(copies.length, 1)
@@ -84,19 +83,9 @@ test('a picture that says flipY false is copied as it is', () => {
   assert.equal(upload(kept, [1, 1]).copies[0].source.flipY, false)
 })
 
-test('raw texels are written as they are, or rows reversed when flipY is asked', () => {
-  // Two rows of one texel: red first, blue last.
-  const pixels = new Uint8Array([255, 0, 0, 255, 0, 0, 255, 255])
-  const kept = texture.data(pixels, 1, 2)
-  assert.deepEqual([...upload(kept, [1, 2]).rows[0]], [...pixels])
-  const flipped = texture.data(pixels, 1, 2)
-  flipped.flipY = true
-  assert.deepEqual([...upload(flipped, [1, 2]).rows[0]], [0, 0, 255, 255, 255, 0, 0, 255])
-})
-
 // #43: texels the RGBA8 working texture cannot hold as stored — three channels, one, floats, fewer
-// bytes than the size holds — are refused in the WebGL2 gate's words (`texelsReason`), never
-// written as RGBA8 to draw wrong or fail the device's validation.
+// bytes than the size holds — are refused in `texelsReason`'s words, never written as RGBA8 to
+// draw wrong or fail the device's validation.
 test('texels the RGBA8 working texture cannot hold as stored are refused by name', () => {
   const refused: [string, ...Parameters<typeof texture.data>][] = [
     ['texel format 1022 is unsupported: RGBA only', new Uint8Array(12), 2, 2, 'rgb'],
@@ -108,7 +97,7 @@ test('texels the RGBA8 working texture cannot hold as stored are refused by name
     assert.throws(() => upload(texture.data(...texels), [2, 2]), { message })
 })
 
-// A host texture that says `premultiplyAlpha`, as `UNPACK_PREMULTIPLY_ALPHA_WEBGL` uploads it.
+// A host texture that says `premultiplyAlpha` lands with its colour times its alpha.
 test('a premultiplyAlpha canvas is copied premultiplied; one that does not say so is not', () => {
   const canvas = { width: 1, height: 1 } as HTMLCanvasElement
   const host = new GraphTexture(canvas)
@@ -120,51 +109,6 @@ test('a premultiplyAlpha canvas is copied premultiplied; one that does not say s
   )
 })
 
-test('premultiplyAlpha raw texels are written colour times alpha, rows flipped too', () => {
-  // Two rows of one texel: red at half alpha first, blue opaque last.
-  const host = new GraphTexture({
-    data: new Uint8Array([255, 0, 0, 128, 0, 0, 255, 255]),
-    width: 1,
-    height: 2,
-  })
-  host.premultiplyAlpha = true
-  host.flipY = false
-  assert.deepEqual([...upload(host, [1, 2]).rows[0]], [128, 0, 0, 128, 0, 0, 255, 255])
-  host.flipY = true
-  host.version++
-  assert.deepEqual([...upload(host, [1, 2]).rows[0]], [0, 0, 255, 255, 128, 0, 0, 128])
-})
-
-// A live picture refills its working texture at every frame: the flipped rows are staged in one
-// array kept by the scratch, never a new w·h·4 array a frame.
-test('a live flipped picture refilled 60 times stages its rows in one array', () => {
-  installGpuGlobals()
-  const { device } = mockGpu()
-  const staged = new Set<Uint8Array>()
-  Object.assign(device.queue, {
-    writeTexture: (_to: unknown, data: Uint8Array) => staged.add(data),
-  })
-  const pixels = new Uint8Array([255, 0, 0, 255, 0, 0, 255, 255])
-  const page = texture.data(pixels, 1, 2)
-  page.flipY = true
-  const map = importHostTexture(hostTexture(page, true, new Map()))
-  const scratch = createTileScratch(device, {
-    map,
-    width: 1,
-    height: 2,
-    format: 'rgba8unorm',
-    errorCode: 'NONE',
-  })
-  for (let frame = 0; frame < 60; frame++) {
-    pixels[4] = frame
-    scratch.fill()
-    assert.equal(staged.size, 1, `frame ${frame}: the one staging array`)
-    const [out] = staged
-    assert.deepEqual([...out], [frame, 0, 255, 255, 255, 0, 0, 255], `frame ${frame} flipped`)
-  }
-  scratch.destroy()
-})
-
 // #42: the working texture's mips weigh their colours by alpha only for a texture every reader
 // takes for coverage, and not when the upload already premultiplied them — weighing twice would
 // darken the borders again. A colour texture an opaque or emissive reader draws stays plain.
@@ -172,7 +116,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
   installGpuGlobals()
   // One device per case: the one reduction pipeline it builds says the rule the texture took.
   const rule = (coverage: boolean, premultiplyAlpha: boolean) => {
-    const { device, renderPipelines } = mockGpu({ compute: true })
+    const { device, computePipelines } = mockGpu()
     const host = new GraphTexture({ data: new Uint8Array(8), width: 1, height: 2 })
     host.premultiplyAlpha = premultiplyAlpha
     const map = importHostTexture(host)
@@ -180,9 +124,38 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
     readers.read({ map, alphaTest: coverage ? 0.5 : 0, transparent: false } as PageSurface)
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const
     createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers }).reduce()
-    return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted)
+    return computePipelines
+      .filter(({ compute }) => compute.entryPoint === 'reduceLevel')
+      .map(({ compute }) => compute.constants?.weighted)
   }
   assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted')
   assert.deepEqual(rule(true, true), [0], 'uploaded premultiplied: plain')
   assert.deepEqual(rule(false, false), [0], 'not read as coverage: plain')
+})
+
+// A colour working texture's levels are written by a compute pass, and an sRGB format takes no
+// storage: it is `rgba8unorm` with storage, read and copied through its sRGB view, whose usage
+// names no storage binding (the device lost at prepare in Chrome otherwise).
+test('a colour working texture is stored rgba8unorm with storage, viewed in the pool format', () => {
+  installGpuGlobals()
+  const { device, textures } = mockGpu()
+  const created: GPUTextureDescriptor[] = [],
+    create = device.createTexture.bind(device)
+  device.createTexture = (descriptor) => (created.push(descriptor), create(descriptor))
+  const map = importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }))
+  const scratch = createTileScratch(device, {
+    map,
+    width: 2,
+    height: 2,
+    format: 'rgba8unorm-srgb',
+    errorCode: 'NONE',
+  })
+  assert.equal(textures.at(-1)!.format, 'rgba8unorm')
+  assert.deepEqual([...created[0].viewFormats!], ['rgba8unorm-srgb'])
+  assert.ok(created[0].usage & GPUTextureUsage.STORAGE_BINDING)
+  assert.equal(scratch.chain().format, 'rgba8unorm-srgb', 'its levels read decoded')
+  // Its sRGB reads name a usage without storage binding: one left to the texture's is refused.
+  scratch.reduce()
+  assert.throws(() => scratch.texture.createView({ format: 'rgba8unorm-srgb' }), /StorageBinding/)
+  scratch.destroy()
 })

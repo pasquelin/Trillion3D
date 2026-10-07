@@ -35,9 +35,11 @@
  *  Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column a
  *  version-8 reader lacks.
  *  Version 10 cuts the manifest into pages (`paged.ts`): a sidecar holds the columns of one page,
- *  the head's the texture previews alone. */
-export const MANIFEST_BINARY_VERSION = 10
-/** The geometry-page format a version-10 sidecar names, as the manifest's `geometryPages` declares
+ *  the head's the texture previews alone.
+ *  Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
+ *  ETC2 family, the third a device may sample; a version-10 reader would stride wrongly. */
+export const MANIFEST_BINARY_VERSION = 11
+/** The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 7
 /** The codec geometry pages are written with. */
@@ -77,6 +79,7 @@ export const COLUMN_NAMES = [
   'texturePreviewPixels',
   'texturePreviewBc7',
   'texturePreviewAstc',
+  'texturePreviewEtc2',
   'bundleDependencyCount',
   'bundleDependency',
   'pageCone',
@@ -112,6 +115,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property texturePreviewPixels - The previews' pixels.
  * @property texturePreviewBc7 - The previews' BC7 blocks.
  * @property texturePreviewAstc - The previews' ASTC blocks.
+ * @property texturePreviewEtc2 - The previews' ETC2 blocks.
  * @property bundleDependencyCount - How many bundles each bundle depends on.
  * @property bundleDependency - The bundles each bundle depends on, closed to the root cover.
  * @property pageCone - Each page's normal cone: axis, then half-angle.
@@ -143,6 +147,7 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   texturePreviewPixels: 'u8',
   texturePreviewBc7: 'u8',
   texturePreviewAstc: 'u8',
+  texturePreviewEtc2: 'u8',
   bundleDependencyCount: 'u32',
   bundleDependency: 'u32',
   pageCone: 'f64',
@@ -179,6 +184,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   texturePreviewPixels: 1,
   texturePreviewBc7: 1,
   texturePreviewAstc: 1,
+  texturePreviewEtc2: 1,
   bundleDependencyCount: 1,
   bundleDependency: 1,
   pageCone: 4,

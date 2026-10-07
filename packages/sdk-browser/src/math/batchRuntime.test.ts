@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { prepareSdkWasm } from '../page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from './wasm/sdkWasm.ts'
 import { prepareMathBatch } from './batchState.ts'
 import { createBoxTransformLot, createMultiplyLot } from './batchRuntime.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
@@ -21,7 +21,7 @@ import {
 // would cut before NaN and ±0 boxes (fifth and sixth families listed in `BOXES`).
 const N = 63
 
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../page/decode/pageCodec.wasm')))
+await prepareSdkWasm(readFileSync(join(import.meta.dirname, './wasm/kernels.wasm')))
 
 /** Batch output on forced path, copied outside shared buffer. */
 async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
@@ -29,8 +29,8 @@ async function sortie<T extends { run(): 'js' | 'wasm'; out: Float64Array }>(
   path: 'js' | 'wasm',
 ) {
   await prepareMathBatch(path)
-  const joue = lot.run()
-  assert.equal(joue, path, `path ${joue} played while ${path} is imposed`)
+  const played = lot.run()
+  assert.equal(played, path, `path ${played} played while ${path} is imposed`)
   return lot.out.slice()
 }
 

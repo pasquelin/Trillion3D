@@ -9,14 +9,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts'
 import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import { requestPriority } from '../../../packages/sdk-browser/src/gpu/dag/request.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
@@ -48,7 +47,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
     assert.ok(culling, 'the scene root carries no culling nodes')
     const bounds = cullingBounds(culling, pages)
     const cpu = selectVisiblePages(
-      worlds.map((world) => ({ world, pages, cones: false, culling: { ...culling, bounds } })),
+      worlds.map((world) => ({ world, pages, culling: { ...culling, bounds } })),
       engineCamera(camera),
       { pixelError: threshold, viewport: VIEWPORT },
     )
@@ -65,7 +64,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
   const rows = cases.map((c, k) => ({
     ...c,
     gpu: readings[k],
-    priorities: readings[k].requests.map(requestPriority),
+    priorities: readings[k].priorities,
   }))
   console.log(
     JSON.stringify({

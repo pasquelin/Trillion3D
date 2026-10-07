@@ -2,7 +2,7 @@ import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
 import type { createDagResources } from './resources.ts'
 import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
-import { differenceGroups } from './shader/differenceWgsl.ts'
+import { encodeDifference } from './encodeDifference.ts'
 
 /** The cut's resources, as it encodes them. */
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -21,9 +21,9 @@ const DAG_PASS: GPUComputePassDescriptor = { label: 'Trillion3D DAG selection' }
  * kernel that filled the list wrote in `work`. WebGPU refuses, in one dispatch, an argument
  * buffer that a group its pipeline uses binds writable, and `work` is: the arming kernel copies
  * the counts into `dispatchArgs`, which only its own group binds (`shader/armWgsl.ts`), as a
- * dispatch of the same pass. Arming used to copy outside a pass and cut it in three; a pass behind
- * an off-pass copy costs about seventeen times a dispatch in the open pass (the measurement next
- * to `hierarchyLevelSizes`, `hierarchy.ts`).
+ * dispatch of the same pass. A copy outside the pass would cut it in three, and a pass behind an
+ * off-pass copy costs about seventeen times a dispatch in the open pass (the measurement next to
+ * `hierarchyLevelSizes`, `hierarchy.ts`).
  *
  * Not that the three lists have no upper bound: `pageCount` is one for all. It is COARSE,
  * 1,959,792 for 21,955 useful on the twelve-instance bench, when a level's stage hugs its queue:
@@ -35,35 +35,11 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView,
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
   // no pass envelope reports.
   if (resources.repeat) {
-    encodeOnce(encoder, resources, resources.repeat === 'head', true)
+    encodeOnce(encoder, resources, resources.repeat === 'head', true, false)
     encodeOnce(encoder, resources, false, false, differ)
     return
   }
   encodeOnce(encoder, resources, false, true, differ)
-}
-
-/**
- * The cut's difference against the snapshot last copied, then this one kept in its place
- * (`shader/differenceWgsl.ts`): what a dispatch that copies a snapshot encodes before the copy,
- * in the cut's last pass when it cuts. Flat dispatches, bounded by the list: their
- * lengths are the GPU's, and an arming copy would cut the pass.
- */
-function encodeDifference(pass: GPUComputePassEncoder, resources: DagView) {
-  const width = groupWidth(resources.device?.limits),
-    groups = differenceGroups(resources.listCap)
-  pass.setPipeline(resources.differencePipeline)
-  pass.dispatchWorkgroups(...dispatchGrid(groups, width))
-  pass.setPipeline(resources.keepPipeline)
-  pass.dispatchWorkgroups(...dispatchGrid(groups, width))
-}
-
-/** A dispatch that copies the snapshot in hand without cutting: its difference in a pass of its
- *  own, on the bind group every range shares `out` and `work` in. */
-export function encodeDagDifference(encoder: GPUCommandEncoder, resources: DagView) {
-  const pass = encoder.beginComputePass(DAG_PASS)
-  pass.setBindGroup(0, resources.ranges[0].bindGroup)
-  encodeDifference(pass, resources)
-  pass.end()
 }
 
 function encodeOnce(
@@ -74,7 +50,6 @@ function encodeOnce(
   differ = false,
 ) {
   const {
-    residentCut,
     blockCount,
     levelSizes,
     dispatchArgs,
@@ -94,7 +69,8 @@ function encodeOnce(
   const width = groupWidth(resources.device?.limits)
   const pass = encoder.beginComputePass(DAG_PASS)
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
-  // every flag, and the prepare that follows clears the journal.
+  // every flag, and the prepare that follows clears the journal. The journal is saved on the way
+  // for the view it was before, when the uniforms name its region (`swap.ts`, `saveRegionFor`).
   if (clear) {
     arm(pass, resources)
     pass.setPipeline(clearDrawnPipeline)
@@ -135,18 +111,14 @@ function encodeOnce(
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
   // workgroup, in the same pass (`shader/snapshotWgsl.ts`).
   // Last, once every page this cut uses is stamped, the eviction queue (`shader/evictWgsl.ts`).
-  if (residentCut) {
-    pass.setPipeline(drawPrefixPipeline)
-    pass.dispatchWorkgroups(1)
-    pass.setPipeline(drawScatterPipeline)
-    pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
-  }
+  pass.setPipeline(drawPrefixPipeline)
+  pass.dispatchWorkgroups(1)
+  pass.setPipeline(drawScatterPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
-  if (residentCut) {
-    pass.setPipeline(evictPipeline)
-    pass.dispatchWorkgroups(1)
-  }
+  pass.setPipeline(evictPipeline)
+  pass.dispatchWorkgroups(1)
   if (differ) encodeDifference(pass, resources)
   pass.end()
 }

@@ -27,7 +27,6 @@ export function runName(id: string, locale: Locale) {
 }
 const ENGINE_NAMES: Record<string, string> = {
   'webgpu-page-raster': 'Trillion3D · WebGPU',
-  'exact-cluster-pages': 'SDK · reference',
   'three-nu': 'Three.js',
   'three-lod': 'Three.js LOD',
 }

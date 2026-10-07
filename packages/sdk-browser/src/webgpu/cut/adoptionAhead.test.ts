@@ -11,7 +11,8 @@ import {
   mountCutAdopter,
   peekOnly,
 } from './adopter.fixture.ts'
-import { sameSelectionUniforms, type GpuCut } from '../../gpu/core/selection.ts'
+import { type GpuCut } from '../../gpu/core/selection.ts'
+import { sameSelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 import type { AheadView } from '../../gpu/core/aheadView.ts'
 
 const AHEAD: AheadView = { planes: new Float32Array(24).fill(1), view: new Float32Array(16) }

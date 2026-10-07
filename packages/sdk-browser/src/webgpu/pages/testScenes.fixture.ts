@@ -1,11 +1,11 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
-import { dagRoots } from '../../backend/pagesBackend.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import type { BackendContext, RenderBackend } from '../../backend/types.ts'
+import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import {
   QUAD_MANIFEST,
@@ -13,7 +13,7 @@ import {
   quadIndices,
   quadScene as quadMesh,
   triangleGeometry,
-} from '../../backend/pagesBackendScenes.fixture.ts'
+} from '../../engine/pagesEngineScenes.fixture.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 export function quadScene() {
@@ -51,11 +51,11 @@ export function quadScene() {
  * viewport, and whatever the test adds. The fixture comes back for the test to dispose.
  */
 export function quadBackend(
-  gpuDevice: BackendContext['gpuDevice'],
-  options: Partial<Omit<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
+  gpuDevice: EngineContext['gpuDevice'],
+  options: Partial<Omit<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
 ) {
   const fixture = quadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice,
     maxResidentPages: 2,
@@ -68,12 +68,12 @@ export function quadBackend(
 /** A pages backend over `scene` that reads its pages on demand: nothing resident at prepare,
  *  three resident slots, a 32 px viewport. */
 export function streamingQuadBackend(
-  scene: Pick<BackendContext, 'source' | 'metadata' | 'associations'> & {
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'associations'> & {
     indices: Map<string, Uint32Array>
   },
-  gpuDevice: BackendContext['gpuDevice'],
+  gpuDevice: EngineContext['gpuDevice'],
 ) {
-  return webgpuPagesBackend({
+  return webgpuPagesEngine({
     ...scene,
     indices: new Map(),
     readPage: async (url) => scene.indices.get(url)!,
@@ -88,8 +88,8 @@ export function streamingQuadBackend(
  * 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
  */
 export async function flushedGpuScene(
-  scene: Pick<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>,
-  options: Partial<BackendContext> = {},
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>,
+  options: Partial<EngineContext> = {},
 ) {
   const collected = collectClusterPages(
     scene.source,
@@ -99,7 +99,7 @@ export async function flushedGpuScene(
   )
   const packed = packDagSelection(collected.roots)
   const gpu = mockGpu({ packed })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -108,7 +108,7 @@ export async function flushedGpuScene(
   })
   await backend.prepare()
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
   return { ...gpu, packed, backend }
 }
 /** A device roomy enough for the shadow tests' light cuts and pools, at the spec's alignment. */
@@ -128,9 +128,16 @@ export function camera() {
   return cam
 }
 
+/** One image under the GPU cut, the engine's one cut (#1483): drawn, then flushed — the flush adopts
+ *  the readback cut under that pose, which the lists and counts read one image later. */
+export async function flushedImage(backend: Pick<Engine, 'render' | 'flush'>, cam = camera()) {
+  backend.render(cam)
+  await backend.flush()
+}
+
 /** Renders the front view: both quad clusters are drawn, two triangles in all. */
 export function assertBothQuadPagesDrawn(
-  backend: Pick<RenderBackend, 'render' | 'metrics'> & { selectedPageIds(): string[] },
+  backend: Pick<Engine, 'render' | 'metrics' | 'selectedPageIds'>,
 ) {
   backend.render(camera())
   assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])

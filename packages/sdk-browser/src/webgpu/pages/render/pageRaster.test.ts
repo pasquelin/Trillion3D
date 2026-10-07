@@ -1,13 +1,8 @@
 import test from 'node:test'
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts'
+import { MANIFEST_IDENTITY } from '../../../engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
-import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts'
-import { webgpuPagesBackend } from '../pages.ts'
-import { rasterPageRecords } from '../../../page/raster.fixture.ts'
-import type { RasterView } from '../runtime.ts'
-import { backendRasterRgba } from '../../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
+import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts'
 import {
   drawnPageIds,
   indirectDraws,
@@ -60,7 +55,6 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   )
   assert.equal(computes.includes('bin'), false)
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
-  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false)
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -105,38 +99,6 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   geoB.dispose()
   front.dispose()
   both.dispose()
-})
-
-test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => {
-  installGpuGlobals()
-  const { device } = mockGpu()
-  const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const context = {
-    source,
-    metadata,
-    indices,
-    associations,
-    maxResidentPages: 2,
-    viewport: [32, 32] as [number, number],
-  }
-  const webgl = exactPagesBackend(context)
-  const webgpu = webgpuPagesBackend({ ...context, gpuDevice: device })
-  const cam = camera()
-  webgl.render(cam)
-  await webgpu.prepare()
-  webgpu.render(cam)
-  await webgpu.flush?.()
-  webgpu.render(cam)
-  const expected = rasterPageRecords(webgl, cam, [32, 32])
-  const observed = backendRasterRgba(
-    (webgpu as unknown as { rasterView(): RasterView }).rasterView(),
-  )
-  const image = compareImages(expected, observed)
-  assert.equal(image.maxChannelError, 0)
-  webgl.dispose()
-  webgpu.dispose()
-  geometry.dispose()
-  material.dispose()
 })
 
 // Root pages stay resident outside the pool: a budget smaller than root coverage

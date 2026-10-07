@@ -5,13 +5,13 @@ import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadBackend } from '../testScenes.fixture.ts'
-import type { RenderBackend } from '../../../backend/types.ts'
+import type { Engine } from '../../../engine/types.ts'
 
 test('a backend closed while it prepares stops there, and leaves nothing on the device', async () => {
   installGpuGlobals()
   const { device, textures } = mockGpu()
   const phases: string[] = []
-  let closing: ReturnType<RenderBackend['dispose']> | undefined
+  let closing: ReturnType<Engine['dispose']> | undefined
   const { fixture, backend } = quadBackend(device, {
     onDiagnostic: (e) => phases.push(e.phase),
     // Closed once its textures are under way: their next creation aborts.
@@ -49,7 +49,7 @@ test('a backend closed during a step starts no further one', async () => {
   installGpuGlobals()
   const { device } = mockGpu()
   const steps: string[] = []
-  let closing: ReturnType<RenderBackend['dispose']> | undefined
+  let closing: ReturnType<Engine['dispose']> | undefined
   const { fixture, backend } = quadBackend(device, {
     preparationStep: (step) => {
       steps.push(step)

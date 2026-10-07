@@ -42,12 +42,11 @@ function start(
   const runtime = {
     canvas,
     options: { width, height, pixelRatio },
-    hostedControls: [],
+    ownedControls: [],
     state: { disposed: false },
     pendingFrame: async () => false,
-    landings: () => undefined,
     familiesPending: () => undefined,
-    measureFrame: () => false,
+    engine: { measureFrame: () => false, landings: () => 0 },
   }
   const invalidate = startInteractiveExplorer(
     explorer as never,

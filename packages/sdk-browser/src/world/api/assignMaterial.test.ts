@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
-import type { AlphaChange, SurfaceAssignment } from '../../placement/backendSceneUpdates.ts'
+import type { AlphaChange, SurfaceAssignment } from '../../placement/engineSceneUpdates.ts'
 
 test('a created material is worn by the drawable it is assigned to, every engine told', async () => {
   const { api, source, refreshes } = await scene()
@@ -39,7 +39,7 @@ test('a vertex-coloured drawable wears the coloured variant of a created materia
 
 test('a drawable whose meshes wear several classes is asked about the one that moves', async () => {
   const asked: AlphaChange[] = []
-  const { api, associations, source } = await scene(true, (alpha) => void asked.push(alpha))
+  const { api, associations, source } = await scene((alpha) => void asked.push(alpha))
   // The glass mesh, blended, names the floor's primitive too: an opaque material unblends it.
   associations.set(meshes(source)[5], { meshes: 0 })
   api.assignMaterial('0/0', api.createMaterial().id)

@@ -29,7 +29,10 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
     assert.equal(occurrences(shader, HASH_UNIT_WGSL), 1, 'one hash, defined once')
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
-  assert.equal(occurrences(declaredLightingWgsl(11, 26), 'sampledSliceLighting'), 0)
+  assert.equal(
+    occurrences(declaredLightingWgsl({ proxy: 11, transmittance: 26 }), 'sampledSliceLighting'),
+    0,
+  )
 })
 
 test('a moving resolve reads the cell flag, never the list, to choose the sum (#1249)', () => {
@@ -83,7 +86,10 @@ test("one loop shades the lights of a pixel in full: its cell's list or the scen
   // One call to the shading in the full loop (`sliceLighting`), one in the sampled one: no walk
   // over the scene beside them, the no-list fallback of the blend pass included.
   assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1)
-  assert.equal(occurrences(declaredLightingWgsl(11, 26), 'declaredLight('), 2)
+  assert.equal(
+    occurrences(declaredLightingWgsl({ proxy: 11, transmittance: 26 }), 'declaredLight('),
+    2,
+  )
 })
 
 test('a cell reads its list in the pool, or every light where the pool had no room (#849, #1369)', () => {

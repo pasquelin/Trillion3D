@@ -11,7 +11,7 @@ import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 const IDENTITY = { elements: IDENTITY_MATRIX4 }
 const DUMMY_BOUNDS: number[] = [0, 0, 0]
 /** An engine page record keyed by `url`. The host-side fields stay absent: the ensurer reads
- *  the engine record alone, and a fixture of the engine path carries no host library. */
+ *  the engine record alone, and a fixture of the engine path carries no witness library. */
 export const pageOf = (url: string) =>
   ({
     id: 0,
@@ -108,6 +108,7 @@ export const ensurerOptions = (
   traceEnabled: false,
   traceDiagnostic: () => {},
   lowerTiers: () => [],
+  bytesRevision: () => 0,
 })
 
 /** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */

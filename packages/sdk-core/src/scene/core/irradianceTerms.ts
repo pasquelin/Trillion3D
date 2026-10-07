@@ -7,8 +7,7 @@ export interface IrradianceTerm {
   basis: number
   /** Cosine-lobe factor `Â_l · basis`: the term's irradiance is `L_k · band · polynomial(n)`. */
   band: number
-  /** The polynomial in the components of a unit vector named `v`, as shader text valid in WGSL
-   *  and GLSL alike. */
+  /** The polynomial in the components of a unit vector named `v`, as WGSL shader text. */
   polynomial: (v: string) => string
 }
 

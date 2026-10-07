@@ -3,8 +3,10 @@ import type { Texture } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { slotSampled } from '../tile/samplingHeaders.ts'
 import { materialClassKey } from '../../visibility/shader/materialClass.ts'
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { MODEL_SHIFT } from '../../scene/surfaceModel.ts'
-import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV } from '../../cluster/format.ts'
+import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../cluster/format.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_LIT,
@@ -33,6 +35,9 @@ export type GeometryBlock = {
   /** Vertex colours: the page's `COLOR_0`, or the tail of the source UV buffer
    *  (`../core/vertexColors.ts`). */
   hasColor: boolean
+  /** A second UV set: the page's `TEXCOORD_1`, or the tail of the normal atlas the float block is
+   *  read through (`../core/geometryPoolLayout.ts`), which the physical maps on that set read. */
+  hasUv1?: boolean
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
   quantized?: boolean
@@ -62,6 +67,7 @@ export function rowGeometry(
   into.hasNormal = (page.flags & FLAG_NORMAL) !== 0
   into.hasTangent = false
   into.hasColor = (page.flags & FLAG_COLOR) !== 0
+  into.hasUv1 = (page.flags & FLAG_UV1) !== 0
   into.quantized = true
   return into
 }
@@ -74,6 +80,7 @@ export const emptyGeometryBlock = (): GeometryBlock => ({
   hasNormal: false,
   hasTangent: false,
   hasColor: false,
+  hasUv1: false,
   quantized: false,
 })
 /** An atlas as a material reads it: its page table, whose headers say which slots take their
@@ -93,6 +100,21 @@ export type MaterialLayers = {
 /** A texture's slot in an atlas table; 0, the fill texel, for none or one the atlas lacks. */
 export const layerSlot = (layers: ReadonlyMap<Texture, number>, texture?: Texture) =>
   texture ? (layers.get(texture) ?? 0) : 0
+
+/** `FLAG_SAMPLED` when one of the anisotropic and clear-coat maps of a surface that carries a lobe
+ *  takes its filter rule: what an opaque row and a blend item add to their own maps' flag. */
+export function physicalSampledFlag(mat: VisMaterial, { dataLayer, textures }: MaterialLayers) {
+  const [a, c, r, n] = PHYSICAL_MAP_FIELDS
+  return sampledFlag(
+    textures,
+    0,
+    0,
+    layerSlot(dataLayer, mat[a]),
+    layerSlot(dataLayer, mat[c]),
+    layerSlot(dataLayer, mat[r]),
+    layerSlot(dataLayer, mat[n]),
+  )
+}
 
 /** `FLAG_SAMPLED` when one of a material's maps, by its atlas slots, takes its filter rule: the
  *  flag that compiles or skips the filtered read, per page and per transparent item. */
@@ -150,7 +172,10 @@ export function rowMaterial(
   if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR
   flags |= (mat.model ?? 0) << MODEL_SHIFT
   flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface)
-  const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal })
+  // The anisotropy and coat maps read through the data atlas as the others do (`physicalWgsl.ts`).
+  const physical = hasPhysicalLobes(mat)
+  if (physical) flags |= physicalSampledFlag(mat, { mapLayer, dataLayer, textures })
+  const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal, physical })
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE
   if (geo?.dynamic) flags |= FLAG_DYNAMIC

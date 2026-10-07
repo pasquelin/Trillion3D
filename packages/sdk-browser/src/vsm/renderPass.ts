@@ -651,7 +651,9 @@ function encodeVsmChunkCull(
   pass.dispatchWorkgroups(1)
 }
 
-/** Chunk `c`'s raster: one drawIndirect of its pairs into the page-sized dummy `target`. */
+/** Chunk `c`'s raster: one drawIndirect of its pairs into the page-sized dummy `target`. Encoded
+ *  directly: each chunk is its own pass between its compute passes, and a bundle of its four
+ *  commands would cost a key and `executeBundles` for the same four backend commands. */
 function encodeVsmChunkRaster(
   encoder: GPUCommandEncoder,
   label: string,

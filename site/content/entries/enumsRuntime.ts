@@ -27,7 +27,7 @@ policy.trip('device-lost', now); // straight to the safe path`,
   },
   {
     id: 'GpuTimingMethod',
-    valueNames: ["'timestamp-query'", "'EXT_disjoint_timer_query_webgl2'"],
+    valueNames: ["'timestamp-query'"],
     example: `const frame = metric.frame(world);
 console.log(frame.gpuFrameMs); // null when nothing measured it`,
   },

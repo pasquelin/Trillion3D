@@ -1,5 +1,5 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts'
-import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
+import { poolLayerBytes, poolLayerLimit, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import {
   laneCounts,
   POOL_LANES,
@@ -52,9 +52,10 @@ const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(
  * bytes its textures would take resident, a block texel costing a quarter of an RGBA8 one, and
  * never more layers than its tiles need, what a capped lane leaves going to the others (`scene`
  * when every lane is served under the budget). A lane no texture takes has no layer. A budget
- * under the floor is raised to it, by name (`minimum`); above the layer count the device accepts,
- * a lane is brought back to that limit, by name. Only the device limit can refuse, when even the
- * tails do not fit (`TEXTURE_POOL_DEVICE_LIMIT`).
+ * under the floor is raised to it, by name (`minimum`); above the layer count the device accepts —
+ * within what a table entry addresses (`poolLayerLimit`) —, a lane is brought back to that limit,
+ * by name. Only the device limit can refuse, when even the tails do not fit
+ * (`TEXTURE_POOL_DEVICE_LIMIT`).
  */
 export function texturePoolFor(
   budgetBytes: number,
@@ -66,7 +67,7 @@ export function texturePoolFor(
   tails: AtlasLanes,
 ): TexturePool {
   checkTexturePoolBudget(budgetBytes)
-  const limit = device?.limits?.maxTextureArrayLayers
+  const limit = poolLayerLimit(device?.limits)
   const clamps = new Set<PoolClamp>()
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane))
   const atlas = (lanes: LaneCounts, kept: LaneCounts) => {
@@ -101,7 +102,7 @@ export function texturePoolFor(
     }
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
     for (const lane of POOL_LANES)
-      if (typeof limit === 'number' && layers[lane] > limit) {
+      if (layers[lane] > limit) {
         if (limit < Math.max(1, layersFor(kept[lane])))
           throw new Error(
             `TEXTURE_POOL_DEVICE_LIMIT: ${kept[lane]} ${lane} tails, device allows ${limit} layers`,

@@ -46,7 +46,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   const { device } = fake
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
   const { encoder, calls } = recordingEncoder()
-  const rows = device.createBuffer({ size: 16, usage: 0 })
+  const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   const stats = encodeVsmRender(
     encoder,
     res,

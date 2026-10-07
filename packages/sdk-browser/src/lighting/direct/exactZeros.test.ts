@@ -1,7 +1,7 @@
 // Two terms a light's loop skips where develop added an exact zero, which leaves every sum as it
 // is: a thin transmission on a surface that has none (`declaredLightWgsl`, develop's `0 · x`, a zero
 // of either sign), and the standard lobes of a light the surface faces away from
-// (`standardLighting`, N·L = 0: finite D, Vis and F times direct = light.w · 0). The shipped loop runs
+// (`surfaceLight`, N·L = 0: finite D, Vis and F times direct = light.w · 0). The shipped loop runs
 // in f32 (`shaderRun`, `shaderRunF32.fixture.ts`) against develop's — the same text with the skip
 // undone —, in the four programs (shadow code or not, rectangle code or not) and the three surface
 // models, on random lamp sets around a random normal (half of them behind it), with no thin
@@ -47,7 +47,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
   let lit = 0
   for (const shadowed of [false, true])
     for (const rects of [false, true]) {
-      const shipped = `${directLightingWgsl(false, shadowed, rects)}${STANDARD_LIGHTING_WGSL}`
+      const shipped = `${directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true })}${STANDARD_LIGHTING_WGSL}`
       assert.match(shipped, GUARDED)
       assert.match(shipped, EARLY)
       const K = wgslConstants(shipped)

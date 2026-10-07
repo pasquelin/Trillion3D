@@ -1,17 +1,20 @@
 import { storageBufferCap } from '../../residency/pools.ts'
 import { COLOR_FLOATS, UV_FLOATS, colorFloatAt, uvBufferFloats } from './vertexColors.ts'
 import { floatAtlasFits } from './floatAtlas.ts'
+import { UV1_FLOATS } from './uv1Tail.ts'
 
 /** How each list a pool block carries is laid out: its store, its floats per vertex, and the
  *  host lists it is written from, each with its width and the value of a missing component — a
  *  normal and a tangent share seven floats a vertex in the normal atlas (`floatAtlas.ts`, #1410),
- *  a colour rides at the tail of the UVs. */
+ *  a colour rides at the tail of the UVs, a second UV set at the tail of the normal atlas
+ *  (`uv1Tail.ts`), counted back from its last texel. */
 // prettier-ignore
 export const LAYOUT = {
   position: { buffer: 'concatPos', stride: 3, parts: [['position', 3, 0]] },
   uv: { buffer: 'concatUv', stride: UV_FLOATS, parts: [['uv', UV_FLOATS, 0]] },
   color: { buffer: 'concatUv', stride: COLOR_FLOATS, parts: [['color', COLOR_FLOATS, 1]] },
   normal: { buffer: 'concatNrm', stride: 7, parts: [['normal', 3, 0], ['tangent', 4, 0]] },
+  uv1: { buffer: 'concatNrm', stride: UV1_FLOATS, parts: [['uv1', UV1_FLOATS, 0]] },
 } as const
 export type PoolList = keyof typeof LAYOUT
 export const LISTS = Object.keys(LAYOUT) as PoolList[],
@@ -21,11 +24,17 @@ export type BufferKey = (typeof BUFFERS)[number]
 export type Stores<T> = Record<BufferKey | 'concatNrm', T>
 
 /** Floats of each store of a pool of `count` vertices, the deformation block (`tail`) after the
- *  positions, the colour tail after the UVs. */
-export const poolFloats = (count: number, tail: number, coloured: boolean): Stores<number> => ({
+ *  positions, the colour tail after the UVs, the second UV set's after the normals when
+ *  `secondUv`. */
+export const poolFloats = (
+  count: number,
+  tail: number,
+  coloured: boolean,
+  secondUv = false,
+): Stores<number> => ({
   concatPos: count * 3 + tail,
   concatUv: uvBufferFloats(count, coloured),
-  concatNrm: count * 7,
+  concatNrm: count * (7 + (secondUv ? UV1_FLOATS : 0)),
 })
 
 /** Whether a device of `limits` holds the stores of `floats`: each buffer under the storage

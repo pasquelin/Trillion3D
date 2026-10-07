@@ -45,7 +45,6 @@ test('indexManifestPages deduplicates pages, geometries and bundles exactly like
   const expected = referenceIndexManifestPages(metadata)
   assert.deepEqual(actual.pages, expected.pages)
   assert.deepEqual(actual.geometryPages, expected.geometryPages)
-  assert.deepEqual([...actual.geometryUrls], [...expected.geometryUrls])
   assert.deepEqual([...actual.pageIdByUrl], [...expected.pageIdByUrl])
 })
 

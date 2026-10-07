@@ -7,14 +7,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import {
-  coneContextFor,
-  coneCullsPageWith,
-  createConeContext,
-  OPEN_CONE,
-  type NormalCone,
-} from '../../../packages/sdk-browser/src/page/cone/cone.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts'
+import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
@@ -81,7 +78,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
   const ndc = corners.map((v) => project(v.clone(), camera))
   const area = (Math.abs(signedArea(ndc[0], ndc[1], ndc[2])) * VIEWPORT[0] * VIEWPORT[1]) / 8
   assert.ok(facing > 0 && area > 100, 'the case must show a visible face')
-  assert.ok(ndc.every((v) => Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && Math.abs(v.z) < 1))
+  assert.ok(ndc.every((v) => Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && v.z > 0 && v.z < 1))
 
   const context = coneContextFor(createConeContext(), world, engineCamera(camera).eye)
   assert.equal(
@@ -98,14 +95,15 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
       triangles,
       min: MIN,
       max: MAX,
-      cone,
+      // Without its cone, the page is tested on its box alone.
+      cone: cones ? cone : OPEN_CONE,
       lodError: 0,
       matrix: world,
       material,
     }
     const worldBox = new Float64Array([...box.min.toArray(), ...box.max.toArray()])
     const { displayedTriangles } = selectVisiblePages(
-      [{ world, pages: [page], cones, worldBox }],
+      [{ world, pages: [page], worldBox }],
       engineCamera(camera),
       { pixelError: 0, viewport: VIEWPORT },
     )

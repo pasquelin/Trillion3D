@@ -9,7 +9,7 @@ import { createExplorerLifecycle } from './lifecycle.ts'
 type Session = Parameters<typeof createExplorerLifecycle>[0]
 type Inputs = Parameters<typeof createExplorerLifecycle>[1]
 
-/** A session whose one backend lacks `missing` until they are handed to it, and whose view pins
+/** A session whose engine lacks `missing` until they are handed to it, and whose view pins
  *  `pinned` besides, over a real streamer of three verified pages that holds `resident` already. */
 async function lackingPages(missing: string[], pinned: string[] = [], resident = pinned) {
   const bytes = new Uint8Array([1, 0, 0, 0])
@@ -22,18 +22,34 @@ async function lackingPages(missing: string[], pinned: string[] = [], resident =
   const backend = {
     render() {},
     pendingUrls: () => missing.filter((url) => !accepted.includes(url)),
-    pageUrls: () => [...pinned, ...missing],
+    // The view's pins, a fresh table each read: the streamer takes the whole membership.
+    retainedRanks: () => {
+      const urls = [...pinned, ...missing]
+      const held = Int32Array.from(urls.keys())
+      const none = new Int32Array(0)
+      const count = urls.length
+      return {
+        urls,
+        entered: held,
+        enteredCount: count,
+        exited: none,
+        exitedCount: 0,
+        held,
+        heldCount: count,
+      }
+    },
     acceptPage: (url: string) => void accepted.push(url),
     syncResident() {},
+    // Every engine reads its cut back in a flush; this one reads no page there itself.
+    flush: async () => {},
   }
   const inputs = {
     check() {},
     state: {},
     streamer,
     streaming: {},
-    backends: [backend],
+    engine: backend,
     camera: G.perspectiveCamera(),
-    geometryUrls: new Set<string>(),
   } as unknown as Inputs
   const session = { scope: 'slice' } as unknown as Session
   return { lifecycle: createExplorerLifecycle(session, inputs), accepted, streamer, backend }
@@ -160,8 +176,8 @@ test('a disposed session stops its page reads with a reason, never "aborted with
   const controller = new AbortController()
   const stub = { dispose() {} }
   const inputs = {
-    ...{ check() {}, state: { active: { id: 'stub' } }, profiler: stub, hostedControls: [] },
-    ...{ disposeComposition() {}, streamer: stub, overlays: [], backends: [], source: undefined },
+    ...{ check() {}, state: {}, profiler: stub, ownedControls: [] },
+    ...{ streamer: stub, engine: { id: 'stub', dispose() {} }, source: undefined },
     streaming: { backgroundFetchController: controller },
   } as unknown as Inputs
   const channel = { flushSync() {}, close() {} }

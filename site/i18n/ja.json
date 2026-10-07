@@ -818,8 +818,6 @@
       "shadow-pages-off": "シャドウページングを無効化",
       "shadow-budget-0-25": "影の時間予算: 0.25ms",
       "budget-3000": "ジオメトリ予算: 3000ページ",
-      "webgl": "WebGLレンダラー",
-      "webgl2": "WebGL2レンダラー",
       "moving-light": "動くライト",
       "visible": "表示されたブラウザウィンドウ"
     },
@@ -925,7 +923,7 @@
     "resolution": "解像度とエラーのしきい値",
     "lights": "ライト・影・間接光",
     "execution": "静止画・アンチエイリアシング・実行オプション",
-    "memory": "メモリ・インスタンス・その他のレンダラー"
+    "memory": "メモリ・インスタンス・その他の実行"
   },
   "evidence": {
     "computeDrawing": "コンピュート描画",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "計測用のエントリーポイント",
-      "description": "対照実装、強制されたバックエンド、内部セッションに、名前でアクセスできる場所。公開されている`trillion3d`のエントリーからは、決してアクセスできない。",
-      "html": "<p>ページが<code>trillion3d</code>をインポートするとき、バックエンドや対照実装、内部セッションが見えることはない。<code>createWorld</code>は、マシンに応じて選ばれた1つのレンダラーで描画し、強制されたレンダラーが使えない場合は名前を示して拒否する。ベンチ、証明、比較ビューでは、それでも対照実装に名前をつける必要がある。素のThree.js、<code>THREE.LOD</code>、内部の<code>openMeasuredWorld</code>セッションなどだ。それだけを担うのが、計測専用の別のエントリーポイント<code>packages/sdk-browser/src/measurement/measurement.ts</code>である。</p>\n<p>ここでは、公開エントリーが再エクスポートするものすべてに加えて、ホストが決して必要としないものも再エクスポートしている: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界が自分自身に対して開く内部セッション)、バックエンドのファクトリー(<code>referenceBackend</code>、<code>exactPagesBackend</code>、<code>threeLodBackend</code>、<code>webgpuPagesBackend</code>、<code>autonomousPagesBackend</code>)、そして<code>replicateInstances</code>のような計測専用のヘルパーだ。これらはどれも公開される世界には届かず、アプリケーションからインポートされることもない。</p>"
+      "description": "対照実装や内部セッションに、名前でアクセスできる場所。公開されている`trillion3d`のエントリーからは、決してアクセスできない。",
+      "html": "<p>ページが<code>trillion3d</code>をインポートするとき、対照実装や内部セッションが見えることはない。<code>createWorld</code>はWebGPUで描画し、マシンがWebGPUを提供しない場合は名前を示して拒否する。ベンチと証明では、それでも対照実装に名前をつける必要がある。素のThree.js、<code>THREE.LOD</code>、内部の<code>openMeasuredWorld</code>セッションなどだ。それだけを担うのが、計測専用の別のエントリーポイント<code>packages/sdk-browser/src/measurement/measurement.ts</code>である。</p>\n<p>ここでは、公開エントリーが再エクスポートするものすべてに加えて、ホストが決して必要としないものも再エクスポートしている: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界が自分自身に対して開く内部セッション)、ページのファクトリー<code>webgpuPagesEngine</code>、そして<code>replicateInstances</code>のような計測専用のヘルパーだ。これらはどれも公開される世界には届かず、アプリケーションからインポートされることもない。</p>"
     },
     "createWorldJob": {
       "title": "取り消せるジョブとしての世界の読み込み",
@@ -1159,11 +1157,11 @@
       "description": "1フレームが何を描くか。利用可否は実際のパイプライン出力を表し、合成的なオーバーレイではない: `DIAGNOSTICS`は、モードごとに、有効なレンダラーがそれを生成できるかどうかと、できない理由を示す。",
       "values": [
         "glTFのマテリアルによる、ライティング済みの画像。",
-        "送信された三角形ごとに単色で塗りつぶしたもの — GL_LINESでも`MeshBasicMaterial.wireframe`でもない。",
-        "安定したプリミティブ/ページのID。クラスターごとに1色。WebGL2とWebGPUの両方。",
+        "送信された三角形ごとに単色で塗りつぶしたもの。",
+        "安定したプリミティブ/ページのID。クラスターごとに1色。",
         "レベル0のクラスターと、このフレームで実際に選ばれたより粗いDAG簡略化との比較。",
         "クラスターごとの誤差を、カットが使うのと同じ形でクラスター球に投影したもの。",
-        "マテリアルのクラスごとに1色: そのピクセルを解決したクラスパス。WebGPUのビジビリティパスのみ。",
+        "マテリアルのクラスごとに1色: そのピクセルを解決したクラスパス。",
         "選択された可視ページ。棄却された階層ノードは数えられるが、描画されない。",
         "接続されたインデックスページ。欠けているページは描画されない。物理VRAMではない。",
         "利用不可: テクスチャのミップ常駐は計測されていない。",
@@ -1214,7 +1212,7 @@
     },
     "GpuTimingMethod": {
       "description": "ステージプロファイルのGPU時間がどう取得されたか。パスごとの時間は「どこで」を示すだけで、「どれだけ」ではない: タイルベースのGPUではパスが重なり合い、あるパスが隣接パスの作業を吸収してしまう。フレーム合計は`gpuImageMs`、つまり全体時間であり、各ステージの時間はそこに足し合わされるものではない。",
-      "values": ["ネイティブのWebGPUタイムスタンプクエリ。", "そのパス用のWebGL2拡張。"]
+      "values": ["ネイティブのWebGPUタイムスタンプクエリ。"]
     },
     "ColumnKind": {
       "description": "バイナリマニフェストの各列の保存形式。`COLUMN_KIND`は各列名をその種類に対応づけ、読み手がサイドカーのバイト列に対してどのビューを取るべきかがわかる。",
@@ -1243,7 +1241,7 @@
       "description": "保留中の処理をエンジンのジョブ契約でラップする: スナップショット(`JobStatus`、進捗、結果、エラー)、購読、そしてジョブが保持していたものを破棄する中止処理。その処理自体が、自分の持ち主(RAF、読み戻しなど)を通じた中止に対応している必要がある。"
     },
     "detectCapabilities": {
-      "description": "世界が作られる前に、このマシンが実際に何をサポートしているか: `{ tier, renderer, adapter, extensions, reason }`。理由は常に示されるので、サポートされていない機能は推測ではなく報告される。世界が読む公開ラッパーは`capability.detect()` — 同じ検査に対する`{ webgpu, webgl2, ... }`というより単純な形。WebGL2の検査結果はキャッシュされる。"
+      "description": "世界が作られる前に、このマシンのWebGPUが実際に何を提供するか: `{ tier, adapter, extensions, reason }`。tierは、GPUタイムスタンプクエリがあれば`full`、なければ`degraded`、アダプターがなければ`unavailable`。理由は常に示されるので、サポートされていない機能は推測ではなく報告される。世界が読む公開ラッパーは`capability.detect()` — 同じ検査に対する`{ webgpu, tier, features, reason }`というより単純な形。"
     },
     "perspectiveProjection": {
       "description": "垂直方向の`fov`(度)、比率`aspect`、近平面`near`、ズーム`zoom`を持つカメラの透視投影。**反転された深度、無限遠の遠平面**: `near`は1に、無限遠は0に投影される。ここには遠平面が入らず、それによる除算も存在しない — これが深度の精度を稼いでいる理由だ。"
@@ -1623,11 +1621,10 @@
       "an angle at or above π/2 never rejects": "π/2以上の角度は決して棄却しない",
       "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root)の後",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "利用可能 — 接続されたインデックスページ。欠けているページは描画されない。物理VRAMではない",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "利用可能 — 送信された三角形ごとに単色で塗りつぶし。GL_LINESのワイヤーフレームではない",
+      "available — A filled unique colour per submitted triangle": "利用可能 — 送信された三角形ごとに単色で塗りつぶし",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "利用可能 — レベル0のクラスターと、このフレームで実際に選ばれたより粗いDAG簡略化との比較",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "利用可能 — カットが使う形で、クラスター球に投影されたクラスターごとのスクリーン誤差",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "利用可能 — 選択された可視ページ。棄却された階層ノードは数えられるが描画されない",
-      "available — Stable primitive/page ID, exact-cluster backend only": "利用可能 — 安定したプリミティブ/ページID。厳密クラスターバックエンドのみ",
       "available — glTF materials": "利用可能 — glTFのマテリアル",
       "unavailable — No fragment counter": "利用不可 — フラグメントカウンターがない",
       "unavailable — Texture mip residency not instrumented": "利用不可 — テクスチャミップの常駐は計測されていない",

@@ -17,6 +17,7 @@ import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { DirectLightResources } from '../../lighting/deferred/program.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts'
+import { directLightResources } from '../pages/prepare/contractLight.ts'
 
 installGpuGlobals()
 
@@ -43,8 +44,10 @@ test('GEO-02: the contract program that finishes compiling breaks the held frame
     typeof rt.gpu.reflection
   >
 
-  // What the hold asks the lit program for (`contractLight.ts`): no light holds a shadow slot.
-  const direct = { lights: {} as GPUBuffer, unshadowed: true, rectless: true }
+  // The frame binds what the hold asks the lit program for (`contractLight.ts`), the engine's own
+  // resources: one program asked, whose arrival is one resource. A hand-written key that differs
+  // in one cut (the lobes) asks a second program, and each arrival bumped the revision.
+  const direct = directLightResources(rt)
   // Two identical real frames: DIRECT compilation is started, `unlit` renders while waiting.
   for (let i = 0; i < 2; i++) {
     lighting.bind(surface, view(), view(), true, direct, () => {})

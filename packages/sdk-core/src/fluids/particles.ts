@@ -11,8 +11,9 @@ import { GRAVITY_PRESETS } from '../physics/options.ts'
 /** Floats of one particle and of one emission record, the same eight words: position from the
  *  origin then age, velocity then lifetime. A record's age is zero: the GPU copies it as it is. */
 export const PARTICLE_FLOATS = 8
-/** The largest pool: 32 MiB of state on WebGPU, a 1024 × 2048 texture pair on WebGL2. */
-const MAX_CAPACITY = 1 << 20
+/** The largest pool the ring's 32-bit slot arithmetic holds; the device bounds it below that, by
+ *  the storage buffer its state takes (the renderer refuses a pool past it, `PARTICLE_CAPACITY`). */
+const MAX_CAPACITY = 2 ** 31
 /** The longest step an image takes, seconds: a stalled tab does not fling its particles away. */
 const MAX_STEP = 1 / 15
 
@@ -22,9 +23,10 @@ export type ParticleBlend = (typeof PARTICLE_BLENDS)[number]
 
 /** How a pool is made; the capacity is fixed for its life. */
 export interface ParticlePoolSpec {
-  /** Particles the pool holds; emission past it overwrites the oldest. */
+  /** Particles the pool holds, as many as the device's storage buffers hold; emission past it
+   *  overwrites the oldest. */
   capacity: number
-  /** Records one image may stage: a sixty-fourth of the capacity by default, 256 to capacity. */
+  /** Records one image may stage: a sixteenth of the capacity by default, 256 to capacity. */
   emitPerFrame?: number
   /** Metres per second squared on every live particle; gravity by default. */
   acceleration?: readonly [number, number, number]
@@ -70,7 +72,7 @@ export class ParticlePool {
   constructor(spec: ParticlePoolSpec) {
     const { capacity, emitPerFrame, acceleration, origin, blend = 'additive' } = spec,
       { color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = spec
-    const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, capacity >> 6))
+    const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, Math.floor(capacity / 16)))
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`)
     if (!Number.isInteger(perFrame) || perFrame < 1 || perFrame > capacity)

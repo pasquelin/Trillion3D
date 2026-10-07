@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
-import { screenTraceShader } from './traceShader.ts'
+import { SCREEN_TRACE_WGSL } from './traceShader.ts'
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { REFLECTION_BOUNDS_DEPTH_WGSL, REFLECTION_BOUNDS_LEVEL_WGSL } from './boundsPyramidWgsl.ts'
 
@@ -39,7 +39,7 @@ function boundsOf(depth: Float64Array) {
   const levels: Level[] = []
   let read = reduce(
     REFLECTION_BOUNDS_DEPTH_WGSL,
-    [...PLANE, 'reflectionDepthAt', 'reflectionSize', 'reflectionClearDepth'],
+    [...PLANE, 'reflectionDepthAt', 'reflectionSize'],
     {
       source: 'depth',
       extent: [W, H, W, H],
@@ -64,7 +64,7 @@ function boundsOf(depth: Float64Array) {
  *  pixel). A hit answers its pixel. */
 function walkOf(depth: Float64Array, levels: Level[]) {
   return shaderRun<{ reflectionHiZWalk: Walk }>(
-    screenTraceShader('wgsl') + REFLECTION_CONE_WGSL,
+    SCREEN_TRACE_WGSL + REFLECTION_CONE_WGSL,
     [
       'reflectionHiZWalk',
       'reflectionHiZSteps',
@@ -76,7 +76,6 @@ function walkOf(depth: Float64Array, levels: Level[]) {
     {
       reflectionDepthAt: (p: number[]) => depth[p[1] * W + p[0]],
       reflectionSize: () => [W, H],
-      reflectionClearDepth: () => 0,
       reflectionHitAt: (p: number[]) => [p[0], p[1], 0, 1],
       reflectionBounds: 'bounds',
       textureNumLevels: () => levels.length,

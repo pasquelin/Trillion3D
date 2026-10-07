@@ -17,8 +17,8 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
  * pass through kernel with same inputs as reservation: their output is ignored.
  *
  * ROOT BOXES REMAIN JAVASCRIPT ARRAYS: written during collection on each root, copied
- * into buffer. Linear module memory belongs to page decoder: main thread decoding
- * (`../page/decode/host.ts`) allocates and may grow mid-frame. Buffer survives — `../page/decode/wasmArena.ts`
+ * into buffer. Linear module memory is shared with the other kernels — the run-time cut's cones,
+ * the animation sampler —, which allocate and may grow it mid-frame. Buffer survives — `./wasm/wasmArena.ts`
  * rebuilds views on same bytes/offsets —, and `holds()` falls back to JS only when buffer
  * released or root count changed.
  */

@@ -1,9 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuBindIdentity } from './bindIdentity.ts'
-import { bindGroupFor, voidStaleFallbackGroups } from '../pages/prepare/pipelineFor.ts'
-import type { WebgpuPagesCore } from '../pages/runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { entriesIdentity } from './entriesIdentity.ts'
 
 test('a family moves when one of the resources it names changes identity, and only then', () => {
@@ -47,28 +44,4 @@ test('entry membership, binding numbers and buffer ranges all invalidate without
   entries.pop()
   assert.equal(moved(), true, 'removing an entry also invalidates')
   assert.equal(moved(), false)
-})
-
-test('fallback groups key positions separately and invalidate when a shared entry changes', () => {
-  const { device } = fakeDevice()
-  const gpu = {
-    bindGroupLayout: {},
-    cache: { buffer: {} },
-    uniformBuffer: {},
-    zeroUv: {},
-    positionIds: new WeakMap(),
-    nextPositionId: 1,
-    bindGroups: new Map(),
-    fallbackIdentity: createWebgpuBindIdentity(),
-  }
-  const rt = { gpu } as unknown as WebgpuPagesCore,
-    position = {} as GPUBuffer
-  voidStaleFallbackGroups(rt)
-  const first = bindGroupFor(rt, device, position)
-  voidStaleFallbackGroups(rt)
-  assert.equal(bindGroupFor(rt, device, position), first)
-  assert.notEqual(bindGroupFor(rt, device, {} as GPUBuffer), first)
-  gpu.uniformBuffer = {}
-  voidStaleFallbackGroups(rt)
-  assert.notEqual(bindGroupFor(rt, device, position), first)
 })

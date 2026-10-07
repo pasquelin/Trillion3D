@@ -3,7 +3,8 @@ import { quantizationErrorOf } from './helpers.ts'
 import type { Template } from './template.ts'
 import type { PageRec } from './types.ts'
 import type { HostMesh } from '../../host/resources.ts'
-import type { PageSurface } from '../surface.ts'
+import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
+import { OPEN_CONE } from '../cone/cone.ts'
 
 /** Grows a box by the grid's quantization error: the surface an engine draws from the pages is the
  *  quantized one, so every bound encloses it. No error, the box is shared as-is. */
@@ -14,8 +15,8 @@ function widened(bounds: number[], sign: number, slack: number) {
 /**
  * ONE record per primitive page (#1235), shared by every placement of the primitive — its rows, its
  * replicas, every source object that names it. Its world, its row and its packed rank belong to the
- * layout, never to the record; only what the compiler computed of the page and the declaration it
- * was read from live here. Built once per primitive, never per placement.
+ * layout, never to the record; only what the compiler computed of the page and the surface record
+ * it wears live here. Built once per primitive, never per placement.
  */
 export function createPageRecords(
   primitive: Primitive,
@@ -28,6 +29,9 @@ export function createPageRecords(
   // The grid moved each position by at most this much: the page boxes grow by it, so culling still
   // encloses the quantized surface an engine draws.
   const slack = quantizationErrorOf(primitive)
+  // Front-only alone keeps a closed cone: a surface seen from its back is culled by none. A surface
+  // the host opens later reopens its cone at the cut (`../cone/cone.ts`, `leafCone`).
+  const frontOnly = surfaceFrontOnly(surface)
   return primitive.pages.map((page, pageIndex) => {
     const entry = template.pages[pageIndex],
       cut = entry.cut,
@@ -58,14 +62,13 @@ export function createPageRecords(
       depthLayer: page.depthLayer ?? 0,
       attributes: mesh.geometry.attributes,
       material: surface,
-      declaration: mesh.material,
       transparent,
       sourceMesh: mesh,
       // A flat cut has no tree: transparent pages recover their draw order from the source rank,
       // recorded for every class, since a page may turn blended in the session (#846).
       sourceOrder: template.sourceOrder[pageIndex],
       renderOrder: order,
-      cone: page.cone,
+      cone: page.cone && !frontOnly ? OPEN_CONE : page.cone,
     }
   })
 }

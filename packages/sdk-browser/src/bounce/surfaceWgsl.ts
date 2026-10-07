@@ -1,5 +1,6 @@
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
-import { atlasBytes, atlasExtent } from './atlas.ts'
+import { atlasBytes } from './atlas.ts'
+import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
 import { surfaceCacheTexels } from './sizes.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
@@ -13,8 +14,8 @@ export const SURFACE_WORKGROUP = 64
  * read the same formula. A texel holds a `vec4f` — the face's outgoing radiance and its flag —,
  * in an atlas (`atlas.ts`) whose texel count the pass reads from its span (`span.z`).
  */
-export const surfaceCacheBytes = (triangleCount: number) =>
-  atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount)))
+export const surfaceCacheBytes = (triangleCount: number, side: number) =>
+  atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount), side))
 
 /**
  * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.

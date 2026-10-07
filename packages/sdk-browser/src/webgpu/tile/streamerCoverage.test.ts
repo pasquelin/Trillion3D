@@ -24,13 +24,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   readers.read(surfaceOf(material))
   const map = importHostTexture(host as unknown as HostTexture),
     encoding = poolEncoding(undefined)
-  const {
-    device,
-    renderPipelines,
-    textures: made,
-    computes,
-    textureWrites,
-  } = mockGpu({ compute: true })
+  const { device, computePipelines, textures: made, computes, textureWrites } = mockGpu()
   const signalled: number[][] = []
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 }
   const textures = createWebgpuTileStreamer({
@@ -45,7 +39,10 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
     onColorChanged: (slots) => void signalled.push(slots === -1 ? [-1] : [...slots]),
   })
   textures.prepare()
-  const rules = () => renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted)
+  const rules = () =>
+    computePipelines
+      .filter(({ compute }) => compute.entryPoint === 'reduceLevel')
+      .map(({ compute }) => compute.constants?.weighted)
   const scratches = () => made.filter((texture) => texture.label === 'Trillion3D texture scratch')
   assert.deepEqual(rules(), [1], 'masked at prepare: weighted')
   const counted = () => computes.filter((entry) => entry === 'choose').length
@@ -87,7 +84,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   assert.equal(textureWrites.length, uploadedBeforeAppend + 2, 'the neighbour picture uploads')
   assert.equal(scratches().length, beforeAppend + 1, 'the live scratch is refilled in place')
   assert.deepEqual(signalled.at(-1), [1])
-  // A drop must keep the last reduced rule of surviving maps, even if another backend filed it.
+  // A drop must keep the last reduced rule of surviving maps, even if another reader filed it.
   material.alphaTest = 0
   readers.follow([map])
   const beforeDrop = scratches().length,

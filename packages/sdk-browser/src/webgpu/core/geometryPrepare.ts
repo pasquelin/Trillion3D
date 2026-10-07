@@ -52,12 +52,14 @@ export function prepareWebgpuGeometry(
   for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false)
   let vertices = 0,
     room = 0,
-    coloured = false
+    coloured = false,
+    secondUv = false
   for (const [attributes, dynamic] of sourced) {
     const n = attributes.position?.count ?? 0
     vertices += n
     if (dynamic) room += n
     coloured ||= !!attributes.color
+    secondUv ||= !!attributes.uv1
   }
   const capacity = Math.max(1, vertices + room)
   // The deformation records ride after the positions (#357): the passes read them through the
@@ -95,6 +97,7 @@ export function prepareWebgpuGeometry(
     geometryBlocks,
     deformFloats + whole.floats,
     regrow,
+    secondUv,
   )
   vertexPool.pack(sourced)
   placeWhole(capacity)

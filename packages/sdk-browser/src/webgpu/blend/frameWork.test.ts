@@ -79,7 +79,7 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   } as unknown as GPUCommandEncoder
   const rt = { blendState } as unknown as WebgpuPagesRuntime
   orderBlendPasses(blendState, [0, 5, 0])
-  encodeBlendExpansion(rt, device, encoder)
+  encodeBlendExpansion(rt, encoder)
   for (const eye of [
     [25, 5, 20],
     [-3, 2, 60],
@@ -87,7 +87,7 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
     writes.length = 0
     dispatches.length = 0
     orderBlendPasses(blendState, eye)
-    encodeBlendExpansion(rt, device, encoder)
+    encodeBlendExpansion(rt, encoder)
     const bytes = writes.reduce((sum, write) => sum + written(write).byteLength, 0)
     assert.equal(bytes, 32, `eye ${eye}: the eye, four doubles, and nothing else`)
     // The order's dispatches, fixed by the plan, then the expansion's four: the CPU asks no count.

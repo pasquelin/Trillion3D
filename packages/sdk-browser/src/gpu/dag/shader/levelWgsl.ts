@@ -11,7 +11,7 @@
  * — a node's box contains its children's, and its error ceiling upper-bounds theirs.
  * A node outside the trunk, or whose ceiling falls under the threshold, can therefore
  * carry no kept child and no kept cluster: that is the invariant CPU descent
- * (`../../../page/cut/visit.ts`) already exploits.
+ * (`../../../page/cut/visit.fixture.ts`) already exploits.
  *
  * Descent is therefore by levels: pass 0 starts from the roots — one per primitive,
  * set by `dagPrepare` —, each following pass only reads nodes the previous kept, and
@@ -41,7 +41,7 @@
  * candidates, and the counters extend `work` behind those of the live list. A queue
  * no longer has a group count: nobody reads it indirectly.
  *
- * The candidate list and the drawn log share a range: `dagClearDrawn` reads it as
+ * The candidate list and the drawn log share a range: `dagClearDrawn` (`swapWgsl.ts`) reads it as
  * a log at the very start of the frame, level passes then write it as candidates,
  * `dagWanted` rereads it, and `dagMask` only rewrites it as a log one pass later,
  * when nobody still reads the candidates.
@@ -95,13 +95,6 @@ fn resetCounters(){
 }
 /** A list's dispatch argument, x and y, back to no group. */
 fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+1u],0u);}
-/** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag
- *  can be one. No other is visited, and none is walked in full. */
-@compute @workgroup_size(64)
-fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);if(s>=atomicLoad(&work[drawnCounter()])){return;}
- setFlag(views[0u].queueCap+flagAt(candBase()+s),0u);
-}
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
  *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){

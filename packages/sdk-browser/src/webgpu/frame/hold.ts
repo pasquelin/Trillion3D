@@ -2,113 +2,14 @@ import { sampleWebgpuFrame } from './signature.ts'
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts'
 import { beginTaaFrame, restartTaaOnSettle, taaSettled } from '../../taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { shadowsUnsettled } from '../pages/state/lights.ts'
 import { effectsMoved } from '../pages/render/encodeEffects.ts'
 import { guidesMoved } from '../pages/render/encodeGuides.ts'
 import { particlesMoved } from '../particles/webgpuParticleFrame.ts'
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts'
 import { asidePending, swapAsideTargets } from '../pages/prepare/targetsAside.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
-/** What can still change the frame, one bit each; `unsettledReasons` names them. */
-const REASONS = [
-  'lost',
-  'capturing',
-  'capturePending',
-  'frameEncoder',
-  'visDisabled',
-  'gpuFrameInactive',
-  'cutMoving',
-  'overBudget',
-  'noOccluderHistory',
-  'deferredDrops',
-  'bootstrap',
-  'residencyBusy',
-  'rowsDirty',
-  'texturesPending',
-  'shadowsPending',
-  'cutPending',
-  'bounceProbes',
-  'deforming',
-  'reflections',
-] as const
-const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
-  (typeof REASONS)[number],
-  number
->
-export const TEXTURES_PENDING = BIT.texturesPending,
-  SHADOWS_PENDING = BIT.shadowsPending
-/** The run's own state: loss, capture, frame, cut and budget flags. */
-function runMask(rt: WebgpuPagesRuntime) {
-  const { run, vis, capture, timing } = rt,
-    { rows } = rt.layout
-  let mask = 0
-  if (run.lost) mask |= BIT.lost
-  if (capture.capturing) mask |= BIT.capturing
-  if (capture.capturePending) mask |= BIT.capturePending
-  if (timing.frameEncoder) mask |= BIT.frameEncoder
-  if (!vis.visEnabled || !vis.gpuDraw) mask |= BIT.visDisabled
-  if (!run.gpuFrameActive || !run.gpuMetricsReady) mask |= BIT.gpuFrameInactive
-  if (!run.cutHeld) mask |= BIT.cutMoving
-  // A cut past the page budget is a steady state: its surface is drawn by the nearest resident
-  // ancestor, and the pages the pool accepted are counted by `cutPending` below.
-  if (run.overBudget) mask |= BIT.overBudget
-  // Only opaque rows with a partition need occluder history; sky and blend alone do not.
-  if (run.noOccluderHistory && rows.packedCount && vis.gpuPartition) mask |= BIT.noOccluderHistory
-  if (run.deferredDrops.size) mask |= BIT.deferredDrops
-  return mask
-}
-/** The row table, the pages and the shadows still on their way. */
-function loadMask(rt: WebgpuPagesRuntime) {
-  const { run, vis, lights, services } = rt,
-    { rows } = rt.layout
-  let mask = 0
-  if (!services.bootstrapState.ready) mask |= BIT.bootstrap
-  if (services.residency.busy) mask |= BIT.residencyBusy
-  if (
-    rows.rowsChanged ||
-    rows.dirtyTo >= rows.dirtyFrom ||
-    rows.rowsEpoch !== rows.tableEpoch ||
-    rows.candidateOverflow
-  )
-    mask |= BIT.rowsDirty
-  // Pending tiles must render on arrival, and settle must read what the pose requests.
-  if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending
-  // A shadow page stale and read, a request report on its way, a representation change held
-  // until the camera rests: each must find a frame (`shadowsUnsettled`).
-  if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending
-  // Pending cut pages must land before holding; the cut difference keeps this count.
-  if (services.cutPending.count) mask |= BIT.cutPending
-  return mask
-}
-/** The temporal histories still advancing: bounce probes, reflections and deformation. */
-function historyMask(rt: WebgpuPagesRuntime) {
-  const { vis, bounce } = rt
-  let mask = 0
-  // Closed probe series hold; a pending unrefused series still needs a frame.
-  if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
-    mask |= BIT.bounceProbes
-  // Only an active contract pass can advance reflection history; unlit never consumes it.
-  const reflection = rt.gpu.reflection
-  if (
-    rt.gpu.deferred?.usesContract &&
-    reflection?.active &&
-    reflection.history &&
-    !reflection.history.settled
-  )
-    mask |= BIT.reflections
-  // Deformation advances its own temporal history.
-  if (vis.deformation?.frame.pending()) mask |= BIT.deforming
-  return mask
-}
-/**
- * Pending work that can change the frame. Read without allocation by hold and the barrier.
- */
-export function unsettledMask(rt: WebgpuPagesRuntime) {
-  return runMask(rt) | loadMask(rt) | historyMask(rt)
-}
-/** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
-export const unsettledReasons = (mask: number) =>
-  REASONS.filter((reason) => (mask & BIT[reason]) !== 0)
+import { REFLECTIONS_PENDING, unsettledMask } from './unsettled.ts'
+import { traceDrawnFrame } from './holdTrace.ts'
 /**
  * What a held frame actually did, published as such.
  *
@@ -125,7 +26,6 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   run.blendDrawCalls = 0
   run.submittedTriangles = 0
   run.blendSubmittedTriangles = 0
-  run.cpuSelectMs = null
   // No pass was timed on the device: “unmeasured”, never the duration of another one.
   timing.lastGpuPassMs = null
   timing.lastGpuFrameMs = null
@@ -165,8 +65,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     answered = !deviceAnswering(rt)
   if ((answered && !awaited) || rt.capture.capturing) {
     // Reflection refinement delays holding, but a still source keeps the full TAA scale/lights.
-    const unsettled = unsettledMask(rt)
-    const quiet = run.gate.held() && (unsettled & ~BIT.reflections) === 0
+    const unsettled = unsettledMask(rt, run.frame)
+    const quiet = run.gate.held() && (unsettled & ~REFLECTIONS_PENDING) === 0
     // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
@@ -174,14 +74,15 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (
       swapped ||
       !quiet ||
-      unsettled & BIT.reflections ||
+      unsettled & REFLECTIONS_PENDING ||
       !taaSettled(rt) ||
       guidesMoved(rt) ||
       effectsMoved(rt) ||
       particlesMoved(rt)
     ) {
+      if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
-      restartTaaOnSettle(rt, (unsettled & BIT.reflections) !== 0)
+      restartTaaOnSettle(rt, (unsettled & REFLECTIONS_PENDING) !== 0)
       beginTaaFrame(rt, run.gate.cam, quiet)
       run.frameHeld = false
       return false

@@ -10,8 +10,6 @@ export type ReopenCause =
   | 'option'
   | 'scene-change'
   | 'repaint-refused'
-  | 'background'
-  | 'mount-refused'
   | 'partition-outgrown'
   | 'vertices-refused'
 const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option'])

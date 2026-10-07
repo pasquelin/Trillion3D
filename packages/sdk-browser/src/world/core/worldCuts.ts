@@ -89,93 +89,115 @@ type Reading = { version: number; read: Promise<Content | null> }
  * many cuts it made. A dynamic geometry is read by `dynamic` instead, and never hashed (#573).
  */
 export function createWorldCuts(notices?: WorldNotices) {
-  const byKey = new Map<string, Promise<Cut | null>>()
-  const readings = new WeakMap<Geometry, Map<string, Reading>>()
-  const drawnBy = new Map<Mesh, Cut>()
   const counts = { duplicates: 0, cuts: 0 }
-  const dynamic = createWorldDynamic(notices, counts)
-  const release = (cut: Cut) => {
-    if (cut.users.size || cut.held) return
-    cut.runtime.urls.forEach((url) => URL.revokeObjectURL(url))
-    byKey.delete(cut.key)
-    dynamic.forget(cut)
+  const state: CutsState = {
+    byKey: new Map(),
+    readings: new WeakMap(),
+    drawnBy: new Map(),
+    counts,
+    dynamic: createWorldDynamic(notices, counts),
   }
-  const leave = (mesh: Mesh) => {
-    const cut = drawnBy.get(mesh)
-    if (!cut) return
-    drawnBy.delete(mesh)
-    cut.users.delete(mesh)
-    release(cut)
-  }
-  /** The resource of a content, cut when the table holds none; a geometry object that is not
-   *  the first to bring this content is counted as folded. */
-  const resourceOf = (content: Content, fresh: boolean) => {
-    const { key, drawn, blended, cut } = content,
-      packed = content.packed
-    content.packed = null
-    let pending = byKey.get(key)
-    if (pending) {
-      if (fresh) counts.duplicates++
-      return pending
-    }
-    // A content read again after its resource was released packs its triangles again.
-    counts.cuts++
-    pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended, cut), drawn).then(
-      (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
-      // A failed cut leaves no trace: the next mesh with this content tries again.
-      () => {
-        if (byKey.get(key) === pending) byKey.delete(key)
-        return null
-      },
-    )
-    byKey.set(key, pending)
-    return pending
-  }
-  /** `mesh` draws `cut`, or nothing: it leaves the resource it drew before. */
-  const wear = (mesh: Mesh, cut: Cut | null) => {
-    if (drawnBy.get(mesh) !== cut) leave(mesh)
-    cut?.users.add(mesh)
-    if (cut) drawnBy.set(mesh, cut)
-    return cut
-  }
-  const made = (cut: Cut) => void byKey.set(cut.key, Promise.resolve(cut))
+  const made = (cut: Cut) => void state.byKey.set(cut.key, Promise.resolve(cut))
   return {
     counts,
-    dynamic,
+    dynamic: state.dynamic,
     /** The resource `mesh` draws, cut if no resource of its content exists; null when it draws
      *  no triangle. The mesh is counted among its users until it leaves. */
-    async of(mesh: Mesh): Promise<Cut | null> {
-      const { key: way, options, blended, cut } = readingOf(mesh)
-      if (dynamic.wants(mesh))
-        return wear(mesh, await dynamic.of(mesh, way, options, blended, made))
-      const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>()
-      readings.set(mesh.geometry, ways)
-      let reading = ways.get(way)
-      const fresh = !reading || reading.version !== mesh.geometry.version
-      if (fresh) {
-        const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options)
-        const read = drawn ? readContent(drawn, blended, cut) : Promise.resolve(null)
-        reading = { version: mesh.geometry.version, read }
-        ways.set(way, reading)
-        // A read that failed (no digest on this origin) is forgotten: the next asks again.
-        read.catch(() => ways.get(way)?.read === read && ways.delete(way))
-      }
-      const content = await reading!.read
-      return wear(mesh, content ? await resourceOf(content, fresh) : null)
-    },
+    of: (mesh: Mesh): Promise<Cut | null> => cutOf(state, mesh, made),
     /** The mesh no longer draws: its resource loses a user. */
-    leave,
+    leave: (mesh: Mesh) => leave(state, mesh),
     /** A session reads `cut`'s pages, or no longer does. */
-    hold(cut: Cut, held: boolean) {
-      cut.held = held
-      release(cut)
-    },
+    hold: (cut: Cut, held: boolean) => hold(state, cut, held),
     dispose() {
-      for (const mesh of [...drawnBy.keys()]) leave(mesh)
-      for (const pending of byKey.values())
+      for (const mesh of [...state.drawnBy.keys()]) leave(state, mesh)
+      for (const pending of state.byKey.values())
         void pending.then((cut) => {
-          if (cut) this.hold(cut, false)
+          if (cut) hold(state, cut, false)
         })
     },
   }
+}
+
+/** What a world's geometry table holds (`createWorldCuts`). */
+type CutsState = {
+  byKey: Map<string, Promise<Cut | null>>
+  readings: WeakMap<Geometry, Map<string, Reading>>
+  drawnBy: Map<Mesh, Cut>
+  counts: { duplicates: number; cuts: number }
+  dynamic: ReturnType<typeof createWorldDynamic>
+}
+
+function release(state: CutsState, cut: Cut) {
+  if (cut.users.size || cut.held) return
+  cut.runtime.urls.forEach((url) => URL.revokeObjectURL(url))
+  state.byKey.delete(cut.key)
+  state.dynamic.forget(cut)
+}
+
+function leave(state: CutsState, mesh: Mesh) {
+  const cut = state.drawnBy.get(mesh)
+  if (!cut) return
+  state.drawnBy.delete(mesh)
+  cut.users.delete(mesh)
+  release(state, cut)
+}
+
+function hold(state: CutsState, cut: Cut, held: boolean) {
+  cut.held = held
+  release(state, cut)
+}
+
+/** The resource of a content, cut when the table holds none; a geometry object that is not
+ *  the first to bring this content is counted as folded. */
+function resourceOf({ byKey, counts }: CutsState, content: Content, fresh: boolean) {
+  const { key, drawn, blended, cut } = content,
+    packed = content.packed
+  content.packed = null
+  let pending = byKey.get(key)
+  if (pending) {
+    if (fresh) counts.duplicates++
+    return pending
+  }
+  // A content read again after its resource was released packs its triangles again.
+  counts.cuts++
+  pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended, cut), drawn).then(
+    (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
+    // A failed cut leaves no trace: the next mesh with this content tries again.
+    () => {
+      if (byKey.get(key) === pending) byKey.delete(key)
+      return null
+    },
+  )
+  byKey.set(key, pending)
+  return pending
+}
+
+/** `mesh` draws `cut`, or nothing: it leaves the resource it drew before. */
+function wear(state: CutsState, mesh: Mesh, cut: Cut | null) {
+  if (state.drawnBy.get(mesh) !== cut) leave(state, mesh)
+  cut?.users.add(mesh)
+  if (cut) state.drawnBy.set(mesh, cut)
+  return cut
+}
+
+/** The resource `mesh` draws (`createWorldCuts.of`); `made` hears each dynamic one made. */
+async function cutOf(state: CutsState, mesh: Mesh, made: (cut: Cut) => void) {
+  const { dynamic, readings } = state
+  const { key: way, options, blended, cut } = readingOf(mesh)
+  if (dynamic.wants(mesh))
+    return wear(state, mesh, await dynamic.of(mesh, way, options, blended, made))
+  const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>()
+  readings.set(mesh.geometry, ways)
+  let reading = ways.get(way)
+  const fresh = !reading || reading.version !== mesh.geometry.version
+  if (fresh) {
+    const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options)
+    const read = drawn ? readContent(drawn, blended, cut) : Promise.resolve(null)
+    reading = { version: mesh.geometry.version, read }
+    ways.set(way, reading)
+    // A read that failed (no digest on this origin) is forgotten: the next asks again.
+    read.catch(() => ways.get(way)?.read === read && ways.delete(way))
+  }
+  const content = await reading!.read
+  return wear(state, mesh, content ? await resourceOf(state, content, fresh) : null)
 }

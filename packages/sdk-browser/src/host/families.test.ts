@@ -26,7 +26,7 @@ function standIn<N extends keyof typeof families>(t: TestContext, name: N, load:
 function chainFrame() {
   const effects = new EffectChain()
   effects.add(effect.bloom())
-  return () => frameWaits({ effects }, 'beauty')
+  return () => frameWaits({ effects })
 }
 
 test('a family whose import fails once arrives, and the frame that needs it draws it (#1404)', async (t) => {

@@ -51,7 +51,6 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       diag.engineDiagnostic(phase, message, sample)
       if (diag.traceEnabled)
         diag.traceDiagnostic(phase, message, () => ({
-          backend: 'webgpu-page-raster',
           submission: sample.submission ?? null,
           ...sample,
         }))

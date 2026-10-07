@@ -3,10 +3,11 @@
  * in the engine's own words. No rendering-library object — a texture reaches a pool, an atlas lane
  * or a wrap word as this record and nothing else.
  *
- * The addressing and filtering words are the engine's enums, not a host library's integers: the
- * rules that read them (`packages/sdk-browser/src/visibility/wrapModes.ts`, `packages/sdk-browser/src/visibility/math.ts`) compute on the name, and the
- * two graphics boundaries — the WebGL2 binder, the WebGPU tile pool — are the only places that turn
- * one back into an API constant.
+ * The addressing and filtering words are the engine's enums, not a library's integers: the
+ * rules that read them (`packages/sdk-browser/src/visibility/wrapModes.ts`,
+ * `packages/sdk-browser/src/visibility/math.ts`) compute on the name, and the WebGPU tile pool's
+ * sampling word (`packages/sdk-browser/src/texture/sampling.ts`) is the only place that turns one
+ * into the shader's bits.
  */
 
 /** How a coordinate outside `[0, 1]` is brought back: the three modes glTF declares. */
@@ -67,27 +68,17 @@ export interface Texture {
 export const AFFINE = [0, 1, 3, 4, 6, 7] as const
 
 /** True when a UV transform (`Texture.transform`) moves the coordinate: the only case it is
- *  applied, on the CPU twins and on both GPU paths. */
+ *  applied, on the CPU twins and on the GPU. */
 export function uvTransformed(m: ArrayLike<number>) {
   return m[0] !== 1 || m[1] !== 0 || m[3] !== 0 || m[4] !== 1 || m[6] !== 0 || m[7] !== 0
 }
 
 /**
- * Whether `filter` reads a mip chain: the one rule of both GPU paths (#732). A page texture read
- * through a mip filter always has its chain — no other flag withholds it, so it never reads an
- * empty level —; one read without pins level 0 (WebGPU) or builds none (WebGL2). A texture of the
- * compiled cache carries the cache's levels whatever its filter.
- */
-export function mipFiltered(filter: TextureFilter) {
-  return filter !== 'nearest' && filter !== 'linear'
-}
-
-/**
- * Anisotropy a texture is sampled with, on both GPU paths: only a linear
- * magnification over a chain mixed across levels (`*-mip-linear`) takes it, clamped to `ceiling`;
- * any other filter reads one tap.
+ * Anisotropy a texture is sampled with: a linear magnification over a chain mixed across levels —
+ * every minification but `*-mip-nearest`, a filter without `mip` mixing the levels as the default
+ * read does — takes it, clamped to `ceiling`; any other filter reads one tap.
  */
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
-  if (texture.magFilter === 'nearest' || !texture.minFilter.endsWith('mip-linear')) return 1
+  if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('mip-nearest')) return 1
   return Math.min(ceiling, Math.max(1, texture.anisotropy))
 }

@@ -7,6 +7,7 @@ import {
 import type { TimingPart } from './encoder.ts'
 import type { ImageSpan } from './timeline.ts'
 import type { Stale } from './slotMemory.ts'
+import { coveredNs, envelope, setOwnShares } from './spans.ts'
 
 export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void) {
   return (sample: GpuTimingSample) => {
@@ -59,55 +60,6 @@ export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boo
 export type TimingEntry = { slot: number; name: string; part: number }
 
 /**
- * Sets each timed pass's own share of the image, ms: its span less what a pass the queue ran before
- * it already covered (#1279). A device that overlaps passes reports each one's whole span, so their
- * durations add up past the image; these shares count an overlap once, on the pass submitted first,
- * and add up to the time the timed passes cover. `timed` is in the queue's order — the parts as the
- * image submits them, each one's passes as encoded —, never sorted by beginning: a tiled GPU
- * begins a render pass at its vertex stage, ahead of a compute pass submitted before it, whose
- * whole span it would then take.
- */
-function setOwnShares(timed: { pass: { ownMs: number }; begin: bigint; end: bigint }[]) {
-  let covered = 0n
-  for (const { pass, begin, end } of timed) {
-    pass.ownMs = nanosecondsToMs(Number(addedNs(begin, end, covered)))
-    if (end > covered) covered = end
-  }
-}
-
-/** What a span adds to the time already covered up to `reach`: the part of it past `reach`, ns. */
-function addedNs(begin: bigint, end: bigint, reach: bigint) {
-  const from = begin > reach ? begin : reach
-  return end > from ? end - from : 0n
-}
-
-/** The time `spans` cover, ns: spans the device overlaps count once. */
-function coveredNs(spans: ImageSpan[]) {
-  let covered = 0n,
-    reach = 0n
-  for (const { beginNs, endNs } of [...spans].sort((a, b) =>
-    a.beginNs < b.beginNs ? -1 : a.beginNs > b.beginNs ? 1 : 0,
-  )) {
-    covered += addedNs(beginNs, endNs, reach)
-    if (endNs > reach) reach = endNs
-  }
-  return covered
-}
-
-/** The earliest beginning to the latest end of `spans`, or `null` for none. */
-function envelope(spans: ImageSpan[]): ImageSpan | null {
-  let image: ImageSpan | null = null
-  for (const { beginNs, endNs } of spans)
-    image = image
-      ? {
-          beginNs: beginNs < image.beginNs ? beginNs : image.beginNs,
-          endNs: endNs > image.endNs ? endNs : image.endNs,
-        }
-      : { beginNs, endNs }
-  return image
-}
-
-/**
  * Reconstruct one image from device timestamp pairs without counting host gaps as GPU work. A
  * pass's pair is `unwritten` when neither timestamp is this image's (zero, or the value its slot
  * held at the last read: the driver skipped the pass), `invalid` when only one is, or the end
@@ -127,45 +79,9 @@ export function summarizeTimestamps(
   // The enclosing span of the image, and of each submission inside it, come from these same
   // timestamps: the earliest beginning to the latest end. Passes the device overlaps are covered
   // once, which a sum of durations cannot claim.
-  const submissionSpans = new Map<number, ImageSpan & { passes: number }>()
-  /** Whether the timestamp at `slot` is this image's: new to its slot, and a device clock never
-   *  reads zero. It records the timestamp in the slot memory: ask once per slot, `stale` first. */
-  const wrote = (slot: number, value: bigint) => !stale(slot, value) && value !== 0n
+  const submissionSpans: SubmissionSpans = new Map()
   const timed: Parameters<typeof setOwnShares>[0] = []
-  const passes = entries.map((entry) => {
-    const begin = values[entry.slot],
-      end = values[entry.slot + 1],
-      // Both asked, never one short-circuited: the memory takes both.
-      wroteBegin = wrote(entry.slot, begin),
-      wroteEnd = wrote(entry.slot + 1, end)
-    // An empty pass the driver skipped wrote nothing, and ran nothing: it has no time of its own,
-    // and leaves the image's span as the passes that ran made it.
-    if (!wroteBegin && !wroteEnd) {
-      pairs.unwritten++
-      return { name: entry.name, gpuMs: null, reason: 'unwritten-timestamps' }
-    }
-    if (!wroteBegin || !wroteEnd || end < begin) {
-      pairs.invalid++
-      return {
-        name: entry.name,
-        gpuMs: null,
-        reason: 'invalid-timestamps',
-        beginNs: begin.toString(),
-        endNs: end.toString(),
-      }
-    }
-    pairs.valid++
-    const span = submissionSpans.get(entry.part)
-    if (!span) submissionSpans.set(entry.part, { beginNs: begin, endNs: end, passes: 1 })
-    else {
-      if (begin < span.beginNs) span.beginNs = begin
-      if (end > span.endNs) span.endNs = end
-      span.passes++
-    }
-    const pass = { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)), ownMs: 0 }
-    timed.push({ pass, begin, end })
-    return pass
-  })
+  const passes = readPasses(entries, values, stale, { pairs, submissionSpans, timed })
   setOwnShares(timed)
   const total =
     truncated || passes.some((pass) => pass.gpuMs === null)
@@ -209,4 +125,58 @@ export function summarizeTimestamps(
     },
     span,
   }
+}
+
+type SubmissionSpans = Map<number, ImageSpan & { passes: number }>
+
+/** Each entry's pass read from its pair: counted in `pairs`, a valid one widening its
+ *  submission's span and listed in `timed`. */
+function readPasses(
+  entries: TimingEntry[],
+  values: BigUint64Array,
+  stale: Stale,
+  into: {
+    pairs: TimingPairs
+    submissionSpans: SubmissionSpans
+    timed: Parameters<typeof setOwnShares>[0]
+  },
+) {
+  const { pairs, submissionSpans, timed } = into
+  /** Whether the timestamp at `slot` is this image's: new to its slot, and a device clock never
+   *  reads zero. It records the timestamp in the slot memory: ask once per slot, `stale` first. */
+  const wrote = (slot: number, value: bigint) => !stale(slot, value) && value !== 0n
+  return entries.map((entry) => {
+    const begin = values[entry.slot],
+      end = values[entry.slot + 1],
+      // Both asked, never one short-circuited: the memory takes both.
+      wroteBegin = wrote(entry.slot, begin),
+      wroteEnd = wrote(entry.slot + 1, end)
+    // An empty pass the driver skipped wrote nothing, and ran nothing: it has no time of its own,
+    // and leaves the image's span as the passes that ran made it.
+    if (!wroteBegin && !wroteEnd) {
+      pairs.unwritten++
+      return { name: entry.name, gpuMs: null, reason: 'unwritten-timestamps' }
+    }
+    if (!wroteBegin || !wroteEnd || end < begin) {
+      pairs.invalid++
+      return {
+        name: entry.name,
+        gpuMs: null,
+        reason: 'invalid-timestamps',
+        beginNs: begin.toString(),
+        endNs: end.toString(),
+      }
+    }
+    pairs.valid++
+    const span = submissionSpans.get(entry.part)
+    if (!span) submissionSpans.set(entry.part, { beginNs: begin, endNs: end, passes: 1 })
+    else {
+      if (begin < span.beginNs) span.beginNs = begin
+      if (end > span.endNs) span.endNs = end
+      span.passes++
+    }
+    const pass = { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)), ownMs: 0 }
+    timed.push({ pass, begin, end })
+    return pass
+  })
 }

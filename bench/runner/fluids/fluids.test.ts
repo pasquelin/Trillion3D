@@ -25,25 +25,16 @@ test('the fluids scene is named by the bench and reads no cache', () => {
 })
 
 test('the report reads the shape the probe returns', () => {
-  const probe = limitsOf(
-    { extensions: ['EXT_color_buffer_float', 'EXT_disjoint_timer_query_webgl2'] },
-    {
-      features: new Set(['timestamp-query']),
-      adapter: { maxBindGroups: 4, maxStorageBufferBindingSize: 4294967292 },
-      defaults: { maxBindGroups: 4, maxStorageBufferBindingSize: 134217728 },
-    },
-  )
-  assert.deepEqual(probe.webgl2, { halfFloatColor: false, floatColor: true, timerQuery: true })
-  assert.equal(probe.webgpu?.timestampQuery, true)
+  const probe = limitsOf({
+    features: new Set(['timestamp-query']),
+    adapter: { maxBindGroups: 4, maxStorageBufferBindingSize: 4294967292 },
+    defaults: { maxBindGroups: 4, maxStorageBufferBindingSize: 134217728 },
+  })
+  assert.equal(probe?.timestampQuery, true)
   const lines = limitsLines(probe)
   assert.ok(lines.includes('- WebGPU: timestamp-query yes, 1 of 2 limits beyond the default'))
   assert.ok(lines.includes('| maxStorageBufferBindingSize | 134217728 | 4294967292 |'))
-  assert.ok(
-    lines.includes(
-      '- WebGL2: half-float colour no, float colour yes, EXT_disjoint_timer_query_webgl2 yes',
-    ),
-  )
-  const refused = limitsOf(null, {
+  const refused = limitsOf({
     features: new Set(),
     adapter: { maxBindGroups: 8 },
     defaults: {},
@@ -52,6 +43,6 @@ test('the report reads the shape the probe returns', () => {
     limitsLines(refused).includes('- WebGPU: timestamp-query no, 0 of 1 limits beyond the default'),
   )
   assert.equal(limitsLines({ failed: 'lost' })[2], 'Probe failed: lost', 'a failed probe is said')
-  const none = limitsLines(limitsOf(null, null))
-  assert.ok(none.includes('- WebGL2: unavailable') && none.includes('- WebGPU: unavailable'))
+  const none = limitsLines(limitsOf(null))
+  assert.ok(none.includes('- WebGPU: unavailable'))
 })

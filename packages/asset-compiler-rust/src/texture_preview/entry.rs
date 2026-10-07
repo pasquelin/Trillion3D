@@ -1,6 +1,6 @@
 //! What one sidecar entry carries: the texture it covers, where its bytes came
 //! from, its tail in every encoding the gate kept.
-use super::blocks::Layout;
+use super::blocks::{Layout, FAMILIES};
 use super::reduce::AtlasKind;
 
 /// Origin of preview source bytes. `uri` itself not copied: read
@@ -45,8 +45,8 @@ pub struct TexturePreview {
     /// What each family holds of the chain, `BlockFormat::ALL` order: a layout
     /// when the gate kept it, `None` when the chain stays lossless in that
     /// family — not cooked, or under the bar.
-    pub layouts: [Option<Layout>; 2],
+    pub layouts: [Option<Layout>; FAMILIES],
     /// The same tail in each family's blocks, `BlockFormat::ALL` order; empty
     /// where the layout is `None`.
-    pub blocks: [Vec<u8>; 2],
+    pub blocks: [Vec<u8>; FAMILIES],
 }

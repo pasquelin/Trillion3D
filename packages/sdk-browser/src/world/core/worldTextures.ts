@@ -110,8 +110,8 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
   if (!host) {
     host = new GraphTexture(texture.image)
     if (texture.layout === 'data') {
-      // Raw texels: read as they are stored, with the chain their filter reads (`mipFiltered`,
-      // #443, #732).
+      // Raw texels: read as they are stored, through the chain the GPU builds for every texture
+      // (#443, #732).
       host.kind = 'texels'
       host.format = FORMAT[texture.format] ?? HOST_FORMAT_RGBA
     }

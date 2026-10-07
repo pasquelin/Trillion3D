@@ -10,7 +10,7 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
  * the 124,000 pages that cost the image's peak any more.
  *
  * `residencyChanges` is what the pass actually changed: pages whose residency FLAG flipped. GPU
- * selection writes only their ranges while `sorted` holds, and the list is SORTED at the end of the
+ * selection writes only their ranges, and the list is SORTED at the end of the
  * pass rather than filled in order: a page that leaves and a page that arrives are not named in the
  * same order, and requiring indices to increase sent selection back to walking the 124,000 pages as
  * soon as a pass mixed both. Per-page marking forbids the duplicate, so the list cannot overflow
@@ -25,16 +25,12 @@ export function createWebgpuRowJournal() {
     get count() {
       return changed.count
     },
-    sorted: true,
   }
   /** Sorts the journal: GPU selection reads ranges, therefore increasing indices. */
   const sortResidencyChanges = () => {
     sortPages(changed.list, changed.count)
   }
-  const clearResidencyChanges = () => {
-    changed.clear()
-    residencyChanges.sorted = true
-  }
+  const clearResidencyChanges = () => changed.clear()
   const touchedSet = createDenseKeySet()
   const touched = {
     get pages() {
@@ -52,9 +48,16 @@ export function createWebgpuRowJournal() {
    * One only, because cut publication is unique: a subscriber list would suggest the opposite.
    */
   let watcher: ((page: number) => void) | undefined
+  /** The pages named while a cut is made beside the running one (`../../placement/webgpuGrowth.ts`):
+   *  its pool, listed when it began, follows them alone when it is swapped in. */
+  let log: Set<number> | undefined
+  /** Advanced by every page named: what a reader of the pages' bytes and slots compares. */
+  let touchRevision = 0
   const touchPage = (page: number) => {
+    touchRevision++
     touchedSet.add(page)
     if (watcher) watcher(page)
+    log?.add(page)
   }
   return {
     residencyChanges,
@@ -63,7 +66,16 @@ export function createWebgpuRowJournal() {
     clearResidencyChanges,
     touched,
     touchPage,
-    watchTouched: (abonne: (page: number) => void) => void (watcher = abonne),
+    /** Advanced by every `touchPage`: bytes received or returned, a cache slot taken or given. A
+     *  function, as the row state spreads the journal (`state.ts`). */
+    touchRevision: () => touchRevision,
+    /** The one watcher of `touchPage` (the cut publication): a second one is a defect. */
+    watchTouched(watch: (page: number) => void) {
+      if (watcher) throw new Error('ROW_JOURNAL_WATCHED_TWICE')
+      watcher = watch
+    },
+    /** Logs every page named from now into `into`, or stops logging (`undefined`). */
+    logTouched: (into?: Set<number>) => void (log = into),
     clearTouched: touchedSet.clear,
   }
 }

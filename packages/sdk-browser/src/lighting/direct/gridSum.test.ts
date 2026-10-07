@@ -28,7 +28,8 @@ type Lamp = { centre: Vec3; radius: number; spot: boolean }
 type Sum = (...args: unknown[]) => number[]
 const PROGRAMS = [false, true].flatMap((shadowed) =>
   [false, true].map(
-    (rects) => `${directLightingWgsl(false, shadowed, rects)}${STANDARD_LIGHTING_WGSL}`,
+    (rects) =>
+      `${directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true })}${STANDARD_LIGHTING_WGSL}`,
   ),
 )
 const NAMES = [
@@ -76,7 +77,10 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
     }
     const names = [
       ...NAMES,
-      'standardLighting',
+      'lobeSurface',
+      'surfaceLight',
+      'standardLobe',
+      'fresnelSchlick',
       'ggxDistribution',
       'modelLight',
       'thinTransmission',

@@ -50,7 +50,7 @@ versions, the drivers and the platform as JSON.
 | `RAM_MB` | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit | `256` |
 | `RESOURCE_BASE_URL` | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it | required |
 | `SIMPLIFICATION` | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them | `none` |
-| `--textures-format=` | `bc7`, `astc`, `both` or `none`: the GPU block family cooked beside the lossless levels, kept only where it passes the quality gate ([FORMAT.md](FORMAT.md#textures)) | `bc7` |
+| `--textures-format=` | `all`, `bc7`, `astc`, `etc2` or `none`: the GPU block families cooked beside the lossless levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `all` |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -84,7 +84,7 @@ process, each with its own cache:
 | `jobs[].id` | Unique job id in events and the summary | `job-<index>` |
 | `jobs[].source`, `cache`, `resourceBaseUrl` | As on the command line | required |
 | `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides | `full`, `150000`, batch default, batch share, `none` |
-| `jobs[].texturesFormat` | As `--textures-format=` | `bc7` |
+| `jobs[].texturesFormat` | As `--textures-format=` | `all` |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
@@ -324,7 +324,7 @@ The code is the contract: each module's head states its rules and their reasons.
 | Coplanar cuts | One order for surfaces sharing a plane | `coplanar.rs` |
 | Textures | Every mip level, lossless and the gated block family, keyed by the image's SHA-256 | `compiler_textures.rs`, `texture_preview.rs` |
 | Cutouts | Alpha measured during the texture decode; only answered entries applied | `cutout.rs` |
-| Scene tables | The node graph, lights and surfaces the runtime builds its scene from | `compiler_tables.rs`, `compiler_autonomous.rs` |
+| Scene tables | The node graph, lights and surfaces the runtime builds its scene from | `compiler_tables.rs` |
 | Proxy and impostors | The resident lighting proxy; octahedral impostor atlases | `proxy.rs`, `impostor.rs` |
 | Physics cook | Colliders, rigid and soft bodies cooked by native Jolt | `physics_cook.rs` |
 | Lights | The source's lamps in the engine's contract | `compiler_lights.rs` |

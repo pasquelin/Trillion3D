@@ -12,22 +12,16 @@ import { startInteractiveExplorer } from './interactive.ts'
 
 const turn = () => new Promise((wake) => setImmediate(wake))
 
-test('a plain frame draws with no family; pools, passes, guides, views and A/B name theirs', () => {
+test('a plain frame draws with no family; pools, passes and guides name theirs', () => {
   const guides = createGuideSet()
   const held = { particles: [], effects: new EffectChain(), guides }
-  assert.deepEqual(frameFamilies(held, 'beauty'), [])
+  assert.deepEqual(frameFamilies(held), [])
   held.particles = [new ParticlePool({ capacity: 4 })] as never
   held.effects.add(effect.bloom())
   const line = guides.lines({ positions: [0, 0, 0, 1, 0, 0] })
-  assert.deepEqual(frameFamilies(held, 'wireframe'), [
-    'particles',
-    'effects',
-    'guides',
-    'diagnostics',
-  ])
+  assert.deepEqual(frameFamilies(held), ['particles', 'effects', 'guides'])
   line.setVisible(false)
-  assert.ok(!frameFamilies(held, 'beauty').includes('guides'), 'a hidden guide draws nothing')
-  assert.ok(frameFamilies(held, 'beauty', true).includes('measurement'), 'an A/B layout')
+  assert.ok(!frameFamilies(held).includes('guides'), 'a hidden guide draws nothing')
 })
 
 test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn (#1353)", async () => {
@@ -46,13 +40,12 @@ test("a session's own loop: the frame waits for its pools' code, neither stepped
   const runtime = {
     canvas,
     options: { width: 4, height: 4, pixelRatio: 1 },
-    hostedControls: [],
+    ownedControls: [],
     state: { disposed: false },
-    familiesPending: () => frameWaits(held, 'beauty'),
-    measureFrame: () => false,
-    // As the host runtime answers (`hostRuntime.ts`): the frame that waited draws on arrival.
-    pendingFrame: async () => !!(await frameWaits(held, 'beauty')?.then(() => true)),
-    landings: () => undefined,
+    familiesPending: () => frameWaits(held),
+    engine: { measureFrame: () => false, landings: () => 0 },
+    // As the host runtime answers (`sessionRuntime.ts`): the frame that waited draws on arrival.
+    pendingFrame: async () => !!(await frameWaits(held)?.then(() => true)),
   }
   const explorer = { render: () => (done.push('draw'), {}), resize() {} }
   const config = {

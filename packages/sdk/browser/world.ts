@@ -60,6 +60,7 @@ export { createWorld } from '../../sdk-browser/src/world/core/world.ts'
 export type { World } from '../../sdk-browser/src/world/core/world.ts'
 export { Curve, Path, Shape, SplineCurve } from '../../sdk-core/src/world/math/curves.ts'
 export { detectCapabilities } from '../../sdk-browser/src/world/capability/capabilities.ts'
+export type { GpuCapabilities } from '../../sdk-browser/src/world/capability/capabilities.ts'
 export { diagnostic } from '../../sdk-browser/src/world/diagnostic/index.ts'
 export { effect } from '../../sdk-core/src/world/effect/index.ts'
 export { EffectChain, EffectPass } from '../../sdk-core/src/world/effect/chain.ts'
@@ -106,8 +107,7 @@ export type { PixelImage } from '../../sdk-browser/src/world/texture/index.ts'
 export type { PointOfInterest } from '../../sdk-browser/src/world/session/options.ts'
 export { pose } from '../../sdk-browser/src/world/api/poseFamily.ts'
 export type { PosedWorld } from '../../sdk-browser/src/world/api/poseFamily.ts'
-export { probeWorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts'
-export type { WorldRenderer } from '../../sdk-browser/src/world/capability/worldReady.ts'
+export { probeWorldDevice } from '../../sdk-browser/src/world/capability/worldReady.ts'
 export type {
   QualityResolution,
   WorldQualityOptions,

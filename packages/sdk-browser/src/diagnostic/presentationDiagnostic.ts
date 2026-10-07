@@ -18,13 +18,16 @@ export function outputColorDiagnostic(
   return { clearColor: clearHex, topLeft, center, matchesClearAtTopLeft: topLeft === clearHex }
 }
 
-/** A bounded evidence record for the final WebGL composition used by captures and reports. */
+/** A bounded evidence record for a captured image (`capture()`, bottom row first), read from the
+ *  engine's WebGPU colour target. */
 export function presentationColorDiagnostic(
   pixels: Uint8Array,
   width: number,
   height: number,
   clearColor: number,
-  surface = 'webgl-capture-target',
 ) {
-  return { ...outputColorDiagnostic(pixels, width, height, clearColor, 'top-left'), surface }
+  return {
+    ...outputColorDiagnostic(pixels, width, height, clearColor, 'bottom-left'),
+    surface: 'webgpu-color-target',
+  }
 }

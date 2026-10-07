@@ -29,14 +29,13 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 // source under `packages/*/` names it, fixtures included, and `engine-without-three.test.ts`
 // refuses one that does.
 //
-//  1. WITNESS ENGINES left the package. Written with the host library, and that is their function:
-//     they are the reference against which the engine is compared, frame by frame. They live
-//     beside the bench (`bench/witnesses/`), are bundled for it by `scripts/build-witnesses.ts`
-//     into `dist/witnesses/`, which the package leaves out, and plug into the engine through the
-//     `BackendFactory` list its measurement seam takes (`packages/sdk-browser/src/measurement/measurement.ts`).
-//  2. The autonomous WebGL2 path's pages, copies and lights are objects of the engine's own graph
-//     (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`),
-//     drawn by the engine's program (`packages/sdk-browser/src/webgl/cluster/sceneDraw.ts`).
+//  1. WITNESS ENGINES are written with the host library, and that is their function: they are the
+//     reference against which the engine is compared, frame by frame. They live outside the
+//     package, beside the bench (`bench/witnesses/`), are bundled for it by
+//     `scripts/build-witnesses.ts` into `dist/witnesses/`, which the package leaves out, and draw
+//     in pages of their own (`bench/runner/witness/threeMeasurePage.ts`), never as the engine.
+//  2. The pages, copies and lights a page hands back are objects of the engine's own graph
+//     (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`).
 //  3. Materials, textures, geometries and the constants they declare are read through the shapes
 //     of `packages/sdk-browser/src/host/resources.ts` and `packages/sdk-browser/src/host/shadedMaterial.ts`
 //     and the named constants of `packages/sdk-browser/src/host/surfaceConstants.ts`.
@@ -64,17 +63,5 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//
 
 export const DECLARATION: Record<string, string> = {
-  'page/selection/types': 'contract: it declares the field on a page record',
-  'page/selection/collectRecords': 'the collection sets it, once, beside the record it built',
-  'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
-  'backend/autonomous/paints': 'WebGL2 page path: it repaints its instances with host materials',
-  'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',
-  'backend/autonomous/pageRec.fixture':
-    'test fixture: the resident page record it builds carries the field',
-  'placement/autonomousPlacements':
-    'WebGL2 page path: it keeps the base paint of each mounted page',
-  'placement/webglPageBatches':
-    'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
-  'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
   'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
 }

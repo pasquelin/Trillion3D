@@ -4,7 +4,7 @@ import { rowParked, type PlacementOf } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
-/** A see-through draw — a WebGPU blend item, a WebGL2 blended copy — as visibility reads it:
+/** A see-through draw — a blend item — as visibility reads it:
  *  hidden with its source node, parked with its row. */
 export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 

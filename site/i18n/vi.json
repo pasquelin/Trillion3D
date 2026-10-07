@@ -365,8 +365,6 @@
       "shadow-pages-off": "Tắt phân trang bóng đổ",
       "shadow-budget-0-25": "Ngân sách thời gian bóng đổ: 0,25 ms",
       "budget-3000": "Ngân sách hình học: 3000 trang",
-      "webgl": "Bộ kết xuất WebGL",
-      "webgl2": "Bộ kết xuất WebGL 2",
       "moving-light": "Nguồn sáng di chuyển",
       "visible": "Cửa sổ trình duyệt hiển thị"
     },
@@ -472,7 +470,7 @@
     "resolution": "Độ phân giải và ngưỡng sai số",
     "lights": "Ánh sáng, bóng đổ và ánh sáng dội lại",
     "execution": "Khung hình đứng yên, khử răng cưa và các tùy chọn thực thi",
-    "memory": "Bộ nhớ, các bản sao và các bộ kết xuất khác"
+    "memory": "Bộ nhớ, các bản sao và các lượt chạy khác"
   },
   "evidence": {
     "computeDrawing": "Vẽ bằng compute",
@@ -656,8 +654,8 @@
     },
     "measurement-entry": {
       "title": "Điểm vào dành cho đo lường",
-      "description": "Nơi duy nhất một mẫu đối chứng, một backend bị ép buộc hay một phiên nội bộ vẫn còn được gọi tên — không bao giờ qua điểm vào `trillion3d` đã công bố.",
-      "html": "<p>Một trang chỉ import <code>trillion3d</code> và không bao giờ thấy một backend, một mẫu đối chứng hay một phiên nội bộ nào: <code>createWorld</code> vẽ bằng một bộ kết xuất duy nhất, được chọn tùy theo máy hoặc bị từ chối và gọi đích danh nếu bị ép buộc mà lại không có. Bộ đo hiệu năng, các bằng chứng và các góc nhìn so sánh vẫn cần gọi tên một mẫu đối chứng — Three.js thuần túy, <code>THREE.LOD</code>, phiên nội bộ <code>openMeasuredWorld</code> — và đó là nhiệm vụ duy nhất của điểm vào đo lường riêng biệt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Nó xuất lại mọi thứ mà điểm vào đã công bố xuất ra, cộng thêm những gì một ứng dụng chủ không bao giờ cần: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (phiên nội bộ mà một thế giới tự mở trên chính nó), các xưởng tạo backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), và các hàm trợ giúp chỉ dùng cho đo lường như <code>replicateInstances</code>. Không có gì trong số đó tới được một thế giới đã công bố, và cũng không có gì được một ứng dụng import.</p>"
+      "description": "Nơi một mẫu đối chứng hay một phiên nội bộ vẫn còn được gọi tên — không bao giờ qua điểm vào `trillion3d` đã công bố.",
+      "html": "<p>Một trang import <code>trillion3d</code> và không bao giờ thấy một mẫu đối chứng hay một phiên nội bộ nào: <code>createWorld</code> vẽ bằng WebGPU, hoặc bị từ chối đích danh nếu máy không cấp WebGPU. Bộ đo hiệu năng và các bằng chứng vẫn cần gọi tên một mẫu đối chứng — Three.js thuần túy, <code>THREE.LOD</code>, phiên nội bộ <code>openMeasuredWorld</code> — và đó là nhiệm vụ duy nhất của điểm vào đo lường riêng biệt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Nó xuất lại mọi thứ mà điểm vào đã công bố xuất ra, cộng thêm những gì một host không bao giờ cần: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (phiên nội bộ mà một thế giới mở trên chính nó), nhà máy trang <code>webgpuPagesEngine</code>, và các hàm hỗ trợ chỉ dành cho đo lường như <code>replicateInstances</code>. Không thứ nào đến được một thế giới đã công bố, và không ứng dụng nào import chúng.</p>"
     },
     "createWorldJob": {
       "title": "Tải một thế giới như một công việc có thể hủy",
@@ -706,11 +704,11 @@
       "description": "Những gì một khung hình vẽ ra. Tính khả dụng mô tả kết quả thật của đường ống xử lý, không bao giờ là lớp phủ giả lập: `DIAGNOSTICS` cho biết, với mỗi chế độ, liệu bộ kết xuất đang hoạt động có tạo ra được nó không và vì sao không.",
       "values": [
         "Hình ảnh có ánh sáng, từ vật liệu glTF.",
-        "Một màu đặc trưng cho mỗi tam giác được gửi đi — không phải GL_LINES, không phải `MeshBasicMaterial.wireframe`.",
-        "Định danh ổn định cho từng đối tượng nguyên thủy/trang, một màu cho mỗi cụm; cả trên WebGL2 lẫn WebGPU.",
+        "Một màu đặc trưng cho mỗi tam giác được gửi đi.",
+        "Định danh ổn định cho từng đối tượng nguyên thủy/trang, một màu cho mỗi cụm.",
         "Các cụm mức 0 so với các bản rút gọn DAG thô hơn thực sự được chọn ở khung hình này.",
         "Sai số của từng cụm được chiếu qua hình cầu bao của cụm, đúng như cách phép cắt sử dụng nó.",
-        "Một màu cho mỗi lớp vật liệu: chặng phân lớp đã xử lý điểm ảnh đó. Chỉ có trên đường xử lý khả kiến của WebGPU.",
+        "Một màu cho mỗi lớp vật liệu: chặng phân lớp đã xử lý điểm ảnh đó.",
         "Các trang khả kiến được chọn; các node phân cấp bị loại được đếm, không được vẽ.",
         "Các trang chỉ mục đã gắn kết; các trang bị thiếu không được vẽ. Không phải VRAM vật lý.",
         "Không khả dụng: sự lưu trú mip của kết cấu chưa được đo lường.",
@@ -761,7 +759,7 @@
     },
     "GpuTimingMethod": {
       "description": "Cách các khoảng thời gian GPU của một hồ sơ theo chặng được lấy. Thời lượng theo từng chặng cho biết ở đâu, không bao giờ là bao nhiêu: trên một GPU dựa trên ô, các chặng chồng lấn nhau và một chặng hấp thụ luôn chặng bên cạnh nó. Tổng khung hình là `gpuImageMs`, tức khoảng thời gian bao trùm — thời lượng từng chặng không cộng dồn vào đó.",
-      "values": ["Truy vấn dấu thời gian WebGPU gốc.", "Phần mở rộng WebGL2, cho đường xử lý đó."]
+      "values": ["Truy vấn dấu thời gian WebGPU gốc."]
     },
     "ColumnKind": {
       "description": "Cách lưu trữ một cột trong tệp kê khai nhị phân. `COLUMN_KIND` ánh xạ mỗi tên cột tới loại của nó, để một trình đọc biết cách nhìn nhận các byte đi kèm.",
@@ -790,7 +788,7 @@
       "description": "Bọc bất kỳ thao tác đang chờ nào vào hợp đồng công việc của bộ máy: một ảnh chụp trạng thái (`JobStatus`, tiến độ, kết quả, lỗi), khả năng theo dõi, và một lệnh hủy sẽ giải phóng những gì công việc đó đang giữ. Thao tác đó phải hỗ trợ việc hủy qua chủ sở hữu của nó (RAF, đọc lại dữ liệu, …)."
     },
     "detectCapabilities": {
-      "description": "Những gì máy này thực sự hỗ trợ, trước khi một thế giới được tạo ra: `{ tier, renderer, adapter, extensions, reason }`. Lý do luôn được đưa ra, để một khả năng không được hỗ trợ được báo cáo thay vì bị mặc định giả định. Lớp bọc công khai mà một thế giới đọc là `capability.detect()` — `{ webgpu, webgl2, ... }`, một dạng đơn giản hơn cho cùng một phép dò. Phép dò WebGL2 được lưu vào bộ nhớ đệm."
+      "description": "WebGPU của máy này thực sự cấp những gì, trước khi một thế giới được tạo: `{ tier, adapter, extensions, reason }`. Tier là `full` khi có truy vấn dấu thời gian GPU, `degraded` khi không có, và `unavailable` khi không có adapter. Lý do luôn được nêu, nên một khả năng không được hỗ trợ sẽ được báo cáo chứ không bị giả định. Lớp bọc công khai mà một thế giới đọc là `capability.detect()` — `{ webgpu, tier, features, reason }`, một dạng đơn giản hơn cho cùng một phép dò."
     },
     "perspectiveProjection": {
       "description": "Phép chiếu phối cảnh của một camera với `fov` theo chiều dọc tính bằng độ, tỉ lệ `aspect`, mặt phẳng gần `near`, độ phóng `zoom`. **Độ sâu đảo ngược, mặt phẳng xa vô hạn**: `near` chiếu tới 1, vô hạn chiếu tới 0. Không có mặt phẳng xa nào tham gia vào đây, do đó không có phép chia cho nó — và chính điều đó mang lại độ chính xác về độ sâu."
@@ -1170,11 +1168,10 @@
       "an angle at or above π/2 never rejects": "một góc bằng hoặc lớn hơn π/2 không bao giờ loại bỏ",
       "after updateNodeMatrixWorld(tree, root)": "sau updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "khả dụng — Các trang chỉ mục đã gắn kết; các trang bị thiếu không được vẽ; không phải VRAM vật lý",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "khả dụng — Một màu đặc trưng cho mỗi tam giác được gửi đi, không phải khung dây GL_LINES",
+      "available — A filled unique colour per submitted triangle": "khả dụng — Một màu đặc trưng cho mỗi tam giác được gửi đi",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "khả dụng — Các cụm mức 0 so với các bản rút gọn DAG thô hơn thực sự được chọn ở khung hình này",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "khả dụng — Sai số màn hình của từng cụm được chiếu qua hình cầu bao của cụm, đúng như cách phép cắt sử dụng nó",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "khả dụng — Các trang khả kiến được chọn; các node phân cấp bị loại được đếm, không được vẽ",
-      "available — Stable primitive/page ID, exact-cluster backend only": "khả dụng — Định danh nguyên thủy/trang ổn định, chỉ trên backend cụm chính xác",
       "available — glTF materials": "khả dụng — vật liệu glTF",
       "unavailable — No fragment counter": "không khả dụng — không có bộ đếm mảnh",
       "unavailable — Texture mip residency not instrumented": "không khả dụng — sự lưu trú mip của kết cấu chưa được đo lường",

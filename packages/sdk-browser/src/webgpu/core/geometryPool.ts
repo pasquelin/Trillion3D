@@ -10,9 +10,18 @@ import {
   type PoolList,
   type Stores,
 } from './geometryPoolLayout.ts'
-import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
+import { createPoolStores, releasePoolStores } from './geometryPoolStores.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
+import {
+  claim,
+  holds,
+  placeBlock,
+  poolBytesOf,
+  put,
+  writeBlock,
+  type Pool,
+} from './geometryPoolOps.ts'
 export type { PoolList } from './geometryPoolLayout.ts'
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>
 /**
@@ -33,144 +42,85 @@ export function createVertexPool(
   blocks: GeometryBlocks,
   tailFloats = 0,
   grown?: (capacity: number) => void,
+  secondUv = false,
 ) {
-  let used = 0,
-    size = Math.max(1, capacity)
-  const floatsOf = (count: number) => poolFloats(count, tailFloats, coloured)
-  let floats = floatsOf(size)
+  const size = Math.max(1, capacity)
+  const floats = poolFloats(size, tailFloats, coloured, secondUv)
   if (!poolFits(floats, device.limits)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT')
-  let stores = createPoolStores(device, floats)
-  /** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
-  const upload = (name: PoolList, at: number, n: number) => {
-    const key = LAYOUT[name].buffer
-    if (key === 'concatNrm')
-      writeFloatAtlas(device.queue, stores.concatNrm, at, scratchFloats(), 0, n)
-    else device.queue.writeBuffer(stores[key], at * 4, scratchFloats(), 0, n)
-  }
-  /** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
-  const holds = (attributes: HostAttributes, name: PoolList) =>
-    (name !== 'color' || coloured) && LAYOUT[name].parts.some(([source]) => attributes[source])
-  /** The bytes `count` vertices of list `name` of `attributes` weigh in the pool, if it holds it. */
-  const weigh = (attributes: HostAttributes, name: PoolList, count: number) =>
-    holds(attributes, name) ? count * LAYOUT[name].stride * 4 : 0
-  /** Makes the room for `need` more vertices in place when the pool is short: the buffers are
-   *  made wider, what they hold copied into them, the old ones freed, the owners told. False when
-   *  the device refuses the size — the caller then opens the session, as it did before (#1293). */
-  const ensure = (need: number) => {
-    if (used + need <= size) return true
-    let next = size
-    while (next < used + need) next *= 2
-    const wider = floatsOf(next)
-    if (!poolFits(wider, device.limits)) return false
-    const made = createPoolStores(device, wider),
-      encoder = device.createCommandEncoder()
-    copyPoolStores(encoder, stores, made, [size, next, tailFloats], coloured)
-    device.queue.submit([encoder.finish()])
-    releasePoolStores(stores)
-    stores = made
-    size = next
-    floats = wider
-    // The atlas's rows follow its size: every block's normals are written again, as placed.
-    for (const [attributes, block] of blocks)
-      if (holds(attributes, 'normal'))
-        upload(
-          'normal',
-          offsetOf('normal', next, block.vertexBase),
-          fillScratch(attributes, 'normal', 0, block.count),
-        )
-    releaseScratch() // a growth's largest list is not kept, as the open's
-    grown?.(next)
-    return true
-  }
-  /** A block for `attributes` in the room left, grown when it is spent; undefined when the device
-   *  bounds the size. */
-  const claim = (attributes: HostAttributes, dynamic: boolean) => {
-    const count = attributes.position?.count ?? 0
-    if ((attributes.color && !coloured) || !ensure(count)) return undefined
-    const block: GeometryBlock = {
-      ...{ vertexBase: used, count, hasUv: !!attributes.uv, hasNormal: !!attributes.normal },
-      ...{ hasTangent: !!attributes.tangent, hasColor: !!attributes.color, dynamic },
-    }
-    blocks.set(attributes, block)
-    used += count
-    return block
+  const stores = createPoolStores(device, floats)
+  const p: Pool = {
+    ...{ device, coloured, secondUv, tailFloats, grown, blocks },
+    ...{ used: 0, size, floats, stores },
   }
   return {
     /** The positions, then the deformation block. */
     get concatPos() {
-      return stores.concatPos
+      return p.stores.concatPos
     },
     get concatUv() {
-      return stores.concatUv
+      return p.stores.concatUv
     },
     /** The normal atlas's view: seven floats a vertex, a normal and its tangent. */
     get concatNrm() {
-      return stores.concatNrm.view
+      return p.stores.concatNrm.view
     },
     /** The normal atlas itself: its view and what it weighs on the device. */
     get normalAtlas() {
-      return stores.concatNrm
+      return p.stores.concatNrm
     },
     /** What the normal atlas weighs on the device. */
     get normalBytes() {
-      return stores.concatNrm.bytes
+      return p.stores.concatNrm.bytes
     },
     /** Frees the pool's stores: the pool is dropped. */
-    destroy: () => releasePoolStores(stores),
+    destroy: () => releasePoolStores(p.stores),
     /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the
      *  open's one packing. */
-    pack(sourced: ReadonlyMap<HostAttributes, boolean>) {
-      const arrays = Object.fromEntries(
-        (Object.keys(floats) as (keyof typeof floats)[]).map((key) => [
-          key,
-          new Float32Array(floats[key]),
-        ]),
-      ) as Stores<Float32Array<ArrayBuffer>>
-      for (const [attributes, dynamic] of sourced) {
-        const block = claim(attributes, dynamic)
-        for (const name of LISTS) {
-          if (!block || !holds(attributes, name)) continue
-          const n = fillScratch(attributes, name, 0, block.count) // grows the scratch: read it after
-          arrays[LAYOUT[name].buffer].set(
-            scratchFloats().subarray(0, n),
-            offsetOf(name, size, block.vertexBase),
-          )
-        }
-      }
-      for (const key of BUFFERS) device.queue.writeBuffer(stores[key], 0, arrays[key])
-      const normals = arrays.concatNrm
-      writeFloatAtlas(device.queue, stores.concatNrm, 0, normals, 0, normals.length)
-      releaseScratch() // the open's largest list is not kept
-    },
+    pack: (sourced: ReadonlyMap<HostAttributes, boolean>) => packPool(p, sourced),
     /** The block of `attributes`, placed in the room the open left when it has none — a record
      *  mounted since —; a mount past that room grows it in place (#1293). `dynamic` marks its
      *  rows. */
-    place(attributes: HostAttributes, dynamic = false) {
-      const known = blocks.get(attributes)
-      if (known) return known
-      const block = claim(attributes, dynamic)
-      if (block) for (const name of LISTS) this.write(attributes, name, 0, block.count)
-      return block
-    },
+    place: (attributes: HostAttributes, dynamic = false) => placeBlock(p, attributes, dynamic),
     /** The bytes `place` then `write` send for `ranges` of `attributes`: each list whole first
      *  when its block is still to place. */
-    bytesOf(attributes: HostAttributes, ranges: readonly { name: PoolList; count: number }[]) {
-      let bytes = 0
-      if (!blocks.has(attributes))
-        for (const name of LISTS) bytes += weigh(attributes, name, attributes.position?.count ?? 0)
-      for (const { name, count } of ranges) bytes += weigh(attributes, name, count)
-      return bytes
-    },
+    bytesOf: (attributes: HostAttributes, ranges: readonly { name: PoolList; count: number }[]) =>
+      poolBytesOf(p, attributes, ranges),
     /** Writes vertices `from` to `from + count - 1` of list `name` of placed `attributes` — a
      *  normal with its tangent — in place, no buffer allocated; returns the bytes written. */
-    write(attributes: HostAttributes, name: PoolList, from: number, count: number) {
-      const block = blocks.get(attributes)
-      if (!block || !holds(attributes, name)) return 0
-      const written = fillScratch(attributes, name, from, Math.min(count, block.count - from))
-      upload(name, offsetOf(name, size, block.vertexBase + from), written)
-      return written * 4
-    },
+    write: (attributes: HostAttributes, name: PoolList, from: number, count: number) =>
+      writeBlock(p, attributes, name, from, count),
   }
+}
+
+/** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole. */
+function packPool(p: Pool, sourced: ReadonlyMap<HostAttributes, boolean>) {
+  const { device, floats } = p
+  const arrays = Object.fromEntries(
+    (Object.keys(floats) as (keyof typeof floats)[]).map((key) => [
+      key,
+      new Float32Array(floats[key]),
+    ]),
+  ) as Stores<Float32Array<ArrayBuffer>>
+  for (const [attributes, dynamic] of sourced) {
+    const block = claim(p, attributes, dynamic)
+    for (const name of LISTS) {
+      // The tail is written after the atlas, at its own place (`uv1Tail.ts`).
+      if (!block || name === 'uv1' || !holds(p, attributes, name)) continue
+      const n = fillScratch(attributes, name, 0, block.count) // grows the scratch: read it after
+      arrays[LAYOUT[name].buffer].set(
+        scratchFloats().subarray(0, n),
+        offsetOf(name, p.size, block.vertexBase),
+      )
+    }
+  }
+  const { stores } = p
+  for (const key of BUFFERS) device.queue.writeBuffer(stores[key], 0, arrays[key])
+  const normals = arrays.concatNrm
+  writeFloatAtlas(device.queue, stores.concatNrm, 0, normals, 0, normals.length)
+  for (const [attributes, block] of p.blocks)
+    if (holds(p, attributes, 'uv1'))
+      put(p, attributes, 'uv1', { vertex: block.vertexBase, from: 0, n: block.count })
+  releaseScratch() // the open's largest list is not kept
 }
 
 export type VertexPool = ReturnType<typeof createVertexPool>

@@ -18,7 +18,7 @@ export type NumberSink = { [index: number]: number }
  * body are forty-eight indexed read and write sites, shared by ALL callers:
  * a single caller that passes a `Float32Array` or a plain array makes them polymorphic, and the
  * hot loops — a hierarchy's world matrices, the batches — then pay it on every
- * element. Callers that start from a host-library matrix therefore copy it first
+ * element. Callers that start from a host matrix therefore copy it first
  * into an owned buffer: sixteen numbers copied once per root or distinct matrix, against
  * one polymorphic site for thousands of nodes. Single precision is a SEND conversion:
  * it is done by copying the result into the GPU buffer, never by writing here, and changes

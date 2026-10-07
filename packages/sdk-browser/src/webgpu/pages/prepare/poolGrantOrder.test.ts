@@ -5,8 +5,8 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
+import { webgpuPagesEngine } from '../pages.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
 import type { MemoryBudgetsReport } from '../../../residency/pools.ts'
 import { refusing } from './refusing.fixture.ts'
 
@@ -32,13 +32,13 @@ function granting(
     ;(first ? during : after)(raise)
     first = false
   })
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = deepQuadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     viewport: [32, 32],
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   })
   t.after(() => {
     backend.dispose()

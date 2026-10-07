@@ -68,6 +68,8 @@ test('a row over a quantized page takes its attributes from the page, never a ta
       hasNormal: false,
       hasTangent: false,
       hasColor: false,
+      // No second UV set: the page header says so (`FLAG_UV1`).
+      hasUv1: false,
       quantized: true,
     },
   )

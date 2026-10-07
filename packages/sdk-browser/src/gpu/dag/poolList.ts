@@ -10,14 +10,23 @@ import { writeParts, type DagParts } from './split.ts'
  * departure takes the last entry's place —, so the sweep is bounded by the slots, never the
  * catalogue (#483 rule 6). `note` returns whether the list moved.
  */
-export function createDagPoolList(device: GPUDevice, packed: PackedDag, pageCones: DagParts) {
+export function createDagPoolList(
+  device: GPUDevice,
+  packed: PackedDag,
+  pageCones: DagParts,
+  /** The pages a pool already holds, for a cut made beside it (a growth in place): listed at once,
+   *  in one write. */
+  held?: (page: number) => boolean,
+) {
   const { buffer, byteOffset, length } = packed.pageCones,
     words = new Uint32Array(buffer, byteOffset, length),
     [base, keys] = [poolBase(packed.pageCount), keyBase(packed.pageCount)]
   /** Each listed page's entry, 1 for the first. */
   const entry = createSparseInts()
-  const write = (word: number) =>
-    writeParts(device, pageCones, word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4)
+  let writes = true
+  const write = (word: number, count = 1) =>
+    writes &&
+    writeParts(device, pageCones, word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4 * count)
   const note = (page: number, held: boolean) => {
     if (canonicalPage(words[keys + page]) !== page || entry.has(page) === held) return false
     if (held && words[base] >= selectionListCap(packed.pageCount)) return false
@@ -28,6 +37,12 @@ export function createDagPoolList(device: GPUDevice, packed: PackedDag, pageCone
     write(base + at)
     write(base)
     return true
+  }
+  if (held) {
+    writes = false
+    for (let page = 0; page < packed.pageCount; page++) if (held(page)) note(page, true)
+    writes = true
+    write(base, words[base] + 1)
   }
   return { note, entries: entry }
 }

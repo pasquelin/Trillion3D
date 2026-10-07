@@ -21,7 +21,7 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { sceneDerived } from '../../../bench/runner/assets/scene.ts'
 import { TANGENT_SCENES } from '../../../bench/runner/scenes/tangentScenes.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { benchManifest, defaultBackendImage, drawnPixels } from '../world/proofWorld.ts'
+import { benchManifest, defaultWorldImage, drawnPixels } from '../world/proofWorld.ts'
 
 /** The bench sun, casting no shadow: the traced shadow read is seeded by the frame number, so an
  *  image held at another frame differs on every shadow edge — the pair would measure how many
@@ -31,13 +31,8 @@ const LIGHT = { ...SUN, castsShadow: false }
 /** The default world of a tangent scene under `LIGHT`: its image, checked drawn. */
 async function tangentImage(key: string, scene: string) {
   const errors: string[] = []
-  const read = await runOnDawn(
-    () => defaultBackendImage(benchManifest(scene), [LIGHT]),
-    null,
-    errors,
-  )
+  const read = await runOnDawn(() => defaultWorldImage(benchManifest(scene), [LIGHT]), null, errors)
   assert.deepEqual(errors, [], key)
-  assert.equal(read.backend, 'webgpu-page-raster', key)
   assert.ok(read.held, `${key}: the image is held`)
   const drawn = drawnPixels(read.pixels)
   assert.ok(drawn > read.pixels.length / 4 / 20, `${key}: ${drawn} pixels drawn`)

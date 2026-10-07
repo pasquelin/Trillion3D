@@ -3,11 +3,12 @@
 // still refused, by name, at the first cluster that projects, and never by a root that projects none.
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts'
+import { collectClusterPages } from '../selection/selection.ts'
+import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from './held.ts'
+import { createHeldResidency } from './held.fixture.ts'
 
 /** A near plane no other value of the cut shares: its `Number.isFinite` calls are the frame checks. */
 const NEAR = 0.1 + 2 ** -40

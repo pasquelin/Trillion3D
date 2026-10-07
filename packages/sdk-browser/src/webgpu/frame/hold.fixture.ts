@@ -19,7 +19,6 @@ export function settledRt() {
   const run = {
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     lost: false,
-    gpuFrameActive: true,
     gpuMetricsReady: true,
     cutHeld: true,
     overBudget: false,
@@ -51,7 +50,7 @@ export function settledRt() {
     dirtyFrom: 0,
     rowsEpoch: 1,
     tableEpoch: 1,
-    candidateOverflow: 0,
+    rowsDenied: 0,
     packedCount: 1,
     rowCount: 1,
   }
@@ -61,10 +60,10 @@ export function settledRt() {
     run,
     views: { main, active: main, persistent: [] },
     layout: { rows },
-    vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
+    vis: { gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
       changes: { deferred: () => false },
-      store: { count: 0 },
+      store: { count: 0, epoch: 1 },
     },
     bounce: { probes: undefined as unknown },
     capture: { capturing: false, capturePending: false },

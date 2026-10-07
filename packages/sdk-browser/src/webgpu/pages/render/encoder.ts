@@ -1,11 +1,9 @@
 import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { viewProj } from '../helpers.ts'
-import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts'
 import { enginePose } from '../../../camera/world.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
-import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.gpuTiming && !rt.capture.capturing
@@ -120,25 +118,4 @@ export function submitColorCopy(
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     })
-}
-
-export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
-  const pass = encoder.beginRenderPass({
-    label: 'Trillion3D clear',
-    colorAttachments: [
-      {
-        view: rt.gpu.colorView!,
-        loadOp: 'clear',
-        storeOp: 'store',
-        clearValue: clearValueOf(rt.run.clearColor),
-      },
-    ],
-    depthStencilAttachment: {
-      view: rt.gpu.depthView!,
-      depthClearValue: DEPTH_CLEAR,
-      depthLoadOp: 'clear',
-      depthStoreOp: 'store',
-    },
-  })
-  pass.end()
 }

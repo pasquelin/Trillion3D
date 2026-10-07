@@ -8,8 +8,8 @@ import assert from 'node:assert/strict'
 import { collectClusterPages } from './selection.ts'
 import { cullingNodes, quantizationErrorOf } from './helpers.ts'
 import { structureIndex } from './structure.ts'
-import { dagLevel } from '../../backend/pagesBackend.fixture.ts'
-import { QUAD_MANIFEST, quadIndices, quadScene } from '../../backend/pagesBackendScenes.fixture.ts'
+import { dagLevel } from '../../engine/pagesEngine.fixture.ts'
+import { QUAD_MANIFEST, quadIndices, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
 import type { ClusterManifest, PrimitiveQuantization } from '../../../../sdk-core/src/index.ts'
 
 const ERROR = 0.25

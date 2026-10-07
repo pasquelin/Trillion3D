@@ -30,7 +30,7 @@ export function writeWebgpuVisibilityUniforms(
   if (vis.visUniPacked.length !== slots * 64) vis.visUniPacked = new Float32Array(slots * 64)
   const { visUniPacked, shadeUniPacked } = vis,
     [width, height] = rt.gpu.targetSize,
-    { gpuFrameActive, diagnostic } = run,
+    { diagnostic } = run,
     maskOffset = run.gpuSelection?.maskOffset ?? 0,
     pixelRatio = renderPixelRatio(rt),
     mipBias = renderMipBias(rt)
@@ -52,8 +52,8 @@ export function writeWebgpuVisibilityUniforms(
     visInts[base + 19] = tableRows
     visInts[base + 20] = Math.max(0, slot - 1)
     visInts[base + 21] = slot === 0 ? 0 : 1
-    visInts[base + 22] = gpuFrameActive ? maskOffset : 0
-    visInts[base + 23] = gpuFrameActive ? 1 : 0
+    visInts[base + 22] = maskOffset
+    visInts[base + 23] = run.gpuSelection ? 1 : 0
     // Render pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).
     visUniPacked[base + 24] = pixelRatio
     // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).

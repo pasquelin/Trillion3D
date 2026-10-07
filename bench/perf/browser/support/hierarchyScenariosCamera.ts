@@ -43,7 +43,6 @@ const fixedCamera: CameraSpec = {
   near: 0.1,
   far: 1000,
   zoom: 1,
-  webgpu: false,
 }
 const origin: Pose = [
   [0, 0, 0],
@@ -75,15 +74,7 @@ export function visees(): HierarchyOp[] {
     ])
     ops.push(['add', object, root, [dans(10), dans(10), dans(10)], origin[1], origin[2], null])
     const onEye = id++
-    ops.push([
-      'add',
-      onEye,
-      root,
-      origin[0],
-      origin[1],
-      origin[2],
-      { ...fixedCamera, webgpu: true },
-    ])
+    ops.push(['add', onEye, root, origin[0], origin[1], origin[2], fixedCamera])
     const pointParent: Vec3 = parent ? parent[0] : [0, 0, 0]
     const cibles: Vec3[] = [
       [0, 0, 0],
@@ -96,7 +87,7 @@ export function visees(): HierarchyOp[] {
       for (const top of HAUTS)
         for (const vise of [camera, object, onEye]) {
           ops.push(['vise', vise, target, top], ['maj', parent ? root : vise, false], ['lis', vise])
-          if (vise !== object) ops.push(['image', vise, vise === onEye])
+          if (vise !== object) ops.push(['image', vise])
         }
   }
   // Up collinear with the aim: above the origin with up `y`, in front of it with `±z`.
@@ -111,37 +102,30 @@ export function visees(): HierarchyOp[] {
     [devant, [0, 0, -1]],
   ]
   for (const [vise, top] of suites)
-    ops.push(
-      ['vise', vise, [0, 0, 0], top],
-      ['maj', vise, false],
-      ['lis', vise],
-      ['image', vise, true],
-    )
+    ops.push(['vise', vise, [0, 0, 0], top], ['maj', vise, false], ['lis', vise], ['image', vise])
   return ops
 }
 
 /**
  * Projections: ordinary and degenerate field, aspect, planes and magnification (zero or flat
- * field, zero `near`, `far` equal to `near` or infinite, zero zoom), each setting in both
- * depth conventions, planes read in both conventions.
+ * field, zero `near`, `far` equal to `near` or infinite, zero zoom), each setting read in the
+ * engine's one depth convention.
  */
 export function objectifs(): HierarchyOp[] {
   const ops: HierarchyOp[] = [
     ['add', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927] as Quat, [1, 1, 1], fixedCamera],
   ]
-  const image = (spec: CameraSpec) =>
-    ops.push(['objectif', 0, spec], ['image', 0, false], ['image', 0, true])
-  for (const webgpu of [false, true])
-    for (const fov of [1e-6, 45, 90, 179.999, 180, 0, NaN])
-      for (const aspect of [1e-9, 1, 16 / 9, 1e9])
-        for (const [near, far] of [
-          [1e-6, 1e9],
-          [0.1, 0.1],
-          [0, 100],
-          [0.5, Infinity],
-          [10, 1],
-        ])
-          for (const zoom of [1, 2.5, 0]) image({ fov, aspect, near, far, zoom, webgpu })
+  const image = (spec: CameraSpec) => ops.push(['objectif', 0, spec], ['image', 0])
+  for (const fov of [1e-6, 45, 90, 179.999, 180, 0, NaN])
+    for (const aspect of [1e-9, 1, 16 / 9, 1e9])
+      for (const [near, far] of [
+        [1e-6, 1e9],
+        [0.1, 0.1],
+        [0, 100],
+        [0.5, Infinity],
+        [10, 1],
+      ])
+        for (const zoom of [1, 2.5, 0]) image({ fov, aspect, near, far, zoom })
   for (let i = 0; i < 64; i++)
     image({
       fov: 10 + alea() * 160,
@@ -149,7 +133,6 @@ export function objectifs(): HierarchyOp[] {
       near: alea() * 2,
       far: 2 + alea() * 1e5,
       zoom: 0.1 + alea() * 4,
-      webgpu: alea() < 0.5,
     })
   return ops
 }

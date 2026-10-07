@@ -131,7 +131,6 @@ test('a rewrite is read into the lists its resource holds: a steady frame makes 
         weigh: weighed,
         write: () => true,
         renewed: () => false,
-        replay() {},
       }),
       12,
     )
@@ -153,7 +152,6 @@ test('past the frame budget an upload waits for the next frame, in order, and is
     weigh: weighed,
     write: (cut: Cut) => written.push(cut) > 0,
     renewed: () => false,
-    replay() {},
   }
   const frame = () => dynamic.upload(12, uploads)
   assert.equal(frame(), 12, 'the first of the frame goes whatever its size')

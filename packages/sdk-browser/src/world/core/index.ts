@@ -5,7 +5,6 @@ export type {
   FrameInfo,
   BeforeFrameInfo,
   WorldTarget,
-  WorldRenderer,
   LoadOptions,
 } from './world.ts'
 export type { CanvasPoint, RaycastOptions } from './worldRaycast.ts'

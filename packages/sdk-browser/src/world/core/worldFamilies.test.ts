@@ -14,14 +14,14 @@ const turn = () => new Promise((wake) => setImmediate(wake))
 
 test('a host-led frame waits for a family on its way: nothing steps nor draws, then it draws once (#1353)', async () => {
   const ready = Promise.resolve()
-  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'))
+  const scene = new Scene(worldModelLoader(ready, undefined))
   const { session } = sessionStandIn()
   const effects = new EffectChain()
   let drawn = 0,
     stepped = 0
   Object.assign(session, {
     render: () => (drawn++, {}),
-    familiesPending: () => frameWaits({ effects }, 'beauty'),
+    familiesPending: () => frameWaits({ effects }),
   })
   const failures: unknown[] = []
   const runtime = runtimeOf(

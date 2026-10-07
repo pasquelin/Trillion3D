@@ -48,7 +48,7 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * At rest: after a still image the scale only lowers (#1343), so a still average closes at one
  * size and the frame is held, encoding nothing (`hold.ts`).
  *
- * One per session. `floor`: the minimum of a page that names none.
+ * One per session.
  *
  * Its members: `drawn`, the scale of the last image drawn (1 before any); `steered`, whether that
  * image was drawn at the controller's scale, which its cost then measures; `still`, whether it was
@@ -67,11 +67,11 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * frames late: a cost of the window, brought to the current scale by its area, where the image was
  * drawn at the controller's scale.
  */
-export function createScaleControl(option: RenderScale | undefined, floor?: number) {
+export function createScaleControl(option: RenderScale | undefined) {
   const display = { width: 0, height: 0, ratio: 0 }
   displayMoved(display)
   const refresh = createRefreshClock(FALLBACK_REFRESH_MS),
-    w = createScaleWindow(renderScaleBounds(option, floor)),
+    w = createScaleWindow(renderScaleBounds(option)),
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
     parts = { w, refresh, display, targets }
@@ -97,7 +97,7 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
       return gap > 0 && gap < INTERVAL_PAUSE_MS ? gap : null
     },
     set(next: RenderScale | undefined) {
-      w.bounds = renderScaleBounds(next, floor)
+      w.bounds = renderScaleBounds(next)
       targets.reset(w.bounds.max)
       w.s = w.max = w.bounds.max
       forgetThreshold(w, refresh.display)

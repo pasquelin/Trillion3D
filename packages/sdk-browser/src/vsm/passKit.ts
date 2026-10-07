@@ -33,10 +33,20 @@ export interface VsmComputePipe {
   prepared: PreparedPipeline<GPUComputePipeline>
 }
 const PIPES = new WeakMap<GPUDevice, Map<string, VsmComputePipe>>()
+const MODULES = new WeakMap<GPUDevice, Map<string, GPUShaderModule>>()
+
+/** The module of WGSL `code` on `device`, compiled once for every entry point it holds. */
+function vsmModule(device: GPUDevice, label: string, code: string) {
+  let modules = MODULES.get(device)
+  if (!modules) MODULES.set(device, (modules = new Map()))
+  let module = modules.get(code)
+  if (!module) modules.set(code, (module = device.createShaderModule({ label, code })))
+  return module
+}
 
 /** The compute pipeline of `code`'s `entryPoint` over groups of `groups` layout entries, labelled
- *  `label`: its layouts, module and prepared pipeline made the first time `device` asks for that
- *  source, every later asker sharing them. */
+ *  `label`: its layouts and prepared pipeline made the first time `device` asks for that entry of
+ *  that source, every later asker sharing them; one module a source, whatever its entries. */
 export function vsmComputePipe(
   device: GPUDevice,
   label: string,
@@ -55,7 +65,7 @@ export function vsmComputePipe(
     const prepared = preparedComputePipeline(device, {
       label,
       layout: device.createPipelineLayout({ label, bindGroupLayouts: layouts }),
-      compute: { module: device.createShaderModule({ label, code }), entryPoint },
+      compute: { module: vsmModule(device, label, code), entryPoint },
     })
     p = {
       groups: layouts,

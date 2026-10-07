@@ -15,7 +15,7 @@ import type { GraphTexture } from '../../host/graph/texture.ts'
 import type { Cut } from './worldCuts.ts'
 import type { PosedTwin } from './worldPoses.ts'
 import type { RepaintedEntry } from './worldMaterials.ts'
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts'
+import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
@@ -56,7 +56,7 @@ function hostGeometry(drawn: DrawnTriangles) {
   return geometry
 }
 
-/** How a session reads repainted surfaces again (`BackendSceneUpdates.refreshMaterials`). */
+/** How a session reads repainted surfaces again (`EngineSceneUpdates.refreshMaterials`). */
 type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
@@ -83,67 +83,17 @@ export function buildWorldMirror(input: MirrorInput) {
     Object3D,
     { meshes: number; primitives: number; placements?: PlacementRows }
   >()
-  const geometries = new Map<Cut, Geometry>(),
-    // One surface per material, and a second one when the material asks for vertex colours and
-    // is worn by geometries with and without them: the material decides
-    // (`material.vertexColors`), and a geometry with no colour has none to tint by. A third when
-    // it is worn by lines: the line surface is widened and lifted (`hostSurface`). A fourth when
-    // it is worn by a sprite: the sprite surface turns its quad to the camera. A fifth, and a
-    // sixth with vertex colours, when it is worn by cloths: drawn on both faces.
-    surfaces = new Map<Material, GraphSurface[]>(),
-    textures: HostTextures = new Map()
-  const meshOf = (cut: Cut, material: Material, twoSided = false) => {
-    let geometry = geometries.get(cut)
-    if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)))
-    // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
-    if (cut.dynamic) geometry.usage = 'dynamic'
-    const tinted = !!material.vertexColors && !!cut.drawn.colors,
-      reading = cut.drawn.lines
-        ? 'lines'
-        : cut.drawn.spriteRadius !== undefined
-          ? 'sprite'
-          : twoSided
-            ? 'sheet'
-            : 'faces'
-    let worn = surfaces.get(material)
-    if (!worn) surfaces.set(material, (worn = []))
-    const rank =
-      reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
-    const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading))
-    return numbered(new Mesh(geometry, surface))
-  }
+  const built: MirrorBuilt = { geometries: new Map(), surfaces: new Map(), textures: new Map() }
   /** Hangs the host mesh of a resource placed by rows; returns it with its association. */
   const place = ({ cut, material, rows, name, twoSided }: Placed) => {
-    const mesh = meshOf(cut, material, twoSided)
+    const mesh = meshOf(built, cut, material, twoSided)
     mesh.name = name
     const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows }
     associations.set(mesh, association)
     root.add(mesh)
     return { node: mesh, association }
   }
-  /** Takes down a placed host mesh, its geometry with `cut`, the last one reading it, and its
-   *  surface with the last mesh wearing it: out of the cache a repaint writes, given back with
-   *  the textures no other surface reads (#837). */
-  const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
-    associations.delete(mesh)
-    root.remove(mesh)
-    if (cut && geometries.delete(cut)) mesh.geometry.dispose()
-    const surface = mesh.material as GraphSurface
-    if (root.children.some((node) => (node as Mesh<GraphSurface>).material === surface)) return
-    const read = new Set<unknown>()
-    for (const [material, worn] of surfaces) {
-      if (worn.includes(surface)) delete worn[worn.indexOf(surface)]
-      if (!worn.some(Boolean)) surfaces.delete(material)
-      for (const kept of worn) if (kept) for (const field of HOST_MAPS) read.add(kept[field])
-    }
-    surface.dispose()
-    for (const [key, texture] of textures)
-      if (!read.has(texture)) {
-        textures.delete(key)
-        texture.dispose()
-      }
-  }
-  const placed = input.placed.map(place)
+  input.placed.forEach(place)
   for (const { node, graph } of input.models) {
     const twin = new Group()
     twin.add(graph)
@@ -153,35 +103,78 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(twin)
     twins.set(node, twin)
   }
-  /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
-   *  the open session, if any — read them again: once, with the surfaces whose alpha moved the
-   *  same way, and once more, no value, for each other way (`AlphaChange`). False when the
-   *  session cannot. */
-  const repaint = (painted: readonly RepaintedEntry[], refresh?: Refresh) => {
-    let written = false,
-      values = false
-    const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
-    for (const { entry, alpha, values: wrote } of painted) {
-      const worn = (surfaces.get(entry.material) ?? []).filter(
-        (surface): surface is GraphSurface => !!surface,
-      )
-      for (const surface of worn) repaintHostSurface(surface, entry.material)
-      if (!worn.length) continue
-      written = true
-      values ||= wrote
-      if (!alpha) continue
-      const way = `${alpha.from}>${alpha.to}`
-      const change = moved.get(way)
-      if (change) change.surfaces.push(...worn)
-      else moved.set(way, { ...alpha, surfaces: worn })
-    }
-    if (!refresh || !written) return true
-    const [first, ...others] = moved.values()
-    return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
-  }
+  const repaint = (painted: readonly RepaintedEntry[], refresh?: Refresh) =>
+    repaintMirror(built, painted, refresh)
   /** The host geometry of `cut`, once placed: the vertices a dynamic resource rewrites (#573). */
-  const geometryOf = (cut: Cut) => geometries.get(cut)
-  return { root, twins, associations, repaint, placed, place, unplace, geometryOf }
+  const geometryOf = (cut: Cut) => built.geometries.get(cut)
+  return { root, twins, associations, repaint, geometryOf }
+}
+
+/** What a mirror built and shares between its host meshes: one geometry per resource, and one
+ *  surface per material, and a second one when the material asks for vertex colours and is worn
+ *  by geometries with and without them: the material decides (`material.vertexColors`), and a
+ *  geometry with no colour has none to tint by. A third when it is worn by lines: the line
+ *  surface is widened and lifted (`hostSurface`). A fourth when it is worn by a sprite: the
+ *  sprite surface turns its quad to the camera. A fifth, and a sixth with vertex colours, when it
+ *  is worn by cloths: drawn on both faces. */
+type MirrorBuilt = {
+  geometries: Map<Cut, Geometry>
+  surfaces: Map<Material, GraphSurface[]>
+  textures: HostTextures
+}
+
+/** The host mesh of `cut` worn with `material`: its geometry and surface shared. */
+function meshOf(built: MirrorBuilt, cut: Cut, material: Material, twoSided = false) {
+  const { geometries, surfaces } = built
+  let geometry = geometries.get(cut)
+  if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)))
+  // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
+  if (cut.dynamic) geometry.usage = 'dynamic'
+  const tinted = !!material.vertexColors && !!cut.drawn.colors,
+    reading = cut.drawn.lines
+      ? 'lines'
+      : cut.drawn.spriteRadius !== undefined
+        ? 'sprite'
+        : twoSided
+          ? 'sheet'
+          : 'faces'
+  let worn = surfaces.get(material)
+  if (!worn) surfaces.set(material, (worn = []))
+  const rank =
+    reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
+  const surface = (worn[rank] ??= hostSurface(material, tinted, built.textures, reading))
+  return numbered(new Mesh(geometry, surface))
+}
+
+/** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
+ *  the open session, if any — read them again: once, with the surfaces whose alpha moved the
+ *  same way, and once more, no value, for each other way (`AlphaChange`). False when the
+ *  session cannot. */
+function repaintMirror(
+  { surfaces }: MirrorBuilt,
+  painted: readonly RepaintedEntry[],
+  refresh?: Refresh,
+) {
+  let written = false,
+    values = false
+  const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
+  for (const { entry, alpha, values: wrote } of painted) {
+    const worn = (surfaces.get(entry.material) ?? []).filter(
+      (surface): surface is GraphSurface => !!surface,
+    )
+    for (const surface of worn) repaintHostSurface(surface, entry.material)
+    if (!worn.length) continue
+    written = true
+    values ||= wrote
+    if (!alpha) continue
+    const way = `${alpha.from}>${alpha.to}`
+    const change = moved.get(way)
+    if (change) change.surfaces.push(...worn)
+    else moved.set(way, { ...alpha, surfaces: worn })
+  }
+  if (!refresh || !written) return true
+  const [first, ...others] = moved.values()
+  return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many

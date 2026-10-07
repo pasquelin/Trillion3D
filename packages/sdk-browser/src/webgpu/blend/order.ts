@@ -1,7 +1,8 @@
 import { cullBlendHierarchy } from './hierarchyCull.ts'
-import { precedes, sortSeedsFarToNear } from './sortPlan.ts'
+import { sortSeedsFarToNear } from './sortPlan.ts'
 import { assignOwnSlots } from './runs.ts'
-import type { BlendGpuItem, createWebgpuBlendState } from './state.ts'
+import { eyeKey } from './eyeKey.ts'
+import type { createWebgpuBlendState } from './state.ts'
 type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /**
@@ -23,37 +24,6 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
  * emulated doubles. The CPU ranks only the own entries, the ones it must encode one draw each
  * (`runs.ts`) — none in a pass of one class — and sends the GPU the eye, their keys and their order.
  */
-
-/** Key of an item: without a usable box, the world origin of its mesh stands in. */
-function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
-  const box = item.bounds,
-    m = item.matrix.elements
-  const x = box ? (box[0] - ex + (box[3] - ex)) / 2 : m[12] - ex,
-    y = box ? (box[1] - ey + (box[4] - ey)) / 2 : m[13] - ey,
-    z = box ? (box[2] - ez + (box[5] - ez)) / 2 : m[14] - ez
-  return x * x + y * y + z * z
-}
-
-/**
- * Sets each item's key and source rank, and copies the key into the flat array the CPU sorts read
- * (`orderKeys`): the fallback pass's and the CPU model's, which rank every item.
- */
-export function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
-  const items = blendState.blendGpu,
-    ex = eye[0],
-    ey = eye[1],
-    ez = eye[2]
-  if (blendState.orderKeys.length < items.length)
-    blendState.orderKeys = new Float64Array(items.length)
-  const keys = blendState.orderKeys
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i],
-      key = eyeKey(item, ex, ey, ez)
-    item.orderRank = i
-    item.orderKey = key
-    keys[i] = key
-  }
-}
 
 /**
  * The frame data the order kernel reads (`frameLayout`): the eye, each own item's key — a NaN as
@@ -122,30 +92,4 @@ export function orderBlendPasses(
   }
   writeOrderFrame(blendState, eye)
   return rejected
-}
-
-/** The eye the frame data holds: what the CPU model ranks from (`expandCpu.ts`). */
-export const orderEye = (blendState: BlendState) => blendState.frameDoubles.subarray(0, 3)
-
-/**
- * The same ranking for the fallback path, whose draw list is made of items and not of plan
- * entries. The comparison is the one above: both paths paint in the same order, and a machine
- * without a visibility buffer does not see another image.
- */
-export function orderVisibleBlend(blendState: BlendState, eye: ArrayLike<number> | undefined) {
-  if (!eye || !blendState.blendGpu.length) return
-  refreshEyeKeys(blendState, eye)
-  const visible = blendState.visibleBlend
-  for (let i = 1; i < visible.length; i++) {
-    const moved = visible[i],
-      movedKey = moved.orderKey,
-      movedRank = moved.orderRank
-    let j = i - 1
-    for (; j >= 0; j--) {
-      const held = visible[j]
-      if (!precedes(held.orderKey, held.orderRank, movedKey, movedRank)) break
-      visible[j + 1] = held
-    }
-    visible[j + 1] = moved
-  }
 }

@@ -52,7 +52,7 @@ export function emitInstalledBrowserBundle({
 }: BrowserModesOptions): EmittedBrowserBundle {
   const outputRoot = join(fixture, 'browser-output')
   const packageRoot = join(fixture, 'node_modules', packageName)
-  const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode')
+  const workRoot = join(packageRoot, 'dist/sdk-browser/src/page/work')
   const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration')
   const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics')
   const mathRoot = join(packageRoot, 'dist/sdk-browser/src/math')
@@ -68,7 +68,7 @@ export function emitInstalledBrowserBundle({
     bundler,
     [
       explorer,
-      join(decodeRoot, 'pageDecodeWorker.js'),
+      join(workRoot, 'pageWorker.js'),
       join(integrationRoot, 'pageIntegrationWorker.js'),
       join(physicsRoot, 'physicsWorker.js'),
       join(mathRoot, 'animationWorker.js'),
@@ -87,7 +87,7 @@ export function emitInstalledBrowserBundle({
   )
   // Each WebAssembly module beside the chunk that fetches it by its own URL.
   const modules = [
-    join(decodeRoot, 'pageCodec.wasm'),
+    join(mathRoot, 'wasm/kernels.wasm'),
     join(physicsRoot, 'joltPhysics.wasm'),
     join(physicsRoot, 'joltPhysicsThreads.wasm'),
   ]
@@ -103,7 +103,7 @@ export function emitInstalledBrowserBundle({
   const assets = filesAt(outputRoot)
   const entries = [
     'explorer.js',
-    'pageDecodeWorker.js',
+    'pageWorker.js',
     'pageIntegrationWorker.js',
     'physicsWorker.js',
     'animationWorker.js',

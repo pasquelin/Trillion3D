@@ -1,8 +1,7 @@
-import { readGpuImage } from '../../../gpu/core/presentation.ts'
+import { readGpuImage } from '../../../gpu/core/readback.ts'
 import { collectPendingUrls } from '../../../page/selection/selection.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
 import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts'
-import { fallbackToCpuCut } from '../io/drops.ts'
 import { directLightingState } from './encodeLights.ts'
 import { bounceState } from '../state/bounce.ts'
 import { renderWebgpuPages } from './render.ts'
@@ -142,12 +141,12 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   if (run.gpuSelection) {
     try {
       await run.gpuSelection.flush()
-      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'selection readback failed')
+      await run.asideCut?.flush()
       // Origin of the resource change: adoption of a readback rewrote the cut lists.
-      else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged()
+      if (services.adoptViewCut()) run.gate.resourcesChanged()
     } catch (error) {
+      // Said, never a lost device: only `device.lost` says that (#1483).
       diag.diagnosticFailure('gpu-selection-flush-failed', error)
-      fallbackToCpuCut(rt, 'selection drain failed')
     }
   }
   if (

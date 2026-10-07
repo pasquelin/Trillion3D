@@ -16,47 +16,35 @@ function numbers(limits: object) {
 }
 
 /**
- * The probe from what detection returned: WebGL2 extensions, WebGPU features, and each WebGPU
- * limit as a device gets it without asking (`default`) and as the adapter grants it. `null` for a
- * renderer the browser does not grant.
+ * The probe from what detection returned: WebGPU features, and each WebGPU limit as a device gets
+ * it without asking (`default`) and as the adapter grants it. `null` when the browser grants no
+ * adapter.
  */
 export function limitsOf(
-  webgl: { extensions: string[] } | null,
   webgpu: { features: ReadonlySet<string>; adapter: object; defaults: object } | null,
 ) {
-  const defaults = numbers(webgpu?.defaults ?? {})
+  if (!webgpu) return null
+  const defaults = numbers(webgpu.defaults)
   return {
-    webgl2: webgl && {
-      halfFloatColor: webgl.extensions.includes('EXT_color_buffer_half_float'),
-      floatColor: webgl.extensions.includes('EXT_color_buffer_float'),
-      timerQuery: webgl.extensions.includes('EXT_disjoint_timer_query_webgl2'),
-    },
-    webgpu: webgpu && {
-      timestampQuery: webgpu.features.has('timestamp-query'),
-      limits: Object.entries(numbers(webgpu.adapter)).map(([name, adapter]) => ({
-        name,
-        default: defaults[name] ?? null,
-        adapter,
-      })),
-    },
+    timestampQuery: webgpu.features.has('timestamp-query'),
+    limits: Object.entries(numbers(webgpu.adapter)).map(([name, adapter]) => ({
+      name,
+      default: defaults[name] ?? null,
+      adapter,
+    })),
   }
 }
 export type LimitsProbe = ReturnType<typeof limitsOf>
 /** What a run records: the probe, or why it failed. */
 export type LimitsRecord = LimitsProbe | { failed: string }
 
-/** Runs in the page: detects both renderers, then asks a device with no limit for the defaults. */
+/** Runs in the page: detects the adapter, then asks a device with no limit for the defaults. */
 export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
   const sdk = (await import(sdkUrl)) as typeof SdkBrowser
-  const canvas = document.createElement('canvas')
-  const [webgl, { adapter }] = await Promise.all([
-    sdk.detectCapabilities('webgl', canvas),
-    sdk.detectCapabilities('webgpu', canvas),
-  ])
+  const { adapter } = await sdk.detectCapabilities()
   // A device asked with no limit holds the defaults; one refused leaves them unknown (`null`).
   const device = await adapter?.requestDevice().catch(() => undefined)
   const probe = limitsOf(
-    webgl.renderer ? webgl : null,
     adapter
       ? { features: adapter.features, adapter: adapter.limits, defaults: device?.limits ?? {} }
       : null,
@@ -79,20 +67,17 @@ const yes = (value: boolean) => (value ? 'yes' : 'no')
 
 /** The probe in `resume.md`: capabilities, then the adapter's WebGPU limits beyond the default. */
 export function limitsLines(probe: LimitsRecord | undefined) {
-  if (!probe) return []
+  if (probe === undefined) return []
   // A failed probe is said, never fatal: the run it rides with goes on.
-  if ('failed' in probe) return ['## Browser limits', '', `Probe failed: ${probe.failed}`, '']
-  const { webgl2, webgpu } = probe
+  if (probe && 'failed' in probe)
+    return ['## Browser limits', '', `Probe failed: ${probe.failed}`, '']
   // An unknown default (the device was refused) is not counted as raised.
-  const raised = webgpu?.limits.filter((l) => l.default !== null && l.adapter !== l.default) ?? []
+  const raised = probe?.limits.filter((l) => l.default !== null && l.adapter !== l.default) ?? []
   return [
     '## Browser limits',
     '',
-    webgl2
-      ? `- WebGL2: half-float colour ${yes(webgl2.halfFloatColor)}, float colour ${yes(webgl2.floatColor)}, EXT_disjoint_timer_query_webgl2 ${yes(webgl2.timerQuery)}`
-      : '- WebGL2: unavailable',
-    webgpu
-      ? `- WebGPU: timestamp-query ${yes(webgpu.timestampQuery)}, ${raised.length} of ${webgpu.limits.length} limits beyond the default`
+    probe
+      ? `- WebGPU: timestamp-query ${yes(probe.timestampQuery)}, ${raised.length} of ${probe.limits.length} limits beyond the default`
       : '- WebGPU: unavailable',
     '',
     ...(raised.length

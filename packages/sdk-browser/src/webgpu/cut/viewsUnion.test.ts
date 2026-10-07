@@ -3,19 +3,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuCutPublication } from './publication.ts'
-import { keysOf, queueOf, rec, world } from '../residency/sets.fixture.ts'
+import { admissionOrder, keysOf, queueOf, rec, world } from '../residency/sets.fixture.ts'
 import { createWebgpuRunState } from '../pages/state/run.ts'
 import { createWebgpuGpuState } from '../pages/state/gpu.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
 import { createWebgpuView, createWebgpuViews, type WebgpuView } from '../pages/state/view.ts'
 import { useWebgpuView } from '../pages/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { type GpuCut } from '../../gpu/core/selection.ts'
+import { copySelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 
 /** Eight pages, levels 0 to 3 twice over. */
 const eightPages = () => world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)))
 
 /** Eight pages published through one publication and real sets, on the runtime groups the view
- *  switch trades. */
+ *  switch trades; each view's readback is the one its `draw` hands, ranked as the GPU ranks a short
+ *  pool's requests. */
 function bench() {
   const scene = eightPages()
   const run = createWebgpuRunState(),
@@ -43,23 +46,50 @@ function bench() {
       rows: { watchTouched: () => {} },
     },
   } as unknown as WebgpuPagesRuntime
-  const publication = createWebgpuCutPublication(
-    rt,
-    scene.sets,
-    scene.closure,
-    { all: [ahead], ahead },
-    () => false,
-  )
+  // The main view reads its readback off the GPU cut, which claims no rank: a hashed difference.
+  let mainCut: GpuCut | null = null
+  run.gpuSelection = {
+    peek: () => mainCut,
+    adopt: () => undefined,
+    worldRevision: 0,
+  } as unknown as typeof run.gpuSelection
+  const publication = createWebgpuCutPublication(rt, scene.sets, scene.closure, {
+    all: [ahead],
+    ahead,
+  })
   const { main } = rt.views,
     side = createWebgpuView(1, 1)
-  /** `view` draws the pages `ids` name, as `../pages/render/cpu.ts` publishes a CPU cut. */
+  // A view the page draws beside the main one: its readbacks join the union (`viewReadbacks`).
+  rt.views.persistent.push(side)
+  /** `view` draws the pages `ids` name: its readback lands and is adopted. */
   const draw = (view: WebgpuView, ids: number[]) => {
     useWebgpuView(rt, view)
-    // The CPU cut publishes packed ranks; `ids` already are the catalogue's ranks.
-    publication.adoptCpuCut(ids, ids)
+    const pageIds = admissionOrder(ids, scene.packed, scene.tracking.topLevel)
+    const cut = {
+      uniforms: copySelectionUniforms(rt.run.selectionUniforms),
+      result: {
+        pageIds,
+        drawablePageIds: pageIds,
+        frustumRejected: 0,
+        lodLevel: 0,
+        selectedTriangles: 0,
+        drawnTriangles: 0,
+        transparentTriangles: 0,
+      },
+      worldRevision: 0,
+    } as GpuCut
+    if (view === main) mainCut = cut
+    else rt.run.asideCut = { peek: () => cut } as unknown as typeof rt.run.asideCut
+    publication.adoptViewCut()
+  }
+  /** The admission at `room` of every view's readback, true past it. */
+  const budget = (room: number) => {
+    const short = scene.admission.short(room)
+    scene.admission(room, publication.viewReadbacks())
+    return short
   }
   const keys = (ids: number[]) => new Set(ids.map((id) => scene.tracking.keyOf(scene.packed[id])))
-  return { ...scene, publication, capture, main, side, draw, keys, aheadOffers }
+  return { ...scene, publication, capture, main, side, draw, budget, keys, aheadOffers }
 }
 
 test('a second view keeps its pages while the main view draws, all under the one budget', () => {
@@ -71,7 +101,9 @@ test('a second view keeps its pages while the main view draws, all under the one
   assert.equal(sets.requestedCount, 6, 'a page both views draw is asked for once')
   assert.equal(budget(3), true, 'the union overruns the budget')
   assert.equal(tracking.wanted.count, 3, 'the budget is the one budget, never one per view')
-  assert.deepEqual(keysOf(tracking.wanted), keys([7, 6, 1]), 'the coarsest pages of the union')
+  // Levels 3 and 2 whole; of level 1, the page the queue in place held first (the union's own
+  // order, followed whole before the pool turned short): no slot traded at the turn.
+  assert.deepEqual(keysOf(tracking.wanted), keys([7, 6, 5]), 'the coarsest pages of the union')
   publication.releaseView(side)
   budget(3)
   assert.deepEqual(keysOf(tracking.keep), keys([0, 1]), 'a view released lets its pages go')
@@ -136,7 +168,7 @@ test('one view asks, keeps and ranks what it did before views existed', () => {
   for (const ids of cuts) {
     draw(main, ids)
     before.delta.adoptRecords(
-      ids.map((id) => before.packed[id]),
+      admissionOrder(ids, before.packed, before.tracking.topLevel).map((id) => before.packed[id]),
       (rec) => before.packed.indexOf(rec),
     )
     before.cut()

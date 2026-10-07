@@ -3,11 +3,9 @@ import assert from 'node:assert/strict'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import {
   SAMPLE_ANISOTROPY_SHIFT,
-  SAMPLE_MAG_HALF,
   SAMPLE_MAG_NEAREST,
   SAMPLE_MIN_NEAREST,
   SAMPLE_MIP_NEAREST,
-  SAMPLE_MIP_NONE,
   SAMPLE_TRANSFORMED,
   SAMPLE_WRAP_SHIFT,
   samplingWords,
@@ -30,13 +28,11 @@ const record = (fields: Partial<Texture> = {}) =>
     ...fields,
   }) as Texture
 
-/** The filter word of a texture created in the page, or of one whose levels are the cache's. */
-const filterOf = (fields: Partial<Texture>, compiled = false) =>
-  samplingWords(record(fields), compiled)[0]
+/** The filter word of a texture. */
+const filterOf = (fields: Partial<Texture>) => samplingWords(record(fields))[0]
 
 test('the default sampling is the zero word: the read the pools had before', () => {
-  assert.deepEqual([...samplingWords(record(), false)], [0, 0x3f800000, 0, 0, 0x3f800000, 0, 0])
-  assert.equal(filterOf({}, true), 0)
+  assert.deepEqual([...samplingWords(record())], [0, 0x3f800000, 0, 0, 0x3f800000, 0, 0])
 })
 
 // #360, #361: the addressing rides above the filter bits, outside the zero test: a repeating
@@ -47,10 +43,9 @@ test('the addressing nibble sits above the filter bits', () => {
   assert.equal(word & ((1 << SAMPLE_WRAP_SHIFT) - 1), 0, 'the default read')
 })
 
-test('each filter name sets its base filter and mip rule, on a texture created in the page', () => {
+test('each filter name sets its base filter and mip rule', () => {
   assert.equal(filterOf({ magFilter: 'nearest' }), SAMPLE_MAG_NEAREST)
-  assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST | SAMPLE_MIP_NONE)
-  assert.equal(filterOf({ minFilter: 'linear' }), SAMPLE_MIP_NONE)
+  assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST)
   assert.equal(
     filterOf({ minFilter: 'nearest-mip-nearest', magFilter: 'nearest' }),
     SAMPLE_MAG_NEAREST | SAMPLE_MIN_NEAREST | SAMPLE_MIP_NEAREST,
@@ -62,50 +57,36 @@ test('each filter name sets its base filter and mip rule, on a texture created i
   assert.equal(filterOf({ minFilter: 'linear-mip-nearest' }), SAMPLE_MIP_NEAREST)
 })
 
-// #360, #361: GL's switch between magnification and minification (OpenGL ES 3.0 § 3.8.11): at
-// level 0.5 for a linear magnification over a `nearest-mip-*` minification, at 0 otherwise. Under
-// the switch, level 0 with the magnification filter.
-test('minification starts at level 0.5 for a linear magnification over a nearest mip', () => {
-  const half = (fields: Partial<Texture>) => (filterOf(fields) & SAMPLE_MAG_HALF) !== 0
-  assert.ok(half({ minFilter: 'nearest-mip-nearest' }))
-  assert.ok(half({ minFilter: 'nearest-mip-linear' }))
-  for (const fields of [
-    { minFilter: 'nearest-mip-nearest', magFilter: 'nearest' },
-    { minFilter: 'nearest' },
-    { minFilter: 'linear-mip-nearest' },
-    { minFilter: 'linear-mip-linear' },
-  ] as const)
-    assert.ok(!half(fields), JSON.stringify(fields))
-  assert.match(SAMPLING_WGSL, /let mag=raw<=select\(0\.0,0\.5,\(s\.sampling&512u\)!=0u\);/)
-  assert.match(SAMPLING_WGSL, /if\(mag\|\|\(s\.sampling&8u\)!=0u\)\{lod=0\.0;\}/)
+// A filter without `mip` picks the read inside a level, never the level: every texture — the
+// cache's chain or the one the GPU builds for a page texture — reads its footprint's level, so a
+// far surface reads a coarse level instead of aliasing level 0, and its tile requests follow.
+test('a filter without mip reads the footprint level, as the default read does', () => {
+  assert.equal(filterOf({ minFilter: 'linear' }), 0, 'the default read')
+  assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST)
+  assert.doesNotMatch(SAMPLING_WGSL, /lod=0\.0/)
+  assert.match(SAMPLING_WGSL, /var lod=clamp\(raw,0\.0,f32\(s\.last\)\);/)
+  assert.match(SAMPLING_WGSL, /if\(\(s\.sampling&4u\)!=0u\)\{lod=floor\(lod\+0\.5\);\}/)
+})
+
+// WebGPU's switch between magnification and minification: at level 0 for every filter. Under the
+// switch, level 0 with the magnification filter.
+test('minification starts past level 0 whatever the mip rule', () => {
+  assert.match(SAMPLING_WGSL, /let mag=raw<=0\.0;/)
   assert.match(SAMPLING_WGSL, /select\(2u,1u,mag\)/)
 })
 
-// #360, #361: a filter without `mip` on a texture of the compiled cache picks the read inside a
-// level, never the level — the engine owns that chain, and its selection and tile requests stay
-// those of the default read. On a texture created in the page, WebGL2's rule: level 0.
-test('a filter without mip pins level 0 on a page texture, never on a compiled one', () => {
-  assert.equal(filterOf({ minFilter: 'linear' }, true), 0, 'the default read')
-  assert.equal(filterOf({ minFilter: 'nearest' }, true), SAMPLE_MIN_NEAREST)
-  assert.equal(filterOf({ minFilter: 'linear' }), SAMPLE_MIP_NONE)
-  assert.equal(
-    filterOf({ minFilter: 'nearest-mip-nearest' }, true),
-    filterOf({ minFilter: 'nearest-mip-nearest' }),
-    'a mip rule is the same on both',
-  )
-})
-
-// #360, #361: the rule both GPU paths share (`grantedAnisotropy`): a linear magnification over a
-// chain mixed across levels, or nothing.
+// The grant: a linear magnification over a chain mixed across levels — a filter without `mip`
+// included —, or nothing; clamped to WebGPU's ceiling.
 test('anisotropy is clamped to the ceiling, and granted only to a linear read mixed across levels', () => {
   const granted = (word: number) => ((word >> SAMPLE_ANISOTROPY_SHIFT) & 15) + 1
   assert.equal(granted(filterOf({ anisotropy: 8 })), 8)
   assert.equal(granted(filterOf({ anisotropy: 64 })), MAX_ANISOTROPY)
   assert.equal(granted(filterOf({ anisotropy: 0 })), 1)
   assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'nearest-mip-linear' })), 16)
+  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear' })), 16)
   assert.equal(granted(filterOf({ anisotropy: 16, magFilter: 'nearest' })), 1)
   assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear-mip-nearest' })), 1)
-  assert.equal(granted(filterOf({ anisotropy: 16, minFilter: 'linear' })), 1)
+  assert.equal(filterOf({ anisotropy: 16 }) & SAMPLE_TRANSFORMED, 0, 'below the transform bit')
 })
 
 // #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
@@ -144,7 +125,7 @@ const readOf = (lx: number, ly: number, granted: number) => {
   )(lx, ly, granted) as [number, number]
 }
 
-// #443: the hardware rule (EXT_texture_filter_anisotropic): N taps, the ratio rounded up within the
+// #443: the hardware's anisotropic rule: N taps, the ratio rounded up within the
 // grant, at the level log2(Pmax / N) — 2.5 texels read with 3 taps log2(3) lower, not log2(2.5).
 // A ratio within 0.01 of whole (`ANISOTROPY_SLACK`) reads as whole: face-on, one isotropic read.
 test('an anisotropic read takes its ratio in taps, up to the grant, its level shared among them', () => {
@@ -165,7 +146,7 @@ test('an anisotropic read takes its ratio in taps, up to the grant, its level sh
 test('the affine part of the transform is carried, and flagged when it is not the identity', () => {
   // Repeat 4 × 2, offset (0.25, 0.5), a quarter turn: three columns of three.
   const transform = [0, -2, 0, 4, 0, 0, 0.25, 0.5, 1]
-  const words = samplingWords(record({ transform }), false)
+  const words = samplingWords(record({ transform }))
   assert.equal(words[0], SAMPLE_TRANSFORMED)
   assert.deepEqual([...new Float32Array(words.buffer, 4, 6)], [0, -2, 4, 0, 0.25, 0.5])
 })

@@ -1,19 +1,13 @@
 import type { ScreenReflection } from '../../../reflections/gpu.ts'
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts'
 import type { createGpuPageCache } from '../../../gpu/page/pages.ts'
-import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts'
-import type {
-  createGpuPresenter,
-  createSynchronousCanvasCapture,
-} from '../../../gpu/core/presentation.ts'
+import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts'
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
 import type { DisplayFilter } from '../../blend/displayFilter.ts'
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
 import type { WebgpuEffects } from '../../effects/webgpuEffects.ts'
-import { UNIFORM_STRIDE } from '../../blend/uniforms.ts'
-import type { ModePipelines } from '../../blend/stagePipelines.ts'
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../particles/webgpuParticles.ts'
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
@@ -22,17 +16,12 @@ import type { FloatAtlas } from '../../core/floatAtlas.ts'
 import type { WebgpuImpostors } from '../../impostor/frame.ts'
 import type * as ImpostorCode from '../../../impostor/impostorCode.ts'
 
-/** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
+/** GPU resources of the image: page cache, frame targets and presentation. */
 export interface WebgpuGpuState {
   /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
    *  the session creates goes through it, so that the labels name the session. */
   device: GPUDevice | undefined
   cache: ReturnType<typeof createGpuPageCache> | undefined
-  bindGroupLayout: GPUBindGroupLayout | undefined
-  pipelineBack: GPURenderPipeline | undefined
-  pipelineBackCw: GPURenderPipeline | undefined
-  pipelineNone: GPURenderPipeline | undefined
-  pipelineBlend: ModePipelines | undefined
   colorTexture: GPUTexture | undefined
   depthTexture: GPUTexture | undefined
   colorView: GPUTextureView | undefined
@@ -58,11 +47,6 @@ export interface WebgpuGpuState {
   /** The display filter, made by the first image whose blends filter and kept while the plan
    *  holds such a blend (`../../blend/displayFilter.ts`). */
   displayFilter: DisplayFilter | undefined
-  /** The last adopted sample exceeded the ceiling: the image cannot use it. */
-  cutTruncated: boolean
-  /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
-   *  Published in the metrics under `gpuSelectionFallback`. */
-  selectionFallback: boolean
   /** The size every pass up to the temporal resolve draws at, this image: the display's, or below
    *  it, in the top-left of the render targets (`../state/renderScale.ts`, `drawFrameAt`). */
   targetSize: [number, number]
@@ -88,18 +72,9 @@ export interface WebgpuGpuState {
   /** Vertex bytes held through allocations: position buffers, then indices, UVs and normals of
    *  transparent meshes. The sample reads them instead of resuming them per image. */
   vertexBytes: number
-  positionIds: WeakMap<GPUBuffer, number>
-  nextPositionId: number
-  uniformBuffer: GPUBuffer | undefined
-  uniformPacked: Float32Array<ArrayBuffer>
   /** glTF volume of each transmissive item, read by water rank in the composite. */
   volumeBuffer: GPUBuffer | undefined
-  bindGroups: Map<number, GPUBindGroup>
-  /** What those groups currently name besides their position buffer: a moved identity voids them. */
-  fallbackIdentity: WebgpuBindIdentity
-  clusterRgbCache: Map<string, [number, number, number]>
   zeroUv: GPUBuffer | undefined
-  synchronousCapture: ReturnType<typeof createSynchronousCanvasCapture> | undefined
   presenter: ReturnType<typeof createGpuPresenter> | undefined
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
@@ -139,11 +114,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
   return {
     device: undefined,
     cache: undefined,
-    bindGroupLayout: undefined,
-    pipelineBack: undefined,
-    pipelineBackCw: undefined,
-    pipelineNone: undefined,
-    pipelineBlend: undefined,
     colorTexture: undefined,
     depthTexture: undefined,
     colorView: undefined,
@@ -158,8 +128,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     surfaces: undefined,
     asIsShare: undefined,
     displayFilter: undefined,
-    cutTruncated: false,
-    selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     allocatedSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     displaySize: [viewport[0] ?? 1, viewport[1] ?? 1],
@@ -170,16 +138,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     blendUvBuffers: new Map(),
     blendNormalBuffers: new Map(),
     vertexBytes: 0,
-    positionIds: new WeakMap(),
-    nextPositionId: 1,
-    uniformBuffer: undefined,
-    uniformPacked: new Float32Array(UNIFORM_STRIDE / 4),
     volumeBuffer: undefined,
-    bindGroups: new Map(),
-    fallbackIdentity: createWebgpuBindIdentity(),
-    clusterRgbCache: new Map(),
     zeroUv: undefined,
-    synchronousCapture: undefined,
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,

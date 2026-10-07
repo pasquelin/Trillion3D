@@ -89,7 +89,7 @@ fn a_reused_folder_tells_its_warnings_again() {
 }
 
 // Behaviour: a refused job's error event and stdout both carry the code's public id, its level,
-// the action and the documentation page, beside the symbolic code the host already read.
+// its cause and the action, beside the symbolic code the host already read.
 #[test]
 fn a_failure_carries_its_public_code() {
     let (root, _, cache) = fixture("messages-error");
@@ -112,7 +112,7 @@ fn a_failure_carries_its_public_code() {
         );
         assert_eq!(told["level"], "error");
         assert!(
-            told["action"].is_string() && told["docs"].is_string(),
+            told["action"].is_string() && told["cause"].is_string(),
             "{told}"
         );
     }

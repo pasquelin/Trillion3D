@@ -41,9 +41,7 @@ function scene() {
 test('the cut that packs the world DAG mirrors the rows itself; one without it reads them', async () => {
   const { packed, mirror, rows } = scene()
   const cutOf = async (dag: typeof packed) =>
-    createDagRuntime(
-      (await createDagResources(fakeDevice({ limits: SHADOW_LIMITS }).device, dag, true))!,
-    )
+    createDagRuntime((await createDagResources(fakeDevice({ limits: SHADOW_LIMITS }).device, dag))!)
   // The rows name the scene's pages alone, fewer than the packing holds: its mirror fills them.
   const selection = await cutOf(packed)
   assert.deepEqual([packed.world!.root, selection.packsWorld], [OBJECTS, true])

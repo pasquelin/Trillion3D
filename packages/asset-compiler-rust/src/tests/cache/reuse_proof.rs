@@ -44,7 +44,7 @@ fn an_unfinished_bake_is_not_reused() {
         kind: 0,
         first: 1,
         baked: 0,
-        layouts: [0; 2],
+        layouts: [0; 3],
     };
     let refused = compiler_reuse_proof::check_textures(
         &options.cache.join("native"),
@@ -99,7 +99,7 @@ fn shared_image_levels_are_counted_once() {
     assert_eq!(entries.len(), 2, "two textures read the image");
     assert!(entries.iter().all(|e| e.baked == 1), "one level file each");
     assert!(
-        entries.iter().all(|e| e.layouts == [1, 0]),
+        entries.iter().all(|e| e.layouts == [1, 0, 0]),
         "kept in the BC family"
     );
     let (second, _) = compile_with_events(&options);

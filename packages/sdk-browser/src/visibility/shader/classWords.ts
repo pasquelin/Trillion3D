@@ -1,6 +1,6 @@
 /**
  * Material classes of the surface resolve, the published visibility-buffer design: the resolve
- * no longer branches per pixel on what a material has, it runs one draw per class. A class is the
+ * does not branch per pixel on what a material has, it runs one draw per class. A class is the
  * set of features the shader would otherwise test at run time — its key is a word of feature
  * bits, and every page of a class carries the same bits.
  *
@@ -25,4 +25,7 @@ export const CLASS_FEATURE = {
   HAS_SAMPLING: 2048,
   /** The base colour is multiplied by the vertex colour (`FLAG_HAS_COLOR`). */
   HAS_VERTEX_COLOR: 4096,
+  /** The physical material's anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`):
+   *  only this class reads their record and maps (`physicalWgsl.ts`). */
+  HAS_PHYSICAL: 8192,
 } as const

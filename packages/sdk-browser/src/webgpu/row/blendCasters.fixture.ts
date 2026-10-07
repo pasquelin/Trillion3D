@@ -5,7 +5,7 @@ import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
-import { createPageRowWriter } from './pageRow.ts'
+import { createPageRowWriter } from './pageRowWriter.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
 
@@ -62,7 +62,6 @@ export function mount(pages: PageRec[], blendSlots: number) {
     (packed) => packed,
   )
   pages.forEach((_, page) => {
-    rows.pagePositions[page] = {} as GPUBuffer
     rows.residentOffsetWords[page] = page * 16
     rows.touchPage(page)
   })

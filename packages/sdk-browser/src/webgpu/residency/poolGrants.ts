@@ -32,7 +32,7 @@ export type Granted<P, R> = { pool: P; made: R; halvings: number }
  */
 async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   device: GPUDevice
-  name: Exclude<RefusedPool, 'target'>
+  name: RefusedPool
   budgetBytes: number
   draw: (budgetBytes: number) => P
   make: (pool: P) => R

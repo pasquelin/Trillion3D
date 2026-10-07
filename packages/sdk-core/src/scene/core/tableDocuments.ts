@@ -1,5 +1,5 @@
 /**
- * The geometry layout the scene tables carry for each published scene file (`scene-tables.json`,
+ * The geometry layout the scene tables carry for the published scene file (`scene-tables.json`,
  * `packages/asset-compiler-rust/src/compiler_tables/documents.rs`): where every vertex attribute,
  * index list and embedded image of that file sits in the one binary it is published with.
  *

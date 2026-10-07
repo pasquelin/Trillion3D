@@ -23,8 +23,8 @@ export async function compiled(root: string, { gltf, bin }: { gltf: object; bin:
   return pathToFileURL(join(root, 'cache/native/full/manifest.json'))
 }
 
-/** Serves files from disk to `fetch`, the page's location at `pointer`, and a WebGL2 context
- *  stand-in to any canvas; `read` counts every byte fetched, and names every file. */
+/** Serves files from disk to `fetch`, the page's location at `pointer`, and a canvas whose
+ *  context answers every call; `read` counts every byte fetched, and names every file. */
 export function machine(t: TestContext, pointer: URL) {
   const read = { bytes: 0, urls: [] as string[] }
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
@@ -39,19 +39,15 @@ export function machine(t: TestContext, pointer: URL) {
     string,
     unknown
   >
-  const answers: Record<string, unknown> = {
-    then: undefined, // not a promise
-    isContextLost: () => false,
-    getSupportedExtensions: () => ['EXT_color_buffer_half_float'],
-    getExtension: (name: string) => (name === 'EXT_color_buffer_half_float' ? {} : null),
-    checkFramebufferStatus: () => 1, // every constant is 1: complete
-    canvas,
-  }
-  const gl = new Proxy(answers, {
-    get: (_, key: string) =>
-      key in answers ? answers[key] : /^[A-Z_0-9]+$/.test(key) ? 1 : () => ({}),
+  const answers: Record<string, unknown> = { then: undefined /* not a promise */, canvas }
+  const context = new Proxy(answers, {
+    get: (_, key: string) => (key in answers ? answers[key] : () => ({})),
   })
-  Object.assign(canvas, { getContext: () => gl, addEventListener() {}, removeEventListener() {} })
+  Object.assign(canvas, {
+    getContext: () => context,
+    addEventListener() {},
+    removeEventListener() {},
+  })
   for (const [name, value] of Object.entries({
     location: { href: pointer.href },
     document: { createElement: () => canvas },

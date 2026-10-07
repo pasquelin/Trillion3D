@@ -4,9 +4,9 @@ import { planItem } from './plan.ts'
  * FAR-TO-NEAR SORT OF SEEDS ON THE CPU, on the order the previous frame left (`order.ts`).
  *
  * The GPU sorts every entry of a pass (`orderWgsl.ts`); the CPU sorts only what it must encode by
- * itself — the own entries, each its own draw (`runs.ts`) — and, on a device without a compute
- * stage, the whole pass for the CPU model (`expandCpu.ts`). It sorts seed indices: a seed's key is
- * its item's, and the seed itself breaks equal keys, as on the GPU.
+ * itself — the own entries, each its own draw (`runs.ts`) — and the CPU model sorts the whole pass
+ * (`expandCpu.fixture.ts`). It sorts seed indices: a seed's key is its item's, and the seed itself
+ * breaks equal keys, as on the GPU.
  *
  * A camera that moves little leaves the list almost sorted: insertion takes it back in one walk
  * and a few shifts. A camera jump (a teleport, a cut, a respawn) makes insertion quadratic: past a
@@ -21,7 +21,7 @@ const SHIFT_BUDGET_PER_ENTRY = 8,
 
 /**
  * Total order every path produces: decreasing key, then increasing rank — the GPU's and the CPU
- * model's rank is the seed, the fallback pass's the item, both in source order.
+ * model's rank is the seed, in source order.
  *
  * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
  * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so

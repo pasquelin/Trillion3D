@@ -148,7 +148,7 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
     if (!rec) continue
     const at = row * (PAGE_INFO_STRIDE / 4),
       output = rec.deformationOutput,
-      // The record word the row writer gives the row's placement (`pageRow.ts`).
+      // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
       record = deformation?.rowWord(placement.rootOfPacked[rows.packedPageIndex[row]]) ?? 0
     if (record === ints[at + PAGE_DEFORM_WORD] && !output?.pool) continue
     ints[at + PAGE_DEFORM_WORD] = record

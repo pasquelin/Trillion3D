@@ -15,18 +15,9 @@
  * resident ancestor, never a primitive-wide substitute.
  *
  * Both errors are screen errors in pixels, projected by the caller in its own precision; the rule
- * compares them. The WGSL text is the same expression, operand for operand, split at the two
- * comparisons so a caller that already made them passes their results.
+ * compares them. The WGSL text below is the rule, split at the two comparisons so a caller that
+ * already made them passes their results; its CPU model is `./rule.fixture.ts`.
  */
-export function drawsCluster(
-  resident: boolean,
-  parentPixels: number,
-  ownPixels: number,
-  childResident: boolean,
-  threshold: number,
-) {
-  return resident && parentPixels > threshold && (ownPixels <= threshold || !childResident)
-}
 
 /** The rule in WGSL, for the kernel that draws (`dagMask`): `drawsCompared` on the two comparisons
  *  the cut makes, the form a camera's `dagMask` calls on the bits `dagWanted` kept this frame. */

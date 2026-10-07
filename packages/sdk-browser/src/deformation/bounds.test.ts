@@ -5,10 +5,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { paletteReach, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import * as G from '../host/graph/graph.fixture.ts'
-import { collectClusterPages, selectVisiblePages } from '../page/selection/selection.ts'
+import { collectClusterPages } from '../page/selection/selection.ts'
+import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
-import { createHeldResidency } from '../page/cut/held.ts'
+import { createHeldResidency } from '../page/cut/held.fixture.ts'
 
 /** A seeded generator, so a failure names the case it met. */
 function random(seed: number) {

@@ -1,5 +1,5 @@
 // The other GPU a proof runs on: the system Chrome (`launchChrome`), for what Dawn does not have —
-// the WebGL2 backend, and the witness library's WebGL renderer a WebGPU image is compared with. A
+// a page, its canvases and the witness library's WebGPU renderer an engine image is compared with. A
 // proof's page module is served from the sources, stripped of its types by the bench harness's
 // server (`tests/kit/server/staticServer.ts`), imported by its blank page and called there: what
 // it answers is the proof's reading. These proofs are the recette's (`pnpm run test:chrome`, which

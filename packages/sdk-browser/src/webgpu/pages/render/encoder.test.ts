@@ -35,7 +35,7 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
     assert.notDeepEqual(attendu, G.xyz(hostCamera.position), 'witness: the rig does move the eye')
 
     backend.render(hostCamera)
-    await backend.flush?.()
+    await backend.flush()
 
     const submissions = events.filter((event) => event.phase === 'encoding-submit')
     assert.ok(submissions.length > 0, 'at least one traced submit')
@@ -57,20 +57,30 @@ test('encoding-submit: drawnTriangles publishes run.drawnTriangles, never null o
   try {
     await backend.prepare()
     const cam = camera()
-    backend.render(cam)
-    await backend.flush?.()
-    backend.render(cam)
+    const submissions = () => events.filter((event) => event.phase === 'encoding-submit')
+    /** An image drawn: its submit traces the count the run held as it went out — 0 before the GPU
+     *  cut's first readback lands (#1483), its count after —, never null. An image that waits for
+     *  its root cover submits no draw and traces none. Returns the submits it traced. */
+    const image = () => {
+      const before = submissions().length
+      backend.render(cam)
+      const traced = submissions().slice(before)
+      for (const { context } of traced) {
+        assert.equal(typeof context.drawnTriangles, 'number')
+        assert.equal(context.drawnTriangles, backend.metrics().drawnTriangles)
+      }
+      return traced.length
+    }
+    let traced = image()
+    await backend.flush()
+    traced += image()
+    assert.ok(traced > 0, 'an image traced its submit')
 
     assert.ok(
       (backend.metrics().drawnTriangles ?? 0) > 0,
       'witness: the camera does see the quad, or 0 would prove nothing',
     )
-    const submissions = events.filter((event) => event.phase === 'encoding-submit')
-    assert.ok(submissions.length > 0, 'at least one traced submit')
-    for (const event of submissions) {
-      assert.equal(typeof event.context.drawnTriangles, 'number')
-      assert.equal(event.context.drawnTriangles, backend.metrics().drawnTriangles)
-    }
+    for (const event of submissions()) assert.equal(typeof event.context.drawnTriangles, 'number')
   } finally {
     disposeQuadRun(backend, fixture)
   }

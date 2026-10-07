@@ -25,7 +25,7 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   const failures: string[] = []
   const { device, textureWrites } = fakeDevice()
   const layout = tileLayout(256, 256)
-  const tail = { levels: [], blocks: { bc7: [], astc: [] } }
+  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
   const read: string[] = []
   const atlas = {
     kind: 'color',
@@ -65,7 +65,7 @@ test('a block level of the wrong length fails once, is never held, and takes no 
 test('a block tile is read by its Range; a whole-file answer serves the whole level', async () => {
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
   const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
-  const tail = { levels: [], blocks: { bc7: [], astc: [] } }
+  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
   const source = { kind: 'baked', sha256: 'c'.repeat(64), atlas: 0, tail }
   const atlas = {
     kind: 'color',
@@ -166,7 +166,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   }
   // One device per pass: the reduction pipelines it builds say the rules its textures took.
   const rulesOf = async (...slots: number[]) => {
-    const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true })
+    const { device, computePipelines, submits, textures: made } = mockGpu()
     const { sources, pass } = on(device, slots)
     // STR-13, #962: the pass that asks builds nothing — no texture, no upload, no submit —; a task
     // after it builds the working textures asked, their mips in one submit (OMB-29, #961).
@@ -181,7 +181,9 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     // A pass with no newer feedback does not free what was built for its tiles unread.
     sources.endPass(undefined, 1)
     assert.ok(pass().every((verdict) => verdict === 'served'))
-    return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted)
+    return computePipelines
+      .filter(({ compute }) => compute.entryPoint === 'reduceLevel')
+      .map(({ compute }) => compute.constants?.weighted)
   }
   const rules: unknown[] = []
   for (let slot = 1; slot <= census.maps.length; slot++) rules.push(await rulesOf(slot))
@@ -192,7 +194,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   )
   assert.deepEqual(await rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch')
   // Two working textures at most a pass: a third texture's tiles wait for a pass with room.
-  const { sources, pass } = on(mockGpu({ compute: true }).device, [1, 2, 3])
+  const { sources, pass } = on(mockGpu().device, [1, 2, 3])
   pass()
   await sources.settled()
   assert.deepEqual(pass(), ['served', 'served', 'waiting'])

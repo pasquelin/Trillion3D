@@ -1,12 +1,13 @@
 import type { HostAttribute } from '../../../../packages/sdk-browser/src/host/resources.ts'
 import { srgbToLinear, type Texture } from '../../../../packages/sdk-core/src/index.ts'
-import {
-  mapTexel,
-  premultipliedByte,
-} from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import type { Projected } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
 import { signedArea } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+
+/** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it: the rule
+ *  the GPU texel turn applies in integers (`webgpu/tile/texelTurn.ts`). */
+export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255)
 
 // The CPU image's reads of a page: the oracle's, not the engine's. The engine reads the depth
 // alone (`rasterDepth`); the colour of a pixel is the GPU's, and these are what it is checked against.

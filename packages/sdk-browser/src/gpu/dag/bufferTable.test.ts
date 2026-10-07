@@ -13,7 +13,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 test('the camera cut makes the buffers its table names', async () => {
   const { dag } = packed(dagFixture())
   const fake = fakeDevice({ limits: SHADOW_LIMITS })
-  const resources = (await createDagResources(fake.device, dag, true))!
+  const resources = (await createDagResources(fake.device, dag))!
   const made = (label: string) => fake.buffers.filter((b) => b.label === label).map((b) => b.size)
   const camera = cameraCutBuffers(dag)
   for (const row of [...Object.values(camera.rows), readoutRow(resources.listCap)])

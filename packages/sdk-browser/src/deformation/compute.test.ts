@@ -7,7 +7,11 @@ test('cluster and whole-copy deformation dispatch in one pass and reuse stable b
   const gpu = fakeDevice()
   const compute = await createDeformationCompute(gpu.device)
   const buffer = () => gpu.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE })
-  const buffers = Array.from({ length: 5 }, buffer)
+  // Binding 2 is the normal atlas: a view of an unfilterable 2D array, as the layout declares it.
+  const normals = gpu.device
+    .createTexture({ size: [1, 1, 1], format: 'r32float', usage: GPUTextureUsage.TEXTURE_BINDING })
+    .createView({ dimension: '2d-array' })
+  const buffers = Array.from({ length: 5 }, (_, at) => (at === 2 ? normals : buffer()))
   const whole = { table: buffer(), count: 2 }
   const calls: string[] = []
   const encoder = {

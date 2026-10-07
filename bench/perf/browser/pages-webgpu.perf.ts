@@ -34,7 +34,6 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
   depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
   material: surfaceOf([]),
-  declaration: [],
   matrix,
   roots: [{ world: matrix }],
   renderOrder: 0,

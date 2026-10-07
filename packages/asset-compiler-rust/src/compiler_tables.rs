@@ -6,8 +6,8 @@
 //!
 //! Source of every value: the glTF this same compilation publishes as `source.gltf` — after the
 //! slice kept its nodes, after the cutout answers rewrote their materials, after the mesh ranks
-//! were remapped — and, when one is written, the autonomous `scene.gltf` derived from it. Anything
-//! read from the input document instead would describe a scene nobody draws.
+//! were remapped. Anything read from the input document instead would describe a scene nobody
+//! draws.
 use super::*;
 use serde_json::Map;
 
@@ -32,8 +32,9 @@ use textures::texture_table;
 /// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`); version 5
 /// names the manifest's mesh pages the node table needs (`meshPages`), which a runtime reads at open
 /// while the cells' own are read with them (#751).
-/// Version 6 carries the skins and the animation clips (`motion.rs`, #357).
-const SCENE_TABLES_VERSION: u32 = 6;
+/// Version 6 carries the skins and the animation clips (`motion.rs`, #357). Version 7 lays out the
+/// one published document (`document`), no longer a map of documents by name (#1483).
+const SCENE_TABLES_VERSION: u32 = 7;
 /// The node table's version: 4 says whether each node declares itself visible
 /// (`KHR_node_visibility`), 5 names the skin a node bends its mesh by.
 const NODE_TABLE_VERSION: u32 = 5;
@@ -41,8 +42,8 @@ const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
 
-/// The material table, filled as the documents meet the surfaces that are actually worn. A
-/// glTF material is one entry per tangent variant: that is how many the host builds of it, and an
+/// The material table, filled as the document meets the surfaces that are actually worn. A
+/// glTF material is one entry per tangent variant: that is how many the runtime builds of it, and an
 /// entry nothing wears would describe a surface no pixel is drawn with.
 struct Materials {
     table: Vec<Value>,
@@ -50,7 +51,7 @@ struct Materials {
 }
 impl Materials {
     /// Rank in the table of the surface a primitive wears; a primitive that declares no material
-    /// wears the glTF default one, which the host builds just the same.
+    /// wears the glTF default one, which the runtime builds just the same.
     fn rank(&mut self, g: &Value, primitive: &Value) -> Result<usize> {
         let declared = match primitive.get("material") {
             Some(value) => Some(required_index(Some(value), "primitive.material")?),
@@ -71,15 +72,11 @@ impl Materials {
 }
 
 /// Compilation stage: the tables come out as a cache product under their own name, outside the
-/// manifest, written from the scene this job publishes and from its autonomous copy when one was
-/// written. Both documents share one node graph and one material
-/// table: the autonomous scene is the published one with its geometry reduced, so only the
-/// geometry layout differs. The partition's region pages name the mesh pages of `mesh_pages`.
-/// Returned beside the product: the published nodes each cell places.
+/// manifest, written from the scene this job publishes. The partition's region pages name the mesh
+/// pages of `mesh_pages`. Returned beside the product: the published nodes each cell places.
 pub(super) fn stage_scene_tables(
     (g, bin): (&Value, &[u8]),
     published: &Value,
-    autonomous: Option<&Value>,
     mesh_pages: &crate::compiler_manifest_pages::MeshPages,
     directory: &Path,
     progress: impl Fn(Value),
@@ -89,18 +86,7 @@ pub(super) fn stage_scene_tables(
         table: Vec::new(),
         interned: BTreeMap::new(),
     };
-    let mut documents = serde_json::Map::new();
-    documents.insert(
-        "source.gltf".into(),
-        document_table(published, "source.bin", &mut surfaces)?,
-    );
-    if let Some(scene) = autonomous {
-        let name = crate::compiler_autonomous::AUTONOMOUS_SCENE_FILE;
-        documents.insert(
-            name.into(),
-            document_table(scene, "scene.bin", &mut surfaces)?,
-        );
-    }
+    let document = document_table(published, "source.bin", &mut surfaces)?;
     let table = node_table(published)?;
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
     let (split, members) =
@@ -119,7 +105,7 @@ pub(super) fn stage_scene_tables(
     let lights = light_table(published)?;
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
-    let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len(),"documents":documents.len()});
+    let counts = json!({"nodes":nodes.len(),"cells":cells,"materials":surfaces.table.len(),"textures":textures.len(),"lights":lights.len()});
     let tables = json!({
         "version": SCENE_TABLES_VERSION,
         "nodeTableVersion": NODE_TABLE_VERSION,
@@ -135,7 +121,7 @@ pub(super) fn stage_scene_tables(
         "animations": animations,
         "materials": surfaces.table,
         "textures": textures,
-        "documents": documents,
+        "document": document,
     });
     let written = product(directory, SCENE_TABLES_FILE, &serde_json::to_vec(&tables)?)?;
     progress(

@@ -10,10 +10,10 @@ camera, the renderer and the loop.
 
 | Document | Role |
 | --- | --- |
-| [SDK guide](SDK.md) | The public API, each entry documented once: principles, entry points, a world, its families, the loop, the renderer option, lights, scene fog, budgets, integration, current limits |
+| [SDK guide](SDK.md) | The public API, each entry documented once: principles, entry points, a world, its families, the loop, lights, scene fog, budgets, integration, current limits |
 | [Maths](MATHS.md) | Batch and unit maths for hosts: conventions, layouts, the batch functions and their witness ratios |
 | [Physics](PHYSICS.md) | Jolt in the world: bodies, joints, vehicles, soft bodies, budgets, compiled colliders, exact raycast |
-| [Engine internals](ENGINE.md) | The map of the engine: backends, the frame's stages and the files that own them, the rules across files |
+| [Engine internals](ENGINE.md) | The map of the engine: the session, the frame's stages and the files that own them, the rules across files |
 | [Residency](RESIDENCY.md) | What stays in memory: the cut rule, the geometry pool, out-of-memory answers, coverage counters, virtual textures |
 | [Shadows](SHADOWS.md) | Virtual shadow maps: the page pool, its memory, clipmaps, one frame's passes, the static slice, the transmission atlas, metrics |
 | [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format |

@@ -1,16 +1,18 @@
 /**
  * Runs a function of a shader (`lineWgsl.ts`: `lineClip`, `lineDash`; `spriteWgsl.ts`: `spriteAt`;
  * `../../guides/guideShaders.ts`: `guideCorner`) on the CPU: a small reader of the statements and
- * expressions they use — declarations, compound assignments, one guarded return or assignment, arithmetic
- * on scalars, vectors and column-major matrices, column indexing, swizzles, `select`, `?:`, `length`,
- * `normalize`, `floor`, `cos`, `sin`, `min`, `max`, `abs`, `sqrt`, the vector constructors and other
- * texts' functions. The tests measure what the real text does, in WGSL and GLSL, not a copy of its formula; the cut rule reads `../../page/cut/wgslPredicate.fixture.ts`.
+ * expressions they use — declarations, compound assignments, one guarded return or assignment,
+ * arithmetic on scalars, vectors and column-major matrices, column indexing, swizzles, comparisons
+ * and `select` axis by axis, `length`, `normalize`, `floor`, `cos`, `sin`, `min`, `max`, `abs`,
+ * `sqrt`, the vector constructors and other texts' functions. The tests measure what the real
+ * text does, not a copy of its formula; the cut rule reads
+ * `../../page/cut/wgslPredicate.fixture.ts`.
  */
 type Value = number | number[] | number[][] | boolean
 type Call = (...args: Value[]) => Value
 /** A run's arguments, its locals and the functions a caller named (`runShaderText`). */
 type Scope = Record<string, Value | Call>
-const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:![\]])/y
+const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>:![\]])/y
 
 function tokens(text: string) {
   const out: string[] = []
@@ -26,18 +28,25 @@ function tokens(text: string) {
 const lift = (a: Value, b: Value, f: (x: number, y: number) => number): Value => {
   if (Array.isArray(a) || Array.isArray(b)) {
     const size = Array.isArray(a) ? a.length : (b as number[]).length
-    const at = (v: Value, i: number) => (Array.isArray(v) ? (v[i] as number) : (v as number))
-    return Array.from({ length: size }, (_, i) => f(at(a, i), at(b, i)))
+    return Array.from({ length: size }, (_, i) => f(axis(a, i), axis(b, i)))
   }
   return f(a as number, b as number)
 }
+/** Axis `i` of a vector, or the scalar itself. */
+const axis = (v: Value, i: number) => (Array.isArray(v) ? (v[i] as number) : (v as number))
+/** A comparison, axis by axis on vectors (a vector of 1 and 0), as WGSL compares them. */
+const compare = (f: (x: number, y: number) => boolean) => (a: Value, b: Value) =>
+  Array.isArray(a) || Array.isArray(b)
+    ? lift(a, b, (x, y) => +f(x, y))
+    : f(a as number, b as number)
 /** A column-major matrix times a vector: the sum of its columns, each by one coordinate. */
 const product = (m: number[][], v: number[]) =>
   m[0].map((_, row) => m.reduce((sum, column, c) => sum + column[row] * v[c], 0))
 const isMatrix = (v: Value): v is number[][] => Array.isArray(v) && Array.isArray(v[0])
 const AXES = 'xyzw'
 const CALLS: Record<string, Call> = {
-  select: (a, b, c) => (c ? b : a),
+  select: (a, b, c) =>
+    Array.isArray(c) ? (c as number[]).map((on, i) => (on ? axis(b, i) : axis(a, i))) : c ? b : a,
   length: (v) => Math.hypot(...(v as number[])),
   normalize: (v) => (v as number[]).map((x) => x / Math.hypot(...(v as number[]))),
   floor: (v) => Math.floor(v as number),
@@ -48,7 +57,12 @@ const CALLS: Record<string, Call> = {
   abs: (v) => lift(v, v, Math.abs),
   sqrt: (v) => Math.sqrt(v as number),
 }
-const vector = (...args: Value[]) => args.flat() as number[]
+/** A constructor's arguments in a row; `vecN` of one scalar fills its N axes with it. */
+const vector = (name: string, args: Value[]) => {
+  const size = Number(/^vec([234])/.exec(name)?.[1] ?? 0)
+  const splat = size && args.length === 1 && !Array.isArray(args[0])
+  return (splat ? Array(size).fill(args[0]) : args.flat()) as number[]
+}
 
 /** Evaluates one expression of the shader text over the named values. */
 function evaluate(text: string, scope: Scope): Value {
@@ -60,16 +74,16 @@ function evaluate(text: string, scope: Scope): Value {
       if (want && token !== want) throw new Error(`expected ${want}, read ${token}`)
       return token
     }
-  const LEVELS = [['?'], ['||'], ['&&'], ['==', '!=', '<', '>', '<=', '>='], ['+', '-'], ['*', '/']]
+  const LEVELS = [['||'], ['&&'], ['==', '!=', '<', '>', '<=', '>='], ['+', '-'], ['*', '/']]
   const APPLY: Record<string, (a: Value, b: Value) => Value> = {
     '||': (a, b) => !!a || !!b,
     '&&': (a, b) => !!a && !!b,
-    '==': (a, b) => a === b,
-    '!=': (a, b) => a !== b,
-    '<': (a, b) => (a as number) < (b as number),
-    '>': (a, b) => (a as number) > (b as number),
-    '<=': (a, b) => (a as number) <= (b as number),
-    '>=': (a, b) => (a as number) >= (b as number),
+    '==': compare((x, y) => x === y),
+    '!=': compare((x, y) => x !== y),
+    '<': compare((x, y) => x < y),
+    '>': compare((x, y) => x > y),
+    '<=': compare((x, y) => x <= y),
+    '>=': compare((x, y) => x >= y),
     '+': (a, b) => lift(a, b, (x, y) => x + y),
     '-': (a, b) => lift(a, b, (x, y) => x - y),
     '*': (a, b) => (isMatrix(a) ? product(a, b as number[]) : lift(a, b, (x, y) => x * y)),
@@ -78,15 +92,7 @@ function evaluate(text: string, scope: Scope): Value {
   const level = (rank: number): Value => {
     if (rank === LEVELS.length) return unary()
     let left = level(rank + 1)
-    while (LEVELS[rank].includes(peek())) {
-      const op = take()
-      if (op === '?') {
-        const yes = level(0)
-        take(':')
-        const no = level(0)
-        left = left ? yes : no
-      } else left = APPLY[op](left, level(rank + 1))
-    }
+    while (LEVELS[rank].includes(peek())) left = APPLY[take()](left, level(rank + 1))
     return left
   }
   const unary = (): Value => {
@@ -126,7 +132,8 @@ function evaluate(text: string, scope: Scope): Value {
     }
     take(')')
     const own = scope[token]
-    return (typeof own === 'function' ? own : (CALLS[token] ?? vector))(...args)
+    if (typeof own === 'function') return own(...args)
+    return CALLS[token] ? CALLS[token](...args) : vector(token, args)
   }
   const value = level(0)
   if (at !== list.length) throw new Error(`unread tokens in ${text}`)
@@ -149,7 +156,7 @@ function topLevel(text: string) {
 
 /** Runs one declaration or assignment — `a*=b` included — into `scope`. */
 function assign(statement: string, scope: Scope) {
-  const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '')
+  const declared = statement.replace(/^(let|var)\s+/, '')
   for (const part of topLevel(declared)) {
     const [name, ...expression] = part.split('=')
     const value = evaluate(expression.join('='), scope),
@@ -165,7 +172,7 @@ function assign(statement: string, scope: Scope) {
 export function runShaderText<Result = number[]>(source: string, calls: Scope = {}) {
   const open = source.indexOf('{')
   const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')))
-  const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1])
+  const names = params.map((p) => p.trim().split(/[\s:]+/)[0])
   const body = source.slice(open + 1, source.lastIndexOf('}'))
   const statements = body
     .split(/;|\n/)

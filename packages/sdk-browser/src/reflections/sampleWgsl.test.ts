@@ -6,7 +6,7 @@ import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { MIRROR_TRANSITION_END } from './modelShader.ts'
 
 const trace = (bounce: boolean, unbounded: boolean) =>
-  functionsOf(stochasticReflectionShader(contractLightingShader(bounce, false), unbounded), [
+  functionsOf(stochasticReflectionShader(contractLightingShader(bounce), unbounded), [
     'traceRoughReflection',
   ])
 
@@ -15,10 +15,9 @@ test('a rough sample spends the bounded Hi-Z walk, and a miss reads the filtered
     const sample = trace(bounce, false)
     assert.match(sample, /return vec4f\(boundedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/)
     assert.doesNotMatch(sample, /resolvedReflectionRay|reflectedRadiance\(|proxyReflectionRay/)
-    const ray = functionsOf(
-      stochasticReflectionShader(contractLightingShader(bounce, false), false),
-      ['boundedReflectionRay'],
-    )
+    const ray = functionsOf(stochasticReflectionShader(contractLightingShader(bounce), false), [
+      'boundedReflectionRay',
+    ])
     assert.match(ray, /screenReflection\(P\+N\*shadowFootprint,R\)/)
     assert.ok(ray.includes(`filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END})`))
     assert.doesNotMatch(ray, /resolvedReflectionRay|proxyReflectionRay/)
@@ -30,14 +29,14 @@ test("a reference session's program walks the whole ray with the program's whole
     const sample = trace(bounce, true)
     assert.match(sample, /return vec4f\(resolvedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/)
     assert.doesNotMatch(
-      stochasticReflectionShader(contractLightingShader(bounce, false), true),
+      stochasticReflectionShader(contractLightingShader(bounce), true),
       /boundedReflectionRay/,
     )
   }
 })
 
 test('the filtered reflection is the rough branch of the full one, without its proxy ray', () => {
-  const bounced = stochasticReflectionShader(contractLightingShader(true, false))
+  const bounced = stochasticReflectionShader(contractLightingShader(true))
   const [filtered, full] = [
     functionsOf(bounced, ['filteredReflectedRadiance']),
     functionsOf(bounced, ['reflectedRadiance']),

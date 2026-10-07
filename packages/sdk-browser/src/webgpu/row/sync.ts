@@ -2,26 +2,25 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import type { PageList } from '../pages/prepare/catalogue.ts'
 import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import type { createWebgpuRowState } from './state.ts'
-import type { createWebgpuRowCommit } from './commit.ts'
+import type { createPageRowWriter } from './pageRowWriter.ts'
 import { createWebgpuRowSlots } from './slots.ts'
-import { rowHasGeometry } from './pageRow.ts'
-import { awaitsPageBytes } from './pageSlots.ts'
+import type { CloseInstances, CutLists } from './rowDemand.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
-type Mirror = ReturnType<typeof createWebgpuResidencyMirror>
-type Commit = ReturnType<typeof createWebgpuRowCommit>
+type Mirror = Pick<ReturnType<typeof createWebgpuResidencyMirror>, 'sync' | 'dirty'>
+type Writer = ReturnType<typeof createPageRowWriter>
 
-/** Keeps the drawable row table aligned with cache residency or a CPU-selected cut. */
+/** Keeps the drawable row table a cache of what the GPU cut draws and asks for (`slots.ts`). */
 export function createWebgpuRowSync(
   rows: Rows,
   mirror: Mirror,
   packedPages: PageList,
-  /** The drawn view's cut, read at each sync: a view switch replaces its `drawn`. */
-  cut: { readonly drawn: readonly PageRec[]; readonly drawnPacked: readonly number[] },
   cacheReady: () => boolean,
-  { commitRows, sourceRowOf, writePageRow }: Commit,
+  writePageRow: Writer,
+  /** What a request closes over, per placement (`rowDemand.ts`). */
+  closeInstances: CloseInstances,
   /** Called when a page enters residency or leaves it, before the row changes. */
   onResidenceChange: (rec: PageRec, page: number) => void = () => {},
   /** Called when a blended caster's row is written again with another coverage. */
@@ -29,19 +28,27 @@ export function createWebgpuRowSync(
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
-  const slots = createWebgpuRowSlots(rows, packedPages, writePageRow, onResidenceChange)
+  const slots = createWebgpuRowSlots(
+    rows,
+    packedPages,
+    writePageRow,
+    onResidenceChange,
+    closeInstances,
+  )
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
-   *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
+   *  mirror reports (`follow`), and the table's age here. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange)
-  let asked = 0
+  /** The readback last followed: each is followed once, whichever view adopted it. */
+  let followed: object | null = null
   /**
-   * Rows for the drawable set. What the image owes the table now depends only on the pages whose
-   * cache slot just changed, and on what the previous image's time budget left to write: the whole
-   * catalogue is walked again only on a rebuild, which the rank allocator decides alone, and never
-   * again because a list overflowed. `bounded` false lifts the frame's budget (a barrier image).
+   * Rows for the drawable set. What the image owes the table depends only on the pages whose cache
+   * slot just changed, on the readback the GPU cut just brought (`followCut`), and on what the
+   * previous image's time budget left to write: the whole catalogue is walked again only on a
+   * rebuild, which the rank allocator decides alone. `bounded` false lifts the frame's budget (a
+   * barrier image). Returns whether the table was passed over.
    */
   const syncRows = (bounded = true) => {
-    if (!cacheReady() || !rows.pageTableFloats) return
+    if (!cacheReady() || !rows.pageTableFloats) return false
     // The journal describes only this pass: what it named has already been applied or dropped.
     rows.clearResidencyChanges()
     mirror.sync()
@@ -54,55 +61,29 @@ export function createWebgpuRowSync(
       !slots.pending &&
       rows.rowsEpoch === rows.tableEpoch
     )
-      return
+      return false
     mirror.dirty = false
     rows.rowsEpoch = rows.tableEpoch
     slots.apply(bounded ? budget : undefined)
+    return true
   }
-  /**
-   * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.
-   * Returns the camera's row count. The table's size is read here, at each sync: it grows in
-   * place (`grow.ts`).
-   */
-  const syncRowsFromCut = () => {
-    if (!cacheReady() || !rows.pageTableFloats) return 0
-    const drawSlots = rows.blendFirst
-    mirror.sync()
-    blendCasters.refresh()
-    // The CPU cut names its own rows, so this path never skips: `mirror.dirty` belongs to the ranks.
-    mirror.dirty = true
-    let count = 0,
-      lastSource = -1,
-      monotone = true
-    asked = 0
-    const place = (rec: PageRec, pageIndex: number) => {
-      if (rec.transparent || pageIndex < 0) return
-      const offsetWords = rows.residentOffsetWords[pageIndex],
-        position = rows.pagePositions[pageIndex]
-      if (offsetWords < 0 || awaitsPageBytes(rec) || !rowHasGeometry(rec, position)) return
-      // Every row the cut selects is counted, even past the table: it is what the table grows to.
-      asked++
-      if (count >= drawSlots) return
-      const row = count++
-      const source = sourceRowOf(pageIndex, offsetWords)
-      if (source >= 0) {
-        if (source <= lastSource) monotone = false
-        lastSource = source
-      }
-      rows.newRowPage[row] = pageIndex
-      rows.newRowSource[row] = source
-      rows.packedRecs[row] = rec
-      rows.packedPositions[row] = position
-      rows.packedPageIndex[row] = pageIndex
-    }
-    const { drawn, drawnPacked } = cut
-    for (let i = 0; i < drawn.length; i++) place(drawn[i], drawnPacked[i])
-    commitRows(count, monotone)
-    return count
+  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used, its
+   *  requests for instances without a row served at the next sync. */
+  const followCut = (cut: { readonly result: CutLists } | null | undefined) => {
+    if (!cut || cut === followed) return
+    followed = cut
+    slots.follow(cut.result)
   }
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending
-  /** Rows the last CPU cut selected, the table holding them or not (#1232). */
-  const rowsAsked = () => asked
-  return { syncRows, syncRowsFromCut, rowsOwed, rowsAsked, blendCasters }
+  return {
+    syncRows,
+    followCut,
+    rowsOwed,
+    blendCasters,
+    /** Bytes of the row cache's own tables (`slots.ts`). */
+    get cacheBytes() {
+      return slots.bytes
+    },
+  }
 }

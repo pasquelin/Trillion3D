@@ -68,14 +68,22 @@ export function primitiveFrameWords(
     Partial<Pick<PackedDag, 'mark'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
-    frameInts = new Uint32Array(frameData.buffer)
-  for (let w = 0; w < packed.worldCount; w++) {
-    const at = primitiveWordAt(w)
-    frameData[at] = packed.worldStretch[w]
-    frameInts[at + 1] = packed.rootNodes[w]
-    frameInts[at + 2] = packed.recordShift[w]
-    frameInts[at + 3] = packed.mark?.[w] ?? 0
-  }
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4)
+  for (let w = 0; w < packed.worldCount; w++) writePrimitiveWords(frameData, packed, w)
   return frameData
+}
+
+/** Primitive `w`'s four frame words (`primitiveFrameWords`), written into `frameData`. */
+export function writePrimitiveWords(
+  frameData: Float32Array,
+  packed: Pick<PackedDag, 'worldStretch' | 'rootNodes' | 'recordShift'> &
+    Partial<Pick<PackedDag, 'mark'>>,
+  w: number,
+) {
+  const at = primitiveWordAt(w),
+    frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
+  frameData[at] = packed.worldStretch[w]
+  frameInts[at + 1] = packed.rootNodes[w]
+  frameInts[at + 2] = packed.recordShift[w]
+  frameInts[at + 3] = packed.mark?.[w] ?? 0
 }

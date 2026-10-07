@@ -1,6 +1,7 @@
+import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { ROW_ID_BASE_WORD, packedRowBase, restampHizSlot } from './pageRow.ts'
-import type { createPageRowWriter } from './pageRow.ts'
+import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 
@@ -22,7 +23,6 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
   const assign = (row: number, page: number, offsetWords: number) => {
     const rec = recordOf(page)!
     rows.packedRecs[row] = rec
-    rows.packedPositions[row] = rows.pagePositions[page]
     rows.packedPageIndex[row] = page
     rows.rowPageIndex[row] = page
     rows.rowOffsetWords[row] = offsetWords
@@ -41,7 +41,6 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(to)
     restampHizSlot(ints, base, to)
     rows.packedRecs[to] = rows.packedRecs[from]
-    rows.packedPositions[to] = rows.packedPositions[from]
     rows.packedPageIndex[to] = page
     rows.rowPageIndex[to] = page
     rows.rowOffsetWords[to] = rows.rowOffsetWords[from]
@@ -52,4 +51,32 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
   }
 
   return { assign, moveRow, state }
+}
+
+/**
+ * The end of a table of `count` rows fills the ranks `free` names, holes walked from lowest to
+ * highest and sources from highest to lowest, skipping ranks that are themselves free: each
+ * surviving row is moved once, by `move`. Returns the rows kept; `free` is emptied.
+ */
+export function closeHoles(
+  free: { rows: Int32Array; count: number },
+  count: number,
+  move: (from: number, to: number) => void,
+) {
+  if (!free.count) return count
+  sortPages(free.rows, free.count)
+  const kept = count - free.count
+  let source = count - 1,
+    high = free.count - 1
+  for (let i = 0; i < free.count; i++) {
+    const hole = free.rows[i]
+    if (hole >= kept) break
+    while (high >= 0 && free.rows[high] === source) {
+      source--
+      high--
+    }
+    move(source--, hole)
+  }
+  free.count = 0
+  return kept
 }

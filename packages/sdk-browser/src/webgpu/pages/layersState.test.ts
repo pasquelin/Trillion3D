@@ -3,23 +3,20 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { quadScene } from './testScenes.fixture.ts'
-import { BASE_SLOTS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
+import { BASE_SLOTS, DRAW_ITEM_U32, HALF_SLOTS } from '../../gpu/draw/draw.ts'
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuVisState } from './state/vis.ts'
 import { createWebgpuPagesLayout } from './prepare/layout.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
-import type { WebgpuPagesCore, WebgpuPagesRuntime } from './runtime.ts'
-import { visSlotPipeline, visPipelineFor } from './prepare/pipelineFor.ts'
-import { dropVis } from './io/drops.ts'
-import { createWebgpuRunState } from './state/run.ts'
-import { createWebgpuBlendState } from '../blend/state.ts'
+import type { WebgpuPagesCore } from './runtime.ts'
+import { visSlotPipeline } from './prepare/pipelineFor.ts'
 
 // The coplanar-layer lot was reapplied in eleven WebGPU modules; each test below exercises the
 // layer in a module that `../row/pageRowDepthBias.test.ts` (`writePageRow` bias) does not cover.
-// `../row/pageRow.ts` stays covered there and has no test here. The suite continues in
+// `../row/pageRowWriter.ts` stays covered there and has no test here. The suite continues in
 // `../visibility/drawLayers.test.ts` for the per-image draw modules.
 
 const fakeSetup = (overrides: Partial<WebgpuPagesSetup> = {}) =>
@@ -49,8 +46,8 @@ test('createWebgpuPagesLayout sizes world corners per drawable row, for the GPU 
 })
 
 // prepare/pipelineFor.ts
-test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own pipeline set, not the layer-0 one', () => {
-  const pipelines = Array.from({ length: 10 }, (_, i) => ({
+test('visSlotPipeline routes a coplanar-layer slot to its own pipeline set, not the layer-0 one', () => {
+  const pipelines = Array.from({ length: 6 }, (_, i) => ({
     id: i,
   })) as unknown as GPURenderPipeline[]
   const rt = {
@@ -58,15 +55,7 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
     layout: { selectionRoots: [{ world: new G.Matrix4() }] },
   } as unknown as WebgpuPagesCore
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull')
-  const rec = {
-    material: G.basicSurface(),
-    depthLayer: 1,
-  } as unknown as PageRec
-  assert.equal(
-    visPipelineFor(rt, rec, 0),
-    pipelines[0],
-    'a layered cluster draws through its layer pipeline, not the base one',
-  )
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS + HALF_SLOTS), pipelines[3], 'its tested back cull')
 })
 
 // prepare/visibility.ts (orchestration: drawLayerSlots and the layer pipelines it builds)
@@ -76,7 +65,7 @@ test('a page marked with a coplanar depth layer makes prepare() build that layer
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 3
   const { device } = mockGpu()
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -94,23 +83,4 @@ test('a page marked with a coplanar depth layer makes prepare() build that layer
     scene.geometry.dispose()
     scene.material.dispose()
   }
-})
-
-// io/drops.ts
-test('dropVis collapses the coplanar layer pipelines and drawLayerSlots back to one', () => {
-  const vis = createWebgpuVisState()
-  vis.drawLayerSlots = 4
-  vis.visLayerPipelines = [{} as GPURenderPipeline, {} as GPURenderPipeline]
-  const layout = createWebgpuPagesLayout(fakeSetup({ slots: 1, cap: 1 }))
-  const rt = {
-    vis,
-    layout,
-    run: createWebgpuRunState(),
-    gpu: { bindGroups: new Map() },
-    blendState: createWebgpuBlendState(),
-    capabilities: { materials: '', unsupported: [] as string[] },
-  } as unknown as WebgpuPagesRuntime
-  dropVis(rt)
-  assert.equal(vis.drawLayerSlots, 1)
-  assert.deepEqual(vis.visLayerPipelines, [])
 })

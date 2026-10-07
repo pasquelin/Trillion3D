@@ -59,9 +59,11 @@ test('each map carries its own nibble in its header, whatever the others', () =>
 // read takes an addressing argument, so none can take another map's (`../texture/sampling.ts`).
 for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
+    // The transparent pass reads its first UV set, `in.uv.xy`: a lobed program carries a second
+    // one in the same varying (`blendSurfaceWgsl`).
     assert.match(
       text,
-      /colorSample\(page\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
+      /colorSample\(page\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv\.xy,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
     )
     assert.doesNotMatch(text, /wrapOf|wrapModes/, 'no per-material addressing word')
   })

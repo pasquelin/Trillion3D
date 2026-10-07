@@ -1,5 +1,5 @@
 // Shared by `volumeFrustumCases.ts`: the frustum planes of a view-projection, at either precision
-// the selection uses — the WebGL2 path always double, the WebGPU path either, chosen by caller.
+// the selection uses — double or single, chosen by caller.
 import { frustumPlanesFromMatrix } from '../../../../packages/sdk-core/src/index.ts'
 
 export function plans(vp: number[]): Float64Array

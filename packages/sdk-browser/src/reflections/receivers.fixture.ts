@@ -35,17 +35,15 @@ export const ENVIRONMENT = [3, 3, 3],
   RAY = [7, 7, 7],
   FILTERED = [5, 5, 5]
 
-/** A shipped screen resolve (by default WebGPU's `resolvedRadiance`), its trace answering `RAY` for
- *  the mirror ray and `FILTERED` for the cone on a hit and nothing on a miss, its `fallback`
- *  `ENVIRONMENT`; each call counted. `shader`, `entry`, `fallback` and `globals` give another
- *  program's spelling (the WebGL2 one, `screenGlsl.test.ts`). */
+/** A shipped screen resolve's `resolvedRadiance` (by default the opaque one's), its trace
+ *  answering `RAY` for the mirror ray and `FILTERED` for the cone on a hit and nothing on a miss,
+ *  its fallback `reflectedRadiance` `ENVIRONMENT`; each call counted. `shader` and `globals` read
+ *  another resolve. */
 export function resolvedDisplay({
   enabled = 1,
   hit = true,
   weight = (rough: number) => +(rough <= Number(ROUGHNESS_FLOOR)),
   shader = SCREEN_REFLECTION_WGSL,
-  entry = 'resolvedRadiance',
-  fallback = 'reflectedRadiance',
   globals = {} as Record<string, unknown>,
   functions = [] as string[],
 } = {}) {
@@ -58,7 +56,7 @@ export function resolvedDisplay({
       'resolvedReflectionRay',
       'filteredResolvedReflection',
       'screenReflectionFade',
-      entry,
+      'resolvedRadiance',
       ...functions,
     ],
     {
@@ -66,9 +64,12 @@ export function resolvedDisplay({
       mirrorWeight: weight,
       screenReflection: () => (calls.traced++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
       screenReflectionCone: () => (calls.traced++, hit ? [...FILTERED, 1] : [0, 0, 0, 0]),
-      [fallback]: () => (calls.fallback++, ENVIRONMENT),
+      reflectedRadiance: () => (calls.fallback++, ENVIRONMENT),
       ...globals,
     },
   )
-  return { calls, at: (rough: number) => program[entry]!([0, 0, 0], [0, 1, 0], [0, 1, 0], rough) }
+  return {
+    calls,
+    at: (rough: number) => program.resolvedRadiance!([0, 0, 0], [0, 1, 0], [0, 1, 0], rough),
+  }
 }

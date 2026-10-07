@@ -10,6 +10,8 @@ import type { EngineCamera } from '../../../camera/world.ts'
 function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) {
   return {
     setup: { worlds: {} },
+    // No deformation: a host walk has no staleness to forget (`deformation/frame.ts`).
+    vis: {},
     layout: { selectionRoots: [], worldUpdates: new Float32Array(16), rows: { tableEpoch: 1 } },
     timing: { worldCounts: { rootsRebased: 0 } },
     blendState: { blendGpu: [] },

@@ -1,3 +1,5 @@
+import { replayBundles } from './fakeBundles.ts'
+
 /**
  * WebGPU's usage scopes and binding rules, as a device validates them when an encoder finishes:
  * each dispatch of a compute pass is one scope — the groups set when it runs and the buffer it
@@ -134,7 +136,7 @@ export function recordingEncoder() {
   const pass = (kind: 'compute' | 'render') => {
     const at = passes++,
       scope = createUsageScope(kind)
-    return {
+    const recorder = {
       setPipeline(p: { entryPoint?: string; vertex?: { entryPoint: string } }) {
         entry = p.entryPoint ?? p.vertex!.entryPoint
         scope.pipeline(p)
@@ -154,8 +156,11 @@ export function recordingEncoder() {
         scope.indirect(buffer, entry)
         calls.push({ pass: at, entry, buffer, offset })
       },
+      // A bundle's draws are the pass's, under its scope.
+      executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(recorder, bundles),
       end: () => scope.end(),
     }
+    return recorder
   }
   const encoder = {
     beginComputePass: () => pass('compute'),

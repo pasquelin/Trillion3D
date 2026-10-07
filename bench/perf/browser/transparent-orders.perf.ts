@@ -1,4 +1,4 @@
-// GEO-2: transparents in a few orders — blend passes and CPU fallback.
+// GEO-2: transparents in a few orders — the blend passes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { measure, stress, rapport } from '../../core/index.ts'
@@ -20,16 +20,6 @@ for (const scene of scenes) {
         cas: casDe(images),
         calculation: scene.passAfter,
         expected: scene.passBefore,
-        options: { tours: 20, budgetMs: 1500 },
-      }),
-    )
-    results.push(
-      await measure({
-        name: `CPU fallback — ${scene.name}, ${regime}`,
-        fichier: 'packages/sdk-browser/src/webgpu/blend/expandCpu.ts',
-        cas: casDe(images),
-        calculation: scene.passAfterSeq,
-        expected: scene.passBeforeSeq,
         options: { tours: 20, budgetMs: 1500 },
       }),
     )

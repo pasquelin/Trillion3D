@@ -23,7 +23,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       interactive: true,
       scope: 'full',
       geometryPoolBytes: 134217728,
-      geometryPoolCeilingBytes: 268435456,
       texturePoolBytes: 134217728,
       maxTextureUploadMsPerFrame: 2,
       temporalAntialiasing: false,
@@ -36,7 +35,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       screenError: 'reference',
       textureSource: 'host',
       preload: 'all',
-      autonomousGeometry: true,
       stageProfile: true,
       diagnosticDetail: 'trace',
       replicaCount: 4,
@@ -60,7 +58,6 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'lodAdaptive',
     'bounce',
     'importedLights',
-    'autonomousGeometry',
     'stageProfile',
   ])
     assert.equal(validate({ ...explorer, [field]: 'true' }), false, field)
@@ -78,7 +75,6 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     { geometryPoolBytes: 'bytes' },
     { texturePoolBytes: 1 },
     { texturePoolBytes: 67108864.5 },
-    { geometryPoolCeilingBytes: 0.5 },
     { maxTextureUploadMsPerFrame: -1 },
     { maxTextureUploadMsPerFrame: 17 },
     { pixelError: -1 },
@@ -114,4 +110,9 @@ test('a switch the host leaves out is set in the engine as the schema advertises
   assert.deepEqual(advertised.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort())
   for (const [key, property] of advertised)
     assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key)
+})
+
+// No pool ceiling: the drawable-page tables start at the pool and grow in place past it.
+test('the schema advertises no geometry pool ceiling', () => {
+  assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.geometryPoolCeilingBytes, undefined)
 })

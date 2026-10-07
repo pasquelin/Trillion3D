@@ -25,9 +25,14 @@ test('an in-flight snapshot that a world change crosses is never drained as the 
   moved[12] = 1000
   assert.equal(selection.updateWorlds(moved), true)
   release()
-  assert.equal(await selection.flush(), null)
+  for (let turn = 0; turn < 16 && !selection.peek(); turn++)
+    await new Promise((done) => setImmediate(done))
   assert.equal(selection.peek()?.result.pageIds.length, 4)
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)
+  // The cut is always resident (#1483): the drain cuts again under the poses in place and hands
+  // back that cut, never the snapshot.
+  assert.equal((await selection.flush())?.pageIds.length, 0, 'the cut of the moved pose')
+  assert.equal(selection.peek()?.worldRevision, selection.worldRevision)
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 0, 'the moved primitive left the view')
   selection.dispose()
@@ -61,7 +66,7 @@ test('a residency republished identically does not drop the held cut', async () 
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const { device } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag, { residentCut: true })
+  const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   const resident = new Uint32Array(dag.pageCount).fill(1),
     moved: number[] = []

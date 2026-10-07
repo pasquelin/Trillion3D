@@ -3,11 +3,14 @@ import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../surface.ts'
-import { OPEN_CONE, coneContextFor, coneCullsPageWith, createConeContext } from './cone.ts'
+import { OPEN_CONE } from './cone.ts'
+import { coneCullsPageWith } from './cone.fixture.ts'
+import { coneContextFor } from './cone.fixture.ts'
+import { createConeContext } from './cone.fixture.ts'
 import { coneCullsPage } from './cone.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { leafCone } from './cone.ts'
-import { coneSkipsPage } from '../selection/helpers.ts'
+import { coneSkipsPage } from './cone.fixture.ts'
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
   const cone = triangleCone([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2])

@@ -13,11 +13,11 @@ import {
   PARENT_SPHERE,
   cullingBounds,
 } from './bounds.ts'
-import type { PageRecord, SelectionState } from './state.ts'
+import type { PageRecord, SelectionState } from './state.fixture.ts'
 import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { obliqueCamera } from '../selection/dag.fixture.ts'
-import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts'
+import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.fixture.ts'
 
 const camera = obliqueCamera()
 const view = camera.matrixWorldInverse.elements

@@ -18,7 +18,6 @@ export interface BenchSettings {
   maxPages: number | null
   geometryPoolBytes: number | null
   texturePoolBytes: number | null
-  geometryPoolCeilingBytes: number | null
   livePools: LivePools | null
   width: number
   height: number

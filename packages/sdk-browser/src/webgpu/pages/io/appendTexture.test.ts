@@ -7,8 +7,8 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { importHostTexture } from '../../../host/textureImport.ts'
 import type { HostTexture } from '../../../host/resources.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
+import type { Engine } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
@@ -24,7 +24,7 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     groups.push(descriptor as unknown as Group),
     createBindGroup(descriptor)
   )
-  const diagnostics: BackendDiagnostic[] = []
+  const diagnostics: EngineDiagnostic[] = []
   const { fixture, backend } = quadBackend(device, {
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   })
@@ -36,12 +36,8 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     backend.render(camera())
     const before = backend.metrics()
     assert.equal(typeof before.textureTilesResident, 'number')
-    const slot = await (backend as WebgpuPagesBackend).appendTexture(map, 'color')
-    assert.equal(
-      await (backend as WebgpuPagesBackend).appendTexture(map, 'color'),
-      slot,
-      'held: the same slot',
-    )
+    const slot = await (backend as Engine).appendTexture(map, 'color')
+    assert.equal(await (backend as Engine).appendTexture(map, 'color'), slot, 'held: the same slot')
     const appended = diagnostics.filter(({ phase }) => phase === 'material-texture-appended')
     assert.equal(appended.length, 1)
     const { catalogue, pageTables, pool } = appended[0].context as {
@@ -55,7 +51,10 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     assert.equal(pages.length, 2, 'the table regrown by copy into a buffer of its new size')
     assert.equal(pages[1].size, pageTables.color.bytes)
     assert.equal(labelled('texture pages data').length, 2, 'the data ranks moved behind it')
-    assert.equal(labelled('texture feedback').length, 6, 'the feedback counts the 21 new ranks')
+    // The counters and their two readbacks, made again at the new count; the reduction's own
+    // uniform, made once on a device with compute (every device, #1483), is no counter.
+    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('reduce'))
+    assert.equal(counters.length, 6, 'the feedback counts the 21 new ranks')
     groups.length = 0
     backend.render(camera())
     const naming = groups.filter((group) =>

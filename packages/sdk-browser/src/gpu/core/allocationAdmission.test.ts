@@ -12,12 +12,20 @@ test('buffers and every texture mip are admitted before device creation against 
   const gpu = fakeDevice()
   let ceiling = 128
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
-  const previous = gpu.device.createBuffer({ size: 64, usage: 0 })
-  assert.throws(() => gpu.device.createBuffer({ size: 65, usage: 0 }), /GPU_BUDGET_EXCEEDED/)
+  const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
+  assert.throws(
+    () => gpu.device.createBuffer({ size: 65, usage: GPUBufferUsage.STORAGE }),
+    /GPU_BUDGET_EXCEEDED/,
+  )
   assert.equal(gpu.buffers.length, 1)
   assert.throws(
     () =>
-      gpu.device.createTexture({ size: [4, 4], format: 'rgba8unorm', mipLevelCount: 2, usage: 0 }),
+      gpu.device.createTexture({
+        size: [4, 4],
+        format: 'rgba8unorm',
+        mipLevelCount: 2,
+        usage: GPUTextureUsage.TEXTURE_BINDING,
+      }),
     /GPU_BUDGET_EXCEEDED/,
   )
   assert.equal(gpu.textures.length, 0)
@@ -26,7 +34,7 @@ test('buffers and every texture mip are admitted before device creation against 
     size: [4, 4],
     format: 'rgba8unorm',
     mipLevelCount: 2,
-    usage: 0,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
   })
   assert.equal(ledger.bytes, 144)
   texture.destroy()
@@ -41,13 +49,16 @@ test('shared caches and two view targets count once; another session has its own
   const b = sessionHandle(gpu.device, '@t3d:2')
   const first = installGpuDeviceLedger(a.device, { base, limit: () => 128 })
   const second = installGpuDeviceLedger(b.device, { base, limit: () => 256 })
-  a.device.createBuffer({ label: 'main view', size: 48, usage: 0 })
-  a.device.createBuffer({ label: 'capture view', size: 48, usage: 0 })
-  b.device.createBuffer({ label: 'other world', size: 128, usage: 0 })
-  gpu.device.createBuffer({ label: 'shared cache', size: 32, usage: 0 })
+  a.device.createBuffer({ label: 'main view', size: 48, usage: GPUBufferUsage.STORAGE })
+  a.device.createBuffer({ label: 'capture view', size: 48, usage: GPUBufferUsage.STORAGE })
+  b.device.createBuffer({ label: 'other world', size: 128, usage: GPUBufferUsage.STORAGE })
+  gpu.device.createBuffer({ label: 'shared cache', size: 32, usage: GPUBufferUsage.STORAGE })
   assert.deepEqual([first.bytes, second.bytes, base.bytes], [128, 160, 32])
   const count = gpu.buffers.length
-  assert.throws(() => gpu.device.createBuffer({ size: 4, usage: 0 }), /GPU_BUDGET_EXCEEDED/)
+  assert.throws(
+    () => gpu.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE }),
+    /GPU_BUDGET_EXCEEDED/,
+  )
   assert.equal(gpu.buffers.length, count, 'a shared allocation observes every active owning budget')
   const rt = settledRt()
   rt.gpu.device = b.device
@@ -58,7 +69,7 @@ test('shared caches and two view targets count once; another session has its own
   )
   first.releaseAdmission()
   a.release()
-  gpu.device.createBuffer({ size: 4, usage: 0 })
+  gpu.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE })
   assert.equal(second.bytes, 164, 'a released session cannot constrain later shared allocations')
   second.releaseAdmission()
   b.release()
@@ -67,11 +78,15 @@ test('shared caches and two view targets count once; another session has its own
 test('a compound allocation refusal releases only its new resources and preserves the previous image', async () => {
   const gpu = fakeDevice()
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 128 })
-  const previous = gpu.device.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 })
+  const previous = gpu.device.createTexture({
+    size: [4, 4],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
   await assert.rejects(
     deviceMade(gpu.device, () => {
-      gpu.device.createBuffer({ size: 32, usage: 0 })
-      gpu.device.createBuffer({ size: 64, usage: 0 })
+      gpu.device.createBuffer({ size: 32, usage: GPUBufferUsage.STORAGE })
+      gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
       return { destroy() {} }
     }),
     /GPU_BUDGET_EXCEEDED/,
@@ -80,14 +95,19 @@ test('a compound allocation refusal releases only its new resources and preserve
   assert.equal(ledger.bytes, 64, 'partial construction was rolled back')
   assert.equal(gpu.destroyed.includes(previous), false)
   assert.equal(gpu.destroyed.includes(gpu.buffers[0]), true)
-  await validationScope(gpu.device, () => gpu.device.createBuffer({ size: 64, usage: 0 }))
+  await validationScope(gpu.device, () =>
+    gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE }),
+  )
   assert.equal(ledger.bytes, 128, 'a subsequent valid construction still succeeds')
 })
 
 test('an admission refusal prevents an already encoded incomplete image from being submitted', () => {
   const gpu = fakeDevice()
   installGpuDeviceLedger(gpu.device, { limit: () => 1 })
-  assert.throws(() => gpu.device.createBuffer({ size: 4, usage: 0 }), /GPU_BUDGET_EXCEEDED/)
+  assert.throws(
+    () => gpu.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE }),
+    /GPU_BUDGET_EXCEEDED/,
+  )
   const rt = settledRt()
   rt.gpu.device = gpu.device
   let finishes = 0,
@@ -111,7 +131,12 @@ test('an unknown shared texture format cannot bypass a live session admission', 
   const handle = sessionHandle(gpu.device, '@t3d:3')
   const ledger = installGpuDeviceLedger(handle.device, { base, limit: () => 128 })
   assert.throws(
-    () => gpu.device.createTexture({ size: [1, 1], format: 'r8snorm', usage: 0 }),
+    () =>
+      gpu.device.createTexture({
+        size: [1, 1],
+        format: 'r8snorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING,
+      }),
     /GPU_BUDGET/,
   )
   assert.equal(gpu.textures.length, 0)

@@ -1,52 +1,29 @@
-import { EngineError, type CameraPose } from '../../../../sdk-core/src/index.ts'
+import type { CameraPose } from '../../../../sdk-core/src/index.ts'
 import { numbered } from '../../host/graph/serial.ts'
-import { devicePixels, pixelRatioOf } from '../../backend/common.ts'
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
+import { devicePixels } from '../../engine/common.ts'
+import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import type { BoundTarget } from '../render/hostState.ts'
 import { hostPoint } from '../../host/scene/graphObjects.ts'
-import type { WebglSurface } from '../../webgl/core/surface.ts'
 
 type Inputs = {
   check: () => void
-  active: () => RenderBackend
+  engine: Engine
   setCapturingSurface: (value: boolean) => void
-  targets: () => (BoundTarget | undefined)[]
   camera: HostCamera
   canvas: HTMLCanvasElement
-  /** The engine's surface, which owns the drawing buffer; absent on the direct WebGPU path only,
-   *  where the page canvas is sized directly. */
-  webglSurface?: WebglSurface
   viewport: [number, number]
   options: MeasuredWorldOptions
 }
 
 export function createExplorerViewportApi(inputs: Inputs) {
-  const {
-    check,
-    active: getActive,
-    setCapturingSurface,
-    targets,
-    camera,
-    canvas,
-    webglSurface,
-    viewport,
-    options,
-  } = inputs
+  const { check, engine, setCapturingSurface, camera, canvas, viewport, options } = inputs
   return {
     async captureSurfaceView(
       pose: CameraPose,
       size: { width: number; height: number; signal?: AbortSignal },
     ) {
       check()
-      const active = getActive()
-      // A view of its own drawn with its material surfaces: WebGL2 has none, refused by name.
-      if (!active.captureSurfaceView)
-        throw new EngineError(
-          'SURFACE_CAPTURE_UNSUPPORTED',
-          'This drawing path cannot draw the material surfaces in a view of its own',
-          { engine: active.id },
-        )
+      // A view of its own, drawn with its material surfaces.
       const view = numbered(camera.clone())
       view.position.fromArray(pose.position)
       view.fov = pose.fov
@@ -58,7 +35,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       view.updateMatrixWorld()
       setCapturingSurface(true)
       try {
-        return await active.captureSurfaceView(view, size)
+        return await engine.captureSurfaceView(view, size)
       } finally {
         setCapturingSurface(false)
       }
@@ -67,19 +44,14 @@ export function createExplorerViewportApi(inputs: Inputs) {
       check()
       if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
         throw new Error('Invalid viewport size')
-      if (webglSurface) webglSurface.resize(width, height, pixelRatioOf(options))
-      else {
-        canvas.width = devicePixels(width, options.pixelRatio)
-        canvas.height = devicePixels(height, options.pixelRatio)
-        // Sizing a canvas blanks it, to the same size too: the engine's image is to be presented.
-        getActive().canvasResized?.()
-      }
+      canvas.width = devicePixels(width, options.pixelRatio)
+      canvas.height = devicePixels(height, options.pixelRatio)
+      // Sizing a canvas blanks it, to the same size too: the engine's image is to be presented.
+      engine.canvasResized()
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       viewport[0] = canvas.width
       viewport[1] = canvas.height
-      // The composition targets follow the drawing buffer, in its pixels.
-      for (const target of targets()) target?.current()?.resize(canvas.width, canvas.height)
     },
   }
 }

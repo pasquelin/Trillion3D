@@ -6,7 +6,5 @@ import assert from 'node:assert/strict'
 import { declaredLightWgsl } from './lightLoopWgsl.ts'
 
 test('the shading biases along the receiver plane, handed to the read', () => {
-  assert.ok(
-    declaredLightWgsl(true).includes('shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)'),
-  )
+  assert.ok(declaredLightWgsl().includes('shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)'))
 })

@@ -1,15 +1,9 @@
 /**
  * THE WITNESS ENTRY. The engine's measurement seam (`packages/sdk-browser/src/measurement/measurement.ts`)
- * with the witnesses plugged in: the backends written with the host library that the engine is
- * compared against, frame by frame. They live beside the bench and never in the published package:
+ * as the bench's pages import it. The witnesses written with the host library are pages
+ * of their own (`../runner/witness/threeMeasurePage.ts`), never the engine of a session.
+ * This entry lives beside the bench and never in the published package:
  * `scripts/build-witnesses.ts` bundles this file alone into `dist/witnesses/measurement.js`, the
  * engine modules it names staying the dist's own files, and the package's `files` leave it out.
  */
 export * from '../../packages/sdk-browser/src/measurement/measurement.ts'
-// The light group the bench's witness page builds (`../runner/witness/witnessPage.ts`) is of the graph.
-export { Group } from '../../packages/sdk-core/src/world/object/object3d.ts'
-export { Light } from '../../packages/sdk-core/src/world/light/light.ts'
-export { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts'
-export { referenceBackend } from './referenceBackend.ts'
-export { exactPagesBackend } from './exact/backend.ts'
-export { threeLodBackend } from './three/lod.ts'

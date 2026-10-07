@@ -81,7 +81,7 @@ export function countManifest(manifest: ClusterManifest): Counts {
       (bytes, preview) => bytes + previewGeometry(preview.width, preview.height).pixelBytes,
       0,
     ),
-    previewBlockBytes: { bc7: 0, astc: 0 },
+    previewBlockBytes: { bc7: 0, astc: 0, etc2: 0 },
   }
   for (const preview of previews)
     for (const name of PREVIEW_BLOCK_FORMATS)

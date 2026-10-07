@@ -13,7 +13,6 @@ import type { RunContext } from '../report/types.ts'
 /** What the page returns when it has nothing more to say than requested metrics. */
 const pageReading = (mathBatch: unknown) => ({
   cpuFrameMs: [],
-  cpuSelectMs: [],
   gpuFrameMs: [],
   stageProfile: null,
   selection: { source: null, ids: [] },

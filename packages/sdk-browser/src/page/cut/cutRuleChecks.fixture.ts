@@ -9,7 +9,7 @@ import type { CutBackend } from './cutRuleBackends.fixture.ts'
 import { createCutReadiness } from './readiness.ts'
 
 /** The cut `develop` drew at full residency on `ruleDag(256)` before the view-bounded tables
- *  (b114cd29b), on every backend alike: its size and the FNV-1a hash of its sorted page list, per
+ *  (b114cd29b): its size and the FNV-1a hash of its sorted page list, per
  *  threshold (#483 rule 2). */
 export const DEVELOP_FULL_CUT: Record<number, string> = {
   0.05: '93:35de1ee8',

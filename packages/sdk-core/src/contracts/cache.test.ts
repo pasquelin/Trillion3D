@@ -9,7 +9,7 @@ test('pointers return their URL only when ready, with compatible optional scope 
   const pointer = { status: 'ready', url: 'cache/model/clusters.json' }
   assert.equal(assertCachePointer(pointer, 'full'), pointer.url)
   assert.equal(
-    assertCachePointer({ ...pointer, scope: 'full', formatVersion: 9 }, 'full'),
+    assertCachePointer({ ...pointer, scope: 'full', formatVersion: 11 }, 'full'),
     pointer.url,
   )
   for (const value of [undefined, null, false, 'pointer', 3, Object.assign(() => {}, pointer)])
@@ -36,7 +36,7 @@ test('pointers return their URL only when ready, with compatible optional scope 
     () => assertCachePointer({ ...pointer, formatVersion: 1 }, 'full'),
     'UNSUPPORTED_FORMAT',
     { formatVersion: 1 },
-    ['9', '10', 'received 1'],
+    ['11', '12', 'received 1'],
   )
 })
 
@@ -45,9 +45,9 @@ test('cache roots reject malformed, unfinished, mismatched and unsupported metad
   assert.doesNotThrow(() => assertCacheRoot({ ...root, formatVersion: undefined }, 'full'))
   for (const value of [undefined, null, [], 'root'])
     refuses(() => assertCacheRoot(value, 'full'), 'INVALID_CACHE')
-  refuses(() => assertCacheRoot({ ...root, schema: 10 }, 'full'), 'UNSUPPORTED_FORMAT', {
-    schema: 10,
-    formatVersion: 9,
+  refuses(() => assertCacheRoot({ ...root, schema: 12 }, 'full'), 'UNSUPPORTED_FORMAT', {
+    schema: 12,
+    formatVersion: 11,
   })
   refuses(() => assertCacheRoot({ ...root, status: undefined }, 'full'), 'INVALID_CACHE', {
     status: null,
@@ -61,9 +61,9 @@ test('cache roots reject malformed, unfinished, mismatched and unsupported metad
     { requestedScope: 'full', cacheScope: 'slice' },
     ['full', 'slice'],
   )
-  for (const format of [0, 1, 8, 11, NaN])
+  for (const format of [0, 1, 8, 9, 10, 13, NaN])
     refuses(() => assertFormat(format), 'UNSUPPORTED_FORMAT', { formatVersion: format })
-  for (const format of [9, 10]) assert.doesNotThrow(() => assertFormat(format))
+  for (const format of [11, 12]) assert.doesNotThrow(() => assertFormat(format))
 })
 
 test('ready cache counts must be finite numbers and nodes must be safe integers', () => {

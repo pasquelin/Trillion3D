@@ -40,10 +40,10 @@ export function proveInstalledTypes({
     'browser.ts',
     `import { createWorld, type CameraPose as Pose, type World, type WorldOptions } from '${packageName}';\n` +
       `const pose:Pose={position:[2,1,2],target:[0,0,0],fov:55};\n` +
-      `const options:WorldOptions={renderer:'webgl2',interactive:false};\n` +
+      `const options:WorldOptions={interactive:false};\n` +
       `const world=createWorld('viewer',options);world satisfies World;world.camera.set(pose);\n` +
-      `// @ts-expect-error unsupported renderer.\n` +
-      `const invalid:WorldOptions={renderer:'webgl1'};\n` +
+      `// @ts-expect-error a pixel ratio is a number.\n` +
+      `const invalid:WorldOptions={pixelRatio:'2'};\n` +
       `// @ts-expect-error the browser condition excludes Node values.\nimport { prepare } from '${packageName}';\n` +
       `export {world,invalid};\n`,
   )

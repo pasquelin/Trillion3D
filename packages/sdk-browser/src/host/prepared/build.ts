@@ -7,10 +7,9 @@
  */
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
-import type { BackendContext } from '../../backend/types.ts'
+import type { EngineContext } from '../../engine/types.ts'
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts'
 import { checked } from '../../cluster/checked.ts'
-import { rangedReader } from '../../cluster/ranged.ts'
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts'
 import { sceneDocument } from '../../scene/tables.ts'
 import { bakedImages } from '../../texture/skip.ts'
@@ -22,14 +21,9 @@ import { preparedMaterials } from './materials.ts'
 import { preparedTextures, type TextureRanks } from './textures.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
-/** The published source document: the one the cache's pages were cut from. */
-const SOURCE_FILE = 'source.gltf'
-
 type Inputs = {
   tables: PreparedSceneTables
   metadata: ClusterManifest
-  /** The published document the session draws: `source.gltf`, or the autonomous scene. */
-  sceneFile: string
   base: string
   /** Whether the images whose chain the cache baked are skipped (`textureSource` not `'host'`). */
   skipBaked: boolean
@@ -38,17 +32,14 @@ type Inputs = {
   track: <T>(resource: string, read: Promise<T>) => Promise<T>
   /** Counts the bytes of each file read as they arrive; unset, nothing counts them. */
   meter?: ByteMeter
-  /** Settles once `metadata.primitives` lists every primitive the scene draws: its mesh pages
-   *  held (#751); unset, the manifest was read whole. */
-  listed?: Promise<unknown>
 }
 
 /** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
  *  texture answers to, and how many images the cache spared. */
 export async function buildPreparedScene(inputs: Inputs) {
-  const { tables, metadata, sceneFile, base, skipBaked, signal, track } = inputs
+  const { tables, metadata, base, skipBaked, signal, track } = inputs
   const meter = inputs.meter ?? unmetered
-  const { document, documentUrl, bufferUrl } = sceneDocument(tables, sceneFile, base)
+  const { document, documentUrl, bufferUrl } = sceneDocument(tables, base)
   // The binary is read on the first need of a host vertex or an embedded image, once: most
   // sessions draw from the cache's pages and never read it. Read while the scene is built (an
   // embedded image a surface samples), it joins the load's progress, byte count and signal; read
@@ -79,28 +70,15 @@ export async function buildPreparedScene(inputs: Inputs) {
   } = await preparedGraph({
     tables,
     meshes: document.meshes,
-    ...(sceneFile === SOURCE_FILE ? {} : pagedSource(tables, base)),
     geometryOf: preparedGeometries(document, binary),
     materialOf: preparedMaterials(tables.materials, slot),
-    clothOf: clothPrimitives(metadata, inputs.listed ?? Promise.resolve()),
+    clothOf: clothPrimitives(metadata),
   }).finally(() => {
     building = false
   })
   signal?.throwIfAborted()
   const source: Object3D = scene
-  const associations: BackendContext['associations'] = meshes
+  const associations: EngineContext['associations'] = meshes
   const textureIndices: Map<HostTexture, number> = ranks
   return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed, clips }
-}
-
-/** The source document the autonomous one's pages were cut from: its meshes, and its geometries,
- *  each view of whose binary is read alone, by an HTTP Range, on the first need of a vertex — a
- *  class change cutting pages again (#846): the session never reads the whole `source.bin`. */
-function pagedSource(tables: PreparedSceneTables, base: string) {
-  if (!tables.documents[SOURCE_FILE]) return {}
-  const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base)
-  const range = bufferUrl
-    ? rangedReader(bufferUrl)
-    : () => Promise.reject(new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary'))
-  return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, { range }) }
 }

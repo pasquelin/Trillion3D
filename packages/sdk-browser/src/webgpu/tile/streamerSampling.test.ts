@@ -33,7 +33,7 @@ const record = (texture: G.GraphTexture) => importHostTexture(texture as unknown
 function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
   const signalled: number[][] = []
   const { device, writes } = mockGpu()
-  const blocks = { bc7: [], astc: [] }
+  const blocks = { bc7: [], astc: [], etc2: [] }
   const whole = (texture?: Texture) => ({
     layout: tileLayout(1, 1),
     lane: 'lossless' as const,
