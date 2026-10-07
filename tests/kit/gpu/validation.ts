@@ -1,4 +1,4 @@
-import { checkGroup, checkLayout, checkPipelineLayout, type Bound } from './bindRules.ts'
+import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts'
 import {
   checkBuffer,
   checkClear,
@@ -8,68 +8,42 @@ import {
   checkTextureBufferCopy,
   checkTextureWrite,
   checkWriteBuffer,
-  type BufferInfo,
 } from './bufferRules.ts'
 import type { Features } from './formats.ts'
 import { bytesOf } from './globals.ts'
-import {
-  checkAttachment,
-  checkTexture,
-  checkView,
-  type TextureInfo,
-  type ViewInfo,
-} from './textureRules.ts'
+import { checkAttachment, checkTexture, checkView } from './textureRules.ts'
+import { buffers, known, remember, resolve, samplers, textures, views } from './kitMade.ts'
 
 /**
  * The validation every device of the kit applies — `fakeDevice`, `mockGpu` (through
  * `asWebgpuDevice`), the timing fixture —, in this one place: each creation, write and encoded
  * copy is checked by WebGPU's rules (`textureRules.ts`, `bufferRules.ts`, `bindRules.ts`) before
  * the device records it, and refused with an error naming the rule where a real device would
- * raise a validation error or be lost. What the kit makes is remembered here, so a view, a group
- * or a copy is checked against the resources it names; a test's own object is not checked.
+ * raise a validation error or be lost. What the kit makes is remembered (`kitMade.ts`), so a view,
+ * a group or a copy is checked against the resources it names; a test's own object is not checked.
  */
 
-const buffers = new WeakMap<object, BufferInfo>(),
-  textures = new WeakMap<object, TextureInfo>(),
-  views = new WeakMap<object, ViewInfo>(),
-  samplers = new WeakSet<object>(),
-  validated = new WeakSet<object>()
-
-/** What the kit made of `value`, when it made it. */
-const known = <T>(map: WeakMap<object, T>, value: unknown) =>
-  value && typeof value === 'object' ? map.get(value) : undefined
-
-/** Remembers what the kit made, when it is an object. */
-const remember = <T>(map: WeakMap<object, T>, made: unknown, info: T) =>
-  void (made && typeof made === 'object' && map.set(made, info))
-
-/** A group's resource, read by what the kit made: a sampler, a view, a buffer or its binding. */
-function resolve(resource: unknown): Bound | undefined {
-  if (!resource || typeof resource !== 'object') return undefined
-  if (samplers.has(resource)) return { kind: 'sampler' }
-  const view = views.get(resource)
-  if (view) return { kind: 'view', info: view }
-  const whole = buffers.get(resource)
-  if (whole) return { kind: 'buffer', info: whole, offset: 0 }
-  const { buffer, offset = 0, size } = resource as Partial<GPUBufferBinding>
-  const info = known(buffers, buffer)
-  return info && { kind: 'buffer', info, offset, size }
-}
+const validated = new WeakSet<object>()
 
 type Method = (...args: never[]) => unknown
 type Owner = Record<string, unknown>
+/** A copy's texture side, buffer side and extent, and a write's bytes, as WebGPU types them. */
+type TextureAt = GPUTexelCopyTextureInfo
+type BufferAt = GPUTexelCopyBufferInfo
+type Extent = GPUExtent3DStrict
+type Bytes = GPUAllowSharedBufferSource
 
-/** Replaces `owner[name]`, when it has one, by the same call checked first; `after` is given what
- *  it made and what the check returned. */
-function guard<C>(
+/** Replaces `owner[name]`, when it has one, by the same call checked first, the call's arguments
+ *  typed by `check`; `after` is given what it made and what the check returned. */
+function guard<A extends unknown[], C>(
   owner: Owner,
   name: string,
-  check: (...args: any[]) => C,
-  after?: (made: any, checked: C) => void,
+  check: (...args: A) => C,
+  after?: (made: unknown, checked: C) => void,
 ) {
-  const make = owner[name] as Method | undefined
+  const make = owner[name] as ((this: unknown, ...args: A) => unknown) | undefined
   if (typeof make !== 'function') return
-  owner[name] = function (this: unknown, ...args: never[]) {
+  owner[name] = function (this: unknown, ...args: A) {
     const checked = check(...args)
     const made = make.apply(this, args)
     after?.(made, checked)
@@ -79,15 +53,22 @@ function guard<C>(
 
 /** Checks every copy and attachment `encoder` takes. */
 function guardEncoder(encoder: Owner, features: Features) {
-  guard(encoder, 'copyBufferToBuffer', (from, a, b, c, d) => {
-    const [fromOffset, to, toOffset, size] =
-      typeof a === 'number' ? [a, b, c, d] : [0, a, 0, b ?? known(buffers, from)?.size ?? 0]
-    checkCopyBuffers(known(buffers, from), fromOffset, known(buffers, to), toOffset, size)
-  })
-  guard(encoder, 'clearBuffer', (buffer, offset = 0, size?: number) =>
-    checkClear(known(buffers, buffer), offset, size),
+  // Both overloads read as one, `(from, to, size?)` and `(from, fromOffset, to, toOffset, size?)`:
+  // a size the second leaves out reaches the rule unchecked.
+  guard(
+    encoder,
+    'copyBufferToBuffer',
+    (from: GPUBuffer, a: GPUBuffer | number, b?: GPUBuffer | number, c?: number, d?: number) => {
+      const [fromOffset, to, toOffset, size] = (
+        typeof a === 'number' ? [a, b, c, d] : [0, a, 0, b ?? known(buffers, from)?.size ?? 0]
+      ) as [number, GPUBuffer | number | undefined, number, number]
+      checkCopyBuffers(known(buffers, from), fromOffset, known(buffers, to), toOffset, size)
+    },
   )
-  guard(encoder, 'copyTextureToBuffer', (source, destination, size) =>
+  guard(encoder, 'clearBuffer', (buffer: GPUBuffer, offset?: number, size?: number) =>
+    checkClear(known(buffers, buffer), offset ?? 0, size),
+  )
+  guard(encoder, 'copyTextureToBuffer', (source: TextureAt, destination: BufferAt, size: Extent) =>
     checkTextureBufferCopy(
       known(textures, source?.texture),
       known(buffers, destination?.buffer),
@@ -96,7 +77,7 @@ function guardEncoder(encoder: Owner, features: Features) {
       true,
     ),
   )
-  guard(encoder, 'copyBufferToTexture', (source, destination, size) =>
+  guard(encoder, 'copyBufferToTexture', (source: BufferAt, destination: TextureAt, size: Extent) =>
     checkTextureBufferCopy(
       known(textures, destination?.texture),
       known(buffers, source?.buffer),
@@ -105,11 +86,14 @@ function guardEncoder(encoder: Owner, features: Features) {
       false,
     ),
   )
-  guard(encoder, 'copyTextureToTexture', (from, to) =>
+  guard(encoder, 'copyTextureToTexture', (from: TextureAt, to: TextureAt) =>
     checkCopyTextures(known(textures, from?.texture), known(textures, to?.texture)),
   )
-  guard(encoder, 'resolveQuerySet', (_set, _first, _count, destination, offset) =>
-    checkResolve(known(buffers, destination), offset),
+  guard(
+    encoder,
+    'resolveQuerySet',
+    (_set: GPUQuerySet, _first: number, _count: number, destination: GPUBuffer, offset: number) =>
+      checkResolve(known(buffers, destination), offset),
   )
   guard(encoder, 'beginRenderPass', (descriptor?: GPURenderPassDescriptor) => {
     const attachments = [
@@ -141,13 +125,14 @@ export function validating<T extends object>(device: T): T {
     owner,
     'createTexture',
     (descriptor: GPUTextureDescriptor) => checkTexture(descriptor, features),
-    (made: Owner | undefined, info) => {
+    (made, info) => {
       remember(textures, made, info)
-      const view = made?.createView as Method | undefined
+      const texture = made as Owner | undefined
+      const view = texture?.createView as Method | undefined
       if (typeof view !== 'function') return
-      made!.createView = (descriptor?: GPUTextureViewDescriptor) => {
+      texture!.createView = (descriptor?: GPUTextureViewDescriptor) => {
         const viewInfo = checkView(info, descriptor, features)
-        const result = (view as (d?: GPUTextureViewDescriptor) => object).call(made, descriptor)
+        const result = (view as (d?: GPUTextureViewDescriptor) => object).call(texture, descriptor)
         remember(views, result, viewInfo)
         return result
       }
@@ -161,26 +146,36 @@ export function validating<T extends object>(device: T): T {
       if (made && typeof made === 'object') samplers.add(made)
     },
   )
-  guard(owner, 'createBindGroupLayout', (d) => checkLayout(d, limits()))
-  guard(owner, 'createPipelineLayout', (d) => checkPipelineLayout(d, limits()))
-  guard(owner, 'createBindGroup', (d) => checkGroup(d, resolve, limits()))
+  guard(owner, 'createBindGroupLayout', (d: GPUBindGroupLayoutDescriptor) =>
+    checkLayout(d, limits()),
+  )
+  guard(owner, 'createPipelineLayout', (d: GPUPipelineLayoutDescriptor) =>
+    checkPipelineLayout(d, limits()),
+  )
+  guard(owner, 'createBindGroup', (d: GPUBindGroupDescriptor) => checkGroup(d, resolve, limits()))
   guard(
     owner,
     'createCommandEncoder',
     () => {},
-    (made) => made && guardEncoder(made, features),
+    (made) => made && guardEncoder(made as Owner, features),
   )
   const queue = owner.queue as Owner | undefined
   if (queue && !validated.has(queue)) {
     validated.add(queue)
-    guard(queue, 'writeBuffer', (buffer, offset, data, dataOffset, size) =>
-      checkWriteBuffer(known(buffers, buffer), offset, bytesOf(data, dataOffset, size).byteLength),
+    guard(
+      queue,
+      'writeBuffer',
+      (buffer: GPUBuffer, offset: number, data: Bytes, from?: number, size?: number) =>
+        checkWriteBuffer(known(buffers, buffer), offset, bytesOf(data, from, size).byteLength),
     )
-    guard(queue, 'writeTexture', (destination) =>
+    guard(queue, 'writeTexture', (destination: TextureAt) =>
       checkTextureWrite(known(textures, destination?.texture)),
     )
-    guard(queue, 'copyExternalImageToTexture', (_source, destination) =>
-      checkTextureWrite(known(textures, destination?.texture), true),
+    guard(
+      queue,
+      'copyExternalImageToTexture',
+      (_source: GPUCopyExternalImageSourceInfo, destination: GPUCopyExternalImageDestInfo) =>
+        checkTextureWrite(known(textures, destination?.texture), true),
     )
   }
   return device

@@ -3,7 +3,7 @@ import { createSceneLightStore, type SceneLight } from '../../../sdk-core/src/in
 import { MANIFEST_IDENTITY } from '../engine/pagesEngine.fixture.ts'
 import { dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
-import { rootPage } from '../webgpu/pages/testScenes.fixture.ts'
+import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts'
 import { cellUrl, io, noBudget, opened, settled, world } from '../partition/cells.fixture.ts'
 import type { RowLink } from '../partition/rows.ts'
