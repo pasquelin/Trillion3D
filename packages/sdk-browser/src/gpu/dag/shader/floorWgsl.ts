@@ -22,8 +22,8 @@
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
  * top-down pruning would then drop everything.
  *
- * Each list read indirectly keeps its dispatch argument's x then y behind its counter: its groups
- * in rows (`gridWgsl.ts`), which the arming kernel copies to the argument (`armWgsl.ts`).
+ * Each list read indirectly keeps its dispatch argument's x then y behind its counter
+ * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
  */
 export function dagWorkLayout(blockCount: number) {
   // Block counts, block offsets and two words per block of the draw mask (`compactWgsl.ts`): no

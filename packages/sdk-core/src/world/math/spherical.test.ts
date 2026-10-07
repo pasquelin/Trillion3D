@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clampNumber, toSpherical, fromSpherical } from './spherical.ts'
+import { toSpherical, fromSpherical } from './spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('clamping preserves interior and boundary values and rejects either excess', () => {
@@ -11,7 +12,7 @@ test('clamping preserves interior and boundary values and rejects either excess'
     [7, 7],
     [20, 7],
   ])
-    assert.equal(clampNumber(value, -2, 7), expected)
+    assert.equal(clamp(value, -2, 7), expected)
 })
 
 test('spherical coordinates describe cardinal and oblique directions in world units', () => {

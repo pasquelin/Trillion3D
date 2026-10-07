@@ -56,7 +56,7 @@ import {
   vsmMarkingClears,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
@@ -520,13 +520,12 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     p: VsmComputePipe,
     g0: GPUBindGroup,
     g1: GPUBindGroup | undefined,
-    x: number,
-    y = 1,
+    groups: number,
   ) {
     pass.setPipeline(p.pipeline)
     pass.setBindGroup(0, g0)
     if (g1) pass.setBindGroup(1, g1)
-    pass.dispatchWorkgroups(x, y)
+    dispatchRows(pass, groups)
   }
 
   /** The pixel pass's group 1 over `v`. */
@@ -568,8 +567,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
           pixels,
           groups.pixels,
           pixelsViewGroup(pixels, v),
-          ceilDiv(stridedX, VSM_MARK_PIXELS_GROUP_XY),
-          ceilDiv(stridedY, VSM_MARK_PIXELS_GROUP_XY),
+          // A group a tile, in rows: the kernel reads its tile back (`vsmMarkPagesFromPixels`).
+          ceilDiv(stridedX, VSM_MARK_PIXELS_GROUP_XY) * ceilDiv(stridedY, VSM_MARK_PIXELS_GROUP_XY),
         )
       }
     },

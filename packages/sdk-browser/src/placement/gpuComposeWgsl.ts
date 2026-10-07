@@ -12,7 +12,7 @@ import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 
@@ -87,7 +87,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
 ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g.x,g.y,n.x);if(i>=params.count){return;}
+ let i=flatIndex(g,n,64u);if(i>=params.count){return;}
  let rank=params.first+i;
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
@@ -196,5 +196,5 @@ fn composeRow(row:u32){
  if(params.spheres!=0u){composeSphere(row,world);}
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(g.x,g.y,n.x);if(row<params.rowCount){composeRow(row);}
+ let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
 }`

@@ -1,6 +1,6 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
 import type { createDagResources } from './resources.ts'
-import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts'
+import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
@@ -66,7 +66,7 @@ function encodeOnce(
     requestSortPipeline,
     evictPipeline,
   } = resources
-  // Flat dispatches run in rows of the device's width (`shader/gridWgsl.ts`).
+  // Flat dispatches run in rows of the device's width.
   const width = groupWidth(resources.device?.limits)
   const pass = encoder.beginComputePass(DAG_PASS)
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
@@ -155,8 +155,7 @@ function perRange(
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
     const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor)
-    const [x, y] = dispatchGrid(workgroupCount(count, WORKGROUP), width)
-    pass.dispatchWorkgroups(x, y)
+    dispatchRows(pass, workgroupCount(count, WORKGROUP), width)
   }
 }
 

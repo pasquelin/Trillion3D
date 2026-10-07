@@ -5,6 +5,8 @@
  * Nothing is allocated per image: the caller fills the scratch row and hands it over. Two windows
  * over the same images — one on the publish cadence, one a host pulls — share that row (`row`).
  */
+import { quantile } from '../../../math/src/scalar/quantile.ts'
+
 export type CpuStepSummary = {
   /** Frames measured. */
   frames: number
@@ -34,8 +36,6 @@ export function createCpuStepProfile(
   let recorded = 0,
     cursor = 0,
     worstFilled = 0
-  const pick = (sorted: Float64Array, count: number, quantile: number) =>
-    sorted[Math.min(count - 1, Math.floor(quantile * count))]
   const reset = () => {
     recorded = 0
     cursor = 0
@@ -80,8 +80,8 @@ export function createCpuStepProfile(
         }
         const sorted = column.subarray(0, filed).sort()
         steps[names[c]] = {
-          p50: filed ? pick(sorted, filed, 0.5) : NaN,
-          p95: filed ? pick(sorted, filed, 0.95) : NaN,
+          p50: filed ? quantile(sorted, 0.5)! : NaN,
+          p95: filed ? quantile(sorted, 0.95)! : NaN,
           max: filed ? sorted[filed - 1] : NaN,
         }
       }

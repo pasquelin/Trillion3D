@@ -5,7 +5,6 @@ import {
   FLOAT32_MAX,
   FLOAT32_STEP,
   GOLDEN_FRACTION,
-  GOLDEN_RATIO,
   HALF_PI,
   MIB,
   RAD2DEG,
@@ -17,7 +16,6 @@ test('each constant is the bits of the expression its doc names', () => {
   assert.equal(TAU, Math.PI * 2)
   assert.equal(DEG2RAD, Math.PI / 180)
   assert.equal(RAD2DEG, 180 / Math.PI)
-  assert.equal(GOLDEN_RATIO, (1 + Math.sqrt(5)) / 2)
   assert.equal(GOLDEN_FRACTION, (Math.sqrt(5) - 1) / 2)
   assert.equal(FLOAT32_STEP, 2 ** -23)
   assert.equal(MIB, 1024 * 1024)

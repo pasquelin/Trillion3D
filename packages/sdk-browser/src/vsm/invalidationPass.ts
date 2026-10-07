@@ -43,7 +43,7 @@ import {
 } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchGrid } from '../gpu/dispatch/grid.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */

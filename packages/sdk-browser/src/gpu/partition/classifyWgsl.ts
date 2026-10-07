@@ -32,7 +32,7 @@ import {
 export const PARTITION_CLASSIFY_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(id.x,id.y,n.x);
+ let row=flatIndex(id,n,${PARTITION_WORKGROUP}u);
  if(row<uni.rows){classifyRow(row);}
  flushTally(lane);
 }

@@ -9,7 +9,7 @@ import { partitionClearThreads } from './clearWgsl.ts'
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
+import { dispatchGrid } from '../dispatch/grid.ts'
 
 type Ref = { get: () => number[] }
 

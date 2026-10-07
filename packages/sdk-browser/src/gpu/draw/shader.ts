@@ -1,6 +1,6 @@
 import { COMPUTE } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
-import { FLAT_GROUP_WGSL } from '../dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 
 /**
@@ -102,11 +102,10 @@ fn slotAt(i:u32,end:u32)->u32{
  if(!selected(item)){return NO_SLOT;}
  return slotOf(i,item);
 }
-${FLAT_GROUP_WGSL}@compute @workgroup_size(64)
+${FLAT_INDEX_WGSL}@compute @workgroup_size(64)
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- // In rows past one dimension's groups (\`dispatchGrid\`): a group of the last row past the
- // count has no count to write.
- let group=flatGroup(wg.x,wg.y,n.x);
+ // A group of the last row past the count has no count to write.
+ let group=flatIndex(wg,n,1u);
  if(group>=uni.groupCount){return;}
  // \`slotTally\` starts at zero: WGSL zero-initializes workgroup memory for each workgroup.
  let i=group*64u+lane;
@@ -150,7 +149,7 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
 @compute @workgroup_size(64)
 fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
  if(uni.count>uni.slotCap){return;}
- let group=flatGroup(wg.x,wg.y,n.x);let i=group*64u+lane;
+ let group=flatIndex(wg,n,1u);let i=group*64u+lane;
  // The rank is the count of EARLIER lanes of the group in the same slot: the item's place in
  // the group's stable order.
  let s=slotAt(i,uni.count);

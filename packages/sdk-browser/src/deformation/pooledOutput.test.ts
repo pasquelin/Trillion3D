@@ -17,12 +17,13 @@ const VERTICES = 5,
 function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Array) {
   const image = [0, 0, 0, 0]
   const run = shaderRun<{
-    deform: (group: number[], lane: number) => void
+    deform: (group: number[], lane: number, n: number[]) => void
     pageDeformed: (page: Page, vertex: number, field: number) => number[]
   }>(
     DEFORMATION_COMPUTE_WGSL,
     [
       'deform',
+      'flatIndex',
       'storeDeformed',
       'deformTag',
       'deformTagOf',
@@ -53,7 +54,7 @@ function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Ar
       const scope = { pages: rows, arrayLength: () => rows.length }
       Object.assign(globalThis, scope)
       for (let row = 0; row < rows.length; row++)
-        for (let lane = 0; lane < 64; lane++) run.deform([row, 0, 0], lane)
+        for (let lane = 0; lane < 64; lane++) run.deform([row, 0, 0], lane, [rows.length, 1, 1])
     },
   }
 }

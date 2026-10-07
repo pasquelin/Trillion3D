@@ -68,13 +68,13 @@ function listKernels(l: number) {
   return `/** List ${l}: each rank's page, its rank in the kept list. */
 @compute @workgroup_size(${SELECTION_WORKGROUP})
 fn ${DIFFERENCE_STAGES[l]}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);
+ let s=flatIndex(id,n,${SELECTION_WORKGROUP}u);
  if(s<listCount(${l}u)){out.pages[fromAt(${l}u,s)]=keptRankOf(${l}u,listPage(${l}u,s));}
 }
 /** List ${l} of this snapshot becomes the kept one: its pages, the rank of each, its length. */
 @compute @workgroup_size(${SELECTION_WORKGROUP})
 fn ${KEEP_STAGES[l]}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);
+ let s=flatIndex(id,n,${SELECTION_WORKGROUP}u);
  if(s<listCount(${l}u)){let page=listPage(${l}u,s);out.pages[keptPage(${l}u,s)]=page;atomicStore(&work[page],s);}
  if(s==0u){out.pages[keptAt(${l}u)]=listCount(${l}u);}
 }

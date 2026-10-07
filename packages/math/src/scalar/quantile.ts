@@ -4,6 +4,6 @@
  * of twenty the nineteenth. The list must be sorted ascending; `q` of 0 or an empty list gives
  * `undefined`, and `q > 1` reads past the end (also `undefined`).
  */
-export function quantile(sorted: ArrayLike<number>, q: number) {
+export function quantile(sorted: ArrayLike<number>, q: number): number | undefined {
   return sorted[Math.ceil(q * sorted.length) - 1]
 }

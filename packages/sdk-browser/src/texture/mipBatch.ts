@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from './tiles.ts'
@@ -174,9 +174,8 @@ function encodeByLevel(
       }
       pass.setPipeline(coverage.pick)
       pass.setBindGroup(0, picks.group, [(picks.base + level) * picks.stride])
-      // A group a cutting chain, in rows past one dimension's groups (`flatGroup`).
-      const [x, y] = dispatchGrid(cutting)
-      pass.dispatchWorkgroups(x, y)
+      // A group a cutting chain.
+      dispatchRows(pass, cutting)
     }
     let set: GPUComputePipeline | undefined
     for (const { levels, reduce, sizes, pipeline } of chains) {

@@ -1,6 +1,6 @@
 import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
-import { DAG_GRID_WGSL, FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import {
@@ -143,7 +143,7 @@ export const SHADE_CACHE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(2) var vis:texture_2d<u32>;
 @group(0) @binding(3) var<storage,read_write> work:array<atomic<u32>,3>;
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_GRID_WGSL}
+${FLAT_INDEX_WGSL}${OPEN_SLICE_WGSL}
 ${ROW_FRAME_WGSL}
 fn storeWord(at:u32,v:u32){atomicStore(&shadeCache[at],v);}
 fn storeVec3(at:u32,v:vec3f){let b=bitcast<vec3u>(v);storeWord(at,b.x);storeWord(at+1u,b.y);storeWord(at+2u,b.z);}
@@ -165,9 +165,9 @@ fn markTriangle(rows:u32,row:u32,tri:u32,kind:u32){
 }
 /** What the marks and rows passes count from zero — every row's marks, the slots' cursor and the
  *  end of the fitting ones, and the triangles pass's dispatch, x and y — zeroed by the frame's
- *  first dispatch, one lane per mark word, rows by \`flatIndex\` (\`gridWgsl.ts\`). */
+ *  first dispatch, one lane per mark word. */
 @compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_clear(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(g.x,g.y,n.x);
+ let i=flatIndex(g,n,${SHADE_ROWS_LANES}u);
  if(i<2u){atomicStore(&work[i],0u);}
  if(i==0u){atomicStore(&shadeCache[SHADE_CACHE_CURSOR],0u);atomicStore(&shadeCache[SHADE_CACHE_END],0u);}
  let rows=atomicLoad(&shadeCache[SHADE_CACHE_ROWS]);
@@ -195,7 +195,7 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  * the triangles pass's dispatch.
  */
 @compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_rows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(g.x,g.y,n.x);
+ let row=flatIndex(g,n,${SHADE_ROWS_LANES}u);
  let rows=atomicLoad(&shadeCache[SHADE_CACHE_ROWS]);
  if(row>=rows){return;}
  let record=ROW_RECORDS+row*ROW_RECORD_WORDS;
@@ -252,10 +252,9 @@ fn storeTriangle(at:u32,t:PixelTriangle){
  storeVec(at+33u,vec4f(t.uva,0.0,0.0),2u);storeVec(at+35u,vec4f(t.uvb,0.0,0.0),2u);storeVec(at+37u,vec4f(t.uvc,0.0,0.0),2u);
  storeVec(at+39u,vec4f(t.iw,0.0),3u);
 }
-/** One lane per slot below the end of the fitting slots, by \`flatIndex\`'s rank: the triangle its
- *  first word names. */
+/** One lane per slot below the end of the fitting slots: the triangle its first word names. */
 @compute @workgroup_size(${SHADE_ROWS_LANES}) fn shade_tris(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let slot=flatIndex(g.x,g.y,n.x);
+ let slot=flatIndex(g,n,${SHADE_ROWS_LANES}u);
  if(slot>=shadeCache[SHADE_CACHE_END]){return;}
  let at=cachedTriangles(shadeCache[SHADE_CACHE_ROWS])+slot*TRIANGLE_WORDS;
  let row=shadeCache[at]>>${VIS_TRIANGLE_BITS}u;let tri=shadeCache[at]&0xffu;

@@ -7,7 +7,7 @@ import {
   normalizeQuaternion,
   localTurnQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
-import { clampNumber } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
@@ -123,8 +123,8 @@ export function createFlyCameraControls(
       // The stick travels towards the keys held by at most `dt / inputResponse` of its range.
       const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity
       const deflect = (axis: number, keyed: KeyAxis, input: number) => {
-        const wanted = clampNumber(axisOf(keys, ...keyed) + input, -1, 1)
-        return (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel))
+        const wanted = clamp(axisOf(keys, ...keyed) + input, -1, 1)
+        return (stick[axis] += clamp(wanted - stick[axis], -travel, travel))
       }
       const pitch =
           lookPitch + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,

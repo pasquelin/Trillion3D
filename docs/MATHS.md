@@ -24,7 +24,7 @@ spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, 
 re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
 `sdk-core` and `sdk-browser`.
 
-`scalar/` holds the counting and range helpers every package repeats (`integers.ts`: `ceilDiv`, `workgroupCount`, `alignUp`, `alignDown`, `nextPow2`, `floorLog2`, `isPow2`, `bitWords`; `reals.ts`: `clamp`, `saturate`, `lerp`, `wrap`; `quantile.ts`: the nearest-rank percentile) and `constants.ts` the shared numbers (`HALF_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`, `GOLDEN_RATIO`, `GOLDEN_FRACTION`, `FLOAT32_MAX`, `FLOAT32_STEP`, `MIB`); each carries its own input rules in its doc comment. A caller imports them, never respells them.
+`scalar/`: counting and range helpers; `constants.ts`: shared numbers.
 
 ## Batch math for hosts
 

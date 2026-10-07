@@ -2,7 +2,7 @@ import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts'
 import { HIZ_REJECTED_WGSL } from '../partition/contract.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
-import { FLAT_GROUP_WGSL } from '../dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 
 /** Instances of one tile: the threads of a count or scatter workgroup. */
 export const REST_COMPACT_WORKGROUP = 64
@@ -31,9 +31,8 @@ export const REST_COMPACT_WORKGROUP = 64
  * instance count as it was, then `uni.tiles` tile words per slot. Only `uni.tiles` tiles of a slot
  * are read: the instances past them are dropped, as a truncation does.
  *
- * A count or scatter dispatch runs a slot up y and its tiles along x, in rows up z past one
- * dimension's groups (`dispatchGrid`): a tile is ranked off x and z (`tileOf`), and a group past
- * the tiles leaves.
+ * A count or scatter dispatch runs a slot up z and its tiles in rows along x and y (`flatIndex`),
+ * and a group past the tiles leaves.
  */
 export const REST_COMPACT_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct Uniforms{restSlots:u32,tiles:u32,copyWords:u32,pad0:u32,}
@@ -54,9 +53,7 @@ fn survives(word:u32)->bool{return !hizRejected(pages[instanceRow(word)].hizSlot
 fn countWord(n:u32)->u32{return uni.copyWords+n;}
 /** Word of \`work\` holding tile \`t\` of tested slot \`n\`: its survivors, then its offset. */
 fn tileWord(n:u32,t:u32)->u32{return uni.copyWords+uni.restSlots+n*uni.tiles+t;}
-${FLAT_GROUP_WGSL}/** Tile of workgroup \`wg\` of a dispatch of \`n\` groups: x, then rows of them up z. */
-fn tileOf(wg:vec3u,n:vec3u)->u32{return flatGroup(wg.x,wg.z,n.x);}
-var<workgroup> tileKept:atomic<u32>;
+${FLAT_INDEX_WGSL}var<workgroup> tileKept:atomic<u32>;
 var<workgroup> slotCount:u32;
 /** Tested slot \`n\`'s count, broadcast so an empty tile can leave from uniform control flow. */
 fn sharedCount(lane:u32,count:u32)->u32{
@@ -65,7 +62,7 @@ fn sharedCount(lane:u32,count:u32)->u32{
 }
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restCount(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
- let n=wg.y;let t=tileOf(wg,groups);
+ let n=wg.z;let t=flatIndex(wg,groups,1u);
  if(n>=uni.restSlots||t>=uni.tiles){return;}
  let slot=restSlotAt(n);
  let count=sharedCount(lane,min(indirect[slot*4u+1u],uni.tiles*${REST_COMPACT_WORKGROUP}u));
@@ -104,7 +101,7 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
 }
 @compute @workgroup_size(${REST_COMPACT_WORKGROUP})
 fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
- let n=wg.y;let t=tileOf(wg,groups);
+ let n=wg.z;let t=flatIndex(wg,groups,1u);
  if(n>=uni.restSlots||t>=uni.tiles){return;}
  let count=sharedCount(lane,work[countWord(n)]);
  let x=t*${REST_COMPACT_WORKGROUP}u+lane;

@@ -1,5 +1,5 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
-import { FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -35,7 +35,7 @@ ${FLAT_INDEX_WGSL}fn selected(i:u32)->bool{
 }
 @compute @workgroup_size(64)
 fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let group=flatIndex(id.x,id.y,n.x);
+ let group=flatIndex(id,n,64u);
  if(group>=uni.groupCount){return;}
  let begin=group*${TRANSPARENT_GROUP}u;
  let end=min(begin+${TRANSPARENT_GROUP}u,uni.entryCount);
@@ -45,7 +45,7 @@ fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
 }
 @compute @workgroup_size(64)
 fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let item=flatIndex(id.x,id.y,n.x);
+ let item=flatIndex(id,n,64u);
  if(item>=uni.itemCount){return;}
  let base=itemRanges[item*2u];
  let held=itemRanges[item*2u+1u];
@@ -64,7 +64,7 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
 }
 @compute @workgroup_size(64)
 fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id.x,id.y,n.x);
+ let i=flatIndex(id,n,64u);
  if(i>=uni.entryCount||!selected(i)){return;}
  let group=i/${TRANSPARENT_GROUP}u;
  let begin=group*${TRANSPARENT_GROUP}u;

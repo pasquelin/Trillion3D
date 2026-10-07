@@ -10,7 +10,7 @@ import {
   FLAG_DYNAMIC,
 } from '../visibility/types.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
-import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 
 /** Lanes of the stage's group: a row of at most as many vertices deforms them in one pass. */
 export const DEFORMATION_LANES = 64
@@ -38,9 +38,9 @@ fn deformTag(at:u32,whole:bool)->u32{
 fn storeTag(at:u32,tag:u32,whole:bool){
  if(whole){positions[at]=f32(deformTagOf(tag,true));return;}indices[at]=tag;
 }
-@compute @workgroup_size(${DEFORMATION_LANES})
-fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
- let row=group.x+group.y*${DEFAULT_GROUP_WIDTH}u;
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${DEFORMATION_LANES})
+fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) groups:vec3u){
+ let row=flatIndex(group,groups,1u);
  if(row>=arrayLength(&pages)){return;}
  let page=pages[row];
  if(page.deformOutput==0u||page.indexCount==0u){return;}

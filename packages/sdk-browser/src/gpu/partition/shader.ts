@@ -5,7 +5,7 @@ import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts'
 import { PARTITION_CLEAR_WGSL } from './clearWgsl.ts'
 import { PARTITION_PROJECT_WGSL } from './projectWgsl.ts'
 import { PARTITION_BINDING as B, STATE_TALLY_WGSL } from './contract.ts'
-import { FLAT_INDEX_WGSL } from '../dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 
 /**
  * GPU partition module: three kernels on the same buffers.

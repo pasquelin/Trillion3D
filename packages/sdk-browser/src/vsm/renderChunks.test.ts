@@ -20,6 +20,7 @@ import {
   VSM_RENDER_PARAMS_SLOT,
 } from './renderCullWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { DEFAULT_GROUP_WIDTH } from '../gpu/dispatch/grid.ts'
 
 /** The argument kernels, in JavaScript, over `params`, `counts` and `args`. */
 function argumentKernels(scope: {
@@ -32,11 +33,11 @@ function argumentKernels(scope: {
     Record<'vsmRenderArgsCull' | 'vsmRenderArgsExpand' | 'vsmRenderArgsDraw', Kernel>
   >(
     VSM_RENDER_ARGS_WGSL,
-    ['vsmRenderChunkCounter', 'vsmRenderArgsAt', 'vsmRenderWrapped', 'vsmRenderArgsCull'].concat([
+    ['vsmRenderChunkCounter', 'vsmRenderArgsAt', 'groupGrid', 'vsmRenderArgsCull'].concat([
       'vsmRenderArgsExpand',
       'vsmRenderArgsDraw',
     ]),
-    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), ...scope },
+    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: DEFAULT_GROUP_WIDTH, ...scope },
   )
 }
 

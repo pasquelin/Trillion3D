@@ -11,8 +11,6 @@ export const TAU = 6.283185307179586
 export const DEG2RAD = 0.017453292519943295
 /** Radians to degrees, `180 / Math.PI`: `radians * RAD2DEG`. */
 export const RAD2DEG = 57.29577951308232
-/** The golden ratio, (1 + sqrt 5) / 2. */
-export const GOLDEN_RATIO = 1.618033988749895
 /** The golden ratio's fractional part, (sqrt 5 - 1) / 2: the step of a low-discrepancy turn. */
 export const GOLDEN_FRACTION = 0.6180339887498949
 /**

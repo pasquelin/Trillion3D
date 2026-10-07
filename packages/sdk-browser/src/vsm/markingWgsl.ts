@@ -27,6 +27,7 @@ import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import type { VsmLayout } from './layout.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8
@@ -241,11 +242,12 @@ fn vsmPageListStart(pageList:u32)->u32{return pageList*(vsm.poolPages+1u);}
 fn vsmSetPageListCount(pageList:u32,newCount:i32){
  vsmPoolLists[vsmPageListStart(pageList)+vsm.poolPages]=newCount;
 }
-@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) index:vec3u){
- if(index.x<vsmMarking.rectsToClear){
-  var rectOffset=index.x;
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let index=flatIndex(id,n,256u);
+ if(index<vsmMarking.rectsToClear){
+  var rectOffset=index;
   // The full shadow maps are offset to a distant part of the ID range.
-  if(index.x>=vsm.singlePageMapCount*VSM_MIPS){
+  if(index>=vsm.singlePageMapCount*VSM_MIPS){
    rectOffset+=VSM_SINGLE_PAGE_MAP_SLOTS*VSM_MIPS-vsm.singlePageMapCount*VSM_MIPS;
   }
   let empty=vec4u(VSM_LEVEL0_PAGES,VSM_LEVEL0_PAGES,0u,0u);
@@ -253,7 +255,7 @@ fn vsmSetPageListCount(pageList:u32,newCount:i32){
   vsmMappedRects[rectOffset]=empty;
  }
  // Clear the various list counters.
- if(index.x==0u){
+ if(index==0u){
   vsmSetPageListCount(VSM_PAGES_BY_AGE,i32(vsm.poolPages));
   vsmSetPageListCount(VSM_PAGES_FREE,0);
   vsmSetPageListCount(VSM_PAGES_EMPTY,0);
@@ -302,9 +304,9 @@ ${vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout)}
 ${VSM_PROJECTION_DATA_READ_WGSL}
 ${VSM_MARK_PAGE_ADDRESS_WGSL}
 ${VSM_FILL_COVER_WGSL}
-@compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) dispatchThreadId:vec3u){
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  // Thread k: the full maps first (ids from VSM_SINGLE_PAGE_MAP_SLOTS), then the single-page ones.
- var mapId=dispatchThreadId.x;
+ var mapId=flatIndex(id,n,256u);
  if(mapId<vsm.fullMapCount){
   mapId+=VSM_SINGLE_PAGE_MAP_SLOTS;
  }else{
@@ -473,10 +475,16 @@ ${VSM_PAGE_MARKING_WGSL}
 fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  return (light.positionRange.xyz+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
 }
-@compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
  @builtin(local_invocation_index) groupIndex:u32,
- @builtin(global_invocation_id) dispatchThreadId:vec3u){
- let stridedPixel=dispatchThreadId.xy*vsmMarking.pixelStride;
+ @builtin(local_invocation_id) lane:vec3u,
+ @builtin(workgroup_id) group:vec3u,
+ @builtin(num_workgroups) n:vec3u){
+ // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
+ let side=${VSM_MARK_PIXELS_GROUP_XY}u;
+ let tilesX=((vsmMarking.viewSize.x+vsmMarking.pixelStride.x-1u)/vsmMarking.pixelStride.x+side-1u)/side;
+ let tile=flatIndex(group,n,1u);
+ let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.pixelStride;
  let pixelPos=vsmMarking.viewRectMin+stridedPixel;
  if(any(pixelPos>=vsmMarking.viewRectMin+vsmMarking.viewSize)){return;}
  let coord=vec2i(pixelPos);

@@ -10,9 +10,6 @@
  * ends, and the bound is held on the sum.
  */
 
-/** Groups one dispatch dimension guarantees: the list spreads over x and z as needed. */
-export const DISPATCH_SPAN = 65535
-
 /** Side of the fine-class tile, and triangles a sixty-four-thread group treats there. */
 export const FINE_SIDE = 4
 

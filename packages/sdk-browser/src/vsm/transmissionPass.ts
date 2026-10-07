@@ -542,7 +542,7 @@ export function encodeVsmTransmission(
   pass.setPipeline(ctx.clear.pipeline)
   pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
   pass.setBindGroup(1, groups.clear1)
-  // At most 512 groups: the pool under 2¹⁷ pages, a physical row in 10 bits of a page table entry.
+  // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
   if (bin) encodeBin(pass, ctx, scene, plan!, bin)
   // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty slice.

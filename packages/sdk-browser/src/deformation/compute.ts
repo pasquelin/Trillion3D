@@ -6,7 +6,7 @@ import {
 
 /** A binding of the stage: a buffer, or the normal atlas's view (`DEFORMATION_NORMALS`). */
 type DeformationResource = GPUBuffer | GPUTextureView
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 
@@ -65,12 +65,12 @@ export async function createDeformationCompute(device: GPUDevice) {
     pass.setPipeline(pipeline)
     if (rows) {
       pass.setBindGroup(0, bind(buffers, 0))
-      pass.dispatchWorkgroups(...dispatchGrid(rows))
+      dispatchRows(pass, rows)
     }
     if (whole?.count) {
       for (let i = 0; i < 5; i++) wholeBuffers[i] = i === 3 ? whole.table : buffers[i]
       pass.setBindGroup(0, bind(wholeBuffers, 1))
-      pass.dispatchWorkgroups(...dispatchGrid(whole.count))
+      dispatchRows(pass, whole.count)
     }
     pass.end()
   }

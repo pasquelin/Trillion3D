@@ -1,5 +1,5 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { clampNumber } from './spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
@@ -122,11 +122,11 @@ export const math = {
   shape: (points?: readonly (readonly [number, number])[]) => new Shape(points),
   /**
    * Keeps a number between a lowest and a highest value.
-   * @param value - The number to keep in range.
-   * @param min - The lowest allowed.
-   * @param max - The highest allowed.
+   * @param x - The number to keep in range.
+   * @param lo - The lowest allowed.
+   * @param hi - The highest allowed.
    */
-  clamp: clampNumber,
+  clamp,
   /**
    * The number `t` of the way from `a` to `b`.
    * @param a - The start.

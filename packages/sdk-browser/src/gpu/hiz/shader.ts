@@ -10,7 +10,7 @@ import {
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { FLAT_INDEX_WGSL } from '../dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -131,7 +131,7 @@ ${HIZ_HIDES_WGSL}
 // Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
 @compute @workgroup_size(64)
 fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id.x,id.y,n.x);
+ let i=flatIndex(id,n,64u);
  if(i<atomicLoad(&state[${ST_TESTED}u])){testBox(i);}
  flushTally(lane);
 }

@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
+import { dispatchGrid } from '../../gpu/dispatch/grid.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import {
   ROW_MARK_WORDS,

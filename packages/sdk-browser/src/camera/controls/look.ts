@@ -3,7 +3,8 @@ import type { ControlBase } from './base.ts'
 import { trackPointers } from './input.ts'
 import type { ControlPose } from './pose.ts'
 import { orbitOrientation } from './math.ts'
-import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
@@ -91,7 +92,7 @@ export function createHead(
       sample()
       const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED
       yaw -= lookX * speed
-      pitch = clampNumber(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
+      pitch = clamp(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
       lookX = lookY = 0
       angles[1] = yaw
       angles[2] = HALF_PI + pitch

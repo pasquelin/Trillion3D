@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
+import { dispatchGrid } from '../../gpu/dispatch/grid.ts'
 import { CACHED, cachePasses } from './shadeCachePasses.ts'
 import { heldSwitch } from '../../host/heldSwitch.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'

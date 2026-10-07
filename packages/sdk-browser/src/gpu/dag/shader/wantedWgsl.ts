@@ -14,7 +14,7 @@ import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
  */
 export const DAG_WANTED_WGSL = `@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
+ let s=flatIndex(id,n,64u);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flagAt(candBase()+s);let i=entryIndex(entry);vi=entryView(entry);

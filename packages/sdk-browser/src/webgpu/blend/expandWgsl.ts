@@ -6,7 +6,7 @@ import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
 import { expandUniformWgsl } from './expandUniform.ts'
 import { EXPAND_BINDING as B } from './expandBindings.ts'
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
-import { FLAT_GROUP_WGSL, FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -60,7 +60,7 @@ export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
-${FLAT_INDEX_WGSL}${FLAT_GROUP_WGSL}fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
+${FLAT_INDEX_WGSL}fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
  *  primitive carries, nothing at all if the frustum rejected its item. */
@@ -75,14 +75,14 @@ ${LANE_SCAN_WGSL}/** One thread group per entry packet: each counts ITS entry on
  *  in one go each local place and its total (the shared lane scan: EXPAND_GROUP is 64). */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id.x,id.y,n.x);
- let group=flatGroup(wid.x,wid.y,n.x);
+ let i=flatIndex(id,n,${EXPAND_GROUP}u);
+ let group=flatIndex(wid,n,1u);
  let k=lid.x;
  var mien=0u;
  if(i<uni.entryCount){mien=instancesOf(i);}
  let inclusive=laneScan(k,mien);
  if(i<uni.entryCount){scratch[i]=inclusive-mien;}
- // In rows (\`dispatchGrid\`): a packet of the last row past the count has no total.
+ // A packet of the last row past the count has no total.
  if(k==GROUP-1u&&group<uni.groupCount){scratch[uni.entryCount+group]=inclusive;}
 }
 /** Running sum over packets, at two levels: each thread takes a slice, the packet scans the
@@ -103,7 +103,7 @@ fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
 /** Absolute place of each entry, then its instances: the local place is already counted. */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id.x,id.y,n.x);
+ let i=flatIndex(id,n,${EXPAND_GROUP}u);
  if(i>=uni.entryCount){return;}
  let at=scratch[uni.entryCount+i/GROUP]+scratch[i];
  scratch[i]=at;
@@ -123,7 +123,7 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
 }
 @compute @workgroup_size(${EXPAND_GROUP})
 fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let r=flatIndex(id.x,id.y,n.x);
+ let r=flatIndex(id,n,${EXPAND_GROUP}u);
  if(r>=uni.runCount){return;}
  let at=uni.runsBase+r*${RUN_WORDS}u;
  let first=plan[at];

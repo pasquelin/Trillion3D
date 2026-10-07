@@ -30,7 +30,7 @@
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   VSM_MIPS,
   VSM_PAGE_TEXELS,
@@ -89,7 +89,7 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
-import { clamp } from '../../../math/src/scalar/reals.ts'
+import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
@@ -589,7 +589,7 @@ export function encodeVsmCandidates(
 ) {
   pass.setPipeline(candidates)
   pass.setBindGroup(0, candGroup, [0])
-  pass.dispatchWorkgroups(...dispatchGrid(ceilDiv(rowCount, VSM_RENDER_GROUP)))
+  dispatchRows(pass, ceilDiv(rowCount, VSM_RENDER_GROUP))
   pass.setPipeline(kernels.args.cull.pipeline)
   pass.setBindGroup(0, argsGroup, [0])
   pass.dispatchWorkgroups(1)
@@ -693,9 +693,10 @@ function renderChunking(
   rowCount: number,
 ) {
   const maxBinding = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
-  const pairs = Math.max(
+  const pairs = clampLowWins(
+    Math.floor(maxBinding / VSM_RENDER_PAIR_BYTES),
     pages,
-    Math.min(VSM_RENDER_PAIR_CAPACITY, Math.floor(maxBinding / VSM_RENDER_PAIR_BYTES)),
+    VSM_RENDER_PAIR_CAPACITY,
   )
   const cmdsPerRow = Math.min(viewMips, pages)
   let rows = Math.max(1, Math.floor(pairs / pages))

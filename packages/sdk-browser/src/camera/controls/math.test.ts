@@ -3,11 +3,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dollyDistance, moveLocal, orbitOrientation, panOffset, pixelWorldScale } from './math.ts'
 import {
-  clampNumber,
   fromSpherical,
   RADIUS_EPSILON,
   toSpherical,
 } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
@@ -108,8 +108,8 @@ test('a wheel notch is five percent of the distance, and the clamp bounds it', (
   assert.ok(Math.abs(dollyDistance(10, 1, 1) - 9.5) < 1e-12)
   assert.ok(Math.abs(dollyDistance(10, -1, 1) - 10 / 0.95) < 1e-12)
   assert.equal(dollyDistance(10, 0, 1), 10)
-  assert.equal(clampNumber(0.5, 1, 4), 1)
-  assert.equal(clampNumber(9, 1, 4), 4)
-  assert.equal(clampNumber(2, 1, 4), 2)
+  assert.equal(clamp(0.5, 1, 4), 1)
+  assert.equal(clamp(9, 1, 4), 4)
+  assert.equal(clamp(2, 1, 4), 2)
   assert.ok(RADIUS_EPSILON > 0)
 })

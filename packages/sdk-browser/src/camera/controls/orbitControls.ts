@@ -10,12 +10,12 @@ import {
   pixelWorldScale,
 } from './math.ts'
 import {
-  clampNumber,
   fromSpherical,
   POLAR_EPSILON,
   RADIUS_EPSILON,
   toSpherical,
 } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**
@@ -120,9 +120,9 @@ export function createOrbitCameraControls(
     applied.set(bounds)
     posed = true
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
-    spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
+    spherical[0] = clamp(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
-    spherical[2] = clampNumber(
+    spherical[2] = clamp(
       spherical[2],
       Math.max(api.minPolarAngle, POLAR_EPSILON),
       Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),

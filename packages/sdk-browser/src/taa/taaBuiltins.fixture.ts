@@ -4,6 +4,7 @@
 // (`../math/hashUnitWgsl.ts`) in 32-bit integer arithmetic, which a double would not wrap.
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** `pack2x16float`: two half floats, the first in the low 16 bits. */
 const pack2x16float = (v: number[]) => (toHalf(v[0]) | (toHalf(v[1]) << 16)) >>> 0
@@ -69,7 +70,7 @@ export const textureGatherOf =
     const [width, height] = dimensions(texture),
       x = Math.floor(uv[0] * width - 0.5),
       y = Math.floor(uv[1] * height - 0.5),
-      edge = (v: number, size: number) => Math.min(Math.max(v, 0), size - 1)
+      edge = (v: number, size: number) => clamp(v, 0, size - 1)
     const at = (dx: number, dy: number) => {
       const value = texture([edge(x + dx, width), edge(y + dy, height)])
       return typeof value === 'number' ? value : value[component]

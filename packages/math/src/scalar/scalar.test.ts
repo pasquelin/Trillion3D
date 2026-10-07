@@ -10,7 +10,7 @@ import {
   nextPow2,
   workgroupCount,
 } from './integers.ts'
-import { clamp, lerp, saturate, wrap } from './reals.ts'
+import { clamp, clampLowWins, lerp, saturate, wrap } from './reals.ts'
 import { quantile } from './quantile.ts'
 
 test('ceilDiv rounds up, exact at multiples, zero count and NaN', () => {
@@ -106,6 +106,19 @@ test('clamp: upper bound wins when lo > hi, NaN propagates, -0 becomes +0', () =
   assert.ok(Number.isNaN(clamp(0.5, 0, NaN)))
   assert.ok(Object.is(clamp(-0, 0, 1), 0))
   assert.ok(Object.is(clamp(-0, -1, 1), -0))
+})
+
+test('clampLowWins: lower bound wins when lo > hi, NaN propagates', () => {
+  assert.equal(clampLowWins(5, 0, 3), 3)
+  assert.equal(clampLowWins(-5, 0, 3), 0)
+  assert.equal(clampLowWins(2, 0, 3), 2)
+  assert.equal(clampLowWins(0.5, 3, 0), 3)
+  assert.equal(clampLowWins(10, 3, 0), 3)
+  assert.equal(clampLowWins(Infinity, -1, 1), 1)
+  assert.ok(Number.isNaN(clampLowWins(NaN, 0, 1)))
+  assert.ok(Number.isNaN(clampLowWins(0.5, NaN, 1)))
+  assert.ok(Number.isNaN(clampLowWins(0.5, 0, NaN)))
+  for (const x of [-2, 0, 0.5, 1, 9]) assert.equal(clampLowWins(x, 0, 1), clamp(x, 0, 1))
 })
 
 test('saturate holds [0, 1]', () => {

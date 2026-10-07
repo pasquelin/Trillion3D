@@ -7,7 +7,7 @@ import { shaderFailed } from '../core/shaderModule.ts'
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
+import { dispatchGrid } from '../dispatch/grid.ts'
 
 export type GpuRestCompact = {
   /**
@@ -179,15 +179,15 @@ function encodeRest(
     device.queue.writeBuffer(uniforms, 0, uniData)
   }
   const pass = open.pass,
-    // A slot up y, its tiles along x in rows up z past one dimension's (`tileOf`).
-    [x, z] = dispatchGrid(tiles)
+    // A slot up z, its tiles in rows along x and y.
+    [x, y] = dispatchGrid(tiles)
   pass.setBindGroup(0, c.bindGroup!)
   pass.setPipeline(c.countPipeline)
-  pass.dispatchWorkgroups(x, restSlots, z)
+  pass.dispatchWorkgroups(x, y, restSlots)
   pass.setPipeline(c.scanPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(c.scatterPipeline)
-  pass.dispatchWorkgroups(x, restSlots, z)
+  pass.dispatchWorkgroups(x, y, restSlots)
   return true
 }
 

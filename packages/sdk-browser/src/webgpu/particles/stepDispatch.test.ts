@@ -10,7 +10,7 @@ import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from './webgpuParticles.ts'
 import { particleGroups, particlesWgsl } from './particlesWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
+import { DEFAULT_GROUP_WIDTH } from '../../gpu/dispatch/grid.ts'
 
 /** An encoder whose compute passes log each pipeline set and each dispatch. */
 function recorder() {
@@ -65,27 +65,29 @@ test('records past one dimension of a dispatch step in rows of 65,535 groups', a
 })
 
 test("past one dimension's groups, bound writes the window's dispatch in rows; main ranks its slots once", () => {
-  type Run = { windowGrid: (g: number) => number[]; flatIndex: (...xyw: number[]) => number }
-  const { windowGrid, flatIndex } = shaderRun<Run>(
+  type Run = { groupGrid: (g: number) => number[]; flatIndex: (...v: unknown[]) => number }
+  const { groupGrid, flatIndex } = shaderRun<Run>(
     particlesWgsl(false),
-    ['windowGrid', 'flatIndex'],
-    {},
+    ['groupGrid', 'flatIndex'],
+    { GROUP_WIDTH: DEFAULT_GROUP_WIDTH },
   )
-  for (const groups of [0, 1, 4000, 65_535, 65_536, 200_000])
-    assert.deepEqual(windowGrid(groups), dispatchGrid(groups), `${groups} groups`)
   // A window of 65,535 · 64 + 1 slots: its 65,536 groups in two rows of 65,535.
   const instances = 65_535 * 64 + 1,
     groups = particleGroups(instances),
-    [x, y] = windowGrid(groups),
+    [x, y] = groupGrid(groups),
+    n = [x, y, 1],
     seen = new Uint8Array(groups)
+  assert.deepEqual([x, y], [65_535, 2])
   let past = 0
   for (let row = 0; row < y; row++)
     for (let at = 0; at < x; at++) {
-      // The first and last lanes of group (at, row): its partial's slot and its last slot.
-      const [k, last] = [0, 63].map((lane) => flatIndex(at * 64 + lane, row, x))
+      // The first and last lanes of group (at, row), and the group's rank: its partial's slot.
+      const [k, last] = [0, 63].map((lane) => flatIndex([at * 64 + lane, row, 0], n, 64))
+      const rank = flatIndex([at, row, 0], n, 1)
       assert.equal(last, k + 63)
+      assert.equal(rank * 64, k)
       if (k >= instances) past++
-      else assert.equal(seen[k / 64]++, 0, `partial ${k / 64} written twice`)
+      else assert.equal(seen[rank]++, 0, `partial ${rank} written twice`)
     }
   assert.ok(
     seen.every((hit) => hit === 1),

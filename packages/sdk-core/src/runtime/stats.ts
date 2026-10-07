@@ -9,9 +9,9 @@ export function summarize(values: readonly number[]) {
   const sorted = [...values].sort((a, b) => a - b)
   return {
     mean: values.reduce((a, b) => a + b, 0) / values.length,
-    p50: quantile(sorted, 0.5),
-    p95: quantile(sorted, 0.95),
-    p99: quantile(sorted, 0.99),
+    p50: quantile(sorted, 0.5)!,
+    p95: quantile(sorted, 0.95)!,
+    p99: quantile(sorted, 0.99)!,
     max: sorted.at(-1)!,
   }
 }
@@ -31,9 +31,9 @@ export function frameStatistics(intervals: readonly number[]) {
   const worst = finite.slice(-Math.max(1, Math.ceil(finite.length * 0.01)))
   return {
     fps: 1000 / (finite.reduce((a, b) => a + b, 0) / finite.length),
-    p50Ms: quantile(finite, 0.5),
-    p95Ms: quantile(finite, 0.95),
-    p99Ms: quantile(finite, 0.99),
+    p50Ms: quantile(finite, 0.5)!,
+    p95Ms: quantile(finite, 0.95)!,
+    p99Ms: quantile(finite, 0.99)!,
     onePercentLowFps: 1000 / (worst.reduce((a, b) => a + b, 0) / worst.length),
     stutters: finite.filter((v) => v > STUTTER_MS).length,
   }

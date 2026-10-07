@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { stageQuantiles } from '../../../sdk-core/src/runtime/stageProfile.ts'
 import { createCpuStepProfile } from './cpuProfile.ts'
 
 test('a summary ranks the worst images by total, reports a percentile per step, and forgets both', () => {
@@ -30,7 +31,7 @@ test('a bound an image did not file stays out of its quantiles; one no image fil
   }
   const summary = profile.summary()!
   assert.equal(summary.frames, 4, 'the images are all filed')
-  assert.deepEqual(summary.steps.aMs, { p50: 0.3, p95: 0.3, max: 0.3 })
+  assert.deepEqual(summary.steps.aMs, { p50: 0.1, p95: 0.3, max: 0.3 })
   assert.ok(Object.values(summary.steps.bMs).every(Number.isNaN), 'unmeasured, never zero')
 })
 
@@ -42,5 +43,18 @@ test('the ring keeps the most recent images once capacity is reached', () => {
   }
   const summary = profile.summary()!
   assert.equal(summary.frames, 2)
-  assert.deepEqual(summary.steps.aMs, { p50: 3, p95: 3, max: 3 })
+  assert.deepEqual(summary.steps.aMs, { p50: 2, p95: 3, max: 3 })
+})
+
+test('the CPU step profile and the stage profile read the same p50 and p95 from the same samples', () => {
+  // 20 samples: the nearest rank of p95 is the 19th, where a next-element rule read the 20th.
+  const samples = Array.from({ length: 20 }, (_, i) => i + 1)
+  const profile = createCpuStepProfile(['aMs'], { capacity: samples.length })
+  for (const ms of samples) {
+    profile.row[0] = ms
+    profile.record(ms, ms)
+  }
+  const { p50, p95 } = profile.summary()!.steps.aMs
+  assert.deepEqual({ p50, p95 }, stageQuantiles(samples))
+  assert.equal(p95, 19)
 })
