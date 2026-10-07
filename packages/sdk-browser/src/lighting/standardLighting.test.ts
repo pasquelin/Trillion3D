@@ -7,8 +7,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
-import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { STANDARD_LIGHTING_WGSL as STANDARD_LIGHTING } from './standardLighting.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+
+/** The standard lobe as a program holds it, its library declarations included. */
+const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
 
 type V3 = number[]
 const { standardLighting } = shaderRun<{
@@ -22,6 +26,9 @@ const { standardLighting } = shaderRun<{
     'standardLobe',
     'ggxDistribution',
     'fresnelSchlick',
+    'ndotvFloor',
+    'f0Of',
+    'lambertAlbedo',
   ],
   F32_SCOPE,
 )
@@ -92,6 +99,9 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
       'standardLobe',
       'ggxDistribution',
       'fresnelSchlick',
+      'ndotvFloor',
+      'f0Of',
+      'lambertAlbedo',
     ],
     F32_SCOPE,
   ).standardLighting

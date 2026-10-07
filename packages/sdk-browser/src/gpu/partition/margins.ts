@@ -56,14 +56,3 @@ export const SCREEN_SLACK_K = 4 * U
  * the CPU's yields an output greater than or equal to the CPU's.
  */
 export const DEPTH_GROW = (1 + FLOAT32_STEP) * (1 + U)
-
-/**
- * A WGSL `f32` literal of the constant: the single-precision value nearest it, written with the
- * nine significant digits that name one `f32` and no other. A double printed with more digits is
- * not safer: `DEPTH_GROW` printed at twelve digits fell just under the midpoint of its two
- * neighbours, and the shader parsed one ulp where the margin declares two.
- */
-export const wgslFloat = (value: number) => {
-  const text = Math.fround(value).toPrecision(9)
-  return text.includes('.') || text.includes('e') ? text : `${text}.0`
-}

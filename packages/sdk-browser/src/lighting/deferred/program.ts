@@ -12,7 +12,8 @@ import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts'
-import type { ComposeInput } from './shaders.ts'
+import type { ComposeInput, LitProgram } from './shaders.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
@@ -45,7 +46,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
   receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
-  lighting: string
+  /** The lighting program (`contractLightingProgram`): its plain pass compiles it at its own
+   *  mirror radiance, its reflection passes at the screen's (`reflectionPipelines`). */
+  lighting: LitProgram
   compose: CompositionSources
   label: string
   direct: boolean
@@ -109,7 +112,7 @@ export async function createDeferredProgram(
 ) {
   const lighting = await createCheckedShaderModule(
     device,
-    sources.lighting,
+    wgslModule(sources.lighting()),
     `${sources.label}_LIGHTING`,
   )
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce)

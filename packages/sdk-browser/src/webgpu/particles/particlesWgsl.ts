@@ -1,6 +1,9 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { tangentBillboard } from '../../../../math/src/wgsl/basis.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
@@ -23,13 +26,20 @@ export const PARTICLE_STATE_HEAD = 32
 export const PARTICLE_PARTIAL_BYTES = 8
 
 /** A pool's state as the step writes it: the window (`PARTICLE_STATE_HEAD`), then the slots. */
-const STATE_WGSL = `
+const STATE_WGSL = wgslBlock(
+  'STATE_WGSL',
+  [],
+  `
 struct Particle { position: vec4f, velocity: vec4f }
 struct Window { vertices: u32, instances: u32, firstVertex: u32, firstInstance: u32, first: u32, pad0: u32, pad1: u32, pad2: u32 }
-struct State { window: Window, particles: array<Particle> }`
+struct State { window: Window, particles: array<Particle> }`,
+)
 
 /** The max of 64 lanes' pairs through a workgroup array, six halvings: every lane gets it. */
-const LANES_FOLD_WGSL = `
+const LANES_FOLD_WGSL = wgslBlock(
+  'LANES_FOLD_WGSL',
+  [],
+  `
 var<workgroup> lanes: array<vec2u, ${PARTICLE_WORKGROUP}>;
 fn foldLanes(local: u32, span: vec2u) -> vec2u {
   lanes[local] = span;
@@ -39,13 +49,17 @@ fn foldLanes(local: u32, span: vec2u) -> vec2u {
   }
   workgroupBarrier();
   return lanes[0];
-}`
+}`,
+)
 
 /** The step's fold of its lanes: by subgroup, the subgroups' leaders then joining two workgroup
  *  words — one pair of atomics a subgroup, not one a live slot —; else the array fold. */
 const stepFoldWgsl = (subgroups: boolean) =>
   subgroups
-    ? `
+    ? wgslBlock(
+        'stepFoldWgsl(true)',
+        [],
+        `
 var<workgroup> low: atomic<u32>;
 var<workgroup> high: atomic<u32>;
 fn foldStep(local: u32, span: vec2u) -> vec2u {
@@ -53,9 +67,13 @@ fn foldStep(local: u32, span: vec2u) -> vec2u {
   if (subgroupElect() && held.y != 0u) { atomicMax(&low, held.x); atomicMax(&high, held.y); }
   workgroupBarrier();
   return vec2u(atomicLoad(&low), atomicLoad(&high));
-}`
-    : `${LANES_FOLD_WGSL}
-fn foldStep(local: u32, span: vec2u) -> vec2u { return foldLanes(local, span); }`
+}`,
+      )
+    : wgslBlock(
+        'stepFoldWgsl(false)',
+        [LANES_FOLD_WGSL],
+        `fn foldStep(local: u32, span: vec2u) -> vec2u { return foldLanes(local, span); }`,
+      )
 
 /** Bytes of a pool's window dispatch: its workgroups along x, its rows of them along y past one
  *  dimension's (`groupGrid`), then 1, written by `bound`. */
@@ -80,16 +98,15 @@ export const particleGroups = (slots: number) => ceilDiv(slots, PARTICLE_WORKGRO
  *  lane, then the same fold, by subgroup where the device has them —, writes the window as the
  *  draw's first slot and instance count, and the next window's workgroups. The draw then takes the
  *  live slots' span in slot order, never a slot past it (#755). */
-export const particlesWgsl = (
-  subgroups: boolean,
-) => /* wgsl */ `${subgroups ? 'enable subgroups;' : ''}${STATE_WGSL}
+export const particlesWgsl = (subgroups: boolean) =>
+  wgslProgram(
+    /* wgsl */ `${subgroups ? 'enable subgroups;' : ''}
 struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, groups: u32 }
 @group(0) @binding(0) var<uniform> step: Step;
 @group(0) @binding(1) var<storage, read> staged: array<Particle>;
 @group(0) @binding(2) var<storage, read_write> state: State;
 @group(0) @binding(3) var<storage, read_write> partials: array<vec2u>;
 @group(0) @binding(4) var<storage, read_write> args: array<u32>;
-${stepFoldWgsl(subgroups)}${FLAT_INDEX_WGSL}${GROUP_GRID_WGSL}
 fn stepSlot(i: u32) -> bool {
   let d = i - step.first;
   let k = select(d, d + step.capacity, i < step.first);
@@ -138,15 +155,17 @@ fn bound(@builtin(local_invocation_index) local: u32) {
     args[0] = grid.x;
     args[1] = grid.y;
   }
-}`
+}`,
+    [STATE_WGSL, stepFoldWgsl(subgroups), FLAT_INDEX_WGSL, GROUP_GRID_WGSL],
+  )
 
 /** Per slot of the step's window, a disc facing the eye, fading with age, at its edge and near
  *  the scene's depth; one module, two fragment entries. `fs`: its coverage is the reactive value
  *  (#833), so the temporal pass keeps no trail of it. `fsRouted`, an image with display layers
  *  (`../blend/displayFilter.ts`): where the mask is set, the disc maps the tint and the added
  *  value by its display colour, not the lit image. */
-export const PARTICLE_DRAW_WGSL = /* wgsl */ `${STATE_WGSL}
-struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }
+export const PARTICLE_DRAW_WGSL = wgslProgram(
+  /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> state: State;
 @group(0) @binding(2) var depth: texture_depth_2d;
@@ -157,7 +176,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   o.at = vec4f(2, 2, 2, 1);
   if (!(p.position.w < p.velocity.w)) { return o; }
   let toEye = normalize(draw.eye - p.position.xyz);
-  let right = normalize(cross(select(vec3f(0, 1, 0), vec3f(1, 0, 0), abs(toEye.y) > 0.99), toEye));
+  let right = tangentBillboard(toEye);
   o.corner = vec2f(f32(v & 1u), f32(v >> 1u)) * 2 - 1;
   o.local = p.position.xyz + (right * o.corner.x + cross(toEye, right) * o.corner.y) * draw.size;
   o.at = draw.clip * vec4f(o.local, 1);
@@ -175,10 +194,11 @@ fn particle(in: Out) -> vec4f {
 }
 struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
 @fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }
-${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(1)}
 struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
   let c = particle(in);
   let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
-}`
+}`,
+  [STATE_WGSL, DISPLAY_ROUTE_WGSL, displayMaskWgsl(1), tangentBillboard],
+)

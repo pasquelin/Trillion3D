@@ -8,18 +8,25 @@ import {
   PHYSICAL_LOBES_FORMAT,
   PHYSICAL_SURFACE_FLAG,
 } from '../../scene/physicalLobes.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
  *  read from its three texels: the very words the table holds. */
-export const physicalTableWgsl = (
-  binding: number,
-) => `struct PhysicalInfo{lobes:vec4f,coatNormalScale:vec2f,channels:u32,pad:u32,maps:vec4u,}
+export const physicalTableWgsl = (binding: number) =>
+  wgslBlock(
+    `physicalTableWgsl(${binding})`,
+    [],
+    `struct PhysicalInfo{lobes:vec4f,coatNormalScale:vec2f,channels:u32,pad:u32,maps:vec4u,}
 @group(0) @binding(${binding}) var physicalTable:texture_2d<u32>;
 fn physicalAt(i:u32)->PhysicalInfo{
  let at=vec2u((i%${PHYSICAL_ROW_RECORDS}u)*3u,i/${PHYSICAL_ROW_RECORDS}u);
  let a=textureLoad(physicalTable,at,0);let b=textureLoad(physicalTable,at+vec2u(1u,0u),0);
  return PhysicalInfo(bitcast<vec4f>(a),bitcast<vec2f>(b.xy),b.z,b.w,textureLoad(physicalTable,at+vec2u(2u,0u),0));
-}`
+}`,
+  )
 
 /**
  * The anisotropic and clear-coat lobes of a surface, from the Khronos material extension equations:
@@ -38,9 +45,11 @@ fn physicalAt(i:u32)->PhysicalInfo{
  * map, its two scales applied. The direction is rotated from the tangent the first UV set gives
  * the final normal, kept orthogonal to it.
  */
-export const physicalCoreWgsl = (
-  sampled: string,
-) => `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
+export const physicalCoreWgsl = (sampled: string) =>
+  wgslBlock(
+    `physicalCoreWgsl(${sampled})`,
+    [uniteOuZero, tangentFallback],
+    `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
 var<private> physicalCoord1:PhysicalCoord;
@@ -87,7 +96,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  if(r.maps.y!=0u){coatSample=physicalSample(1u,r.maps.y);coat*=coatSample.r;}
  if(r.maps.z!=0u){
   if(r.maps.z!=r.maps.y||physicalChannel(1u)!=physicalChannel(2u)){coatSample=physicalSample(2u,r.maps.z);}
-  coatRough=clamp(r.lobes.w*coatSample.g,${ROUGHNESS_FLOOR},1.0);
+  coatRough=clamp(r.lobes.w*coatSample.g,${wgslF32(ROUGHNESS_FLOOR)},1.0);
  }
  var direction=vec3f(0.0,0.0,1.0);
  var frame0:CotangentFrame;
@@ -96,7 +105,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
   frame0=cotangentFrame(N,e1,e2,c.d1,c.d2);
   let fT=frame0.T*screenFace;let fB=frame0.B*screenFace;
   var T=fT-N*dot(N,fT);
-  if(dot(T,T)<1e-12){T=cross(select(vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0),abs(N.z)<0.999),N);}
+  if(dot(T,T)<1e-12){T=tangentFallback(N);}
   T=normalize(T);var B=normalize(cross(N,T));
   if(dot(B,fB)<0.0){B=-B;}
   direction=cos(rotation)*T+sin(rotation)*B;
@@ -119,12 +128,17 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  return PhysicalLobes(direction,coatN,strength,coat,coatRough);
 }
 /** Whether a pixel's lobes leave neither lobe: the strength and the coat not above zero. */
-fn physicalLobeless(v:PhysicalLobes)->bool{return !(v.strength>0.0)&&!(v.coat>0.0);}`
+fn physicalLobeless(v:PhysicalLobes)->bool{return !(v.strength>0.0)&&!(v.coat>0.0);}`,
+  )
 
 /** A pixel's lobes as one texel of the lobes target (`../../scene/physicalLobes.ts`): what the
  *  opaque resolve stores and the water's surface stage writes (`../../webgpu/water/surfaceWgsl.ts`).
- *  The host declares \`LOBE_PACK_WGSL\` and \`physicalCoreWgsl\`. */
-export const PHYSICAL_TEXEL_WGSL = `fn physicalTexel(v:PhysicalLobes)->vec4u{return vec4u(lobeOctEncode(v.direction),lobeOctEncode(v.coatN),pack2x16unorm(vec2f(v.strength,v.coat)),bitcast<u32>(v.coatRough));}`
+ *  The host lists \`physicalCoreWgsl\`. */
+export const PHYSICAL_TEXEL_WGSL = wgslBlock(
+  'PHYSICAL_TEXEL_WGSL',
+  [LOBE_PACK_WGSL],
+  `fn physicalTexel(v:PhysicalLobes)->vec4u{return vec4u(lobeOctEncode(v.direction),lobeOctEncode(v.coatN),pack2x16unorm(vec2f(v.strength,v.coat)),bitcast<u32>(v.coatRough));}`,
+)
 
 /**
  * The lobes in the opaque resolve (`shadeWgsl.ts`): run on a lit row that names a record
@@ -135,11 +149,14 @@ export const PHYSICAL_TEXEL_WGSL = `fn physicalTexel(v:PhysicalLobes)->vec4u{ret
  * the rows' surfaces right before this resolve (`followLobes`), so the pixel, bounded by the frame,
  * is never past it — and a store past a texture's bounds writes nothing.
  */
-export const PHYSICAL_RESOLVE_WGSL = `${physicalTableWgsl(SHADE_BINDINGS.physical)}
-@group(0) @binding(${SHADE_BINDINGS.lobes}) var lobesOutput:texture_storage_2d<${PHYSICAL_LOBES_FORMAT},write>;
-${LOBE_PACK_WGSL}
-${physicalCoreWgsl('HAS_SAMPLING')}
-${PHYSICAL_TEXEL_WGSL}
+export const PHYSICAL_RESOLVE_WGSL = wgslBlock(
+  'PHYSICAL_RESOLVE_WGSL',
+  [
+    physicalCoreWgsl('HAS_SAMPLING'),
+    PHYSICAL_TEXEL_WGSL,
+    physicalTableWgsl(SHADE_BINDINGS.physical),
+  ],
+  `@group(0) @binding(${SHADE_BINDINGS.lobes}) var lobesOutput:texture_storage_2d<${PHYSICAL_LOBES_FORMAT},write>;
 /** The second UV set of triangle \`tri\` at the pixel, where its page has one; \`first\` otherwise. */
 fn physicalSecondUv(page:PageInfo,tri:u32,s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,bary:vec3f,iw:vec3f,first:PhysicalCoord)->PhysicalCoord{
  let h=pageHeader(page);
@@ -155,11 +172,12 @@ fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace
  if(physicalLobeless(v)){return 0u;}
  textureStore(lobesOutput,vec2i(pixel),physicalTexel(v));
  return ${PHYSICAL_SURFACE_FLAG}u;
-}`
+}`,
+)
 
 /** What the resolve reads of a row's record before its tile request, spliced into
  *  \`shadeSurface\` where the triangle and the first UV set are known. */
-export const PHYSICAL_UV_WGSL = `if(HAS_PHYSICAL&&page.physical!=0u){
+export const PHYSICAL_UV_READ = `if(HAS_PHYSICAL&&page.physical!=0u){
   physicalRecord=physicalAt((page.physical&${PHYSICAL_RECORD_MASK}u)-1u);
   physicalCoord0=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
   physicalCoord1=physicalCoord0;
@@ -167,6 +185,6 @@ export const PHYSICAL_UV_WGSL = `if(HAS_PHYSICAL&&page.physical!=0u){
  }`
 
 /** The lobes of a lit pixel, once its normal and its flag are final. */
-export const PHYSICAL_LOBES_CALL_WGSL = `if(HAS_PHYSICAL&&page.physical!=0u&&(page.flags&1u)!=0u){
+export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&page.physical!=0u&&(page.flags&1u)!=0u){
   flag|=physicalLobes(pos.xy,N,coatBase,(w1-w0).xyz,(w2-w0).xyz,screenFace,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL));
  }`

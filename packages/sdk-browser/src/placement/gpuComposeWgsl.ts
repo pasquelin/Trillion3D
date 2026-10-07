@@ -15,6 +15,8 @@ import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** The parent slot of a root that follows none. */
 export const NONE = 0xffffffff
@@ -27,7 +29,10 @@ export const MATRIX_DOUBLES = 16
  * 53-bit significand is shifted to the result's 24 bits (fewer below the normal range), two bits
  * kept below it — the half and a sticky one folding everything lower (`wideShiftRight`).
  */
-const TO_F32_WGSL = `
+const TO_F32_WGSL = wgslBlock(
+  'TO_F32_WGSL',
+  [],
+  `
 fn toF32(a:vec2u)->u32{
  let sign=(a.x>>31u)<<31u;
  let e=i32(dExponent(a));
@@ -43,29 +48,42 @@ fn toF32(a:vec2u)->u32{
  if(m==0x1000000u){m=0x800000u;field=field+1u;}
  if(field>=255u){return sign|0x7f800000u;}
  return sign|(field<<23u)|(m&0x7fffffu);
-}`
+}`,
+)
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
  *  an unsigned integer, and integer work a JavaScript run of the text reads as written. */
-const PRODUCT_WGSL = `
+const PRODUCT_WGSL = wgslBlock(
+  'PRODUCT_WGSL',
+  [],
+  `
 fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  let c=k>>2u;let r=k&3u;
  var sum=dMul(parents[parentAt+r],locals[localAt+c*4u]);
  for(var i=1u;i<4u;i++){sum=dAdd(sum,dMul(parents[parentAt+i*4u+r],locals[localAt+c*4u+i]));}
  return sum;
-}`
+}`,
+)
 
-const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}${FLAT_INDEX_WGSL}`
+const SHARED_WGSL = wgslBlock(
+  'SHARED_WGSL',
+  [DOUBLE_WGSL, TO_F32_WGSL, FROM_F32_WGSL, PRODUCT_WGSL, FLAT_INDEX_WGSL],
+  ``,
+)
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
  * they hold): both zeros of either sign, or the same bits unless a NaN.
  */
-const SAME_WORD_WGSL = `
+const SAME_WORD_WGSL = wgslBlock(
+  'SAME_WORD_WGSL',
+  [],
+  `
 fn sameWord(a:u32,b:u32)->bool{
  return (a==b&&(a&0x7fffffffu)<=0x7f800000u)||((a|b)&0x7fffffffu)==0u;
-}`
+}`,
+)
 
 /**
  * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye, and,
@@ -75,7 +93,8 @@ fn sameWord(a:u32,b:u32)->bool{
  * compared image whose world differs writes `previous · current⁻¹` and takes it; any other
  * writes identity.
  */
-export const COMPOSE_ROOTS_WGSL = `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,pad:vec2u,}
+export const COMPOSE_ROOTS_WGSL = wgslProgram(
+  `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,pad:vec2u,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -85,7 +104,6 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(5) var<storage,read_write> motion:array<u32>;
 @group(0) @binding(6) var<uniform> motionMode:MotionMode;
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
-${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,64u);if(i>=params.count){return;}
  let rank=params.first+i;
@@ -116,7 +134,9 @@ ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
   for(var k=0u;k<16u;k++){previous[rank*16u+k]=world[k];}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
-}`
+}`,
+  [SHARED_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
+)
 
 /**
  * The world sphere of a linked root's row (`../webgpu/shadow/spheres.ts`), what the shadow cull
@@ -130,7 +150,10 @@ ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
  * that is added. A larger sphere only lets a row reach a page its triangles do not touch: no texel
  * changes.
  */
-const SPHERE_WGSL = `
+const SPHERE_WGSL = wgslBlock(
+  'SPHERE_WGSL',
+  [],
+  `
 const SPHERE_GROWTH:f32=1.00000095367431640625;
 const CENTRE_ERROR:f32=5.684341886080802e-14;
 fn composeSphere(row:u32,world:array<vec2u,16>){
@@ -159,7 +182,8 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
  }
  spheres[s+3u]=sqrt(r2)*SPHERE_GROWTH+size*CENTRE_ERROR;
  spheres[s+7u]=0.0;
-}`
+}`,
+)
 
 /**
  * One thread per page-table row (`composeRow`): the world words of a linked root's row, and, while
@@ -169,7 +193,8 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
  * gave it, as the CPU's own row does; once they differ it takes no verdict, which no occlusion test
  * may judge it by, until the CPU writes the row again.
  */
-export const COMPOSE_ROWS_WGSL = `struct Params{rootCount:u32,rowCount:u32,spheres:u32,pad:u32,}
+export const COMPOSE_ROWS_WGSL = wgslProgram(
+  `struct Params{rootCount:u32,rowCount:u32,spheres:u32,pad:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
@@ -177,7 +202,6 @@ export const COMPOSE_ROWS_WGSL = `struct Params{rootCount:u32,rowCount:u32,spher
 @group(0) @binding(4) var<storage,read_write> table:array<u32>;
 @group(0) @binding(5) var<storage,read_write> spheres:array<f32>;
 @group(0) @binding(6) var<storage,read> localBoxes:array<vec2u>;
-${SHARED_WGSL}${SPHERE_WGSL}
 fn composeRow(row:u32){
  let base=row*${PAGE_INFO_STRIDE / 4}u;
  let rank=table[base+${ROW_PLACEMENT_WORD}u];
@@ -197,4 +221,6 @@ fn composeRow(row:u32){
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
-}`
+}`,
+  [SHARED_WGSL, SPHERE_WGSL],
+)

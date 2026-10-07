@@ -11,10 +11,11 @@ import {
   dispatchRows,
 } from './grid.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Kernel = { groupGrid: (g: number) => number[]; flatIndex: (...v: unknown[]) => number }
 const kernel = (width: number) =>
-  shaderRun<Kernel>(`${GROUP_GRID_WGSL}${FLAT_INDEX_WGSL}`, ['groupGrid', 'flatIndex'], {
+  shaderRun<Kernel>(wgslModule(GROUP_GRID_WGSL, FLAT_INDEX_WGSL), ['groupGrid', 'flatIndex'], {
     GROUP_WIDTH: width,
   })
 

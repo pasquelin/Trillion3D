@@ -16,7 +16,7 @@ import {
 import { BLEND_BINDINGS } from '../core/bindLayout.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
-import { BLEND_SHADER, BOUNCE_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { BLEND_SHADER, BOUNCE_LIGHTING_PROGRAM } from '../../gpu/core/shaderTexts.fixture.ts'
 
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
   // The programs without lobes; the lobed ones put the same term under the coat (`lobeMirror`).
@@ -25,7 +25,7 @@ test('transparent mirrors use the opaque reflection model and bind its surface r
   for (const name of [...names, 'rayRadiance'])
     assert.equal(
       functionText(blend, name),
-      functionText(withScreenReflections(BOUNCE_LIGHTING_SHADER), name),
+      functionText(withScreenReflections(BOUNCE_LIGHTING_PROGRAM), name),
     )
   for (const name of names)
     assert.equal(functionText(BLEND_SHADER, name), functionText(blend, name), name)

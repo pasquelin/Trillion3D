@@ -5,6 +5,7 @@ import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { unresolvedNames } from '../../gpu/core/wgslNames.fixture.ts'
 import { feedbackFreeEntry } from './feedbackAbWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { blendShader } from '../blend/shader.ts'
 
 const SURFACE = [
   ['baseMetal', 'vec4f'],
@@ -25,7 +26,7 @@ test('target-free opaque, transparent and water entries declare every name they 
     'pos',
   )
   assert.deepEqual(unresolvedNames(shade), [])
-  let blend = BLEND_SHADER + waterSurfaceWgsl(true)
+  let blend = blendShader({}, { stage: waterSurfaceWgsl(true) })
   for (const entry of ['fs', 'fsFiltered'])
     blend = feedbackFreeEntry(blend, entry, 'BlendOut', [['color', 'vec4f']], ...FRAGMENT_IN)
   blend = feedbackFreeEntry(

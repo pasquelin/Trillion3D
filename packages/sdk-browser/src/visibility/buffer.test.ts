@@ -25,7 +25,8 @@ test('the WebGPU display buffer starts with the shared opaque scene background',
 })
 
 test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL inverse builtin', () => {
-  assert.match(SHADE_SHADER, /fn inverseTranspose3\s*\(/)
+  // The library's prepared inverse-transpose (`invTranspose3Prep`), which the resolve calls.
+  assert.match(SHADE_SHADER, /fn invTranspose3Prep\s*\(/)
   assert.doesNotMatch(SHADE_SHADER, /\binverse\s*\(/)
 })
 

@@ -1,5 +1,10 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
 /** Canonical DAG displacement bound; callers prepare the same view position and world radius. */
-export const PROJECTED_BOUND_WGSL = `
+export const PROJECTED_BOUND_WGSL = wgslBlock(
+  'PROJECTED_BOUND_WGSL',
+  [],
+  `
 fn projectedBound(error:f32,v:vec3f,radius:f32,stretch:f32,focal:f32,near:f32,perspective:f32,reference:bool)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
@@ -17,4 +22,5 @@ fn projectedBound(error:f32,v:vec3f,radius:f32,stretch:f32,focal:f32,near:f32,pe
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
-`
+`,
+)

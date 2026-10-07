@@ -9,11 +9,11 @@ import assert from 'node:assert/strict'
 import { computeOnDawn } from '../kit/computeRun.ts'
 import { BLEND_TRANSMITTANCE_WGSL } from '../../../packages/sdk-browser/src/gpu/shadow/transmittanceWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
-const SHADER = `${PAGE_INFO_STRUCT_WGSL}
-fn maskAlpha(a:u32,b:vec2f,c:vec2f,d:vec2f,e:bool)->f32{return 0.5;}
+const SHADER = wgslProgram(
+  `fn maskAlpha(a:u32,b:vec2f,c:vec2f,d:vec2f,e:bool)->f32{return 0.5;}
 fn colorSample(a:u32,b:vec2f,c:vec2f,d:vec2f,e:bool)->vec4f{return vec4f(0.25,0.5,1.0,0.5);}
-${BLEND_TRANSMITTANCE_WGSL}
 @group(0) @binding(0) var<storage,read_write> result:array<vec4f>;
 @compute @workgroup_size(1) fn main(@builtin(global_invocation_id) id:vec3u){
  var p:PageInfo;p.world=mat4x4f(vec4f(1,0,0,0),vec4f(0,1,0,0),vec4f(0,0,1,0),vec4f(0,0,0,1));
@@ -22,7 +22,9 @@ ${BLEND_TRANSMITTANCE_WGSL}
  if(id.x==1u){p.flags=12u;}
  if(id.x<2u){result[id.x]=blendTransmittance(p,vec2f(0),vec2f(1,0),vec2f(0,1),vec3f(0,0,1));}
  else{result[id.x]=vec4f(select(0.0,1.0,volumeBoundary(p,true)),select(0.0,1.0,volumeBoundary(p,false)),volumeWorldThickness(p,vec3f(0,0,1)),1.0);}
-}`
+}`,
+  [PAGE_INFO_STRUCT_WGSL, BLEND_TRANSMITTANCE_WGSL],
+)
 
 test('a volume tints by its attenuation over its world path, its map by colour and alpha, once', async () => {
   const { values, errors } = await computeOnDawn(SHADER, 48, 3)

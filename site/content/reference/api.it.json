@@ -1048,17 +1048,10 @@
     "description": "Due forme, e solo due: tutto piatto, o tutto come `n` sotto-viste — `../batch/batch.ts` spiega perché una matrice viaggia come sotto-vista. La forma si decide PRIMA del ciclo, mai al suo interno: un ternario per elemento costa il 6% su duecentomila composizioni, misurato dal benchmark delle matrici batch. Ripete `composeMatrix4`, su `n` matrici."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolleranze del rifiuto per cono, condivise dal riflesso lato processore e dallo shader: una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza entro `CONE_LENGTH_RATIO` e sono ortogonali entro `CONE_ORTHO_EPS`, in relativo; un cono di angolo ≥ `HALF_PI` non rifiuta mai.",
-    "description": "Le varianti `_WGSL` sono il testo inserito nello shader, come `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` in testo di shader."
+    "summary": "Tolleranze del rifiuto per cono, condivise dal riflesso lato processore e dallo shader: una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza entro `CONE_LENGTH_RATIO` e sono ortogonali entro `CONE_ORTHO_EPS`, in relativo; un cono di angolo ≥ `HALF_PI` non rifiuta mai."
   },
   "CONE_ORTHO_EPS": {
     "summary": "Quanto due colonne possono non essere perpendicolari e contare comunque come perpendicolari."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` in testo di shader."
   },
   "coneRejects": {
     "summary": "Rifiuto tramite cono di normali per non disegnare le facce posteriori."
@@ -2243,9 +2236,6 @@
   },
   "HALF_PI": {
     "summary": "Un quarto di giro, in radianti."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` in testo di shader."
   },
   "helper": {
     "summary": "La famiglia `helper`: gli ausili con cui si lavora su una scena, fatti di linee e mesh.",
@@ -5417,9 +5407,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "La soglia, sul determinante NORMALIZZATO.",
     "description": "Sotto 1e-12, il cubo di una scala diventa denormale in precisione singola: solo la normalizzazione supera questa soglia minima, quindi questa soglia giudica ormai solo la forma della matrice, mai la sua dimensione."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "La soglia così come la scrive WGSL, prodotta a partire dalla costante: un numero, due linguaggi."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Prima parola del record nel pacchetto."

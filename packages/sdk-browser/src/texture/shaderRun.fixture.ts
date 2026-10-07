@@ -4,6 +4,7 @@
 import { functionsOf } from './shaderRule.fixture.ts'
 import { assigned, builtins } from './shaderRunBuiltins.fixture.ts'
 import { structZero, zeroOf } from './shaderRunStructs.fixture.ts'
+import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts'
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/
@@ -180,10 +181,10 @@ class Translator {
 }
 
 /** The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices
- *  as `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in they call
- *  (`bitcast<T>` as `bitcast_T`) by `shaderRunBuiltins.fixture.ts`, the module's bindings by
- *  `scope`, its constants they read and `scope` does not give from the text itself. */
-export function shaderRun<T>(source: string, names: string[], scope: object): T {
+ *  as `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in they call by
+ *  `shaderRunBuiltins.fixture.ts`, the bindings by `scope`, constants by it or the text. */
+export function shaderRun<T>(input: WgslSource, names: string[], scope: object): T {
+  const source = wgslSource(input)
   const text = functionsOf(source, names).replace(/bitcast<(\w+)>/g, 'bitcast_$1')
   const js = [...text.matchAll(/(?:@\w+(?:\([^)]*\))?\s*)*fn \w+\(/g)]
     .map((header, i, all) =>

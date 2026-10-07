@@ -2,6 +2,7 @@ import { COMPUTE } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -59,8 +60,8 @@ export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
 export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots)
   const top = Math.max(0, Math.max(1, layerSlots) - 1)
-  return `${DRAW_ITEM_WGSL}
-struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
+  return wgslProgram(
+    `struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read_write> instances:array<u32>;
@@ -102,7 +103,7 @@ fn slotAt(i:u32,end:u32)->u32{
  if(!selected(item)){return NO_SLOT;}
  return slotOf(i,item);
 }
-${FLAT_INDEX_WGSL}@compute @workgroup_size(64)
+@compute @workgroup_size(64)
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
  // A group of the last row past the count has no count to write.
  let group=flatIndex(wg,n,1u);
@@ -116,7 +117,7 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
   groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
  }
 }
-${LANE_SCAN_WGSL}@compute @workgroup_size(64)
+@compute @workgroup_size(64)
 fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  if(uni.count>uni.slotCap){
   for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
@@ -166,5 +167,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  let stride=uni.corners/3u;
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
-`
+`,
+    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL],
+  )
 }

@@ -4,6 +4,7 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
 } from '../../../sdk-core/src/index.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
  *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
@@ -27,7 +28,11 @@ export const RESIDENT_PROXY_BINDING = 13
  * from the fragment stage forbids early depth rejection** for the whole pipeline, because the
  * side effect must happen even when depth would discard the fragment.
  */
-export const residentProxyWgsl = (binding: number) => `
+export const residentProxyWgsl = (binding: number) =>
+  wgslBlock(
+    `residentProxyWgsl(${binding})`,
+    [],
+    `
 struct ResidentProxy{
  offsetMetres:f32,startMetres:f32,maxMetres:f32,present:f32,
  nodeCount:u32,
@@ -36,7 +41,8 @@ struct ResidentProxy{
  revision:u32,steps:u32,pad1:u32,pad2:u32,pad3:u32,
  words:array<u32>,
 }
-@group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`
+@group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`,
+  )
 
 /**
  * What a proxy node carries, and how a ray reads it: a triangle's vertices, a node's exact
@@ -50,7 +56,10 @@ struct ResidentProxy{
  * inverted box would not suffice, the plane test only sees mins and maxes.
  */
 /** Slab ray/box traversal, guard at 1e-20. */
-export const BOUNCE_NODE_WGSL = `
+export const BOUNCE_NODE_WGSL = wgslBlock(
+  'BOUNCE_NODE_WGSL',
+  [],
+  `
 const NODE_FLOATS:u32=${PROXY_NODE_FLOATS}u;
 const NODE_WORDS:u32=${PROXY_NODE_WORDS}u;
 const CHILD_WORDS:u32=${PROXY_CHILD_WORDS}u;
@@ -96,15 +105,20 @@ fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
   Box(frame.low+span*vec3f(f32(low&255u),f32((low>>8u)&255u),f32((low>>16u)&255u)),
       frame.low+span*vec3f(f32((low>>24u)&255u),f32(high&255u),f32((high>>8u)&255u))),
   proxy.words[base+2u],(high>>16u)&255u,(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
-}`
+}`,
+)
 
 /**
  * Linear albedo of a proxy triangle, unpacked from its four bytes. Split from the traversal:
  * only bounced light reads a colour, and a shader that only looks for an occluder then has
  * neither the albedo column to declare nor its buffer to bind.
  */
-export const PROXY_ALBEDO_WGSL = `
+export const PROXY_ALBEDO_WGSL = wgslBlock(
+  'PROXY_ALBEDO_WGSL',
+  [],
+  `
 fn proxyAlbedoOf(index:u32)->vec3f{
  let packed=proxyAlbedo[index];
  return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
-}`
+}`,
+)

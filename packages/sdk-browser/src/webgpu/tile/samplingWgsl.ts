@@ -6,6 +6,7 @@ import {
   WRAP_T_REPEAT,
 } from '../../visibility/wrapModes.ts'
 import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The shader side of a texture's sampling words (`sampling.ts`), inside `TILE_POOL_WGSL`
@@ -20,9 +21,11 @@ import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
  * with fewer taps than it is stretched. `tapOffset` places tap `i` of `n` on that line, for
  * the read and for the request alike.
  */
-export const SAMPLING_WGSL = `/** How one sample reads: the coordinate after the texture's transform, the line anisotropy spreads
+export const SAMPLING_WGSL = wgslBlock(
+  'SAMPLING_WGSL',
+  [SAMPLING_FOOTPRINT_WGSL],
+  `/** How one sample reads: the coordinate after the texture's transform, the line anisotropy spreads
  *  its \`taps\` over, the level, and whether texels are picked rather than mixed. */
-${SAMPLING_FOOTPRINT_WGSL}
 /** The centre of the texel a coordinate falls in, for a nearest read; the coordinate otherwise. */
 fn pickTexel(texel:vec2f,nearest:bool)->vec2f{return select(texel,floor(texel)+0.5,nearest);}
 /** One axis of a tap line folded once (\`foldLine\`): the folded centre, the direction the taps run
@@ -44,15 +47,18 @@ fn foldLine(r:TileRead,wrap:u32,size:vec2f,seam:vec2f)->FoldedLine{
  let x=foldAxis(r.uv.x,reach.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u);
  let y=foldAxis(r.uv.y,reach.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u);
  return FoldedLine(vec2f(x.x,y.x),vec2f(x.y,y.y)*x.z*y.z);
-}`
+}`,
+)
 
 /** The footprint read of atlas `k` through the texture's filter rule, and through its UV
  *  transform when it has one, whose words the transform flag alone fetches: `${k}Footprint`, the
  *  filter rule through the affine 2 × 3 matrix (`Texture.transform`), on the coordinate and on its
  *  derivatives — a zero filter word reads as the default read does —, then the taps. */
-export const samplingReadWgsl = (
-  k: string,
-) => `fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
+export const samplingReadWgsl = (k: string) =>
+  wgslBlock(
+    `samplingReadWgsl(${k})`,
+    [],
+    `fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  if((s.sampling&${SAMPLE_TRANSFORMED}u)==0u){return tileRead(s,uv,ddx,ddy,aniso);}
  let h=PAGE_HEADER+slot*PAGE_SLOT+PAGE_TRANSFORM;
  let m=mat2x2f(bitcast<f32>(${k}Pages[h]),bitcast<f32>(${k}Pages[h+1u]),bitcast<f32>(${k}Pages[h+2u]),bitcast<f32>(${k}Pages[h+3u]));
@@ -76,7 +82,8 @@ fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
   sum+=${k}Tap(s.tap,${k}Place(s,uv,level,w,nearest));
  }
  return sum/f32(n);
-}`
+}`,
+  )
 
 /**
  * Public atlas read, `name(slot, uv, ddx, ddy, sampled)`: the header is read once, then each level
@@ -114,7 +121,10 @@ export const atlasReadWgsl = (name: string, k: string, out: string, anisotropic:
 }
 `
     : ''
-  return `${taps}fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->${out}{
+  return wgslBlock(
+    `atlasReadWgsl(${name}, ${k}, ${out}, ${anisotropic})`,
+    [],
+    `${taps}fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->${out}{
  let r=${k}Footprint(slot,s,uv,ddx,ddy,${anisotropic});
 ${
   anisotropic
@@ -127,5 +137,6 @@ fn ${name}(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->${out}{
  let s=${k}Slot(slot);
  if(sampled){return ${name}Sampled(slot,s,uv,ddx,ddy);}
  return ${at}(s,uv,slotLod(s,ddx,ddy),false);
-}`
+}`,
+  )
 }

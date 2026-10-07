@@ -17,9 +17,10 @@ import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number }
-const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {})
+const { currentShare } = shaderRun<Share>(wgslSource(CURRENT_SHARE_WGSL), ['currentShare'], {})
 const MOVING = 1 / 8
 
 test('a pixel with no history takes the current sample whole', () => {
@@ -46,7 +47,7 @@ test('a sample far from its display pixel lowers its weight', () => {
 })
 
 type Cap = { historyCap: (uv: number[], coord: number[], now: number, kept: number) => number }
-const { historyCap } = shaderRun<Cap>(HISTORY_CAP_WGSL, ['historyCap'], {
+const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {
   view: { viewport: [64, 64, 1 / 64, 1 / 64] },
 })
 /** The history read `pixels` away along x from display pixel 10,10. */
@@ -75,7 +76,7 @@ function bilinear([u]: number[]) {
 /** A row's centre: the vertical taps land on it. */
 const ROW = 4.5 / 8
 type Read = { historyCatmullRom: (uv: number[]) => number[] }
-const { historyCatmullRom } = shaderRun<Read>(CATMULL_ROM_WGSL, ['historyCatmullRom'], {
+const { historyCatmullRom } = shaderRun<Read>(wgslSource(CATMULL_ROM_WGSL), ['historyCatmullRom'], {
   view: { viewport: [8, 8, 1 / 8, 1 / 8] },
   history: null,
   historySampler: null,

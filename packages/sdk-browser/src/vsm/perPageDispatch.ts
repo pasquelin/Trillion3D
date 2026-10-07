@@ -19,16 +19,19 @@ import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
 import type { VsmResources } from './resources.ts'
 import { vsmWriteChangedSlots } from './writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * Bindings of the per-page dispatch setup in `group` (0 = `vsmPerPage` dynamic uniform, 1 = `vsmPerPageIds`)
  * and the setup itself (`vsmMapWalkOf`, `vsmPagesAcross`). Needs `vsmProjectionData`.
  */
 export function vsmPerPageDispatchWgsl(group: number) {
-  return /* wgsl */ `
-@group(${group}) @binding(0) var<uniform> vsmPerPage:VsmMapWalkParams;
-@group(${group}) @binding(1) var<storage,read> vsmPerPageIds:array<u32>;
-${VSM_PER_PAGE_DISPATCH_WGSL}`
+  return wgslBlock(
+    `vsmPerPageDispatchWgsl(${group})`,
+    [VSM_PER_PAGE_DISPATCH_WGSL],
+    `@group(${group}) @binding(0) var<uniform> vsmPerPage:VsmMapWalkParams;
+@group(${group}) @binding(1) var<storage,read> vsmPerPageIds:array<u32>;`,
+  )
 }
 
 /** The layout entries of the dispatch setup's group: its slot (dynamic uniform) and the ids. */

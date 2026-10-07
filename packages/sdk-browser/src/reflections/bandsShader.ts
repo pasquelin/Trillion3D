@@ -1,11 +1,17 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { roughnessToAlpha2Chain } from '../../../math/src/wgsl/lighting.ts'
+
 /** GGX split-sum kernel moments for an order-2 radiance field.
  * With z=N.L, its normalized density is z/(1+k+(k-1)z)^2, k=roughness^4.
  * Zonal convolution multiplies bands 0/1/2 by E[1], E[z], E[(3z²-1)/2].
  * This evaluates the represented radiance, not a new ray budget or a second environment
  * representation. */
-export const REFLECTION_BANDS_WGSL = `
+export const REFLECTION_BANDS_WGSL = wgslBlock(
+  'REFLECTION_BANDS_WGSL',
+  [roughnessToAlpha2Chain],
+  `
 fn reflectionProbeBands(rough:f32)->vec3f{
- let k:f32=max(rough*rough*rough*rough,1e-8);
+ let k:f32=max(roughnessToAlpha2Chain(rough),1e-8);
  let a:f32=1.0+k;let b:f32=k-1.0;var q:f32=-b/a;
  var moments:vec3f=vec3f(0.0);
  if(q<0.25){
@@ -26,4 +32,5 @@ fn reflectionProbeBands(rough:f32)->vec3f{
   moments=vec3f(j1,j2,j3);
  }
  return vec3f(1.0,moments.y/moments.x,0.5*(3.0*moments.z/moments.x-1.0));
-}`
+}`,
+)

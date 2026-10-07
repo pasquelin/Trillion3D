@@ -10,6 +10,7 @@
  * the fog is total anyway, so no pixel reads an infinity, even with the camera deep inside.
  */
 import { FOG_MODE } from '../../../sdk-core/src/scene/core/fog.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 const LINEAR = 'clamp((law.y-d)/max(law.y-law.x,1e-6),0.0,1.0)'
 const densityAt = (height: string) => `exp(min(-law.y*(${height}-law.z),80.0))`
@@ -21,7 +22,10 @@ const LOWER = densityAt('min(eyeY,eyeY+dy)')
 
 /** `fogTransmittance`, then `fogged`: a lit colour at the world point `P` seen from `eye`, mixed
  *  into the fog of the contract buffer (`DirectLights.fog`); no fog leaves it as it is. */
-export const FOG_WGSL = `
+export const FOG_WGSL = wgslBlock(
+  'FOG_WGSL',
+  [],
+  `
 fn fogTransmittance(law:vec4f,mode:f32,d:f32,dy:f32,eyeY:f32)->f32{
  if(mode<${FOG_MODE.exponential - 0.5}){return ${LINEAR};}
  let x=abs(law.y*dy);
@@ -33,4 +37,5 @@ fn fogged(rgb:vec3f,P:vec3f,eye:vec3f)->vec3f{
  if(fog[0].w==${FOG_MODE.none}.0){return rgb;}
  let offset=P-eye;
  return mix(fog[0].rgb,rgb,fogTransmittance(fog[1],fog[0].w,length(offset),offset.y,eye.y));
-}`
+}`,
+)

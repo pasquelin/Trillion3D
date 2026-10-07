@@ -12,10 +12,12 @@ import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
 import { ROW_DASH_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 type Dash = (at: number, dash: number[]) => boolean
 const DASHES: Record<string, Dash> = {
-  wgsl: runShaderText<boolean>(LINE_DASH_WGSL),
+  wgsl: runShaderText<boolean>(wgslSource(LINE_DASH_WGSL)),
   cpu: (at, [dashSize, gapSize]) => lineDash(at, dashSize, gapSize),
 }
 
@@ -57,10 +59,10 @@ for (const [language, run] of Object.entries(DASHES))
 // Every path cuts its gaps with that text, at the distance the first coordinate carries.
 test('every path that draws a line reads the dash, and a solid surface keeps every pixel', () => {
   // Both WebGPU rasters and the shadow cut through `maskKeep`, which a dashed row enters.
-  assert.ok(PAGE_GEOMETRY_WGSL.includes(LINE_DASH_WGSL))
-  assert.match(PAGE_INFO_STRUCT_WGSL, /packedBase:u32,dash:vec2f,clusterHash/)
+  assert.ok(wgslModule(PAGE_GEOMETRY_WGSL).includes(LINE_DASH_WGSL.text))
+  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /packedBase:u32,dash:vec2f,clusterHash/)
   assert.equal(ROW_DASH_WORD, 28, 'the row words of PageInfo.dash')
-  const keep = MASK_KEEP_WGSL.replace(/\s+\/\/[^\n]*/g, '')
+  const keep = wgslSource(MASK_KEEP_WGSL).replace(/\s+\/\/[^\n]*/g, '')
   assert.ok(
     keep.includes(
       ' if((page.flags&128u)==0u){return true;}\n if(!lineDash(uv.x,page.dash)){return false;}\n if(page.baseColor.w<=0.0){return true;}',
@@ -70,9 +72,9 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,').length, 2)
   assert.ok(rasterSource(4, 16).includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
   // The transparent pass.
-  assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL))
+  assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL.text))
   assert.match(
-    BLEND_ITEM_WGSL,
+    wgslSource(BLEND_ITEM_WGSL),
     /emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,physical:u32,\}/,
   )
   assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);'))

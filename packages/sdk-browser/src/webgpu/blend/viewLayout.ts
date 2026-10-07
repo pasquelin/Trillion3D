@@ -1,4 +1,5 @@
 import { fieldLayout } from './fieldLayout.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The transparent pass's view uniform (`uniforms.ts`), the water composite's too
@@ -30,4 +31,4 @@ export const VIEW = LAYOUT.at
 /** The view's bytes: what its buffer, its words and its binding are sized at. */
 export const BLEND_VIEW_SIZE = LAYOUT.words * 4
 /** WGSL declaration of the view, made of its table. */
-export const BLEND_VIEW_WGSL = LAYOUT.wgsl
+export const BLEND_VIEW_WGSL = wgslBlock('BLEND_VIEW_WGSL', [], LAYOUT.wgsl)

@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * Page table addressing and lookup: the page handle, the page access and the projection sampling.
  *
@@ -18,7 +20,10 @@
  */
 
 /** The shadow map handle: its id and whether it is a single-page map. */
-export const VSM_HANDLE_WGSL = /* wgsl */ `
+export const VSM_HANDLE_WGSL = wgslBlock(
+  'VSM_HANDLE_WGSL',
+  [],
+  `
 struct VsmHandle{id:u32,isSinglePage:bool,}
 fn vsmHandleFromId(id:u32)->VsmHandle{return VsmHandle(id,id<VSM_SINGLE_PAGE_MAP_SLOTS);}
 fn vsmHandleFromIdDirectional(id:u32)->VsmHandle{return VsmHandle(id,false);}
@@ -26,10 +31,14 @@ fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu,false);}
 /** Signed offset; keeps the single-page bit of the source handle . */
 fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return VsmHandle(u32(i32(h.id)+offset),h.isSinglePage);}
 fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
-`
+`,
+)
 
 /** Page-address arithmetic and the buffer linearisation of the 2D tables. */
-export const VSM_PAGE_ADDRESS_WGSL = /* wgsl */ `
+export const VSM_PAGE_ADDRESS_WGSL = wgslBlock(
+  'VSM_PAGE_ADDRESS_WGSL',
+  [],
+  `
 fn vsmLog2PagesAtLevel(level:u32)->u32{return VSM_LOG2_LEVEL0_PAGES-level;}
 fn vsmPagesAtLevel(level:u32)->u32{return 1u<<vsmLog2PagesAtLevel(level);}
 fn vsmTexelsAtLevel(level:u32)->u32{return VSM_LEVEL0_TEXELS>>level;}
@@ -119,10 +128,14 @@ fn vsmPageMarkInBounds(t:vec2u,m:u32)->bool{return all(t<(vsm.pageTableSize>>vec
 /** Linear index of receiver-cover texel at mip m (2x the page table resolution at mip 0). */
 fn vsmCoverIndex(t:vec2u,m:u32)->u32{return vsmCoverMipOffset(m)+t.y*(vsm.coverSize.x>>m)+t.x;}
 fn vsmCoverInBounds(t:vec2u,m:u32)->bool{return all(t<(vsm.coverSize>>vec2u(m)));}
-`
+`,
+)
 
 /** Page lookups. Needs `vsmPageTableLoad(index:u32)->u32` (emitted by `vsmBindingsWgsl`). */
-export const VSM_PAGE_LOOKUP_WGSL = /* wgsl */ `
+export const VSM_PAGE_LOOKUP_WGSL = wgslBlock(
+  'VSM_PAGE_LOOKUP_WGSL',
+  [],
+  `
 /** The entry's word, undecoded: what a reader keeps to decode it again. */
 fn vsmTableWord(o:VsmTableCell)->u32{return vsmPageTableLoad(vsmTableIndex(o.tableXY));}
 fn vsmTableEntryAtOffset(o:VsmTableCell)->VsmTableEntry{return vsmUnpackTableEntry(vsmTableWord(o));}
@@ -145,11 +158,16 @@ fn vsmLocalPageAt(h:VsmHandle,mapUvAt:vec2f,finestMip:u32)->VsmLocalPage{
  r.poolTexel=e.physicalAddress*VSM_PAGE_TEXELS+(r.mapTexelXY&vec2u(VSM_PAGE_TEXEL_MASK));
  return r;
 }
-`
+`,
+)
 
 /** A 2x2 gather as `name` over one table (its bounds test, loader and index): the 2x2
  *  texels at hierarchical mip pyramidMip in the order (-,+), (+,+), (+,-), (-,-), out-of-range ones 0. */
-const gatherWgsl = (name: string, inBounds: string, load: string, index: string) => `
+const gatherWgsl = (name: string, inBounds: string, load: string, index: string) =>
+  wgslBlock(
+    `gatherWgsl(${name})`,
+    [],
+    `
 fn ${name}(texelCoord:vec2u,pyramidMip:u32)->vec4u{
  let t=texelCoord>>vec2u(pyramidMip);
  var a=array<vec2u,4>(vec2u(t.x,t.y+1u),vec2u(t.x+1u,t.y+1u),vec2u(t.x+1u,t.y),t);
@@ -158,24 +176,26 @@ fn ${name}(texelCoord:vec2u,pyramidMip:u32)->vec4u{
   if(${inBounds}(a[k],pyramidMip)){r[k]=${load}(${index}(a[k],pyramidMip));}
  }
  return r;
-}`
+}`,
+  )
 
 /**
  * The 2x2 gather over the page marks (out-of-range texels read 0).
  * Needs `vsmPageMarksLoad(index:u32)->u32`.
  */
-export const VSM_PAGE_MARKS_GATHER_WGSL = /* wgsl */ `${gatherWgsl('vsmGatherPageMarks', 'vsmPageMarkInBounds', 'vsmPageMarksLoad', 'vsmPageMarkIndex')}
-fn vsmPageMarkWord(o:VsmTableCell)->u32{return vsmPageMarksLoad(vsmPageMarkIndex(o.tableXY,0u));}
-`
+export const VSM_PAGE_MARKS_GATHER_WGSL = wgslBlock(
+  'VSM_PAGE_MARKS_GATHER_WGSL',
+  [gatherWgsl('vsmGatherPageMarks', 'vsmPageMarkInBounds', 'vsmPageMarksLoad', 'vsmPageMarkIndex')],
+  `fn vsmPageMarkWord(o:VsmTableCell)->u32{return vsmPageMarksLoad(vsmPageMarkIndex(o.tableXY,0u));}
+`,
+)
 
 /** The same gather over the receiver covers. Needs `vsmReceiverCoverLoad(index:u32)->u32`. */
-export const VSM_COVER_GATHER_WGSL = /* wgsl */ `${gatherWgsl(
-  'vsmGatherCover',
-  'vsmCoverInBounds',
-  'vsmReceiverCoverLoad',
-  'vsmCoverIndex',
-)}
-`
+export const VSM_COVER_GATHER_WGSL = wgslBlock(
+  'VSM_COVER_GATHER_WGSL',
+  [gatherWgsl('vsmGatherCover', 'vsmCoverInBounds', 'vsmReceiverCoverLoad', 'vsmCoverIndex')],
+  ``,
+)
 
 /**
  * The shared structs. Their WGSL storage layout is the host's stride:
@@ -183,7 +203,10 @@ export const VSM_COVER_GATHER_WGSL = /* wgsl */ `${gatherWgsl(
  * mipLevel 12, pageAddress 16), VsmNextMap 16 bytes (flags 0, nextMapId 4,
  * pageShift 8).
  */
-export const VSM_STRUCTS_WGSL = /* wgsl */ `
+export const VSM_STRUCTS_WGSL = wgslBlock(
+  'VSM_STRUCTS_WGSL',
+  [],
+  `
 struct VsmPoolPageInfo{
  flags:u32,
  lastWantedStamp:u32,
@@ -203,4 +226,5 @@ fn vsmLocalMipLevel(footprint:f32,mapBias:f32,pressureBias:f32,extraBias:f32)->u
  mipLevel=min(mipLevel,VSM_MIPS-1u);
  return mipLevel;
 }
-`
+`,
+)

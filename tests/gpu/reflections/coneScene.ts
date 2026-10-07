@@ -6,9 +6,11 @@
 // pyramid, the hit and each mip level's colour, as the WebGPU adapter defines them on textures
 // (`screenWgsl.ts`, `coneWgsl.ts`); the walks, the cone and the bands are the engine's text.
 import { REFLECTION_BANDS_WGSL } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts'
-import { SCREEN_TRACE_WGSL } from '../../../packages/sdk-browser/src/reflections/traceShader.ts'
+import { screenTraceWgsl } from '../../../packages/sdk-browser/src/reflections/traceShader.ts'
 import { REFLECTION_CONE_TRACE_WGSL } from '../../../packages/sdk-browser/src/reflections/coneShader.ts'
 import { REFLECTION_CONE_FILTER_WGSL } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { wgslFn } from '../../../packages/math/src/wgsl/decl.ts'
 
 /** The image's side, in pixels, and its mip levels above the pixels: 32, 16, … 1. */
 const SIDE = 64
@@ -17,21 +19,22 @@ const LEVELS = Math.log2(SIDE)
 /** Rows the proof dispatches, one invocation each: what each row traces is read in `main`. */
 export const CONE_ROWS = 75
 
-export const CONE_SCENE_WGSL = `
+/** The plane's depth and the image's size, as the walks read them (`ReflectionDepthRead`). */
+const SCENE_DEPTH = {
+  depthAt: wgslFn('reflectionDepthAt', [], 'fn reflectionDepthAt(p:vec2i)->f32{return 0.2;}'),
+  size: wgslFn('reflectionSize', [], `fn reflectionSize()->vec2f{return vec2f(${SIDE}.0);}`),
+}
+
+export const CONE_SCENE_WGSL = wgslProgram(
+  `
 fn reflectionProject(p:vec4f)->vec4f{return p;}
-fn reflectionSize()->vec2f{return vec2f(${SIDE}.0);}
 fn reflectionLastMip()->f32{return ${LEVELS}.0;}
 fn reflectionBoundsLevels()->i32{return ${LEVELS};}
-fn reflectionDepthAt(p:vec2i)->f32{return 0.2;}
 fn reflectionHitAt(p:vec2i)->vec4f{return vec4f(1.0,(f32(p.x)+0.5)/${SIDE}.0,0.0,1.0);}
 fn reflectionBoundsAt(p:vec2i,level:i32)->vec2f{return vec2f(0.2);}
 fn reflectionMipColorAt(p:vec2i,level:i32)->vec4f{
  return vec4f(1.0,(f32(p.x)+0.5)*exp2(f32(level))/${SIDE}.0,f32(level),1.0);
 }
-${SCREEN_TRACE_WGSL}
-${REFLECTION_CONE_FILTER_WGSL}
-${REFLECTION_CONE_TRACE_WGSL}
-${REFLECTION_BANDS_WGSL}
 @group(0) @binding(0) var<storage,read_write> output:array<vec4f>;
 @group(0) @binding(1) var<storage,read> inputs:array<vec4f>;
 @group(0) @binding(2) var<storage,read_write> control:array<vec4u>;
@@ -51,7 +54,14 @@ ${REFLECTION_BANDS_WGSL}
  }
  output[index]=value;
  control[index].w=1u;
-}`
+}`,
+  [
+    screenTraceWgsl(SCENE_DEPTH),
+    REFLECTION_CONE_FILTER_WGSL,
+    REFLECTION_CONE_TRACE_WGSL,
+    REFLECTION_BANDS_WGSL,
+  ],
+)
 
 /** The rows that do not trace row 1's receiver: 3 exits the view, 4 lies nearer the plane, 5 mirrors
  *  row 1's direction across x. */

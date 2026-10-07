@@ -1,4 +1,5 @@
 import { PROXY_GROUP_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Owner a hit on a posed leaf reports: its triangle stands at its pose, no owner word is read. */
 const PROXY_POSED_OWNER = 0xfffffffe
@@ -6,7 +7,10 @@ const PROXY_POSED_OWNER = 0xfffffffe
 /** Owner transforms share the traversal binding, never one expanded geometry per instance. Each
  *  triangle is posed or owned by its leaf (`proxyLeaves.ts`); a ray carries that as its owner, so
  *  every helper below tests the same thing: `owner==PROXY_POSED`. */
-export const PROXY_OWNER_WGSL = `
+export const PROXY_OWNER_WGSL = wgslBlock(
+  'PROXY_OWNER_WGSL',
+  [],
+  `
 const PROXY_POSED:u32=${PROXY_POSED_OWNER}u;
 const PROXY_GROUP_OWNED:u32=${PROXY_GROUP_OWNED}u;
 /** Visited nodes per ray: the built tree's bound plus every node a refit let into a ray. */
@@ -49,4 +53,5 @@ fn proxyOwnerAlbedo(owner:u32)->vec3f{
  if(owner==PROXY_POSED){return vec3f(0.0);}
  let packed=proxy.words[proxy.ownersWord+owner*2u+1u];
  return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
-}`
+}`,
+)

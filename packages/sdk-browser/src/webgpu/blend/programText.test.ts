@@ -1,20 +1,23 @@
 // The transparent programs' text, character for character, over every variant: the blend vertex
-// stage lobed and lobeless, the blend module and the water composite under every contract key (and
-// the composite bounded and unbounded). The templates were split into named parts (`vertexWgsl.ts`,
-// `shader.ts`, `../water/waterColorWgsl.ts`); the digests were taken on the split, whose text was
-// checked byte for byte against the single templates'. A deliberate change to any WGSL these
-// programs include takes new digests.
+// stage lobed and lobeless, the blend module and the water composite under every contract key (the
+// composite bounded and unbounded), 194 texts. The digests pin the texts the WGSL library writes,
+// which differ from the former templates' only where a library call took the place of an
+// expression. That equivalence was established once, on all 194 texts against the former ones: each
+// call inlined, its constants written as f32, parentheses kept wherever they set association, the
+// two texts matched declaration by declaration. A deliberate change to any WGSL these programs
+// include takes new digests.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { blendVertexWgsl } from './vertexWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { blendShader } from './shader.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
-const VERTEX = '629ec43f6a4704011026651d0d1e9fc2032e532ea73fd50c7137149c49afeaeb'
-const BLEND = 'f3dac408fc9ed201941df1f96fb6825d48dd5557335625f9bfa1b5bd82f10731'
-const WATER = '48830b25359d71d20ab2398db27d41f5b635862a216ac1eb39d28efb75d19708'
+const VERTEX = '9fff4b908b2605e991ef2e27d7abdf1bdf1314d1c656ff09311c40736c3424e6'
+const BLEND = '77c36a75ba06a8dee5c1695b1789c379ddac62cf28458b28bc1a63edbac2a535'
+const WATER = '1db9de74f4cc6994d3acf93f91c658d159e99d894e92933cac01ea2417448dbd'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
@@ -31,7 +34,7 @@ const digest = (texts: string[]) => {
 }
 
 test('the blend vertex stage emits the same text, lobed and lobeless', () => {
-  assert.equal(digest([true, false].map((lobes) => blendVertexWgsl(lobes))), VERTEX)
+  assert.equal(digest([true, false].map((lobes) => wgslModule(blendVertexWgsl(lobes)))), VERTEX)
 })
 
 test('the blend module emits the same text under every contract key', () => {

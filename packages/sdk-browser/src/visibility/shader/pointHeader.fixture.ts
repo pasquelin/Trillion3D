@@ -82,7 +82,7 @@ const DECODE = [
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
   'clusterSurfaceHeader clusterStream clusterWidths clusterStep clusterPow2 clusterBitsFor',
   'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition clusterGrid',
-  'clusterUv clusterNormal clusterColor',
+  'clusterUv clusterNormal clusterColor octDecodeScalar',
 ].flatMap((line) => line.split(' '))
 /** Column-major 4×4 product, which `shaderRun`'s operators leave to the scope. */
 const product = (a: readonly number[], b: readonly number[]) =>
@@ -108,6 +108,7 @@ export const cameraViewProj = (zoom: number) =>
 /** The camera vertex stages and what they call beside the decode, and the scope they read. */
 export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow'].concat(
   ['instanceCorner', 'hardwareIdle', 'hardwareCorner', 'pageClip', 'computeTakes', 'screen'],
+  ['clipToPixel'],
   ['screenBox', 'boxOf', 'pageLine', 'lineClip'],
 )
 export const VIS_VS_SCOPE = {

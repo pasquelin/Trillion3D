@@ -1,3 +1,4 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /**
  * DOUBLE-PRECISION ARITHMETIC ON THE GPU, IN INTEGERS.
  *
@@ -16,7 +17,10 @@
  * is where the order ranks a NaN key (`paintOrder.ts`, `precedes`). The other keys are squares and
  * sums of squares, never negative, so their bits compare as the numbers do.
  */
-export const DOUBLE_WGSL = `
+export const DOUBLE_WGSL = wgslBlock(
+  'DOUBLE_WGSL',
+  [],
+  `
 fn dNan()->vec2u{return vec2u(0xffffffffu,0xffffffffu);}
 fn dExponent(a:vec2u)->u32{return (a.x>>20u)&0x7ffu;}
 fn dIsNan(a:vec2u)->bool{return dExponent(a)==0x7ffu&&((a.x&0xfffffu)|a.y)!=0u;}
@@ -194,4 +198,5 @@ fn dDiv(a:vec2u,b:vec2u)->vec2u{
  if((x.x|x.y)!=0u){q.y=q.y|1u;}
  return dRound(sign,scale,q);
 }
-`
+`,
+)

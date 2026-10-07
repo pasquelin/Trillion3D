@@ -1,4 +1,7 @@
+import { InvT3, invTranspose3Prep } from '../../../../../math/src/wgsl/inverseTranspose.ts'
+import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { PRIMITIVE_VEC4 } from '../types.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * What a camera cut derives once per primitive and frame, not once per node or page it visits.
@@ -12,7 +15,10 @@ import { PRIMITIVE_VEC4 } from '../types.ts'
  * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own.
  * Each camera expression keeps its operands and order.
  */
-export const DAG_PRIMITIVE_WGSL = `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
+export const DAG_PRIMITIVE_WGSL = wgslBlock(
+  'DAG_PRIMITIVE_WGSL',
+  [InvT3, worldMatrix3, invTranspose3Prep],
+  `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
 /** Offsets inside a primitive's values: the two \`view · world\`, the normal matrix, the planes ahead. */
 const CAMERA_E:u32=0u;const AHEAD_E:u32=4u;const NORMAL:u32=8u;const AHEAD_PLANES:u32=11u;
 /** First vec4 of primitive \`w\`'s values, behind the range's row of slots. Camera cut only. */
@@ -36,7 +42,7 @@ fn aheadPlanes(w:u32)->u32{return primitiveBase(w)+AHEAD_PLANES;}
 fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
  let at=primitiveBase(w);
  putMatrix(at+CAMERA_E,views[0u].view*world);
- let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);let n=invTranspose3Prep(m);
+ let m=worldMatrix3(world);let n=invTranspose3Prep(m);
  frames[at+NORMAL]=vec4f(n.adj[0],n.scale);
  frames[at+NORMAL+1u]=vec4f(n.adj[1],select(0.0,1.0,n.regular));
  frames[at+NORMAL+2u]=vec4f(n.adj[2],select(0.0,1.0,isConformal(m)));
@@ -44,4 +50,5 @@ fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
  putMatrix(at+AHEAD_E,views[AHEAD_VIEW].view*world);
  putPlanes(at+AHEAD_PLANES,t,AHEAD_VIEW,open);
 }
-`
+`,
+)

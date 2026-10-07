@@ -1,4 +1,6 @@
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { uvToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
 
 /**
  * A column of the light grid and the run of its cells a light's range meets:
@@ -17,7 +19,10 @@ import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
  * meets. Its two ends are the one test of a light against the cells of its column: the cells between
  * them need none.
  */
-export const GRID_BOUNDS_WGSL = `/** The steps each end of a light's run takes toward its sphere. */
+export const GRID_BOUNDS_WGSL = wgslBlock(
+  'GRID_BOUNDS_WGSL',
+  [uvToNdc, unprojectPoint],
+  `/** The steps each end of a light's run takes toward its sphere. */
 const NEWTON_STEPS:u32=4u;
 /** The factors a run's front and back depth are widened by: never the neighbour's slice by a
  *  rounding of the depth a pixel reads. */
@@ -29,16 +34,12 @@ const RUN_BACK:f32=${1 - 1 / 1024};
 const COLUMN_DEPTH:f32=${DEPTH_NEAR / 1024};
 struct Edge{at:f32,slope:f32,}
 struct Column{planes:array<vec4f,5>,across:vec3f,down:vec3f,into:vec3f,edges:array<Edge,4>,near:f32,}
-fn unproject(ndc:vec3f)->vec3f{
- let point=view.inverseViewProjection*vec4f(ndc,1.0);
- return point.xyz/point.w;
-}
 /** World position of a column's corner — bit 0 picks the right edge, bit 1 the bottom — at depth z. */
 fn cellCorner(cell:vec2u,corner:u32,z:f32)->vec3f{
  let size=view.viewport.xy;
  let x=select(f32(cell.x*TILE_SIZE)/size.x,min(f32((cell.x+1u)*TILE_SIZE)/size.x,1.0),(corner&1u)!=0u);
  let y=select(f32(cell.y*TILE_SIZE)/size.y,min(f32((cell.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
- return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
+ return unprojectPoint(view.inverseViewProjection,vec3f(uvToNdc(vec2f(x,y)),z));
 }
 /** Plane through \`point\` along \`normal\`, turned so that \`inside\` is on its positive side. */
 fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
@@ -125,4 +126,5 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  }
  if(!(lo<=hi)){return vec2u(1u,0u);}
  return vec2u(depthAt(column,centre,lo,RUN_FRONT),depthAt(column,centre,hi,RUN_BACK));
-}`
+}`,
+)

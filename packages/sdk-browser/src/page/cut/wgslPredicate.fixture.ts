@@ -1,3 +1,4 @@
+import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 /**
  * Runs WGSL expressions in Node, as written: the kernel's rule (`fn name(…)->T{return <e>;}`) and
  * the call sites that feed it, so what runs is the WGSL text itself, never a second copy of it.
@@ -153,13 +154,13 @@ const CAST: Record<string, (value: Value) => Value> = {
  * from its buffers, uniforms and locals. A host function stands for a WGSL one only where the
  * source has none of that name.
  */
-export function wgslScope(source: string, host: Env = {}) {
+export function wgslScope(source: WgslSource, host: Env = {}) {
   const functions = new Map<string, Callable>()
   const call = (name: string): Callable => {
     const known = functions.get(name)
     if (known) return known
     const match = new RegExp(`fn ${name}\\(([^)]*)\\)->(\\w+)\\{\\s*return ([^;]+);\\s*\\}`).exec(
-      source,
+      wgslSource(source),
     )
     if (!match) {
       const bound = host[name]
@@ -196,4 +197,4 @@ export function wgslScope(source: string, host: Env = {}) {
 }
 
 /** A pure WGSL predicate of `source`, called with its arguments: the rule as the kernel runs it. */
-export const wgslPredicate = (source: string, name: string) => wgslScope(source).fn(name)
+export const wgslPredicate = (source: WgslSource, name: string) => wgslScope(source).fn(name)

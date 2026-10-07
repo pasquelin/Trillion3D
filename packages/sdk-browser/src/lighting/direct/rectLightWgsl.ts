@@ -1,7 +1,16 @@
 import { LIGHT_KIND } from '../../../../sdk-core/src/index.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts'
+import { INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import {
+  f0Of,
+  lambertAlbedoMul,
+  ndotvClamped,
+  splitSumTerm,
+} from '../../../../math/src/wgsl/lighting.ts'
+import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
+import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
 
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
@@ -27,7 +36,10 @@ import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts'
  * The range windows the energy exactly like a point light's, from the centre, so that the
  * tile lists that cull by the range sphere stay exact.
  */
-export const RECT_LIGHT_WGSL = `
+export const RECT_LIGHT_WGSL = wgslBlock(
+  'RECT_LIGHT_WGSL',
+  [INVERSE_TWO_PI, PI],
+  `
 const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
 fn isRect(light:DirectLight)->bool{return abs(light.params.x-KIND_RECT)<0.5;}
 /** One edge's term of the vector form factor, seen from the point: the edge from p along e, of
@@ -65,7 +77,7 @@ fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
  }
  // Wound either way, the polygon's F faces it, F·up its form factor: both read the sign. The
  // 1/2π scales the form factor alone: the direction drops it.
- let E=dot(F,up)*${INVERSE_TWO_PI};let ll=dot(F,F);
+ let E=dot(F,up)*INVERSE_TWO_PI;let ll=dot(F,F);
  if(!(ll>0.0)){return vec4f(0.0);}
  return vec4f(F*(sign(E)*inverseSqrt(ll)),abs(E));
 }
@@ -86,25 +98,31 @@ fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{return rectIrradianc
 fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  if(r.window<=0.0){return vec4f(0.0);}
  let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
- return vec4f(f.xyz,${PI}*f.w*r.window);
-}`
+ return vec4f(f.xyz,PI*f.w*r.window);
+}`,
+)
 
 /** The rectangle's fitted lobe at (roughness, cos θ_v): bilinear over the table's cells, texel
  *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`). */
-const LTC_WGSL = `
+const LTC_WGSL = wgslBlock(
+  'LTC_WGSL',
+  [],
+  `
 const LTC_SIZE:u32=${LTC_SIZE}u;
 fn ltcTexel(x:u32,y:u32,k:u32)->vec4f{return directLights.ltc[(y*LTC_SIZE+x)*2u+k];}
 fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  let at=vec2f(clamp(rough,0.0,1.0),sqrt(clamp(1.0-NdotV,0.0,1.0)))*f32(LTC_SIZE-1u);
  let i=min(vec2u(at),vec2u(LTC_SIZE-2u));let f=at-vec2f(i);
- let low=mix(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1u,i.y,k),f.x);
- return mix(low,mix(ltcTexel(i.x,i.y+1u,k),ltcTexel(i.x+1u,i.y+1u,k),f.x),f.y);
-}`
+ return bilinear4(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1u,i.y,k),ltcTexel(i.x,i.y+1u,k),ltcTexel(i.x+1u,i.y+1u,k),f);
+}`,
+)
 
 /** The shading of a rectangle at a surface point, colour and intensity included: the diffuse of
  *  its exact irradiance, the specular of its fitted lobe. */
-export const RECT_SHADING_WGSL = `
-${LTC_WGSL}
+export const RECT_SHADING_WGSL = wgslBlock(
+  'RECT_SHADING_WGSL',
+  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, bilinear4, LTC_WGSL],
+  `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
  let x=dot(q,T1);let z=dot(q,N);
@@ -114,13 +132,13 @@ fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
  *  radiance and before its range window: the polygon of its view \`r\` moved by M⁻¹ in the frame of
  *  the normal and the view, integrated, weighed by the lobe's magnitude and Fresnel share. */
 fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
- let NdotV=clamp(dot(N,V),1e-4,1.0);
+ let NdotV=ndotvClamped(N,V);
  let side=V-N*dot(N,V);
- let other=cross(N,select(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),abs(N.x)>0.9));
+ let other=tangentSide(N);
  let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
  let m=ltcLookup(rough,NdotV,0u);let t=ltcLookup(rough,NdotV,1u);
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
- return (f0*t.x+(vec3f(1.0)-f0)*t.y)*lobe;
+ return splitSumTerm(f0,t)*lobe;
 }
 fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let r=rectView(light,P);
@@ -133,9 +151,10 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
  // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
  // bounded by π, as a lamp's energy is by its falloff.
  if(surfaceModel==${MODEL_FLAG.toon}u){
-  let facing=light.colorIntensity.w*${PI}*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
+  let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint;
  }
- let specular=rectLtc(r,N,V,mix(DIELECTRIC_F0,rgb,metal),rough)*light.colorIntensity.w*r.window;
- return (rgb*(1.0-metal)*${INVERSE_PI}*E+specular)*tint;
-}`
+ let specular=rectLtc(r,N,V,f0Of(rgb,metal),rough)*light.colorIntensity.w*r.window;
+ return (lambertAlbedoMul(rgb,metal)*E+specular)*tint;
+}`,
+)

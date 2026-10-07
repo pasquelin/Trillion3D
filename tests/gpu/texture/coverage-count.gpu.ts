@@ -4,8 +4,9 @@
 // on level 0 and on reduced levels.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import { LEVEL_BIN_BYTES } from '../../../packages/sdk-browser/src/texture/coverageMips.ts'
-import { COVERAGE_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
+import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
@@ -121,10 +122,11 @@ async function countBins({ texts, cases }: { texts: string[]; cases: CountCase[]
 }
 
 test('the workgroup-memory count gives the bins of four direct reads a texel', async () => {
-  assert.ok(COVERAGE_WGSL.includes(SHARED), 'the shipped count reads its workgroup’s alphas')
+  const program = wgslModule(COVERAGE_COUNT_WGSL)
+  assert.ok(program.includes(SHARED), 'the shipped count reads its workgroup’s alphas')
   const cases = countCases()
   const { adapter, bins, errors } = await runOnDawn(countBins, {
-    texts: [COVERAGE_WGSL.replace(SHARED, DIRECT), COVERAGE_WGSL],
+    texts: [program.replace(SHARED, DIRECT), program],
     cases,
   })
   console.log(JSON.stringify({ adapter, cases: cases.length }))

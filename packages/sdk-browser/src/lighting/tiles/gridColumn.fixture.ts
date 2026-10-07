@@ -8,6 +8,7 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { GRID_COMPACT_WGSL } from './compactWgsl.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const W = { ...wgslConstants(directLightWgsl()), ...wgslConstants(GRID_COMPACT_WGSL) }
 export const { GRID_SLICES, TILE_SHADOWED, TILE_NO_SLICE, LANES, CACHE } = W
@@ -68,7 +69,7 @@ function workgroup(pool: Pool, words: Map<number, number>) {
     cache: [] as number[][],
   }
   const tiles = new Proxy([], { set: (_, at, value) => (words.set(Number(at), value), true) })
-  const source = GRID_COMPACT_WGSL.replace(SCALARS, 'ws.$1')
+  const source = wgslSource(GRID_COMPACT_WGSL).replace(SCALARS, 'ws.$1')
   const fns = shaderRun<Record<string, (...args: never[]) => never>>(source, [...NAMES, ...ROOM], {
     ...W,
     ...memory,

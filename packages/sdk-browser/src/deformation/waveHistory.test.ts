@@ -95,5 +95,5 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
       false,
     )
   }
-  assert.match(DEFORM_WGSL, /a\.world\+=select\(0u,32u,previous\)/)
+  assert.match(DEFORM_WGSL.text, /a\.world\+=select\(0u,32u,previous\)/)
 })

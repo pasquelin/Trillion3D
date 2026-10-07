@@ -16,12 +16,16 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { shadedLightScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 // The program without lobe code; the lobed one's pair is `lobedPair.test.ts`'s.
 const WATER = waterCompositeShader(false, { lobeless: true })
-const SINGLE = `${declaredLightingWgsl({ proxy: 13, transmittance: 18 })}${STANDARD_LIGHTING_WGSL}`
+const SINGLE = wgslModule(
+  declaredLightingWgsl({ proxy: 13, transmittance: 18 }),
+  STANDARD_LIGHTING_WGSL,
+)
 const K = wgslConstants(WATER)
 const SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
 const SHADING = [
@@ -31,7 +35,12 @@ const SHADING = [
   'fresnelSchlick',
   'ggxDistribution',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
+  // The maths library's, which the lobe calls.
+  'ndotvFloor',
+  'f0Of',
+  'lambertAlbedo',
 ]
 
 const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   cellWeights,
   octDecode,
@@ -14,11 +15,11 @@ import {
 } from '../../../../sdk-core/src/impostor/octahedron.fixture.ts'
 
 /** The card's functions, as the software harness runs them. */
-const shaderOf = (name: string) => functionsOf(IMPOSTOR_CARD_WGSL, [name])
-const impSide = runShaderText<number>(shaderOf('impSide'))
+const shaderOf = (name: string) => functionsOf(wgslModule(IMPOSTOR_CARD_WGSL), [name])
+const octSide = runShaderText<number>(shaderOf('octSide'))
 const run = {
-  encode: runShaderText<number[]>(shaderOf('impOctEncode'), { impSide }),
-  decode: runShaderText<number[]>(shaderOf('impOctDecode'), { impSide }),
+  encode: runShaderText<number[]>(shaderOf('octEncodeHemi'), { octSide }),
+  decode: runShaderText<number[]>(shaderOf('octDecodeHemi'), { octSide }),
   weights: runShaderText<number[]>(shaderOf('impWeights')),
 }
 

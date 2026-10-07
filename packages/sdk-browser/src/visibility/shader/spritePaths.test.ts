@@ -14,6 +14,7 @@ import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
 import { ROW_SPRITE_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('a surface writes its sprite words: its turn and its size rule, zeros when it is none', () => {
   const words = [9, 9, 9, 9]
@@ -26,18 +27,21 @@ test('a surface writes its sprite words: its turn and its size rule, zeros when 
 })
 
 test('every raster turns a sprite page, the shadow vertex stage is as before', () => {
-  assert.match(PAGE_INFO_STRUCT_WGSL, /normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32/)
+  assert.match(
+    wgslSource(PAGE_INFO_STRUCT_WGSL),
+    /normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32/,
+  )
   assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite')
-  assert.ok(PAGE_SCREEN_WGSL.includes(SPRITE_WGSL))
+  assert.ok(wgslSource(PAGE_SCREEN_WGSL).includes(SPRITE_WGSL.text))
   // The compute raster and the hardware skip test read `pageClip`, which turns a sprite page.
   assert.ok(
-    PAGE_SCREEN_WGSL.includes(
+    wgslSource(PAGE_SCREEN_WGSL).includes(
       ' if(page.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex));}\n let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);',
     ),
   )
   // The one text, not a name some pass declares its own way: the name sweep proves only a name.
   for (const shader of [rasterSource(4, 16), VIS_SHADER, SHADE_SHADER])
-    assert.ok(shader.includes(PAGE_SCREEN_WGSL))
+    assert.ok(shader.includes(PAGE_SCREEN_WGSL.text))
   assert.ok(rasterSource(4, 16).includes('let ca=pageClip(vp,page,h,ia);'))
   // Both hardware vertex stages, after the untouched triangle and line expressions.
   const hardware =
@@ -53,10 +57,10 @@ test('every raster turns a sprite page, the shadow vertex stage is as before', (
 
 test('the transparent pass turns a sprite with the shared text', () => {
   assert.match(
-    BLEND_ITEM_WGSL,
+    wgslSource(BLEND_ITEM_WGSL),
     /dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,physical:u32,\}/,
   )
-  assert.ok(BLEND_SHADER.includes(SPRITE_WGSL))
+  assert.ok(BLEND_SHADER.includes(SPRITE_WGSL.text))
   assert.ok(
     BLEND_SHADER.includes(
       ' out.position=uni.viewProj*world;out.view=world.xyz;\n // A line quad widens on screen',

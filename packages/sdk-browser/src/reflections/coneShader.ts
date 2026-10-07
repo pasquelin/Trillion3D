@@ -1,4 +1,6 @@
 import { REFLECTION_SEGMENT } from './traceShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { tangentAround } from '../../../math/src/wgsl/basis.ts'
 
 /** Screen-space cone tracing.
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -12,7 +14,10 @@ import { REFLECTION_SEGMENT } from './traceShader.ts'
  * level up, coarse to fine as a depth pyramid's walk, but only where that stretch outruns a cell of
  * the cone's own level; a block that holds something is not tried again before the axis leaves it.
  * `reflectionConeSection`: the section at fraction `t`, its footprint in pixels and depth spread. */
-export const REFLECTION_CONE_TRACE_WGSL = `
+export const REFLECTION_CONE_TRACE_WGSL = wgslBlock(
+  'REFLECTION_CONE_TRACE_WGSL',
+  [tangentAround],
+  `
 fn reflectionGgxMass(u:f32,k:f32)->f32{
  let d:f32=k-1.0;
  if(abs(d)<0.125){
@@ -50,7 +55,7 @@ fn reflectionConeLimits(z0:f32,z1:f32,spread:f32)->vec2f{
  return vec2f(min(z0,z1)-spread,max(z0,z1)+spread);
 }
 fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT}
- let T:vec3f=reflectionTangent(R);let B:vec3f=cross(R,T);
+ let T:vec3f=tangentAround(R);let B:vec3f=cross(R,T);
  let projectedT:vec4f=reflectionProject(vec4f(T,0.0));
  let projectedB:vec4f=reflectionProject(vec4f(B,0.0));
  let basis:vec4f=sqrt(projectedT*projectedT+projectedB*projectedB);
@@ -116,4 +121,5 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
   coarse=min(level+2,top);
  }
  return vec4f(0.0);
-}`
+}`,
+)

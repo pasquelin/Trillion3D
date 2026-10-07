@@ -4,6 +4,7 @@ import { FACING_DROP, FACING_WGSL } from './facing.ts'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Corner = readonly [x: number, y: number, z: number, w: number]
 type Triangle = readonly [Corner, Corner, Corner]
@@ -122,7 +123,7 @@ test('the blend module runs the facing test and discards on front_facing', () =>
   assert.match(BLEND_SHADER, /facingDiscarded\(in\.water>>16u,front\)/)
   assert.doesNotMatch(BLEND_SHADER, /fn vertexCulled\(/, 'one facing test, not two')
   assert.match(
-    waterSurfaceWgsl(true),
+    wgslModule(waterSurfaceWgsl(true)),
     /\(in\.water&65535u\)/,
     'the water rank stored without the mode',
   )

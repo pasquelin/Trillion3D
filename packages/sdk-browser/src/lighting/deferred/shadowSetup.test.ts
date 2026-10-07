@@ -7,8 +7,8 @@
 // the translucent casters' point read, the one reader of the rest.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { contractLightingShader } from './shaders.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 
 const surfaceOf = (shader: string) => shader.slice(shader.indexOf('fn lightSurface('))
 const functionText = (shader: string, name: string) =>

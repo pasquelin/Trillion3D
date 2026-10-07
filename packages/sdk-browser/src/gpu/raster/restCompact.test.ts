@@ -9,17 +9,21 @@ import { HIZ_REJECTED_WGSL, VERDICT_REJECTED } from '../partition/contract.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { dispatchGrid } from '../dispatch/grid.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 // Behaviour 1: compaction keeps EXACTLY what the vertex stage drew — both texts carry the same
 // `hizRejected`, and compaction keeps its negation. A hand-copied predicate had truncated the
 // whole tested half when the verdict moved to three values.
 test('tested-half compaction applies the vertex-stage predicate', () => {
-  assert.ok(VIS_SHADER.includes(HIZ_REJECTED_WGSL), 'the vertex stage binds the shared predicate')
-  assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL), 'compaction binds the same text')
+  assert.ok(
+    VIS_SHADER.includes(HIZ_REJECTED_WGSL.text),
+    'the vertex stage binds the shared predicate',
+  )
+  assert.ok(REST_COMPACT_SHADER.includes(HIZ_REJECTED_WGSL.text), 'compaction binds the same text')
   assert.match(VIS_SHADER, /if\(hizRejected\(page\.hizSlot\)\)/)
   // An instance word's row (`INSTANCE_WORD_WGSL`).
   assert.match(REST_COMPACT_SHADER, /return !hizRejected\(pages\[instanceRow\(word\)\]\.hizSlot\);/)
-  assert.match(HIZ_REJECTED_WGSL, new RegExp(`==${VERDICT_REJECTED}u;`))
+  assert.match(wgslSource(HIZ_REJECTED_WGSL), new RegExp(`==${VERDICT_REJECTED}u;`))
 })
 
 // Behaviour 2: the survivors are written back from a copy, in three dispatches, each at its

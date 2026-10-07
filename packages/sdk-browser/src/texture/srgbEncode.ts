@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * The sRGB encode, linear to display: `12.92·C` at and under 0.0031308,
  * `1.055·C^(1/2.4) − 0.055` above — the CPU's `linearToSrgb` (`packages/math/src/color/color.ts`)
@@ -8,8 +10,12 @@
  * by the f32 rounding alone (2.7e-7, `pow` included). A negative input takes the linear branch;
  * `max` keeps the other branch's `pow` defined, whose value the select drops.
  */
-export const SRGB_ENCODE_WGSL = `
+export const SRGB_ENCODE_WGSL = wgslBlock(
+  'SRGB_ENCODE_WGSL',
+  [],
+  `
 fn linearToSrgb(c:vec3f)->vec3f{
  let curve=1.055*pow(max(c,vec3f(0.0)),vec3f(0.416666667))-0.055;
  return select(curve,c*12.92,c<=vec3f(0.0031308));
-}`
+}`,
+)

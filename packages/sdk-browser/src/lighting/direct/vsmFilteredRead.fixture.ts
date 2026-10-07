@@ -2,6 +2,7 @@
 // pool, the transmission atlas, and the shipped WGSL run in JavaScript.
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 export type V = number[]
 export const PAGE = 128
@@ -60,9 +61,11 @@ export class World {
 
 /** A blended surface's read as the blend and water stages compose it — the program variant with
  *  the traced read, so that every mode is there —, and two test probes. */
-export const SOURCE = `${directShadowWgsl(null, 18, undefined, true)}
-fn testTransmission()->vec3f{return shadowTransmission;}
-fn testReset(){shadowTransmission=vec3f(1.0);}`
+export const SOURCE = wgslProgram(
+  `fn testTransmission()->vec3f{return shadowTransmission;}
+fn testReset(){shadowTransmission=vec3f(1.0);}`,
+  [directShadowWgsl(18, { traced: true })],
+)
 
 /** The shipped taps, read back from the WGSL. */
 export const TAPS = [

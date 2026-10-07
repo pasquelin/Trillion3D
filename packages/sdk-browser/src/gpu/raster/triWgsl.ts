@@ -1,4 +1,5 @@
 import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -22,7 +23,10 @@ import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
  *   remains that of the original triangle: hardware resolve rebuilds its attributes from its
  *   unclipped vertices.
  */
-export const RASTER_TRI_WGSL = `
+export const RASTER_TRI_WGSL = wgslBlock(
+  'RASTER_TRI_WGSL',
+  [],
+  `
 struct Clip{n:u32,p:array<vec4f,4>,u:array<vec3f,4>,}
 fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{
  var inP=array<vec4f,3>(pa,pb,pc);
@@ -106,4 +110,5 @@ fn triClass(t:Tri)->u32{
 /** Eight-pixel tiles a box covers, in columns then in rows. */
 fn tileCols(t:Tri)->u32{return u32(t.hi.x-t.lo.x)/${TILE}u+1u;}
 fn tileRows(t:Tri)->u32{return u32(t.hi.y-t.lo.y)/${TILE}u+1u;}
-`
+`,
+)

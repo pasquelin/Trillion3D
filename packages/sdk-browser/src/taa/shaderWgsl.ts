@@ -1,7 +1,7 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import * as layer from './layers.ts'
-import { BINDINGS_WGSL, shareBindingsWgsl, VIEW_WGSL } from './bindingsWgsl.ts'
+import { BINDINGS_WGSL, shareBindingsWgsl, TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
@@ -13,12 +13,15 @@ import {
   taaHistoryBlend,
 } from './historyWgsl.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
-import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { clipToUv, pixelToNdcInv } from '../../../math/src/wgsl/projection.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import {
   GEOMETRY_HISTORY_WGSL,
   NEAREST_OF_WGSL,
-  closestSurfaceWgsl,
+  CLOSEST_SURFACE_WGSL,
 } from './geometryHistoryWgsl.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 
@@ -26,7 +29,7 @@ import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
  *  into the luma's slopes across it (a Sobel pair, over eight), in both resolves: the blurred luma
  *  the flicker measure compares, and the spread of the blurred lumas over the 3×3 the slopes give
  *  (`shadingMoire`). Taken from the YCoCg luma the box already holds: no work per texel but this. */
-export const BLUR_TAP_WGSL = `  blur+=y.x*vec3f(f32((2-abs(dx))*(2-abs(dy))),f32(dx*(2-abs(dy))),f32(dy*(2-abs(dx))));
+export const BLUR_TAP = `  blur+=y.x*vec3f(f32((2-abs(dx))*(2-abs(dy))),f32(dx*(2-abs(dy))),f32(dy*(2-abs(dx))));
 `
 
 /** How a resolve reads a render texel `at`: the colour and the as-is weight (a blended share's
@@ -51,10 +54,14 @@ export const texelReads = (blended: boolean): TexelReads => ({
  * nor matrix. `coord` is the display pixel, `id` the identifier of the render texel its depth was
  * read at, read once by the resolve for its identity, its motion and its deformation.
  */
-export const taaReprojectWgsl = (deformation = true) => `
+export const taaReprojectWgsl = (deformation = true) =>
+  wgslBlock(
+    `taaReprojectWgsl(${deformation})`,
+    [pixelToNdcInv, clipToUv],
+    `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
- let ndc=vec2f((f32(coord.x)+0.5)*view.viewport.z*2.0-1.0,1.0-(f32(coord.y)+0.5)*view.viewport.w*2.0);
+ let ndc=pixelToNdcInv(vec2f(coord)+0.5,view.viewport.zw);
  return view.invViewProj*vec4f(ndc,depthValue,1.0);
 }
 fn pointBefore(here:vec4f,id:u32)->vec4f{
@@ -67,7 +74,7 @@ ${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(id,position);}' 
 fn previousProjected(position:vec4f)->vec4f{
  let previous=view.prevViewProj*position;
  if(previous.w<=0.0){return vec4f(0.0);}
- let uv=vec2f(previous.x/previous.w*0.5+0.5,0.5-previous.y/previous.w*0.5);
+ let uv=clipToUv(previous);
  let inside=all(uv>=vec2f(0.0))&&all(uv<=vec2f(1.0));
  return vec4f(uv,previous.z/previous.w,select(0.0,1.0,inside));
 }
@@ -76,7 +83,8 @@ fn previousSample(coord:vec2i,depthValue:f32,id:u32)->vec4f{
 }
 fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
  let p=previousSample(coord,depthValue,id);return vec3f(p.xy,p.w);
-}`
+}`,
+  )
 
 const TAA_REPROJECT_WGSL = taaReprojectWgsl()
 
@@ -99,13 +107,13 @@ const TAA_REPROJECT_WGSL = taaReprojectWgsl()
 export const taaShader = (asIs: boolean, blended = false, filtered = false, reactive = true) => {
   const share = shareText(asIs),
     read = texelReads(blended)
-  return `${taaPrelude(asIs, blended, filtered)}
-@fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
+  return wgslProgram(
+    `@fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let last=vec2i(view.viewport.xy)-vec2i(1);
  var filtered=vec4f(0.0);
  var lo=vec4f(1e9);var hi=vec4f(-1e9);var blur=vec3f(0.0);
-${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerWgsl(filtered, 'vars')} var k=0u;
+${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerText(filtered, 'vars')} var k=0u;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let at=clamp(coord+vec2i(dx,dy),vec2i(0),last);
   let sample=${read.color('at')};
@@ -113,22 +121,24 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerWgsl(f
   filtered+=sample*weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
-${BLUR_TAP_WGSL}${taaShareTap(asIs, read)}${layer.layerWgsl(filtered, 'tap')} }}
+${BLUR_TAP}${taaShareTap(asIs, read)}${layer.layerText(filtered, 'tap')} }}
  let centre=coord;let reach=1.0;
  let closest=closestSurface(coord,last);let nearDepth=closest.depth;let depthSlack=closest.slope;
  let id=closest.id;let page=pageOf(id);let geometry=vec2u(page.identity,bitcast<u32>(nearDepth));
-${MEASURES_WGSL}
+${MEASURES}
  if(view.params.y==0.0){return ${layer.taaOut(asIs, filtered)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,id);let previous=previousProjected(before);
 ${taaHistoryBlend(asIs, filtered, false, 'page', reactive)}
-}`
+}`,
+    [taaPrelude(asIs, blended, filtered)],
+  )
 }
 
 /** What both resolves measure once their 3×3 is read and `filtered` known (`shadingHistoryWgsl.ts`):
  *  the image's luma, linear and in the measurement curve, the blurred luma and the box of the
  *  blurred lumas over the 3×3 — exact for a luma that varies linearly across it —, and the outputs
  *  a pixel without history writes: a fresh flicker measure, one sample, no gradient. */
-export const MEASURES_WGSL = ` let lumaNow=toYcocg(filtered.rgb).x;let now=shadingLuma(lumaNow);
+export const MEASURES = ` let lumaNow=toYcocg(filtered.rgb).x;let now=shadingLuma(lumaNow);
  let blurLuma=blur.x/16.0;let blurSpread=(abs(blur.y)+abs(blur.z))/8.0;
  let blurred=shadingLuma(blurLuma);let blurRange=vec2f(shadingLuma(blurLuma-blurSpread),shadingLuma(blurLuma+blurSpread));
  var moire=shadingPack(shadingFresh(blurred));var historyCount=1.0;var gradient=0.0;`
@@ -144,21 +154,29 @@ export const taaShareTap = (asIs: boolean, read: TexelReads) =>
  *  the history's own functions (`historyWgsl.ts`) and their output (`taaOut`, `layers.ts`). */
 export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) => {
   const at = (location: number) => `@location(${location}) `
-  return `
-${PAGE_INFO_STRUCT_WGSL}
-${VIEW_WGSL}
-${BINDINGS_WGSL}${asIs ? shareBindingsWgsl(blended) : ''}${layer.layerWgsl(filtered, 'bindings')}\n${FULLSCREEN_VERTEX}
-${YCOCG_WGSL}
-${TAA_DEFORM_WGSL}
-${TAA_REPROJECT_WGSL}
-${CATMULL_ROM_WGSL}
-${PAGE_OF_WGSL}
-${HASH_UNIT_WGSL}
-${HISTORY_TEXEL_WGSL}
-${HISTORY_CAP_WGSL}
-${GEOMETRY_HISTORY_WGSL}
-${SHADING_HISTORY_WGSL}
-${NEAREST_OF_WGSL}${closestSurfaceWgsl}
-${CURRENT_SHARE_WGSL}
-struct TaaOut{${at(0)}color:vec4f,${at(1)}share:vec4f,${at(2)}geometry:vec2u,${at(3)}moire:u32,${filtered ? `${at(4)}tint:vec4f,${at(5)}add:vec4f,` : ''}}`
+  return wgslBlock(
+    `taaPrelude(${asIs}, ${blended}, ${filtered})`,
+    [
+      hashUnit,
+      TAA_DEFORM_WGSL,
+      TAA_REPROJECT_WGSL,
+      PAGE_INFO_STRUCT_WGSL,
+      TAA_VIEW_WGSL,
+      BINDINGS_WGSL,
+      ...(asIs ? [shareBindingsWgsl(blended)] : []),
+      FULLSCREEN_VERTEX,
+      YCOCG_WGSL,
+      CATMULL_ROM_WGSL,
+      PAGE_OF_WGSL,
+      HISTORY_TEXEL_WGSL,
+      HISTORY_CAP_WGSL,
+      GEOMETRY_HISTORY_WGSL,
+      SHADING_HISTORY_WGSL,
+      NEAREST_OF_WGSL,
+      CLOSEST_SURFACE_WGSL,
+      CURRENT_SHARE_WGSL,
+    ],
+    `${layer.layerText(filtered, 'bindings')}
+struct TaaOut{${at(0)}color:vec4f,${at(1)}share:vec4f,${at(2)}geometry:vec2u,${at(3)}moire:u32,${filtered ? `${at(4)}tint:vec4f,${at(5)}add:vec4f,` : ''}}`,
+  )
 }

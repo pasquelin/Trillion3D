@@ -12,19 +12,60 @@ imports it. Its contract:
 - Outputs go through an `out` argument or a flat array, never a fresh object per call.
 - One function per formula: a second copy of a formula elsewhere in the tree is a defect.
 - It imports nothing outside itself; `pnpm run check:cycles` fails when a module does.
-- "No GPU" means no GPU API call: the WGSL text twins of a primitive (string constants such as
-  `SINGULAR_DETERMINANT_WGSL`, `HALF_PI_WGSL`) belong to the package, beside the function they mirror.
+- "No GPU" means no GPU API call: the WGSL twins of the primitives belong to the package, in
+  `wgsl/` (below).
 - `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
   call the package.
 
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `scalar/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
-re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
-`sdk-core` and `sdk-browser`.
+`color/`, `scalar/`, `sequence/` (`halton.ts`), `batch/` and `wgsl/` (below); `index.ts` is the
+barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
+and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
 `scalar/`: counting and range helpers; `constants.ts`: shared numbers.
+
+### The WGSL library
+
+`packages/math/src/wgsl/` holds the shader side of the maths: each function or constant shaders
+share is one `WgslDecl` ([`decl.ts`](../packages/math/src/wgsl/decl.ts)), its name, its text and
+the declarations it depends on, held as objects, never as names. A shader keeps its own text and
+lists the declarations it uses; [`assemble.ts`](../packages/math/src/wgsl/assemble.ts) writes them
+before that text, each once, its dependencies first:
+
+```ts
+const SHADER = wgslProgram(OWN_TEXT, [hashUnit, worldMatrix3])
+```
+
+A shader fragment that several programs share is a declaration too, a `wgslBlock`: its text as
+written, its dependencies the library declarations and the fragments it uses. A template
+interpolates parameters only — numbers, layout constants, binding indices, names —, never another
+fragment's text: a fragment is named `X_WGSL` or `xWgsl(…)` (a factory taking a provider, a
+function it calls, lists it; a program holding two variants is refused by the assembler), an
+expression or a statement a body splices is named otherwise (`FULLSCREEN_XY`, `MIRROR_TERM`). Only a whole program calls `wgslProgram` (or
+`wgslModule`), which writes the program's own directives (`enable …;`) first; a declaration spliced
+into a template as text throws when the module is read. A program others extend — the lit program at
+the screen's mirror radiance (`withScreenReflections`), the blend module with the water's stage
+(`blendShader`) — takes what it gains as a parameter and is assembled with it.
+
+A function a fragment calls but its host provides — `mipRead` of a cell reduction,
+`reflectionDepthAt` and `reflectionSize` of the screen walks, `vsmPoolLoad` of the shadow-map
+sampling, `mirrorRadiance` of the mirror term — is a declaration under that function's name, which
+the fragment takes as a parameter and lists: a missing provider fails when the program is written,
+and two providers of one name are refused, never left to the shader compiler: the error names
+the path through the dependents by which each came and the first line where the two texts differ.
+
+A name written twice with two texts, or a dependency cycle, throws when the pipeline is described:
+the text is built once a pipeline, never in a frame. Two operation orders of one formula round
+apart, so each is its own declaration under its own name, never merged. The library writes a number
+through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
+holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π) and the singularity
+threshold are `wgslConst` declarations of [`constants.ts`](../packages/math/src/wgsl/constants.ts).
+`library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
+declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
+finds no program declaring a module-scope name twice, whatever the texts, and
+`wgslDeclarations.test.ts` no source declaring a library name and no fragment spliced as text.
 
 ## Batch math for hosts
 

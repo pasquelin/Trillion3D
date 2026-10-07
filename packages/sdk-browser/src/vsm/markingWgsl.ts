@@ -28,6 +28,8 @@ import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8
@@ -45,7 +47,10 @@ export const VSM_MARKING_PARAMS_BYTES = 160
  * 140 skipBackFaces, 144 rectsToClear, 148 coarseLocal,
  * 152 pad.
  */
-const VSM_MARKING_PARAMS_WGSL = /* wgsl */ `
+const VSM_MARKING_PARAMS_WGSL = wgslBlock(
+  'VSM_MARKING_PARAMS_WGSL',
+  [],
+  `
 struct VsmMarkingParams{
  viewToClip:mat4x4f,
  depthFromDeviceZ:vec4f,
@@ -62,15 +67,21 @@ struct VsmMarkingParams{
  coarseLocal:u32,
  _pad:u32,
 }
-`
+`,
+)
 
-const COMMON_WGSL =
-  VSM_CONSTANTS_WGSL +
-  VSM_UNIFORMS_WGSL +
-  VSM_HANDLE_WGSL +
-  VSM_STRUCTS_WGSL +
-  VSM_PAGE_ADDRESS_WGSL +
-  VSM_PROJECTION_DATA_WGSL
+const COMMON_WGSL = wgslBlock(
+  'VSM_MARKING_COMMON_WGSL',
+  [
+    VSM_CONSTANTS_WGSL,
+    VSM_UNIFORMS_WGSL,
+    VSM_HANDLE_WGSL,
+    VSM_STRUCTS_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_PROJECTION_DATA_WGSL,
+  ],
+  '',
+)
 
 // ---- Page table reset ------------------------------------------------------------------------
 
@@ -111,7 +122,10 @@ export const VSM_CLEAR_SPECS: readonly VsmBindingSpec[] = [
  * The per-page dispatch setup. Needs `vsmPerPageIds`,
  * `vsmPerPage` (VsmMapWalkParams) and `vsmProjectionData`.
  */
-export const VSM_PER_PAGE_DISPATCH_WGSL = /* wgsl */ `${FLAT_INDEX_WGSL}
+export const VSM_PER_PAGE_DISPATCH_WGSL = wgslBlock(
+  'VSM_PER_PAGE_DISPATCH_WGSL',
+  [FLAT_INDEX_WGSL],
+  `
 /** \`gridWidth\`: a grouped bin's walk side and row pitch; 0 for a thread-per-id bin, which ranks itself (\`flatIndex\`). */
 struct VsmMapWalkParams{idStart:u32,idCount:u32,gridWidth:u32,threadPerId:u32,}
 struct VsmMapWalk{
@@ -153,7 +167,8 @@ fn vsmMapWalkOf(dispatchThreadId:vec3u,numWorkgroups:vec3u)->VsmMapWalk{
  return s;
 }
 fn vsmPagesAcross(mipLevel:u32)->u32{return VSM_LEVEL0_PAGES>>mipLevel;}
-`
+`,
+)
 
 /**
  * The clears of several tables in one walk of each map's pages (`targets`, each its own `numMips`
@@ -198,10 +213,8 @@ fn vsmClearMip${n}(pyramidLevel:u32,levelOffset:VsmTableLevel,pageCoord:vec2u,sa
       body: body.map((line) => `    ${line}`).join('\n'),
     }
   })
-  return `${COMMON_WGSL}
-${vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout)}
-@group(0) @binding(3) var<uniform> vsmPerPage:VsmMapWalkParams;
-${VSM_PER_PAGE_DISPATCH_WGSL}
+  return wgslProgram(
+    `@group(0) @binding(3) var<uniform> vsmPerPage:VsmMapWalkParams;
 const VSM_CLEAR_VALUE:u32=0u;
 ${tables.map((t) => t.declarations).join('\n')}
 @compute @workgroup_size(${VSM_PER_PAGE_GROUP_XY},${VSM_PER_PAGE_GROUP_XY}) fn vsmClearPageTables(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
@@ -219,7 +232,9 @@ ${tables.map((t) => t.body).join('\n')}
   }
  }
 }
-`
+`,
+    [COMMON_WGSL, vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout), VSM_PER_PAGE_DISPATCH_WGSL],
+  )
 }
 
 // ---- Page rect init --------------------------------------------------------------------------
@@ -232,16 +247,15 @@ export const VSM_INIT_RECT_SPECS: readonly VsmBindingSpec[] = [
 ]
 
 /** The page rect bounds init, entry `vsmInitPageRects`, 256 threads. Binding 4: params. */
-export const vsmPageRectInitWgsl = (layout: VsmLayout) => `${COMMON_WGSL}
-${VSM_MARKING_PARAMS_WGSL}
-${vsmBindingsWgsl(0, VSM_INIT_RECT_SPECS, layout)}
-@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
+export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
 /** Start and count access of the physical page lists. */
 fn vsmPageListStart(pageList:u32)->u32{return pageList*(vsm.poolPages+1u);}
 fn vsmSetPageListCount(pageList:u32,newCount:i32){
  vsmPoolLists[vsmPageListStart(pageList)+vsm.poolPages]=newCount;
 }
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let index=flatIndex(id,n,256u);
  if(index<vsmMarking.rectsToClear){
   var rectOffset=index;
@@ -261,7 +275,14 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(
   vsmSetPageListCount(VSM_PAGES_REQUESTED,0);
  }
 }
-`
+`,
+    [
+      COMMON_WGSL,
+      VSM_MARKING_PARAMS_WGSL,
+      vsmBindingsWgsl(0, VSM_INIT_RECT_SPECS, layout),
+      FLAT_INDEX_WGSL,
+    ],
+  )
 
 // ---- Marking helpers ----------------------------------------
 
@@ -269,13 +290,20 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(
  * Requests a page, and fills its whole receiver cover. Needs
  * `vsmPageRequestsStore` and, for the full-page mask, `vsmReceiverCoverStore`.
  */
-const VSM_MARK_PAGE_ADDRESS_WGSL = /* wgsl */ `
+const VSM_MARK_PAGE_ADDRESS_WGSL = wgslBlock(
+  'VSM_MARK_PAGE_ADDRESS_WGSL',
+  [],
+  `
 fn vsmRequestPage(entryCell:VsmTableCell,flags:u32){
  let t=entryCell.tableXY;
  if(all(t<vsm.pageTableSize)){vsmPageRequestsStore(vsmTableIndex(t),flags);}
 }
-`
-const VSM_FILL_COVER_WGSL = /* wgsl */ `
+`,
+)
+const VSM_FILL_COVER_WGSL = wgslBlock(
+  'VSM_FILL_COVER_WGSL',
+  [],
+  `
 fn vsmCoverStore0(t:vec2u,v:u32){if(vsmCoverInBounds(t,0u)){vsmReceiverCoverStore(vsmCoverIndex(t,0u),v);}}
 fn vsmFillCover(entryCell:VsmTableCell){
  let a=entryCell.tableXY*2u;
@@ -284,7 +312,8 @@ fn vsmFillCover(entryCell:VsmTableCell){
  vsmCoverStore0(a+vec2u(0u,1u),0xFFFFu);
  vsmCoverStore0(a+vec2u(1u,1u),0xFFFFu);
 }
-`
+`,
+)
 
 // ---- Coarse marking --------------------------------------------------------------------------
 
@@ -296,14 +325,10 @@ export const VSM_COARSE_SPECS: readonly VsmBindingSpec[] = [
 ]
 
 /** The coarse page marking, entry `vsmMarkCoarse`, 256 threads. Binding 4: params. */
-export const vsmCoarseMarkingWgsl = (layout: VsmLayout) => `${COMMON_WGSL}
-${VSM_MARKING_PARAMS_WGSL}
-${vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout)}
-@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
-${VSM_PROJECTION_DATA_READ_WGSL}
-${VSM_MARK_PAGE_ADDRESS_WGSL}
-${VSM_FILL_COVER_WGSL}
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
+@compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  // Thread k: the full maps first (ids from VSM_SINGLE_PAGE_MAP_SLOTS), then the single-page ones.
  var mapId=flatIndex(id,n,256u);
  if(mapId<vsm.fullMapCount){
@@ -348,7 +373,17 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(glo
   if(pd.useCover){vsmFillCover(entryCell);}
  }
 }
-`
+`,
+    [
+      COMMON_WGSL,
+      VSM_MARKING_PARAMS_WGSL,
+      vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout),
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_MARK_PAGE_ADDRESS_WGSL,
+      VSM_FILL_COVER_WGSL,
+      FLAT_INDEX_WGSL,
+    ],
+  )
 
 // ---- Page marking from pixels ----------------------------------------------------------------
 
@@ -365,7 +400,10 @@ export const VSM_PIXELS_SPECS: readonly VsmBindingSpec[] = [
  * view in `vsmMarking`. Needs `vsmProjectionOf`, `vsmPageRequestsStore`,
  * `vsmReceiverCoverOr`.
  */
-const VSM_PAGE_MARKING_WGSL = /* wgsl */ `
+const VSM_PAGE_MARKING_WGSL = wgslBlock(
+  'VSM_PAGE_MARKING_WGSL',
+  [],
+  `
 /** The biased clipmap level of a position, against the marking view's origin shift. */
 fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f)->i32{
  let biasedLevel=vsmLevelOfDistanceSq(vsmDistanceSqToOrigin(base,shiftedPosition,vsmMarking.originShiftHigh,vsmMarking.originShiftLow))
@@ -442,7 +480,8 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  let mipLevel=vsmMarkLocalMipLevel(vsmProjectionOf(handle),shiftedPosition,sceneDepth);
  vsmMarkPage(handle,mipLevel,shiftedPosition,hasMargin,marginOffset,false);
 }
-`
+`,
+)
 
 /**
  * The page marks from pixels, entry `vsmMarkPagesFromPixels`, 8x8, input
@@ -450,11 +489,9 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  * 3 the engine's deferred `View`, 4 directLights, 5 tileLights, 6 per-light VSM id (i32, -1 none,
  * indexed like `directLights.items`: the light's VSM id), 7 directional VSM ids, 8 `VsmMarkingParams`.
  */
-export const vsmPixelPageMarkingWgsl = (layout: VsmLayout) => `${COMMON_WGSL}
-${VSM_MARKING_PARAMS_WGSL}
-${VIEW_WGSL}
-${vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout)}
-@group(1) @binding(0) var depth:texture_depth_2d;
+export const vsmPixelPageMarkingWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `@group(1) @binding(0) var depth:texture_depth_2d;
 @group(1) @binding(1) var normalRough:texture_2d<f32>;
 @group(1) @binding(2) var flags:texture_2d<u32>;
 @group(1) @binding(3) var<uniform> view:View;
@@ -463,18 +500,11 @@ ${vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout)}
 @group(1) @binding(6) var<storage,read> vsmLightIds:array<i32>;
 @group(1) @binding(7) var<storage,read> vsmDirectionalLightIds:array<u32>;
 @group(1) @binding(8) var<uniform> vsmMarking:VsmMarkingParams;
-${DIRECT_LIGHT_WGSL}
-${TILE_SLICE_WGSL}
-${pixelCellWgsl()}
-${WORLD_AT_WGSL}
-${VSM_PROJECTION_DATA_READ_WGSL}
-${VSM_MARK_PAGE_ADDRESS_WGSL}
-${VSM_PAGE_MARKING_WGSL}
 /** The engine's light \`light\`'s position, translated, as the loop reads it. */
 fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  return (light.positionRange.xyz+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
 }
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
+@compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
  @builtin(local_invocation_index) groupIndex:u32,
  @builtin(local_invocation_id) lane:vec3u,
  @builtin(workgroup_id) group:vec3u,
@@ -549,4 +579,19 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MAR
   }
  }
 }
-`
+`,
+    [
+      COMMON_WGSL,
+      VSM_MARKING_PARAMS_WGSL,
+      VIEW_WGSL,
+      vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout),
+      DIRECT_LIGHT_WGSL,
+      TILE_SLICE_WGSL,
+      pixelCellWgsl(),
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_MARK_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_MARKING_WGSL,
+      WORLD_AT_WGSL,
+      FLAT_INDEX_WGSL,
+    ],
+  )

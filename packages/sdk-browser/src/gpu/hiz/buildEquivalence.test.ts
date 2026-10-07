@@ -100,10 +100,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   assert.match(HIZ_SHADER, new RegExp(`dst:array<vec4u,${HIZ_PASS_LEVELS}>,`))
   assert.doesNotMatch(HIZ_SHADER, /fn copyDepth|fn reduceHiz/)
   // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
-  const build = HIZ_SHADER.slice(
-    HIZ_SHADER.indexOf('fn hizSource'),
-    HIZ_SHADER.indexOf('fn texelsHide'),
-  )
+  const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return pyramid[i];}',
     'if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}',

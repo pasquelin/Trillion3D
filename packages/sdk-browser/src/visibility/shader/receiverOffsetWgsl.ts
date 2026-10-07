@@ -8,7 +8,8 @@ import {
 } from './pixelTriangleWgsl.ts'
 import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 
 /**
  * THE SHADOW RECEIVER OF A PIXEL: its shading-point offset and its triangle's plane, the
@@ -22,7 +23,10 @@ import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts
  * (`shadingPointOffset`). Zero where the resolve kept the triangle's point: the background, a
  * triangle past its page, a row without vertex normals, a sprite or a line.
  */
-const RECEIVER_OFFSET_FN_WGSL = `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
+const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
+  'RECEIVER_OFFSET_FN_WGSL',
+  [],
+  `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let none=ShadowReceiver(vec3f(0.0),vec3f(0.0));
  let id=textureLoad(vis,vec2i(i32(pixel.x),i32(pixel.y)),0).r;
@@ -40,8 +44,8 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let area=edge(s1.xy,s2.xy,s0.xy);
  let bary=pixelBary(s0,s1,s2,c0,c1,c2,pixel,area);
  let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
- let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
- let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
+ let world3=worldMatrix3(page.world);
+ let face=screenFace*select(-1.0,1.0,windingKept(world3));
  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
  let n=vertexNormals(page,h,corners,world3,side);
  let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
@@ -51,7 +55,8 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let plane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
  let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
  return ShadowReceiver(offset,select(vec3f(0.0),normalize(plane),dot(plane,plane)>0.0));
-}`
+}`,
+)
 
 /** What the receiver offset binds, in binding order from the pass's first number: never the
  *  texture coordinates, which it does not read; the float pool's positions, and its normals from
@@ -71,22 +76,29 @@ export const RECEIVER_BINDINGS = [
 export const receiverOffsetWgsl = (first: number) => {
   const at = (name: (typeof RECEIVER_BINDINGS)[number]) =>
     `@group(0) @binding(${first + RECEIVER_BINDINGS.indexOf(name)})`
-  return `${PAGE_INFO_STRUCT_WGSL}
-${SHADE_UNI_WGSL}
-${at('vis')} var vis:texture_2d<u32>;
+  return wgslBlock(
+    `receiverOffsetWgsl(${first})`,
+    [
+      PAGE_POINTS_WGSL,
+      worldMatrix3,
+      windingKept,
+      VERTEX_NORMALS_WGSL,
+      FRAMEBUFFER_WGSL,
+      PAGE_INFO_STRUCT_WGSL,
+      SHADE_UNI_WGSL,
+      normalAtlasWgsl(first + RECEIVER_BINDINGS.indexOf('normals')),
+      PAGE_NORMAL_WGSL,
+      EDGE_WGSL,
+      BARY_WEIGHTS_WGSL,
+      PIXEL_BARY_WGSL,
+      SHADING_POINT_WGSL,
+      RECEIVER_OFFSET_FN_WGSL,
+    ],
+    `${at('vis')} var vis:texture_2d<u32>;
 ${at('uniform')} var<uniform> uni:ShadeUni;
 ${at('pages')} var<storage,read> pages:array<PageInfo>;
 ${at('indices')} var<storage,read> indices:array<u32>;
 ${at('positions')} var<storage,read> positions:array<f32>;
-${normalAtlasWgsl(first + RECEIVER_BINDINGS.indexOf('normals'))}
-${PAGE_POINTS_WGSL}
-${PAGE_NORMAL_WGSL}
-${EDGE_WGSL}
-${BARY_WEIGHTS_WGSL}
-${PIXEL_BARY_WGSL}
-${INVERSE_TRANSPOSE_WGSL}
-${VERTEX_NORMALS_WGSL}
-${SHADING_POINT_WGSL}
-${FRAMEBUFFER_WGSL}
-${RECEIVER_OFFSET_FN_WGSL}`
+`,
+  )
 }

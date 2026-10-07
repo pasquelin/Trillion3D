@@ -1,5 +1,6 @@
-import { DAG_ACCESS_WGSL, dagPartBindings } from './bindings.ts'
-import { DAG_SELECTION_SHADER } from './shader.ts'
+import { dagPartBindings } from './bindings.ts'
+import { DAG_SELECTION_SHADER, dagSelectionWgsl } from './shader.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { dagPartCounts, type DagSplit } from '../split.ts'
 import { type TableSplit } from '../splitFlags.ts'
 import { PAGE_SECTIONS } from '../flagSections.ts'
@@ -58,5 +59,7 @@ function dagSplitAccessWgsl(split: DagSplit) {
  */
 export function dagSelectionShader(split?: DagSplit) {
   if (!split || !dagPartBindings(dagPartCounts(split)).length) return DAG_SELECTION_SHADER
-  return DAG_SELECTION_SHADER.replace(DAG_ACCESS_WGSL, dagSplitAccessWgsl(split))
+  return dagSelectionWgsl(
+    wgslBlock(`dagSplitAccess(${JSON.stringify(split)})`, [], dagSplitAccessWgsl(split)),
+  )
 }

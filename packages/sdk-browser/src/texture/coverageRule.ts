@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * The arithmetic of the coverage-preserving alpha rule (`texture_preview/coverage.rs`, #44), in
  * WGSL, as the card's chains run it. The scale: `median`, a level's alpha byte as the compiler
@@ -24,7 +26,10 @@ const middles = (v: string) =>
 const [U_BYTE, V_BYTE] = middles('b')
 const [U_ALPHA, V_ALPHA] = middles('a')
 
-export const COVERAGE_SCALE_WGSL = `
+export const COVERAGE_SCALE_WGSL = wgslBlock(
+  'COVERAGE_SCALE_WGSL',
+  [],
+  `
 fn toByte(x:f32)->u32{return u32(round(x*255.0));}
 fn median(a:vec4f)->u32{
  let b=vec4u(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
@@ -34,8 +39,12 @@ fn scaled(a:u32,c:u32,t:u32)->u32{return min(255u,u32((2u*a*(2u*c-1u)+2u*t-1u)/(
 fn reducedAlpha(a:vec4f,c:u32,t:u32)->f32{
  if(c==0u){let u=${U_ALPHA};let v=${V_ALPHA};return (u+v)*0.5;}
  return f32(scaled(median(a),c,t))/255.0;
-}`
-export const COVERAGE_PICK_WGSL = `
+}`,
+)
+export const COVERAGE_PICK_WGSL = wgslBlock(
+  'COVERAGE_PICK_WGSL',
+  [],
+  `
 fn wide(a:u32,b:u32)->vec2u{
  let al=a&0xffffu;let ah=a>>16u;let bl=b&0xffffu;let bh=b>>16u;
  let mid=((al*bl)>>16u)+((al*bh)&0xffffu)+((ah*bl)&0xffffu);
@@ -49,9 +58,13 @@ fn apart(a:vec2u,b:vec2u)->vec2u{
 fn pickKey(c:u32,t:u32,above:u32,texels:vec2u,goal:vec2u)->vec4u{
  let error=apart(wide(above,texels.x),goal);
  return vec4u(error.x,error.y,max(t,c)-min(t,c),t);
-}`
+}`,
+)
 
-export const COVERAGE_CUT_WGSL = `
+export const COVERAGE_CUT_WGSL = wgslBlock(
+  'COVERAGE_CUT_WGSL',
+  [],
+  `
 fn filtered(a:vec4u,s:u32)->u32{
  let x=3u-2u*(s&1u);let y=3u-2u*(s>>1u);
  return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w)+8u)>>4u;
@@ -63,4 +76,5 @@ fn cutBin(a:vec4u,s:u32,c:u32)->u32{
   if(filtered(vec4u(scaled(a.x,c,t),scaled(a.y,c,t),scaled(a.z,c,t),scaled(a.w,c,t)),s)>=c){low=t;}else{high=t;}
  }
  return low;
-}`
+}`,
+)

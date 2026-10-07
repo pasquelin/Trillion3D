@@ -14,6 +14,8 @@ import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
 function covered(options: {
@@ -54,11 +56,13 @@ test('a masked surface is cut at its opacity times its map alpha, in both raster
   assert.equal(covered({ vertexColors: true, map: false, alpha: 1, opacity: 0.4 }), false)
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.6 }), true)
   assert.equal(covered({ vertexColors: false, map: false, alpha: 1, opacity: 0.4 }), false)
-  assert.ok(MASK_KEEP_WGSL.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`))
+  assert.ok(
+    wgslSource(MASK_KEEP_WGSL).includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`),
+  )
 })
 
 test('the cutout multiplies by the vertex alpha only on a row that reads its colours', () => {
-  const keep = MASK_KEEP_WGSL.replace(/\s+\/\/[^\n]*/g, '')
+  const keep = wgslSource(MASK_KEEP_WGSL).replace(/\s+\/\/[^\n]*/g, '')
   assert.match(keep, /fn maskKeep\(page:PageInfo,uv:vec2f,vertexAlpha:f32,/)
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`))
   assert.ok(
@@ -72,7 +76,7 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
     read > 0 && multiply > read && multiply < keep.indexOf('return alpha>=page.baseColor.w;'),
   )
   assert.ok(
-    PAGE_GEOMETRY_WGSL.includes(
+    wgslModule(PAGE_GEOMETRY_WGSL).includes(
       `if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}`,
     ),
   )

@@ -122,7 +122,7 @@ export const SUN_READ = [
   'vsmShadowFactor',
   'vsmShadowFiltered',
   'vsmShadowTraced',
-  'vsmPixelNoise',
+  'interleavedGradient',
   'vsmConsumerSlope',
   'vsmConsumerSlopeBias',
   ...FILTER,

@@ -1,4 +1,6 @@
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
 /**
  * Per-vertex motion of a deformed surface: where the last frame drew the surface point a
@@ -8,7 +10,10 @@ import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
  * the world by the placement's linear part, moves the point back before the placement's own
  * motion and the last view project it. The page geometry is read as every pass reads it.
  */
-export const TAA_DEFORM_WGSL = `${PAGE_GEOMETRY_WGSL}
+export const TAA_DEFORM_WGSL = wgslBlock(
+  'TAA_DEFORM_WGSL',
+  [PAGE_GEOMETRY_WGSL, worldMatrix3],
+  `
 /** Barycentric weights of \`q\` on the triangle \`a\`, \`b\`, \`c\`, on its plane. */
 fn taaBarycentric(q:vec3f,a:vec3f,b:vec3f,c:vec3f)->vec3f{
  let e0=b-a;let e1=c-a;let e2=q-a;
@@ -25,7 +30,7 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  let page=pages[(id>>8u)-1u];
  if(page.deformOutput==0u){return position;}
  let h=pageHeaderFor(page,false);let corners=pageTriangle(page,h,id&0xffu);
- let m=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
+ let m=worldMatrix3(page.world);
  let t=page.world[3].xyz-view.eye.xyz;
  let c0=pagePosition(page,h,corners.x);let c1=pagePosition(page,h,corners.y);let c2=pagePosition(page,h,corners.z);
  let q=position.xyz/position.w;
@@ -33,4 +38,5 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  let d0=pagePreviousPosition(page,h,corners.x)-c0;let d1=pagePreviousPosition(page,h,corners.y)-c1;
  let d2=pagePreviousPosition(page,h,corners.z)-c2;
  return vec4f(q+m*(b.x*d0+b.y*d1+b.z*d2),1.0);
-}`
+}`,
+)

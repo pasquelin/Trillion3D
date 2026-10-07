@@ -1,13 +1,15 @@
 // The reference image of the page-texture chain's class-2 bound: `develop`'s reduction, one level
 // drawn into a render target of the pool format — its sRGB encode the target's own —, the coverage
 // counts in a pass of their own per level and the pick's `t` copied into the level's uniform.
-import { COVERAGE_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
+import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
 import {
   COVERAGE_PICK_WGSL,
   COVERAGE_SCALE_WGSL,
 } from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
-import { FULLSCREEN_XY_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
+import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
 
 /** One chain of the proof: its pool format, size, colour rule, cutoff, and level 0's RGBA8 bytes. */
 export interface ChainCase {
@@ -20,13 +22,14 @@ export interface ChainCase {
   texels: Uint8Array<ArrayBuffer>
 }
 
-const REFERENCE_WGSL = `
+const REFERENCE_WGSL = wgslProgram(
+  `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;
- ${COVERAGE_SCALE_WGSL}
+ 
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
-  return vec4f(${FULLSCREEN_XY_WGSL},0.0,1.0);
+  return vec4f(${FULLSCREEN_XY},0.0,1.0);
  }
  @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{
   let p=vec2i(pos.xy)*2;let hi=vec2i(extent.xy)-vec2i(1);
@@ -36,11 +39,17 @@ const REFERENCE_WGSL = `
   let a=vec4f(s0.w,s1.w,s2.w,s3.w);
   let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
   return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),reducedAlpha(a,extent.z,extent.w));
- }`
+ }`,
+  [COVERAGE_SCALE_WGSL],
+)
 
-/** `develop`'s pick: one thread over the level's bins, from 255 down, keeping the least key. */
-const CHOOSE_WGSL = `
- ${COVERAGE_PICK_WGSL}
+/** `develop`'s pick: one thread over the level's bins, from 255 down, keeping the least key, beside
+ *  the counts whose bins, level and sizes it reads. */
+const CHOOSE_WGSL = wgslBlock(
+  'CHOOSE_WGSL',
+  [COVERAGE_COUNT_WGSL, COVERAGE_PICK_WGSL],
+  `
+ 
  @compute @workgroup_size(1) fn choose(){
   let c=level.extent.z;var covered=0u;
   for(var b=c;b<256u;b++){covered+=atomicLoad(&cover[b]);}
@@ -52,7 +61,8 @@ const CHOOSE_WGSL = `
    if(below(next,best)){best=next;}
   }
   atomicStore(&cover[level.base.z*256u],best.w);
- }`
+ }`,
+)
 
 /** `develop`'s chain of `chain` in `texture` (its pool format, level 0 written), encoded into
  *  `encoder`; returns what to destroy once submitted. */
@@ -101,7 +111,7 @@ export function encodeReferenceChain(
       { binding: 2, visibility, buffer: { type: 'storage' } },
     ],
   })
-  const counts = device.createShaderModule({ code: COVERAGE_WGSL + CHOOSE_WGSL }),
+  const counts = device.createShaderModule({ code: wgslModule(CHOOSE_WGSL) }),
     layout = device.createPipelineLayout({ bindGroupLayouts: [countLayout] })
   const [count, choose] = ['count', 'choose'].map((entryPoint) =>
     device.createComputePipeline({ layout, compute: { module: counts, entryPoint } }),

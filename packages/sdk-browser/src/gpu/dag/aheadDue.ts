@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * The DEADLINE of a request ahead of the camera: the share of the horizon before the camera
  * needs the page, 0 now, 1 at the horizon. The host serves the requests ahead soonest first
@@ -19,7 +21,10 @@
 /** The WGSL, on the planes `dagPrepare` left in `frames` (`shader/primitiveWgsl.ts`): the
  *  camera's in its row — `slotOf` under view 0, whatever view `vi` names when the view ahead asks —,
  *  those ahead behind it. The two views share their far plane's kind (`../core/aheadView.ts`). */
-export const DAG_AHEAD_DUE_WGSL = `fn cameraPlanes(w:u32)->u32{return rowOf(w)*FRAME;}
+export const DAG_AHEAD_DUE_WGSL = wgslBlock(
+  'DAG_AHEAD_DUE_WGSL',
+  [],
+  `fn cameraPlanes(w:u32)->u32{return rowOf(w)*FRAME;}
 fn planeReach(p:vec4f,bmin:vec3f,bmax:vec3f)->f32{
  let n=length(p.xyz);if(!(n>0.0)){return 0.0;}
  let c=vec3f(select(bmin.x,bmax.x,p.x>0.0),select(bmin.y,bmax.y,p.y>0.0),select(bmin.z,bmax.z,p.z>0.0));
@@ -35,4 +40,5 @@ fn aheadDue(w:u32,bmin:vec3f,bmax:vec3f)->f32{
  }
  return due;
 }
-`
+`,
+)

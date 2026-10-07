@@ -1,5 +1,6 @@
 import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 /**
  * Spatio-temporal blue noise for the projection: one noise value and a pair per pixel and frame,
  * the frames' slices stacked down one texture, a pixel's texel at (x mod 64, 64·(frame mod 64) +
@@ -223,7 +224,11 @@ export function createVsmBlueNoiseTexture(device: GPUDevice): GPUTexture {
  * The noise value and pair reads over
  * `vsmBlueNoise` declared at (`group`, `binding`).
  */
-export const vsmBlueNoiseWgsl = (group: number, binding: number) => /* wgsl */ `
+export const vsmBlueNoiseWgsl = (group: number, binding: number) =>
+  wgslBlock(
+    `vsmBlueNoiseWgsl(${group}, ${binding})`,
+    [],
+    `
 @group(${group}) @binding(${binding}) var vsmBlueNoise:texture_2d<f32>;
 const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);
 const VSM_NOISE_WRAP=vec3u(${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SLICES - 1}u);
@@ -233,4 +238,5 @@ fn vsmNoiseTexel(pixelAt:vec2u,frameIndex:u32)->vec4f{
 }
 fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,frameIndex).r;}
 fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}
-`
+`,
+  )

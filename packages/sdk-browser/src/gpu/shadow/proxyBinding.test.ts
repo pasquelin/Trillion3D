@@ -10,6 +10,7 @@ import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { BLEND_SHADER } from '../core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** Layout entries, as the fake device received them. */
 type LayoutEntries = { entries: Array<GPUBindGroupLayoutEntry> }
@@ -40,7 +41,7 @@ test('the resident proxy is bound to both passes, on a single storage binding', 
     new RegExp(`@binding\\(${BLEND_BINDINGS.proxy}\\) var<storage,read> proxy:`),
   )
   assert.match(
-    residentProxyWgsl(RESIDENT_PROXY_BINDING),
+    wgslSource(residentProxyWgsl(RESIDENT_PROXY_BINDING)),
     new RegExp(`@binding\\(${RESIDENT_PROXY_BINDING}\\) var<storage,read> proxy:`),
   )
 })

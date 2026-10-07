@@ -12,6 +12,7 @@ import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_SHADER } from './shader/armWgsl.ts'
 import { DAG_BINDINGS_WGSL } from './shader/bindings.ts'
 import { createDagArm } from './arm.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('each record holds the words the arming copy carried, z one', () => {
   for (const blockCount of [1, 7, 64]) {
@@ -84,5 +85,5 @@ test('the arming group binds the counts read-only and the arguments, nothing of 
     [work, args],
   )
   // The selection's group never names the argument buffer: it binds no `args`.
-  assert.doesNotMatch(DAG_BINDINGS_WGSL, /\bargs\b/)
+  assert.doesNotMatch(wgslSource(DAG_BINDINGS_WGSL), /\bargs\b/)
 })

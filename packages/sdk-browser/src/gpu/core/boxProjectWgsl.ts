@@ -1,9 +1,11 @@
 import { PROJECTION_SLACK_WGSL } from './projectionSlackWgsl.ts'
-import { DEPTH_GROW, SCREEN_SLACK_K, wgslFloat } from '../partition/margins.ts'
+import { DEPTH_GROW, SCREEN_SLACK_K } from '../partition/margins.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CORNER_VALUES, FLAG_CLIP } from '../partition/contract.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
-const SLACK = wgslFloat(SCREEN_SLACK_K),
-  GROW = wgslFloat(DEPTH_GROW)
+const SLACK = wgslF32(SCREEN_SLACK_K),
+  GROW = wgslF32(DEPTH_GROW)
 
 /**
  * Uniform that ALL projection kernels share, byte for byte: the partition writes it once per frame
@@ -11,7 +13,10 @@ const SLACK = wgslFloat(SCREEN_SLACK_K),
  * of the same frame therefore enter the same arithmetic, with the same anchor, the same matrices
  * and the same mip table — no conservative rule can diverge.
  */
-export const PARTITION_UNI_WGSL = `struct Uni{
+export const PARTITION_UNI_WGSL = wgslBlock(
+  'PARTITION_UNI_WGSL',
+  [],
+  `struct Uni{
  view:mat4x4f,
  viewProj:mat4x4f,
  anchorHigh:vec3f,near:f32,
@@ -22,7 +27,8 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  levelOffset:array<vec4u,4>,
  levelWidth:array<vec4u,4>,
 }
-`
+`,
+)
 
 /**
  * Projection of a world box into a screen rectangle and a depth bound, done by the GPU in single
@@ -47,11 +53,13 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  *     engine depth being reversed, it is RAISING it that makes rejection safe, exactly as
  *     `hizNearestBound` guarantees in double precision.
  */
-export const BOX_PROJECT_WGSL = `
+export const BOX_PROJECT_WGSL = wgslBlock(
+  'BOX_PROJECT_WGSL',
+  [PROJECTION_SLACK_WGSL],
+  `
 /** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
  *  that forbids any rejection. */
 struct BoxProj{rect:vec4i,nearest:f32,clips:u32,}
-${PROJECTION_SLACK_WGSL}
 /** Coplanar layer bias on the bits of a depth: mirror of \`biasedDepthBits\`.
  *  Reversed depth: moving closer to the eye is ADDING units, capped at the bits of 1. */
 fn biasedDepth(value:f32,layer:u32)->f32{
@@ -102,4 +110,5 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
  if(nearest>0.0){nearest=biasedDepth(nearest*${GROW},layer);}
  return BoxProj(rect,nearest,0u);
 }
-`
+`,
+)

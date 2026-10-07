@@ -1,25 +1,14 @@
-import { TAU } from '../../../math/src/constants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+
 /**
- * Numbers the shader texts write, held once as numbers and interpolated where each text reads them
- * (as `LTC_SIZE` already is): no two texts carry two copies of a constant.
+ * Numbers the shader texts write, held once as numbers and written where each text reads them
+ * through `wgslF32` (as `LTC_SIZE` already is): no two texts carry two copies of a constant. π and
+ * its multiples are the maths library's declarations (`packages/math/src/wgsl/constants.ts`).
  */
 
-/** A number as a float literal: every digit JavaScript keeps, and never an integer token, which
- *  WGSL would type as `i32`. */
-export const shaderFloat = (value: number) => {
-  const text = String(value)
-  return /[.e]/.test(text) ? text : `${text}.0`
-}
-
-export const PI = shaderFloat(Math.PI)
-export const TWO_PI = shaderFloat(TAU)
-/** The Lambert normalisation, 1/π. */
-export const INVERSE_PI = shaderFloat(1 / Math.PI)
-/** The vector form factor's normalisation, 1/(2π) (`direct/rectLightWgsl.ts`). */
-export const INVERSE_TWO_PI = shaderFloat(1 / TAU)
 /** The smoothest roughness a lit surface is shaded at: every shading path clamps to it, and the
  *  deferred resolve reads a surface at it as a mirror (`../bounce/reflectWgsl.ts`). */
-export const ROUGHNESS_FLOOR = shaderFloat(0.0525)
+export const ROUGHNESS_FLOOR = 0.0525
 
 /** A 3×3 matrix, nine numbers column after column. */
 type Matrix3 = readonly number[]
@@ -31,7 +20,7 @@ export const wgslMatrix3 = (m: Matrix3) =>
       (at) =>
         `vec3f(${m
           .slice(at, at + 3)
-          .map(shaderFloat)
+          .map(wgslF32)
           .join(',')})`,
     )
     .join(',')})`

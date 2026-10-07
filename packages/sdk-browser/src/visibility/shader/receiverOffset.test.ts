@@ -10,6 +10,7 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The statements that would write the offset in the resolve, in their order; a discarded or
  *  empty pixel stored nothing, which the readers never read. */
@@ -136,9 +137,10 @@ const scope = {
     [0, 1, 2].map((r) => t.scale * (t.adj[0][r] * v[0] + t.adj[1][r] * v[1] + t.adj[2][r] * v[2])),
 }
 // The shipped text the readers insert, which carries the shared routines both sides call.
-const SHIPPED = receiverOffsetWgsl(0)
+const SHIPPED = wgslModule(receiverOffsetWgsl(0))
 const HELPERS = [
   'framebuffer',
+  'clipToFramebuffer',
   'edge',
   'baryWeights',
   'pixelBary',
@@ -147,6 +149,8 @@ const HELPERS = [
   'transformedNormals',
   'uniteOuZero',
   'shadingPointOffset',
+  'worldMatrix3',
+  'windingKept',
 ]
 const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,

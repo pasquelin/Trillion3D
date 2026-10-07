@@ -29,6 +29,7 @@ import {
   type VsmLayout,
   type VsmResourceOptions,
 } from './layout.ts'
+import { wgslBlock, type WgslDecl, wgslFn } from '../../../math/src/wgsl/decl.ts'
 
 /** One frame's buffers; `pageTable`, `receiverCover` and `staleRects` are the same
  *  buffer in both frames (`SHARED_FRAME_MEMBERS`). */
@@ -98,7 +99,11 @@ export interface VsmResources {
 export function vsmPoolTexelIndexWgsl(name: string, rowShift: string) {
   const L = VSM_LOG2_PAGE,
     M = VSM_PAGE_TEXELS - 1
-  return `fn ${name}(t:vec2u)->u32{return ((((t.y>>${L}u)<<${rowShift})|(t.x>>${L}u))<<${2 * L}u)|((t.y&${M}u)<<${L}u)|(t.x&${M}u);}`
+  return wgslBlock(
+    `vsmPoolTexelIndexWgsl(${name}, ${rowShift})`,
+    [],
+    `fn ${name}(t:vec2u)->u32{return ((((t.y>>${L}u)<<${rowShift})|(t.x>>${L}u))<<${2 * L}u)|((t.y&${M}u)<<${L}u)|(t.x&${M}u);}`,
+  )
 }
 
 const S = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
@@ -366,7 +371,8 @@ function elementType(resource: VsmBindingResource, atomic: boolean) {
  * and when atomic `vsmPoolAtomicMax(texel,slice,value)` (the raster's atomic max: a value no
  * greater than the word already held writes nothing, the word being the same).
  * Structs used by the declarations come from `VSM_UNIFORMS_WGSL`, `VSM_PROJECTION_DATA_WGSL`,
- * `VSM_STRUCTS_WGSL`, which the caller includes once.
+ * `VSM_STRUCTS_WGSL`, which the caller includes once. The pool's load is a declaration of its
+ * own (`vsmPoolLoadOf`), which the projection sample lists (`vsmProjectionSampleWgsl`).
  */
 export function vsmBindingsWgsl(
   group: number,
@@ -374,6 +380,7 @@ export function vsmBindingsWgsl(
   layout: VsmLayout,
 ) {
   const out: string[] = []
+  const pools: WgslDecl[] = []
   for (const spec of specs) {
     // Both frames hold one buffer of a shared member: its previous frame's content is gone.
     if (spec.prev && SHARED_FRAME_MEMBERS.has(spec.resource))
@@ -387,7 +394,7 @@ export function vsmBindingsWgsl(
       continue
     }
     if (spec.resource === 'pagePool') {
-      out.push(vsmPoolWgsl(group, spec.binding, access, layout, name))
+      pools.push(vsmPoolWgsl(group, spec.binding, access, layout, name).accessors)
       continue
     }
     out.push(
@@ -403,7 +410,23 @@ export function vsmBindingsWgsl(
       )
     }
   }
-  return out.join('\n')
+  return wgslBlock(
+    `vsmBindingsWgsl(${group}, ${JSON.stringify(specs)}, ${layoutKey(layout)})`,
+    pools,
+    out.join('\n'),
+  )
+}
+
+/** The layout's numbers a module's text reads: the pool's parts, their texel shift, its row shift. */
+const layoutKey = (layout: VsmLayout) =>
+  `${layout.poolPartsPerSlice}/${layout.poolPartTexelShift}/${layout.poolRowShift}`
+
+/** The pool's `<name>Load` of `specs`' page pool in `group` (`vsmBindingsWgsl`): what a fragment
+ *  that reads the pool lists. */
+export function vsmPoolLoadOf(group: number, specs: readonly VsmBindingSpec[], layout: VsmLayout) {
+  const spec = specs.find((s) => s.resource === 'pagePool')
+  if (!spec) throw new Error('VSM: no page pool among the bindings')
+  return vsmPoolWgsl(group, spec.binding, spec.access ?? 'read', layout, varName(spec)).load
 }
 
 function vsmPoolWgsl(
@@ -433,17 +456,23 @@ function vsmPoolWgsl(
     `fn ${name}${signature}{\n let l=${name}TexelIndex(t);\n let i=l&${mask};\n switch(slice*${parts}u+(l>>${shift}u)){\n${vars
       .map((v, k) => ` case ${k}u:{${body(v)}}`)
       .join('\n')}\n default:{${otherwise}}\n }\n}`
+  const key = `${name}(${group}, ${first}, ${access}, ${layoutKey(layout)})`
   // Texture2DArray texel (x, y, slice): its word in the slice, page by page.
-  lines.push(vsmPoolTexelIndexWgsl(`${name}TexelIndex`, `${layout.poolRowShift}u`))
-  lines.push(
+  const load = wgslFn(
+    `${name}Load`,
+    [
+      wgslBlock(`${key} bindings`, [], lines.join('\n')),
+      vsmPoolTexelIndexWgsl(`${name}TexelIndex`, `${layout.poolRowShift}u`),
+    ],
     accessor(
       'Load(t:vec2u,slice:u32)->u32',
       (v) => (atomic ? `return atomicLoad(&${v}[i]);` : `return ${v}[i];`),
       'return 0u;',
     ),
   )
+  const rest: string[] = []
   if (access !== 'read')
-    lines.push(
+    rest.push(
       accessor(
         'Store(t:vec2u,slice:u32,value:u32)',
         (v) => (atomic ? `atomicStore(&${v}[i],value);` : `${v}[i]=value;`),
@@ -451,7 +480,7 @@ function vsmPoolWgsl(
       ),
     )
   if (atomic)
-    lines.push(
+    rest.push(
       accessor(
         'AtomicMax(t:vec2u,slice:u32,value:u32)',
         // A word only grows: one already at least \`value\` stays as the max would leave it.
@@ -459,7 +488,7 @@ function vsmPoolWgsl(
         '',
       ),
     )
-  return lines.join('\n')
+  return { load, accessors: wgslBlock(`${key} accessors`, [load], rest.join('\n')) }
 }
 
 /** Number of binding slots a spec consumes. */

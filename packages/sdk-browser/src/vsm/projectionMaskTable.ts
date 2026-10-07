@@ -13,6 +13,7 @@
 import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
 import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts'
 import { loadOnlyTarget, loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
 export const VSM_MASK_TABLE_BINDING = 21
@@ -26,9 +27,13 @@ export const VSM_MASK_TABLE_TARGET = loadOnlyTarget(
   'vsmMaskTable',
 )
 /** The table's binding and `vsmMaskDecode`: a lane's code to its factor, one load of the table. */
-export const VSM_MASK_TABLE_READ_WGSL = /* wgsl */ `
+export const VSM_MASK_TABLE_READ_WGSL = wgslBlock(
+  'VSM_MASK_TABLE_READ_WGSL',
+  [],
+  `
 ${VSM_MASK_TABLE_TARGET.wgsl}
-fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u))[code&3u];}`
+fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u))[code&3u];}`,
+)
 
 /** The decode table of `device`: its pipeline compiled off the frame from now (`started`), its
  *  fill encoded and submitted on its own, once (`fill`), by the first frame that binds a program

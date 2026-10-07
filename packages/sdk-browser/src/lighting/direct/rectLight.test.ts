@@ -10,6 +10,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { RECT_LIGHT_WGSL, RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { TAU } from '../../../../math/src/constants.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type V = number[]
 type View = { a: V; b: V; c: V; d: V; window: number }
@@ -18,7 +19,7 @@ const shader = shaderRun<{
   polygonFormFactor: (a: V, b: V, c: V, d: V, up: V) => V
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
 }>(
-  `${RECT_LIGHT_WGSL}${RECT_SHADING_WGSL}`,
+  wgslModule(RECT_LIGHT_WGSL, RECT_SHADING_WGSL),
   ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner'],
   {
     ...F32_SCOPE,

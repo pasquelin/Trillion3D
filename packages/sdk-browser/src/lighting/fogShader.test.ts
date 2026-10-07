@@ -11,6 +11,7 @@ import {
 } from '../../../sdk-core/src/scene/core/environment.ts'
 import { packFog, type SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 type V3 = [number, number, number]
 const length = (v: V3) => Math.hypot(v[0], v[1], v[2])
@@ -59,7 +60,7 @@ function evaluate(source: string, operators: [string, string][]) {
   return bind
 }
 
-const wgsl = evaluate(FOG_WGSL, [['P-eye', 'sub(P,eye)']])
+const wgsl = evaluate(wgslSource(FOG_WGSL), [['P-eye', 'sub(P,eye)']])
 
 /** The WGSL `fogged` on the contract buffer's fog block, as `packEnvironment` writes it. */
 function wgslFogged(fog: SceneFog | undefined, rgb: V3, P: V3, eye: V3) {

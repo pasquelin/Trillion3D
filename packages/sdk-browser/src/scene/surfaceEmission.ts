@@ -1,5 +1,6 @@
 import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING.
@@ -24,9 +25,13 @@ import type { VisMaterial } from '../visibility/materialType.ts'
 /** The bit a surface written with `emissive` and `ao` carries (the material pass). `EMISSIVE_AO`
  *  false — an image without the layer (`surfaceEmitsOrOccludes`) — marks no texel: none of its
  *  surfaces could have set the bit. */
-export const EMISSIVE_AO_FLAG_WGSL = `
+export const EMISSIVE_AO_FLAG_WGSL = wgslBlock(
+  'EMISSIVE_AO_FLAG_WGSL',
+  [],
+  `
 override EMISSIVE_AO:bool=true;
-fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,EMISSIVE_AO&&(any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0));}`
+fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,EMISSIVE_AO&&(any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0));}`,
+)
 
 /** Bytes a pixel of the emission-and-occlusion layer takes (`rgba16float`). */
 export const EMISSIVE_AO_BYTES = 8
@@ -57,8 +62,12 @@ export function surfaceEmitsOrOccludes(
 
 /** The pixel's emission and occlusion: the texel under the bit, `(0, 0, 0, 1)` without it. Needs
  *  the pass's `emissiveAo` binding. */
-export const SURFACE_EMISSIVE_AO_WGSL = `
+export const SURFACE_EMISSIVE_AO_WGSL = wgslBlock(
+  'SURFACE_EMISSIVE_AO_WGSL',
+  [],
+  `
 fn surfaceEmissiveAo(coord:vec2i,surfaceFlag:u32)->vec4f{
  if((surfaceFlag&${EMISSIVE_AO_SURFACE_FLAG}u)==0u){return vec4f(0.0,0.0,0.0,1.0);}
  return textureLoad(emissiveAo,coord,0);
-}`
+}`,
+)

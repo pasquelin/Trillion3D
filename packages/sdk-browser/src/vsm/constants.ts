@@ -1,5 +1,7 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * Virtual shadow map constants: layout, page and kernel sizes, and the defaults of the tunables.
  * Each value is derived from another one where it can be; otherwise it is declared: what it
@@ -331,7 +333,10 @@ export function vsmMovingBias(stillBias: number, movingBias: number, movingShare
 }
 
 /** WGSL mirror of the constants every VSM shader needs. */
-export const VSM_CONSTANTS_WGSL = /* wgsl */ `
+export const VSM_CONSTANTS_WGSL = wgslBlock(
+  'VSM_CONSTANTS_WGSL',
+  [],
+  `
 const VSM_LOG2_PAGE:u32=${VSM_LOG2_PAGE}u;
 const VSM_PAGE_TEXELS:u32=${VSM_PAGE_TEXELS}u;
 const VSM_PAGE_TEXEL_MASK:u32=${VSM_PAGE_TEXEL_MASK}u;
@@ -381,4 +386,5 @@ const LIGHT_KIND_SPOT:u32=${VSM_LIGHT_KIND_SPOT}u;
 const VSM_GROUP_WIDTH:u32=${VSM_GROUP_WIDTH}u;
 const VSM_CM_PER_UNIT:f32=${VSM_CM_PER_UNIT}.0;
 const VSM_NORMAL_OFFSET_FLOOR:f32=${VSM_NORMAL_OFFSET_FLOOR};
-`
+`,
+)

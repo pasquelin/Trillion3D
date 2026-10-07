@@ -29,8 +29,9 @@ import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 type Light = { centre: Vec3; radius: number }
 const CELL = LIGHT_SETTINGS.tileSize
@@ -106,10 +107,10 @@ test('edge cases: a lamp touching one pixel, a cell every lamp reaches, near and
 })
 
 test("the pass runs the oracle's constants and the resolve its slice", () => {
-  const W = wgslConstants(GRID_BOUNDS_WGSL)
+  const W = wgslConstants(wgslModule(GRID_BOUNDS_WGSL))
   assert.equal(W.NEWTON_STEPS, NEWTON_STEPS)
   assert.deepEqual([W.RUN_FRONT, W.RUN_BACK].map(Math.fround), RUN_MARGIN)
-  assert.ok(GRID_BOUNDS_WGSL.includes('let r=radius*1.001;'))
+  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=radius*1.001;'))
   const { gridSlice: shipped } = shaderFunctions<{ gridSlice: (z: number) => number }>(
     DIRECT_LIGHTING_WGSL,
     ['gridSlice'],

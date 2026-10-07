@@ -1,4 +1,5 @@
 import { KEPT_HEADER_WORDS } from '../layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** A region that names none: the swap kernels skip it (`../swap.ts`). */
 export const REGION_NONE = 0xffff
@@ -21,7 +22,10 @@ export const swapRegionsWord = (save: number, back: number) => (save | (back << 
  * journal in place (one workgroup at least, whose first thread saves its length and arms the
  * journal coming back, `armWgsl.ts`), the restore on the length its region holds.
  */
-export const DAG_SWAP_WGSL = `const REGION_NONE:u32=${REGION_NONE}u;
+export const DAG_SWAP_WGSL = wgslBlock(
+  'DAG_SWAP_WGSL',
+  [],
+  `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
 /** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag can be one. No
@@ -55,4 +59,5 @@ fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
   atomicStore(&work[drawnGroups()+1u],grid.y);
  }
  if(s<count){let entry=out.pages[savedAt(v)+1u+s];setFlag(views[0u].queueCap+entry,1u);setFlag(candBase()+s,entry);}
-}`
+}`,
+)

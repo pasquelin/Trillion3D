@@ -173,7 +173,7 @@ export function upscaleRun(
     before: (x, y) => void ((reads.length = 0), (owner.blurred = blurredAt(x, y))),
     after: (out) => ({ ...(out as Omit<Resolved, 'reads' | 'fetches'>), reads: reads.slice() }),
   })
-  /** The blurred luma of display pixel `(x, y)`'s 3×3, in the measurement curve (`BLUR_TAP_WGSL`,
+  /** The blurred luma of display pixel `(x, y)`'s 3×3, in the measurement curve (`BLUR_TAP`,
    *  `shadingLuma`, exposure one): its own history's, by default. */
   const blurredAt = (x: number, y: number) => {
     const base = native

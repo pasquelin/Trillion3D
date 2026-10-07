@@ -1,6 +1,7 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1
 
@@ -15,12 +16,14 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1
  * for all three. `aniso` is the read's: false for a pass that reads the isotropic level — an alpha
  * cutout (`maskAlpha`) —, which is then the level asked. `missing` names the tile only when the
  * table does not hold it at that level — the pool's own word, whose level is the finest resident
- * ancestor's —: what a convergence looks for (`everyPick`). Requires `TILE_POOL_WGSL` and the atlas
- * reads (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`) before this block.
+ * ancestor's —: what a convergence looks for (`everyPick`). Its host lists `TILE_POOL_WGSL` and
+ * the atlas reads (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`).
  */
-const tileRequestIndexWgsl = (
-  k: string,
-) => `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
+const tileRequestIndexWgsl = (k: string) =>
+  wgslBlock(
+    `tileRequestIndexWgsl(${k})`,
+    [],
+    `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
  let s=${k}Slot(slot);
  if(s.tail==0u){return 0u;}
  var at=uv;var lod=0.0;
@@ -34,7 +37,8 @@ const tileRequestIndexWgsl = (
  let word=${k}Pages[entry];
  if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
  return entry-${k}Pages[2]+${k}Pages[0]+1u;
-}`
+}`,
+  )
 
 /**
  * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
@@ -44,7 +48,10 @@ const tileRequestIndexWgsl = (
  * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
  * never what the pool kept of an earlier pose.
  */
-const FEEDBACK_RULE_WGSL = `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
+const FEEDBACK_RULE_WGSL = wgslBlock(
+  'FEEDBACK_RULE_WGSL',
+  [],
+  `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
 fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
 fn feedbackPhase(p:vec2f,word:u32)->bool{
  if(feedbackEvery(word)){return true;}
@@ -56,7 +63,8 @@ fn pickOf(px:u32,choices:u32)->RequestPick{
 }
 fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u),choices);}
 /** Pick \`turn\` of a pixel: \`choices*PICK_TURNS\` turns in a row name each of them once. */
-fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`
+fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`,
+)
 
 const m = WRAP_MAP
 /**
@@ -72,10 +80,10 @@ const m = WRAP_MAP
  * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
  * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
-export const TILE_REQUEST_WGSL = `const MAP_CHOICES:u32=${MAP_CHOICES}u;
-${tileRequestIndexWgsl('color')}
-${tileRequestIndexWgsl('data')}
-${FEEDBACK_RULE_WGSL}
+export const TILE_REQUEST_WGSL = wgslBlock(
+  'TILE_REQUEST_WGSL',
+  [tileRequestIndexWgsl('color'), tileRequestIndexWgsl('data'), FEEDBACK_RULE_WGSL],
+  `const MAP_CHOICES:u32=${MAP_CHOICES}u;
 /** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
 fn mapRequest(p:RequestPick,missing:bool,color:vec2u,data:vec4u,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
  let sel=p.sel;
@@ -89,4 +97,5 @@ fn mapRequest(p:RequestPick,missing:bool,color:vec2u,data:vec4u,uv:vec2f,ddx:vec
  if(slot==0u){return 0u;}
  if(isColor){return colorRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);}
  return dataRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);
-}`
+}`,
+)

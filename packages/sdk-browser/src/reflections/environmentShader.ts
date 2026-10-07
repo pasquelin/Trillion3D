@@ -1,5 +1,6 @@
 import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { REFLECTION_BANDS_WGSL } from './bandsShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Where a program reads its environment's nine radiance coefficients. */
 export interface EnvironmentSource {
@@ -21,12 +22,15 @@ export function environmentReflectionShader({
   coefficient,
 }: EnvironmentSource) {
   const magnitude = Array.from({ length: 9 }, (_, k) => `abs(${coefficient(k)})`).join('+')
-  return `${REFLECTION_BANDS_WGSL}
-
+  return wgslBlock(
+    `environmentReflectionShader(${prelude}, ${direction})`,
+    [REFLECTION_BANDS_WGSL],
+    `
 fn environmentReflection(R:vec3f,rough:f32)->vec3f{
  ${prelude}
  if(dot(${magnitude},vec3f(1.0))==0.0){return vec3f(0.0);}
  let bands:vec3f=reflectionProbeBands(rough);
  return max(vec3f(0.0),${filteredRadianceShader(coefficient, direction, 'bands')});
-}`
+}`,
+  )
 }

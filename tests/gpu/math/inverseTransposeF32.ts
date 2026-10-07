@@ -1,4 +1,4 @@
-// The `inverseTranspose3` kernel of `inverseTransposeWgsl.ts`, replayed in f32 on the CPU: the same
+// The `inverseTranspose3` kernel of `packages/math/src/wgsl/inverseTranspose.ts`, replayed in f32 on the CPU: the same
 // order of operations, the same rounding on every product and sum (`Math.fround`), the same guards.
 // This is the MODEL — what the shader must compute, not what it computes. What ties it to the text
 // the GPU runs is `tests/gpu/math/normal-transform.gpu.ts`, which compares, case by case, this model
@@ -103,7 +103,7 @@ export function inverseTransposeBefore(m: Mat3, v: Vec3): Vec3 {
 
 /**
  * The shipped kernel, in f32: the 3×3 divided by the sum of its absolute values before the
- * determinant, then the singular convention of `inverseTransposeWgsl.ts`. A zero, infinite or NaN
+ * determinant, then the singular convention of `packages/math/src/wgsl/inverseTranspose.ts`. A zero, infinite or NaN
  * sum: the kernel zeroes the adjugate, so the product is the zero vector. A normalised determinant
  * under the threshold with a non-zero adjugate: the adjugate ALONE, without the `1/(det·t)` that
  * would be ±∞ — the cross product of the transformed edges, to 1/t².

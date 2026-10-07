@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts'
 import { FLAG_HAS_MAP, FLAG_HAS_UV } from '../../visibility/types.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 const world = (x = 1, y = 1, z = 1) => [
   [x, 0, 0, 0],
@@ -34,8 +35,14 @@ const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
     ray: number[],
   ) => number[]
 }>(
-  BLEND_TRANSMITTANCE_WGSL,
-  ['volumeBoundary', 'volumeWorldThickness', 'blendTransmittance', 'volumeTransmittanceOf'],
+  wgslModule(BLEND_TRANSMITTANCE_WGSL),
+  [
+    'volumeBoundary',
+    'volumeWorldThickness',
+    'blendTransmittance',
+    'volumeTransmittanceOf',
+    'matrixWindingCwTriple',
+  ],
   {
     cross: (a: number[], b: number[]) => [
       a[1] * b[2] - a[2] * b[1],

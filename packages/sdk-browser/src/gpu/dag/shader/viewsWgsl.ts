@@ -1,5 +1,6 @@
 import { VIEW_BLOCK_WORDS } from '../viewLayout.ts'
 import { AHEAD_VIEW } from './aheadWgsl.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
@@ -48,7 +49,10 @@ export const VIEW_WORD_ROWS = 3
  */
 const WORK_DROPPED = 4
 
-export const DAG_VIEWS_WGSL = `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
+export const DAG_VIEWS_WGSL = wgslBlock(
+  'DAG_VIEWS_WGSL',
+  [],
+  `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
 const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
 const ENTRY_INDEX:u32=${(1 << VIEW_SHIFT) - 1}u;
 /** The view the current work item serves: set by each kernel from its entry, read by every
@@ -75,4 +79,5 @@ fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
-`
+`,
+)

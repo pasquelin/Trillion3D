@@ -24,7 +24,7 @@ export function resolveHostSubtree(node: Object3D) {
  * sum and return the null vector, hence a dark surface with nobody knowing why. It is therefore
  * refused at the ENTRY — at load (`../../world/scene/scene.ts`) and on every requested pose
  * (`../../webgpu/pages/render/transform.ts`) — with the node name and the faulty index. This is case 4 of the
- * singular-normal convention, written in `../../math/inverseTransposeWgsl.ts`; cases 1 to 3 answer there
+ * singular-normal convention, written in `packages/math/src/wgsl/inverseTranspose.ts`; cases 1 to 3 answer there
  * with a computation, this one with a refusal.
  */
 export function assertFiniteTransform(elements: ArrayLike<number>, nodeName: string) {

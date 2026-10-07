@@ -33,6 +33,8 @@
  * less flags / uniform / instances / slot offsets). Group 1: 0 pairs (vertex), 1 projection
  * data (vertex), 2.. pool slices × parts (fragment, atomic).
  */
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
@@ -59,25 +61,16 @@ export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
 /** The dummy attachment: one page. */
 export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
 
-export const vsmRenderRasterWgsl = (layout: VsmLayout) => /* wgsl */ `
-${PAGE_INFO_WGSL}
+export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    /* wgsl */ `
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
-${PAGE_GEOMETRY_WGSL}
-${tilePoolWgsl('0.0')}
-${COLOR_SAMPLE_WGSL}
-${maskAlphaWgsl(true)}
-${MASK_KEEP_WGSL}
-${VSM_CONSTANTS_WGSL}
-${VSM_HANDLE_WGSL}
-${VSM_PROJECTION_DATA_WGSL}
 @group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
-${vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout)}
-${vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout)}
 struct VsmRenderOut{
  @builtin(position) position:vec4f,
  @location(0) @interpolate(flat) row:u32,
@@ -98,7 +91,7 @@ fn vsmRenderWorld(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{return (page.
 fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
  if((page.flags&${FLAG_DOUBLE}u)!=0u){return true;}
  let w=page.world;
- let mirrored=determinant(mat3x3f(w[0].xyz,w[1].xyz,w[2].xyz))<0.0;
+ let mirrored=matrixWindingCw(w);
  var n=cross(b-a,c-a);
  if(mirrored){n=-n;}
  let uv=raw.shiftedToMapUv;
@@ -160,4 +153,19 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  let texel=physical*VSM_PAGE_TEXELS+min(vec2u(in.position.xy),vec2u(VSM_PAGE_TEXEL_MASK));
  vsmPoolAtomicMax(texel,in.dest.y,bitcast<u32>(clamp(in.position.z,0.0,1.0)));
 }
-`
+`,
+    [
+      PAGE_INFO_WGSL,
+      tilePoolWgsl('0.0'),
+      COLOR_SAMPLE_WGSL,
+      maskAlphaWgsl(true),
+      MASK_KEEP_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
+      vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
+      matrixWindingCw,
+      PAGE_GEOMETRY_WGSL,
+    ],
+  )

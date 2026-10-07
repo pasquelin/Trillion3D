@@ -1,4 +1,4 @@
-// The umbra vote of the adaptive ray count (`rayCountWgsl`, `traceWgsl.ts`) is asked at the
+// The umbra vote of the adaptive ray count (`rayCountStatement`, `traceWgsl.ts`) is asked at the
 // adaptive count alone. Past it, a half its vote did not stop holds a lane that missed, which votes
 // no at every later ray (`missCount` never falls) and so is never stopped; a half it stopped has no
 // lane left running. The shipped `vsmTraceSun` and `vsmTraceLocal` run here for whole groups, lane

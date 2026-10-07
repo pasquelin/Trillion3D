@@ -76,7 +76,7 @@ lines.push(
     name: 'NormalMatrix3 batch',
     fichier: BATCH,
     // Not the same computation: `normalMatrix3` carries the singularity decision the WGSL kernel
-    // mirrors (`packages/math/src/matrix/singular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
+    // mirrors (`packages/math/src/matrix/singular.ts`, `packages/math/src/wgsl/inverseTranspose.ts`), which `getNormalMatrix` does not have.
     // Measured 1.52× to 1.67× over five runs (paired median, Oct. 2026): the ceiling keeps one
     // tenth of headroom, so a 10 % slowdown fails where 2.2× let 45 % through.
     slower: {

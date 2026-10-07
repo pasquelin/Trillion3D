@@ -17,7 +17,7 @@ export {
   uniformScaleMatrix4,
 } from './matrix/matrix4Trs.ts'
 export { normalMatrix3 } from './matrix/matrix3.ts'
-export { SINGULAR_DETERMINANT_WGSL, linearPartScale } from './matrix/singular.ts'
+export { linearPartScale } from './matrix/singular.ts'
 export {
   addScaledVector3,
   applyMatrix3Vector3,
@@ -73,14 +73,7 @@ export {
   frustumPlanesFromMatrix,
 } from './geometry/frustum/frustum.ts'
 export { frustumClipBox, frustumExcludesBox } from './geometry/frustum/box.ts'
-export {
-  CONE_LENGTH_RATIO,
-  CONE_LENGTH_RATIO_WGSL,
-  CONE_ORTHO_EPS,
-  CONE_ORTHO_EPS_WGSL,
-  HALF_PI_WGSL,
-  boxConeRejects,
-} from './geometry/cone.ts'
+export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS, boxConeRejects } from './geometry/cone.ts'
 export {
   createCameraFrame,
   orthographicProjection,

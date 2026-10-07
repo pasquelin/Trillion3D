@@ -31,7 +31,7 @@ export function cacheRun(width: number, height: number, none = false) {
   }
   const decode = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
-    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep clusterPow2 clusterBitsFor clusterStream clusterPosition clusterGrid clusterUv clusterNormal'.split(
+    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep clusterPow2 clusterBitsFor clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar'.split(
       ' ',
     ),
     {
@@ -61,12 +61,15 @@ export function cacheRun(width: number, height: number, none = false) {
       'decodeTriangle',
       'transformedNormals',
       'framebuffer',
+      'clipToFramebuffer',
       'invTranspose3Apply',
       'uniteOuZero',
       'pageSprite',
       'spriteAt',
       'composeRowFrame',
       'invTranspose3Prep',
+      'worldMatrix3',
+      'windingKept',
     ],
     {
       ...F32_SCOPE,
@@ -122,7 +125,7 @@ export function cacheRun(width: number, height: number, none = false) {
     scope,
   )
   const reads = shaderRun<Record<string, Fn>>(
-    SHADE_TRIS_SHADER + shadeCacheReadWgsl(0),
+    SHADE_TRIS_SHADER + shadeCacheReadWgsl(0).text,
     [
       'shade_tris',
       'flatIndex',

@@ -1,5 +1,6 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
-import { COVERAGE_CHOOSE_WGSL, COVERAGE_WGSL } from './mipsWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 
@@ -34,7 +35,7 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
   return {
     layout,
     chooseLayout,
-    count: pipeline(COVERAGE_WGSL, layout, 'count'),
+    count: pipeline(wgslModule(COVERAGE_COUNT_WGSL), layout, 'count'),
     pick: pipeline(COVERAGE_CHOOSE_WGSL, chooseLayout, 'choose'),
   }
 })
