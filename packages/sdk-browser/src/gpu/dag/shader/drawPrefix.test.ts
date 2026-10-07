@@ -1,5 +1,5 @@
 // `dagDrawPrefix` gave each block of drawn pages its offset with its own serial walk over the lane
-// totals. It now reuses the engine's lane scan (`../../core/laneScanWgsl.ts`, #981), whose runs and
+// totals. It now reuses the engine's lane scan (`../../core/laneScanWgsl.ts`), whose runs and
 // scan `../../draw/prefixEquivalence.test.ts` proves equal to the serial prefix. This file pins the
 // shipped kernel to that shared scan and checks the scan on this kernel's shape: one slot, block
 // counts below, at and past the 64 lanes.

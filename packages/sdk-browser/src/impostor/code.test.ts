@@ -1,6 +1,6 @@
-// #1335: the impostor draw is a family on demand, so the CDN core stays within its budget. A cache
+// The impostor draw is a family on demand, so the CDN core stays within its budget. A cache
 // without baked impostors never fetches it; one with them awaits it where it prepares, so its first
-// image draws the cards. Fails on develop: the file is new.
+// image draws the cards.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { families } from '../host/families.ts'

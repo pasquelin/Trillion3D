@@ -1,5 +1,5 @@
-// A scene a GPU proof names is where it names it (#683): a scene moved to another root once left
-// a proof reading a path nothing held.
+// A scene a GPU proof names is where it names it: a scene moved to another root must not leave
+// a proof reading a path nothing holds.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -20,7 +20,7 @@ const named = files.flatMap(({ file, text }) =>
   [...text.matchAll(SCENE_PATH)].map(([, path]) => ({ file, path })),
 )
 
-// A path into a cache, the URL the #683 proof read by hand, is refused: a proof names the scene
+// A path into a cache, the URL a proof once read by hand, is refused: a proof names the scene
 // folder and derives what it reads from it, so the path its server serves is never written twice.
 test('every scene a GPU proof names is a scene folder, never a cache path', () => {
   assert.ok(named.length > 0, 'no GPU proof names a scene')

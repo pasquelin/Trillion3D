@@ -31,11 +31,11 @@ export class Mesh<M extends object = Material> extends Object3D {
   /** The rank of each morph target by its name. */
   declare morphTargetDictionary?: Record<string, number>
   /** The bones it bends by, when its geometry carries `skinIndex` and `skinWeight`: the GPU
-   *  moves each vertex by its joints every frame (#357). */
+   *  moves each vertex by its joints every frame. */
   declare skeleton?: Skeleton
   /** The water surface whose waves carry it (`world.physics.waterSurface`): each vertex, a rest
    *  point of the plane at the surface's level, is moved on the GPU where the waves carry that
-   *  point — the numbers buoyancy reads (#357, #422). Unset, a mesh that lies flat on the world's
+   *  point — the numbers buoyancy reads. Unset, a mesh that lies flat on the world's
    *  water at its level is carried by it, and set to it; `null`, never. */
   declare waves?: WaterSurface | null
   declare private _physics?: ObjectPhysics | null

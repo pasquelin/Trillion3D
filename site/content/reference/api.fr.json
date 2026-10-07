@@ -756,10 +756,10 @@
     "summary": "La famille `capability` : ce que permet la machine, avant de promettre une image."
   },
   "capability.detect": {
-    "summary": "Quels chemins du moteur cette machine permet (`detectCapabilities`), et pourquoi."
+    "summary": "Si cette machine accorde WebGPU (`detectCapabilities`), son niveau, et pourquoi."
   },
   "capability.lighting": {
-    "summary": "Ce que fait des lumières le chemin qui dessine `world` (`lightingCapabilities`).",
+    "summary": "Ce que fait des lumières le moteur qui dessine `world` (`lightingCapabilities`).",
     "parameters": {
       "world": "Le monde à interroger."
     }
@@ -811,7 +811,7 @@
     "description": "Ce que donne l’API publique est une de ces copies : un hôte qui écrit dans la copie reçue ne change rien dans le moteur, et un hôte qui modifie une lumière déjà envoyée ne change rien non plus — le stockage a vérifié sa propre copie en entrant. La copie est faite là où l’hôte lit, jamais sur le chemin de l’image : les moteurs lisent l’enregistrement tenu et le tampon rangé, et ne copient rien."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Format de cache externe requis pour le BLEND en clusters (6 avant que `selectedNodes` devienne un nombre) ; les manifestes source gardent leur propre format."
+    "summary": "Format de cache externe requis pour le BLEND en clusters (8 avant que le manifeste soit paginé, 10 avant le format 11) ; les manifestes source gardent leur propre format."
   },
   "clusterErrorAtDepth": {
     "summary": "La même erreur projetée quand la distance du centre à l’axe de vue et sa profondeur (−z de la vue) sont déjà connues : un nœud qui fixe plancher et plafond sur la même sphère partage sa profondeur."
@@ -1391,7 +1391,8 @@
     "description": "Chaque chemin lit cette seule fonction et la signe pour son propre test de profondeur."
   },
   "detectCapabilities": {
-    "summary": "Vérifie avec quoi cette machine peut dessiner, et dit pourquoi quand elle ne peut pas."
+    "summary": "Vérifie ce qu’accorde le WebGPU de cette machine, et dit pourquoi quand il n’accorde rien.",
+    "description": "`gpu` désigne `navigator.gpu`."
   },
   "GpuCapabilities": {
     "summary": "Ce que le WebGPU de cette machine accorde, lu avant qu’aucune session s’ouvre.",
@@ -1481,7 +1482,7 @@
   },
   "DiagnosticDetail": {
     "summary": "Ce qu’un moteur rapporte de lui-même quand quelque chose va mal ou quand une vue demande du détail : l’enregistrement que met en file le collecteur de l’hôte, et ce qu’en veut un appelant.",
-    "description": "Séparé du contrat du moteur de `../backend/types.ts` — c’est ce qui en ressort, pas ce qui est offert."
+    "description": "Séparé du contrat du moteur de `../engine/types.ts` — c’est ce qui en ressort, pas ce qui est offert."
   },
   "DiagnosticMode": {
     "summary": "La disponibilité décrit de vraies sorties du rendu, jamais des surcouches inventées."
@@ -2092,7 +2093,7 @@
     "summary": "Le codec avec lequel les pages de géométrie sont écrites."
   },
   "GEOMETRY_PAGE_FORMAT_VERSION": {
-    "summary": "Le format de page de géométrie que nomme un fichier annexe de version 7, tel que `geometryPages` du manifeste le déclare une fois et que chaque en-tête de page l’ouvre."
+    "summary": "Le format de page de géométrie que nomme un fichier annexe de version 11, tel que `geometryPages` du manifeste le déclare une fois et que chaque en-tête de page l’ouvre."
   },
   "GeometryPageDescriptor": {
     "summary": "Une page de clusters quantifiée (`WGP3`) : `bytes` est ce qu’un lecteur garde résident, `uncompressedBytes` ce qu’occupe son décodage en flottants.",
@@ -2158,7 +2159,7 @@
   },
   "GpuPassBlock": {
     "summary": "Les deux blocs d’une image qu’on peut comparer à un profil publié, et rien d’autre.",
-    "description": "`visibility` est la construction du tampon de visibilité : sélection, partage, Hi-Z et rastérisation. `materials` est l’écriture des surfaces à partir de ce tampon. Tout le reste est `other` : ombres, listes de lumières, rebond, transparents, éclairage différé, présentation, et le chemin de repli qui ne passe pas par le tampon — mettre l’un d’eux dans un bloc gonflerait une comparaison au lieu de la servir, donc ils restent dehors ET nommés, chaque passe gardant sa durée."
+    "description": "`visibility` est la construction du tampon de visibilité : sélection, partage, Hi-Z et rastérisation. `materials` est l’écriture des surfaces à partir de ce tampon. Tout le reste est `other` : ombres, listes de lumières, rebond, transparents, éclairage différé et présentation — mettre l’un d’eux dans un bloc gonflerait une comparaison au lieu de la servir, donc ils restent dehors ET nommés, chaque passe gardant sa durée."
   },
   "gpuPassBlockOf": {
     "summary": "Bloc d’une passe, d’après son nom.",
@@ -2959,7 +2960,7 @@
   },
   "MANIFEST_BINARY_VERSION": {
     "summary": "La version 4 change les aperçus fixes de 16×16 en niveaux progressifs variables : la colonne de pixels n’a plus de pas, chaque entrée nommant sa propre plage d’octets.",
-    "description": "Un fichier d’une autre version est refusé en entier : un lecteur qui découperait la mauvaise plage montrerait les niveaux d’une texture sur une autre. La version 5 élargit une entrée d’aperçu de dix à douze mots — l’atlas qu’elle sert et combien de niveaux sont cuits en fichiers sous `textures/` — et ses pixels suivent la règle des mips de la carte graphique ; un lecteur de version 4 parcourrait mal les entrées, donc il refuse ce fichier. La version 6 garde chaque colonne et nomme une autre page de géométrie dans le descripteur de géométrie : la page quantifiée `WGP3` (`geometryPage.ts`) à la place de la page en flottants `WGP2`, dont un lecteur de version 6 refuserait les octets un par un au décodage ; refuser le fichier le dit une fois. La version 7 élargit une entrée d’aperçu à quatorze mots — la disposition dans laquelle chaque famille de blocs tient la chaîne, ou aucune — et ajoute deux colonnes : les fins compressées en blocs, famille BC puis ASTC, la plage de chaque entrée gardée découlant de ses dimensions ; un lecteur de version 6 ne les connaîtrait pas, donc il refuse."
+    "description": "Un fichier d’une autre version est refusé en entier : un lecteur qui découperait la mauvaise plage montrerait les niveaux d’une texture sur une autre. La version 5 élargit une entrée d’aperçu de dix à douze mots — l’atlas qu’elle sert et combien de niveaux sont cuits en fichiers sous `textures/` — et ses pixels suivent la règle de mip de la carte graphique ; un lecteur de version 4 parcourrait mal les entrées, donc il refuse ce fichier. La version 6 garde chaque colonne et nomme une autre page de géométrie dans le descripteur de géométrie : la page quantifiée `WGP3` (`geometryPage.ts`) à la place de la page flottante `WGP2`, dont un lecteur de version 6 refuserait les octets un à un au décodage ; refuser le fichier le dit une fois. La version 7 élargit une entrée d’aperçu à quatorze mots — la disposition dans laquelle chaque famille de blocs tient la chaîne, ou aucune — et ajoute deux colonnes : les fins compressées en blocs, famille BC puis ASTC, la plage de chaque entrée gardée découlant de ses dimensions ; un lecteur de version 6 ne les connaîtrait pas, donc il refuse. La version 8 ajoute les dépendances de pages des paquets de streaming : un nombre par paquet, puis les listes à plat, closes jusqu’à la couverture de racine (`docs/FORMAT.md` §Cluster DAG), que WebGPU demande et retient avec un paquet. Un lecteur de version 7 ne peut pas lire les listes, donc il refuse. La version 9 ajoute le cône de normales de chaque page, cuit par le compilateur (`Page.cone`), dans une colonne qui manque à un lecteur de version 8. La version 10 découpe le manifeste en pages (`paged.ts`) : un fichier annexe tient les colonnes d’une page, celui de la tête les seuls aperçus de textures. La version 11 élargit une entrée d’aperçu à quinze mots et ajoute une colonne de blocs après celle d’ASTC : la famille ETC2, la troisième qu’un appareil peut échantillonner ; un lecteur de version 10 parcourrait mal."
   },
   "ManifestBinaryDescriptor": {
     "summary": "Où se trouve le fichier binaire et comment un cluster, une page rangée et un paquet nomment leur objet.",
@@ -3997,7 +3998,7 @@
   },
   "MatrixElements": {
     "summary": "Matrice 4×4 colonne par colonne tenue par l’HÔTE — la pose d’un nœud dans sa scène.",
-    "description": "Le moteur ne lit que ses seize flottants : aucune structure d’une bibliothèque de l’hôte ne traverse une signature.",
+    "description": "Le moteur ne lit que ses seize flottants : aucune structure de l’hôte ne traverse une signature.",
     "members": {
       "elements": "Les seize nombres, colonne par colonne."
     }
@@ -4130,7 +4131,7 @@
       "base": "Le dossier par rapport auquel on lit les autres fichiers du modèle.",
       "metadata": "Le manifeste compilé lui-même : primitives, pages et leurs tailles.",
       "scene": "Le graphe de scène que le chargeur a construit depuis le manifeste.",
-      "textureSource": "Où ses images ont été lues : `cache` a laissé les images cuites aux niveaux que lit la session."
+      "textureSource": "Où ses images ont été lues : `cache` a laissé les images cuites aux niveaux que lit la session, `host` les a toutes lues (`loadModel`)."
     }
   },
   "MultiplyLot": {
@@ -4394,7 +4395,7 @@
   },
   "page": {
     "summary": "La famille `page` : la géométrie coupée en pages, qui entrent et sortent de la mémoire selon ce que lit l’image.",
-    "description": "`createCache` est le réservoir de pages GPU (`createGpuPageCache`), `decode` le décodeur de pages de clusters (`decodeGeometryPage`)."
+    "description": "`createCache` est le réservoir de pages GPU (`createGpuPageCache`), `decode` le décodeur de pages de clusters (`decodeGeometryPage`), un morceau à part que le premier appel télécharge : le moteur dessine les pages sur le GPU et n’en décode jamais une sur le CPU."
   },
   "page.httpSource": {
     "summary": "Une source de pages qui lit les pages en HTTP depuis `baseUrl`.",
@@ -4421,7 +4422,7 @@
     }
   },
   "page.decode": {
-    "summary": "Décompresse une page de géométrie en triangles et en sommets.",
+    "summary": "Décompresse une page de géométrie compressée en triangles et sommets, une fois le morceau du décodeur arrivé (`FAMILY_LOAD_FAILED` quand il ne le peut pas).",
     "parameters": {
       "bytes": "La page compressée."
     }
@@ -4639,7 +4640,7 @@
   "PlacementGrowth": {
     "summary": "Ce qu’un propriétaire remet à une session qui agrandit ses tampons d’instances sur place (`growth.ts`).",
     "members": {
-      "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`). Absent d’un moteur, le propriétaire rouvre la session sur `to`.",
+      "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`).",
       "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands."
     }
   },
@@ -4703,7 +4704,7 @@
     }
   },
   "pose.runPath": {
-    "summary": "Rejoue les vues `poses` dans le monde (`runCameraPath`), `images` images réparties également entre elles, l’œil et la cible allant en ligne droite d’une vue à l’autre.",
+    "summary": "Rejoue les vues `poses` dans le monde (`runCameraPath`), `images` images réparties également entre elles, l’œil et la cible allant en ligne droite d’une vue à l’autre, une image d’affichage chacune : les images dessinées, leur temps CPU résumé, et la cadence d’affichage.",
     "parameters": {
       "world": "Le monde à déplacer.",
       "poses": "Les vues à traverser.",
@@ -4803,13 +4804,13 @@
     "summary": "Octets d’un bloc."
   },
   "PREVIEW_BLOCK_FORMATS": {
-    "summary": "Les familles de blocs dans lesquelles une chaîne peut être cuite, dans l’ordre de leurs colonnes du fichier annexe et des mots de disposition d’une entrée, chacune nommée par son codec RGBA ; `png` est le fichier sans perte à côté."
+    "summary": "Les familles de blocs dans lesquelles une chaîne peut être cuite, dans l’ordre des colonnes du fichier annexe et des mots de disposition d’une entrée, chacune nommée par son codec RGBA : BC pour les cartes de bureau, ASTC 4×4 et ETC2 pour les mobiles ; `png` est le fichier sans perte à leur côté, ce que lit un appareil qui n’en a aucune."
   },
   "PREVIEW_BLOCK_SIDE": {
     "summary": "Texels sur le côté d’un bloc, et octets d’un bloc, dans chaque format."
   },
   "PREVIEW_LAYOUT_NAMES": {
-    "summary": "Ce qu’une famille garde d’une chaîne, par mot de disposition : rien — la chaîne y reste sans perte —, des blocs RGBA (BC7 mode 6, ASTC mode de points d’extrémité de couleur 12), ou des blocs à deux canaux pour une image de normales (BC5, ASTC luminance + alpha sur deux plans : X dans R, Y dans G ou A, Z reconstruit par le shader)."
+    "summary": "Ce qu’une famille garde d’une chaîne, par mot de disposition : rien — la chaîne y reste sans perte —, des blocs RGBA (BC7 mode 6, ASTC mode de point d’extrémité de couleur 12, ETC2 RGBA8), ou des blocs à deux canaux pour une carte de normales (BC5, ASTC luminance + alpha sur deux plans, EAC RG11 : X dans R, Y dans G ou A, Z reconstruit par le shader)."
   },
   "PREVIEW_LOSSLESS_FORMAT": {
     "summary": "Le format de fichier sans perte à côté des familles de blocs."
@@ -5039,7 +5040,7 @@
     "summary": "Tourne `(x, y, z)` par le quaternion unité `q`."
   },
   "RuntimeEvent": {
-    "summary": "Quelque chose que le moteur dit sur lui-même pendant qu’il tourne : un changement qu’il a fait, ou un échec."
+    "summary": "Quelque chose que le moteur dit de lui-même pendant qu’il tourne : une panne que la vue a surmontée, dessinée avec ce qu’elle tient déjà (`degraded`), ou une qu’elle n’a pas surmontée (`fatal`)."
   },
   "SafetyConfig": {
     "summary": "Quand la règle de sécurité éteint une fonction ou la rallume.",
@@ -5073,9 +5074,9 @@
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
-      "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
-      "onBeforeRender": "Appelé par un moteur de rendu avant qu’il dessine la scène ; aucun par défaut.",
-      "onAfterRender": "Appelé par un moteur de rendu une fois la scène dessinée ; aucun par défaut.",
+      "fog": "Un brouillard sur chaque surface, opaque ou transparente ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Appelé avant que la scène soit dessinée ; aucun par défaut.",
+      "onAfterRender": "Appelé une fois la scène dessinée ; aucun par défaut.",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières, le corps de chaque maillage tel qu’il a été déclaré et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -5940,7 +5941,7 @@
   },
   "TextureCompression": {
     "summary": "Quelle famille de blocs prennent les réservoirs d’une session, et tout ce qui en découle.",
-    "description": "Le cache cuit une chaîne dans les familles demandées par la cuisson à côté du PNG sans perte, et seulement là où un contrôle de qualité l’a gardée ; l’appareil dit quelle famille il échantillonne — BC pour les cartes de bureau, ASTC pour les mobiles, certaines les deux, un adaptateur logiciel aucune. Un atlas a alors un réservoir par COULOIR, les dispositions que nomme le fichier annexe : `lossless` (RGBA8, quatre octets par texel — ce que lit une chaîne sous la barre, une image de l’hôte ou un appareil sans la fonction), `rgba` (BC7 ou ASTC, un octet par texel) et `two-channel` (BC5 ou ASTC luminance-alpha, un octet par texel, le X et le Y de l’image de normales avec Z reconstruit par le shader). Le moteur ne perd rien : une texture prend le couloir où sa chaîne a été gardée, et le choix est publié (`texturePoolFormat`)."
+    "description": "Le cache cuit une chaîne dans les familles que la cuisson a demandées — toutes par défaut — à côté du PNG sans perte, et seulement là où une porte de qualité l’a gardée ; l’appareil dit quelle famille il échantillonne — les cartes de bureau BC, les mobiles ASTC ou ETC2, certains plusieurs, un adaptateur logiciel aucune. Un atlas a alors un pool par LANE, les dispositions que nomme le fichier annexe : `lossless` (RGBA8, quatre octets par texel — ce que lit une chaîne sous la barre, une image de l’hôte ou un appareil sans aucune des fonctionnalités), `rgba` (BC7, ASTC ou ETC2 RGBA8, un octet par texel) et `two-channel` (BC5, ASTC luminance-alpha ou EAC RG11, un octet par texel, le X et le Y de la carte de normales avec Z reconstruit par le shader). Rien n’est perdu par le moteur : une texture prend le lane dans lequel sa chaîne a été gardée, et le choix est publié (`texturePoolFormat`)."
   },
   "TextureFilter": {
     "summary": "Règle d’échantillonnage d’une texture : le filtre de base, et la règle des mips quand l’échantillonneur réduit."
@@ -5949,7 +5950,7 @@
     "summary": "Ce que publient les textures virtuelles à une image : le réservoir, les tuiles, le retour de l’image.",
     "description": "Ces champs vivent à part de `FrameMetrics` parce qu’ils décrivent une autre file que l’image : les tuiles arrivent à leur propre rythme, bornées par octets et par image, et le réservoir est dimensionné une fois. Tous facultatifs : un moteur sans textures les laisse absents, `null` dit « non mesuré », jamais une estimation.",
     "members": {
-      "texturePoolBytes": "Les réservoirs physiques, fixés pour la session : leurs octets — CALCULÉS à partir de leurs dimensions et formats, WebGPU ne publiant pas la mémoire occupée —, la famille de blocs que la session échantillonne (`bc7`, `astc`, ou `rgba8` quand l’appareil n’échantillonne ni l’un ni l’autre ou que l’hôte n’en a demandé aucun), les couches de chaque réservoir de couloir des deux atlas additionnées, et ce qu’ils contiennent. `texturePoolBytes` dépend du budget et des couloirs que prennent les chaînes de la scène ; `textureResidentBytes` est la part occupée, fins épinglées comprises, au coût par texel de chaque couloir.",
+      "texturePoolBytes": "Les pools physiques, fixes pour la session : leurs octets — CALCULÉS d’après leurs dimensions et formats, WebGPU ne publiant pas la mémoire occupée —, la famille de blocs que la session échantillonne (`bc7`, `astc`, `etc2`, ou `rgba8` quand l’appareil n’en échantillonne aucune ou que l’hôte n’en a demandé aucune), les couches de chaque pool de lane des deux atlas additionnées, et ce qu’elles tiennent. `texturePoolBytes` dépend du budget et des lanes que prennent les chaînes de la scène ; `textureResidentBytes` est la part occupée, fins épinglées comprises, au coût de texel propre à chaque lane.",
       "texturePoolFormat": "Format du réservoir de textures.",
       "texturePoolLayers": "Couches du réservoir.",
       "textureTilesResident": "Tuiles gardées.",
@@ -6330,7 +6331,7 @@
     "summary": "Le canevas où le monde dessine."
   },
   "world.ready": {
-    "summary": "Une promesse qui se termine quand le monde sait comment il va dessiner."
+    "summary": "Une promesse qui se résout dès que le monde tient son périphérique WebGPU."
   },
   "world.scene": {
     "summary": "La scène : tout ce qu’on y ajoute est dessiné."
@@ -6442,7 +6443,7 @@
     "summary": "Ce que tient la page : le mode de vue, en lecture et en écriture ; les sessions ouvertes et la raison de l’échec de la dernière, en lecture seule.",
     "members": {
       "mode": "Le mode de vue : `'beauty'` pour l’image normale, ou un mode qui montre comment travaille le moteur.",
-      "modes": "Chaque mode de vue qu’offre le moteur de rendu actuel.",
+      "modes": "Tous les modes de vue qu’offre le moteur.",
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil; `FAMILY_LOAD_FAILED` quand une famille facultative ne s’est pas chargée, alors aussi), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté.",
       "debug": "Le mode débogage de la page (`WorldOptions.debug`) : les images ne sont rangées dans le profil des étapes CPU et dans le rapport d’images que dans ce mode, dès l’image suivante."
@@ -7017,11 +7018,11 @@
       "bodies": "Corps de toute sorte à la fois.",
       "decorative": "Corps décoratifs à la fois.",
       "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser. La moitié tient la collision statique à la fois : les tuiles d’un modèle compilé y arrivent autour de l’œil et des corps en mouvement, les plus lointaines partant d’abord ; un maillage triangulé statique au-delà est refusé.",
-      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page.",
+      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page. Un pas répartit son travail sur moins tant que plus se mesurent seulement à se disputer, pour le même résultat.",
       "bodyPairs": "Paires de corps dont les boîtes se chevauchent en un pas. Une pile dense en tient environ quatre par corps ; un pas qui en trouve plus manque des contacts et lève `PHYSICS_BUDGET`.",
       "contactConstraints": "Paires en contact résolues en un pas. Une pile posée en tient environ deux par corps ; un pas qui en trouve plus manque des contacts et lève `PHYSICS_BUDGET`.",
       "contactEvents": "Événements de contact (`enter`, `leave`) qu’un pas rapporte. Un `enter` au-delà est perdu et compté (`world.physics.stats.droppedEvents`), et son `leave` n’est jamais envoyé ; un `leave` n’est que retardé.",
-      "softVertices": "Sommets de tous les corps souples à la fois (tissus, cordes, volumes). Chacun est résolu à chaque pas et relu par la page, 12 octets par pas."
+      "softVertices": "Sommets de tous les corps souples à la fois (tissus, cordes, volumes). Chacun est résolu à chaque pas et relu par la page, 12 octets par pas. Le pas du worker croît avec eux, linéairement (6,5–8,2 ms en natif au défaut, 2,4–2,8 ms à 4096 ; audit PHY-18, #975). Un corps souple au-delà est refusé, en le nommant."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7099,11 +7100,11 @@
       "bodies": "Corps de toute sorte à la fois.",
       "decorative": "Corps décoratifs à la fois.",
       "memoryBytes": "Octets de mémoire du module physique : un plafond dur, le module ne peut pas le dépasser. La moitié tient la collision statique à la fois : les tuiles d’un modèle compilé y arrivent autour de l’œil et des corps en mouvement, les plus lointaines partant d’abord ; un maillage triangulé statique au-delà est refusé.",
-      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page.",
+      "threads": "Fils qui font avancer la simulation, celui du worker physique compris. Au-delà de 1, la page doit être isolée cross-origin (mémoire partagée) ; sinon la simulation avance sur un seul. Jamais plus que les cœurs logiques de la machine moins celui de la page. Un pas répartit son travail sur moins tant que plus se mesurent seulement à se disputer, pour le même résultat.",
       "bodyPairs": "Paires de corps dont les boîtes se chevauchent en un pas. Une pile dense en tient environ quatre par corps ; un pas qui en trouve plus manque des contacts et lève `PHYSICS_BUDGET`.",
       "contactConstraints": "Paires en contact résolues en un pas. Une pile posée en tient environ deux par corps ; un pas qui en trouve plus manque des contacts et lève `PHYSICS_BUDGET`.",
       "contactEvents": "Événements de contact (`enter`, `leave`) qu’un pas rapporte. Un `enter` au-delà est perdu et compté (`world.physics.stats.droppedEvents`), et son `leave` n’est jamais envoyé ; un `leave` n’est que retardé.",
-      "softVertices": "Sommets de tous les corps souples à la fois (tissus, cordes, volumes). Chacun est résolu à chaque pas et relu par la page, 12 octets par pas."
+      "softVertices": "Sommets de tous les corps souples à la fois (tissus, cordes, volumes). Chacun est résolu à chaque pas et relu par la page, 12 octets par pas. Le pas du worker croît avec eux, linéairement (6,5–8,2 ms en natif au défaut, 2,4–2,8 ms à 4096 ; audit PHY-18, #975). Un corps souple au-delà est refusé, en le nommant."
     }
   },
   "PhysicsHost": {
@@ -7283,7 +7284,7 @@
       "offset": "Ce dont `matrix` est composée.",
       "matrixAutoUpdate": "Si l’hôte reconstruit `matrix`.",
       "matrix": "Transformation des UV de l’échantillonneur, `KHR_texture_transform` composé en trois rangées ; l’hôte la recalcule à partir du décalage, de la répétition et de la rotation quand il fait la mise à jour.",
-      "generateMipmaps": "Si des copies plus petites sont demandées ; le moteur les fait dès que `minFilter` les lit.",
+      "generateMipmaps": "Si des copies plus petites sont demandées ; le moteur construit sur le GPU la chaîne de chaque texture quoi que cela dise, chaque lecture prenant le niveau de son empreinte.",
       "premultiplyAlpha": "Si la couleur est pré-multipliée par l’alpha.",
       "flipY": "Si les rangées sont retournées à l’envoi.",
       "version": "Augmenté par l’hôte à chaque changement de contenu : ce qu’un envoi compare pour éviter une recopie.",

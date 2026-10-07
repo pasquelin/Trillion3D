@@ -1,5 +1,5 @@
 // The screen error of what a backend drew, measured against the source surface, the audit's
-// oracle (#959): forward, points of the drawn triangles to the source; reverse, points of the
+// oracle: forward, points of the drawn triangles to the source; reverse, points of the
 // source to the drawn triangles. A distance becomes pixels through the cut's own projection
 // (`screenErrorBound`, radius zero); the camera, its frustum and its focal length are the
 // engine's (`lookAtNode`, `updateCameraFrame`, `pixelScaleOf`), and the nearest-surface queries

@@ -6,7 +6,7 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /**
  * BOX TREE OF THE TRANSPARENT ITEMS, which the frustum verdict walks node by node
- * (`hierarchyCull.ts`, #981): the engine's median split (`buildCentreTree`), double-precision boxes.
+ * (`hierarchyCull.ts`): the engine's median split (`buildCentreTree`), double-precision boxes.
  *
  * INVARIANT: the kept set, the mask, the reject and water counts are exactly those of the item by
  * item walk. A node is rejected only when `frustumExcludesBox` rejects its box, and then it rejects

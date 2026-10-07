@@ -1,4 +1,4 @@
-// #831 (GPU wave 1, C9): the impostor switch kept per root across frames. A frame reads of each
+// The impostor switch kept per root across frames. A frame reads of each
 // root its pivot only, until the root is replaced or its world turns or scales; every verdict and
 // every card stays the one a plan made from nothing gives, bit for bit.
 import test from 'node:test'

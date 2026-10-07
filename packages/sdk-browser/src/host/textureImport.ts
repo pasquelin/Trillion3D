@@ -3,7 +3,7 @@
  * atlas layers, preview ranks and lane pools address a texture by the identity of its record, so
  * the record is refilled in place by `followHostTexture`, called by each consumer on the records
  * it holds when it renders. Its three counters say what moved: `version` (the picture), `sampling`,
- * `placement` (#360, #361).
+ * `placement`.
  */
 import type { HostTexture } from './resources.ts'
 import {

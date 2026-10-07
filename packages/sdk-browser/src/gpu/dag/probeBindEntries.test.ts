@@ -1,5 +1,6 @@
-// The GPU probes run on Dawn (`tests/gpu`), so this Node test holds their bind groups to the
-// engine's (#20): `namedBufferEntries` lays each buffer at its shader name's binding, and no probe
+// The GPU probes run on a native device (`tests/gpu`), so this Node test holds their bind groups to
+// the
+// engine's: `namedBufferEntries` lays each buffer at its shader name's binding, and no probe
 // or oracle lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

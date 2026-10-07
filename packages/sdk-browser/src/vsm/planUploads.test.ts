@@ -24,6 +24,10 @@
 // same bytes in every buffer.
 // Retaken when the uniform block took its words by role, 208 bytes for 224: the same words
 // permuted, its pads gone; every other buffer kept.
+// Retaken when the next-map table was compared on the records its ids dropped or took alone: a
+// record dropped past the frame's count is zeroed that frame, where it was left until the count
+// reached it again — seed 1's third frame, records 8234 to 8238 of a count of 8234, words no shader
+// reads (`prevHandle.id < nextMapCount`); every word read, and every other buffer, kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
@@ -32,7 +36,7 @@ const DIGESTS: Record<number, string[]> = {
   1: [
     'b3d5701f77e2d5b7bea13a49a7219e040cdc0d2ff7ffb4f547373316d5d44577',
     'a71bd242e6609c0b4ff01b985a2c95535b1979fd1c779420cca2f64bb800eaab',
-    '0567ccc5c43815aec9e4d82daa47fb31491ef93517f9a51ebd71fe1965c77b2f',
+    '38a8f0eadae9a92682867dca8cabccb9351a94e2ed77edbefe6966acad6fd196',
   ],
   2: [
     '6f1d70f9e26b0eb55cf2dffc6b735dfab1f7a27eb6d4bc8a9232cb0f539cb203',

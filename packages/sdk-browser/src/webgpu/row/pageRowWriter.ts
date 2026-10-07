@@ -38,6 +38,7 @@ import {
   ROW_LINE_WIDTH_WORD,
   ROW_MAP_LAYER_WORD,
   ROW_MATERIAL_CLASS_WORD,
+  ROW_OFFSET_WORD,
   ROW_SPRITE_WORD,
   ROW_TRANSMISSION_WORD,
   ROW_VERTEX_BASE_WORD,
@@ -121,7 +122,7 @@ function writeRow(
   // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
   // coverage are what the shadow raster reads of it.
   ints[base + ROW_FLAGS_WORD] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags
-  ints[base + 24] = offsetWords
+  ints[base + ROW_OFFSET_WORD] = offsetWords
   ints[base + ROW_INDEX_WORDS] = indexCount
   ints[base + ROW_VERTEX_BASE_WORD] = geo?.vertexBase ?? 0
   ints[base + ROW_ID_BASE_WORD] = packedRowBase(row)

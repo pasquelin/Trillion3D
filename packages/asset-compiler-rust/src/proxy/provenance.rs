@@ -13,7 +13,7 @@ pub struct Provenance {
     pub bind_worlds: Vec<f64>,
     pub source_parents: Vec<i32>,
     /// The compiled mesh each source node places, the rank a partition's cells name, `-1` for
-    /// none: what a partition's cell node draws, which no host node of the core carries (#966).
+    /// none: what a partition's cell node draws, which no host node of the core carries.
     pub source_meshes: Vec<i32>,
 }
 

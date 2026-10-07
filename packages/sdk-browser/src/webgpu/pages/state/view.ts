@@ -25,7 +25,7 @@ export const VIEW_RUN_KEYS = [
   'desired',
   'shown',
   'drawn',
-  // The packed rank of each page of the three lists above, parallel to them (#1235).
+  // The packed rank of each page of the three lists above, parallel to them.
   'desiredPacked',
   'shownPacked',
   'drawnPacked',
@@ -127,7 +127,7 @@ function pick<T, K extends keyof T>(from: T, keys: readonly K[]) {
 }
 
 /** A view of `width × height` that has drawn nothing yet: no targets, no history, no temporal
- *  pass — a view added before step C of #412 draws unaccumulated, as a capture does. */
+ *  pass — a view drawn without accumulation, as a capture is. */
 export function createWebgpuView(width: number, height: number): WebgpuView {
   const viewport: [number, number] = [width, height]
   return {

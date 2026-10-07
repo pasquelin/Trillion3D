@@ -51,7 +51,7 @@ test('paged transparent commands disappear outside the view and return with both
         // The encode plan follows the scene: the two items, both faces each, share ONE run —
         // the vertex stage culls for them. In view, it draws the eight instances the cut writes
         // (two clusters, two faces, two items); out of view, the run merges two items, so it is
-        // encoded and the expansion zeroes its instances, as the old readback never does.
+        // encoded and the expansion zeroes its instances.
         assert.equal(blend.length, 1, 'one draw for both items and both faces')
         assert.equal(backend.metrics().transparentDrawCalls, blend.length)
         assert.equal(blend[0].instanceCount, x ? 0 : 8, 'encode only the current view')

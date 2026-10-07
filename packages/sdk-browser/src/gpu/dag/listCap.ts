@@ -22,7 +22,7 @@ export const initialListCap = (limits: Limits, pageCount: number) =>
   Math.min(selectionListCap(pageCount), deviceListCap(limits))
 
 /**
- * THE CAP A TRUNCATED READOUT GROWS TO. The list was sized for a wide cut, not for every cut: a
+ * THE CAP A TRUNCATED READOUT GROWS TO. The list is sized for a wide cut, not for every cut: a
  * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
  * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list doubles past it, within the
  * catalogue and what one binding holds.

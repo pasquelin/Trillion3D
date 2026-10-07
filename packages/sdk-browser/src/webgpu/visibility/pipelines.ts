@@ -20,7 +20,7 @@ const VIS_LAYER_CULLS = LAYER_CULLS.length
 const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull
-/** `run` under a validation scope; its pipelines compile off the thread, together (#1362). */
+/** `run` under a validation scope; its pipelines compile off the thread, together. */
 export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
   const { value, error } = await validationScope(device, run)
   if (error) throw error

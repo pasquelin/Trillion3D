@@ -1,5 +1,5 @@
 // First part of the foundation bench, `sdk-browser` consumers: each computation attached to
-// the foundation, opposed to the code it was before, copied in `oracles/socle-math*.ts`.
+// the foundation, opposed to the host-library code it replaces, copied in `oracles/socle-math*.ts`.
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
@@ -34,7 +34,7 @@ lumieres.store.add({
 
 export async function lignesConsommateursBrowser() {
   const { list, roots, ranks } = enregistrements
-  // Each record is placed by its original rank (#1235).
+  // Each record is placed by its original rank.
   const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i)
   const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }))
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3)
@@ -71,7 +71,7 @@ export async function lignesConsommateursBrowser() {
       list,
       (l) =>
         l.map((r) => {
-          // The split-double sphere since 16729c858f: centre = high + low, conservative radius.
+          // The split-double sphere: centre = high + low, conservative radius.
           const s = new Float32Array(SPHERE_FLOATS)
           referenceClusterSphere(r, s, 0)
           const [x, y, z, rayon] = [s[0] + s[4], s[1] + s[5], s[2] + s[6], s[3]]

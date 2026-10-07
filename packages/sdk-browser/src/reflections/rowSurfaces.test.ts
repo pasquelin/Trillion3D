@@ -20,7 +20,7 @@ function instanceRows() {
   return { rows, rt, read, leaves }
 }
 
-// #410: a world of instances holds hundreds of thousands of rows over a handful of surfaces; the
+// A world of instances holds hundreds of thousands of rows over a handful of surfaces; the
 // reflection targets asked the question once per row, twice per image.
 test('reflections read each surface of the rows once, and walk the rows only once written', () => {
   const { rows, rt, read, leaves } = instanceRows()

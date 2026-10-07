@@ -31,7 +31,7 @@ test('a block level is read as bytes at the address of its format', async () => 
   assert.equal(level.byteLength, 816)
 })
 
-// Behaviour (#1239): a level that carries its own direct address — an impostor atlas level — is
+// Behaviour: a level that carries its own direct address — an impostor atlas level — is
 // read there, through this same reader, and not through the `textures.url` template.
 test('a level with its own url is read there, not through the template', async () => {
   globalThis.createImageBitmap = (async () => ({

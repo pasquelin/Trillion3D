@@ -1,4 +1,4 @@
-//! Every cooked page of a primitive decoded back and held against the source it names (#414).
+//! Every cooked page of a primitive decoded back and held against the source it names.
 //!
 //! A page passes when it decodes, when each decoded corner is the source position its index object
 //! names, within the page's quantization error — the exact pages as the coarse ones, so an encode or

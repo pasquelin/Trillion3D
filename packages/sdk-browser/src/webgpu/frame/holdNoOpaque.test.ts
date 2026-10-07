@@ -1,7 +1,7 @@
-// #198: the occluder history is established by the partition alone, and the partition runs only on
-// opaque rows. A view with none — blend clusters alone, the sky — never cleared the bit and never
-// held its frame. It no longer counts there, and still counts as soon as a row is packed. The row
-// change flag was consumed by the opaque path alone as well: every submitted image now does.
+// The occluder history is established by the partition alone, and the partition runs only on
+// opaque rows. A view with none — blend clusters alone, the sky — must neither clear the bit nor
+// hold its frame on it. It does not count there, and counts as soon as a row is packed. The row
+// change flag is consumed by every submitted image, not by the opaque path alone.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
@@ -10,7 +10,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.ts'
 import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 
-test('#198: a view without a packed row owes no occluder history', () => {
+test('a view without a packed row owes no occluder history', () => {
   const rt = settledRt()
   rt.run.noOccluderHistory = true
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['noOccluderHistory'])
@@ -35,7 +35,7 @@ async function firstHeld(backend: Awaited<ReturnType<typeof flushedGpuScene>>['b
   return -1
 }
 
-test('#198: a still view of blend clusters alone holds its frame, and a moved one redraws', async () => {
+test('a still view of blend clusters alone holds its frame, and a moved one redraws', async () => {
   installGpuGlobals()
   const scene = quadScene()
   scene.metadata.primitives[0].pass = 'clustered-blend'

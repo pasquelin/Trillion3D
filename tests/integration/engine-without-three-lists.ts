@@ -52,8 +52,8 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.
 //
-// Since lot 4b of #78 a page carries the engine's own surface record (`packages/sdk-browser/src/page/surface.ts`) and the
-// engine path reads nothing else: the cut, the rows, the raster, the transparent items and the
+// A page carries the engine's own surface record (`packages/sdk-browser/src/page/surface.ts`) and
+// the engine path reads nothing else: the cut, the rows, the raster, the transparent items and the
 // audit all compute on that record. `declaration` is the host object itself, kept for the one
 // use that needs it — handing a surface back to the library that owns it. Reading it anywhere
 // else puts the host material back in the middle of a number the engine computes.

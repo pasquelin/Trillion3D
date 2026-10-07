@@ -1,5 +1,5 @@
-// Lot 4: `shadingNormal.ts` rewritten on the core's flat vectors (`packages/sdk-core/src/math/primitives/vector.ts`),
-// without the host library. Oracle: `bench/oracles/browser/shading-normals.ts`, the previous file copied
+// `shadingNormal.ts` is written on the core's flat vectors (`packages/sdk-core/src/math/primitives/vector.ts`),
+// without the host library. Oracle: `bench/oracles/browser/shading-normals.ts`, the file written on the host library, copied
 // as-is with its `Vector3`/`Matrix3`. The `shading-normals.perf.ts` bench replays 42 000 frames;
 // this test hard-codes a handful, two of which show the operation order:
 //   — a pose whose first row is (1e16, −1e16, 3), crossed by all-ones tangents:
@@ -111,8 +111,8 @@ test('negative scale and shear, with no vertex normal or map: the geometric norm
       assertSameNormal(page, material({ backSide }), screenFace, `bs${backSide} sf${screenFace}`)
 })
 
-// perf(socle) 61bff6e4: the three normal-map components (`mapN`) no longer go through a
-// literal array, allocated at every shaded pixel of a surface that carries a map. `shadingNormal`
+// The three normal-map components (`mapN`) do not go through a
+// literal array, which would be allocated at every shaded pixel of a surface that carries a map. `shadingNormal`
 // always returns `frameOut`, the same module buffer (documented at the top of the file: “no
 // allocation, [...] returned in one of them”); checking that on many chained calls, each with a
 // normal map and different frames, is the same method as the “allocation” test of

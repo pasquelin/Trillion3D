@@ -34,7 +34,7 @@ const mesSpheres = await measure({
     { name: 'none', input: clusters(0), size: 0 },
   ],
   calculation: ({ recs, roots, packed }) =>
-    // Each row ranks a root of its own: its packed rank is the row index (#1235).
+    // Each row ranks a root of its own: its packed rank is the row index.
     packClusterSpheres(recs, roots, packed, 0, recs.length - 1, (row) => row),
   expected: ({ recs, roots }) => {
     const output = new Float32Array(recs.length * SPHERE_FLOATS)

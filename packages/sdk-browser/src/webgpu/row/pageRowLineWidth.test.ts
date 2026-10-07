@@ -37,7 +37,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
   }
 }
 
-// #348: the row carries the width a line page's quads widen to (`PageInfo.lineWidth`, word 61),
+// The row carries the width a line page's quads widen to (`PageInfo.lineWidth`, word 61),
 // and zero on a surface that draws triangles.
 test('a page row carries its surface line width, zero for triangles', async () => {
   const lines = await rowLineWidths(2.5)

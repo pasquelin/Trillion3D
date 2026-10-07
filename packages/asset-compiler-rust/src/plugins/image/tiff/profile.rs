@@ -140,7 +140,7 @@ pub(super) fn check(bytes: &[u8]) -> std::result::Result<(), &'static str> {
 }
 
 /// Eight bits per component, unsigned integers, and nothing else. 16-bit has its own reason:
-/// it is not an exotic profile, it is precision the contract output cannot yet carry —
+/// it is not an exotic profile, it is precision the contract output cannot carry —
 /// clipping it in silence would add a loss.
 fn depth(
     ifd: &Ifd<'_>,

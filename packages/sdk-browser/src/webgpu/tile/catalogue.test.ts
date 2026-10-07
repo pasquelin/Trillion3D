@@ -74,7 +74,7 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   assert.deepEqual([rawFill.lane, small.source.kind, small.lane], ['lossless', 'bytes', 'lossless'])
 })
 
-// #42: a coverage chain (word 2) is the colour atlas's entry of its texture, found where the plain
+// A coverage chain (word 2) is the colour atlas's entry of its texture, found where the plain
 // one would be, and keeps its word — the one its level files are named by.
 test('a coverage chain is filed as the colour entry of its texture and keeps its word', () => {
   const coverage = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_COVERAGE }

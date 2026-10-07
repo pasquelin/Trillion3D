@@ -57,7 +57,7 @@ export function createWebgpuRowSlots(
     use,
     free: { rows: new Int32Array(0), count: 0 },
     claims: createWebgpuRowClaims(pages),
-    demand: createRowDemand(() => rows.rowOfPage, use, drawsRow, pages, closeInstances),
+    demand: createRowDemand(rows, use, drawsRow, pages, closeInstances),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,
     candidates: 0,
@@ -65,14 +65,12 @@ export function createWebgpuRowSlots(
     release: (page) => releaseRow(s, page),
     place: (page) => placeRow(s, page),
   }
-  /** `release` for a request: one holding a row, written or owed, is the arrivals' to serve. */
-  const releaseAsked = (page: number) => rows.rowOfPage[page] < 0 && s.release(page)
   // The table's age and rows the cache last followed, and the generation its own arrays are sized
   // for: they follow it once per growth (`grow.ts`); the table's rows are `rows.blendFirst`.
   const seen = { epoch: -1, revision: -1, fitted: -1 }
   return {
     /** What the image owes the row table, within the frame's `budget`; absent, all (a barrier). */
-    apply: (budget?: FrameClock) => applyRows(s, seen, releaseAsked, budget),
+    apply: (budget?: FrameClock) => applyRows(s, seen, budget),
     /** Follows a readback the host adopted: its rows stamped, its demand served next. */
     follow: s.demand.follow,
     /** Records still owed — arrivals, requests, or a table grown since —: the next image must come
@@ -91,7 +89,6 @@ export function createWebgpuRowSlots(
 function applyRows(
   s: RowSlots,
   seen: { epoch: number; revision: number; fitted: number },
-  releaseAsked: (page: number) => boolean,
   budget?: FrameClock,
 ) {
   const { rows, writers, demand } = s
@@ -107,7 +104,7 @@ function applyRows(
   if (seen.revision !== rows.rowsRevision) rebuildRows(s)
   else if (seen.epoch !== rows.tableEpoch) rewriteRows(s)
   // Requests first, in the GPU's order: a rank they take back is not given to an arrival.
-  s.denied = demand.serve(releaseAsked, s.place, budget)
+  s.denied = demand.serve(s.release, s.place, budget)
   followArrivals(s, budget)
   closeFreeRows(s)
   rows.clearTouched()

@@ -1,13 +1,13 @@
 /**
  * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,
- * all in compute:
+ * in one compute pass, `vsm.transmission`:
  *
- *   vsm.transmission.clear (a redrawn slice stamped, a redrawn or freed slice's blocks given back)
- *   → vsm.transmission.bin (candidates, then per chunk of blended rows the opaque raster's cull,
- *   each command's redrawn pages, each command's triangles projected once and recorded in its pages)
- *   → vsm.transmission.resolve (the slices numbered, the records placed, each slice's cells built in
- *   its group and written with its records into blocks, the page headers of the slices that changed).
+ *   the clear (a redrawn slice stamped, a redrawn or freed slice's blocks given back)
+ *   → the bin (candidates, then per chunk of blended rows the opaque raster's cull, each command's
+ *   redrawn pages, each command's triangles projected once and recorded in its pages)
+ *   → the resolve (the slices numbered, the records placed, each slice's cells built in its group
+ *   and written with its records into blocks, the page headers of the slices that changed).
  *
  * The blended candidates take the same static / dynamic rule as every caster (engine mobility),
  * into the same slice of the page as the depth would: a slice is rebuilt exactly when the VSM
@@ -501,6 +501,9 @@ interface BinPlan {
   pairs: number
 }
 
+/** The transmission's one compute pass: its clear, its bin and its resolve. */
+const TRANSMISSION_PASS: GPUComputePassDescriptor = { label: 'vsm.transmission' }
+
 /**
  * Clears, bins and resolves the transmission slices this frame redraws. Between `encodeVsmRender`
  * and `encodeVsmAfterRaster` (it reads `res.current`). Returns the rows a chunk took within the
@@ -530,20 +533,18 @@ export function encodeVsmTransmission(
   vsmWriteChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
 
   const groups = transmissionGroups(device, ctx, trans)
+  // The encoder's clears first: the clear, the bin and the resolve are then one compute pass, each
+  // dispatch reading what those before it wrote.
   encoder.clearBuffer(trans.build, 0, VSM_TRANSMISSION_COUNTER_WORDS * 4)
-  {
-    const pass = encoder.beginComputePass({ label: 'vsm.transmission.clear' })
-    pass.setPipeline(ctx.clear.pipeline)
-    pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
-    pass.setBindGroup(1, groups.clear1)
-    pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
-    pass.end()
-  }
-  if (plan?.within.size) encodeBin(encoder, res, trans, ctx, scene, plan)
-
+  const bin = plan?.within.size ? binLists(encoder, ctx, trans, res, scene, plan) : undefined
+  const pass = encoder.beginComputePass(TRANSMISSION_PASS)
+  pass.setPipeline(ctx.clear.pipeline)
+  pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
+  pass.setBindGroup(1, groups.clear1)
+  pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
+  if (bin) encodeBin(pass, ctx, scene, plan!, bin)
   // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty slice.
   {
-    const pass = encoder.beginComputePass({ label: 'vsm.transmission.resolve' })
     pass.setPipeline(ctx.number.pipeline)
     pass.setBindGroup(0, groups.number)
     pass.dispatchWorkgroups(1)
@@ -558,15 +559,14 @@ export function encodeVsmTransmission(
       pass.setBindGroup(0, groups.resolve)
       pass.dispatchWorkgroupsIndirect(trans.args, at)
     }
-    pass.end()
   }
+  pass.end()
   return plan?.within || undefined
 }
 
 // The frame's scratch of `encodeVsmTransmission`, rewritten each frame.
 const uniformImage = new Uint32Array(VSM_TRANSMISSION_UNIFORM_BYTES / 4)
 const viewList: number[] = []
-const binPass: GPUComputePassDescriptor = { label: 'vsm.transmission.bin' }
 /** Each chunk's parameter offset, made once for every frame. */
 const chunkOffsets: number[][] = []
 const chunkOffset = (c: number) => (chunkOffsets[c] ??= [c * VSM_RENDER_PARAMS_SLOT])
@@ -774,23 +774,31 @@ function binPlan(
   }
 }
 
-/** The blended rows' bin, in the chunks `plan` holds: candidates, then per chunk the cull, its
- *  commands' redrawn pages and the bin, every dispatch in one compute pass. */
-function encodeBin(
+/** The bin's lists, parameters and groups, its counters cleared: the encoder's part of the bin,
+ *  before the transmission's pass opens. */
+function binLists(
   encoder: GPUCommandEncoder,
-  res: VsmResources,
-  trans: VsmTransmission,
   ctx: Ctx,
+  trans: VsmTransmission,
+  res: VsmResources,
   scene: VsmRenderScene,
   plan: BinPlan,
 ) {
-  const { device } = ctx
   const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
-  vsmWriteChunkParams(device, scene.camera, params, views, plan.views)
+  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
+  return { args, ...chunkGroups(ctx, trans, res, scene) }
+}
 
-  const { lists, tables } = chunkGroups(ctx, trans, res, scene)
-  const pass = encoder.beginComputePass(binPass)
+/** The blended rows' bin, in the chunks `plan` holds, in `pass`: candidates, then per chunk the
+ *  cull, its commands' redrawn pages and the bin. */
+function encodeBin(
+  pass: GPUComputePassEncoder,
+  ctx: Ctx,
+  scene: VsmRenderScene,
+  plan: BinPlan,
+  { args, lists, tables }: ReturnType<typeof binLists>,
+) {
   encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, ctx, lists.args, plan.rowCount)
   const cull = { cull0: tables.cull0, cull1: lists.cull1, args: lists.args }
   for (let c = 0; c < plan.chunks; c++) {
@@ -807,5 +815,4 @@ function encodeBin(
     pass.setBindGroup(1, tables.bin1)
     pass.dispatchWorkgroupsIndirect(args, at)
   }
-  pass.end()
 }

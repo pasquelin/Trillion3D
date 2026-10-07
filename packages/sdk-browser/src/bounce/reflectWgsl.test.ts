@@ -1,4 +1,4 @@
-// A mirror reflects the scene (#31): with bounce on, the opaque resolve adds to a smooth surface the
+// A mirror reflects the scene: with bounce on, the opaque resolve adds to a smooth surface the
 // radiance its mirror direction meets in the resident proxy, read in the surface cache; the water
 // reads the same function. Without bounce the direct program reflects the environment alone.
 import test from 'node:test'
@@ -34,7 +34,7 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
   const reflected = body(BOUNCE_LIGHTING_SHADER, 'proxyReflectionRay')
   assert.match(reflected, /rayRadiance\(P\+N\*proxy\.offsetMetres\+R\*proxy\.startMetres,R,reach\)/)
   assert.match(reflected, /if\(hit\.w<reach\)\{return hit\.rgb;\}/)
-  // The cache is an atlas (#1410): the texel's row and column, read exactly.
+  // The cache is an atlas: the texel's row and column, read exactly.
   assert.match(
     body(BOUNCE_LIGHTING_SHADER, 'rayRadiance'),
     /return vec4f\(textureLoad\(surface,vec2u\(texel%size\.x,texel\/size\.x\),0\)\.rgb/,
@@ -61,7 +61,7 @@ test('diffuse and toon keep no specular lobe, while rough physical materials ret
 
 test('the direct base has no proxy fallback; the bounce variant binds its surface cache', async () => {
   assert.doesNotMatch(DIRECT_LIGHTING_SHADER, /rayRadiance|sampleProbeField/)
-  // Without probes the reflection reads the environment before firing a ray (#1341).
+  // Without probes the reflection reads the environment before firing a ray.
   assert.match(
     body(BOUNCE_LIGHTING_SHADER, 'reflectedRadiance'),
     /^fn reflectedRadiance\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return environmentReflection\(R,rough\);\}/,
@@ -82,7 +82,7 @@ test('the direct base has no proxy fallback; the bounce variant binds its surfac
   boundCache(bounce)
   await lighting.settle()
   assert.equal(boundCache({}), undefined)
-  assert.equal(boundCache(bounce), cache, 'the cache atlas itself (#1410)')
+  assert.equal(boundCache(bounce), cache, 'the cache atlas itself')
   lighting.dispose()
 })
 

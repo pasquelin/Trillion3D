@@ -17,7 +17,7 @@ const NEW_RLE_WIDTHS: std::ops::RangeInclusive<usize> = 8..=0x7fff;
 /// Beyond this count, a packet of the new compression is a run, and its length is the
 /// difference; at or below, it is a raw packet of `count` bytes.
 const RUN_MARK: u8 = 128;
-/// Run marker of the old compression: the three mantissas at one.
+/// Run marker of the pixel-wise compression: the three mantissas at one.
 const OLD_RUN_MARKER: [u8; 3] = [1, 1, 1];
 /// RGBE exponent offset: the mantissa is an eight-bit fraction and the exponent is biased
 /// by 128, hence `value = mantissa × 2^(e - 128 - 8)`.
@@ -103,8 +103,8 @@ fn new_rle<'a>(
     Ok(body)
 }
 
-/// The old compression, which is also the raw case: pixels as-is, and a `1,1,1,n` marker that
-/// repeats the previous one. Consecutive markers multiply by 256, which allows runs longer
+/// The pixel-wise compression, which is also the raw case: pixels as-is, and a `1,1,1,n` marker
+/// that repeats the previous one. Consecutive markers multiply by 256, which allows runs longer
 /// than 255; the first pixel of a line cannot be one.
 fn old_rle<'a>(
     mut body: &'a [u8],

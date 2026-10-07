@@ -1,4 +1,4 @@
-//! The texture deviation a group reduction certifies (#977).
+//! The texture deviation a group reduction certifies.
 //!
 //! A coarse triangle draws each texel where its interpolated texture coordinate falls, while the
 //! source drew that texel on the surface point carrying the same coordinate. Their distance, in

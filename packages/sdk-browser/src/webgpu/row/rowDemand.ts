@@ -20,21 +20,24 @@ const STOP = () => true
 
 /**
  * THE GPU CUT'S DEMAND FOR ROWS (#1483). The cut reads an instance as resident only once its bytes
- * are AND it holds a row, so an instance whose bytes are in but which holds no row is drawn by its
- * nearest ready ancestor, and the cut ASKS for it, as for a page still on its way: every readback
- * lists the instances the view wants, ranked. Readiness is the group's, closed upward
- * (`../../page/cut/readiness.ts`): an instance draws once its group and the groups above it hold
- * rows. So the demand is what the requests close over, in their order, that draws from a row and
- * holds none: the row allocator serves it before any arrival (`slots.ts`), taking back a row unused
- * for a while (`rowUse.ts`) when the table is full. One still waiting for its bytes stays marked
- * and takes its row when they land.
+ * are AND it holds a row written at its place, so an instance whose bytes are in but which holds
+ * no row is drawn by its nearest ready ancestor, and the cut ASKS for it, as for a page still on
+ * its way: every readback lists the instances the view wants, ranked. Readiness is the group's,
+ * closed upward (`../../page/cut/readiness.ts`): an instance draws once its group and the groups
+ * above it are resident. So the demand is what the requests close over, in their order, that draws
+ * from a row and is not resident for the cut — no row, or one whose record is still owed: a
+ * missing ancestor is asked as the leaf under it is, and no cut stays empty for it. The row
+ * allocator serves it before any arrival (`slots.ts`), taking back a row unused for a while
+ * (`rowUse.ts`) when the table is full. One still waiting for its bytes stays marked and takes its
+ * row when they land.
  *
  * Each readback is followed once: it stamps the rows of what its drawn pages and its requests
  * close over — a group-mate outside the view keeps a drawn page ready —, then replaces the demand.
  * One mark per instance (a byte), the list bounded by the view's requests.
  */
 export function createRowDemand(
-  rowOfPage: () => Int32Array,
+  /** The row table, its arrays read at each readback: they are replaced as pages are added. */
+  table: { readonly rowOfPage: Int32Array; readonly residentFlags: Uint32Array },
   use: RowUse,
   /** Whether a packed instance draws from a visibility row once resident: opaque, with geometry. */
   drawsRow: (page: number) => boolean,
@@ -42,18 +45,19 @@ export function createRowDemand(
   closeInstances: CloseInstances,
 ) {
   const d: DemandState = {
-    ...{ rowOfPage, use, drawsRow, closeInstances },
+    ...{ table, use, drawsRow, closeInstances },
     marks: new Uint8Array(Math.max(1, pageCount)),
     list: new Int32Array(8),
     ...{ count: 0, next: 0, fresh: false, owed: false },
     rows: new Int32Array(0),
+    flags: new Uint32Array(0),
     asking: false,
     visit: (page: number) => visit(d, page),
   }
   return {
     /** The readback just adopted: its rows stamped, its demand in place of the last one. */
     follow: (cut: CutLists) => follow(d, cut),
-    /** Whether the last readback asked for `page` and it holds no row. */
+    /** Whether the last readback asked for `page` and the cut does not read it resident. */
     wanted: (page: number) => d.marks[page] === 1,
     /** The demand is served again from its head: the table grew or was rebuilt. */
     restart() {
@@ -70,7 +74,8 @@ export function createRowDemand(
     },
     /**
      * Serves the demand in its order within `budget` (`serveInOrder`): `release` says whether the
-     * instance still claims a row — resident and without one —, `place` gives it one and returns
+     * instance still claims a record — resident, without a row written at its place —, `place`
+     * writes it, at its own row or another, and returns
      * false when no row is free nor unused: the serve stops there. Returns how many requests the
      * table left without a row: what it grows by (`../pages/prepare/growTables.ts`).
      */
@@ -87,7 +92,7 @@ export function createRowDemand(
 }
 
 type DemandState = {
-  rowOfPage: () => Int32Array
+  table: { readonly rowOfPage: Int32Array; readonly residentFlags: Uint32Array }
   use: RowUse
   drawsRow: (page: number) => boolean
   closeInstances: CloseInstances
@@ -100,16 +105,18 @@ type DemandState = {
   /** The time budget stopped the last serve: the next image goes on. */
   owed: boolean
   rows: Int32Array
+  flags: Uint32Array
   asking: boolean
   /** `visit` bound to this demand, made once: the closure every walk hands `closeInstances`. */
   visit: (page: number) => void
 }
 
-/** A page the readback names, closed over: its row is in use, or it is asked for. */
+/** A page the readback names, closed over: its row is in use, and it is asked for unless the cut
+ *  reads it resident — a row whose record is owed is asked as a missing one is. */
 function visit(d: DemandState, page: number) {
   const row = d.rows[page] ?? -1
-  if (row >= 0) return d.use.stamp(row)
-  if (!d.asking) return
+  if (row >= 0) d.use.stamp(row)
+  if (!d.asking || (row >= 0 && d.flags[page])) return
   if (page >= d.marks.length) d.marks = grown(d.marks, page + 1, d.marks.length)
   if (d.marks[page] || !d.drawsRow(page)) return
   if (d.count === d.list.length) d.list = grown(d.list, d.count + 1, d.count)
@@ -124,7 +131,8 @@ function walk(d: DemandState, ids: ArrayLike<number> | undefined, asks: boolean)
 }
 
 function follow(d: DemandState, cut: CutLists) {
-  d.rows = d.rowOfPage()
+  d.rows = d.table.rowOfPage
+  d.flags = d.table.residentFlags
   d.use.tick()
   for (let i = 0; i < d.count; i++) d.marks[d.list[i]] = 0
   d.count = d.next = 0

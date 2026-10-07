@@ -43,7 +43,7 @@ export function forEachTriangleInBox(
 
 /** Whether node box `at` of `bounds` — min xyz, max xyz, never NaN — meets `[min, max]`. Each
  *  axis misses when both bounds lie past one side of the query: the test of the smaller and the
- *  larger bound, so an empty node (`+∞` to `−∞`) is kept as before. */
+ *  larger bound, so an empty node (`+∞` to `−∞`) is kept. */
 function overlapsNode(
   bounds: Float32Array,
   at: number,

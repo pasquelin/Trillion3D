@@ -19,9 +19,9 @@ fn roof(ridge: u8) -> String {
     )
 }
 
-// Finding 22: soft and hard edges of Maya mesh were lost, all normals
-// computed flat. Soft edge now continues smoothing face to face,
-// vertices carrying it no longer written twice.
+// Soft and hard edges of Maya mesh survive, not all normals
+// computed flat. A soft edge continues smoothing face to face,
+// vertices carrying it not written twice.
 #[test]
 fn a_soft_edge_carries_the_shading_from_one_face_to_the_next() {
     let run = compile_ma("ma-arete-douce", &roof(0));
@@ -44,7 +44,7 @@ fn a_soft_edge_carries_the_shading_from_one_face_to_the_next() {
     assert_eq!(manifest["unsupported"]["ma-normals-computed"], 1);
 }
 
-// Finding 22, other end: third `.ed` number marks hard edge. Roof ridge
+// Other end: third `.ed` number marks hard edge. Roof ridge
 // keeps slope of own side on each side, vertex written twice —
 // sharp edge not rounded.
 #[test]

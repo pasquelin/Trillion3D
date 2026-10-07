@@ -1,4 +1,4 @@
-/** The scene caches git never tracks (#683), compiled from their committed sources by this
+/** The scene caches git never tracks, compiled from their committed sources by this
  *  checkout's native compiler, on demand (`pnpm run compile:caches`) and before their readers. */
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -37,7 +37,7 @@ const example = (name: string): CookedScene => ({
 const COMMITTED_SOURCES = ['hall', 'cesium-man', 'animated-morph-cube']
 
 /** Every cooked scene: the examples (`modelScenes` and `COMMITTED_SOURCES`), the terrain tiles'
- *  exact cook beside their simplified one (#414), the gallery's and the two scenes only the tests
+ *  exact cook beside their simplified one, the gallery's and the two scenes only the tests
  *  read. */
 export const COOKED_SCENES: Record<string, CookedScene> = {
   ...Object.fromEntries(

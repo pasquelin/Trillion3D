@@ -27,7 +27,7 @@ try {
   if (resolve(top) === root)
     execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root })
   // A linked worktree starts without the files `.gitignore` keeps local — personal assistant
-  // settings and graph artefacts (#157). It gets a link to the ones the primary
+  // settings and graph artefacts. It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.
   const primary = primaryWorktree()
   // Every clone runs the company the same way: its tracked skills and agents are aliased into the

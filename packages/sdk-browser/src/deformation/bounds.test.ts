@@ -1,4 +1,4 @@
-// A deformed cluster is never culled (#357): the reach a placement's palette gives bounds every
+// A deformed cluster is never culled: the reach a placement's palette gives bounds every
 // vertex its joints move, and the cut, its bounds grown by that reach, keeps a cluster the
 // deformation carried into the view from outside it.
 import test from 'node:test'

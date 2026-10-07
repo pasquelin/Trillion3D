@@ -1,13 +1,13 @@
-// #1369: the lighting of a pixel on the light grid equals develop's, bit for bit. The shipped
-// `sliceLighting` and `declaredLight` — with the shipped `directIncidence` and `standardLighting` —
-// run as JavaScript (`shaderRun`), once over the list of the pixel's cell, which the grid pass's
-// oracle builds (`gridLists`, `gpuLightGridOracle.ts`), once over every light of the scene
-// (`TILE_NO_SLICE`), in the four programs the resolve compiles: with and without shadow code, with
-// and without rectangle code. A light left out of a cell reaches none of its points, so the full walk
-// adds its exact zero there, and the two sums are the same numbers: random lamp sets of 1 to 256
-// lamps, a lamp touching one pixel, a cell every lamp reaches, the near plane and the far depth, an
-// infinite range, a column no lamp meets. A NaN range never reaches the resolve: the contract
-// refuses it.
+// The lighting of a pixel on the light grid equals the sum over every light, bit for bit. The
+// shipped `sliceLighting` and `declaredLight` — with the shipped `directIncidence` and
+// `standardLighting` — run as JavaScript (`shaderRun`), once over the list of the pixel's cell,
+// which the grid pass's oracle builds (`gridLists`, `gpuLightGridOracle.ts`), once over every light
+// of the scene (`TILE_NO_SLICE`), in the four programs the resolve compiles: with and without
+// shadow code, with and without rectangle code. A light left out of a cell reaches none of its
+// points, so the full walk adds its exact zero there, and the two sums are the same numbers: random
+// lamp sets of 1 to 256 lamps, a lamp touching one pixel, a cell every lamp reaches, the near plane
+// and the far depth, an infinite range, a column no lamp meets. A NaN range never reaches the
+// resolve: the contract refuses it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {

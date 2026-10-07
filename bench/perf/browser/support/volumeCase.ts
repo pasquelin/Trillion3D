@@ -1,8 +1,8 @@
-// Batch M2's volume cases mix concrete input/output types across boxes, spheres, frustum planes
+// The volume cases mix concrete input/output types across boxes, spheres, frustum planes
 // and the normal cone. `casVolume` binds each case's `measure` call to its own `Entree`/`Sortie`
 // at the point they are concrete, and hands back one opaque, deferred `run`: the aggregate list
 // in `volumes.perf.ts` stays a single type without erasing what each case measures, and the
-// timed call itself only fires when `volumes.perf.ts` awaits it, in the same order as before.
+// timed call itself only fires when `volumes.perf.ts` awaits it, in list order.
 import { measure } from '../../../core/index.ts'
 import type { Measurement, MeasureCase } from '../../../core/index.ts'
 

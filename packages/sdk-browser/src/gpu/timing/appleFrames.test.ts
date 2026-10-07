@@ -1,4 +1,4 @@
-// Frames as a tiled Apple GPU reports them: a render pass begins at its vertex stage, a
+// Frames as a tiled GPU reports them: a render pass begins at its vertex stage, a
 // compute pass at its start, so the starts are out of the submission's order and the passes
 // overlap; a pass that did no work leaves the pair an earlier image wrote, or zero, or only its
 // end; and a resolve can land a frame late. None of it is a reason for the image to have no GPU

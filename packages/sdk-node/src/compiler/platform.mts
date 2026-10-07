@@ -5,7 +5,7 @@ import { dirname, join, sep } from 'node:path'
 /**
  * The platforms the compiler is built for, as Node names them (`process.platform`-`process.arch`):
  * each ships as its own package, `@trillion3d/compiler-<platform>-<arch>`, an optional dependency
- * of `trillion3d`, so an install takes only the one its machine runs (#1352).
+ * of `trillion3d`, so an install takes only the one its machine runs.
  */
 export const COMPILER_PLATFORMS = [
   'darwin-arm64',

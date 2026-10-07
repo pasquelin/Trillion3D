@@ -12,7 +12,7 @@ if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS')
  * `floor(x1/2^L) - floor(x0/2^L)` equals `floor(span/2^L)` or one more, so a level where
  * `floor(span/2^L) >= kernel` cannot answer: the search skips those levels instead of trying
  * them one by one. The returned level is an exact lower bound, never the kept level: the loop
- * then evaluates the same predicate as before, on the same integers.
+ * then evaluates the same predicate, on the same integers.
  */
 function firstLevel(span: number) {
   if (span < HIZ_KERNEL_TEXELS) return 0

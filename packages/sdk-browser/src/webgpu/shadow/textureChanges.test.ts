@@ -20,7 +20,7 @@ const leaves = {} as PageSurface,
 const roots: { world: G.Matrix4 }[] = [],
   movingRoots = new Set<number>()
 
-/** One record of root rank `roots.length - 1` (#1235: the record carries no placement). */
+/** One record of root rank `roots.length - 1` (the record carries no placement). */
 function record(x: number, material = bark, moving = false) {
   if (moving) movingRoots.add(roots.length)
   roots.push({ world: new G.Matrix4().makeTranslation(x, 0, 0) })
@@ -32,8 +32,8 @@ function record(x: number, material = bark, moving = false) {
 }
 
 /** Three visibility rows — a masked cutout on texture 3, an opaque surface on texture 3, a cutout
- *  on texture 5 —, then a blended caster's row on texture 7 (#35). Each row draws packed rank
- *  `row`, and `rootOfPacked` names the root that rank belongs to (#1235). */
+ *  on texture 5 —, then a blended caster's row on texture 7. Each row draws packed rank
+ *  `row`, and `rootOfPacked` names the root that rank belongs to. */
 function table() {
   const ints = new Uint32Array(4 * WORDS),
     base = roots.length
@@ -113,7 +113,7 @@ test('a tile of a texture a blended caster reads stales that caster, whose cover
   assert.deepEqual(moving, [true], 'the static layer never holds a blended caster')
 })
 
-// #993: the static layer holds no row of a moving placement; its change leaves that layer as it is.
+// The static layer holds no row of a moving placement; its change leaves that layer as it is.
 test("a tile read by a moving cutout and a still one declares two boxes: the moving one's apart", () => {
   const { lights, boxes, moving } = lightsSpy(),
     rows = table()
@@ -143,7 +143,7 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
   assert.equal(boxes.length, 0)
 })
 
-// A page moved a material's alpha (#846): its rows' shadow pages stale whatever their flags say —
+// A page moved a material's alpha: its rows' shadow pages stale whatever their flags say —
 // an opaque surface turned masked has no cutout flag until its row is written again.
 test('an alpha change stales the rows of its surfaces at once, the opaque and blended ones too', () => {
   const { lights, boxes, worlds } = lightsSpy(),

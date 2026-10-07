@@ -1,5 +1,5 @@
-// #921 (STR-08), audit ko of 28 Sept.: the reads an admission pass starts ahead share the network,
-// so they come back in any order; the pass still admits the same pages in develop's order. Each
+// The reads an admission pass starts ahead share the network,
+// so they come back in any order; the pass still admits the same pages in the same order. Each
 // read here settles after its own random delay, and the admission of its page waits for it, as it
 // joins the transfer under way.
 import test from 'node:test'

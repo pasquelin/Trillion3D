@@ -1,4 +1,4 @@
-//! What the tiled grid costs on screen (#959): a primitive wider than a tile, seen from a metre,
+//! What the tiled grid costs on screen: a primitive wider than a tile, seen from a metre,
 //! quantizes under the display quantum, and a kilometre terrain takes the finest grid its root
 //! page fits.
 
@@ -26,7 +26,7 @@ fn terrain(size: f32, quads: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// The display quantum (E1, 0.1 px), in metres at `depth` metres on the reference display: 2234 lines
+/// The display quantum (0.1 px), in metres at `depth` metres on the reference display: 2234 lines
 /// under a 55° vertical field (`TILE_EXTENT_LOG2`).
 fn quantum(depth: f64) -> f64 {
     0.1 * depth * 2.0 * (27.5f64).to_radians().tan() / 2234.0
@@ -52,7 +52,7 @@ fn a_hall_seen_from_a_metre_quantizes_under_the_display_quantum() {
     assert_eq!(exponent, TILE_EXTENT_LOG2 - 16);
     let worst = worst_on(exponent, &positions, &indices);
     assert!(worst < quantum(1.0), "{worst} against {}", quantum(1.0));
-    // The 32 m tile it had before (#959) was an image loss at a metre.
+    // The 32 m tile it had before was an image loss at a metre.
     let before = worst_on(5 - 16, &positions, &indices);
     assert!(before > quantum(1.0), "{before}");
 }

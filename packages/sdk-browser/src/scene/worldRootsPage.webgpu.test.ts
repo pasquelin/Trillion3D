@@ -1,4 +1,4 @@
-// #1238: every world super-root page of the cooked fixture, read at its world address, becomes a
+// Every world super-root page of the cooked fixture, read at its world address, becomes a
 // drawable page on WebGPU too. Its world-space floats are packed into the engine's float vertex
 // pool as a source block, and its `u16` indices — widened to `u32` by the detached source's `read`
 // — land in a GPU page slot whole, the three words of one triangle.
@@ -11,7 +11,7 @@ import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts'
 import { worldRootsPageAddress } from './worldPageServe.ts'
 
-test('every page lands in the WebGPU float pool and a page slot as cooked (#1238)', async () => {
+test('every page lands in the WebGPU float pool and a page slot as cooked', async () => {
   installGpuGlobals()
   const { table, source } = worldRootsPageFixtureSource()
   assert.equal(table.pages.count, 4)

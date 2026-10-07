@@ -2,7 +2,7 @@
 // this gate to its text. `site/content/i18n/translation-sources.json` records, for each entry —
 // a portal section's key, an example, a reference entry — the hash of its English and of each
 // language's translation. An entry whose English changed while a language's translation did not
-// fails; a record that no longer matches the text fails too, until `--write` records it, which it
+// fails; a record that does not match the text fails too, until `--write` records it, which it
 // refuses while a translation is left behind. An English change the translations do not need (a
 // typo) is accepted by name, `--accept <entry>…`, in the committed record's diff.
 // `pnpm run check:translations`.

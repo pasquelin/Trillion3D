@@ -1,4 +1,4 @@
-// A view that keeps more clusters than the readout list holds (#973): the list grows within the
+// A view that keeps more clusters than the readout list holds: the list grows within the
 // device and the cut stays on the GPU with every drawn cluster listed; only a list the device
 // cannot hold stays truncated, for the host to fall back and say so. The readbacks are written
 // here, as the kernels would; that the kernels write them so is the GPU's to prove.

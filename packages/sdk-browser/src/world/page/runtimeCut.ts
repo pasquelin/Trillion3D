@@ -22,7 +22,7 @@ import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClu
 import { positionGridExponent, textureGridExponent, type GridInputs } from './cutGrid.ts'
 
 /**
- * A compiled primitive cut again in session (#846): its own clusters, `ends[k]` the end of cluster
+ * A compiled primitive cut again in session: its own clusters, `ends[k]` the end of cluster
  * `k` in the indices, each the corners of one of its pages in order, and what the compiler knew
  * of it beside its vertices (`GridInputs`), so its pages take the grids the compiler would give it.
  */
@@ -38,10 +38,10 @@ export type Recut = GridInputs & { ends: Uint32Array }
  * past 1024 units on a long line: every page is cut, none refused, and each coordinate stays
  * within a 32-bit float's own step of that range. A `blended` primitive takes the finest grids
  * a page holds for both (2^23 steps), the compiler's rule too: a coarser one shows through a
- * transparent surface (#875). A `recut` keeps the compiled primitive's own clusters and takes the
+ * transparent surface. A `recut` keeps the compiled primitive's own clusters and takes the
  * grids the compiler gives its class — texture coordinates by their span over every vertex —, so
- * each page is the one the compiler writes for that class (#846). `held` faces — faces that move
- * after the cut: a dynamic geometry's (#573), a mesh the waves carry (#357) —, whose pages keep no
+ * each page is the one the compiler writes for that class. `held` faces — faces that move
+ * after the cut: a dynamic geometry's, a mesh the waves carry —, whose pages keep no
  * cone, are cut, when blended, in their
  * paint order into runs no wider than a compact cluster of their triangles (`clusters`): the same
  * triangles painted in the same order, each page drawn by the shadow rasters into the pages it

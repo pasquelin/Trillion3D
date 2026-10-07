@@ -57,7 +57,7 @@ export function cpuBackend(
   threshold: number,
   roots = placements(dag, 1),
   /** Root rank the feed cannot route, simulating a layout that posts no base for it: its moves
-   *  are read whole at every visit, and `unroutedReads` counts them (#1235). */
+   *  are read whole at every visit, and `unroutedReads` counts them. */
   unrouted = -1,
 ) {
   const cam = stripCamera(dag),

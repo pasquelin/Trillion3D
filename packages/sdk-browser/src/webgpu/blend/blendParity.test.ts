@@ -1,4 +1,4 @@
-// #558, measure ko: on WebGPU a multiplied surface over an opaque one let the background show
+// On WebGPU a multiplied surface over an opaque one must not let the background show
 // through, `#20222a × (1 − alpha)`, where the reference display shows `d·s` alone. The lit
 // target's alpha is the coverage the composition lays the background under; the reference display draws
 // over a canvas that already holds it. This follows one pixel through the transparent pass's own
@@ -117,7 +117,7 @@ test('subtractive and multiply over paper show the witness in display space', ()
 
 test('the layers drawn below the display are sampled to it, not read at its pixel', () => {
   // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right of the
-  // share the image covers (#832), sampled there, level 0, on both outputs.
+  // share the image covers, sampled there, level 0, on both outputs.
   const drawn: [number, number] = [0.5, 0.75],
     layer = (uv: number[]) => [uv[0], uv[1], 0.25, 0.5]
   const filter = displayFilterRun(drawn, layer, (uv) => layer(uv).map((v) => 1 - v))

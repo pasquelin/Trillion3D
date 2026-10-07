@@ -72,7 +72,7 @@ test('a frame that throws after the first stops the loop and says so on the cons
     },
     resize() {},
   }
-  // Reported as an uncaught error is, the page's own watcher names it (#772).
+  // Reported as an uncaught error is, the page's own watcher names it.
   const reportError = (error: unknown) => void reported.push(error)
   start(
     explorer,
@@ -97,7 +97,7 @@ test('the first image is drawn at start even for a host with no frame hook', asy
   assert.equal(frames, 1)
 })
 
-test('a canvas whose box grows after start is resized and scheduled a frame (#492)', (t) => {
+test('a canvas whose box grows after start is resized and scheduled a frame', (t) => {
   let observed: (() => void) | undefined
   Object.assign(globalThis, {
     ResizeObserver: class {
@@ -124,7 +124,7 @@ test('a canvas whose box grows after start is resized and scheduled a frame (#49
   assert.equal(frames.size, 1, 'the grown box schedules a frame')
 })
 
-test('a capture, colour or surface, asks the idle loop for the view it put back (#349)', async () => {
+test('a capture, colour or surface, asks the idle loop for the view it put back', async () => {
   const frames = frameQueue()
   let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4))
   const explorer = {
@@ -150,7 +150,7 @@ test('a capture, colour or surface, asks the idle loop for the view it put back 
   assert.equal(frames.size, 1, 'a failed capture put the view back too')
 })
 
-test('the frame a capture asks waits while the next capture draws (#349)', async (t) => {
+test('the frame a capture asks waits while the next capture draws', async (t) => {
   const logged = t.mock.method(console, 'error', () => {})
   const frames = frameQueue()
   const turn = () => new Promise((wake) => setImmediate(wake))

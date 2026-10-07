@@ -20,7 +20,7 @@ const attr = (values: number[], width: number) =>
 
 const position = (values: number[]) => new BufferAttribute(new Float32Array(values), 3)
 
-// #348: a segment is two triangles whose corners all sit on its endpoints, the direction in the
+// A segment is two triangles whose corners all sit on its endpoints, the direction in the
 // normal signed by side — the rasters widen it on screen. It was a closed prism of twelve
 // triangles, as thick as a share of the geometry's diagonal.
 test('a line segment draws as a quad on its endpoints, its direction signed by side', () => {
@@ -67,7 +67,7 @@ test('a strip, a loop and a wireframe read their segments into quads; a zero seg
   assert.equal(faces.lines, undefined, 'faces stay faces')
 })
 
-// #359: a dashed line's quads carry each corner's distance along the line, the running length of
+// A dashed line's quads carry each corner's distance along the line, the running length of
 // the segments before it — the line-distance rule —, a loop's closing segment
 // running back from the total to the first vertex's 0. Any other line keeps no coordinate, and the same quads to the byte.
 test('a dashed line carries the distance along the line; a solid one is unchanged', () => {

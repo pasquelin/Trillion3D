@@ -5,9 +5,9 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
  * The two lists that drive the row table.
  *
  * `touched` names pages whose residency or cache slot just moved: it is the only input of rank sync,
- * which therefore no longer walks the catalogue. A page enrols only once, and the list follows what
- * moved, never the catalogue's size, so it can no longer overflow: no burst of arrivals triggers the walk of
- * the 124,000 pages that cost the image's peak any more.
+ * which therefore does not walk the catalogue. A page enrols only once, and the list follows what
+ * moved, never the catalogue's size, so it cannot overflow: no burst of arrivals triggers the walk
+ * of the 124,000 pages.
  *
  * `residencyChanges` is what the pass actually changed: pages whose residency FLAG flipped. GPU
  * selection writes only their ranges, and the list is SORTED at the end of the

@@ -19,7 +19,7 @@ function items(blendings: (number | undefined)[], transmissive: boolean[] = []) 
 }
 
 test('the declared modes are normal, then every mode a non-transmissive item names, in rank', () => {
-  assert.deepEqual(declaredBlendModes([]), [], 'no transparent item, no blend program (#1362)')
+  assert.deepEqual(declaredBlendModes([]), [], 'no transparent item, no blend program')
   const all = items([...BLEND_MODES].reverse().map(hostBlending))
   assert.deepEqual(declaredBlendModes(all), BLEND_MODES)
   const glass = items([hostBlending('additive'), hostBlending('multiply')], [true, false])

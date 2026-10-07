@@ -1,4 +1,4 @@
-// A camera cut's buffers and the device check read one table (#974): the check judges exactly
+// A camera cut's buffers and the device check read one table: the check judges exactly
 // the sizes the cut makes, under one fit rule.
 import test from 'node:test'
 import assert from 'node:assert/strict'

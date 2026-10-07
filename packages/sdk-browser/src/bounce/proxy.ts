@@ -67,8 +67,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     mappedAtCreation: true,
   })
   const mapped = new Uint32Array(buffer.getMappedRange())
-  // Node count is read from the bounds column, as `arrayLength` did before the three columns
-  // fit in one buffer: the same value, from the same source.
+  // Node count is read from the bounds column, as `arrayLength` would on a buffer holding the
+  // three columns: the same value, from the same source.
   mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS
   for (let index = 0; index < columns.length; index++) {
     mapped[PROXY_LAYOUT_WORD + 1 + index] = starts[index]

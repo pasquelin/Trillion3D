@@ -1,14 +1,14 @@
 /**
- * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived from the camera, never from the scene (#404).
+ * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived from the camera, never from the scene.
  *
  * A cell is read while the camera can draw any of it: until its box is past the frustum's farthest
  * corner — for a perspective camera `far·√(1 + tan²θ)`, `θ` the half diagonal of the field its
  * zoom narrows or widens (`perspectiveSlope`), the same off-axis majorant the certified cluster
  * error takes (`screenErrorBound.ts`); for an orthographic one the far corner of its zoomed box
- * (`orthographicView`). Nothing coarser stands for a cell that is not read (its merged proxy is
- * #23), so its objects are drawn wherever the far plane lets them be, however small they project:
- * dropping one below the error target would leave it out of the image for good, not replace it by
- * a coarser one.
+ * (`orthographicView`). Nothing coarser stands for a cell that is not read (it has no merged
+ * proxy), so its objects are drawn wherever the far plane lets them be, however small they
+ * project: dropping one below the error target would leave it out of the image for good, not
+ * replace it by a coarser one.
  *
  * A frame asks for the cells within the reach first, then — at the prefetch priority — those
  * within `AHEAD` of it past it, and a read cell leaves once its box is `KEEP` of the reach past it,
@@ -81,7 +81,7 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
 }
 
 /**
- * How a plan reads the world super-roots (#1332): the cells whose objects are placed, and the error
+ * How a plan reads the world super-roots: the cells whose objects are placed, and the error
  * the cut projects for a cell's super-roots (`cellSuperRootError`) against its pixel target. A
  * cell is then held one of two ways — placed, its objects read and drawn, or drawn by its
  * super-roots alone, its world bundles held and its object pages unread.

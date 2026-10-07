@@ -17,7 +17,7 @@ export function blendLightResources(
     shadowData: contract.vsm?.pageTable ?? placeholders.vsmPageTable,
     shadowAtlas: contract.vsm?.projectionData ?? placeholders.vsmProjectionData,
     shadowSampler: contract.vsm?.uniforms ?? placeholders.vsmUniforms,
-    // The translucent casters' transmission atlas on the old transmittance layer's number.
+    // The translucent casters' transmission atlas on the transmittance layer's number.
     shadowTransmittance: contract.vsmTransmission ?? placeholders.transmittanceView,
     shadowTranslucentDepth: contract.vsm?.pool ?? placeholders.vsmPool,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,

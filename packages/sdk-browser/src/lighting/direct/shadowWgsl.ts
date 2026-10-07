@@ -38,7 +38,7 @@ export interface VsmConsumerBindings {
   uniforms: number
   pool: number
 }
-/** The opaque resolve's and the water composite's numbers (the old records', atlas, sampler and
+/** The opaque resolve's and the water composite's numbers (the records', atlas, sampler and
  *  translucent depth). */
 export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   pageTable: 8,
@@ -414,7 +414,7 @@ fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
 }`
 
 /**
- * The shadow read of every lit surface since the virtual shadow maps (`../../vsm/`).
+ * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
  * A shadowed light's `params.y` is `firstVsmId · 64 + channel`, −1 without a shadow
  * (`encodeVsm.ts`). The opaque resolve reads the frame's traced shadow mask
  * (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`, set by its shadow setup),

@@ -66,9 +66,9 @@ export function take<T extends PageRecord>(
   boxes: boolean,
 ) {
   const rec = pages[index]
-  // A cluster that an ancestor places entirely inside the frustum no longer reads its box: neither
-  // a test nor a presence check when the root declared it. That was the only record read the
-  // frustum still imposed on a cluster it does not test.
+  // A cluster that an ancestor places entirely inside the frustum reads no box: neither
+  // a test nor a presence check when the root declared it. That is the only record read the
+  // frustum imposes on a cluster it does not test.
   if (!inside) {
     const min = rec.min,
       max = rec.max

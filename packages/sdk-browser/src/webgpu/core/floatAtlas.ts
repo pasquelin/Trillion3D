@@ -1,7 +1,7 @@
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 
 /**
- * THE FLOAT ATLAS (#1410): a list of floats the passes read by index, kept in an `r32float`
+ * THE FLOAT ATLAS: a list of floats the passes read by index, kept in an `r32float`
  * texture instead of a storage buffer — the float pool's normals and tangents. A texture is no
  * storage buffer, so the passes that read it (the lighting with bounce, the shadow demand) hold
  * the eight storage buffers WebGPU guarantees per stage; and it is bounded by the texture limits,

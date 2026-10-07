@@ -15,9 +15,9 @@ export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
 const MAUVAIS = [NaN, Infinity, -Infinity, -0]
 
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
- *  oracles read on them as pages carried it before #1226. */
+ *  oracles read on them. */
 const roots = [{ world: new G.Matrix4() }]
-/** The one root placed, for the consumers that read a list through its locations (#1235). */
+/** The one root placed, for the consumers that read a list through its locations. */
 export const located = (count: number): PageLocations => ({
   roots,
   packed: Array.from({ length: count }, () => 0),

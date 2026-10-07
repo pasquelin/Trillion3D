@@ -26,13 +26,11 @@ import { cullingLinks, type CullingLinks } from '../cut/links.ts'
  * The checks are the previous ones, once per primitive instead of once per placement: missing
  * page, index coverage, then the cache's error band.
  *
- * COVERAGE IS CHECKED AGAINST THE CACHE'S OWN RECORD (#288). Until this batch the pages of a primitive
- * were concatenated and their triangles compared, as a multiset, with those of the source
- * geometry the host had loaded — the engine path holding the source indices only for that. What
- * a page is checked against now is what the manifest declares of it: the index count of the page
- * entry. The page/source identity itself is a property of the cook, proved where it is produced
- * (`packages/asset-compiler-rust`, its golden fixtures) and not re-derived at every load by a
- * runtime that will soon have no source file to derive it from (#78, part 4c).
+ * COVERAGE IS CHECKED AGAINST THE CACHE'S OWN RECORD. A page is checked against what the
+ * manifest declares of it: the index count of the page entry, not the triangles of the source
+ * geometry the host loaded. The page/source identity itself is a property of the cook, proved
+ * where it is produced (`packages/asset-compiler-rust`, its golden fixtures) and not re-derived at
+ * every load by a runtime that has no source file to derive it from.
  */
 export type Template = {
   pages: Array<{

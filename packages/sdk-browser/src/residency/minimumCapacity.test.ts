@@ -1,4 +1,4 @@
-// #1237: the pool's floor is the root cover and the pages its groups replace, admitted first.
+// The pool's floor is the root cover and the pages its groups replace, admitted first.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { admissionLevel, rootChildren } from './minimumCapacity.ts'

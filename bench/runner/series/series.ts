@@ -48,7 +48,7 @@ export async function runSeries(
     engine: ENGINE.id,
     // GPU envelope of a frame, when the page records it (WebGPU engine).
     gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
-    // Device idle between two neighbouring images (#1451), beside the GPU envelope of the same run:
+    // Device idle between two neighbouring images, beside the GPU envelope of the same run:
     // the time the device stood unused before an image, which the envelope does not hold.
     gpuIdleMs: result.gpuIdleMs?.length ? distribution(result.gpuIdleMs) : null,
     // Wall time of a synchronised frame — render then GPU wait — when the page records it.
@@ -77,7 +77,7 @@ export async function runSeries(
     drawnTriangles: metrics.drawnTriangles ?? null,
     // Triangles actually submitted to draw, recorded on the last measured frame — `recordedFrame`
     // names it. `submittedTriangles` is the opaque pass, `totalSubmittedTriangles` adds the
-    // transparent passes. `null` when the GPU count had not yet returned: the GPU-chosen cut
+    // transparent passes. `null` when the GPU count has not returned: the GPU-chosen cut
     // publishes its totals after the fact.
     submittedTriangles: metrics.submittedTriangles ?? null,
     totalSubmittedTriangles: metrics.totalSubmittedTriangles ?? null,

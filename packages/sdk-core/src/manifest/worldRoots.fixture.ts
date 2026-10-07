@@ -62,7 +62,7 @@ type WorldRootsCookedCluster = WorldRootsCluster & { units: [number, number] }
 /**
  * A world of three cells along x, each four object roots (level 0, kept in the objects' own
  * streams), continued into one cell super-root (level 1) and one world top (level 2): the shape
- * the cook publishes, its `clusters` and `groups` as #1238 adds them (`world-roots.dag`). Cell
+ * the cook publishes, its `clusters` and `groups` as it adds them (`world-roots.dag`). Cell
  * 2 far, its object roots unread, its super-root must stand in. `units` spans the leaf unit each
  * cluster covers, so a coverage check can read it.
  */

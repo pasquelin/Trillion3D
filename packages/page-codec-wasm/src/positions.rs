@@ -1,8 +1,8 @@
-//! Positions stored once (CMP-10, #960). A flat-shaded page repeats each corner position under
+//! Positions stored once (CMP-10). A flat-shaded page repeats each corner position under
 //! every face normal that meets it; such a page stores its `position_count` distinct positions and,
 //! after them, a link per vertex — `bits_for(position_count − 1)` bits, the rank of its position.
 //! A page whose positions are all distinct, or whose links would cost more words than they save,
-//! stores one position per vertex and no link, as before. Either way a vertex decodes to the same
+//! stores one position per vertex and no link. Either way a vertex decodes to the same
 //! floats: the link only says where its position lies.
 
 use crate::bits::{bits_for, dequant, BitReader};

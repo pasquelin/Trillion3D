@@ -32,7 +32,7 @@ const frame: PartitionFrame = {
 /**
  * Occluder/tested partition of the image, encoded for the GPU.
  *
- * Nothing there walks resident rows on the CPU any more: neither projecting boxes into screen
+ * Nothing there walks resident rows on the CPU: neither projecting boxes into screen
  * rectangles, nor splitting the two halves, nor preparing the Hi-Z test bounds. The image has already
  * uploaded the corners the table had just changed — and those only, before `uploadDirtyRows` closed
  * that range (`uploadRowCorners`). All that remains here is writing one uniform; its three compute

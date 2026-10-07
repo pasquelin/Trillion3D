@@ -1,4 +1,4 @@
-// #216: a geometry pool set above the ceiling the tables were sized for grows them in place, the
+// A geometry pool set above the ceiling the tables were sized for grows them in place, the
 // session going on — and tables the device refuses keep the pool and every table as they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'

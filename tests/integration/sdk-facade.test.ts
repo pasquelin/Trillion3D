@@ -98,9 +98,8 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   )
-  // 737 since the cleanup waves: the old shadow atlas, the CPU transport experiment, the nested
-  // Hi-Z oracles and the example-only helpers left the public API (789 before); then four names
-  // the public signatures already carried joined it: PageHome, PageHomes, QualityResolution and
+  // 737: the public API holds neither a shadow atlas, a CPU transport, nested Hi-Z oracles nor
+  // example-only helpers; it holds four names the public signatures carry: PageHome, PageHomes, QualityResolution and
   // WorldQualityOptions.
   assert.equal(inventory.exports.length, 741)
   assert.deepEqual(inventory.collisions, [])
@@ -123,7 +122,7 @@ test('generated inventory and explicit facade files are current', async () => {
       !inventory.exports.some((row) => row.name === name),
       `${name} belongs to the measurement entry, not the package`,
     )
-  // The world's side of a joint, typed on its member (#558, #795): no page names it.
+  // The world's side of a joint, typed on its member: no page names it.
   assert.ok(!inventory.exports.some((row) => row.name === 'JointHost'), 'JointHost is internal')
   for (const [name, entryPoint] of [
     ['CameraPose', 'trillion3d (common)'],

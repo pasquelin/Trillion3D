@@ -59,7 +59,7 @@ const column3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[k
  * `getNormalMatrix` on a regular matrix — and elsewhere those of the host `crossVectors`,
  * which share no line with the foundation. Only the BRANCH comes from the engine's unique
  * rule (`packages/sdk-core/src/math/matrix/singular.ts`): an oracle that judged singularity differently from the judged
- * code would no longer compare the same cases.
+ * code would not compare the same cases.
  */
 export function referenceNormal(matrice: THREE.Matrix4): Float64Array {
   const e = matrice.elements

@@ -1,15 +1,15 @@
 /**
- * THE WORLD TOP, PINNED, AND THE WORLD BUNDLES A PLACED CELL'S ROOTS NEED (#1237).
+ * THE WORLD TOP, PINNED, AND THE WORLD BUNDLES A PLACED CELL'S ROOTS NEED.
  *
  * The compiler continues the DAG above every object's roots up to a small world top
  * (`world-roots.table`, docs/FORMAT.md, World super-roots), its records read straight from their
- * bytes (#1232), never one string of the whole world. The runtime pins that top alone: read at
+ * bytes, never one string of the whole world. The runtime pins that top alone: read at
  * open — its bundles are the binary's first, one ranged read —, each bundle checked against its
  * own digest, and held for the scene's life. Its bytes are bounded by the materials, never the
  * world (`pinnedTopBytes`, refused at cook past `budgetBytes`), so the pinned memory is the same at
  * 1 km and at 8 km.
  *
- * The object roots are no longer pinned: they are pages like any other, held while the view holds
+ * The object roots are not pinned: they are pages like any other, held while the view holds
  * their placements, and installed after their dependencies — the world bundles past the top their
  * roots need (`cells[].objects[].dependencies`). A cell the view places holds those bundles
  * (`hold`), counted once however many cells share one, and a cell that leaves releases them; a
@@ -39,8 +39,8 @@ import { worldRootsPageSource } from './worldRootsPage.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 
-/** The world pages' detached source, their DAG (#1238) and each cell's super-root bound, which a
- *  partition's plan reads (`partition/superRoots.ts`, #1332): nothing draws from them yet (#1333),
+/** The world pages' detached source, their DAG and each cell's super-root bound, which a
+ *  partition's plan reads (`partition/superRoots.ts`): nothing draws from them yet,
  *  so a scene opens without them, and their page server and DAG file are read on first use. */
 type WorldStream = {
   source: ReturnType<typeof worldRootsPageSource>
@@ -97,7 +97,8 @@ async function readBundles(
 
 /**
  * The world roots of the cache `metadata` describes at `base`, their top read and pinned, or
- * `undefined` for a cache that publishes none (a scene with no placed DAG, or cooked before #23).
+ * `undefined` for a cache that publishes none (a scene with no placed DAG, or one cooked without
+ * the roots table).
  */
 export async function openWorldRoots(
   metadata: ClusterManifest,
@@ -139,13 +140,13 @@ export async function openWorldRoots(
   const openStream = async () => {
     if (stream) return stream
     const { worldPageServer, worldRootPages } = await families.worldStream.load()
-    // The world DAG's file, read once the stream opens: a load never holds it (#1232).
+    // The world DAG's file, read once the stream opens: a load never holds it.
     const dag = files[WORLD_ROOTS_DAG]
     const records =
       dag && readWorldRootsDag(new Uint8Array(await fetchVerified(urls.dag, dag, signal)))
     return (stream ??= {
       dag: worldRootDag({ ...records, payload: table.payload }, worldRootPages),
-      // An object root's cell is its object's (`origin`, the table's rank, #1332).
+      // An object root's cell is its object's (`origin`, the table's rank).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
       source: worldRootsPageSource(worldPageServer(table, bundlePages)),

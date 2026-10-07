@@ -67,7 +67,7 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
 
 const placeholder = (async () => (await (await fetch(PLACEHOLDER_IMAGE)).blob()).size)()
 
-test('an embedded image with a baked twin decodes no byte of the binary (its fetch goes lazy in #876)', async (t) => {
+test('an embedded image with a baked twin decodes no byte of the binary (its fetch goes lazy)', async (t) => {
   const { previews, document } = await fixture
   const size = await placeholder
   const sizes = await decoded(t, previews)

@@ -1,10 +1,10 @@
 /**
- * Where the cells of a partitioned scene are now (#404). A cell carries the box around its nodes
+ * Where the cells of a partitioned scene are now. A cell carries the box around its nodes
  * in the frame of each core parent it hangs them under (`TableCell.parents`); a page may move that
  * parent (`getObjectByName`), and the rows follow it (`cells.ts`). The plan reads each cell's boxes
  * in the scene root's frame, one per parent, rewritten once a parent moved relative to the root,
  * so a cell is read where its objects stand, not where the file declared them. A page of the cell
- * index is boxed at the declared poses, in the root's frame (#575): what it holds now lies within
+ * index is boxed at the declared poses, in the root's frame: what it holds now lies within
  * that box and the box carried by each parent its cells hang under moved since the declaration
  * (`around`). How far each parent stretches the root's frame (`stretch`) is what the rows are sized
  * by (`sizing.ts`).
@@ -80,7 +80,7 @@ const relativeInto = (out: Float64Array, parent: Object3D) =>
  * this is called. `refresh` reads the frames again. `bounds` gives the boxes of a `Boxed` in the
  * root's frame, six values per parent, in the order of its `parents`, written again only when one
  * of those parents moved since, so a frame pays for the boxes it reads, never for every cell a
- * moved parent carries (#575); `around`, the box of a page of the index where its parents stand;
+ * moved parent carries; `around`, the box of a page of the index where its parents stand;
  * `stretch`, per core rank, how far that parent's frame stretches the root's at the last `refresh`.
  */
 export function createCellBoxes(

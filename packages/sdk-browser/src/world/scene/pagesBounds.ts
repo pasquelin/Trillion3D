@@ -40,7 +40,7 @@ function placedBox(mesh: HostMesh, associations: EngineContext['associations']) 
 }
 
 /** Exact pages of `source`: the EXACT size the box lot must carry. A mesh placed by rows counts
- *  its box whether or not the view read its primitive yet (#751). */
+ * its box whether or not the view read its primitive yet. */
 function exactPagesCount(
   source: Object3D,
   associations: EngineContext['associations'],
@@ -57,7 +57,7 @@ function exactPagesCount(
 }
 
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`: a mesh placed
- *  by rows by the box they place it in, whether or not the view read its primitive yet (#751).
+ * by rows by the box they place it in, whether or not the view read its primitive yet.
  *  `onMissing` decides what another mesh without a prepared primitive does; it is skipped once
  *  that returns. */
 export function pagesBounds(

@@ -37,10 +37,10 @@ export function estimateClockResolutionMs(now: () => number) {
 }
 
 /**
- * Consecutive executions of one path timed as one longer batch (CPU-20, #919). A clock coarser than
+ * Consecutive executions of one path timed as one longer batch (CPU-20). A clock coarser than
  * `CLOCK_RESOLUTION_MS` reads an engine batch as zero or one step; summed until they span `spanMs`,
- * those reads give one sample whose rounding error is a small share of it — the audit's "time
- * bigger batches". Without cross-origin isolation, the only clock a browser gives is that coarse.
+ * those reads give one sample whose rounding error is a small share of it. Without cross-origin
+ * isolation, the only clock a browser gives is that coarse.
  */
 export class PooledTiming {
   private ms = 0
@@ -71,7 +71,7 @@ const sortsBefore = (a: number, b: number) =>
   a < b || (b !== b && a === a) || (a === 0 && b === 0 && 1 / a < 0 && 1 / b > 0)
 
 /**
- * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution (#983): the
+ * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution: the
  * values are kept sorted as they arrive — the one that leaves taken out by identity (NaN is
  * itself, -0 is not +0), the new one inserted after its equals —, so the sorted copy is always the
  * typed sort of the last values, bit for bit, and the median is read from it without sorting or a view.

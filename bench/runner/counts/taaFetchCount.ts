@@ -1,4 +1,4 @@
-// Fetches the temporal resolve issues per display pixel of a moving and of a still image (#1369),
+// Fetches the temporal resolve issues per display pixel of a moving and of a still image,
 // the shipped resolves run in JavaScript (`upscaleRun.fixture.ts`), every load, filtered sample
 // and gather counted one: at the display's size, and reconstructing a frame drawn at half of it per
 // axis, the scale `renderScale: 'auto'` reaches under load. A pixel that still shows what it
@@ -15,7 +15,7 @@ const DISPLAY = 16
 
 /** Mean fetches per display pixel of a frame drawn at `scale`, `moving` or still, by the flagless
  *  or the `asIs` resolve; `reactive`, a frame whose blends wrote a reactive value, otherwise none
- *  (`resolve.ts`, `unreactive`): the fragment resolve's, and its identifier reads. */
+ *  (`resolve.ts`, `unreactive`): the fragment resolve's, and the identifier texels it reads. */
 export function countTaaFetches(
   scale: number,
   uncovered: boolean,

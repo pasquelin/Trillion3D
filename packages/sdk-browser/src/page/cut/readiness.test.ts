@@ -1,4 +1,4 @@
-// The residency the cut rule reads (#486): whole groups, closed upward, kept by difference.
+// The residency the cut rule reads: whole groups, closed upward, kept by difference.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'

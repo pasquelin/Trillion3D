@@ -43,7 +43,7 @@ export interface UpscaleFrame {
   share?: number
   /** The reactive value the blends and particles wrote, per texel. */
   reactive?: (x: number, y: number) => number
-  /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`, #573). */
+  /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`). */
   pageFlags?: number
   placement?: number
   historyGeometry?: (x: number, y: number) => [number, number]

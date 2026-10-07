@@ -12,7 +12,7 @@ import { tickScale } from './scaleTick.ts'
 import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './scaleWindow.ts'
 
 /**
- * THE FRAME LOOP'S RENDER SCALE (#831): one controller, from what the display and the GPU say.
+ * THE FRAME LOOP'S RENDER SCALE: one controller, from what the display and the GPU say.
  *
  * - The display's refresh `R`, measured on the rAF timestamps (`refreshClock.ts`, `display`): the
  *   shortest period they were seen to hold. Work only stretches an interval, so that period is the
@@ -43,9 +43,9 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * to the bounds and the memory cap; a move waits `PERIOD` frames after the last, so one move's effect is seen before the next, and
  * is taken past the controller's threshold, a rise only past the noise too: half the measured
  * relative spread of the costs (a scale moves as the root of a cost). At the floor, a frame that
- * cannot meet the refresh keeps the floor: no slower budget raises the scale (#831).
+ * cannot meet the refresh keeps the floor: no slower budget raises the scale.
  *
- * At rest: after a still image the scale only lowers (#1343), so a still average closes at one
+ * At rest: after a still image the scale only lowers, so a still average closes at one
  * size and the frame is held, encoding nothing (`hold.ts`).
  *
  * One per session.

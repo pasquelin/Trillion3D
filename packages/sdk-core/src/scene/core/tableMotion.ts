@@ -1,5 +1,5 @@
 /**
- * What moves in the prepared scene (#357), as the scene tables carry it
+ * What moves in the prepared scene, as the scene tables carry it
  * (`packages/asset-compiler-rust/src/compiler_tables/motion.rs`): the skins meshes bend by and the
  * animation clips the file plays, every number written out, so the runtime builds its skeletons
  * and clips without reading the scene's binary.

@@ -1,4 +1,4 @@
-// The same wave read by the physics and by the drawn surface (#357, #422): the GPU deformation
+// The same wave read by the physics and by the drawn surface: the GPU deformation
 // stage's WGSL, run on the record the frame writes for a mesh the water surface carries, puts
 // each rest point within a centimetre of where the physics' `WaterSurface.point` puts it, this
 // frame and the last one.

@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // `pnpm run check:unused`: knip, twice. The first pass (`knip.config.ts`) takes the tests as
 // entries: a file or an export that nothing reaches is dead. The second
 // (`knip.production.config.ts`) takes only what the engine, the SDK and their tools run: a source
-// file or an export that only a test, a fixture or the test kit reaches is dead too (#1366).
+// file or an export that only a test, a fixture or the test kit reaches is dead too.
 
 const knip = fileURLToPath(new URL('../node_modules/.bin/knip', import.meta.url))
 

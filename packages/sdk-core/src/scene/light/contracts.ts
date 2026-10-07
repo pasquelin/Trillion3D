@@ -138,7 +138,7 @@ export const LIGHT_SETTINGS = {
   shadowNormalOffsetTexels: 0.5,
 } as const
 /**
- * Shadow slices the atlas addresses, under the page table's own rules (#818) — never a limit on
+ * Shadow slices the atlas addresses, under the page table's own rules — never a limit on
  * the lights: a shadow-casting light beyond them lights without a shadow, and the frame counts it
  * (`shadowCastersUnsliced`).
  */

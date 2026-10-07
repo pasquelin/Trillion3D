@@ -1,5 +1,5 @@
-//! A09: a cycle in the glTF node hierarchy. World-matrix walk used to start from
-//! parentless nodes only; a closed cycle has none, so it was never walked — and
+//! A cycle in the glTF node hierarchy. World-matrix walk starts from
+//! parentless nodes only; a closed cycle has none, so it would never be walked — and
 //! the scene went out published, cycle intact, ready to send the consumer's walk
 //! into an endless loop. An orphan node remains a correct scene: it has a parent
 //! nowhere, not a parent in a loop.
@@ -22,7 +22,7 @@ fn refusal(tag: &str, gltf_nodes: Value, scenes: Option<Value>) -> Option<String
     outcome
 }
 
-// Finding A09: a node that declares itself its own child, and two nodes that
+// A node that declares itself its own child, and two nodes that
 // declare each other children, are impossible hierarchies. They are refused
 // before publication, by the same code as any other contradiction of the document.
 #[test]

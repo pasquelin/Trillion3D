@@ -27,7 +27,7 @@ pub fn stream_words(count: usize, bits: u32) -> usize {
     count.saturating_mul(bits as usize).div_ceil(32)
 }
 
-/// The fields of one stream in order, each word loaded once (STR-01, #238): the stream's current
+/// The fields of one stream in order, each word loaded once (STR-01): the stream's current
 /// word and bit cursor stay in a 64-bit accumulator, refilled one word at a time — never more,
 /// since a field is at most `MAX_BITS` wide. A stream is sized so the next word exists whenever
 /// a field needs it; a zero-width field reads zero and loads no word.

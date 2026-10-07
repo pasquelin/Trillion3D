@@ -83,7 +83,7 @@ export function mirrorGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
   new Float32Array(grid.buffer)[0] = 10
   grid[7] = 1
   const gridBuffer = buffer(BOUNCE_GRID_BYTES, grid)
-  // The surface cache's atlas (#1410): the proxy triangle's two faces, one texel each.
+  // The surface cache's atlas: the proxy triangle's two faces, one texel each.
   const cache = device.createTexture({
     size: [2, 1],
     format: 'rgba32float',

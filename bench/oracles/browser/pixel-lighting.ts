@@ -1,4 +1,4 @@
-// Oracle for point G3: `bench/oracles/browser/cpu-image/lighting.ts` before batch G, copied as-is. Hemispheric
+// Oracle: `bench/oracles/browser/cpu-image/lighting.ts`, copied as-is. Hemispheric
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three'
@@ -146,8 +146,8 @@ export function referenceShadeLit(
     L = [Lraw[0] / lLen, Lraw[1] / lLen, Lraw[2] / lLen]
   const NdotL = Math.max(0, Nx * L[0] + Ny * L[1] + Nz * L[2]),
     up = Ny * 0.5 + 0.5
-  // Ground `#495061` brought to linear by the exact curve, as the engine does since #76 — the
-  // host library's rounded constants gave a value 1e-11 off; the formula is written here, not shared.
+  // Ground `#495061` brought to linear by the exact curve, as the engine does — the host library's
+  // rounded constants give a value 1e-11 off; the formula is written here, not shared.
   const linear = (v: number) => Math.pow((v / 255 + 0.055) / 1.055, 2.4)
   const sky = [2, 2, 2],
     ground = [linear(0x49) * 2, linear(0x50) * 2, linear(0x61) * 2]

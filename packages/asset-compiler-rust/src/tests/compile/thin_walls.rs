@@ -1,6 +1,6 @@
-//! A chalet of thin closed shapes keeps its walls on every level of its cook (#415). Every cut
+//! A chalet of thin closed shapes keeps its walls on every level of its cook. Every cut
 //! decodes onto its source, flips no face, and still shows each wall a camera on any axis sees.
-//! The chalet is the committed scene `see-the-triangles?model=chalet` opens;
+//! The chalet is a committed example scene;
 //! `scripts/docs/examples/chalet.ts` writes it.
 use super::coarse_normals::foreign_normal_defects;
 use super::cooked_pages::cooked_page_defects;

@@ -1,6 +1,6 @@
-// #1369: the light grid's lists are conservative — every light whose range holds a pixel's point is
+// The light grid's lists are conservative — every light whose range holds a pixel's point is
 // in the list of the cell that pixel's depth falls in —, so the resolve's sum over the list is the sum
-// over every light, the zeros of the others left out: the image of develop. Checked in f64 against
+// over every light, the zeros of the others left out: the same image. Checked in f64 against
 // the pass's oracle (`gpuLightGridOracle.ts`, a port of `boundsWgsl.ts`) on random views — from the
 // street to straight down from 2 km, up to 150 km from the world origin — and random lights near
 // random pixels, with the edge cases: a lamp touching one pixel, a cell every lamp reaches, the near

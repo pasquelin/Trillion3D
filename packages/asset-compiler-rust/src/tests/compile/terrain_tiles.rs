@@ -1,5 +1,5 @@
 //! The `terrain-tiles` example scene, a textured terrain cooked tile by tile as the open world's
-//! is, decodes back to its source on every level (#414): no page carries a vertex away from its
+//! is, decodes back to its source on every level: no page carries a vertex away from its
 //! surface, on either simplification. The scene is the one `see-the-triangles?model=terrain-tiles`
 //! opens; `scripts/docs/examples/terrain-tiles.ts` writes it.
 use super::cooked_pages::cooked_page_defects;

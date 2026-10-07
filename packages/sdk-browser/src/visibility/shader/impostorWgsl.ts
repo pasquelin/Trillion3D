@@ -2,7 +2,7 @@ import { octFoldWgsl } from '../../math/octahedralWgsl.ts'
 
 /**
  * The octahedral mapping and the three-frame blend, object space, pivot at the bounding-sphere
- * centre, +Y up: the WGSL mirror of the compiler's `octahedron.rs` (#817), whose CPU twin
+ * centre, +Y up: the WGSL mirror of the compiler's `octahedron.rs`, whose CPU twin
  * (`sdk-core/src/impostor/octahedron.fixture.ts`) is the oracle (`impostorWgsl.test.ts`). `hemi` is 1 for
  * the upper hemi-octahedron. Every function here is a declaration or a single return, so the
  * software shader harness reads the shipped text and not a copy of its formula.

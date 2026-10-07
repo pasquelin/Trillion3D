@@ -1,4 +1,4 @@
-// The reads an admission pass starts ahead (#921, STR-08), walked alone: which pages, in which order,
+// The reads an admission pass starts ahead, walked alone: which pages, in which order,
 // how many, and at which address the host's reader is asked for them.
 import test from 'node:test'
 import assert from 'node:assert/strict'

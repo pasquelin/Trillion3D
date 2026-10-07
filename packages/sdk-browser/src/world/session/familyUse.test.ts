@@ -24,7 +24,7 @@ test('a plain frame draws with no family; pools, passes and guides name theirs',
   assert.ok(!frameFamilies(held).includes('guides'), 'a hidden guide draws nothing')
 })
 
-test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn (#1353)", async () => {
+test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn", async () => {
   const held = { particles: [new ParticlePool({ capacity: 4 })] }
   const frames = frameQueue(),
     done: string[] = []

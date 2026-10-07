@@ -15,10 +15,10 @@ const turn = (x: number, y: number, z: number, angle: number) =>
 /**
  * Soft bodies made scaled and turned, then one removed (the list compacts), others teleported,
  * one hidden and shown again, and a new one made in the freed slot and teleported: the soft words
- * of the steps `KEPT` names, copied, in order. Positions carry both zeros (#975). Every body is made
+ * of the steps `KEPT` names, copied, in order. Positions carry both zeros. Every body is made
  * 20 m above the floor, which none reaches in the 90 steps, and is teleported less than 3 m: a soft
  * body collides 1 cm thick and starts again at rest in its rest shape past 3 m (`soft.cpp`), which
- * develop's module did not (`softSafety.test.ts` and `softTeleport.test.ts` cover both).
+ * the reference module does not (`softSafety.test.ts` and `softTeleport.test.ts` cover both).
  */
 export function writebackScene(jolt: Pick<JoltModule, 'step' | 'soft'>) {
   const writer = new CommandWriter()

@@ -1,7 +1,7 @@
 //! Colour profiles files carry, and that the contract output does not carry.
 //!
 //! `into_rgba8` yields bytes the rest of the chain reads as sRGB. A file can nevertheless
-//! embed an ICC profile that says something else, and the driver used to drop it without a
+//! embed an ICC profile that says something else, and the driver must not drop it without a
 //! word. This batch converts nothing — colour management is another job — but it counts.
 //!
 //! The three paths by which a profile arrives are covered here: a PNG's `iCCP` chunk, a JPEG's
@@ -25,7 +25,7 @@ fn notes(case: &str, bytes: &[u8]) -> Vec<&'static str> {
         .notes
 }
 
-// Reproduction of finding 58, PNG path: the `iCCP` chunk carries the profile name in the open,
+// PNG path: the `iCCP` chunk carries the profile name in the open,
 // then the compressed profile. A name that is not that of the output's sRGB is counted; the
 // name of an sRGB profile counts nothing, since there would be nothing to convert.
 #[test]
@@ -36,8 +36,8 @@ fn a_png_icc_profile_is_counted_unless_it_names_srgb() {
     assert!(declared("png", "rgb8.png", MAX_ALLOC).1.is_empty());
 }
 
-// Reproduction of finding 58, JPEG path: the ICC specification carries the profile in APP2
-// segments that open on “ICC_PROFILE\0”. The driver used to skip them all.
+// JPEG path: the ICC specification carries the profile in APP2
+// segments that open on “ICC_PROFILE\0”. The driver must not skip them.
 #[test]
 fn a_jpeg_icc_profile_is_counted_unless_it_names_srgb() {
     let base = jpeg_without_profile();
@@ -46,7 +46,7 @@ fn a_jpeg_icc_profile_is_counted_unless_it_names_srgb() {
     assert!(notes("jpeg sRGB", &with_app2(&base, SRGB)).is_empty());
 }
 
-// Reproduction of finding 58, PSD path: image resource 1039 carries the document's ICC
+// PSD path: image resource 1039 carries the document's ICC
 // profile. The resources section was skipped by its length, without anything being read in it.
 #[test]
 fn a_psd_icc_profile_is_counted_unless_it_names_srgb() {

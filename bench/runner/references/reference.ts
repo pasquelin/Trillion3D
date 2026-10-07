@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// The engine's reference images (#1281), regenerated on demand by one command:
+// The engine's reference images, regenerated on demand by one command:
 //   node bench/runner/references/reference.ts [--scene sponza,facade-7] [--after <dist|ref>] [--references <dir>]
 // `reference.json` goes to `bench/references/` (git), the images to `.measure/references/` (off git);
 // `--references <dir>` writes both there.
-// Each scene's bench poses (`trajectory/poses.ts`), at the boss's case (`REFERENCE_ARGS`, any bench flag after
+// Each scene's bench poses (`trajectory/poses.ts`), at the reference case (`REFERENCE_ARGS`, any bench flag after
 // them wins), drawn by the engine's reference mode and written with the commit that drew them.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'

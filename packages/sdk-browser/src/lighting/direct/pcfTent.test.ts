@@ -1,5 +1,5 @@
 // The filtered read's tap weights (`vsmFilterTaps`) are the tent max(0, 1 − |q − k|) written with
-// its two differences, no longer floor and fraction compared per column: q − (k − 1) is the exact
+// its two differences, not floor and fraction compared per column: q − (k − 1) is the exact
 // fraction on the upper column, (k + 1) − q rounds the same real 1 − f once on the lower, every
 // other column clamps to +0. Run in f32 over every f32 coordinate a stride apart.
 import test from 'node:test'
@@ -9,7 +9,7 @@ import { directShadowWgsl } from './shadowWgsl.ts'
 const SOURCE = directShadowWgsl(null, 18)
 
 test("the tent weights are develop's floor-and-fraction weights, bit for bit in f32", () => {
-  // The shipped form, its columns read from the text; develop's form as it stood, in f32.
+  // The shipped form, its columns read from the text; the floor-and-fraction form, in f32.
   const shipped = /let below=vec4f\(([^)]*)\);let above=vec4f\(([^)]*)\);/.exec(SOURCE)!
   assert.match(SOURCE, /let wx=saturate\(min\(q\.x-below,above-q\.x\)\);/)
   const [below, above] = [shipped[1], shipped[2]].map((v) => v.split(',').map(Number))

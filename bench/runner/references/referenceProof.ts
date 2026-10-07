@@ -1,5 +1,5 @@
 // The class-2 image proof (CONTRIBUTING.md, "Image and fidelity"): `bench.ts --reference` holds each
-// side's capture to the engine's reference image of its scene and view (`references/reference.ts`, #1281),
+// side's capture to the engine's reference image of its scene and view (`references/reference.ts`),
 // through `referenceDiff`. A run that cannot be compared with it is refused by name, never scored.
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { referenceDiff, type ReferenceDiff } from './imageDiff.ts'

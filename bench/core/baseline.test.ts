@@ -1,8 +1,7 @@
 // Regression verdict, and the only place where its thresholds are defined.
 //
-// They previously existed in three copies: `compareBaseline`, which no one called, and two sets in
-// `aggregate.ts` — one for table status icons (⚠️ beyond 10%, 🔴 beyond 25%),
-// the other for its summary, which counted as "regression" anything exceeding 10%. The same discrepancy of
+// One set serves both the table status icons (⚠️ beyond 10%, 🔴 beyond 25%) and the summary's
+// "regression" count (beyond 10%): two sets would let the same discrepancy of
 // +14% displayed as a warning in the table and counted as a regression in the
 // summary conclusion of that same table. This test holds the rule in a single place.
 import test from 'node:test'

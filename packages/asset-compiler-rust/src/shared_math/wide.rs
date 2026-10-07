@@ -1,4 +1,4 @@
-//! The hot loops' instruction set, chosen at run time (#1352).
+//! The hot loops' instruction set, chosen at run time.
 //!
 //! An x86-64 build keeps its baseline, SSE2, so that it starts on every x86-64 processor; a loop
 //! run through [`wide`] is compiled a second time for AVX2 and takes that copy where the processor

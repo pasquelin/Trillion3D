@@ -83,7 +83,7 @@ function writeLineWidth(surface: GraphSurface, material: Material) {
 
 /** Both sides in one pass, for a quad the rasters lay on screen (a line's, a sprite's): it has no
  *  face to cull, and a transparent one drawn back then front would take two entries of the
- *  transparent plan, whose per-frame ranking grows with the square of their count (#364). */
+ * transparent plan, whose per-frame ranking grows with the square of their count. */
 function drawBothSidesOnce(surface: GraphSurface) {
   surface.side = hostSide('double')
   surface.forceSinglePass = true
@@ -166,7 +166,7 @@ export function hostSurface(
  * cutoff, physical extensions and the family they put a physical kind in, a line's width, a
  * dashed line's dash and gap, a sprite's turn — and its maps' sampling into the surface built for
  * it, as `hostSurface` wrote them, and bumps the surface's version: every reader of the surface
- * (`page/surface.ts`) takes them at its next read, nothing built again (#335, #572). A map whose
+ * (`page/surface.ts`) takes them at its next read, nothing built again. A map whose
  * version moved sends its picture again; one whose placement alone moved is placed again,
  * nothing sent (`repaintHostMaps`).
  */

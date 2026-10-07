@@ -1,5 +1,5 @@
 /**
- * The DEADLINE of a request ahead of the camera (#488): the share of the horizon before the camera
+ * The DEADLINE of a request ahead of the camera: the share of the horizon before the camera
  * needs the page, 0 now, 1 at the horizon. The host serves the requests ahead soonest first
  * (`requestWgsl.ts`, `aheadPriority`), behind every visible one.
  *

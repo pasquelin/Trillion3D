@@ -1,8 +1,8 @@
-// Geometry pages over a network (#921): the reference scene served over HTTP, opened once with
+// Geometry pages over a network: the reference scene served over HTTP, opened once with
 // answers at once and once with every answer a round trip late (60 ms). Asserts what the page reads
-// promise, never how long they take: the reads an admission pass waits for overlap on the network
-// (#997), the pool ends up with the same pages, and the view ahead looks a round trip further
-// (#999). How a server encodes the objects it serves is the server's, not the engine's.
+// promise, never how long they take: the reads an admission pass waits for overlap on the
+// network, the pool ends up with the same pages, and the view ahead looks a round trip further.
+// How a server encodes the objects it serves is the server's, not the engine's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assetsManifest, DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts'
@@ -50,21 +50,21 @@ test(
         'frames trace aheadHorizonMs',
       )
     }
-    // #997: an admission pass starts the reads it will wait for before it admits the first, so they
+    // An admission pass starts the reads it will wait for before it admits the first, so they
     // share the network; one read at a time leaves a read alone on it.
     assert.ok(
       far.alongside * 2 > far.transfers,
       'most geometry page reads are sent while another is in flight',
     )
-    // The same pages, not the same sequence: the slower network looks a round trip further ahead
-    // (#999), so its passes differ. The order within a pass, whatever order the reads come back in,
-    // is proved in Node (`webgpu/residency/admissionReadsOrder.test.ts`).
+    // The same pages, not the same sequence: the slower network looks a round trip further ahead,
+    // so its passes differ. The order within a pass, whatever order the reads come back in, is
+    // proved in Node (`webgpu/residency/admissionReadsOrder.test.ts`).
     assert.deepEqual(
       [...far.admitted].sort(),
       [...near.admitted].sort(),
       'the pool admits the same pages',
     )
-    // #999: the view ahead adds the measured round trip, which the network keeps above its delay.
+    // The view ahead adds the measured round trip, which the network keeps above its delay.
     assert.ok(
       far.farthest >= PREFETCH_HORIZON_MS + ROUND_TRIP_MS,
       'the horizon adds the round trip',

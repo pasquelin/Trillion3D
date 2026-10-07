@@ -1,14 +1,14 @@
-//! Measured screen error of the drawn pages (#930, audit CMP-08). A primitive goes through the
+//! Measured screen error of the drawn pages. A primitive goes through the
 //! compiler's own page path (`build_dag_primitive`, its grid from `tile_log2`), every page it
 //! stores is read back from the cache and decoded by the reader's decoder, and each decoded
 //! corner is compared with the source vertex it stands for: the largest distance is the page's
 //! measured displacement. The engine's cut projection (`cut_error::node_ceiling_error`) then
-//! turns it into pixels on the audit's screen, 1080 lines under a 60° vertical field.
+//! turns it into pixels on a screen of 1080 lines under a 60° vertical field.
 //!
 //! A page is drawn from the depth where its own error projects to the threshold (never nearer
 //! than the camera) until its parent's does: its worst screen error is its error plus its
-//! measured displacement, projected at the nearest depth it is drawn at. The audit's criterion
-//! (E1): no drawn page further than `pixelError + 0.1` pixel from the source.
+//! measured displacement, projected at the nearest depth it is drawn at. The criterion:
+//! no drawn page further than `pixelError + 0.1` pixel from the source.
 mod building;
 mod meshes;
 mod tests;
@@ -23,11 +23,11 @@ use trillion3d_page_codec::vec3::{length, point, sub};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
 const FOCAL: f64 = 540.0 / 0.577_350_269_189_625_8;
-/// Camera distances the audit reads the error at, in metres.
+/// Camera distances the error is read at, in metres.
 const DISTANCES: [f64; 2] = [2.0, 10.0];
-/// The audit's thresholds, in pixels.
+/// The thresholds, in pixels.
 const PIXEL_ERRORS: [f64; 3] = [0.5, 1.0, 2.0];
-/// What a drawn page may add to the threshold, in pixels (E1).
+/// What a drawn page may add to the threshold, in pixels.
 const MARGIN: f64 = 0.1;
 
 /// A stored page, in metres of the world: its level, its error and its parent's (none for a
@@ -169,7 +169,7 @@ fn exact_pixels(pages: &[Page], distance: f64) -> f64 {
     pixels(shift, distance, &lens())
 }
 
-/// Prints `name`'s numbers and asserts the audit's criterion at every distance and threshold.
+/// Prints `name`'s numbers and asserts the criterion at every distance and threshold.
 fn assert_within_margin(name: &str, pages: &[Page]) {
     let shift = pages.iter().map(|p| p.shift).fold(0.0, f64::max);
     println!(

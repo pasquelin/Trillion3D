@@ -1,4 +1,4 @@
-// #831: a caster whose pose moves its box by less than a float32 step at its reach is no move, so
+// A caster whose pose moves its box by less than a float32 step at its reach is no move, so
 // a resting body whose float64 pose is rounded again each step stales no shadow page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -6,7 +6,7 @@ import { createShadowMobility } from './mobility.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
 
 // A resting body's pose rounded again in float64 (a tank's, by 1e-16 each step) is no move: below
-// a float32 step at its box's reach, the GPU's world cannot show it. A millimetre is one (#831).
+// a float32 step at its box's reach, the GPU's world cannot show it. A millimetre is one.
 test('a pose that moves its box by less than a float32 step is no move; a millimetre is', () => {
   const mobility = createShadowMobility()
   const box = [-1.8, -0.5, -3.5, 1.8, 0.5, 3.5],

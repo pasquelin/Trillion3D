@@ -1,5 +1,5 @@
 /**
- * A mesh costs what it holds (#874): its shape, its matter and how it reads them. The flag, the
+ * A mesh costs what it holds: its shape, its matter and how it reads them. The flag, the
  * morph weights and the listener live on the class or appear when used; the geometry and the
  * materials hear the mesh only while it is in a world.
  */

@@ -756,10 +756,10 @@
     "summary": "Die Familie `capability`: was die Maschine erlaubt, bevor ein Bild versprochen wird."
   },
   "capability.detect": {
-    "summary": "Welche Pfade der Engine diese Maschine erlaubt (`detectCapabilities`), und warum."
+    "summary": "Ob dieser Rechner WebGPU gewährt (`detectCapabilities`), seine Stufe und warum."
   },
   "capability.lighting": {
-    "summary": "Was der Pfad, der `world` zeichnet, mit Lichtern macht (`lightingCapabilities`).",
+    "summary": "Was die Engine, die `world` zeichnet, mit Lichtern macht (`lightingCapabilities`).",
     "parameters": {
       "world": "Die zu befragende Welt."
     }
@@ -811,7 +811,7 @@
     "description": "Was die öffentliche API zurückgibt, ist eine dieser Kopien: ein Host, der in die erhaltene Kopie schreibt, ändert nichts in der Engine, und ein Host, der ein bereits gesendetes Licht ändert, ändert ebenfalls nichts — die Speicherung hat ihre eigene Kopie beim Eingang geprüft. Die Kopie wird dort erstellt, wo der Host liest, nie auf dem Bildpfad: die Backends lesen den gehaltenen Datensatz und den angeordneten Puffer, und kopieren nichts."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern (6, bevor `selectedNodes` eine Anzahl wurde); Quellmanifeste behalten ihr eigenes Format."
+    "summary": "Erforderliches externes Cache-Format für BLEND in Clustern (8, bevor das Manifest in Seiten aufgeteilt wurde, 10 vor Format 11); Quellmanifeste behalten ihr eigenes Format."
   },
   "clusterErrorAtDepth": {
     "summary": "Derselbe projizierte Fehler, wenn die Entfernung des Zentrums zur Sichtachse und seine Tiefe (Sicht-−z) bereits bekannt sind: ein Knoten, der Boden und Decke auf derselben Kugel festlegt, teilt sich seine Tiefe."
@@ -1391,7 +1391,8 @@
     "description": "Jeder Pfad liest diese eine Funktion und gibt ihr für seinen eigenen Tiefentest ein Vorzeichen."
   },
   "detectCapabilities": {
-    "summary": "Prüft, womit diese Maschine zeichnen kann, und sagt warum, wenn sie es nicht kann."
+    "summary": "Prüft, was das WebGPU dieses Rechners gewährt, und sagt warum, wenn es nichts gewährt.",
+    "description": "`gpu` steht für `navigator.gpu`."
   },
   "GpuCapabilities": {
     "summary": "Was das WebGPU dieser Maschine gewährt, gelesen, bevor eine Sitzung geöffnet wird.",
@@ -1481,7 +1482,7 @@
   },
   "DiagnosticDetail": {
     "summary": "Was eine Engine über sich selbst meldet, wenn etwas schiefgeht oder eine Ansicht Details verlangt: der Datensatz, den der Sammler des Hosts einreiht, und was ein Aufrufer davon will.",
-    "description": "Getrennt vom Engine-Vertrag aus `../backend/types.ts` — das ist, was daraus hervorgeht, nicht was angeboten wird."
+    "description": "Getrennt vom Engine-Vertrag aus `../engine/types.ts` — das ist, was daraus hervorgeht, nicht was angeboten wird."
   },
   "DiagnosticMode": {
     "summary": "Die Verfügbarkeit beschreibt echte Rendering-Ausgaben, nie erfundene Überlagerungen."
@@ -2084,7 +2085,7 @@
     "summary": "Der Codec, mit dem die Geometrieseiten geschrieben werden."
   },
   "GEOMETRY_PAGE_FORMAT_VERSION": {
-    "summary": "Das Geometrieseitenformat, das eine Begleitdatei der Version 7 benennt, so wie `geometryPages` des Manifests es einmal deklariert und jeder Seiten-Header es öffnet."
+    "summary": "Das Geometrieseitenformat, das eine Begleitdatei der Version 11 benennt, so wie `geometryPages` des Manifests es einmal deklariert und jeder Seiten-Header es öffnet."
   },
   "GeometryPageDescriptor": {
     "summary": "Eine quantisierte Cluster-Seite (`WGP3`): `bytes` ist das, was ein Leser resident hält, `uncompressedBytes` das, was ihre Dekodierung in Fließkommazahlen belegt.",
@@ -2150,7 +2151,7 @@
   },
   "GpuPassBlock": {
     "summary": "Die beiden Blöcke eines Bildes, die mit einem veröffentlichten Profil verglichen werden können, und nichts sonst.",
-    "description": "`visibility` ist der Aufbau des Sichtbarkeitspuffers: Auswahl, Aufteilung, Hi-Z und Rasterisierung. `materials` ist das Schreiben der Oberflächen aus diesem Puffer. Alles andere ist `other`: Schatten, Lichtlisten, Rückstrahlen, Durchsichtiges, verzögerte Beleuchtung, Präsentation, und der Rückfallpfad, der nicht über den Puffer läuft — einen davon in einen Block zu stecken würde einen Vergleich aufblähen statt ihm zu dienen, also bleiben sie draußen UND benannt, wobei jeder Durchgang seine Dauer behält."
+    "description": "`visibility` ist der Aufbau des Sichtbarkeitspuffers: Auswahl, Aufteilung, Hi-Z und Rasterisierung. `materials` ist das Schreiben der Oberflächen aus diesem Puffer. Alles andere ist `other`: Schatten, Lichtlisten, Rückstrahlen, Durchsichtiges, verzögerte Beleuchtung und Präsentation — einen davon in einen Block zu stecken würde einen Vergleich aufblähen statt ihm zu dienen, also bleiben sie draußen UND benannt, wobei jeder Durchgang seine Dauer behält."
   },
   "gpuPassBlockOf": {
     "summary": "Block eines Durchgangs, nach seinem Namen.",
@@ -2951,7 +2952,7 @@
   },
   "MANIFEST_BINARY_VERSION": {
     "summary": "Version 4 ändert die festen 16×16-Vorschauen in variable progressive Stufen: die Pixelspalte hat keinen festen Schritt mehr, jeder Eintrag benennt seinen eigenen Byte-Bereich.",
-    "description": "Eine Datei anderer Version wird vollständig abgelehnt: ein Leser, der den falschen Bereich herausschneiden würde, würde die Stufen einer Textur auf einer anderen zeigen. Version 5 erweitert einen Vorschaueintrag von zehn auf zwölf Wörter — den Atlas, den er bedient, und wie viele Stufen als Dateien unter `textures/` gebacken sind — und ihre Pixel folgen der Mip-Regel der Grafikkarte; ein Leser von Version 4 würde die Einträge falsch durchlaufen, also lehnt er diese Datei ab. Version 6 behält jede Spalte und benennt eine andere Geometrieseite im Geometriedeskriptor: die quantisierte Seite `WGP3` (`geometryPage.ts`) statt der Fließkommaseite `WGP2`, deren Bytes ein Leser von Version 6 beim Dekodieren Byte für Byte falsch lesen würde; die Datei abzulehnen sagt es auf einmal. Version 7 erweitert einen Vorschaueintrag auf vierzehn Wörter — die Anordnung, in der jede Blockfamilie die Kette hält, oder keine — und fügt zwei Spalten hinzu: die in Blöcke komprimierten Enden, Familie BC dann ASTC, wobei sich der Bereich jedes Eintrags aus seinen Abmessungen ergibt; ein Leser von Version 6 würde sie nicht kennen, also lehnt er ab."
+    "description": "Eine Datei einer anderen Version wird ganz abgelehnt: Ein Leser, der den falschen Bereich schneidet, würde die Stufen einer Textur auf einer anderen zeigen. Version 5 weitet einen Vorschau-Eintrag von zehn auf zwölf Wörter — der Atlas, den er bedient, und wie viele Stufen als Dateien unter `textures/` gebacken sind — und seine Pixel folgen der Mip-Regel der Grafikkarte; ein Leser der Version 4 würde falsch durch die Einträge schreiten, also lehnt er diese Datei ab. Version 6 behält jede Spalte und benennt im Geometrie-Deskriptor eine andere Geometrieseite: die quantisierte `WGP3`-Seite (`geometryPage.ts`) anstelle der Float-Seite `WGP2`, deren Bytes ein Leser der Version 6 beim Dekodieren einzeln ablehnen würde; die Datei abzulehnen sagt das einmal. Version 7 weitet einen Vorschau-Eintrag auf vierzehn Wörter — das Layout, in dem jede Blockfamilie die Kette hält, oder keines — und fügt zwei Spalten hinzu: die blockkomprimierten Enden, Familie BC dann ASTC, wobei sich der Bereich jedes behaltenen Eintrags aus seinen Abmessungen ergibt; ein Leser der Version 6 würde sie nicht kennen, also lehnt er ab. Version 8 fügt die Seitenabhängigkeiten der Streaming-Bündel hinzu: eine Anzahl je Bündel, dann die flachen Listen, abgeschlossen bis zur Wurzelabdeckung (`docs/FORMAT.md` §Cluster DAG), die WebGPU mit einem Bündel anfordert und behält. Ein Leser der Version 7 kann die Listen nicht lesen, also lehnt er ab. Version 9 fügt den Normalenkegel jeder Seite hinzu, vom Compiler gekocht (`Page.cone`), in einer Spalte, die einem Leser der Version 8 fehlt. Version 10 zerlegt das Manifest in Seiten (`paged.ts`): eine Begleitdatei hält die Spalten einer Seite, die des Kopfes allein die Textur-Vorschauen. Version 11 weitet einen Vorschau-Eintrag auf fünfzehn Wörter und fügt nach der ASTC-Spalte eine Blockspalte hinzu: die ETC2-Familie, die dritte, die ein Gerät sampeln darf; ein Leser der Version 10 würde falsch schreiten."
   },
   "ManifestBinaryDescriptor": {
     "summary": "Wo sich die Binärdatei befindet und wie ein Cluster, eine angeordnete Seite und ein Paket ihr Objekt benennen.",
@@ -3989,7 +3990,7 @@
   },
   "MatrixElements": {
     "summary": "Spaltenweise 4×4-Matrix, gehalten vom HOST — die Pose eines Knotens in seiner Szene.",
-    "description": "Die Engine liest nur ihre sechzehn Fließkommazahlen: keine Struktur einer Host-Bibliothek überquert eine Signatur.",
+    "description": "Die Engine liest nur seine sechzehn Floats: keine Host-Struktur überquert eine Signatur.",
     "members": {
       "elements": "Die sechzehn Zahlen, spaltenweise."
     }
@@ -4122,7 +4123,7 @@
       "base": "Der Ordner, relativ zu dem die anderen Modelldateien gelesen werden.",
       "metadata": "Das kompilierte Manifest selbst: Primitive, Seiten und ihre Größen.",
       "scene": "Der Szenengraph, den der Loader aus dem Manifest gebaut hat.",
-      "textureSource": "Woher ihre Bilder gelesen wurden: `cache` hat die gebackenen Bilder auf den Stufen belassen, die die Sitzung liest."
+      "textureSource": "Woher ihre Bilder gelesen wurden: `cache` hat die gebackenen Bilder auf den Stufen belassen, die die Sitzung liest, `host` hat sie alle gelesen (`loadModel`)."
     }
   },
   "MultiplyLot": {
@@ -4386,7 +4387,7 @@
   },
   "page": {
     "summary": "Die Familie `page`: die in Seiten geschnittene Geometrie, die je nach dem, was das Bild liest, in den Speicher hinein und heraus geht.",
-    "description": "`createCache` ist das GPU-Seiten-Reservoir (`createGpuPageCache`), `decode` der Decoder für Cluster-Seiten (`decodeGeometryPage`)."
+    "description": "`createCache` ist das GPU-Seiten-Reservoir (`createGpuPageCache`), `decode` der Decoder für Cluster-Seiten (`decodeGeometryPage`), ein eigener Chunk, den der erste Aufruf herunterlädt: Die Engine zeichnet Seiten auf der GPU und dekodiert nie eine auf der CPU."
   },
   "page.httpSource": {
     "summary": "Eine Seitenquelle, die Seiten per HTTP von `baseUrl` liest.",
@@ -4413,7 +4414,7 @@
     }
   },
   "page.decode": {
-    "summary": "Dekomprimiert eine Geometrieseite in Dreiecke und Scheitelpunkte.",
+    "summary": "Entpackt eine komprimierte Geometrieseite in Dreiecke und Vertices, sobald der Chunk des Decoders eingetroffen ist (`FAMILY_LOAD_FAILED`, wenn das nicht gelingt).",
     "parameters": {
       "bytes": "Die komprimierte Seite."
     }
@@ -4631,7 +4632,7 @@
   "PlacementGrowth": {
     "summary": "Was ein Besitzer einer Sitzung übergibt, die ihre Instanzpuffer an Ort und Stelle vergrößert (`growth.ts`).",
     "members": {
-      "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`). Fehlt es einer Engine, öffnet der Besitzer die Sitzung erneut auf `to`.",
+      "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`).",
       "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren."
     }
   },
@@ -4695,7 +4696,7 @@
     }
   },
   "pose.runPath": {
-    "summary": "Spielt die Ansichten `poses` in der Welt ab (`runCameraPath`), `images` Bilder gleichmäßig zwischen ihnen verteilt, wobei Auge und Ziel geradlinig von einer Ansicht zur anderen gehen.",
+    "summary": "Spielt die Ansichten `poses` in der Welt ab (`runCameraPath`), `images` Bilder gleichmäßig zwischen ihnen verteilt, wobei Auge und Ziel geradlinig von einer Ansicht zur anderen gehen, je ein Anzeigebild: die gezeichneten Bilder, ihre zusammengefasste CPU-Zeit und der Anzeigetakt.",
     "parameters": {
       "world": "Die zu bewegende Welt.",
       "poses": "Die zu durchlaufenden Ansichten.",
@@ -4795,13 +4796,13 @@
     "summary": "Bytes eines Blocks."
   },
   "PREVIEW_BLOCK_FORMATS": {
-    "summary": "Die Blockfamilien, in denen eine Kette gebacken werden kann, in der Reihenfolge ihrer Spalten der Begleitdatei und der Anordnungswörter eines Eintrags, jede nach ihrem RGBA-Codec benannt; `png` ist die verlustfreie Datei daneben."
+    "summary": "Die Blockfamilien, in denen eine Kette gebacken sein kann, in der Reihenfolge ihrer Begleitdatei-Spalten und der Layout-Wörter eines Eintrags, jede nach ihrem RGBA-Codec benannt: BC für Desktop-Karten, ASTC 4×4 und ETC2 für mobile; `png` ist die verlustfreie Datei daneben, die ein Gerät ohne eine davon liest."
   },
   "PREVIEW_BLOCK_SIDE": {
     "summary": "Texel auf der Seite eines Blocks, und Bytes eines Blocks, in jedem Format."
   },
   "PREVIEW_LAYOUT_NAMES": {
-    "summary": "Was eine Familie von einer Kette behält, pro Anordnungswort: nichts — die Kette bleibt dort verlustfrei —, RGBA-Blöcke (BC7 Modus 6, ASTC Modus mit Farb-Endpunkten 12), oder Blöcke mit zwei Kanälen für ein Normalenbild (BC5, ASTC Helligkeit + Alpha auf zwei Ebenen: X in R, Y in G oder A, Z vom Shader rekonstruiert)."
+    "summary": "Was eine Familie von einer Kette hält, nach Layout-Wort: nichts — die Kette bleibt dort verlustfrei —, RGBA-Blöcke (BC7 Modus 6, ASTC Farb-Endpunkt-Modus 12, ETC2 RGBA8) oder Zweikanalblöcke für eine Normalenkarte (BC5, ASTC Luminanz + Alpha auf zwei Ebenen, EAC RG11: X in R, Y in G oder A, Z vom Shader rekonstruiert)."
   },
   "PREVIEW_LOSSLESS_FORMAT": {
     "summary": "Das verlustfreie Dateiformat neben den Blockfamilien."
@@ -5031,7 +5032,7 @@
     "summary": "Dreht `(x, y, z)` durch das Einheitsquaternion `q`."
   },
   "RuntimeEvent": {
-    "summary": "Etwas, das die Engine über sich selbst sagt, während sie läuft: eine Änderung, die sie gemacht hat, oder ein Fehlschlag."
+    "summary": "Etwas, das die Engine bei laufendem Betrieb über sich meldet: ein Fehler, den die Ansicht überstanden hat, gezeichnet mit dem, was sie schon hält (`degraded`), oder einer, den sie nicht überstanden hat (`fatal`)."
   },
   "SafetyConfig": {
     "summary": "Wann die Sicherheitsregel eine Funktion abschaltet oder wieder einschaltet.",
@@ -5065,9 +5066,9 @@
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
-      "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
-      "onBeforeRender": "Von einem Renderer aufgerufen, bevor er die Szene zeichnet; standardmäßig keiner.",
-      "onAfterRender": "Von einem Renderer aufgerufen, sobald er die Szene gezeichnet hat; standardmäßig keiner.",
+      "fog": "Nebel auf jeder Fläche, deckend oder transparent; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Wird aufgerufen, bevor die Szene gezeichnet wird; standardmäßig keiner.",
+      "onAfterRender": "Wird aufgerufen, sobald die Szene gezeichnet ist; standardmäßig keiner.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter, der Körper jedes Meshs, wie er deklariert wurde, und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -5932,7 +5933,7 @@
   },
   "TextureCompression": {
     "summary": "Welche Blockfamilie die Reservoirs einer Sitzung nehmen, und alles, was sich daraus ergibt.",
-    "description": "Der Cache backt eine Kette in den von der Kochung angeforderten Familien neben dem verlustfreien PNG, und nur dort, wo eine Qualitätsprüfung sie behalten hat; das Gerät sagt, welche Familie es abtastet — BC für Desktop-Karten, ASTC für Mobilgeräte, manche beide, ein Software-Adapter keine. Ein Atlas hat dann ein Reservoir pro SPUR, den Anordnungen, die die Begleitdatei benennt: `lossless` (RGBA8, vier Bytes pro Texel — was eine Kette unter der Schwelle, ein Host-Bild oder ein Gerät ohne die Funktion liest), `rgba` (BC7 oder ASTC, ein Byte pro Texel) und `two-channel` (BC5 oder ASTC Helligkeit-Alpha, ein Byte pro Texel, das X und Y des Normalenbildes mit vom Shader rekonstruiertem Z). Die Engine verliert nichts: eine Textur nimmt die Spur, in der ihre Kette behalten wurde, und die Wahl wird veröffentlicht (`texturePoolFormat`)."
+    "description": "Der Cache backt eine Kette in den Familien, die das Backen verlangt hat — standardmäßig jede —, neben dem verlustfreien PNG, und nur dort, wo ein Qualitätstor sie behalten hat; das Gerät sagt, welche Familie es sampelt — Desktop-Karten BC, mobile ASTC oder ETC2, manche mehrere, ein Software-Adapter keine. Ein Atlas hat dann einen Pool pro LANE, die Layouts, die die Begleitdatei benennt: `lossless` (RGBA8, vier Bytes pro Texel — was eine Kette unter der Schwelle, ein Host-Bild oder ein Gerät ohne eines der Features liest), `rgba` (BC7, ASTC oder ETC2 RGBA8, ein Byte pro Texel) und `two-channel` (BC5, ASTC Luminanz-Alpha oder EAC RG11, ein Byte pro Texel, X und Y der Normalenkarte, Z vom Shader rekonstruiert). Die Engine verliert nichts: Eine Textur nimmt die Lane, in der ihre Kette behalten wurde, und die Wahl wird veröffentlicht (`texturePoolFormat`)."
   },
   "TextureFilter": {
     "summary": "Abtastregel einer Textur: der Basisfilter, und die Mip-Regel, wenn der Sampler verkleinert."
@@ -5941,7 +5942,7 @@
     "summary": "Was virtuelle Texturen bei einem Bild veröffentlichen: das Reservoir, die Kacheln, die Rückmeldung des Bildes.",
     "description": "Diese Felder leben getrennt von `FrameMetrics`, weil sie eine andere Warteschlange als das Bild beschreiben: die Kacheln kommen in ihrem eigenen Rhythmus an, begrenzt nach Bytes und nach Bild, und das Reservoir wird einmal dimensioniert. Alle optional: eine Engine ohne Texturen lässt sie fehlen, `null` bedeutet „nicht gemessen“, nie eine Schätzung.",
     "members": {
-      "texturePoolBytes": "Die physischen Reservoirs, für die Sitzung festgelegt: ihre Bytes — BERECHNET aus ihren Abmessungen und Formaten, da WebGPU den belegten Speicher nicht veröffentlicht —, die Blockfamilie, die die Sitzung abtastet (`bc7`, `astc`, oder `rgba8`, wenn das Gerät keines von beiden abtastet oder der Host keines angefordert hat), die Schichten jedes Spur-Reservoirs beider Atlanten summiert, und was sie enthalten. `texturePoolBytes` hängt vom Budget und den Spuren ab, die die Ketten der Szene nehmen; `textureResidentBytes` ist der belegte Anteil, angeheftete Enden eingeschlossen, zu den Kosten pro Texel jeder Spur.",
+      "texturePoolBytes": "Die physischen Pools, für die Sitzung fest: ihre Bytes — BERECHNET aus ihren Abmessungen und Formaten, da WebGPU belegten Speicher nicht veröffentlicht —, die Blockfamilie, die die Sitzung sampelt (`bc7`, `astc`, `etc2` oder `rgba8`, wenn das Gerät keine davon sampelt oder der Host keine verlangt hat), die Schichten aller Lane-Pools beider Atlanten summiert, und was sie halten. `texturePoolBytes` hängt vom Budget ab und davon, welche Lanes die Ketten der Szene nehmen; `textureResidentBytes` ist der belegte Anteil, angeheftete Enden eingeschlossen, zu den Texelkosten jeder Lane.",
       "texturePoolFormat": "Format des Textur-Reservoirs.",
       "texturePoolLayers": "Schichten des Reservoirs.",
       "textureTilesResident": "Gehaltene Kacheln.",
@@ -6322,7 +6323,7 @@
     "summary": "Das Canvas, in das die Welt zeichnet."
   },
   "world.ready": {
-    "summary": "Ein Promise, das endet, wenn die Welt weiß, wie sie zeichnen wird."
+    "summary": "Ein Promise, das sich erfüllt, sobald die Welt ihr WebGPU-Gerät hält."
   },
   "world.scene": {
     "summary": "Die Szene: alles, was ihr hinzugefügt wird, wird gezeichnet."
@@ -6436,7 +6437,7 @@
       "mode": "Der Ansichtsmodus: `'beauty'` für das normale Bild, oder ein Modus, der zeigt, wie die Engine arbeitet.",
       "sessions": "Sitzungen, die die Welt bisher geöffnet hat: Eine Änderung, die eine wieder öffnet, zeigt sich hier.",
       "error": "Warum sich die letzte Sitzung nicht öffnen ließ, als benannter Engine-Fehler: Sein `code` ist einer der auf `EngineError` dokumentierten (`WEBGPU_LOST`, wenn WebGPU sein Gerät verloren hat; `FAMILY_LOAD_FAILED`, wenn eine optionale Familie nicht geladen wurde, auch dann), oder `SESSION_OPEN_FAILED` für einen Grund ohne eigenen. Ein `EngineError` mit dokumentiertem Code ist der geworfene selbst; jeder andere Fehler wird umgewandelt, und der geworfene Fehler steht dann in `details.cause`. `null` ab dem Beginn jeder Öffnung, und wenn nichts versucht wird.",
-      "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet.",
+      "modes": "Jeder Ansichtsmodus, den die Engine anbietet.",
       "debug": "Der Debug-Modus der Seite (`WorldOptions.debug`): Die Bilder werden nur in ihm im CPU-Schrittprofil und im Bildbericht erfasst, ab dem nächsten Bild."
     }
   },
@@ -7017,11 +7018,11 @@
       "bodies": "Körper jeder Art gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
       "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen. Die Hälfte davon hält die statische Kollision auf einmal: Die Kacheln eines kompilierten Modells werden darin rund um das Auge und die bewegten Körper gestreamt, die entferntesten gehen zuerst; ein statisches Dreiecksnetz darüber hinaus wird abgelehnt.",
-      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite. Ein Schritt verteilt seine Arbeit auf weniger, solange mehr nachweislich nur konkurrieren, mit demselben Ergebnis.",
       "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert.",
-      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt."
+      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt. Der Schritt des Workers wächst linear mit ihnen (6,5–8,2 ms nativ beim Standard, 2,4–2,8 ms bei 4096; Audit PHY-18, #975). Ein weicher Körper darüber hinaus wird abgelehnt, unter Nennung."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7099,11 +7100,11 @@
       "bodies": "Körper jeder Art gleichzeitig.",
       "decorative": "Dekorative Körper gleichzeitig.",
       "memoryBytes": "Bytes Speicher des Physikmoduls: eine harte Obergrenze, das Modul kann nicht darüber wachsen. Die Hälfte davon hält die statische Kollision auf einmal: Die Kacheln eines kompilierten Modells werden darin rund um das Auge und die bewegten Körper gestreamt, die entferntesten gehen zuerst; ein statisches Dreiecksnetz darüber hinaus wird abgelehnt.",
-      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite.",
+      "threads": "Threads, die die Simulation voranbringen, der des Physik-Workers eingeschlossen. Über 1 braucht es eine cross-origin-isolierte Seite (geteilter Speicher); sonst läuft die Simulation auf einem. Nie mehr als die logischen Kerne der Maschine minus den der Seite. Ein Schritt verteilt seine Arbeit auf weniger, solange mehr nachweislich nur konkurrieren, mit demselben Ergebnis.",
       "bodyPairs": "Körperpaare, deren Hüllen sich in einem Schritt überlappen. Ein dichter Stapel hat etwa vier pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactConstraints": "In einem Schritt gelöste berührende Paare. Ein ruhender Stapel hat etwa zwei pro Körper; ein Schritt, der mehr findet, verpasst Kontakte und meldet `PHYSICS_BUDGET`.",
       "contactEvents": "Kontaktereignisse (`enter`, `leave`), die ein Schritt meldet. Ein `enter` darüber hinaus wird verworfen und gezählt (`world.physics.stats.droppedEvents`), sein `leave` nie gesendet; ein `leave` wird nur verzögert.",
-      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt."
+      "softVertices": "Eckpunkte aller weichen Körper zugleich (Tücher, Seile, Volumen). Jeder wird in jedem Schritt gelöst und von der Seite zurückgelesen, 12 Bytes pro Schritt. Der Schritt des Workers wächst linear mit ihnen (6,5–8,2 ms nativ beim Standard, 2,4–2,8 ms bei 4096; Audit PHY-18, #975). Ein weicher Körper darüber hinaus wird abgelehnt, unter Nennung."
     }
   },
   "PhysicsHost": {
@@ -7283,7 +7284,7 @@
       "offset": "Woraus `matrix` zusammengesetzt wird.",
       "matrixAutoUpdate": "Ob der Host `matrix` neu aufbaut.",
       "matrix": "Transformation der UV des Samplers, `KHR_texture_transform`, zu drei Zeilen zusammengesetzt; der Host berechnet sie aus Versatz, Wiederholung und Rotation neu, wenn er die Aktualisierung macht.",
-      "generateMipmaps": "Ob kleinere Kopien verlangt werden; die Engine erstellt sie, sobald `minFilter` sie liest.",
+      "generateMipmaps": "Ob kleinere Kopien verlangt werden; die Engine baut die Kette jeder Textur auf der GPU, was immer dies sagt, und jedes Lesen nimmt die Stufe seines Fußabdrucks.",
       "premultiplyAlpha": "Ob die Farbe mit Alpha vormultipliziert ist.",
       "flipY": "Ob die Zeilen beim Senden umgedreht werden.",
       "version": "Vom Host bei jeder Inhaltsänderung erhöht: das, was eine Sendung vergleicht, um eine erneute Kopie zu vermeiden.",

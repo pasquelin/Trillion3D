@@ -36,11 +36,11 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   await gpu.device?.queue.onSubmittedWorkDone()
   await run.gpuSelection?.flush()
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle()
-  // The next page the job lands, not its last: the frames draw while a long job loads (#836).
+  // The next page the job lands, not its last: the frames draw while a long job loads.
   await services.residency.progress()
   await vis.textures?.settled()
   // An image drawn while the effect programs compile is drawn again once, when they arrive,
-  // rather than on every frame meanwhile, which would spend the loop's rounds (#349). Waited
+  // rather than on every frame meanwhile, which would spend the loop's rounds. Waited
   // last: the feedback above is not held back by a compilation.
   await gpu.effects?.settled()
   if (run.lost) throw new Error('WEBGPU_LOST')
@@ -49,6 +49,6 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
 
 /** What the view received so far, the interactive loop's progress (`frameScheduler.ts`): the camera
  *  pages made resident, and the quiet images a still average not yet whole took — a frame that adds
- *  either spends none of the settle limit, so the loop draws a still image to its hold (#836). */
+ *  either spends none of the settle limit, so the loop draws a still image to its hold. */
 export const webgpuLandings = (rt: WebgpuPagesRuntime) =>
   rt.services.residency.landings + taaArrivals(rt)

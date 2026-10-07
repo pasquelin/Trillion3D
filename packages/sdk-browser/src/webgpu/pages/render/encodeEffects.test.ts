@@ -1,4 +1,4 @@
-// The effect chain on the WebGPU path (#349): a held frame redisplays the image the chain drew and
+// The effect chain on the WebGPU path: a held frame redisplays the image the chain drew and
 // does no work of its own; a change of the chain breaks the hold; a diagnostic view and a capture
 // show the engine's image without it.
 import test from 'node:test'
@@ -92,7 +92,7 @@ test('compiling programs keep the frame from being held, the accumulation still'
   assert.equal(holdWebgpuFrame(rt, device), true, 'drawn with the chain, the image is held')
 })
 
-test('an idle loop waits for the programs, then draws the image with the chain once (#349)', async (t) => {
+test('an idle loop waits for the programs, then draws the image with the chain once', async (t) => {
   const { device } = fakeDevice()
   const made = WEBGPU_KINDS.bloom
   t.after(() => void (WEBGPU_KINDS.bloom = made))
@@ -119,7 +119,7 @@ test('an idle loop waits for the programs, then draws the image with the chain o
   })
   scheduler.invalidate()
   requested.run()
-  // The frame asked right after comes while the programs compile: held, nothing drawn (#983).
+  // The frame asked right after comes while the programs compile: held, nothing drawn.
   const frame = rt.run.frame
   requested.run()
   for (let i = 0; i < 4; i++) await turn()
@@ -150,7 +150,7 @@ test('a diagnostic view, a capture and an empty chain make nothing and hand the 
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same')
 })
 
-test('a composition that blends the last bloom in gets its blend, and reads the image it read (#963)', async () => {
+test('a composition that blends the last bloom in gets its blend, and reads the image it read', async () => {
   const { device } = fakeDevice()
   const rt = drawing(new EffectChain().add(effect.bloom()))
   let composes = false

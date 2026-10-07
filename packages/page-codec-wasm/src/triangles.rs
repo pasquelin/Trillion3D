@@ -1,4 +1,4 @@
-//! The corners of a page, coded by delta to their block's smallest vertex (CMP-09, #959).
+//! The corners of a page, coded by delta to their block's smallest vertex (CMP-09).
 //!
 //! Triangles go by blocks of `BLOCK`, in page order. A block's record holds its smallest corner
 //! (`base`, at the index width), the `width` each of its corners takes as its distance to that
@@ -76,7 +76,7 @@ impl CornerCode {
     /// Every corner into `out`, the block table at word `table` of `words` and the corner stream at
     /// word `stream`, the records already fit (`fits`). Each block is read in sequence from where
     /// its record says it starts. A corner at or past the vertex count — at least one, as the
-    /// header's bounds hold — refuses the page, checked once on the largest (#238): a refused page
+    /// header's bounds hold — refuses the page, checked once on the largest: a refused page
     /// returns no corner, whichever one trips it.
     pub fn read(
         &self,

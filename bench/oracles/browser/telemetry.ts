@@ -1,7 +1,7 @@
 // Pure A14 oracles, no side effects: the telemetry bench measures them; unit tests import
 // them as reference.
 
-/** `telemetry.ts:24-33` before batch A: `push` then `shift` of the whole array. */
+/** `telemetry.ts:24-33`: `push` then `shift` of the whole array. */
 export function referenceIntervals(max: number, valeurs: number[]) {
   const intervals: number[] = []
   for (const dt of valeurs)
@@ -12,6 +12,6 @@ export function referenceIntervals(max: number, valeurs: number[]) {
   return intervals
 }
 
-/** `packages/sdk-browser/src/cluster/pages.ts:12-15` and `packages/sdk-browser/src/streaming/fetch.ts:4-7` before batch A: one `toString` per byte. */
+/** `packages/sdk-browser/src/cluster/pages.ts:12-15` and `packages/sdk-browser/src/streaming/fetch.ts:4-7`: one `toString` per byte. */
 export const referenceHex = (digested: Uint8Array) =>
   Array.from(digested, (b: number) => b.toString(16).padStart(2, '0')).join('')

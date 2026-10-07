@@ -22,7 +22,7 @@ const level = (width: number, height: number) =>
   new Uint8Array(Math.ceil(width / 4) * Math.ceil(height / 4) * 16)
 
 // Behaviour: a tile at the edge of a 130-texel level is 6 texels wide; WebGPU copies whole
-// blocks, so the write is 8 texels wide, read from its record alone (#962) — its region's blocks,
+// blocks, so the write is 8 texels wide, read from its record alone — its region's blocks,
 // two a row.
 test('a tile region is written in whole blocks, from its record', () => {
   const { queue, writes } = fakeQueue()

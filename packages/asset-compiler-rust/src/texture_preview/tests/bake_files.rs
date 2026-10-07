@@ -66,7 +66,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                 blocks::encode_level(&chain[level as usize], w, h, BlockFormat::Bc7, Layout::Rgba);
             let blocks = fs::read(native.join(level_path(&expected.sha256, kind, level, "bc7")))
                 .expect("block level");
-            assert_eq!(blocks, tile_records(&encoded, w, h), "tile records (#962)");
+            assert_eq!(blocks, tile_records(&encoded, w, h), "tile records");
             assert!(!native
                 .join(level_path(&expected.sha256, kind, level, "astc"))
                 .exists());
@@ -137,7 +137,7 @@ fn a_small_image_bakes_nothing_to_disk() {
 
 // Behavior 9 (d): unwritable level — here file in place of textures
 // folder — does not forfeit tail: entry outputs `baked_levels = 0`, tail intact,
-// report names failure. Engine loads source image as before.
+// report names failure. Engine loads source image unchanged.
 #[test]
 fn a_level_that_cannot_be_written_keeps_the_tail_and_bakes_nothing() {
     let dir = temp_dir("bake-unwritable");

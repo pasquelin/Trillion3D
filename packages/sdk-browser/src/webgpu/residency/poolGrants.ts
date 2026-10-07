@@ -64,7 +64,7 @@ async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
 
 /**
  * A budget that pays first for the bytes held beside its pool, outside it: a live texture's
- * working texture (#362), the vertex buffers beside the geometry slots (#487). The pool is drawn
+ * working texture, the vertex buffers beside the geometry slots. The pool is drawn
  * and granted from `bytes`, what the budget leaves them, so a refusal halves the pool alone; the
  * budget recorded is the pool's plus `deducted`, the one declared.
  */

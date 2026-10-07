@@ -35,8 +35,8 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
       cam.updateMatrixWorld()
       submits.length = 0
       backend.render(cam)
-      // The selection used to submit its own buffer ahead of the render encoder, which left a host gap
-      // inside the image's own GPU span. One image, one buffer.
+      // The selection submits no buffer of its own ahead of the render encoder, which would leave a
+      // host gap inside the image's own GPU span. One image, one buffer.
       assert.equal(submits.length, 1, `image looking at ${target}`)
       await backend.flush()
     }

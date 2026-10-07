@@ -79,9 +79,9 @@ function buildAsked(
 }
 
 /**
- * The working textures tiles asked for, built off the frame (STR-13, #962): built inside the pass,
+ * The working textures tiles asked for, built off the frame: built inside the pass,
  * the whole source uploaded and reduced is a spike its budget never counted. A task after the frame
- * builds what was asked, their mips in one batch (#961), and holds each until a pass copies from
+ * builds what was asked, their mips in one batch, and holds each until a pass copies from
  * it, or until feedback newer than its ask passes it over (`drop`): a pass run without that
  * feedback would free it unread.
  */

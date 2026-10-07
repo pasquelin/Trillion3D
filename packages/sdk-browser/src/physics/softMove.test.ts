@@ -7,7 +7,7 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts'
 import { fakePhysicsWorld, idleTick } from './worker.fixture.ts'
 
-// #740: a page-built soft body the page moves is carried there as a cooked one is (#723), its
+// A page-built soft body the page moves is carried there as a cooked one is, its
 // simulation kept; placed at another scale, it is refused by name and made again once back at it,
 // as a cooked one is.
 test('a page-built cloth moved is teleported with its flags; rescaled, refused by name until back', async () => {
@@ -51,7 +51,7 @@ test('a page-built cloth moved is teleported with its flags; rescaled, refused b
   }
 })
 
-// #573: a soft body drawn where it is, into its geometry, is no new shape: made again from it, it
+// A soft body drawn where it is, into its geometry, is no new shape: made again from it, it
 // would lose its velocity every tick.
 test('a soft body drawn where it is keeps its body: nothing removed nor made again', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld()

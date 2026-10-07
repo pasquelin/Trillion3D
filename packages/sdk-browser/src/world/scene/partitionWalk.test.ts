@@ -1,4 +1,4 @@
-// A walk over a partitioned world, as a session runs it (#404, #575): the rows are sized at open for
+// A walk over a partitioned world, as a session runs it: the rows are sized at open for
 // the first camera's view, the pages on its way and the cells it reaches read, and the frames then
 // follow the camera through the index on an engine that grows no buffer.
 import test from 'node:test'

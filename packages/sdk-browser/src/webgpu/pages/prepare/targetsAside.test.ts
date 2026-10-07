@@ -1,4 +1,4 @@
-// #831: a render-size change remade the targets the held way — released, the frame held for the
+// A render-size change remade the targets the held way — released, the frame held for the
 // device's answer — a flicker as the camera started or stopped. At the display's size in place,
 // they are made beside those, which the frames go on drawing into, and swapped in at a frame's entry.
 import test from 'node:test'

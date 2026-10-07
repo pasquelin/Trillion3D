@@ -1,5 +1,5 @@
-// A14: `sha256Hex` reads a table of 256 hexadecimal strings already written instead of a
-// `toString(16).padStart(2, '0')` per byte. Oracle: the `toString` version from before batch A,
+// `sha256Hex` reads a table of 256 hexadecimal strings already written instead of a
+// `toString(16).padStart(2, '0')` per byte. Oracle: the reference `toString` version,
 // in `../../../../bench/oracles/browser/telemetry.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'

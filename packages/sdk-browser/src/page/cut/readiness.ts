@@ -23,7 +23,7 @@ import { baseOpen, type CullingLinks } from './links.ts'
  * clusters the rule may draw with an error above the threshold. A node whose error floor is above
  * the threshold is dropped only when that count is zero (`../../gpu/dag/shader/floorWgsl.ts`).
  *
- * Bounded by the view, not the catalogue (#483 rule 6): the state is held for the resident pages
+ * Bounded by the view, not the catalogue: the state is held for the resident pages
  * only — the resident set, the ready groups (all of whose members are resident), and per node how
  * many of its clusters a ready group produced. Every other page and node reads its value with
  * nothing resident, derived from the DAG: its open count is the DAG's own (`baseOpen`), shared by
@@ -204,7 +204,7 @@ export function createCutReadiness(
      *  `isChildReady` changed and the nodes whose `openAt` changed, each possibly more than once:
      *  from the state with nothing resident, which a reader derives from the accessors. Returns
      *  what `hostBytes` gained, or lost when negative, since the last settle: what a running total
-     *  of many readinesses adds, so that it is read without walking them (#483 rule 7). */
+     *  of many readinesses adds, so that it is read without walking them. */
     settle(onPage?: (page: number) => void, onNode?: (node: number) => void) {
       propagate(structure, links, state)
       if (onPage) for (const page of touchedPages) onPage(page)

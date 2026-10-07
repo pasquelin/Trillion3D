@@ -10,7 +10,7 @@ import type { ClusterCut } from '../selection/math.ts'
  * sphere that bounds those it summarises. All are read from the pages: the reduction is done here,
  * at prepare time, once per primitive, without touching the manifest format.
  *
- * Monotonicity, the lot's invariant: a node's bounds enclose those of all its descendants. A
+ * Monotonicity, the invariant: a node's bounds enclose those of all its descendants. A
  * ceiling under the threshold therefore holds for every cluster of the subtree, a floor above the
  * threshold too, and the decision taken at the node is word for word the one the descent would
  * have returned.

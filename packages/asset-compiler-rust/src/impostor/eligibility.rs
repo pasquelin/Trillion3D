@@ -1,5 +1,5 @@
-//! Whether a mesh gets an impostor, derived from the mesh and never from a list (#817, "When to
-//! switch"). With `f` the focal length in pixels, `R` the bounding radius, `T` the root
+//! Whether a mesh gets an impostor, derived from the mesh and never from a list. With `f`
+//! the focal length in pixels, `R` the bounding radius, `T` the root
 //! triangles, `c` the measured mean coverage of the frames and `r_f` the frame side in texels:
 //! the atlas is sharp from `z_tex = 2R·f / r_f`, the root costs more triangles than the pixels
 //! it covers from `z_tri = R·f·√(cπ/T)`, and the bake takes the smallest power-of-two
@@ -18,7 +18,7 @@ pub(crate) const ATLAS_LIMIT: usize = 8192;
 /// The engine's default vertical field (`DEFAULT_FOV`, 55°, `engine/common.ts`) on the target
 /// screen, 1117 CSS lines at DPR 2 — 2234 device lines, half of them above the axis —: the focal
 /// length in device pixels (2146) the compiler judges distances with. A narrower
-/// field or a taller screen moves the switch at run time (#483), never the bake.
+/// field or a taller screen moves the switch at run time, never the bake.
 pub(crate) fn reference_focal() -> f64 {
     1117.0 / (55.0f64.to_radians() * 0.5).tan()
 }

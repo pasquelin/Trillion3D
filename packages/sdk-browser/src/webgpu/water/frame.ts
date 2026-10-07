@@ -48,7 +48,9 @@ export async function createWaterFrame(
     composites,
     restore,
     freeze: createWaterFreeze(),
-    identity: createWebgpuBindIdentity(),
+    identity: createWebgpuBindIdentity(2),
+    targets: createWebgpuBindIdentity(),
+    groups: [],
     passes: createWaterPasses(),
   }
   return {
@@ -72,13 +74,18 @@ export async function createWaterFrame(
     dispose() {
       restore.dispose()
       frame.group = undefined
+      frame.groups.length = 0
       frame.surfaces = undefined
     },
   }
 }
 
 type WaterComposites = Awaited<ReturnType<typeof createWaterComposites>>
-/** What a water frame holds from image to image: its programs, its passes and its bind group. */
+/** What a water frame holds from image to image: its programs, its passes and its bind groups.
+ *  What the composite's group names is held twice, with a group each (`groups`, by identity slot):
+ *  the shadow maps' tables the lighting binds are double-buffered, and their frames take turns.
+ *  What the passes' targets name is held apart (`targets`): they are rebound when one of them
+ *  moves, never with the lighting. */
 type WaterFrameState = {
   device: GPUDevice
   layout: GPUBindGroupLayout
@@ -86,12 +93,15 @@ type WaterFrameState = {
   restore: Awaited<ReturnType<typeof createWaterDepthRestore>>
   freeze: ReturnType<typeof createWaterFreeze>
   identity: ReturnType<typeof createWebgpuBindIdentity>
+  targets: ReturnType<typeof createWebgpuBindIdentity>
+  groups: (GPUBindGroup | undefined)[]
   passes: ReturnType<typeof createWaterPasses>
   group?: GPUBindGroup
   surfaces?: SurfaceBuffer
 }
 
-/** The frame's targets and resources named; rebuilt only where one of them moved. */
+/** The frame's targets and resources named; rebuilt only where one of them moved, the composite's
+ *  group kept for each identity slot. */
 function bindWaterFrame(
   frame: WaterFrameState,
   gpu: WebgpuGpuState,
@@ -101,13 +111,29 @@ function bindWaterFrame(
   const { surfaces, backdrop, deferred, volumeBuffer, hdrTexture, hdrView, depthView } = gpu
   if (!surfaces || !hdrTexture || !hdrView || !gpu.depthTexture || !depthView) return false
   if (!gpu.colorView || !backdrop?.active || !deferred || !volumeBuffer) return false
-  nameWaterResources(frame.identity.next, gpu, uniform, lighting)
-  if (!frame.identity.moved()) return true
-  frame.surfaces = surfaces
-  frame.freeze.bind(hdrTexture, backdrop)
-  frame.restore.bind(depthView)
-  frame.passes.bind(surfaces, backdrop.waterDepthView, hdrView, gpu.colorView)
-  frame.group = frame.device.createBindGroup({
+  const named = frame.targets.next
+  named[0] = surfaces
+  named[1] = hdrTexture
+  named[2] = depthView
+  named[3] = backdrop
+  named[4] = gpu.colorView
+  named[5] = hdrView
+  if (frame.targets.moved()) {
+    frame.surfaces = surfaces
+    frame.freeze.bind(hdrTexture, backdrop)
+    frame.restore.bind(depthView)
+    frame.passes.bind(surfaces, backdrop.waterDepthView, hdrView, gpu.colorView)
+  }
+  const { identity, groups } = frame
+  nameWaterResources(identity.next, gpu, uniform, lighting)
+  const kept = identity.moved() ? undefined : groups[identity.slot]
+  if (kept) {
+    frame.group = kept
+    return true
+  }
+  // Until it is made, the slot holds no group: a refused one is asked again.
+  groups[identity.slot] = undefined
+  frame.group = groups[identity.slot] = frame.device.createBindGroup({
     layout: frame.layout,
     entries: waterCompositeEntries(gpu, uniform, lighting),
   })

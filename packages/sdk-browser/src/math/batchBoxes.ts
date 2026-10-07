@@ -13,7 +13,7 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
  *
  * World boxes of selection roots, computed IN BATCHES by governor: single buffer
  * allocated during setup, zero allocation afterward. Loading runs it once on all roots;
- * node transformation (R8) updates matrices of affected roots and re-runs. Unchanged roots
+ * node transformation updates matrices of affected roots and re-runs. Unchanged roots
  * pass through kernel with same inputs as reservation: their output is ignored.
  *
  * ROOT BOXES REMAIN JAVASCRIPT ARRAYS: written during collection on each root, copied

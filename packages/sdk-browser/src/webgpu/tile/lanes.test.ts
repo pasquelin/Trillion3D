@@ -51,7 +51,7 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
   assert.equal(destroyed(), 4, 'both pools and the stand-in')
 })
 
-// #847: a texture appended after open takes a lane no texture took — the resize opens its pool —
+// A texture appended after open takes a lane no texture took — the resize opens its pool —
 // with its tail pinned there and a new views tuple, so every group naming the atlas is rebuilt;
 // the tiles held stay where they were.
 test('an appended texture opens its lane, pins its tail there and hands out new views', () => {
@@ -85,7 +85,7 @@ test('an appended texture opens its lane, pins its tail there and hands out new 
   atlas.destroy()
 })
 
-// #1345: an atlas whose only texture is the white fill takes no layer: the fill reads the
+// An atlas whose only texture is the white fill takes no layer: the fill reads the
 // stand-in, written opaque white — every tap of its one texel read white in its pool —, until a
 // map opens its lane, where the fill then takes its place first.
 test('the white fill alone takes no pool, reads the white stand-in, and joins its lane once opened', () => {

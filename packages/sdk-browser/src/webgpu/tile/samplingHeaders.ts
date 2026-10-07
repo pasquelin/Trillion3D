@@ -14,7 +14,7 @@ export function slotSampled({ words }: { readonly words: Uint32Array }, slot: nu
 
 /** Copies a slot's texels again into the places it holds; false when it could not. */
 type PictureCopy = (atlas: WebgpuTileAtlas, slot: number) => boolean
-/** `refresh`: a moved picture (#362); `reduce`: the same picture under a new coverage rule (#42). */
+/** `refresh`: a moved picture; `reduce`: the same picture under a new coverage rule. */
 type TileCopies = { refresh: PictureCopy; reduce: PictureCopy }
 
 /** What a follow found: a header word moved, and a texture's filter rule switched on or off —
@@ -23,7 +23,7 @@ export const HEADERS_WRITTEN = 1,
   HEADERS_SWITCHED = 2
 
 /**
- * The sampling headers of both atlases' textures (#360, #361), written per texture and not per
+ * The sampling headers of both atlases' textures, written per texture and not per
  * surface — however many passes wear it, a transparent one included —, only the words that moved
  * (`setSampling`, `pageTable.ts`). Each atlas walks the records it holds, brings each up to its
  * host at this render (`followHostTexture`), and rewrites a header only when the record's
@@ -34,7 +34,7 @@ export const HEADERS_WRITTEN = 1,
  * Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same walk hands `copies` each host-image slot
  * whose picture moved since the last follow — a new version of its record —, for its places in
- * the pool to be copied again (#362); one copied counts as a written header.
+ * the pool to be copied again; one copied counts as a written header.
  */
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   const coverage = coverageRules(color)
@@ -101,7 +101,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
   }
 }
 
-/** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
+/** The rule each host colour map's chain was reduced under, followed at every image: a map
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined

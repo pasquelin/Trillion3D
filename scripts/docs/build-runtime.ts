@@ -1,6 +1,6 @@
 /**
  * Build this repository's engine as one self-contained bundle: a host imports only this
- * repository's own module. The engine names no rendering library (issue #275), and the build
+ * repository's own module. The engine names no rendering library, and the build
  * proves it on its own product: a runtime file that folds in a module of one is refused.
  */
 import { build } from 'esbuild'

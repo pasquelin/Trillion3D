@@ -1,4 +1,4 @@
-// The screen walk every mirror and rough ray takes (`screenReflection`, #831): a pixel answers where
+// The screen walk every mirror and rough ray takes (`screenReflection`): a pixel answers where
 // the ray crosses its own surface, and the depth pyramid passes whole only a cell whose range the
 // ray cannot meet, so the walk over the pyramid answers the pixel the walk pixel by pixel answers.
 // The shipped walk runs in JavaScript (`shaderRun`) on generated depth images, over the pyramid the

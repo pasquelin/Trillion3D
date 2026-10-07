@@ -1,4 +1,4 @@
-// #980, VIS-16: the frame's four scalars (stretch, focal length, near plane, projection) are
+// The frame's four scalars (stretch, focal length, near plane, projection) are
 // checked once, `frameParametersSound`, and each cluster only its own values, `clusterErrorInFrame`.
 // Against a frozen copy of the per-cluster guard: the same value to the bit, the same error on the
 // same call, over random clusters and every edge (NaN, ±0, ±Inf, degenerate projection).
@@ -11,7 +11,7 @@ import {
   screenErrorBound,
 } from './screenErrorBound.ts'
 
-/** `clusterErrorAtDepth` as it stood before #980: all thirteen conditions on every call. */
+/** `clusterErrorAtDepth` evaluated naively: all thirteen conditions on every call. */
 function perCluster(
   clusterError: number,
   stretch: number,

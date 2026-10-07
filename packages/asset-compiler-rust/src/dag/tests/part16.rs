@@ -1,5 +1,5 @@
 //! The published error is never below the measured geometry, measured only where it can raise it
-//! (`measured.rs`, #929).
+//! (`measured.rs`).
 use super::*;
 use crate::physics_cook::hausdorff::{distance, distance_above};
 
@@ -35,7 +35,7 @@ fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
             f64::NAN,
         ] {
             let bounded = distance_above(&positions, &a, &b, floor);
-            // Not `floor.max(full)`: its zero's sign is the target's (`raised`, #977).
+            // Not `floor.max(full)`: its zero's sign is the target's (`raised`).
             let expected = if floor > full { floor } else { full };
             assert_eq!(
                 bounded.to_bits(),

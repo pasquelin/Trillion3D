@@ -61,7 +61,7 @@ export function difference(a: Uint8Array | number[], b: Uint8Array | number[]): 
 }
 
 /** Pixels of an image that differ from its corner pixel, the cleared background: an image where
- *  the scene appears has many of them, an empty canvas none (#298). */
+ *  the scene appears has many of them, an empty canvas none. */
 export function drawnPixels(pixels: ArrayLike<number>) {
   let drawn = 0
   for (let index = 0; index < pixels.length; index += 4)

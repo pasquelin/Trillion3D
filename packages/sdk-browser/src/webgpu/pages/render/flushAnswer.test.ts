@@ -1,4 +1,4 @@
-// A frame that first casts a shadow is held until the device grants the shadow pool (#542). A
+// A frame that first casts a shadow is held until the device grants the shadow pool. A
 // drain after it (`flush`, and so `awaitPages`) waits for that answer and draws the pose: without
 // it, a scene whose pages were all resident at prepare left `awaitPages` with no frame drawn and
 // no cut adopted, and the next frame, captured alone, was blank (test:gpu `world/default-world`).

@@ -1,7 +1,7 @@
-// The world super-roots drawn by the ONE cut (#1238): a cell's super-root stands in for its
+// The world super-roots drawn by the ONE cut: a cell's super-root stands in for its
 // per-instance roots when those are not resident, and the surface is covered exactly once across a
 // cell's arrival and departure. Driven by the cook's own table shape — `worldRootsDag`, a
-// world-roots fixture with the `clusters` and `groups` #1238 adds (`world-roots.dag`) — read through
+// world-roots fixture with the `clusters` and `groups` tables (`world-roots.dag`) — read through
 // the runtime's `worldRootDag`, and proved on the CPU oracle and the kernel's own WGSL text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -28,7 +28,7 @@ for (const [name, backend] of [
 ] as const) {
   const dag = worldDag()
 
-  test(`${name} draws a far cell's super-root in place of its per-instance roots (#1238)`, () => {
+  test(`${name} draws a far cell's super-root in place of its per-instance roots`, () => {
     const cut = backend(dag, THRESHOLD)(FAR_CELL)
     assert.equal(coverFault(dag, cut.drawn), -1, 'a leaf is not covered exactly once')
     // The near cells' object roots draw, the far cell's do not (they are not resident, never read).
@@ -44,7 +44,7 @@ for (const [name, backend] of [
     assert.ok(!cut.drawn.includes(15), 'the world top drew over the resident super-roots')
   })
 
-  test(`${name} covers every leaf exactly once across a cell's arrival and departure (#1238)`, () => {
+  test(`${name} covers every leaf exactly once across a cell's arrival and departure`, () => {
     ruleChecks(dag).randomFrames(backend(dag, THRESHOLD))
   })
 }
@@ -59,7 +59,7 @@ test('the WGSL proof cannot go green without the missing-finer-group term', () =
   )
 })
 
-test('the engine packing holds a manifest root and the world DAG in one cut (#1238)', () => {
+test('the engine packing holds a manifest root and the world DAG in one cut', () => {
   const manifest = ruleDag(8),
     world = worldDag()
   // `packDagSelection` is the one packing the runtime uses (`webgpu/pages/prepare/prepare.ts`):
@@ -76,7 +76,7 @@ test('the engine packing holds a manifest root and the world DAG in one cut (#12
   assert.ok(packed.cutLinks[1].structure, 'the world DAG carries its structure into the packing')
 })
 
-test('the world DAG is read in the cook’s rank order, never re-sorted (#1238)', () => {
+test('the world DAG is read in the cook’s rank order, never re-sorted', () => {
   const { clusters, groups } = worldRootsDag()
   const root = worldRootDag(
     { clusters, groups, payload: { url: 'world-roots.bin' } },

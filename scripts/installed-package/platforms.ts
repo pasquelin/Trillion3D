@@ -12,7 +12,7 @@ import { packArchive } from './fixture.ts'
 const localPlatform = `${process.platform}-${process.arch}`
 
 /**
- * The compiler's platform packages as the fixture installs them (#1352): each packed from a copy
+ * The compiler's platform packages as the fixture installs them: each packed from a copy
  * of `packages/compiler/<os>-<arch>`, this machine's carrying `binary` when one is given, so that
  * the optional dependencies of `trillion3d` resolve without a registry and the install keeps the
  * one its platform runs. Returns the fixture's `pnpm-workspace.yaml`, which points each name at

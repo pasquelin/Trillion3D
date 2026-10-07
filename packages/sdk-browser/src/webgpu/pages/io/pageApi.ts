@@ -54,8 +54,8 @@ export function acceptPage(
     run.pageArrayEpoch++
     run.gate.resourcesChanged()
   }
-  // Every instance of each record is named: one record serves all its primitive's placements
-  // (#1235), and each placement's row and cut readiness follow its own packed rank.
+  // Every instance of each record is named: one record serves all its primitive's placements, and
+  // each placement's row and cut readiness follow its own packed rank.
   for (let i = 0; i < recs.length; i++) touchInstances(rows, recs[i])
   // The sample is a function, not an object: its three sweeps of the cluster list — a packet holds
   // hundreds — run only if "trace" detail is requested. Built ahead, it cost those sweeps on every

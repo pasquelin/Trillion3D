@@ -100,9 +100,11 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   const argsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.args')
   const groups = (offset: number) => args[offset / 4] * args[offset / 4 + 1] * args[offset / 4 + 2]
   const work = new Map<number, number[]>()
-  for (const call of calls.filter((c) => c.pass > 0)) {
-    // Pass 0 the candidates'; chunk c's compute pass 1 + 2c, its raster pass 2 + 2c.
-    const c = Math.floor((call.pass - 1) / 2)
+  // The candidates' kernel and its argument kernel, run above, open chunk 0's compute pass.
+  const candidates = ['vsmRenderCandidates', 'vsmRenderArgsCull']
+  for (const call of calls.filter((c) => !candidates.includes(c.entry!))) {
+    // Chunk c's compute pass 2c, its raster pass 2c + 1.
+    const c = Math.floor(call.pass / 2)
     // Chunk 0's cull counted 12 commands, its expand 40 pairs of 3 corners.
     if (call.entry === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
     if (call.entry === 'vsmRenderExpand' && c === 0)

@@ -6,7 +6,7 @@
  * parent it hangs nodes under, so a page that moves that parent moves the box. The tables keep only
  * a root: its slots, the core ranks the cells under each hang nodes under, and per mesh the nodes
  * placed and the rows a view holds; the cells' records lie in pages beside them
- * (`partition/pages.rs`), which the runtime reads as its view reaches them (#575, `readCellPage`).
+ * (`partition/pages.rs`), which the runtime reads as its view reaches them (`readCellPage`).
  */
 import { EngineError } from '../../contracts/cache.ts'
 import {
@@ -52,8 +52,8 @@ export interface TableCell {
   parents: readonly (readonly [number | null, readonly number[]])[]
   /** `[mesh rank, nodes]` per mesh it places: what the runtime sizes its rows by at open. */
   meshes: readonly (readonly [number, number])[]
-  /** The slots of the manifest's mesh pages its meshes lie in: its region page's list (#792),
-   *  which a runtime holding the manifest by the view reads with the cell (#751). */
+  /** The slots of the manifest's mesh pages its meshes lie in: its region page's list,
+   *  which a runtime holding the manifest by the view reads with the cell. */
   meshPages: readonly string[]
 }
 
@@ -66,7 +66,7 @@ export interface TablePartition {
   /** How many nodes the cells place, per mesh rank. */
   totals: ReadonlyMap<number, number>
   /** Per mesh rank, its rows at each of `RUNGS` sides: the most nodes the cells of one parent
-   *  meeting a cube of that side place, summed over the parents (`sizing.ts`, #575). */
+   *  meeting a cube of that side place, summed over the parents (`sizing.ts`). */
   rows: ReadonlyMap<number, readonly number[]>
   /** The side of the first rung, the widest cell's diagonal; each next one `√2` times wider. */
   cube: number
@@ -113,9 +113,9 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
 }
 
 /** A page of the cell index, from its verified bytes: the slots of the pages it lists, or its
- *  cells, each with the mesh pages its region page names (#792), and the rank of the first
- *  (`first`: the `n`-th is the cook's cell `first + n`, as the world roots number it, #1237); or a
- *  named refusal. The decode pool reads it off the main thread (`cellPage`, #575). */
+ *  cells, each with the mesh pages its region page names, and the rank of the first
+ *  (`first`: the `n`-th is the cook's cell `first + n`, as the world roots number it); or a
+ *  named refusal. The decode pool reads it off the main thread (`cellPage`). */
 export function readCellPage(bytes: Uint8Array, url: string) {
   const body = versioned(CELL_PAGES, pageJson(bytes), url)
   if (Array.isArray(body.pages)) {

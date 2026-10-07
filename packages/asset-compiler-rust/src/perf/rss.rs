@@ -3,7 +3,7 @@
 //! It is the high-water mark of the whole process since it started: every progress event
 //! carries it, so the first event whose value jumps names the stage that raised the peak. In a
 //! batch that runs several jobs at once, the mark is shared by all of them. It is read, never
-//! used to decide anything: budgets stay fixed (CONTRIBUTING.md, streaming rule 5).
+//! used to decide anything: budgets stay fixed.
 
 /// Peak resident bytes of this process, `None` where the platform does not report it.
 #[cfg(unix)]

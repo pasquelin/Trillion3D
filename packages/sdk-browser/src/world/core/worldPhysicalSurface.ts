@@ -1,7 +1,7 @@
 /**
  * THE SURFACE OF A WORLD'S PHYSICAL KIND: the engine's own record (`Material.surface`), on a
  * physical surface when it declares a physical field, which it then carries — on a standard one
- * else. A repaint moves it between the two in place (#572): the family is a value like the fields.
+ * else. A repaint moves it between the two in place: the family is a value like the fields.
  */
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { hostPageSurface } from '../../host/pageObjects.ts'

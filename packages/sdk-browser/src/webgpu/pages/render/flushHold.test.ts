@@ -102,7 +102,7 @@ test('three images and three flushes with no write: the third is held', async ()
   assert.equal(gate.held(), true, 'the witness survived the three flushes')
 })
 
-test('a flush under image: false settles the pages and reads no image back (#408)', async () => {
+test('a flush under image: false settles the pages and reads no image back', async () => {
   const { rt } = flushState(undefined, false)
   let touched = 0
   const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) })

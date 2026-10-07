@@ -64,7 +64,7 @@ interface MeasureViewSuccess {
   cpuFrameMs: number[]
   gpuFrameMs: number[]
   /** Device idle before a sampled image, from its neighbour's last timestamp, one reading per
-   *  sampled image that carries one (#1451): read beside `gpuFrameMs`, from the same run. */
+   *  sampled image that carries one: read beside `gpuFrameMs`, from the same run. */
   gpuIdleMs?: number[]
   syncFrameMs?: number[]
   rafIntervalMs: number[]

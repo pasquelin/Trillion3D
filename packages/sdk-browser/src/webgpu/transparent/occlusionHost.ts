@@ -40,7 +40,7 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
  * rewrites none. The doubles are those of `pageCornersInto`, each carried by two single-precision
  * values — the rounding and its residue. The entries never culled (`neverCulled`) leave with them,
  * one bit each. A table of the same age sends again only the entries whose pages a rewrite bounded
- * elsewhere (`occlusionMoved`, #573): a sea rewritten each frame sends its own, no other.
+ * elsewhere (`occlusionMoved`): a sea rewritten each frame sends its own, no other.
  */
 export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   const { blendState, layout } = rt,

@@ -35,7 +35,7 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * pipeline and buffers without that order: a slot of the main class sets the main pipeline and the
  * paged group, an own slot sets its entry's, and the own entries' paint order is the one the CPU
  * ranked (`order.ts`). Draw primitives are rasterized instance by instance, in order: the paint
- * order is the one a draw per item would give — without the draws.
+ * order is the one a draw per item gives — without the draws.
  *
  * The loop does no matrix product, no material read, no frustum test: an own entry wholly out of
  * view is not encoded at all; a main slot holds too many entries to query one by one — the GPU
@@ -64,7 +64,9 @@ export function drawBlendRuns(
     args = blendState.argsBuffer!
   if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group)
   if (filter) pass.setBindGroup(2, filter.maskGroup)
-  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined)
+  // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
+  const held = blendState.identity.slot,
+    pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
     encoded = 0
@@ -90,8 +92,8 @@ export function drawBlendRuns(
     }
     const group =
       item && !item.paged
-        ? (item.group ??= blendBindGroup(rt, device, item))
-        : blendState.pagedGroup!
+        ? ((item.groups ??= [])[held] ??= blendBindGroup(rt, device, item))
+        : pagedGroup
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.
     if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group))
@@ -147,7 +149,7 @@ export function drawBlendPass(
       },
       // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
       ...(rt.vis.writesFeedback ? [feedbackAttachment(rt)] : []),
-      // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
+      // The share a debug view or the temporal pass reads; an empty slot otherwise.
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
       ...(filter ? filter.attachments() : []),

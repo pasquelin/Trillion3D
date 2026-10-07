@@ -31,8 +31,8 @@ fn foliage(side: u32) -> image::RgbaImage {
     })
 }
 
-// #44: a masked chain keeps level 0's coverage at every level, whatever the cutoff; the median
-// alone — develop's rule, which a blended-only chain keeps — thins the foliage out from 64 × 64.
+// A masked chain keeps level 0's coverage at every level, whatever the cutoff; the median
+// alone — the plain rule, which a blended-only chain keeps — thins the foliage out from 64 × 64.
 #[test]
 fn coverage_holds_at_every_level_of_a_masked_chain() {
     let source = foliage(512);
@@ -44,8 +44,8 @@ fn coverage_holds_at_every_level_of_a_masked_chain() {
     assert_eq!(strays(&median, 128), [3, 4, 5, 6, 7, 8]);
 }
 
-// #44, steps 3 and 4: `a × (C − 0.5) / (t − 0.5)` rounded half up, in integers, on a table the
-// card's test reads too (`texture/coverageRule.test.ts`, #748) — each case's alphas its histogram.
+// `a × (C − 0.5) / (t − 0.5)` rounded half up, in integers, on a table the
+// card's test reads too (`texture/coverageRule.test.ts`) — each case's alphas its histogram.
 // Its first case: level 0 covers half at 128, the level two of four from `t` = 11 to 90, and 90
 // is nearest the cutoff.
 #[test]
@@ -96,7 +96,7 @@ fn material(mode: &str, cutoff: f64, texture: usize) -> Value {
         "alphaMode": mode, "alphaCutoff": cutoff})
 }
 
-// #44: a texture is cut at the lowest cutoff of its masked readers, as the smallest byte the
+// A texture is cut at the lowest cutoff of its masked readers, as the smallest byte the
 // engine keeps (`alpha >= alphaTest`), and not at all — median alone — once one of them blends:
 // the scale would move the mean alpha a blended surface draws.
 #[test]
@@ -138,8 +138,8 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
     }
 }
 
-// #44: each cutoff names its own files and sidecar word, so two scenes cutting one image at two
-// cutoffs never serve each other's levels, and a blended-only chain keeps develop's name.
+// Each cutoff names its own files and sidecar word, so two scenes cutting one image at two
+// cutoffs never serve each other's levels, and a blended-only chain keeps the plain chain's name.
 #[test]
 fn each_cutoff_names_its_own_chain() {
     let dir = temp_dir("bake-cutoffs");
@@ -160,7 +160,7 @@ fn each_cutoff_names_its_own_chain() {
     assert_eq!(AtlasKind::from_word(128 << 8), None, "only coverage is cut");
 }
 
-// #44: two textures of one image, one blended and one masked, bake one chain each: the blended
+// Two textures of one image, one blended and one masked, bake one chain each: the blended
 // one keeps the median alone, byte for byte, and only the masked one is scaled.
 #[test]
 fn a_blended_texture_keeps_the_median_beside_a_masked_one_of_its_image() {

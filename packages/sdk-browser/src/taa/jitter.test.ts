@@ -86,7 +86,7 @@ test('jitter is a translation in clip space, zero when the offset is zero', () =
   assert.equal(out[13], (2 * 0.25) / 480)
 })
 
-// #816: the boss's display, drawn at 67 % and 50 % per axis, reconstructed to it.
+// A large display, drawn at 67 % and 50 % per axis, reconstructed to it.
 test('jitter phases follow the render-to-display ratio, a prime, distinct and stratified at every scale', () => {
   const display = 3456
   assert.equal(upscalePhases(display, display), TAA_SAMPLES, 'eleven at native size')

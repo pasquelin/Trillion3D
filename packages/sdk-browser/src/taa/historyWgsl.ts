@@ -84,7 +84,7 @@ fn historyCap(uv:vec2f,coord:vec2i,now:f32,kept:f32)->f32{
 }`
 
 /**
- * The current image's share of a moving pixel (#816's blend, point 6): today's `alpha` times
+ * The current image's share of a moving pixel (the blend's sixth point): today's `alpha` times
  * `reach`, the weight of the sample nearest the display pixel — one that fell far from it does not
  * overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a pixel
  * with no history (`fresh`) takes the current sample whole.
@@ -114,13 +114,14 @@ fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  * chroma by the luma's mean widening, as a box widened in each colour channel —, and the rejection
  * the history's confidence is measured by (`shadingConfidence`). A pixel uncovered
  * (`geometryUncovered`) starts its measure afresh, its history gone: it takes the current image
- * whole (`currentShare`), its history's weight `wh` zero, its count one, so it reads none of it —
- * neither colour, share target, flicker measure, reactive value nor layers —, every word it writes
- * the one it wrote reading them (a zero colour channel's sign aside).
+ * whole (`currentShare`), its history's weight `wh` zero, its count one, so it keeps none of it:
+ * its colour, share target, flicker measure and reactive value are read beside the geometry that
+ * rejects them, all in flight at once, and dropped; its layers are not read. Every word it writes
+ * is the one it wrote reading them (a zero colour channel's sign aside).
  *
  * While moving the history is read with Catmull-Rom; it keeps at most what its speed lets it
  * (`historyCap`), and the current share is `currentShare`'s, from the reactive value the blends,
- * particles and water wrote — whole on a dynamic geometry's pixel (`pageOf`, #573), whose
+ * particles and water wrote — whole on a dynamic geometry's pixel (`pageOf`), whose
  * vertices moved within their placement, which no motion matrix follows: its history is another
  * shape, dropped rather than smeared. `still`, the upscaling
  * resolve's: a still pixel's share is set from the weights its average holds
@@ -141,14 +142,13 @@ export const taaHistoryBlend = (
   const share = shareText(asIs)
   return ` if(previous.w==0.0){return ${layer.taaOut(asIs, filtered, false, still)};}
  let moving=view.jitter.z!=0.0;
+ let pastAt=historyTexel(previous.xy,coord);
+ var tag=textureLoad(shareHistory,pastAt,0);var past=shadingRead(pastAt,tag.g);var read=vec4f(0.0);
+ if(moving){read=historyCatmullRom(previous.xy);}else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
+${share(` var sharePast=vec4f(0.0);if(shareLo!=shareHi${still ? '||!moving' : ''}){sharePast=${PAST_SHARE};}\n`)} var cover=${reactive ? 'textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g' : '0.0'};
  let uncovered=moving&&geometryUncovered(previous.xy,previous.z,geometry.x,depthSlack);
- var tag=vec4f(0.0);var past=vec4f(0.0);var read=vec4f(0.0);var cover=0.0;
-${share(' var sharePast=vec4f(0.0);\n')} if(!uncovered){
-  let pastAt=historyTexel(previous.xy,coord);
-  tag=textureLoad(shareHistory,pastAt,0);past=shadingRead(pastAt,tag.g);
-  if(moving){read=historyCatmullRom(previous.xy);}else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
-${share(`  if(shareLo!=shareHi${still ? '||!moving' : ''}){sharePast=${PAST_SHARE};}\n`)}${reactive ? '  cover=textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g;\n' : ''} }
- let animated=${centrePage}.animated;
+ if(uncovered){tag=vec4f(0.0);past=vec4f(0.0);read=vec4f(0.0);cover=0.0;}
+${share(' if(uncovered){sharePast=vec4f(0.0);}\n')} let animated=${centrePage}.animated;
  let range=vec2f(shadingLuma(lo.x),shadingLuma(hi.x));
  var measure=shadingFresh(blurred);
  if(!uncovered){measure=shadingMoire(now,blurred,shadingLuma(toYcocg(read.rgb).x),range,blurRange,past,shadingStill(here,before,animated>0.0),cover);}
@@ -179,7 +179,7 @@ ${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true,
 const PAST_SHARE = 'textureSampleLevel(shareHistory,historySampler,previous.xy,0.0)'
 
 /**
- * A still pixel of an image drawn below the display (#1343): its average is weighed by how near
+ * A still pixel of an image drawn below the display: its average is weighed by how near
  * each image's samples fell to the display pixel (`stillTotal`, the Blackman-Harris window of one
  * display pixel, `upscaleWgsl.ts`), not one image as much as another. The weight the history holds
  * is read beside its tag, this image's added to it into `count`, which is written; the current

@@ -31,7 +31,7 @@ type DagCluster = {
   max?: number[]
   cone?: NormalCone
   material?: PageSurface
-  /** Cluster triangles and its pass: the GPU holds the totals, the CPU no longer sums them
+  /** Cluster triangles and its pass: the GPU holds the totals, the CPU does not sum them
    *  (`layout.ts`, snapshot header). */
   triangles?: number
   transparent?: boolean
@@ -53,7 +53,7 @@ export type DagRoot = {
   /** Group links: what the cut rule's residency is derived from (`../../page/cut/readiness.ts`). */
   structure?: ClusterStructureIndex
   /** The world DAG's alone (`scene/worldSuperRoots.ts`): per rank, the table object an object
-   *  root mirrors, -1 for a super-root (#1332). */
+   * root mirrors, -1 for a super-root. */
   origins?: Int32Array
 }
 /** What a placement's cut residency is derived from, and where its pages and nodes sit in the
@@ -118,7 +118,7 @@ export type PackedDag = {
   pageUrlOf(page: number): string | undefined
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
-  /** The world DAG, when packed (#1333): its placement and its `origins`, which the cut's
-   *  residency mirrors (`worldMirror.ts`, #1332). */
+  /** The world DAG, when packed: its placement and its `origins`, which the cut's
+   * residency mirrors (`worldMirror.ts`). */
   world?: { root: number; origins: Int32Array }
 }

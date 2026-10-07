@@ -1,4 +1,4 @@
-// Defect this test catches (#831): `pageHeaderFor(page, surface)` named its flag after the
+// `pageHeaderFor(page, surface)` must not name its flag after the
 // transparent pass's group-0 texture `surface` (binding 28). The name shadows the global in WGSL
 // (valid), but every reader of the text — `wgslStageBindings`, bindBudget — takes the word for a
 // read of that binding by the vertex stage, which the layout hides from it.

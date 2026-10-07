@@ -30,7 +30,7 @@ test('the shipped normal transform renders the model, the true normal, and zero 
     if (lit.collapsed) {
       // A face with no world area has no normal: the shader returns the zero vector, exactly —
       // never a NaN, which screen derivatives would spread to the neighbouring pixels, nor the
-      // local normal of a surface that no longer exists. The guard's bitcast is WGSL: no model in
+      // local normal of a surface that does not exist. The guard's bitcast is WGSL: no model in
       // JavaScript proves it.
       assert.deepEqual(rendered, [0, 0, 0], `${lit.name}: rendered ${rendered}, not zero`)
       return
@@ -67,7 +67,7 @@ test('the criterion refuses the flipped and the lost normal on every case', asyn
     assert.ok(Math.abs(verdict.gapDeg - 180) < 1e-2, `${name}: N → −N at ${verdict.gapDeg}°`)
   }
   // N → 0: refused for having no direction, before any angle — never a NaN that passes, never an
-  // atan2(0, 0) = 0 that calls it right, as the old criterion did.
+  // atan2(0, 0) = 0 that calls it right.
   for (const { name, verdict } of await verdicts(SUBSTITUTIONS.lost)) {
     assert.ok(!verdict.ok, `${name}: N → 0 passes, a lost normal is no longer seen`)
     assert.ok(Number.isNaN(verdict.gapDeg), `${name}: N → 0 at ${verdict.gapDeg}°, not NaN`)

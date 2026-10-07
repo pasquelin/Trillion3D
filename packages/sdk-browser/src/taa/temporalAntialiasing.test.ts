@@ -44,8 +44,8 @@ test('the checkpoint keeps the frame fields the replay restores, sampled rank in
   temporal.dispose()
 })
 
-// Each history carries its colour and, beside it, the as-is share composition reads (#365) and the
-// placement tags (#833): the pass writes both targets, and the bytes it declares count both.
+// Each history carries its colour and, beside it, the as-is share composition reads and the
+// placement tags: the pass writes both targets, and the bytes it declares count both.
 test('each history is a colour and its as-is share, written together and counted', async () => {
   const { device, textures, renderPipelines } = fakeDevice()
   const temporal = await createTemporalAntialiasing(device, [])

@@ -14,7 +14,7 @@ function rowsOf(data: Uint8Array, offset: number, stride: number, rows: number, 
   return out
 }
 
-// #962: the offsets the compiler's tiled file is written at (`tile_records`, pinned by the same
+// The offsets the compiler's tiled file is written at (`tile_records`, pinned by the same
 // numbers in `asset-compiler-rust/src/texture_preview/tests/tile_records.rs`).
 test('a tile record’s place in its level file follows from the level’s dimensions', () => {
   assert.equal(tiledLevelBytes(769, 300), 259_120)
@@ -23,8 +23,8 @@ test('a tile record’s place in its level file follows from the level’s dimen
   assert.equal(tiledLevelBytes(100, 8), 25 * 2 * 16, 'one tile: its row-major blocks')
 })
 
-// E0, #962: records tile the file end to end, and a tile written from its record — its region's
-// blocks — lands the very blocks develop cut from the row-major level, on random sizes and edges.
+// Records tile the file end to end, and a tile written from its record — its region's
+// blocks — lands the very blocks the row-major level cuts, on random sizes and edges.
 test('a tile written from its record lands the blocks the whole-level cut wrote', () => {
   const next = random(962)
   const sizes = [1, 128, 129, 769, 4096, 260].map((w, i) => [w, [1, 128, 5, 300, 12, 1031][i]])

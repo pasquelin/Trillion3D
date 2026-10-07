@@ -3,7 +3,7 @@
 //! `tests_convex`, against the ears.
 //!
 //! The U ring and the area measure are those of the drivers, in `crate::tests::ngons`: one
-//! definition of the audit polygon, and one way to measure what comes out of it.
+//! definition of the U polygon, and one way to measure what comes out of it.
 use super::*;
 use crate::tests::ngons::{cut_area, U_RING};
 

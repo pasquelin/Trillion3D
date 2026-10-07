@@ -42,7 +42,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
   surfaceCache?: GPUTextureView
   /** Resident proxy; absent, a zero substitute. */
   proxy?: GPUBuffer
-  receiver?: ReceiverResources // what the receiver offset reads (#1410)
+  receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
   lighting: string
@@ -50,10 +50,10 @@ export interface DeferredSources {
   label: string
   direct: boolean
   bounce?: boolean
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`, #33)
+  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`)
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
- *  the chain's last blend when it left it to the composition (#963). */
+ *  the chain's last blend when it left it to the composition. */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend }
 /** What the temporal pass resolves: the colour, its pixels' as-is share, the filtering layers. */
 export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
@@ -73,15 +73,18 @@ type Composition = { group: GPUBindGroup; input: ComposeInput }
 type VsmResources = NonNullable<DirectLightResources['vsm']>
 
 /** What a program keeps between its calls: what its light group names, rebuilt when one of them is
- *  replaced (`bindIdentity.ts`), the bound surface, its lit image and its flags — the share the lit
- *  image is composed with —, the light group, and its compositions, one per colour and share read,
- *  weakly keyed by every view it reads: nothing to reset. */
+ *  replaced (`bindIdentity.ts`) — two identities are held, with a group each (`held`, by identity
+ *  slot, with the flags it was made with): the shadow maps' tables are double-buffered, this
+ *  frame's then the other's, and their frames take turns —, the bound surface, its lit image and
+ *  its flags — the share the lit image is composed with —, the light group, and its compositions,
+ *  one per colour and share read, weakly keyed by every view it reads: nothing to reset. */
 type ProgramState = {
   identity: ReturnType<typeof createWebgpuBindIdentity>
   boundSurface?: SurfaceBuffer
   boundHdr?: GPUTextureView
   boundFlags?: GPUTextureView
   lightGroup?: GPUBindGroup
+  held: ({ group: GPUBindGroup; flags: GPUTextureView } | undefined)[]
   composed: WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>
 }
 
@@ -97,7 +100,7 @@ type ProgramParts = {
   vsmPlaceholders: VsmResources
 }
 
-/** A deferred-pass program: its modules, its pipelines compiled together off the thread (#1362),
+/** A deferred-pass program: its modules, its pipelines compiled together off the thread,
  *  and the bind groups it keeps while its resources do not change. */
 export async function createDeferredProgram(
   device: GPUDevice,
@@ -125,7 +128,11 @@ export async function createDeferredProgram(
     pool: placeholders.vsmPool,
   }
   const parts = { device, sources, bindings, lightingLayout, compositions, vsmPlaceholders }
-  const state: ProgramState = { identity: createWebgpuBindIdentity(), composed: new WeakMap() }
+  const state: ProgramState = {
+    identity: createWebgpuBindIdentity(2),
+    held: [],
+    composed: new WeakMap(),
+  }
   return {
     light,
     reflection,
@@ -135,7 +142,7 @@ export async function createDeferredProgram(
     compositions,
     /** The group reading the lit image and its surface flags, or `image` and its as-is share,
      *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. A frame
-     *  that reads no as-is share (`asIs` false, OMB-11) binds the colour alone. */
+     *  that reads no as-is share (`asIs` false) binds the colour alone. */
     composition: (image?: ComposedImage, asIs = true) => compositionOf(state, parts, image, asIs),
     bind: (
       surface: SurfaceBuffer,
@@ -144,7 +151,8 @@ export async function createDeferredProgram(
       direct: DirectLightResources,
     ) => bindLight(state, parts, surface, depth, hdr, direct),
     release() {
-      state.identity = createWebgpuBindIdentity()
+      state.identity = createWebgpuBindIdentity(2)
+      state.held.length = 0
       state.boundSurface = state.boundHdr = state.boundFlags = state.lightGroup = undefined
       state.composed = new WeakMap()
     },
@@ -214,8 +222,8 @@ function bindLight(
   next[8 + receiver.length] = vsm.uniforms
   next[9 + receiver.length] = vsmTransmission
   next[10 + receiver.length] = maskTiles
-  if (!state.identity.moved()) return
   state.boundSurface = surface
+  if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
     ...surface.views().map((resource, binding) => ({ binding, resource })),
@@ -234,6 +242,22 @@ function bindLight(
       { binding: BOUNCE_SURFACE_BINDING, resource: direct.surfaceCache },
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
+  state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }
+}
+
+/** Whether the light group made for the identity this frame names is held: it is then bound
+ *  again, with the flags it was made with, and nothing is made. */
+function reboundLight(state: ProgramState) {
+  const { identity, held } = state,
+    kept = identity.moved() ? undefined : held[identity.slot]
+  if (kept) {
+    state.lightGroup = kept.group
+    state.boundFlags = kept.flags
+    return true
+  }
+  // Until it is made, the slot holds no group: a refused one is asked again.
+  held[identity.slot] = undefined
+  return false
 }
 
 /** The light group's entries a contract program adds: its receiver, its surface's subsurface and

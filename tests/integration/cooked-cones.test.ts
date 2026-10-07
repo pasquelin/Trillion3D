@@ -1,8 +1,8 @@
-// The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
-// build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
-// cone from `source.gltf` as the prepared scene views it and each index page — a vertex a solve
-// placed read from its geometry page (#877) —, and requires the cooked cone to bound every face
-// and to be at most twice the compiler's margin wider (#929).
+// The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`) rather than building one
+// with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that cone from
+// `source.gltf` as the prepared scene views it and each index page — a vertex a solve placed read
+// from its geometry page —, and requires the cooked cone to bound every face and to be at most
+// twice the compiler's margin wider.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -57,7 +57,7 @@ async function checkScene(pointer: string) {
           ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
           : new Uint32Array(bundle(page.url), 0, page.count),
       ])
-      // A vertex a seam-locked solve placed (#877) is read from the geometry page naming it.
+      // A vertex a seam-locked solve placed is read from the geometry page naming it.
       const url = join(dir, page.geometry!.url)
       const decoded = async () => [decodeGeometryPage(new Uint8Array(bytesOf(url)))]
       const { positions } = await withPlaced(columns, joined, [page], decoded)

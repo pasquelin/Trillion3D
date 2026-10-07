@@ -1,12 +1,12 @@
 // Volume-bench references that have no ready-made Three.js method: each is written with
 // Three.js objects — `Vector3`, `Vector4`, `Matrix4` — in the exact order the engine
-// called them before batch M2.
+// called them.
 import * as THREE from 'three'
 import { coneRejects } from '../../../packages/sdk-core/src/index.ts'
 
-/** Plane order of the old `extractPlanes`: left, right, bottom, top, near, far. */
+/** Plane order of the host library's `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4]
-/** Planes ordered as Three.js, put back in the order from before batch M2. */
+/** Planes ordered as the host library, put back in the engine's order. */
 export const reordonne = (planes: Float64Array | Float32Array) => {
   const sortie = new Float64Array(24)
   ANCIEN_ORDRE.forEach((k, i) => sortie.set(planes.subarray(k * 4, k * 4 + 4), i * 4))
@@ -29,7 +29,7 @@ export function referencePlanesToLocal(planes: Float32Array, elements: number[])
 const axis = new THREE.Vector3(),
   center = new THREE.Vector3()
 
-/** `packages/sdk-browser/src/page/cone/cone.ts` before batch M2, after its material, conformal and angle guards. */
+/** `packages/sdk-browser/src/page/cone/cone.ts`, after its material, conformal and angle guards. */
 export function referenceConeRejects(
   cone: { axis: number[]; angle: number },
   world: THREE.Matrix4,

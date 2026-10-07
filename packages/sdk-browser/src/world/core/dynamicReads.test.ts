@@ -1,4 +1,4 @@
-// A geometry rewritten every frame is read whole each frame (#573), by the one bulk read of an
+// A geometry rewritten every frame is read whole each frame, by the one bulk read of an
 // attribute (`VertexElements.readInto`): a list whose stored numbers are the ones read is copied
 // whole, any other read number by number. Each read is the number-by-number one it replaces, bit
 // for bit: floats of every width, integers, a world geometry's normalised list read as stored, a

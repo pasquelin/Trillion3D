@@ -30,8 +30,8 @@ const movesFinitely = (v: Float64Array) =>
 /**
  * The velocity the view ahead reads: the eye's, filtered exponentially over `AHEAD_SMOOTHING_MS`
  * while it moves. A still eye reads zero, and an eye that starts moving — or cuts — its velocity as
- * it is: a stop leaves no view ahead behind — a still camera cuts as before, bit for bit — and a
- * start waits for no filter.
+ * it is: a stop leaves no view ahead behind — a still camera cuts as without extrapolation, bit for
+ * bit — and a start waits for no filter.
  */
 function smoothAhead(
   motion: CameraMotion,

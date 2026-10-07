@@ -11,7 +11,7 @@ use super::{MAX_BITS, MAX_EXPONENT};
 /// (`quantizationErrorOf`, sdk-browser), but a leaf has nothing finer to refine to. A leaf moves the
 /// source by at most √3/2 of a step, 26.4 µm, which projects to 0.057 px at a metre on the reference
 /// display (2234 lines under a 55° vertical field, focal 2146 px), under the display quantum of
-/// 0.1 px (audit E1) down to 57 cm; 2^-14 would be 0.11 px at a metre (#959). A kilometre primitive
+/// 0.1 px down to 57 cm; 2^-14 would be 0.11 px at a metre. A kilometre primitive
 /// stops at the page field: its DAG root spans it, 2^23 steps at most (2^-13 m on 1,024 m).
 pub const TILE_EXTENT_LOG2: i32 = 1;
 
@@ -65,7 +65,7 @@ pub fn finest_exponent(span: f64) -> i32 {
 }
 
 /// The grid of a primitive of widest `extent`: a `blended` one takes the finest grid its pages
-/// hold, a coarser one showing through a transparent surface (#875); any other `grid_exponent`.
+/// hold, a coarser one showing through a transparent surface; any other `grid_exponent`.
 /// The compiler passes its DAG's finest error and its tile; the run-time cut, whose clusters are
 /// all roots, none and the tile of a metre per unit (`TILE_EXTENT_LOG2`).
 pub fn primitive_grid_exponent(
@@ -82,7 +82,7 @@ pub fn primitive_grid_exponent(
 }
 
 /// The texture grid of a primitive whose texture coordinates span `span` at most: the format's,
-/// or for a `blended` one the finest grid that span fits, never coarser than the format's (#875).
+/// or for a `blended` one the finest grid that span fits, never coarser than the format's.
 pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
     if blended && span > 0.0 {
         finest_exponent(span).min(UV_EXPONENT)

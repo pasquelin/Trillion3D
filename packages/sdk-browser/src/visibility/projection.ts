@@ -102,7 +102,7 @@ type ScreenPoint = { x: number; y: number }
 /**
  * Signed area of the screen triangle `(a, b, c)`: the barycentric denominator, and the sign that
  * says from which side the face is seen. The visibility-buffer raster, reconstructed depth and the
- * page reference raster each used to take their own copy of the same line.
+ * page reference raster each take the same line from here.
  */
 export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)

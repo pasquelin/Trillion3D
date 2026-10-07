@@ -11,8 +11,8 @@ import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
 
 /**
- * THE SHADOW RECEIVER OF A PIXEL (#1410): its shading-point offset and its triangle's plane, the
- * one the shadow bias follows (#831), recomputed where they are read — the deferred lighting and
+ * THE SHADOW RECEIVER OF A PIXEL: its shading-point offset and its triangle's plane, the
+ * one the shadow bias follows, recomputed where they are read — the deferred lighting and
  * the shadow demand — from the visibility buffer; only the virtual shadow maps' projection reads
  * the copy the resolve writes (`receiverTargetWgsl.ts`, 8 B/px). It is the resolve's own
  * arithmetic, its shared parts called, not copied (`pixelTriangleWgsl.ts`): the pixel's triangle
@@ -45,9 +45,9 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
  let n=vertexNormals(page,h,corners,world3,side);
  let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
- // The side the shading lights: a two-sided surface seen from behind lights its back (#1344).
+ // The side the shading lights: a two-sided surface seen from behind lights its back.
  let lit=select(1.0,face,(page.materialClass&${CLASS_FEATURE.DOUBLE_SIDED}u)!=0u);
- // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`, #831).
+ // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`).
  let plane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
  let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
  return ShadowReceiver(offset,select(vec3f(0.0),normalize(plane),dot(plane,plane)>0.0));

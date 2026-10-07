@@ -1,4 +1,4 @@
-// #1335: on WebGPU, a root the impostor plan switches draws its card through the card pipelines —
+// On WebGPU, a root the impostor plan switches draws its card through the card pipelines —
 // into the visibility buffer and depth before the Hi-Z pyramid, then into the surfaces — and its
 // card bit leaves it to the card in every camera cut, CPU and GPU, while the light cuts keep its
 // shadow: plan and draw agree. The card waits for its atlas, read through the engine's one

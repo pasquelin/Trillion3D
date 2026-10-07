@@ -87,7 +87,7 @@ async function main(): Promise<void> {
         run('node_modules/.bin/eslint', linted)
         break
       case 'types': {
-        // `tsc --noEmit` on every project that owns a changed file (#1071).
+        // `tsc --noEmit` on every project that owns a changed file.
         const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), linted, () =>
           run(...pnpmCommand('run', 'build')),
         )

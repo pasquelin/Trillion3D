@@ -1,4 +1,4 @@
-// The run of a column's slices a light's range sphere meets (#1369): `columnFrame` and `lightRun`
+// The run of a column's slices a light's range sphere meets: `columnFrame` and `lightRun`
 // of packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts, ported line by line in f32 beside the
 // column's oracle (`gpuLightGridOracle.ts`).
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'

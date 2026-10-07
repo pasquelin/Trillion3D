@@ -120,7 +120,7 @@ fn encode(value: f32, kind: AtlasKind) -> u8 {
 ///
 /// Colours are the plain mean of the four, except in a `Coverage` chain when their
 /// alphas differ: there a transparent texel is no colour — its RGB, often black,
-/// used to darken the borders of alpha-masked foliage at the coarse levels (#42)
+/// would darken the borders of alpha-masked foliage at the coarse levels
 /// —, so the four linear colours are premultiplied, averaged and divided by the
 /// summed alpha, the atlas storing straight alpha. Four equal alphas keep the plain
 /// mean byte for byte, which weighting could not change. Every other chain always

@@ -107,7 +107,7 @@ export function assertOccluderImage(
   const visPages = shown
     .filter((page) => page.array)
     .map((page) => ({ ...page, array: page.array! }))
-  // One placement: every shown page is placed by root 0 (#1235).
+  // One placement: every shown page is placed by root 0.
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),

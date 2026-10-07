@@ -7,7 +7,7 @@ import type { MeasuredWorldOptions } from './options.ts'
  * What the next frame waits for, as for any resource of its scene: the families it draws with
  * still on their way, started now. `undefined` when none is: the frame draws. A frame that waits
  * is not drawn — neither in the session's own loop nor in a host-led one (`world.render`) —, and
- * nothing steps ahead of it: the first frame drawn is the one `develop` drew first.
+ * nothing steps ahead of it: the first frame drawn is the one the loop draws first.
  */
 export const frameWaits = (held: Held) => familiesArriving(frameFamilies(held))
 

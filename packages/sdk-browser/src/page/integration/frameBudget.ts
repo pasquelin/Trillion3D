@@ -87,11 +87,11 @@ function nextPageFrame() {
 }
 
 /**
- * Opens a budget's next share (#983), always in a task of its own, so a share never runs inside a
+ * Opens a budget's next share, always in a task of its own, so a share never runs inside a
  * frame's callbacks, ahead of its render: on a visible page, once `shares` opened since its last
  * frame, only after the next one, so the shares cumulated between two frames stay bounded. A
  * hidden page, or a visible one whose frames stopped, never waits for a frame: one share per task,
- * as before, and it loads no slower.
+ * and it loads no slower.
  */
 export function createSharePace(open: () => void, shares: number) {
   let opened = 0,

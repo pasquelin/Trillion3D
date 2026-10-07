@@ -30,11 +30,11 @@ export interface SelectionState<T extends PageRecord> {
   /** The same two cuts by packed catalogue rank, rank by rank (the root's `packedBase` plus the
    *  page's index): what the engines' consumers read, resolved back to a record through the
    *  catalogue (`recordOf`). The cut still decides on the records above — a packed rank names the
-   *  instance, never a record. Reused `Int32Array`s widened as the cut emits (`fitPacked`, #1232). */
+   *  instance, never a record. Reused `Int32Array`s widened as the cut emits (`fitPacked`). */
   wantedPacked: Int32Array
   shownPacked: Int32Array
   /** Packed base of the root the cut is walking: set by `selectFlat` per root, like `flatWorld`,
-   *  so a kept page is named without a field on the shared record (#1235). */
+   *  so a kept page is named without a field on the shared record. */
   flatBase: number
   pixelError: number
   frustumRejected: number
@@ -47,7 +47,7 @@ export interface SelectionState<T extends PageRecord> {
   flatElements: ArrayLike<number>
   flatStretch: number
   flatFocal: number
-  /** How far this root's GPU deformation moves a vertex this frame, in its units (#357): every
+  /** How far this root's GPU deformation moves a vertex this frame, in its units: every
    *  box and every sphere the cut reads of it grows by it; zero at rest. */
   flatReach: number
   /** The cut rule's residency of this root's pages (`./held.fixture.ts`), with the open count of each of
@@ -67,10 +67,10 @@ export interface SelectionState<T extends PageRecord> {
    *  cut then decides without projecting, identically. */
   flatExact: boolean
   /** This root's stretch, focal length, near plane and projection pass `frameParametersSound`:
-   *  each cluster's projection then checks only its own values (#980, VIS-16). Set with the other
+   *  each cluster's projection then checks only its own values. Set with the other
    *  `flat*` scalars by `selectFlat`; false, every projection checking all of them, otherwise. */
   flatSound: boolean
-  /** What the two lists actually hold. The arrays are no longer cleared with `length = 0` each
+  /** What the two lists actually hold. The arrays are not cleared with `length = 0` each
    *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
    *  rewritten by index, and their length is set only once the cut is finished. During the cut,
    *  these two counts are the only truth: `length` is behind. */
@@ -88,8 +88,8 @@ export interface SelectionState<T extends PageRecord> {
  * A packed list wide enough for `needed` ranks. The buffer is kept when it already holds them —
  * `Int32Array.length` is getter-only in a module, so the list is never truncated; the cut's counts
  * are the record lists' lengths, rank by rank — and replaced by a power-of-two-sized one otherwise,
- * holding the old one's first `keep` ranks: a cut that has been seen reuses its two lists for life,
- * and one that selects more widens them a logarithmic number of times, to what it selected.
+ * holding the previous one's first `keep` ranks: a cut that has been seen reuses its two lists for
+ * life, and one that selects more widens them a logarithmic number of times, to what it selected.
  */
 export function fitPacked(list: Int32Array, needed: number, keep = 0): Int32Array {
   if (list.length >= needed) return list

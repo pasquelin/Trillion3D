@@ -1,6 +1,6 @@
 // The cut rule's readiness over a packing counts its host tables, which the CPU total holds beside
 // the decoded pages (`../../residency/memoryBudget.ts`): they follow the resident pages, never the
-// catalogue (#483 rule 6).
+// catalogue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'

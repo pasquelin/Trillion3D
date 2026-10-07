@@ -105,7 +105,7 @@ test('re-placing a guide at the pose it holds moves nothing, so a held frame sta
   assert.equal(asked, 3)
 })
 
-// #264 audit: a guide drawn from a node follows it in the engine, as a page would have placed it
+// A guide drawn from a node follows it in the engine, as a page would have placed it
 // every frame — moved when the node moved, and only then. `follow` is what each frame calls.
 test('a guide added from a node follows it, and moves nothing while it stands still', () => {
   let asked = 0

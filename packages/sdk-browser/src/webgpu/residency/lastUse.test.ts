@@ -1,4 +1,4 @@
-// #477: the residency cache evicts by last use. A page the image stopped drawing stays for the
+// The residency cache evicts by last use. A page the image stopped drawing stays for the
 // frames the GPU may still be drawing it, then leaves oldest first, and never before the pages
 // that depend on it.
 import test from 'node:test'

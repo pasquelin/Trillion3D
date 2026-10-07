@@ -1,4 +1,4 @@
-//! Fast path (#47), what the proof refuses: a corrupted product, a bake the
+//! Fast path, what the proof refuses: a corrupted product, a bake the
 //! compile could not finish, a missing answer sheet — and what it counts when
 //! several textures share one image.
 use super::reuse::{compile_with_events, textured};

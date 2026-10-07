@@ -32,7 +32,7 @@ const refusalOf = (rt: WebgpuPagesRuntime) => gpuDeviceLedgerOf(rt.gpu.device)?.
 
 /** What the device still answers for the frame — its targets, the lit program it compiles, the
  *  pipelines the next frame binds (`askFramePipelines`, asked here as a frame entry asks them) —,
- *  while it answers: an image drawn meanwhile would be incomplete (#483) or unlit (#1362), or
+ *  while it answers: an image drawn meanwhile would be incomplete or unlit, or
  *  compile on the frame, so the loop holds on it and a capture waits for it. Nothing is made while
  *  nothing is asked. */
 export function deviceAnswer(rt: WebgpuPagesRuntime) {

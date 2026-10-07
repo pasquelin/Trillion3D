@@ -1,4 +1,4 @@
-// GEO-02, non-regression: a held frame can no longer hide the arrival of a contract program.
+// A held frame cannot hide the arrival of a contract program.
 //
 // `holdWebgpuFrame` holds the frame as long as the three revisions and the signature have not
 // moved. Compilation of the deferred lighting program finishes between two frames, without any

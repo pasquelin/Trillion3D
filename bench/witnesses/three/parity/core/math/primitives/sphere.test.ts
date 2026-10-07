@@ -1,4 +1,4 @@
-// Batch M2, sphere.ts: bounding sphere of a box, checked bit-exact against the host library's
+// sphere.ts: bounding sphere of a box, checked bit-exact against the host library's
 // bounding sphere of a box (Object.is), empty box included.
 import test from 'node:test'
 import * as THREE from 'three'

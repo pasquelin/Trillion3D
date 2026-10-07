@@ -1,4 +1,4 @@
-// Oracles of points G5 and G6, copied as-is before batch G.
+// Streaming lookup oracles, copied as-is.
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
 
 /**

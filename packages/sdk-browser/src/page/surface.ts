@@ -2,17 +2,17 @@
  * The surface record a page carries: everything the engine path reads of a material, in the
  * engine's own words, and nothing of the host object it was read from.
  *
- * Until this batch a page carried the host material declaration itself, and every reader on the
+ * A page does not carry the host material declaration itself: every reader on the
  * way to the image — the cut's normal cones, the row writer, the software raster, the coplanar
- * layer batches, the frame audit, the transparent items — reached back into it for a side, a
- * transparency flag, a colour. The record below is read ONCE per declaration, at the two
- * boundaries that own that read (`../host/surfaceImport.ts` for the shaded fields, `../scene/materialSide.ts`
- * for the raster ones); downstream no file of the engine path names a host material again.
+ * layer batches, the frame audit, the transparent items — takes a side, a
+ * transparency flag, a colour from this record. The record below is read ONCE per declaration, at
+ * the two boundaries that own that read (`../host/surfaceImport.ts` for the shaded fields,
+ * `../scene/materialSide.ts` for the raster ones); downstream no file of the engine path names a
+ * host material again.
  *
- * Its shaded fields are exactly the ones the cache's material table declares (#287,
+ * Its shaded fields are exactly the ones the cache's material table declares (
  * `packages/sdk-core/src/scene/core/tableSurfaces.ts`), and the host declaration it is read from
- * is itself built from that table (`../host/prepared/materials.ts`, #272). Reading the record
- * straight from the table, with no host declaration in between, is the next step (#275).
+ * is itself built from that table (`../host/prepared/materials.ts`).
  *
  * A record is held BY its declaration and refilled IN PLACE, so every page of every placement of
  * one surface shares a single record and comparing two surfaces is comparing two references. A
@@ -91,7 +91,7 @@ export const meshSurface = (mesh: { material: HostMaterials }) => surfaceOf(mesh
 /**
  * Rereads the SIDE of a record from the declaration it was built from; a record built outside this
  * module — a fixture's — keeps the fields it was given. Two field writes and a lookup: this is the
- * per-page, per-draw read the engine made on the host declaration itself before the record existed.
+ * per-page, per-draw read the engine would otherwise make on the host declaration itself.
  */
 function refreshSide(surface: PageSurface): PageSurface {
   const material = declarations.get(surface)
@@ -120,7 +120,7 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   return materialRaster(material, surface)
 }
 
-/** The records of the source meshes a created material was assigned to (#847). */
+/** The records of the source meshes a created material was assigned to. */
 export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
   records: readonly T[],
   meshes: ReadonlyMap<object, unknown>,

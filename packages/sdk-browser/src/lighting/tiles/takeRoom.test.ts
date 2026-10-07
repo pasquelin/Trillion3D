@@ -1,4 +1,4 @@
-// #1369: between its two walks, a column of the light grid takes its room in the view's pool. A
+// Between its two walks, a column of the light grid takes its room in the view's pool. A
 // column no light meets takes none and keeps its cells' start in the pool, count 0: an empty list.
 // Its start must never be `TILE_NO_SLICE`, which the resolve reads as a pool with no room left and
 // walks every light of the scene there. The shipped `roomBefore`, `takeRoom` and `dealRoom` are

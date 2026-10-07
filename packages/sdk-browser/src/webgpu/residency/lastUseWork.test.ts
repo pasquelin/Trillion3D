@@ -1,4 +1,4 @@
-// #477: the pin step's work follows what changed, never what is held or drawn. A still image
+// The pin step's work follows what changed, never what is held or drawn. A still image
 // touches nothing; a small move touches a bounded number of records per page that moved.
 import test from 'node:test'
 import assert from 'node:assert/strict'

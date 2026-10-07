@@ -22,7 +22,7 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number }
  * `frameMsReason` says why: `truncated` (a pass went untimed, so the span would miss its end),
  * `no-valid-pair` (every pair unwritten or invalid), `failed` (the readback did).
  *
- * `idleBetweenMs` is the gap neither holds (#1451): the device's idle from the last timestamp of
+ * `idleBetweenMs` is the gap neither holds: the device's idle from the last timestamp of
  * the image numbered `frame − 1` to the first of this one, so an image that submits once — whose
  * `hostGapMs` is always zero — still says how long the device stood unused before it. It is read
  * between neighbours only: the image after one sampled at the cadence is sampled too, and when the

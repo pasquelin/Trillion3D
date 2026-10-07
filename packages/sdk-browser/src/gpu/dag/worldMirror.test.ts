@@ -1,4 +1,4 @@
-// The world DAG's residency mirrors the scene's (#1332): packed beside the manifest primitives, the
+// The world DAG's residency mirrors the scene's: packed beside the manifest primitives, the
 // world DAG grows the packing past the rows' flags, which the cut refuses; the mirror hands it one
 // array, its object roots resident while their placed object's root cover is. Across a cell's
 // arrival and departure the cut, on the CPU oracle, covers every leaf exactly once: no hole, no
@@ -54,7 +54,7 @@ test('the cut that packs the world DAG mirrors the rows itself; one without it r
     () => selection.updateResidency(rows.subarray(1)),
     /GPU_SELECTION_RESIDENCY_COUNT_CHANGED/,
   )
-  // Until #1333 packs it, no cut holds the world DAG: the rows go up as they are.
+  // Without a packed world DAG no cut holds it: the rows go up as they are.
   const scenePacked = packDagSelection(Array.from({ length: OBJECTS }, () => ruleDag(8)))
   const plain = await cutOf(scenePacked)
   assert.deepEqual([scenePacked.world, plain.packsWorld], [undefined, false])
@@ -82,7 +82,7 @@ test('an object root is resident only while its object is placed and its root co
   assert.equal(mirror.update(rows).changes.count, 0, 'nothing moved, nothing handed over')
 })
 
-test('a cell coming near and going far is covered exactly once at every step (#1332)', () => {
+test('a cell coming near and going far is covered exactly once at every step', () => {
   const { world, mirror, rows, worldResidency, cover } = scene()
   const cut = oracleBackend(world, THRESHOLD)
   /** Cells 0 and 1 near (their objects placed, covers resident), cell 2 far. */

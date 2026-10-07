@@ -41,7 +41,7 @@ export type GeometryBlock = {
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
   quantized?: boolean
-  /** A world's dynamic geometry, rewritten in place (#573): its rows carry `FLAG_DYNAMIC`. */
+  /** A world's dynamic geometry, rewritten in place: its rows carry `FLAG_DYNAMIC`. */
   dynamic?: boolean
 }
 
@@ -52,7 +52,7 @@ export type GeometryBlock = {
  * A cluster the engine uploaded as a quantized page reads that page: the page's own flags say
  * which attributes it carries, and it stores no tangent — the resolve rebuilds the frame from
  * the triangle (`../../cluster/decodeWgsl.ts`). Any other cluster reads the source block its primitive
- * was packed into, as before.
+ * was packed into.
  */
 export function rowGeometry(
   rec: Pick<PageRec, 'attributes' | 'geometryPage'>,

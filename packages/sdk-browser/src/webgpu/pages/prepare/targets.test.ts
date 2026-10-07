@@ -72,7 +72,7 @@ test('an eligible receiver accounts for viewport reflection colour, its uniform 
   )
 })
 
-// #365: a blended scene pays for the share target only when a debug view or the temporal pass reads it.
+// A blended scene pays for the share target only when a debug view or the temporal pass reads it.
 test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
   const { rt } = runtime()
   // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
@@ -83,7 +83,7 @@ test('a blended scene costs the share only when a debug view or the temporal pas
     8 +
     REFLECTION_SOURCE_VIEW_BYTES +
     cone
-  // Under the screen-reflection cutoff (#1341), above the mirror range: the cone's lobe.
+  // Under the screen-reflection cutoff, above the mirror range: the cone's lobe.
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) }
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } })
   assert.equal(
@@ -98,7 +98,7 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value')
 })
 
-// #1162: with no debug view the frame targets hold no share texture and cost none; with one, the
+// With no debug view the frame targets hold no share texture and cost none; with one, the
 // share is made with them and costed.
 test('the frame targets hold the share only while a debug view reads it', () => {
   const { rt } = runtime()
@@ -153,7 +153,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined)
 })
 
-// #816: every pass up to the resolve draws at the render size; the display colour is apart. S11:
+// Every pass up to the resolve draws at the render size; the display colour is apart. S11:
 // no water, no render-size display colour (`displayColor.test.ts`).
 test('a frame drawn below the display costs its render targets and the display colour', () => {
   const { rt } = runtime()
@@ -176,7 +176,7 @@ test('a frame drawn below the display costs its render targets and the display c
   assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade')
 })
 
-// #1343: the render targets follow the drawn size; the render scale crossing an eighth remade them
+// The render targets follow the drawn size; the render scale crossing an eighth remade them
 // and dropped the display's temporal history with them.
 test('a new render size at the same display keeps the temporal history, a new display drops it', () => {
   const { rt, temporal } = runtime()

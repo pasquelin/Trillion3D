@@ -1,4 +1,4 @@
-// The GPU REQUEST DRAIN (#478): the cut stages its requests in the order its threads win the
+// The GPU REQUEST DRAIN: the cut stages its requests in the order its threads win the
 // counter, `dagSortRequests` writes them into the snapshot by `requestRank`, and the host reads them
 // in that order. Run on the Node device, which replays the kernels through their CPU mirrors.
 import test from 'node:test'

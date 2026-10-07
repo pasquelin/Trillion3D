@@ -331,7 +331,7 @@ export function rootWorldsMoved(
  * depend on the origin, rewritten by the same double subtraction on the doubles that rebase kept
  * in `translations` — the buffer ends bit for bit as a full rebase would leave it. They are read
  * from one flat array, not from each root's matrix: a hundred thousand roots are as many objects
- * apart in memory, for three numbers each (#831).
+ * apart in memory, for three numbers each.
  */
 export function rootTranslationsToRenderOrigin(
   worlds: Float32Array,
@@ -350,7 +350,7 @@ export function rootTranslationsToRenderOrigin(
 
 /**
  * A page's url is its placement's shared record, the placement read from the page's world word
- * (as `readiness.ts` does): nothing more is stored per page (#1235), as an instance reads
+ * (as `readiness.ts` does): nothing more is stored per page, as an instance reads
  * its primitive's clusters from its base. Built outside `packDagSelection` so the reader keeps
  * only these, not the packing's working state.
  */

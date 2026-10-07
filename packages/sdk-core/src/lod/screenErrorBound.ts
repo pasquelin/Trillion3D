@@ -59,7 +59,7 @@ export function screenErrorBound(
   const nearest = clipWeight(perspective, depth - reach),
     closest = nearest - perspective * shift,
     side = perspective * (lateral + reach)
-  // The near plane first: the hypotenuse root used to be taken then discarded when it is reached.
+  // The near plane first: the hypotenuse root is taken only once it is cleared.
   if (!(closest > perspective * near)) return Infinity
   const slant = Math.sqrt(nearest * nearest + side * side)
   if (!(slant >= nearest && slant < Infinity)) return Infinity
@@ -153,7 +153,7 @@ export function clusterErrorAtDepth(
 
 /**
  * `clusterErrorAtDepth` of a frame whose `frameParametersSound` already holds and of an error that
- * is neither 0 nor ∞, which the caller has returned as is (#980, VIS-16): the CPU cut checks its four
+ * is neither 0 nor ∞, which the caller has returned as is (VIS-16): the CPU cut checks its four
  * scalars once per root, and each cluster only its own error, radius, axis distance and depth. The
  * frame's half of the guard can only fail where it was taken out, so the verdicts are those of
  * `clusterErrorAtDepth`, the same error on the same call. The Rust mirror (`projected_error_at`,

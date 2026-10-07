@@ -70,7 +70,7 @@ export async function evaluateInstalledPage({
     world.pixelError = 0
     await world.awaitPages()
     // A session that failed to open is named with its cause, never met later as a world that
-    // "draws nothing yet" (#568); `page.evaluate` carries only the message out.
+    // "draws nothing yet"; `page.evaluate` carries only the message out.
     const failure = world.diagnostic.error
     if (failure) {
       const cause = failure.details?.cause

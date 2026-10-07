@@ -85,10 +85,10 @@ fn ribbon(holes: &str) -> String {
     format!("        int[] faceVertexCounts = [4, 4]\n        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]\n{POINTS}        int[] holeIndices = [{holes}]\n")
 }
 
-// Finding A11: `holeIndices` names the faces OpenUSD renders invisible. They were
-// read nowhere: the ribbon came out whole, four triangles, and the report said
-// nothing. They now leave the surface and are counted, whichever the subdivision
-// scheme — an invisible face is so before any subdivision.
+// `holeIndices` names the faces OpenUSD renders invisible. They leave
+// the surface and are counted, never read as visible — the ribbon would come out whole, four
+// triangles, with a silent report — whichever the subdivision scheme: an invisible face is so
+// before any subdivision.
 #[test]
 fn holeindices_faces_leave_the_surface_and_are_counted() {
     let run = mesh_layer("trou", &ribbon("1"), "none");

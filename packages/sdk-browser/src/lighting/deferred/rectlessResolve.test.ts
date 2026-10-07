@@ -1,4 +1,4 @@
-// #1369: a scene that holds no rectangle light is resolved by a program with no rectangle code in
+// A scene that holds no rectangle light is resolved by a program with no rectangle code in
 // its light loop — the largest code of the loop, whose registers every punctual light paid for —,
 // and a scene that holds one never is. `isRect` answers false for every light of such a scene, so
 // the branches left out never ran: the program is the full one less those two branches, character

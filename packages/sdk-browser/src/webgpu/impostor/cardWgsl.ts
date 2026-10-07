@@ -13,7 +13,7 @@ const LIT_SURFACE_FLAG = 2
 const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20
 
 /**
- * THE CARD PASS (#1335): the impostor drawn as a masked surface of the one lighting model, as the
+ * THE CARD PASS: the impostor drawn as a masked surface of the one lighting model, as the
  * reference draws an impostor in its base pass. Group 0 is the image's (view and the frame's
  * cards), group 1 a mesh's atlas (`feed.ts`). The vertex stage reads the card's four corners, which
  * the CPU turned to the camera with the shared `spriteAt` (`impostor/card.ts`), and derives once per

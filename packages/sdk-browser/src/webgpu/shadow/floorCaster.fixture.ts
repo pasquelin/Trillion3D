@@ -1,5 +1,5 @@
 // A fixed floor and a caster named `caster` over it, lit by one light, on the whole pages backend
-// over a mock GPU that runs the GPU cut: what the shadow tests of #990 open.
+// over a mock GPU that runs the GPU cut: what the shadow tests open.
 import {
   createSceneLightStore,
   type ClusterManifest,

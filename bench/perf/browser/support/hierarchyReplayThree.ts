@@ -1,4 +1,4 @@
-// Replay of a hierarchy scenario (batch M3a) on real Three.js `Object3D` and cameras.
+// Replay of a hierarchy scenario on real Three.js `Object3D` and cameras.
 // `hierarchyReplayEngine.ts` replays the same operations in the same order on the sdk-core
 // hierarchy and camera. Each read yields a number array tagged by the operation rank;
 // `compare` confronts both sides with `Object.is`, component by component.
@@ -27,8 +27,8 @@ function engineProjection(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
 
 /**
  * The six frustum planes in the engine convention, built with Three primitives.
- * Reversing depth swaps the NEAR and FAR planes; and far is no longer read from the
- * projection, which no longer has one, but from the view: a point is inside when `far + z >= 0`.
+ * Reversing depth swaps the NEAR and FAR planes; and far is read not from the
+ * projection, which has none, but from the view: a point is inside when `far + z >= 0`.
  * A non-finite `far` leaves the plane that infinite projection gives — zero normal, hence
  * non-numeric once normalized, hence rejecting nothing: an unbounded far.
  */

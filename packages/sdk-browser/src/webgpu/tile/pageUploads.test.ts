@@ -38,7 +38,7 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
         const shift = level - key.level,
           [tw, th] = tilesAt(layouts[key.slot].width, layouts[key.slot].height, level)
         const [tx, ty] = [key.tx >> shift, key.ty >> shift]
-        // An orphan edge tile skips the levels where it has no parent (#962).
+        // An orphan edge tile skips the levels where it has no parent.
         if (tx >= tw || ty >= th) continue
         const word = words[at({ ...key, level, tx, ty })]
         if (word !== 0 && entryLevel(word) === level) {
@@ -52,7 +52,7 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
       })
     },
     /** A resident tile placed again — an atlas resize moves it —: its entry and every entry it
-     *  served take the new place (#961); develop left those at the old one. */
+     *  served take the new place, none stays at the old one. */
     place(key: TileKey, word: number) {
       const old = words[at(key)]
       if (old === 0 || entryLevel(old) !== key.level) return edits.setTile(key, word)
@@ -87,9 +87,9 @@ function shadowDevice() {
   return { device, shadow: () => shadow, writes: () => writes, reset: () => (writes = 0) }
 }
 
-// #961: the capped descent prunes a subtree already served at the tile's level or finer. The
+// The capped descent prunes a subtree already served at the tile's level or finer. The
 // table stays develop's, word for word, on arrivals, departures and moves, over layouts whose
-// last tiles have no parent (769, 2049): an orphan leaves to its finest ancestor that exists (#962).
+// last tiles have no parent (769, 2049): an orphan leaves to its finest ancestor that exists.
 test('flushing only the changed words keeps the GPU table develop’s, word for word, in at most 64 writes', () => {
   for (let seed = 1; seed <= 30; seed++) {
     const next = random(seed)

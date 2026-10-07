@@ -1,6 +1,5 @@
-// #55: the cutout is the hard threshold in every raster and every image, as it was before the
-// stipple (9893b51d9). The stippled threshold (#529, #556) turned the leaves of a still, temporally
-// antialiased image into blotches (measure ko); it is gone, and nothing reads a stipple word.
+// The cutout is the hard threshold in every raster and every image. A stippled threshold would turn
+// the leaves of a still, temporally antialiased image into blotches; nothing reads a stipple word.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MASK_KEEP_WGSL } from './pageWgsl.ts'
@@ -8,10 +7,10 @@ import { VIS_SHADER } from './visWgsl.ts'
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
 
-test('the cutout is the hard threshold: the test of 9893b51d9, with the dash, vertex alpha and opacity', () => {
-  // 9893b51d9 read `maskAlpha(...)>=page.baseColor.w` after the flag test. Since then #359 cuts a
-  // dashed line's gaps, #347 multiplies by the vertex alpha and #748 by the colour factor's, the
-  // opacity; nothing else may stand between the read and the threshold.
+test('the cutout is the hard threshold: the mask test, with the dash, vertex alpha and opacity', () => {
+  // The mask test reads `maskAlpha(...)>=page.baseColor.w` after the flag test. A dashed line's
+  // gaps cut it, the vertex alpha multiplies it and the colour factor's opacity does too;
+  // nothing else may stand between the read and the threshold.
   assert.equal(
     MASK_KEEP_WGSL.replace(/\n *\/\/[^\n]*/g, ''),
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{

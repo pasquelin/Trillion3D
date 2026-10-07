@@ -7,8 +7,8 @@ import { join } from 'node:path'
 import { cacheFingerprint, differences } from './compiler-hashes.ts'
 
 /** A cache as the compiler lays it out, under `key`, with one page of `page` bytes and a manifest
- *  that reports the run's time, whether it found a cutout sheet (a head before #1370), the threads
- *  it ran on (a head before #1405) and names the folder it was written to. */
+ *  that reports the run's time, whether it found a cutout sheet, the threads
+ *  it ran on and names the folder it was written to. */
 function cache(
   key: string,
   page: string,
@@ -32,9 +32,9 @@ function cache(
 }
 
 // Behaviour: two compilers that cook the same bytes have one fingerprint, whatever their key, their
-// run's times, the cutout sheet an older head says it found (#1370), the threads it ran on (#1405)
+// run's times, the cutout sheet an older head says it found, the threads it ran on
 // and their folder; one changed byte is named — the platforms against Linux x64, the branch
-// against develop (#1352).
+// against develop.
 test('the fingerprint compares the cooked bytes and names the file that differs', () => {
   const develop = cache('a'.repeat(64), 'page', 1, false, 4),
     branch = cache('b'.repeat(64), 'page', 2),
@@ -71,7 +71,7 @@ function physicsCache(shape: string): string {
 }
 
 // Behaviour: the Jolt colliders `physics.json` names are listed apart, and a base whose Jolt cook
-// still fuses is allowed to differ on them alone; every other file is still compared (#1352).
+// still fuses is allowed to differ on them alone; every other file is still compared.
 test('the colliders may differ from a fusing base, and nothing else', () => {
   const develop = physicsCache('fused'),
     branch = physicsCache('unfused')

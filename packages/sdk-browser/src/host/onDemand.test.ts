@@ -21,7 +21,7 @@ test('a module on demand is imported once, on the first read, and read once it h
   assert.equal(imports, 1)
 })
 
-test('an import that fails once is tried again, as the HTTP loader asks a file again (#1404)', async () => {
+test('an import that fails once is tried again, as the HTTP loader asks a file again', async () => {
   let imports = 0
   const told: EngineError[] = []
   const code = onDemand(

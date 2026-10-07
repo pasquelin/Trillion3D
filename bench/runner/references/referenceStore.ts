@@ -1,4 +1,4 @@
-// The engine's reference images (#1281): where `references/reference.ts` writes them, what each carries, and
+// The engine's reference images: where `references/reference.ts` writes them, what each carries, and
 // how the class-2 proof (`references/referenceProof.ts`) reads them back.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -14,7 +14,7 @@ export const REFERENCES_DIR = resolve(import.meta.dirname, '../../references')
  *  them there, and the SHA-256 of `reference.json` says which image each record names. */
 export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../../.mesure/references')
 
-/** The proof scenes and the settings they are drawn at: the boss's case, 1728 × 1117 CSS at
+/** The proof scenes and the settings they are drawn at: the reference case, 1728 × 1117 CSS at
  *  DPR 2, the sun and bounced light on the engine that draws them. A flag given after them wins. */
 export const REFERENCE_SCENES = ['sponza', 'facade-7']
 export const REFERENCE_ARGS = [

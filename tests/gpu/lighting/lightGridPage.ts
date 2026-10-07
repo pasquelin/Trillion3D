@@ -1,5 +1,5 @@
 /**
- * The light grid on the GPU (#1369): the engine's grid pass (`createGpuLightTiles`) on a
+ * The light grid on the GPU: the engine's grid pass (`createGpuLightTiles`) on a
  * real device, over lights the proof draws, each cell's list read back as the resolve walks it
  * (`cellSlice`): its lights, or `null` where the pool had no room (every light of the scene), and
  * its count's shadow bit.

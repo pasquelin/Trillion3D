@@ -41,7 +41,7 @@ test('round-trip srgbToLinear then linearToSrgb: identity within 1e-9 over all o
   assert.ok(worst < 1e-9, `round-trip discrepancy ${worst}`)
 })
 
-// Batch M4a, hslToLinearRgb: reference `Color.setHSL`, bit-exact, on a dense grid of
+// hslToLinearRgb: reference `Color.setHSL`, bit-exact, on a dense grid of
 // hues/saturations/lightness then on hostile cases (outside [0, 1], NaN, infinities).
 test('hslToLinearRgb matches Color.setHSL bit-exact on a dense grid', () => {
   const out = new Float64Array(3)

@@ -2,9 +2,9 @@ use super::*;
 
 // Behaviour 5: in a `Coverage` chain — a colour texture every reader of which takes its alpha
 // for coverage —, the colour of the next level is the mean of the four texels weighted by their
-// alpha (#42). A transparent texel is no colour: its RGB — often black — used to enter the mean
-// and dark borders grew around alpha-masked foliage at the coarse levels. Alpha itself stays the
-// median of the four.
+// alpha. A transparent texel is no colour: its RGB — often black — would enter the mean
+// and dark borders would grow around alpha-masked foliage at the coarse levels. Alpha itself stays
+// the median of the four.
 #[test]
 fn an_opaque_colour_beside_transparent_black_is_not_darkened() {
     let cases: [([u8; 4], u8); 2] = [([255, 0, 0, 0], 0), ([255, 255, 0, 0], 128)];
@@ -38,7 +38,8 @@ fn a_partly_transparent_texel_counts_for_its_alpha() {
     assert_eq!(&chain[1][..3], &[213, 213, 213]);
 }
 
-/// Every level of a chain, hashed: the digests below were taken on develop, before #42.
+/// Every level of a chain, hashed: the digests below were taken before the colours were weighted by
+/// alpha.
 fn digest(source: &image::RgbaImage, kind: AtlasKind) -> String {
     hash(&reduce::chain(source, kind).concat())
 }
@@ -65,13 +66,13 @@ fn cutout(x: u32, y: u32) -> u8 {
     }
 }
 
-// Behaviour 5 (c): no texture a reader draws opaque changes by a byte (hard rule 1). The
+// Behaviour 5 (c): no texture a reader draws opaque changes by a byte. The
 // plain colour chain — an opaque base colour, an emissive, readers that disagree — keeps the RGB
-// under alpha 0 exactly as develop reduced it, since those readers draw it; so does the data
+// under alpha 0 exactly as the plain mean reduces it, since those readers draw it; so does the data
 // atlas, whose alpha is a packed channel or a height. A `Coverage` chain whose alpha does not vary
 // — opaque, uniform, fully transparent — is byte-identical to the plain one as well, cutoff or
 // not. A `Coverage` chain read only by blended materials keeps the median alone: its bytes are
-// develop's, before #44. Only a `Coverage` chain whose alpha varies moves.
+// the plain chain's. Only a `Coverage` chain whose alpha varies moves.
 #[test]
 fn every_chain_but_a_varying_coverage_one_keeps_the_develop_bytes() {
     let varied = |x: u32, y: u32| ((x * 41 + y * 23) % 256) as u8;

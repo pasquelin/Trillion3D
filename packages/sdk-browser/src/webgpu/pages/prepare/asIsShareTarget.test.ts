@@ -1,4 +1,4 @@
-// #365: the transparents' as-is share keeps a debug view untouched under a lit transparent. A
+// The transparents' as-is share keeps a debug view untouched under a lit transparent. A
 // blended scene with no debug view must draw exactly what it drew before that share: no seed pass,
 // no share target, no share attachment in the transparent pass.
 import test from 'node:test'
@@ -99,7 +99,7 @@ test('the blend pipelines compile the share target only for an image that can sh
   assert.equal(debug.formats('fs')[2], 'rg8unorm', 'precompiled with the share')
 })
 
-// #833: the temporal pass reads the blends' and particles' coverage from the same target.
+// The temporal pass reads the blends' and particles' coverage from the same target.
 test('a temporal image or particles alone seed the share, as the reactive value', () => {
   const { rt, encoder, labels, gpuDevice } = blendedImage()
   rt.gpu.temporalWanted = true
@@ -112,7 +112,7 @@ test('a temporal image or particles alone seed the share, as the reactive value'
   assert.equal(labels.length, 2)
 })
 
-// #1162: the share exists only while an image wants it; a debug view turned off mid-session
+// The share exists only while an image wants it; a debug view turned off mid-session
 // releases it and its cost, and one turned on again seeds a fresh share before anything reads it.
 test('a debug view turned off mid-session releases the share; turned on, a fresh one is seeded', () => {
   const { rt, encoder, labels, gpuDevice, destroyed } = blendedImage()

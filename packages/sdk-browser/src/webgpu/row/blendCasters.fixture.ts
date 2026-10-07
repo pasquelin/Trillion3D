@@ -1,4 +1,4 @@
-// The fixtures of the blended casters' rows (#35): a catalogue of one opaque and one blended
+// The fixtures of the blended casters' rows: a catalogue of one opaque and one blended
 // triangle, and the row table mounted over it.
 import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'

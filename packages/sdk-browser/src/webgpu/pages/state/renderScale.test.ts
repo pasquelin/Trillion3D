@@ -8,7 +8,7 @@ import {
   type FrameSize,
 } from './renderScale.ts'
 import { renderExtent } from '../../../frame/renderScaleOption.ts'
-// The old controller's instant drop sets the scale drawn; the rules tested hold under either.
+// The controller's instant drop sets the scale drawn; the rules tested hold under either.
 import { createScaleControl } from '../../../frame/scaleControl.ts'
 import { lowered } from '../../../frame/scaleFit.fixture.ts'
 import type { RenderScale } from '../../../frame/renderScaleOption.ts'
@@ -17,7 +17,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 const DISPLAY = [3456, 2234]
 
 /** A view that accumulates in the beauty view, the page asking `scale`, its targets made at
- *  `allocated` for the boss's display; `extents` hears what the Hi-Z pyramid is built over. */
+ *  `allocated` for the host's display; `extents` hears what the Hi-Z pyramid is built over. */
 function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = true) {
   const extents: number[][] = [],
     colorTexture = {}
@@ -50,7 +50,7 @@ test('a render axis is the display at native size, else a multiple of eight', ()
   assert.equal(renderExtent(12, 0.5), 8, 'never below eight')
 })
 
-// #832: the targets start at the bounds' maximum, the display colour apart.
+// The targets start at the bounds' maximum, the display colour apart.
 test('the targets start at the maximum, apart from the display wherever a scale may drop', () => {
   const native = { width: 3456, height: 2234, renderWidth: 3456, renderHeight: 2234 }
   assert.deepEqual(sizeOf(runtime('auto').rt), { ...native, apart: true })
@@ -70,7 +70,7 @@ test('the targets start at the maximum, apart from the display wherever a scale 
   assert.deepEqual(sizeOf(runtime(undefined).rt), { ...native, apart: false })
 })
 
-// #816: only where the temporal resolve reconstructs the display is the frame drawn below it.
+// Only where the temporal resolve reconstructs the display is the frame drawn below it.
 test('the frame is drawn below the display only when the temporal resolve reconstructs it', () => {
   const changes: [string, (view: WebgpuPagesRuntime) => void][] = [
     ['a diagnostic view', (view) => (view.run.diagnostic = 'normals' as never)],
@@ -93,7 +93,7 @@ test('the frame is drawn below the display only when the temporal resolve recons
 })
 
 // Decision 14: switched off, the pass draws at the display's size; back on, the targets are made at
-// the bounds' maximum (#831), the display's own under `'auto'`: no switch, nor any move of the
+// the bounds' maximum, the display's own under `'auto'`: no switch, nor any move of the
 // controller, remakes a target.
 test('switched back on, the targets made off stay, whatever the controller asks', () => {
   const { rt } = runtime('auto')
@@ -106,7 +106,7 @@ test('switched back on, the targets made off stay, whatever the controller asks'
   assert.equal(sizeOf(rt).renderWidth, 3456, 'the controller moved: nothing remade')
 })
 
-// #831: the scale asked was read back, not the size drawn — a full-scale image drawn in targets made
+// The scale asked was read back, not the size drawn — a full-scale image drawn in targets made
 // at a maximum of 0.8, or one the targets held below the controller, was told as the scale asked,
 // and measured as the controller's.
 test('the scale read back is the size drawn; one the targets hold smaller is not measured', () => {
@@ -137,7 +137,7 @@ test('an image draws at the scale asked, the controller starting at its maximum'
   assert.equal(runtime({ min: 0.5, max: 0.8 }).rt.scale.wanted(), 0.8)
 })
 
-// #831: targets made on a ladder of eighths were remade at each rung the controller crossed, the
+// Targets made on a ladder of eighths were remade at each rung the controller crossed, the
 // frame held for the memory and the history restarted: a flicker as the camera starts or stops.
 test('the targets are made at the bounds maximum whatever the controller draws in them', () => {
   const { rt } = runtime('auto')

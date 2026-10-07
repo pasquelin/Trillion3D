@@ -81,7 +81,7 @@ pub(super) fn build(
 
 /// The lamp's power. Files where the current field is still called `energy` have no
 /// `energy_new`; those that have one carry the power there, and keep in `energy` the value
-/// inherited from the old unit. The name present in the SDNA decides, never a position.
+/// in the other unit. The name present in the SDNA decides, never a position.
 fn energy(lamp: &At<'_>) -> f32 {
     if lamp.has("energy_new") {
         return lamp.float("energy_new", 0.0);

@@ -70,7 +70,7 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
     }
     let colour = colour_of(light);
     // Shadow flag of a format that carries one (FBX) travels in `extras`; otherwise
-    // an imported light casts a shadow, and the runtime per-image ceiling already bounds the cost (X5).
+    // an imported light casts a shadow, and the runtime per-image ceiling already bounds the cost.
     let shadow = light
         .pointer("/extras/castsShadow")
         .and_then(Value::as_bool)
@@ -146,7 +146,7 @@ fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<V
 }
 /// Compilation stage: lights come out as a cache product under their name, outside
 /// the manifest. Its version therefore does not move, and a reader that ignores
-/// this file reads the cache as before.
+/// this file reads the cache unchanged.
 pub(super) fn stage_scene_lights(
     g: &Value,
     bin: &[u8],

@@ -1,5 +1,5 @@
-// Behaviour changed by this batch: the two cut lists are no longer cleared with
-// `length = 0` each frame — they lost their capacity and grew it back from zero to
+// The two cut lists are not cleared with
+// `length = 0` each frame — they would lose their capacity and grow it back from zero to
 // eighty thousand — but rewritten by index, their length set once at the end.
 // What must stay true: a cut shorter than the previous one leaves nothing behind.
 import test from 'node:test'

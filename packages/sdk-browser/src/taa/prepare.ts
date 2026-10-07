@@ -11,7 +11,7 @@ import { TAA_CAPABILITIES } from './capability.ts'
  * Rig temporal antialiasing after deferred lighting. The host can refuse it
  * (`temporalAntialiasing: false`): nothing is then created, and the image stays sampled at
  * the pixel centre. A device that rejects the program leaves the capability unsupported and
- * the image as before — never a false image. A session that may draw below the display
+ * the image without it — never a false image. A session that may draw below the display
  * (`renderScale`) also compiles the resolves that reconstruct it
  * (`../webgpu/pages/state/renderScale.ts`).
  */
@@ -122,7 +122,7 @@ export async function rigViewTemporal(rt: WebgpuPagesRuntime, view: WebgpuView) 
 const createTaa = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
   createTemporalAntialiasing(device, rt.layout.selectionRoots, rt.scale.bounds.min < 1)
 
-/** The pass leaves the session: capabilities dropped, cause named, image as before the batch. */
+/** The pass leaves the session: capabilities dropped, cause named, image without the pass. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
   const main = mainViewGpu(rt)
   main.temporal?.dispose()

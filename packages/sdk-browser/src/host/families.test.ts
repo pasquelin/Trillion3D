@@ -29,7 +29,7 @@ function chainFrame() {
   return () => frameWaits({ effects })
 }
 
-test('a family whose import fails once arrives, and the frame that needs it draws it (#1404)', async (t) => {
+test('a family whose import fails once arrives, and the frame that needs it draws it', async (t) => {
   let imports = 0
   standIn(t, 'effects', async () => {
     if (++imports === 1) throw new TypeError('Failed to fetch dynamically imported module')

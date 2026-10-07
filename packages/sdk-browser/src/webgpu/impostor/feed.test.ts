@@ -1,4 +1,4 @@
-// #1335: the per-mesh atlas feed holds the card atlases on the GPU within the room the one texture
+// The per-mesh atlas feed holds the card atlases on the GPU within the room the one texture
 // budget leaves them: the atlas drawn least recently leaves for a new one, an atlas this frame
 // draws never does, an atlas past the room is never read, and one the device refuses is reported
 // and leaves its mesh to its clusters. Fails on develop: `feed.ts` is not there.

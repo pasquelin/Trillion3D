@@ -88,7 +88,7 @@ ${BLEND_DIAGNOSTIC_WGSL}
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
-  // Lit, the surface is seen through the fog; unlit, it keeps what it emits (#1362).
+  // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }else{rgb+=s.emissive;}
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);

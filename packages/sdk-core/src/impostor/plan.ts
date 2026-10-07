@@ -1,5 +1,5 @@
 /**
- * THE RUNTIME PLAN of the impostor tier (#1239, "When to switch"). The bake (#817 part 1) gives, per
+ * THE RUNTIME PLAN of the impostor tier ("When to switch"). The bake gives, per
  * drawn mesh, its three atlas maps and the four numbers the switch reads; this turns them, the
  * placements and the view into the cards to draw and the roots whose clusters the cut suppresses.
  *

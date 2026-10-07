@@ -1,4 +1,4 @@
-// `scene.fog` (#345): a fog set, or its colour written, is heard by the world, which writes it
+// `scene.fog`: a fog set, or its colour written, is heard by the world, which writes it
 // with the lights before the next frame, like exposure; the lighting reads its linear colour; a
 // fog out of range is refused where it is set; a saved scene keeps it, height fog included.
 import assert from 'node:assert/strict'

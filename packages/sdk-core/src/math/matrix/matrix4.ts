@@ -22,7 +22,7 @@ export type NumberSink = { [index: number]: number }
  * into an owned buffer: sixteen numbers copied once per root or distinct matrix, against
  * one polymorphic site for thousands of nodes. Single precision is a SEND conversion:
  * it is done by copying the result into the GPU buffer, never by writing here, and changes
- * no bit — each term is computed in double then rounded once, as before.
+ * no bit — each term is computed in double then rounded once.
  *
  * The sixteen write indices are constants. An output offset as a parameter would make them
  * computed, hence payable of an add and a bounds check each: measured at 6% of the whole

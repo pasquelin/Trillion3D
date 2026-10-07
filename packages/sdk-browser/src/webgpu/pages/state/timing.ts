@@ -33,7 +33,7 @@ export interface WebgpuTimingState {
   lastGpuPassMs: GpuPassTimings | null
   lastGpuFrameMs: number | null
   lastGpuHostGapMs: number | null
-  /** The last sample's device idle since the image before it (`idleBetweenMs`, #1451); `null`
+  /** The last sample's device idle since the image before it (`idleBetweenMs`); `null`
    *  when that sample had no neighbour to measure from. */
   lastGpuIdleMs: number | null
   lastSubmitMs: number | null

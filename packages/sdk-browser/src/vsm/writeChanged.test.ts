@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { vsmWriteChanged, vsmWriteChangedCopy } from './writeChanged.ts'
+import { vsmWriteChanged, vsmWriteChangedCopy, vsmWriteChangedRecords } from './writeChanged.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -58,4 +58,30 @@ test('a buffer copied from another holds its words: the next write sends what di
   vsmWriteChanged(device, target, next, 0, 128)
   replayWrites(gpu.buffer, writes)
   assert.deepEqual(gpu, next)
+})
+
+test('a sparse table compared on the records it may have changed sends what a whole compare sends', () => {
+  const whole = fakeDevice(),
+    records = fakeDevice()
+  const words = (8192 + 64) * 4
+  const usage = GPUBufferUsage.COPY_DST,
+    a = whole.device.createBuffer({ label: 'whole', size: words * 4, usage }),
+    b = records.device.createBuffer({ label: 'records', size: words * 4, usage })
+  const image = new Uint32Array(words),
+    replayed = new Uint32Array(words),
+    sent = new Uint32Array(words)
+  let held: number[] = []
+  // Frames that drop the last frame's records and take others, some kept from one to the next.
+  for (const ids of [[3, 8192, 8200], [3, 8193, 8201, 8250], [8193], [5, 8250, 8255]]) {
+    for (const id of held) image.fill(0, id * 4, id * 4 + 4)
+    for (const id of ids) image.set([1, id, id + 1, id + 2], id * 4)
+    const touched = [...new Set([...held, ...ids])].sort((x, y) => x - y)
+    held = ids
+    vsmWriteChanged(whole.device, a, image, 0, words)
+    vsmWriteChangedRecords(records.device, b, image, touched, touched.length, 4)
+    replayWrites(replayed.buffer, records.writes.splice(0))
+    replayWrites(sent.buffer, whole.writes.splice(0))
+    assert.deepEqual(replayed, image, 'the buffer holds the image')
+    assert.deepEqual(replayed, sent, 'the same words as a whole compare sends')
+  }
 })

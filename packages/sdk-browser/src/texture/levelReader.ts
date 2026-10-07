@@ -22,7 +22,7 @@ export type TextureLevelRequest = {
   /** Which format. */
   format: TextureLevelFormat
   /** The level's own address, when the cache lists one — an impostor atlas level
-   *  (`maps.<name>.levels[k].url`, #1239). Read through this same reader, resolved against `base`,
+   *  (`maps.<name>.levels[k].url`). Read through this same reader, resolved against `base`,
    *  in place of the `textures.url` template: one loader, one budget. */
   url?: string
   /** A block level's bytes to read alone — one tile's record (`tileRecords.ts`) —, by an HTTP
@@ -59,7 +59,7 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * the main thread, with exactly the options the prepared scene decodes its source images with
  * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the
  * bytes that reach the atlas by this path are those that reached it by the other. A block level
- * is read as bytes — one tile's record by an HTTP Range (#962), or the whole file —, whose length
+ * is read as bytes — one tile's record by an HTTP Range, or the whole file —, whose length
  * `heldLevels.ts` checks. A cache whose levels are of another version is refused before
  * any read (`assertCacheIdentity`).
  *

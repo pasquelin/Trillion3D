@@ -1,4 +1,4 @@
-//! The root's lists (#575): the rows a view holds, bound by the view and not by the world, and the
+//! The root's lists: the rows a view holds, bound by the view and not by the world, and the
 //! core parents under each page. Each is checked against the cell files themselves, counted here
 //! apart from the cook's own fold (`partition/pages/rows.rs`).
 //!

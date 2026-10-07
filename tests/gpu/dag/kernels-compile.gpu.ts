@@ -1,4 +1,4 @@
-// Every stage of the DAG selection kernel compiles and validates on the machine's device (#922):
+// Every stage of the DAG selection kernel compiles and validates on the machine's device:
 // the text the engine compiles (`shader.ts`, the normal cone and the cut kernels it feeds) under
 // each screen-error variant (`withScreenErrorVariant`, as `pipeline.ts` renders it), then the
 // engine's own stages (`createDagStages`) with and without the `SPLIT` override. The Node gate only

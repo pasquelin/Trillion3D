@@ -1,4 +1,4 @@
-// What a frame asks of the CPU for the transparent order (#831, GPU wave 1): the frustum verdict,
+// What a frame asks of the CPU for the transparent order: the frustum verdict,
 // and the keys and order of the own entries only. A pass of one class — the ordinary scene — has
 // none: no key, no sort, no per-item word sent; the GPU orders it.
 import test from 'node:test'

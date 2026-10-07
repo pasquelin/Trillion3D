@@ -73,7 +73,7 @@ export function writeWebgpuVisibilityUniforms(
   shadeInts[20] = tableRows
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0
-  // The depth material's ramp: white at the near plane, black at the far one (#365).
+  // The depth material's ramp: white at the near plane, black at the far one.
   const { near, far, perspective } = run.gate.cam
   writeDepthRamp(shadeUniPacked, DEPTH_RAMP_WORD, near, far, perspective)
   shadeInts[21] = SHADE_MODE[diagnostic] ?? 0

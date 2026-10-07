@@ -4,13 +4,13 @@ import { noteRewritten } from './render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 
 /**
- * A dynamic geometry's rewrites on WebGPU (#573). `updateVertices` writes its rewritten lists in
+ * A dynamic geometry's rewrites on WebGPU. `updateVertices` writes its rewritten lists in
  * place — its block of the float vertex pool (`../core/geometryPool.ts`), placed in the pool's
  * room when a record took it since the open, a transparent item's own positions —, then stales its
  * shadow pages: no buffer allocated, no table rebuilt; false when the device bounds the pool, and
- * the owner opens the session again. A mount past the room the open left grows the pool in place
- * (#1293), so it never opens the session for it. Its roots hold `reach`, how far a vertex moved from
- * where its pages are bounded, and its pages' rows the box `boxes` gives each (`noteRewritten`).
+ * the owner opens the session again. A mount past the room the open left grows the pool in place,
+ * so it never opens the session for it. Its roots hold `reach`, how far a vertex moved from where
+ * its pages are bounded, and its pages' rows the box `boxes` gives each (`noteRewritten`).
  * `vertexBytes` weighs what that sends: each list in the pool, a normal with its tangent, and the
  * positions again for a transparent item that owns them.
  */
@@ -36,7 +36,7 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     noteRewritten(rt, attributes, box, reach, boxes)
     // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
     // walks no world — the row table, its occluder history and its corners are kept. A host pose
-    // write still unread stays owed (`engineWriting`) and is walked as before.
+    // write still unread stays owed (`engineWriting`) and is walked.
     run.gate.engineMovedInPlace()
     return true
   },

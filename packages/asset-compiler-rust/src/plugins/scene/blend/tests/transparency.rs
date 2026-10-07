@@ -74,7 +74,7 @@ fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
 }
 
 // Behaviour: a file older than Blender 4.2 declares its own transparency mode, and its SDNA does
-// not yet describe surface rendering. The cut-off mode becomes a glTF mask, with the threshold
+// not describe surface rendering. The cut-off mode becomes a glTF mask, with the threshold
 // the file carries.
 #[test]
 fn an_older_file_takes_its_alpha_mode_from_its_own_blend_method() {

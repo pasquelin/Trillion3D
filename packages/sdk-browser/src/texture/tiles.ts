@@ -33,7 +33,7 @@ const TILES_PER_ROW = 30
 /**
  * The layer's side is the tile grid rounded up to a power of two, and a tap snaps its in-tile
  * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the
- * sampler filters with the same weights wherever the streamer placed the tile (#26).
+ * sampler filters with the same weights wherever the streamer placed the tile.
  */
 export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH))
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */

@@ -1,6 +1,6 @@
 // The bounce sizes read before any pass is built — the binding plan (`limits.ts`) and the memory
 // budget's probe share (`../residency/shadowBudgetBytes.ts`) — kept apart from the shader texts, so
-// that the CDN core, which holds the budget, holds none of the WebGPU passes (#1353).
+// that the CDN core, which holds the budget, holds none of the WebGPU passes.
 
 /** Header words of the resident proxy, before the first column (`nodeWgsl.ts`). */
 export const PROXY_HEADER_WORDS = 17

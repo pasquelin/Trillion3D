@@ -88,7 +88,7 @@ export async function prepare(
   return {
     ...manifest,
     // What the run measured of itself is on the pointer alone: the manifest on disk describes the
-    // product, the same bytes whatever the cache held (#1370), and an older head's report is not
+    // product, the same bytes whatever the cache held, and an older head's report is not
     // this run's.
     metrics: pointer.metrics,
     reusedPages: pointer.reusedPages ?? null,

@@ -1,4 +1,4 @@
-//! The sampled Hausdorff distance raised to a floor the caller already holds (#977): a sample stops
+//! The sampled Hausdorff distance raised to a floor the caller already holds: a sample stops
 //! at the first triangle within the floor, so only the samples that can raise the result are
 //! measured exactly, and the result is the full measure's raised to the floor, bit for bit.
 use super::{at, lerp, Grid, P};
@@ -108,7 +108,8 @@ pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f
 mod tests {
     use super::*;
 
-    /// The samples of one triangle as #956 took them: corners, edge midpoints, centroid.
+    /// The samples of one triangle as the serial measure takes them: corners, edge midpoints,
+    /// centroid.
     fn samples(pos: &[f32], tri: &[u32]) -> [P; 7] {
         let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
         let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);

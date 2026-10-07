@@ -1,4 +1,4 @@
-// A created material given to a drawable (#847): worn in the variant its geometry asks for, the
+// A created material given to a drawable: worn in the variant its geometry asks for, the
 // class its meshes leave taken over all of them, and what an engine lays out at open refused by
 // name before any write.
 import test from 'node:test'

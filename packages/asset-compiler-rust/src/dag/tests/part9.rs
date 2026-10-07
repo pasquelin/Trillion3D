@@ -1,4 +1,4 @@
-//! A thin part keeps its silhouette within the error of every cut, or leaves under it (#484).
+//! A thin part keeps its silhouette within the error of every cut, or leaves under it.
 use super::part8::Shaded;
 use super::*;
 

@@ -139,7 +139,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     shadeVisibility(expected, pages, locations, engineCamera(cam), [32, 32]),
   )
   assert.equal(image.maxChannelError, 0)
-  // No map: no colour pool is allocated, the white fill reads the stand-in (#1345).
+  // No map: no colour pool is allocated, the white fill reads the stand-in.
   assert.equal(
     textures.find((t) => t.format === 'rgba8unorm-srgb'),
     undefined,

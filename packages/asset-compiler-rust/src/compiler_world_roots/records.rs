@@ -1,7 +1,7 @@
-//! The world-roots table and DAG as fixed-size little-endian records (#1232; docs/FORMAT.md,
+//! The world-roots table and DAG as fixed-size little-endian records (docs/FORMAT.md,
 //! World super-roots): `world-roots.table`, what a load reads — the bundles, pages, cells and
 //! placed objects —, and `world-roots.dag`, what the world stream reads on its first use — every
-//! world cluster and the group list (#1238). A reader views each record at its rank on the bytes,
+//! world cluster and the group list. A reader views each record at its rank on the bytes,
 //! as it views a page in its bundle: never one string of the whole world, which a JavaScript
 //! engine refuses past 512 MiB (the open world's table was 866 MiB as JSON).
 //!

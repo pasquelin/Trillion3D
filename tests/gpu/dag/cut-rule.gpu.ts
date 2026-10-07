@@ -1,5 +1,5 @@
 // The cut rule run by the WGSL kernel itself, on the synthetic DAG of the rule's tests with pages
-// missing (#486): on every frame the pages `dagMask` flags drawn are those the kernel's CPU model
+// missing: on every frame the pages `dagMask` flags drawn are those the kernel's CPU model
 // draws, and they cover each leaf exactly once. Full residency is the witness frame; the random
 // frames are where a page is missing and the nearest resident ancestor must stand in for it.
 import test from 'node:test'

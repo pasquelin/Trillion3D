@@ -38,9 +38,9 @@ async function passLayouts() {
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
     'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
-    // The lit resolve recomputes it too, reading the float pool through one binding (#1410).
+    // The lit resolve recomputes it too, reading the float pool through one binding.
     'deferred lighting': createDeferredLightingLayout(device, true),
-    // With bounce: its probes and surface cache are atlases, no storage buffer (#1410).
+    // With bounce: its probes and surface cache are atlases, no storage buffer.
     'deferred lighting with bounce': createDeferredLightingLayout(device, true, true),
     'material cache rows': cache.bindGroupLayouts[0],
     'material cache triangles': cache.bindGroupLayouts[1],
@@ -67,14 +67,14 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
         count <= GUARANTEED_STORAGE_BUFFERS_PER_STAGE,
         `${name} binds ${count} storage buffers at stage ${stage}, above the ${GUARANTEED_STORAGE_BUFFERS_PER_STAGE} guaranteed`,
       )
-      // The buffers moved to atlases (#1410) are textures: they hold the textures' own limit.
+      // The buffers moved to atlases are textures: they hold the textures' own limit.
       const textures = seen.filter((entry) => entry.texture).length
       assert.ok(textures <= 16, `${name} samples ${textures} textures at stage ${stage}, over 16`)
     }
   }
 })
 
-// Defect this test catches (#816): a stage reads a binding its layout does not show it. The
+// Defect this test catches: a stage reads a binding its layout does not show it. The
 // visibility fragment came to read `uni` (the texture level bias of `atlasLod`) while the layout
 // gave the uniform to the vertex stage alone; the device refused the pipeline and no WebGPU scene
 // opened. Each entry point's reach is read from the shipped text, its calls followed.

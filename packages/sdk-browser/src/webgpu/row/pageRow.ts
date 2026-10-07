@@ -33,6 +33,9 @@ export const ROW_MATERIAL_CLASS_WORD = 63
 /** Row word that holds how many indices the page draws: what the GPU reads to draw it, and so the
  *  only vertex count an image walk needs to reread. */
 export const ROW_INDEX_WORDS = 25
+/** Row word of the page's place in the geometry pool, in words (`PageInfo.pageOffset`): what a
+ *  slot move writes again, the occupant kept (`writers.ts`, `replace`). */
+export const ROW_OFFSET_WORD = 24
 /**
  * Identifier base of a page-table row: its rank shifted by the triangle bits, leaving zero free for
  * the background. The first write of a row and the compact that moves it both rest on it; two writes

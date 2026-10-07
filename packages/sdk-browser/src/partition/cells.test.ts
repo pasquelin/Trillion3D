@@ -126,7 +126,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
       grown,
       [0, 1].map((at) => [before[at], after[at]]),
     )
-    // The engine is told of the grown buffers only: no row of the old ones is read again.
+    // The engine is told of the grown buffers only: no row of the replaced ones is read again.
     assert.ok(updates.every(([rows]) => after.includes(rows)))
     assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3))
   }

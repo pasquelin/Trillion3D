@@ -28,7 +28,7 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime) {
   const { rows, cornerHold } = rt.layout
   // No partition reads the marks this image clears: the hold goes back to holding nothing, and the
   // partition that reads next forgets every drawable row's history and receives its corners again,
-  // whatever changed in between (#198).
+  // whatever changed in between.
   if (!rt.vis.gpuPartition) {
     cornerHold.epoch = -1
     cornerHold.count = 0

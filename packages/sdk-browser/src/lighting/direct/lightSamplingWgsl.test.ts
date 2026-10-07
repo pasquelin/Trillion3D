@@ -18,8 +18,8 @@ const K = wgslConstants(DIRECT_LIGHTING_WGSL)
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('deferred resolve samples a shadowed list on a ranked image and walks every light otherwise', () => {
-  // Rank zero is the loop from before the batch, unchanged; a moving cell whose list holds no
-  // shadowed light, or a list the draw refuses, takes the same one call site of the sum (#1290).
+  // Rank zero is the plain loop, unchanged; a moving cell whose list holds no
+  // shadowed light, or a list the draw refuses, takes the same one call site of the sum.
   assert.match(
     DIRECT_LIGHTING_WGSL,
     /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!shadowed\|\|slice\.x==TILE_NO_SLICE\|\|!sampledList\(slice\.y\)\)\{return sliceLighting\(rgb,metal,rough,N,V,P,ao,slice\);\}\s*return sampledSliceLighting\(/,
@@ -35,7 +35,7 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   )
 })
 
-test('a moving resolve reads the cell flag, never the list, to choose the sum (#1249)', () => {
+test('a moving resolve reads the cell flag, never the list, to choose the sum', () => {
   const run = (shadowed: boolean, kept = 8, first = 0) => {
     const { contractLighting } = shaderFunctions<{
       contractLighting: (...args: unknown[]) => number
@@ -51,7 +51,7 @@ test('a moving resolve reads the cell flag, never the list, to choose the sum (#
   }
   assert.equal(run(false), 1, 'no shadowed light: the exact full sum the still image shows')
   assert.equal(run(true), 2, 'a shadowed light: the drawn resolve')
-  // A list the drawn resolve would sum in full takes the still image's call (#1290's image ko):
+  // A list the drawn resolve would sum in full takes the still image's call:
   // within the sample budget, past the longest list drawn, or with no room in the pool.
   assert.equal(run(true, LIGHT_SETTINGS.samplesPerPixel), 1, 'within the budget: the full sum')
   assert.equal(run(true, LIGHT_SETTINGS.tileLights + 1), 1, 'past the list: the full sum')
@@ -75,8 +75,8 @@ test('the sample budget is the published setting', () => {
   assert.ok(SAMPLED_RANKS * 0.61803399 < 2 ** 10, 'the rank keeps the fraction its precision')
 })
 
-test("one loop shades the lights of a pixel in full: its cell's list or the scene (#822, #849)", () => {
-  // The sampled weights are recomputed where read (#924): no private array of TILE_LIGHTS weights.
+test("one loop shades the lights of a pixel in full: its cell's list or the scene", () => {
+  // The sampled weights are recomputed where read: no private array of TILE_LIGHTS weights.
   assert.doesNotMatch(sampling, /array<f32,/)
   assert.equal(
     occurrences(sampling, 'lightWeight('),
@@ -92,7 +92,7 @@ test("one loop shades the lights of a pixel in full: its cell's list or the scen
   )
 })
 
-test('a cell reads its list in the pool, or every light where the pool had no room (#849, #1369)', () => {
+test('a cell reads its list in the pool, or every light where the pool had no room', () => {
   const { cellSlice } = shaderFunctions<{ cellSlice: (base: number) => { x: number; y: number } }>(
     DIRECT_LIGHTING_WGSL,
     ['cellSlice'],

@@ -64,7 +64,7 @@ export type MaterialTileInputs = { vis: GPUTextureView; pages: GPUBuffer; unifor
  * classes the image holds change; the tile lists, sized for the largest image yet; one indirect
  * draw per slot, cleared then counted by the classification each image, both dispatches of the
  * caller's compute pass. Without a classification — a device that refused its pipelines — every
- * class takes no slot and draws the full-screen triangle, as before.
+ * class takes no slot and draws the full-screen triangle.
  */
 export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBindGroupLayout) {
   const classify = await classifier(device)

@@ -1,5 +1,5 @@
 /**
- * A light costs what it holds (#944): its kind, its colours, its target, its coefficients and its
+ * A light costs what it holds: its kind, its colours, its target, its coefficients and its
  * numbers. The flag lives on the class; its colours and its target's place hear it only while it
  * is in a world, so the lights the engine builds for itself hold no listener of theirs: a colour
  * written outside a world is counted (`nodeWrites`), nothing more.

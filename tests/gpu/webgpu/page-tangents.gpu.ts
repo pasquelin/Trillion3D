@@ -1,4 +1,4 @@
-// #875: a paged surface draws its normal map as its unpaged twin does. A geometry page stores no
+// A paged surface draws its normal map as its unpaged twin does. A geometry page stores no
 // tangent: a paged transparent rebuilds its frame from screen derivatives
 // (`webgpu/blend/shaderSurface.ts`), a paged opaque one from its triangle's texture coordinates
 // (`visibility/shader/shadeWgsl.ts`). The unpaged twin, a `shared-blend` primitive, is drawn forward

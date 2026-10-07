@@ -14,7 +14,7 @@ import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts'
  * point and that edge. Each term reads its edge as the difference of its corners, whole even for
  * a light far away (two close f32 corners subtract exactly), and its angle as
  * atan2(|p × e|, p·q), never acos of the dot of two unit corners nor their cross, which lose the
- * angle a far edge subtends (#831: up to 59 % off at 1 000 sizes away). A polygon cut by the
+ * angle a far edge subtends (up to 59 % off at 1 000 sizes away). A polygon cut by the
  * horizon is clipped to it, exactly: each edge cut where it crosses,
  * the outline closed by the horizon's arc from where it leaves to where it comes back, an arc whose
  * plane is the horizon's own. Whole above, the form factor is F·z; whole below, zero.

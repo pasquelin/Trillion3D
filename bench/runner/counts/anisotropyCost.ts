@@ -1,4 +1,4 @@
-// What anisotropic filtering costs the WebGPU engine (#360, #361): one floor with detail at every
+// What anisotropic filtering costs the WebGPU engine: one floor with detail at every
 // texel, seen at a grazing angle, drawn at each anisotropy asked — 1 and 16 by default — by the
 // engine's sources on Dawn in this process (`tests/gpu/kit/onDawn.ts`), under the machine's bench
 // lock, and the p50 GPU time of its images printed side by side. The page is

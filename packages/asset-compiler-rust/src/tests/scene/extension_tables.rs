@@ -1,6 +1,6 @@
 //! Correctness of `scene-tables.json` beyond the fields the engine record reads: the lights the
 //! nodes hang, a blended surface, and the physical extensions a surface declares, written under
-//! the host's own parameter names so that nothing a surface declares is lost on the way (#272).
+//! the host's own parameter names so that nothing a surface declares is lost on the way.
 //!
 //! Provenance of every case: the glTF the compilation itself publishes as `source.gltf`, built
 //! here from the repository's own triangle fixture (`tests/base.rs`); each case names the glTF
@@ -111,7 +111,7 @@ fn morph_targets_and_their_weights_are_laid_out() {
     assert_eq!(tables["nodes"][0]["weights"], json!([0.25]));
 }
 
-// Issue #275: a texture whose only image is an extension's (`EXT_texture_webp`,
+// A texture whose only image is an extension's (`EXT_texture_webp`,
 // `EXT_texture_avif`) keeps it, as the table publishes it — the extension's first,
 // before the core `source`.
 #[test]

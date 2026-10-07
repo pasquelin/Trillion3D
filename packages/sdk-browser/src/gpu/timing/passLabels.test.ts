@@ -1,4 +1,4 @@
-// #685: the GPU timing names a timed pass by its label, or else by the method that began it
+// The GPU timing names a timed pass by its label, or else by the method that began it
 // (`encoder.ts`), and a ranking cannot attribute a span named `beginRenderPass`. Every pass the
 // engine begins is read here from the source: its descriptor, inline or declared before the call
 // in the same module, opens with its label. A new pass without one fails this test, never the

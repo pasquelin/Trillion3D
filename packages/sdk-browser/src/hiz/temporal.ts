@@ -207,7 +207,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   pixelRatio = DEFAULT_PIXEL_RATIO,
 ): {
   shown: T[]
-  /** The packed rank of each shown page, rank by rank (#1235). */
+  /** The packed rank of each shown page, rank by rank. */
   shownPacked: number[]
   hizRejected: number
   occluders: T[]

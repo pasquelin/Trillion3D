@@ -8,8 +8,8 @@ import {
 
 /**
  * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
- * row takes at most, never on the frame. `slotUsed` starts as one everywhere, so a caller that counts nothing still pays the full
- * compact, exactly as before.
+ * row takes at most, never on the frame. `slotUsed` starts as one everywhere, so a caller that
+ * counts nothing still pays the full compact.
  */
 export function createGpuDrawBuffers(
   device: GPUDevice,

@@ -1,5 +1,5 @@
 /**
- * A CANVAS WHOSE IMAGE OUTLIVES ITS SESSION (#837). A world draws one canvas through every session
+ * A CANVAS WHOSE IMAGE OUTLIVES ITS SESSION. A world draws one canvas through every session
  * it opens: when one closes — its device lost, an option it cannot take in place — the image it
  * showed stays on screen until the next session has drawn its own, never a blank frame between.
  *

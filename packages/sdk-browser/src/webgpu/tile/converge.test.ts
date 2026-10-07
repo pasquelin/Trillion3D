@@ -20,7 +20,7 @@ test('tiles or shadow pages that landed during the barrier restart the still TAA
   assert.equal(mustRestartTaaAfterSettle(0, 3), true)
 })
 
-// #1016: a pixel named ONE map, blend level and tap, picked by its position. A sliver of a
+// A pixel named ONE map, blend level and tap, picked by its position. A sliver of a
 // surface — three pixels at the edge of a lamp — named nothing it reads, and the settled image
 // read what the pool kept of the run before. A convergence image now runs through every pick of
 // every pixel and names the first whose tile the table does not hold at its level.
@@ -64,7 +64,7 @@ test('a convergence image names, per pixel, the first of all its picks whose til
   }
 })
 
-// #1016 review: the barrier converged only at the jitter of the image it replays; the still
+// The barrier must not converge only at the jitter of the image it replays; the still
 // frames average eight others, whose slivers named tiles that landed during the average, when
 // the readback happened to come back. A capture's barrier converges a whole round of phases.
 test("a capture's convergence stops on a quiet round of the still phases, closing on the replayed one", () => {
@@ -80,7 +80,7 @@ test("a capture's convergence stops on a quiet round of the still phases, closin
   assert.equal(texturesConverged(1, 1, 0, 0, false), true, 'no accumulation: one quiet image')
 })
 
-// #1016 review: a round of the still phases outnumbers the 64 turns at a low render scale (8 per
+// A round of the still phases outnumbers the 64 turns at a low render scale (8 per
 // (display / render)²): a barrier whose last tile landed late never had a whole quiet round left.
 test('a convergence always has room for a quiet round after a tile served on its last turn', () => {
   for (const phases of [1, 8, 32, 128]) {
@@ -95,7 +95,7 @@ test('a convergence always has room for a quiet round after a tile served on its
   }
 })
 
-// #1016: casters that land after the drain's last image changed nothing a shadow map saw. The
+// Casters that land after the drain's last image changed nothing a shadow map saw. The
 // barrier ended there, and their pages were drawn again during the still average, as each
 // session's streaming happened to time them. A landing after the last image now draws one more.
 test('a page made resident after the last drain image draws one more image', () => {

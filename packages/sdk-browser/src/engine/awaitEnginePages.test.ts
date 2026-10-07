@@ -80,7 +80,7 @@ test('awaitPages returns on a fixed search, its pages resident', async () => {
   assert.deepEqual([...resident], [4], 'only the pages of the fixed cut were loaded')
 })
 
-test('a wait for pages alone asks every flush for no image (#408)', async () => {
+test('a wait for pages alone asks every flush for no image', async () => {
   const asked: unknown[] = []
   const backend = {
     render() {},
@@ -93,7 +93,7 @@ test('a wait for pages alone asks every flush for no image (#408)', async () => 
   assert.deepEqual(asked, [{ image: false }, { image: false }, { image: false }])
 })
 
-test('load hears the pages the cut lacks, and is heard with none once the frames read them (#408)', async () => {
+test('load hears the pages the cut lacks, and is heard with none once the frames read them', async () => {
   const heard: string[][] = []
   const load = async (missing: string[]) => void heard.push(missing)
   const backend = (urls: string[]) => ({

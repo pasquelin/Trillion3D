@@ -1,4 +1,4 @@
-// Batch F oracle, scene side: `packages/sdk-browser/src/world/scene/scene.ts:18-36` from before batch F,
+// Oracle, scene side: `packages/sdk-browser/src/world/scene/scene.ts:18-36`,
 // copied as-is (the page-source side is in `manifest-index.ts`).
 import * as THREE from 'three'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
@@ -7,7 +7,7 @@ import type { EngineContext } from '../../../packages/sdk-browser/src/engine/typ
 import { meshes as objects } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
-/** `pagesBounds` before batch F: one `find` per mesh, three objects per exact page. */
+/** `pagesBounds`: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
   source: Object3D,
   associations: EngineContext['associations'],

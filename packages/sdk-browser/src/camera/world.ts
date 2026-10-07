@@ -124,7 +124,7 @@ const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
  * (field, aspect, near plane, zoom) in its own depth convention — reversed, infinite far
  * plane — because the host matrix carries its library's and a finite far plane. `camera.far`
  * is still read as-is for what still depends on it (adaptive threshold, shadow range) and
- * for the frustum far plane, which keeps it; it no longer enters any depth. `writeEngineCamera`
+ * for the frustum far plane, which keeps it; it enters no depth. `writeEngineCamera`
  * then rebuilds the view by inverting the world matrix, the view-projection and the six
  * frustum planes, once for the whole frame.
  */

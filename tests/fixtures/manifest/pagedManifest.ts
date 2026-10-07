@@ -12,7 +12,7 @@ import { encodeManifestBinary } from './manifestBinaryEncode.ts'
 export const EMPTY = '0'.repeat(168)
 
 /** `manifest`'s root and files: a head page, one mesh page — one per primitive when `cut`, as the
- *  compiler cuts them under 128 KiB (#792) —, under an index page when `index`. */
+ *  compiler cuts them under 128 KiB —, under an index page when `index`. */
 export function pagedManifest(manifest: ClusterManifest, index = false, cut = false) {
   const files = new Map<string, Uint8Array<ArrayBuffer>>()
   const put = (bytes: Uint8Array<ArrayBuffer>, extension: string) => {

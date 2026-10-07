@@ -1,7 +1,7 @@
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
  *
- * Everything a frame used to decide row by row on the CPU — projecting boxes into screen
+ * Everything a frame decides row by row — projecting boxes into screen
  * rectangles, occluder/tested split, packing the occlusion-test bounds — is written by compute
  * kernels into these three buffers. The CPU rereads only `state`, and only on the periodic-
  * sample cadence.

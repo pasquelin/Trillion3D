@@ -18,14 +18,14 @@ import type { DepthCamera } from '../../../packages/sdk-browser/src/camera/depth
 import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
 import { unpackVisibilityId } from './cpu-image/ids.ts'
 
-/** A page with the world of its root, which pages carried before #1226. */
+/** A page with the world of its root, which the oracle reads on the page. */
 type Placed = VisPage & { matrix: MatrixElements }
 
 /** The oracle compares per-frame caching, not the camera read: it copies the host
  *  camera as the frame input does, and shading reads the same. */
 const engineScratch = createEngineCamera()
 
-/** `bench/oracles/browser/cpu-image/shadePixel.ts:15-63` before batch A: the surface record and the triangle per pixel. */
+/** `bench/oracles/browser/cpu-image/shadePixel.ts:15-63`: the surface record and the triangle per pixel. */
 function referenceShadePixel(
   id: number,
   pages: readonly (Placed | undefined)[],
@@ -77,7 +77,7 @@ function referenceShadePixel(
   return encode(rgb)
 }
 
-/** `bench/oracles/browser/cpu-image/shade.ts:8-34` before batch A. */
+/** `bench/oracles/browser/cpu-image/shade.ts:8-34`. */
 export function referenceShadeVisibility(
   ids: Uint32Array,
   pages: readonly (Placed | undefined)[],

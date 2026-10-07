@@ -1,5 +1,5 @@
 //! Correctness of `scene-tables.json`, the node table and the geometry layout of each published
-//! document (#287, #272). Its material table is proven by `surface_tables.rs`.
+//! document. Its material table is proven by `surface_tables.rs`.
 //!
 //! Provenance of every case: the glTF the compilation itself publishes as `source.gltf`, built
 //! here from the repository's own triangle fixture (`tests/base.rs`) — no asset is read from

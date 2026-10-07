@@ -1,7 +1,7 @@
 /**
  * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
  * cut's per-page state is kept in, so its size follows what the view and the pool hold, never the
- * catalogue (#483 rule 6). An absent id reads 0; writing 0 removes it.
+ * catalogue. An absent id reads 0; writing 0 removes it.
  *
  * Open addressing with linear probing on two typed arrays, and backward-shift removal, so no
  * tombstone ever lengthens a probe. The table doubles past half full and never holds storage

@@ -27,14 +27,21 @@ export function decideComposedMotion(
   if (!state?.gpu || state.frame !== rt.run.frame) return
   if (!state.motionBound || state.motionBound !== rt.gpu.temporal?.motion.buffer) return
   state.motionMode[0] = mode
-  packDoubles(state.motionMode, 2, [eye[0], eye[1], eye[2]])
+  packDoubles(state.motionMode, 2, eye, 0, 3)
   device.queue.writeBuffer(state.gpu.motionMode, 0, state.motionMode)
 }
 
-/** Writes `values` as doubles in the shader's form, high word then low word, from word `at`. */
-export function packDoubles(out: Uint32Array, at: number, values: ArrayLike<number>) {
-  for (let k = 0; k < values.length; k++) {
-    cell[0] = values[k]
+/** Writes `count` of `values` from `from` — all of them by default — as doubles in the shader's
+ *  form, high word then low word, from word `at`. */
+export function packDoubles(
+  out: Uint32Array,
+  at: number,
+  values: ArrayLike<number>,
+  from = 0,
+  count = values.length - from,
+) {
+  for (let k = 0; k < count; k++) {
+    cell[0] = values[from + k]
     out[at + k * 2] = cellWords[1]
     out[at + k * 2 + 1] = cellWords[0]
   }

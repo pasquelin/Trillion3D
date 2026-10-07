@@ -3,8 +3,8 @@ import { SELECTION_LIST_CAP } from '../layout.ts'
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
  *
- * Cone, box and residency lived in a forty-eight-byte structure that the five frame passes read
- * whole, most of the time to take only a flag. The buffer is now an array of words: the working
+ * Cone, box and residency in a forty-eight-byte structure would be read whole by the five frame
+ * passes, most of the time to take only a flag. The buffer is an array of words: the working
  * table first — one word per page, its placement —, then the three residency bit sets — one word
  * for thirty-two pages, hence one cache line for five hundred —, then the key column (`../evict.ts`),
  * then the cold records, one per UNIQUE cluster, which the opening pass reads cone and box from.

@@ -48,14 +48,14 @@ test('a point seen on the last image takes its unfogged colour there', () => {
   assert.deepEqual(fixture().source(), [3, 5, 7, 1])
 })
 
-// #1342: a point hidden on the last image was reprojected onto its occluder and took its colour.
+// A point hidden on the last image was reprojected onto its occluder and took its colour.
 test('a point hidden on the last image misses: its depth there is another surface', () => {
   const f = fixture()
   f.samples.lastDepth = 0.6
   assert.deepEqual(f.source(), [0, 0, 0, 0])
 })
 
-// #1342: without the temporal pass a mover was found where it is and coloured where it was.
+// Without the temporal pass a mover was found where it is and coloured where it was.
 test('while a placement moved that no live motion follows, a point on another triangle misses', () => {
   const f = fixture()
   f.samples.lastIds = [0x108, 0, 0, 0]

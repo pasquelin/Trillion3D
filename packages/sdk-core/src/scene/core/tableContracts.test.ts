@@ -35,7 +35,7 @@ test('tables of an unknown version are refused rather than half-read', () => {
       () => assertSceneTables({ ...tables(), [field]: 1 }),
       hasCode('UNSUPPORTED_SCENE_TABLES', `${field} 1`),
     )
-  // #519: a node table of version 3 says no node's visibility; it is refused, never read visible.
+  // A node table of version 3 says no node's visibility; it is refused, never read visible.
   assert.throws(
     () => assertSceneTables({ ...tables(), nodeTableVersion: 3 }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'nodeTableVersion 3'),
@@ -44,7 +44,7 @@ test('tables of an unknown version are refused rather than half-read', () => {
     () => assertSceneTables({ ...tables(), geometryTableVersion: 99 }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'geometryTableVersion 99'),
   )
-  // Issue #275: the refusal says what to do — recompile the cache, and with which command.
+  // The refusal says what to do — recompile the cache, and with which command.
   assert.throws(
     () => assertSceneTables({ ...tables(), materialTableVersion: 3 }),
     hasCode(
@@ -96,7 +96,7 @@ test('a partition root of another version or shape is refused, and a cell is rea
     () => assertSceneTables({ ...tables(), partition: { ...partition, version: 3 } }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'partition version 3'),
   )
-  // The rows and parents a root carries are fixed-width hexadecimal (#575).
+  // The rows and parents a root carries are fixed-width hexadecimal.
   for (const shape of [{ meshes: [7] }, { meshes: ['0'.repeat(16)] }, { parents: ['a'] }])
     assert.throws(
       () => assertSceneTables({ ...tables(), partition: { ...partition, ...shape } }),

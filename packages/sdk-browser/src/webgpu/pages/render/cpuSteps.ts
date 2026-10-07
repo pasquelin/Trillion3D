@@ -103,7 +103,7 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
  * Closes the image on the host side: bounds the host samples after the render belong to the image
  * that just drew, so the row is filed only here. An image that has not filled a row — an image
  * waiting for coverage — deposits nothing rather than a row of zeros. Nor does an image no one
- * profiles (#1353): the windows are filed in debug mode, for the stage profile, or for a listened
+ * profiles: the windows are filed in debug mode, for the stage profile, or for a listened
  * channel or the frame audit, which publish them.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {

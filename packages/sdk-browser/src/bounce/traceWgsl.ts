@@ -16,7 +16,7 @@ import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
  * opened. That is what replaces the one-step-per-node descent of the binary tree, where
  * the traversal bound ran out before the leaf on a city's proxy.
  *
- * Three bounds known before the frame (X2): visited nodes (the built tree's bound plus the
+ * Three bounds known before the frame: visited nodes (the built tree's bound plus the
  * nodes a refit let into a ray, written with the tree: `proxy.steps`), triangles of a leaf,
  * and stack depth — a wide node stacks three at most, and the tree is balanced by
  * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and never leaks.

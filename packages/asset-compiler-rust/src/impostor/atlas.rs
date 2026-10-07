@@ -1,6 +1,6 @@
 //! An atlas made ready for the card: empty texels dilated inside their frame, every map's mip
 //! chain reduced by the texture rule (`texture_preview::reduce::chain`) down to frames of four
-//! texels — the colour map as a coverage chain, whose levels keep level 0's coverage (#44) —,
+//! texels — the colour map as a coverage chain, whose levels keep level 0's coverage —,
 //! each level stored as a
 //! lossless PNG object, content-addressed like every cache object.
 use super::bake::Atlas;

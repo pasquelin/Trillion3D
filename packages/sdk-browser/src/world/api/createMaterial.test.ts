@@ -1,4 +1,4 @@
-// A page creates a material of its own (#847): its values checked as a change's are, what it does
+// A page creates a material of its own: its values checked as a change's are, what it does
 // not take refused by name,  and a ceiling on how many.
 import test from 'node:test'
 import assert from 'node:assert/strict'

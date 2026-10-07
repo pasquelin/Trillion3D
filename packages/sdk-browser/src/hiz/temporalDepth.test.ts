@@ -1,4 +1,4 @@
-// #1455: the cut's three rasters write one depth buffer its history owns, so the buffer must carry
+// The cut's three rasters write one depth buffer its history owns, so the buffer must carry
 // the whole image every time — widened when the viewport grows, and never carrying a pixel of the
 // image before it. The failure this pins is the quiet one: `hizBuildFlat` refuses a depth shorter
 // than the image (`HIZ_DEPTH_SIZE`) and `webgpu/pages/render/cpu.ts:86-92` swallows that error, so a

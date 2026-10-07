@@ -1,4 +1,4 @@
-// #1344: a shadow page drawn on a still image restarts the still average, else the shadow drawn
+// A shadow page drawn on a still image restarts the still average, else the shadow drawn
 // at rest stays diluted in the average, faint. The virtual shadow maps count the pages they drew
 // (`renderedTotal`, read back a few frames late, `vsmSettle.ts`): each new count is a landing.
 import test from 'node:test'

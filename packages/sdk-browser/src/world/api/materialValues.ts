@@ -108,7 +108,7 @@ export function validate(
 
 /** Writes the patch into one surface in place — drawn in alpha mode `mode` from now on when its
  *  alpha moved — and bumps its version: every reader takes it again at its next read, as a World's
- *  live edit does (`../core/worldSurface.ts`, #335). */
+ * live edit does (`../core/worldSurface.ts`). */
 export function write(surface: GraphSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
   if (patch.baseColor) (surface.color as Color).setRGB(...patch.baseColor)
   if (patch.opacity !== undefined) surface.opacity = patch.opacity

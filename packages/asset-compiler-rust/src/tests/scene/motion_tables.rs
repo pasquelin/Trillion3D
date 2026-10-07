@@ -1,4 +1,4 @@
-//! A skinned, morphed and animated primitive (#357): it joins the DAG, its pages carry its joints,
+//! A skinned, morphed and animated primitive: it joins the DAG, its pages carry its joints,
 //! weights and targets, and the scene tables carry its skin and its clip, so the runtime deforms
 //! it on the GPU without reading the scene's binary.
 use super::*;

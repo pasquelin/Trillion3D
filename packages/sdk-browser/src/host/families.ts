@@ -9,7 +9,7 @@ const told = (error: EngineError) => familyRefusals.forEach((listener) => listen
 const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load, told)
 
 /**
- * The engine's optional families (#1353), each the code of one module the CDN bundle makes a chunk
+ * The engine's optional families, each the code of one module the CDN bundle makes a chunk
  * of its own (`scripts/bundle-fold.ts`, `FAMILY_MODULES`): a page whose scene uses none of them
  * downloads none. A family is started where its use becomes known — the scene's load, which
  * reads its objects and materials, or the public call that enables it — and what uses it waits

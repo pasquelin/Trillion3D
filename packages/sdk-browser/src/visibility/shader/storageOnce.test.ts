@@ -1,5 +1,5 @@
-// S9: the resolve wrote its two storage texels — the thin transmission and the shadow receiver —
-// twice where it found them: zero first, then the value. In one invocation the last write of a
+// The resolve writes its two storage texels — the thin transmission and the shadow receiver —
+// once, never twice (zero first, then the value). In one invocation the last write of a
 // texel wins, so writing only the last value, once, leaves every texel as it was.
 import test from 'node:test'
 import assert from 'node:assert/strict'

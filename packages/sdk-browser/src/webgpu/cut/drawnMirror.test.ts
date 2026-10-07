@@ -6,7 +6,7 @@ import type { GpuCut } from '../../gpu/core/selection.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 // On the GPU path, `drawn` is only a copy of `shown`. Adoption remakes it when the shown list
-// changes; the frame used to remake it unconditionally right after as well. A flag now says
+// changes; the frame does not remake it again. A flag says
 // whether it is already in place, and these tests pin both sides: the helper that decides, and
 // the adoption that raises it exactly when it has just copied.
 

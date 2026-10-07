@@ -89,8 +89,8 @@ test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget'
   assert.ok(report.bottleneckMessage.includes('CPU thread choke'))
 })
 
-// A14: `record()` writes into a circular buffer instead of `push` then `shift()` of the whole
-// array. Oracle: the `push`/`shift` version from before batch A, in
+// `record()` writes into a circular buffer instead of `push` then `shift()` of the whole
+// array. Oracle: the reference `push`/`shift` version, in
 // `../../../../bench/oracles/browser/telemetry.ts`.
 test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
   const max = 5

@@ -21,7 +21,7 @@ export interface InstalledBrowserProof {
 }
 
 /**
- * No hole at full residency (#483 rule 1): at a zero pixel error with every page the view reads
+ * No hole at full residency: at a zero pixel error with every page the view reads
  * resident, the frame draws the scene at full detail, each source triangle once. A hole draws
  * fewer, a coarser stand-in fewer, a surface drawn twice more: each moves `drawnTriangles` off the
  * scene's own count (`INSTALLED_SCENE_TRIANGLES`), which the engine does not report. An

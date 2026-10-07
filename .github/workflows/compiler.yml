@@ -1,11 +1,11 @@
 name: Compiler
 
-# The distributed compiler on its five platforms (#1352): each built on its own runner, trained on
+# The distributed compiler on its five platforms: each built on its own runner, trained on
 # the reference scenes (profile-guided), and its caches of those scenes fingerprinted
 # (`scripts/compiler-dist.ts`); every fingerprint must equal Linux x64's, and on a pull request
 # `develop`'s (`scripts/compiler-hashes.ts`), and each binary's size is printed. The Jolt collider
 # shapes alone may differ from a base whose Jolt cook still fuses multiply-adds: they change once to
-# the unfused bytes (#1352), and the comparison is whole again once that base is merged. It runs on a pull
+# the unfused bytes, and the comparison is whole again once that base is merged. It runs on a pull
 # request that touches what the compiler is built from, and on every release.
 on:
   pull_request:

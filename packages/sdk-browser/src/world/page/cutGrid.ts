@@ -27,7 +27,7 @@ export async function positionGridExponent(
 /**
  * The texture grid exponent the compiler gives a primitive whose texture coordinates span `span`
  * (`uv_grid_exponent`, the same module): the format's 2^-14, or for a `blended` one the finest
- * grid that span fits (#875). `null` when the module is not there.
+ * grid that span fits. `null` when the module is not there.
  */
 export async function textureGridExponent(span: number, blended: boolean) {
   const wasm = await prepareSdkWasm()

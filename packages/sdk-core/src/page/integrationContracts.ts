@@ -27,7 +27,7 @@ export const PAGE_SLICE_STRIDE = 3
 export const SLICE_OFFSET_WORDS = 0
 /** Index words of the record. */
 export const SLICE_WORDS = 1
-/** Page rank, copied from the sheet: the main thread no longer looks it up. */
+/** Page rank, copied from the sheet: the main thread does not look it up. */
 export const SLICE_PAGE_INDEX = 2
 
 /** A message asking a worker to plan where arriving pages go. */

@@ -60,7 +60,7 @@ pub fn lattice(count: usize, cut: Vec<f32>) -> SceneProxy {
     stage_proxy(&inputs).expect("proxy")
 }
 
-/// The flat columns (version 3's, then each source node's mesh, #966), encoded independently of
+/// The flat columns (version 3's, then each source node's mesh), encoded independently of
 /// the sharing writer.
 pub fn flat_file(proxy: &SceneProxy) -> Vec<u8> {
     let p = &proxy.provenance;

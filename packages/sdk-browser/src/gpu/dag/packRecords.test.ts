@@ -1,4 +1,4 @@
-// Placements of one primitive share their cluster records (#4), and the cut does not see it.
+// Placements of one primitive share their cluster records, and the cut does not see it.
 //
 // The reference is the same packing with nothing shared: each placement handed a copy of its
 // culling nodes, so no two placements have the same shape and every one keeps its own records.

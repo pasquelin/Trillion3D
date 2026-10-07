@@ -36,7 +36,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
   // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
   // roots covered are drawn again, static casters included unless every root that flipped was
-  // moving already: the static layer never held those (`../../shadow/mobility.ts`, #990).
+  // moving already: the static layer never held those (`../../shadow/mobility.ts`).
   if (hostWalked) {
     const flipped = followHostVisibility(
       selectionRoots,

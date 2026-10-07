@@ -1,4 +1,4 @@
-// The pages AHEAD of the camera (#488) go through the one residency queue, below the camera's own:
+// The pages AHEAD of the camera go through the one residency queue, below the camera's own:
 // served after every visible page, never pinned, never evicting one, and dropped once the camera
 // stops, so the stopped view drains to full detail.
 import test from 'node:test'

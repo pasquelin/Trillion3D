@@ -3,7 +3,7 @@ import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline, started } from './fullscreen.ts'
 
-/** Red, the as-is share; green, the reactive value (#833). */
+/** Red, the as-is share; green, the reactive value. */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
 /** Bytes per pixel of that format, as the frame's target cost counts them (`targets.ts`). */
 export const AS_IS_SHARE_BYTES = 2
@@ -22,7 +22,7 @@ export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask
 
 /** The seed's program, once a device, compiled off the thread from the first frame entry of a scene
  *  whose transparents or particles can write the share (`askAsIsSeed`): frame targets made again at
- *  another size compile nothing (#1362), and the image that first seeds finds it compiled. */
+ *  another size compile nothing, and the image that first seeds finds it compiled. */
 const seedProgram = oncePerDevice((device) => {
   const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER })
   const layout = device.createBindGroupLayout({

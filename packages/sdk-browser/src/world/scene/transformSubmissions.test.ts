@@ -1,6 +1,6 @@
 // A transform does not draw. It marks the scene modified; the next render takes it.
-// Before this batch, `setTransform` called `syncResident()` on each engine, and that engine
-// rendered at once: ten poses set before a frame cost eleven GPU submits instead of one. This
+// `setTransform` does not call `syncResident()` on each engine, which would render at once: ten
+// poses set before a frame would cost eleven GPU submits instead of one. This
 // test's counter is that of a simulated device — `queue.submit`.
 import test from 'node:test'
 import assert from 'node:assert/strict'

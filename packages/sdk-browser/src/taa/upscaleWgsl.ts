@@ -52,11 +52,11 @@ const stillTapsWgsl = (
  * - the YCoCg box history is clamped to, as at native size.
  * Reprojection starts from the unjittered display-pixel centre at the dilated depth; the history
  * blend is the native resolve's (`taaHistoryBlend`), its `reach` the Lanczos-2 weight of the
- * nearest sample, its distance in display pixels (#833), and the tag written the dilated texel's.
+ * nearest sample, its distance in display pixels, and the tag written the dilated texel's.
  * The as-is share and the display layers (`layers.ts`) follow the colour's weights. A still image
  * weighs each sample by the Blackman-Harris window of one DISPLAY pixel instead, and averages its
  * images by those weights (`stillAverage`, `historyWgsl.ts`): the phases then rebuild the display size's
- * detail, where a render-pixel kernel would soften it (#1343).
+ * detail, where a render-pixel kernel would soften it.
  */
 export const taaUpscaleShader = (
   asIs: boolean,
@@ -77,7 +77,7 @@ ${BLACKMAN_HARRIS_WGSL}
  let last=vec2i(view.render.xy)-vec2i(1);
  let sampled=vec2f(-view.jitter.x,view.jitter.y)-r;
  let nearest=closestSurface(clamp(base,vec2i(0),last),last);
- let near=vec2i(nearest.xy);let nearDepth=nearest.z;let depthSlack=nearest.w;
+ let nearDepth=nearest.depth;let depthSlack=nearest.slope;
  var sum=vec4f(0.0);var total=0.0;var closest=2.0;var blur=vec3f(0.0);
  var lo=vec4f(1e9);var hi=vec4f(-1e9);var ringLo=vec4f(1e9);var ringHi=vec4f(-1e9);
  let resting=view.jitter.z==0.0;let toDisplay=view.viewport.x*view.render.z;
@@ -97,7 +97,7 @@ ${ringWgsl(read)}${stillTapsWgsl(read)} var filtered=clamp(sum/max(total,1e-4),r
  var count=stillTotal;
 ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerWgsl(filtered, 'scaled')} let centre=clamp(base,vec2i(0),last);
  let reach=saturate(lanczos2(closest*toDisplay));
- let nearId=${read.id('near')};let nearPage=pageOf(nearId);let geometry=vec2u(nearPage.identity,bitcast<u32>(nearDepth));
+ let nearId=nearest.id;let nearPage=pageOf(nearId);let geometry=vec2u(nearPage.identity,bitcast<u32>(nearDepth));
 ${MEASURES_WGSL}
  if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,nearId);let previous=previousProjected(before);

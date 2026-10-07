@@ -1,4 +1,4 @@
-// The deferred lighting's frames, recorded: the program each draw is lit with (#849, #1369).
+// The deferred lighting's frames, recorded: the program each draw is lit with.
 import type { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 

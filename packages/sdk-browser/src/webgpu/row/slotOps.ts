@@ -55,6 +55,22 @@ function setResident(s: RowSlots, page: number, resident: boolean) {
   if (!rec.transparent) s.candidates += resident ? 1 : -1
 }
 
+/** A page holding a row written at this table's age whose bytes moved in the pool (a resize, a
+ *  slot taken elsewhere): its row follows its place at once, so it never leaves residency for a
+ *  move — the root cover above all, which no ancestor could draw for it (#1483). The move is
+ *  still announced as the residency change it is, its flag kept: the GPU cut rereads the page's
+ *  range and the image its resources. */
+function followPlace(s: RowSlots, page: number) {
+  const { rows, writers } = s
+  const row = rows.rowOfPage[page],
+    offset = rows.residentOffsetWords[page]
+  if (row < 0 || rows.rowEpoch[row] !== rows.tableEpoch || rows.rowOffsetWords[row] === offset)
+    return
+  writers.replace(row, page, offset)
+  rows.noteResidencyChange(page)
+  s.onResidenceChange(s.recordOf(page)!, page)
+}
+
 /** Re-reads what the cache did with a page and takes back the rank it no longer deserves; true
  *  when it claims a record write: resident, drawing from a row, its rank not yet its place. */
 export function releaseRow(s: RowSlots, page: number) {
@@ -62,6 +78,7 @@ export function releaseRow(s: RowSlots, page: number) {
   const rec = s.recordOf(page)!
   const resident = rows.residentOffsetWords[page] >= 0 && !awaitsPageBytes(rec)
   const wantsRow = resident && s.drawsRow(page)
+  if (wantsRow) followPlace(s, page)
   setResident(s, page, resident && (!wantsRow || rowWritten(s, page)))
   if (wantsRow) return !rows.residentFlags[page]
   const row = rows.rowOfPage[page]
@@ -135,15 +152,16 @@ export function rewriteRows(s: RowSlots) {
   }
 }
 
-/** Arrivals, in catalogue order: while the table has room, or the cut asked for them. */
+/** Arrivals, in catalogue order: while the table has room, or the cut asked for them. A page that
+ *  holds its row takes no other: its record is owed at its own rank, whatever room is left. */
 export function followArrivals(s: RowSlots, budget?: FrameClock) {
   const { rows, claims, demand, free } = s
   sortPages(rows.touched.pages, rows.touched.count)
   for (let i = 0; i < rows.touched.count; i++) {
     const page = rows.touched.pages[i]
     if (!s.release(page)) continue
-    if (demand.wanted(page) || s.count - free.count + claims.count < rows.blendFirst)
-      claims.add(page)
+    const room = s.count - free.count + claims.count < rows.blendFirst
+    if (rows.rowOfPage[page] >= 0 || demand.wanted(page) || room) claims.add(page)
   }
   // No rank left: an arrival no cut asked for waits for none; one asked for counts as denied.
   const refused = (page: number) => void (demand.wanted(page) && s.denied++)

@@ -5,7 +5,7 @@ import { regrownPageTable } from './regrow.ts'
 import { packEntry, tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-// #847: a texture appended after open lays the table out again around what it held — each header,
+// A texture appended after open lays the table out again around what it held — each header,
 // each entry — at its feedback offset, in a buffer of its new size sent whole; the old destroyed.
 test('a table regrown for an appended texture keeps every held word, at its new ranks', () => {
   const { device, writes, destroyed } = fakeDevice()

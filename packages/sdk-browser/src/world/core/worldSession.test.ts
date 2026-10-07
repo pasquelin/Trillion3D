@@ -5,7 +5,7 @@ import type { MeasuredWorld } from '../session/explorer.ts'
 import type { BeforeFrameInfo, World } from './world.ts'
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 
-test('world.awaitPages says the view opens, waits for it, then for pages alone, never an image (#408)', async () => {
+test('world.awaitPages says the view opens, waits for it, then for pages alone, never an image', async () => {
   const steps: unknown[] = []
   const session = {
     awaitPages: async (options?: { image?: boolean }) => void steps.push(options),
@@ -19,7 +19,7 @@ test('world.awaitPages says the view opens, waits for it, then for pages alone, 
   assert.deepEqual(steps, ['session', 'settled', { image: false, onProgress }])
 })
 
-test('attachParticles gives the pool to every session and the frames the world draws (#420)', () => {
+test('attachParticles gives the pool to every session and the frames the world draws', () => {
   type Hook = (frame: BeforeFrameInfo) => void
   const hooks = new Set<Hook>()
   let asked = 0

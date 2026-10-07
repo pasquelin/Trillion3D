@@ -2,7 +2,7 @@ import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { type EffectPassOf } from '../../effects/targets.ts'
 import { createWebgpuBloom } from './webgpuBloom.ts'
 
-/** A pass's last blend left to the composition (#963): the group it reads, at its dynamic offset. */
+/** A pass's last blend left to the composition: the group it reads, at its dynamic offset. */
 export type FusedBlend = { group: GPUBindGroup; offset: number }
 
 /** One kind of pass on WebGPU: its programs, compiled once, and the resources its passes share. */

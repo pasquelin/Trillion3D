@@ -5,13 +5,13 @@ import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts'
 
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
 
-// COMPUTATION BOUNDARY OF LOADING AND EXPLORER (M4a batch).
+// COMPUTATION BOUNDARY OF LOADING AND EXPLORER.
 // Engine numbers are computed by `sdk-core`, never by the host 3D library: same formulas,
 // same float operation order, flat buffers, no allocations per frame. What the host OWNS remains its own
-// (scene, camera, materials), and engine can no longer COMPUTE using it: recomposing world matrix,
-// box transformation, position extraction, inversion, decomposition. It also no longer READS world matrices
+// (scene, camera, materials), and engine cannot COMPUTE using it: recomposing world matrix,
+// box transformation, position extraction, inversion, decomposition. It also does not READ world matrices
 // composed by host: engine's come from local poses (`packages/sdk-browser/src/host/world/placements.ts`),
-// and the only remaining update serves host scene. Every line keeping a computation is named here with its rationale.
+// and the only update serves host scene. Every line keeping a computation is named here with its rationale.
 
 /** Batch files: scene loading, explorer, and their contracts. */
 const M4A = [

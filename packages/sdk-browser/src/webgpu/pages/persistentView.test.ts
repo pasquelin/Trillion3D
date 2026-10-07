@@ -1,4 +1,4 @@
-// #1097: the persistent-view base. A view drawn beside the main one every frame keeps its own hold,
+// The persistent-view base. A view drawn beside the main one every frame keeps its own hold,
 // Hi-Z pyramid, target grant, anti-aliasing history and effect chain: the main view's hold is never
 // reset by it, and once both are sized neither asks the device anything.
 import test from 'node:test'
@@ -22,7 +22,7 @@ const RECT = { x: 4, y: 4, width: 16, height: 8 }
 
 test('drawing another view every frame never resets the main view’s hold, nor asks the device', async () => {
   installGpuGlobals()
-  // The blend-only quad, whose still view holds (#198).
+  // The blend-only quad, whose still view holds.
   const scene = quadScene()
   scene.metadata.primitives[0].pass = 'clustered-blend'
   scene.material.transparent = true

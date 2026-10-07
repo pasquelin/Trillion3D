@@ -25,20 +25,20 @@ export const DEFAULT_FOV = 55,
    * no page and yield a task (`../page/integration/frameBudget.ts`), so a due frame waits on
    * streaming no longer than the share and the page begun within it. The next task resumes at once,
    * in a visible tab as in a hidden one, where no frame comes. Half of the programme's 2 ms
-   * main-thread frame (#483); the cut, the physics page stage and the encode share the other half.
+   * main-thread frame; the cut, the physics page stage and the encode share the other half.
    * Fetching and decoding run in workers and spend none of it.
    */
   STREAMING_FRAME_MS = 1,
   /**
    * Shares of `STREAMING_FRAME_MS` the residency queue opens at most between two frames of a visible
-   * page, 2 ms cumulated (#983): past them it waits for the next frame, so no burst of shares holds
+   * page, 2 ms cumulated: past them it waits for the next frame, so no burst of shares holds
    * a frame back. A hidden page, where no frame comes, or a visible one whose frames stopped, keeps
    * opening one per task.
    */
   STREAMING_SHARES_PER_FRAME = 2,
   /**
    * How far ahead of a moving camera the cut requests pages, in milliseconds: the programme's time
-   * to full detail after a stop (#483). A page the camera reaches within it is asked for now, so the
+   * to full detail after a stop. A page the camera reaches within it is asked for now, so the
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
@@ -48,7 +48,7 @@ export const DEFAULT_FOV = 55,
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
  * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a
  * round trip later — at most `MAX_PREFETCH_HORIZON_MS`. No round trip measured, or none that reads
- * as a duration: the published horizon, as before.
+ * as a duration: the published horizon.
  */
 export const prefetchHorizonMs = (roundTripMs?: number) =>
   roundTripMs! > 0

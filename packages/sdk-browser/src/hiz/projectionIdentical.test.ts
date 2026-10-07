@@ -5,7 +5,7 @@ import { HIZ_BOUNDS_VALUES } from './corners.ts'
 import { projectCornersInto } from './corners.ts'
 
 /**
- * Arithmetic from before the shortcuts, written here once: one dot product for the view
+ * Arithmetic without the shortcuts, written here once: one dot product for the view
  * denominator, another for `cw`, and the screen conversion applied to each corner. This is the
  * bit-for-bit reference that both shortcuts — `cw = -viewZ` and the conversion hoisted onto the
  * extrema — must return term for term, whatever the view and whatever the projection.

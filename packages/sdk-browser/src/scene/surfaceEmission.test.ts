@@ -1,4 +1,4 @@
-// #1369: the resolve loads the emission-and-occlusion texel only under its flag bit, and reads back
+// The resolve loads the emission-and-occlusion texel only under its flag bit, and reads back
 // exactly what the half-float target holds. The shipped writer (`emissiveAoFlag`) and reader
 // (`surfaceEmissiveAo`) run as JavaScript (`shaderRun`) on edge values — zero, negative zero, what
 // the half float flushes to zero or rounds to one, its largest and past it, infinities, NaN —, the
@@ -91,7 +91,7 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
   }
 })
 
-// S8: an image none of whose surfaces can mark a texel has no layer: its writer is compiled with
+// An image none of whose surfaces can mark a texel has no layer: its writer is compiled with
 // `EMISSIVE_AO` false, its readers bind a 1×1 stand-in and never load it.
 test('a surface the prudent census calls dark marks no texel; without the layer none is marked', () => {
   const marks = flagOf(true),

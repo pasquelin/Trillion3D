@@ -1,6 +1,6 @@
-// Light iterations per covered pixel on the audit's open city (#924, OMB-03), and the cost model
+// Light iterations per covered pixel on the audit's open city (OMB-03), and the cost model
 // the audit priced them with, carried with the coverage. COUNTED on the CPU oracle of the light
-// grid (#1369), never timed on a GPU: the milliseconds are a MODEL (declared assumptions below), not
+// grid, never timed on a GPU: the milliseconds are a MODEL (declared assumptions below), not
 // a frame time nor an FPS gain.
 //
 //   node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150]

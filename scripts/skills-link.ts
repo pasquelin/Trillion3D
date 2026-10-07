@@ -42,7 +42,7 @@ export function linkSkills(root: string): string[] {
   return linked
 }
 
-/** Removes the `.claude/` links whose target in `skills/` no longer exists. */
+/** Removes the `.claude/` links whose target in `skills/` does not exist. */
 function pruneRemoved(root: string, source: string): void {
   const gone = (link: string) => {
     if (!lstatSync(link).isSymbolicLink()) return false

@@ -104,7 +104,7 @@ test('a tick of no step leaves a moving body between its two steps, unless it mo
   poses.receive(tick(0, 1), BODIES, bodies, 1)
   poses.receive(tick(1, 2), BODIES, bodies, 1)
   const [a, b] = [stateAt(1), stateAt(2)].map((w) => new Float32Array(w.buffer)[2])
-  // A query's run of no step sends the same poses again: drawn on as before.
+  // A query's run of no step sends the same poses again: drawn on.
   poses.receive(tick(2, 2), BODIES, bodies, 0)
   poses.apply(bodies, 0.5, true)
   assert.equal(meshes[0].position.y, a + (b - a) * 0.5)

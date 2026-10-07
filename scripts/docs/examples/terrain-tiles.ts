@@ -17,7 +17,7 @@ const height = (x: number, z: number) =>
 
 /**
  * `terrain-tiles`: a textured terrain cooked tile by tile, the open world's terrain path in a
- * scene that loads in seconds (#414). `see-the-triangles?model=terrain-tiles` opens its cook,
+ * scene that loads in seconds. `see-the-triangles?model=terrain-tiles` opens its cook,
  * `?model=terrain-tiles-none` its exact one; the compiler's tests cook it on both.
  */
 export async function writeTerrainTiles(directory: string) {

@@ -99,7 +99,7 @@ test('every flag the resolve writes fits the r8uint flags target unchanged', () 
             written.add(run(select, model, { flags }, flag, () => mark) as number)
   }
   // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set; a surface
-  // shown unlit or lit with its emission-and-occlusion mark (#1369).
+  // shown unlit or lit with its emission-and-occlusion mark.
   const marked = [1, 2, 4, 5].map((flag) => flag | EMISSIVE_AO_SURFACE_FLAG)
   assert.deepEqual(
     [...written].sort((a, b) => a - b),

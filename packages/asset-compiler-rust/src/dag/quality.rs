@@ -100,7 +100,7 @@ fn triangle_deviation(
         });
     let shading = unit(mean)?;
     // `libm`'s arc cosine, not the platform's: macOS and glibc differ in its last bit, and the
-    // deviation enters the cook's bytes (#415).
+    // deviation enters the cook's bytes.
     Some(libm::acos(dot(face, shading).clamp(-1.0, 1.0)).to_degrees())
 }
 

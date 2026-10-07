@@ -18,7 +18,7 @@ import { prepareTexelTurn } from '../../tile/texelTurn.ts'
 const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
 
 /**
- * A texture taken by a live session's atlas after open (#847), by the path the open ran: its
+ * A texture taken by a live session's atlas after open, by the path the open ran: its
  * catalogue entry drawn as `prepareWebgpuTextures` draws a host image's, its lane grown under the
  * texture budget, the live textures beside it, only when its tail finds no free place
  * (`poolTaking`), granted under the out-of-memory scope, then its slot appended (`growth.ts`). A

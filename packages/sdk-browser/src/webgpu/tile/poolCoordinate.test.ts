@@ -26,13 +26,13 @@ const filtered = (side: number, coordinate: (origin: number, texel: number) => n
     )
 }
 
-test('a tap filters the same sub-texel position wherever the streamer placed its tile (#26)', () => {
+test('a tap filters the same sub-texel position wherever the streamer placed its tile', () => {
   const { poolAxis } = shaderFunctions<PoolAxis>(TILE_POOL_WGSL, ['poolAxis'], {
     POOL_SUBTEXEL,
     POOL_STEP,
   })
   const texels = [0.5, 37.123456789, 63.99999, 100.3, 127.5].map(f32)
-  // Before #26: a 4080 side, and a division the tile's place rounds differently.
+  // A 4080 side, and a division the tile's place rounds differently.
   const divided = filtered(4080, (origin, texel) => f32(f32(origin + texel) / 4080))
   assert.ok(
     texels.some((texel) => divided(texel).size > 1),

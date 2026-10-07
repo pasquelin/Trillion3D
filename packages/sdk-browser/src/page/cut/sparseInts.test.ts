@@ -1,4 +1,4 @@
-// The sparse map the cut's per-page state lives in (#486): it answers as a dense table would, and
+// The sparse map the cut's per-page state lives in: it answers as a dense table would, and
 // holds storage for its entries only.
 import test from 'node:test'
 import assert from 'node:assert/strict'

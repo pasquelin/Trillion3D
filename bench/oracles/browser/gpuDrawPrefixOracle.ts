@@ -1,10 +1,10 @@
 /**
  * Oracle: faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/gpu/draw/shader.ts.
  *
- * `prefixSerial` is the kernel from before the visibility batch (one thread, `@workgroup_size(1)`):
- * it walks slots in order and advances a single cursor. `prefixScan` is the kernel shader.ts
- * carries since #923: the slots in order, an unused one skipped, each used one's groups spread over
- * the 64 lanes in contiguous runs whose totals are scanned in workgroup memory. All compute in u32
+ * `prefixSerial` is the one-thread kernel (`@workgroup_size(1)`): it walks slots in order and
+ * advances a single cursor. `prefixScan` is the kernel shader.ts carries: the slots in order, an
+ * unused one skipped, each used one's groups spread over the 64 lanes in contiguous runs whose
+ * totals are scanned in workgroup memory. All compute in u32
  * (`>>> 0`), as WGSL does.
  *
  * This file depends on no real GPU run: `tests/kit/gpu/mockCompute.ts` does not replay

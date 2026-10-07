@@ -9,7 +9,7 @@ import { coneHolds } from '../../../../../tests/kit/reference/cone.ts'
 import { cutRuntimePrimitive } from './runtimePrimitive.ts'
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
 
-// #828: a page the world cuts at run time carries the cone of its triangles' normals, built by
+// A page the world cuts at run time carries the cone of its triangles' normals, built by
 // the compiler's `triangle_cone` in the SDK module. Node cannot fetch the module by its URL: the
 // test hands it the bytes, as the page decoder's tests do.
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../math/wasm/kernels.wasm')))

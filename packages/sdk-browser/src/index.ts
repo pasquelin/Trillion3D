@@ -1,4 +1,4 @@
-// The world and its families: what a page writes (issue #319). One barrel per family folder.
+// The world and its families: what a page writes. One barrel per family folder.
 export * from './world/core/index.ts'
 export * from '../../sdk-core/src/world/math/index.ts'
 export * from '../../sdk-core/src/world/geometry/index.ts'

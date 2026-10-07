@@ -1,4 +1,4 @@
-// #1341: screen reflections are traced only under the maximum roughness; past it, and wherever
+// Screen reflections are traced only under the maximum roughness; past it, and wherever
 // a trace holds nothing, the environment/probe reflection is read, never black.
 import test from 'node:test'
 import assert from 'node:assert/strict'

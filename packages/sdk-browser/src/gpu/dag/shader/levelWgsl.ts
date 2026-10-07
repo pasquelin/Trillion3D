@@ -1,10 +1,10 @@
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
  *
- * Previously one thread per node tested each node in isolation, then one thread per
- * cluster reread its cluster record to read, most of the time, only its leaf node's
- * flag. Clusters of a rejected node were therefore still visited: two million threads
- * and as many 112-byte reads per frame, to keep a fifth of them.
+ * One thread per node tested in isolation, then one thread per cluster rereading its cluster
+ * record to read, most of the time, only its leaf node's flag, would still visit the clusters of
+ * a rejected node: two million threads and as many 112-byte reads per frame, to keep a fifth of
+ * them.
  *
  * The hierarchy already holds everything needed not to read them: `firstChild`,
  * `childCount`, an aggregated box and an aggregated `maxParentError`, both monotonic
@@ -36,10 +36,10 @@
  * writes on a clean queue. Flat dispatch always opens at least one workgroup, so that
  * reset always happens.
  *
- * No new buffer for all that: the eight storage buffers per stage ceiling was hit
- * long ago. Queue 0 occupies the range node flags used, queues 1 and 2 follow the
- * candidates, and the counters extend `work` behind those of the live list. A queue
- * no longer has a group count: nobody reads it indirectly.
+ * No new buffer for all that: the eight storage buffers per stage ceiling is reached. Queue 0
+ * occupies the range node flags used, queues 1 and 2 follow the candidates, and the counters
+ * extend `work` behind those of the live list. A queue has no group count: nobody reads it
+ * indirectly.
  *
  * The candidate list and the drawn log share a range: `dagClearDrawn` (`swapWgsl.ts`) reads it as
  * a log at the very start of the frame, level passes then write it as candidates,

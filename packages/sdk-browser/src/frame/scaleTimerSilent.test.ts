@@ -4,7 +4,7 @@ import { createScaleControl } from './scaleControl.ts'
 import { simulate } from './scaleFit.fixture.ts'
 import { HISTORY } from './scaleTargets.ts'
 
-// #831: a timer that answers but whose samples carry no time was stepped on neither the times nor
+// A timer that answers but whose samples carry no time was stepped on neither the times nor
 // the intervals: a page drawn in 40 ms on a 120 Hz display stayed at the display's size.
 /** The scale of each of `frames` images of a timed device, each 40·s² ms at scale `s`, its GPU
  *  sample arriving two images late with `measured(ms)` as its time. */

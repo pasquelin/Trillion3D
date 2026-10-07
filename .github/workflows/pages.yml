@@ -58,7 +58,7 @@ jobs:
       # `--published` adds the audience measurement, which no local or proof build carries.
       - run: node scripts/docs/build.ts --published
       # The scene caches' objects, geometry pages among them, are the exception to the gzip below:
-      # brotli takes 11 to 24 % off them (#921). Sent beside each original with
+      # brotli takes 11 to 24 % off them. Sent beside each original with
       # `Content-Encoding: br` to a browser that accepts it; `isCacheObject` picks them, as the
       # docs server does locally, and the engine reads the decoded bytes its fingerprints check.
       - if: steps.plan.outputs.deploy == 'true'
@@ -123,7 +123,7 @@ jobs:
           dist/site/ "$TARGET:/"
       # The address checked is the one the built page declares canonical (scripts/docs/site.ts).
       # Each answer must carry the cross-origin isolation `scripts/docs/serve.ts` serves locally:
-      # without it `crossOriginIsolated` is false and the physics falls back to one thread (#444).
+      # without it `crossOriginIsolated` is false and the physics falls back to one thread.
       - name: Check the published site
         run: |
           url=$(grep -o 'rel="canonical" href="[^"]*"' dist/site/index.html | sed 's/.*href="//; s/"$//')

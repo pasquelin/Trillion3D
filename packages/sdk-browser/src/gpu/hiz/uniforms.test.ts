@@ -7,9 +7,9 @@ import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4
 
-/** The slot the test encoding uploaded before #917: a zeroed float array, integer words written
- *  through a fresh view, the fourth word the bits of a fresh `Float32Array([0])`; since S19.6, the
- *  sixth word 1 on a sampled frame. */
+/** The slot a test encoding uploads: a zeroed float array, integer words written through a fresh
+ *  view, the fourth word the bits of a fresh `Float32Array([0])`, the sixth word 1 on a sampled
+ *  frame. */
 function slotBefore(width: number, height: number, rows: number, counting = 0) {
   const packed = new Float32Array(SLOT_WORDS)
   const bias = new Uint32Array(new Float32Array([0]).buffer)[0]

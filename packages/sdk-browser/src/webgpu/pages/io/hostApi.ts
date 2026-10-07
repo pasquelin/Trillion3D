@@ -74,7 +74,7 @@ export async function captureImage(rt: WebgpuPagesRuntime) {
 }
 
 /** The drawn opaque pages with their bytes, as the CPU raster oracle reads them, and the packed
- *  rank of each — one record serves many placements (#1235). */
+ *  rank of each — one record serves many placements. */
 function drawnOpaquePages(rt: WebgpuPagesRuntime) {
   const pages: VisPage[] = [],
     packed: number[] = []

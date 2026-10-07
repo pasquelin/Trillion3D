@@ -1,5 +1,5 @@
 /**
- * THE CELL INDEX OF A PARTITIONED SCENE, READ AS THE VIEW REACHES IT (#575). The cook cut the
+ * THE CELL INDEX OF A PARTITIONED SCENE, READ AS THE VIEW REACHES IT. The cook cut the
  * cells' records into pages (`partition/pages.rs`), each the cells of one region of space, under
  * index pages; the root names the top ones, each boxed at the declared poses. Before its first
  * frame the runtime reads that root and the pages on the first camera's way (`cells.ts`, `prime`).
@@ -78,7 +78,7 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
         page.body = { pages }
         return pages.map((below) => below.slot)
       }
-      // A cell is its cook's rank, whatever page opens first: the world roots name it so (#1237).
+      // A cell is its cook's rank, whatever page opens first: the world roots name it so.
       const ids = body.cells.map((record, at) => {
         const url = new URL(record.url, base).href
         const id = body.first + at

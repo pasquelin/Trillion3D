@@ -1,10 +1,10 @@
-//! Output bits of the Blender driver, pinned to what the compiler wrote before #1150 (merge base
-//! `8912566d6`): the fixture posed by hand in every rotation mode, then a skewed roof whose
+//! Output bits of the Blender driver, pinned to the bits the compiler wrote when they were taken:
+//! the fixture posed by hand in every rotation mode, then a skewed roof whose
 //! normals no axis rounds for free. A digest that moves means a Blender file compiles to other
 //! bits: an output change, never a clean-up.
 use super::*;
 
-/// What the pre-#1150 compiler wrote for the posed fixture, then for the skewed roof.
+/// What the compiler wrote for the posed fixture, then for the skewed roof.
 const POSED: &str = "6046edabe0f8cebae681a1d72a60fb2e36bf7bf1611e29e629bccc8235a9c900";
 const ROOF: &str = "d69cd9fe25f1404f21749971265c8e853e7c098b623e939dcc47931203828671";
 
@@ -86,16 +86,16 @@ fn written_bits(bytes: &[u8]) -> Vec<u32> {
     bits
 }
 
-// Audit of #940: the posed fixture's world matrices and normals keep the bits the pre-#1150
-// compiler wrote — single-precision composition, `Iterator::sum` included.
+// The posed fixture's world matrices and normals keep the pinned bits —
+// single-precision composition, `Iterator::sum` included.
 #[test]
 fn posed_objects_compile_to_the_bits_of_the_pre_1150_compiler() {
     let bits = written_bits(&posed());
     assert_eq!(digest(bits.iter().copied()), POSED, "{bits:08x?}");
 }
 
-// Audit of #940: a skewed smooth roof's corner normals, divided in single precision, keep the
-// pre-#1150 bits.
+// A skewed smooth roof's corner normals, divided in single precision, keep the
+// pinned bits.
 #[test]
 fn skewed_smooth_normals_keep_the_bits_of_the_pre_1150_compiler() {
     let geometry = Geometry {

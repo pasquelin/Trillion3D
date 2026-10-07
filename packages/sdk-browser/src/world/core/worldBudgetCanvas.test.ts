@@ -1,4 +1,4 @@
-// #349: the budget declares its largest canvas; the effect chain's targets are reserved at its
+// The budget declares its largest canvas; the effect chain's targets are reserved at its
 // size, and a canvas drawn past it renders whole while the diagnostics say the byte excess.
 import test from 'node:test'
 import assert from 'node:assert/strict'

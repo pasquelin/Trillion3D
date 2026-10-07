@@ -1,6 +1,6 @@
 // The two lists the host asks the WebGPU engine after the render: same addresses as a string-set
-// dedup, and returned as-is while nothing they depend on has moved. The to-load page list no longer
-// walks the cut: the delta holds the set of pages waiting for their bytes, and that is what is read.
+// dedup, and returned as-is while nothing they depend on has moved. The to-load page list does not
+// walk the cut: the delta holds the set of pages waiting for their bytes, and that is what is read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { RequestStamps, type PageRec } from '../../../page/selection/selection.ts'
@@ -68,7 +68,7 @@ function banc() {
   return { rt, run, publie, cutPending, packedPages }
 }
 
-/** The old rule, word for word: a string set, in encounter order. */
+/** The reference rule, word for word: a string set, in encounter order. */
 const parEnsemble = (listes: readonly (readonly PageRec[])[]) => {
   const vus = new Set<string>(),
     urls: string[] = []

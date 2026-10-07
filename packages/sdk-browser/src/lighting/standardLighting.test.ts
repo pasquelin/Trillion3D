@@ -1,4 +1,4 @@
-// #831: the GGX lobe of a sharp highlight is the distribution's own, not 1 − cos²'s stairs. The
+// The GGX lobe of a sharp highlight is the distribution's own, not 1 − cos²'s stairs. The
 // shipped `standardLighting` runs in f32 (`shaderRunF32.fixture.ts`) against the same BRDF in f64
 // at the same inputs: a half-vector swept through the lobe's core at the roughness floor, where the
 // textbook D was 9 % off and took 2 685 values over 5 000 directions (stair rings).

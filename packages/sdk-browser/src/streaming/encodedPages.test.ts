@@ -1,4 +1,4 @@
-// Pages served with a `Content-Encoding` (#921): the transport decodes them, and the streamer reads,
+// Pages served with a `Content-Encoding`: the transport decodes them, and the streamer reads,
 // sizes and fingerprints the page's own bytes, as it does an identity answer.
 import test from 'node:test'
 import assert from 'node:assert/strict'

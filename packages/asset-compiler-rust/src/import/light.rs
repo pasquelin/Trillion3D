@@ -76,7 +76,7 @@ pub(crate) fn light_node(name: &str, matrix: Value, light: usize) -> Value {
 }
 
 /// Declares lights in the document. A scene that carries none does not announce
-/// the extension: its document stays the one it wrote before this path existed.
+/// the extension: its document stays unchanged.
 pub(crate) fn attach_lights(gltf: &mut Value, lights: &[Value]) {
     if lights.is_empty() {
         return;

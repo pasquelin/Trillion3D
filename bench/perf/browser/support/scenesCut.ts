@@ -1,4 +1,4 @@
-// Scenes specific to batch C: those batch A had no reason to visit — the paint a fixture page
+// Scenes specific to the cut: the paint a fixture page
 // wears, and the surface record the engine reads of it.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'

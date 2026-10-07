@@ -19,7 +19,7 @@ type Size = readonly [number, number]
  * The WebGPU bloom (`bloomFilter.ts`): one `rgba16float` texture whose mip levels are the chain,
  * sized with the image (`resize`), and three programs. `encode` writes, into `output`, the image
  * `input` with its glow: the levels are filtered down, summed back up, and the first blended in —
- * or, with no `output`, that last blend left to the composition (`blend`, #963).
+ * or, with no `output`, that last blend left to the composition (`blend`).
  * Every bloom of the chain draws on the same levels, one after the other, but reads its own
  * uniform slots — the `nth` bloom the `nth` range of the buffer, at its dynamic offsets — since
  * every write of the buffer lands before the frame's first pass. Bind groups follow the targets

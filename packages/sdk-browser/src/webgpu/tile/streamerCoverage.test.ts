@@ -1,6 +1,6 @@
-// #42: a hosted map follows its readers' coverage rule after prepare: reduced again and copied at
+// A hosted map follows its readers' coverage rule after prepare: reduced again and copied at
 // the next image's follow, with no new prepare; a still rule reduces nothing, a moved picture once.
-// #748: a new cutoff is a new rule, the chain counted at it.
+// A new cutoff is a new rule, the chain counted at it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'

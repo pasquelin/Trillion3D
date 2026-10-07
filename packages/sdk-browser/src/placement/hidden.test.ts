@@ -1,4 +1,4 @@
-// #787: a host visibility change hands back the union box of the roots that flipped, or `null`.
+// A host visibility change hands back the union box of the roots that flipped, or `null`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -9,7 +9,7 @@ const BOXES = Float64Array.of(0, 0, 0, 1, 1, 1, -2, 3, 0, -1, 4, 5, 9, 9, 9, 10,
 
 test('followHostVisibility: null while no root flips, the flipped roots union once one does', () => {
   const [a, b, c] = [new Object3D(), new Object3D(), new Object3D()]
-  // Each stands for a mesh, which casts unless set otherwise (#456).
+  // Each stands for a mesh, which casts unless set otherwise.
   for (const node of [a, b, c]) node.castShadow = true
   const roots = [a, b, c].map((sourceMesh, i) => ({
     pages: [{ sourceMesh }],

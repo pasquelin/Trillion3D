@@ -100,7 +100,7 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
   }
 })
 
-// #487's audit: what the shadows take is sized inside `split.shadowPool` — the virtual shadow maps
+// What the shadows take is sized inside `split.shadowPool` — the virtual shadow maps
 // of one sun, on any device: its binding limit splits the pool into parts, never grows it, and the
 // screen sizes none of it (the projection's mask is a frame target) —, and a total below 512 MiB
 // never lets the pools sum past it.

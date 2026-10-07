@@ -1,5 +1,5 @@
 //! The texture deviation a reduction publishes, looked up on the triangles it replaced
-//! (`texture.rs`, #977).
+//! (`texture.rs`).
 use super::*;
 use crate::geometry_page::{Attribute as Carried, FLAG_UV};
 use texture::texture_deviation_above;

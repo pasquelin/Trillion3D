@@ -5,7 +5,7 @@
 //! does not fit there: carrying it anyway yields a transparency read elsewhere
 //! than written. On a one-pixel RGBA image `[0, 255, 0, 255]`, `outputs:r` is
 //! zero — the face vanishes — and `outputs:a` is one — it stays full: two
-//! opposite scenes, and the compiler used to yield a single one.
+//! opposite scenes, and the compiler must not yield a single one.
 use super::material::{compile as compile_layer, layer, pbr, texture, unsupported};
 use super::*;
 
@@ -23,9 +23,9 @@ fn carried_by(channel: &str) -> GoldenRun {
 }
 
 // Behaviour: only the alpha of the base-colour texture carries opacity through
-// to glTF. Another channel of the same image used to be accepted as if it were
-// alpha — same material, same blend mode, factor one, nothing counted — and the
-// served scene read alpha in place of the requested channel. It is now counted
+// to glTF. Another channel of the same image must not be accepted as if it were
+// alpha — same material, same blend mode, factor one, nothing counted — which would make the
+// served scene read alpha in place of the requested channel. It is counted
 // by name, and the written factor takes over.
 #[test]
 fn only_the_alpha_channel_of_the_base_colour_texture_carries_the_opacity() {

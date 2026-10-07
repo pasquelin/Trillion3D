@@ -3,7 +3,7 @@ import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 /**
  * The device's readings of a series, one per sampled image and not per render — the device is
  * sampled every few images —: its GPU frame time, and the idle before it where the image before it
- * was sampled too (#1451). Both come from the same run, so the two are read together.
+ * was sampled too. Both come from the same run, so the two are read together.
  */
 export function gpuReadings() {
   const gpuFrameMs: number[] = [],

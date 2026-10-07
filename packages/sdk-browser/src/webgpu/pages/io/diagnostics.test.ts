@@ -30,7 +30,7 @@ test('an engine diagnostic is versioned, and an observer that throws does not re
   assert.deepEqual(seen, [1])
 })
 
-// #990: what a disposed session's pending work throws — a program compiled, an upload on the
+// What a disposed session's pending work throws — a program compiled, an upload on the
 // released device — is its cancellation: said nowhere. The same failure under a live session is.
 test('a failure under an aborted session is said nowhere; under a live one it is', (t) => {
   const warned = t.mock.method(console, 'warn', () => {})

@@ -128,7 +128,7 @@ function field(control: Control, values: Record<string, unknown>, changed: () =>
     select.append(...control.options.map((option, at) => new Option(control.shown[at], option)))
     select.onchange = () => {
       set(select.value)
-      select.blur() // the keys back to the scene: a focused list takes W and the arrows (#831)
+      select.blur() // the keys back to the scene: a focused list takes W and the arrows
     }
     row.append(select)
     return row

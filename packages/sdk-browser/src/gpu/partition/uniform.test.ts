@@ -39,7 +39,7 @@ test('the scalar words land where the WGSL uniform names them', () => {
 })
 
 test('the uniform struct names each member once: a duplicate fails to compile in the browser only', () => {
-  // Chrome refuses the module, the partition silently gives way to a single pass without
+  // The browser refuses the module, the partition silently gives way to a single pass without
   // occlusion, and Node would never know: the names are checked here.
   const members = [...PARTITION_UNI_WGSL.matchAll(/(\w+):(?=mat4x4f|vec3f|f32|u32|array)/g)].map(
     (match) => match[1],

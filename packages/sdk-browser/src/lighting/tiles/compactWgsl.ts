@@ -8,7 +8,7 @@ const GRID_CACHE = 512
 const SLICES = LIGHT_SETTINGS.gridSlices
 
 /**
- * The lists of a column's cells (#1369), in two walks of its kept lights, each a batch of 64 at a
+ * The lists of a column's cells, in two walks of its kept lights, each a batch of 64 at a
  * time, one per lane, every lane in step: a lane marks the light's bit in the mask of each slice of
  * its run — in one mask for all of them when the run holds every slice, a sun's —, then each lane
  * counts — in the first walk — or writes — in the second — the slices it owns, bit after bit, so

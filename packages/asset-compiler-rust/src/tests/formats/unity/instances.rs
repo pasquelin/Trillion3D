@@ -27,7 +27,7 @@ fn retouche(target: u32, guid: &str, path: &str, value: &str) -> String {
     format!("    - target: {{fileID: {target}, guid: {guid}, type: 3}}\n      propertyPath: {path}\n      value: {value}\n      objectReference: {{fileID: 0}}\n")
 }
 
-// Finding 47: a prefab instantiated in a prefab keeps its own overrides, and the
+// A prefab instantiated in a prefab keeps its own overrides, and the
 // outer instance places its own on top, in nesting order. Without that, everything
 // the author changed from the scene on an object of the nested prefab is lost.
 #[test]
@@ -63,7 +63,7 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
     );
 }
 
-// Finding 47: an instance does more than re-place its source. It removes components
+// An instance does more than re-place its source. It removes components
 // from it, adds objects to it, and adds components to it. A removed renderer emits
 // nothing, an added object comes out under the object it aims at, and what remains
 // out of reach is counted by its name.
@@ -103,7 +103,7 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
     );
 }
 
-// Finding 48: a material slot an instance clears comes out without a material. Keeping
+// A material slot an instance clears comes out without a material. Keeping
 // the prefab's would make visible what the author had erased; a slot the instance does
 // not name, itself, still keeps the prefab's.
 #[test]

@@ -4,7 +4,7 @@
 //! nothing of a disconnected part it removes whole. Removing one is a simplification like any
 //! other, and costs at least the part's own extent, the diameter of its bounds in the source mesh:
 //! a part drops only at the level whose error covers it, and since a group's error is never below
-//! its children's, a column or an arch stays until the error is as wide as it is (#484). The
+//! its children's, a column or an arch stays until the error is as wide as it is. The
 //! simplifier's error alone let a part go at a level that publishes less: on
 //! `signature-architecture`, a limestone reduction dropped walls up to 32 m across at 21.8 m of
 //! error. The source extent, not the remnant's: levels below may have shrunk a part before one
@@ -13,7 +13,7 @@
 //! It also costs the distance from its surface to the nearest surface the reduction keeps. A roof
 //! of shingles 0.4 m across, each removed at 0.4 m of error, loses half its shingles on one level
 //! and half the rest on the next, all at the same 0.4 m: its coarsest level kept 1.8 % of its area
-//! on the open world's chalet (#484). Measured to the surface kept, a roof of parts keeps a cover
+//! on the open world's chalet. Measured to the surface kept, a roof of parts keeps a cover
 //! within its error.
 use super::bounds::bounding_sphere;
 use crate::join::Join;

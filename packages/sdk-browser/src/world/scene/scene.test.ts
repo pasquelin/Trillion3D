@@ -12,10 +12,10 @@ import {
 } from '../../../../../bench/oracles/browser/manifest-index.ts'
 import type { ClusterManifest, Page, Primitive } from '../../../../sdk-core/src/index.ts'
 
-// Batch F, F17: three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed
-// walk. `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`
+// Three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed walk.
+// `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`
 // (./pagesBounds.ts, via `primitiveFinder`) must return exactly what the four `flatMap`s and the
-// `find` returned before batch F. The oracles are copied as-is in `bench/oracles/browser/bounds-and-index.ts`.
+// `find` return. The oracles are copied as-is in `bench/oracles/browser/bounds-and-index.ts`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {
   const page = { id, url, sha256: url, bytes: 8, count: 3, min: [0, 0, 0], max: [1, 1, 1] } as Page
   if (geometryUrl)
@@ -165,7 +165,7 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
   assert.equal(rendered, into, 'the same buffer instance comes back, whatever the number of pages')
 })
 
-// #751: a mesh placed by rows is bounded by the box its rows place it in, before the view reads its
+// A mesh placed by rows is bounded by the box its rows place it in, before the view reads its
 // primitive: the scene opens, and nothing is called missing.
 test('pagesBounds bounds a mesh placed by rows whose primitive is not read yet by its box', () => {
   const placed = Object.assign(G.mesh(new G.Geometry(), G.basicSurface()), {

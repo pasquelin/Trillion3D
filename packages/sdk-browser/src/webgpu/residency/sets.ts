@@ -91,7 +91,7 @@ export function createWebgpuResidencySets(options: {
   })
   /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
    *  those keys: new holds are taken before old ones are let go of, so a key in both never leaves
-   *  `keep`, and a queue ranked again to the same pages changes nothing (#477). */
+   *  `keep`, and a queue ranked again to the same pages changes nothing. */
   const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
     followsDesired = false
     let same = count === wanted.count
@@ -130,7 +130,7 @@ export function createWebgpuResidencySets(options: {
       return tracking.keep.count
     },
     /** Bytes of every set above and of the tracking's: they follow what the image asks for, holds
-     *  and draws, never the catalogue (#483 rule 6). */
+     *  and draws, never the catalogue. */
     get hostBytes() {
       return (
         entering.byteLength +

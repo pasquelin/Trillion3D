@@ -1,4 +1,4 @@
-// #1332: a partition's frame plans its cells through `createFarCells`. While no cut packs the world
+// A partition's frame plans its cells through `createFarCells`. While no cut packs the world
 // DAG the plan is the placed cells' own, the world DAG unread; once one does, the stream's bound is
 // read once, and the cells the cut draws by their super-roots are held far, their bundles held.
 import test from 'node:test'
@@ -69,7 +69,7 @@ test('once the cut packs it, the cells its super-roots draw are held far, their 
   assert.ok(needed.length > 0 && needed.length < xs.length, 'near cells need objects, far do not')
   assert.deepEqual(plan.visible, needed)
   await new Promise(setImmediate) // the holds land
-  // Placed since, a cell lets its far hold go; a cut that no longer packs the world DAG lets all go.
+  // Placed since, a cell lets its far hold go; a cut that does not pack the world DAG lets all go.
   placed.set(needed[0], {})
   far.plan(index, local, eye, lens, leave)
   assert.deepEqual(world.released, [needed[0]])

@@ -2,7 +2,7 @@ import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 
 /**
- * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING (#1369).
+ * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING.
  *
  * A pixel fetches only what its shading model reads: a field most
  * pixels leave at its default is not fetched there. Here the surface buffer's normal stays in
@@ -16,7 +16,7 @@ import type { VisMaterial } from '../visibility/materialType.ts'
  * Exact by construction: on a surface the resolve lights or shows unlit, the bit is clear only where
  * the written emission's three words are zero — `bitcast`, so a negative zero or a NaN sets it — and
  * the occlusion is exactly one; the half float target stores such a texel as `(0, 0, 0, 1)` bit for
- * bit. Every other value, one the conversion flushes to zero included, is fetched as before. An
+ * bit. Every other value, one the conversion flushes to zero included, is fetched. An
  * as-is surface (`AS_IS_FLAG`, a debug view) never carries the bit, keeping its flag whole: nothing
  * reads its occlusion, and its emission is zero.
  */

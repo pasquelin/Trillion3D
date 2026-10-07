@@ -1,7 +1,7 @@
 // What the projection sharing of `clusterPixels` must preserve: a stand-in without a sphere of its
-// own takes the cluster's, and the cut no longer projects that sphere more than once. The verdict
-// must stay the one the double projection used to yield — the same sphere written twice — and the
-// guards `projectedClusterError` no longer poses itself must stay posed by `projectedErrorAt` and
+// own takes the cluster's, and the cut projects that sphere once. The verdict
+// is the one a double projection would yield — the same sphere written twice — and the
+// guards `projectedClusterError` does not pose itself are posed by `projectedErrorAt` and
 // by `clusterErrorAtDepth`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -30,7 +30,7 @@ test('a stand-in without a sphere of its own yields the verdict of the own spher
       for (const parent of [0, 1e-6, 0.05, 9, Infinity, null, undefined]) {
         const partage = { lodError: own, sphere, parentError: parent }
         // The same data, but with an explicit stand-in sphere distinct in memory: that is the
-        // path that projects twice, the one from before the lot.
+        // path that projects twice.
         const explicite = { ...partage, parentSphere: [...sphere] }
         const a = clusterPixels(partage, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2)),
           b = clusterPixels(explicite, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2))

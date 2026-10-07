@@ -1,8 +1,8 @@
-// Light evaluations per covered pixel of a MOVING image (#1249): the shipped `contractLighting`,
+// Light evaluations per covered pixel of a MOVING image: the shipped `contractLighting`,
 // run as JavaScript on each pixel's cell list as the light grid's oracle builds it
 // (`lighting/lightGridWalk.ts`), its shadow flag the count's high bit the pass sets once, never a per-pixel
 // walk. COUNTED, never timed. A full sum walks its `L` lights once; `sampledSliceLighting` walks a list of
-// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights twice — its two `lightWeight` loops (#1369) — then
+// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights twice — its two `lightWeight` loops — then
 // shades `LIGHT_SAMPLES` of them: `2·L + LIGHT_SAMPLES`.
 //
 //   node bench/runner/lighting/lightTileSampledCount.ts [--width 3456] [--height 2234]
@@ -25,7 +25,7 @@ type Contract = (...args: unknown[]) => unknown
 
 /**
  * Evaluations per covered pixel of `view` over `depths`, a sampled rank: `list` the lights of the
- * cells, `develop` the resolve before #1249 (every sampled rank drawn), `moving` the shipped one.
+ * cells, `develop` the resolve with every sampled rank drawn, `moving` the shipped one.
  * `slots[rank]` is each light's shadow slot, −1 for none.
  */
 export function countSampled(

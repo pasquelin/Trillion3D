@@ -11,7 +11,7 @@ import {
 } from './pixelTriangleWgsl.ts'
 
 /**
- * THE RESOLVE'S FRAME CACHE (`shadeCache`): what many pixels used to compute alike, computed once
+ * THE RESOLVE'S FRAME CACHE (`shadeCache`): what many pixels compute alike, computed once
  * a frame by compute passes before the class draws (`../../webgpu/visibility/shadeCache.ts`) and
  * read back word for word by the resolve (`shadeWgsl.ts`). Each pass calls the very function the
  * pixel calls without it, on the same inputs, and a float travels as its bits: what a pixel reads
@@ -121,7 +121,7 @@ fn cachedSlot(row:u32,tri:u32)->u32{
 /**
  * The resolve's read: its binding, read-only, the frames and `pixelTriangle`. The overrides are set
  * by the pipelines when the passes run this frame (`shadeCacheConstants`); left false, a pixel
- * composes and decodes its own, as before.
+ * composes and decodes its own.
  */
 export const shadeCacheReadWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var<storage, read> shadeCache:array<u32>;

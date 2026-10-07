@@ -1,4 +1,4 @@
-// The browser limits every bench run records (#418), read in the page through the engine's own
+// The browser limits every bench run records, read in the page through the engine's own
 // capability detection (`detectCapabilities`) and published in `measure.json` and `resume.md`.
 // Imported by URL in the page (`probeLimits`), by Node to run it (`readLimits`) and for the report
 // (`limitsLines`): no Node module here.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createSharePace } from './frameBudget.ts'
 import { stubPage } from '../../world/render/frameQueue.fixture.ts'
 
-// A page hidden while the pace waits for a frame gets none: the wait ends there, never stalls (#983).
+// A page hidden while the pace waits for a frame gets none: the wait ends there, never stalls.
 test('a page hidden while a share waits for its frame opens it without one', async () => {
   const page = stubPage('visible')
   try {

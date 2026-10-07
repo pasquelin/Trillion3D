@@ -42,7 +42,7 @@ const tileRequestIndexWgsl = (
  * the image's pick turn. A convergence image (`feedbackEvery`) runs through all of a pixel's picks
  * (`everyPick`, `PICK_TURNS` per map) and names the first whose tile is missing: one image asks
  * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
- * never what the pool kept of an earlier pose (#1016).
+ * never what the pool kept of an earlier pose.
  */
 const FEEDBACK_RULE_WGSL = `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
 fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}

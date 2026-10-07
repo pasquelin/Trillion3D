@@ -39,7 +39,7 @@ const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
  * A texture's header — size, tail, last level, tail placement — is read ONCE per sample (`TileSlot`),
  * not once per tap: each of the two taps of a mix only adds its level address and its entry. On a
  * foliage pixel that is the difference between a chain of twelve dependent reads and a chain of six.
- * Two variants measured and discarded at 2496×1404 on Emerald (materials pass 5.64 ms): the table
+ * Two variants measured and discarded at 2496×1404 (materials pass 5.64 ms): the table
  * bound as `vec4<u32>`, the header packed in one word — 5.70 ms, no effect; the level address
  * recomputed in a loop instead of being read — 6.5 ms, the divergent arithmetic costs more than the
  * read it avoids.

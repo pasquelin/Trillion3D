@@ -1,4 +1,4 @@
-// Telemetry: frame intervals, against the oracle of before batch A. The hexadecimal digest left
+// Telemetry: frame intervals, against its oracle. The hexadecimal digest left
 // this bench: `toHex` has no engine caller (`sha256Hex` writes its own loop).
 import { frameStatistics } from '../../../packages/sdk-core/src/index.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'

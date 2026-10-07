@@ -1,4 +1,4 @@
-// #573: a dynamic geometry's rewrite is written in place in the float vertex pool, and stales the
+// A dynamic geometry's rewrite is written in place in the float vertex pool, and stales the
 // shadow pages its moved vertices cover — its own — and no other caster's.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -51,7 +51,7 @@ function recordingDevice() {
         at = 0,
         size = data.length,
       ) => void writes.push([buffer, offset, [...data.subarray(at, at + size)]]),
-      // The normals ride in the pool's float atlas (#1410): a write of its floats, row by row.
+      // The normals ride in the pool's float atlas: a write of its floats, row by row.
       writeTexture: (
         { texture }: GPUTexelCopyTextureInfo,
         data: Float32Array,

@@ -1,6 +1,6 @@
 /**
  * How the surface resolve places a pixel on its triangle, shared by the resolve (`shadeWgsl.ts`)
- * and the shadow receiver offset its readers recompute (`receiverOffsetWgsl.ts`, #1410): one text,
+ * and the shadow receiver offset its readers recompute (`receiverOffsetWgsl.ts`): one text,
  * so the offset follows the very point and normals the resolve shaded.
  */
 

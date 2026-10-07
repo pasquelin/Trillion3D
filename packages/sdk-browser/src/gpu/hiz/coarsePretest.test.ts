@@ -7,7 +7,7 @@ import { packHizPyramid } from './oracle.fixture.ts'
 import type { PackedHiz } from './oracle.fixture.ts'
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
-// hide (`pyramidHides`), where it used to take the minimum of the whole footprint
+// hide (`pyramidHides`), instead of taking the minimum of the whole footprint
 // (`pyramidFar`). Below, both WGSL functions transcribed line by line, in f32, must return the
 // same verdict on random pyramids, rectangles and depths, and on the hostile values:
 // NaN, ±0, ±Inf, a one-texel pyramid, a footprint as wide as the kernel, a mip table cut short.
@@ -31,11 +31,11 @@ function coarseLevel(x0: number, y0: number, x1: number, y1: number, l: number, 
 type Min = (a: number, b: number) => number
 /** WGSL leaves `min` with a NaN operand indeterminate: `Math.min` propagates the NaN, `minNum`
  *  returns the other operand. Under the first the verdicts are identical; under the second the
- *  new test may keep a box whose footprint holds a NaN that the old one rejected, never the
- *  reverse. A pyramid reduced from a depth texture holds no NaN. */
+ *  coarse test may keep a box whose footprint holds a NaN that the footprint minimum rejects,
+ *  never the reverse. A pyramid reduced from a depth texture holds no NaN. */
 const minNum: Min = (a, b) => (a !== a ? b : b !== b ? a : Math.min(a, b))
 
-/** The old read: the minimum of the footprint (`pyramidFar`). */
+/** The footprint read: the minimum of the footprint (`pyramidFar`). */
 function footprintFar(p: PackedHiz, l: number, rect: number[], min: Min) {
   let far = f32(1.0e30)
   for (let y = rect[1]; y <= rect[3]; y++)
@@ -74,8 +74,8 @@ function texelsHide(p: PackedHiz, l: number, rect: number[], nearest: number) {
   return true
 }
 
-/** One clipped rectangle judged the old way and the new way, as `hiddenByPyramid` and the
- *  partition's packing then `testHiz` do. */
+/** One clipped rectangle judged by the footprint minimum and by the coarse test, as
+ *  `hiddenByPyramid` and the partition's packing then `testHiz` do. */
 function judge(p: PackedHiz, rect: number[], levels: number, nearest: number, min: Min = Math.min) {
   const [x0, y0, x1, y1] = rect
   const l = levelFor(x0, y0, x1, y1, levels)

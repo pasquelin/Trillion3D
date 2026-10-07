@@ -1,4 +1,4 @@
-//! A14 — published measurements describe single job. Tests verify:
+//! Published measurements describe single job. Tests verify:
 //! no job phase reappears in another manifest, sequentially or in parallel,
 //! announced duration contains everything job performed, purge included.
 use super::*;

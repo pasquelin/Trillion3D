@@ -1,6 +1,6 @@
-// A gallery example with no capture of its own shows the shared placeholder card. The recette
+// A gallery example with no capture of its own shows the shared placeholder card. The report
 // lists every written example the engine draws — not parked (`parkedExampleIds`) — that has no
-// `site/assets/examples/thumbnails/<id>.png` yet, and captures it after the merge with
+// `site/assets/examples/thumbnails/<id>.png`; it is captured after the merge with
 // `node scripts/docs/examples-thumbnails.ts <id>` (AGENTS.md rule 2). A report, never a gate: a
 // missing thumbnail blocks no pull request. `pnpm run check:thumbnails`.
 import { pathToFileURL } from 'node:url'
@@ -15,7 +15,7 @@ export const missingThumbnails = (
   captured: ReadonlySet<string>,
 ) => entries.map(({ id }) => id).filter((id) => !parked.has(id) && !captured.has(id))
 
-/** The report line the recette reads: the ids still to capture, or none. Never a failure. */
+/** The report line: the ids still to capture, or none. Never a failure. */
 export const thumbnailReport = (missing: readonly string[]) =>
   missing.length
     ? `Thumbnails for the recette to capture: ${missing.join(' ')}`

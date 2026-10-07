@@ -1,5 +1,5 @@
 /**
- * THE WORLD DAG'S RESIDENCY, A MIRROR OF THE SCENE'S (#1332).
+ * THE WORLD DAG'S RESIDENCY, A MIRROR OF THE SCENE'S.
  *
  * The world DAG rides in the one packing as one more root, packed last (`worldSuperRoots.ts`), so
  * the packing holds more pages than the rows' residency flags name: handed as they are, the cut's

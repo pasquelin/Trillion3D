@@ -30,7 +30,7 @@ const UNREADABLE: &str = "image-decode-failed";
 /// A valid TIFF, but outside the profiles this driver declares it reads.
 const PROFILE: &str = "image-profile-unsupported";
 /// A 16-bit-per-component TIFF. This is not an exotic profile: it is precision that
-/// `DecodedImage` cannot yet carry, its only variant being RGBA8. Clipping it in silence
+/// `DecodedImage` cannot carry, its only variant being RGBA8. Clipping it in silence
 /// would add a loss the source did not have, which the import policy forbids. Accepting it
 /// would need an `Rgba16` variant on the image contract and its explicit handling at every
 /// consumer — `texture_preview` today, the preview pyramid next.

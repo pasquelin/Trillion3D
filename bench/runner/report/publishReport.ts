@@ -25,7 +25,7 @@ export function publierRapport(source: string, dest: string): string {
     if (!existsSync(join(source, path))) throw new Error(`Missing evidence: ${path}`)
   mkdirSync(reports, { recursive: true })
   cpSync(source, folder, { recursive: true })
-  // Copied first, so a failed copy keeps the old report; `reports/` holds only the campaign folders and their index.
+  // Copied first, so a failed copy keeps the previous report; `reports/` holds only the campaign folders and their index.
   for (const entry of readdirSync(reports, { withFileTypes: true }))
     if (entry.isDirectory() && entry.name !== report.id)
       rmSync(join(reports, entry.name), { recursive: true })

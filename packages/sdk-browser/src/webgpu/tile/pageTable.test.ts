@@ -102,7 +102,7 @@ test('a leaving tile gives its entries back to the finest resident ancestor, or 
   assert.equal(writes.length, 1, 'nothing to send when nothing has moved')
 })
 
-// #962: at 769 texels, level 0 has 7 tiles and level 1 only 3: tile 6 has no parent on level 1.
+// At 769 texels, level 0 has 7 tiles and level 1 only 3: tile 6 has no parent on level 1.
 // Its departure gives its entry back to level 2, the finest ancestor that exists — the one whose
 // descent reaches it —, where develop threw `TEXTURE_TILE_OUT_OF_LEVEL`.
 test('an orphan edge tile leaves to its finest existing ancestor', () => {
@@ -142,7 +142,7 @@ test("a texture's queue is posted in its header with its lane, and sent alone", 
   assert.deepEqual(entryPlace(word), place)
 })
 
-// #360, #361: the filter word shares the last-level word the shader already reads, so a texture
+// The filter word shares the last-level word the shader already reads, so a texture
 // at the defaults reads no more words than before; its transform follows, fetched only when set.
 test("a texture's sampling rides in its header, and only the words that moved are sent", () => {
   const { device, writes } = fakeDevice()

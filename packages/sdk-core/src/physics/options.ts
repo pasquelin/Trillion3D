@@ -130,7 +130,7 @@ export interface PhysicsBudget {
   /**
    * Vertices of every soft body at once (cloths, ropes, volumes). Each one is solved every step
    * and read back to the page, 12 bytes a step: the worker's step grows with them, linearly
-   * (6.5–8.2 ms natively at the default, 2.4–2.8 ms at 4096; audit PHY-18, #975). A soft body
+   * (6.5–8.2 ms natively at the default, 2.4–2.8 ms at 4096). A soft body
    * past it is refused, naming it.
    */
   softVertices: number

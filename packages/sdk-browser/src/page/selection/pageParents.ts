@@ -7,7 +7,7 @@ const NONE: readonly PageRec[] = []
 /**
  * The pages a cluster depends on: the clusters of the group that replaces it, read from the
  * compiled group links of its own placement (`structure.outputs`), reached through the placement
- * tables the layout owns (#1235). A root depends on nothing. `rankOf` gives a record's first
+ * tables the layout owns. A root depends on nothing. `rankOf` gives a record's first
  * packed rank — a per-page lookup, since one record serves many placements.
  */
 export function createPageParents(

@@ -1,4 +1,4 @@
-// A moving image's resolve on a real GPU (#1249): the shipped `directLightingWgsl`, through
+// A moving image's resolve on a real GPU: the shipped `directLightingWgsl`, through
 // `contractLighting` at a sampled rank, on random lamp sets of 1 to 256 and their edge cases — a
 // lamp that reaches one sample only, a cell every lamp reaches. A list with no shadowed light sums
 // what the still image (rank 0) sums, bit for bit; a list with one shadowed light sums what
@@ -104,7 +104,7 @@ const SCENES: ResolveScene[] = sets.flatMap((set, s) => {
       records: [
         record('shadowMoving', list, set.length, false, [shadowed]),
         record('shadowDrawn', list, set.length, true, [shadowed]),
-        // The program with no rectangle code, moving too: the scene holds none (#1369).
+        // The program with no rectangle code, moving too: the scene holds none.
         { ...record('rectless', list, set.length, false, [shadowed]), rectless: true },
       ],
     },

@@ -20,12 +20,12 @@ export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
  * (`vsmMaskPixel`), and, where the frame holds translucent casters, what their transmission's
  * point read takes (`vsmShadowFactor`, its one reader in the resolve): the pixel's footprint at its
- * unjittered centre, whence its view (#1363), and its receiver, moved by its shading-point offset,
- * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer, #1410,
- * #831). The mask carries the opaque shadow from the receiver the projection read
+ * unjittered centre, whence its view, and its receiver, moved by its shading-point offset,
+ * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer).
+ * The mask carries the opaque shadow from the receiver the projection read
  * (`vsm/projectionWgsl.ts`): without translucent casters nothing reads the rest, so a pixel loads
  * none of its eight neighbour depths nor its receiver offset.
- * Set only where the pixel's cell lists a shadowed light (`cellShadowed`, #1369): nothing else reads
+ * Set only where the pixel's cell lists a shadowed light (`cellShadowed`): nothing else reads
  * it.
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
@@ -53,9 +53,9 @@ ${LIGHT_SURFACE_ENTRY}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
  if(flag==1u){var rgb=base.rgb;${CAMERA_FOG_WGSL}return vec4f(rgb,1.0);}
- // The emission-and-occlusion texel only where its bit says it holds something (#1369).
+ // The emission-and-occlusion texel only where its bit says it holds something.
  let normal=textureLoad(normalRough,coord,0);let emissive=surfaceEmissiveAo(coord,surfaceFlag);
- // The pixel's cell of the light grid, read once: its shadow flag, then its list (#1369).
+ // The pixel's cell of the light grid, read once: its shadow flag, then its list.
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
  if(shadowed){shadowSetup(coord,pixel,z,P);}
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);

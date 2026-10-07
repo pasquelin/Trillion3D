@@ -98,7 +98,7 @@ test('a page view off the word boundary decodes bit for bit like the aligned one
   assert.equal(shifted.quantizationError, aligned.quantizationError)
 })
 
-// #846: a normal is written as the compiler writes it (`oct_encode`): of the roundings of its
+// A normal is written as the compiler writes it (`oct_encode`): of the roundings of its
 // octahedral point, the one that decodes closest, so a page cut at run time carries its normals.
 test('a normal is written as the octahedral code that decodes closest to it', () => {
   const decode = (q: number) => {

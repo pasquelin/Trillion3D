@@ -38,7 +38,7 @@ test('a compiler built after its sources is the one a cook runs', async () => {
 })
 
 // Behaviour: a crate source edited after the build refuses the cook by name, with the file and
-// the command that rebuilds — never a product under the previous build's key (#291).
+// the command that rebuilds — never a product under the previous build's key.
 test('editing a crate source refuses the cook until the compiler is rebuilt', async () => {
   const { root, binary, stage } = await crate(2_000, 1_000)
   try {

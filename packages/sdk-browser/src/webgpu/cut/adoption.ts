@@ -16,10 +16,10 @@ import { createHeadUnion } from './headUnion.ts'
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined
   desired: PageRec[]
-  /** The packed rank of each desired page, rank by rank (#1235), parallel to `desired`. */
+  /** The packed rank of each desired page, rank by rank, parallel to `desired`. */
   desiredPacked: number[]
   shown: PageRec[]
-  /** The packed rank of each shown page, rank by rank (#1235). */
+  /** The packed rank of each shown page, rank by rank. */
   shownPacked: number[]
   drawn: PageRec[]
   /** The packed rank of each drawn page, rank by rank. */
@@ -101,7 +101,7 @@ export function createWebgpuCutAdopter(options: {
       drawnDelta.apply(drawnIds, drawnIds.length, claims?.drawn)
       lastCut = cut
     }
-    // The packed ranks of the desired cut, rank by rank beside its records (#1235): held or applied,
+    // The packed ranks of the desired cut, rank by rank beside its records: held or applied,
     // the difference names the instances it keeps.
     copyPacked(options.desiredPacked, delta.ids, delta.count)
     if (offer) offerAhead(cut)

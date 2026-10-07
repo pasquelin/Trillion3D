@@ -173,7 +173,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             proxy.provenance.source_parents[child] = id as i32;
         }
     }
-    // The compiled mesh (`mesh_map`) each node places: a cell node casts as it says (#966).
+    // The compiled mesh (`mesh_map`) each node places: a cell node casts as it says.
     proxy.provenance.source_meshes = nodes
         .iter()
         .map(|node| {

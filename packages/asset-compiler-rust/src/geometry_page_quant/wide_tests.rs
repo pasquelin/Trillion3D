@@ -22,7 +22,7 @@ fn values(count: usize) -> Vec<f32> {
         .collect()
 }
 
-// Behaviour: the dispatched quantizers and the baseline ones agree bit for bit (#1352).
+// Behaviour: the dispatched quantizers and the baseline ones agree bit for bit.
 #[test]
 fn dispatched_quantizers_write_the_baseline_bits() {
     let values = values(4099);

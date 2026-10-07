@@ -1,8 +1,8 @@
-// A module with a name it declares nowhere compiles on no device: the recette's browser would
-// be the first to see it (#348, `unresolved value 'uni'` in the cluster decoding proof, which
+// A module with a name it declares nowhere compiles on no device: a browser would be the
+// first to see it (`unresolved value 'uni'` in the cluster decoding proof, which
 // decodes through the page geometry and declares no camera). This Node test reads every text the
 // engine compiles, and those of the proofs that compile their own, before any browser does: the
-// cut-dispatches oracle's too (#364, `unresolved call target 'spriteOf'`).
+// cut-dispatches oracle's too (`unresolved call target 'spriteOf'`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -20,8 +20,8 @@ test('every WGSL text the engine and its proofs compile declares every name it u
     .map(([name, code]) => [name, unresolvedNames(code)] as const)
     .filter(([, names]) => names.length)
   assert.deepEqual(Object.fromEntries(unresolved), {})
-  // Nor a name WGSL reserves (`'from' is a reserved keyword`, the blend program on the panes'
-  // page, once a march's local was so named).
+  // Nor a name WGSL reserves (`'from' is a reserved keyword`, as a march's local named so
+  // would be).
   const reserved = Object.entries(shaders)
     .map(([name, code]) => [name, reservedNames(code)] as const)
     .filter(([, names]) => names.length)
@@ -35,7 +35,7 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
     'target',
   ])
   assert.deepEqual(reservedNames('// from the target\n@builtin(position) p:vec4f'), [])
-  // The translucent march's walk, as it was named before this gate.
+  // The translucent march's walk, whose names the gate keeps clear of reserved words.
   const blend = ENGINE_SHADERS.BLEND_SHADER
   assert.deepEqual(reservedNames(blend), [])
   assert.deepEqual(reservedNames(blend.replace(/\bwalkFrom\b/g, 'from')), ['from'])

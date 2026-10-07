@@ -1,4 +1,4 @@
-//! A coarse level never inherits a normal from another face (#484). Every corner of a coarse
+//! A coarse level never inherits a normal from another face. Every corner of a coarse
 //! triangle is a vertex some triangle of its group's children draws, with that very normal, and
 //! that child's face turns the same way as the coarse face: the normal is its own face's, not the
 //! underside of a slab on its top nor a cap on a log's side. Slivers have no face to agree with.

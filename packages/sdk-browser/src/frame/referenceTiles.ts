@@ -10,9 +10,9 @@ import {
 } from './referenceTilePlacement.ts'
 
 /**
- * THE TILED SUPERSAMPLING OF THE REFERENCE (#1281). A frame drawn at `factor` samples per output
+ * THE TILED SUPERSAMPLING OF THE REFERENCE. A frame drawn at `factor` samples per output
  * pixel and axis needs a target `factor` times the display on each side; the portable
- * `maxTextureDimension2D` (8192) caps that at 2 at the boss's case. The reference is therefore
+ * `maxTextureDimension2D` (8192) caps that at 2 on a large display. The reference is therefore
  * drawn TILE by TILE — each tile's supersampled target fits the 8192 side — and every tile is
  * box-filtered and placed in linear light into the full display image. The tiles are the engine's
  * own capture of the same camera, its projection scaled and shifted per tile

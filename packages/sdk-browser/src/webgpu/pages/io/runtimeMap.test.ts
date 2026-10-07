@@ -70,7 +70,7 @@ test('a bitmap after open uses the same source, texel extent and upload flags as
     runtime.api.dropMaterial(made.id)
     assert.equal(runtime.buffers.length, allocated, 'drop allocates no GPU buffers')
     assert.equal(runtime.api.materialMapBytes(), 0)
-    // The lane the first map opened keeps the white fill, one tile (#1345).
+    // The lane the first map opened keeps the white fill, one tile.
     assert.equal(runtime.backend.metrics().textureResidentBytes, baseline + tileBytes(4))
     const size = () =>
       runtime.buffers.filter((b) => b.label === 'Trillion3D texture pages color').at(-1)!.size
@@ -99,7 +99,7 @@ test('a failed bitmap upload releases its pinned place and a later admission suc
     }
     await assert.rejects(api.createMaterial({ map: bitmap() }), /bad bitmap/)
     assert.equal(api.materialMapBytes(), 0)
-    // Its place released; the lane it opened keeps the white fill, one tile (#1345).
+    // Its place released; the lane it opened keeps the white fill, one tile.
     assert.equal(backend.metrics().textureResidentBytes, before + tileBytes(4))
     device.queue.copyExternalImageToTexture = copy
     const made = await api.createMaterial({ map: bitmap() })

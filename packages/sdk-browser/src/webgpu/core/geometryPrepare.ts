@@ -21,7 +21,7 @@ const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, rows: 0, upload: 
 export type VertexPoolGrowth = {
   concatPos: GPUBuffer
   concatUv: GPUBuffer
-  /** The normal atlas's view (`floatAtlas.ts`, #1410). */
+  /** The normal atlas's view (`floatAtlas.ts`). */
   concatNrm: GPUTextureView
   wholeDeformation: WholeTable
 }
@@ -31,7 +31,7 @@ export type VertexPoolGrowth = {
  * quantized page covers, from a cache that carries no geometry page. A cluster drawn from its
  * page contributes no vertex here, and its primitive contributes none unless another of its
  * clusters needs one: that is the whole point of reading a page in place. The float pool it makes
- * (`./geometryPool.ts`) grows its room in place (#1293): `grown` hears each growth with the wider
+ * (`./geometryPool.ts`) grows its room in place: `grown` hears each growth with the wider
  * buffers and the deformation block re-placed after them. `wholePool` places the whole copies and
  * the deformation results of the pages drawn from this pool (`pooledOutputs`), the code of a
  * session that deforms.
@@ -62,7 +62,7 @@ export function prepareWebgpuGeometry(
     secondUv ||= !!attributes.uv1
   }
   const capacity = Math.max(1, vertices + room)
-  // The deformation records ride after the positions (#357): the passes read them through the
+  // The deformation records ride after the positions: the passes read them through the
   // binding they already read the positions through.
   const deformFloats = deformation?.floats ?? 0
   const blockOf = (attributes: HostAttributes) => geometryBlocks.get(attributes)!
@@ -80,7 +80,7 @@ export function prepareWebgpuGeometry(
       item.normal = vertexPool.normalAtlas
     }
   }
-  /** A growth of the pool: the deformation block moves after the wider vertices (#1293). */
+  /** A growth of the pool: the deformation block moves after the wider vertices. */
   const regrow = (count: number) => {
     placeWhole(count)
     grown?.({

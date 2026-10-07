@@ -1,4 +1,4 @@
-// The fog contract (#345): the environment carries it into the GPU block behind the irradiance,
+// The fog contract: the environment carries it into the GPU block behind the irradiance,
 // a fog changed stales the frame, the same fog set again does not, and a fog out of range is
 // refused by name.
 import test from 'node:test'

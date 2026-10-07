@@ -1,4 +1,4 @@
-// GEO-1: cut readers by delta. The budget ranking left with #974: both cuts rank by admission.
+// GEO-1: cut readers by delta. Both cuts rank by admission.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import {

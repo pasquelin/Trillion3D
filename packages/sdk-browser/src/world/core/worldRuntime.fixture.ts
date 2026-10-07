@@ -9,7 +9,7 @@ import { createWorldRuntime } from './worldRuntime.ts'
 const saved = { location: Reflect.get(globalThis, 'location') }
 Reflect.set(globalThis, 'location', new URL('http://engine.test/'))
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event)
-/** Every reopen a content change caused in these tests' runtimes: each one a defect (#837). */
+/** Every reopen a content change caused in these tests' runtimes: each one a defect. */
 const contentReopens: unknown[] = []
 const stopListening = listenWorldNotices(({ phase, context }) => {
   if (phase === 'session-reopen' && context?.defect) contentReopens.push(context)

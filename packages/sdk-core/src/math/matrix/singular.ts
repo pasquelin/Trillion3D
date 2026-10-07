@@ -25,8 +25,8 @@
 
 /**
  * The threshold, on the NORMALISED determinant. Under 1e-12, the cube of a scale becomes denormal in
- * single precision: only normalisation crosses that floor, so this threshold no longer judges
- * anything but the shape of the matrix, never its size.
+ * single precision: only normalisation crosses that floor, so this threshold judges
+ * nothing but the shape of the matrix, never its size.
  */
 export const SINGULAR_DETERMINANT = 1e-20
 

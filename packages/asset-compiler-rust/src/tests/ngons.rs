@@ -1,9 +1,9 @@
-//! The audit's U polygon, and what each driver yields of it.
+//! The U polygon, and what each driver yields of it.
 //!
 //! A fan from the first corner fills the hollow of a concave polygon: its
 //! triangles leave the face, and the sum of their areas exceeds the written area.
-//! This U of area seven used to yield eleven in the four drivers that write their
-//! own geometry. The measurement is therefore shared here, with the ring, so each
+//! This U of area seven yields eleven if a driver that writes its own geometry fans it. The
+//! measurement is therefore shared here, with the ring, so each
 //! driver proves itself on the same polygon and the same area.
 use super::*;
 
@@ -109,8 +109,8 @@ fn corners(inner: &str, outer: &str, open: &str, close: &str) -> String {
 }
 
 // Behaviour: the `ma` driver yields the area of the polygon it reads. The U of
-// area seven used to come out as eleven, the fan from its first corner crossing
-// the hollow; it now comes out as seven.
+// area seven comes out as seven, not as eleven, which the fan from its first corner crossing
+// the hollow would give.
 #[test]
 fn the_ma_driver_keeps_the_area_of_a_concave_polygon() {
     let edges: String = (0..8)

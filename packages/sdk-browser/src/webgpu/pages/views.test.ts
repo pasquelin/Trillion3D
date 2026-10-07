@@ -1,4 +1,4 @@
-// #412 step A1: every camera-bound state is held per view, behind one record, and switched in one
+// Every camera-bound state is held per view, behind one record, and switched in one
 // function (`state/viewSwitch.ts`); a capture draws in a view of its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -117,7 +117,7 @@ test('the drawn list follows the cut of the view drawn, the rows its cache', asy
 })
 
 test("each view keeps its own packed ranks: another view's cut never lands on the main view", async () => {
-  // One record serves every placement (#1235): the lists are read by packed rank, so the packed
+  // One record serves every placement: the lists are read by packed rank, so the packed
   // lists are the view's as much as its records are.
   const { rt } = await drawnQuad()
   const packed = () =>

@@ -307,7 +307,7 @@
     "summary": "Khoảng thời gian gia hạn giữa một yêu cầu hủy hợp tác trên stdin và việc buộc dừng."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 6 trước khi `selectedNodes` trở thành một số đếm); các tệp kê khai nguồn giữ định dạng riêng của chúng."
+    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 8 trước khi tệp kê khai được chia trang, 10 trước định dạng 11); các tệp kê khai nguồn giữ định dạng riêng của chúng."
   },
   "COLUMN_KIND": {
     "summary": "Cách mỗi cột của tệp kê khai nhị phân được lưu trữ: số thập phân, số nguyên hay byte.",
@@ -868,7 +868,7 @@
   },
   "DiagnosticDetail": {
     "summary": "Những gì một bộ máy báo cáo về chính nó khi có gì đó sai, hoặc khi một chế độ xem yêu cầu chi tiết: bản ghi mà bộ thu thập của ứng dụng chủ đưa vào hàng đợi, và bên gọi muốn bao nhiêu phần của nó.",
-    "description": "Tách biệt khỏi hợp đồng của bộ máy tại `../backend/types.ts` — đây là những gì trở lại, không phải những gì được cung cấp."
+    "description": "Tách biệt khỏi hợp đồng của bộ máy tại `../engine/types.ts` — đây là những gì trở lại, không phải những gì được cung cấp."
   },
   "DiagnosticMode": {
     "summary": "Tính khả dụng mô tả kết quả thật của đường ống xử lý, không bao giờ là lớp phủ giả lập."
@@ -1165,7 +1165,7 @@
     "summary": "Bộ mã hóa mà các trang hình học được ghi bằng."
   },
   "GEOMETRY_PAGE_FORMAT_VERSION": {
-    "summary": "Định dạng trang hình học mà một tệp phụ phiên bản 7 nêu tên, đúng như `geometryPages` của tệp kê khai khai báo nó một lần và mỗi tiêu đề trang mở đầu bằng."
+    "summary": "Định dạng trang hình học mà một tệp phụ phiên bản 11 nêu tên, đúng như `geometryPages` của tệp kê khai khai báo nó một lần và mỗi tiêu đề trang mở đầu bằng."
   },
   "GeminiFunctionDeclaration": {
     "summary": "Một công cụ theo dạng mà API của Gemini đọc được.",
@@ -1271,7 +1271,7 @@
   },
   "GpuPassBlock": {
     "summary": "Hai khối của một khung hình có thể đối chiếu với một hồ sơ đã công bố, và không gì khác.",
-    "description": "`visibility` là việc xây dựng bộ đệm khả kiến: lựa chọn, phân vùng, Hi-Z và raster. `materials` là việc viết các bề mặt từ bộ đệm đó. Mọi thứ khác là `other`: bóng đổ, danh sách nguồn sáng, dội lại, trong suốt, chiếu sáng trì hoãn, hiển thị, và đường xử lý dự phòng không đi qua bộ đệm đó — đặt bất kỳ thứ nào trong số đó vào một khối sẽ làm phồng lên một phép so sánh thay vì phục vụ nó, nên chúng ở ngoài VÀ được đặt tên, mỗi chặng giữ nguyên thời lượng riêng của nó."
+    "description": "`visibility` là việc xây dựng bộ đệm khả kiến: lựa chọn, phân vùng, Hi-Z và raster. `materials` là việc viết các bề mặt từ bộ đệm đó. Mọi thứ khác là `other`: bóng đổ, danh sách nguồn sáng, dội lại, trong suốt, chiếu sáng trì hoãn và hiển thị — đặt bất kỳ thứ nào trong số đó vào một khối sẽ làm phồng lên một phép so sánh thay vì phục vụ nó, nên chúng ở ngoài VÀ được đặt tên, mỗi chặng giữ nguyên thời lượng riêng của nó."
   },
   "GpuPassBlockTotals": {
     "summary": "Thời gian GPU của một khung hình theo ba khối: khả kiến, vật liệu, phần còn lại.",
@@ -1745,7 +1745,7 @@
   },
   "MANIFEST_BINARY_VERSION": {
     "summary": "Phiên bản 4 biến các mục xem trước 16×16 cố định thành các mức lũy tiến có kích thước biến đổi: cột điểm ảnh không còn bước nhảy cố định nữa, mỗi mục tự nêu tên phạm vi byte của riêng nó.",
-    "description": "Một tệp thuộc phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiển thị các mức của một kết cấu này trên một kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ (word) — atlas mà nó phục vụ và có bao nhiêu mức được nướng sẵn dưới dạng tệp trong `textures/` — và các điểm ảnh của nó theo đúng quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước qua các mục sai cách, nên nó từ chối tệp này. Phiên bản 6 giữ nguyên mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` số thực, mà một trình đọc phiên bản 6 sẽ phải từ chối từng byte một khi giải mã; từ chối cả tệp nói lên điều đó một lần cho xong. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — cách bố trí mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại theo sau các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối."
+    "description": "Một tệp của phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiện các mức của kết cấu này lên kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ — atlas mà nó phục vụ và bao nhiêu mức được nướng thành tệp dưới `textures/` — và điểm ảnh của nó theo quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước sai qua các mục, nên nó từ chối tệp này. Phiên bản 6 giữ mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` dấu phẩy động, mà một trình đọc phiên bản 6 sẽ từ chối từng byte một khi giải mã; từ chối tệp nói điều đó một lần. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — bố cục mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại suy ra từ các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối. Phiên bản 8 thêm các phụ thuộc trang của các gói streaming: một số đếm cho mỗi gói, rồi các danh sách phẳng, đóng đến lớp phủ gốc (`docs/FORMAT.md` §Cluster DAG), mà WebGPU yêu cầu và giữ cùng một gói. Một trình đọc phiên bản 7 không đọc được các danh sách, nên nó từ chối. Phiên bản 9 thêm nón pháp tuyến của mỗi trang, do trình biên dịch nấu sẵn (`Page.cone`), trong một cột mà trình đọc phiên bản 8 không có. Phiên bản 10 cắt tệp kê khai thành các trang (`paged.ts`): một tệp phụ giữ các cột của một trang, tệp của phần đầu chỉ giữ các bản xem trước kết cấu. Phiên bản 11 mở rộng một mục xem trước lên mười lăm từ và thêm một cột khối sau cột của ASTC: họ ETC2, họ thứ ba mà một thiết bị có thể lấy mẫu; một trình đọc phiên bản 10 sẽ bước sai."
   },
   "MATH_PATH_CONTRACT": {
     "summary": "Phiên bản hợp đồng của báo cáo này.",
@@ -1988,7 +1988,7 @@
   },
   "MatrixElements": {
     "summary": "Ma trận 4×4 dạng column-major do ỨNG DỤNG CHỦ sở hữu — tư thế của một node trong cảnh của nó.",
-    "description": "Bộ máy chỉ đọc mười sáu số thực của nó: không có cấu trúc thư viện chủ nào vượt qua một chữ ký.",
+    "description": "Bộ máy chỉ đọc mười sáu số thực của nó: không cấu trúc nào của máy chủ đi qua một chữ ký.",
     "members": {
       "elements": "Mười sáu con số đó, cột theo cột."
     }
@@ -2080,7 +2080,7 @@
       "base": "Thư mục mà các tệp khác của mô hình được đọc dựa vào.",
       "metadata": "Chính tệp kê khai đã biên dịch: các nguyên thủy, các trang và kích thước của chúng.",
       "scene": "Đồ thị cảnh mà trình tải đã dựng từ tệp kê khai.",
-      "textureSource": "Nơi các hình ảnh của nó được đọc: `cache` để lại những cái đã nướng sẵn cho các mức mà phiên đọc."
+      "textureSource": "Nơi các hình ảnh của nó được đọc: `cache` để lại những cái đã nướng sẵn cho các mức mà phiên đọc, `host` đọc tất cả (`loadModel`)."
     }
   },
   "MultiplyLot": {
@@ -2296,13 +2296,13 @@
     "summary": "Số byte của một khối."
   },
   "PREVIEW_BLOCK_FORMATS": {
-    "summary": "Các họ khối mà một chuỗi có thể được nướng vào đó, theo thứ tự các cột tệp phụ của chúng và các từ bố cục của một mục, mỗi họ được đặt tên theo codec RGBA của nó; `png` là tệp không mất dữ liệu bên cạnh chúng."
+    "summary": "Các họ khối mà một chuỗi có thể được nướng thành, theo thứ tự các cột của tệp phụ và các từ bố cục của một mục, mỗi họ được gọi theo bộ mã RGBA của nó: BC cho card máy tính để bàn, ASTC 4×4 và ETC2 cho card di động; `png` là tệp không mất dữ liệu bên cạnh chúng, thứ mà thiết bị không có họ nào trong số đó sẽ đọc."
   },
   "PREVIEW_BLOCK_SIDE": {
     "summary": "Số texel dọc theo cạnh của một khối, và số byte của một khối, trong mọi định dạng."
   },
   "PREVIEW_LAYOUT_NAMES": {
-    "summary": "Những gì một họ giữ của một chuỗi, theo từ bố cục: không có gì — chuỗi vẫn không mất dữ liệu ở đó —, các khối RGBA (BC7 chế độ 6, ASTC chế độ điểm màu 12), hoặc các khối hai kênh cho bản đồ pháp tuyến (BC5, độ chói ASTC + alpha trên hai mặt phẳng: X trong R, Y trong G hoặc A, Z được dựng lại bởi shader)."
+    "summary": "Một họ giữ gì của một chuỗi, theo từ bố cục: không gì cả — chuỗi ở đó vẫn không mất dữ liệu —, các khối RGBA (BC7 chế độ 6, ASTC chế độ điểm cuối màu 12, ETC2 RGBA8), hoặc các khối hai kênh cho bản đồ pháp tuyến (BC5, ASTC độ sáng + alpha trên hai mặt phẳng, EAC RG11: X ở R, Y ở G hoặc A, Z được shader dựng lại)."
   },
   "PREVIEW_LOSSLESS_FORMAT": {
     "summary": "Định dạng tệp không mất dữ liệu bên cạnh các họ khối."
@@ -2510,7 +2510,7 @@
   "PlacementGrowth": {
     "summary": "Thứ mà chủ sở hữu giao cho một phiên mở rộng bộ đệm thực thể của nó tại chỗ (`growth.ts`).",
     "members": {
-      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`). Nếu động cơ không có, chủ sở hữu mở lại phiên trên `to`.",
+      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`).",
       "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn."
     }
   },
@@ -2732,7 +2732,7 @@
     }
   },
   "RuntimeEvent": {
-    "summary": "Điều gì đó mà bộ máy tự báo về chính nó trong khi chạy: một thay đổi nó đã thực hiện, hoặc một sự thất bại."
+    "summary": "Điều mà engine cho biết về chính nó khi đang chạy: một lỗi mà khung nhìn đã vượt qua, vẽ trên những gì nó đã có (`degraded`), hoặc một lỗi nó không vượt qua được (`fatal`)."
   },
   "SCENE_ENVIRONMENT_FLOATS": {
     "summary": "Các số thực của môi trường trong bộ đệm GPU."
@@ -2885,9 +2885,9 @@
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
       "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
-      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt, trên cả hai trình kết xuất; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
-      "onBeforeRender": "Được trình kết xuất gọi trước khi vẽ cảnh; mặc định không có.",
-      "onAfterRender": "Được trình kết xuất gọi sau khi đã vẽ cảnh; mặc định không có.",
+      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Được gọi trước khi cảnh được vẽ; mặc định không có.",
+      "onAfterRender": "Được gọi khi cảnh đã được vẽ xong; mặc định không có.",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, thân vật lý của mỗi lưới như đã khai báo, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -3400,7 +3400,7 @@
   },
   "TableMaterial": {
     "summary": "Một bề mặt đúng như bộ máy đọc nó.",
-    "description": "Một vật liệu glTF là một mục cho mỗi biến thể tiếp tuyến: một ứng dụng chủ phải dựng lại khung tiếp tuyến từ đạo hàm màn hình sẽ lật `normalScaleY`, nên bảng nêu tên một thứ hạng mà một node trỏ tới thay vì thứ hạng vật liệu glTF. `derivativeTangents` cho biết mục đó được viết cho biến thể nào — cảnh tự trị công bố các nguyên thủy của nó không có tiếp tuyến, nên một trình đọc lật dấu trở lại khi hình học nó giữ không đồng thuận.",
+    "description": "Một vật liệu glTF là một mục cho mỗi biến thể tiếp tuyến: một nguyên thủy không khai báo tiếp tuyến được đổ bóng trong một hệ quy chiếu dựng lại từ tam giác của nó, điều này lật `normalScaleY`, nên bảng nêu một thứ hạng mà một node trỏ tới thay vì thứ hạng vật liệu glTF. `derivativeTangents` cho biết mục được viết cho biến thể nào, để một trình đọc lật dấu trở lại khi hình học nó giữ không khớp.",
     "members": {
       "name": "Tên của vật liệu.",
       "derivativeTangents": "Nó có được viết cho các tiếp tuyến được dựng lại trên màn hình hay không.",
@@ -3569,7 +3569,7 @@
   },
   "TextureCompression": {
     "summary": "Họ khối nào mà các bể của một phiên chọn, và mọi thứ theo sau đó.",
-    "description": "Bộ nhớ đệm nướng một chuỗi vào các họ mà quá trình chế biến yêu cầu bên cạnh PNG không mất dữ liệu, và chỉ ở nơi một cổng chất lượng giữ lại nó; thiết bị nói rõ họ nào nó lấy mẫu — card để bàn dùng BC, card di động dùng ASTC, một số dùng cả hai, một bộ điều hợp phần mềm không dùng cái nào. Vậy nên một atlas có một bể cho mỗi LÀN, các cách bố trí mà tệp phụ nêu tên: `lossless` (RGBA8, bốn byte một texel — thứ mà một chuỗi dưới ngưỡng, một hình ảnh chủ hoặc một thiết bị không có tính năng này đọc), `rgba` (BC7 hoặc ASTC, một byte một texel) và `two-channel` (BC5 hoặc ASTC luminance-alpha, một byte một texel, X và Y của bản đồ pháp tuyến với Z được dựng lại bởi shader). Không có gì bị mất bởi bộ máy: một kết cấu lấy làn mà chuỗi của nó được giữ trong đó, và lựa chọn đó được công bố (`texturePoolFormat`)."
+    "description": "Bộ nhớ đệm nướng một chuỗi trong các họ mà bước nấu đã yêu cầu — mặc định là tất cả — bên cạnh PNG không mất dữ liệu, và chỉ ở nơi một cổng chất lượng đã giữ nó; thiết bị cho biết nó lấy mẫu họ nào — card máy tính để bàn BC, card di động ASTC hoặc ETC2, một số có nhiều họ, bộ điều hợp phần mềm thì không họ nào. Khi đó một atlas có một bể cho mỗi LANE, các bố cục mà tệp phụ nêu tên: `lossless` (RGBA8, bốn byte mỗi texel — thứ mà một chuỗi dưới ngưỡng, một ảnh của máy chủ hoặc một thiết bị không có tính năng nào đọc), `rgba` (BC7, ASTC hoặc ETC2 RGBA8, một byte mỗi texel) và `two-channel` (BC5, ASTC độ sáng-alpha hoặc EAC RG11, một byte mỗi texel, X và Y của bản đồ pháp tuyến với Z được shader dựng lại). Engine không làm mất gì: một kết cấu lấy lane mà chuỗi của nó được giữ lại, và lựa chọn được công bố (`texturePoolFormat`)."
   },
   "TextureFilter": {
     "summary": "Quy tắc lấy mẫu của một kết cấu: bộ lọc cơ bản, và quy tắc mip khi bộ lấy mẫu thu nhỏ."
@@ -3578,7 +3578,7 @@
     "summary": "Những gì các kết cấu ảo công bố trên một khung hình: bể, các ô, phản hồi hình ảnh.",
     "description": "Các trường này sống tách biệt với `FrameMetrics` vì chúng mô tả một hàng đợi khác với khung hình: các ô đến theo nhịp độ riêng của chúng, bị giới hạn bởi số byte và theo khung hình, và bể được định kích thước một lần. Tất cả đều tùy chọn: một bộ máy không có kết cấu để chúng vắng mặt, `null` nghĩa là \"chưa được đo\", không bao giờ là một ước lượng.",
     "members": {
-      "texturePoolBytes": "Các bể vật lý, cố định cho cả phiên: số byte của chúng — ĐƯỢC TÍNH từ kích thước và định dạng của chúng, WebGPU không công bố bộ nhớ đang chiếm dụng —, họ khối mà phiên lấy mẫu (`bc7`, `astc`, hoặc `rgba8` khi thiết bị không lấy mẫu cái nào hoặc ứng dụng chủ không yêu cầu cái nào), các lớp của mọi bể làn của cả hai atlas cộng lại, và những gì chúng chứa. `texturePoolBytes` phụ thuộc vào ngân sách và vào làn nào mà các chuỗi của cảnh sử dụng; `textureResidentBytes` là phần bị chiếm dụng, bao gồm cả các đuôi được ghim, ở chi phí texel riêng của mỗi làn.",
+      "texturePoolBytes": "Các bể vật lý, cố định suốt phiên: số byte của chúng — được TÍNH từ kích thước và định dạng của chúng, vì WebGPU không công bố bộ nhớ đang dùng —, họ khối mà phiên lấy mẫu (`bc7`, `astc`, `etc2`, hoặc `rgba8` khi thiết bị không lấy mẫu họ nào hoặc máy chủ không yêu cầu họ nào), số lớp của mọi bể lane của cả hai atlas cộng lại, và những gì chúng giữ. `texturePoolBytes` phụ thuộc vào ngân sách và vào những lane mà các chuỗi của cảnh dùng; `textureResidentBytes` là phần đang dùng, kể cả các đuôi được ghim, theo chi phí texel riêng của mỗi lane.",
       "texturePoolFormat": "Định dạng của bể kết cấu.",
       "texturePoolLayers": "Các lớp trong bể.",
       "textureTilesResident": "Các ô được giữ.",
@@ -4462,10 +4462,10 @@
     "summary": "Họ `capability`: những gì máy cho phép, trước khi một hình ảnh được hứa hẹn."
   },
   "capability.detect": {
-    "summary": "Máy này cho phép những đường xử lý nào của bộ máy (`detectCapabilities`), và tại sao."
+    "summary": "Máy này có cung cấp WebGPU hay không (`detectCapabilities`), bậc của nó, và vì sao."
   },
   "capability.lighting": {
-    "summary": "Đường xử lý vẽ `world` làm gì với ánh sáng (`lightingCapabilities`).",
+    "summary": "Engine vẽ `world` làm gì với các nguồn sáng (`lightingCapabilities`).",
     "parameters": {
       "world": "Thế giới cần hỏi."
     }
@@ -4718,7 +4718,8 @@
     "description": "Mọi đường xử lý đều đọc hàm duy nhất này và gán dấu cho nó theo phép kiểm tra độ sâu riêng của mình."
   },
   "detectCapabilities": {
-    "summary": "Kiểm tra máy này có thể vẽ bằng gì, và nói lý do khi không thể."
+    "summary": "Kiểm tra WebGPU của máy này cung cấp những gì, và nói lý do khi nó không cung cấp gì.",
+    "description": "`gpu` là viết tắt của `navigator.gpu`."
   },
   "GpuCapabilities": {
     "summary": "Những gì WebGPU của máy này cấp, được đọc trước khi bất kỳ phiên nào mở.",
@@ -6282,7 +6283,7 @@
   },
   "page": {
     "summary": "Họ `page`: hình học được cắt thành các trang, vào và ra khỏi bộ nhớ theo những gì khung hình đọc.",
-    "description": "`createCache` là bể trang GPU (`createGpuPageCache`), `decode` là bộ giải mã trang cụm (`decodeGeometryPage`)."
+    "description": "`createCache` là bể trang GPU (`createGpuPageCache`), `decode` là bộ giải mã trang cụm (`decodeGeometryPage`), một chunk riêng mà lần gọi đầu tiên tải xuống: engine vẽ các trang trên GPU và không bao giờ giải mã trang nào trên CPU."
   },
   "page.createCache": {
     "summary": "Một bể trong bộ nhớ GPU giữ các trang mà khung hình đọc, được lấp đầy từ một nguồn trang.",
@@ -6303,7 +6304,7 @@
     }
   },
   "page.decode": {
-    "summary": "Giải nén một trang hình học đã nén thành các tam giác và đỉnh.",
+    "summary": "Giải nén một trang hình học đã nén thành các tam giác và đỉnh, sau khi chunk của bộ giải mã đã đến (`FAMILY_LOAD_FAILED` khi không làm được).",
     "parameters": {
       "bytes": "Trang đã nén."
     }
@@ -6342,7 +6343,7 @@
     }
   },
   "pose.runPath": {
-    "summary": "Phát lại các khung nhìn `poses` qua thế giới (`runCameraPath`), `images` khung hình được trải đều qua chúng, mắt và mục tiêu di chuyển theo đường thẳng giữa hai khung nhìn.",
+    "summary": "Phát lại các khung nhìn `poses` qua thế giới (`runCameraPath`), `images` khung hình được trải đều qua chúng, mắt và mục tiêu di chuyển theo đường thẳng giữa hai khung nhìn, mỗi cái một khung hình hiển thị: các khung hình đã vẽ, thời gian CPU của chúng được tóm tắt, và nhịp hiển thị.",
     "parameters": {
       "world": "Thế giới cần di chuyển.",
       "poses": "Các khung nhìn cần đi qua.",
@@ -6786,7 +6787,7 @@
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
       "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị; `FAMILY_LOAD_FAILED` khi một họ tùy chọn không tải được, cả lúc đó), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
-      "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp.",
+      "modes": "Mọi chế độ xem mà engine cung cấp.",
       "debug": "Chế độ gỡ lỗi của trang (`WorldOptions.debug`): các khung hình chỉ được ghi vào hồ sơ các bước CPU và báo cáo khung hình trong chế độ này, từ khung hình kế tiếp."
     }
   },
@@ -6845,7 +6846,7 @@
     "summary": "Sai số màn hình của lát cắt DAG, tính bằng pixel; giá trị của trang có hiệu lực hơn một preset chất lượng."
   },
   "world.ready": {
-    "summary": "Một promise hoàn tất ngay khi thế giới biết nó sẽ vẽ như thế nào."
+    "summary": "Một promise hoàn tất khi thế giới đã giữ thiết bị WebGPU của nó."
   },
   "world.render": {
     "summary": "Vẽ một khung hình, bất kể ai dẫn dắt vòng lặp: clip và vật lý tiến lên cùng nó.",
@@ -7018,11 +7019,11 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá. Một nửa của nó giữ va chạm tĩnh cùng lúc: các ô của một mô hình đã biên dịch được truyền vào trong đó quanh mắt và các vật thể đang chuyển động, ô xa nhất rời đi trước; một lưới tam giác tĩnh vượt quá nó bị từ chối.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang. Một bước chia việc của nó cho ít luồng hơn khi đo được rằng nhiều hơn chỉ tranh chấp nhau, với cùng kết quả.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
-      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước. Bước của worker tăng theo chúng, tuyến tính (6,5–8,2 ms gốc ở mặc định, 2,4–2,8 ms ở 4096; kiểm toán PHY-18, #975). Một vật thể mềm vượt quá sẽ bị từ chối, kèm tên của nó."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7100,11 +7101,11 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá. Một nửa của nó giữ va chạm tĩnh cùng lúc: các ô của một mô hình đã biên dịch được truyền vào trong đó quanh mắt và các vật thể đang chuyển động, ô xa nhất rời đi trước; một lưới tam giác tĩnh vượt quá nó bị từ chối.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang. Một bước chia việc của nó cho ít luồng hơn khi đo được rằng nhiều hơn chỉ tranh chấp nhau, với cùng kết quả.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
-      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước. Bước của worker tăng theo chúng, tuyến tính (6,5–8,2 ms gốc ở mặc định, 2,4–2,8 ms ở 4096; kiểm toán PHY-18, #975). Một vật thể mềm vượt quá sẽ bị từ chối, kèm tên của nó."
     }
   },
   "PhysicsHost": {
@@ -7287,7 +7288,7 @@
       "offset": "Những gì `matrix` được ghép từ đó.",
       "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
       "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
-      "generateMipmaps": "Có yêu cầu các bản sao nhỏ hơn hay không; engine luôn tạo chúng khi `minFilter` đọc chúng.",
+      "generateMipmaps": "Có yêu cầu các bản sao nhỏ hơn hay không; dù giá trị này nói gì, engine vẫn dựng chuỗi của mọi kết cấu trên GPU, và mỗi lần đọc lấy mức theo dấu chân của nó.",
       "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
       "flipY": "Các hàng có bị lật khi tải lên hay không.",
       "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",

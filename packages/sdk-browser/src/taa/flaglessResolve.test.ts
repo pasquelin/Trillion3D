@@ -4,7 +4,7 @@ import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
 
-// OMB-11: both resolves compile with the pass; a frame handed no flags draws the flagless one, on
+// Both resolves compile with the pass; a frame handed no flags draws the flagless one, on
 // a group and layout without the flags, and compiles nothing.
 test('a frame with no as-is pixel resolves flagless, and switching compiles no pipeline', async () => {
   const { device, renderPipelines } = fakeDevice()

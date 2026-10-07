@@ -57,7 +57,7 @@ impl Decisions {
             .map(|(sha256, cutout)| (sha256, *cutout))
     }
     /// The answers the scene was compiled with and the sheet that keeps them; whether a sheet was
-    /// already there, and which one was read, is this run's history, not the product (#1370).
+    /// already there, and which one was read, is this run's history, not the product.
     pub fn report(&self) -> Value {
         json!({"file":self.sheet.to_string_lossy(),"answers":self.by_image.len()})
     }

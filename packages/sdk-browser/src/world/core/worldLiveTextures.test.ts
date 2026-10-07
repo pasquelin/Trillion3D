@@ -1,4 +1,4 @@
-// #362: a canvas redrawn every frame — `needsUpdate` after each drawing — kept its material's key
+// A canvas redrawn every frame — `needsUpdate` after each drawing — kept its material's key
 // moving, so each frame was a new material entry and a reopened session. The picture alone moves
 // now: the entry is repainted in place, blended or not, and the open session refreshed.
 import assert from 'node:assert/strict'

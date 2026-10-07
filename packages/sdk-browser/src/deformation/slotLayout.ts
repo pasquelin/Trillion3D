@@ -79,7 +79,7 @@ export function deformationSlotBytes(
   homes?: Map<string, number>,
 ) {
   const ends = new Map<string, number>()
-  // One record serves every placement of its primitive (#1235): a page's placement is read from
+  // One record serves every placement of its primitive: a page's placement is read from
   // the first root that places it, a per-page property.
   const rootOf = new Map<PageRec, ClusterRoot<PageRec>>()
   for (const root of roots)

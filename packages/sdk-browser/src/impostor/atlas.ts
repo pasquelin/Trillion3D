@@ -1,5 +1,5 @@
 /**
- * THE IMPOSTOR ATLAS, streamed like any texture (#1239, fact 3; #1335). Each level of an atlas map
+ * THE IMPOSTOR ATLAS, streamed like any texture (fact 3). Each level of an atlas map
  * carries its own direct address (`maps.<name>.levels[k].url`, `docs/FORMAT.md` "Impostor
  * atlases"); the card reads those levels through the engine's ONE held-level read
  * (`readHeldLevel`, `texture/heldLevels.ts`), the one tiles are cut through: the level reader's own

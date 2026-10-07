@@ -101,7 +101,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
   }
 })
 
-// Issue #275: the witnesses live beside the bench, so the package neither ships nor pulls the host
+// The witnesses live beside the bench, so the package neither ships nor pulls the host
 // library. Read on the archive and on a real install, not on the manifest alone.
 test('the packed package names no host library and a clean install pulls none', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-no-three-'))

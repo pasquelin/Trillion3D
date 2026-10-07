@@ -1,5 +1,5 @@
 //! The manifest's mesh pages under the page limit, and the region pages of the cells naming
-//! exactly the mesh pages their cells use (#792).
+//! exactly the mesh pages their cells use.
 //!
 //! Provenance: synthetic primitives — `columns` reads their counts and one culling node each, not
 //! their geometry — padded to a few hundred bytes each; the compiled worlds are `partition_pages.rs`'s.
@@ -58,7 +58,7 @@ fn assert_region_pages_name(directory: &Path, partition: &Value, holding: &MeshS
 
 /// The manifest of the compiled folder `directory` whose tables are `tables`: every mesh page
 /// under the limit, every region page naming exactly the mesh pages its cells use, and the tables
-/// the pages of the meshes their node table draws, sorted and each once (#751).
+/// the pages of the meshes their node table draws, sorted and each once.
 pub(super) fn assert_mesh_pages(directory: &Path, tables: &Value) {
     let root = read_json(&directory.join(MANIFEST_FILE));
     let holding = mesh_pages(directory, &root["pages"]);

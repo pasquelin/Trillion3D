@@ -1,4 +1,4 @@
-// #573: a table of the same age sends again only the transparent entries whose pages a rewrite
+// A table of the same age sends again only the transparent entries whose pages a rewrite
 // bounded elsewhere (`occlusionMoved`); a new age sends every entry and the never-culled bits.
 import test from 'node:test'
 import assert from 'node:assert/strict'

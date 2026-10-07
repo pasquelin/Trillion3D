@@ -78,7 +78,7 @@ export type GpuFrameMs = number | null
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
   cacheEvictions?: number | null
   /** Bytes of geometry memory. */ geometryAllocationBytes: number | null
-  /** Vertex bytes of dynamic geometry uploaded in place this frame (#573), within the world's
+  /** Vertex bytes of dynamic geometry uploaded in place this frame, within the world's
    *  per-frame budget (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent where no world draws. */
   dynamicUploadBytes?: number
   /** Bytes of GPU memory. */ vramBytes: number | null
@@ -146,7 +146,7 @@ export type GpuFrameMs = number | null
    *  to its own first, the gap `gpuHostGapMs` cannot hold (an image that submits once carries none
    *  of it). Null when the image before it, or this one, was not timed whole (a pass left untimed,
    *  or one whose timestamps could not be read; a pass the driver skipped does not count), past a
-   *  pause, and without `timestamp-query` (#1451). */
+   *  pause, and without `timestamp-query`. */
   gpuIdleMs?: number | null
   /** Why the GPU device was lost; null while it holds. */ gpuDeviceLost?: string | null
   /** Triangles of clusters the published cut names but the frame cannot draw — no resident page and no

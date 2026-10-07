@@ -39,7 +39,7 @@ export type BlendGpuItem = {
   /** An item with buffers of its own: whether its geometry carries a second UV set, at the tail of
    *  its normal atlas (`buffers.ts`); absent, it reads the float pool's or its pages'. */
   ownUv1?: boolean
-  /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`, #1410). */
+  /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`). */
   normal?: FloatAtlas
   surface: PageSurface
   count: number
@@ -60,7 +60,8 @@ export type BlendGpuItem = {
   /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
   flags: number
-  group?: GPUBindGroup
+  /** Its own bind group, by the slot of the identity it names (`identity`). */
+  groups?: (GPUBindGroup | undefined)[]
   paged?: boolean
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
   pagedIndex?: number
@@ -104,13 +105,15 @@ function tableState() {
     /** World corners of each table entry, and the age of the table they come from. */
     occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
     occlusionEpoch: -1,
-    /** The entries whose pages a rewrite bounded elsewhere since the corners left (#573), sent
+    /** The entries whose pages a rewrite bounded elsewhere since the corners left, sent
      *  again alone (`refreshTransparentCorners`); none when `to` is below `from`. */
     occlusionMoved: { from: Infinity, to: -1 },
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: new Set<number>(),
-    /** What the transparent groups currently name: a moved identity voids them. */
-    identity: createWebgpuBindIdentity(),
+    /** What the transparent groups currently name: a moved identity voids them. Two are held,
+     *  with the groups of each: the shadow maps' tables a lit pass binds are double-buffered, and
+     *  their frames take turns. */
+    identity: createWebgpuBindIdentity(2),
     /** Lighting resources of the image, resolved once by `encodeBlend`: the blends, the water
      *  surfaces and the water composite bind the same. */
     lighting: undefined as BlendLighting | undefined,
@@ -199,7 +202,7 @@ function planTotals() {
     filtersDisplay: false,
     /** The blending modes the plan draws, built with it: what a later change must compile for. */
     planModes: [] as Blending[],
-    /** Bind group ALL paged items share. */
-    pagedGroup: undefined as GPUBindGroup | undefined,
+    /** Bind group ALL paged items share, by identity slot. */
+    pagedGroups: [] as (GPUBindGroup | undefined)[],
   }
 }

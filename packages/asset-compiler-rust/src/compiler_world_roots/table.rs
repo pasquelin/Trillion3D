@@ -1,4 +1,4 @@
-//! The `clusters` and `groups` of the world roots (#1238), written as `world-roots.dag`: the
+//! The `clusters` and `groups` of the world roots, written as `world-roots.dag`: the
 //! per-cluster metadata the runtime's cut projects, for every world cluster — object roots
 //! included — and the group list.
 use super::merge::WorldDag;
@@ -10,7 +10,7 @@ use crate::dag::{DagCluster, DagGroup};
 /// included — named by its world rank, the same rank its group's `children` and `outputs` use. A
 /// super-root names its page's place in the binary (`bundle`, `offset`); an object root names its
 /// `origin`, the placed object of the table that draws it (`object_of` its instance, its rank
-/// `object_dependencies` gives, #1332), and
+/// `object_dependencies` gives), and
 /// keeps its own page in the primitive's streams.
 pub(super) fn clusters(
     dag: &[DagCluster],

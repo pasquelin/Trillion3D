@@ -3,7 +3,7 @@ export const SURFACE_IRRADIANCE_WGSL = `
 /**
  * Irradiance of the declared lights at a texel point. Shadows are traced against the proxy,
  * which keeps a closed door closed for bounce as for the direct term. Every shadow-casting light
- * that adds light at the point is tested: one left untested would shine through the wall (#29).
+ * that adds light at the point is tested: one left untested would shine through the wall.
  * In the surface cache and probe passes the bounce budget holds the cost by updating fewer cells;
  * a mirror ray landing on an owned leaf (\`rayRadiance\`) pays one ray per such light per pixel.
  */

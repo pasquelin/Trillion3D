@@ -22,7 +22,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
 
 /**
  * Moves nodes the host holds — handles, no name looked up — to column-major WORLD poses, sixteen
- * floats per node in the same order (#971, CPU-19). Each node is posed as its own call would, in
+ * floats per node in the same order. Each node is posed as its own call would, in
  * order, so a node reads the poses the nodes before it set (`poseNode` reads its chain on demand);
  * one pass of the tree then walks the union of the moved subtrees.
  * Boxes, rows, the scene revision and the shadow boxes follow once for the call (`movedBatch.ts`).

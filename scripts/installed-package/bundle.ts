@@ -30,7 +30,7 @@ export interface EmittedBrowserBundle {
   outputRoot: string
   assets: BundleAsset[]
   metafile: Metafile
-  /** The package's own CDN bundle, as the archive ships it, checked (#1353). */
+  /** The package's own CDN bundle, as the archive ships it, checked. */
   cdn: UnpackedCdn
 }
 
@@ -162,7 +162,7 @@ export async function proveInstalledBrowserModes(
   if (direct.capture.sha256 !== bundled.proof.capture.sha256)
     throw new Error('direct and bundled installed browser captures differ')
   bundled.proof.capture.differentPixelsFromDirect = 0
-  // The CDN bundle draws what the unbundled entry draws, byte for byte (class 1, #1353).
+  // The CDN bundle draws what the unbundled entry draws, byte for byte (class 1).
   const cdn = await proveCdnBrowser({
     fixture: options.fixture,
     packageName: options.packageName,

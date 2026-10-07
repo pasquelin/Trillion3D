@@ -17,7 +17,7 @@ test("without accumulation this frame, the render matrix is the camera's and com
   rt.run.diagnostic = 'screen-error' as never
   assert.equal(frame(false), null)
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection)
-  // With no pass rigged at all, the frame is held as before the batch.
+  // With no pass rigged at all, the frame is held.
   rt.gpu.temporal = undefined
   assert.equal(taaSettled(rt), true)
 })

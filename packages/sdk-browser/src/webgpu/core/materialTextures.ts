@@ -17,7 +17,7 @@ const adder = (known: Map<Texture, number>, list: Texture[]) => (texture?: Textu
 
 /**
  * Census every colour and data texture once, in a stable slot order, and the readers of each
- * colour texture, which say whether its mips weigh by alpha (`CoverageReaders`, #42).
+ * colour texture, which say whether its mips weigh by alpha (`CoverageReaders`).
  */
 export function collectWebgpuMaterialTextures(
   allPages: PageRec[],

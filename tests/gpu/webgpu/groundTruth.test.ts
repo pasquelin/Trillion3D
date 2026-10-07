@@ -1,4 +1,4 @@
-// #443: the ground truth the grazing fixtures are judged against — a footprint integral along the
+// The ground truth the grazing fixtures are judged against — a footprint integral along the
 // minified axis alone —, and the judgement itself: a gap counted in pixels over one level,
 // silhouettes aside; the engine within tolerance and no farther from the truth than the witness.
 import assert from 'node:assert/strict'
@@ -94,7 +94,7 @@ test('a gap counts the pixels over one level on a channel, never a silhouette', 
   assert.deepEqual(truthGap(image, truth), { pixels: 1, max: 3 }, 'the edge pixel is not read')
 })
 
-// The verdict of #443: no sampler reaches an ideal truth at a grazing angle, the witness's
+// The verdict: no sampler reaches an ideal truth at a grazing angle, the witness's
 // hardware included; the engine passes when it is no farther from it than the witness, give or
 // take CONTRIBUTING's tolerance.
 test('the engine passes within tolerance of the witness gap to the truth', () => {
@@ -109,10 +109,10 @@ test('the engine passes within tolerance of the witness gap to the truth', () =>
   assert.match(truthVerdict(gap(88), gap(83), 4)!, /engine 88 px/)
 })
 
-// The review of #443: a truth that averaged a magnified axis too, and cut each ray, could be met by
-// no sampler. On the fixtures' maps, magnified — face-on, near two pixels a texel, the map's own
-// shape at its fixture repeat —, a perfect one-read sampler (the base level, bilinear, cut once)
-// is the truth. A minified axis is still integrated: that is what an anisotropic read does.
+// A truth that averaged a magnified axis too, and cut each ray, could be met by no sampler. On the
+// fixtures' maps, magnified — face-on, near two pixels a texel, the map's own shape at its fixture
+// repeat —, a perfect one-read sampler (the base level, bilinear, cut once) is the truth. A
+// minified axis is still integrated: that is what an anisotropic read does.
 test('a perfect one-read sampler is the truth where the map is magnified', () => {
   const texels = (leaf: (x: number) => number[]) =>
     Array.from({ length: 64 }, (_, i) => leaf(i % 8)).flat()
@@ -134,7 +134,7 @@ test('a perfect one-read sampler is the truth where the map is magnified', () =>
   }
 })
 
-// Review of #443: the footprint is integrated on its tangent, the line a sampler's derivatives
+// The footprint is integrated on its tangent, the line a sampler's derivatives
 // lay, not on the curve a pixel's edges trace on the plane — at 88° the curve moves 34 pixels of
 // the stripes up to 7 levels, where no sampler follows it. Stripes vary along u alone: the tangent's
 // mean is a one-dimensional integral, the plane cast here in closed form from `cameraFace`.

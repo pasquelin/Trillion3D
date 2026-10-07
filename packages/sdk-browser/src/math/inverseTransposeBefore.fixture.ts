@@ -1,8 +1,8 @@
 import { inverseTransposeKernel } from './inverseTransposeKernel.ts'
 
 /**
- * Prepare from BEFORE defect 6: absolute threshold `abs(det)<1e-20` on the RAW 3×3, and factor
- * `1/det` instead of `1/(det·t)`. `regular` is the exact negation of the old guard, the one
+ * Prepare with the absolute-threshold guard: absolute threshold `abs(det)<1e-20` on the RAW 3×3,
+ * and factor `1/det` instead of `1/(det·t)`. `regular` is the exact negation of that guard, the one
  * that returned the vector as-is — hence the same decision, case for case, NaN included. Its
  * number is written by hand and stays: it is a DEAD RULE, on the raw determinant, which the
  * shared constant must not follow if it moves — otherwise the reproduction would stop reproducing.
@@ -12,7 +12,7 @@ const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/det,!(abs(det)<1e-20));`
 
 /**
- * The same kernel with the prepare from before defect 6, TO REPLAY THE DEFECT ONLY: no
+ * The same kernel with the absolute-threshold prepare, TO REPLAY THE DEFECT ONLY: no
  * production shader inserts it, so it is test code. Its fallback remains the LOCAL vector `v` —
  * that was the defect, and a reproduction that adopted the shipped convention would reproduce
  * nothing. It shares the shipped kernel's text (`inverseTransposeKernel.ts`) rather than a copy in

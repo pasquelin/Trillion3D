@@ -1,4 +1,4 @@
-//! Fast path (#47): a job whose product is already in the cache proves the folder
+//! Fast path: a job whose product is already in the cache proves the folder
 //! and keeps it, instead of rebuilding the DAG to write the same bytes again.
 use super::*;
 use crate::tests::textures::identity_textures::{png_sized, source_texturee};

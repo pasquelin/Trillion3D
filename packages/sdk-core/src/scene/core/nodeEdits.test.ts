@@ -1,5 +1,5 @@
 // nodeEdits.ts: every rename and every change of parent moves the edit count, whatever called it —
-// what a name index built by a walk is dropped on (#915) —, every field a watch compares moves the
+// what a name index built by a walk is dropped on —, every field a watch compares moves the
 // write count, and a pose write moves neither.
 import test from 'node:test'
 import assert from 'node:assert/strict'

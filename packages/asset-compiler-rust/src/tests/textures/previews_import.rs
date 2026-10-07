@@ -1,6 +1,6 @@
 //! Previews of a scene that went through an import driver. A converted format
 //! writes its intermediate scene in the cache, but its images stay in the source
-//! folder, next to the original file: that is the Village shape, a 409 MB FBX
+//! folder, next to the original file: that is the shape of a 409 MB FBX
 //! whose PNGs sit beside the `.fbx`.
 //!
 //! The preview golden compiles a glTF delivered as-is, where the scene and its

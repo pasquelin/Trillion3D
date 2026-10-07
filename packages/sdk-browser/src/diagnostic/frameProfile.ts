@@ -68,7 +68,7 @@ function streamingReport(m: FrameMetrics | null | undefined): TelemetryReport['s
 }
 
 /**
- * The frame report's code (#1353): what `EngineProfiler` (`telemetry.ts`) does once the debug code
+ * The frame report's code: what `EngineProfiler` (`telemetry.ts`) does once the debug code
  * has arrived — it watches frame after frame and says how smoothly the engine runs, and what slows
  * it. Part of the measurement's chunk (`../measurement/measurementCode.ts`), which a page that
  * never asks for debug mode never downloads.

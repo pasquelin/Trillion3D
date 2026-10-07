@@ -1,5 +1,5 @@
-// The CPU half of the WebGPU particle step (#420): the words it hands the GPU for a pool, and a
-// frame with a pool never held. What the GPU does with them is the recette's.
+// The CPU half of the WebGPU particle step: the words it hands the GPU for a pool, and a
+// frame with a pool never held. What the GPU does with them is outside this test.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as tick } from 'node:timers/promises'

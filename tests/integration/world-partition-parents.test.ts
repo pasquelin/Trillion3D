@@ -1,4 +1,4 @@
-// A page moves the parent of placed nodes (#404). The synthetic world of `world-partition.test.ts`
+// A page moves the parent of placed nodes. The synthetic world of `world-partition.test.ts`
 // hangs every placement under one scene root, `district`, and is compiled by this checkout's
 // native compiler: the cells box their nodes in the district's frame. A page loads it as a world
 // does (`loadModel`), finds the district by name (`getObjectByName`) and moves it 5 km, to where a

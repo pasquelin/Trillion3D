@@ -12,7 +12,7 @@ export interface EnvironmentSource {
 }
 
 /** The environment's order-2 radiance seen along R through the GGX lobe: the specular reflection
- *  every program falls back to where no screen hit and no probe answers, never black (#1341). An
+ *  every program falls back to where no screen hit and no probe answers, never black. An
  *  all-zero environment exits before the band moments. The diffuse term reads the same
  *  coefficients through the cosine lobe. */
 export function environmentReflectionShader({

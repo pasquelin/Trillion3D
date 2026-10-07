@@ -1,5 +1,5 @@
 /**
- * The host meshes a partitioned scene draws its cells' nodes with (#404): for each mesh the cells
+ * The host meshes a partitioned scene draws its cells' nodes with: for each mesh the cells
  * place, one copy of each of its primitive meshes, hung on the scene root and placed by rows — its
  * association carries the instance buffer the cells write (`../../partition/rows.ts`), so
  * its own pose is never read. It bounds itself by the box around every cell: the framing and the
@@ -26,7 +26,7 @@ export function placedMeshes(
   for (const rank of partition.meshes) {
     const nodes = parts(rank).map((part) => {
       const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box })
-      // A cell places only shown nodes; the part may be a hidden core node's own mesh (#519).
+      // A cell places only shown nodes; the part may be a hidden core node's own mesh.
       mesh.visible = true
       scene.add(mesh)
       return mesh

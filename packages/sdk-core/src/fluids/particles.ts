@@ -1,10 +1,10 @@
 /**
- * The engine's particle pool (#420), stepped on the GPU (`sdk-browser/src/particles/`): a fixed
+ * The engine's particle pool, stepped on the GPU (`sdk-browser/src/particles/`): a fixed
  * capacity, a ring where emission writes the oldest slot, the image's records staged in one buffer
  * made at creation. Nothing is compacted or read back: a particle past its lifetime is dead, and
  * the GPU skips it. Positions are from the pool's origin, its emitter's place: ten kilometres out a
  * particle still moves by a fraction of a millimetre, which 32-bit world floats round away. The
- * step never reads the origin; drawing adds it back (#755).
+ * step never reads the origin; drawing adds it back.
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts'
 

@@ -1,4 +1,4 @@
-// #926: the water word no longer takes a 4 B/px `r32uint` target of its own: the surface stage
+// The water word takes no 4 B/px `r32uint` target of its own: the surface stage
 // writes its four bytes into the display colour (`rgba8unorm`) and the composite packs them back.
 // Every rank and opacity must read back as the word the stage packed — what the `r32uint` target
 // returned — through the GPU's float-to-unorm8 store and its unorm8-to-float load.

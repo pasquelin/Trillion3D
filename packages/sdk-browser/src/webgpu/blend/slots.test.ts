@@ -1,6 +1,6 @@
-// The slots against the runs (#831, GPU wave 1): the draws laid out ahead of the GPU's order
-// (`runs.ts`) paint the very instances, in the very order, with the very pipeline and buffers the
-// runs the CPU sliced from the whole paint order used to paint — the same image.
+// The slots against the runs: the draws laid out ahead of the GPU's order
+// (`runs.ts`) paint the very instances, in the very order, with the very pipeline and buffers as
+// the runs the CPU sliced from the whole paint order — the same image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { orderBlendPasses } from './order.ts'

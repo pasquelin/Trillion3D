@@ -113,10 +113,10 @@ const EAC_RG11: u32 = 155;
 /// three-bit truncation erases.
 const TABLE_13: u8 = 13;
 
-// Reproduction of finding 55: an EAC channel carries eleven bits, the contract eight. The
-// external decoder used to bring them down by `val >> 3`, a truncation that lowers one value
-// in eight by one step, and read the index field backwards, which mixed the sixteen texels of
-// a block. The driver now expands these two formats itself, in eleven bits, then rounds to
+// An EAC channel carries eleven bits, the contract eight. An
+// external decoder would bring them down by `val >> 3`, a truncation that lowers one value
+// in eight by one step, and read the index field backwards, which mixes the sixteen texels of
+// a block. The driver expands these two formats itself, in eleven bits, then rounds to
 // nearest.
 //
 // The block written here has base word 0 and multiplier 0 — which the specification reads as

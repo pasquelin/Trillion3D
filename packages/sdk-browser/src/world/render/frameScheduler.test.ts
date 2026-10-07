@@ -138,7 +138,7 @@ function manual() {
   return { run, answers, log }
 }
 
-test('the next frame is asked right after render, and a stop cancels it (#983)', async () => {
+test('the next frame is asked right after render, and a stop cancels it', async () => {
   const { run, answers } = manual()
   run.invalidate()
   await run.frame()
@@ -149,7 +149,7 @@ test('the next frame is asked right after render, and a stop cancels it (#983)',
   assert.equal(run.renders, 1)
 })
 
-test('frames before their feedback are held: no settle round, no revision, same order (#983)', async () => {
+test('frames before their feedback are held: no settle round, no revision, same order', async () => {
   const { run, answers, log } = manual()
   let held = 0
   run.invalidate()
@@ -174,7 +174,7 @@ test('frames before their feedback are held: no settle round, no revision, same 
     assert.ok(log.indexOf(`feedback ${n}`) < log.indexOf(`render ${n + 1}`), `frame ${n}`)
 })
 
-test('a held frame moves no revision: a stop answered after one pauses the loop (#983)', async () => {
+test('a held frame moves no revision: a stop answered after one pauses the loop', async () => {
   const { run, answers } = manual()
   run.invalidate()
   await run.frame()

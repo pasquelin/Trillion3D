@@ -4,9 +4,9 @@ import { PRIMITIVE_VEC4 } from '../types.ts'
  * What a camera cut derives once per primitive and frame, not once per node or page it visits.
  *
  * `dagPrepare` already brings the frustum planes into each primitive's space (`shader.ts`). Behind
- * the first row of slots of `frames`, it now also leaves, for each primitive of a camera cut:
+ * the first row of slots of `frames`, it also leaves, for each primitive of a camera cut:
  * - `view · world`, the matrix every screen error projects through (`projected`), for the camera
- *   and for the view ahead — a 4x4 product each node of the descent and each page used to redo;
+ *   and for the view ahead — a 4x4 product each node of the descent and each page would redo;
  * - the normal matrix of the world's 3x3, prepared as `invTranspose3Prep` prepares it, and whether
  *   the 3x3 is conformal (`isConformal`), the two things the normal cone reads of the primitive;
  * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own.

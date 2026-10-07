@@ -1,5 +1,5 @@
-// #1237: a placed cell holds the world bundles its objects need, and a bundle's pages are viewed on
-// their bytes. The table's records are read in `worldRootsTable.test.ts` (#1232).
+// A placed cell holds the world bundles its objects need, and a bundle's pages are viewed on
+// their bytes. The table's records are read in `worldRootsTable.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'

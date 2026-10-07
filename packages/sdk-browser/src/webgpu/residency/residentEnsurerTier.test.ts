@@ -93,14 +93,14 @@ async function framedBurst(visibility: DocumentVisibilityState, tasks = 50) {
   }
 }
 
-test('a visible page opens a bounded number of shares between two frames (#983)', async () => {
+test('a visible page opens a bounded number of shares between two frames', async () => {
   const { perFrame } = await framedBurst('visible')
   // The shares the pace opens, and the piece begun before the first.
   for (const loads of perFrame) assert.ok(loads <= STREAMING_SHARES_PER_FRAME + 1, `${perFrame}`)
   assert.ok(perFrame.length > 1, 'the burst spread over frames')
 })
 
-test('a hidden page never waits for a frame: a share per task, as before (#983)', async () => {
+test('a hidden page never waits for a frame: a share per task, as before', async () => {
   const { perFrame, perTask, asked } = await framedBurst('hidden')
   assert.deepEqual(perFrame, [12], 'the whole burst loaded with no frame')
   assert.deepEqual(perTask, new Array(12).fill(1), 'a whole share per task, no task lost')
@@ -162,7 +162,7 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
   assert.deepEqual([...cache.resident.keys()].sort(), ['a', 'b', 'c'])
 })
 
-// #1016 measure ko: a tier's list is remade with every report. A page the list still names keeps
+// A tier's list is remade with every report. A page the list still names keeps
 // its slot, so no wanted page is evicted and reloaded every frame.
 test('a tier keeps a page its list still names', async () => {
   const pages = ['a', 'b', 'c'].map(pageOf)

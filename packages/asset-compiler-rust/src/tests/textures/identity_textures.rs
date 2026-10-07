@@ -1,7 +1,7 @@
-//! A05 — Linked glTF images are read after the key is computed: their pixels
+//! Linked glTF images are read after the key is computed: their pixels
 //! enter the product — sidecar texture previews — without entering the identity
-//! that names it. A red PNG replaced by a blue PNG therefore left the key intact
-//! while `clusters.bin` changed, and a consumer that reuses by the key kept the
+//! that names it. A red PNG replaced by a blue PNG would therefore leave the key intact
+//! while `clusters.bin` changed, and a consumer that reuses by the key would keep the
 //! previous previews.
 use super::*;
 

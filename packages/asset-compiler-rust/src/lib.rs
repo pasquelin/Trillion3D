@@ -46,7 +46,7 @@ pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// texture set, clamped to the group's extent, raised to what each part it removes whole costs
 /// (`dag/vanished.rs`), never below the sampled Hausdorff distance between the group's children
 /// and its outputs, and projected through the group bounding sphere. v1 measured positions only,
-/// v2 published the quadric error alone (#929); their caches are refused, never reinterpreted.
+/// v2 published the quadric error alone; their caches are refused, never reinterpreted.
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,

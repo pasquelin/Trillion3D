@@ -13,7 +13,7 @@ import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
 const MiB = 1024 * 1024
 const BASE = 'https://host/cache/full/clusters.json'
 const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 }
-/** Bytes of a `side`² block level file (#962): a server that ignores Range sends it whole. */
+/** Bytes of a `side`² block level file: a server that ignores Range sends it whole. */
 const fileBytes = (side: number) => tiledLevelBytes(side, side)
 /** The block level `level` of one texture. */
 const request = (level: number): TextureLevelRequest => ({
@@ -42,7 +42,7 @@ function session(cache: PageCache, key = 'k1', side = 1024) {
   return { levels, fetched, ask }
 }
 
-// Behaviour (#745, #483 rule 5): a lost device's session is rebuilt from the levels the world's
+// Behaviour: a lost device's session is rebuilt from the levels the world's
 // cache holds; nothing is read again. A read landing after the scene changed keeps nothing.
 test('after a device loss the texture levels are rebuilt with no level read again', async () => {
   const cache = createPageCache()
@@ -63,7 +63,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   assert.equal(cache.levels.bytes, 0, "the first cook's levels left with it")
 })
 
-// Behaviour (#745): a level the lost session was reading, read again by the next one, is held once.
+// Behaviour: a level the lost session was reading, read again by the next one, is held once.
 test('a level read by both sides of a device loss is counted once', async () => {
   const cache = createPageCache()
   const lost = session(cache)
@@ -75,7 +75,7 @@ test('a level read by both sides of a device loss is counted once', async () => 
   assert.equal(cache.levels.bytes, fileBytes(1024))
 })
 
-// Behaviour (#745, #483 rule 1): the levels yield to the pages a frame keeps, before the proxy
+// Behaviour: the levels yield to the pages a frame keeps, before the proxy
 // and before any page leaves; a level that cannot fit is not read again every frame.
 test('a small CPU total: no page a frame keeps is refused for a texture level, the levels yield first', async () => {
   const urls = ['http://cache/a', 'http://cache/b']
@@ -109,7 +109,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   streamer.dispose()
 })
 
-// Behaviour (#745): the levels' cap is three quarters of the pages' share of `world.budget.cpu`,
+// Behaviour: the levels' cap is three quarters of the pages' share of `world.budget.cpu`,
 // applied at once, the least recently read leaving first.
 test('the texture levels cap follows world.budget.cpu live', async () => {
   const pools = worldPools()

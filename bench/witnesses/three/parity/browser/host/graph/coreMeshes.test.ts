@@ -1,5 +1,5 @@
 /**
- * The engine's graph draws the core's own `Mesh` and `InstancedMesh` (#874): a walk finds them,
+ * The engine's graph draws the core's own `Mesh` and `InstancedMesh`: a walk finds them,
  * the guards pick them out and nothing else, a pose write on one is heard by the hook, and a copy
  * keeps what the draw reads — the placements, their count, the morph weights and the creation
  * number a draw breaks ties with.

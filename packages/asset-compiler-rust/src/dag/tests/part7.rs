@@ -7,7 +7,6 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let children: Vec<DagCluster> = cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)
         .expect("clusters")
         .into_iter()
-        // Left to the attribute-aware simplification batch (#46), which rewrites these tests.
         // jscpd:ignore-start
         .map(|indices| {
             let sphere = bounding_sphere(positions, &indices);

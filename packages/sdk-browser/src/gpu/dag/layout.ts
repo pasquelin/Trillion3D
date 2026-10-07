@@ -19,7 +19,7 @@
  * words (`worlds.ts`): the page's record is its index plus that shift.
  *
  * Residency follows the working table as bits, one word for thirty-two pages: passes that
- * read it no longer walk a forty-eight-byte record for a single flag, and the host only
+ * read it do not walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
 import {
@@ -64,9 +64,9 @@ export function packClusterFlags(
 /**
  * Readout CAP, in ranks, for each of its two halves.
  *
- * The readout buffer was sized on `pageCount` — the worst case, a cut that would keep
- * the whole catalogue — and the frame copy took all of it: 15.2 MiB per frame at
- * 1,992,187 clusters, for a cut that keeps about a hundredth. Measured on apple metal-3
+ * A readout buffer sized on `pageCount` — the worst case, a cut that would keep
+ * the whole catalogue — makes the frame copy take all of it: 15.2 MiB per frame at
+ * 1,992,187 clusters, for a cut that keeps about a hundredth. Measured on a Metal 3 device
  * (`tests/gpu/dag/cut-snapshot.gpu.ts`): 1.17 ms per frame for the full readout vs
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *

@@ -1,4 +1,4 @@
-// #836, audit of #888: a pooled key is noted to the GPU pool list (`../pages/services.ts`,
+// A pooled key is noted to the GPU pool list (`../pages/services.ts`,
 // `notePool`) at its arrival, for every placement, whether a row was written or not: the mirror
 // reads the cache and the static catalogue only, so no key holds its slot outside the queue.
 import test from 'node:test'

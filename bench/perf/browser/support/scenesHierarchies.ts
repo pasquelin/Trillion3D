@@ -1,6 +1,6 @@
-// Parent/child hierarchies of the volume bench (batch M2). World matrices come from Three.js —
-// `updateMatrixWorld(true)` on real `Object3D` chains — the in-house hierarchy belonging to
-// batch M3: what is verified here is that volumes stay exact under any realistic world
+// Parent/child hierarchies of the volume bench. World matrices come from Three.js —
+// `updateMatrixWorld(true)` on real `Object3D` chains — the in-house hierarchy being separate:
+// what is verified here is that volumes stay exact under any realistic world
 // matrix. Depth chains 1 to 6 and a multi-child branch; negative scales on one or three
 // axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
 // orthographic camera posed itself in the hierarchy.

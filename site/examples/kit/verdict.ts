@@ -9,7 +9,7 @@ import { exampleId, kitWord } from './words.ts'
 /**
  * What one part of the health check holds, named here once — the bench's baselines hold relative
  * thresholds, none of these quantities: the floor of the 60–120 Hz a frame targets, the GPU time
- * of one 60 Hz frame, and #525's shadows within 2 ms of GPU.
+ * of one 60 Hz frame, and the shadows within 2 ms of GPU.
  */
 const BUDGETS = { fps: 60, gpuFrameMs: 1000 / 60, gpuShadowsMs: 2 }
 
@@ -119,7 +119,7 @@ const TONE = { true: 'text-success', false: 'text-error', null: 'opacity-60' }
  * Shows a verdict in the example's top-left corner, clear of the stats corner the controls put at
  * the bottom left — the overall verdict, then each line green, red, or dimmed when unmeasured, a
  * part named by `say(part)`, a quantity by the stats corner's words — and publishes it as
- * `window.__verdict`, where the recette's proof reads it.
+ * `window.__verdict`, where the proof reads it.
  */
 export function showVerdict(verdict: HealthVerdict, say: (key: string) => string) {
   Object.assign(globalThis, { __verdict: verdict })

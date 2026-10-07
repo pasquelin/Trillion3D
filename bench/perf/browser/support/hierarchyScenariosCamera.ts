@@ -1,4 +1,4 @@
-// Camera scenarios of batch M3a: `lookAt` and projections, edge cases included, replayed on both sides.
+// Camera scenarios: `lookAt` and projections, edge cases included, replayed on both sides.
 import { alea, dans } from './hierarchyScenarios.ts'
 import type { CameraSpec, HierarchyOp, Pose, Quat, Vec3 } from './hierarchyScenarios.ts'
 

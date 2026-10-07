@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { gpuHarness } from './contractLighting.fixture.ts'
+import { contractLighting, gpuHarness } from './contractLighting.fixture.ts'
 
 test('composition presents and preserves the capture target in one fullscreen draw', async () => {
   const h = gpuHarness(),
@@ -96,7 +96,7 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   lighting.dispose()
 })
 
-test('an image is composed with the share it read, one group per pair (#349)', async () => {
+test('an image is composed with the share it read, one group per pair', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device)
   const hdr = h.view()
@@ -130,4 +130,44 @@ test('an image is composed with the share it read, one group per pair (#349)', a
     ],
   )
   lighting.dispose()
+})
+
+test("a lit frame over the shadow maps' double-buffered tables makes one light group per table", async () => {
+  const h = await contractLighting()
+  const vsmOf = () => ({
+    pageTable: {} as GPUBuffer,
+    projectionData: {} as GPUBuffer,
+    uniforms: {} as GPUBuffer,
+    pool: {} as GPUBuffer,
+  })
+  // The tables this frame reads, then the other frame's: the sets take turns.
+  const sets = [vsmOf(), vsmOf()]
+  const lightsBuffer = {} as GPUBuffer
+  const bound: unknown[] = []
+  const encoder = {
+    beginRenderPass: () => ({
+      setViewport() {},
+      setPipeline() {},
+      setBindGroup: (_index: number, group: unknown) => bound.push(group),
+      draw() {},
+      end() {},
+    }),
+  } as unknown as GPUCommandEncoder
+  const made = h.bindGroups.length
+  for (let frame = 0; frame < 6; frame++) {
+    h.lighting.bind(h.surface, h.target, h.target, true, {
+      lights: lightsBuffer,
+      vsm: sets[frame % 2],
+    })
+    h.lighting.light(encoder, h.target)
+  }
+  assert.equal(h.bindGroups.length - made, 2, 'a group per table, each made once')
+  const tableOf = (group: unknown) =>
+    Array.from((group as GPUBindGroupDescriptor).entries).find(
+      (entry) => (entry.resource as GPUBufferBinding | undefined)?.buffer === sets[0].pageTable,
+    )
+      ? 0
+      : 1
+  assert.deepEqual(bound.map(tableOf), [0, 1, 0, 1, 0, 1], 'each frame binds its own table')
+  h.lighting.dispose()
 })

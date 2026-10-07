@@ -1,5 +1,4 @@
-//! A reduction answers for the parts it removes whole, and names only its children's vertices
-//! (#484).
+//! A reduction answers for the parts it removes whole, and names only its children's vertices.
 use super::*;
 use std::collections::HashSet;
 
@@ -31,7 +30,7 @@ fn a_part_removed_whole_costs_its_extent_and_its_distance_to_what_is_kept() {
 }
 
 // Behaviour: separate pieces from 0.1 m to 4 m across leave the DAG one by one, each only in a
-// cut whose error is at least its extent: a small piece drops early, a large one late (#484).
+// cut whose error is at least its extent: a small piece drops early, a large one late.
 #[test]
 fn a_separate_piece_leaves_only_a_cut_whose_error_covers_its_extent() {
     let mut mesh = super::part8::Shaded::default();

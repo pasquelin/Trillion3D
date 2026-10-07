@@ -101,7 +101,7 @@ test('engineOf gives a side its own engine, otherwise that of the campaign', () 
   assert.strictEqual(engineOf(flags, 'after', 'webgpu').id, 'webgpu-page-raster')
 })
 
-// #724: the flags a campaign types are English, their per-side forms named after the side.
+// The flags a campaign types are English, their per-side forms named after the side.
 test('the engine, the two sides and their variants are read under English flags', () => {
   const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'three-lod']
   const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-compute'], '/r')
@@ -120,7 +120,7 @@ function benchFlags(argv: string[]) {
   flags.refuseUnread()
 }
 
-// #724: a retired or misspelt flag is refused by name, never measured as the default engine.
+// A retired or misspelt flag is refused by name, never measured as the default engine.
 test('the bench refuses a flag it never reads, the retired French ones included', () => {
   const retired = '--moteur'
   assert.throws(

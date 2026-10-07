@@ -21,7 +21,7 @@ interface ShadowRowTable {
   casterSlots: number
   pageTableInts: Uint32Array | undefined
   packedRecs: ArrayLike<PageRec | undefined>
-  /** The packed rank each row draws (#1235): a row's root is read from it. */
+  /** The packed rank each row draws: a row's root is read from it. */
   packedPageIndex: ArrayLike<number>
 }
 
@@ -60,7 +60,7 @@ export function shadowsFollowTextures(
 }
 
 /**
- * Surfaces whose alpha mode or cutoff a page changed (#846): the depth their rows cast is no longer
+ * Surfaces whose alpha mode or cutoff a page changed: the depth their rows cast is no longer
  * the one drawn, whether they cut it before or not: the shadow pages over those rows alone are drawn
  * again at once, as a node shown or hidden is (`../render/worldUpload.ts`), not when the camera rests.
  */
@@ -86,7 +86,7 @@ export function shadowsFollowSurfaces(
  * Stales the box of the rows, visibility then blended casters, that `stale` names, as the same
  * world at another precision or, `worldChanged`, as another world: one box for the rows the static
  * layer holds, one for the rows already moving — a blended caster's always is —, whose change
- * redraws the moving casters alone and leaves the static layer as it is (#993).
+ * redraws the moving casters alone and leaves the static layer as it is.
  */
 function shadowsFollowRows(
   lights: WebgpuLightState,
@@ -117,7 +117,7 @@ function shadowsFollowRows(
 /**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
- * map (`shadowsFollowTextures`) and the queue would never empty (#25). Returns the tiles served.
+ * map (`shadowsFollowTextures`) and the queue would never empty. Returns the tiles served.
  */
 export function pumpResidentTiles(
   textures: { pump: (frame: number) => { served: number } } | undefined,

@@ -25,7 +25,7 @@ fn posed_matrix(tag: &str, name: &str, attributes: &str) -> Vec<f64> {
     matrix(node_named(&gltf, name).expect("the posed node"))
 }
 
-// Finding 13: Maya writes pose per component — `.tx`, `.ry`, `.sz` — as often as
+// Maya writes pose per component — `.tx`, `.ry`, `.sz` — as often as
 // compound attribute. Ignoring left node at origin; yields same matrix.
 #[test]
 fn the_single_components_of_a_transform_pose_it_like_the_compound_attributes() {
@@ -45,7 +45,7 @@ fn the_single_components_of_a_transform_pose_it_like_the_compound_attributes() {
     assert_eq!(split, whole, "`.tx` poses the node like the first of `.t`");
 }
 
-// Finding 13: `rotateAxis` local axis orientation, applied to point **before**
+// `rotateAxis` local axis orientation, applied to point **before**
 // rotation. Was ignored; composed, does not commute with `rotate`.
 #[test]
 fn a_rotate_axis_turns_the_point_before_the_rotation() {
@@ -62,7 +62,7 @@ fn a_rotate_axis_turns_the_point_before_the_rotation() {
     );
 }
 
-// Finding 13: Maya shear vector `(XY, XZ, YZ)` composes between scale pivot
+// Maya shear vector `(XY, XZ, YZ)` composes between scale pivot
 // and scale. glTF node matrix carries as is.
 #[test]
 fn a_shear_is_composed_into_the_node_matrix() {
@@ -78,7 +78,7 @@ fn a_shear_is_composed_into_the_node_matrix() {
     );
 }
 
-// Finding 13: `offsetParentMatrix` applies **after** local pose, like extra parent.
+// `offsetParentMatrix` applies **after** local pose, like extra parent.
 // Matrix written otherwise than 16 numbers not guessed, counted.
 #[test]
 fn an_offset_parent_matrix_applies_after_the_local_pose() {
@@ -108,7 +108,7 @@ fn an_offset_parent_matrix_applies_after_the_local_pose() {
     );
 }
 
-// Finding 13: `inheritsTransform = 0` cuts inheritance — node poses in scene
+// `inheritsTransform = 0` cuts inheritance — node poses in scene
 // frame, parent pose does not follow.
 #[test]
 fn a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind() {

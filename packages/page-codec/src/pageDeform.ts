@@ -1,5 +1,5 @@
 /**
- * The reference encoder's deformation streams (#357): each vertex's joints on the page's
+ * The reference encoder's deformation streams: each vertex's joints on the page's
  * own base and width, every weight as float32 bits, and each
  * morph target's position and normal displacement as exact float32 bits — the
  * format of `page-codec-wasm/src/deform.rs`, written again here without sharing a line.

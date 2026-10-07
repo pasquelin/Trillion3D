@@ -1,4 +1,4 @@
-// #55: why the cutout needs no stipple under temporal antialiasing. On a still camera the jitter
+// Why the cutout needs no stipple under temporal antialiasing. On a still camera the jitter
 // moves each pixel's sample across its footprint, so the HARD cut, accumulated, already converges
 // to the pixel's coverage of the alpha as read. This file replays that on the CPU with the temporal
 // pass's own jitter, filter weights, neighbour clamp and 1/k share (`../../taa/shaderWgsl.ts`).

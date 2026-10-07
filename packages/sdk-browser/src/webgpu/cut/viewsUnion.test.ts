@@ -1,5 +1,5 @@
-// #268 (the follow-up of #412): the residency holds the union of the views' cuts, under the one
-// page budget, and a single view publishes exactly what it published before views existed.
+// The residency holds the union of the views' cuts, under the one
+// page budget, and a single view publishes exactly what it publishes alone.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuCutPublication } from './publication.ts'
@@ -112,7 +112,7 @@ test('a second view keeps its pages while the main view draws, all under the one
 
 test('under budget pressure a capture keeps the detail pages it kept alone', () => {
   const { tracking, publication, capture, main, side, draw, keys, budget } = bench()
-  /** The pages `ids` keep at `room` when their view is the only one, as before views existed. */
+  /** The pages `ids` keep at `room` when their view is the only one. */
   const alone = (ids: number[], room: number) => {
     const only = eightPages()
     only.delta.apply(ids)
@@ -162,7 +162,7 @@ test("another view's cut leaves the main view's pages ahead alone", () => {
 
 test('one view asks, keeps and ranks what it did before views existed', () => {
   const { sets, tracking, main, draw, budget } = bench()
-  // The contract before #268: the cut's records, one difference, the sets, the budget.
+  // The contract of a single view: the cut's records, one difference, the sets, the budget.
   const before = eightPages()
   const cuts = [[0, 1, 2, 3], [2, 3, 4, 5, 6], [], [1, 3, 5, 7], [7]]
   for (const ids of cuts) {

@@ -1,5 +1,5 @@
-// #1235 step C: ONE page record per primitive. All placements of a primitive share its `pages`
-// array and dependencies, so the load heap no longer grows with the number of placements, and a
+// ONE page record per primitive. All placements of a primitive share its `pages`
+// array and dependencies, so the load heap does not grow with the number of placements, and a
 // record carries no world, row, winding or packed rank of its own — its root does.
 import test from 'node:test'
 import assert from 'node:assert/strict'

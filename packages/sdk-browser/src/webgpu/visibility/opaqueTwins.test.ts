@@ -1,4 +1,4 @@
-// #831: each occluder pipeline has a twin of the same states but for its fragment stage, the one
+// Each occluder pipeline has a twin of the same states but for its fragment stage, the one
 // that neither reads the page nor discards (`visOpaque.test.ts`: the same image), made with it at
 // preparation; a tested pipeline has none, nor any under a diagnostic variant of the raster stage.
 // `drawVis` draws each half's opaque slots with the twin, then its cutout slots with the pipeline

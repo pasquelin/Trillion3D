@@ -5,7 +5,7 @@
  * name stays external and points at the file `tsc` already emitted under `dist/`, so a page that
  * loads the witness entry shares one engine instance with it. The host library stays a bare
  * specifier the page's import map resolves. The package's `files` leave `dist/witnesses` out: the
- * published package names no host library (issue #275).
+ * published package names no host library.
  */
 import { build, type Plugin } from 'esbuild'
 import { relative, resolve, sep } from 'node:path'

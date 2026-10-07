@@ -13,8 +13,8 @@ import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
  * temporal resolve and the composition that tone-maps. Each pass writes a full-size
  * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
- * size, and follow it — one fewer when the composition takes the last pass's blend over (`fuse`,
- * #963); a kind's programs compile in the background at its first pass, and until
+ * size, and follow it — one fewer when the composition takes the last pass's blend over (`fuse`);
+ * a kind's programs compile in the background at its first pass, and until
  * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
  * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
  * cannot be made, and the image stays without the chain.

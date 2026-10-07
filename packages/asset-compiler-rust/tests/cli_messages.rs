@@ -1,6 +1,6 @@
 //! Messages cross the program boundary with their public code: a host reading the events counts
 //! an import's warnings by code and reads a failure's public id, level and page, without opening
-//! a manifest (#1351).
+//! a manifest.
 mod common;
 use common::{compiler, fixture, lines, run_ok};
 use std::fs;

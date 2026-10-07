@@ -1,5 +1,5 @@
 /**
- * Where a water pixel reads its shadows (#1412): the point, the side its normal faces and the
+ * Where a water pixel reads its shadows: the point, the side its normal faces and the
  * footprint the composite lights it at (`compositeWgsl.ts`, `waterColor`). The host declares the
  * deferred view (`view`) and `worldAt`.
  */

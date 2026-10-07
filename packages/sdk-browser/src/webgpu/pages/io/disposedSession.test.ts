@@ -1,4 +1,4 @@
-// #990: a session disposed with shadows drawn frees what its virtual shadow maps hold — the page
+// A session disposed with shadows drawn frees what its virtual shadow maps hold — the page
 // tables, the physical pool, the passes' buffers and targets — silently. A device that refuses
 // the maps under a live session still says why, and the frame is lit without them.
 import test from 'node:test'

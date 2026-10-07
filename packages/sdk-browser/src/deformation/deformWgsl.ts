@@ -4,7 +4,7 @@ import { DEFORM_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 
 /**
- * THE GPU DEFORMATION STAGE (#357), in WGSL: a page vertex moved by its placement's record
+ * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
  * (`layout.ts`) before any pass reads it — the one routine `pagePosition` and `pageNormal` call,
  * so the visibility raster, the compute raster, the shadow depth, the surface resolve, the
  * transparent draw and the temporal pass read the same deformed surface. `previous` reads the

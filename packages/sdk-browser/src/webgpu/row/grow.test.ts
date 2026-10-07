@@ -1,4 +1,4 @@
-// #216: the row table grows in place. Its visibility rows keep their ranks and words; the blended
+// The row table grows in place. Its visibility rows keep their ranks and words; the blended
 // casters' rows move behind the new visibility rows.
 import test from 'node:test'
 import assert from 'node:assert/strict'

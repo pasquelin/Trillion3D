@@ -41,7 +41,7 @@ fn decode(case: &str, bytes: &[u8]) -> (Vec<[u8; 4]>, Vec<&'static str>) {
     (image.pixels().map(|pixel| pixel.0).collect(), raisons)
 }
 
-// Reproduction of finding 54: a plane more than the colour channels is transparency only if the
+// A plane more than the colour channels is transparency only if the
 // file declares it. Adobe's specification says so in the layer count — a signed integer whose
 // negative announces “the first alpha channel carries the composite's transparency”. Without
 // that declaration, the plane is a stored alpha channel, that is a selection: taking it for
@@ -68,7 +68,7 @@ fn an_extra_plane_is_transparency_only_if_the_file_declares_it() {
     );
 }
 
-// Reproduction of finding 54, second half: the layer count was not read at all, while only the
+// Second half: the layer count was not read at all, while only the
 // flattened composite comes out of the driver. A file that carries layers now says so, even
 // when no alpha plane is in play.
 #[test]

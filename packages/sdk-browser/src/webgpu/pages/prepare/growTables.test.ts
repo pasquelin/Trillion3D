@@ -1,4 +1,4 @@
-// `growTables.ts` sizes a view's row table from what the cut asked (#1232), and a growing view grows
+// `growTables.ts` sizes a view's row table from what the cut asked, and a growing view grows
 // the table in place. Its bounds compose three numbers the layout owns — the catalogue, the slot
 // budget a pool holds, and what the device allows in one binding — so the test names the three ways a
 // row asked can be held, and the one that bounds it for good.

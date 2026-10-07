@@ -131,7 +131,7 @@ export function trackWheel(
   )
 }
 
-/** The inputs a key types into (#831): not a checkbox, a slider or a button, which keep the
+/** The inputs a key types into: not a checkbox, a slider or a button, which keep the
  *  focus after a click and would swallow every key that drives — a car parked at 0 km/h. */
 const TYPED = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/
 

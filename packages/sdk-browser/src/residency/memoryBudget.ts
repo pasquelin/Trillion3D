@@ -76,7 +76,7 @@ export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES
  * - CPU: the decoded-page cache takes it all (`pageCache.ts`), the session's manifest tables and
  *   transfer queue reserved off it.
  *   The cut's host tables — group closure, the rule's readiness, the residency sets and the cut's
- *   differences, sized by what the view asks for and the pool holds (#483 rule 6) — are held in
+ *   differences, sized by what the view asks for and the pool holds — are held in
  *   the cache's share too: the session reserves their bytes there (`hostTableBytes`, the
  *   streamer's `reserve`), read each time the cache weighs itself, and the decoded pages keep the
  *   rest. The decoded texture levels take at most `textureLevelShare` of it (`textureLevels`), and

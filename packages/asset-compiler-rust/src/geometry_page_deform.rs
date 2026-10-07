@@ -1,4 +1,4 @@
-//! What a page carries for the GPU deformation stage (#357): every vertex's joints and
+//! What a page carries for the GPU deformation stage: every vertex's joints and
 //! weights, and each morph target's position and normal displacement — the streams, records and
 //! bounds of the shared codec (`trillion3d_page_codec::deform`), written from the primitive's
 //! `JOINTS_n`, `WEIGHTS_n` and `targets`.

@@ -12,7 +12,7 @@ import { reflectionBoundsPipelines } from './boundsPyramid.ts'
  * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
  * and final resolve are separate programs: no uniform can change between two encoded passes
  * through queue.writeBuffer before their shared submission. The four compile together, off the
- * thread (#1362), with the depth bounds' reductions: the lit program the first image waits for is
+ * thread, with the depth bounds' reductions: the lit program the first image waits for is
  * its slowest one, never their sum. */
 export async function reflectionPipelines(
   device: GPUDevice,

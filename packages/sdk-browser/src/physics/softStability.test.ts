@@ -5,7 +5,7 @@ import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts'
 import { addSoft, softWorld } from './soft.fixture.ts'
 import { FLAT } from './records.fixture.ts'
 
-/** Steps of the audit's run (PHY-09): 45 × 45 vertices and up diverged well before it. */
+/** Steps of the audit's run: 45 × 45 vertices and up diverged well before it. */
 const STEPS = 400
 
 /**

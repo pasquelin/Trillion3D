@@ -1,4 +1,4 @@
-// Hierarchy-equivalence scenarios (batch M3a), replayed on both sides by
+// Hierarchy-equivalence scenarios, replayed on both sides by
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
 import { xorshiftRandom } from '../../../core/index.ts'

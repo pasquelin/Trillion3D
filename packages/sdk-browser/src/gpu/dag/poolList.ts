@@ -8,7 +8,7 @@ import { writeParts, type DagParts } from './split.ts'
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
  * one canonical page per held slot, fed by the cache's arrivals and departures and kept dense — a
  * departure takes the last entry's place —, so the sweep is bounded by the slots, never the
- * catalogue (#483 rule 6). `note` returns whether the list moved.
+ * catalogue. `note` returns whether the list moved.
  */
 export function createDagPoolList(
   device: GPUDevice,

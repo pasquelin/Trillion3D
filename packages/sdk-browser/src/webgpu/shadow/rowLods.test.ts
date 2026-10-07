@@ -1,6 +1,6 @@
-// A moved model writes the detail of its own rows, not of the still rows between them (#831). The
-// detail used to follow the table's one dirty span: two models moving at both ends of a table of
-// seven thousand rows recomputed and sent every row of it, each image.
+// A moved model writes the detail of its own rows, not of the still rows between them. The
+// detail must not follow the table's one dirty span: two models moving at both ends of a table of
+// seven thousand rows would recompute and send every row of it, each image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowLods } from './rowLods.ts'

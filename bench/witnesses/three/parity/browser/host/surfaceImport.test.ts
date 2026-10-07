@@ -46,7 +46,7 @@ test('A version bump refills the held record at the next follow, its counters wi
   )
 })
 
-// Review of #389: two engines draw the same record. Its counters are monotonic and each consumer
+// Two engines draw the same record. Its counters are monotonic and each consumer
 // keeps the ones it last read, so the second engine to follow learns the change the first one
 // brought up; a second render in the same task reads what was written between the two.
 test('Every render follows its records, and every consumer reads what moved', () => {
@@ -68,7 +68,7 @@ test('Every render follows its records, and every consumer reads what moved', ()
   assert.equal(record.version, version + 1, 'and the new image')
 })
 
-// Review of #389: what reads a record outside a render — the tile catalogue at prepare, the CPU
+// What reads a record outside a render — the tile catalogue at prepare, the CPU
 // twins of the raster — takes it from the import, which hands it back with the host's picture.
 test('A held record is handed back with the image its host holds now', () => {
   const host = texture()
@@ -86,8 +86,8 @@ test('A held record is handed back with the image its host holds now', () => {
   assert.deepEqual([record.transform[6], record.placement], [0, placement], 'no recomposition')
 })
 
-// Review of #389: a host that disposes of a texture it still draws — the host library uploads it again at
-// its next use — keeps one record, followed as before, its picture to send again. The graph's
+// A host that disposes of a texture it still draws — the host library uploads it again at its
+// next use — keeps one record, followed, its picture to send again. The graph's
 // texture signals its release as every graph resource does (`packages/sdk-browser/src/host/graph/resource.ts`).
 test('A disposed texture keeps its record, followed, its picture sent again', () => {
   const host = G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1)
@@ -115,9 +115,10 @@ test('The record aliases the composed UV transform, so a later recomposition is 
   assert.notEqual(record.transform[6], 0, 'the offset reached the transform')
 })
 
-// #360: a host animates a placement the way the host library lets it — repeat, offset or rotation written,
-// the texture's version untouched —: the matrix is recomposed at the next image, as the host's own
-// renderer recomposes it at every draw, and only then: a texture that stays put is not recomposed.
+// A host animates a placement the way the host library lets it — repeat, offset or rotation
+// written, the texture's version untouched —: the matrix is recomposed at the next image, as the
+// host's own renderer recomposes it at every draw, and only then: a texture that stays put is not
+// recomposed.
 test('A placement written without a version is recomposed at the next follow, only then', () => {
   const host = texture()
   const record = importHostTexture(host)
@@ -143,7 +144,7 @@ test('A placement written without a version is recomposed at the next follow, on
   assert.equal(record.placement, placement + 2, 'and only when it moved')
 })
 
-// #360: `KHR_texture_transform` is applied by the loader to the texture's offset, repeat and
+// `KHR_texture_transform` is applied by the loader to the texture's offset, repeat and
 // rotation, never composed: the first import composes it, since the load check reads the
 // transform before any image (`packages/sdk-browser/src/scene/tables.ts`, `materialDivergence`).
 test('A texture transform is composed at the first import, as the reference composes it', () => {
@@ -165,7 +166,7 @@ test('A material is read in one place, and never cached: a replaced map is seen 
   assert.equal(importHostSurface(material)?.map, importHostTexture(second))
 })
 
-// #360, #361: either order, as often as the other — `needsUpdate`, then the filter —: nothing is
+// Either order, as often as the other — `needsUpdate`, then the filter —: nothing is
 // read at `needsUpdate`, the record is brought up at the next image, the filter with it.
 test('A filter written after needsUpdate reaches the record at the next image', () => {
   const host = texture()
