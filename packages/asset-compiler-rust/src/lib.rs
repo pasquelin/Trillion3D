@@ -4,6 +4,7 @@ pub mod albedo;
 pub mod coplanar;
 pub mod cutout;
 mod dag;
+mod eac_modifiers;
 mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_deform;

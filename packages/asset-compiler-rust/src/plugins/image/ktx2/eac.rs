@@ -11,26 +11,7 @@
 //! The rest of the driver knows nothing of it: these two functions have the signature
 //! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
 
-/// The format's sixteen sets of eight modifiers, named by the four low bits of the
-/// block's second byte.
-const MODIFIERS: [[i8; 8]; 16] = [
-    [-3, -6, -9, -15, 2, 5, 8, 14],
-    [-3, -7, -10, -13, 2, 6, 9, 12],
-    [-2, -5, -8, -13, 1, 4, 7, 12],
-    [-2, -4, -6, -13, 1, 3, 5, 12],
-    [-3, -6, -8, -12, 2, 5, 7, 11],
-    [-3, -7, -9, -11, 2, 6, 8, 10],
-    [-4, -7, -8, -11, 3, 6, 7, 10],
-    [-3, -5, -8, -11, 2, 4, 7, 10],
-    [-2, -6, -8, -10, 1, 5, 7, 9],
-    [-2, -5, -8, -10, 1, 4, 7, 9],
-    [-2, -4, -8, -10, 1, 3, 7, 9],
-    [-2, -5, -7, -10, 1, 4, 6, 9],
-    [-3, -4, -7, -10, 2, 3, 6, 9],
-    [-1, -2, -3, -10, 0, 1, 2, 9],
-    [-4, -6, -8, -9, 3, 5, 7, 8],
-    [-3, -5, -7, -9, 2, 4, 6, 8],
-];
+use crate::eac_modifiers::EAC_MODIFIERS;
 
 /// Bytes of a one-channel block, and the side of a block in texels.
 const BLOCK: usize = 8;
@@ -111,11 +92,11 @@ fn channel(block: &[u8], texels: &mut [[u8; 4]; SIDE * SIDE], target: usize) {
     // A null multiplier does not mean "no modifier": the specification reads it as one,
     // which gives the finest step the format can write.
     let multiplier = if declared == 0 { 1 } else { declared * 8 };
-    let table = MODIFIERS[usize::from(block[1] & 0xf)];
+    let table = EAC_MODIFIERS[usize::from(block[1] & 0xf)];
     let indices = u64::from_be_bytes(block[..BLOCK].try_into().unwrap_or([0; BLOCK]));
     for texel in 0..SIDE * SIDE {
         let index = (indices >> (TOP - INDEX_BITS * texel as u32)) & 7;
-        let value = (base + multiplier * i32::from(table[index as usize])).clamp(0, MAX);
+        let value = (base + multiplier * table[index as usize]).clamp(0, MAX);
         let (x, y) = (texel / SIDE, texel % SIDE);
         texels[y * SIDE + x][target] = eight_bits(value);
     }
