@@ -63,7 +63,7 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   const cache = createPageCache(),
     load = new AbortController()
   const loading = openWorldRoots(manifest, 'http://world/', load.signal, undefined, true, { cache })
-  for (let i = 0; i < 20 && !asked.length; i++) await turns(1)
+  while (!asked.length) await turns(1) // the table read and checked: the binary asked
   load.abort()
   await assert.rejects(loading, { name: 'AbortError' })
   release()

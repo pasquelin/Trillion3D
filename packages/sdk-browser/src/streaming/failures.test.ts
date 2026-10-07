@@ -146,14 +146,15 @@ test('a refusal asking a long wait on every attempt is said once, not once an at
 
 test('a stall is said once, and again only once its page landed and stalls anew', async (t) => {
   const { streamer, said, until } = refusing(t, 503)
-  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  const first = streamer.request(['a.bin'], { signal: streamer.signal })
   await settle()
   await until(8_000)
   assert.deepEqual(said, ['a.bin'], 'said as it first waits the longest')
   const bytes = new Uint8Array([7, 0, 0, 0])
   t.mock.method(globalThis, 'fetch', async () => new Response(bytes))
   streamer.admit([{ url: 'a.bin', bytes: 4, sha256: await sha(bytes) }])
-  await until(16_000)
+  await until(16_000) // its last wait ends: it is asked again
+  await first // and lands, its bytes checked off the clock the test moves
   assert.equal(streamer.has('a.bin'), true, 'landed: its failures in a row are over')
   streamer.forget(['a.bin'])
   streamer.admit([{ url: 'a.bin', bytes: 4, sha256: 'other' }])
