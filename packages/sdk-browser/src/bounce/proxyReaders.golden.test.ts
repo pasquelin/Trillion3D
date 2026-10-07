@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import { eachGolden } from '../../../math/src/golden.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { BOUNCE_NODE_WGSL, PROXY_ALBEDO_WGSL } from './nodeWgsl.ts'
 
 type Vec3 = [number, number, number]
@@ -20,18 +21,22 @@ type Readers = {
 
 /** The readers over a column of `words`: the structures they build, as plain objects. */
 const readers = (words: number[]) =>
-  shaderRun<Readers>(BOUNCE_NODE_WGSL + PROXY_ALBEDO_WGSL, ['proxyChild', 'proxyAlbedoOf'], {
-    proxy: { words, childrenWord: 0 },
-    proxyAlbedo: words,
-    Box: (low: Vec3, high: Vec3) => ({ low, high }),
-    ProxyChild: (box: Box, offset: number, count: number, present: boolean, owned: boolean) => ({
-      box,
-      offset,
-      count,
-      present,
-      owned,
-    }),
-  })
+  shaderRun<Readers>(
+    wgslModule(BOUNCE_NODE_WGSL, PROXY_ALBEDO_WGSL),
+    ['proxyChild', 'proxyAlbedoOf', 'unorm8x3'],
+    {
+      proxy: { words, childrenWord: 0 },
+      proxyAlbedo: words,
+      Box: (low: Vec3, high: Vec3) => ({ low, high }),
+      ProxyChild: (box: Box, offset: number, count: number, present: boolean, owned: boolean) => ({
+        box,
+        offset,
+        count,
+        present,
+        owned,
+      }),
+    },
+  )
 
 const near = (actual: number, expected: number, span: number) =>
   Math.abs(actual - expected) <= 1e-5 * (Math.abs(span) + 1e-30)
