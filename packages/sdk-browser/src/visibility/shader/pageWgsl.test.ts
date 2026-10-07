@@ -19,7 +19,7 @@ import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
-import { affineBarycentric, edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const SMALL_SHADER = rasterSource(4, 16)
@@ -70,6 +70,8 @@ test('MASK_KEEP_WGSL declares fn maskKeep only once in the raster', () => {
 })
 
 test('affineBarycentric declares fn affineBarycentric only once in shading, never in the raster', () => {
+  // The affine weights reach the shaders through the perspective ones, their one caller.
+  const affineBarycentric = perspectiveBarycentric.deps.find((d) => d.name === 'affineBarycentric')!
   assert.match(wgslSource(affineBarycentric), /fn affineBarycentric\(/)
   eachOnce(affineBarycentric.text, { SHADE_SHADER })
   // The raster decides coverage on its three edges, not on derived weights.

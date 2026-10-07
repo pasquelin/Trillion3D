@@ -37,7 +37,7 @@ export const sinFromCosUnclamped = wgslFn(
 )
 
 /** The signed distance of `point` to `plane`, in units of the plane normal's length. */
-export const planeDistance = wgslFn(
+const planeDistance = wgslFn(
   'planeDistance',
   [],
   'fn planeDistance(plane:vec4f,point:vec3f)->f32{return dot(plane.xyz,point)+plane.w;}',
@@ -45,7 +45,7 @@ export const planeDistance = wgslFn(
 
 /** The corner of the box `[bmin, bmax]` furthest along the plane's normal; a NaN or zero component
  *  takes the low bound. The processor's twin is `frustumExcludesBox` (`../geometry/frustum/box.ts`). */
-export const boxPositiveVertex = wgslFn(
+const boxPositiveVertex = wgslFn(
   'boxPositiveVertex',
   [],
   'fn boxPositiveVertex(plane:vec4f,bmin:vec3f,bmax:vec3f)->vec3f{return vec3f(select(bmin.x,bmax.x,plane.x>0.0),select(bmin.y,bmax.y,plane.y>0.0),select(bmin.z,bmax.z,plane.z>0.0));}',

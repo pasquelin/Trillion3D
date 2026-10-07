@@ -6,7 +6,6 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { lcg } from '../hiz/buildTranscripts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
-  affineBarycentric,
   edgeFunction,
   perspectiveBarycentric,
   planeBarycentric,
@@ -15,7 +14,7 @@ import {
 type V = number[]
 type F = (...args: unknown[]) => V
 const run = shaderRun<Record<string, F>>(
-  wgslModule(edgeFunction, affineBarycentric, perspectiveBarycentric, planeBarycentric),
+  wgslModule(edgeFunction, perspectiveBarycentric, planeBarycentric),
   ['edgeFunction', 'affineBarycentric', 'perspectiveBarycentric', 'planeBarycentric'],
   {},
 )

@@ -103,7 +103,7 @@ export const TAA_VIEW_BYTES = 304
  * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
  * width in the world at a clip w of one (`shadingStill`).
  */
-export const TAA_VIEW_WGSL = wgslBlock(
+const TAA_VIEW_WGSL = wgslBlock(
   'TAA_VIEW_WGSL',
   [],
   `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`,
