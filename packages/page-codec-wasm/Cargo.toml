@@ -11,10 +11,13 @@ name = "trillion3d_page_codec"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
+# The maths primitives, shared with the compiler; it has no dependency itself.
+[dependencies]
+trillion3d-math = { path = "../math/rust" }
+
+# The reader of the reference values the codec's mirrored primitives are tested against.
 [dev-dependencies]
-# fdlibm's arc cosine, pure Rust from musl (MIT): the reference `src/acos.rs` is transcribed from,
-# with the instruction's square root rather than its software one, and tested against.
-libm = "0.2.16"
+trillion3d-math = { path = "../math/rust", features = ["golden"] }
 
 [profile.release]
 lto = true

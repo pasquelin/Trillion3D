@@ -1,8 +1,8 @@
 use crate::impostor::bake::{bake, Capture};
 use crate::impostor::eligibility::FRAMES;
 use crate::impostor::octahedron::{basis, frame_direction};
-use crate::shared_math::scale;
-use trillion3d_page_codec::vec3::add;
+use trillion3d_math::vec3::add;
+use trillion3d_math::vec3::scale;
 
 /// Whether `mask` holds a texel within one texel of `(x, y)`, inside frame `(fx, fy)`.
 fn near(mask: &[bool], atlas: usize, frame: usize, (x, y): (usize, usize)) -> bool {

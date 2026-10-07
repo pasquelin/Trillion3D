@@ -11,7 +11,8 @@
 //! Maya writes each of these vectors as a block — `.t` — or component by component — `.tx` —,
 //! often both in the same file: both writings are read, the component winning.
 use super::*;
-use crate::compiler_world::{axis_rotation, multiply, scaling, translation, Mat4, IDENTITY};
+use crate::compiler_world::{axis_rotation, scaling, translation, Mat4, IDENTITY};
+use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// The six Euler rotation application orders that `rotateOrder` numbers, each giving the axes
 /// **in the order they apply to the point**.
@@ -52,7 +53,7 @@ pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> 
         scaling(triple(node, ["s", "scale"], AXES, [1.0; 3])),
         translation(scale_pivot.map(std::ops::Neg::neg)),
     ] {
-        out = multiply(&out, &step);
+        out = multiply_matrix4_from_zero(&out, &step);
     }
     if !out.iter().all(|value| value.is_finite()) {
         report.add(report::TRANSFORM_INVALID);
@@ -82,7 +83,7 @@ fn rotation(node: &Node, names: [&str; 2], order: [usize; 3], degrees_per_unit: 
     let angles = triple(node, names, AXES, [0.0; 3]);
     let mut out = IDENTITY;
     for axis in order.into_iter().rev() {
-        out = multiply(
+        out = multiply_matrix4_from_zero(
             &out,
             &axis_rotation(axis, (angles[axis] * degrees_per_unit).to_radians()),
         );

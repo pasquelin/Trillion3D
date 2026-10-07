@@ -11,11 +11,12 @@ use super::{
 };
 use crate::compiler_coplanar::DepthLayerScene;
 use crate::compiler_world::{world_matrices, Mat4};
-use crate::shared_math::{dot, length, linear_columns};
+use crate::shared_math::linear_columns;
 use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use trillion3d_math::vec3::{dot, length};
 
 /// A node matrix as translation, rotation (x, y, z, w) and scale; `None` when it shears, which no
 /// body pose can carry.

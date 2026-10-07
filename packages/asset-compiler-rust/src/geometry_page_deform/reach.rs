@@ -2,7 +2,7 @@
 //! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
 //! so that culling never drops a visible deformed cluster.
 use super::Deformation;
-use crate::shared_math::extend_aabb;
+use trillion3d_math::aabb::extend_aabb;
 
 impl Deformation {
     /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.

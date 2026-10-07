@@ -1,24 +1,8 @@
 //! The boxes the partition is built from: each mesh's, as its primitives declare it with their
 //! positions, and each placed node's, that box under its world matrix.
 use super::*;
-
-/// A box no point is in yet: low bounds at `+∞`, high at `−∞`.
-pub(super) const EMPTY: [f64; 6] = [
-    f64::INFINITY,
-    f64::INFINITY,
-    f64::INFINITY,
-    f64::NEG_INFINITY,
-    f64::NEG_INFINITY,
-    f64::NEG_INFINITY,
-];
-
-/// Grows `into` to hold `other`.
-pub(super) fn grow(into: &mut [f64; 6], other: &[f64; 6]) {
-    for axis in 0..3 {
-        into[axis] = into[axis].min(other[axis]);
-        into[axis + 3] = into[axis + 3].max(other[axis + 3]);
-    }
-}
+use trillion3d_math::aabb::{extend_flat, EMPTY_FLAT};
+use trillion3d_math::matrix::transform_point;
 
 /// The box a primitive declares with its positions, or `None` when it declares none or morphs.
 fn primitive_box(accessors: &[Value], primitive: &Value) -> Option<[f64; 6]> {
@@ -60,9 +44,9 @@ pub(super) fn mesh_boxes(g: &Value) -> Vec<Option<[f64; 6]>> {
         .iter()
         .map(|mesh| {
             let primitives = mesh.get("primitives")?.as_array()?;
-            let mut union = EMPTY;
+            let mut union = EMPTY_FLAT;
             for primitive in primitives {
-                grow(&mut union, &primitive_box(accessors, primitive)?);
+                grow_flat(&mut union, &primitive_box(accessors, primitive)?);
             }
             (!primitives.is_empty()).then_some(union)
         })
@@ -71,13 +55,10 @@ pub(super) fn mesh_boxes(g: &Value) -> Vec<Option<[f64; 6]>> {
 
 /// The world box of a local box under `world`: the eight corners transformed, then their union.
 pub(super) fn world_box(world: &Mat4, local: &[f64; 6]) -> [f64; 6] {
-    let mut out = EMPTY;
+    let mut out = EMPTY_FLAT;
     for corner in 0..8 {
         let p = [0, 1, 2].map(|axis| local[axis + 3 * ((corner >> axis) & 1)]);
-        let q = [0, 1, 2].map(|axis| {
-            world[axis] * p[0] + world[4 + axis] * p[1] + world[8 + axis] * p[2] + world[12 + axis]
-        });
-        grow(&mut out, &[q[0], q[1], q[2], q[0], q[1], q[2]]);
+        extend_flat(&mut out, transform_point(world, p));
     }
     out
 }

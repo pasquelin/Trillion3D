@@ -5,10 +5,10 @@
 //! meets its reverse once positions are welded: a mesh with an open or one-way edge bounds no
 //! volume, and is refused by name.
 use super::refused;
-use crate::shared_math::{cross, divide, dot, sub};
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use trillion3d_math::vec3::{cross, divide, dot, sub};
 
 /// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
 pub(super) const DENSITY: f64 = 1000.0;

@@ -26,9 +26,6 @@ memmap2 = "0.9"
 # Process peak resident memory (`getrusage`), published beside each progress event.
 libc = "0.2"
 meshopt = "0.6"
-# A portable arc cosine for `dag/quality.rs`, pure Rust from musl (MIT); already in the
-# tree through `num-traits`.
-libm = "0.2.16"
 ufbx = "0.11.3"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tga", "tiff", "webp", "bmp", "gif"] }
 # ZIP archive reading (MIT, zip-rs/zip2), for the `zip` container driver. Stripped of default
@@ -66,6 +63,9 @@ openusd = "0.7.0"
 # dequantization are written there once; the compiler encodes with them, measures its error with
 # them, and proves that what it encodes decodes identically.
 trillion3d-page-codec = { path = "../page-codec-wasm" }
+# The maths primitives — vectors, boxes, the 4×4 product, fdlibm's arc cosine —, written once for
+# the codec and the compiler.
+trillion3d-math = { path = "../math/rust" }
 # Draco glTF mesh decoding only (Apache-2.0, Filyus/draco-rust). Pinned for cache
 # identity and decoded geometry reproducibility; no encoder or point-cloud codec.
 draco-core = { version = "=2.1.0", default-features = false, features = ["decoder", "edgebreaker_valence_decode"] }
@@ -73,6 +73,10 @@ draco-core = { version = "=2.1.0", default-features = false, features = ["decode
 # heaps, so the Rayon workers allocating pages and clusters at once do not queue on the system
 # allocator's locks. It places memory, never computes: the cooked bytes are the same.
 mimalloc = { version = "0.1", default-features = false }
+
+# The reader of the reference values the compiler's mirrored packings are tested against.
+[dev-dependencies]
+trillion3d-math = { path = "../math/rust", features = ["golden"] }
 
 [build-dependencies]
 sha2 = "0.10"

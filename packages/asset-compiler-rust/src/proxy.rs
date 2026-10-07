@@ -1,9 +1,10 @@
 use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::{transform_point, world_matrices, Mat4};
+use crate::compiler_world::{world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::matrix::transform_point;
 
 pub mod albedo;
 pub(crate) mod assemble;
@@ -189,10 +190,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
 pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
     out.reserve(cut.len());
     for vertex in cut.as_chunks::<3>().0 {
-        let world = transform_point(
-            matrix,
-            [vertex[0] as f64, vertex[1] as f64, vertex[2] as f64],
-        );
+        let world = transform_point(matrix, vertex.map(f64::from));
         out.push(world[0] as f32);
         out.push(world[1] as f32);
         out.push(world[2] as f32);

@@ -28,14 +28,6 @@ export type SdkWasm = {
     outLength: number,
     t: number,
   ): void
-  math_hierarchy_update_batch(
-    world: number,
-    positions: number,
-    rotations: number,
-    scales: number,
-    parents: number,
-    n: number,
-  ): void
   /** The normal cone of the run-time cut's clusters (`../world/page/cutCones.ts`): 0 written,
    *  1 refused. */
   cone_clusters(

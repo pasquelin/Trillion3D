@@ -18,8 +18,8 @@ use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use crate::geometry_page::Attribute;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
-use trillion3d_page_codec::vec3::{length, point, sub};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
 const FOCAL: f64 = 540.0 / 0.577_350_269_189_625_8;

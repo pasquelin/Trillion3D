@@ -3,10 +3,10 @@
 //! way up to the world top. The two builds are spliced into one DAG per material: a cell root the
 //! world build groups is the very cluster its group names, never a copy.
 use super::*;
-use crate::compiler_world::transform_point;
 use crate::dag::{build_dag_from_roots, DagCluster, DagGroup};
 use crate::proxy::{place, world_scale};
 use crate::qem::compact_region;
+use trillion3d_math::matrix::transform_point;
 
 /// Every cluster of the world, on one world-space vertex buffer. Level 0 is the object roots,
 /// each with its `origin`, the instance it places; every other cluster is a super-root. `cells` names, per cluster, the

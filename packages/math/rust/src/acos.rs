@@ -36,7 +36,7 @@ fn r(z: f64) -> f64 {
 }
 
 /// The arc cosine of `x` in `[0, π]`, the bits of `libm::acos`.
-pub(crate) fn acos(x: f64) -> f64 {
+pub fn acos(x: f64) -> f64 {
     let x1p_120f = f64::from_bits(0x3870000000000000); // 2^-120
     let hx = (x.to_bits() >> 32) as u32;
     let ix = hx & 0x7fffffff;

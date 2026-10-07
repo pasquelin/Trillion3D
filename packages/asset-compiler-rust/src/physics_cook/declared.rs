@@ -9,11 +9,12 @@ use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
 use crate::compiler_validate::values;
-use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
+use crate::compiler_world::{rotation_matrix, scaling, translation, Mat4};
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
@@ -85,12 +86,16 @@ fn body(
             })?;
             // Another node's mesh is moved by its placement relative to the body's (`trs`).
             let (t, [x, y, z, w], s) = pose;
-            let undo = multiply(
+            let undo = multiply_matrix4_from_zero(
                 &rotation_matrix([-x, -y, -z, w]),
                 &translation(t.map(|v| -v)),
             );
-            let frame = (at != index)
-                .then(|| multiply(&scaling(s.map(|v| 1.0 / v)), &multiply(&undo, &world[at])));
+            let frame = (at != index).then(|| {
+                multiply_matrix4_from_zero(
+                    &scaling(s.map(|v| 1.0 / v)),
+                    &multiply_matrix4_from_zero(&undo, &world[at]),
+                )
+            });
             // A kinematic body is moved, never pushed: it is not weighed.
             let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
             let weigh = (!kinematic).then_some(s);

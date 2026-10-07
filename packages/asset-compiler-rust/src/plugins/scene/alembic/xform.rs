@@ -14,8 +14,9 @@
 //! where a translation, rotation, scale stack scales before rotating then translating.
 use super::VALUES_INVALID;
 pub(super) use crate::compiler_world::IDENTITY;
-use crate::compiler_world::{axis_angle, product, scaling, translation, Mat4};
+use crate::compiler_world::{axis_angle, scaling, translation, Mat4};
 use crate::{CompilerError, Result};
+use trillion3d_math::matrix::multiply_matrix4;
 
 /// How many values each operation consumes, by operation code.
 fn arity(code: u8) -> Option<usize> {
@@ -65,7 +66,7 @@ pub(super) fn matrix(ops: &[u8], values: &[f64]) -> Result<Mat4> {
         let step = operation(*code, taken).ok_or_else(|| {
             CompilerError::new(VALUES_INVALID, "alembic: an xform operation is malformed")
         })?;
-        out = product(&out, &step);
+        out = multiply_matrix4(&out, &step);
         at += count;
     }
     Ok(out)

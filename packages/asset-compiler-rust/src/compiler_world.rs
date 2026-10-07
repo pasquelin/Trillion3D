@@ -1,10 +1,12 @@
 use super::*;
-use crate::shared_math::{cross, linear_columns};
+use crate::shared_math::linear_columns;
+use trillion3d_math::vec3::cross;
 
 mod rotation;
 pub(super) use rotation::{
-    axis_angle, axis_rotation, identity, product, quaternion_wxyz, rotation_matrix, turn,
+    axis_angle, axis_rotation, identity, quaternion_wxyz, rotation_matrix, turn,
 };
+use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
@@ -13,12 +15,6 @@ pub(super) const IDENTITY: Mat4 = [
 ];
 /// A scene graph deeper than this is refused rather than followed: a cycle would never end.
 const MAX_DEPTH: usize = 256;
-
-/// `a · b`, operation `b` applying to point before `a`. Shared with scene drivers
-/// composing own matrices.
-pub(super) fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
-    rotation::compose(a, b, 0.0)
-}
 
 fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Vec<f64>>> {
     let Some(value) = value else {
@@ -101,7 +97,7 @@ pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
         if depth > MAX_DEPTH {
             return Err(invalid("Node hierarchy is deeper than the supported limit"));
         }
-        let matrix = multiply(&parent, &local_matrix(&nodes[id])?);
+        let matrix = multiply_matrix4_from_zero(&parent, &local_matrix(&nodes[id])?);
         world[id] = matrix;
         for child in crate::compiler_nodes::children_of(nodes, id)? {
             stack.push((child, matrix, depth + 1));
@@ -121,15 +117,4 @@ pub(super) fn cofactor_direction(matrix: &Mat4, normal: [f64; 3]) -> [f64; 3] {
         normal[0] * c0[1] + normal[1] * c1[1] + normal[2] * c2[1],
         normal[0] * c0[2] + normal[1] * c1[2] + normal[2] * c2[2],
     ]
-}
-
-pub(super) fn transform_point(matrix: &Mat4, point: [f64; 3]) -> [f64; 3] {
-    let mut out = [0.0f64; 3];
-    for row in 0..3 {
-        out[row] = matrix[row] * point[0]
-            + matrix[4 + row] * point[1]
-            + matrix[8 + row] * point[2]
-            + matrix[12 + row];
-    }
-    out
 }

@@ -2,7 +2,8 @@
 //! oracle traces the source scene with it (`oracle`), and the impostor bake the level-0 mesh
 //! (`impostor`), through a hit filter that lets a ray through a cut texel.
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
-use crate::shared_math::{cross, dot, sub, unit_where};
+use crate::shared_math::unit_where;
+use trillion3d_math::vec3::{cross, dot, sub};
 
 /// Triangles and their tree, with one word a triangle in the same order: the oracle's packed
 /// linear albedo (the source scene in world space, re-read without cuts, simplification or
@@ -50,7 +51,7 @@ pub fn surface_at(
     ];
     let facing = normal_of(world, hit.triangle);
     let normal = if dot(facing, ray) > 0.0 {
-        crate::shared_math::scale(facing, -1.0)
+        trillion3d_math::vec3::scale(facing, -1.0)
     } else {
         facing
     };

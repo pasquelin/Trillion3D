@@ -1,5 +1,5 @@
 use super::*;
-use crate::shared_math::dot;
+use trillion3d_math::vec3::dot;
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
 /// surface and reused by every pair it is tested against.
@@ -32,7 +32,7 @@ pub fn rectangle(surface: &Surface, u: [f64; 3], v: [f64; 3]) -> Rect {
             },
         ];
         let flat = [dot(u, point), dot(v, point)];
-        crate::shared_math::extend_aabb(&mut low, &mut high, flat);
+        trillion3d_math::aabb::extend_aabb(&mut low, &mut high, flat);
     }
     (low, high)
 }
@@ -115,7 +115,7 @@ pub fn footprint(
             if base + 2 >= xyz.len() {
                 return Ok(None);
             }
-            corners[slot] = crate::compiler_world::transform_point(
+            corners[slot] = trillion3d_math::matrix::transform_point(
                 world,
                 [xyz[base] as f64, xyz[base + 1] as f64, xyz[base + 2] as f64],
             );

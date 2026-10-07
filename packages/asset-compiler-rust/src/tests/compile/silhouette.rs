@@ -9,7 +9,7 @@
 //! cut triangle may face against the normals of the source vertices it names.
 use super::*;
 use crate::proxy::cut::in_cut;
-use crate::shared_math::{cross, dot, sub};
+use trillion3d_math::vec3::{cross, dot, sub};
 
 type Point = [f64; 3];
 
@@ -139,16 +139,8 @@ pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64
 
 /// Each cut of `primitive` against `mesh`, its source, one line per defect.
 pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
-    let (low, high) = (0..3).fold(
-        ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]),
-        |(mut lo, mut hi), a| {
-            for p in &mesh.positions {
-                (lo[a], hi[a]) = (lo[a].min(p[a]), hi[a].max(p[a]));
-            }
-            (lo, hi)
-        },
-    );
-    let diagonal = crate::shared_math::length(sub(high, low));
+    let (low, high) = trillion3d_math::aabb::aabb_of(mesh.positions.iter().copied());
+    let diagonal = trillion3d_math::vec3::length(sub(high, low));
     let mut defects = Vec::new();
     for (t, cut) in page_cuts(objects, primitive) {
         for c in cut.chunks(3) {

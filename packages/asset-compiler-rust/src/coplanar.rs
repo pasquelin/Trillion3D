@@ -94,7 +94,7 @@ pub struct CoplanarResult {
 /// million of its longest side, so the same surface always hashes to the same plane whatever
 /// instance carried it, and two floors a millimetre apart stay two floors.
 ///
-/// Not `shared_math::extend_aabb` loop: each axis bound read and kept
+/// Not `trillion3d_math::aabb::extend_aabb` loop: each axis bound read and kept
 /// separately, readable page without `min` still carrying `max`.
 pub fn offset_quantum(primitives: &[Value]) -> f64 {
     let mut low = [f64::INFINITY; 3];

@@ -14,11 +14,11 @@
 //! stored under the SHA-256 of its bytes like a page.
 use super::{hausdorff, height, mesh_shape};
 use crate::dag::{CullingNode, DagCluster};
-use crate::shared_math::extend_aabb_f32;
 use crate::{hash, object_intact, object_path, store_object, Options, Result};
 use rayon::prelude::*;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use trillion3d_math::aabb::extend_aabb_f32;
 
 /// Most triangles one tile holds: the grain the worker streams by (its bytes stay near 100 kB).
 pub(crate) const TILE_TRIANGLES: usize = 4096;

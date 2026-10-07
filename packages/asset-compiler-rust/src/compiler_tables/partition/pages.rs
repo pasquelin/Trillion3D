@@ -48,9 +48,9 @@ pub(crate) fn write_page(
         &directory.join(format!("{}{sha256}.json", kind.prefix)),
         &bytes,
     )?;
-    let mut bounds = EMPTY;
+    let mut bounds = EMPTY_FLAT;
     for record in boxes {
-        grow(&mut bounds, record);
+        grow_flat(&mut bounds, record);
     }
     let mut slot = format!("{sha256}{:08x}", bytes.len());
     for value in bounds {

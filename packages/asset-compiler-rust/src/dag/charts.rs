@@ -6,7 +6,7 @@ use super::clusters::edge_key;
 use super::*;
 use crate::join::Join;
 use crate::qem::Attribute;
-use crate::shared_math::{cross, length, point, sub};
+use trillion3d_math::vec3::{cross, length, point, sub};
 
 /// Per texture set of `uv_sets`, the surface length one unit of it spans over the triangles `live`:
 /// the square root of their surface area over their texture area; zero where the set spans no area.

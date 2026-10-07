@@ -1,12 +1,9 @@
-use crate::shared_math::{extend_aabb, length, point, sub};
+use trillion3d_math::aabb::aabb_of;
+use trillion3d_math::vec3::{length, point, sub};
 
 /// AABB centre plus the farthest vertex. Conservative and deterministic.
 pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
-    for &id in indices {
-        extend_aabb(&mut min, &mut max, point(positions, id));
-    }
+    let (min, max) = aabb_of(indices.iter().map(|&id| point(positions, id)));
     if !min[0].is_finite() {
         return [0.0, 0.0, 0.0, 0.0];
     }
@@ -76,11 +73,7 @@ pub fn enclosing_sphere(spheres: &[[f64; 4]]) -> [f64; 4] {
 /// Box of the vertices a cluster's triangles use; an empty cluster, or one whose low x is not
 /// finite, gets a zero box.
 pub(crate) fn cluster_bounds(positions: &[f32], indices: &[u32]) -> ([f64; 3], [f64; 3]) {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
-    for &id in indices {
-        extend_aabb(&mut min, &mut max, point(positions, id));
-    }
+    let (min, max) = aabb_of(indices.iter().map(|&id| point(positions, id)));
     if !min[0].is_finite() {
         return ([0.0; 3], [0.0; 3]);
     }

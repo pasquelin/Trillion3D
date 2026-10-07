@@ -1,5 +1,6 @@
 use super::*;
 use crate::dag::{DagCluster, DagGroup};
+use trillion3d_math::vec3::point;
 
 mod pack;
 pub(crate) use pack::{index_bytes, pack_bundles};
@@ -47,27 +48,17 @@ pub(super) fn bundle_dag_pages(
             for &rank in members {
                 let cluster = &dag[order[rank]];
                 let offset = payload.len();
-                let mut min = [f64::INFINITY; 3];
-                let mut max = [f64::NEG_INFINITY; 3];
-                {
+                let (min, max) = {
                     let _t = perf::Timer::new(perf::Phase::PageBytes);
                     for &id in &cluster.indices {
-                        let index = id as usize;
-                        if index * 3 + 2 >= pos.len() {
+                        if id as usize * 3 + 2 >= pos.len() {
                             return Err(invalid("Invalid cluster index"));
                         }
                         payload.extend_from_slice(&id.to_le_bytes());
-                        crate::shared_math::extend_aabb(
-                            &mut min,
-                            &mut max,
-                            [
-                                pos[index * 3] as f64,
-                                pos[index * 3 + 1] as f64,
-                                pos[index * 3 + 2] as f64,
-                            ],
-                        );
                     }
-                }
+                    let points = cluster.indices.iter().map(|&id| point(pos, id));
+                    trillion3d_math::aabb::aabb_of(points)
+                };
                 let bytes = &payload[offset..];
                 let digest = {
                     let _t = perf::Timer::new(perf::Phase::PageHash);

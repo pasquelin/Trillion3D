@@ -23,7 +23,7 @@ pub(super) use crate::tests::random::Xorshift;
 /// The generator of a case: the corpus xorshift, its seed spread over the whole state so that
 /// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.
 pub(super) fn seeded(seed: u64) -> Xorshift {
-    Xorshift::new(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+    Xorshift::new(seed.wrapping_mul(trillion3d_math::GOLDEN))
 }
 
 /// How the triangles are written to the document.

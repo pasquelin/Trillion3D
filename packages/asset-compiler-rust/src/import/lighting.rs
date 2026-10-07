@@ -2,7 +2,8 @@
 //! it carries. The driver never places a light of its own — everything comes from
 //! imported data.
 use super::*;
-use crate::shared_math::{cross, divide, length, normalized_or};
+use crate::shared_math::normalized_or;
+use trillion3d_math::vec3::{cross, divide, length};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     vec![

@@ -3,11 +3,12 @@
 //! same matrix transposed twice: the sixteen numbers of a USD `matrix4d` are therefore copied
 //! as-is, and composing a list of operations is left to right.
 
-/// Identity, composition, translation, scale and the rotations come from `compiler_world`, which
-/// owns them for every driver: repeating them here would only let them diverge.
+/// Identity, translation, scale and the rotations come from `compiler_world`, which owns them for
+/// every driver, and composition from the maths crate: repeating them here would let them diverge.
 pub(super) use crate::compiler_world::{
-    multiply as mul, quaternion_wxyz, scaling, translation, turn, Mat4, IDENTITY,
+    quaternion_wxyz, scaling, translation, turn, Mat4, IDENTITY,
 };
+pub(super) use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// Rotation of a quaternion `(w, x, y, z)`, as USD writes it. A length at or under `f64::EPSILON`
 /// rotates nothing; a NaN one still divides, as this driver always has.
@@ -26,5 +27,5 @@ pub(super) fn root(meters_per_unit: f64, z_up: bool) -> Mat4 {
     if !z_up {
         return scale;
     }
-    mul(&scale, &turn(0, (-90.0f64).to_radians()))
+    multiply_matrix4_from_zero(&scale, &turn(0, (-90.0f64).to_radians()))
 }

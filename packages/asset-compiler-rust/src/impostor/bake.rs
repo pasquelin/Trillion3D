@@ -2,8 +2,9 @@
 //! through the alpha-aware filter, four rotated-grid rays a texel.
 use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
-use crate::shared_math::{add, normalized_or, scale};
+use crate::shared_math::normalized_or;
 use rayon::prelude::*;
+use trillion3d_math::vec3::{add, scale};
 
 /// Rotated-grid subsamples of a texel, in texel units.
 const SUBSAMPLES: [[f64; 2]; 4] = [

@@ -4,7 +4,7 @@
 //! captured frame, and picks the three frames a view blends. Object space, +Y up, pivot at the
 //! bounding-sphere centre. The runtime card reads the atlas through the same formulas.
 use crate::proxy::tracer::normalise as unit;
-use crate::shared_math::cross;
+use trillion3d_math::vec3::cross;
 
 /// ±1, never 0: the fold of the lower half needs a side even on an axis, where `sign(0) = 0`
 /// would send the direction to the wrong face.
@@ -20,7 +20,7 @@ fn side(x: f64) -> f64 {
 /// (`hemi`), where a direction below the horizon folds onto it.
 #[cfg(test)]
 pub(crate) fn encode(d: [f64; 3], hemi: bool) -> [f64; 2] {
-    use crate::shared_math::scale;
+    use trillion3d_math::vec3::scale;
     if hemi {
         let d = [d[0], d[1].max(0.0), d[2]];
         let norm = d[0].abs() + d[1] + d[2].abs();
