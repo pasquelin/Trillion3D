@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cellUrl, decodeHere, io, noBudget, settled, sizedWhole, world } from './cells.fixture.ts'
+import { createDecodes, takeDecoded } from './decodes.ts'
 
 test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
   const { cells, bytes } = await sizedWhole(world())
@@ -65,4 +66,25 @@ test('a cell file refused for good is never asked again, and leaves no frame wai
     [],
     'refused at once by the streamer, never asked a frame',
   )
+})
+
+test('a cell within reach whose read is on its way is asked again: its frame waits on that read', () => {
+  const asked: string[] = []
+  // A read already a job — waiting its turn after a failure, say — whoever asked it first.
+  const port = {
+    bytes: () => undefined,
+    failed: () => false,
+    loading: () => true,
+    request: (urls: readonly string[]) => void asked.push(...urls),
+  }
+  const at = { io: port, budget: noBudget, ahead: false }
+  const later = takeDecoded(
+    [7],
+    at,
+    createDecodes<number, object>(),
+    () => 'c7.json',
+    async () => ({}),
+    () => true,
+  )
+  assert.deepEqual([later, asked], [true, ['c7.json']])
 })

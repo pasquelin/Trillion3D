@@ -108,3 +108,14 @@ test('a range whose last asker lets go while it transfers is read to its end: as
   assert.equal((await again).byteLength, 4)
   assert.deepEqual(asked, ['bytes=0-3'], 'read once')
 })
+
+test('a range of no bytes is no page: the ranges beside it are read, the queue never stands still', async (t) => {
+  const { streamer, asked } = await served(t, 2)
+  const empty = { url: 'empty', bytes: 0, sha256: '', range: { file: 'world.bin', offset: 4 } }
+  streamer.admit([empty])
+  // Asked within one task, beside the range that ends where it starts and the one that starts there.
+  const reads = ['part0', 'empty', 'part1'].map((url) => streamer.readBytes(url, streamer.signal))
+  const [first, none, second] = await Promise.allSettled(reads)
+  assert.equal(none.status, 'rejected', 'never catalogued')
+  assert.deepEqual([first.status, second.status, asked], ['fulfilled', 'fulfilled', ['bytes=0-7']])
+})

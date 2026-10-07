@@ -12,7 +12,7 @@ const settle = async () => {
 
 /** A streamer of the pages `urls` the server answers with `status`, the clock and its timers in
  *  the test's hands: the requests sent, when, and the failures said. */
-function refusing(t: TestContext, status: number, urls = ['a.bin']) {
+function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: HeadersInit) {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
   t.mock.timers.enable({ apis: ['setTimeout'] })
@@ -20,7 +20,7 @@ function refusing(t: TestContext, status: number, urls = ['a.bin']) {
     said: string[] = []
   t.mock.method(globalThis, 'fetch', async () => {
     sent.push(clock.now)
-    return new Response('', { status })
+    return new Response('', { status, headers })
   })
   const pages = urls.map((url) => ({ url, bytes: 4, sha256: '' }))
   const streamer = createPageStreamer(pages, 'http://cache/', {
@@ -126,6 +126,60 @@ test('a hundred thousand failed reads wait on one timer, each asked once a wait'
   await until(500)
   for (let i = 0; i < 200 && sent.length < 2 * urls.length; i++) await settle()
   assert.equal(sent.length, 2 * urls.length, 'each asked again once its wait ended')
+})
+
+test('a refusal that asks a wait (Retry-After) waits at least that long', async (t) => {
+  const { streamer, sent, until } = refusing(t, 429, ['a.bin'], { 'retry-after': '3' })
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  await settle()
+  await until(4_000)
+  assert.deepEqual(sent, [0, 3000], 'asked again once the server said, not after half a second')
+})
+
+test('a stall is said once, and again only once its page landed and stalls anew', async (t) => {
+  const { streamer, said, until } = refusing(t, 503)
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  await settle()
+  await until(8_000)
+  assert.deepEqual(said, ['a.bin'], 'said as it first waits the longest')
+  const bytes = new Uint8Array([7, 0, 0, 0])
+  t.mock.method(globalThis, 'fetch', async () => new Response(bytes))
+  streamer.admit([{ url: 'a.bin', bytes: 4, sha256: await sha(bytes) }])
+  await until(16_000)
+  assert.equal(streamer.has('a.bin'), true, 'landed: its failures in a row are over')
+  streamer.forget(['a.bin'])
+  streamer.admit([{ url: 'a.bin', bytes: 4, sha256: 'other' }])
+  t.mock.method(globalThis, 'fetch', async () => new Response('', { status: 503 }))
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  await settle()
+  await until(32_000)
+  assert.deepEqual(said, ['a.bin', 'a.bin'], 'stalled anew: said again')
+})
+
+test('a page forgotten while its read transfers ends with it, failed or not: never asked again', async (t) => {
+  const clock = { now: 0 }
+  t.mock.method(performance, 'now', () => clock.now)
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  let sent = 0
+  t.mock.method(globalThis, 'fetch', async () => {
+    sent++
+    await gate
+    return new Response('', { status: 503 })
+  })
+  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 4, sha256: '' }], 'http://cache/')
+  t.after(() => streamer.dispose())
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  await settle()
+  streamer.forget(['a.bin']) // its cell's page closed while the read is under way
+  release()
+  await settle()
+  for (clock.now = 250; clock.now <= 2_000; clock.now += 250) {
+    t.mock.timers.tick(250)
+    await settle()
+  }
+  assert.deepEqual([sent, streamer.loading('a.bin'), streamer.stats().failed], [1, false, 0])
 })
 
 async function sha(bytes: Uint8Array) {

@@ -27,9 +27,9 @@ async function heldAt(t: TestContext, first: number, transfers?: number, dag?: D
       return respond()
     },
   })
-  const { roots } = await opened(t, world.manifest, { transfers })
+  const { roots, queue } = await opened(t, world.manifest, { transfers })
   t.after(land)
-  return { roots, ranges: world.ranges, table: world.table, land }
+  return { roots, queue, ranges: world.ranges, table: world.table, land }
 }
 
 test("a cell's bundles contiguous in the binary are one ranged read", async (t) => {
@@ -182,4 +182,22 @@ test('a cell held before its world is bound waits for the bind, then reads', asy
   roots.bind(queue)
   await held
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)])
+})
+
+test("a hold under way as its session's queue closes reads in the next session's queue: never lost", async (t) => {
+  const { roots, queue, ranges, table, land } = await heldAt(t, 2)
+  const held = roots.hold(1) // bundles 2 and 3, one read, under way
+  await new Promise(setImmediate)
+  const next = createPageStreamer([], 'http://world/')
+  t.after(() => next.dispose())
+  queue.dispose() // the device is lost: its session closes
+  land()
+  roots.bind(next) // the next session
+  await held
+  assert.deepEqual(
+    ranges.slice(1),
+    [rangeOf(table, 2, 4), rangeOf(table, 2, 4)],
+    'read again there',
+  )
+  assert.deepEqual(heldBy(roots), [2, 3])
 })
