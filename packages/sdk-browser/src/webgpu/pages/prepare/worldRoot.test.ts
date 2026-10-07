@@ -6,17 +6,11 @@ import assert from 'node:assert/strict'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'
 import { worldRootsDag } from '../../../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { served } from '../../../scene/worldRoots.fixture.ts'
-import { openWorldRoots } from '../../../scene/worldRoots.ts'
+import { openWorldRoots, worldOrGeometryReader } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
-import {
-  coverHeldRoots,
-  linkWorldObject,
-  readWorldOrGeometry,
-  takeLandedPages,
-  withWorldRoot,
-} from './worldRoot.ts'
+import { coverHeldRoots, linkWorldObject, takeLandedPages, withWorldRoot } from './worldRoot.ts'
 import { standAlone } from '../../../scene/worldSuperRoots.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
 import type { EngineContext } from '../../../engine/types.ts'
@@ -38,13 +32,15 @@ async function scene(t: Parameters<typeof served>[0], alone = false) {
     source = G.mesh()
   source.add(opaque)
   const reads: string[] = []
+  const hold = (await openWorldRoots(metadata, 'http://world/'))!
+  const host = async (url: string) => (reads.push(url), new Uint8Array(4))
   const context = {
     metadata,
     source,
     associations: new Map([[opaque, { meshes: 0, primitives: 0 }]]),
-    readGeometryPage: async (url: string) => (reads.push(url), new Uint8Array(4)),
+    worldRoots: hold,
+    readGeometryPage: worldOrGeometryReader(hold, host),
   } as unknown as EngineContext
-  const hold = (await openWorldRoots(metadata, 'http://world/'))!
   return { context, hold, bin, table, opaque, reads }
 }
 
@@ -73,7 +69,7 @@ test('the world joins the catalogue as the last root, its requests ranked again'
 
 test("a world page is read through the world's source, any other through the host", async (t) => {
   const { context, bin, table, reads } = await scene(t)
-  const read = readWorldOrGeometry(context)
+  const read = context.readGeometryPage!
   const { offset, bytes } = table.bundles[2]
   assert.deepEqual([...(await read('world-roots.bin#2:0'))], [...bin.slice(offset, offset + bytes)])
   await read('../../objects/page.bin')

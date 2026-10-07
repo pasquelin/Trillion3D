@@ -1,4 +1,5 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostTexture } from '../../host/resources.ts'
 import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../engine/common.ts'
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
@@ -24,7 +25,7 @@ type Inputs = {
   base: string
   frameBudget?: EngineContext['frameBudget']
   /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
-  worldRoots: readonly { bytes(): number }[]
+  worldRoots: readonly WorldRootsHold[]
 }
 
 /** One light store per session, the engine reads it and the host writes it, with the lights the
@@ -98,13 +99,17 @@ function engineContext(
 ): EngineContext {
   const { canvas, options, metadata, signal, diagnosticChannel, diagnose } = session
   const { indices, streamer, cacheCap } = inputs.pageSources
+  // The world roots the scene's own manifest opened ride the context; their pages are read through
+  // the one geometry reader, built here once.
+  const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
   return {
     ...optionContext(session),
     source: inputs.source,
     metadata,
     indices,
     readPage: (url) => streamer.read(url),
-    readGeometryPage: streamer.readBytes,
+    readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes),
+    worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
     associations: inputs.associations,
     textureIndices: inputs.textureIndices,

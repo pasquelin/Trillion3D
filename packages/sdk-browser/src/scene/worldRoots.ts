@@ -134,10 +134,23 @@ function worldStreamOf(
   }
 }
 
-/** The world roots each manifest opened, the one a backend draws from (`worldRootsOf`). */
-const openedBy = new WeakMap<object, WorldRootsHold>()
-/** The world roots the cache `metadata` describes, once opened (`openWorldRoots`). */
-export const worldRootsOf = (metadata: object) => openedBy.get(metadata)
+/**
+ * The cache's geometry page reader `read` with the world's pages of `hold` served by its own
+ * source: built once, where the engine's context is made, and the one reader every page read goes
+ * through. Without a stream to draw from, `read` itself.
+ */
+export function worldOrGeometryReader(
+  hold: WorldRootsHold | undefined,
+  read: ((url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>) | undefined,
+) {
+  const world = hold?.drawn
+  if (!world) return read
+  return (url: string, signal?: AbortSignal, priority?: number) => {
+    if (url.startsWith(`${WORLD_ROOTS_BIN}#`)) return world.source.read(url, signal)
+    if (!read) return Promise.reject(new Error('Missing geometry page reader'))
+    return read(url, signal, priority)
+  }
+}
 
 /**
  * The world roots of the cache `metadata` describes at `base`, their top read and pinned, or
@@ -173,7 +186,8 @@ export async function openWorldRoots(
     hold.drawn = await hold.stream()
     hold.drawnBytes = dag.bytes
   }
-  openedBy.set(metadata, hold)
+  // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
+  hold.metadata = metadata
   return hold
 }
 
@@ -217,6 +231,8 @@ function worldRootsHold(
      *  bytes of the DAG it read. */
     drawn: undefined as WorldStream | undefined,
     drawnBytes: 0,
+    /** The manifest that opened it: an engine over that scene draws from it. */
+    metadata: undefined as object | undefined,
     /** The object each placed row draws (`worldObjects.ts`). */
     objects,
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */

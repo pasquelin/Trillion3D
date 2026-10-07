@@ -8,7 +8,7 @@ import { prepareMathBatch } from '../../math/batchState.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
-import { openWorldRoots } from '../../scene/worldRoots.ts'
+import { openWorldRoots, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
@@ -194,9 +194,7 @@ export async function loadPreparedScene(
   const framingLot = await hostBoundsLot(source)
   // The world roots each model holds, which the session counts in its CPU budget (#1237): only
   // that count leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
-  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
-    ? [worldRoots]
-    : []
+  const counted: WorldRootsHold[] = worldRoots ? [worldRoots] : []
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
     /** The clips the file plays (#357). */

@@ -1,6 +1,5 @@
 import { readGeometryPageHeader } from '../../page/codec/geometryPageHeader.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
-import { readWorldOrGeometry } from './prepare/worldRoot.ts'
 
 /**
  * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the host's
@@ -11,8 +10,12 @@ import { readWorldOrGeometry } from './prepare/worldRoot.ts'
 export function createPageSource(rt: WebgpuPagesCore) {
   const { context, setup } = rt,
     { sourceBytes, geometryUrls } = setup
-  // A world super-root's page is read through the world's own source (`prepare/worldRoot.ts`).
-  const readGeometry = readWorldOrGeometry(context)
+  // A world super-root's page is read through the world's own source, inside this one reader
+  // (`../../scene/worldRoots.ts`, `worldOrGeometryReader`).
+  const readGeometry = (url: string, signal?: AbortSignal, priority?: number) =>
+    context.readGeometryPage
+      ? context.readGeometryPage(url, signal, priority)
+      : Promise.reject(new Error('Missing geometry page reader'))
   const read = async (key: string, _signal?: AbortSignal, priority?: number) => {
     const geometryUrl = geometryUrls.get(key)
     if (geometryUrl === undefined)

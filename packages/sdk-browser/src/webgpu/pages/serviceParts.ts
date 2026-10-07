@@ -13,7 +13,6 @@ import type { LowerList } from '../residency/lowerTier.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
 import { readGeometryAhead } from '../row/pageSlots.ts'
-import { readWorldOrGeometry } from './prepare/worldRoot.ts'
 import { markWebgpuLost } from './io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
@@ -141,9 +140,7 @@ export function createResidencyFor(
     lowerTiers: () => lowerTiers,
     bytesRevision: rows.touchRevision,
     coverMissing: residencySets.coverMissing,
-    // A world page is read through the world's own source (`prepare/worldRoot.ts`).
-    prefetch:
-      context.readGeometryPage && readGeometryAhead(geometryUrls, readWorldOrGeometry(context)),
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   })
   const residency = createWebgpuResidencyQueue({
     tracking,

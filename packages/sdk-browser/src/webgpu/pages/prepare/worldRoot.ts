@@ -2,10 +2,10 @@
  * THE WORLD DAG IN THE WEBGPU CUT: the far field of a partitioned world, its cells held far
  * drawn by their super-roots and the regions above them, through the one cut.
  *
- * The world a manifest opened (`../../../scene/worldRoots.ts`, `worldRootsOf`) and the stream it read
+ * The world the scene's manifest opened (`EngineContext.worldRoots`) and the stream it read
  * at load (`drawn`) give the cut its last root (`../../../scene/worldRecords.ts`): its pages join
  * the catalogue — requested, held by the pool and drawn as any page —, its geometry pages read
- * through the world page source (`readWorldOrGeometry`), and each placed row links to the object it
+ * through the world page source (`worldOrGeometryReader`, built into the context's reader), and each placed row links to the object it
  * draws (`objectOfRoot`), which its world group stands in for (`../../../gpu/dag/worldLinks.ts`).
  * A world whose packing would pass the pages a key word names (`KEY_PAGE_MAX`) is not
  * packed: the scene keeps its GPU cut, its far cells unheld (`../../../partition/farCells.ts`). The
@@ -14,9 +14,7 @@
 import type { EngineContext } from '../../../engine/types.ts'
 import type { PageRec, ClusterRoot } from '../../../page/selection/types.ts'
 import { indexPageRequests } from '../../../page/selection/requests.ts'
-import { worldRootsOf } from '../../../scene/worldRoots.ts'
 import { worldSelectionRoot, worldWearers, type WorldHeld } from '../../../scene/worldRecords.ts'
-import { WORLD_ROOTS_BIN } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
 import { PRIORITY_PREFETCH } from '../../../streaming/priority.ts'
 import { rowCell } from '../../../partition/rowCells.ts'
@@ -34,8 +32,7 @@ type Collected = {
 const isWorldRoot = <R extends object>(root: R): root is R & WorldHeld => 'origins' in root
 
 /** The world DAG the cut packs for `context`'s scene: the stream a partitioned world drew at load. */
-const drawnWorld = (context: Pick<EngineContext, 'metadata'>) =>
-  worldRootsOf(context.metadata)?.drawn?.dag
+const drawnWorld = (context: Pick<EngineContext, 'worldRoots'>) => context.worldRoots?.drawn?.dag
 
 /**
  * `collected`, the host scene's roots and pages, with the world DAG as the last root and its pages
@@ -56,23 +53,12 @@ export function withWorldRoot<T extends Collected>(collected: T, context: Engine
   return { ...collected, requestCount: indexPageRequests(allPages) }
 }
 
-/** The geometry page reader of `context`, a world page read through the world's own source. */
-export function readWorldOrGeometry(context: EngineContext) {
-  const read = context.readGeometryPage
-  return (url: string, signal?: AbortSignal, priority?: number) => {
-    const world = url.startsWith(`${WORLD_ROOTS_BIN}#`) && worldRootsOf(context.metadata)?.drawn
-    if (world) return world.source.read(url, signal)
-    if (!read) return Promise.reject(new Error('Missing geometry page reader'))
-    return read(url, signal, priority)
-  }
-}
-
 /**
  * The world object root `root` draws, -1 for none: a parked row, a blended page, a node no cell
  * placed, or one the cook continued nothing of (`../../../scene/worldObjects.ts`).
  */
 function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
-  const objects = worldRootsOf(context.metadata)?.objects,
+  const objects = context.worldRoots?.objects,
     placement = root.placement,
     rec = root.pages[0]
   if (!objects || !placement || root.parked || !rec || rec.transparent) return -1
@@ -126,7 +112,7 @@ export function coverHeldRoots(
   sets: Pick<WebgpuResidencySets, 'holdCover'>,
   room: () => number,
 ) {
-  const world = worldRootsOf(rt.context.metadata),
+  const world = rt.context.worldRoots,
     root = rt.layout.selectionRoots.find(isWorldRoot)
   if (!world || !root) return
   const cover = (bundle: number, held: boolean) => {
@@ -155,7 +141,7 @@ export function coverHeldRoots(
  * free slots: a landed page never evicts another.
  */
 export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 'signal' | 'setup'>) {
-  const stream = worldRootsOf(rt.context.metadata)?.drawn
+  const stream = rt.context.worldRoots?.drawn
   if (!stream) return
   const take = (addresses: readonly string[]) => {
     const cache = rt.gpu.cache
