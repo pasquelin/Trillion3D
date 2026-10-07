@@ -20,8 +20,8 @@ import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
  * rank maps in script low.
  */
 
-export const VSM_BLUE_NOISE_SIZE = 64
-export const VSM_BLUE_NOISE_SLICES = 64
+const VSM_BLUE_NOISE_SIZE = 64
+const VSM_BLUE_NOISE_SLICES = 64
 
 const GOLDEN = GOLDEN_FRACTION
 /** The step of the additive 2D sequence, (1/p, 1/p²), p the plastic number: its points spread

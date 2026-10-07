@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
-import { TILE_POOL_WGSL, tilePoolWgsl } from './wgsl.ts'
+import { TILE_POOL_WGSL } from './wgsl.ts'
+import { atlasLodWgsl } from '../../texture/samplingFootprint.ts'
 import { TILE_REQUEST_WGSL } from './requestWgsl.ts'
 import { upscaleMipBias } from '../../taa/jitter.ts'
 import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
@@ -21,7 +22,7 @@ const body = (input: WgslSource, name: string) => {
 test('every texture level, read or asked, adds the frame offset: zero at native size', () => {
   const dot = (a: Vec, b: Vec) => a.x * b.x + a.y * b.y
   const lodAt = (bias: number) =>
-    shaderFunctions<Lod>(tilePoolWgsl('bias'), ['atlasLod'], { dot, log2: Math.log2, bias })
+    shaderFunctions<Lod>(atlasLodWgsl('bias'), ['atlasLod'], { dot, log2: Math.log2, bias })
       .atlasLod
   // A footprint of four texels per render pixel: level 2 at native size.
   const px = { x: 4, y: 0 },

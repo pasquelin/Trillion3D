@@ -77,7 +77,7 @@ const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
  * pool as a provider (`tileKindWgsl`, `atlasReadWgsl`); its variants share one name, so a program
  * holding two biases is refused when it is written.
  */
-export const tilePoolWgsl = (mipBias: string) => {
+const tilePoolWgsl = (mipBias: string) => {
   const lod = atlasLodWgsl(mipBias)
   return wgslBlock(
     'tilePoolWgsl',
