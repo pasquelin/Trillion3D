@@ -9,6 +9,8 @@ export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/
 
 const markdown = /\.md$/
 const MESSAGE_CATALOGUE = 'packages/sdk-node/src/messages/messages.json'
+// The reference values the crates' golden tests read (`packages/math/rust/src/golden.rs`).
+const GOLDEN = /^packages\/math\/golden\//
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/
@@ -76,8 +78,11 @@ export function changedSteps(
   if (existing.some((file) => markdown.test(file))) steps.push('check:links')
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n')
   steps.push(...TREE_GATES)
-  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`).
-  if (existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE))
+  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`), and the
+  // crates' tests read the golden values.
+  if (
+    existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE || GOLDEN.test(file))
+  )
     steps.push('rust')
   if (tests) steps.push('tests')
   return steps

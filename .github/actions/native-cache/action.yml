@@ -33,7 +33,7 @@ runs:
       with:
         path: packages/asset-compiler-rust/target/release/trillion3d-compiler
         lookup-only: ${{ inputs.lookup-only }}
-        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'packages/math/**', '!packages/math/rust/target/**', 'packages/sdk-node/src/messages/messages.json', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
+        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'packages/math/rust/**', '!packages/math/rust/target/**', 'packages/math/golden/**', 'packages/sdk-node/src/messages/messages.json', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
     # A restored binary keeps the time it was built at, older than this checkout's files, and a
     # launch refuses a compiler older than its sources (`sdk-node/src/compiler/freshness.mts`).
     # The key above already proves these sources built it: it takes the checkout's time.

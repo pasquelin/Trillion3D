@@ -83,7 +83,9 @@ function main(): void {
   const DRAPEAUX = {
     AR_wasm32_unknown_unknown: rustTool('llvm-ar'),
     CFLAGS_wasm32_unknown_unknown: '-msimd128',
-    RUSTFLAGS: '-C target-feature=+simd128,-relaxed-simd',
+    // A path dependency (`packages/math/rust`) is compiled under its absolute path, which its panic
+    // locations would carry into the committed module: the checkout's root becomes `.`.
+    RUSTFLAGS: `-C target-feature=+simd128,-relaxed-simd --remap-path-prefix=${RACINE}=.`,
   }
 
   execFileSync(

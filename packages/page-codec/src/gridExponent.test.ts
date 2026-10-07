@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  finestExponent,
-  gridExponent,
+  drawnUvGridExponent,
   primitiveGridExponent,
   tileLog2,
   uvGridExponent,
@@ -13,6 +12,11 @@ import {
 
 const TILE = 1,
   UNTILED = 2 ** 31 - 1
+/** The position grid of a primitive that is not blended (`gridExponent`, private to its module). */
+const gridExponent = (extent: number, error: number | null, tile: number) =>
+  primitiveGridExponent(extent, error, false, tile)
+/** The finest grid of a positive span: a blended primitive's (`finest_exponent`). */
+const finest = (span: number) => primitiveGridExponent(span, null, true, TILE)
 const untiled = (extent: number, error: number | null) => gridExponent(extent, error, UNTILED)
 /** Extents and errors a primitive can publish, the hostile ones included. */
 const EDGES = [
@@ -74,7 +78,7 @@ test('the tile is measured in metres of the world, and an extreme scale still fi
   // A 3,720-unit hall at a scale of 0.008 is no coarser a world step than one in metres.
   assert.ok(2 ** gridExponent(3720, null, tileLog2(0.008)) * 0.008 <= 2 ** (TILE - 16))
   // A kilometre terrain modelled in kilometres: its widest page limits the grid.
-  assert.equal(gridExponent(1.024, null, tileLog2(1e3)), finestExponent(1.024))
+  assert.equal(gridExponent(1.024, null, tileLog2(1e3)), finest(1.024))
   for (const scale of [null, NaN, 0, -0, -1, Infinity, -Infinity])
     assert.equal(tileLog2(scale), TILE)
   for (const scale of [5e-324, 2 ** -1022, Number.MAX_VALUE])
@@ -84,17 +88,16 @@ test('the tile is measured in metres of the world, and an extreme scale still fi
 
 test("the documented grids: a hall on the tile's, a kilometre on its root page's, the field's bounds", () => {
   assert.equal(gridExponent(32, null, TILE), TILE - 16)
-  assert.equal(finestExponent(1024), -13)
+  assert.equal(finest(1024), -13)
   assert.equal(gridExponent(1024, null, TILE), -13)
   // A metre of drawn triangles takes the compiler's 2^-16, not the finest 2^-23 a page holds.
   assert.equal(primitiveGridExponent(1, null, false, tileLog2(null)), -16)
   assert.equal(primitiveGridExponent(1, null, true, tileLog2(null)), -23)
   // Rust's saturating `as i32` and the ±64 clamp: the step stays a normal 32-bit float.
-  assert.equal(finestExponent(1e-300), -64)
-  assert.equal(finestExponent(Infinity), 64)
-  assert.equal(finestExponent(NaN), -23)
+  assert.equal(finest(1e-300), -64)
+  assert.equal(finest(Infinity), 64)
   assert.equal(gridExponent(Infinity, 1e-300, TILE), 64)
-  assert.equal(gridExponent(1, 5e-324, TILE), finestExponent(1))
+  assert.equal(gridExponent(1, 5e-324, TILE), finest(1))
 })
 
 test("texture coordinates take the format's grid, a blended primitive's the finest its span fits", () => {
@@ -103,4 +106,21 @@ test("texture coordinates take the format's grid, a blended primitive's the fine
   assert.equal(uvGridExponent(1, true), -23)
   assert.equal(uvGridExponent(2 ** 20, true), -14)
   assert.equal(uvGridExponent(1e-30, true), -64)
+})
+
+test("drawn texture coordinates take the format's grid, coarser only where the widest page needs it", () => {
+  for (const span of [0, -0, -1, NaN]) {
+    assert.equal(drawnUvGridExponent(span, false), -14)
+    assert.equal(drawnUvGridExponent(span, true), -14)
+  }
+  assert.equal(drawnUvGridExponent(1, false), -14)
+  assert.equal(drawnUvGridExponent(4096, false), -11)
+  assert.equal(drawnUvGridExponent(1, true), -23)
+  // A blended primitive's grid is the finest its span fits, coarser than the format's if need be.
+  assert.equal(drawnUvGridExponent(2 ** 20, true), -3)
+  for (let i = 0; i < 10_000; i++) {
+    const span = 2 ** (unit() * 60 - 30),
+      exponent = drawnUvGridExponent(span, i % 2 === 1)
+    assert.ok(span / 2 ** exponent < 2 ** 24, `${span}`)
+  }
 })

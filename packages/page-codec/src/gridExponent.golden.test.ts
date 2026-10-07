@@ -1,12 +1,12 @@
 import test from 'node:test'
 import { assertGolden } from '../../math/src/golden.fixture.ts'
-import { finestExponent, primitiveGridExponent, tileLog2, uvGridExponent } from './gridExponent.ts'
+import { primitiveGridExponent, tileLog2, uvGridExponent } from './gridExponent.ts'
 
 // The TypeScript twin of a primitive's grid rules (`page-codec-wasm/src/golden_tests/grid.rs`),
 // against the exponents the Rust rules wrote: hostile spans, the rules' documented cases, a sweep.
 
-test('finestExponent and tileLog2 return the exponents of their Rust twins', () => {
-  assertGolden('grid', 'finest_exponent', ([span]) => [finestExponent(span)])
+// `finest_exponent` is reached through the rules that call it: a blended primitive's grid is it.
+test('tileLog2 returns the exponents of its Rust twin', () => {
   assertGolden('grid', 'tile_log2', ([hasScale, scale]) => [tileLog2(hasScale ? scale : null)])
 })
 
