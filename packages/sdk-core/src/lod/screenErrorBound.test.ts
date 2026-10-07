@@ -1,15 +1,10 @@
-// The frame's four scalars (stretch, focal length, near plane, projection) are
-// checked once, `frameParametersSound`, and each cluster only its own values, `clusterErrorInFrame`.
-// Against a frozen copy of the per-cluster guard: the same value to the bit, the same error on the
-// same call, over random clusters and every edge (NaN, ±0, ±Inf, degenerate projection).
+// `clusterErrorAtDepth` checks the frame's four scalars (stretch, focal length, near plane,
+// projection), then the cluster's own values. Against a frozen copy of the per-cluster guard: the
+// same value to the bit, the same error on the same call, over random clusters and every edge
+// (NaN, ±0, ±Inf, degenerate projection).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  clusterErrorAtDepth,
-  clusterErrorInFrame,
-  frameParametersSound,
-  screenErrorBound,
-} from './screenErrorBound.ts'
+import { clusterErrorAtDepth, screenErrorBound } from './screenErrorBound.ts'
 
 /** `clusterErrorAtDepth` evaluated naively: all thirteen conditions on every call. */
 function perCluster(
@@ -55,26 +50,13 @@ function outcome(run: () => number): number | string {
   }
 }
 
-/** The CPU cut's way (`projectedErrorAt`): 0 and ∞ returned as is, then the frame checked once,
- *  the cluster through `clusterErrorInFrame` when it passed, through the whole guard otherwise. */
-function checkedOnce(a: Args) {
-  const [error, stretch, lateral, depth, radius, focal, near, perspective = 1] = a
-  if (error === 0) return 0
-  if (error === Infinity) return Infinity
-  return frameParametersSound(stretch, focal, near, perspective)
-    ? clusterErrorInFrame(error, stretch, lateral, depth, radius, focal, near, perspective)
-    : clusterErrorAtDepth(...a)
-}
-
 function assertSame(a: Args) {
-  const expected = outcome(() => perCluster(...a))
-  for (const [name, run] of [
-    ['clusterErrorAtDepth', () => clusterErrorAtDepth(...a)],
-    ['checked once', () => checkedOnce(a)],
-  ] as const) {
-    const got = outcome(run)
-    assert.ok(Object.is(got, expected), `${name}(${a.join(', ')}): ${got} against ${expected}`)
-  }
+  const expected = outcome(() => perCluster(...a)),
+    got = outcome(() => clusterErrorAtDepth(...a))
+  assert.ok(
+    Object.is(got, expected),
+    `clusterErrorAtDepth(${a.join(', ')}): ${got} against ${expected}`,
+  )
   return expected
 }
 

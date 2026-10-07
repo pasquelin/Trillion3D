@@ -1391,8 +1391,7 @@
     "description": "Chaque chemin lit cette seule fonction et la signe pour son propre test de profondeur."
   },
   "detectCapabilities": {
-    "summary": "Vérifie ce qu’accorde le WebGPU de cette machine, et dit pourquoi quand il n’accorde rien.",
-    "description": "`gpu` désigne `navigator.gpu`."
+    "summary": "Vérifie ce qu’accorde le WebGPU de cette machine, et dit pourquoi quand il n’accorde rien."
   },
   "GpuCapabilities": {
     "summary": "Ce que le WebGPU de cette machine accorde, lu avant qu’aucune session s’ouvre.",

@@ -1391,8 +1391,7 @@
     "description": "Jeder Pfad liest diese eine Funktion und gibt ihr für seinen eigenen Tiefentest ein Vorzeichen."
   },
   "detectCapabilities": {
-    "summary": "Prüft, was das WebGPU dieses Rechners gewährt, und sagt warum, wenn es nichts gewährt.",
-    "description": "`gpu` steht für `navigator.gpu`."
+    "summary": "Prüft, was das WebGPU dieses Rechners gewährt, und sagt warum, wenn es nichts gewährt."
   },
   "GpuCapabilities": {
     "summary": "Was das WebGPU dieser Maschine gewährt, gelesen, bevor eine Sitzung geöffnet wird.",

@@ -3,11 +3,7 @@ import { type NormalCone } from '../cone/cone.ts'
 import { type ConeContext } from '../cone/cone.fixture.ts'
 import { createConeContext } from '../cone/cone.fixture.ts'
 import type { EngineCamera } from '../../camera/world.ts'
-import {
-  IDENTITY_ELEMENTS,
-  IDENTITY_WORLD,
-  type MatrixElements,
-} from '../../math/matrixElements.ts'
+import { IDENTITY_WORLD, type MatrixElements } from '../../math/matrixElements.ts'
 import type { ClusterCut } from '../selection/math.ts'
 import type { PageSurface } from '../surface.ts'
 import type { CutReadiness } from './readiness.ts'
@@ -66,10 +62,6 @@ export interface SelectionState<T extends PageRecord> {
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean
-  /** This root's stretch, focal length, near plane and projection pass `frameParametersSound`:
-   *  each cluster's projection then checks only its own values. Set with the other
-   *  `flat*` scalars by `selectFlat`; false, every projection checking all of them, otherwise. */
-  flatSound: boolean
   /** What the two lists actually hold. The arrays are not cleared with `length = 0` each
    *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
    *  rewritten by index, and their length is set only once the cut is finished. During the cut,
@@ -130,7 +122,7 @@ const reusedState: SelectionState<PageRecord> = {
   complete: true,
   cameraStretch: 1,
   flatWorld: IDENTITY_WORLD,
-  flatElements: IDENTITY_ELEMENTS,
+  flatElements: IDENTITY_WORLD.elements,
   flatStretch: 1,
   flatFocal: 1,
   flatReach: 0,
@@ -139,7 +131,6 @@ const reusedState: SelectionState<PageRecord> = {
   flatBoxes: false,
   held: undefined,
   flatExact: false,
-  flatSound: false,
   shownCount: 0,
   wantedCount: 0,
   wantedTriangles: 0,

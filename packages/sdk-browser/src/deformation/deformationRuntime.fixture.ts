@@ -31,7 +31,7 @@ export function deformationRuntime(
     gpu: { device: { queue: { writeBuffer() {} } } },
     lights,
     layout: { selectionRoots, rows },
-    run: { gate: { pixelError: 0 }, temporalHizState: {} },
+    run: { gate: { pixelError: 0 } },
     setup: {},
     blendState: { blendGpu: [] },
   } as unknown as WebgpuPagesRuntime

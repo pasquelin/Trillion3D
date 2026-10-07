@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { sameHizView } from '../../../hiz/hiz.ts'
-import { invalidateOccluderHistory, invalidateTemporalPyramid } from '../io/drops.ts'
+import { invalidateOccluderHistory } from '../io/drops.ts'
 import {
   createEngineCamera,
   holdCameraWorld,
@@ -78,29 +78,13 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   )
 })
 
-// "Occluder history" lever: a moving camera only voids the temporal pyramid. The two invalidations
-// are of different kinds — the pyramid is reread only for a bit-identical view, occluder history
-// names pages only — and therefore split.
-function runState() {
-  return {
-    noOccluderHistory: false,
-    temporalHizState: { pyramid: {}, camera: {} },
-  } as unknown as Parameters<typeof invalidateTemporalPyramid>[0]
-}
-
-test('invalidateTemporalPyramid drops the pyramid and keeps the occluder history', () => {
-  const run = runState()
-  invalidateTemporalPyramid(run)
-  assert.equal(run.temporalHizState.pyramid, undefined)
-  assert.equal(run.temporalHizState.camera, undefined)
-  assert.equal(run.noOccluderHistory, false, 'the pages drawn last image still describe this one')
-})
-
-test('invalidateOccluderHistory still drops both', () => {
-  const run = runState()
+// "Occluder history" lever: the history names pages only, so only what changes the pages drawn
+// drops it; a moving camera lets its rows leave the occluders instead (`hizViewMoved`).
+test('invalidateOccluderHistory drops the occluder history', () => {
+  const run = { noOccluderHistory: false } as unknown as Parameters<
+    typeof invalidateOccluderHistory
+  >[0]
   invalidateOccluderHistory(run)
-  assert.equal(run.temporalHizState.pyramid, undefined)
-  assert.equal(run.temporalHizState.camera, undefined)
   assert.equal(run.noOccluderHistory, true)
 })
 
@@ -137,18 +121,14 @@ function scene(terrain: number, model: number, blendSlots = 0) {
     rows.packedPageIndex[row] = row
   }
   rows.packedCount = terrain + model
-  const run = {
-    noOccluderHistory: false,
-    temporalHizState: { pyramid: {}, camera: {} },
-  } as unknown as Parameters<typeof moveRootRows>[0]['run']
-  const rt = { layout: { rows }, run, blendState: { occlusionEpoch: 1 } }
-  return { rt, rows, run, moving, glass }
+  const rt = { layout: { rows }, blendState: { occlusionEpoch: 1 } }
+  return { rt, rows, moving, glass }
 }
 
 test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
   const terrain = 900,
     model = 12
-  const { rt, rows, run, moving } = scene(terrain, model)
+  const { rt, rows, moving } = scene(terrain, model)
   const before = rows.pageTableFloats!.slice()
   ;(moving.world.elements as Float64Array)[12] = 3
   assert.equal(moveRootRows(rt, moving), model)
@@ -167,11 +147,8 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
         before.subarray(base, base + ROW_WORDS),
       )
   }
-  // Their windings are computed again — their corners travel with their dirty rows —, and the scene
-  // keeps its occlusion history. The temporal pyramid, one image of the whole scene, is dropped.
+  // Their windings are computed again — their corners travel with their dirty rows.
   assert.equal(moving.windingEpoch, undefined)
-  assert.equal(run.noOccluderHistory, false)
-  assert.equal(run.temporalHizState.pyramid, undefined)
   assert.equal(rt.blendState.occlusionEpoch, 1, 'no transparent cluster moved')
 })
 

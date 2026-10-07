@@ -103,12 +103,7 @@ export function clusterErrorPixels(
  * The frame's half of `clusterErrorAtDepth`'s guard: stretch, focal length, near plane and clip-w
  * weight, the four scalars every cluster of a root's cut shares. True when they pass.
  */
-export function frameParametersSound(
-  stretch: number,
-  focal: number,
-  near: number,
-  perspective = 1,
-) {
+function frameParametersSound(stretch: number, focal: number, near: number, perspective = 1) {
   return (
     Number.isFinite(stretch) &&
     stretch >= 0 &&
@@ -152,14 +147,11 @@ export function clusterErrorAtDepth(
 }
 
 /**
- * `clusterErrorAtDepth` of a frame whose `frameParametersSound` already holds and of an error that
- * is neither 0 nor ∞, which the caller has returned as is (VIS-16): the CPU cut checks its four
- * scalars once per root, and each cluster only its own error, radius, axis distance and depth. The
- * frame's half of the guard can only fail where it was taken out, so the verdicts are those of
- * `clusterErrorAtDepth`, the same error on the same call. The Rust mirror (`projected_error_at`,
- * `cut_error.rs`) keeps the whole guard per cluster: same verdicts.
+ * The cluster's half of `clusterErrorAtDepth`, once `frameParametersSound` holds and the error is
+ * neither 0 nor ∞: its own error, radius, axis distance and depth checked, then projected. The
+ * Rust mirror (`projected_error_at`, `cut_error.rs`) keeps the whole guard in one: same verdicts.
  */
-export function clusterErrorInFrame(
+function clusterErrorInFrame(
   clusterError: number,
   stretch: number,
   lateral: number,

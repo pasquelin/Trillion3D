@@ -5813,8 +5813,7 @@
     "description": "Her yol bu tek fonksiyonu okur ve kendi derinlik testi için ona işaret verir."
   },
   "detectCapabilities": {
-    "summary": "Bu makinenin WebGPU'sunun ne sağladığını denetler, hiçbir şey sağlamadığında nedenini söyler.",
-    "description": "`gpu`, `navigator.gpu` anlamına gelir."
+    "summary": "Bu makinenin WebGPU'sunun ne sağladığını denetler, hiçbir şey sağlamadığında nedenini söyler."
   },
   "GpuCapabilities": {
     "summary": "Bu makinenin WebGPU'sunun verdiği şey, herhangi bir oturum açılmadan önce okunur.",

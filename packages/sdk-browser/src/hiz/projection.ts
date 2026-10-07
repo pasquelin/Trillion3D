@@ -2,7 +2,6 @@ import { HIZ_BOUNDS_VALUES, projectBoxInto, rowBox } from './corners.ts'
 import type { HizPage } from './types.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { locationOf, type PageLocations } from '../page/selection/placements.ts'
-import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts'
 
 export function projectBoxesFlat(
   pages: ArrayLike<HizPage | undefined>,
@@ -37,14 +36,6 @@ export function projectBoxesFlat(
       base,
     )
   }
-}
-
-/** Locations of pages placed by the identity root: what a staled box, already a world box, reads.
- *  Every index reads root 0, whatever the list's length. */
-export const IDENTITY_LOCATIONS: PageLocations = {
-  roots: [{ world: { elements: IDENTITY_ELEMENTS } }],
-  packed: new Proxy([], { get: (_t, p) => (typeof p === 'symbol' ? undefined : 0) }),
-  rootOfPacked: new Proxy([], { get: () => 0 }) as unknown as Int32Array,
 }
 
 let boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES)

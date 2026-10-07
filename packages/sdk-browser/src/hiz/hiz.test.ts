@@ -4,7 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { sameHizView, type HizPage } from './hiz.ts'
 import { buildHizPyramid } from './depth.ts'
-import { filterUnoccluded } from './unoccluded.ts'
+import { filterUnoccluded } from './unoccluded.fixture.ts'
 import { visibilityDepth } from './visibilityDepth.fixture.ts'
 import { splitOccludersInto } from './split.ts'
 import {

@@ -1,19 +1,12 @@
 // At threshold zero, a node's decision is taken on the bounds alone, without projecting.
-// It matches the general path only under the invariant `cullingBounds` maintains — a finite
+// It matches the general path only under the invariant `subtreeBounds` maintains — a finite
 // strictly positive bound always comes from a cluster that had its sphere — and the second
 // test proves that. Oracle: the general `nodeDecision`, in
 // `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  BOUND_STRIDE,
-  OWN_CEIL,
-  OWN_FLOOR,
-  OWN_SPHERE,
-  PARENT_FLOOR,
-  PARENT_SPHERE,
-  cullingBounds,
-} from './bounds.ts'
+import { OWN_FLOOR, OWN_SPHERE, PARENT_SPHERE } from './bounds.ts'
+import { OWN_CEIL, PARENT_FLOOR, SUBTREE_STRIDE, subtreeBounds } from './bounds.fixture.ts'
 import type { PageRecord, SelectionState } from './state.fixture.ts'
 import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -57,12 +50,12 @@ test('at threshold zero, the node decision without projection matches the genera
         for (const own of [NEAR, LOIN, ABSENTE])
           for (const band of [NEAR, LOIN, ABSENTE]) {
             // The ceiling bounds the floor by construction: a node whose floor exceeds its
-            // ceiling never leaves `cullingBounds`.
+            // ceiling never leaves `subtreeBounds`.
             if (floor > ceil) continue
             if (!coherente(floor, own) || !coherente(ceil, own) || !coherente(parentFloor, band))
               continue
             vus++
-            const values = new Float64Array(BOUND_STRIDE)
+            const values = new Float64Array(SUBTREE_STRIDE)
             values[OWN_FLOOR] = floor
             values[OWN_CEIL] = ceil
             values[PARENT_FLOOR] = parentFloor
@@ -120,9 +113,9 @@ test('a finite positive node bound always comes from a cluster that had its sphe
     nodes[base + 13] = leaf * perLeaf
     nodes[base + 14] = Math.min(perLeaf, Math.max(0, all.length - leaf * perLeaf))
   }
-  const values = cullingBounds({ nodes, stride }, all)
+  const values = subtreeBounds({ nodes, stride }, all)
   for (let node = 0; node < count; node++) {
-    const at = node * BOUND_STRIDE
+    const at = node * SUBTREE_STRIDE
     const own = [0, 0, 0, values[at + OWN_SPHERE + 3]],
       band = [0, 0, 0, values[at + PARENT_SPHERE + 3]]
     assert.ok(coherente(values[at + OWN_FLOOR], own), `own floor of node ${node}`)

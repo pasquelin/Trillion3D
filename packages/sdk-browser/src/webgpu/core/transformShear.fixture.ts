@@ -71,7 +71,6 @@ export function runtime(
     // there and aligns `worldsRevision`. A partial state would hide that contract.
     run = createWebgpuRunState()
   run.noOccluderHistory = false
-  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState
   const rt = {
     setup: { source, worlds },
     layout,

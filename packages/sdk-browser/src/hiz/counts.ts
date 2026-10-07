@@ -29,15 +29,6 @@ export function createHizCounts(): HizCounts {
   }
 }
 
-export function resetHizCounts(counts: HizCounts) {
-  counts.tested = 0
-  counts.rejected = 0
-  counts.oversized = 0
-  counts.testedTriangles = 0
-  counts.rejectedTriangles = 0
-  counts.oversizedTriangles = 0
-}
-
 /** A screen rectangle the level-0 kernel cannot cover. A near-plane crossing carries no rectangle. */
 export function hizOversized(
   minX: number,

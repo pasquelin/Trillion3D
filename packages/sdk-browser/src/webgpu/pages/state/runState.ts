@@ -40,7 +40,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     noOccluderHistory: true,
     hizViewMoved: true,
     previousHizView: undefined,
-    temporalHizState: {},
     rowsSyncedFrame: -1,
     motion: {},
     selectionUniforms: createSelectionUniforms(),

@@ -4747,8 +4747,7 @@
     "description": "每一条路径都会读取这一个函数,并根据自己的深度测试为其赋予符号。"
   },
   "detectCapabilities": {
-    "summary": "检查这台机器的 WebGPU 能提供什么,在什么都不提供时说明原因。",
-    "description": "`gpu` 即 `navigator.gpu`。"
+    "summary": "检查这台机器的 WebGPU 能提供什么,在什么都不提供时说明原因。"
   },
   "GpuCapabilities": {
     "summary": "这台机器的 WebGPU 所授予的内容，在任何会话打开之前读取。",

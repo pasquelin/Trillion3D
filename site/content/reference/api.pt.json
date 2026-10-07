@@ -4747,8 +4747,7 @@
     "description": "Todo caminho lê essa única função e dá a ela o sinal para seu próprio teste de profundidade."
   },
   "detectCapabilities": {
-    "summary": "Verifica o que o WebGPU desta máquina oferece, e diz por quê quando não oferece nada.",
-    "description": "`gpu` representa `navigator.gpu`."
+    "summary": "Verifica o que o WebGPU desta máquina oferece, e diz por quê quando não oferece nada."
   },
   "GpuCapabilities": {
     "summary": "O que o WebGPU desta máquina concede, lido antes de qualquer sessão abrir.",

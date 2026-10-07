@@ -1391,8 +1391,7 @@
     "description": "Ogni percorso legge questa unica funzione e le dà un segno per il proprio test di profondità."
   },
   "detectCapabilities": {
-    "summary": "Verifica ciò che il WebGPU di questa macchina concede, e dice perché quando non concede nulla.",
-    "description": "`gpu` sta per `navigator.gpu`."
+    "summary": "Verifica ciò che il WebGPU di questa macchina concede, e dice perché quando non concede nulla."
   },
   "GpuCapabilities": {
     "summary": "Ciò che il WebGPU di questa macchina concede, letto prima che si apra qualsiasi sessione.",

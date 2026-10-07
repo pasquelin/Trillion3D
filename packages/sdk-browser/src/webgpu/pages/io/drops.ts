@@ -2,19 +2,9 @@ import type { WebgpuRunState } from '../state/run.ts'
 import { markWebgpuLost } from './lost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-/**
- * The temporal pyramid no longer describes this image. It is reread only for a view identical to the
- * bit, so a camera move drops it; the occluder history names pages only and depends on no view.
- */
-export function invalidateTemporalPyramid(run: WebgpuRunState) {
-  run.temporalHizState.pyramid = undefined
-  run.temporalHizState.camera = undefined
-}
-
-/** Neither the previous image's occluders nor its pyramid describe this one. */
+/** The previous image's occluders no longer describe this one. */
 export function invalidateOccluderHistory(run: WebgpuRunState) {
   run.noOccluderHistory = true
-  invalidateTemporalPyramid(run)
 }
 
 /** A capability now served: it leaves the list of what the backend declares unsupported. */
@@ -25,7 +15,6 @@ export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities']
 function resetHizHistory(run: WebgpuRunState) {
   invalidateOccluderHistory(run)
   run.previousHizView = undefined
-  run.temporalHizState.viewport = undefined
 }
 
 /**

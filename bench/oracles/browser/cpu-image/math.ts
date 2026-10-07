@@ -9,8 +9,8 @@ import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/typ
  *  the GPU texel turn applies in integers (`webgpu/tile/texelTurn.ts`). */
 export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255)
 
-// The CPU image's reads of a page: the oracle's, not the engine's. The engine reads the depth
-// alone (`rasterDepth`); the colour of a pixel is the GPU's, and these are what it is checked against.
+// The CPU image's reads of a page: the oracle's, not the engine's. The colour of a pixel is the
+// GPU's, and these are what it is checked against.
 
 export function backgroundRgb(background: number) {
   return [(background >> 16) & 255, (background >> 8) & 255, background & 255]

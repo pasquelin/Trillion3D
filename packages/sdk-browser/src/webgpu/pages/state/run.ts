@@ -3,7 +3,6 @@ import type { DiagnosticMode } from '../../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
 import type { AsideCut } from '../../../gpu/core/aside.ts'
-import type { TemporalHizState } from '../../../hiz/hiz.ts'
 import type { FrameGateCore } from '../../../frame/gateCore.ts'
 import type { WebgpuBudgetState } from '../../residency/budgetState.ts'
 
@@ -54,7 +53,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** The view moved since the last image: every row may leave the occluders again. */
   hizViewMoved: boolean
   previousHizView: EngineCamera | undefined
-  temporalHizState: TemporalHizState
   rowsSyncedFrame: number
   motion: CameraMotion
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */

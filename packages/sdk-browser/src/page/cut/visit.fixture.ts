@@ -1,12 +1,13 @@
 import { frustumClipBox } from '../../../../sdk-core/src/index.ts'
 import { frameClusterError } from '../selection/frame.fixture.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
-import { BOUND_STRIDE } from './bounds.ts'
+import { SUBTREE_STRIDE, subtreeBoundsOf } from './bounds.fixture.ts'
 import { subtreeDecision } from './node.fixture.ts'
 import { take } from './take.fixture.ts'
 
-/** What the descent reads of a root's culling: the primitive's nodes and their bounds. */
-type WalkCulling = { nodes: Float64Array; stride: number; bounds: Float64Array }
+/** What the descent reads of a root's culling: the primitive's nodes, whose bounds it derives
+ *  from the pages (`./bounds.fixture.ts`). */
+type WalkCulling = { nodes: Float64Array; stride: number }
 
 /** The cut's descent over one root: node tests and pages interleaved. */
 export function traverse<T extends PageRecord>(
@@ -22,7 +23,8 @@ export function traverse<T extends PageRecord>(
     for (let i = 0; i < pages.length; i++) take(s, pages, i, false, false, exact, cones, boxes)
     return
   }
-  const { nodes, stride, bounds } = culling
+  const { nodes, stride } = culling,
+    bounds = subtreeBoundsOf(culling, pages)
   const { stack, planes } = selectionScratch
   let top = 0
   stack[top++] = 0
@@ -62,7 +64,7 @@ export function traverse<T extends PageRecord>(
           : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError)
       )
         continue
-      const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact)
+      const decision = subtreeDecision(s, bounds, node * SUBTREE_STRIDE, exact)
       // Under the cut rule (`./rule.ts`) a cluster above the threshold is still drawn when its
       // finer group is not resident: a subtree holding one (`open`, `./readiness.ts`) is never
       // rejected on its floor, and its descent decides cluster by cluster.

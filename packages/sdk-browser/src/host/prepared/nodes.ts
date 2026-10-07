@@ -9,7 +9,6 @@ import type {
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { numbered } from '../graph/serial.ts'
 import { aimOf } from '../graph/kinds.ts'
 import { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { HostMesh } from '../resources.ts'
@@ -37,7 +36,7 @@ export function uniqueNames() {
 }
 
 export function light(declared: TableLight, name: string) {
-  const made = numbered(new Light(declared.type))
+  const made = new Light(declared.type)
   if (declared.color) made.color.setRGB(declared.color[0], declared.color[1], declared.color[2])
   if (declared.type === 'spot') {
     const inner = declared.innerConeAngle ?? 0,
@@ -60,23 +59,21 @@ export function light(declared: TableLight, name: string) {
 
 export function camera(declared: TableCamera) {
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0]
-  return numbered(
-    declared.type === 'perspective'
-      ? new Camera('perspective', {
-          fov: (declared.yfov ?? 0) * RAD_TO_DEG,
-          aspect: declared.aspectRatio || 1,
-          near: declared.znear || 1,
-          far: declared.zfar || 2e6,
-        })
-      : new Camera('orthographic', {
-          near: declared.znear ?? 0,
-          far: declared.zfar ?? 0,
-          left: -x,
-          right: x,
-          top: y,
-          bottom: -y,
-        }),
-  )
+  return declared.type === 'perspective'
+    ? new Camera('perspective', {
+        fov: (declared.yfov ?? 0) * RAD_TO_DEG,
+        aspect: declared.aspectRatio || 1,
+        near: declared.znear || 1,
+        far: declared.zfar || 2e6,
+      })
+    : new Camera('orthographic', {
+        near: declared.znear ?? 0,
+        far: declared.zfar ?? 0,
+        left: -x,
+        right: x,
+        top: y,
+        bottom: -y,
+      })
 }
 
 /** Morph weights set on a mesh, the first of them to the first targets; a mesh that morphs

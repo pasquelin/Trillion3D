@@ -22,7 +22,6 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) 
       worldUploadOrigin: new Float64Array(3),
       gpuSelection,
       noOccluderHistory: false,
-      temporalHizState: {},
     },
   } as unknown as WebgpuPagesRuntime
 }

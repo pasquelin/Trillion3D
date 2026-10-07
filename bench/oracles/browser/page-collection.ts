@@ -1,6 +1,5 @@
 // Oracles, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, `packages/sdk-browser/src/world/scene/scene.ts:18-36` and
 // `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is.
-import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts'
 import * as THREE from 'three'
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
@@ -64,7 +63,7 @@ export function referenceCollectClusterPages(
       )
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      const copy = numbered(new Mesh(mesh.geometry, mesh.material))
+      const copy = new Mesh(mesh.geometry, mesh.material)
       copy.matrixAutoUpdate = false
       copy.matrix.copy(mesh.matrixWorld)
       copy.frustumCulled = mesh.frustumCulled

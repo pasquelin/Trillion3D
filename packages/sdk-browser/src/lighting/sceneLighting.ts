@@ -1,6 +1,5 @@
 import type { HostColour } from '../host/resources.ts'
 import { aimOf, isLightNode } from '../host/graph/kinds.ts'
-import { numbered } from '../host/graph/serial.ts'
 import type { Light } from '../../../sdk-core/src/world/light/light.ts'
 import { lampCastsShadow } from '../../../sdk-core/src/world/light/lightRecord.ts'
 import { shownChain } from '../placement/hidden.ts'
@@ -137,10 +136,10 @@ function copyPairs(
 export function installSceneLighting(
   scene: HostLightScene,
   source: Object3D,
-  /** The copy of a source light the display graph holds, made by the host that draws it,
-   *  numbered as the engine numbers what it builds. A copy that aims holds its own target, which
-   *  the engine poses; the source's own target stays in the source graph. */
-  copyOf: (light: Light) => HostLight = (light) => numbered(light.clone()),
+  /** The copy of a source light the display graph holds, made by the host that draws it. A copy
+   *  that aims holds its own target, which the engine poses; the source's own target stays in the
+   *  source graph. */
+  copyOf: (light: Light) => HostLight = (light) => light.clone(),
 ) {
   let pairs: LightPair[] = []
   // Off while another lighting contract governs: two stacked light sets light nobody's way.

@@ -5,7 +5,6 @@
  * its own pose is never read. It bounds itself by the box around every cell: the framing and the
  * bounds of a loaded model take the whole world, whichever cells are read.
  */
-import { numbered } from '../graph/serial.ts'
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { HostBox, HostMesh } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -25,7 +24,7 @@ export function placedMeshes(
   const box: HostBox = { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } }
   for (const rank of partition.meshes) {
     const nodes = parts(rank).map((part) => {
-      const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box })
+      const mesh = Object.assign(part.clone() as HostMesh, { boundingBox: box })
       // A cell places only shown nodes; the part may be a hidden core node's own mesh.
       mesh.visible = true
       scene.add(mesh)

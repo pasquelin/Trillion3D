@@ -1,4 +1,4 @@
-// The CPU software raster — the temporal Hi-Z depth and the oracles `rasterRgba` and
+// The CPU software raster — the oracles `rasterRgba` and
 // `visibilityIds` — draws a line quad as every GPU raster does, with the one formula
 // (`lineClip`, `visibility/shader/lineWgsl.ts`), `linewidth` in CSS pixels times the pixel ratio.
 import test from 'node:test'

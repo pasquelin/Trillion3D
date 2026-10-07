@@ -4718,8 +4718,7 @@
     "description": "Mọi đường xử lý đều đọc hàm duy nhất này và gán dấu cho nó theo phép kiểm tra độ sâu riêng của mình."
   },
   "detectCapabilities": {
-    "summary": "Kiểm tra WebGPU của máy này cung cấp những gì, và nói lý do khi nó không cung cấp gì.",
-    "description": "`gpu` là viết tắt của `navigator.gpu`."
+    "summary": "Kiểm tra WebGPU của máy này cung cấp những gì, và nói lý do khi nó không cung cấp gì."
   },
   "GpuCapabilities": {
     "summary": "Những gì WebGPU của máy này cấp, được đọc trước khi bất kỳ phiên nào mở.",

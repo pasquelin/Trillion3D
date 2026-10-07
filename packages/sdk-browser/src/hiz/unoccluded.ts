@@ -1,38 +1,11 @@
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 import { hizRejectsFlat } from './occlusion.ts'
 import { boundsFor, projectBoxesFlat } from './projection.ts'
-import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } from './counts.ts'
+import { hizOversizedFlat, type HizCounts } from './counts.ts'
 import type { HizPage, HizPyramid } from './types.ts'
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { PageLocations } from '../page/selection/placements.ts'
-
-/** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
-const discardedCounts = createHizCounts()
-
-export function filterUnoccluded<T extends HizPage>(
-  pages: T[],
-  locations: PageLocations,
-  pyramid: HizPyramid,
-  cam: EngineCamera,
-  viewport: [number, number],
-  keptIndices?: number[],
-  bias = 0,
-  kept?: T[],
-) {
-  resetHizCounts(discardedCounts)
-  return countUnoccluded(
-    pages,
-    locations,
-    pyramid,
-    cam,
-    viewport,
-    discardedCounts,
-    keptIndices,
-    bias,
-    kept,
-  )
-}
 
 /**
  * The pages the test keeps, and what it did: `counts` gains the clusters it was handed, the clusters
@@ -40,8 +13,6 @@ export function filterUnoccluded<T extends HizPage>(
  * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
  * `keptIndices`, when given, receives the rank in `pages` of every kept page: one record may stand
  * for several placements, so a caller tells the instances apart by rank, never by record.
- * `kept`, when given, receives the kept pages themselves instead of a list of its own: what a
- * caller that walks the cut image after image passes (`./cutLists.ts`).
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
@@ -52,10 +23,8 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
   counts: HizCounts,
   keptIndices?: number[],
   bias = 0,
-  keptInto?: T[],
 ) {
-  const kept: T[] = keptInto ?? []
-  if (keptInto) keptInto.length = 0
+  const kept: T[] = []
   const bounds = boundsFor(pages.length)
   if (keptIndices) keptIndices.length = 0
   projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds)

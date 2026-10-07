@@ -1,7 +1,8 @@
 import { projectedErrorAt, viewDepth, viewLateral } from '../selection/projection.ts'
 import { errorFloorAt } from '../selection/projection.fixture.ts'
 import type { PageRecord, SelectionState } from './state.fixture.ts'
-import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './bounds.ts'
+import { OWN_FLOOR, OWN_SPHERE, PARENT_SPHERE } from './bounds.ts'
+import { OWN_CEIL, PARENT_FLOOR } from './bounds.fixture.ts'
 
 /**
  * Cut decision of a whole subtree: -1 reject, 1 accept, 0 undecided.
@@ -51,7 +52,6 @@ export function nodeDecision<T extends PageRecord>(
     focal,
     s.cam.near,
     perspective,
-    s.flatSound,
   )
   if (ownCeil > limit) return 0
   // All are fine enough; the cut keeps them if no replacement still covers them.
@@ -82,7 +82,7 @@ function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
  * the spheres, but only on the bounds preparation reduced. The caller takes this path only when
  * the frame's stretch, focal length and near plane are finite and strictly positive.
  *
- * The identity holds under the invariant that `cullingBounds` maintains and that
+ * The identity holds under the invariant that `subtreeBounds` maintains and that
  * `node.test.ts` checks: a finite strictly positive bound comes from a cluster
  * that carried its sphere, hence a positive or zero radius. On a positive bound without a
  * sphere — which preparation does not produce — the general path would refuse the datum where

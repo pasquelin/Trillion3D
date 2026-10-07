@@ -6,7 +6,7 @@ import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts'
  * Origin of the view revision. The camera is not written by the engine: the host hands it over
  * every frame. Comparing the sixteen view numbers and those of the projection, the resolution and
  * the quality threshold IS therefore the origin of the change, just as a `setTransform` is for the
- * scene — that is already what temporal Hi-Z does on its side (`sameHizView`).
+ * scene — that is already what the occluder history does on its side (`sameHizView`).
  *
  * View, projection, near plane and viewport are the fingerprint common to both frame holds
  * (`viewFingerprint.ts`); far-plane range and the quality threshold belong only to this one.

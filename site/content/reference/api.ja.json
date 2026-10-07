@@ -4747,8 +4747,7 @@
     "description": "すべての経路がこの1つの関数を読み、自分自身の深度テストのためにそれに符号をつける。"
   },
   "detectCapabilities": {
-    "summary": "このマシンのWebGPUが何を提供するかを調べ、何も提供しないときはその理由を伝える。",
-    "description": "`gpu`は`navigator.gpu`を表す。"
+    "summary": "このマシンのWebGPUが何を提供するかを調べ、何も提供しないときはその理由を伝える。"
   },
   "GpuCapabilities": {
     "summary": "このマシンの WebGPU が与えるもの。どのセッションも開かれる前に読まれる。",

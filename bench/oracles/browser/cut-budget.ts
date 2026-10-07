@@ -3,7 +3,7 @@
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts'
 
-/** Bound-array offsets read at fixed slots, as `packages/sdk-browser/src/page/cut/bounds.ts` lays them out. */
+/** Bound-array offsets read at fixed slots, as `packages/sdk-browser/src/page/cut/bounds.fixture.ts` lays them out. */
 interface BoundSlots {
   ownFloor: number
   ownCeil: number

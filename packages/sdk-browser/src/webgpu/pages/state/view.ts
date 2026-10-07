@@ -33,7 +33,6 @@ export const VIEW_RUN_KEYS = [
   'noOccluderHistory',
   'hizViewMoved',
   'previousHizView',
-  'temporalHizState',
   'occluderSignature',
   'cutHeld',
   'gpuMetricsReady',

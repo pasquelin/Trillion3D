@@ -4718,8 +4718,7 @@
     "description": "Setiap jalur membaca fungsi tunggal ini dan memberinya tanda untuk uji kedalamannya sendiri."
   },
   "detectCapabilities": {
-    "summary": "Memeriksa apa yang diberikan WebGPU mesin ini, dan menyebut sebabnya saat tidak memberi apa pun.",
-    "description": "`gpu` berarti `navigator.gpu`."
+    "summary": "Memeriksa apa yang diberikan WebGPU mesin ini, dan menyebut sebabnya saat tidak memberi apa pun."
   },
   "GpuCapabilities": {
     "summary": "Apa yang diberikan WebGPU mesin ini, dibaca sebelum sesi apa pun dibuka.",

@@ -8,8 +8,7 @@ import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { boundsFor, projectBoxesFlat } from '../hiz/projection.ts'
-import { applyTemporalHiz, sameHizView } from '../hiz/temporal.ts'
-import type { TemporalHizState } from '../hiz/temporal.ts'
+import { sameHizView } from '../hiz/temporal.ts'
 import { visibilityDepth } from '../hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
@@ -19,7 +18,13 @@ import { resolvePixelError } from '../page/selection/requests.ts'
 import type { CameraMotion } from './world.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
-import { createEngineCamera, readCameraWorld, type HostCamera } from './world.ts'
+import {
+  createEngineCamera,
+  holdCameraWorld,
+  readCameraWorld,
+  type EngineCamera,
+  type HostCamera,
+} from './world.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 
@@ -95,14 +100,16 @@ const pureSites: Site[] = [
     },
   },
   {
-    // History held by the frame must describe this frame's view: reread at once, it is equal.
-    name: 'applyTemporalHiz + sameHizView (Hi-Z history)',
-    create: () => ({ ...dagPages(), history: {} as TemporalHizState }),
+    // The view the occluder history follows, held as the frame holds it (`hizViewMoved`): the
+    // move is read against the last frame's, and reread at once the held view is equal.
+    name: 'holdCameraWorld + sameHizView (occluder history view)',
+    create: () => ({ held: undefined as EngineCamera | undefined }),
     measure: (state, camera: HostCamera) => {
-      const { vis, history } = state as ReturnType<typeof dagPages> & { history: TemporalHizState }
-      const view = engine(camera)
-      const { shown } = applyTemporalHiz(vis, identityRoots(), view, RASTER, history)
-      return { shown: shown.length, sameHistory: sameHizView(history.camera, view) }
+      const history = state as { held: EngineCamera | undefined }
+      const view = engine(camera),
+        moved = !sameHizView(history.held, view)
+      history.held = holdCameraWorld(history.held ?? createEngineCamera(), view)
+      return { moved, sameHistory: sameHizView(history.held, view) }
     },
   },
   {

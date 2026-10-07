@@ -80,7 +80,7 @@ const runtimeOf = (
 ) =>
   ({
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
-    ...{ run: { lost: false, gate, temporalHizState: {} } },
+    ...{ run: { lost: false, gate } },
     // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
     layout: { selectionRoots, rows: { rowOfPage: [], blendRowOf: [] } },
   }) as unknown as WebgpuPagesRuntime
