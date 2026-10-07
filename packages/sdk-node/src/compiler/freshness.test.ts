@@ -179,6 +179,32 @@ test('editing test code leaves the compiler current, the binary asked once per b
   }
 })
 
+// Behaviour: a binary that did not answer (timeout, signal) is not asked again by this process for
+// the same build, and nothing of the failure is kept on disk: a new process asks again.
+test('a failed ask is remembered in memory for the process and the build, not on disk', async () => {
+  const { packages, root, binary } = await linkedCrates()
+  let asked = 0
+  const failing = () => {
+    asked++
+    return undefined
+  }
+  try {
+    sourceNewerThan(binary, root, failing)
+    sourceNewerThan(binary, root, failing)
+    assert.equal(asked, 1)
+    const another = (await import(`./freshness.mts?failure=${Date.now()}`)) as {
+      sourceNewerThan: typeof sourceNewerThan
+    }
+    another.sourceNewerThan(binary, root, failing)
+    assert.equal(asked, 2)
+    await utimes(binary, 2_500, 2_500)
+    sourceNewerThan(binary, root, failing)
+    assert.equal(asked, 3)
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})
+
 // Behaviour: a binary that cannot tell what it was built from — one built before
 // `--build-inputs` — names no crate folder either: any newer file of its own crate, test code
 // too, makes it stale.
@@ -237,21 +263,22 @@ test("an older build's kept listing names the folders a newer unlisting build wa
   }
 })
 
-// Behaviour: only a definite "flag unknown" is kept on disk; a timeout or a signal is asked
-// again at the next launch.
+// Behaviour: only a definite "flag unknown" is kept on disk; a timeout or a signal is kept in
+// memory alone, for this build.
 test('an unanswered ask is not kept, an unknown flag is', async () => {
   const { packages, root, binary } = await linkedCrates()
   let asked = 0
   try {
     sourceNewerThan(binary, root, () => (asked++, undefined))
     sourceNewerThan(binary, root, () => (asked++, undefined))
-    assert.equal(asked, 2)
+    assert.equal(asked, 1)
     assert.equal(existsSync(`${binary}.build-inputs.json`), false)
+    await utimes(binary, 2_500, 2_500)
     sourceNewerThan(binary, root, () => (asked++, null))
-    assert.equal(asked, 3)
+    assert.equal(asked, 2)
     assert.equal(existsSync(`${binary}.build-inputs.json`), true)
     sourceNewerThan(binary, root, () => (asked++, null))
-    assert.equal(asked, 3)
+    assert.equal(asked, 2)
   } finally {
     await rm(packages, { recursive: true, force: true })
   }

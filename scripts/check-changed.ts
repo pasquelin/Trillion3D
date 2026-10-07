@@ -51,8 +51,11 @@ async function main(): Promise<void> {
   // A push's one heavy step, the seconds-long build the type check may need, runs beside other
   // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
   if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
-  // A changed reference value runs the golden tests that read it, Rust and TypeScript.
-  const golden = withTests ? goldenChecks(changed, paths) : { crates: [], tests: [] }
+  // A changed reference value runs the golden tests that read it, Rust and TypeScript: a reader
+  // not yet added to the index (untracked, not ignored) is a candidate too.
+  const golden = withTests
+    ? goldenChecks(changed, [...new Set([...paths, ...untracked])])
+    : { crates: [], tests: [] }
   const testFiles = !withTests
     ? []
     : [
