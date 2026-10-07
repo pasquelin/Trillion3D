@@ -52,9 +52,6 @@ pub const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 /// `GOLDEN` on 32 bits: its high half, the fractional part of the golden ratio times 2³².
 pub const GOLDEN_32: u32 = 0x9E37_79B9;
 
-/// The golden ratio `(1 + √5) / 2` itself, as `f64` rounds it.
-pub const GOLDEN_RATIO: f64 = 1.618_033_988_749_895;
-
 #[cfg(test)]
 mod golden_tests;
 

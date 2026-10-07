@@ -2,11 +2,11 @@
 //! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`).
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
+use core::f64::consts::GOLDEN_RATIO;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use trillion3d_math::scalar::lerp;
 use trillion3d_math::vec3::{add, length};
-use trillion3d_math::GOLDEN_RATIO;
 
 pub(super) type V = [f64; 3];
 
