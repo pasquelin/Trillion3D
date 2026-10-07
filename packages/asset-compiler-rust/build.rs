@@ -113,6 +113,9 @@ fn main() -> std::io::Result<()> {
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
         PathBuf::from("build_inputs.rs"),
+        PathBuf::from("build_inputs/code.rs"),
+        PathBuf::from("build_inputs/declarations.rs"),
+        PathBuf::from("build_inputs/manifest.rs"),
         // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);
@@ -124,7 +127,8 @@ fn main() -> std::io::Result<()> {
     println!("cargo:rerun-if-changed=src");
     let mut digest = Sha256::new();
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
-    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`).
+    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`)
+    // and what `trillion3d-compiler --build-inputs` prints for a launch to call it stale.
     let inputs: Vec<String> = files
         .iter()
         .map(|path| path.display().to_string())

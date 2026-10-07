@@ -1,10 +1,9 @@
-// The run-time cut without WebAssembly picks the grid exponent the compiler wrote. On every compiled
-// scene, each paged primitive's position exponent (`quantization.positionExponent`) is asked again
-// of the cut's grid (`cutGrid.ts` `positionGridExponent`, the call `runtimeCut.ts` makes), its
-// module refused so its TypeScript twin answers, from what the cache keeps of the compiler's
-// inputs: the widest extent of the pages' bounds, the finest positive error of the DAG's coarse
-// pages, whether the primitive is blended, and the largest world scale the published scene places
-// its mesh at.
+// The run-time cut picks the grid exponent the compiler wrote. On every compiled scene, each paged
+// primitive's position exponent (`quantization.positionExponent`) is asked again of the cut's grid
+// (`cutGrid.ts` `positionGridExponent`, the call `runtimeCut.ts` makes), from what the cache keeps
+// of the compiler's inputs: the widest extent of the pages' bounds, the finest positive error of
+// the DAG's coarse pages, whether the primitive is blended, and the largest world scale the
+// published scene places its mesh at.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -12,7 +11,6 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4, IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/index.ts'
-import { prepareSdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.ts'
 import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 
@@ -85,7 +83,7 @@ async function checkScene(pointer: string) {
       finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
-    const exponent = await positionGridExponent(extent, blended, inputs)
+    const exponent = positionGridExponent(extent, blended, inputs)
     if (exponent !== quantization.positionExponent)
       differences.push(
         `${pointer} mesh ${primitive.mesh} primitive ${primitive.primitive}: compiled ` +
@@ -95,8 +93,7 @@ async function checkScene(pointer: string) {
   return { primitives, differences }
 }
 
-test('the run-time cut without WebAssembly picks the grid exponent the compiler wrote', async () => {
-  assert.equal(await prepareSdkWasm(new Uint8Array(0)), null, 'the module is refused')
+test('the run-time cut picks the grid exponent the compiler wrote', async () => {
   const pointers = await sceneCacheFiles('manifest.json')
   assert.ok(pointers.length > 0, 'the repository compiles its scenes before the unit suite')
   let primitives = 0

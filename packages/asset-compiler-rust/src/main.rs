@@ -6,19 +6,18 @@
 //! A JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` on stdin cancels; killing the process is also safe
 //! because every output file is written atomically.
 mod cli_batch;
+mod cli_cancel;
 mod cli_spec;
 mod cli_stalls;
 mod messages;
 use cli_batch::run_batch;
+use cli_cancel::{listen_stdin, Cancellation};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
-    io::{BufRead, Write},
+    io::Write,
     path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{atomic::AtomicBool, Arc, Mutex},
     time::Instant,
 };
 use trillion3d_compiler::{
@@ -56,49 +55,6 @@ fn pointer(result: &Value, cache: &Path) -> Value {
   "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":result["metrics"],"reusedPages":result["reused"].is_null().then(||result["primitives"].as_array().map(|a|a.iter().filter_map(|p|p["reusedPages"].as_u64()).sum::<u64>())),
   "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]})
-}
-
-struct Cancellation {
-    all: AtomicBool,
-    jobs: Mutex<HashMap<String, Arc<AtomicBool>>>,
-}
-impl Cancellation {
-    fn flag(&self, job: &str) -> Arc<AtomicBool> {
-        let flag = Arc::new(AtomicBool::new(self.all.load(Ordering::Relaxed)));
-        self.jobs
-            .lock()
-            .unwrap()
-            .insert(job.to_string(), flag.clone());
-        flag
-    }
-    fn cancel(&self, target: &str) {
-        if target == "*" {
-            self.all.store(true, Ordering::Relaxed);
-            for flag in self.jobs.lock().unwrap().values() {
-                flag.store(true, Ordering::Relaxed);
-            }
-        } else if let Some(flag) = self.jobs.lock().unwrap().get(target) {
-            flag.store(true, Ordering::Relaxed);
-        }
-    }
-}
-/// stdin is optional: a host that ignores it gets EOF at once and the listener ends.
-fn listen_stdin(cancellation: Arc<Cancellation>) {
-    std::thread::spawn(move || {
-        let stdin = std::io::stdin();
-        for line in stdin.lock().lines() {
-            let Ok(line) = line else { break };
-            if let Ok(value) = serde_json::from_str::<Value>(&line) {
-                if let Some(target) = value.get("cancel") {
-                    match target {
-                        Value::String(s) => cancellation.cancel(s),
-                        Value::Bool(true) => cancellation.cancel("*"),
-                        _ => {}
-                    }
-                }
-            }
-        }
-    });
 }
 
 fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
@@ -151,6 +107,15 @@ fn main() -> std::process::ExitCode {
             println!(
                 "{}",
                 json!({"compilerVersion":COMPILER_VERSION,"formatVersion":FORMAT_VERSION,"plugins":plugins::descriptor(),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH})
+            );
+            0
+        }
+        // The files the build hashed into the implementation hash, one per line
+        // (`build_inputs.rs`): what a host compares with the sources to call this binary stale.
+        Some("--build-inputs") => {
+            println!(
+                "{}",
+                include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
             );
             0
         }

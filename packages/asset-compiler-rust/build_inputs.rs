@@ -1,6 +1,19 @@
 //! The compiler's Rust inputs: its own sources and those of every crate it links from the
-//! repository, test code left out. `packages/sdk-node/src/compiler/buildInputs.mts` reads the same
-//! list the same way, so a launch calls a binary stale exactly when its hash would move.
+//! repository, test code left out. The build hashes this list and the binary prints it
+//! (`trillion3d-compiler --build-inputs`): a launch calls a binary stale when a file of it is newer
+//! (`packages/sdk-node/src/compiler/freshness.mts`), exactly when its hash would move.
+
+#[path = "build_inputs/code.rs"]
+mod code;
+#[path = "build_inputs/declarations.rs"]
+mod declarations;
+#[path = "build_inputs/manifest.rs"]
+mod manifest;
+#[cfg(test)]
+#[path = "build_inputs/tests.rs"]
+mod tests;
+
+use declarations::declarations;
 
 use std::{
     fs, io,
@@ -23,26 +36,14 @@ fn normal(path: &Path) -> PathBuf {
     out.iter().collect()
 }
 
-/// The `{ path = "…" }` entries of the manifest in `crate_dir`, in the sections that link into the
-/// build — every `…dependencies` table but `dev-dependencies` —, resolved from `crate_dir`.
+/// The path dependencies of the manifest in `crate_dir` that link into the build, resolved from
+/// `crate_dir`.
 fn manifest_paths(crate_dir: &Path) -> io::Result<Vec<PathBuf>> {
     let manifest = fs::read_to_string(crate_dir.join("Cargo.toml"))?;
-    let mut linked = false;
-    let mut out = Vec::new();
-    for line in manifest.lines().map(str::trim) {
-        if let Some(section) = line.strip_prefix('[') {
-            let name = section.trim_end_matches(']');
-            linked = name.ends_with("dependencies") && !name.ends_with("dev-dependencies");
-        } else if linked && line.contains('{') {
-            if let Some((path, _)) = line
-                .split_once("path = \"")
-                .and_then(|(_, rest)| rest.split_once('"'))
-            {
-                out.push(normal(&crate_dir.join(path)));
-            }
-        }
-    }
-    Ok(out)
+    Ok(manifest::dependency_paths(&manifest)
+        .into_iter()
+        .map(|path| normal(&crate_dir.join(path)))
+        .collect())
 }
 
 /// The crates the compiler builds from the repository, relative to its own folder: the path
@@ -71,68 +72,6 @@ fn test_named(name: &str) -> bool {
         })
     };
     matches!(stem, "test" | "tests" | "golden") || suffixed("_test") || suffixed("_tests")
-}
-
-/// A `mod name;` of a source: the module it names — a file under `#[path]`, else the path of
-/// `name.rs` and `name/` without extension — and whether `#[cfg(test)]` gates it.
-struct Declaration {
-    module: PathBuf,
-    exact: bool,
-    test: bool,
-}
-
-impl Declaration {
-    fn covers(&self, file: &Path) -> bool {
-        match self.exact {
-            true => file == self.module,
-            false => file == self.module.with_extension("rs") || file.starts_with(&self.module),
-        }
-    }
-}
-
-/// The `mod name;` declarations of `file`, line comments cut. The attributes read are those
-/// between the declaration and the item before it.
-fn declarations(file: &Path, text: &str) -> Vec<Declaration> {
-    let here = file.parent().unwrap_or(Path::new(""));
-    let stem = file
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("");
-    let dir = match stem {
-        "lib" | "main" | "mod" => here.to_path_buf(),
-        _ => file.with_extension(""),
-    };
-    let code: Vec<&str> = text
-        .lines()
-        .map(|line| line.split_once("//").map_or(line, |(code, _)| code))
-        .collect();
-    let code = code.join("\n");
-    let mut out = Vec::new();
-    for (at, _) in code.match_indices("mod") {
-        let word = |c: char| c.is_alphanumeric() || c == '_';
-        let rest = &code[at + 3..];
-        if code[..at].ends_with(word) || !rest.starts_with(char::is_whitespace) {
-            continue;
-        }
-        let rest = rest.trim_start();
-        let end = rest.find(|c: char| !word(c)).unwrap_or(rest.len());
-        if end == 0 || !rest[end..].trim_start().starts_with(';') {
-            continue;
-        }
-        let head = &code[code[..at].rfind([';', '{', '}']).map_or(0, |i| i + 1)..at];
-        let path = head
-            .split_once("#[path = \"")
-            .and_then(|(_, path)| path.split_once('"'));
-        out.push(Declaration {
-            module: path.map_or_else(
-                || dir.join(&rest[..end]),
-                |(path, _)| normal(&here.join(path)),
-            ),
-            exact: path.is_some(),
-            test: head.contains("#[cfg(test)]"),
-        });
-    }
-    out
 }
 
 fn rust_files(directory: &Path, into: &mut Vec<PathBuf>) -> io::Result<()> {

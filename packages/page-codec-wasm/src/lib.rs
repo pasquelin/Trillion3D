@@ -12,8 +12,8 @@
 //! one shipped resource, one instantiation and one linear memory on the browser side), and it
 //! exports math kernels only — never the page decoder: the math-foundation batch kernels
 //! (`math.rs` and `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal
-//! cone and position grid of the pages the world cuts at run time (`normal_cone.rs`,
-//! `bits/grid.rs`, ABI in `wasm_cone.rs`) and the animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
+//! cone of the pages the world cuts at run time (`normal_cone.rs`, ABI in `wasm_cone.rs`) and the
+//! animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
 //! `page.decode`, a chunk of its own the browser downloads on that call alone.
 pub mod anim;
 mod attributes;

@@ -124,10 +124,11 @@ golden:write` rewrites them all, the command each file names.
 - TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
   `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
   (`packages/sdk-core/src/world/animation/`), `pageGrids.golden.test.ts` (`packages/page-codec/src/`).
+- WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
 - The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
 - The grid rule's TypeScript twin, `packages/page-codec/src/gridExponent.ts`, is held to the Rust
   rule's own cases (`gridExponent.test.ts`) and to `grid.json` (`gridExponent.golden.test.ts`); on
-  every compiled scene, the run-time cut without WebAssembly picks the grid the compiler wrote
+  every compiled scene, the run-time cut picks the grid the compiler wrote
   (`tests/integration/runtime-cut-grid.test.ts`).
 
 ### Measured against the witness library
