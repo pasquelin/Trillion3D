@@ -15,16 +15,65 @@ imports it. Its contract:
 - "No GPU" means no GPU API call: the WGSL twins of the primitives belong to the package, in
   `wgsl/` (below).
 - `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
-  call the package.
+  call the package: a method whose body re-derives a formula calls the package; per-component
+  arithmetic (`multiply`, `min`, `addScalar`) stays.
 
-Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
+Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
+float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
+rounded in float32 as the GPU computes it),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
 `color/`, `scalar/`, `sequence/` (`halton.ts`), `batch/` and `wgsl/` (below); `index.ts` is the
 barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
-`scalar/`: counting and range helpers; `constants.ts`: shared numbers.
+`scalar/`: counting and range helpers, and `uint64.ts`, the integer two little-endian
+32-bit words hold; `constants.ts`: shared numbers.
+
+### Lengths
+
+One rule computes every length (`packages/math/src/vector/vector.ts`). `length3(x, y, z)` sums
+the squares left to right — the order of WGSL's `length()` — and returns `Math.sqrt` of that sum
+while it lies in the normal band, from 2^-969 up to the largest finite double: there, every square
+that underflowed is below half an ulp of the sum, and the plain root holds the length the squares
+define. Outside the band — a zero vector, components below about 1e-146 or past about 1e154 —
+it returns `hypot3`, which scales first and neither overflows nor underflows; a NaN component
+gives NaN. `length2(x, y)` is the same rule in the plane with `hypot2`, `lengthQuaternion` on
+four terms with `hypot4`. A distance is that length of `a − b`, component by component
+(`distanceVector3`; `distanceSqVector3` without the root); a matrix column's length is the length
+of its three terms (`decomposeMatrix4`). A normalise multiplies each component by
+`1 / (length || 1)`, so a zero vector stays zero; a vector shorter than 2^-1024, whose inverse
+would overflow, is first scaled by 2^1000, exactly (`normalizeVector3`, `normalizeVector2`). So a
+host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises to a unit vector
+(`vector/lengthRange.test.ts`). The rule and `Math.hypot` differ in the last bit on many inputs
+of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves.
+
+The declared exceptions, each held to bits the rule would change:
+
+- `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
+  `packages/page-codec-wasm/src/math.rs` (`hypot`); the normal-cone reference
+  `tests/kit/reference/cone.ts`, held to `packages/page-codec-wasm/src/normal_cone.rs`; `length`
+  of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
+  reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
+  outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
+  within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`).
+- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`):
+  `clusterErrorAtDepth` and `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts`,
+  held to `cut_error.rs` by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain
+  sum's Infinity.
+- A division by the length to normalise, which keeps each component correctly rounded:
+  `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
+  and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
+  sampler's twin; the octahedral encoders of `packages/page-codec/src/pageGrids.ts`, float32
+  twins of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
+  `ik.ts`, for the reason of its length; and `normalized` of
+  `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
+  because the validated direction feeds the shadow clipmap's own normalise and basis in double and
+  the rule's product differs from that quotient in the last bit on about two directions in three.
+
+The `hypot2`, `hypot3` and `Math.hypot` calls of `packages/sdk-browser` (cameras, impostors,
+partitions, shadows, deformation) and of `scripts/` predate the rule and move onto it under
+#1493, each with its proof; until then they are not declarations of this list.
 
 ### The WGSL library
 

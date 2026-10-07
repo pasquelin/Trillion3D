@@ -1,4 +1,4 @@
-import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
+import { length2, normalizeVector2, normalizeVector3 } from '../../../math/src/vector/vector.ts'
 import { HALF_PI, TAU } from '../../../math/src/constants.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 
@@ -92,7 +92,7 @@ export class Waves {
     this.phase = new Float64Array(n)
     let steep = 0
     for (const spec of specs) {
-      const length = hypot2(spec.direction[0], spec.direction[1])
+      const length = length2(spec.direction[0], spec.direction[1])
       if (!(spec.wavelength > 0) || !(spec.amplitude >= 0) || !(length > 0))
         throw new RangeError('Waves: a wave needs a direction, a wavelength and an amplitude.')
       if (!(spec.steepness >= 0 && spec.steepness <= 1))
@@ -100,10 +100,13 @@ export class Waves {
       steep += spec.amplitude > 0 ? spec.steepness : 0
     }
     const scale = steep > 1 ? 1 / steep : 1
+    const direction = new Float64Array(2)
     specs.forEach((spec, i) => {
-      const length = hypot2(spec.direction[0], spec.direction[1])
-      this.dirX[i] = spec.direction[0] / length
-      this.dirZ[i] = spec.direction[1] / length
+      direction[0] = spec.direction[0]
+      direction[1] = spec.direction[1]
+      normalizeVector2(direction)
+      this.dirX[i] = direction[0]
+      this.dirZ[i] = direction[1]
       this.k[i] = TAU / spec.wavelength
       this.amplitude[i] = spec.amplitude
       // Qᵢ·Aᵢ·kᵢ = steepnessᵢ × scale: the lateral amplitude Qᵢ·Aᵢ follows.
@@ -204,10 +207,10 @@ export class Waves {
       ny -= this.k[i] * this.lateral[i] * Math.sin(f)
       nz -= this.dirZ[i] * ka * c
     }
-    const length = hypot3(nx, ny, nz)
-    out[0] = nx / length
-    out[1] = ny / length
-    out[2] = nz / length
+    out[0] = nx
+    out[1] = ny
+    out[2] = nz
+    normalizeVector3(out)
     return out
   }
 }

@@ -1,3 +1,4 @@
+import { transformAffinePointRowMajor } from '../../../../math/src/vector/vector.ts'
 import { PROXY_TRIANGLE_FLOATS } from '../../contracts/proxy.ts'
 import { invalidProxy as bad } from './proxyError.ts'
 
@@ -67,12 +68,15 @@ export function expandShapes(
           x = shapes.triangles[from],
           y = shapes.triangles[from + 1],
           z = shapes.triangles[from + 2]
-        for (let row = 0; row < 3; row++)
-          triangles[at * PROXY_TRIANGLE_FLOATS + vertex + row] =
-            maps[m + row * 4] * x +
-            maps[m + row * 4 + 1] * y +
-            maps[m + row * 4 + 2] * z +
-            maps[m + row * 4 + 3]
+        transformAffinePointRowMajor(
+          triangles,
+          maps,
+          x,
+          y,
+          z,
+          at * PROXY_TRIANGLE_FLOATS + vertex,
+          m,
+        )
       }
     }
   })

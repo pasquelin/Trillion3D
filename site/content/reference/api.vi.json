@@ -248,20 +248,20 @@
       "max": "Góc có x, y và z lớn nhất.",
       "set": "Đặt cả hai góc.",
       "makeEmpty": "Làm cho hộp không chứa gì, sẵn sàng để lớn lên.",
-      "isEmpty": "Hộp có đang rỗng hay không.",
+      "isEmpty": "Hộp có đang rỗng hay không (`boxIsEmpty`).",
       "copy": "Lấy các góc của một hộp khác.",
       "clone": "Một hộp mới có cùng các góc.",
       "expandByPoint": "Mở rộng hộp vừa đủ để chứa một điểm.",
       "expandByScalar": "Mở rộng hộp thêm `s` về mỗi phía.",
       "union": "Mở rộng hộp để chứa cả một hộp khác.",
-      "setFromArray": "Hộp nhỏ nhất bao quanh một danh sách tọa độ phẳng.",
+      "setFromArray": "Hộp nhỏ nhất bao quanh một danh sách tọa độ phẳng: mọi điểm trọn vẹn, mỗi điểm ứng với `itemSize` số.",
       "setFromPoints": "Hộp nhỏ nhất bao quanh một danh sách điểm.",
       "setFromObject": "Hộp thế giới của mọi thứ dưới `node`, hộp của mỗi nội dung được mang bởi ma trận thế giới của nó.",
       "applyMatrix4": "Di chuyển hộp bằng một ma trận và giữ nó thẳng hàng theo trục.",
-      "getCenter": "Điểm giữa của hộp.",
+      "getCenter": "Điểm giữa của hộp (`boxCenter`); của một hộp rỗng là gốc tọa độ.",
       "getSize": "Hộp rộng, cao và sâu bao nhiêu.",
-      "containsPoint": "Một điểm có nằm trong hộp hay không.",
-      "intersectsBox": "Hai hộp có chồng lấn nhau hay không.",
+      "containsPoint": "Một điểm có nằm trong hộp hay không, kể cả trên các mặt (`boxContainsPoint`).",
+      "intersectsBox": "Hai hộp có chồng lấn nhau hay không, kể cả khi chỉ chạm mặt (`boxesOverlap`).",
       "getBoundingSphere": "Hình cầu đi qua các góc (`sphereFromBounds`); một hộp rỗng cho bán kính −1.",
       "equals": "Hai hộp có cùng các góc hay không."
     }
@@ -552,7 +552,7 @@
       "clone": "Một màu mới với cùng các kênh.",
       "getHex": "0xRRGGBB, mã hóa sRGB và làm tròn về byte.",
       "getHexString": "Màu dưới dạng sáu chữ số thập lục, như `'ff8800'`.",
-      "getStyle": "Màu dưới dạng chuỗi CSS, như `'rgb(255,136,0)'`.",
+      "getStyle": "Màu dưới dạng chuỗi hex CSS, như `'#ff8800'`.",
       "lerp": "Di chuyển màu về phía một màu khác theo hệ số `t`, từ 0 đến 1.",
       "multiplyScalar": "Làm mỗi kênh sáng hơn `s` lần.",
       "equals": "Hai màu có cùng các kênh hay không.",
@@ -1151,7 +1151,7 @@
       "planes": "Sáu mặt phẳng đã chuẩn hóa, mỗi mặt bốn con số: bố cục của lõi đó.",
       "setFromProjectionMatrix": "Sáu mặt phẳng của những gì một ma trận camera nhìn thấy.",
       "intersectsBox": "Một hộp có nằm ít nhất một phần trong tầm nhìn hay không.",
-      "containsPoint": "Một điểm có nằm trong tầm nhìn hay không."
+      "containsPoint": "Một điểm có nằm trong tầm nhìn hay không (`frustumContainsPoint`)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1972,7 +1972,7 @@
       "makeRotationY": "Trở thành một phép xoay quanh y.",
       "makeRotationZ": "Trở thành một phép xoay quanh z.",
       "setPosition": "Chỉ đặt phần di chuyển.",
-      "getMaxScaleOnAxis": "Độ giãn lớn nhất dọc theo bất kỳ trục nào.",
+      "getMaxScaleOnAxis": "Độ giãn lớn nhất dọc theo bất kỳ trục nào: cột dài nhất trong ba cột (`length3`).",
       "equals": "Hai ma trận có giữ cùng các con số hay không."
     }
   },
@@ -2663,7 +2663,7 @@
       "copy": "Lấy các con số của một quaternion khác.",
       "clone": "Một quaternion mới với các con số giống nhau.",
       "identity": "Đặt lại về không có phép xoay nào cả.",
-      "setFromAxisAngle": "Trở thành một phép xoay `angle` radian quanh trục `v`.",
+      "setFromAxisAngle": "Trở thành một phép xoay `angle` radian quanh trục `v`, trục được đưa về độ dài 1 trước (`normalizeVector3`).",
       "setFromEuler": "Phép xoay của ba góc Euler, theo đúng thứ tự chúng được nêu tên (`localTurnQuaternion`).",
       "setFromRotationMatrix": "Từ khối 3×3 trên của một ma trận dạng column-major mà các cột của nó có độ dài đơn vị.",
       "setFromUnitVectors": "Phép xoay ngắn nhất đưa vectơ đơn vị `a` tới vectơ đơn vị `b`.",
@@ -2673,7 +2673,7 @@
       "invert": "Trở thành phép xoay hủy bỏ phép xoay này.",
       "conjugate": "Lật phần trục: phép xoay ngược lại cho một quaternion đơn vị.",
       "dot": "Hai phép xoay đồng thuận đến mức nào, từ −1 đến 1.",
-      "length": "Độ lớn của bốn con số đó gộp lại.",
+      "length": "Độ lớn của bốn con số đó gộp lại (`lengthQuaternion`).",
       "normalize": "Co giãn các con số về kích thước 1, một phép xoay thuần túy.",
       "angleTo": "Góc giữa hai phép xoay, tính bằng radian.",
       "slerp": "Nội suy cầu hướng về `q`, dọc theo cung ngắn hơn.",
@@ -3819,8 +3819,8 @@
       "add": "Cộng thêm một vectơ 2D khác.",
       "sub": "Trừ đi một vectơ 2D khác.",
       "multiplyScalar": "Nhân cả hai con số với `s`.",
-      "length": "Mũi tên 2D đó dài bao nhiêu.",
-      "normalize": "Giữ nguyên hướng, làm cho độ dài bằng 1.",
+      "length": "Mũi tên 2D đó dài bao nhiêu (`length2`).",
+      "normalize": "Giữ nguyên hướng, làm cho độ dài bằng 1; vectơ không vẫn là không.",
       "distanceTo": "Nó cách một điểm 2D khác bao xa.",
       "fromArray": "Đọc hai con số từ một danh sách.",
       "toArray": "Hai con số đó dưới dạng một danh sách."
@@ -3851,7 +3851,7 @@
       "cross": "Trở thành mũi tên vuông góc với cả hai.",
       "crossVectors": "Trở thành mũi tên vuông góc với `u` và `v`.",
       "lengthSq": "Độ dài, đã bình phương: lấy nhanh hơn.",
-      "length": "Mũi tên đó dài bao nhiêu.",
+      "length": "Mũi tên đó dài bao nhiêu (`length3`).",
       "setLength": "Giữ nguyên hướng, đặt độ dài.",
       "normalize": "Giữ nguyên hướng, làm cho độ dài bằng 1.",
       "distanceToSquared": "Khoảng cách tới một điểm, đã bình phương.",
@@ -5118,8 +5118,8 @@
   "holdCameraWorld": {
     "summary": "Sao chép một camera bộ máy vào một camera khác, sau đó giữ khung nhìn từng bit một."
   },
-  "hslToLinearRgb": {
-    "summary": "Sắc độ, độ bão hòa, và độ sáng thành ba thành phần tuyến tính được ghi vào `out[o..o+2]`."
+  "hslToRgb": {
+    "summary": "Sắc độ, độ bão hòa, và độ sáng thành ba thành phần RGB được ghi vào `out[o..o+2]`."
   },
   "httpPageSource": {
     "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`."
@@ -6208,7 +6208,7 @@
     "description": "Độ dài là căn bậc hai của bốn bình phương được cộng như `hypot4` cộng chúng (Kahan), không có việc co giãn theo độ lớn lớn nhất của nó: trong `SQUARED_MIN`..`SQUARED_MAX`, việc co giãn đó chỉ thêm các phép làm tròn — bốn phép chia vào và một phép nhân ra. So với `q / |q|` chính xác, không kém độ dài đã co giãn trên bất kỳ họ đầu vào nào đã đo và tốt hơn trên phần lớn (tối đa 2,7 → 2,3 ULP, trung bình 0,73 → 0,64 trên các quaternion gần đơn vị), và rẻ hơn bốn phép chia. Ngoài khoảng đó — không, NaN, vô cực, độ lớn gần giới hạn — độ dài là của `hypot4`, như trước."
   },
   "normalizeVector3": {
-    "summary": "Chuẩn hóa vectơ tại `at` ngay tại chỗ: mỗi thành phần được nhân với `1 / (length || 1)`, nên một vectơ không vẫn giữ bằng không."
+    "summary": "Chuẩn hóa vectơ tại `at` ngay tại chỗ: mỗi thành phần được nhân với `1 / (length3 || 1)`, nên một vectơ không vẫn giữ bằng không; một vectơ ngắn hơn 2^-1024 trước tiên được nhân đúng với 2^1000, để nghịch đảo độ dài của nó không bị tràn."
   },
   "normalizedLinearDeterminant": {
     "summary": "Định thức của phần tuyến tính ĐÃ CHUẨN HÓA, theo thứ tự nhân WGSL: ba cột chia cho tỉ lệ, sau đó `a · (b × c)`.",
@@ -7650,6 +7650,7 @@
       "isSkeleton": "Luôn là `true`: phân biệt một bộ xương.",
       "bones": "Các node là khớp của nó, theo thứ tự khớp.",
       "boneInverses": "Mười sáu số cho mỗi xương, theo cột: nghịch đảo của ma trận thế giới của nó ở tư thế liên kết.",
+      "inverses": "Mười sáu số của mỗi xương trong `boneInverses`, theo thứ tự khớp, dưới dạng các khung nhìn được tạo một lần.",
       "palette": "Ghi bảng màu của một mesh đặt tại `meshWorld` vào `out` từ `at`: với mỗi khớp, các hàng của `meshWorld⁻¹ · boneWorld · boneInverse`, đưa một đỉnh ở tư thế liên kết của mesh tới nơi xương của nó mang nó đến, trong khung riêng của mesh — để vị trí đặt của mesh, áp dụng sau đó, vẽ nó tại nơi xương đứng bất kể tư thế riêng của node mesh. Thế giới của mỗi xương là ma trận mà node của nó giữ (`matrixWorld`)."
     }
   },
@@ -7685,8 +7686,8 @@
       "matrix": "Tư thế thế giới của nó, mười sáu số thực theo thứ tự cột."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, một hằng duy nhất, để mọi nơi đọc phép chuyển đều làm tròn cùng một số."
+  "PI": {
+    "summary": "Nửa vòng quay, tính bằng radian: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Định dạng của phần `impostors` mà runtime đọc (#817 phần 1, do trình biên dịch nướng)."

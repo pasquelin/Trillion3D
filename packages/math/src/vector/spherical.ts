@@ -1,5 +1,5 @@
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clamp } from '../scalar/reals.ts'
+import { length3 } from './vector.ts'
 
 /**
  * Spherical coordinates on flat numbers, shared by the camera controllers and the `math` family.
@@ -14,9 +14,10 @@ export const RADIUS_EPSILON = 1e-9
 /** How close to a pole an elevation may come; beyond it the azimuth flips on every pixel. */
 export const POLAR_EPSILON = 1e-6
 
-/** Writes `[radius, theta, phi]` of `offset`; radius zero leaves the angles untouched. */
+/** Writes `[radius, theta, phi]` of `offset`, the radius its `length3`; a radius at or below
+ *  `RADIUS_EPSILON` leaves the angles untouched. */
 export function toSpherical(out: Float64Array, offset: ArrayLike<number>) {
-  const radius = hypot3(offset[0], offset[1], offset[2])
+  const radius = length3(offset[0], offset[1], offset[2])
   out[0] = radius
   if (radius <= RADIUS_EPSILON) return out
   out[1] = Math.atan2(offset[0], offset[2])

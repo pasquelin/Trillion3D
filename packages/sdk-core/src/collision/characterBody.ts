@@ -3,7 +3,7 @@ import type { CapsuleContact } from './capsule.ts'
 import type { CharacterEvents, CharacterInput, CharacterSettings } from './characterSettings.ts'
 import type { CharacterCollision } from './characterCollision.ts'
 import { createDrive, driveTick, type DriveStep } from './characterDrive.ts'
-import { hypot2 } from '../../../math/src/float/hypot.ts'
+import { length2 } from '../../../math/src/vector/vector.ts'
 import { MAX_CHARACTER_DELTA } from './characterDelta.ts'
 import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 
@@ -100,7 +100,7 @@ export function createCharacterBody(settings: CharacterSettings) {
   const stepUp = (dx: number, dz: number) => {
     kept.set(capsule.feet)
     kept.set(velocity, 3)
-    const length = hypot2(dx, dz)
+    const length = length2(dx, dz)
     if (length === 0) return
     const reach = Math.max(1, settings.capsuleRadius / length)
     // A micrometre of rise is the arithmetic's, not a step.

@@ -1,7 +1,6 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { Geometry } from '../world/geometry/geometry.ts'
-import { crossVector3 } from '../../../math/src/vector/vector.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { crossVector3, length3 } from '../../../math/src/vector/vector.ts'
 import { readPoints } from '../world/geometry/bounds.ts'
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts'
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts'
@@ -216,7 +215,7 @@ function spreadMass(vertices: Float32Array, indices: number[], count: number, s:
   if (!indices.length)
     for (let i = 0; i + 1 < count; i++) {
       const u = edge(edgeU, i, i + 1),
-        length = hypot3(u[0], u[1], u[2])
+        length = length3(u[0], u[1], u[2])
       share(i, length / 2)
       share(i + 1, length / 2)
       whole += length
@@ -224,7 +223,7 @@ function spreadMass(vertices: Float32Array, indices: number[], count: number, s:
   for (let t = 0; t < indices.length; t += 3) {
     const [a, b, c] = [indices[t], indices[t + 1], indices[t + 2]]
     const n = crossVector3(edgeU, edge(edgeU, a, b), edge(edgeV, a, c)),
-      area = hypot3(n[0], n[1], n[2]) / 2
+      area = length3(n[0], n[1], n[2]) / 2
     share(a, area / 3)
     share(b, area / 3)
     share(c, area / 3)

@@ -256,20 +256,20 @@
       "max": "En büyük x, y ve z'ye sahip köşe.",
       "set": "Her iki köşeyi de ayarlar.",
       "makeEmpty": "Kutuyu hiçbir şey tutmayan, büyümeye hazır hale getirir.",
-      "isEmpty": "Kutunun hiçbir şey tutup tutmadığı.",
+      "isEmpty": "Kutunun hiçbir şey tutup tutmadığı (`boxIsEmpty`).",
       "copy": "Başka bir kutunun köşelerini alır.",
       "clone": "Aynı köşelere sahip yeni bir kutu.",
       "expandByPoint": "Kutuyu bir noktayı tutmaya yetecek kadar büyütür.",
       "expandByScalar": "Kutuyu her yandan `s` kadar büyütür.",
       "union": "Kutuyu başka bir kutuyu da tutacak şekilde büyütür.",
-      "setFromArray": "Düz bir koordinat listesinin etrafındaki en küçük kutu.",
+      "setFromArray": "Düz bir koordinat listesinin etrafındaki en küçük kutu: her tam nokta, her `itemSize` sayıda bir nokta.",
       "setFromPoints": "Bir nokta listesinin etrafındaki en küçük kutu.",
       "setFromObject": "`node`'un altındaki her şeyin dünya kutusu; her içeriğin kutusu kendi dünya matrisiyle taşınır.",
       "applyMatrix4": "Kutuyu bir matrisle hareket ettirir ve eksenlerle hizalı tutar.",
-      "getCenter": "Kutunun ortası.",
+      "getCenter": "Kutunun ortası (`boxCenter`); boş bir kutunun ortası orijindir.",
       "getSize": "Kutunun ne kadar geniş, yüksek ve derin olduğu.",
-      "containsPoint": "Bir noktanın kutunun içinde olup olmadığı.",
-      "intersectsBox": "İki kutunun çakışıp çakışmadığı.",
+      "containsPoint": "Bir noktanın kutunun içinde olup olmadığı, yüzeyleri dahil (`boxContainsPoint`).",
+      "intersectsBox": "İki kutunun çakışıp çakışmadığı, değen yüzeyler dahil (`boxesOverlap`).",
       "getBoundingSphere": "Köşelerden geçen küre (`sphereFromBounds`); boş bir kutu −1 yarıçap verir.",
       "equals": "İki kutunun aynı köşelere sahip olup olmadığı."
     }
@@ -603,7 +603,7 @@
       "clone": "Aynı kanallara sahip yeni bir renk.",
       "getHex": "0xRRGGBB, sRGB kodlu ve baytlara yuvarlanmış.",
       "getHexString": "Renk, `'ff8800'` gibi altı onaltılık basamak olarak.",
-      "getStyle": "Renk, `'rgb(255,136,0)'` gibi bir CSS dizesi olarak.",
+      "getStyle": "Renk, `'#ff8800'` gibi bir CSS onaltılık dizesi olarak.",
       "lerp": "Rengi `t` kadar, 0'dan 1'e, başka bir renge doğru hareket ettirir.",
       "multiplyScalar": "Her kanalı `s` kat daha parlak yapar.",
       "equals": "İki rengin aynı kanallara sahip olup olmadığı.",
@@ -1239,7 +1239,7 @@
       "planes": "Altı normalize edilmiş düzlem, her biri dört sayı: çekirdeğin düzeni.",
       "setFromProjectionMatrix": "Bir kamera matrisinin gördüğünün altı düzlemi.",
       "intersectsBox": "Bir kutunun en azından kısmen görünümde olup olmadığı.",
-      "containsPoint": "Bir noktanın görünümde olup olmadığı."
+      "containsPoint": "Bir noktanın görünümde olup olmadığı (`frustumContainsPoint`)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1664,8 +1664,8 @@
   "IDENTITY_MATRIX4": {
     "summary": "Column-major sırada birim matris, yalnızca okunur ve asla yazılmaz: bir düğümün ya da pozu olmayan bir kökün duruşu."
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, tek bir değişmez; geçişi okuyan her taraf aynı sayıyı yuvarlasın diye."
+  "PI": {
+    "summary": "Yarım bir tur, radyan cinsinden: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Çalışma zamanının okuduğu `impostors` bölümünün biçimi (#817 bölüm 1, derleyici tarafından pişirilir)."
@@ -2343,7 +2343,7 @@
       "makeRotationY": "y etrafında bir dönüş olur.",
       "makeRotationZ": "z etrafında bir dönüş olur.",
       "setPosition": "Yalnızca hareket kısmını ayarlar.",
-      "getMaxScaleOnAxis": "Herhangi bir eksen boyunca en büyük gerilme.",
+      "getMaxScaleOnAxis": "Herhangi bir eksen boyunca en büyük gerilme: üç sütunun en uzunu (`length3`).",
       "equals": "İki matrisin aynı sayıları tutup tutmadığı."
     }
   },
@@ -3083,7 +3083,7 @@
       "copy": "Başka bir kuaterniyonun sayılarını alır.",
       "clone": "Aynı sayılara sahip yeni bir kuaterniyon.",
       "identity": "Hiç dönüş olmamasına sıfırlar.",
-      "setFromAxisAngle": "`v` ekseni etrafında `angle` radyanlık bir dönüş olur.",
+      "setFromAxisAngle": "`v` ekseni etrafında `angle` radyanlık bir dönüş olur; eksen önce 1 uzunluğuna getirilir (`normalizeVector3`).",
       "setFromEuler": "Adlandırdıkları sırada (`localTurnQuaternion`), üç Euler açısının dönüşü.",
       "setFromRotationMatrix": "Sütunları birim uzunlukta olan, column-major bir matrisin üst 3×3'ünden.",
       "setFromUnitVectors": "Birim vektör `a`'yı birim vektör `b`'ye taşıyan en kısa dönüş.",
@@ -3093,7 +3093,7 @@
       "invert": "Bunu tersine çeviren dönüş olur.",
       "conjugate": "Eksen kısmını çevirir: birim bir kuaterniyon için ters dönüş.",
       "dot": "İki dönüşün ne kadar uyuştuğu, −1'den 1'e.",
-      "length": "Dört sayının birlikte boyutu.",
+      "length": "Dört sayının birlikte boyutu (`lengthQuaternion`).",
       "normalize": "Sayıları 1 boyutuna, saf bir dönüşe ölçekler.",
       "angleTo": "İki dönüş arasındaki açı, radyan cinsinden.",
       "slerp": "Daha kısa yay boyunca, `q`'ya doğru küresel enterpolasyon.",
@@ -3608,6 +3608,7 @@
       "isSkeleton": "Her zaman `true`: bir iskeleti ayırt eder.",
       "bones": "Eklemleri olan düğümler, eklem sırasıyla.",
       "boneInverses": "Kemik başına on altı sayı, sütun öncelikli: bağlama pozunda dünya matrisinin tersi.",
+      "inverses": "Her kemiğin `boneInverses` içindeki on altı sayısı, eklem sırasıyla, bir kez oluşturulan görünümler olarak.",
       "palette": "`meshWorld`e yerleştirilmiş bir mesh'in paletini `out`a `at`ten itibaren yazar: her eklem için `meshWorld⁻¹ · boneWorld · boneInverse` satırları, ki mesh'in bağlama pozundaki bir köşesini kemiğinin onu taşıdığı yere götürür, mesh'in kendi çerçevesinde — böylece sonradan uygulanan mesh yerleşimi, mesh düğümünün kendi pozu ne olursa olsun, onu kemiğin durduğu yere çizer. Her kemiğin dünyası, düğümünün tuttuğudur (`matrixWorld`)."
     }
   },
@@ -4397,8 +4398,8 @@
       "add": "Başka bir 2D vektör ekler.",
       "sub": "Başka bir 2D vektörü çıkarır.",
       "multiplyScalar": "Her iki sayıyı `s` ile çarpar.",
-      "length": "2D okun ne kadar uzun olduğu.",
-      "normalize": "Yönü korur, uzunluğu 1 yapar.",
+      "length": "2D okun ne kadar uzun olduğu (`length2`).",
+      "normalize": "Yönü korur, uzunluğu 1 yapar; sıfır vektör sıfır kalır.",
       "distanceTo": "Başka bir 2D noktadan ne kadar uzakta olduğu.",
       "fromArray": "Bir listeden iki sayı okur.",
       "toArray": "İki sayı, bir liste olarak."
@@ -4429,7 +4430,7 @@
       "cross": "İkisine de dik olan ok olur.",
       "crossVectors": "`u` ve `v`'ye dik olan ok olur.",
       "lengthSq": "Uzunluğun karesi: elde etmesi daha hızlı.",
-      "length": "Okun ne kadar uzun olduğu.",
+      "length": "Okun ne kadar uzun olduğu (`length3`).",
       "setLength": "Yönü korur, uzunluğu ayarlar.",
       "normalize": "Yönü korur, uzunluğu 1 yapar.",
       "distanceToSquared": "Bir noktaya olan mesafenin karesi.",
@@ -6216,8 +6217,8 @@
   "holdCameraWorld": {
     "summary": "Bir motor kamerasını, görünümü bit bit koruyan başka birine kopyalar."
   },
-  "hslToLinearRgb": {
-    "summary": "Ton, doygunluk ve parlaklığı `out[o..o+2]`'ye yazılan üç doğrusal bileşene dönüştürür."
+  "hslToRgb": {
+    "summary": "Ton, doygunluk ve parlaklığı `out[o..o+2]`'ye yazılan üç RGB bileşene dönüştürür."
   },
   "httpPageSource": {
     "summary": "Sayfaları HTTP üzerinden, anahtara göre, `baseUrl`'den getiren bir sayfa kaynağı."
@@ -7345,7 +7346,7 @@
     "description": "Uzunluk, dört karenin toplamının karekökü olup `hypot4`'ün topladığı gibi toplanır (Kahan), en büyük büyüklükle ölçeklemesi olmadan: `SQUARED_MIN`..`SQUARED_MAX` içinde bu ölçekleme yalnızca yuvarlama ekler: girişte dört bölme, çıkışta bir çarpım. Kesin `q / |q|`'ya karşı, ölçülen hiçbir girdi ailesinde ölçeklenmiş uzunluktan kötü değil ve çoğunda daha iyi (neredeyse birim kuaterniyonlarda en fazla 2,7 → 2,3 ULP, ortalama 0,73 → 0,64), ve dört bölme daha ucuz. Bu aralığın dışında (sıfır, bir NaN, bir sonsuz, sınırlara yakın büyüklükler) uzunluk, eskisi gibi `hypot4`'ünkidir."
   },
   "normalizeVector3": {
-    "summary": "`at`teki vektörü yerinde normalleştirir: her bileşen `1 / (length || 1)` ile çarpılır, böylece sıfır vektör sıfır kalır."
+    "summary": "`at`teki vektörü yerinde normalleştirir: her bileşen `1 / (length3 || 1)` ile çarpılır, böylece sıfır vektör sıfır kalır; 2^-1024'ten kısa bir vektör önce tam olarak 2^1000 ile ölçeklenir, böylece uzunluğunun tersi taşmaz."
   },
   "normalizedLinearDeterminant": {
     "summary": "NORMALİZE EDİLMİŞ doğrusal parçanın determinantı, WGSL çekirdek sırasında: ölçeğe bölünmüş üç sütun, sonra `a · (b × c)`.",

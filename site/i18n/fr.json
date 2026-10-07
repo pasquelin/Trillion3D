@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "Courbe sRGB exacte et son inverse, les valeurs négatives étant ramenées à zéro avant l’exposant."
     },
-    "hslToLinearRgb": {
-      "description": "Convertit teinte, saturation et luminosité en trois composantes linéaires écrites dans `out[o..o+2]`. La teinte boucle, saturation et luminosité sont bornées à `[0, 1]`, et aucune courbe de transfert n’est appliquée."
+    "hslToRgb": {
+      "description": "Convertit teinte, saturation et luminosité en trois composantes RGB écrites dans `out[o..o+2]`. La teinte boucle, saturation et luminosité sont bornées à `[0, 1]`. Le RGB sort dans l’encodage où le HSL est donné : aucune courbe de transfert n’est appliquée."
     },
     "boxUnion": {
       "description": "Une boîte est formée de six nombres consécutifs : trois bornes basses puis trois hautes. Une boîte vide place ses bornes basses à `+Infinity` et ses bornes hautes à `-Infinity`. L’extension et l’union reçoivent directement les bornes et ne créent donc aucun objet temporaire."

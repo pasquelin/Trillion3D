@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "La curva sRGB esatta — `c / 12,92` sotto 0,04045, `((c + 0,055) / 1,055)^2,4` sopra — e la sua inversa, negativi portati a zero prima dell'esponente."
     },
-    "hslToLinearRgb": {
-      "description": "Tonalità, saturazione e luminosità a tre componenti lineari scritte in `out[o..o+2]`. Il `setHSL` del riferimento, termine per termine: tonalità avvolta, saturazione e luminosità limitate a `[0, 1]`, saturazione nulla restituita come grigio, poi la rampa a tratti. Nessuna curva di trasferimento viene applicata — lo spazio di lavoro del riferimento è già lineare."
+    "hslToRgb": {
+      "description": "Tonalità, saturazione e luminosità a tre componenti RGB scritte in `out[o..o+2]`. Il `setHSL` del riferimento, termine per termine: tonalità avvolta, saturazione e luminosità limitate a `[0, 1]`, saturazione nulla restituita come grigio, poi la rampa a tratti. L'RGB esce nella codifica in cui è dato l'HSL: nessuna curva di trasferimento viene applicata."
     },
     "boxUnion": {
       "description": "Un box sono sei numeri memorizzati in modo piatto da `o`: tre limiti inferiori, tre superiori. Un box vuoto ha i suoi limiti inferiori a `+Infinity` e i suoi superiori a `-Infinity`; un limite NaN non rende un box vuoto. Espandere e unire prendono i limiti come parametri, così nessun oggetto temporaneo viene costruito per chiamata."

@@ -2,7 +2,7 @@ import { GeometryBuilder, fromArrays } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
 import { signedArea, triangulate } from './triangulate.ts'
 import type { Shape } from '../math/curves.ts'
-import { hypot2 } from '../../../../math/src/float/hypot.ts'
+import { normalizeVector2 } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
 type P = [number, number]
@@ -66,16 +66,15 @@ function offsetRing(ring: P[], by: number): P[] {
   return ring.map((p, i) => {
     const a = ring[(i + ring.length - 1) % ring.length],
       b = ring[(i + 1) % ring.length]
-    const e1 = norm([p[0] - a[0], p[1] - a[1]]),
-      e2 = norm([b[0] - p[0], b[1] - p[1]])
-    const n = norm([e1[1] + e2[1], -(e1[0] + e2[0])])
+    const e1: P = [p[0] - a[0], p[1] - a[1]],
+      e2: P = [b[0] - p[0], b[1] - p[1]]
+    normalizeVector2(e1)
+    normalizeVector2(e2)
+    const n: P = [e1[1] + e2[1], -(e1[0] + e2[0])]
+    normalizeVector2(n)
     const miter = Math.max(0.25, n[0] * e1[1] - n[1] * e1[0])
     return [p[0] + (n[0] * by) / miter, p[1] + (n[1] * by) / miter]
   })
-}
-const norm = ([x, y]: P): P => {
-  const l = hypot2(x, y) || 1
-  return [x / l, y / l]
 }
 
 /**

@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "Tam sRGB eğrisi — 0.04045'in altında `c / 12.92`, üstünde `((c + 0.055) / 1.055)^2.4` — ve tersi, negatifler üsse yükseltmeden önce sıfıra sabitlenmiş olarak."
     },
-    "hslToLinearRgb": {
-      "description": "Ton, doygunluk ve parlaklığın `out[o..o+2]`'ye yazılan üç doğrusal bileşene dönüştürülmesi. Referansın `setHSL`'i terim terim: sarmalanmış ton, `[0, 1]`'e sabitlenmiş doygunluk ve parlaklık, gri olarak döndürülen sıfır doygunluk, sonra parçalı rampa. Hiçbir aktarım eğrisi uygulanmaz — referansın çalışma alanı zaten doğrusaldır."
+    "hslToRgb": {
+      "description": "Ton, doygunluk ve parlaklığın `out[o..o+2]`'ye yazılan üç RGB bileşenine dönüştürülmesi. Referansın `setHSL`'i terim terim: sarmalanmış ton, `[0, 1]`'e sabitlenmiş doygunluk ve parlaklık, gri olarak döndürülen sıfır doygunluk, sonra parçalı rampa. RGB, HSL hangi kodlamada verildiyse o kodlamada çıkar: hiçbir aktarım eğrisi uygulanmaz."
     },
     "boxUnion": {
       "description": "Bir kutu, `o`'dan itibaren doğrusal olarak saklanan altı sayıdır: üç alt sınır, üç üst sınır. Boş bir kutunun alt sınırları `+Infinity`'de, üst sınırları `-Infinity`'dedir; bir NaN sınır kutuyu boş yapmaz. Genişletme ve birleştirme, sınırları parametre olarak alır, bu yüzden çağrı başına hiçbir geçici nesne oluşturulmaz."

@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "A curva sRGB exata — `c / 12.92` abaixo de 0.04045, `((c + 0.055) / 1.055)^2.4` acima — e sua inversa, com negativos limitados a zero antes do expoente."
     },
-    "hslToLinearRgb": {
-      "description": "Matiz, saturação e luminosidade para três componentes lineares escritos em `out[o..o+2]`. O `setHSL` da referência termo a termo: matiz envolvida, saturação e luminosidade limitadas a `[0, 1]`, saturação zero devolvida como cinza, depois a rampa por partes. Nenhuma curva de transferência é aplicada — o espaço de trabalho da referência já é linear."
+    "hslToRgb": {
+      "description": "Matiz, saturação e luminosidade para três componentes RGB escritos em `out[o..o+2]`. O `setHSL` da referência termo a termo: matiz envolvida, saturação e luminosidade limitadas a `[0, 1]`, saturação zero devolvida como cinza, depois a rampa por partes. O RGB sai na codificação em que o HSL é dado: nenhuma curva de transferência é aplicada."
     },
     "boxUnion": {
       "description": "Uma caixa é seis números guardados de forma linear a partir de `o`: três limites inferiores, três superiores. Uma caixa vazia tem seus limites inferiores em `+Infinity` e os superiores em `-Infinity`; um limite NaN não torna uma caixa vazia. Expandir e unir recebem os limites como parâmetros, então nenhum objeto temporário é criado por chamada."

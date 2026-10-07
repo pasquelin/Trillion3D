@@ -8,11 +8,13 @@ import {
   GOLDEN_FRACTION,
   HALF_PI,
   MIB,
+  PI,
   RAD2DEG,
   TAU,
 } from './constants.ts'
 
 test('each constant is the bits of the expression its doc names', () => {
+  assert.equal(PI, Math.PI)
   assert.equal(HALF_PI, Math.PI / 2)
   assert.equal(TAU, Math.PI * 2)
   assert.equal(DEG2RAD, Math.PI / 180)

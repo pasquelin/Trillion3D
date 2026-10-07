@@ -31,6 +31,7 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createVsmReadbackRing, type VsmReadbackRing } from './readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 
 /** Frames a light stays active after its last change: its mobility factor falls over them. */
 const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
@@ -247,10 +248,7 @@ export class VsmLightCache {
   /** Whether the light's range reaches a bounding sphere (metres). */
   affectsBounds(center: ArrayLike<number>, sphereRadius: number) {
     if (this.lightRange <= 0) return true
-    const dx = center[0] - this.lightOrigin[0],
-      dy = center[1] - this.lightOrigin[1],
-      dz = center[2] - this.lightOrigin[2]
-    return dx * dx + dy * dy + dz * dz <= (this.lightRange + sphereRadius) ** 2
+    return spheresOverlap(center, sphereRadius, this.lightOrigin, this.lightRange)
   }
 }
 

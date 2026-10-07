@@ -1,11 +1,13 @@
 import {
   axisAngleQuaternion,
+  conjugateQuaternion,
   multiplyQuaternion,
   rotateByQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Object3D } from '../object/object3d.ts'
 import type { Clip, Track } from './clip.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
+import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 
 /** Keys per sway: the arc between two keys leaves the sine it follows by under one percent of
  *  the sway (`1 − cos(π / 24)`). */
@@ -31,20 +33,22 @@ export interface WindOptions {
  */
 export function windClip(bones: readonly Object3D[], options: WindOptions = {}): Clip {
   const [dx, dz] = options.direction ?? [1, 0],
-    reach = Math.hypot(dx, dz) || 1,
-    across = [dz / reach, 0, -dx / reach],
+    across = [dz, 0, -dx],
     angle = options.angle ?? 0.1,
     period = 1 / (options.frequency ?? 0.5)
   const times = Array.from({ length: KEYS + 1 }, (_, k) => (k / KEYS) * period)
+  normalizeVector3(across)
   const turn = new Float64Array(4),
-    posed = new Float64Array(4)
+    posed = new Float64Array(4),
+    unturned = new Float64Array(4)
   const tracks: Track[] = bones.map((bone, i) => {
     const depth = (i + 1) / bones.length,
       rest = [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w]
     // The axis across the wind, in the frame the bone's rotation is written in: its parent's.
     const parent = bone.parent?.getWorldQuaternion(),
       local = new Float64Array(3)
-    const unturned = parent ? [-parent.x, -parent.y, -parent.z, parent.w] : [0, 0, 0, 1]
+    if (parent) conjugateQuaternion(unturned, parent.toArray())
+    else unturned.set([0, 0, 0, 1])
     rotateByQuaternion(local, unturned, across[0], across[1], across[2])
     const values = times.flatMap((time) => {
       const phase = (TAU * time) / period - depth * HALF_PI

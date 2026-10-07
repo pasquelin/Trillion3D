@@ -1,4 +1,4 @@
-import { lengthSqVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { length3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { computeNormals } from './normals.ts'
 import { GeometryBuilder } from './builder.ts'
 import type { Geometry } from './geometry.ts'
@@ -128,7 +128,7 @@ function quads(
     const a = segments[s] * 3,
       b = segments[s + 1] * 3
     const d: V3 = [p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]]
-    const length = Math.sqrt(lengthSqVector3(d))
+    const length = length3(d[0], d[1], d[2])
     if (length === 0) continue
     normalizeVector3(d)
     const first = positions.length / 3

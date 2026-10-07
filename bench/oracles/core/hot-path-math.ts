@@ -1,9 +1,10 @@
 // The hot-path math of packages/math frozen: the oracles its optimised forms must
-// match bit for bit (`bench/witnesses/three/parity/core/math/primitives/{cone,box}.test.ts`,
+// match bit for bit (`bench/witnesses/three/parity/core/math/primitives/{cone,coneDevelop,box}.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
 import { xorshiftRandom } from '../../core/measure.ts'
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts'
 import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import {
   boxCornersInto,
   boxEmpty,
@@ -65,7 +66,20 @@ export function coneCases(seed: number) {
   }
 }
 
-/** `boxConeRejects` unoptimised: every length paid, then the verdict. */
+/** The lengths a cone oracle pays: `length` for the box radius, the eye distance and the view
+ *  vector, `axisLength` for the turned cone axis. */
+type ConeLengths = Record<'length' | 'axisLength', (x: number, y: number, z: number) => number>
+
+/** The length rule's: `length3` throughout. */
+const RULE_LENGTHS: ConeLengths = { length: length3, axisLength: length3 }
+
+/** Develop's before the length rule: `Math.hypot`, the axis by the plain root of its squares. */
+export const HYPOT_LENGTHS: ConeLengths = {
+  length: (x, y, z) => Math.hypot(x, y, z),
+  axisLength: (x, y, z) => Math.sqrt(x * x + y * y + z * z),
+}
+
+/** `boxConeRejects` unoptimised: every length paid, by `lengths`, then the verdict. */
 export function boxConeRejectsBefore(
   axis: ArrayLike<number>,
   angle: number,
@@ -75,6 +89,7 @@ export function boxConeRejectsBefore(
   normal: ArrayLike<number>,
   scale: number,
   eye: ArrayLike<number>,
+  { length, axisLength }: ConeLengths = RULE_LENGTHS,
 ) {
   const lx = (min[0] + max[0]) * 0.5,
     ly = (min[1] + max[1]) * 0.5,
@@ -84,12 +99,12 @@ export function boxConeRejectsBefore(
     cy = (e[1] * lx + e[5] * ly + e[9] * lz + e[13]) * w,
     cz = (e[2] * lx + e[6] * ly + e[10] * lz + e[14]) * w
   const radius =
-    Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
+    length((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
   const px = eye[0],
     py = eye[1],
     pz = eye[2],
     pw = eye[3]
-  const d = Math.hypot(px - cx * pw, py - cy * pw, pz - cz * pw)
+  const d = length(px - cx * pw, py - cy * pw, pz - cz * pw)
   const t = (radius * pw) / d
   const spread = !(d > radius * pw) ? Math.PI : Math.asin(t < 0 ? 0 : t > 1 ? 1 : t)
   const a0 = axis[0],
@@ -98,7 +113,7 @@ export function boxConeRejectsBefore(
   let ax = normal[0] * a0 + normal[3] * a1 + normal[6] * a2,
     ay = normal[1] * a0 + normal[4] * a1 + normal[7] * a2,
     az = normal[2] * a0 + normal[5] * a1 + normal[8] * a2
-  const al = Math.sqrt(ax * ax + ay * ay + az * az)
+  const al = axisLength(ax, ay, az)
   if (!(al > 0)) return false
   const inverse = 1 / al
   ax *= inverse
@@ -107,7 +122,7 @@ export function boxConeRejectsBefore(
   const vx = px - cx * pw,
     vy = py - cy * pw,
     vz = pz - cz * pw
-  const vl = Math.hypot(vx, vy, vz)
+  const vl = length(vx, vy, vz)
   if (!(vl > 0)) return false
   const dot = Math.min(1, Math.max(-1, (ax * vx + ay * vy + az * vz) / vl))
   try {

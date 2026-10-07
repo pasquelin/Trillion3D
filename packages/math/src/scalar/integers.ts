@@ -12,14 +12,19 @@ export const alignUp = (x: number, n: number) => Math.ceil(x / n) * n
 /** The greatest multiple of `n > 0` not over `x`: `Math.floor(x / n) * n`. */
 export const alignDown = (x: number, n: number) => Math.floor(x / n) * n
 
-/** The least power of two not under `v`, 1 for every `v <= 1`: exact by `clz32` for an integer up
- *  to 2 ** 31, by the logarithm for any other. */
-export const nextPow2 = (v: number) =>
-  v <= 1
-    ? 1
-    : Number.isInteger(v) && v <= 2 ** 31
-      ? 2 ** (32 - Math.clz32(v - 1))
-      : 2 ** Math.ceil(Math.log2(v))
+/** The exponent of the least power of two not under the integer `v`, 1 ≤ v ≤ 2^32:
+ *  `32 − clz32(v − 1)`, exact on that whole domain (`v − 1` fits 32 bits). */
+const ceilLog2 = (v: number) => 32 - Math.clz32(v - 1)
+
+/** The least power of two not under `v`: 1 for every `v <= 1`, `2 ** ceilLog2(⌈v⌉)` exactly for any
+ *  real `v` up to 2^32 — every caller sizes a buffer, a table or a count far below —, NaN for NaN;
+ *  past 2^32 it throws rather than wrap. */
+export function nextPow2(v: number) {
+  if (v <= 1) return 1
+  if (v <= 2 ** 32) return 2 ** ceilLog2(Math.ceil(v))
+  if (v !== v) return NaN
+  throw new RangeError(`nextPow2: ${v} is past 2^32`)
+}
 
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
 export const floorLog2 = (v: number) => 31 - Math.clz32(v)

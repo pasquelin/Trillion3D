@@ -248,20 +248,20 @@
       "max": "O canto com o maior x, y e z.",
       "set": "Define ambos os cantos.",
       "makeEmpty": "Faz a caixa não conter nada, pronta para crescer.",
-      "isEmpty": "Se a caixa não contém nada.",
+      "isEmpty": "Se a caixa não contém nada (`boxIsEmpty`).",
       "copy": "Toma os cantos de outra caixa.",
       "clone": "Uma nova caixa com os mesmos cantos.",
       "expandByPoint": "Cresce a caixa apenas o suficiente para conter um ponto.",
       "expandByScalar": "Cresce a caixa em `s` de cada lado.",
       "union": "Cresce a caixa para conter outra caixa também.",
-      "setFromArray": "A menor caixa ao redor de uma lista linear de coordenadas.",
+      "setFromArray": "A menor caixa ao redor de uma lista linear de coordenadas: cada ponto inteiro, um a cada `itemSize` números.",
       "setFromPoints": "A menor caixa ao redor de uma lista de pontos.",
       "setFromObject": "A caixa de mundo de tudo sob `node`, com a caixa de cada conteúdo levada por sua matriz de mundo.",
       "applyMatrix4": "Move a caixa por uma matriz e a mantém alinhada aos eixos.",
-      "getCenter": "O meio da caixa.",
+      "getCenter": "O meio da caixa (`boxCenter`); o de uma caixa vazia é a origem.",
       "getSize": "Quão larga, alta e profunda a caixa é.",
-      "containsPoint": "Se um ponto está dentro da caixa.",
-      "intersectsBox": "Se duas caixas se sobrepõem.",
+      "containsPoint": "Se um ponto está dentro da caixa, faces incluídas (`boxContainsPoint`).",
+      "intersectsBox": "Se duas caixas se sobrepõem, faces que se tocam incluídas (`boxesOverlap`).",
       "getBoundingSphere": "A esfera pelos cantos (`sphereFromBounds`); uma caixa vazia dá raio −1.",
       "equals": "Se duas caixas têm os mesmos cantos."
     }
@@ -545,7 +545,7 @@
       "clone": "Uma nova cor com os mesmos canais.",
       "getHex": "0xRRGGBB, codificado em sRGB e arredondado para bytes.",
       "getHexString": "A cor como seis dígitos hexadecimais, como `'ff8800'`.",
-      "getStyle": "A cor como uma string CSS, como `'rgb(255,136,0)'`.",
+      "getStyle": "A cor como uma string CSS hexadecimal, como `'#ff8800'`.",
       "lerp": "Move a cor em direção a outra por `t`, de 0 a 1.",
       "multiplyScalar": "Torna cada canal `s` vezes mais brilhante.",
       "equals": "Se duas cores têm os mesmos canais.",
@@ -1143,7 +1143,7 @@
       "planes": "Seis planos normalizados, quatro números cada: o layout do núcleo.",
       "setFromProjectionMatrix": "Os seis planos do que uma matriz de câmera vê.",
       "intersectsBox": "Se uma caixa está pelo menos parcialmente na visão.",
-      "containsPoint": "Se um ponto está na visão."
+      "containsPoint": "Se um ponto está na visão (`frustumContainsPoint`)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1954,7 +1954,7 @@
       "makeRotationY": "Torna-se um giro ao redor de y.",
       "makeRotationZ": "Torna-se um giro ao redor de z.",
       "setPosition": "Define só a parte de movimento.",
-      "getMaxScaleOnAxis": "O maior esticamento ao longo de qualquer eixo.",
+      "getMaxScaleOnAxis": "O maior esticamento ao longo de qualquer eixo: a mais longa das três colunas (`length3`).",
       "equals": "Se duas matrizes têm os mesmos números."
     }
   },
@@ -2645,7 +2645,7 @@
       "copy": "Toma os números de outro quatérnio.",
       "clone": "Um novo quatérnio com os mesmos números.",
       "identity": "Redefine para nenhuma rotação.",
-      "setFromAxisAngle": "Torna-se um giro de `angle` radianos ao redor do eixo `v`.",
+      "setFromAxisAngle": "Torna-se um giro de `angle` radianos ao redor do eixo `v`, levado antes ao comprimento 1 (`normalizeVector3`).",
       "setFromEuler": "A rotação de três ângulos de Euler, na ordem que nomeiam (`localTurnQuaternion`).",
       "setFromRotationMatrix": "A partir do 3×3 superior de uma matriz em ordem de coluna cujas colunas têm comprimento unitário.",
       "setFromUnitVectors": "A rotação mais curta que leva o vetor unitário `a` até o vetor unitário `b`.",
@@ -2655,7 +2655,7 @@
       "invert": "Torna-se o giro que desfaz este.",
       "conjugate": "Inverte a parte do eixo: o giro oposto para um quatérnio unitário.",
       "dot": "O quanto duas rotações concordam, de −1 a 1.",
-      "length": "O tamanho dos quatro números juntos.",
+      "length": "O tamanho dos quatro números juntos (`lengthQuaternion`).",
       "normalize": "Escala os números para tamanho 1, uma rotação pura.",
       "angleTo": "O ângulo entre duas rotações, em radianos.",
       "slerp": "Interpolação esférica em direção a `q`, ao longo do arco mais curto.",
@@ -3679,8 +3679,8 @@
       "add": "Soma outro vetor 2D.",
       "sub": "Subtrai outro vetor 2D.",
       "multiplyScalar": "Multiplica ambos os números por `s`.",
-      "length": "Quão longa é a seta 2D.",
-      "normalize": "Mantém a direção, torna o comprimento 1.",
+      "length": "Quão longa é a seta 2D (`length2`).",
+      "normalize": "Mantém a direção, torna o comprimento 1; um vetor nulo continua nulo.",
       "distanceTo": "A que distância está de outro ponto 2D.",
       "fromArray": "Lê dois números de uma lista.",
       "toArray": "Os dois números como uma lista."
@@ -3711,7 +3711,7 @@
       "cross": "Torna-se a seta perpendicular a ambas.",
       "crossVectors": "Torna-se a seta perpendicular a `u` e `v`.",
       "lengthSq": "O comprimento, ao quadrado: mais rápido de obter.",
-      "length": "Quão longa é a seta.",
+      "length": "Quão longa é a seta (`length3`).",
       "setLength": "Mantém a direção, define o comprimento.",
       "normalize": "Mantém a direção, torna o comprimento 1.",
       "distanceToSquared": "A distância até um ponto, ao quadrado.",
@@ -5147,8 +5147,8 @@
   "holdCameraWorld": {
     "summary": "Copia uma câmera de motor para outra, que então mantém a visão bit a bit."
   },
-  "hslToLinearRgb": {
-    "summary": "Matiz, saturação e luminosidade para três componentes lineares escritos em `out[o..o+2]`."
+  "hslToRgb": {
+    "summary": "Matiz, saturação e luminosidade para três componentes RGB escritos em `out[o..o+2]`."
   },
   "httpPageSource": {
     "summary": "Uma origem de páginas que busca páginas via HTTP, por chave, a partir de `baseUrl`."
@@ -6237,7 +6237,7 @@
     "description": "O comprimento é a raiz quadrada dos quatro quadrados somados como `hypot4` os soma (Kahan), sem a sua escala pela maior magnitude: dentro de `SQUARED_MIN`..`SQUARED_MAX` essa escala só acrescenta arredondamentos — quatro divisões à entrada e um produto à saída. Face ao `q / |q|` exato, não pior do que o comprimento escalado em qualquer família de entradas medida e melhor na maioria (máximo 2,7 → 2,3 ULP, média 0,73 → 0,64 em quaterniões quase unitários), e mais barato em quatro divisões. Fora desse intervalo — zero, um NaN, um infinito, magnitudes perto dos limites — o comprimento é o de `hypot4`, como antes."
   },
   "normalizeVector3": {
-    "summary": "Normaliza o vetor em `at` no lugar: cada componente é multiplicado por `1 / (length || 1)`, de modo que um vetor zero continua zero."
+    "summary": "Normaliza o vetor em `at` no lugar: cada componente é multiplicado por `1 / (length3 || 1)`, de modo que um vetor zero continua zero; um vetor mais curto que 2^-1024 é antes escalado exatamente por 2^1000, para que o inverso do seu comprimento não transborde."
   },
   "normalizedLinearDeterminant": {
     "summary": "Determinante da parte linear NORMALIZADA, na ordem do kernel WGSL: as três colunas divididas pela escala, depois `a · (b × c)`.",
@@ -7649,6 +7649,7 @@
       "isSkeleton": "Sempre `true`: distingue um esqueleto.",
       "bones": "Os nós que são as suas juntas, na ordem das juntas.",
       "boneInverses": "Dezesseis números por osso, em ordem de colunas: a inversa da sua matriz de mundo na pose de bind.",
+      "inverses": "Os dezesseis números de cada osso em `boneInverses`, na ordem das articulações, como vistas criadas uma única vez.",
       "palette": "Escreve em `out`, a partir de `at`, a paleta de um mesh posicionado em `meshWorld`: para cada junta, as linhas de `meshWorld⁻¹ · boneWorld · boneInverse`, que levam um vértice do mesh na pose de bind para onde o seu osso o carrega, no referencial do próprio mesh — de modo que a colocação do mesh, aplicada depois, o desenha onde o osso está, seja qual for a pose do próprio nó do mesh. O mundo de cada osso é o que o seu nó guarda (`matrixWorld`)."
     }
   },
@@ -7684,8 +7685,8 @@
       "matrix": "Sua pose de mundo, dezesseis floats em ordem por colunas."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, um único literal, para que cada leitor da troca arredonde o mesmo número."
+  "PI": {
+    "summary": "Meia volta, em radianos: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Formato da seção `impostors` que um runtime lê (#817 parte 1, pré-processada pelo compilador)."

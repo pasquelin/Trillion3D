@@ -4,6 +4,8 @@
  */
 import { hypot4 } from '../float/hypot.ts'
 import { fdlibmAcos, fdlibmSin } from '../float/trig.ts'
+import type { NumberSink } from '../matrix/matrix4.ts'
+import { NORMAL_SQUARES } from '../vector/vector.ts'
 
 /** Quaternion of a rotation of `angle` radians about a unit axis. */
 export function axisAngleQuaternion(out: Float64Array, axis: ArrayLike<number>, angle: number) {
@@ -30,6 +32,72 @@ export function multiplyQuaternion(out: Float64Array, a: ArrayLike<number>, b: A
   out[2] = aw * bz + ax * by - ay * bx + az * bw
   out[3] = aw * bw - ax * bx - ay * by - az * bz
   return out
+}
+
+/** `a ⊗ b` like `multiplyQuaternion`, its sums in the other order: the vector part
+ *  `a.xyz·b.w + a.w·b.xyz + a.xyz × b.xyz`, the scalar `a.w·b.w − a.xyz·b.xyz`, each left to right.
+ *  x and w round as `multiplyQuaternion`'s, y and z can differ in the last bit: `lookAtNode`'s aim
+ *  is held to this order. `out` may alias `a` or `b`. */
+export function multiplyQuaternionVectorFirst(
+  out: Float64Array,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+) {
+  const ax = a[0],
+    ay = a[1],
+    az = a[2],
+    aw = a[3],
+    bx = b[0],
+    by = b[1],
+    bz = b[2],
+    bw = b[3]
+  out[0] = ax * bw + aw * bx + ay * bz - az * by
+  out[1] = ay * bw + aw * by + az * bx - ax * bz
+  out[2] = az * bw + aw * bz + ax * by - ay * bx
+  out[3] = aw * bw - ax * bx - ay * by - az * bz
+  return out
+}
+
+/** `a · b` on the four components read at `aAt` and `bAt`, summed `x, y, z, w` left to right. */
+export function dotQuaternion(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  return (
+    a[aAt] * b[bAt] + a[aAt + 1] * b[bAt + 1] + a[aAt + 2] * b[bAt + 2] + a[aAt + 3] * b[bAt + 3]
+  )
+}
+
+/** The length of the quaternion at `at`: the root of `dotQuaternion(q, q)` in the normal band of
+ *  `length3`, `hypot4` outside it — the rule of `length3` on four terms. `normalizeQuaternion`
+ *  keeps its own, the sampler twin's. */
+export function lengthQuaternion(q: ArrayLike<number>, at = 0) {
+  const s = dotQuaternion(q, q, at, at)
+  return s < NORMAL_SQUARES || s === Infinity
+    ? hypot4(q[at], q[at + 1], q[at + 2], q[at + 3])
+    : Math.sqrt(s)
+}
+
+/** `out` at `outAt` = the conjugate `(−x, −y, −z, w)` of the quaternion at `q[qAt]`, the inverse
+ *  turn of a unit one. The four are read before the first write, so `out` may be `q`. */
+export function conjugateQuaternion<T extends NumberSink>(
+  out: T,
+  q: ArrayLike<number>,
+  outAt = 0,
+  qAt = 0,
+) {
+  const x = q[qAt],
+    y = q[qAt + 1],
+    z = q[qAt + 2],
+    w = q[qAt + 3]
+  out[outAt] = -x
+  out[outAt + 1] = -y
+  out[outAt + 2] = -z
+  out[outAt + 3] = w
+  return out
+}
+
+/** The angle in radians between the turns of two unit quaternions, `q` and `−q` alike:
+ *  `2 · acos(min(1, |a · b|))`. */
+export function quaternionAngle(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  return 2 * Math.acos(Math.min(1, Math.abs(dotQuaternion(a, b, aAt, bAt))))
 }
 
 /** The squared lengths between which the four squares are summed unscaled: no square overflows,
@@ -109,7 +177,7 @@ export function slerpArc(
   b: ArrayLike<number>,
   bi: number,
 ) {
-  let cos = a[ai] * b[bi] + a[ai + 1] * b[bi + 1] + a[ai + 2] * b[bi + 2] + a[ai + 3] * b[bi + 3]
+  let cos = dotQuaternion(a, b, ai, bi)
   const sign = cos < 0 ? -1 : 1
   cos *= sign
   const angle = fdlibmAcos(Math.min(1, cos))

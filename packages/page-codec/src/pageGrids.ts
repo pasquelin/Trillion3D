@@ -1,5 +1,6 @@
 import { clamp } from '../../math/src/scalar/reals.ts'
 import { floorLog2 } from '../../math/src/scalar/integers.ts'
+import { length3Float32 } from '../../math/src/vector/lengthFloat32.ts'
 /**
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
@@ -57,13 +58,6 @@ export function quantize(values: ArrayLike<number>, n: number, exponent: number)
   return { min, exponent, bits, cells }
 }
 
-/** A displacement as the 32-bit float the header carries, rounded up so nothing exceeds it. */
-export function ceil32(value: number): number {
-  const float = new Float32Array([value])
-  if (float[0] < value) new Uint32Array(float.buffer)[0]++
-  return float[0]
-}
-
 const f = Math.fround,
   OCT_STEP = f(2 / 255)
 
@@ -82,7 +76,7 @@ export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
     y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1))
     x = fx
   }
-  const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))))
+  const length = length3Float32(x, y, z)
   out[at] = f(x / length)
   out[at + 1] = f(y / length)
   out[at + 2] = f(z / length)
@@ -111,7 +105,7 @@ export function octEncode(x: number, y: number, z: number): number {
   const cell = (v: number) => clamp(Math.floor(f(f(v + 1) * 127.5)), 0, 254)
   const bx = cell(px),
     by = cell(py),
-    length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),
+    length = length3Float32(x, y, z),
     ux = f(x / length),
     uy = f(y / length),
     uz = f(z / length)

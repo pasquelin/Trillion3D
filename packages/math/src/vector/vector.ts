@@ -1,4 +1,5 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
+import { hypot2, hypot3 } from '../float/hypot.ts'
 
 /**
  * 3 and 4 vectors of the math kernel: products and transforms by a column-major 4×4
@@ -72,13 +73,96 @@ export function transformHomogeneousPoint<T extends NumberSink>(
   return out
 }
 
-/** Normalises the vector at `at` in place: each component is multiplied by `1 / (length || 1)`, so a zero vector stays zero. */
+/** The least sum of squares the length rule roots unscaled: from 2^-969 on, the sum is a normal
+ *  double whose half ulp is at least 2^-1022, above every square that underflowed, so the plain
+ *  root holds the length the squares define. */
+export const NORMAL_SQUARES = 2 ** -969
+
+/**
+ * The length of `(x, y, z)`: `Math.sqrt` of the three squares summed left to right, the order of
+ * WGSL's `length()`, when that sum is at least `NORMAL_SQUARES` and finite; otherwise — a zero
+ * vector, components below about 1e-146 or past about 1e154 — `hypot3`, which scales first and
+ * neither underflows nor overflows. A NaN component gives NaN. The one length rule of the engine
+ * (docs/MATHS.md "Lengths"); in the normal band it differs from `Math.hypot` in the last bit on
+ * many inputs.
+ */
+export function length3(x: number, y: number, z: number) {
+  const s = x * x + y * y + z * z
+  return s < NORMAL_SQUARES || s === Infinity ? hypot3(x, y, z) : Math.sqrt(s)
+}
+
+/** The length of `(x, y)`: the rule of `length3` in the plane, `hypot2` outside the band. */
+export function length2(x: number, y: number) {
+  const s = x * x + y * y
+  return s < NORMAL_SQUARES || s === Infinity ? hypot2(x, y) : Math.sqrt(s)
+}
+
+/** The squared distance from the point at `b[bAt]` to the one at `a[aAt]`: the squares of
+ *  `a − b`, component by component, summed left to right. */
+export function distanceSqVector3(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  const dx = a[aAt] - b[bAt],
+    dy = a[aAt + 1] - b[bAt + 1],
+    dz = a[aAt + 2] - b[bAt + 2]
+  return dx * dx + dy * dy + dz * dz
+}
+
+/** The distance between the points at `a[aAt]` and `b[bAt]`: `length3` of `a − b`. */
+export function distanceVector3(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  return length3(a[aAt] - b[bAt], a[aAt + 1] - b[bAt + 1], a[aAt + 2] - b[bAt + 2])
+}
+
+/** 2^1000: a vector shorter than 2^-1024, whose inverse length overflows, is scaled by it first —
+ *  exactly, every component being a multiple of 2^-1074 — and so lands in the normal band. */
+const TINY_SCALE = 2 ** 1000
+
+/** Normalises the vector at `at` in place: each component is multiplied by `1 / (length3 || 1)`,
+ *  so a zero vector stays zero; a vector shorter than 2^-1024 is first scaled exactly by 2^1000, so
+ *  its inverse length does not overflow. */
 export function normalizeVector3(v: NumberSink, at = 0) {
-  const inverse =
-    1 / (Math.sqrt(v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]) || 1)
+  let inverse = 1 / (length3(v[at], v[at + 1], v[at + 2]) || 1)
+  if (inverse === Infinity) {
+    v[at] *= TINY_SCALE
+    v[at + 1] *= TINY_SCALE
+    v[at + 2] *= TINY_SCALE
+    inverse = 1 / length3(v[at], v[at + 1], v[at + 2])
+  }
   v[at] *= inverse
   v[at + 1] *= inverse
   v[at + 2] *= inverse
+}
+
+/** `normalizeVector3` in the plane: the two components at `at` multiplied by `1 / (length2 || 1)`,
+ *  a vector shorter than 2^-1024 scaled exactly by 2^1000 first. */
+export function normalizeVector2(v: NumberSink, at = 0) {
+  let inverse = 1 / (length2(v[at], v[at + 1]) || 1)
+  if (inverse === Infinity) {
+    v[at] *= TINY_SCALE
+    v[at + 1] *= TINY_SCALE
+    inverse = 1 / length2(v[at], v[at + 1])
+  }
+  v[at] *= inverse
+  v[at + 1] *= inverse
+}
+
+/**
+ * `out[outAt..outAt + 2] = M · (x, y, z, 1)` for an affine matrix stored row-major on twelve
+ * numbers from `mAt` — three rows of four, the translation last in each: the layout of a skinning
+ * palette or a proxy's bind map. Each row is summed left to right, then rounded once into `out`;
+ * `out` must not be `m`.
+ */
+export function transformAffinePointRowMajor<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  x: number,
+  y: number,
+  z: number,
+  outAt = 0,
+  mAt = 0,
+) {
+  out[outAt] = m[mAt] * x + m[mAt + 1] * y + m[mAt + 2] * z + m[mAt + 3]
+  out[outAt + 1] = m[mAt + 4] * x + m[mAt + 5] * y + m[mAt + 6] * z + m[mAt + 7]
+  out[outAt + 2] = m[mAt + 8] * x + m[mAt + 9] * y + m[mAt + 10] * z + m[mAt + 11]
+  return out
 }
 
 /** The squared length of the vector read at `at`: the three squares summed in a fixed order. */

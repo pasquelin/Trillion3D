@@ -248,20 +248,20 @@
       "max": "x、y、z 都最大的那个角。",
       "set": "同时设置两个角点。",
       "makeEmpty": "让包围盒变空,准备好开始扩展。",
-      "isEmpty": "包围盒是否为空。",
+      "isEmpty": "包围盒是否为空(`boxIsEmpty`)。",
       "copy": "取用另一个包围盒的角点。",
       "clone": "一个拥有相同角点的新包围盒。",
       "expandByPoint": "刚好扩展到能容纳某个点为止。",
       "expandByScalar": "将包围盒的每一面都扩展 `s`。",
       "union": "扩展包围盒以同时容纳另一个包围盒。",
-      "setFromArray": "包住一组扁平坐标列表的最小包围盒。",
+      "setFromArray": "包住一组扁平坐标列表的最小包围盒:每 `itemSize` 个数字一个点,只取完整的点。",
       "setFromPoints": "包住一组点的最小包围盒。",
       "setFromObject": "`node` 之下所有内容的世界包围盒,每个内容的包围盒都经过其世界矩阵变换。",
       "applyMatrix4": "用一个矩阵移动包围盒,同时保持它与坐标轴对齐。",
-      "getCenter": "包围盒的中心。",
+      "getCenter": "包围盒的中心(`boxCenter`);空包围盒的中心是原点。",
       "getSize": "包围盒的宽、高、深。",
-      "containsPoint": "某个点是否在包围盒内部。",
-      "intersectsBox": "两个包围盒是否重叠。",
+      "containsPoint": "某个点是否在包围盒内部,含其表面(`boxContainsPoint`)。",
+      "intersectsBox": "两个包围盒是否重叠,表面相接也算(`boxesOverlap`)。",
       "getBoundingSphere": "穿过各角点的球(`sphereFromBounds`);空包围盒的半径为 −1。",
       "equals": "两个包围盒的角点是否相同。"
     }
@@ -545,7 +545,7 @@
       "clone": "一个拥有相同通道值的新颜色。",
       "getHex": "0xRRGGBB,按 sRGB 编码并四舍五入到字节。",
       "getHexString": "以六位十六进制数字表示的颜色,比如 `'ff8800'`。",
-      "getStyle": "以 CSS 字符串表示的颜色,比如 `'rgb(255,136,0)'`。",
+      "getStyle": "以 CSS 十六进制字符串表示的颜色,比如 `'#ff8800'`。",
       "lerp": "把颜色朝另一个颜色移动 `t`(0 到 1)。",
       "multiplyScalar": "让每个通道都变亮 `s` 倍。",
       "equals": "两个颜色的各通道值是否相同。",
@@ -1143,7 +1143,7 @@
       "planes": "六个归一化的平面,每个占四个数字:核心模块所用的布局。",
       "setFromProjectionMatrix": "某个摄像机矩阵所能看到范围的六个平面。",
       "intersectsBox": "一个包围盒是否至少部分处于视野之内。",
-      "containsPoint": "一个点是否处于视野之内。"
+      "containsPoint": "一个点是否处于视野之内(`frustumContainsPoint`)。"
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1954,7 +1954,7 @@
       "makeRotationY": "变为绕 y 轴的旋转。",
       "makeRotationZ": "变为绕 z 轴的旋转。",
       "setPosition": "只设置其中的平移部分。",
-      "getMaxScaleOnAxis": "沿任意坐标轴方向上的最大缩放值。",
+      "getMaxScaleOnAxis": "沿任意坐标轴方向上的最大缩放值:三列中最长的一列(`length3`)。",
       "equals": "两个矩阵是否持有相同的数值。"
     }
   },
@@ -2645,7 +2645,7 @@
       "copy": "取用另一个四元数的数值。",
       "clone": "一个拥有相同数值的新四元数。",
       "identity": "重置为完全不旋转的状态。",
-      "setFromAxisAngle": "变为绕轴 `v` 旋转 `angle` 弧度的结果。",
+      "setFromAxisAngle": "变为绕轴 `v` 旋转 `angle` 弧度的结果,轴先被归一化为长度 1(`normalizeVector3`)。",
       "setFromEuler": "由三个欧拉角按其指定的顺序合成的旋转(`localTurnQuaternion`)。",
       "setFromRotationMatrix": "取自一个列优先矩阵左上角的 3×3 部分,其各列均为单位长度。",
       "setFromUnitVectors": "把单位向量 `a` 变换到单位向量 `b` 所需的最短旋转。",
@@ -2655,7 +2655,7 @@
       "invert": "变为能撤销这次旋转的逆旋转。",
       "conjugate": "翻转轴的部分:对单位四元数而言就是相反的旋转。",
       "dot": "两次旋转有多一致,取值从 −1 到 1。",
-      "length": "这四个数字合在一起的大小。",
+      "length": "这四个数字合在一起的大小(`lengthQuaternion`)。",
       "normalize": "把这些数值缩放到大小为 1,即一次纯粹的旋转。",
       "angleTo": "两次旋转之间的夹角,单位弧度。",
       "slerp": "沿较短的弧,向 `q` 做球面插值。",
@@ -3679,8 +3679,8 @@
       "add": "加上另一个二维向量。",
       "sub": "减去另一个二维向量。",
       "multiplyScalar": "把两个数字都乘以 `s`。",
-      "length": "这个二维箭头的长度。",
-      "normalize": "保持方向不变,把长度变为 1。",
+      "length": "这个二维箭头的长度(`length2`)。",
+      "normalize": "保持方向不变,把长度变为 1;零向量保持为零。",
       "distanceTo": "到另一个二维点的距离。",
       "fromArray": "从一个列表中读取两个数字。",
       "toArray": "把这两个数字作为一个列表返回。"
@@ -3711,7 +3711,7 @@
       "cross": "变为与两者都垂直的箭头。",
       "crossVectors": "变为与 `u` 和 `v` 都垂直的箭头。",
       "lengthSq": "长度的平方:计算起来更快。",
-      "length": "这个箭头的长度。",
+      "length": "这个箭头的长度(`length3`)。",
       "setLength": "保持方向不变,设置长度。",
       "normalize": "保持方向不变,把长度变为 1。",
       "distanceToSquared": "到某个点的距离的平方。",
@@ -5147,8 +5147,8 @@
   "holdCameraWorld": {
     "summary": "把一台引擎摄像机复制到另一台,复制之后视图会逐位保持一致。"
   },
-  "hslToLinearRgb": {
-    "summary": "把色相、饱和度、明度转换为写入 `out[o..o+2]` 的三个线性分量。"
+  "hslToRgb": {
+    "summary": "把色相、饱和度、明度转换为写入 `out[o..o+2]` 的三个RGB分量。"
   },
   "httpPageSource": {
     "summary": "一个按键从 `baseUrl` 通过 HTTP 获取页面的数据源。"
@@ -6237,7 +6237,7 @@
     "description": "长度是四个平方之和的平方根,按 `hypot4` 求和的方式求和(Kahan),不做它按最大量级的缩放:在 `SQUARED_MIN`..`SQUARED_MAX` 之内,该缩放只会增加舍入——入口处四次除法、出口处一次乘积。相对于精确的 `q / |q|`,在所测的任何输入族上都不比缩放后的长度差,在大多数上更好(近单位四元数上最大 2.7 → 2.3 ULP,平均 0.73 → 0.64),并且少四次除法。在该范围之外——零、NaN、无穷大、接近极限的量级——长度与以前一样,是 `hypot4` 的长度。"
   },
   "normalizeVector3": {
-    "summary": "就地归一化 `at` 处的向量：每个分量都乘以 `1 / (length || 1)`，因此零向量保持为零。"
+    "summary": "就地归一化 `at` 处的向量：每个分量都乘以 `1 / (length3 || 1)`，因此零向量保持为零；短于 2^-1024 的向量先精确乘以 2^1000，使其长度的倒数不会溢出。"
   },
   "normalizedLinearDeterminant": {
     "summary": "**归一化后**线性部分的行列式,按 WGSL 内核的计算顺序:三个列先除以缩放值,再计算 `a · (b × c)`。",
@@ -7649,6 +7649,7 @@
       "isSkeleton": "始终为 `true`：用来识别骨架。",
       "bones": "作为其关节的节点，按关节顺序排列。",
       "boneInverses": "每块骨骼十六个数，按列主序：其世界矩阵在绑定姿态下的逆。",
+      "inverses": "每根骨骼在 `boneInverses` 中的十六个数，按关节顺序排列，作为一次性创建的视图。",
       "palette": "把放置在 `meshWorld` 的网格的调色板，从 `at` 起写入 `out`：对每个关节，写入 `meshWorld⁻¹ · boneWorld · boneInverse` 的各行，它们把网格绑定姿态下的顶点，带到其骨骼承载它的位置，在网格自己的坐标系中——因此之后再应用的网格放置，无论网格节点自身的姿态如何，都会把它画在骨骼所在之处。每块骨骼的世界矩阵是其节点所持有的那个（`matrixWorld`）。"
     }
   },
@@ -7684,8 +7685,8 @@
       "matrix": "其世界位姿，列主序的十六个浮点数。"
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π，唯一的字面量，使切换的每个读取方都舍入同一个数。"
+  "PI": {
+    "summary": "半圈,单位为弧度:`Math.PI`。"
   },
   "IMPOSTOR_VERSION": {
     "summary": "运行时读取的 `impostors` 区段格式(#817 第 1 部分,由编译器预烘焙)。"
