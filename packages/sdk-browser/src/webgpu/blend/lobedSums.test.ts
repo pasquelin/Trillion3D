@@ -13,7 +13,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
-import { shadedLightScope } from './shadedLightScope.fixture.ts'
+import { randomLampScope } from './shadedLightScope.fixture.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const LOOP = [
@@ -44,19 +44,7 @@ test('the lobed blend program sums a fragment without lobes as the lobeless one,
   let lit = 0,
     sums = 0
   for (let round = 0; round < 160; round++) {
-    const count = 1 + Math.floor(u(0, 16))
-    const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
-    const items = [...Array(count).keys()].map((rank) => {
-      const kind = [0, K.KIND_SPOT, K.KIND_SUN][rank % 3]
-      return {
-        positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
-        colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
-        directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
-        params: [kind, -1, 0, kind === K.KIND_SPOT ? 0.9 : 0],
-        shape: [u(0, 0.05), 0, 0, 0],
-      }
-    })
-    const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round)
+    const { count, P, normal: N, scope: shared } = randomLampScope(r, u, K, round, () => -1)
     const scope = { ...F32_SCOPE, ...shared, shadowTransmission: [1, 1, 1] }
     const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
     const sum = (text: string, names: string[], lobes: object, slice: number[]) =>

@@ -44,6 +44,26 @@ function secondSet() {
   return geometry.attributes as HostAttributes
 }
 
+/** The texels of the last atlas the device made. */
+function lastAtlasTexels(textures: ReturnType<typeof fakeDevice>['textures']) {
+  const atlas = textures.at(-1)!
+  return atlas.width * atlas.height * atlas.depthOrArrayLayers
+}
+
+/** `secondSet`'s pairs at the tail of an atlas of `texels`, vertex k at float T − 2(k + 1). */
+function assertSecondSetAtTail(
+  writes: ReturnType<typeof fakeDevice>['texelWrites'],
+  texels: number,
+) {
+  const floats = replay(writes, texels)
+  for (let k = 0; k < 3; k++)
+    assert.deepEqual(
+      [...floats.subarray(texels - 2 * (k + 1), texels - 2 * k)].map((v) => Math.round(v * 10)),
+      [2 * k + 1, 2 * k + 2],
+      `vertex ${k}`,
+    )
+}
+
 test('the pool writes a second UV set at its atlas tail, and refuses one it was opened without', () => {
   const { device, texelWrites, textures } = fakeDevice()
   const attributes = secondSet()
@@ -51,16 +71,9 @@ test('the pool writes a second UV set at its atlas tail, and refuses one it was 
   const pool = createVertexPool(device, 3, false, blocks, 0, undefined, true)
   pool.pack(new Map([[attributes, false]]))
   assert.equal(blocks.get(attributes).hasUv1, true)
-  const atlas = textures.at(-1)!,
-    texels = atlas.width * atlas.height * atlas.depthOrArrayLayers
+  const texels = lastAtlasTexels(textures)
   assert.ok(texels >= 3 * 9, 'the atlas holds the normals and the tail')
-  const floats = replay(texelWrites, texels)
-  for (let k = 0; k < 3; k++)
-    assert.deepEqual(
-      [...floats.subarray(texels - 2 * (k + 1), texels - 2 * k)].map((v) => Math.round(v * 10)),
-      [2 * k + 1, 2 * k + 2],
-      `vertex ${k}`,
-    )
+  assertSecondSetAtTail(texelWrites, texels)
   const without = createVertexPool(device, 3, false, new Map(), 0, undefined, false)
   assert.equal(without.place(attributes), undefined, 'a pool without a second set refuses one')
 })
@@ -70,14 +83,7 @@ test("a transparent's own atlas is written once, its second set at the tail", ()
   const attributes = secondSet()
   const gpu = { blendNormalBuffers: new Map(), vertexBytes: 0 } as unknown as WebgpuGpuState
   ensureBlendNormalAtlas(device, attributes, gpu)
-  const atlas = textures.at(-1)!,
-    texels = atlas.width * atlas.height * atlas.depthOrArrayLayers
+  const texels = lastAtlasTexels(textures)
   assert.equal(texelWrites.length, 1, 'one write, in the atlas order')
-  const floats = replay(texelWrites, texels)
-  for (let k = 0; k < 3; k++)
-    assert.deepEqual(
-      [...floats.subarray(texels - 2 * (k + 1), texels - 2 * k)].map((v) => Math.round(v * 10)),
-      [2 * k + 1, 2 * k + 2],
-      `vertex ${k}`,
-    )
+  assertSecondSetAtTail(texelWrites, texels)
 })

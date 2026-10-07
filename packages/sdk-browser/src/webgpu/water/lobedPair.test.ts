@@ -13,7 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
-import { shadedLightScope } from '../blend/shadedLightScope.fixture.ts'
+import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
@@ -58,19 +58,8 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     u = (lo: number, hi: number) => lo + (hi - lo) * r()
   let lobed = 0
   for (let round = 0; round < 400; round++) {
-    const count = 1 + Math.floor(u(0, 16))
-    const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
-    const items = [...Array(count).keys()].map((rank) => {
-      const kind = [0, K.KIND_SPOT, K.KIND_SUN][rank % 3]
-      return {
-        positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
-        colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
-        directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
-        params: [kind, rank % 2 ? rank : -1, 0, kind === K.KIND_SPOT ? 0.9 : 0],
-        shape: [u(0, 0.05), 0, 0, 0],
-      }
-    })
-    const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round)
+    const lamps = randomLampScope(r, u, K, round, (_, rank) => (rank % 2 ? rank : -1))
+    const { count, P, normal: N, scope: shared } = lamps
     const V = [0.6, 0.8, 0]
     const [rgb, metal, rough] = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1)]
     const scope = {

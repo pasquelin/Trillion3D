@@ -85,12 +85,13 @@ export function streamingQuadBackend(
 }
 
 /**
- * `scene` packed for the GPU cut, mounted on a mock GPU that runs it — two resident pages, a
- * 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
+ * `scene` packed for the GPU cut, mounted on a mock GPU of `limits` that runs it — two resident
+ * pages, a 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
  */
 export async function flushedGpuScene(
   scene: Pick<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>,
   options: Partial<EngineContext> = {},
+  limits?: Record<string, number>,
 ) {
   const collected = collectClusterPages(
     scene.source,
@@ -99,7 +100,7 @@ export async function flushedGpuScene(
     scene.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const gpu = mockGpu({ packed })
+  const gpu = mockGpu({ packed, limits })
   const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,
@@ -110,7 +111,7 @@ export async function flushedGpuScene(
   await backend.prepare()
   backend.render(camera())
   await backend.flush()
-  return { ...gpu, packed, backend }
+  return { ...gpu, packed, roots: collected.roots, backend }
 }
 /** A device roomy enough for the shadow tests' light cuts and pools, at the spec's alignment. */
 export const SHADOW_LIMITS = {

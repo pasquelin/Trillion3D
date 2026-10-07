@@ -36,32 +36,32 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   fixture.geometry.dispose()
 })
 
-test('unchanged uniforms skip a second GPU dispatch', async () => {
+/** The wide-camera DAG's GPU selection on a mock device with `faults`, and that device. */
+async function wideSelection(faults?: Parameters<typeof mockDagDevice>[1]) {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const { device, uniformWrites } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const gpu = mockDagDevice(dag, faults)
+  const selection = await createGpuDagSelection(gpu.device, dag)
   assert.ok(selection)
+  return { fixture, dag, uniforms, gpu, selection }
+}
+
+test('unchanged uniforms skip a second GPU dispatch', async () => {
+  const { fixture, uniforms, gpu, selection } = await wideSelection()
   selection.dispatch(uniforms)
   await selection.flush()
-  const afterFirst = uniformWrites()
+  const afterFirst = gpu.uniformWrites()
   selection.dispatch(uniforms)
   await selection.flush()
-  assert.equal(uniformWrites(), afterFirst)
+  assert.equal(gpu.uniformWrites(), afterFirst)
   selection.dispose()
   fixture.geometry.dispose()
 })
 
 test('the resident mask recomputes for residency changes with an unchanged camera', async () => {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const { device, uniformWrites } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
-  assert.ok(selection)
+  const { fixture, dag, uniforms, gpu, selection } = await wideSelection()
   const mask = () =>
     [
       ...new Uint32Array(
@@ -86,7 +86,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)).sort(),
     ['leaf0', 'leaf1', 'leaf2', 'leaf3'],
   )
-  assert.equal(uniformWrites(), 2)
+  assert.equal(gpu.uniformWrites(), 2)
   assert.deepEqual(mask(), ['leaf0', 'leaf1', 'leaf2', 'leaf3'])
   selection.dispose()
   fixture.geometry.dispose()
@@ -95,13 +95,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
 // #1483: a mapping the device refuses reads nothing, and the next dispatch copies the cut again; a
 // lost device says so on its own (`device.lost`), never a readback.
 test('a failed readback is read again at the next dispatch, the selection kept', async () => {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const gpu = mockDagDevice(dag, { failMap: true })
-  const selection = await createGpuDagSelection(gpu.device, dag)
-  assert.ok(selection)
+  const { fixture, uniforms, gpu, selection } = await wideSelection({ failMap: true })
   selection.dispatch(uniforms)
   assert.equal(await selection.flush(), null)
   assert.equal(selection.failed(), false, 'the selection stays')
