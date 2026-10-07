@@ -38,3 +38,20 @@ test('a pose moved before the plan is read where it went, before any cut', () =>
   selection.visiblePlacements!(planes, (w) => seen.push(w))
   assert.ok(seen.includes(70), 'the plan reads the placement at its new pose')
 })
+
+test('a pose a call names refits its group and the nodes above it, never the whole tree', () => {
+  const { roots, packed, selection, writes } = followed()
+  ;(roots[70].world.elements as Float64Array)[12] = 1000
+  selection.placementMoved!(70)
+  selection.updateWorlds(packed.worlds, true, false)
+  selection.dispatch({} as never)
+  assert.equal(writes.length, 2, 'its group and its cell, of the 26 tree nodes')
+  const seen: number[] = []
+  const { planes } = engineCamera(fieldCamera([990, 2, 0], [1000, 0, -50]))
+  selection.visiblePlacements!(planes, (w) => seen.push(w))
+  assert.ok(seen.includes(70))
+  // A host walk names none: every box is fitted again.
+  selection.updateWorlds(packed.worlds, true, true)
+  selection.dispatch({} as never)
+  assert.equal(writes.length, 2 + 1, 'every tree node, in one run')
+})

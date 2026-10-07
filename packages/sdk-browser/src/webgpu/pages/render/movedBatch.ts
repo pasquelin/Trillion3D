@@ -134,6 +134,8 @@ function passMoves(rt: WebgpuPagesRuntime) {
     const i = ranks[k],
       root = roots[i]
     moveRootRows(rt, root)
+    // The cut's placement tree fits this root's group again, and no other (`treeFollow.ts`).
+    run.gpuSelection?.placementMoved?.(i)
     if (!root.worldBox) continue
     // A node moved: each root under it moved, at the pose it now reads.
     promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0

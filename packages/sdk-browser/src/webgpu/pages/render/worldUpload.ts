@@ -47,7 +47,9 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // the ones the cut holds, bit for bit, whatever the eye.
   const posesMoved = !hostWalked || rootWorldsMoved(worldUpdates, selectionRoots)
   rootWorlds(worldUpdates, selectionRoots)
-  const posted = run.gpuSelection?.updateWorlds(worldUpdates, true, false)
+  // A host walk named no root: every placement of the tree may have moved. A named move told the
+  // tree its roots already (`movedBatch.ts`, `placementMoved`).
+  const posted = run.gpuSelection?.updateWorlds(worldUpdates, true, hostWalked)
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
   // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.

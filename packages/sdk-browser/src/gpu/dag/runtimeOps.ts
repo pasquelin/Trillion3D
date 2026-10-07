@@ -42,7 +42,6 @@ export function updateRuntimeWorlds(
   { resources, state }: DagRun,
   next: Float32Array,
   posesMoved: boolean,
-  translationsOnly: boolean,
 ) {
   const { packed, frames, frameData } = resources
   if (state.disposed || state.dead) return false
@@ -55,10 +54,7 @@ export function updateRuntimeWorlds(
     return originChanged
   }
   // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
-  // Only translations rewritten, the scan could find no linear part that moved: skipped.
-  const stretched = translationsOnly
-    ? 0
-    : refreshWorldStretch(packed.worlds, next, packed, frameData)
+  const stretched = refreshWorldStretch(packed.worlds, next, packed, frameData)
   packed.worlds.set(next)
   frames.writeWorlds(next)
   if (stretched) frames.writeRows()

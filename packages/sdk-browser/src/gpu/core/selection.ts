@@ -97,8 +97,12 @@ export type GpuSelection = {
    *  `appendRoots`): absolute until the rebase brings them to the eye (`../dag/worldRebase.ts`). */
   readonly worldsWritten: number
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
-   *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
-  updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean
+   *  `walked`: the host's walk wrote them, naming no placement — any may have moved —; else the
+   *  placements that moved were named first (`placementMoved`). */
+  updateWorlds(worlds: Float32Array, posesMoved?: boolean, walked?: boolean): boolean
+  /** Placement `world`'s pose was just written by a call that names it (a node moved): its tree
+   *  group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
+  placementMoved?(world: number): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */

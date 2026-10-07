@@ -1,8 +1,9 @@
 /**
  * THE PLACEMENT TREE KEPT TO THE POSES IT BOUNDS: a selection's tree (`placementTree.ts`)
  * fitted again where a change lands, and only there, once before the next cut is encoded — a
- * placement parked or taken back, or marked past what a box holds, refits its group and its cell;
- * poses moved refit every box once, as the worlds they move are sent whole. Each refit writes back
+ * placement parked or taken back, marked past what a box holds or posed by a call that names it
+ * (`placementMoved`), refits its group and the nodes above; a host walk, which names no placement,
+ * refits every box once, as the worlds it moves are sent whole. Each refit writes back
  * the tree nodes it changed, never the placements' own nodes, before the tree is read again: by the
  * CPU, for the placements a view may hold (`visiblePlacements`), or by the cut. A pose the GPU composes (`../../placement/gpuCompose.ts`) is not one the
  * host holds: the first opens every group for the session, so no box the CPU fitted rejects it.
@@ -80,9 +81,11 @@ export function followPlacementTree(
     markWorld(w, mark)
     if (opensTree(packed.mark[w]) !== opened) dirty.add(w)
   }
-  selection.updateWorlds = (worlds, posesMoved = true, translationsOnly = false) => {
-    const moved = updateWorlds(worlds, posesMoved, translationsOnly)
-    if (moved && posesMoved && !translationsOnly) whole = true
+  // A pose a call named fits its group again; a host walk, which names none, fits every box.
+  selection.placementMoved = (w) => void dirty.add(w)
+  selection.updateWorlds = (worlds, posesMoved = true, walked = true) => {
+    const moved = updateWorlds(worlds, posesMoved, walked)
+    if (moved && posesMoved && walked) whole = true
     return moved
   }
   selection.visiblePlacements = (planes, visit) => {
