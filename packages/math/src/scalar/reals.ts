@@ -24,3 +24,24 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 /** `x` wrapped into `[0, n[` by a floored modulo, `n > 0`: `((x % n) + n) % n`. */
 export const wrap = (x: number, n: number) => ((x % n) + n) % n
+
+/** The fractional part of `x` toward −∞, in `[0, 1)` short of rounding: `x − Math.floor(x)`, WGSL's
+ *  `fract`. A negative tiny `x` rounds to 1. */
+export const fract = (x: number) => x - Math.floor(x)
+
+/** `x` modulo `n` floored, the sign of `n`: `x − n · Math.floor(x / n)`. Unlike `wrap`
+ *  it takes one division and one product, and a negative `n` folds into `(n, 0]`. */
+export const floorMod = (x: number, n: number) => x - n * Math.floor(x / n)
+
+/** `out[i] = lerp(from[i], to[i], t)` over `out`'s length; `t === 1` copies `to` exactly — a lerp
+ *  there can miss `to` by a rounding — so a blend run to its end lands on its target. */
+export function lerpArray(
+  out: Float32Array | Float64Array,
+  from: ArrayLike<number>,
+  to: ArrayLike<number>,
+  t: number,
+) {
+  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
+  else for (let i = 0; i < out.length; i++) out[i] = lerp(from[i], to[i], t)
+  return out
+}

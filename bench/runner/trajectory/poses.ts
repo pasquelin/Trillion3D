@@ -1,6 +1,7 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
+import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { Street } from '../street/street.ts'
 
@@ -40,7 +41,7 @@ const POINTS: PathPoint[] = [
 /** The farthest a street point stands from its column, as a share of the clearance: the square the
  *  probe keeps open over the street (`street/street.ts`) and the disc every street segment stays in. */
 export const STREET_REACH = Math.max(
-  ...POINTS.filter((p) => p.at === 'street').map((p) => Math.hypot(p.x, p.z)),
+  ...POINTS.filter((p) => p.at === 'street').map((p) => length2(p.x, p.z)),
 )
 const FRAMES_PER_SEGMENT = 60
 /** One pose per frame, `FRAMES_PER_SEGMENT` frames between two consecutive points. */
@@ -110,7 +111,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const sx = max.x - min.x,
     sy = max.y - min.y,
     sz = max.z - min.z
-  const radius = Math.hypot(sx, sy, sz) / 2
+  const radius = length3(sx, sy, sz) / 2
   const ground = modelFloor(bounds),
     eye = eyeHeight(bounds)
   const road = bounds.street ?? boxStreet(bounds)

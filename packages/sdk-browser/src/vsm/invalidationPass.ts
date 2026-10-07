@@ -42,6 +42,8 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 
@@ -122,7 +124,7 @@ export function vsmInvalidationPhaseFromShadowBoxes(
   for (let b = 0; b < source.count; b++) {
     const { min, max, moving } = source.read(b)
     const finite = writeBox(boxes, b * BOX_WORDS, min, max, moving),
-      radius = Math.hypot(lastBox[3], lastBox[4], lastBox[5])
+      radius = length3(lastBox[3], lastBox[4], lastBox[5])
     for (const entry of entries) {
       if (moving && entry.useCover) continue
       if (finite && !entry.affectsBounds(lastBox, radius)) continue
@@ -285,11 +287,8 @@ function packBox(boxes: Float64Array, b: number, slot: number) {
   imageF.fill(0, o, o + INSTANCE_WORDS)
   for (let c = 0; c < 3; c++) {
     // Column c = basis vector c; w = the translation's high f32.
-    const t = boxes[at + c],
-      high = Math.fround(t)
     imageF[o + c * 5] = 1
-    imageF[o + c * 4 + 3] = high
-    imageF[o + 12 + c] = t - high
+    writeSplitDouble(imageF, o + c * 4 + 3, o + 12 + c, boxes[at + c])
     imageF[o + 20 + c] = boxes[at + 3 + c]
   }
   imageU[o + 19] = VSM_BOX_CASTS | (boxes[at + 6] ? VSM_BOX_MOVING : 0)

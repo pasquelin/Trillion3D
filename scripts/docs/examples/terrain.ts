@@ -1,3 +1,4 @@
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { SceneGltf } from './gltf-scene.ts'
 import { empty, moved } from './mesh.ts'
 import { icosphere } from './solids.ts'
@@ -31,7 +32,7 @@ export function heightGrid(
       const [x, z] = [x0 + i * step, z0 + j * step]
       const e = 0.5
       const [dx, dz] = [height(x + e, z) - height(x - e, z), height(x, z + e) - height(x, z - e)]
-      const length = Math.hypot(dx, 2 * e, dz)
+      const length = length3(dx, 2 * e, dz)
       mesh.positions.push(x, Math.round(height(x, z) * 256) / 256, z)
       mesh.normals.push(-dx / length, (2 * e) / length, -dz / length)
       mesh.uvs.push(i / tiling, j / tiling)

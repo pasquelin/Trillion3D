@@ -9,7 +9,7 @@ import {
   perspectiveProjection,
   updateCameraFrame,
 } from './engine.ts'
-import { canvasView, formatNumber, slider, valueView, verdictView } from './kit.ts'
+import { canvasView, formatNumber, slider, turnAboutY, valueView, verdictView } from './kit.ts'
 import type { DemoDef, DemoState } from './kit.ts'
 import { drawScene } from './drawScene.ts'
 
@@ -39,8 +39,7 @@ function frustumOf(state: DemoState) {
   const world = new Float64Array(16),
     projection = new Float64Array(16),
     clip = new Float64Array(16)
-  const half = state.turn * 0.5
-  composeMatrix4(world, [0, 0, 0], [0, Math.sin(half), 0, Math.cos(half)], [1, 1, 1])
+  composeMatrix4(world, [0, 0, 0], turnAboutY(state.turn), [1, 1, 1])
   perspectiveProjection(projection, state.fov, ASPECT, 0.1, 1)
   const frame = createCameraFrame()
   updateCameraFrame(frame, projection, world, 100)

@@ -10,7 +10,7 @@ import { collectClusterPages } from '../selection/selection.ts'
 import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
-import { pixelScaleOf } from '../../streaming/priority.ts'
+import { focalPixels } from '../../../../math/src/projection/camera.ts'
 import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts'
 import { drawsCard } from './select.fixture.ts'
 
@@ -71,18 +71,16 @@ function impostorRoots() {
   return { fixture, roots }
 }
 
-/** The focal length in pixels the engine's one `pixelScaleOf` reads off the camera's projection. */
-function focalPixels(cam: ReturnType<typeof frontCamera>) {
-  const scale = pixelScaleOf(engineOf(cam).projection, VIEWPORT, [0, 0])
-  return Math.max(scale[0], scale[1])
-}
+/** The focal length in pixels the engine's one `focalPixels` reads off the camera's projection. */
+const focalOf = (cam: ReturnType<typeof frontCamera>) =>
+  focalPixels(engineOf(cam).projection, VIEWPORT[0], VIEWPORT[1])
 
 /** A plan as a backend builds it: the engine camera's world-to-view and the pixel focal. */
 function planFor(
   cam: ReturnType<typeof frontCamera>,
   roots: ReturnType<typeof impostorRoots>['roots'],
 ) {
-  return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam))
+  return planImpostors(roots, section, engineOf(cam).view, focalOf(cam))
 }
 
 test('a switched root is left to its card by the camera cut, its shadow kept', () => {

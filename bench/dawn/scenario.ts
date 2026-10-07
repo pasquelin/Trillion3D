@@ -2,6 +2,7 @@
 // measurer's orbit, wheel turns, camera poses, or the events a person played recorded frame by
 // frame (`recorder.js`) — in named segments, each measured and optionally captured on its own.
 import { readFileSync } from 'node:fs'
+import { lerp } from '../../packages/math/src/scalar/reals.ts'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
 import type { BenchBrowser } from './dom.ts'
 
@@ -68,8 +69,6 @@ export function readScenario(name: string): Scenario {
     throw new Error(`BENCH_SCENARIO: ${name} names no segments of frames`)
   return scenario
 }
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 /** Plays segments on the page: `begin`, then `step(i)` before each of its frames, then `end`. */
 export function createPlayer(browser: BenchBrowser, world: World) {

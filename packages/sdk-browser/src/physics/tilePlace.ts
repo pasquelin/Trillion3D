@@ -14,7 +14,7 @@ import type { NodeMove } from './cookedBodies.ts'
 import type { SharedShape, SharedShapes } from './sharedShapes.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { selectByKey } from '../../../math/src/select.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
@@ -163,7 +163,7 @@ export function moversOf(
     out[n++] = mesh.position.x
     out[n++] = mesh.position.y
     out[n++] = mesh.position.z
-    out[n++] = half + hypot3(v.x, v.y, v.z) * LOOKAHEAD_S
+    out[n++] = half + length3(v.x, v.y, v.z) * LOOKAHEAD_S
   }
   for (const [slot, moves] of nested) {
     const at = worldPoseOf(moves.node).position,
@@ -171,7 +171,7 @@ export function moversOf(
     out[n++] = at[0]
     out[n++] = at[1]
     out[n++] = at[2]
-    out[n++] = moves.reach + hypot3(velocity[v], velocity[v + 1], velocity[v + 2]) * LOOKAHEAD_S
+    out[n++] = moves.reach + length3(velocity[v], velocity[v + 1], velocity[v + 2]) * LOOKAHEAD_S
   }
   return n
 }

@@ -1,4 +1,3 @@
-import { lerp } from '../../../math/src/scalar/reals.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { keptBefore, type TickRecords } from './protocol.ts'
 
@@ -158,15 +157,4 @@ export function eachRecord(
     )
     at = end
   }
-}
-
-/** `out`, `t` of the way from `from` to `to` (`along`): on their line, past `to` beyond 1. */
-export function lerpInto(
-  out: Float32Array | Float64Array,
-  from: ArrayLike<number>,
-  to: ArrayLike<number>,
-  t: number,
-) {
-  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
-  else for (let i = 0; i < out.length; i++) out[i] = lerp(from[i], to[i], t)
 }

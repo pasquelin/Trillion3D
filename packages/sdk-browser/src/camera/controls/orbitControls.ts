@@ -1,4 +1,5 @@
-import { TAU } from '../../../../math/src/constants.ts'
+import { PI, TAU } from '../../../../math/src/constants.ts'
+import { boxEquals } from '../../../../math/src/geometry/box.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
 import { controlPose, readVector, writeVector } from './pose.ts'
@@ -62,7 +63,7 @@ export interface OrbitCameraControls extends PivotCameraControls {
 /** An orbit's default angle limits and turn, which `world.controls` keeps as its own. */
 export const ORBIT_DEFAULTS = {
   minPolarAngle: 0,
-  maxPolarAngle: Math.PI,
+  maxPolarAngle: PI,
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
   autoRotate: 0,
@@ -112,7 +113,7 @@ export function createOrbitCameraControls(
     if (!posed) return false
     for (let i = 0; i < 3; i++)
       if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false
-    for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false
+    if (!boxEquals(bounds, 0, applied, 0)) return false
     return pose.readOrientation(facing).every((value, i) => value === orientation[i])
   }
   const apply = () => {
@@ -125,7 +126,7 @@ export function createOrbitCameraControls(
     spherical[2] = clampCompare(
       spherical[2],
       Math.max(api.minPolarAngle, POLAR_EPSILON),
-      Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),
+      Math.min(api.maxPolarAngle, PI - POLAR_EPSILON),
     )
     fromSpherical(offset, spherical)
     for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i]

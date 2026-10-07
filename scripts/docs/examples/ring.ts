@@ -1,3 +1,6 @@
+import { TAU } from '../../../packages/math/src/constants.ts'
+import { lengthQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { SceneGltf } from './gltf-scene.ts'
 import { randomStream, sineNoise, snap, type Vec3 } from './random.ts'
 import { moved } from './mesh.ts'
@@ -24,7 +27,7 @@ function rock(seed: number) {
       (radius, { centre, size }) => {
         const reach = Math.max(
           0,
-          1 - Math.hypot(...point.map((value, k) => value - centre[k])) / size,
+          1 - length3(point[0] - centre[0], point[1] - centre[1], point[2] - centre[2]) / size,
         )
         return radius - 0.12 * reach ** 2
       },
@@ -66,13 +69,13 @@ export async function writeRing(directory: string) {
   for (let placed = 0; placed < COUNT; placed++) {
     // Denser in two bands with a gap between them; rust inside, ice outside.
     const r = random.next() < 0.45 ? random.uniform(2.6, 3.6) : random.uniform(3.9, 5.2),
-      angle = random.uniform(0, 2 * Math.PI),
+      angle = random.uniform(0, TAU),
       y = random.normal() * (0.05 + 0.02 * (r - 2.6)),
       // A Lomax (Pareto II) draw: many pebbles, a few boulders.
       size = Math.min(0.012 + (0.06 * ((1 - random.next()) ** (-1 / 3) - 1)) / 3, 0.14),
       stone = r < 3.2 && random.next() < 0.6 ? 1 : r > 4.4 && random.next() < 0.6 ? 2 : 0,
       quaternion = [random.normal(), random.normal(), random.normal(), random.normal()],
-      length = Math.hypot(...quaternion),
+      length = lengthQuaternion(quaternion),
       translation: Vec3 = [r * Math.cos(angle), y, r * Math.sin(angle)]
     children.push(
       gltf.node({

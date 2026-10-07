@@ -33,7 +33,7 @@
       // Everything is placed relative to it, so a grain beside it keeps every digit it needs.
       const R = 8000;
       // Smooth noise in 3D, from a grid of hashed values.
-      const noise = valueNoise(1274126177);
+      const noise = valueNoise({ math }, 1274126177);
       // The ground's height above the sea at a direction from the planet's centre. Every scale
       // has its octave — continents, hills, dunes, ripples, down to the roughness of a grain —
       // each as tall as its wavelength allows; the octaves finer than the mesh can hold (`finest`)
@@ -98,6 +98,8 @@
         return { position, directions, heights, index, at };
       }
       // Smooth normals: each vertex the sum of the faces round it.
+      // The scratch each vertex normal is normalised in.
+      const lean = math.vector3();
       function normals(position, index) {
         const n = new Float64Array(position.length);
         for (let f = 0; f < index.length; f += 3) {
@@ -107,8 +109,8 @@
           for (const v of [a, b, c]) for (let i = 0; i < 3; i++) n[v + i] += face[i];
         }
         for (let v = 0; v < n.length; v += 3) {
-          const length = Math.hypot(n[v], n[v + 1], n[v + 2]) || 1;
-          for (let i = 0; i < 3; i++) n[v + i] /= length;
+          const unit = lean.set(n[v], n[v + 1], n[v + 2]).normalize();
+          [n[v], n[v + 1], n[v + 2]] = [unit.x, unit.y, unit.z];
         }
         return n;
       }
@@ -312,7 +314,7 @@
           near = distance / 100;
           world.camera.near = near;
         }
-        const across = 2 * distance * Math.tan((world.camera.fov * Math.PI) / 360);
+        const across = 2 * distance * Math.tan(math.degToRad(world.camera.fov / 2));
         shown(width(across));
         seen(say(SCALES.find(([limit]) => across < limit)[1]));
       });

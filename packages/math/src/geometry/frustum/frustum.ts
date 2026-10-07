@@ -113,10 +113,28 @@ export function frustumFarPlane(
   storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize)
 }
 
-/** True when `(x, y, z)` is on the inner side of all six `planes`, a plane's `a*x + b*y + c*z + d`
- *  summed left to right; a NaN, comparing false, keeps the point. */
+/** The signed distance of `(x, y, z)` to the plane `a, b, c, d` stored at `p[at]` — a distance
+ *  for a unit normal, a scaled one otherwise: `a*x + b*y + c*z + d`, summed left to right. */
+function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z: number) {
+  return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
+}
+
+/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`; a NaN,
+ *  comparing false, keeps the point. */
 export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
-  for (let i = 0; i < 24; i += 4)
-    if (planes[i] * x + planes[i + 1] * y + planes[i + 2] * z + planes[i + 3] < 0) return false
+  for (let i = 0; i < 24; i += 4) if (planeDistance(planes, i, x, y, z) < 0) return false
   return true
+}
+
+/** True when the sphere of centre `(x, y, z)` and radius `reach` lies wholly behind one of the six
+ *  unit `planes`: some `planeDistance` below `−reach`. A NaN, comparing false, keeps the sphere. */
+export function frustumExcludesSphere(
+  planes: ArrayLike<number>,
+  x: number,
+  y: number,
+  z: number,
+  reach: number,
+) {
+  for (let i = 0; i < 24; i += 4) if (planeDistance(planes, i, x, y, z) < -reach) return true
+  return false
 }

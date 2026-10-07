@@ -15,7 +15,7 @@
  * as WGSL's mat4x4f reads them. All distances in metres.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 
@@ -169,6 +169,5 @@ export function vsmShadowUvNormalMatrix(
 ) {
   vsmShadowUvMatrix(scratch, shiftedToShadowView, viewToClip)
   invertMatrix4(scratch, scratch)
-  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) out[c * 4 + r] = scratch[r * 4 + c]
-  return out
+  return transposeMatrix4(out, scratch)
 }

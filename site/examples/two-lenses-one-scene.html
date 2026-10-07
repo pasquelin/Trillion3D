@@ -89,7 +89,7 @@
       eye.position.set(20, 15, 22);
       world.controls.target.set(...target);
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      const radians = (degrees) => (degrees * Math.PI) / 180;
+      const radians = math.degToRad;
       const direction = () => {
         const p = world.camera.position, d = [p.x - target[0], p.y - target[1], p.z - target[2]], length = Math.hypot(...d);
         return { d: d.map((value) => value / length), length };

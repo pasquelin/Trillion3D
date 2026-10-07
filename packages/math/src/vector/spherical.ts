@@ -1,5 +1,5 @@
 import { clamp } from '../scalar/reals.ts'
-import { length3 } from './vector.ts'
+import { length2, length3 } from './vector.ts'
 
 /**
  * Spherical coordinates on flat numbers, shared by the camera controllers and the `math` family.
@@ -31,5 +31,17 @@ export function fromSpherical(out: Float64Array, spherical: ArrayLike<number>) {
   out[0] = spherical[0] * sinPhi * Math.sin(spherical[1])
   out[1] = spherical[0] * Math.cos(spherical[2])
   out[2] = spherical[0] * sinPhi * Math.cos(spherical[1])
+  return out
+}
+
+/**
+ * Writes `[yaw, pitch]` of the direction `(x, y, z)`: `yaw = atan2(−x, −z)`, the turn about +Y from
+ * −Z towards −X, and `pitch = atan2(y, length2(x, z))`, the elevation over the horizontal. The
+ * inverse of `yawPitchQuaternion` applied to −Z; neither needs a unit direction, and the pitch,
+ * read from the height over the horizontal length, keeps its digits at the poles as at the horizon.
+ */
+export function directionYawPitch(out: Float64Array, x: number, y: number, z: number) {
+  out[0] = Math.atan2(-x, -z)
+  out[1] = Math.atan2(y, length2(x, z))
   return out
 }

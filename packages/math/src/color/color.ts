@@ -19,9 +19,15 @@ export function linearToSrgb(c: number) {
   return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055
 }
 
-/** Linear value to its encoded sRGB byte, rounded and held to `[0, 255]`. */
+/** A unit value to its byte: `clamp(Math.round(x · 255), 0, 255)`, the unorm8 encoding. */
+export const unorm8 = (x: number) => clamp(Math.round(x * 255), 0, 255)
+
+/** A unorm8 byte to its unit value, `b / 255`: exact at 0 and 255, and `unorm8` takes it back. */
+export const fromUnorm8 = (b: number) => b / 255
+
+/** Linear value to its encoded sRGB byte: `unorm8` of `linearToSrgb`. */
 export function linearToSrgb8(c: number) {
-  return clamp(Math.round(linearToSrgb(c) * 255), 0, 255)
+  return unorm8(linearToSrgb(c))
 }
 
 /** A component of HSL to RGB conversion, the piecewise ramp. */

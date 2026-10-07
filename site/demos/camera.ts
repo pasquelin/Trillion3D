@@ -12,7 +12,15 @@ import {
   viewToRenderOrigin,
   worldToRenderOrigin,
 } from './engine.ts'
-import { canvasView, formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts'
+import {
+  canvasView,
+  formatNumber,
+  matrixView,
+  slider,
+  turnAboutY,
+  valueView,
+  verdictView,
+} from './kit.ts'
 import type { DemoDef } from './kit.ts'
 
 const scratch = () => new Float64Array(16)
@@ -68,8 +76,7 @@ export const CAMERA_DEMOS: Record<string, DemoDef> = {
       const projection = scratch(),
         world = scratch()
       perspectiveProjection(projection, 50, 1.6, 0.1, 1)
-      const half = state.turn * 0.5
-      composeMatrix4(world, [0, 0, 0], [0, Math.sin(half), 0, Math.cos(half)], [1, 1, 1])
+      composeMatrix4(world, [0, 0, 0], turnAboutY(state.turn), [1, 1, 1])
       const frame = createCameraFrame()
       updateCameraFrame(frame, projection, world, state.far)
       const near: Box6 = [-0.5, -0.5, -3, 0.5, 0.5, -2]

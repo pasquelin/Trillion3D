@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { boardMeshes, pieceTurn, playOpening, SQUARE, type Placed } from './chess-game.ts'
 import { chessPieces } from './chess-pieces.ts'
 import { moved, type Mesh } from './mesh.ts'
@@ -32,7 +33,7 @@ const MATERIALS: Record<string, readonly [number[], number, number, number]> = {
 
 /** The mesh turned by `degrees` about +Y, as USD's `rotateY` turns it, positions and normals. */
 function turnedY(mesh: Mesh, degrees: number): Mesh {
-  const [c, s] = [Math.cos((degrees * Math.PI) / 180), Math.sin((degrees * Math.PI) / 180)],
+  const [c, s] = [Math.cos(degrees * DEG2RAD), Math.sin(degrees * DEG2RAD)],
     turn = (values: readonly number[]) =>
       values.map((value, i) => {
         const [x, z] = [values[i - (i % 3)], values[i - (i % 3) + 2]]

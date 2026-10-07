@@ -260,7 +260,7 @@
           unit.pitch += Math.max(-most, Math.min(most, pitch - unit.pitch));
           unit.fov += (fov - unit.fov) * (1 - Math.exp(-step * 2));
           const cx = state.car.x - at[0], cz = state.car.z - at[2], cy = 1 - at[1], look = [Math.sin(unit.yaw) * Math.cos(unit.pitch), Math.sin(unit.pitch), Math.cos(unit.yaw) * Math.cos(unit.pitch)];
-          unit.seesCar = (look[0] * cx + look[1] * cy + look[2] * cz) / Math.hypot(cx, cy, cz) > Math.cos(((unit.fov / 2) * Math.PI) / 180);
+          unit.seesCar = (look[0] * cx + look[1] * cy + look[2] * cz) / Math.hypot(cx, cy, cz) > Math.cos(math.degToRad(unit.fov / 2));
         });
       }
 

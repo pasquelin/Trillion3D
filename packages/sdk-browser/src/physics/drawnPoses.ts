@@ -5,7 +5,11 @@
  * (`normalizeQuaternionAt`); the arithmetic is the drawn image's, so none of it may be reordered.
  */
 import { lerp } from '../../../math/src/scalar/reals.ts'
-import { normalizeQuaternionAt, slerpOnArc } from '../../../math/src/quaternion/quaternion.ts'
+import {
+  normalizeQuaternionAt,
+  slerpOnArc,
+  turnByAngularVelocity,
+} from '../../../math/src/quaternion/quaternion.ts'
 
 /** The `count` slots listed in `list` on their newest states (`target`) exactly. */
 export function landAll(
@@ -78,17 +82,6 @@ export function extrapolateAll(
       q = index * 4
     for (let k = 0; k < 3; k++) position[p + k] = target[o + k] + velocity[v + k] * ahead
     // The turn at angular velocity ω over `ahead`: q += ½ (ω, 0) ⊗ q · ahead.
-    const wx = velocity[v + 3],
-      wy = velocity[v + 4],
-      wz = velocity[v + 5]
-    const tx = target[o + 3],
-      ty = target[o + 4],
-      tz = target[o + 5],
-      tw = target[o + 6]
-    const x = tx + h * (wx * tw + wy * tz - wz * ty),
-      y = ty + h * (wy * tw + wz * tx - wx * tz),
-      z = tz + h * (wz * tw + wx * ty - wy * tx),
-      w = tw - h * (wx * tx + wy * ty + wz * tz)
-    normalizeQuaternionAt(quaternion, q, x, y, z, w)
+    turnByAngularVelocity(quaternion, q, target, o + 3, velocity, v + 3, h)
   }
 }

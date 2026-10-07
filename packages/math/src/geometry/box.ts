@@ -1,3 +1,4 @@
+import type { NumberSink } from '../matrix/matrix4.ts'
 import { length3 } from '../vector/vector.ts'
 
 /**
@@ -42,6 +43,24 @@ export function boxCenter(
   out[o] = (minX + maxX) * 0.5
   out[o + 1] = (minY + maxY) * 0.5
   out[o + 2] = (minZ + maxZ) * 0.5
+}
+
+/** The centre of the box at `box[bo]` relative to the point `(x, y, z)`, into `out` at `o`: per axis
+ *  `(min − p + (max − p)) / 2`, each bound moved before the sum, so a box far from the origin keeps
+ *  the digits of its offset near `p`. No empty test. */
+export function boxCenterFrom<T extends NumberSink>(
+  out: T,
+  o: number,
+  box: ArrayLike<number>,
+  bo: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  out[o] = (box[bo] - x + (box[bo + 3] - x)) / 2
+  out[o + 1] = (box[bo + 1] - y + (box[bo + 4] - y)) / 2
+  out[o + 2] = (box[bo + 2] - z + (box[bo + 5] - z)) / 2
+  return out
 }
 
 /** True when `(x, y, z)` lies in the box at `o`, its faces included. Each test is a strict

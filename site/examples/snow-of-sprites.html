@@ -187,7 +187,7 @@
       const from = [0, 22, 4], to = [11, 4.2, 15];
       opening(world, (time) => {
         const e = ease.out(time / 4);
-        world.camera.position.set(...mix(from, to, e));
+        world.camera.position.set(...mix({ math }, from, to, e));
         return time < 4;
       });
       let time = 0;

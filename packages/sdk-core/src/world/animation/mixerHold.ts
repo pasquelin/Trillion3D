@@ -16,7 +16,7 @@ import { objectEdits } from '../../scene/core/nodeEdits.ts'
 const MOST_PIXELS = 0.5
 
 /** The camera a scene is drawn through: its eye and unit forward axis in world space, its focal
- *  length in pixels (`pixelScaleOf`, the larger axis), near plane and clip-w weight (1
+ *  length in pixels (`focalPixels`, the larger axis), near plane and clip-w weight (1
  *  perspective, 0 orthographic, `screenErrorBound`). */
 type HoldView = {
   readonly eye: ArrayLike<number>

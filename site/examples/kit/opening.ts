@@ -4,6 +4,8 @@
  * such moves ease on.
  */
 
+import type { Families } from './engineTypes.ts'
+
 const unit = (t: number) => Math.min(1, Math.max(0, t))
 
 /** The curves a move eases on: `t` from 0 to 1 (clamped) gives how far along it is. */
@@ -22,10 +24,14 @@ export const ease = {
   out: (t: number) => 1 - (1 - unit(t)) ** 3,
 }
 
-/** The numbers of `a` moved a fraction `t` of the way to those of `b`, one by one: a position,
- *  a colour, a whole camera pose. */
-export const mix = (a: readonly number[], b: readonly number[], t: number) =>
-  a.map((value, i) => value + (b[i] - value) * t)
+/** The numbers of `a` moved a fraction `t` of the way to those of `b`, one by one, each by the
+ *  engine's `math.lerp`: a position, a colour, a whole camera pose. */
+export const mix = (
+  { math }: Families<'math'>,
+  a: readonly number[],
+  b: readonly number[],
+  t: number,
+) => a.map((value, i) => math.lerp(value, b[i], t))
 
 /** The world as far as the opening goes: its canvas, its loop and its camera controls. */
 export interface OpeningWorld {
@@ -135,9 +141,15 @@ export function cameraView({ camera, controls }: CirclingWorld) {
 }
 
 /** Moves the camera a fraction `t` of the way from the view `from` to the view `to`, both as
- *  `cameraView` gives them. */
-export function glideCamera(world: CirclingWorld, from: number[], to: number[], t: number) {
-  const [x, y, z, tx, ty, tz] = mix(from, to, t)
+ *  `cameraView` gives them, blended by `mix`. */
+export function glideCamera(
+  engine: Families<'math'>,
+  world: CirclingWorld,
+  from: number[],
+  to: number[],
+  t: number,
+) {
+  const [x, y, z, tx, ty, tz] = mix(engine, from, to, t)
   world.camera.position.set(x, y, z)
   world.controls.target.set(tx, ty, tz)
 }
@@ -147,14 +159,14 @@ export function glideCamera(world: CirclingWorld, from: number[], to: number[], 
  * after `wait` seconds, eased by `curve`, until the viewer's press or wheel ends the flight where
  * it is. A flight asked for during another starts from where that one had got to.
  */
-export function flights(world: CirclingWorld, curve = ease.inOut) {
+export function flights(engine: Families<'math'>, world: CirclingWorld, curve = ease.inOut) {
   let from: number[] = [],
     to: number[] = [],
     seconds = 1,
     delay = 0
   const glide = opening(world, (time) => {
     if (!to.length) return false
-    glideCamera(world, from, to, curve((time - delay) / seconds))
+    glideCamera(engine, world, from, to, curve((time - delay) / seconds))
     return time < delay + seconds
   })
   return (view: View, length: number, wait = 0) => {

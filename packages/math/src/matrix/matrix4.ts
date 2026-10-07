@@ -169,6 +169,23 @@ export function copyMatrix4<T extends NumberSink>(
   return out
 }
 
+/** `out = m` with column `c` negated, `m · diag(…, −1 at c, …)`: a flip of one input axis, such
+ *  as a view looking down +z made from one looking down −z. `out` may be `m`; negation is exact,
+ *  so a float32 `out` holds the negated float32 of each number. */
+export function negateColumnMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, c: number) {
+  copyMatrix4(out, m)
+  for (let r = 0; r < 4; r++) out[4 * c + r] = -m[4 * c + r]
+  return out
+}
+
+/** `out = m` with row `r` negated, `diag(…, −1 at r, …) · m`: a flip of one output axis, its four
+ *  entries one per column. `out` may be `m`; negation is exact. */
+export function negateRowMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, r: number) {
+  copyMatrix4(out, m)
+  for (let c = 0; c < 4; c++) out[4 * c + r] = -m[4 * c + r]
+  return out
+}
+
 /** `out = mᵀ`: `out[c · 4 + r] = m[r · 4 + c]`. Each mirrored pair is read before it is written,
  *  so `out` may be `m`. */
 export function transposeMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>) {

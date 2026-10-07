@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { createObservatory, observatoryMaterials, observatorySky } from './scene.ts'
+import { hypot4 } from '../../../packages/math/src/float/hypot.ts'
 
 interface GltfBufferView {
   buffer: number
@@ -146,8 +147,10 @@ export async function writeObservatory(directory: string) {
       indices: attribute(mesh.indices, 1, true),
     })
   }
+  // `hypot4`, the bits of `Math.hypot`, not `lengthQuaternion`: the published sun's rotation
+  // holds its bits.
   const rotation = gltf.nodes[1].rotation,
-    length = Math.hypot(...rotation)
+    length = hypot4(rotation[0], rotation[1], rotation[2], rotation[3])
   gltf.nodes[1].rotation = rotation.map((value) => value / length)
   await mkdir(directory, { recursive: true })
   await Promise.all([

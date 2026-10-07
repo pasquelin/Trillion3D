@@ -7,16 +7,16 @@ import {
 } from '../../../../vsm/projectionPass.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
-import { taaRenderMatrix } from '../../../../taa/frame.ts'
-import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4 } from '../../../../../../math/src/matrix/matrix4.ts'
+import { taaRenderProjection } from '../../../../taa/frame.ts'
+import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
 
-const viewInverse = new Float64Array(16),
-  renderMatrix = new Float64Array(16),
-  jitteredProjection = new Float64Array(16)
+/** The projection the raster drew this image with, the TAA jitter in it (`taaRenderProjection`):
+ *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
+ *  reconstructs it with the jittered projection (#1363). */
+const rasterProjection = new Float64Array(16)
 
 /** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the shadow
  *  maps and their plan. */
@@ -29,16 +29,6 @@ export interface VsmFrame {
   plan: NonNullable<EngineVsm['plan']>
 }
 
-/** The projection the raster drew this image with, the TAA jitter in it (\`taaRenderMatrix\`):
- *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
- *  reconstructs it with the jittered view (#1363). */
-function rasterProjection(rt: WebgpuPagesRuntime, cam: EngineCamera) {
-  invertMatrix4(viewInverse, cam.view)
-  renderMatrix.set(taaRenderMatrix(rt, cam))
-  multiplyMatrix4(jitteredProjection, renderMatrix, viewInverse)
-  return jitteredProjection
-}
-
 /** The non-cluster raster: the resident cluster rows at the main view's detail. */
 export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFrame) {
   const { lights, gpu, vis, layout, run } = rt
@@ -46,7 +36,6 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   const pageGroup = shadowPageGroup(rt, device)
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
-  const p = cam.projection
   vsm.renderedPlan = plan
   vsm.stats.render = encodeVsmRenderAndTransmission(
     rt,
@@ -66,7 +55,7 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
       camera: {
         eye: cam.eye,
         view: cam.view,
-        focalPixels: Math.max((p[0] * width) / 2, (p[5] * height) / 2),
+        focalPixels: focalPixels(cam.projection, width, height),
         near: cam.near,
         perspective: cam.perspective === 1,
         threshold: run.gate.pixelError,
@@ -102,7 +91,7 @@ export function encodeVsmProjection(
   const receiver = gpu.surfaces!.receiverView
   const camera = {
     view: cam.view,
-    projection: rasterProjection(rt, cam),
+    projection: taaRenderProjection(rt, cam, rasterProjection),
     perspective: cam.perspective === 1,
   }
   encodeVirtualShadowProjection(

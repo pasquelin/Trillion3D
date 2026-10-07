@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { TAU } from '../../packages/math/src/constants.ts'
 
 export const compiler = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
@@ -148,7 +149,7 @@ export function world(side: number, district?: string) {
   })
   const nodes: object[] = []
   for (let i = 0; i < side * side; i++) {
-    const yaw = (i * 2.399963) % (2 * Math.PI),
+    const yaw = (i * 2.399963) % TAU,
       scale = 0.75 + ((i * 7) % 10) / 20
     nodes.push({
       name: `${KINDS[i % 3].name} ${i}`,

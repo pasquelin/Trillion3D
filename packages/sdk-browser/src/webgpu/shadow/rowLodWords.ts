@@ -1,5 +1,5 @@
 import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { writeSplitDouble } from '../../gpu/partition/contract.ts'
 import { worldStretch } from '../../page/cut/logic.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -60,7 +60,7 @@ export function writeRowLod(
   const box = root?.worldBox
   // The object's bounding radius: the screen-size cull is an instance test.
   if (box && box[3] >= box[0])
-    out[at + 18] = 0.5 * hypot3(box[3] - box[0], box[4] - box[1], box[5] - box[2])
+    out[at + 18] = 0.5 * length3(box[3] - box[0], box[4] - box[1], box[5] - box[2])
   if (!root || !rec?.sphere || rec.lodError === undefined) return
   // A page bounded where its vertices are (`rowBox`) takes its box's sphere, which no reach
   // grows; its errors still grow by the reach, as far as the deformation carries a finer form from

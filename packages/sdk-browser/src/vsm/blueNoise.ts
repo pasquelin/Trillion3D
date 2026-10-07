@@ -1,6 +1,8 @@
 import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { fract } from '../../../math/src/scalar/reals.ts'
+import { unorm8 } from '../../../math/src/color/color.ts'
 /**
  * Spatio-temporal blue noise for the projection: one noise value and a pair per pixel and frame,
  * the frames' slices stacked down one texture, a pixel's texel at (x mod 64, 64·(frame mod 64) +
@@ -184,7 +186,7 @@ function vsmBlueNoiseTexels(): Uint8Array {
   const a = vsmVoidAndCluster(n, 0x5eed0001),
     b = vsmVoidAndCluster(n, 0x5eed0002),
     c = vsmVoidAndCluster(n, 0x5eed0003)
-  const q = (v: number) => Math.round((v - Math.floor(v)) * 255)
+  const q = (v: number) => unorm8(fract(v))
   const out = new Uint8Array(n * n * slices * 4)
   for (let t = 0; t < slices; t++)
     for (let i = 0; i < n * n; i++) {

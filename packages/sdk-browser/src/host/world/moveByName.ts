@@ -7,7 +7,7 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import { assertFiniteTransform } from './matrices.ts'
-import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
+import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -23,12 +23,6 @@ const local = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
   trsScale = new Float64Array(3)
-
-/** True when `world`, rounded to single precision, is `matrix`. */
-function standsAt(world: Float64Array, matrix: Float32Array) {
-  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false
-  return true
-}
 
 /** The node of `source` a move by name poses at `matrix`, by the name index (`nameIndex.ts`);
  *  a pose that is not sixteen floats, or a name no node bears, is refused by its code. */
@@ -70,7 +64,7 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
     above = parent ? parent.worldMatrix : null
   // The world the node already stands at, to the precision the request carries: moving it there
   // moves nothing — a node's first write included, which the local comparison below cannot judge.
-  if (standsAt(current, matrix)) return false
+  if (sameMatrixFloat32(matrix, current)) return false
   copyMatrix4(local, matrix)
   if (parent && above) {
     // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen

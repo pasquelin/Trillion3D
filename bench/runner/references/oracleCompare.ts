@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { quantile } from '../../../packages/math/src/scalar/quantile.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
@@ -104,10 +105,9 @@ export function compareIrradiance(
       }
     }
   errors.sort((a, b) => a - b)
-  const quantile = (part: number) =>
-    errors.length ? errors[Math.floor(errors.length * part)] : null
-  const median = quantile(0.5),
-    p95 = quantile(0.95)
+  const rank = (part: number) => (errors.length ? (quantile(errors, part) as number) : null)
+  const median = rank(0.5),
+    p95 = rank(0.95)
   return {
     channels: counted,
     clipped,

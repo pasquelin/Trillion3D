@@ -32,9 +32,11 @@
 
       // Vectors as three numbers, and the turn of a vector about a unit axis (Rodrigues).
       const plus = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
-      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-      const unit = (a) => plus([0, 0, 0], a, 1 / Math.hypot(...a));
+      const operandA = math.vector3(), operandB = math.vector3();
+      const dot = (a, b) => operandA.fromArray(a).dot(operandB.fromArray(b));
+      const cross = (a, b) => operandA.fromArray(a).cross(operandB.fromArray(b)).toArray();
+      const direction = math.vector3();
+      const unit = (a) => direction.fromArray(a).normalize().toArray();
       const turn = (v, axis, angle) => plus(plus(plus([0, 0, 0], v, Math.cos(angle)), cross(axis, v), Math.sin(angle)), axis, dot(axis, v) * (1 - Math.cos(angle)));
 
       // The track is drawn like a turtle: a point, the way ahead (T) and the way up (U), moved by
@@ -127,7 +129,7 @@
         }
         const [a, b] = closing ? [samples[high], samples[0]] : [samples[low], samples[high]];
         const k = (s - a.s) / ((closing ? total : b.s) - a.s || 1);
-        return { p: mix(a.p, b.p, k), t: unit(mix(a.t, b.t, k)), u: unit(mix(a.u, b.u, k)), bend: a.bend + (b.bend - a.bend) * k };
+        return { p: mix({ math }, a.p, b.p, k), t: unit(mix({ math }, a.t, b.t, k)), u: unit(mix({ math }, a.u, b.u, k)), bend: math.lerp(a.bend, b.bend, k) };
       }
 
       // Where a point on the track lies along it: the nearest sample, then the segment beside it.
@@ -434,9 +436,9 @@
           if (intro < 1) {
             intro = Math.min(1, intro + step / 3.2);
             const e = ease.smooth(intro);
-            world.camera.up.set(...unit(mix([0, 1, 0], u, e)));
-            world.camera.position.set(...mix(OVERVIEW, eye, e));
-            world.camera.lookAt(...mix(LOOK, target, e));
+            world.camera.up.set(...unit(mix({ math }, [0, 1, 0], u, e)));
+            world.camera.position.set(...mix({ math }, OVERVIEW, eye, e));
+            world.camera.lookAt(...mix({ math }, LOOK, target, e));
           } else {
             world.camera.up.set(...u);
             world.camera.position.set(...eye);

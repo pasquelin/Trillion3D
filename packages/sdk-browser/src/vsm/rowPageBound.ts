@@ -48,7 +48,9 @@ import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { FLOAT32_STEP } from '../../../math/src/constants.ts'
+import { FLOAT32_STEP, SQRT3 } from '../../../math/src/constants.ts'
+import { dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 
 /** The CPU copy of the rows' world spheres (`webgpu/shadow/spheres.ts`): centre high, radius,
  *  centre low, pad, per row; and the row runs `[from, to]` (flat pairs) its upload `epoch` wrote. */
@@ -82,7 +84,6 @@ export const vsmWorstChunk = (rows: number, cmdsPerRow: number, pages: number): 
 /** Relative room for the GPU's f32 cull: its roundings (2⁻²⁴ each, on magnitudes below the row's
  *  distance to the level centre plus its extent) stay below 2⁻¹⁶ of them while fewer than 256. */
 const ROOM = 2 ** -16
-const SQRT3 = Math.sqrt(3)
 const SIDE = VSM_LEVEL0_PAGES
 // Bins: s in quarter octaves from 1 mm (bin 0 below: inside or touching), e in half octaves, read
 // from the f32 bits — exponent, then the mantissa's top bits: the edges are the floats whose lower
@@ -131,8 +132,6 @@ const axesOf = (m: ArrayLike<number>, out: Float64Array = new Float64Array(6)) =
   }
   return out
 }
-const dot = (a: Float64Array, at: number, x: number, y: number, z: number) =>
-  a[at] * x + a[at + 1] * y + a[at + 2] * z
 
 /** Rows binned around a reference point: how many in each bin, each row's bin, and the rows
  *  `[first, cursor)` binned so far. */
@@ -245,15 +244,15 @@ export const createVsmRowBound = (): VsmRowBound => ({
  *  (`binOf`): each row's s widened and its e grown by the f32 room of its distance to `ref`. */
 function binBlock(ref: Float64Array, shape: Shape, p: Float32Array, start: number, n: number) {
   const { spread, roomScale, cone } = shape
-  const [a0, a1, a2, a3, a4, a5, a6, a7, a8] = shape.axes,
+  const { axes } = shape,
     [h0, h1, h2, l0, l1, l2] = ref
   for (let i = 0, at = start * STRIDE; i < n; i++, at += STRIDE) {
     const dx = p[at] - h0 + (p[at + 4] - l0),
       dy = p[at + 1] - h1 + (p[at + 5] - l1),
       dz = p[at + 2] - h2 + (p[at + 6] - l2)
-    const x = a0 * dx + a1 * dy + a2 * dz,
-      y = a3 * dx + a4 * dy + a5 * dz,
-      z = a6 * dx + a7 * dy + a8 * dz
+    const x = dotVector3Xyz(axes, dx, dy, dz),
+      y = dotVector3Xyz(axes, dx, dy, dz, 3),
+      z = dotVector3Xyz(axes, dx, dy, dz, 6)
     const r = p[at + 3] * spread,
       e = r + ROOM * (roomScale * (Math.abs(dx) + Math.abs(dy) + Math.abs(dz)) + r)
     const reach = Math.max(Math.abs(x), Math.abs(y))
@@ -300,10 +299,7 @@ function start(b: Binned, origin: ArrayLike<number>, first: number, rows: number
 
 /** `origin` split as the spheres are: high f32, low. */
 function splitRef(ref: Float64Array, origin: ArrayLike<number>) {
-  for (let k = 0; k < 3; k++) {
-    ref[k] = Math.fround(origin[k])
-    ref[3 + k] = origin[k] - ref[k]
-  }
+  for (let k = 0; k < 3; k++) writeSplitDouble(ref, k, 3 + k, origin[k])
   return ref
 }
 
@@ -835,10 +831,13 @@ function measureKey(bound: VsmRowBound) {
       const dx = c[0] - ref[0] - ref[3],
         dy = c[1] - ref[1] - ref[4],
         dz = c[2] - ref[2] - ref[5]
-      const off = Math.max(Math.abs(dot(axes, 0, dx, dy, dz)), Math.abs(dot(axes, 3, dx, dy, dz)))
+      const off = Math.max(
+        Math.abs(dotVector3Xyz(axes, dx, dy, dz)),
+        Math.abs(dotVector3Xyz(axes, dx, dy, dz, 3)),
+      )
       // Reach of the level's box from the reference; the f32 room of the centre's distance to it.
       out[i * 4] = Math.max(hx, hy) + off
-      out[i * 4 + 1] = ROOM * (Math.hypot(dx, dy, dz) + Math.max(hx, hy) + off)
+      out[i * 4 + 1] = ROOM * (length3(dx, dy, dz) + Math.max(hx, hy) + off)
       out[i * 4 + 2] = (2 * hx) / SIDE
       out[i * 4 + 3] = (2 * hy) / SIDE
     }

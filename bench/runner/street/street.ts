@@ -5,6 +5,7 @@ import type { Page } from 'playwright'
 import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from '../trajectory/poses.ts'
 import { probeColumns } from './streetPage.ts'
 import { readBounds } from '../harness/page.ts'
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 
 /** The street the camera walks: a column under open sky, its ground, and the radius around it at
  *  eye height that no wall crosses. */
@@ -95,7 +96,7 @@ export function pickStreet(probes: readonly ColumnProbe[], bounds: Bounds): Stre
   const cx = (bounds.min.x + bounds.max.x) / 2,
     cz = (bounds.min.z + bounds.max.z) / 2,
     floor = modelFloor(bounds) + eyeHeight(bounds)
-  const off = (p: Street) => Math.hypot(p.x - cx, p.z - cz)
+  const off = (p: Street) => length2(p.x - cx, p.z - cz)
   const best = probes
     .filter((p) => p.known && p.open && p.ground <= floor)
     .reduce<ColumnProbe | null>(

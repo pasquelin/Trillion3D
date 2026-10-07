@@ -2,6 +2,7 @@
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
 import { xorshiftRandom } from '../../../core/index.ts'
+import { normalizeQuaternion } from '../../../../packages/math/src/quaternion/quaternion.ts'
 import { dansDe } from './scenesCore.ts'
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
@@ -39,9 +40,8 @@ const alea = xorshiftRandom(0x3a3a)
 const tire = <T>(list: T[]): T => list[Math.floor(alea() * list.length)]
 const dans = dansDe(alea)
 const tourne = (): Quat => {
-  const q: Quat = [alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5]
-  const l = Math.hypot(...q)
-  return q.map((c) => c / l) as Quat
+  const q = new Float64Array([alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5])
+  return Array.from(normalizeQuaternion(q)) as Quat
 }
 
 /** Hostile positions, rotations and scales: ±0, extremes, NaN, infinities, mirrors, zeros. */

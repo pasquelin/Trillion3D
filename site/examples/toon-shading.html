@@ -180,7 +180,7 @@
         if (key === undefined || key === 'shading') for (const { body, paint } of parts) body.material = sets[values.shading][paint];
         if (key === undefined || key === 'outlines') for (const hull of hulls) hull.visible = values.outlines;
         if (key === undefined || key === 'sun') {
-          const turn = (values.sun * Math.PI) / 180;
+          const turn = math.degToRad(values.sun);
           sun.position.set(Math.sin(turn) * 14, 7, Math.cos(turn) * 14);
         }
         world.invalidate();

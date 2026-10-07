@@ -6,7 +6,7 @@
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
 import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts'
-import { pixelScaleOf } from '../../streaming/priority.ts'
+import { pixelScale as writePixelScale } from '../../../../math/src/projection/camera.ts'
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
@@ -165,10 +165,11 @@ export function cameraSelectionUniforms(
   // view would mix two frames. Single precision only rounds here: everything above is in double.
   planes.set(cam.planesRelative)
   view.set(cam.viewRelative)
-  const pixelScale = pixelScaleOf(
-    cam.projection,
-    viewport,
+  const pixelScale = writePixelScale(
     into?.pixelScale ?? ([1, 1] as [number, number]),
+    cam.projection,
+    viewport?.[0],
+    viewport?.[1],
   )
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [0, 0, 0]
   for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = cam.eye[axis]

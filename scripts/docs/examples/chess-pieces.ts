@@ -1,3 +1,5 @@
+import { HALF_PI, QUARTER_PI } from '../../../packages/math/src/constants.ts'
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import { facing, fromGeometry, lathe, merge, moved, pairs, solid, type Mesh } from './mesh.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { triangulate } from '../../../packages/sdk-core/src/world/geometry/triangulate.ts'
@@ -64,11 +66,11 @@ const HEAD = pairs([
 /** The turned rook, four merlons on its rim, each turned to face out along its radius. */
 function rook(turning: Turning) {
   const merlons = [0, 1, 2, 3].map((k) => {
-    const angle = (k * Math.PI) / 2 + Math.PI / 4
+    const angle = k * HALF_PI + QUARTER_PI
     return fromGeometry(
       geometry
         .box(0.8, 0.6, 0.5)
-        .rotateY(angle + Math.PI / 2)
+        .rotateY(angle + HALF_PI)
         .translate(1.13 * Math.cos(angle), 5.55, 1.13 * Math.sin(angle)),
     )
   })
@@ -92,12 +94,12 @@ function knight(turning: Turning) {
   const inset = HEAD.map((b, i) => {
     const [a, d] = [HEAD.at(i - 1)!, HEAD[(i + 1) % n]],
       unit = (p: readonly number[], q: readonly number[]) => {
-        const length = Math.hypot(q[0] - p[0], q[1] - p[1])
+        const length = length2(q[0] - p[0], q[1] - p[1])
         return [(q[1] - p[1]) / length, -(q[0] - p[0]) / length]
       },
       [n1, n2] = [unit(a, b), unit(b, d)],
       mitre = [n1[0] + n2[0], n1[1] + n2[1]],
-      length = Math.hypot(...mitre),
+      length = length2(mitre[0], mitre[1]),
       [mx, my] = [mitre[0] / length, mitre[1] / length],
       reach = bevel / Math.max(0.4, mx * n1[0] + my * n1[1])
     return [b[0] - mx * reach, b[1] - my * reach] as const

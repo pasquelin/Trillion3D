@@ -1,3 +1,4 @@
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { snap, type RandomStream } from './random.ts'
 
@@ -104,7 +105,7 @@ export function normalMap(height: Raster, strength: number): Raster {
     for (let x = 0; x < size; x++) {
       const dx = (at(x + 1, y) - at(x - 1, y)) * strength,
         dy = (at(x, y + 1) - at(x, y - 1)) * strength,
-        length = Math.hypot(dx, dy, 1)
+        length = length3(dx, dy, 1)
       ;[-dx, dy, 1].forEach(
         (value, k) => (out.data[(y * size + x) * 3 + k] = (value / length) * 127.5 + 127.5),
       )

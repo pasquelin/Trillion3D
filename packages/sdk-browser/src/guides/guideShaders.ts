@@ -1,3 +1,4 @@
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
@@ -30,13 +31,7 @@ export function writeGuideView(
   jitter: ArrayLike<number> = [0, 0],
   scene: ArrayLike<number> = [width, height],
 ) {
-  for (let i = 0; i < 12; i++) into[i] = viewProjection[i]
-  for (let r = 0; r < 4; r++)
-    into[12 + r] =
-      viewProjection[r] * anchor[0] +
-      viewProjection[4 + r] * anchor[1] +
-      viewProjection[8 + r] * anchor[2] +
-      viewProjection[12 + r]
+  matrixAtRenderOrigin(into, viewProjection, anchor)
   into.set([width, height, jitter[0], jitter[1]], 16)
   into[20] = pixelRatio
   into[22] = scene[0]

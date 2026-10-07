@@ -7,6 +7,7 @@
  */
 
 import { ease } from './opening.ts'
+import type { Families } from './engineTypes.ts'
 
 /** A sequence of numbers in [0, 1) from a seed. */
 export type Random = () => number
@@ -37,16 +38,19 @@ export function sineHash(index: number, k: number): number {
   return t - Math.floor(t)
 }
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-
 /**
  * Smooth value noise in [-1, 1] in up to three dimensions: hashed values at the whole lattice
  * points, joined by a smoothstep along each axis. A whole `z` reads a flat slice, so a 2D relief
  * passes its octave there; `seed` draws another field. The lattice is hashed with the odd
  * multipliers of the `z` axis and of the seed given here, so each page keeps the relief it was
- * laid out with.
+ * laid out with. The blends are the engine's `math.lerp`, handed in with the families.
  */
-export function valueNoise(zMultiplier = 2147483647, seedMultiplier = 1597334677) {
+export function valueNoise(
+  { math }: Families<'math'>,
+  zMultiplier = 2147483647,
+  seedMultiplier = 1597334677,
+) {
+  const { lerp } = math
   const lattice = (i: number, j: number, k: number, seed: number) => {
     let h =
       Math.imul(i, 374761393) ^

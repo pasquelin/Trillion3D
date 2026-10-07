@@ -1,4 +1,5 @@
 import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts'
+import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import { taaWeightTable } from './weights.ts'
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
@@ -86,8 +87,7 @@ export function writeTaaView(
     dx = state.previousEye[0] - eye[0],
     dy = state.previousEye[1] - eye[1],
     dz = state.previousEye[2] - eye[2]
-  for (let row = 0; row < 4; row++)
-    packed[68 + row] = last[row] * dx + last[4 + row] * dy + last[8 + row] * dz
+  for (let row = 0; row < 4; row++) packed[68 + row] = transformDirectionRow(last, row, dx, dy, dz)
   packed[72] = FLICKER_COUNT_RATE
   packed[73] = flickerParallax(display[0])
   // A render pixel's world width at a clip w of one: 2 / (projection x scale · render width).

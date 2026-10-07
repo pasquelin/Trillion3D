@@ -1,7 +1,11 @@
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { GuidePiece } from './guideObject.ts'
 
 /** Floats of one drawn instance: two ends, the packed colour, the width in pixels. */
 export const GUIDE_INSTANCE_FLOATS = 8
+
+/** The end being placed, in double precision, before its anchor is taken off. */
+const placed = new Float64Array(3)
 
 /** One guide a page drew: its pieces, what the ceiling counts of it, its pose and visibility. */
 export interface GuideEntry {
@@ -30,8 +34,8 @@ export function packGuides(entries: Iterable<GuideEntry>) {
       for (let s = 0; s < ends.length; s += 6, at += GUIDE_INSTANCE_FLOATS) {
         for (let e = 0; e < 6; e += 3) {
           const [x, y, z] = [ends[s + e], ends[s + e + 1], ends[s + e + 2]]
-          for (let c = 0; c < 3; c++)
-            data[at + e + c] = m[c] * x + m[4 + c] * y + m[8 + c] * z + m[12 + c] - anchor[c]
+          transformAffinePoint(placed, m, x, y, z)
+          for (let c = 0; c < 3; c++) data[at + e + c] = placed[c] - anchor[c]
         }
         // Bytes r, g, b, a in memory order: what `unorm8x4` and `UNSIGNED_BYTE` read.
         words[at + 6] =

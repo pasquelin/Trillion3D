@@ -176,7 +176,7 @@
       // or the viewer takes the controls, the verdict shows and is published as `window.__verdict`.
       const wide = [70, 60, 90],
         swept = [-90, 0, edge / 2];
-      flown = tour(world, [
+      flown = tour({ math }, world, [
         { name: 'close', position: [x + 7, top + 3, z + 9], target: [x, top + 1, z], seconds: 3, hold: 2 },
         { name: 'far', position: wide, target: [0, 0, edge], seconds: 3, hold: 2 },
         { name: 'pan', position: wide, target: swept, seconds: 0.8, hold: 0.4 },

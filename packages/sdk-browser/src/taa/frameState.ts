@@ -11,6 +11,9 @@ export interface TaaFrameState {
   phases: number
   /** This image's jitter, in the pixels it is drawn in. */
   jitter: Float64Array
+  /** Those pixels, `(width, height)`, as the image's entry read them: the grid the render matrices'
+   *  clip offset divides the jitter by (`jitterViewProjection`). */
+  jitterGrid: Float64Array
   /** Render view-projection of this image, jitter included: what the raster, shading, blend and
    *  the partition read, decided once at image entry. */
   viewProjection: Float64Array
@@ -66,6 +69,7 @@ export function createTaaFrameState(): TaaFrameState {
     stochasticSample: 0,
     phases: TAA_SAMPLES,
     jitter: new Float64Array(2),
+    jitterGrid: new Float64Array(2),
     viewProjection: new Float64Array(16),
     previousViewProjection: new Float64Array(16),
     previousEye: new Float64Array(3),

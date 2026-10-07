@@ -1,7 +1,7 @@
-import { pixelScaleOf } from '../streaming/priority.ts'
+import { focalPixels } from '../../../math/src/projection/camera.ts'
 import { worldStretch } from '../page/cut/logic.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
@@ -22,7 +22,7 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
     1,
     viewLateralOf(x, y, z, cam.view),
     viewDepthOf(x, y, z, cam.view),
-    hypot3(box[3] - x, box[4] - y, box[5] - z),
+    length3(box[3] - x, box[4] - y, box[5] - z),
     focal,
     cam.near,
     cam.perspective,
@@ -37,7 +37,6 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
  * allocates nothing.
  */
 export function createDeformationSkip() {
-  const scale: [number, number] = [1, 1]
   let roots: Roots = [],
     cam: EngineCamera | undefined,
     focal = 0,
@@ -53,8 +52,7 @@ export function createDeformationSkip() {
     roots = frameRoots
     cam = frameCam
     threshold = pixelError
-    pixelScaleOf(cam.projection, viewport, scale)
-    focal = Math.max(scale[0], scale[1])
+    focal = focalPixels(cam.projection, viewport?.[0], viewport?.[1])
     return skipped
   }
 }

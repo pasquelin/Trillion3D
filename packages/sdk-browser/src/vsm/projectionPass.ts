@@ -13,7 +13,14 @@
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import {
+  copyMatrix4,
+  multiplyMatrix4,
+  negateColumnMatrix4,
+  negateRowMatrix4,
+} from '../../../math/src/matrix/matrix4.ts'
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
+import { QUARTER_PI } from '../../../math/src/constants.ts'
 import {
   preparedComputePipeline,
   preparedPipelines,
@@ -135,6 +142,8 @@ const scratch = {
   clipToShifted: new Float64Array(16),
   viewInverse: new Float64Array(16),
   shift: new Float64Array(3),
+  /** The shift negated: the point `T(originShift)` takes to the world origin. */
+  origin: new Float64Array(3),
 }
 
 /** The words of a view uniform's staging image, as floats, unsigned and signed integers. */
@@ -161,21 +170,21 @@ type ViewInputs = Pick<
  *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
 function viewMatrices(camera: ViewInputs['camera']) {
   const s = scratch
-  for (let k = 0; k < 16; k++) s.view[k] = camera.view[k]
+  copyMatrix4(s.view, camera.view)
   invertMatrix4(s.viewInverse, s.view)
   // The eye: the inverse view's translation (words 12-14).
   const eye = s.viewInverse,
     shift = s.shift
-  for (let k = 0; k < 3; k++) shift[k] = camera.originShift ? camera.originShift[k] : -eye[12 + k]
-  // shiftedToView = flipZ · view · T(originShift).
-  s.shiftedToView.set(s.view)
-  for (let r = 0; r < 3; r++)
-    s.shiftedToView[12 + r] =
-      s.view[12 + r] - (s.view[r] * shift[0] + s.view[4 + r] * shift[1] + s.view[8 + r] * shift[2])
-  for (let k = 2; k < 16; k += 4) s.shiftedToView[k] = -s.shiftedToView[k]
-  // viewToClip = projection · flipZ.
-  for (let k = 0; k < 16; k++) s.viewToClip[k] = camera.projection[k]
-  for (let k = 8; k < 12; k++) s.viewToClip[k] = -s.viewToClip[k]
+  for (let k = 0; k < 3; k++) {
+    shift[k] = camera.originShift ? camera.originShift[k] : -eye[12 + k]
+    s.origin[k] = -shift[k]
+  }
+  // shiftedToView = flipZ · view · T(originShift): the view at the render origin −shift, its z row
+  // negated.
+  matrixAtRenderOrigin(s.shiftedToView, s.view, s.origin)
+  negateRowMatrix4(s.shiftedToView, s.shiftedToView, 2)
+  // viewToClip = projection · flipZ: its z column negated.
+  negateColumnMatrix4(s.viewToClip, camera.projection, 2)
   multiplyMatrix4(s.shiftedToClip, s.viewToClip, s.shiftedToView)
   invertMatrix4(s.clipToShifted, s.shiftedToClip)
 }
@@ -195,9 +204,9 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
   writeSplitDouble(f, 65, 69, shift[1])
   writeSplitDouble(f, 66, 70, shift[2])
   u[67] = inputs.frameIndex >>> 0
-  // A matrix test M[3][3] < 1 would tell it from the exact matrix; the engine knows its camera's kind, which a
-  // projection rebuilt through the view's inverse (`vsmEncode.ts` rasterProjection) or scaled
-  // (an orthographic box's zoom scales M[3][3] with it) no longer tells by its value.
+  // The camera's kind as the engine knows it, never a matrix test M[3][3] < 1: the projection's
+  // jitter (`taaRenderProjection`) leaves rows 2 and 3 as they are, but the same projection
+  // scaled as a homogeneous matrix (×0.25: M[3][3] = 0.25 for an orthographic one) would fail it.
   const perspective = inputs.camera.perspective
   u[71] = perspective ? 0 : 1
   f[72] = eye[12] + shift[0]
@@ -265,7 +274,7 @@ function writeLightRecord(
   f[o + 7] = light.sourceRadius ?? 0
   if (light.type === 'spot') {
     // The spot cone: inner clamped below outer, the angles = (cos outer, 1/(cos inner − cos outer)).
-    const outer = light.outerConeAngle ?? Math.PI / 4
+    const outer = light.outerConeAngle ?? QUARTER_PI
     const inner = clamp(light.innerConeAngle ?? 0, 0, outer - 0.001)
     const cosOuter = Math.cos(outer)
     f[o + 8] = cosOuter

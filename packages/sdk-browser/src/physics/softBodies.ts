@@ -16,7 +16,8 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts'
 import { type Bodied, type createPhysicsBodies } from './bodies.ts'
 import type { TickRecords } from './protocol.ts'
-import { createTwoSteps, eachRecord, lerpInto } from './twoSteps.ts'
+import { createTwoSteps, eachRecord } from './twoSteps.ts'
+import { lerpArray } from '../../../math/src/scalar/reals.ts'
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> }
 
@@ -164,7 +165,7 @@ export function createSoftVertices(
     if (t !== 1) {
       if (drawn.length < to.length) drawn = new Float32Array(to.length)
       vertices = drawn.subarray(0, to.length)
-      lerpInto(vertices, from, to, t)
+      lerpArray(vertices, from, to, t)
     }
     if (source) receiveSoftSource(source, vertices)
     if (!page) return

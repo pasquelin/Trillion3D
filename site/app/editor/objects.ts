@@ -5,6 +5,7 @@ import type {
   Mesh,
   Object3D,
 } from '../../../packages/sdk-browser/src/index.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import type { Engine } from './session.ts'
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */
@@ -66,7 +67,7 @@ export function build(engine: Engine, kind: AddKind, name: string, size?: number
     })
     node = engine.object.mesh(shapeBuilder(engine, shape)!(...(size ?? FIRST_SIZE[shape])), matter)
     // A plane lies on the grid, a solid stands on it.
-    if (shape === 'plane') node.rotation.x = -Math.PI / 2
+    if (shape === 'plane') node.rotation.x = -HALF_PI
     else node.position.y = shape === 'torus' ? 0.2 : 0.5
   }
   node.name = name

@@ -8,7 +8,7 @@
  * gzip worse (`check-bundle-size.ts`).
  */
 export { markCard, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
-export { pixelScaleOf } from '../../streaming/priority.ts'
+export { focalPixels } from '../../../../math/src/projection/camera.ts'
 export { grownCapacity } from '../../placement/rows.ts'
 export { createHeldLevels, readHeldLevel } from '../../texture/heldLevels.ts'
 export { evictOldest } from '../../streaming/evictOldest.ts'

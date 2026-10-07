@@ -3,6 +3,7 @@
 // an order that alternates every round, so neither always runs first on a cold cache.
 import v8 from 'node:v8'
 import vm from 'node:vm'
+import { median } from '../../packages/math/src/scalar/quantile.ts'
 import type { Stats } from '../../site/examples/kit/measureTypes.ts'
 
 export interface Reglages {
@@ -74,11 +75,6 @@ async function series(calculation: (input: unknown) => unknown, input: unknown):
   const asynchrone = estPromesse(premier)
   puits.valeur = asynchrone ? await premier : premier
   return { calculation, input, asynchrone, reps: 1, durees: [] }
-}
-
-const median = (t: number[]) => {
-  const milieu = t.length >> 1
-  return t.length % 2 ? t[milieu] : (t[milieu - 1] + t[milieu]) / 2
 }
 
 export function stats(durees: number[]): Stats {

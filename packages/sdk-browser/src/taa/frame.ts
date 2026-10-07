@@ -1,5 +1,6 @@
 import { jitterViewProjection, taaJitter, taaStillFrames, upscalePhases } from './jitter.ts'
 import { writeTaaView } from './view.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -76,6 +77,8 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   if (quiet && !converging && state.stillFrames <= taaStillFrames(state.phases)) state.stillDrawn++
   const offset = converging ? (state.stillPhase ?? 0) : 0
   taaJitter(state.sample + offset, state.jitter, state.phases)
+  state.jitterGrid[0] = targetSize[0]
+  state.jitterGrid[1] = targetSize[1]
   jitterViewProjection(
     state.viewProjection,
     cam.viewProjection,
@@ -89,6 +92,22 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
 export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): ArrayLike<number> {
   const temporal = rt.gpu.temporal
   return temporal?.frame.active ? temporal.frame.viewProjection : cam.viewProjection
+}
+/** Render projection of this image into `out`: the camera's projection shifted by the jitter
+ *  `beginTaaFrame` set — the same clip offset, from the same jitter and grid, as the render
+ *  matrix's —, the camera's own when the image does not accumulate. */
+export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, out: Float64Array) {
+  const frame = rt.gpu.temporal?.frame
+  if (!frame?.active) return copyMatrix4(out, cam.projection)
+  const { jitter, jitterGrid } = frame
+  return jitterViewProjection(
+    out,
+    cam.projection,
+    jitter[0],
+    jitter[1],
+    jitterGrid[0],
+    jitterGrid[1],
+  )
 }
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image

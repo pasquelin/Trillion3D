@@ -12,6 +12,12 @@ export function dotVector3(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, 
   return a[aAt] * b[bAt] + a[aAt + 1] * b[bAt + 1] + a[aAt + 2] * b[bAt + 2]
 }
 
+/** `a · (x, y, z)`, the vector read at `aAt` against three numbers: `dotVector3`'s terms and
+ *  order, for a hot loop that holds the second vector in locals. */
+export function dotVector3Xyz(a: ArrayLike<number>, x: number, y: number, z: number, aAt = 0) {
+  return a[aAt] * x + a[aAt + 1] * y + a[aAt + 2] * z
+}
+
 /**
  * `out[outAt..outAt + 2] = a × b`, operands read at `aAt` and `bAt`. The six components are read
  * before the first write, so `out` may be `a` or `b`.
@@ -79,6 +85,34 @@ export function transformHomogeneousPoint<T extends NumberSink>(
 export const NORMAL_SQUARES = 2 ** -969
 
 /**
+ * Row `row` of `M · (x, y, z, 1)`, `M` column-major from `mAt`: `transformHomogeneousPoint`'s
+ * component `row`, its terms and order — one coordinate of a point (a view depth, a clip w) without
+ * the other three.
+ */
+export function transformPointRow(
+  m: ArrayLike<number>,
+  row: number,
+  x: number,
+  y: number,
+  z: number,
+  mAt = 0,
+) {
+  return m[mAt + row] * x + m[mAt + 4 + row] * y + m[mAt + 8 + row] * z + m[mAt + 12 + row]
+}
+
+/** Row `row` of `M · (x, y, z, 0)`, `M` column-major: one coordinate of a direction, the
+ *  translation left out, summed as `transformPointRow` sums. */
+export function transformDirectionRow(
+  m: ArrayLike<number>,
+  row: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  return m[row] * x + m[4 + row] * y + m[8 + row] * z
+}
+
+/**
  * The length of `(x, y, z)`: `Math.sqrt` of the three squares summed left to right, the order of
  * WGSL's `length()`, when that sum is at least `NORMAL_SQUARES` and finite; otherwise — a zero
  * vector, components below about 1e-146 or past about 1e154 — `hypot3`, which scales first and
@@ -129,6 +163,62 @@ export function normalizeVector3(v: NumberSink, at = 0) {
   v[at] *= inverse
   v[at + 1] *= inverse
   v[at + 2] *= inverse
+}
+
+/**
+ * The vector at `v[vAt]` made unit into `out` at `outAt`, or zero when its squared length is below
+ * `minLengthSq`: `sq = x·x + y·y + z·z`, then each component times `1 / Math.sqrt(sq)` — the bits of
+ * `normalizeVector3` whenever `sq` is finite and at least both `minLengthSq` and `NORMAL_SQUARES`.
+ * The three are read before the first write, so `out` may be `v`. A NaN component compares false
+ * against the bound and comes out NaN.
+ */
+export function normalizeVector3OrZero<T extends NumberSink>(
+  out: T,
+  v: ArrayLike<number>,
+  minLengthSq: number,
+  outAt = 0,
+  vAt = 0,
+) {
+  const x = v[vAt],
+    y = v[vAt + 1],
+    z = v[vAt + 2]
+  const sq = x * x + y * y + z * z
+  if (sq < minLengthSq) {
+    out[outAt] = 0
+    out[outAt + 1] = 0
+    out[outAt + 2] = 0
+    return out
+  }
+  const s = 1 / Math.sqrt(sq)
+  out[outAt] = x * s
+  out[outAt + 1] = y * s
+  out[outAt + 2] = z * s
+  return out
+}
+
+/**
+ * The signed angle in radians that turns `a` onto `b` about the axis `n`, in `(−π, π]`:
+ * `atan2((a × b) · n, a · b)`, the cross product in `crossVector3`'s order and the dot product
+ * `dotVector3`'s. Neither vector need be unit; `n` should be, and the sign follows it.
+ */
+export function signedAngleVector3(
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+  n: ArrayLike<number>,
+  aAt = 0,
+  bAt = 0,
+  nAt = 0,
+) {
+  const ax = a[aAt],
+    ay = a[aAt + 1],
+    az = a[aAt + 2]
+  const bx = b[bAt],
+    by = b[bAt + 1],
+    bz = b[bAt + 2]
+  const cx = ay * bz - az * by,
+    cy = az * bx - ax * bz,
+    cz = ax * by - ay * bx
+  return Math.atan2(cx * n[nAt] + cy * n[nAt + 1] + cz * n[nAt + 2], dotVector3(a, b, aAt, bAt))
 }
 
 /** `normalizeVector3` in the plane: the two components at `at` multiplied by `1 / (length2 || 1)`,

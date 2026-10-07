@@ -5,6 +5,7 @@ import {
   boxTransform,
   boxUnion,
   composeMatrix4,
+  RAD2DEG,
   sphereFromBounds,
 } from './engine.ts'
 import { formatNumber, slider, valueView, verdictView } from './kit.ts'
@@ -93,7 +94,7 @@ export const BOX_DEMOS: Record<string, DemoDef> = {
         ),
         valueView('what the test read', [
           ['cone axis', axis.map(formatNumber).join(', ')],
-          ['half-angle', `${formatNumber((state.angle * 180) / Math.PI)}°`],
+          ['half-angle', `${formatNumber(state.angle * RAD2DEG)}°`],
           ['viewer', `0, 0, ${formatNumber(state.distance)}`],
           ['note', 'an angle at or above π/2 never rejects'],
         ]),
