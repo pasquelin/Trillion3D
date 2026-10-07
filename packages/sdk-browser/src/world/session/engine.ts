@@ -109,9 +109,7 @@ function engineContext(
     indices,
     // The session's reads: the engine's own signal when it has one, the session's life at least.
     readPage: (url) => streamer.read(url, streamer.signal),
-    readGeometryPage: worldOrGeometryReader(worldRoots, (url, own, priority) =>
-      streamer.readBytes(url, own ?? streamer.signal, priority),
-    ),
+    readGeometryPage: worldOrGeometryReader(worldRoots, streamer.readBytes, streamer.signal),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
     associations: inputs.associations,

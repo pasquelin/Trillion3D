@@ -88,7 +88,7 @@ function worldStream(
   dag: Announced | undefined,
   dagUrl: string,
   signal: AbortSignal | undefined,
-  pages: (bundle: number, signal: AbortSignal) => Promise<WorldRootsPage[]>,
+  pages: (bundle: number, signal: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
 ) {
   let stream: WorldStream | undefined
   const open = async () => {
@@ -139,17 +139,19 @@ function readTop(
 /**
  * The cache's geometry page reader `read` with the world's pages of `hold` served by its own
  * source: built once, where the engine's context is made, and the one reader every page read goes
- * through. Without a stream to draw from, `read` itself.
+ * through. Both kinds of page are read under the reader's own signal, else `session`'s — a read
+ * never outlives its session —, at the caller's priority.
  */
 export function worldOrGeometryReader(
   hold: WorldRootsHold | undefined,
-  read: ((url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>) | undefined,
+  read: (url: string, signal: AbortSignal, priority?: number) => Promise<Uint8Array>,
+  session: AbortSignal,
 ) {
   const world = hold?.drawn
-  if (!world) return read
-  return (url: string, signal?: AbortSignal, priority?: number) => {
-    if (url.startsWith(`${WORLD_ROOTS_BIN}#`)) return world.source.read(url, signal)
-    if (!read) return Promise.reject(new Error('Missing geometry page reader'))
+  return (url: string, own?: AbortSignal, priority?: number) => {
+    const signal = own ?? session
+    if (world && url.startsWith(`${WORLD_ROOTS_BIN}#`))
+      return world.source.read(url, signal, priority)
     return read(url, signal, priority)
   }
 }

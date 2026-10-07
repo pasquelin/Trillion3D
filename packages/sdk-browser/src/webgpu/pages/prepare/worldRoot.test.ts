@@ -40,7 +40,7 @@ async function scene(t: Parameters<typeof served>[0], alone = false) {
     source,
     associations: new Map([[opaque, { meshes: 0, primitives: 0 }]]),
     worldRoots: hold,
-    readGeometryPage: worldOrGeometryReader(hold, host),
+    readGeometryPage: worldOrGeometryReader(hold, host, new AbortController().signal),
   } as unknown as EngineContext
   return { context, hold, bin, table, opaque, reads }
 }
@@ -155,6 +155,26 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
   hold.release(0)
   await hold.hold(0)
   assert.equal(told.length, 4, 'nothing followed past the end')
+})
+
+test('a session that ends leaves the room of one that started since: the room is its own', async (t) => {
+  const { context, opaque, hold } = await scene(t, true)
+  const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
+  const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
+  const session = (ends: AbortController) =>
+    ({
+      ...{ context, layout: { selectionRoots }, signal: ends.signal },
+      run: { gate: { resourcesChanged: () => {} } },
+      setup: { floorPages: 8, bootstrap: { length: 6 } },
+    }) as unknown as Parameters<typeof coverHeldRoots>[0]
+  const first = new AbortController(),
+    second = new AbortController()
+  coverHeldRoots(session(first), { holdCover: () => {} }, () => 58)
+  coverHeldRoots(session(second), { holdCover: () => {} }, () => 30)
+  first.abort()
+  assert.equal(hold.cover.room?.(), 28, "the second session's room stands")
+  second.abort()
+  assert.equal(hold.cover.room, undefined)
 })
 
 test('the pages a bundle read lands go to the free slots of the pool, unpinned, never past them', async (t) => {

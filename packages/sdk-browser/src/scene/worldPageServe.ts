@@ -101,7 +101,11 @@ function rankAt(table: WorldRoots, bundle: number, offset: number) {
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
-type BundlePages = (bundle: number, signal: AbortSignal) => Promise<WorldRootsPage[]>
+type BundlePages = (
+  bundle: number,
+  signal: AbortSignal,
+  priority?: number,
+) => Promise<WorldRootsPage[]>
 
 /**
  * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
@@ -138,7 +142,8 @@ export function worldPageServer(
         others.push(worldRootsPageAddress(at, bundle, table.pages.at(first + k).offset))
     if (others.length) landed?.(others)
   }
-  const serve = async (address: string, signal?: AbortSignal) => {
+  /** The page at `address`, its bundle read at the first asker's `priority`. */
+  const serve = async (address: string, signal?: AbortSignal, priority?: number) => {
     const { bundle, offset } = worldRootsPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
     // A caller gone already joins nothing.
@@ -147,7 +152,7 @@ export function worldPageServer(
     if (!own || own.stop.signal.aborted) {
       const stop = new AbortController()
       const fresh: Streamed = {
-        ...{ promise: bundlePages(bundle, stop.signal), askers: 0, stop },
+        ...{ promise: bundlePages(bundle, stop.signal, priority), askers: 0, stop },
         ...{ users: 0, told: false },
       }
       fresh.promise.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
@@ -179,8 +184,10 @@ export function worldPageServer(
     },
     /** The page at `address`: its geometry page's bytes. */
     page: serve,
-    /** The bytes a GPU page slot holds: the page's own, decoded in place as any page's. */
-    read: async (key: string, signal?: AbortSignal) => (await serve(key, signal)).bytes,
+    /** The bytes a GPU page slot holds: the page's own, decoded in place as any page's, read at the
+     *  admission's `priority`. */
+    read: async (key: string, signal?: AbortSignal, priority?: number) =>
+      (await serve(key, signal, priority)).bytes,
   }
   return server satisfies PageSource
 }

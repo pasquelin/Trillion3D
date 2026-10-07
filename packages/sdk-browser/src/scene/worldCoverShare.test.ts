@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { createWorldBundles } from './worldBundles.ts'
+import type { PageQueue } from '../streaming/types.ts'
 
 /** The fixture's bundles, `rootsIn` counting each one's roots, no session bound: a hold counts its
  *  bundles at once and waits for a queue, let go with the test. */
@@ -62,4 +63,29 @@ test('a cell is held far while the roots its unheld bundles add fit the room', (
   bundles.release(0)
   assert.ok(!cover.admits(1))
   stop.abort()
+})
+
+test("a hold refused for good takes its bundles' roots out at once, its cell still held", async () => {
+  const { bundles } = bundlesOf()
+  const refusing = {
+    signal: new AbortController().signal,
+    admit: () => {},
+    readBytes: async () => {
+      throw new Error('PAGE_STREAM_FAILED: refused for good')
+    },
+  } as unknown as PageQueue
+  bundles.bind(refusing)
+  const told: [number, boolean][] = []
+  bundles.watch((bundle, held) => void told.push([bundle, held]))
+  await assert.rejects(bundles.hold(0), /PAGE_STREAM_FAILED/)
+  assert.deepEqual(
+    told
+      .filter(([, held]) => !held)
+      .map(([bundle]) => bundle)
+      .sort(),
+    [1, 3],
+  )
+  assert.deepEqual(bundles.held(), [], 'no root that can never load stays followed')
+  bundles.release(0)
+  assert.equal(told.length, 4, 'its leave tells nothing more')
 })
