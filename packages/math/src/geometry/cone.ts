@@ -1,6 +1,5 @@
 import { coneRejects } from '../projection/projectionOracles.ts'
 import { length3 } from '../vector/vector.ts'
-import { HALF_PI } from '../constants.ts'
 import { clamp } from '../scalar/reals.ts'
 
 /**
