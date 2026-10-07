@@ -3,6 +3,7 @@ import { CLUSTER_WORDS } from './layout.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import type { DagPartTable } from './shader/bindings.ts'
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts'
+import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -93,5 +94,43 @@ export function writeParts(
       bytes = Math.min(end - at, parts.bytes - within)
     device.queue.writeBuffer(parts.buffers[part], within, data, dataOffset + at - offset, bytes)
     at += bytes
+  }
+}
+
+/** What `writeRanges` sends: the source's words, `stride` per index, from word `sourceBase` there
+ *  and from word `targetBase` in the table. */
+export type RangeSource = {
+  data: Float32Array | Uint32Array
+  sourceBase: number
+  targetBase: number
+  stride: number
+}
+
+/**
+ * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
+ * the ranges the residency flush's rule makes (`RESIDENCY_RULE`, `coalesceRanges`), each sent as
+ * one write into `parts` — the residency bits and node counts, the placement tree's nodes, the
+ * placements' links. `ranges` is a scratch of `RESIDENCY_RULE.cap` pairs.
+ */
+export function writeRanges(
+  device: GPUDevice,
+  parts: DagParts,
+  sorted: Int32Array,
+  count: number,
+  { data, sourceBase, targetBase, stride }: RangeSource,
+  ranges: Int32Array,
+) {
+  const spans = coalesceRanges(sorted, count, ranges, RESIDENCY_RULE)
+  for (let r = 0; r < spans; r++) {
+    const first = ranges[r * 2],
+      bytes = (ranges[r * 2 + 1] - first + 1) * stride * 4
+    writeParts(
+      device,
+      parts,
+      (targetBase + first * stride) * 4,
+      data.buffer as ArrayBuffer,
+      data.byteOffset + (sourceBase + first * stride) * 4,
+      bytes,
+    )
   }
 }

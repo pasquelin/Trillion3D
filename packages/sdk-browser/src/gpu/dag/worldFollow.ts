@@ -16,8 +16,8 @@ import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { objectClusters } from './worldLinks.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
-import { writeParts, type DagParts } from './split.ts'
-import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts'
+import { writeRanges, type DagParts } from './split.ts'
+import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 
 /** No page of the rows moved: only the links did. */
@@ -63,18 +63,7 @@ export function followWorldLinks(
     high = Math.max(high, w)
     pending = true
   }
-  /** Links `from` to `to`, both included, in one write. */
-  const write = (from: number, to: number) => {
-    const at = links.byteOffset + from * 4
-    writeParts(
-      device,
-      coldParts,
-      (world.linkBase + from) * 4,
-      links.buffer as ArrayBuffer,
-      at,
-      (to - from + 1) * 4,
-    )
-  }
+  const linkWords = { data: links, sourceBase: 0, targetBase: world.linkBase, stride: 1 }
   /** The links that moved since the last cut, taken up in the ranges their ranks coalesce into,
    *  the empty words of the bitmap skipped whole. */
   const takeUp = () => {
@@ -85,8 +74,7 @@ export function followWorldLinks(
         if (count === moved.length) moved = grown(moved, count + 1, count)
         moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
       }
-    const spans = coalesceRanges(moved, count, ranges, RESIDENCY_RULE)
-    for (let r = 0; r < spans; r++) write(ranges[r * 2], ranges[r * 2 + 1])
+    writeRanges(device, coldParts, moved, count, linkWords, ranges)
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length
     high = -1

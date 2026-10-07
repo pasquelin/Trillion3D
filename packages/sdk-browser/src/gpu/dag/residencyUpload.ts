@@ -1,10 +1,10 @@
 import type { ResidencyChanges } from '../core/selection.ts'
-import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts'
+import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 import { childBase, residentBase, residentWords } from './layout.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { createDagReadiness } from './readiness.ts'
-import { writeParts, type DagParts } from './split.ts'
+import { writeParts, writeRanges, type DagParts } from './split.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -69,29 +69,23 @@ export function createDagResidencyUpload(resources: {
     { values: readiness.isReady, base: residentBase(pageCount) },
     { values: readiness.isChildReady, base: childBase(pageCount) },
   ]
-  /** One write per contiguous range of the `count` sorted ranks of `touched`, `stride` words each
-   *  from `base`: a thousand small writes are not worth the single one they replace. */
+  /** One write per range of the `count` sorted ranks of `touched`, `stride` words each from
+   *  `base` (`writeRanges`): a thousand small writes are not worth the single one they replace. */
   const upload = (
     target: DagParts,
-    source: Float32Array,
+    data: Float32Array,
     base: number,
     stride: number,
     count: number,
-  ) => {
-    const spans = coalesceRanges(touched, count, ranges, RESIDENCY_RULE)
-    for (let r = 0; r < spans; r++) {
-      const from = (base + ranges[r * 2] * stride) * 4,
-        bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4
-      writeParts(
-        device,
-        target,
-        from,
-        source.buffer as ArrayBuffer,
-        source.byteOffset + from,
-        bytes,
-      )
-    }
-  }
+  ) =>
+    writeRanges(
+      device,
+      target,
+      touched,
+      count,
+      { data, sourceBase: base, targetBase: base, stride },
+      ranges,
+    )
   // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
   // readiness's state with nothing resident; from then on only what moves is.
   const words = new Int32Array(Math.max(1, residentWords(pageCount)))

@@ -45,7 +45,8 @@ test('a pose a call names refits its group and the nodes above it, never the who
   selection.placementMoved!(70)
   selection.updateWorlds(packed.worlds, true, false)
   selection.dispatch({} as never)
-  assert.equal(writes.length, 2, 'its group and its cell, of the 26 tree nodes')
+  // Its group and its cell, of the 26 tree nodes: near enough to go up in one write.
+  assert.equal(writes.length, 1)
   const seen: number[] = []
   const { planes } = engineCamera(fieldCamera([990, 2, 0], [1000, 0, -50]))
   selection.visiblePlacements!(planes, (w) => seen.push(w))
@@ -53,7 +54,7 @@ test('a pose a call names refits its group and the nodes above it, never the who
   // A host walk names none: every box is fitted again.
   selection.updateWorlds(packed.worlds, true, true)
   selection.dispatch({} as never)
-  assert.equal(writes.length, 2 + 1, 'every tree node, in one run')
+  assert.equal(writes.length, 1 + 1, 'every tree node, in one run')
 })
 
 test('a root its parent composes on the GPU opens its group alone, until it is unlinked', () => {
