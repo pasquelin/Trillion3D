@@ -14,8 +14,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
  */
 export const DEFAULT_GROUP_WIDTH = 65535
 
-/** The workgroups along x of a dispatch of `groups` in rows of at most `width`: one half of the
- *  split, for a host that writes the x of an argument itself. */
+/** The workgroups along x of a dispatch of `groups` in rows of at most `width`: one half of the split. */
 const rowWidth = (groups: number, width = DEFAULT_GROUP_WIDTH) => Math.min(groups, width)
 
 /** The rows of a dispatch of `groups` in rows of at most `width`: the split's other half. */

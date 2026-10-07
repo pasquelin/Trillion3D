@@ -98,6 +98,8 @@ test('bitWords counts 32-bit words', () => {
   // A count past 2^32 (untrusted header data) does not wrap to a few words.
   assert.equal(bitWords(2 ** 32), 2 ** 27)
   assert.equal(bitWords(2 ** 40 + 1), 2 ** 35 + 1)
+  assert.equal(bitWords(NaN), 0)
+  assert.equal(bitWords(-0), 0)
 })
 
 test('clamp: upper bound wins when lo > hi, NaN propagates, -0 becomes +0', () => {
