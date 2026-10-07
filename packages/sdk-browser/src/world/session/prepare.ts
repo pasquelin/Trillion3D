@@ -4,7 +4,8 @@ import { configureExplorer } from './capabilities.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerEngine } from './engine.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
-import { createExplorerPageSources, ownedUntilReady, sceneThrough } from './pageSources.ts'
+import { openExplorerPageSources, sceneThrough, type ExplorerPageSources } from './pageSources.ts'
+import { streamFailed } from '../scene/streaming.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
@@ -22,6 +23,8 @@ export type ExplorerResources = {
   gpuDevice?: GPUDevice
   /** The session's one engine, once prepared. */
   engine?: Engine
+  /** The session's read queue, from its opening: an opening that fails closes it. */
+  streamer?: ExplorerPageSources['streamer']
 }
 
 /** The scene a loader builds: what `loadPreparedScene` returns. */
@@ -72,7 +75,7 @@ async function sessionScene(session: ExplorerSession, inputs: Inputs, streamer: 
   )
   const loadedScene = await sceneThrough(streamer, inputs.scene, () =>
     loadPreparedScene(
-      { ...options, textureSource },
+      { ...options, textureSource, queue: streamer },
       metadata,
       base,
       scope,
@@ -103,7 +106,7 @@ async function primeFirstView(
   session: ExplorerSession,
   scene: ExplorerScene,
   camera: HostCamera,
-  streamer: Awaited<ReturnType<typeof createExplorerPageSources>>['streamer'],
+  streamer: ExplorerPageSources['streamer'],
 ) {
   const { options, scope, signal, diagnose } = session
   if (!scene.partitions.length) return
@@ -135,7 +138,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // loaded beside the scene. A measured page's factory (`options.engine`) carries its own code.
   const factory = options.engine ?? webgpuEngine
   const renderer = options.engine ? undefined : loadEngine()
-  const pageSources = await createExplorerPageSources(
+  // The queue first, the scene loaded through it beside the pages it preloads: their longest
+  // wait, not their sum. The queue is the opening's until the session takes it (`resources`).
+  const opening = openExplorerPageSources(
     metadata,
     options,
     base,
@@ -143,40 +148,42 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     () => resources.engine,
     diagnosticChannel,
     progress,
+    (detail, failedPages) => streamFailed(session, resources.engine, failedPages, detail),
   )
-  // The queue is this preparation's until the session takes it: any step that fails closes it.
-  return ownedUntilReady(pageSources.streamer, async () => {
-    const loadedScene = await sessionScene(session, inputs, pageSources.streamer)
-    const { source } = loadedScene
-    await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
-    // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-    const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
-    loadedScene.framingLot?.release()
-    inputs.placeCamera?.(cameraState.camera)
-    await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
-    // The frame's one integration budget: cells, arrivals, then the engine's row records.
-    const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
-    await renderer // the engine is built once its renderer has arrived
-    const { viewport, context, engine } = await prepareExplorerEngine(session, {
-      ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
-      sceneLightingSource: loadedScene.sceneLightingSource,
-      associations: loadedScene.associations,
-      textureIndices: loadedScene.textureIndices,
-      worldRoots: loadedScene.worldRoots,
-    })
-    resources.engine = engine
-    await families
-    const { partitions } = loadedScene
-    return {
-      source,
-      partitions,
-      pageSources,
-      capabilities,
-      viewport,
-      context,
-      frameBudget,
-      engine,
-      ...cameraState,
-    }
+  resources.streamer = opening.streamer
+  const [pageSources, loadedScene] = await Promise.all([
+    opening.sources,
+    sessionScene(session, inputs, opening.streamer),
+  ])
+  const { source } = loadedScene
+  await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
+  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
+  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
+  loadedScene.framingLot?.release()
+  inputs.placeCamera?.(cameraState.camera)
+  await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
+  // The frame's one integration budget: cells, arrivals, then the engine's row records.
+  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
+  await renderer // the engine is built once its renderer has arrived
+  const { viewport, context, engine } = await prepareExplorerEngine(session, {
+    ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
+    sceneLightingSource: loadedScene.sceneLightingSource,
+    associations: loadedScene.associations,
+    textureIndices: loadedScene.textureIndices,
+    worldRoots: loadedScene.worldRoots,
   })
+  resources.engine = engine
+  await families
+  const { partitions } = loadedScene
+  return {
+    source,
+    partitions,
+    pageSources,
+    capabilities,
+    viewport,
+    context,
+    frameBudget,
+    engine,
+    ...cameraState,
+  }
 }

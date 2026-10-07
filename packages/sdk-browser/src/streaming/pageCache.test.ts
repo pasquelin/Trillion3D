@@ -38,7 +38,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   // it are resident, and this DAG is small enough to hold whole.
   const wanted = dagPageUrls(dag)
   const before = open(pages, cache)
-  await before.request(wanted)
+  await before.request(wanted, { signal: before.signal })
   const drawn = cut(before)
   assert.ok(drawn.length > 0)
   const fetchedBefore = fetched.length
@@ -48,7 +48,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   assert.equal(cache.pages.size, wanted.length, 'the pages outlive the session')
   // A device granted again: the new session reads the same pages, from the cache alone.
   const after = open(pages, cache)
-  await after.request(wanted)
+  await after.request(wanted, { signal: after.signal })
   assert.equal(fetched.length, fetchedBefore, 'no page it held was fetched again')
   assert.equal(after.stats().hits, wanted.length)
   assert.deepEqual(cut(after), drawn)
@@ -63,7 +63,7 @@ test("the CPU counters — tables, transfers, pages — never exceed the cache's
   const cache = createPageCache(cpu)
   const streamer = open(pages, cache)
   for (const url of urls) {
-    await streamer.request([url])
+    await streamer.request([url], { signal: streamer.signal })
     const { cpuBytes, cpuBudgetBytes } = streamer.stats()
     assert.equal(cpuBudgetBytes, cpu)
     assert.ok(cpuBytes <= cpu, `${cpuBytes} > ${cpu} after ${url}`)
@@ -85,7 +85,7 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
     onEvict: (url) => evicted.push(url),
     maxTransferBytes: TRANSFER,
   })
-  await streamer.request(urls)
+  await streamer.request(urls, { signal: streamer.signal })
   streamer.retain(['a.bin'])
   // `b` read again: the least recently used is now `c`, then `d`.
   streamer.get('b.bin')
@@ -106,7 +106,7 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   const { pages } = await servedPages(urls)
   const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * 12)
   const streamer = open(pages, cache)
-  await streamer.request(urls)
+  await streamer.request(urls, { signal: streamer.signal })
   streamer.retain(['a.bin'])
   streamer.reserve(() => 20)
   assert.deepEqual([...cache.pages.keys()], ['a.bin'], 'twenty bytes reserved leave room for one')
@@ -116,12 +116,12 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
 test("a streamer's own cache leaves with it; a kept one stays, minus pages cooked again", async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin'])
   const own = open(pages, undefined as never)
-  await own.request(['a.bin'])
+  await own.request(['a.bin'], { signal: own.signal })
   own.dispose()
   assert.equal(own.has('a.bin'), false)
   const kept = createPageCache()
   const first = open(pages, kept)
-  await first.request(['a.bin', 'b.bin'])
+  await first.request(['a.bin', 'b.bin'], { signal: first.signal })
   first.dispose()
   const cooked = [pages[0], { ...pages[1], sha256: 'another fingerprint' }]
   const second = open(cooked, kept)
@@ -138,7 +138,7 @@ test('a page admitted to an open streamer is checked against the kept cache: ano
   const { pages } = await servedPages(['a.bin', 'b.bin'])
   const kept = createPageCache()
   const first = open(pages, kept)
-  await first.request(['a.bin', 'b.bin'])
+  await first.request(['a.bin', 'b.bin'], { signal: first.signal })
   first.dispose()
   const second = open([pages[0]], kept)
   second.admit([{ ...pages[1], sha256: 'another fingerprint' }])
@@ -165,7 +165,7 @@ test('a kept page is served only as the file it was read as: its fingerprint, un
   const kept = createPageCache()
   const read = async (base: string, { sha256 }: { sha256: string }) => {
     const streamer = open([{ url: 'p.bin', bytes: 12, sha256 }], kept, base)
-    const [value] = await streamer.readBytes('p.bin')
+    const [value] = await streamer.readBytes('p.bin', streamer.signal)
     streamer.dispose()
     return value
   }

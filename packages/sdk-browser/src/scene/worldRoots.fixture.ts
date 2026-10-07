@@ -4,9 +4,10 @@ import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
-import { openWorldRoots } from './worldRoots.ts'
+import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import type { PageStreamerOptions } from '../streaming/types.ts'
 
 export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
@@ -53,17 +54,27 @@ export function rangeOf(table: WorldRoots, first: number, end: number) {
   return `bytes=${table.bundles[first].offset}-${last.offset + last.bytes - 1}`
 }
 
-/** The world `manifest` declares, opened at `http://world/` as a load opens it — `meter` counting,
- *  `whole` for a scene not partitioned — and bound to a session's queue of `transfers`, closed
- *  with the test. */
-export async function opened(
-  t: TestContext,
-  manifest: ClusterManifest,
-  { transfers, meter, whole }: { transfers?: number; meter?: ByteMeter; whole?: boolean } = {},
-) {
-  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, whole))!
-  const queue = createPageStreamer([], 'http://world/', { workerCount: transfers })
+/** How `opened` opens a world: the queue's transfers, its transfer budget and who hears a stall,
+ *  the load's meter, and `whole` for a scene not partitioned. */
+type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes'> & {
+  transfers?: number
+  meter?: ByteMeter
+  whole?: boolean
+}
+
+/** The world `manifest` declares, opened at `http://world/` as a session's load opens it: through
+ *  the session's queue, closed with the test. */
+export async function opened(t: TestContext, manifest: ClusterManifest, opening: Opening = {}) {
+  const { transfers, meter, whole, onStalled, maxTransferBytes } = opening
+  const options = { workerCount: transfers, onStalled, maxTransferBytes }
+  const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
-  roots.bind(queue)
+  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, whole, {
+    queue,
+  }))!
   return { roots, queue }
 }
+
+/** The bundles `roots` holds now, ascending. */
+export const heldBy = (roots: Pick<WorldRootsHold, 'table' | 'has'>) =>
+  roots.table.bundles.map((_, bundle) => bundle).filter((bundle) => roots.has(bundle))

@@ -138,7 +138,6 @@ export function io(bytes: (url: string) => Uint8Array) {
     bytes: (url) => (page(url) || held.has(url) ? bytes(url) : undefined),
     decode: decodeHere,
     decodePage: async (read, url) => readCellPage(read, url),
-    loading: () => false,
     failed: () => false,
     request: (urls) => void asked.push(...urls),
     admit: (pages) => void admitted.push(...pages),

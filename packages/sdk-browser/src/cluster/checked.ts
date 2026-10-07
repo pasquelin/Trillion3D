@@ -87,12 +87,20 @@ export async function checked(
     )
   if (response.ok) return response
   letGo(response)
-  const contentType = response.headers.get('content-type')
+  const contentType = response.headers.get('content-type'),
+    wait = retryAfter(response)
+  // The wait the server asked, capped, for a caller that retries on its own terms (`ONE_REQUEST`).
   throw new EngineError(
     'RESOURCE_HTTP_ERROR',
     `${url}: HTTP ${response.status}, type ${contentType ?? 'absent'}`,
-    { url, status: response.status, contentType },
+    { url, status: response.status, contentType, ...(wait > 0 && { retryAfter: wait }) },
   )
+}
+/** The ms the server asked to wait before `error`'s request is sent again (`Retry-After`, capped),
+ *  0 when it asked none. */
+export const retryAfterOf = (error: unknown) => {
+  const wait = error instanceof EngineError ? error.details.retryAfter : undefined
+  return typeof wait === 'number' ? wait : 0
 }
 /** `checked` for a file that may be absent: its 404, or the 403 of a store that hides what it
  *  lacks (`ABSENT`), answers `null`; any other refusal still rejects. */

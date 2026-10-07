@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { noBudget, opened } from './cells.fixture.ts'
 import { cellAt, gridWorld } from './cellReads.fixture.ts'
+import { heldBy } from '../scene/worldRoots.fixture.ts'
 
 const SIDE = 100,
   CELLS = SIDE * SIDE,
@@ -50,7 +51,7 @@ test('a world of 100 × 100 cells in reach reads K at a time, nearest first, eac
   await opened(world.cells, world.bytes, 1e6, false)
   await frame(world)
   assert.equal(most, K, "never more reads in flight than the queue's transfers")
-  assert.equal(world.roots.held().length, 2 * CELLS, 'every cell held')
+  assert.equal(heldBy(world.roots).length, 2 * CELLS, 'every cell held')
   assert.equal(bytes, 2 * CELLS * PAGE, 'each bundle read once')
   const runs = started.slice(1) // the pinned top first, read as the world opened
   assert.equal(runs[0], 0, 'the nearest cell first')
@@ -104,7 +105,7 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
     'each said once, at 8 s',
   )
   ;[pending, refused] = [K, 0]
-  await frames(32_000, () => world.roots.held().length === 2 * CELLS)
-  assert.equal(world.roots.held().length, 2 * CELLS, 'every cell held once the reader accepts')
+  await frames(32_000, () => heldBy(world.roots).length === 2 * CELLS)
+  assert.equal(heldBy(world.roots).length, 2 * CELLS, 'every cell held once the reader accepts')
   assert.equal(refused, 0, 'the queue never passes the pending reads the reader accepts')
 })

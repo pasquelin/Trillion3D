@@ -9,8 +9,7 @@ export function createJob(page: StreamPage, priority: number, order: number): Jo
   })
   // A job its askers all let go is dropped: the rejection no one waits for is not unhandled.
   promise.catch(() => {})
-  const { url, bytes, range } = page,
-    stop = new AbortController()
+  const { url, bytes, range } = page
   return {
     url,
     priority,
@@ -18,7 +17,6 @@ export function createJob(page: StreamPage, priority: number, order: number): Jo
     bytes,
     slot: -1,
     range,
-    stop,
     state: 'queued',
     askers: 0,
     ...{ promise, resolve, reject },

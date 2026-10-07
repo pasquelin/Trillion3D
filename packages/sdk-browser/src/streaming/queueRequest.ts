@@ -70,10 +70,9 @@ export function dropQueued(
   job: Job,
   end: (url: string, job: Job) => void,
 ) {
-  const { jobs, queue, emit, abortError } = context
+  const { jobs, queue, emit } = context
   if (jobs.get(url) !== job || job.state === 'active') return
   end(url, job)
-  job.stop.abort(abortError())
   emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
   queue.remove(job)
 }

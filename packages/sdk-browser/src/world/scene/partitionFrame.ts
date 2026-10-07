@@ -18,6 +18,7 @@ import { lensSlope } from '../../partition/superRoots.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { patientTask } from '../../page/work/host.ts'
 import { cellRows, type CellRows } from '../../partition/cellDecode.ts'
+import { createViewAsks } from './viewAsks.ts'
 import type { PageBody } from '../../partition/cellIndex.ts'
 
 type Streamer = ReturnType<typeof createPageStreamer>
@@ -70,7 +71,7 @@ export async function primePartitions(
 ) {
   const { eye, reach } = viewOf(camera)
   const io = {
-    read: (url: string) => streamer.readBytes(url, signal),
+    read: (url: string) => streamer.readBytes(url, signal ?? streamer.signal),
     decode: decodeCell,
     decodePage,
     admit: streamer.admit,
@@ -104,16 +105,14 @@ type Inputs = {
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, engine: backend, renew, budget } = inputs
   if (!partitions.length) return null
+  const asks = createViewAsks(streamer)
   let reads: Promise<void>[] = [],
     later = false
   const request = (urls: readonly string[], ahead: boolean) => {
-    // A read that fails is said by the streamer's own diagnostics; the cell is asked again later.
-    const priority = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
-    const read = streamer.request(urls, { priority }).then(
-      () => {},
-      () => {},
-    )
-    if (!ahead) reads.push(read)
+    // A read that fails is said by the streamer's own diagnostics; the frames ask it while they
+    // need it (`viewAsks.ts`), and wait on those within reach.
+    const asked = asks.ask(urls, ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE)
+    if (!ahead) for (const read of asked) reads.push(read)
   }
   const pending = async () => {
     const asked = reads,
@@ -130,7 +129,6 @@ export function createPartitionFrame(inputs: Inputs) {
       bytes: (url: string) => streamer.getBytes(url),
       decode: decodeCell,
       decodePage,
-      loading: (url: string) => streamer.loading(url),
       failed: (url: string) => streamer.failed(url),
       request,
       admit: streamer.admit,
@@ -145,6 +143,7 @@ export function createPartitionFrame(inputs: Inputs) {
     const { eye, reach } = viewOf(camera)
     later = false
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
+    asks.end()
   }
   return Object.assign(step, { pending })
 }

@@ -2,18 +2,19 @@
  * WHEN A READ THAT FAILED IS ASKED AGAIN — the one failure policy, the read layer's. A read that
  * may pass (`retriableError`: the network, a timeout, a rate limit, a server error, an answer that
  * is not what its page announced) waits 0.5 s · 2^(k−1) after its k-th failure in a row, at most
- * 8 s, then its job is queued again (`requeue`): its askers keep waiting on it, never told it
+ * 8 s — or the longer wait its server asked (`Retry-After`, capped: `retryAfterOf`) —, then its job
+ * is queued again (`requeue`): its askers keep waiting on it, never told it
  * failed, and one that lets it go drops it as it would a queued one. One another request would
  * meet again — a 404, a 403 — fails its job for good and is refused at once, no request sent, while
  * its page is catalogued. A failure is said once (`onStalled`) when for good or as it first waits
- * the longest. A source refusing every read of F pages is asked at most F times in the first half
+ * the longest, and again only after it landed: the session tells its host (`streamFailed`). A source refusing every read of F pages is asked at most F times in the first half
  * second, then ever more seldom, down to F every 8 s — never once a frame.
  *
  * The waits are one heap on their end (`heap.ts`) and one timer, set for the first: no timer and
  * no listener per failure. A failure outlives its page while its wait runs — a page admitted again
  * meanwhile still waits it out — and leaves once its wait ended, or at once when for good.
  */
-import { retriableError } from '../cluster/checked.ts'
+import { retriableError, retryAfterOf } from '../cluster/checked.ts'
 import { createHeap } from './heap.ts'
 import type { Job, PageStreamerOptions, StreamPage } from './types.ts'
 
@@ -111,7 +112,7 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
       const failure = failures.get(url) ?? { url, error: new Error(), tries: 0, due: 0, slot: -1 }
       const tries = ++failure.tries,
         retried = retriableError(cause),
-        wait = retried ? waitAfter(tries) : Infinity
+        wait = retried ? Math.max(waitAfter(tries), retryAfterOf(cause)) : Infinity
       failure.error = failedRead(url, tries, cause)
       failure.due = performance.now() + wait
       failures.set(url, failure)

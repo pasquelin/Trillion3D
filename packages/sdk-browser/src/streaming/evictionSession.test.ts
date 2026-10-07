@@ -51,7 +51,7 @@ test('random pins, reads and totals: the session evicts what the walk past its p
       if (roll < 0.35) {
         // A page read lands as the most recent, then the cache evicts; a page held is a hit.
         if (!order.includes(url)) expected = walk([...order, url], cache.budgetBytes)
-        await streamer.request([url])
+        await streamer.request([url], { signal: streamer.signal })
         await new Promise((settled) => setTimeout(settled, 0))
       } else if (roll < 0.45) streamer.get(url)
       else if (roll < 0.7) {
@@ -83,7 +83,7 @@ test('a session another one replaced evicts as the walk past its own pins did', 
   // One page at most, all three pinned: they stay.
   const before = open(1)
   before.retain(urls)
-  await before.request(urls)
+  await before.request(urls, { signal: before.signal })
   assert.deepEqual([...cache.pages.keys()], urls)
   // The next session reads through the cache before the first one closes, and pins `b`: the order
   // keeps its holds now. The first one's eviction still walks past its own pin alone.

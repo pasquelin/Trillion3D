@@ -13,7 +13,6 @@ export type CellFrameIo = {
   bytes(url: string): Uint8Array | undefined
   decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
   decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-  loading(url: string): boolean
   /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
   failed(url: string): boolean
   request(urls: readonly string[], ahead: boolean): void

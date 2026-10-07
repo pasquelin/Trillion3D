@@ -41,7 +41,7 @@ function refusing(t: TestContext, status: number, urls = ['a.bin']) {
 test('a read that may pass is asked once a wait, 0.5 s · 2^k up to 8 s, its asker still waiting', async (t) => {
   const { streamer, sent, said, until } = refusing(t, 503)
   let settled = false
-  void streamer.request(['a.bin']).then(
+  void streamer.request(['a.bin'], { signal: streamer.signal }).then(
     () => (settled = true),
     () => (settled = true),
   )
@@ -55,7 +55,7 @@ test('a read that may pass is asked once a wait, 0.5 s · 2^k up to 8 s, its ask
 test('a read that may pass lands once its source answers: its asker never told it failed', async (t) => {
   const { streamer, until } = refusing(t, 503)
   const bytes = new Uint8Array([7, 0, 0, 0])
-  const read = streamer.readBytes('a.bin')
+  const read = streamer.readBytes('a.bin', streamer.signal)
   await settle()
   t.mock.method(globalThis, 'fetch', async () => new Response(bytes))
   streamer.admit([{ url: 'a.bin', bytes: 4, sha256: await sha(bytes) }])
@@ -66,9 +66,15 @@ test('a read that may pass lands once its source answers: its asker never told i
 
 test('a read another request would meet again (404) fails for good, said once, never asked again', async (t) => {
   const { streamer, sent, said, until } = refusing(t, 404)
-  await assert.rejects(streamer.request(['a.bin']), /PAGE_STREAM_FAILED.*after one attempt/)
+  await assert.rejects(
+    streamer.request(['a.bin'], { signal: streamer.signal }),
+    /PAGE_STREAM_FAILED.*after one attempt/,
+  )
   await until(10_000)
-  await assert.rejects(streamer.request(['a.bin']), /PAGE_STREAM_FAILED/)
+  await assert.rejects(
+    streamer.request(['a.bin'], { signal: streamer.signal }),
+    /PAGE_STREAM_FAILED/,
+  )
   assert.deepEqual([sent, said, streamer.failed('a.bin')], [[0], ['a.bin'], true])
 })
 
@@ -92,7 +98,7 @@ test('a failure outlives its page while its wait runs, then leaves; one for good
   leaving.abort()
   streamer.forget(['a.bin'])
   streamer.admit([page])
-  void streamer.request(['a.bin']).catch(() => {})
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   await settle()
   assert.deepEqual(sent, [0], 'admitted again within its wait: it waits it out')
   await until(500)
@@ -102,7 +108,7 @@ test('a failure outlives its page while its wait runs, then leaves; one for good
 
 test('a refusal for good leaves with its page: nothing asks it any more', async (t) => {
   const { streamer } = refusing(t, 404)
-  await streamer.request(['a.bin']).catch(() => {})
+  await streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   assert.deepEqual([streamer.failed('a.bin'), streamer.stats().failed], [true, 1])
   streamer.forget(['a.bin'])
   assert.deepEqual([streamer.failed('a.bin'), streamer.stats().failed], [false, 0])
@@ -112,7 +118,7 @@ test('a hundred thousand failed reads wait on one timer, each asked once a wait'
   const urls = Array.from({ length: 100_000 }, (_, i) => `p${i}.bin`)
   const { streamer, sent, until } = refusing(t, 503, urls)
   const armed = t.mock.method(globalThis, 'setTimeout')
-  void streamer.request(urls).catch(() => {})
+  void streamer.request(urls, { signal: streamer.signal }).catch(() => {})
   await settle()
   for (let i = 0; i < 200 && sent.length < urls.length; i++) await settle()
   assert.deepEqual([sent.length, streamer.stats().failed], [urls.length, urls.length])

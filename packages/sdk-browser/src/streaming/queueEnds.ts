@@ -1,5 +1,5 @@
 import type { Job, StreamContext } from './types.ts'
-import { manifestTableBytes } from './manifestTables.ts'
+import { manifestEntryBytes } from './manifestTables.ts'
 
 /** How a streamer's jobs end and its pages leave the catalogue: a page `forget` asks to drop
  *  while a job holds it leaves when that job ends (`end`), unless `keep` takes it back first. */
@@ -13,7 +13,7 @@ export function createQueueEnds(context: StreamContext, sync: (url: string) => v
     if (!catalog.delete(url)) return
     failures.leaves(url)
     store.drop(url)
-    state.tableBytes -= manifestTableBytes([{ url }])
+    state.tableBytes -= manifestEntryBytes(url)
   }
   /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. After
    *  `dispose` a kept store is the next session's: a late settle no longer drops from it. */
@@ -34,6 +34,8 @@ export function createQueueEnds(context: StreamContext, sync: (url: string) => v
       job.reject(abortError())
     },
     keep: (url: string) => forgotten.delete(url),
+    /** Whether `forget` asked `url` to leave while a job held it. */
+    forgotten: (url: string) => forgotten.has(url),
     end,
   }
 }

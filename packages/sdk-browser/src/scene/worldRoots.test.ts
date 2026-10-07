@@ -9,8 +9,9 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
-import { opened, rangeOf, served } from './worldRoots.fixture.ts'
-import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { heldBy, opened, rangeOf, served } from './worldRoots.fixture.ts'
+import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
   const { table, manifest, ranges } = served(t)
@@ -19,15 +20,15 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   assert.deepEqual([roots.pinned.bundles, roots.pinned.bytes, roots.bytes()], [1, top, top])
   assert.deepEqual([...roots.pinned.pages[0].positions], [0, 0, 0, 1, 0, 0, 0, 1, 0])
   assert.deepEqual(ranges, [`bytes=0-${top - 1}`], 'the top alone, in one range')
-  assert.deepEqual(roots.held(), [], 'no object root and no cell bundle is pinned')
+  assert.deepEqual(heldBy(roots), [], 'no object root and no cell bundle is pinned')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
-  assert.deepEqual(roots.held(), [1, 2, 3], 'each bundle the placed cells need, read once')
+  assert.deepEqual(heldBy(roots), [1, 2, 3], 'each bundle the placed cells need, read once')
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 4)], 'end to end in the binary: one range')
   roots.release(0)
-  assert.deepEqual(roots.held(), [2, 3], 'a bundle another placed cell needs stays')
+  assert.deepEqual(heldBy(roots), [2, 3], 'a bundle another placed cell needs stays')
   roots.release(1)
   roots.release(2)
-  assert.deepEqual([roots.held(), roots.bytes()], [[], top], 'the pinned top alone is left')
+  assert.deepEqual([heldBy(roots), roots.bytes()], [[], top], 'the pinned top alone is left')
 })
 
 test('a bundle whose bytes are not those its table names waits its turn, its hold on its way, wanted till released', async (t) => {
@@ -38,11 +39,11 @@ test('a bundle whose bytes are not those its table names waits its turn, its hol
   const leaving = new AbortController()
   const held = roots.hold(0, { signal: leaving.signal })
   for (let i = 0; i < 6; i++) await new Promise(setImmediate)
-  assert.deepEqual([roots.held(), queue.stats().failed], [[1, 3], 1], 'it may pass: it waits')
+  assert.deepEqual([heldBy(roots), queue.stats().failed], [[1, 3], 1], 'it may pass: it waits')
   leaving.abort()
   await assert.rejects(held, { name: 'AbortError' })
   roots.release(0)
-  assert.deepEqual(roots.held(), [], 'released, it holds nothing')
+  assert.deepEqual(heldBy(roots), [], 'released, it holds nothing')
 })
 
 test('the top read at open and a bundle read through the queue are refused alike, naming the bundle that differs', async (t) => {
@@ -73,7 +74,7 @@ test('the top read at open and a bundle read through the queue are refused alike
   })
 })
 
-test('a server that ignores the Range is read whole once by the load, once by the session, each counted once', async (t) => {
+test("a server that ignores the Range is read whole once by the cache's one reader: by a world's load and its sessions alike", async (t) => {
   const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const metered: string[] = []
   const meter = {
@@ -81,21 +82,26 @@ test('a server that ignores the Range is read whole once by the load, once by th
     settle() {},
     read: (response: Response, url: string) => (metered.push(url), response),
   }
-  const { roots, queue } = await opened(t, manifest, { meter })
-  await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
-  assert.deepEqual(roots.held(), [1, 2, 3])
-  assert.equal(
-    ranges.length,
-    2,
-    `the whole ${bin.byteLength}-byte binary, at open and for the session`,
-  )
-  assert.ok(queue.stats().cpuBytes >= bin.byteLength, "the session's reader, counted by its cache")
+  const cache = createPageCache()
+  // A world's model loads before any session, through its page cache's reader.
+  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, true, {
+    cache,
+  }))!
+  for (const cell of [1, 2]) {
+    const session = createPageStreamerWith([], 'http://world/', { cache })
+    roots.bind(session)
+    await roots.hold(cell)
+    assert.ok(session.stats().cpuBytes >= bin.byteLength, 'the kept binary, counted by the cache')
+    session.dispose() // the device is lost: the next session reads on
+  }
+  assert.deepEqual(heldBy(roots), [1, 2, 3])
+  assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
   assert.deepEqual(
     metered,
     ['http://world/world-roots.table', 'http://world/world-roots.bin'],
     "the load's read of the binary is counted as it arrives, as the table is",
   )
-  const bundles = roots.held().reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
+  const bundles = heldBy(roots).reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
   assert.equal(roots.bytes(), roots.pinned.bytes + bundles, 'never counted twice')
 })
 
@@ -119,7 +125,7 @@ test('the world DAG names its pages through the one source, from what is held', 
     'each super-root reads the page at its bundle, the world top last',
   )
   assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read')
-  assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold')
+  assert.deepEqual(heldBy(roots), [1, 3], 'a page read is not a cell hold')
   // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
   const before = roots.bytes(),
     far = addressed[1].url // bundle 2's super-root
@@ -153,7 +159,7 @@ test("the stream bounds each cell's super-roots, an object root in its object's 
 test('a scene not partitioned holds its one cell from its open, read with the top', async (t) => {
   const { manifest, ranges, table } = served(t)
   const roots = (await openWorldRoots(manifest, 'http://world/', undefined, undefined, true))!
-  assert.deepEqual(roots.held(), [1, 3], 'cell 0, before any session binds its queue')
+  assert.deepEqual(heldBy(roots), [1, 3], 'cell 0, before any session binds its queue')
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)])
 })
 

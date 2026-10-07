@@ -25,9 +25,9 @@ test('a still camera is drawn again until the cells it asked for within reach ar
     reads: () => [],
   } as unknown as PartitionCells
   const streamer = {
-    request: (urls: readonly string[]) =>
+    readBytes: (url: string) =>
       new Promise<void>((resolve) => {
-        if (urls[0] === 'near.json') read = resolve
+        if (url === 'near.json') read = resolve
       }),
   } as unknown as ReturnType<typeof createPageStreamer>
   const frame = createPartitionFrame({

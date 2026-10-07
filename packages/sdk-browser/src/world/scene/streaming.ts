@@ -15,12 +15,17 @@ type Inputs = {
   budget: FrameClock
 }
 
-/** A page read failed: `degraded` while the coarse cover the engine already holds is whole — the
- *  view stays drawn on it —, `fatal` otherwise; said once per distinct failure by the caller. */
-function streamFailed(session: ExplorerSession, inputs: Inputs, detail: string) {
+/** A page read failed for good, or waits the longest: `degraded` while the coarse cover the engine
+ *  already holds is whole — the view stays drawn on it —, `fatal` otherwise (no engine yet, or no
+ *  cover resident); said once per failure by its caller, `failedPages` the reads failing now. */
+export function streamFailed(
+  session: Pick<ExplorerSession, 'scope' | 'emit' | 'diagnose'>,
+  engine: Engine | undefined,
+  failedPages: number,
+  detail: string,
+) {
   const { scope, emit, diagnose } = session
-  const { engine, streamer } = inputs
-  const coverageReady = engine.metrics().coverageReady
+  const coverageReady = engine?.metrics().coverageReady
   const recovered = coverageReady === true
   emit(
     recovered
@@ -48,7 +53,7 @@ function streamFailed(session: ExplorerSession, inputs: Inputs, detail: string) 
       kind: 'error',
       version: 1,
       error: detail,
-      failedPages: streamer.stats().failed,
+      failedPages,
       coverageReady: coverageReady ?? null,
       recovered,
       scope,
@@ -114,7 +119,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
         const detail = String(error)
         if (streamingError === detail) return
         streamingError = detail
-        streamFailed(session, inputs, detail)
+        streamFailed(session, engine, streamer.stats().failed, detail)
       })
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined

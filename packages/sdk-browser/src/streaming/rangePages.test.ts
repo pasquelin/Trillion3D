@@ -41,7 +41,9 @@ async function served(t: TestContext, count: number, { gap = 0, wrong = -1, held
 
 test('ranges end to end asked within a task are one request, each checked, kept by their askers', async (t) => {
   const { streamer, asked } = await served(t, 3)
-  const read = await Promise.all([0, 1, 2].map((i) => streamer.readBytes(`part${i}`)))
+  const read = await Promise.all(
+    [0, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal)),
+  )
   assert.deepEqual(asked, ['bytes=0-11'])
   assert.deepEqual(
     read.map((bytes) => [...bytes]),
@@ -56,9 +58,9 @@ test('ranges end to end asked within a task are one request, each checked, kept 
 
 test('ranges queued behind a transfer are merged with their neighbours as it frees', async (t) => {
   const { streamer, asked, release } = await served(t, 4, { held: true })
-  const first = streamer.readBytes('part0')
+  const first = streamer.readBytes('part0', streamer.signal)
   await new Promise(setImmediate)
-  const rest = [3, 1, 2].map((i) => streamer.readBytes(`part${i}`)) // queued out of order
+  const rest = [3, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal)) // queued out of order
   await new Promise(setImmediate)
   release()
   await Promise.all([first, ...rest])
@@ -67,14 +69,17 @@ test('ranges queued behind a transfer are merged with their neighbours as it fre
 
 test('ranges that are not end to end are read apart', async (t) => {
   const { streamer, asked } = await served(t, 2, { gap: 3 })
-  await Promise.all([streamer.readBytes('part0'), streamer.readBytes('part1')])
+  await Promise.all([
+    streamer.readBytes('part0', streamer.signal),
+    streamer.readBytes('part1', streamer.signal),
+  ])
   assert.deepEqual(asked, ['bytes=0-3', 'bytes=7-10'])
 })
 
 test('a range of a merged read whose bytes are not its own fails alone: the others land', async (t) => {
   const { streamer, asked } = await served(t, 3, { wrong: 1 })
   let settled = false
-  const [a, b, c] = [0, 1, 2].map((i) => streamer.readBytes(`part${i}`))
+  const [a, b, c] = [0, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal))
   b.then(
     () => (settled = true),
     () => (settled = true),
@@ -98,7 +103,7 @@ test('a range whose last asker lets go while it transfers is read to its end: as
   letGo.abort()
   await assert.rejects(left, { name: 'AbortError' })
   assert.equal(streamer.loading('part0'), true, 'still under way')
-  const again = streamer.readBytes('part0') // the cell held again
+  const again = streamer.readBytes('part0', streamer.signal) // the cell held again
   release()
   assert.equal((await again).byteLength, 4)
   assert.deepEqual(asked, ['bytes=0-3'], 'read once')

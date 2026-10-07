@@ -9,6 +9,7 @@ import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
 import { openWorldRoots } from '../../scene/worldRoots.ts'
+import type { PageQueue } from '../../streaming/types.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
@@ -21,6 +22,9 @@ import { hostWorldPlacements } from '../../host/world/placements.ts'
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
+  /** The session's queue the scene loads through, its world roots bound to it; without one (a
+   *  world's model), they are read by the reader of `pageCache`. */
+  queue?: PageQueue
 }
 
 /** What one prepared scene's load reads and reports through. */
@@ -66,7 +70,10 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
     }),
-    openWorldRoots(metadata, base, signal, options.meter, !tables.partition),
+    openWorldRoots(metadata, base, signal, options.meter, !tables.partition, {
+      queue: options.queue,
+      cache: options.pageCache,
+    }),
   ])
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
@@ -190,18 +197,12 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await hostBoundsLot(source)
-  // The world roots each model holds, which the session counts in its CPU budget, and what its
-  // queue binds (`readers`): only those leave the scene, its page source and DAG stay the engine's.
-  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
-    ? [worldRoots]
-    : []
-  const readers = worldRoots ? [worldRoots] : []
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
     /** The clips the file plays (#357). */
     clips: built.clips,
-    worldRoots: counted,
-    readers,
+    /** The world roots the scene holds: counted in the session's CPU budget, bound to its queue. */
+    worldRoots: worldRoots ? [worldRoots] : [],
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   }

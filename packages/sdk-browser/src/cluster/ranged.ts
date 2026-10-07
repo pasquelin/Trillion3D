@@ -18,7 +18,7 @@ export function rangedReader(url: string, signal?: AbortSignal) {
    *  whole file it answered instead, on its way or landed; its length once landed. */
   let ranged = false,
     asking: Promise<unknown> | undefined,
-    whole: SharedRead<ArrayBuffer> | undefined,
+    whole: (SharedRead<ArrayBuffer> & { stop: AbortController }) | undefined,
     held = 0
   /** The whole file `response` brings on `stop`, the reader's: forgotten once stopped or failed. */
   const keep = (response: Response, stop: AbortController) => {
@@ -62,7 +62,10 @@ export function rangedReader(url: string, signal?: AbortSignal) {
       const range = await request(offset, length, asked)
       if (range) return range
     }
-    const bytes = await waitShared(whole!, asked.signal ?? signal)
+    const own = whole!,
+      mine = asked.signal ?? signal
+    // The last to leave stops the download: no one waits for it any more.
+    const bytes = await waitShared(own, mine, () => own.stop.abort(mine?.reason))
     return bytes.slice(offset, offset + length)
   }
   /** The bytes the whole file holds once a server answered it whole, else zero. */

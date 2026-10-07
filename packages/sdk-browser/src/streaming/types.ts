@@ -28,9 +28,11 @@ export interface HostRetentionDelta {
   readonly heldCount: number
 }
 
-/** How `request` reads a batch: its cancel, its priority, and what runs as each page lands. */
+/** How `request` reads a batch: its owner's signal, its priority, and what runs as each page
+ *  lands. */
 export interface BatchRead {
-  /** Cancels the batch's reads. */ signal?: AbortSignal
+  /** Lets the batch's reads go: a read no one waits on any more is dropped while it waits. */
+  signal: AbortSignal
   /** Queue priority, 1 by default. */ priority?: number
   /** Runs as each page's read lands, not after the whole batch. */
   onPage?: (url: string) => unknown
@@ -58,9 +60,11 @@ type PageCatalogue = {
   forget(urls: readonly string[]): void
 }
 /** What a scene's readers ask of the session's queue (`createPageStreamer`): pages admitted, read
- *  at a priority with the signal that lets the asker go, and let go. */
+ *  at a priority with the signal that lets the asker go, and let go; `signal` its life, aborted
+ *  once it is disposed. */
 export type PageQueue = PageCatalogue & {
-  readBytes(url: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>
+  readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
+  readonly signal: AbortSignal
 }
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
@@ -77,7 +81,8 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
-  /** Hears, once, a read that fails for good or keeps failing past the longest wait. */
+  /** Hears, once, a read that fails for good or first waits the longest: again only after it
+   *  landed. */
   onStalled?: (failure: { url: string; cause: unknown }) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
@@ -93,8 +98,6 @@ export type Job = {
   slot: number
   /** The range of a file it reads, when its page is one (`StreamPage.range`). */
   range?: StreamPage['range']
-  /** Aborted once its last asker left it queued or waiting: it is dropped (`dropQueued`). */
-  stop: AbortController
   /** `waiting`: its last read failed and may pass, queued again once its wait ends
    *  (`failures.ts`). */
   state: 'queued' | 'active' | 'waiting'

@@ -4,9 +4,7 @@ import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecor
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import type { TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { openWorldRoots } from '../scene/worldRoots.ts'
-import { served, sha } from '../scene/worldRoots.fixture.ts'
-import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { opened, served, sha } from '../scene/worldRoots.fixture.ts'
 import { createPartitionCells } from './cells.ts'
 import { paged } from './paged.fixture.ts'
 import { placedMesh } from './rows.ts'
@@ -49,9 +47,9 @@ const gridCell = (side: number, cell: number): TableCell => {
 
 /**
  * A generated world of `side` × `side` cells 10 m apart, its roots served by `answer`
- * (`served`) and read through a page streamer of `transfers` and `maxTransferBytes` the world is
- * bound to, a read that keeps failing told `stalled`: its partition's cells, its world roots, the streamer, the file
- * each address reads, and an io of its frames.
+ * (`served`) and opened through a page streamer of `transfers` and `maxTransferBytes`
+ * (`opened`), a read that keeps failing told `stalled`: its partition's cells, its world roots,
+ * the streamer, the file each address reads, and an io of its frames.
  */
 export async function gridWorld(
   t: TestContext,
@@ -64,11 +62,8 @@ export async function gridWorld(
   const table = Array.from({ length: side * side }, (_, cell) => gridCell(side, cell))
   const { partition, files } = paged(table, 4)
   const { manifest } = served(t, { world: gridRoots(side * side), answer })
-  const roots = (await openWorldRoots(manifest, 'http://world/'))!
-  const options = { workerCount: transfers, onStalled: stalled, maxTransferBytes }
-  const streamer = createPageStreamer([], 'http://world/', options)
-  t.after(() => streamer.dispose())
-  roots.bind(streamer)
+  const opening = { transfers, onStalled: stalled, maxTransferBytes }
+  const { roots, queue: streamer } = await opened(t, manifest, opening)
   const cells = createPartitionCells({
     ...{ partition, base: 'https://cache.test/key/', root: new Group(), parents: [] },
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),

@@ -18,8 +18,8 @@ export function createStreamingQueue(
   sync: (url: string) => void,
 ) {
   const { state, abort, catalog, emit, abortError, failures, queue } = context
-  const { end, forget, keep } = createQueueEnds(context, sync)
-  const pump = createPump(context, { read, end, evict })
+  const { end, forget, keep, forgotten } = createQueueEnds(context, sync)
+  const pump = createPump(context, { read, end, evict, forgotten })
   let owed = false
   const later = () => {
     if (owed) return
@@ -31,13 +31,13 @@ export function createStreamingQueue(
   }
   const subscribe = (
     url: string,
-    requestSignal?: AbortSignal,
+    requestSignal: AbortSignal,
     priority = 1,
   ): Promise<Uint8Array> => {
     emit?.('page-request', 'Page request received', () => ({ version: 1, url, priority }))
     if (state.disposed || abort.signal.aborted)
       return Promise.reject(abort.signal.reason ?? abortError())
-    if (requestSignal?.aborted) return Promise.reject(requestSignal.reason ?? abortError())
+    if (requestSignal.aborted) return Promise.reject(requestSignal.reason ?? abortError())
     if (!catalog.has(url)) return Promise.reject(new Error('Unknown page ' + url))
     // A read that failed for good is refused at once (`failures.ts`).
     const refused = failures.refusal(url)
@@ -45,8 +45,7 @@ export function createStreamingQueue(
     const cached = answerFromCache(context, touch, url)
     if (cached) return Promise.resolve(cached)
     const job = jobFor(context, sync, url, priority)
-    // Its own signal alone: the streamer's ends every job at once (`pageStreamer.ts`), never a
-    // listener an asker, which a signal heard by a hundred thousand would pay for each.
+    // Its owner's signal alone: the streamer's own ends every job at once (`pageStreamer.ts`).
     const result = waitShared(job, requestSignal, () => dropQueued(context, url, job, end))
     later()
     return result

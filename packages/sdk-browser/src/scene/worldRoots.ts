@@ -4,8 +4,8 @@
  * The compiler continues the DAG above every object's roots up to a small world top
  * (`world-roots.table`, docs/FORMAT.md, World super-roots), its records read straight from their
  * bytes, never one string of the whole world. The runtime pins that top alone: read at
- * open — its bundles are the binary's first, one ranged read —, each bundle checked against its
- * own digest, and held for the scene's life. Its bytes are bounded by the materials, never the
+ * open — its bundles are the binary's first, read end to end by one request —, each bundle checked
+ * against its own digest, and held for the scene's life. Its bytes are bounded by the materials, never the
  * world (`pinnedTopBytes`, refused at cook past `budgetBytes`), so the pinned memory is the same at
  * 1 km and at 8 km.
  *
@@ -13,7 +13,7 @@
  * their placements, and installed after their dependencies — the world bundles past the top their
  * roots need (`cells[].objects[].dependencies`). A cell the view places holds those bundles
  * (`hold`, `worldBundles.ts`), read through the queue of the session drawing it (`bind`); a scene
- * not partitioned is one cell, read with the top and held for its whole life. The session counts
+ * not partitioned is one cell, held from its load for its whole life. The session counts
  * every byte held here in its CPU budget (`bytes`).
  */
 import {
@@ -36,7 +36,13 @@ import { worldRootsPageSource } from './worldRootsPage.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
-import { readSpan } from './worldRuns.ts'
+import { bundlePages, readBundle, readSpan } from './worldRuns.ts'
+import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
+import type { PageQueue } from '../streaming/types.ts'
+import type { PageCache } from '../streaming/pageCache.ts'
+
+/** A reader of a file's ranges (`rangedReader`). */
+type RangedRead = ReturnType<typeof rangedReader>
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): nothing draws from them yet,
@@ -100,10 +106,32 @@ function worldStream(
   }
 }
 
+/** What a load reads the world roots through: the session's queue it loads for, else the page
+ *  cache of the world its model loads for, whose one reader of the binary every session shares. */
+export type WorldRead = { queue?: PageQueue; cache?: PageCache }
+
+/** The pinned top of `table`'s binary at `url`, read for a load on `signal`: through `queue`, its
+ *  bundles admitted as pages, else in one range by `read` that `meter` counts. */
+function readTop(
+  table: WorldRoots,
+  url: string,
+  signal: AbortSignal | undefined,
+  { queue, read, meter }: { queue?: PageQueue; read: () => RangedRead; meter: ByteMeter },
+) {
+  if (!queue) return readSpan(read(), url, table, [0, table.pinned], meter)
+  queue.admit(bundlePages(table, url))
+  const tops = Array.from({ length: table.pinned }, (_, bundle) =>
+    readBundle(queue, table, url, bundle, signal ?? queue.signal, PRIORITY_VISIBLE),
+  )
+  return Promise.all(tops)
+}
+
 /**
  * The world roots of the cache `metadata` describes at `base`, their top read and pinned — with
- * the one cell of a scene not partitioned (`whole`) —, or `undefined` for a cache that publishes
- * none (a scene with no placed DAG, or one cooked without the roots table).
+ * the one cell of a scene not partitioned (`whole`), held for its life —, or `undefined` for a
+ * cache that publishes none (a scene with no placed DAG, or one cooked without the roots table).
+ * A session's load reads them through its queue (`through.queue`), the bundles bound to it; a
+ * world's model, before any session, by the one reader of the binary its page cache holds.
  */
 export async function openWorldRoots(
   metadata: ClusterManifest,
@@ -111,6 +139,7 @@ export async function openWorldRoots(
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
   whole = false,
+  through: WorldRead = {},
 ) {
   const files = (metadata as { files?: Record<string, Announced | undefined> }).files ?? {}
   const announced = files[WORLD_ROOTS_FILE]
@@ -119,12 +148,16 @@ export async function openWorldRoots(
   const bytes = await fetchVerified(urls.table, announced, signal, meter)
   const table = readWorldRoots(new Uint8Array(bytes))
   const url = new URL(table.payload.url, base).href
-  // The load's meter counts the top, read while it loads, and a scene's one cell, held for its life:
-  // reads of the load, by its own reader of the binary, let go with it.
-  const read = rangedReader(url, signal)
-  const top = await readSpan(read, url, table, [0, table.pinned], meter)
+  const { queue, cache } = through
+  const read = () => cache?.reader(url) ?? rangedReader(url, signal)
+  const top = await readTop(table, url, signal, { queue, read, meter })
   const bundles = createWorldBundles(table, url, top)
-  if (whole) await bundles.keep(0, (span) => readSpan(read, url, table, span, meter))
+  if (queue) bundles.bind(queue)
+  if (whole && queue) await bundles.hold(0, { signal })
+  else if (whole) {
+    const own = read()
+    await bundles.keep(0, (span) => readSpan(own, url, table, span, meter))
+  }
   const stream = worldStream(table, files[WORLD_ROOTS_DAG], urls.dag, signal, bundles.pages)
   return {
     table,
@@ -137,9 +170,8 @@ export async function openWorldRoots(
     pinned: { bundles: table.pinned, pages: top.flat(), bytes: table.pinnedTopBytes },
     hold: bundles.hold,
     release: bundles.release,
-    held: bundles.held,
-    /** The session's queue the bundles are read through: its read layer holds the one reader of
-     *  the binary the session reads by (`../streaming/fetch.ts`), counted by its cache. */
+    has: bundles.has,
+    /** The session's queue the bundles are read through, bound by each session. */
     bind: bundles.bind,
     /** Every byte held here: the pinned top's and the placed cells' bundles'. */
     bytes: () =>

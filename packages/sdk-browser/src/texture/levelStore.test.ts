@@ -95,7 +95,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
     onDiagnostic: ({ phase }) => heard.push(phase),
   })
   streamer.retain(urls)
-  await streamer.request(urls)
+  await streamer.request(urls, { signal: streamer.signal })
   const { evictions, admissionBlocked } = streamer.stats()
   assert.deepEqual([urls.every(streamer.has), evictions, admissionBlocked], [true, 0, 0])
   assert.deepEqual([levels.bytes, cache.keptBytes], [0, proxy], 'the levels yield, the proxy stays')

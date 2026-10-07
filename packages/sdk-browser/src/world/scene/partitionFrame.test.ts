@@ -38,10 +38,9 @@ function recording() {
 function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
   const asked: [readonly string[], number][] = []
   const port = {
-    request: async (urls: readonly string[], options: { priority: number }) =>
-      void asked.push([urls, options.priority]),
+    readBytes: async (url: string, _signal: AbortSignal, priority: number) =>
+      void asked.push([[url], priority]),
     getBytes: (url: string) => files.get(url.split('/').at(-1)!),
-    loading: () => false,
     failed: () => false,
     admit() {},
     forget() {},

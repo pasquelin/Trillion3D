@@ -5,8 +5,9 @@
  * through the session's queue at the priority the cell is held with, and a cell that leaves while
  * its hold reads lets its reads go at once: those still queued are never fetched. A read that fails
  * and may pass waits its turn in the queue, the hold still on its way
- * (`../streaming/failures.ts`); a hold that fails for good stays failed till its cell leaves:
- * another read would meet it again.
+ * (`../streaming/failures.ts`), and one whose session closed reads in the next one
+ * (`worldBundles.ts`); a hold that fails for good stays failed till its cell leaves: another read
+ * would meet it again.
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
@@ -37,38 +38,29 @@ function createLandings() {
   }
 }
 
-/** A cell's hold: whether it settled, landed or failed, and what lets its reads go — aborted, its
- *  cell left while it read. Each hold is released once, settled or not (`WorldRootsHold.hold`). */
-type Hold = { settled: boolean; stop: AbortController }
-
 /** The holds of the cells placed on `world`, each kept until its cell is released; none without
- *  a world. */
+ *  a world. A hold counts its bundles at once (`WorldRootsHold.hold`): its release lets them go at
+ *  once too, and its reads still queued with them. */
 export function createCellHolds(world?: Holder) {
-  const holding = new Map<number, Hold>(),
+  /** What lets each held cell's reads go. */
+  const holding = new Map<number, AbortController>(),
     landings = createLandings()
-  /** `cell`'s hold `own` settled: one its cell left while it read is released now. */
-  const settled = (cell: number, own: Hold) => () => {
-    landings.settled()
-    own.settled = true
-    if (own.stop.signal.aborted) world!.release(cell)
-  }
   return {
     /** `cell` was placed: its bundles are held, and read at `priority` if they are not. */
     hold(cell: number, priority = PRIORITY_VISIBLE) {
       if (!world || holding.has(cell)) return
-      const own: Hold = { settled: false, stop: new AbortController() }
-      holding.set(cell, own)
+      const stop = new AbortController()
+      holding.set(cell, stop)
       landings.started()
-      const done = settled(cell, own)
-      world.hold(cell, { signal: own.stop.signal, priority }).then(done, done)
+      world.hold(cell, { signal: stop.signal, priority }).then(landings.settled, landings.settled)
     },
     /** `cell` left: its bundles are released, its reads still queued let go. */
     release(cell: number) {
-      const own = holding.get(cell)
-      if (!own) return
+      const stop = holding.get(cell)
+      if (!stop) return
       holding.delete(cell)
-      if (own.settled) world!.release(cell)
-      else own.stop.abort()
+      stop.abort()
+      world!.release(cell)
     },
     /** What a frame waits on: the next hold to land or fail, while one reads. */
     reads: landings.asked,

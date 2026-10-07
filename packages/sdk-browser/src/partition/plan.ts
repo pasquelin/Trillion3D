@@ -81,9 +81,9 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   return nearest
 }
 
-/** The read priority of what `cell` holds, seen from `local` (`cellPages.ts`): strictly after the
- *  view's own pages, read at the band's own value, in the visible priority's band — the prefetch
- *  one's when `ahead`, by default past the reach —, nearer first within each. */
+/** The read priority of what `cell` holds, seen from `local` (`cellHolds.ts`, `farCells.ts`):
+ *  strictly after the view's own pages, read at the band's own value, in the visible priority's
+ *  band — the prefetch one's when `ahead`, by default past the reach —, nearer first within each. */
 export function holdPriority(
   index: Pick<CellIndex, 'distance'>,
   local: { eye: ArrayLike<number>; reach: number },

@@ -6,28 +6,31 @@ type Transfers = {
   read: (jobs: readonly Job[], signal: AbortSignal) => Promise<Landed[]>
   end: (url: string, job: Job) => void
   evict: () => void
+  /** Whether the page of `url` was forgotten while its job ran. */
+  forgotten: (url: string) => boolean
 }
 
 /** `job` landed as `landed`: read, it is done; failed, it waits its turn while it may pass and
  *  someone waits on it (`failures.ts`), else it fails, said once. A streamer closed meanwhile
  *  records nothing. */
-function settle(context: StreamContext, job: Job, landed: Landed, end: Transfers['end']) {
+function settle(context: StreamContext, job: Job, landed: Landed, own: Transfers) {
   const { failures, abort, emit } = context,
     { url } = job
   if (landed.bytes) {
     failures.passed(url)
-    end(url, job)
+    own.end(url, job)
     return job.resolve(landed.bytes)
   }
   const recorded = abort.signal.aborted ? undefined : failures.record(url, landed.cause),
     error = String(landed.cause)
-  if (recorded?.waits && job.askers > 0) {
+  // A page forgotten while it transferred is wanted no more: it ends, never waits.
+  if (recorded?.waits && job.askers > 0 && !own.forgotten(url)) {
     job.state = 'waiting'
     return emit?.('page-retry', 'A read that failed waits its turn', () => ({
       ...{ version: 1, url, error },
     }))
   }
-  end(url, job)
+  own.end(url, job)
   job.reject(recorded?.error ?? landed.cause)
   if (recorded)
     emit?.('page-error', 'Persistent page-load failure', () => ({
@@ -54,8 +57,8 @@ function startTransfer(context: StreamContext, jobs: Job[], own: Transfers, pump
   void own
     .read(jobs, abort.signal)
     .then(
-      (landed) => landed.forEach((each, at) => settle(context, jobs[at], each, own.end)),
-      (cause: unknown) => jobs.forEach((job) => settle(context, job, { cause }, own.end)),
+      (landed) => landed.forEach((each, at) => settle(context, jobs[at], each, own)),
+      (cause: unknown) => jobs.forEach((job) => settle(context, job, { cause }, own)),
     )
     .finally(() => {
       state.active--

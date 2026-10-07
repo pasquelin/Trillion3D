@@ -6,9 +6,13 @@ import { createReadFailures } from './failures.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
 import { createPageCache, type PageCache } from './pageCache.ts'
-import { manifestTableBytes } from './manifestTables.ts'
+import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
 import { createReadWatch } from './readWatch.ts'
 import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
+/** A ranged page of no bytes is no page: no read would bring it, and the queue's merge of ranges
+ *  end to end would stand still on it (`queueRanges.ts`). */
+const listed = (page: StreamPage) => !(page.range && page.bytes === 0)
+
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -26,7 +30,7 @@ export function createPageStreamerWith(
 ) {
   const { cache: kept, signal, maxPages, onEvict, onDiagnostic, maxCachedBytes } = options
   const { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options
-  const catalog = new Map(pages.map((page) => [page.url, page]))
+  const catalog = new Map(pages.filter(listed).map((page) => [page.url, page]))
   const store = kept ?? createPageCache(maxCachedBytes),
     cache = store.pages,
     jobs = new Map<string, Job>(),
@@ -73,8 +77,8 @@ export function createPageStreamerWith(
     ...{ base, catalog, store, cache, jobs, queue, pinned, failures, abort, limit, maxPages },
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
   }
-  const { read: transfer, roundTrip, keptBytes } = createStreamingFetcher(context, store.touch)
-  const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
+  const { read: transfer, roundTrip } = createStreamingFetcher(context, store.touch)
+  const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
   // A kept page held under a page's name as another file leaves before its first read.
@@ -96,7 +100,7 @@ export function createPageStreamerWith(
   const { forget, keep } = reads
   const { read, watch } = createReadWatch(reads.subscribe)
   const asIndices = createIndexViews()
-  const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
+  const readBytes = (url: string, signal: AbortSignal, priority = 0) => {
     state.requested++
     return read(url, signal, priority)
   }
@@ -104,8 +108,9 @@ export function createPageStreamerWith(
     admit(more: readonly StreamPage[]) {
       store.dropForeign(more)
       for (const page of more) {
+        if (!listed(page)) continue
         keep(page.url)
-        if (!catalog.has(page.url)) state.tableBytes += manifestTableBytes([page])
+        if (!catalog.has(page.url)) state.tableBytes += manifestEntryBytes(page.url)
         catalog.set(page.url, page)
       }
     },
@@ -128,8 +133,11 @@ export function createPageStreamerWith(
     failed: (url: string) => failures.refusal(url) !== undefined,
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,
-    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    read: (url: string, signal: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
+    /** The streamer's life, aborted once it is disposed or its owner's signal aborts: the signal
+     *  of a read its session owns. */
+    signal: abort.signal,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,
@@ -140,7 +148,7 @@ export function createPageStreamerWith(
     watch,
     /** Reads `urls` the catalog holds, once each, each landing handed to `onPage` at once; it
      *  settles once every read and `onPage` has, rejecting with the first failure in `urls` order. */
-    async request(urls: readonly string[], options: BatchRead = {}) {
+    async request(urls: readonly string[], options: BatchRead) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))]
       state.requested += unique.length
       emit?.('page-request-batch', 'Batched page request received', () => ({
@@ -167,9 +175,8 @@ export function createPageStreamerWith(
         resident: cache.size,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes held (manifest tables, transfers, pages, kept file, levels) of the total. */
-        cpuBytes:
-          state.tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
+        /** CPU bytes held (manifest tables, transfers, pages, kept files, levels) of the total. */
+        cpuBytes: state.tableBytes + state.activeBytes + store.bytes + store.besideBytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
@@ -187,7 +194,6 @@ export function createPageStreamerWith(
         failed: failures.count(),
       }))
       abort.abort(abortError())
-      for (const job of jobs.values()) job.stop.abort(abortError())
       jobs.clear()
       queue.clear()
       release()

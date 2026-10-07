@@ -54,7 +54,7 @@ export function createDecodes<Key, Decoded extends object>() {
 /** Where `takeDecoded` reads and spends: the frame's io, its budget, and whether its list is read
  *  ahead of need. */
 type Taking = {
-  io: Pick<CellFrameIo, 'bytes' | 'loading' | 'failed' | 'request'>
+  io: Pick<CellFrameIo, 'bytes' | 'failed' | 'request'>
   budget: { admits(): boolean; spend(): void }
   ahead: boolean
 }
@@ -82,7 +82,8 @@ export function takeDecoded<Key, Decoded extends object>(
       (b) => decode(b, address),
     )
     if (!decoded || !budget.admits()) {
-      if (!files.has(key) && !io.loading(address)) ask.push(address)
+      // Asked again while on its way: the frame waits on its landing, never on nothing.
+      if (!files.has(key)) ask.push(address)
       later ||= !ahead
       continue
     }

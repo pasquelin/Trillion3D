@@ -1,4 +1,5 @@
 import { evictOldest } from './evictOldest.ts'
+import { rangedReader } from '../cluster/ranged.ts'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
 
@@ -44,6 +45,15 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   const release = (cancel: boolean) => {
     if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'))
     slot = undefined
+  }
+  /** The one reader of each file read by ranges (`rangedReader`), for every load and session that
+   *  reads through this cache: a server that ignores the Range answers a file whole once. */
+  const readers = new Map<string, ReturnType<typeof rangedReader>>()
+  /** The bytes of the files those readers keep whole. */
+  const readerBytes = () => {
+    let held = 0
+    for (const read of readers.values()) held += read.held()
+    return held
   }
   let bytes = 0,
     total = cpuBytes,
@@ -92,10 +102,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Bytes the texture levels may take beside the kept file and `held` bytes of pages the
      *  session keeps or reads; negative when those do not fit. */
-    levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - cache.keptBytes - held,
-    /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
+    levelRoom: (held: number) =>
+      total - (holder?.reserved() ?? 0) - cache.keptBytes - readerBytes() - held,
+    /** Bytes held beside the pages: the kept file's, the files its readers keep whole and the
+     *  decoded texture levels'. */
     get besideBytes() {
-      return cache.keptBytes + levels.bytes
+      return cache.keptBytes + readerBytes() + levels.bytes
     },
     /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
@@ -181,9 +193,16 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Whether `session` is the one reading through the cache, whose holds `order` keeps. */
     holds: (session: Holder) => holder === session,
+    /** The one reader of the file at `url` by ranges, made on its first read. */
+    reader(url: string) {
+      let read = readers.get(url)
+      if (!read) readers.set(url, (read = rangedReader(url)))
+      return read
+    },
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear()
+      readers.clear()
       order.clear()
       release(true)
       levels.close()
