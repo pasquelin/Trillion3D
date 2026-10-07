@@ -1,4 +1,5 @@
 import { oncePerDevice } from './oncePerDevice.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Buffers a device holds between the uses that take them, one a slot, so a burst of uses
@@ -65,7 +66,7 @@ export function heldBuffers(idleMs?: number) {
       if (kept && kept.size >= size) return kept
       // The power of two at or above `size`, never 0 bytes (`2 **`, not `1 <<`: past 1 GiB a shift
       // turns negative).
-      const pow2 = 2 ** (32 - Math.clz32(Math.max(1, size) - 1))
+      const pow2 = nextPow2(size)
       const buffer = device.createBuffer({ label, size: pow2, usage })
       held.set(label, buffer)
       if (kept) void device.queue.onSubmittedWorkDone().then(() => kept.destroy())

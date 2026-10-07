@@ -2,6 +2,7 @@ import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { PendingGrowth } from '../core/tableGrowth.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
+import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 export const DRAW_INDIRECT_STRIDE = 16
 /** Corners an indirect instance launches at most: 32 triangles, three 32-lane vertex groups, the
@@ -18,9 +19,9 @@ fn instanceCorner(word:u32)->u32{return (word>>${BATCH_SHIFT}u)*3u;}`
  * each instance launches, at most `BATCH_CORNERS`, and the instances a row takes at most.
  */
 export function drawBatches(maxCorners: number) {
-  const perRow = Math.max(1, Math.ceil(maxCorners / BATCH_CORNERS))
+  const perRow = workgroupCount(maxCorners, BATCH_CORNERS)
   // The widest page in `perRow` equal batches of whole triangles: at most a triangle per batch over.
-  return { corners: 3 * Math.ceil(Math.ceil(maxCorners / 3) / perRow), perRow }
+  return { corners: 3 * ceilDiv(ceilDiv(maxCorners, 3), perRow), perRow }
 }
 export const BIN_BACK = 0,
   BIN_NONE = 1,

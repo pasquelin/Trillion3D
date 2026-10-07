@@ -16,6 +16,7 @@ import { particleTargets } from '../particles/particleTargets.ts'
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number }
 const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {})
@@ -65,7 +66,7 @@ test('a moving history keeps four samples beside the current one at a pixel a fr
  *  every row the same. */
 const step = (x: number) => (x < 4 ? 0 : 1)
 function bilinear([u]: number[]) {
-  const x = Math.min(Math.max(u * 8 - 0.5, 0), 7)
+  const x = clamp(u * 8 - 0.5, 0, 7)
   const x0 = Math.floor(x),
     fx = x - x0
   const value = step(x0) * (1 - fx) + step(Math.min(x0 + 1, 7)) * fx

@@ -3,6 +3,7 @@ import { flatGeometry } from './drawnFlat.ts'
 import { signedArea, triangulate } from './triangulate.ts'
 import type { Shape } from '../math/curves.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 type P = [number, number]
 
@@ -93,12 +94,12 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
     segments = bevel ? Math.max(1, options.bevelSegments ?? 3) : 0
   const layers: [number, number][] = []
   for (let s = 0; s <= segments; s++) {
-    const a = ((s / Math.max(1, segments)) * Math.PI) / 2
+    const a = (s / Math.max(1, segments)) * HALF_PI
     if (bevel) layers.push([-thickness * Math.cos(a), size * Math.sin(a)])
   }
   for (let s = bevel ? 1 : 0; s <= steps; s++) layers.push([(depth * s) / steps, size])
   for (let s = segments - 1; bevel && s >= 0; s--) {
-    const a = ((s / segments) * Math.PI) / 2
+    const a = (s / segments) * HALF_PI
     layers.push([depth + thickness * Math.cos(a), size * Math.sin(a)])
   }
   const { outline: ring, holes } = rings(outline, options.curveSegments ?? 12)

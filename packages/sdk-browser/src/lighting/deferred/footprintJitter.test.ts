@@ -13,6 +13,8 @@ import { TAA_SAMPLES, jitterViewProjection, taaJitter } from '../../taa/jitter.t
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
 import { WORLD_AT_WGSL } from './shaders.ts'
 import { shadowJitterWords } from './jitterWords.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 type V = number[]
 const W = 64,
@@ -38,7 +40,7 @@ const run = shaderRun<{
 
 /** A camera two metres up, pitched 25° down, a 60° field: its view-projection. */
 function cameraViewProjection() {
-  const pitch = (25 * Math.PI) / 180,
+  const pitch = 25 * DEG2RAD,
     s = Math.sin(pitch),
     c = Math.cos(pitch)
   const world = new Float64Array([1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 2, 0, 1])
@@ -74,7 +76,7 @@ function phase(sample: number, thin = false) {
       const near = run.worldAt([x + 0.5, y + 0.5], 1),
         far = run.worldAt([x + 0.5, y + 0.5], 0.5)
       const t = near[1] / (near[1] - far[1])
-      const hit = near.map((n, i) => n + (far[i] - n) * t)
+      const hit = near.map((n, i) => lerp(n, far[i], t))
       const clip = [0, 1, 2, 3].map((r) =>
         [0, 1, 2].reduce((sum, i) => sum + vp[i * 4 + r] * hit[i], vp[12 + r]),
       )

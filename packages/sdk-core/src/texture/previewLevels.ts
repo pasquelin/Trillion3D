@@ -9,6 +9,7 @@
  * reader can reject an entry whose written numbers disagree with them.
  */
 import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts'
+import { ceilDiv, floorLog2 } from '../../../math/src/scalar/integers.ts'
 
 /** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64
@@ -32,11 +33,11 @@ export function previewFirstLevel(width: number, height: number) {
 
 /** Last level carried: the one where both sides are one texel. */
 export function previewLastLevel(width: number, height: number) {
-  return 31 - Math.clz32(Math.max(1, width, height))
+  return floorLog2(Math.max(1, width, height))
 }
 
 /** Blocks along `texels`, the last one padded by the edge when the side is not a multiple. */
-export const blocksAcross = (texels: number) => Math.ceil(texels / PREVIEW_BLOCK_SIDE)
+export const blocksAcross = (texels: number) => ceilDiv(texels, PREVIEW_BLOCK_SIDE)
 
 /** Bytes of a `width`×`height` level once block-compressed: whole 4×4 blocks of sixteen bytes,
  *  a side that is not a multiple of four padded by its edge — the same in both block formats. */

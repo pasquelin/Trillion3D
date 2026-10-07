@@ -1,5 +1,6 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { SoftBodyOptions } from './soft.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 /** How a body moves: never, by the page (`kinematic`, pushing what it meets), or by the simulation. */
 export type PhysicsType = 'static' | 'dynamic' | 'kinematic'
@@ -140,7 +141,7 @@ export interface PhysicsBudget {
 export const DEFAULT_PHYSICS_BUDGET: Readonly<PhysicsBudget> = Object.freeze({
   bodies: 16384,
   decorative: 1024,
-  memoryBytes: 128 * 1024 * 1024,
+  memoryBytes: 128 * MIB,
   bodyPairs: 65536,
   contactConstraints: 32768,
   contactEvents: 4096,

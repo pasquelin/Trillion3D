@@ -1,3 +1,4 @@
+import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
@@ -39,7 +40,7 @@ export function applyClaimed(
 ) {
   const { mark, recordOf, pages, ids: kept, count: keptCount, next, entered, exited } = held,
     epoch = held.epoch,
-    words = (keptCount + 31) >>> 5
+    words = bitWords(keptCount)
   if (held.named.length < words) held.named = grown(held.named, words)
   held.named.fill(0, 0, words)
   // A held page keeps the record of the rank it held: a packed rank's record never changes, the
@@ -86,7 +87,7 @@ export function applyClaimed(
     let bits = ~named[w]
     if (w === words - 1 && keptCount & 31) bits &= (1 << (keptCount & 31)) - 1
     for (; bits; bits &= bits - 1) {
-      const id = kept[(w << 5) + 31 - Math.clz32(bits & -bits)]
+      const id = kept[(w << 5) + floorLog2(bits & -bits)]
       if (mark.set(id, epoch) !== PENDING) {
         exited[exitedCount++] = id
         mark.set(id, 0)

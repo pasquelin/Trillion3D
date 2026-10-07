@@ -11,6 +11,7 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { PageRec } from '../page/selection/selection.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 
 test('a still rig turned static, its palette held, stales its shadows the frame a bone moves', () => {
   const root = new Object3D(),
@@ -52,7 +53,7 @@ test('a still rig turned static, its palette held, stales its shadows the frame 
   assert.equal(count.writes, 1, 'the still frames write no palette')
   assert.equal(staled.length, 1, 'nor stale any shadow')
   assert.equal(frame.dirty[0], 0)
-  bones[1].quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, Math.PI / 2)
+  bones[1].quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, HALF_PI)
   root.updateMatrixWorld()
   updateWebgpuDeformation(rt, camera)
   assert.equal(count.writes, 2, 'the frame a bone moves writes the palette')

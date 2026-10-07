@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 /**
  * Numbers the shader texts write, held once as numbers and interpolated where each text reads them
  * (as `LTC_SIZE` already is): no two texts carry two copies of a constant.
@@ -11,11 +12,11 @@ export const shaderFloat = (value: number) => {
 }
 
 export const PI = shaderFloat(Math.PI)
-export const TWO_PI = shaderFloat(2 * Math.PI)
+export const TWO_PI = shaderFloat(TAU)
 /** The Lambert normalisation, 1/π. */
 export const INVERSE_PI = shaderFloat(1 / Math.PI)
 /** The vector form factor's normalisation, 1/(2π) (`direct/rectLightWgsl.ts`). */
-export const INVERSE_TWO_PI = shaderFloat(1 / (2 * Math.PI))
+export const INVERSE_TWO_PI = shaderFloat(1 / TAU)
 /** The smoothest roughness a lit surface is shaded at: every shading path clamps to it, and the
  *  deferred resolve reads a surface at it as a mirror (`../bounce/reflectWgsl.ts`). */
 export const ROUGHNESS_FLOOR = shaderFloat(0.0525)

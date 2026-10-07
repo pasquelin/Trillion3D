@@ -5,6 +5,7 @@ import {
   WORKGROUP,
   DRAW_INDIRECT_STRIDE,
 } from './contract.ts'
+import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
@@ -18,12 +19,12 @@ export function createGpuDrawBuffers(
   perRow: number,
 ) {
   const slots = slotCount(layerSlots)
-  const groupCount = Math.ceil(slotCap / WORKGROUP),
+  const groupCount = ceilDiv(slotCap, WORKGROUP),
     groupBytes = groupCount * slots * 4
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage })
   const restBuf = device.createBuffer({
-    size: Math.max(4, Math.ceil(slotCap / 32) * 4),
+    size: Math.max(4, bitWords(slotCap) * 4),
     usage: storage,
   })
   const uniforms = device.createBuffer({

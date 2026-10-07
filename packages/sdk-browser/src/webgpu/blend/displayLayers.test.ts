@@ -4,6 +4,7 @@
 // develop's lit target through the tone curve, and this branch's lit target, tint and added value
 // through the shipped route (`displayRun.fixture.ts`) and the pipelines' own blend states, composed
 // as the display filter pass composes them.
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { blend, close, display, written, type Rgba } from './blendModel.fixture.ts'
@@ -27,7 +28,7 @@ type Layer = {
 
 const rgb = (value: Rgba | number[]) => value.slice(0, 3)
 const rgba = ([r, g, b]: number[], a: number): Rgba => [r, g, b, a]
-const clamp = (values: number[]) => values.map((v) => Math.min(1, Math.max(0, v)))
+const clamp = (values: number[]) => values.map((v) => saturate(v))
 const scale = (values: number[], k: number) => values.map((v) => v * k)
 
 /** A layer of straight colour `colour` through `targets` (lit, tint, added value); `premultiplied`

@@ -1,3 +1,5 @@
+import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 /**
  * Virtual shadow map constants: layout, page and kernel sizes, and the defaults of the tunables.
  * Each value is derived from another one where it can be; otherwise it is declared: what it
@@ -70,7 +72,7 @@ export const VSM_FEEDBACK_POOL = 0
  * float matrices, four rows of a 3-vector and a word, and seven words (four scalars, the two-word
  * corner, the range), rounded up to the 16-byte alignment its matrices give the struct.
  */
-export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + Math.ceil((7 * 4) / 16) * 16 // 288
+export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(7 * 4, 16) // 288
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
 export const VSM_UNIFORMS_BYTES = 208
 
@@ -325,7 +327,7 @@ export const VSM_PRESSURE_CALM_FRAMES = 10
 /** Interpolates the resolution bias between the resting and moving values by the mobility factor. */
 export function vsmMovingBias(stillBias: number, movingBias: number, movingShare: number) {
   const b = Math.max(stillBias, movingBias)
-  return stillBias + (b - stillBias) * movingShare
+  return lerp(stillBias, b, movingShare)
 }
 
 /** WGSL mirror of the constants every VSM shader needs. */

@@ -26,6 +26,8 @@ import {
   type VsmCameraInput,
   type VsmViewport,
 } from './clipmap.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
+import { DEG2RAD } from '../../../math/src/constants.ts'
 
 /** The nearest depth a local light's casters take: 0.1 cm. */
 const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
@@ -84,17 +86,15 @@ export interface VsmLocalLightSetup {
 
 /** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
  *  map's scale, is 0.019 there and falls to 0 at 90°, where the map's texels stretch without bound. */
-const MAX_SPOT_HALF_ANGLE = (88.9 * Math.PI) / 180
+const MAX_SPOT_HALF_ANGLE = 88.9 * DEG2RAD
 /** Declared: the least gap of the outer cone over the inner one, 0.001 rad. */
 const SPOT_CONE_GAP = 0.001
 
 /** The outer half angle of a spot's map, radians: at least the inner one (itself within [0, the
  *  widest]) plus the gap, at most the widest plus the gap; rounded once, to an f32. */
 function clampedOuterConeAngle(innerRad: number, outerRad: number) {
-  const inner = Math.min(Math.max(innerRad, 0), MAX_SPOT_HALF_ANGLE)
-  return f32(
-    Math.min(Math.max(outerRad, inner + SPOT_CONE_GAP), MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP),
-  )
+  const inner = clamp(innerRad, 0, MAX_SPOT_HALF_ANGLE)
+  return f32(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
 }
 
 /** The shadow projection matrix of the nearest and farthest caster depths, its w the view depth. */

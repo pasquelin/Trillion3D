@@ -99,26 +99,6 @@ export {
   normalizeQuaternion,
   rotateByQuaternion,
 } from './quaternion/quaternion.ts'
-export {
-  DEG2RAD,
-  FLOAT32_MAX,
-  FLOAT32_STEP,
-  GOLDEN_FRACTION,
-  GOLDEN_RATIO,
-  HALF_PI,
-  MIB,
-  RAD2DEG,
-  TAU,
-} from './constants.ts'
-export {
-  alignDown,
-  alignUp,
-  bitWords,
-  ceilDiv,
-  floorLog2,
-  isPow2,
-  nextPow2,
-  workgroupCount,
-} from './scalar/integers.ts'
-export { clamp, lerp, saturate, wrap } from './scalar/reals.ts'
-export { quantile } from './scalar/quantile.ts'
+// The scalar helpers and the other constants are engine internals, deep-imported by their users;
+// only `HALF_PI` was public before they had a home.
+export { HALF_PI } from './constants.ts'

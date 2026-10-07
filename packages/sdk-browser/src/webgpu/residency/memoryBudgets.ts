@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { poolLayerBytes, poolLayerLimit, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import {
@@ -40,9 +41,9 @@ export type TexturePools = {
   liveBytes?: number
 }
 
-const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER)
 /** A lane's floor: its tails, and one tile to stream into when the lane streams. */
-const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(streams))
+const laneFloor = (tails: number, streams: boolean) =>
+  ceilDiv(tails + Number(streams), TILES_PER_LAYER)
 
 /**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
@@ -88,13 +89,15 @@ export function texturePoolFor(
       const total = [...open].reduce((sum, lane) => sum + weight(lane), 0)
       const share = (lane: PoolLane) =>
         Math.floor((budget * weight(lane)) / total / layerBytes(lane))
-      const capped = [...open].filter((lane) => share(lane) >= layersFor(lanes[lane]) - floor[lane])
+      const capped = [...open].filter(
+        (lane) => share(lane) >= ceilDiv(lanes[lane], TILES_PER_LAYER) - floor[lane],
+      )
       if (!capped.length) {
         for (const lane of open) layers[lane] += share(lane)
         break
       }
       for (const lane of capped) {
-        layers[lane] = layersFor(lanes[lane])
+        layers[lane] = ceilDiv(lanes[lane], TILES_PER_LAYER)
         budget -= (layers[lane] - floor[lane]) * layerBytes(lane)
         open.delete(lane)
       }
@@ -103,7 +106,7 @@ export function texturePoolFor(
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
     for (const lane of POOL_LANES)
       if (layers[lane] > limit) {
-        if (limit < Math.max(1, layersFor(kept[lane])))
+        if (limit < Math.max(1, ceilDiv(kept[lane], TILES_PER_LAYER)))
           throw new Error(
             `TEXTURE_POOL_DEVICE_LIMIT: ${kept[lane]} ${lane} tails, device allows ${limit} layers`,
           )
@@ -151,7 +154,7 @@ export function poolTaking(
   const current = pool.layers[kind][lane]
   const wanted = Math.max(
     current,
-    layersFor(taking.resident + 1),
+    ceilDiv(taking.resident + 1, TILES_PER_LAYER),
     laneFloor(taking.tails, taking.streams),
   )
   if (wanted === current) return pool

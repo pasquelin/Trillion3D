@@ -169,10 +169,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The engine entry shrank with the retired exports (4 396 to 3 819); the two others grew with the
-  // machine-independent quaternion normalisation and arc trigonometry (determinism).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_819)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_141)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821)
+  // machine-independent quaternion normalisation and arc trigonometry (determinism). The engine
+  // entry then took 2 bytes when `HALF_PI` moved into the constants module (3 819 to 3 821), and the
+  // browser entry 119 when its modules called the one `ceilDiv`, `clamp`, `saturate` and `wrap`
+  // instead of inlining each (3 821 to 3 940).
+  assert.equal(baseline.outputFiles[0].contents.length, 3_821)
+  assert.equal(proposed.outputFiles[0].contents.length, 2_145)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_940)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

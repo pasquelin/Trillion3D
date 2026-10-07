@@ -1,5 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { heldHomes } from './homes.ts'
+import { alignDown, alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires; it copies them at once. */
 const tail = new Uint8Array(4)
@@ -109,8 +110,8 @@ export function commitGpuPage(
   // `writeBuffer` copies them itself, a staging copy first would only double the copy —
   // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,
-    body = size & ~3,
-    padded = (size + 3) & ~3
+    body = alignDown(size, 4),
+    padded = alignUp(size, 4)
   if (body > 0) device.queue.writeBuffer(buffer, offset, bytes as Uint8Array<ArrayBuffer>, 0, body)
   if (padded !== body) {
     tail.fill(0)

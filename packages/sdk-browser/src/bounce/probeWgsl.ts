@@ -6,10 +6,9 @@ import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
 import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { PROBE_TEXELS } from './atlas.ts'
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
-const BOUNCE_WORKGROUP = 64
+export const BOUNCE_WORKGROUP = 64
 
 /**
  * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
@@ -201,7 +200,3 @@ fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
 }`
-
-/** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
-export const snapshotGroups = (entries: number) =>
-  Math.ceil((entries * PROBE_TEXELS) / BOUNCE_WORKGROUP)

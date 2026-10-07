@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
@@ -17,7 +18,7 @@ import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
  */
 const MATERIAL_TILE_SIZE = 32
 /** Tiles on one axis of `pixels`: `materialTilesX`'s count. */
-export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE)
+export const materialTilesOn = (pixels: number) => ceilDiv(pixels, MATERIAL_TILE_SIZE)
 export const MATERIAL_TILE_SLOTS = 64
 /** Lanes of a tile's workgroup per axis: a lane reads the tile's pixels that many apart. */
 const LANES = 8

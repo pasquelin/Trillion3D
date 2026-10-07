@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 
 /**
@@ -21,8 +22,8 @@ type AtlasLimits = Parameters<typeof textureLimits>[0]
  *  from the texture itself. */
 export function atlasExtent(texels: number, side: number): [number, number] {
   const count = Math.max(1, texels)
-  const height = Math.ceil(count / side)
-  return [Math.ceil(count / height), height]
+  const height = ceilDiv(count, side)
+  return [ceilDiv(count, height), height]
 }
 
 /** Width, rows and layers of an atlas of `floats` floats on a device of `limits`: the fewest rows
@@ -31,13 +32,13 @@ export function atlasExtent(texels: number, side: number): [number, number] {
 function floatAtlasExtent(floats: number, limits?: AtlasLimits): [number, number, number] {
   const { side, layers: most } = textureLimits(limits)
   const count = Math.max(1, floats),
-    least = Math.ceil(count / side)
+    least = ceilDiv(count, side)
   for (let rows = least; rows <= FLOAT_ATLAS_ROWS; rows++)
     if (count % rows === 0) return [count / rows, rows, 1]
   const perLayer = FLOAT_ATLAS_ROWS
-  for (let layers = Math.max(2, Math.ceil(least / perLayer)); layers <= most; layers++)
+  for (let layers = Math.max(2, ceilDiv(least, perLayer)); layers <= most; layers++)
     if (count % (layers * perLayer) === 0) return [count / (layers * perLayer), perLayer, layers]
-  const layers = Math.ceil(least / perLayer)
+  const layers = ceilDiv(least, perLayer)
   return layers > 1 ? [side, perLayer, layers] : [...atlasExtent(count, side), 1]
 }
 

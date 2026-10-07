@@ -80,6 +80,7 @@ import {
   vsmTransmissionRegions,
   VSM_TRANSMISSION_WIDTH,
 } from './transmissionLayout.ts'
+import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 
 /** Texels a side of a cell. */
@@ -91,8 +92,8 @@ const CELL_COUNT = VSM_TRANSMISSION_CELLS ** 2
 const VSM_TRANSMISSION_CHAIN = 32
 /** The shifts that divide by a block, by the width, by the pages a header row holds (four words a
  *  texel, two a page): every size a power of two, so the read folds by mask and shift. */
-const BLOCK_SHIFT = Math.log2(VSM_TRANSMISSION_BLOCK_TEXELS)
-const WIDTH_SHIFT = Math.log2(VSM_TRANSMISSION_WIDTH)
+const BLOCK_SHIFT = floorLog2(VSM_TRANSMISSION_BLOCK_TEXELS)
+const WIDTH_SHIFT = floorLog2(VSM_TRANSMISSION_WIDTH)
 const HEADER_SHIFT = WIDTH_SHIFT + 1
 /** A slice's first texels: the cell headers, then the chain. */
 const HEADER_TEXELS = CELL_COUNT / 4
@@ -1022,7 +1023,7 @@ fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  *  receiver in the shifted space of the sample's map (local), \`fromEye\` + \`eye\` its world
  *  position (directional). The axis is the sample's own level's, as its records were binned. */
 fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,directional:bool)->vec3f{
- let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${Math.log2(VSM_PAGE_TEXELS)}u));
+ let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u));
  if(all(blocks==vec2u(${VSM_TRANSMISSION_NONE}u))){return vec3f(1.0);}
  let M=vsmProjectionOf(sm.handle).shiftedToMapUv;
  let axis=normalize(vec3f(M[0].z,M[1].z,M[2].z));
@@ -1040,5 +1041,5 @@ fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,di
 }
 /** Whether sample \`sm\` lies in a page with a translucent slice. */
 fn vsmTransmissionPaned(sm:VsmMapRead)->bool{
- return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${Math.log2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
+ return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
 }`

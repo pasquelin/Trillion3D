@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -22,7 +23,7 @@ function car() {
     [-0.6, 0.6].map((x) => {
       const wheel = new Mesh(cylinder(0.3, 0.3, 0.2), new Material('meshStandard'))
       wheel.position.set(x, -0.3, z)
-      wheel.rotation.z = Math.PI / 2
+      wheel.rotation.z = HALF_PI
       hull.add(wheel)
       return wheel
     }),

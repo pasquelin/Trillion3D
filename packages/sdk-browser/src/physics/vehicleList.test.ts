@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OP, VEHICLE_STATE_WORDS, WHEEL_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts'
@@ -22,7 +23,7 @@ test('world.physics.add makes the vehicle with its body; driving it, its state a
       [-0.8, 0.8].map((x) => {
         const wheel = new Mesh(cylinder(0.3, 0.3, 0.2), new Material('meshStandard'))
         wheel.position.set(x, -0.3, z)
-        wheel.rotation.z = Math.PI / 2
+        wheel.rotation.z = HALF_PI
         body.add(wheel)
         return wheel
       }),

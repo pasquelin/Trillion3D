@@ -19,6 +19,7 @@ import {
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_PARAMS_SLOT,
 } from './renderCullWgsl.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** The argument kernels, in JavaScript, over `params`, `counts` and `args`. */
 function argumentKernels(scope: {
@@ -65,7 +66,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   )!
   // The CPU knows no bound of the chosen rows below the row count: 8192 rows a chunk (2^21 pairs
   // over 256 pages), the chunks 200 000 rows need.
-  assert.deepEqual([stats.chunkRows, stats.chunks], [8192, Math.ceil(200_000 / 8192)])
+  assert.deepEqual([stats.chunkRows, stats.chunks], [8192, ceilDiv(200_000, 8192)])
 
   // What the GPU would read: the parameter slots as the writes left them, the counters of 100
   // candidates.

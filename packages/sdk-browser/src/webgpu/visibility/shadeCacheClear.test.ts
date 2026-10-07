@@ -3,6 +3,7 @@
 // cursor and end the host's header write zeroed. The shipped kernel runs over every thread of the
 // grid the host dispatches: the cache and the dispatch hold, word for word, what the clears and the
 // header write left — the marks of the rows laid, the cursor, the end and x, y zeroed, nothing else.
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -53,7 +54,7 @@ test('the first dispatch zeroes what the two clears zeroed, and nothing else', (
       ['shade_clear', 'flatIndex', 'rowMarks'],
       { ...wgslConstants(SHADE_CACHE_SHADER), ...m },
     )
-    const [nx, ny] = dispatchGrid(Math.ceil((rows * ROW_MARK_WORDS) / SHADE_ROWS_LANES), span)
+    const [nx, ny] = dispatchGrid(ceilDiv(rows * ROW_MARK_WORDS, SHADE_ROWS_LANES), span)
     for (let y = 0; y < ny; y++)
       for (let x = 0; x < nx * SHADE_ROWS_LANES; x++) shade_clear([x, y, 0], [nx, ny, 1])
     assert.deepEqual(m.shadeCache, expected, `${rows} rows`)

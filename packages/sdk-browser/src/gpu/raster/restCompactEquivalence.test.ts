@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
 import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 // The tested half is compacted (`restCount`, `restScan`, `restScatter`) rather than truncated
 // after its last survivor (`restMark`, `restApply`), which would still draw the rejected
@@ -63,7 +64,7 @@ function compact(f: Frame) {
   // The scan over the lanes is a serial exclusive sum of the slot's tile counts, term for term.
   for (let n = 0; n < f.restSlots; n++) {
     let cursor = 0
-    for (let t = 0; t < Math.ceil(work[countWord(n)] / TILE); t++) {
+    for (let t = 0; t < ceilDiv(work[countWord(n)], TILE); t++) {
       const kept = work[tileWord(n, t)]
       work[tileWord(n, t)] = cursor
       cursor += kept
@@ -120,7 +121,7 @@ function frame(rand: () => number): Frame {
     hizFlags,
     restSlots: HALF_SLOTS * layers,
     // The dispatch covers the drawable rows, sometimes fewer than a slot holds.
-    tiles: Math.ceil((rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total)) / TILE),
+    tiles: ceilDiv(rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total), TILE),
   }
 }
 

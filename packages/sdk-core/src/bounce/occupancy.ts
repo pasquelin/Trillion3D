@@ -2,6 +2,7 @@ import type { SceneProxy } from '../contracts/proxy.ts'
 import { proxyTriangleBoxes } from '../scene/core/proxyBoxes.ts'
 import type { BounceCascades } from './cascades.ts'
 import { cellsOf, dilate, mark, reduce, repeats } from './occupancyCells.ts'
+import { alignDown } from '../../../math/src/scalar/integers.ts'
 
 /**
  * Where keeping a probe is worthwhile: cascade occupancy map.
@@ -42,7 +43,7 @@ function build(cascades: BounceCascades, extent: readonly number[], boxes: Array
   // Origin and dimensions are aligned to the largest reduction: otherwise a coarse level cell
   // would not equal the exact eight-block of the previous level, lying by one cell out of two.
   const align = 2 ** (cascades.levels.length - 1)
-  const floorTo = (value: number) => Math.floor(value / align) * align
+  const floorTo = (value: number) => alignDown(value, align)
   // A margin of one coarsest cell at least keeps the boundary cell each level's dilation gives the
   // extent's faces: a narrower one cut it on the coarse levels.
   const below = Math.max(2, align),

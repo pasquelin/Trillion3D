@@ -1,8 +1,9 @@
+import { FLOAT32_MAX, FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
 
 // Eight binary32 unit roundoffs cover WGSL division's allowed error as well as separate
 // multiply/add evaluation. Products/sums accumulate by gamma(n), not a fixed world-space epsilon.
-export const ROUND = 8 * 2 ** -24
+export const ROUND = 4 * FLOAT32_STEP
 const GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
 const FLUSH = 8 * 2 ** -126
 
@@ -45,7 +46,7 @@ export function encloseTransform(
       magnitude +=
         Math.abs(matrix[column * 4 + axis]) *
         Math.max(Math.abs(box[column]), Math.abs(box[column + 3]))
-    if (!(magnitude < 3.4028234663852886e38)) return false
+    if (!(magnitude < FLOAT32_MAX)) return false
     const bound = Math.max(Math.abs(out[axis]), Math.abs(out[axis + 3]))
     error[axis] = (GAMMA * magnitude + FLUSH + bound * errorW) / (minimumW - errorW) + ROUND * bound
     out[axis] -= error[axis]

@@ -23,6 +23,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { NEAR, camera, pixelPoint, type Vec3 } from '../tiles/tileCamera.fixture.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 type Lamp = { centre: Vec3; radius: number; spot: boolean }
 type Sum = (...args: unknown[]) => number[]
@@ -106,7 +107,7 @@ const view = camera([3, 6, -2], 0.8, -0.5, 70, 320, 200)
 
 test('random lamp sets of 1 to 256: the cell list sums every lamp, bit for bit', () => {
   const r = random(1369),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let reached = 0
   for (let count = 1; count <= 256; count++) {
     const [px, py] = [Math.floor(u(0, 320)), Math.floor(u(0, 200))]

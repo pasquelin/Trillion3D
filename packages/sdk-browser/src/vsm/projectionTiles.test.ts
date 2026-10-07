@@ -13,6 +13,7 @@ import { CASES, lightsOf, pixelsOf } from './projectionTiles.fixture.ts'
 import { reference, shipped } from './projectionTileRun.fixture.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL } from './constants.ts'
 import { seeded } from './planFrames.fixture.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 test('a tile traces what every light tested at every pixel traces, and the resolve reads the same codes', () => {
   const rand = seeded(1831)
@@ -59,7 +60,7 @@ test('a tile traces what every light tested at every pixel traces, and the resol
       assert.ok((run.tileLayers >> layer) & 1, `round ${round}: no store of an unheld layer`)
     }
     stored += run.stores.size
-    layers += pixels.filter((p) => p.inRect).length * Math.ceil(count / 4)
+    layers += pixels.filter((p) => p.inRect).length * ceilDiv(count, 4)
     tested += old.inLight.length * count
     pruned += old.tile.filter((held) => !held).length * 64
   }

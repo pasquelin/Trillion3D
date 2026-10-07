@@ -7,7 +7,7 @@
  */
 
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { wrap } from '../scalar/reals.ts'
+import { wrap, clamp, saturate } from '../scalar/reals.ts'
 
 /** Encoded sRGB value in `[0, 1]` to its linear value. */
 export function srgbToLinear(c: number) {
@@ -21,7 +21,7 @@ export function linearToSrgb(c: number) {
 
 /** Linear value to its encoded sRGB byte, rounded and held to `[0, 255]`. */
 export function linearToSrgb8(c: number) {
-  return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)))
+  return clamp(Math.round(linearToSrgb(c) * 255), 0, 255)
 }
 
 /** A component of HSL to RGB conversion, the piecewise ramp. */
@@ -49,8 +49,8 @@ export function hslToLinearRgb<T extends NumberSink>(
   l: number,
 ) {
   const hue = wrap(h, 1),
-    saturation = Math.max(0, Math.min(1, s)),
-    lightness = Math.max(0, Math.min(1, l))
+    saturation = saturate(s),
+    lightness = saturate(l)
   if (saturation === 0) {
     out[o] = out[o + 1] = out[o + 2] = lightness
     return out

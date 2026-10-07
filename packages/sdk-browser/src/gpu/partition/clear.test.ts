@@ -8,6 +8,7 @@ import { PARTITION_SHADER } from './shader.ts'
 import { partitionClearThreads } from './clearWgsl.ts'
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 type Ref = { get: () => number[] }
 
@@ -21,7 +22,7 @@ function cleared(rows: number, restWords: number, slotWords: number) {
     ['clearRows'],
     { ...m, uni: { rows }, arrayLength: (p: Ref) => p.get().length },
   )
-  const groups = Math.ceil(partitionClearThreads(rows, slotWords) / PARTITION_WORKGROUP)
+  const groups = ceilDiv(partitionClearThreads(rows, slotWords), PARTITION_WORKGROUP)
   for (let i = 0; i < groups * PARTITION_WORKGROUP; i++) clearRows([i, 0, 0])
   return m
 }
@@ -47,7 +48,7 @@ test("the pass's first dispatch zeroes every word the frame's kernels read from 
     )
     // The rest bits of the rows the frame covers: `classifyRows` sets them, the draw compaction
     // reads none past its count — at most the partition's rows (`encodeVis.ts`).
-    const covered = Math.ceil(rows / 32)
+    const covered = bitWords(rows)
     assert.ok(
       m.restBits.slice(0, covered).every((w) => w === 0),
       `${rows} rows: rest bits`,

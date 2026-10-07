@@ -12,17 +12,15 @@ import {
   TAU,
 } from './constants.ts'
 
-test('constants hold their values', () => {
-  assert.equal(HALF_PI * 2, Math.PI)
-  assert.equal(TAU, 2 * Math.PI)
+test('each constant is the bits of the expression its doc names', () => {
+  assert.equal(HALF_PI, Math.PI / 2)
+  assert.equal(TAU, Math.PI * 2)
   assert.equal(DEG2RAD, Math.PI / 180)
   assert.equal(RAD2DEG, 180 / Math.PI)
-  assert.ok(Math.abs(180 * DEG2RAD - Math.PI) < 1e-15)
-  assert.ok(Math.abs(GOLDEN_RATIO - 1.618033988749895) < 1e-15)
-  assert.ok(Math.abs(GOLDEN_FRACTION - (GOLDEN_RATIO - 1)) < 1e-15)
+  assert.equal(GOLDEN_RATIO, (1 + Math.sqrt(5)) / 2)
   assert.equal(GOLDEN_FRACTION, (Math.sqrt(5) - 1) / 2)
-  assert.equal(FLOAT32_STEP, Math.fround(1 + 2 ** -23) - 1)
-  assert.equal(MIB, 1048576)
+  assert.equal(FLOAT32_STEP, 2 ** -23)
+  assert.equal(MIB, 1024 * 1024)
 })
 
 test('FLOAT32_MAX is the largest finite float32 and not 3.4e38', () => {

@@ -9,6 +9,7 @@ import { Box3 } from './box3.ts'
 import { Frustum, Plane, Ray, Sphere, Triangle } from './volumes.ts'
 import { Color, type ColorInput } from './color.ts'
 import { Path, Shape, SplineCurve } from './curves.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 /** The `math` family: the value types of a scene, each built by the member named after it. */
 export const math = {
@@ -132,7 +133,7 @@ export const math = {
    * @param b - The end.
    * @param t - How far along, 0 to 1.
    */
-  lerp: (a: number, b: number, t: number) => a + (b - a) * t,
+  lerp,
   /**
    * Turns degrees into radians.
    * @param d - An angle in degrees.

@@ -30,6 +30,7 @@
  * world boxes, the shadow levels of detail. A link made with the rows' own CPU write changes none
  * of these: the CPU's row write follows them.
  */
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { MOTION_SKIP, packDoubles } from './composedMotion.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
@@ -402,7 +403,7 @@ export function encodeComposedRoots(
         ],
       })
     pass.setBindGroup(0, held.group)
-    pass.dispatchWorkgroups(Math.ceil(count / 64))
+    pass.dispatchWorkgroups(ceilDiv(count, 64))
   }
   pass.end()
   rt.run.gpuComputeDispatches += selection.worldRanges.length
@@ -453,7 +454,7 @@ export function encodeComposedRows(
       ],
     })
   pass.setBindGroup(0, held.group)
-  pass.dispatchWorkgroups(Math.ceil(rows / 64))
+  pass.dispatchWorkgroups(ceilDiv(rows, 64))
   pass.end()
   rt.run.gpuComputeDispatches++
 }

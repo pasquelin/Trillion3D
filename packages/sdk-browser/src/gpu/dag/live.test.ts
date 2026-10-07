@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { witnessEncoder, cutResources, ETAGES, LIVE, CAND } from './encode.fixture.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
   const { encoder, dispatches } = witnessEncoder()
@@ -24,8 +25,8 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(dispatches.slice(2, 5), [
     { kernel: 'dagRootLevel', groups: 1 },
-    { kernel: 'dagLevel1', groups: Math.ceil(ETAGES[1] / 64) },
-    { kernel: 'dagLevel2', groups: Math.ceil(ETAGES[2] / 64) },
+    { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], 64) },
+    { kernel: 'dagLevel2', groups: ceilDiv(ETAGES[2], 64) },
   ])
   const ordre = dispatches.map((l) => l.kernel)
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'))

@@ -1,4 +1,5 @@
 import { DISPATCH_SPAN } from '../../raster/contract.ts'
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 
 /**
  * DISPATCHES IN ROWS: a cut's pass counts one thread per page, node, slot or listed entry, and a
@@ -17,7 +18,7 @@ export const DEFAULT_GROUP_WIDTH = DISPATCH_SPAN
 
 /** The `[x, y]` workgroups of a dispatch of `groups`, in rows of at most `width`. */
 export function dispatchGrid(groups: number, width = DEFAULT_GROUP_WIDTH): [number, number] {
-  return groups <= width ? [groups, 1] : [width, Math.ceil(groups / width)]
+  return groups <= width ? [groups, 1] : [width, ceilDiv(groups, width)]
 }
 
 /** The width a device's dispatches run in: its own limit, WebGPU's default without one. */

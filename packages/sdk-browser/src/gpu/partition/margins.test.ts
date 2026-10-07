@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEPTH_GROW, ERR_K, INPUT_K, SCREEN_SLACK_K, wgslFloat } from './margins.ts'
+import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 
 /** The `f32` a WGSL compiler reads from a literal: the single-precision value nearest it. */
 const parsed = (literal: string) => Math.fround(Number.parseFloat(literal))
@@ -17,7 +18,7 @@ test('the depth margin is the two ulps it declares, not one', () => {
 
 test('a value just above an f32 midpoint keeps its side', () => {
   for (let k = 10; k < 40; k++) {
-    const value = 1 + 1.5 * 2 ** -23 + 2 ** -23 * 2 ** -k
+    const value = 1 + 1.5 * FLOAT32_STEP + FLOAT32_STEP * 2 ** -k
     assert.equal(parsed(wgslFloat(value)), Math.fround(value), `2^-${k} above the midpoint`)
   }
 })

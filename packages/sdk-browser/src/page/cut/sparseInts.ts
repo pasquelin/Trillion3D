@@ -1,3 +1,4 @@
+import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 /**
  * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
  * cut's per-page state is kept in, so its size follows what the view and the pool hold, never the
@@ -71,7 +72,7 @@ function allocate(t: Table, slots: number) {
     oldValues = t.values
   const keys = (t.keys = new Int32Array(slots).fill(EMPTY))
   const values = (t.values = new Int32Array(slots))
-  t.shift = 32 - Math.log2(slots)
+  t.shift = 32 - floorLog2(slots)
   for (let i = 0; i < oldKeys.length; i++)
     if (oldKeys[i] !== EMPTY) {
       const at = find(t, oldKeys[i])

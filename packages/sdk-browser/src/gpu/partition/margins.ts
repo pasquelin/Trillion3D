@@ -1,10 +1,12 @@
+import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
+
 /**
  * Margins that make the GPU projection conservative, and where they come from.
  *
  * `u = 2⁻²⁴` is the relative half-ulp of single precision: a round-to-nearest moves a value by at
  * most `u` times itself.
  */
-const U = 2 ** -24
+const U = FLOAT32_STEP / 2
 
 /**
  * Factor that bounds the error of a four-term dot product, relative to the sum of those terms'
@@ -53,7 +55,7 @@ export const SCREEN_SLACK_K = 4 * U
  * precision. Single-precision multiplication is monotonic, so an input greater than or equal to
  * the CPU's yields an output greater than or equal to the CPU's.
  */
-export const DEPTH_GROW = (1 + 2 ** -23) * (1 + U)
+export const DEPTH_GROW = (1 + FLOAT32_STEP) * (1 + U)
 
 /**
  * A WGSL `f32` literal of the constant: the single-precision value nearest it, written with the

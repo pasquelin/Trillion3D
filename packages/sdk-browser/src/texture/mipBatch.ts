@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from './tiles.ts'
@@ -131,7 +132,7 @@ function packBlocks(places: readonly Place[], blocks: number, stride: number, cu
 }
 
 const dispatch = (pass: GPUComputePassEncoder, [w, h]: readonly number[]) =>
-  pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8))
+  pass.dispatchWorkgroups(ceilDiv(w, 8), ceilDiv(h, 8))
 
 /** The cutting chains that reach `level`: the first ones, the most levels first. */
 const reaching = (levels: readonly number[], level: number) => {

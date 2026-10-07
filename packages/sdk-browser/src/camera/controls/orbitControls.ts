@@ -1,3 +1,4 @@
+import { TAU } from '../../../../math/src/constants.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
 import { controlPose, readVector, writeVector } from './pose.ts'
@@ -136,8 +137,8 @@ export function createOrbitCameraControls(
   }
   const rotate = (dx: number, dy: number) => {
     sample()
-    spherical[1] -= (2 * Math.PI * dx * api.rotateSpeed) / height()
-    spherical[2] -= (2 * Math.PI * dy * api.rotateSpeed) / height()
+    spherical[1] -= (TAU * dx * api.rotateSpeed) / height()
+    spherical[2] -= (TAU * dy * api.rotateSpeed) / height()
     apply()
   }
   const panBy = (dx: number, dy: number) => {

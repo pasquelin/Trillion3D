@@ -16,6 +16,7 @@ import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts'
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 test('a screen hit replaces the fallback; a miss or a disabled pass reads it, once', () => {
   const read = (options: Parameters<typeof resolvedDisplay>[0], rough: number) => {
@@ -117,7 +118,7 @@ test('a blended surface traces its mirror ray once: the full walk in the mirror 
     assert.deepEqual(read(true, rough, false).value, RAY)
     assert.deepEqual(read(false, rough, true).value, missed.value)
     fallback(rough).forEach((x, i) => {
-      const mixed = x + (atFloor[i]! - x) * weight
+      const mixed = lerp(x, atFloor[i]!, weight)
       assert.ok(Math.abs(missed.value[i]! - mixed) < 1e-12, `${rough}: ${missed.value[i]}`)
     })
   }

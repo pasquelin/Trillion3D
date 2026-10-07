@@ -16,6 +16,7 @@ import { fromSpherical } from './spherical.ts'
 import { ObservedComponents } from '../observed.ts'
 import type { Matrix4, Matrix3 } from './matrix4.ts'
 import type { XYZLike as XYZ, XYZWLike as Q } from './likes.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 const a = new Float64Array(3),
   b = new Float64Array(3),
@@ -133,7 +134,7 @@ export class Vector3 extends ObservedComponents {
     return this.lerpVectors(this, v, t)
   }
   /** Becomes the point `t` of the way from `u` to `v`. */ lerpVectors(u: XYZ, v: XYZ, t: number) {
-    return this.set(u.x + (v.x - u.x) * t, u.y + (v.y - u.y) * t, u.z + (v.z - u.z) * t)
+    return this.set(lerp(u.x, v.x, t), lerp(u.y, v.y, t), lerp(u.z, v.z, t))
   }
   /** Whether two vectors hold the same numbers. */ equals(v: XYZ) {
     return this.x === v.x && this.y === v.y && this.z === v.z

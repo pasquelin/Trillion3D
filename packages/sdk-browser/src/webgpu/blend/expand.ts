@@ -1,3 +1,4 @@
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BLEND_EXPAND_ENTRIES, BLEND_EXPAND_SHADER, blendExpandDispatch } from './expandWgsl.ts'
 import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts'
 import {
@@ -198,7 +199,7 @@ function expandBuffers(device: GPUDevice, sizes: ExpandSizes, made: GPUBuffer[])
   return {
     uniforms: make('Trillion3D blend expand uniforms', UNIFORM_STRIDE * EXPAND_PASSES, uniform),
     plan: make('Trillion3D blend sorted plan', sizes.planWords * 4, storage),
-    keep: make('Trillion3D blend frustum verdicts', ((sizes.items + 31) >> 5) * 4, storage),
+    keep: make('Trillion3D blend frustum verdicts', bitWords(sizes.items) * 4, storage),
     draws: make('Trillion3D blend draw descriptions', sizes.items * 16, storage),
     steps: make('Trillion3D blend order steps', steps, uniform),
     keyed: make('Trillion3D blend key records', sizes.items * KEY_RECORD_WORDS * 4, storage),

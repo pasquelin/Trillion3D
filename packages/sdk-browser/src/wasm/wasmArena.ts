@@ -1,3 +1,4 @@
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 import type { SdkWasm } from './sdkWasm.ts'
 
 /**
@@ -70,8 +71,6 @@ export interface Arena {
   freed(): void
 }
 
-const align = (bytes: number) => Math.ceil(bytes / ALIGNMENT) * ALIGNMENT
-
 /** A block and its subviews, whichever memory carries it. */
 function block(request: ArenaRequest, offset: number, view: ArenaView): ArenaBlock {
   const stride = request.stride ?? 0
@@ -103,7 +102,7 @@ export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): 
   let bytes = 0
   for (const request of requests) {
     plan.push({ request, start: bytes })
-    bytes += align(request.length * SIZES[request.type])
+    bytes += alignUp(request.length * SIZES[request.type], ALIGNMENT)
   }
   const base = wasm.arena_alloc(bytes)
   if (!base) return null

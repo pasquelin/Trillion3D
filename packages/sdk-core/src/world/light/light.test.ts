@@ -11,6 +11,7 @@ import { Group, Object3D } from '../object/object3d.ts'
 import { countingLink } from '../object/sceneLink.fixture.ts'
 import { nodeWrites, noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('a light holds its kind, colours, target, coefficients and numbers, nothing more', () => {
   const light = new Light('spot')
@@ -128,7 +129,7 @@ test('lookAt accepts numbers and vectors, turning the emitter and moving its tar
     if (parented) {
       const parent = new Group()
       parent.position.set(10, -5, 2)
-      parent.rotation.z = Math.PI / 2
+      parent.rotation.z = HALF_PI
       parent.scale.set(2, 2, 2)
       parent.add(lamp.target)
     }

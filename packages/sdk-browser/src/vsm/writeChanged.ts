@@ -9,6 +9,7 @@
  * bytes a whole write would have left.
  */
 import { coalesceRanges, RESIDENCY_RULE } from '../webgpu/residency/ranges.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>()
 let changed = new Int32Array(64)
@@ -31,7 +32,7 @@ export function vsmWriteChangedCopy(source: GPUBuffer, target: GPUBuffer) {
 function heldWords(buffer: GPUBuffer, to: number) {
   let held = HELD.get(buffer)
   if (!held || held.length < to) {
-    const grown = new Uint32Array(Math.min(buffer.size / 4, Math.max(to, 2 * (held?.length ?? 0))))
+    const grown = new Uint32Array(clamp(2 * (held?.length ?? 0), to, buffer.size / 4))
     if (held) grown.set(held)
     HELD.set(buffer, (held = grown))
   }

@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 /**
  * Value returned when no texels are read: cannot occlude anything.
  *
@@ -35,8 +36,8 @@ export function hizFlatLevels(width: number, height: number) {
     h = height,
     count = 1
   while (w > 1 || h > 1) {
-    w = Math.ceil(w / 2)
-    h = Math.ceil(h / 2)
+    w = ceilDiv(w, 2)
+    h = ceilDiv(h, 2)
     count++
   }
   return count
@@ -58,8 +59,8 @@ export function hizFlatLayout(width: number, height: number, into?: HizFlat): Hi
     widths[level] = w
     heights[level] = h
     total += w * h
-    w = Math.ceil(w / 2)
-    h = Math.ceil(h / 2)
+    w = ceilDiv(w, 2)
+    h = ceilDiv(h, 2)
   }
   const data = into && into.data.length >= total ? into.data : new Float32Array(Math.max(1, total))
   if (into) {

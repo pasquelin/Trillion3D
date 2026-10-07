@@ -14,6 +14,7 @@ import {
   type HizPipelines,
   type HizState,
 } from './hizOps.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
 export async function createGpuHiz(
@@ -50,7 +51,7 @@ function hizState(
   const uniforms = device.createBuffer({
     label: 'Trillion3D HiZ uniforms',
     // The deepest pyramid's build passes, then the test's slot.
-    size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
+    size: UNIFORM_BYTES * (ceilDiv(HIZ_MAX_LEVELS - 1, HIZ_PASS_LEVELS) + 1),
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // Tested boxes and the frame state belong to the GPU partition, which does not exist yet.

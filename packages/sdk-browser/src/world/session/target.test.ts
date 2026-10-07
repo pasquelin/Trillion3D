@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { openMeasuredWorld, createMeasuredWorldJob } from '../../measurement/measurement.ts'
@@ -70,7 +71,7 @@ test('interactive options derive CSS size and DPR with explicit overrides; manua
     ...options,
     interactive: true,
     engine: () => ({}) as never,
-    geometryPoolBytes: 16 * 1024 * 1024,
+    geometryPoolBytes: 16 * MIB,
   }
   assert.equal(interactiveOptions(element, explicit).engine, explicit.engine)
   assert.equal(interactiveOptions(element, explicit).geometryPoolBytes, explicit.geometryPoolBytes)

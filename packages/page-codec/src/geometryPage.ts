@@ -21,6 +21,7 @@ import {
   type PageAttributes,
   type PageCell,
 } from './pageAttributes.ts'
+import { saturate } from '../../math/src/scalar/reals.ts'
 
 const MAGIC = 0x33504757,
   VERSION = 7,
@@ -111,7 +112,7 @@ function quantizeAttributes(
       )
     else if (bit === 8) {
       const record = quantize(
-        values.map((v) => Math.max(0, Math.min(1, v))),
+        values.map((v) => saturate(v)),
         4,
         COLOR_EXPONENT,
       )

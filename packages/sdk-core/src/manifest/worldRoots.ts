@@ -6,6 +6,7 @@
  * `pinned` bundles for good.
  */
 import { EngineError } from '../contracts/cache.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 /** The table beside the manifest, fixed-size records: what a load reads. */
 export const WORLD_ROOTS_FILE = 'world-roots.table'
@@ -105,7 +106,7 @@ export function worldBundlePages(bytes: Uint8Array, count: number, bundle: numbe
     const vertices = view.getUint32(at, true),
       corners = view.getUint32(at + 4, true) * 3
     const start = bytes.byteOffset + at + 8,
-      end = at + 8 + vertices * 12 + Math.ceil((corners * 2) / 4) * 4
+      end = at + 8 + vertices * 12 + alignUp(corners * 2, 4)
     if (end > bytes.byteLength) refuse(`bundle ${bundle} ends inside page ${page}`)
     const positions = new Float32Array(bytes.buffer.slice(start, start + vertices * 12))
     const indices = new Uint16Array(

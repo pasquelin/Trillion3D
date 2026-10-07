@@ -1,4 +1,5 @@
 import { QUERY_SET_SIZE } from './querySetSize.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
 export const PART_ALIGN = 32
@@ -76,7 +77,7 @@ export function instrumentTimingEncoder(
         return (descriptor: GPURenderPassDescriptor | GPUComputePassDescriptor = {}) => {
           let instrumented = descriptor
           if (part.base < 0) {
-            part.base = Math.ceil(image.cursor / PART_ALIGN) * PART_ALIGN
+            part.base = alignUp(image.cursor, PART_ALIGN)
             image.latest = part
           }
           const index = part.base + part.names.length * 2

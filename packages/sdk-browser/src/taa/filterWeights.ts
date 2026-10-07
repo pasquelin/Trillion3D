@@ -5,6 +5,7 @@
  * without softening. They depend only on the jitter, which takes only `TAA_SAMPLES` values: the
  * table is computed once, and never per frame nor per pixel.
  */
+import { saturate } from '../../../math/src/scalar/reals.ts'
 import { hypot2 } from '../../../math/src/float/hypot.ts'
 import { PI, shaderFloat } from '../lighting/shaderConstants.ts'
 
@@ -16,7 +17,7 @@ const BLACKMAN_HARRIS = [0.35875, 0.48829, 0.14128, 0.01168] as const
 
 /** The window on `[0, 1]` of the radius, zero beyond. */
 function blackmanHarris(distance: number) {
-  const x = Math.min(1, Math.max(0, distance)) * Math.PI + Math.PI,
+  const x = saturate(distance) * Math.PI + Math.PI,
     [a0, a1, a2, a3] = BLACKMAN_HARRIS
   return a0 - a1 * Math.cos(x) + a2 * Math.cos(2 * x) - a3 * Math.cos(3 * x)
 }

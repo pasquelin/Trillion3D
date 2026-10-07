@@ -1,3 +1,4 @@
+import { uniformStride } from '../../residency/pools.ts'
 import { shaderErrors } from '../../gpu/core/shaderModule.ts'
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts'
@@ -87,7 +88,7 @@ export async function createWebgpuVisibilityShaders(
   const zeroFlags = zeroFlagsBuffer(device, drawSlots)
   const visUniform = device.createBuffer({
     label: 'Trillion3D visibility uniforms',
-    size: uniformSlots * 256,
+    size: uniformSlots * uniformStride(device.limits),
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // With no variant, the two modules are exactly those from before: production compiles no

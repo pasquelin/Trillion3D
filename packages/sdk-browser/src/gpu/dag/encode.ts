@@ -3,6 +3,7 @@ import type { createDagResources } from './resources.ts'
 import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 /** The cut's resources, as it encodes them. */
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -154,7 +155,7 @@ function perRange(
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
     const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor)
-    const [x, y] = dispatchGrid(Math.max(1, Math.ceil(count / WORKGROUP)), width)
+    const [x, y] = dispatchGrid(workgroupCount(count, WORKGROUP), width)
     pass.dispatchWorkgroups(x, y)
   }
 }

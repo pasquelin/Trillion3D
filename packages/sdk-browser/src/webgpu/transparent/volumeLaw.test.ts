@@ -7,6 +7,7 @@
 // path, in the water as in its shadow, where the water let 10⁻⁵ of it through and the shadow's
 // `pow(0, y)` is undefined. The shadow's raster keeps its per-fragment `c^(x / d)` on every colour
 // that is not black, bit for bit.
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -32,7 +33,7 @@ const pow = (x: number, y: number) => f(2 ** f(y * f(Math.log2(x))))
 
 test('the water attenuation from its f64 constant is closer to c^(x / d) than the per-pixel log and exp', () => {
   const develop = (c: number, d: number, x: number) => {
-    const sigma = f(-f(Math.log(f(Math.min(Math.max(c, f(1e-5)), 1)))) / d)
+    const sigma = f(-f(Math.log(f(clamp(c, f(1e-5), 1)))) / d)
     return f(2 ** f(f(-sigma * x) * LOG2E))
   }
   const k = [0, 0, 0]

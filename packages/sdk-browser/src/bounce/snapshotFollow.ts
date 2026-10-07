@@ -1,7 +1,9 @@
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
-import { BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
+import { BOUNCE_SNAPSHOT_SHADER, BOUNCE_WORKGROUP } from './probeWgsl.ts'
+import { PROBE_TEXELS } from './atlas.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** The follow-up's slots: grid, queue, the probes it reads and the snapshot it writes. */
 const SNAPSHOT_TYPES: BounceSlot[] = [
@@ -37,6 +39,6 @@ export async function createSnapshotFollow(
   return (pass, groups) => {
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, group)
-    pass.dispatchWorkgroups(snapshotGroups(groups), 1, 1)
+    pass.dispatchWorkgroups(ceilDiv(groups * PROBE_TEXELS, BOUNCE_WORKGROUP), 1, 1)
   }
 }

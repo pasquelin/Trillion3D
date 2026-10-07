@@ -2,6 +2,7 @@ import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './l
 import type { BodyRecord } from './bodyRecord.ts'
 import type { JointRecord } from './jointRecord.ts'
 import { SpareBuffers } from './spareBuffers.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /**
  * A growable command buffer: the page writes a frame's commands, then hands the words over in one
@@ -31,7 +32,7 @@ export class CommandWriter {
   /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
    *  with zeros to whole words (a cooked shape's or soft body's native binary state). */
   put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
-    const padded = Math.ceil((bytes?.length ?? 0) / 4)
+    const padded = ceilDiv(bytes?.length ?? 0, 4)
     this.reserve(words.length + floats.length + padded)
     for (let i = 0; i < words.length; i++) this.words[this.length++] = words[i] >>> 0
     for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i]

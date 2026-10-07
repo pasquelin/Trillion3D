@@ -6,6 +6,7 @@
 // shadowed or not, in the standard, diffuse and toon models, thin or not, on a cell's list and on
 // every lamp. The rectangle's terms, which need the LTC table, are read in the text: each second
 // term is the first with the null albedo for the surface's.
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -37,7 +38,7 @@ const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 
 test('one walk of the lights gives the two sums of two walks, bit for bit', () => {
   const r = random(1563),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (let round = 0; round < 600; round++) {
     const count = 1 + Math.floor(u(0, 24))

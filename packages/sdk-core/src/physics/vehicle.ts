@@ -2,6 +2,7 @@ import type { Object3D } from '../world/object/object3d.ts'
 import { GRAVITY_PRESETS } from './options.ts'
 import { MAX_GEARS, TORQUE_POINTS } from './vehicleLayout.ts'
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 /**
  * What a driver asks of a vehicle: the pedals and the wheel, as the keys of `world.controls`
@@ -79,7 +80,7 @@ function refuse({ kind, body, wheels, spec }: Vehicle, options: Partial<VehicleS
     if (options[option as keyof VehicleSpec] !== undefined) fail(`no ${option}: ${why}`)
   // A spring sags `g / (2π f)²` under its share of the weight (the static deflection of a ride
   // frequency, on Earth); past its travel the body would rest on its bump stops.
-  const sag = GRAVITY_PRESETS.earth / (2 * Math.PI * spec.suspensionFrequency) ** 2
+  const sag = GRAVITY_PRESETS.earth / (TAU * spec.suspensionFrequency) ** 2
   if (!(sag < spec.suspensionTravel))
     fail(
       `a suspensionTravel longer than its sag, g / (2π suspensionFrequency)² = ${sag.toFixed(3)} m`,

@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import assert from 'node:assert/strict'
@@ -23,7 +24,7 @@ test('opposite triangles produce an open cone', () => {
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],
     [0, 1, 2, 3, 4, 5],
   )
-  assert.ok(cone.angle >= Math.PI / 2 - 1e-6)
+  assert.ok(cone.angle >= HALF_PI - 1e-6)
 })
 
 test('OPEN_CONE never rejects', () => {

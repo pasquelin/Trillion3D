@@ -16,6 +16,7 @@ import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { PI, ROUGHNESS_FLOOR } from '../shaderConstants.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 type Light = (...args: unknown[]) => number[]
 const NAMES = [
@@ -38,7 +39,7 @@ const before = shipped.replace(
 test('a lobed light pays the half-vector only where the base or the coat faces it, bit for bit', () => {
   assert.notEqual(before, shipped)
   const r = random(1483),
-    u = (lo: number, hi: number) => Math.fround(lo + (hi - lo) * r())
+    u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
   const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   // What a pixel's lights share of a surface, as the shipped loop takes it (`lobeSurface`).
   const { lobeSurface } = shaderRun<Record<string, Light>>(shipped, NAMES, F32_SCOPE)
@@ -112,7 +113,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
     return text.replace(shippedForm, dividedForm)
   }, shipped)
   const r = random(1484),
-    u = (lo: number, hi: number) => f(lo + (hi - lo) * r())
+    u = (lo: number, hi: number) => f(lerp(lo, hi, r()))
   const unit = (v: number[]) => v.map((x) => f(x / Math.hypot(...v)))
   const lobes: Record<string, unknown> = {}
   const ours = shaderRun<Record<string, Light>>(shipped, NAMES, { ...F32_SCOPE, lobes })

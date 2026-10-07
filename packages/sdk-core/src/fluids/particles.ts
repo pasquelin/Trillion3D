@@ -7,6 +7,7 @@
  * step never reads the origin; drawing adds it back.
  */
 import { GRAVITY_PRESETS } from '../physics/options.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** Floats of one particle and of one emission record, the same eight words: position from the
  *  origin then age, velocity then lifetime. A record's age is zero: the GPU copies it as it is. */
@@ -72,7 +73,7 @@ export class ParticlePool {
   constructor(spec: ParticlePoolSpec) {
     const { capacity, emitPerFrame, acceleration, origin, blend = 'additive' } = spec,
       { color = [1, 0.8, 0.5, 1], size = 0.1, softness = size } = spec
-    const perFrame = emitPerFrame ?? Math.min(capacity, Math.max(256, Math.floor(capacity / 16)))
+    const perFrame = emitPerFrame ?? clamp(Math.floor(capacity / 16), 256, capacity)
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY)
       throw new Error(`PARTICLE_CAPACITY: a pool holds 1 to ${MAX_CAPACITY} particles`)
     if (!Number.isInteger(perFrame) || perFrame < 1 || perFrame > capacity)

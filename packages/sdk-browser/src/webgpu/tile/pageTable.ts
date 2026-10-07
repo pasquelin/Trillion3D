@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   entryLevel,
   MAX_LEVELS,
@@ -119,7 +120,7 @@ function tileAt({ layouts, bases }: Table, entry: number): TileKey {
   let lo = 0,
     hi = layouts.length - 1
   while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1
+    const mid = ceilDiv(lo + hi, 2)
     if (bases[mid] <= entry) lo = mid
     else hi = mid - 1
   }

@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
@@ -59,7 +60,7 @@ fn foldStep(local: u32, span: vec2u) -> vec2u { return foldLanes(local, span); }
 export const PARTICLE_ARGS_BYTES = 12
 
 /** The workgroups covering `slots` slots. */
-export const particleGroups = (slots: number) => Math.ceil(slots / PARTICLE_WORKGROUP)
+export const particleGroups = (slots: number) => ceilDiv(slots, PARTICLE_WORKGROUP)
 
 /** One invocation per slot that can change: `main` over the window of the slots alive after the
  *  last step, its workgroups the dispatch `bound` wrote; `emit` over the ring's records of this

@@ -1,3 +1,4 @@
+import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
@@ -65,7 +66,7 @@ async function compactPasses(
   let boundMask = bound[0],
     bindGroup = bindTo(boundMask)
   const uniData = new Uint32Array(UNIFORM_WORDS)
-  const groups = Math.max(1, Math.ceil(table.length / TRANSPARENT_GROUP))
+  const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
   const items = Math.max(1, table.pagedItems.length)
   return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
     uniData[0] = table.length
@@ -79,9 +80,7 @@ async function compactPasses(
     pass.setBindGroup(0, bindGroup)
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step])
-      pass.dispatchWorkgroups(
-        step === 1 ? Math.ceil(items / 64) : Math.ceil(groups / (step ? 1 : 64)),
-      )
+      pass.dispatchWorkgroups(step === 1 ? ceilDiv(items, 64) : ceilDiv(groups, step ? 1 : 64))
     }
     pass.end()
   }

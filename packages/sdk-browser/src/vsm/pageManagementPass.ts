@@ -229,8 +229,6 @@ function writeParams(
   )
 }
 
-const groupsFor = (n: number) => ceilDiv(n, VSM_GROUP_WIDTH)
-
 function bind(
   ctx: Ctx,
   res: VsmResources,
@@ -276,7 +274,7 @@ export function encodeVsmPageCarry(
   const ctx = context(res, frame)
   const cacheValid = res.prevFrameKept
   writeParams(ctx, frame, cacheValid, SLOT_ADDRESSES, SLOT_ADDRESSES + 1)
-  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, groupsFor(res.layout.poolPages))
+  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH))
 }
 
 /**
@@ -294,7 +292,7 @@ export function encodeVsmPageMapping(
   const cacheValid = res.prevFrameKept
   writeParams(ctx, frame, cacheValid, SLOT_MAIN, SLOT_ADDRESSES)
   ctx.dispatcher.setBins(frame.perPageBins ?? [])
-  const maxGroups = groupsFor(res.layout.poolPages)
+  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args, 1D, in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
 
@@ -324,7 +322,7 @@ export function encodeVsmAfterRaster(
 ) {
   if (frame.mapCount === 0) return
   const ctx = context(res, frame)
-  const maxGroups = groupsFor(res.layout.poolPages)
+  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args: merge set in (16, pages, 1) form, filter set (0, 1, 1).
   encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.

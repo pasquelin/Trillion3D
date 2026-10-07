@@ -1,3 +1,4 @@
+import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
@@ -17,7 +18,7 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.throws(() => checkSurfaceSize(device, 0, 10), /INVALID_SURFACE_SIZE/)
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/)
   assert.equal(checkSurfaceSize(device, 100, 100), 330000)
-  assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 33, 'targets follow resolution')
+  assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 33, 'targets follow resolution')
   assert.equal(
     frameTargetBytes(3, 3, true),
     9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8 + 16,

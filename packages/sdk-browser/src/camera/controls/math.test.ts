@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dollyDistance, moveLocal, orbitOrientation, panOffset, pixelWorldScale } from './math.ts'
@@ -69,8 +70,8 @@ test('the orbit orientation keeps the horizon level: no roll on the camera right
 })
 
 test('a quaternion product is the two rotations in order, and stays unit length', () => {
-  const a = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], Math.PI / 2),
-    b = axisAngleQuaternion(new Float64Array(4), [1, 0, 0], Math.PI / 2)
+  const a = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], HALF_PI),
+    b = axisAngleQuaternion(new Float64Array(4), [1, 0, 0], HALF_PI)
   const product = normalizeQuaternion(multiplyQuaternion(new Float64Array(4), a, b))
   // Pitched a quarter turn up, then yawed a quarter turn: the view ends on world up.
   const turned = rotateByQuaternion(new Float64Array(3), product, 0, 0, -1)
@@ -79,15 +80,15 @@ test('a quaternion product is the two rotations in order, and stays unit length'
 })
 
 test('a local turn pitches, yaws and rolls in the camera frame', () => {
-  const turn = localTurnQuaternion(new Float64Array(4), Math.PI / 2, 0, 0)
+  const turn = localTurnQuaternion(new Float64Array(4), HALF_PI, 0, 0)
   close(rotateByQuaternion(new Float64Array(3), turn, 0, 0, -1), [0, 1, 0], 1e-15)
-  const rolled = localTurnQuaternion(new Float64Array(4), 0, 0, Math.PI / 2)
+  const rolled = localTurnQuaternion(new Float64Array(4), 0, 0, HALF_PI)
   close(rotateByQuaternion(new Float64Array(3), rolled, 1, 0, 0), [0, 1, 0], 1e-15)
 })
 
 test('a move along the camera axes follows what it faces', () => {
   const position = new Float64Array(3),
-    quarter = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], Math.PI / 2)
+    quarter = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], HALF_PI)
   moveLocal(position, [0, 0, 0, 1], 0, 0, 2)
   close(position, [0, 0, -2], 1e-15)
   moveLocal(position, quarter, 0, 0, 3)

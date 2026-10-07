@@ -2,6 +2,7 @@ import { hslToLinearRgb, linearToSrgb8, srgbToLinear } from '../../../../math/sr
 import { Observed } from '../observed.ts'
 import { namedColor } from './colorNames.ts'
 import { clearValueOf, rgbHex } from './packedColour.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 /** What a colour can be written from: 0xRRGGBB, a CSS string, a colour, or linear `[r, g, b]`. */
 export type ColorInput =
@@ -105,11 +106,7 @@ export class Color extends Observed {
   }
   /** Moves the colour toward another by `t`, from 0 to 1. */
   lerp(c: { r: number; g: number; b: number }, t: number) {
-    return this.setRGB(
-      this.r + (c.r - this.r) * t,
-      this.g + (c.g - this.g) * t,
-      this.b + (c.b - this.b) * t,
-    )
+    return this.setRGB(lerp(this.r, c.r, t), lerp(this.g, c.g, t), lerp(this.b, c.b, t))
   }
   /** Makes every channel `s` times brighter. */
   multiplyScalar(s: number) {

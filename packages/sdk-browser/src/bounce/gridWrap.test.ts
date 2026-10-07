@@ -7,6 +7,7 @@ import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { functionText } from './wgslBody.fixture.ts'
+import { wrap } from '../../../math/src/scalar/reals.ts'
 
 const I32_MIN = -(2 ** 31)
 const I32_MAX = 2 ** 31 - 1
@@ -55,7 +56,7 @@ const shaderRemainder = new Function(
 /** The per-cell remainder it replaces: the i32 cell `corner + offset`, then its `probeWrap`. */
 const perCellRemainder = (side: number, corner: number, offset: number) => {
   const cell = (corner + offset) | 0
-  return (((cell % side) + side) % side) >>> 0
+  return wrap(cell, side) >>> 0
 }
 
 /** Corners at both ends of i32, whose `+ 1` neighbour stays within it. */

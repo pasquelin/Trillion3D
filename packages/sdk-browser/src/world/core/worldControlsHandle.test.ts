@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -21,9 +22,9 @@ test('`world.controls` hands its limits to the orbit it drives, and keeps them f
     () => redraws++,
   )
   // Set while flying: harmless, and kept for the orbit that comes next.
-  controls.maxPolarAngle = Math.PI / 2
+  controls.maxPolarAngle = HALF_PI
   controls.kind = 'orbit'
-  assert.equal(controls.maxPolarAngle, Math.PI / 2)
+  assert.equal(controls.maxPolarAngle, HALF_PI)
   // A long drag up would take the camera under the ground; the limit reached the orbit.
   fixtureDrag(surface, 0, -1000)
   assert.ok(redraws > 0)

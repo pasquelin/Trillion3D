@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { base, openSession, servedScene } from './proxySession.fixture.ts'
@@ -11,7 +12,7 @@ test('a proxy above the transfer budget, asked while pages stream, lands beside 
     held: ['p0.bin', 'p1.bin', 'p2.bin', 'proxy.bin'],
   })
   const proxyBytes = metadata.proxy!.bytes
-  assert.ok(proxyBytes > 8 * 1024 * 1024)
+  assert.ok(proxyBytes > 8 * MIB)
   const pageCache = createPageCache()
   const session = await openSession(metadata, pageCache)
   const { streamer } = session

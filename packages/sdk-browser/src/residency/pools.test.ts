@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts'
-
-const MIB = 1024 * 1024
+import { MIB } from '../../../math/src/constants.ts'
 
 test('the geometry pool is a fixed byte reservoir, 512 MiB by default', () => {
   assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB)

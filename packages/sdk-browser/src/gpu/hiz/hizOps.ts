@@ -5,6 +5,7 @@ import { pendingBuffers } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 const TEST_WORKGROUP = 64
 
@@ -131,7 +132,7 @@ export function hizTest(
   pass.setPipeline(h.testPipeline)
   pass.setBindGroup(0, bindGroup, h.testOffset)
   pass.setBindGroup(1, h.pagesGroup(pages))
-  pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)))
+  pass.dispatchWorkgroups(workgroupCount(rows, TEST_WORKGROUP))
   return rows
 }
 

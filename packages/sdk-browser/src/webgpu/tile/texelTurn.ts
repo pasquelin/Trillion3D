@@ -1,3 +1,5 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { heldBuffers } from '../../gpu/core/heldBuffers.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
@@ -96,7 +98,7 @@ const SOURCE = `${LABEL} source`,
 function texelBandRows(width: number, height: number, bandBytes: number) {
   const row = width * 4,
     unit = 256 / gcd(row, 256)
-  return Math.min(height, Math.max(unit, Math.floor(bandBytes / row / unit) * unit))
+  return clamp(Math.floor(bandBytes / row / unit) * unit, unit, height)
 }
 
 /** A turn's shape: the picture's size, the rows of a ring load, the loads, the uniform stride. */
@@ -107,7 +109,7 @@ type Bands = { width: number; height: number; band: number; bands: number; strid
 function bandsOf(device: GPUDevice, width: number, height: number, bandBytes: number): Bands {
   const band = texelBandRows(width, height, Math.min(bandBytes, storageBufferCap(device.limits)))
   const stride = uniformStride(device.limits)
-  return { width, height, band, bands: Math.ceil(height / band), stride }
+  return { width, height, band, bands: ceilDiv(height, band), stride }
 }
 
 /** What a turn holds between uploads: the words of every load, the ring, and a group a load. */
@@ -168,7 +170,7 @@ function encodeBand(
   const pass = encoder.beginComputePass({ label: LABEL })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(Math.ceil(width / TEXEL_TURN_WORKGROUP), rows)
+  pass.dispatchWorkgroups(ceilDiv(width, TEXEL_TURN_WORKGROUP), rows)
   pass.end()
 }
 

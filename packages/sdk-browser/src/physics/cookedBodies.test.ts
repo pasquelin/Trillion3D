@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -45,7 +46,7 @@ function adds(words: Uint32Array) {
     if (op === OP.add) {
       found.push({ w: words.subarray(at), f: f.subarray(at) })
       at += ADD_WORDS + words[at + 23] * 3 + words[at + 24]
-    } else at += op === OP.restore ? RESTORE_WORDS + Math.ceil(words[at + 2] / 4) : 2
+    } else at += op === OP.restore ? RESTORE_WORDS + ceilDiv(words[at + 2], 4) : 2
   }
   return found
 }

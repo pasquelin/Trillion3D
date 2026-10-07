@@ -16,6 +16,7 @@ import {
   pair,
   type Pair,
 } from './composeDoubles.fixture.ts'
+import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
 /** The parent's and the local matrix's doubles the shipped `composed` reads, one case at a time. */
 const parents: Pair[] = [],
@@ -34,7 +35,7 @@ const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 
 test('a double rounds to single precision as a Float32Array stores it', () => {
   const next = random(3)
-  const values = [0, -0, 1, -1, 3.4028234663852886e38, 3.4028235677973366e38, 3.5e38, 1e-38]
+  const values = [0, -0, 1, -1, FLOAT32_MAX, 3.4028235677973366e38, 3.5e38, 1e-38]
   values.push(1.1754943508222875e-38, 1.401298464324817e-45, 7.006492321624085e-46, 2e-46, 1e-50)
   values.push(Infinity, -Infinity, 1 + 2 ** -24, 1 + 3 * 2 ** -24, 1 + 2 ** -24 + 2 ** -52)
   for (let i = 0; i < 4000; i++) values.push((next() - 0.5) * 10 ** Math.floor(next() * 90 - 45))

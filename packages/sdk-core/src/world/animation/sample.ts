@@ -5,6 +5,7 @@ import {
   slerpOnArc,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Track, TrackBinding } from './clip.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
  *  a straight line (quaternions on the arc), the earlier key held (`step`), or glTF's cubic
@@ -21,7 +22,7 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
   bound.key = i
   const j = Math.min(i + 1, times.length - 1)
   const span = times[j] - times[i],
-    w = span > 0 ? Math.min(1, Math.max(0, (t - times[i]) / span)) : 0
+    w = span > 0 ? saturate((t - times[i]) / span) : 0
   if (tr.interpolation === 'step' || w === 0) {
     for (let c = 0; c < size; c++) out[c] = values[i * stride + at + c]
   } else if (cubic) {

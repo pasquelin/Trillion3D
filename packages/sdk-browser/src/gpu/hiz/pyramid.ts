@@ -7,6 +7,7 @@ import {
 } from './uniforms.ts'
 import { pyramidBytes } from './oracle.ts'
 import type { HizPyramid } from './types.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** The label of a pyramid's level 0, the one texture it holds. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
@@ -34,11 +35,7 @@ export function encodeHizPyramid(
   pass.setPipeline(buildPipeline)
   for (let i = 0; i < passes.length; i++) {
     pass.setBindGroup(0, bindGroup, slots[i])
-    pass.dispatchWorkgroups(
-      Math.ceil(passes[i].width / TILE),
-      Math.ceil(passes[i].height / TILE),
-      count,
-    )
+    pass.dispatchWorkgroups(ceilDiv(passes[i].width, TILE), ceilDiv(passes[i].height, TILE), count)
   }
 }
 

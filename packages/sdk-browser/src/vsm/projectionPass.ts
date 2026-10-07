@@ -49,6 +49,7 @@ import {
   type VsmResources,
 } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {
@@ -265,7 +266,7 @@ function writeLightRecord(
   if (light.type === 'spot') {
     // The spot cone: inner clamped below outer, the angles = (cos outer, 1/(cos inner − cos outer)).
     const outer = light.outerConeAngle ?? Math.PI / 4
-    const inner = Math.min(Math.max(light.innerConeAngle ?? 0, 0), outer - 0.001)
+    const inner = clamp(light.innerConeAngle ?? 0, 0, outer - 0.001)
     const cosOuter = Math.cos(outer)
     f[o + 8] = cosOuter
     f[o + 9] = 1 / (Math.cos(inner) - cosOuter)

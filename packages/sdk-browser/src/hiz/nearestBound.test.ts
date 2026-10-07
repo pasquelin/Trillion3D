@@ -7,6 +7,8 @@ import { DEPTH_LAYER_BIAS_UNITS } from '../../../sdk-core/src/lod/depthLayer.ts'
 import { hizNearestBound } from './nearestBound.fixture.ts'
 import type { HizPyramid } from './types.ts'
 import { hizRejects, type HizBounds } from '../../../../bench/oracles/browser/hizRejects.ts'
+import { FLOAT32_STEP } from '../../../math/src/constants.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 const f32 = new Float32Array(1),
   bits = new Uint32Array(f32.buffer)
@@ -21,7 +23,7 @@ function voisins() {
   const low = f32[0]
   bits[0] += 1
   const high = f32[0]
-  return { low, high, between: low + (high - low) * 0.2 }
+  return { low, high, between: lerp(low, high, 0.2) }
 }
 
 test('the bound sent to the kernel never falls below the depth it overstates', () => {
@@ -47,7 +49,7 @@ test('the bound sent to the kernel never falls below the depth it overstates', (
 
 test('a coplanar layer adds to the bound exactly the units by which it advances the cluster', () => {
   const nearest = 0.875
-  assert.equal(hizNearestBound(nearest, 0), Math.fround(nearest * (1 + 2 ** -24)))
+  assert.equal(hizNearestBound(nearest, 0), Math.fround(nearest * (1 + FLOAT32_STEP / 2)))
   for (const layer of [1, 2, 7, 15]) {
     const bound = hizNearestBound(nearest, layer)
     assert.equal(

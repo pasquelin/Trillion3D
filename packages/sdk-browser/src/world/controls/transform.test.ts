@@ -1,3 +1,4 @@
+import { DEG2RAD, HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -22,7 +23,7 @@ function rig(at: { x: number; y: number; z: number }) {
   return { surface, camera, orbit, scene, gizmo: createTransformControls(host) }
 }
 /** World units per canvas pixel on the plane ten units ahead. */
-const unit = (2 * 10 * Math.tan((25 * Math.PI) / 180)) / 400
+const unit = (2 * 10 * Math.tan(25 * DEG2RAD)) / 400
 
 test('dragging an arrow moves the object and keeps the orbit still; beside it, the orbit turns', () => {
   const { surface, camera, scene, gizmo } = rig({ x: 0, y: 0, z: 0 })
@@ -65,7 +66,7 @@ test('a child under a moved, turned and scaled parent moves in the world as the 
   const parent = new Object3D(),
     child = object.mesh(geometry.box(1, 1, 1))
   parent.position.set(5, 0, 0)
-  parent.rotation.y = Math.PI / 2
+  parent.rotation.y = HALF_PI
   parent.scale.set(2, 2, 2)
   parent.add(child)
   scene.add(parent)

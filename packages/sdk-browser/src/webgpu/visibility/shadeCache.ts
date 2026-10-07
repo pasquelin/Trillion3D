@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
 import { CACHED, cachePasses } from './shadeCachePasses.ts'
 import { heldSwitch } from '../../host/heldSwitch.ts'
@@ -117,7 +118,7 @@ function layFor(
   const { passes, header } = c
   const rows = passes ? tableRows : 0,
     capacity = Math.min(
-      rows * Math.min(Math.ceil(maxCorners / 3), ROW_TRIANGLES),
+      rows * Math.min(ceilDiv(maxCorners, 3), ROW_TRIANGLES),
       Math.floor((pixelWidth * pixelHeight) / TRIANGLE_WORDS),
     )
   const needed =
@@ -131,8 +132,8 @@ function layFor(
   c.width = pixelWidth
   c.height = pixelHeight
   if (rows !== header[SHADE_CACHE_ROWS_WORD] && passes) {
-    c.clearGrid = dispatchGrid(Math.ceil((rows * ROW_MARK_WORDS) / SHADE_ROWS_LANES), passes.span)
-    c.rowsGrid = dispatchGrid(Math.ceil(rows / SHADE_ROWS_LANES), passes.span)
+    c.clearGrid = dispatchGrid(ceilDiv(rows * ROW_MARK_WORDS, SHADE_ROWS_LANES), passes.span)
+    c.rowsGrid = dispatchGrid(ceilDiv(rows, SHADE_ROWS_LANES), passes.span)
   }
   header[SHADE_CACHE_ROWS_WORD] = rows
   header[SHADE_CACHE_CAPACITY_WORD] = capacity
@@ -159,7 +160,7 @@ function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {
   pass.setBindGroup(0, c.rowsGroup!)
   pass.dispatchWorkgroups(c.clearGrid[0], c.clearGrid[1])
   pass.setPipeline(passes.shade_marks)
-  pass.dispatchWorkgroups(Math.ceil(c.width / MARK_TILE), Math.ceil(c.height / MARK_TILE))
+  pass.dispatchWorkgroups(ceilDiv(c.width, MARK_TILE), ceilDiv(c.height, MARK_TILE))
   pass.setPipeline(passes.shade_rows)
   pass.dispatchWorkgroups(c.rowsGrid[0], c.rowsGrid[1])
   pass.setPipeline(passes.shade_tris)

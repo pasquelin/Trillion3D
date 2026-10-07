@@ -23,7 +23,7 @@ import {
   VSM_COVER_LOCAL,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { floorLog2, isPow2, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { alignUp, ceilDiv, floorLog2, isPow2, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { ShrunkPool } from '../residency/outOfMemory.ts'
 
@@ -107,9 +107,7 @@ export function vsmLayout(
   // The physical pool: fixed power-of-two row width, height for the requested page count.
   const physicalPagesX = Math.floor(maxDim / VSM_PAGE_TEXELS)
   if (!isPow2(physicalPagesX)) throw new Error('VSM: pool row must be a power of two pages')
-  const physicalPagesY = Math.ceil(
-    Math.max(1, options.poolPages ?? VSM_POOL_PAGES) / physicalPagesX,
-  )
+  const physicalPagesY = ceilDiv(Math.max(1, options.poolPages ?? VSM_POOL_PAGES), physicalPagesX)
   const poolPages = physicalPagesX * physicalPagesY
   const poolTexelsXY: [number, number] = [
     physicalPagesX * VSM_PAGE_TEXELS,
@@ -120,7 +118,7 @@ export function vsmLayout(
   const maxFull = Math.max(0, options.fullMapCapacity)
   const entriesPerRow = Math.floor(maxDim / 2 / VSM_LEVEL0_PAGES)
   if (!isPow2(entriesPerRow)) throw new Error('VSM: page table row must be a power of two tables')
-  const pageTableRows = Math.ceil((maxFull + 1) / entriesPerRow)
+  const pageTableRows = ceilDiv(maxFull + 1, entriesPerRow)
   const pageTableSize: [number, number] = [
     entriesPerRow * VSM_LEVEL0_PAGES,
     pageTableRows * VSM_PAGE_TABLE_BLOCK_HEIGHT,
@@ -139,7 +137,7 @@ export function vsmLayout(
   } else if (coverMode === 'directional') {
     // Directional maps (+1 single-page entry), a full row only past one row.
     const required = Math.max(0, options.sunMapCapacity ?? maxFull) + 1
-    const rows = Math.ceil(required / entriesPerRow)
+    const rows = ceilDiv(required, entriesPerRow)
     const rowEntries = rows === 1 ? required : entriesPerRow
     coverSize = [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT]
     coverMips = VSM_LOG2_PAGE + 1
@@ -157,7 +155,7 @@ export function vsmLayout(
   const rowsFit = Math.floor(maxStorageBufferBindingSize / (rowWords * 4))
   if (rowsFit < 1) throw new Error('VSM: one physical page row exceeds maxStorageBufferBindingSize')
   const poolPageRowsPerPart = Math.min(2 ** floorLog2(rowsFit), nextPow2(physicalPagesY))
-  const poolPartsPerSlice = Math.ceil(physicalPagesY / poolPageRowsPerPart)
+  const poolPartsPerSlice = ceilDiv(physicalPagesY, poolPageRowsPerPart)
 
   return {
     poolPages,
@@ -189,7 +187,7 @@ export function vsmLayout(
 }
 
 /** What a buffer asked for `size` bytes is made at: whole words, never under 16 bytes. */
-export const bufferBytes = (size: number) => Math.max(16, Math.ceil(size / 4) * 4)
+export const bufferBytes = (size: number) => Math.max(16, alignUp(size, 4))
 
 /** The bytes asked for each buffer of one frame (`VsmFrameBuffers`), in creation order. */
 export function frameBufferSizes(layout: VsmLayout): Record<keyof VsmFrameBuffers, number> {

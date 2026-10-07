@@ -1,3 +1,5 @@
+import { clamp } from '../../math/src/scalar/reals.ts'
+import { floorLog2 } from '../../math/src/scalar/integers.ts'
 /**
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
@@ -8,7 +10,7 @@ const BLOCK_CORNERS = 24,
   WIDTH_BITS = 5
 
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
-export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range))
+export const bitsFor = (range: number) => (range <= 0 ? 0 : floorLog2(range) + 1)
 
 /** The finest grid exponent, never below `finest`, on which a `span` of values fits the field: at
  *  most 2^23 steps, which rounding at both ends keeps under the 2^24 a page holds. */
@@ -102,7 +104,7 @@ export function octEncode(x: number, y: number, z: number): number {
     py = f(f(1 - Math.abs(px)) * (py >= 0 ? 1 : -1))
     px = fx
   }
-  const cell = (v: number) => Math.min(254, Math.max(0, Math.floor(f(f(v + 1) * 127.5))))
+  const cell = (v: number) => clamp(Math.floor(f(f(v + 1) * 127.5)), 0, 254)
   const bx = cell(px),
     by = cell(py),
     length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),

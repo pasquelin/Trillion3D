@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
  * WHERE THE BLEND PLAN AND ITS RUNS SIT IN THE SCENE'S WORDS.
  *
@@ -68,5 +69,4 @@ export function planRegions(maxEntries: number) {
 /** Words the plan and the kernel scratch occupy for the whole scene. */
 export const planWords = (maxEntries: number) =>
   (maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS) * EXPAND_PASSES
-export const scratchWords = (maxEntries: number) =>
-  maxEntries + Math.ceil(maxEntries / EXPAND_GROUP)
+export const scratchWords = (maxEntries: number) => maxEntries + ceilDiv(maxEntries, EXPAND_GROUP)

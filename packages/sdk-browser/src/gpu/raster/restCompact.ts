@@ -6,6 +6,7 @@ import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type GpuRestCompact = {
   /**
@@ -150,7 +151,7 @@ function encodeRest(
 ) {
   const { device, uniforms, uniData, buffers } = c
   if (c.disposed || restSlots < 1 || rows < 1) return false
-  const tiles = Math.ceil(rows / REST_COMPACT_WORKGROUP)
+  const tiles = ceilDiv(rows, REST_COMPACT_WORKGROUP)
   const words = workWords(c.copyWords, restSlots, rows)
   // The work buffer only grows: a frame with more rows or slots reallocates it once.
   if (!c.work || c.work.size < words * 4) {
@@ -189,7 +190,7 @@ function encodeRest(
 
 /** Words of the work buffer: the instance list's copy, then each tested slot's count and tiles. */
 const workWords = (copyWords: number, restSlots: number, rows: number) =>
-  copyWords + restSlots * (1 + Math.ceil(rows / REST_COMPACT_WORKGROUP))
+  copyWords + restSlots * (1 + ceilDiv(rows, REST_COMPACT_WORKGROUP))
 
 const workBuffer = (device: GPUDevice, words: number) =>
   device.createBuffer({

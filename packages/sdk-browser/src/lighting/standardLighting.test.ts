@@ -8,6 +8,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 
 type V3 = number[]
 const { standardLighting } = shaderRun<{
@@ -72,7 +73,7 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
 
 /** The displayed byte of a linear value: clamped, sRGB-encoded, quantised to 8 bits. */
 const byte = (x: number) => {
-  const c = Math.min(Math.max(x, 0), 1)
+  const c = saturate(x)
   return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055))
 }
 

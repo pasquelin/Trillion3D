@@ -1,3 +1,5 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
+import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { frameStatistics } from '../../../sdk-core/src/index.ts'
@@ -41,9 +43,7 @@ function trianglesReport(
   const source = sourceTriangles || m?.triangles || 0
   const submitted = m?.submittedTriangles ?? m?.triangles ?? null
   const cullingRate =
-    source > 0 && submitted != null
-      ? Math.max(0, Math.min(100, (1 - submitted / source) * 100))
-      : null
+    source > 0 && submitted != null ? clamp((1 - submitted / source) * 100, 0, 100) : null
   return {
     source,
     selected: m?.selectedTriangles ?? null,
@@ -60,7 +60,7 @@ function streamingReport(m: FrameMetrics | null | undefined): TelemetryReport['s
   return {
     residentPages: m?.residentPages ?? null,
     pageLoads: m?.pageLoads ?? 0,
-    pageBytesReadMb: m?.pageBytesRead ? Math.round((m.pageBytesRead / (1024 * 1024)) * 10) / 10 : 0,
+    pageBytesReadMb: m?.pageBytesRead ? Math.round((m.pageBytesRead / MIB) * 10) / 10 : 0,
     pagesRequested: m?.pagesRequested ?? null,
     pagesLoading: m?.pagesLoading ?? null,
     cacheHitRate: cacheHitRate != null ? Math.round(cacheHitRate * 10) / 10 : null,
@@ -143,7 +143,7 @@ export class FrameProfile {
       stutters: stats.stutters,
       cpuFrameMs: Math.round(cpuFrameMs * 100) / 100,
       cpuSubmitMs: cpuSubmitMs != null ? Math.round(cpuSubmitMs * 100) / 100 : null,
-      vramMb: m?.vramBytes ? Math.round((m.vramBytes / (1024 * 1024)) * 10) / 10 : null,
+      vramMb: m?.vramBytes ? Math.round((m.vramBytes / MIB) * 10) / 10 : null,
       triangles: trianglesReport(m, this.sourceTriangles),
       clusters: {
         total: this.totalClusters || m?.clusters || 0,

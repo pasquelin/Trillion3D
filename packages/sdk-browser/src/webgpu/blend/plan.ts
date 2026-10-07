@@ -1,3 +1,4 @@
+import { ceilDiv, bitWords } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
@@ -63,7 +64,7 @@ function sceneVertexShift(items: readonly BlendGpuItem[], paged: number, capacit
  *  that twice — a double-sided material drawn in two passes carries two plan entries. */
 function instanceCapacity(libres: readonly number[], shift: number, capacity: number) {
   let total = capacity
-  for (const count of libres) total += Math.ceil(count / blendChunkWords(shift, count))
+  for (const count of libres) total += ceilDiv(count, blendChunkWords(shift, count))
   return total * MAX_SIDES
 }
 
@@ -106,14 +107,14 @@ export function buildBlendStatics(blendState: BlendState) {
       continue
     }
     const words = blendChunkWords(shift, item.count)
-    draws[i * 4 + 1] = Math.ceil(item.count / words)
+    draws[i * 4 + 1] = ceilDiv(item.count, words)
     draws[i * 4 + 3] = words
     room[item.transmissive ? 1 : 0] += MAX_SIDES * draws[i * 4 + 1]
   }
   blendState.instanceBase[1] = room[0]
   blendState.instanceCapacity = Math.max(1, room[0] + room[1])
   blendState.drawsPacked = draws
-  blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5))
+  blendState.keepPacked = new Uint32Array(Math.max(1, bitWords(items.length)))
   buildBlendHierarchy(blendState)
   // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES
@@ -122,7 +123,7 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runCount.fill(0)
   blendState.orderKeys = new Float64Array(Math.max(1, items.length))
   blendState.ownRanks = new Uint32Array(items.length)
-  blendState.frameDoubles = new Float64Array(Math.ceil(orderFrameWords(items.length, entries) / 2))
+  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(items.length, entries), 2))
   blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer)
   blendState.orderStepWords = new Uint32Array(
     EXPAND_PASSES * orderStepCount(entries) * (ORDER_STEP_STRIDE / 4),

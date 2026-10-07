@@ -1,6 +1,7 @@
 import { coneRejects } from '../projection/projectionOracles.ts'
 import { hypot3 } from '../float/hypot.ts'
 import { HALF_PI } from '../constants.ts'
+import { clamp } from '../scalar/reals.ts'
 
 /**
  * Cone rejection tolerances, shared by the processor mirror and the shader: a transformation is conformal when its columns have the same length within
@@ -102,7 +103,7 @@ export function boxConeRejects(
   const radius =
     hypot3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
   const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW)
-  const dot = Math.min(1, Math.max(-1, toward / vl))
+  const dot = clamp(toward / vl, -1, 1)
   try {
     return coneRejects(dot, angle, spread)
   } catch {

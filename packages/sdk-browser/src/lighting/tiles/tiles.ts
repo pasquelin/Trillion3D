@@ -8,9 +8,10 @@ import { createTileLightPool } from './pool.ts'
 import { buildComputePipeline } from '../deferred/fullscreen.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
-const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize))
+const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows. */
 const UNIFORM_FLOATS = 32
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>

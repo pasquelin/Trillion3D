@@ -6,9 +6,9 @@ import {
 import { subtract as sub, cross } from '../../../../math/src/vector/vectorTuple.ts'
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
 
 type V3 = [number, number, number]
-const TAU = Math.PI * 2
 
 /**
  * A ring of radius `radius` around the `z` axis, its tube `tube` thick, swept over `arc`.
@@ -131,11 +131,11 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
   const caps = (capSegments = pieces(capSegments, 1))
   radialSegments = pieces(radialSegments, 1)
   for (let i = 0; i <= caps; i++) {
-    const a = -Math.PI / 2 + (i / caps) * (Math.PI / 2)
+    const a = -HALF_PI + (i / caps) * HALF_PI
     profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)])
   }
   for (let i = 0; i <= caps; i++) {
-    const a = (i / caps) * (Math.PI / 2)
+    const a = (i / caps) * HALF_PI
     profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)])
   }
   return withRecipe(lathe(profile, radialSegments), 'capsule', [

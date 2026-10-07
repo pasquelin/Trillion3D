@@ -11,6 +11,7 @@ import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { HIZ_SHADER } from './shader.ts'
 import * as C from '../partition/contract.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
@@ -44,7 +45,7 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
   const m = {
     rowData: [...f.rowData],
     flags: [...f.flags],
-    restBits: new Array<number>(Math.ceil(f.rows / 32)).fill(0),
+    restBits: new Array<number>(bitWords(f.rows)).fill(0),
     slotUsed: new Array<number>(16).fill(0),
     state: new Array<number>(C.STATE_WORDS).fill(0),
     tested: [] as number[],

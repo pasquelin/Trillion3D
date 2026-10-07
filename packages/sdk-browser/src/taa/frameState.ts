@@ -1,3 +1,4 @@
+import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
@@ -95,8 +96,6 @@ export const stochasticPhase = (taa: TaaFrameState | undefined) =>
 const STOCHASTIC_SLOTS = 8
 export const stochasticSlot = (taa: TaaFrameState) => taa.stochasticSample % STOCHASTIC_SLOTS
 
-/** The golden ratio's fractional part, (√5 − 1) / 2. */
-const GOLDEN_FRACTION = (Math.sqrt(5) - 1) / 2
 /** A phase's turn in [0, 1): the golden ratio's multiple of it, whose successive values fill the
  *  interval evenly over any count of images (Weyl's sequence, its gaps of at most three lengths). */
 const goldenTurn = (phase: number) => (phase * GOLDEN_FRACTION) % 1

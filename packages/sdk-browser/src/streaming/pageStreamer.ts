@@ -1,3 +1,4 @@
+import { MIB } from '../../../math/src/constants.ts'
 import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
@@ -29,7 +30,7 @@ export function createPageStreamerWith(
   options: PageStreamerOptions & { cache?: PageCache } = {},
 ) {
   const { cache: kept, signal, maxPages, onEvict, onDiagnostic, maxCachedBytes } = options
-  const { workerCount = 8, maxTransferBytes = 8 * 1024 * 1024 } = options
+  const { workerCount = 8, maxTransferBytes = 8 * MIB } = options
   const catalog = new Map(pages.filter(listed).map((page) => [page.url, page]))
   const store = kept ?? createPageCache(maxCachedBytes),
     cache = store.pages,

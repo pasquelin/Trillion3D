@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../math/src/constants.ts'
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
@@ -67,7 +68,7 @@ export function placeVehicle(
       new Material('meshStandard'),
     )
     wheel.position.set(x, y, z)
-    wheel.rotation.z = Math.PI / 2
+    wheel.rotation.z = HALF_PI
     body.add(wheel)
     return wheel
   })

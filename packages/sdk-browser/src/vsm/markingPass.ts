@@ -57,6 +57,7 @@ import {
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 // ---- The per-page dispatcher ------------------------------------------------------------------
 
@@ -398,8 +399,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     f[23] = VSM_SUN_PAGE_MARGIN
     f[27] = VSM_LOCAL_PAGE_MARGIN
     // The pixel stride is clamped to [1, 128].
-    u[32] = Math.min(128, Math.max(1, VSM_MARK_STRIDE_X))
-    u[33] = Math.min(128, Math.max(1, VSM_MARK_STRIDE_Y))
+    u[32] = clamp(VSM_MARK_STRIDE_X, 1, 128)
+    u[33] = clamp(VSM_MARK_STRIDE_Y, 1, 128)
     // A pixel facing away from a light marks no page of it (its own back shadows it).
     u[35] = 1
     // The number of page rects to clear.

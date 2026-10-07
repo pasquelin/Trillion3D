@@ -1,3 +1,4 @@
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { DRAW_UNPAGED } from './plan.ts'
 import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
 import { INSTANCE_CULL_SHIFT } from './runs.ts'
@@ -20,11 +21,11 @@ export const BLEND_EXPAND_ENTRIES = [
 ]
 
 export function blendExpandDispatch(out: number[], entries: number, runs: number) {
-  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP)
+  const groups = workgroupCount(entries, EXPAND_GROUP)
   out[0] = groups
   out[1] = 1
   out[2] = groups
-  out[3] = Math.ceil(Math.max(1, runs) / EXPAND_GROUP)
+  out[3] = workgroupCount(runs, EXPAND_GROUP)
   return out
 }
 

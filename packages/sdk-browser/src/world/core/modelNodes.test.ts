@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -62,7 +63,7 @@ test('moving a node of a compiled model moves the graph node it is drawn from', 
   scene.add(model)
   const poses = createWorldPoses()
   const node = model.getObjectByName('rotor')!
-  node.rotation.set(0, 0, Math.PI / 2)
+  node.rotation.set(0, 0, HALF_PI)
   node.visible = false
   poses.moved(node)
   poses.apply(scene, new Map(), new Map(), () => {})

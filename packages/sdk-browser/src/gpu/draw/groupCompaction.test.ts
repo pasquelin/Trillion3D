@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts'
 import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 // The counting and scattering kernels moved from one thread per (group, slot) — each walking the
 // group's 64 items in the storage buffer — to one workgroup per group, each lane reading its own
@@ -123,7 +124,7 @@ test('grouped counting and scattering write the counts and draws of the per-slot
   for (let trial = 0; trial < 600; trial++) {
     const f = frame(rand)
     const slots = slotCount(f.layerSlots)
-    const groups = Math.max(1, Math.ceil(Math.min(f.count, f.slotCap) / GROUP))
+    const groups = workgroupCount(Math.min(f.count, f.slotCap), GROUP)
     const counts = countBefore(f, groups, slots)
     assert.deepEqual(countAfter(f, groups, slots), counts, `trial ${trial}: groupCounts`)
     const overflow = f.count > f.slotCap

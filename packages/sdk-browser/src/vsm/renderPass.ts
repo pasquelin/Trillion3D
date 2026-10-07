@@ -89,6 +89,7 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
@@ -698,7 +699,7 @@ function renderChunking(
   )
   const cmdsPerRow = Math.min(viewMips, pages)
   let rows = Math.max(1, Math.floor(pairs / pages))
-  rows = Math.min(rows, Math.max(1, Math.floor(maxBinding / VSM_RENDER_CMD_BYTES / cmdsPerRow)))
+  rows = clamp(Math.floor(maxBinding / VSM_RENDER_CMD_BYTES / cmdsPerRow), 1, rows)
   return { rows: Math.min(rows, rowCount), cmdsPerRow, cap: pairs }
 }
 

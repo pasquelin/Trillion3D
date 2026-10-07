@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VSM_PRESSURE_BIAS_FLOOR, vsmLocalMipLevel } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 const f = Math.fround
 const F32 = new Float32Array(1),
@@ -39,10 +40,10 @@ test('after an overload the bias falls back to exactly 0, its last step at the f
   assert.equal(bias, 0, `0 at frame ${frame}`)
   assert.ok(frame < 500, `within ${frame} frames`)
   assert.ok(last >= VSM_PRESSURE_BIAS_FLOOR, 'the last bias kept')
-  assert.ok(f(last + (0 - last) * 0.1) < VSM_PRESSURE_BIAS_FLOOR, 'the next under it')
+  assert.ok(f(lerp(last, 0, 0.1)) < VSM_PRESSURE_BIAS_FLOOR, 'the next under it')
   // Without the floor, nine tenths of 4·2^-149 round back to it: the decay alone stops there.
   let alone = last
-  for (let k = 0; k < 2000; k++) alone = f(alone + (0 - alone) * 0.1)
+  for (let k = 0; k < 2000; k++) alone = f(lerp(alone, 0, 0.1))
   assert.equal(alone, 4 * 2 ** -149)
   for (let n = 0; n < 100; n++) {
     cache.frameStamp = ++frame

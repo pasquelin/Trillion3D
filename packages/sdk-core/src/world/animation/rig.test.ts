@@ -5,6 +5,7 @@ import { paletteReach, PALETTE_FLOATS } from './skeleton.ts'
 import { object } from '../object/index.ts'
 import { geometry } from '../geometry/index.ts'
 import { material } from '../material/index.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const close = (actual: number, expected: number, tolerance = 1e-5) =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} ≠ ${expected}`)
@@ -28,7 +29,7 @@ function chain() {
 test('a palette carries a bind vertex where its bone moved it, within the reach it bounds', () => {
   const { root, hip, knee } = chain()
   const skeleton = animation.skeleton([hip, knee])
-  knee.quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, Math.PI / 2)
+  knee.quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, HALF_PI)
   knee.position.set(0.5, 1, 0)
   root.updateMatrixWorld(true)
   const palette = skeleton.palette(root.matrixWorld.elements, new Float32Array(2 * PALETTE_FLOATS))

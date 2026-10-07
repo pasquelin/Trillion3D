@@ -10,6 +10,7 @@ import { Vector3 } from '../math/vector3.ts'
 import type { Object3D } from '../object/object3d.ts'
 
 import type { XYZLike } from '../math/likes.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 const scratch = {
   a: new Float64Array(3),
@@ -38,7 +39,7 @@ const scratch = {
 const X = [1, 0, 0],
   Y = [0, 1, 0]
 const length = (v: ArrayLike<number>) => hypot3(v[0], v[1], v[2])
-const clampedAcos = (x: number) => Math.acos(Math.min(1, Math.max(-1, x)))
+const clampedAcos = (x: number) => Math.acos(clamp(x, -1, 1))
 const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
   clampedAcos(dotVector3(a, b) / (length(a) * length(b) || 1))
 /** Some axis across `v`: `v × x`, or `v × y` when `v` runs nearly along x. */
@@ -133,7 +134,7 @@ export function solveTwoBoneIK(
   subVector3(at, t, a)
   const lab = length(ab),
     lcb = length(cb),
-    lat = Math.min(Math.max(length(at), 1e-6), (lab + lcb) * (1 - 1e-6))
+    lat = clamp(length(at), 1e-6, (lab + lcb) * (1 - 1e-6))
   const bend0 = angle(ac, ab),
     knee0 = angle(subVector3(ba, a, b), cb),
     bend1 = clampedAcos((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)),

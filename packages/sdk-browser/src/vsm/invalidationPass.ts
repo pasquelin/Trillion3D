@@ -43,6 +43,7 @@ import {
 } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
+import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -337,9 +338,7 @@ function dispatchPhase(
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined
-  const groups = ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE),
-    groupsX = Math.min(groups, 65535),
-    groupsY = ceilDiv(groups, groupsX)
+  const [groupsX, groupsY] = dispatchGrid(ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE))
   device.queue.writeBuffer(instanceBuffer, 0, imageU, 0, instanceBytes / 4)
   device.queue.writeBuffer(itemBuffer, 0, items, 0, itemCount * 4)
   paramsImage[0] = itemCount

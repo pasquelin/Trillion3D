@@ -61,8 +61,7 @@ export interface VsmTransmissionCaps {
 }
 
 /** Rows of page headers in the memory: four words a texel, two a physical page. */
-export const headerRows = (pages: number) =>
-  Math.ceil(Math.ceil(pages / 2) / VSM_TRANSMISSION_WIDTH)
+export const headerRows = (pages: number) => ceilDiv(ceilDiv(pages, 2), VSM_TRANSMISSION_WIDTH)
 
 /** Words of the dispatch arguments: the place's, the resolve's, the headers'. */
 export const VSM_TRANSMISSION_ARGS_WORDS = 9
