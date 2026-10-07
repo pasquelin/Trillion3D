@@ -19,7 +19,7 @@ export const range = (from: number, to: number) =>
 const idOf = (page: PageRec) => (page as unknown as { id: number }).id
 
 /** Records for ids below `size`, and a catalogue over them that counts its lookups. */
-export function countedCatalogue(size: number) {
+function countedCatalogue(size: number) {
   const records = Array.from(
     { length: size },
     (_, id) => ({ id, url: `p${id}` }) as unknown as PageRec,
@@ -38,7 +38,7 @@ const sorted = (ids: ArrayLike<number>, count = ids.length) =>
     .sort((a, b) => a - b)
 
 /** What a delta publishes as a set, its records by id, membership over ids below `ids`. */
-export function published(delta: CutDelta, pages: PageRec[], ids: number) {
+function published(delta: CutDelta, pages: PageRec[], ids: number) {
   return {
     entered: sorted(delta.entered, delta.enteredCount),
     exited: sorted(delta.exited, delta.exitedCount),
