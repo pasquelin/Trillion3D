@@ -1,3 +1,4 @@
+import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
@@ -157,7 +158,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
 export function rowScratch(drawSlots: number, pageBytes: number) {
   return {
     /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
-    rasterCapacity: drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3),
+    rasterCapacity: drawSlots * workgroupCount(pageBytes / 4, 3),
     /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
      *  derived from each page's local bounds and rewritten only on the table's dirty range. */
     cornerPacked: new Float32Array(drawSlots * CORNER_VALUES),

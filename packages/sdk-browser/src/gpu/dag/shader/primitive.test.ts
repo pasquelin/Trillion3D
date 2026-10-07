@@ -15,6 +15,7 @@ import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
+import { wgslSource } from '../../../../../math/src/wgsl/source.fixture.ts'
 
 const packed = (worldCount: number) => ({
   worldCount,
@@ -54,8 +55,10 @@ test('one primitive holds its row and its prepared values', () => {
 })
 
 test('camera sites read their prepared values', () => {
-  assert.ok(!DAG_PRIMITIVE_WGSL.includes('views[vi].view*'))
-  const box = DAG_CONE_WGSL.slice(DAG_CONE_WGSL.indexOf('fn coneRejectsBox'))
+  assert.ok(!wgslSource(DAG_PRIMITIVE_WGSL).includes('views[vi].view*'))
+  const box = wgslSource(DAG_CONE_WGSL).slice(
+    wgslSource(DAG_CONE_WGSL).indexOf('fn coneRejectsBox'),
+  )
   assert.ok(!box.includes('isConformal(') && !box.includes('inverseTranspose3('))
   assert.ok(box.includes('conformalOf(w)') && box.includes('invTranspose3Apply(normalOf(w),'))
   assert.match(

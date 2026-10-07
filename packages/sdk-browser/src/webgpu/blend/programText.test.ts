@@ -1,20 +1,21 @@
 // The transparent programs' text, character for character, over every variant: the blend vertex
-// stage lobed and lobeless, the blend module and the water composite under every contract key (and
-// the composite bounded and unbounded). The templates were split into named parts (`vertexWgsl.ts`,
-// `shader.ts`, `../water/waterColorWgsl.ts`); the digests were taken on the split, whose text was
-// checked byte for byte against the single templates'. A deliberate change to any WGSL these
-// programs include takes new digests.
+// stage lobed and lobeless, the blend module and the water composite under every contract key (the
+// composite bounded and unbounded), 194 texts. The digests pin the texts as the WGSL library
+// assembles them, its declarations in their order; they prove no equivalence with an earlier text.
+// A deliberate change to any WGSL these programs include, or to the order its fragments list their
+// declarations in, takes new digests.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { blendVertexWgsl } from './vertexWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { blendShader } from './shader.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
-const VERTEX = '629ec43f6a4704011026651d0d1e9fc2032e532ea73fd50c7137149c49afeaeb'
-const BLEND = 'f3dac408fc9ed201941df1f96fb6825d48dd5557335625f9bfa1b5bd82f10731'
-const WATER = '48830b25359d71d20ab2398db27d41f5b635862a216ac1eb39d28efb75d19708'
+const VERTEX = '95bedea7b48a1a35672488e302e774099db15070330ac7b97bc319a764f3ef00'
+const BLEND = 'fcdd1602c0036bf0fbe8cdc053ebddddb8fb88a998a0671083c9c1fa739f18c7'
+const WATER = '8dd7a9ee37ec8c87a9007dd07791d9b245c95736ece79f43935f32c942279f0a'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
@@ -30,15 +31,15 @@ const digest = (texts: string[]) => {
   return hash.digest('hex')
 }
 
-test('the blend vertex stage emits the same text, lobed and lobeless', () => {
-  assert.equal(digest([true, false].map((lobes) => blendVertexWgsl(lobes))), VERTEX)
+test('the blend vertex stage text is pinned, lobed and lobeless', () => {
+  assert.equal(digest([true, false].map((lobes) => wgslModule(blendVertexWgsl(lobes)))), VERTEX)
 })
 
-test('the blend module emits the same text under every contract key', () => {
+test('the blend module text is pinned under every contract key', () => {
   assert.equal(digest(KEYS.map((key) => blendShader(key))), BLEND)
 })
 
-test('the water composite emits the same text under every key, bounded or not', () => {
+test('the water composite text is pinned under every key, bounded or not', () => {
   const texts = [false, true].flatMap((unbounded) =>
     KEYS.map((key) => waterCompositeShader(unbounded, key)),
   )

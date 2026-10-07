@@ -16,7 +16,11 @@ import {
   ST_TESTED,
   ST_TESTED_TRIANGLES,
   TESTED_U32,
+  STATE_TALLY_WGSL,
 } from './contract.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
 
 /**
  * Occluder/tested split and packing of the Hi-Z test bounds, per resident row.
@@ -29,10 +33,14 @@ import {
  * change only through the Hi-Z test, whose depth bound and rectangle stay conservative whichever
  * half the row falls in.
  */
-export const PARTITION_CLASSIFY_WGSL = `
+export const PARTITION_CLASSIFY_WGSL = wgslBlock(
+  'PARTITION_CLASSIFY_WGSL',
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, HIZ_LEVEL_WGSL],
+  `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
- if(id.x<uni.rows){classifyRow(id.x);}
+fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
+ let row=flatIndex(id,n,${PARTITION_WORKGROUP}u);
+ if(row<uni.rows){classifyRow(row);}
  flushTally(lane);
 }
 fn classifyRow(i:u32){
@@ -89,4 +97,5 @@ fn classifyRow(i:u32){
   tallyAdd(${ST_OVERSIZED_TRIANGLES}u,item.triangles);
  }
 }
-`
+`,
+)

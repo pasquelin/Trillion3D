@@ -8,6 +8,7 @@ import { cameraFace } from '../kit/sharedSceneProof.ts'
 import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
 import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 
 const SIZE = 24
 const CLEAR = 0x2a303c,
@@ -141,7 +142,7 @@ test('a perfect one-read sampler is the truth where the map is magnified', () =>
 test('a slanted footprint is read on its tangent, as a sampler reads it', () => {
   const size = 96,
     tilt = (-88 * Math.PI) / 180,
-    a = Math.tan((55 / 2) * (Math.PI / 180))
+    a = Math.tan((55 / 2) * DEG2RAD)
   const texels = Array.from({ length: 64 }, (_, i) => Array(4).fill(i % 2 ? 255 : 0)).flat()
   const truth = groundTruth({
     ...view([]),

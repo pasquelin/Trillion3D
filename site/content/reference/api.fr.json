@@ -1048,17 +1048,10 @@
     "description": "Deux formes, et deux seulement : tout à plat, ou tout en `n` sous-vues — `../batch/batch.ts` explique pourquoi une matrice voyage en sous-vue. La forme est fixée AVANT la boucle, jamais dedans : un ternaire par élément coûte 6 % sur deux cent mille compositions, mesuré par le banc des matrices de lot. Répète `composeMatrix4`, sur `n` matrices."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolérances du rejet par cône, partagées par le reflet côté processeur et le shader : une transformation est conforme quand ses colonnes ont la même longueur à `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d’angle ≥ `HALF_PI` ne rejette jamais.",
-    "description": "Les variantes `_WGSL` sont le texte inséré dans le shader, comme `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` en texte de shader."
+    "summary": "Tolérances du rejet par cône, partagées par le reflet côté processeur et le shader : une transformation est conforme quand ses colonnes ont la même longueur à `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d’angle ≥ `HALF_PI` ne rejette jamais."
   },
   "CONE_ORTHO_EPS": {
     "summary": "À quel point deux colonnes peuvent ne pas être d’équerre et compter quand même comme d’équerre."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` en texte de shader."
   },
   "coneRejects": {
     "summary": "Rejet par cône de normales pour ne pas dessiner les faces arrière."
@@ -2251,9 +2244,6 @@
   },
   "HALF_PI": {
     "summary": "Un quart de tour, en radians."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` en texte de shader."
   },
   "helper": {
     "summary": "La famille `helper` : les repères avec lesquels on travaille une scène, faits de lignes et de maillages.",
@@ -5426,9 +5416,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "Le seuil, sur le déterminant NORMALISÉ.",
     "description": "Sous 1e-12, le cube d’une échelle devient dénormal en simple précision : seule la normalisation passe ce plancher, donc ce seuil ne juge plus que la forme de la matrice, jamais sa taille."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "Le seuil tel que l’écrit le WGSL, produit à partir de la constante : un nombre, deux langages."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Premier mot de l’enregistrement dans le paquet."

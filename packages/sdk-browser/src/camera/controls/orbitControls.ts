@@ -1,3 +1,4 @@
+import { TAU } from '../../../../math/src/constants.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
 import { controlPose, readVector, writeVector } from './pose.ts'
@@ -9,12 +10,12 @@ import {
   pixelWorldScale,
 } from './math.ts'
 import {
-  clampNumber,
   fromSpherical,
   POLAR_EPSILON,
   RADIUS_EPSILON,
   toSpherical,
 } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**
@@ -119,9 +120,9 @@ export function createOrbitCameraControls(
     applied.set(bounds)
     posed = true
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
-    spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
+    spherical[0] = clampCompare(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
-    spherical[2] = clampNumber(
+    spherical[2] = clampCompare(
       spherical[2],
       Math.max(api.minPolarAngle, POLAR_EPSILON),
       Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),
@@ -136,8 +137,8 @@ export function createOrbitCameraControls(
   }
   const rotate = (dx: number, dy: number) => {
     sample()
-    spherical[1] -= (2 * Math.PI * dx * api.rotateSpeed) / height()
-    spherical[2] -= (2 * Math.PI * dy * api.rotateSpeed) / height()
+    spherical[1] -= (TAU * dx * api.rotateSpeed) / height()
+    spherical[2] -= (TAU * dy * api.rotateSpeed) / height()
     apply()
   }
   const panBy = (dx: number, dy: number) => {

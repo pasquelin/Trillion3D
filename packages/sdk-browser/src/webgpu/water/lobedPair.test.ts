@@ -6,6 +6,7 @@
 // with its lobes, then on a null albedo under the same lobes —: the same numbers, bit
 // for bit, on random lamp sets, lobes and surfaces. Lobes off, or set with neither a strength nor a
 // coat, the lobed pair sums what the program without lobe code sums, bit for bit.
+import { lerp, saturate } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -15,12 +16,16 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
 const LOBED = waterCompositeShader(false, {})
 const PLAIN = waterCompositeShader(false, { lobeless: true })
-const SINGLE = `${declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false })}${STANDARD_LIGHTING_WGSL}`
+const SINGLE = wgslModule(
+  declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false }),
+  STANDARD_LIGHTING_WGSL,
+)
 const K = wgslConstants(LOBED)
 const SHARED = [
   'directIncidence',
@@ -29,8 +34,9 @@ const SHARED = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 const LOBE = ['lobeLight', 'anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
@@ -49,13 +55,13 @@ function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: numb
     coat = r() < 0.3 ? 0 : u(0, 1)
   const coatN = unit(N.map((n) => n + u(-0.2, 0.2)))
   const facing = Math.max(coatN[0] * V[0] + coatN[1] * V[1] + coatN[2] * V[2], 0)
-  const grazing = Math.min(Math.max(1 - facing, 0), 1)
+  const grazing = saturate(1 - facing)
   return { on: true, strength, T, B: cross(N, T), coat, coatRough: u(0.06, 1), coatN, grazing }
 }
 
 test('the lobed pair gives the two sums of two lobed walks, its specular on a dielectric', () => {
   const r = random(1483),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lobed = 0
   for (let round = 0; round < 400; round++) {
     const lamps = randomLampScope(r, u, K, round, (_, rank) => (rank % 2 ? rank : -1))

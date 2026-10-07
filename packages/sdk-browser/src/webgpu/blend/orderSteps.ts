@@ -1,8 +1,6 @@
+import { workgroupCount, nextPow2, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
 
-/** Bytes between two dispatches' uniform words: WebGPU's default dynamic-offset alignment. */
-export const ORDER_STEP_STRIDE = 256
-const STEP_WORDS = ORDER_STEP_STRIDE / 4
 const [BLOCKS, STEP, SLOTS] = [0, 1, 2]
 
 /** One dispatch of the order kernel: its entry point's rank in `BLEND_ORDER_ENTRIES`, its
@@ -10,8 +8,7 @@ const [BLOCKS, STEP, SLOTS] = [0, 1, 2]
 export type OrderStep = { entry: number; groups: number; uniform: number }
 
 /** The size the network sorts: the pass's entries padded to a power of two, one block at least. */
-export const sortSize = (entries: number) =>
-  Math.max(SORT_BLOCK, 2 ** Math.ceil(Math.log2(Math.max(1, entries))))
+export const sortSize = (entries: number) => Math.max(SORT_BLOCK, nextPow2(entries))
 
 /**
  * Dispatches that order a pass of `entries` entries and place its slots: the block sort, then for
@@ -21,7 +18,7 @@ export const sortSize = (entries: number) =>
 export function orderStepCount(entries: number) {
   let count = 2
   for (let stage = 2 * SORT_BLOCK; stage <= sortSize(entries); stage *= 2)
-    count += Math.log2(stage / SORT_BLOCK) + 1
+    count += floorLog2(stage / SORT_BLOCK) + 1
   return count
 }
 
@@ -38,16 +35,18 @@ type OrderPass = {
 
 /**
  * The dispatches of one pass, their uniform words written into `words` from step `first` on, one
- * step every `ORDER_STEP_STRIDE` bytes. Written once per plan: nothing here depends on the frame.
+ * step every `stride` bytes (the device's `uniformStride`). Written once per plan: nothing here
+ * depends on the frame.
  */
-export function planOrderSteps(pass: OrderPass, words: Uint32Array, first: number) {
-  const size = sortSize(pass.entries),
+export function planOrderSteps(pass: OrderPass, words: Uint32Array, first: number, stride: number) {
+  const stepWords = stride / 4,
+    size = sortSize(pass.entries),
     groups = size / SORT_BLOCK,
     steps: OrderStep[] = []
   const push = (entry: number, fields: Partial<Record<keyof typeof ORDER_UNI, number>>) => {
     const uniform = first + steps.length,
-      at = uniform * STEP_WORDS
-    words.fill(0, at, at + STEP_WORDS)
+      at = uniform * stepWords
+    words.fill(0, at, at + stepWords)
     words[at + ORDER_UNI.entryCount] = pass.entries
     words[at + ORDER_UNI.size] = size
     words[at + ORDER_UNI.seedBase] = pass.region.seeds
@@ -63,7 +62,7 @@ export function planOrderSteps(pass: OrderPass, words: Uint32Array, first: numbe
     steps.push({
       entry,
       // The slot kernel runs one thread per own entry, one for the lone gap of a pass without.
-      groups: entry === SLOTS ? Math.ceil(Math.max(1, pass.ownCount) / SLOT_GROUP) : groups,
+      groups: entry === SLOTS ? workgroupCount(pass.ownCount, SLOT_GROUP) : groups,
       uniform,
     })
   }

@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
@@ -8,7 +9,7 @@ import { dragTransform, type DragStart, type TransformHandle } from './transform
 const close = (a: Vector3, b: readonly number[]) =>
   a.toArray().every((value, i) => Math.abs(value - b[i]) < 1e-9)
 /** An object at the origin turned a quarter about `y`: its own `x` is the world's `-z`. */
-const turned = () => new Quaternion().setFromAxisAngle({ x: 0, y: 1, z: 0 }, Math.PI / 2)
+const turned = () => new Quaternion().setFromAxisAngle({ x: 0, y: 1, z: 0 }, HALF_PI)
 /** Rays looking down `-x` onto the plane `x = 0`, through `(0, y, z)`. */
 const along = (y: number, z: number) => new Ray(new Vector3(10, y, z), new Vector3(-1, 0, 0))
 const start = (mode: DragStart['mode'], handle: TransformHandle, space: DragStart['space']) => ({

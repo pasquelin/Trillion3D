@@ -1,3 +1,4 @@
+import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamerWith } from './pageStreamer.ts'
@@ -28,7 +29,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
     camera = wideCamera()
   const { dag } = packed(fixture)
   const { pages, fetched } = await servedPages(dagPageUrls(dag))
-  const cache = createPageCache(1024 * 1024)
+  const cache = createPageCache(MIB)
   /** The cut drawn from what `streamer` holds: the GPU pool is filled from it. */
   const cut = (streamer: ReturnType<typeof open>) => {
     const resident = Uint32Array.from(dagPageUrls(dag), (url) => Number(streamer.has(url)))

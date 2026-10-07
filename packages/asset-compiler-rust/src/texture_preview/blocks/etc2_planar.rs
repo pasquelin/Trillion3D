@@ -5,6 +5,7 @@
 //! and green stay in range, blue does not, and the free bits are set to make it so.
 use super::etc2::{gap, rgb, Rgb};
 use super::fit::Texels;
+use trillion3d_math::scalar::mean_f32;
 
 /// The planar block: origin, horizontal and vertical corners by least squares
 /// on the sixteen texels, on 6, 7 and 6 bits.
@@ -13,7 +14,7 @@ pub(super) fn planar(texels: &Texels) -> (i32, [u8; 8]) {
     let mut corners = [[0i32; 3]; 3];
     for (c, &width) in bits.iter().enumerate() {
         let values: [f32; 16] = texels.map(|t| t[c]);
-        let mean = values.iter().sum::<f32>() / 16.0;
+        let mean = mean_f32(values);
         let (mut dx, mut dy) = (0.0f32, 0.0f32);
         for (i, v) in values.iter().enumerate() {
             dx += ((i % 4) as f32 - 1.5) * v / 20.0;

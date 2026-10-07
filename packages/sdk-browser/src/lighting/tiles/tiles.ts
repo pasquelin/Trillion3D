@@ -8,9 +8,11 @@ import { createTileLightPool } from './pool.ts'
 import { buildComputePipeline } from '../deferred/fullscreen.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
-const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize))
+const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows. */
 const UNIFORM_FLOATS = 32
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
@@ -168,7 +170,7 @@ function ensureTiles(
     records = wantedX * wantedY * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS
   // The pool never takes the buffer past what the device binds: a cell with no room walks all.
   const room = Math.floor(storageBufferCap(device.limits) / 4) - records
-  const wantedPool = Math.max(0, Math.min(pool.words(wantedX * wantedY, count), room))
+  const wantedPool = clampLowWins(pool.words(wantedX * wantedY, count), 0, room)
   const { tilesX, tilesY, poolWords } = state
   if (!state.tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool > poolWords) {
     state.tiles?.destroy()

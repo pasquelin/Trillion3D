@@ -351,17 +351,10 @@
     "summary": "ネイティブアセットコンパイル(prepare / CLI)のオプションを記述するJSON Schema。"
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "プロセッサ側のミラーとシェーダーが共有する円錐棄却の許容値: ある変換は、その列が相対的に`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。",
-    "description": "`_WGSL`版は、シェーダーに挿入されるテキストで、`SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)と同じ性質のものだ。"
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "シェーダーテキストとしての`CONE_LENGTH_RATIO`。"
+    "summary": "プロセッサ側のミラーとシェーダーが共有する円錐棄却の許容値: ある変換は、その列が相対的に`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。"
   },
   "CONE_ORTHO_EPS": {
     "summary": "2つの列が直交からどれだけずれても、まだ直交とみなせるか。"
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "シェーダーテキストとしての`CONE_ORTHO_EPS`。"
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "切り抜き回答シート。`packages/asset-compiler-rust/src/cutout.rs`に対応する。",
@@ -1342,9 +1335,6 @@
   },
   "HALF_PI": {
     "summary": "4分の1回転、ラジアン単位。"
-  },
-  "HALF_PI_WGSL": {
-    "summary": "シェーダーテキストとしての`HALF_PI`。"
   },
   "HIERARCHY_ROOT": {
     "summary": "1回のパスで更新される階層全体: 親が子より先になるよう並べられた`n`個のノードが、それぞれローカル行列を合成してから親のワールド行列と掛け合わせる。",
@@ -2746,9 +2736,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "正規化された行列式に対するしきい値。",
     "description": "1e-12を下回ると、スケールの3乗は単精度では非正規化数になってしまう: それを乗り越えられるのは正規化だけなので、このしきい値はもはや行列の大きさではなく、その形だけを判定する。"
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "その定数からレンダリングされた、WGSLが書き込む形でのしきい値: 1つの数値を、2つの言語で。"
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "パック内のレコードの最初の語。"

@@ -7,6 +7,7 @@
 // thin or not, on a cell's list and on every lamp —: the sums are the same numbers, bit for bit.
 // The rectangle's term needs the LTC table: no lamp of these sets is one, and the program with
 // rectangle code holds the same text for it (`rectlessResolve.test.ts`).
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -18,6 +19,7 @@ import { blendShader } from './shader.ts'
 import { randomLampScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
@@ -27,8 +29,9 @@ const SHARED = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 /** What the shadow read does for a light with no slot: no transmission, a factor of one. */
 const NO_SLOT =
@@ -61,7 +64,7 @@ const flat = (sum: ReturnType<Sum>) => (Array.isArray(sum) ? sum : [...sum.lit, 
 
 test('each forward variant sums what the program with every code path sums, bit for bit, in f32', () => {
   const r = random(1832),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0,
     sums = 0
   for (const [name, pass] of Object.entries(PASSES)) {

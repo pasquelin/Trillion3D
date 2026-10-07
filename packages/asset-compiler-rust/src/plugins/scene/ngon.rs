@@ -15,14 +15,14 @@
 //! A strictly convex ring is recognised in one pass and written as the fan at once, which is
 //! what the ears would have cut (`convex` says why); everything else goes through the ears.
 mod convex;
-mod plane;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_convex;
 use super::cancel;
-use plane::{newell, side};
 use std::sync::atomic::AtomicBool;
+use trillion3d_math::triangle::newell;
+use trillion3d_math::vec2::double_area;
 
 /// A reusable cutter: the ring, its projection, the ranks still alive and the triangles serve
 /// from one face to the next, so a mesh of a thousand faces does not allocate a thousand times.
@@ -156,7 +156,7 @@ impl Ngon {
     /// zero area, so it adds no surface, contains nothing, and the cut always advances.
     fn is_ear(&self, rank: usize, turn: f64) -> bool {
         let [a, b, c] = self.ear(rank);
-        let area = turn * side(a, b, c);
+        let area = turn * double_area(a, b, c);
         if area < 0.0 {
             return false;
         }
@@ -169,9 +169,9 @@ impl Ngon {
             !corners.contains(other) && {
                 let point = self.flat[*other];
                 ![a, b, c].contains(&point)
-                    && turn * side(a, b, point) >= 0.0
-                    && turn * side(b, c, point) >= 0.0
-                    && turn * side(c, a, point) >= 0.0
+                    && turn * double_area(a, b, point) >= 0.0
+                    && turn * double_area(b, c, point) >= 0.0
+                    && turn * double_area(c, a, point) >= 0.0
             }
         })
     }
@@ -181,7 +181,7 @@ impl Ngon {
     fn widest(&self, turn: f64) -> usize {
         let saliency = |rank: &usize| {
             let [a, b, c] = self.ear(*rank);
-            turn * side(a, b, c)
+            turn * double_area(a, b, c)
         };
         (0..self.alive.len())
             .rev()

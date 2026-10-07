@@ -1,3 +1,4 @@
+import { lerp } from '../../../math/src/scalar/reals.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { keptBefore, type TickRecords } from './protocol.ts'
 
@@ -167,5 +168,5 @@ export function lerpInto(
   t: number,
 ) {
   if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
-  else for (let i = 0; i < out.length; i++) out[i] = from[i] + (to[i] - from[i]) * t
+  else for (let i = 0; i < out.length; i++) out[i] = lerp(from[i], to[i], t)
 }

@@ -1,3 +1,4 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
 
 /**
@@ -25,7 +26,7 @@ export function evaluateTransparentCompaction(input: {
     const base = itemRanges[item * 2],
       held = itemRanges[item * 2 + 1]
     let at = base
-    for (let i = base; i < base + Math.ceil(held / TRANSPARENT_GROUP) * TRANSPARENT_GROUP; i++)
+    for (let i = base; i < base + alignUp(held, TRANSPARENT_GROUP); i++)
       if (keeps(i)) instances[at++] = i
     indirect[item * 4] = vertexCount
     indirect[item * 4 + 1] = at - base

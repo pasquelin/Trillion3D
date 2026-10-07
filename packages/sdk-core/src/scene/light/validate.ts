@@ -7,6 +7,7 @@ import {
 } from '../core/environment.ts'
 import { finite, validateSceneFog } from '../core/fog.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 function vector(value: unknown, field: string, id: string): [number, number, number] {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(finite))
@@ -70,7 +71,7 @@ function emitterRadius(value: unknown, range: number, id: string): number {
 }
 /** Half-angle of a spot cone, in radians, strictly in `(0, π/2)`. */
 function coneAngle(value: unknown, id: string): number {
-  if (!finite(value) || value <= 0 || value >= Math.PI / 2)
+  if (!finite(value) || value <= 0 || value >= HALF_PI)
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: cone half-angle expected in (0, π/2)`, {
       coneAngle: value,
     })
@@ -109,11 +110,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   }
   if (light.kind === 'directional') {
     if (light.angularRadius !== undefined) {
-      if (
-        !finite(light.angularRadius) ||
-        light.angularRadius < 0 ||
-        light.angularRadius >= Math.PI / 2
-      )
+      if (!finite(light.angularRadius) || light.angularRadius < 0 || light.angularRadius >= HALF_PI)
         throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
           angularRadius: light.angularRadius,
         })

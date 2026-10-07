@@ -1,6 +1,8 @@
 import { Vector2 } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { splineSpan } from './splineSpan.ts'
+import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
+import { TAU } from '../../../../math/src/constants.ts'
 
 /** A parametric curve over `t ∈ [0, 1]`. */
 export abstract class Curve {
@@ -59,7 +61,7 @@ export class SplineCurve extends Curve {
     // Stryker disable next-line ConditionalExpression: one point: all four neighbours are it
     if (n === 1) return out.copy(points[0])
     const span = closed ? n : n - 1
-    const p = Math.min(Math.max(t, 0), 1) * span
+    const p = saturate(t) * span
     let i = Math.floor(p),
       w = p - i
     // Stryker disable next-line all: at t = 1, weight 0 past the last span reads the same point
@@ -84,7 +86,7 @@ export class SplineCurve extends Curve {
 /** Point `k` of a spline: wrapped round a closed one; an open one repeats its end past it. */
 function pointAt(points: readonly Vector3[], closed: boolean, k: number) {
   const n = points.length
-  return points[closed ? (k + n) % n : Math.min(Math.max(k, 0), n - 1)]
+  return points[closed ? (k + n) % n : clamp(k, 0, n - 1)]
 }
 
 /** Straight segments through every point, parameterised by arc length. */
@@ -111,7 +113,7 @@ export class Path extends Curve {
     const lengths = [0]
     for (let i = 1; i < pts.length; i++)
       lengths.push(lengths[i - 1] + pts[i].distanceTo(pts[i - 1]))
-    const target = Math.min(Math.max(t, 0), 1) * lengths[lengths.length - 1]
+    const target = saturate(t) * lengths[lengths.length - 1]
     let i = 1
     // Stryker disable next-line all: a corner is on both pieces; t is clamped to the last
     while (i < pts.length - 1 && lengths[i] < target) i++
@@ -186,8 +188,8 @@ export class Shape {
   /** A circular arc around `(x, y)`, from `start` to `end` radians. */
   absarc(x: number, y: number, radius: number, start: number, end: number, clockwise = false) {
     let sweep = end - start
-    if (clockwise && sweep > 0) sweep -= Math.PI * 2
-    if (!clockwise && sweep < 0) sweep += Math.PI * 2
+    if (clockwise && sweep > 0) sweep -= TAU
+    if (!clockwise && sweep < 0) sweep += TAU
     this.cursor = new Vector2(x + radius * Math.cos(end), y + radius * Math.sin(end))
     this.commands.push((segments, out) => {
       for (let i = 0; i <= segments; i++) {

@@ -28,14 +28,6 @@ export type SdkWasm = {
     outLength: number,
     t: number,
   ): void
-  math_hierarchy_update_batch(
-    world: number,
-    positions: number,
-    rotations: number,
-    scales: number,
-    parents: number,
-    n: number,
-  ): void
   /** The normal cone of the run-time cut's clusters (`../world/page/cutCones.ts`): 0 written,
    *  1 refused. */
   cone_clusters(
@@ -47,14 +39,6 @@ export type SdkWasm = {
     clusters: number,
     out: number,
   ): number
-  /** The compiler's position and texture grids for the run-time cut (`../world/page/cutGrid.ts`). */
-  position_grid_exponent(
-    extent: number,
-    blended: number,
-    finestError: number,
-    scale: number,
-  ): number
-  texture_grid_exponent(span: number, blended: number): number
 }
 type WasmSource = BufferSource | (() => Promise<BufferSource>)
 

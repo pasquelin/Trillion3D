@@ -1,3 +1,4 @@
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
@@ -22,9 +23,8 @@ import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import {
   CONTRACT_COMPOSITIONS,
-  contractLightingShader,
+  contractLightingProgram,
   UNLIT_COMPOSITIONS,
-  UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts'
 import { withScreenReflections } from '../../reflections/screenWgsl.ts'
 import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts'
@@ -32,11 +32,11 @@ import { taaShader } from '../../taa/shaderWgsl.ts'
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
 import {
   COVERAGE_CHOOSE_WGSL,
-  COVERAGE_WGSL,
+  COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
   RADIANCE_MIP_WGSL,
 } from '../../texture/mipsWgsl.ts'
-import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts'
+import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
@@ -51,9 +51,13 @@ import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShade
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
   BLEND_SHADER,
+  BOUNCE_LIGHTING_PROGRAM,
   BOUNCE_LIGHTING_SHADER,
+  contractLightingShader,
+  DIRECT_LIGHTING_PROGRAM,
   DIRECT_LIGHTING_SHADER,
   TAA_SHADER,
+  UNLIT_LIGHTING_SHADER,
 } from './shaderTexts.fixture.ts'
 import '../../impostor/lent.fixture.ts'
 import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
@@ -104,8 +108,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
-  REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER),
-  REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
+  REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_PROGRAM),
+  REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_PROGRAM),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, NARROW),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, NARROW),
   // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
@@ -121,9 +125,9 @@ export const ENGINE_SHADERS: Record<string, string> = {
   // The resolve of an image that holds an anisotropic or clear-coat surface (`lobesWgsl.ts`).
   DIRECT_LOBES_LIGHTING: contractLightingShader(false, {}),
   BOUNCE_LOBES_LIGHTING: contractLightingShader(true, {}),
-  REFLECTION_RESOLVE_BOUNCE_LOBES: withScreenReflections(contractLightingShader(true, {})),
-  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, NARROW)),
-  REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, NARROW)),
+  REFLECTION_RESOLVE_BOUNCE_LOBES: withScreenReflections(contractLightingProgram(true, {})),
+  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingProgram(false, NARROW)),
+  REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingProgram(true, NARROW)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
@@ -142,19 +146,19 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
   MATERIAL_MIP_WGSL,
   RADIANCE_MIP_WGSL,
-  COVERAGE_WGSL,
+  COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
   TEXEL_TURN_WGSL,
   VIS_SHADER,
-  VIS_DIAGNOSTIC: VIS_SHADER + DIAGNOSTIC_VIS_WGSL,
+  VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
   SHADE_SHADER,
-  SHADE_DIAGNOSTIC: SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL,
+  SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
   // The resolve of a scene that wears no texture (`feedbackVariant.ts`).
   SHADE_WITHOUT_FEEDBACK: shadeWithoutFeedbackCode(),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
-  BLEND_WATER: BLEND_SHADER + waterSurfaceWgsl(true),
-  BLEND_DIAGNOSTIC: BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL,
+  BLEND_WATER: blendShader({}, { stage: waterSurfaceWgsl(true) }),
+  BLEND_DIAGNOSTIC: blendShader({}, { diagnostic: DIAGNOSTIC_BLEND_WGSL }),
   // The forward passes' light loops without shadow or rectangle code (`createForwardVariants`).
   BLEND_UNSHADOWED_RECTLESS: blendShader({ unshadowed: true, rectless: true }),
   BLEND_RECTLESS: blendShader({ rectless: true }),

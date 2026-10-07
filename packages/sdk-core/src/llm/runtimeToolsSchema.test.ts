@@ -7,6 +7,7 @@ import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts'
 import { validateSceneLight } from '../scene/light/validate.ts'
 import type { SceneLight } from '../scene/light/contracts.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 
 const ajv = new Ajv()
 const tool = (name: string) => {
@@ -132,7 +133,7 @@ test('a light the tool accepts, the engine accepts; a field bound it refuses, th
     ['spot', { direction: 5 }],
     ['spot', { direction: [0, 'up', 1] }],
     ['spot', { coneAngle: 0 }],
-    ['spot', { coneAngle: Math.PI / 2 }],
+    ['spot', { coneAngle: HALF_PI }],
     ['spot', { coneAngle: 1.6 }],
     ['spot', { coneAngle: 'wide' }],
   ] as const) {

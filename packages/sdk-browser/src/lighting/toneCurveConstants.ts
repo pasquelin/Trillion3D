@@ -3,13 +3,13 @@
  * column, written as WGSL matrices, and the curves' expressions as text. Each is the curve the
  * display pass evaluates.
  */
-import { shaderFloat, wgslMatrix3 } from './shaderConstants.ts'
+import { wgslF32, wgslMatrix3 } from '../../../math/src/wgsl/number.ts'
 
 /** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
  *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
  *  image, so none is changed alone. */
 export const ACES = {
-  exposure: shaderFloat(0.6),
+  exposure: wgslF32(0.6),
   input: wgslMatrix3([
     0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777,
   ]),
@@ -45,7 +45,7 @@ export const AGX = {
 
 /** The filmic rational fit of `x = max(0, c − 0.004)`, display gamma included. */
 export const CINEON = {
-  offset: shaderFloat(0.004),
+  offset: wgslF32(0.004),
   curve: '(x*(6.2*x+0.5))/(x*(6.2*x+1.7)+0.06)',
 }
 
@@ -53,8 +53,8 @@ export const CINEON = {
 export const NEUTRAL = {
   toe: 'low<0.08',
   toeOffset: 'low-6.25*low*low',
-  offset: shaderFloat(0.04),
-  knee: shaderFloat(0.76),
+  offset: wgslF32(0.04),
+  knee: wgslF32(0.76),
   top: '1.0-0.0576/(peak-0.52)',
   blend: '1.0-1.0/(0.15*(peak-top)+1.0)',
 }

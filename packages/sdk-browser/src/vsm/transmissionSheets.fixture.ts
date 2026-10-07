@@ -3,6 +3,7 @@
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { vsmTransmissionBinWgsl, vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
 import { vsmLayout } from './layout.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 export type V = number[]
 export type Tri = [V, V, V]
@@ -19,7 +20,7 @@ export const geometry = shaderRun<{
   vsmTCoversCell: (a: V, b: V, c: V, s: number, cell: V) => boolean
   vsmTCellRange: (lo: V, hi: V) => V
 }>(
-  vsmTransmissionReadWgsl(14) + vsmTransmissionBinWgsl(LAYOUT),
+  wgslModule(vsmTransmissionReadWgsl(14)) + vsmTransmissionBinWgsl(LAYOUT),
   [
     'vsmTEdge',
     'vsmTEdgeHolds',

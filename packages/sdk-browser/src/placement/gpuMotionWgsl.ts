@@ -1,3 +1,6 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
 /**
  * The temporal motion of a linked placement, on the GPU, word for word the CPU's
  * (`../taa/motion.ts`): `previous · current⁻¹` of the two single-precision worlds the rows hold,
@@ -7,28 +10,6 @@
  * `transformAffinePoint` writes it, then `− eye` and single precision, as `worldToRenderOrigin`
  * stores it.
  */
-
-/** The double a single-precision word widens to, exactly: a subnormal becomes a normal double. The
- *  one widening of both compose passes (`gpuComposeWgsl.ts`): the motion's worlds here, the rows
- *  pass's sphere centre there. */
-export const FROM_F32_WGSL = `
-fn fromF32(w:u32)->vec2u{
- let sign=w&0x80000000u;
- let e=(w>>23u)&0xffu;
- var m=w&0x7fffffu;
- if(e==0xffu){
-  if(m!=0u){return dNan();}
-  return vec2u(sign|0x7ff00000u,0u);
- }
- var field=e+896u;
- if(e==0u){
-  if(m==0u){return vec2u(sign,0u);}
-  let shift=countLeadingZeros(m)-8u;
-  m=(m<<shift)&0x7fffffu;
-  field=897u-shift;
- }
- return vec2u(sign|(field<<20u)|(m>>3u),m<<29u);
-}`
 
 /** `invertMatrix4`'s cofactors, each a sum taken left to right: `+a*b −c*d …`. */
 const COFACTORS = {
@@ -76,7 +57,10 @@ const PRODUCTS = ['yz', 'xz', 'xy'].flatMap((rows) =>
 )
 
 /** `m⁻¹` as `invertMatrix4` computes it: the zero matrix for an exactly zero determinant. */
-const INVERSE_WGSL = `
+const INVERSE_WGSL = wgslBlock(
+  'INVERSE_WGSL',
+  [DOUBLE_WGSL],
+  `
 fn inverse4(m:array<vec2u,16>)->array<vec2u,16>{
 ${[0, 1, 2, 3].map((c) => ['x', 'y', 'z', 'w'].map((r, i) => `let ${r}${c}=m[${c * 4 + i}];`).join('')).join('\n')}
 ${PRODUCTS.join('')}
@@ -92,16 +76,18 @@ ${Object.entries(COFACTORS)
  let r=dDiv(vec2u(0x3ff00000u,0u),determinant);
 ${ENTRIES.map((entry, k) => `out[${k}]=dMul(${entry.length === 2 ? entry : sumText(entry)},r);`).join('\n')}
  return out;
-}`
+}`,
+)
 
 /**
  * The sixteen motion words of a root whose single-precision world went from `previous` to
  * `current`, the eye at `eye` (doubles): `previous · current⁻¹`, summed as `multiplyMatrix4` sums,
- * its translation brought to the eye. It reads `fromF32` and the doubles from the pass's shared
- * text (`gpuComposeWgsl.ts`).
+ * its translation brought to the eye.
  */
-export const MOTION_WGSL = `${INVERSE_WGSL}
-fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)->array<u32,16>{
+export const MOTION_WGSL = wgslBlock(
+  'MOTION_WGSL',
+  [DOUBLE_WGSL, FROM_F32_WGSL, TO_F32_WGSL, INVERSE_WGSL],
+  `fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)->array<u32,16>{
  var held:array<vec2u,16>;
  var now:array<vec2u,16>;
  for(var k=0u;k<16u;k++){
@@ -124,4 +110,5 @@ fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)-
   out[12u+j]=toF32(dSub(t,eye[j]));
  }
  return out;
-}`
+}`,
+)

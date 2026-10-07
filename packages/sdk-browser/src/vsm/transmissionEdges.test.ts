@@ -15,6 +15,8 @@ import {
   sheet,
   waves,
 } from './transmissionSheets.fixture.ts'
+import { TAU } from '../../../math/src/constants.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 test('the edge rule counts every point of a sheet once: random, on shared edges and on vertices', () => {
   const rnd = random(7)
@@ -46,7 +48,7 @@ test('a fan counts its shared vertex and spokes once; a triangle of no area hold
   const centre = [64.25, 63.75]
   for (const spokes of [3, 5, 7, 12]) {
     const ring = Array.from({ length: spokes }, (_, k) => {
-      const a = (2 * Math.PI * (k + 0.37)) / spokes
+      const a = (TAU * (k + 0.37)) / spokes
       return [centre[0] + 30 * Math.cos(a), centre[1] + 30 * Math.sin(a)].map(f32)
     })
     const fan: Tri[] = ring.map((v, k) => [centre, v, ring[(k + 1) % spokes]])
@@ -107,7 +109,7 @@ test('a sheet cut into clusters keeps its seams: each cluster projects its own b
     for (let k = 0; k + 1 < shared.length; k++) {
       const [a, b] = [shared[k], shared[k + 1]]
       for (const t of [0.25, 0.5, 0.75]) {
-        const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+        const p = [lerp(a[0], b[0], t), lerp(a[1], b[1], t)]
         if (p[0] < 3 || p[0] > 43) continue
         assert.equal(count(all, p), 1, `seam ${band} at ${p}`)
         seamPoints++

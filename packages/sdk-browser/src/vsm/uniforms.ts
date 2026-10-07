@@ -26,13 +26,17 @@ import {
 } from './constants.ts'
 import type { VsmLayout } from './layout.ts'
 import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * The fields some shader reads, nothing else, by role: the frame's words, the pool's, the tables',
  * the marking's and the traces', then the tables' mip offsets. The struct is the layout:
  * `writeVsmUniforms` writes its words in its order.
  */
-export const VSM_UNIFORMS_WGSL = /* wgsl */ `
+export const VSM_UNIFORMS_WGSL = wgslBlock(
+  'VSM_UNIFORMS_WGSL',
+  [],
+  `
 struct VsmUniforms{
  frameStamp:u32,
  fullMapCount:u32,
@@ -72,7 +76,8 @@ struct VsmUniforms{
 }
 fn vsmMarkMipOffset(mip:u32)->u32{return vsm.markMipOffset[mip>>2u][mip&3u];}
 fn vsmCoverMipOffset(mip:u32)->u32{return vsm.coverMipOffset[mip>>2u][mip&3u];}
-`
+`,
+)
 
 /** Per-frame values of the block; the rest comes from the constants and the layout. */
 export interface VsmFrameUniforms {

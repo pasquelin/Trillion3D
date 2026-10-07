@@ -1355,7 +1355,7 @@
       "description": "Teste une boîte contre le frustum. La première fonction vaut vrai lorsqu’un plan laisse les huit coins derrière lui. La seconde renvoie 0 hors champ, 1 à cheval ou 2 entièrement dedans. Un sous-arbre entièrement dedans évite de retester toutes ses boîtes."
     },
     "boxConeRejects": {
-      "description": "Rejette une boîte locale avec son cône de normales vu depuis un point monde. La boîte devient une sphère, l’axe est transporté par la matrice normale puis normalisé. Un cône d’angle ≥ `HALF_PI` ne rejette jamais ; un paramètre refusé non plus. Les variantes `_WGSL` partagent les constantes du shader."
+      "description": "Rejette une boîte locale avec son cône de normales vu depuis un point monde. La boîte devient une sphère, l’axe est transporté par la matrice normale puis normalisé. Un cône d’angle ≥ `HALF_PI` ne rejette jamais ; un paramètre refusé non plus."
     },
     "createTransformTree": {
       "description": "Hiérarchie de transformations orientée données : un nœud est un indice dans des tableaux plats de parent, pose, matrices et drapeaux. Les vues locales et monde sont créées à la croissance, jamais pendant une mise à jour."

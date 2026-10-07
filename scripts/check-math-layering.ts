@@ -1,12 +1,20 @@
 // The layering rule of the maths: a module of `packages/math/src` imports only modules inside it — a
 // value import, a type import, a re-export or a dynamic `import()` — so the one home every other
 // package reads never leads back out. Tests and fixtures of the maths may also import `node:`
-// builtins, which run on Node alone. `check-cycles.ts` runs it.
+// builtins, which run on Node alone, and read the reference values beside the sources. `check-cycles.ts` runs it.
 import ts from 'typescript'
 import { normalized } from './check-calls-normalize.ts'
 import { isTestModule } from './repository-files.ts'
 
-export const MATH_UNIT = 'packages/math/src'
+const MATH_PACKAGE = 'packages/math'
+export const MATH_UNIT = `${MATH_PACKAGE}/src`
+/** The reference values beside the sources, which the tests and fixtures alone read. */
+const MATH_GOLDEN = `${MATH_PACKAGE}/golden`
+
+/** Whether `reached`, a path as `normalized` names it, stays in the maths' unit — or, from a test,
+ *  in a file of its reference values. */
+const staysHome = (reached: string, test: boolean) =>
+  reached.startsWith(MATH_UNIT + '/') || (test && reached.startsWith(MATH_GOLDEN + '/'))
 
 const literalText = (node: ts.Node | undefined): string | null =>
   node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : null
@@ -71,18 +79,31 @@ function climbsAboveRoot(file: string, specifier: string): boolean {
   return false
 }
 
+/** Whether a relative specifier names a folder: it ends in `/`, is `.` or `..`, or has no file
+ *  extension. */
+const isFolder = (specifier: string) =>
+  specifier.endsWith('/') || specifier === '.' || specifier === '..' || !/\.[^./]+$/.test(specifier)
+
 /** Every import of a module of `packages/math/src` that leaves it, as `file: specifier`. */
 export function mathLayeringBreaks(files: Map<string, string>): string[] {
   const breaks: string[] = []
   for (const [file, text] of files) {
     if (!file.startsWith(MATH_UNIT + '/')) continue
+    // A test reads the package's reference values beside its sources (`packages/math/golden`),
+    // nothing else of the package, never another package.
+    const test = isTestModule(file)
     for (const specifier of specifiersOf(file, text)) {
       const outside = specifier.startsWith(UNRESOLVED)
         ? true
         : specifier.startsWith('.')
           ? climbsAboveRoot(file, specifier) ||
-            !normalized(file, specifier).startsWith(MATH_UNIT + '/')
-          : !(specifier.startsWith('node:') && isTestModule(file))
+            // A folder (`'../golden/'`, `'.'`, `'../golden'`) is judged by a file inside it:
+            // `normalized` names modules.
+            !staysHome(
+              normalized(file, isFolder(specifier) ? `${specifier}/x.json` : specifier),
+              test,
+            )
+          : !(specifier.startsWith('node:') && test)
       if (outside) breaks.push(`${file}: ${specifier}`)
     }
   }

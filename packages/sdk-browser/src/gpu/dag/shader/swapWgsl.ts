@@ -1,4 +1,7 @@
 import { KEPT_HEADER_WORDS } from '../layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../../dispatch/grid.ts'
+import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /** A region that names none: the swap kernels skip it (`../swap.ts`). */
 export const REGION_NONE = 0xffff
@@ -21,7 +24,10 @@ export const swapRegionsWord = (save: number, back: number) => (save | (back << 
  * journal in place (one workgroup at least, whose first thread saves its length and arms the
  * journal coming back, `armWgsl.ts`), the restore on the length its region holds.
  */
-export const DAG_SWAP_WGSL = `const REGION_NONE:u32=${REGION_NONE}u;
+export const DAG_SWAP_WGSL = wgslBlock(
+  'DAG_SWAP_WGSL',
+  [ceilDiv, FLAT_INDEX_WGSL, GROUP_GRID_WGSL],
+  `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
 /** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag can be one. No
@@ -30,7 +36,7 @@ fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+
  *  and the length of the one it names second armed for \`dagRestoreJournal\`. */
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);let held=atomicLoad(&work[drawnCounter()]);
+ let s=flatIndex(id,n,64u);let held=atomicLoad(&work[drawnCounter()]);
  let save=views[0u].swapRegions&0xffffu;let back=views[0u].swapRegions>>16u;let cap=views[0u].listCap;
  if(s==0u){
   if(save!=REGION_NONE){out.pages[savedAt(save)]=held;}
@@ -46,13 +52,14 @@ fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
  *  journal in place was cleared before (\`dagClearDrawn\`). */
 @compute @workgroup_size(64)
 fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);let v=views[0u].swapRegions>>16u;
+ let s=flatIndex(id,n,64u);let v=views[0u].swapRegions>>16u;
  let count=min(out.pages[savedAt(v)],views[0u].listCap);
  if(s==0u){
-  let last=(max(count,1u)-1u)>>6u;
+  let grid=select(vec2u(0u),groupGrid(ceilDiv(count,64u)),count>0u);
   atomicStore(&work[drawnCounter()],count);
-  atomicStore(&work[drawnGroups()],select(0u,gridX(last),count>0u));
-  atomicStore(&work[drawnGroups()+1u],select(0u,gridY(last),count>0u));
+  atomicStore(&work[drawnGroups()],grid.x);
+  atomicStore(&work[drawnGroups()+1u],grid.y);
  }
  if(s<count){let entry=out.pages[savedAt(v)+1u+s];setFlag(views[0u].queueCap+entry,1u);setFlag(candBase()+s,entry);}
-}`
+}`,
+)

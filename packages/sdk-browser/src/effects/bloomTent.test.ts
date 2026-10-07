@@ -19,6 +19,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/shaders.ts'
 import { random as seeded } from '../page/cut/cutRuleChecks.fixture.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 type Size = readonly [number, number]
 type Tent = (uv: number[]) => number[]
@@ -142,9 +143,7 @@ test("the sampler's rounding of the tap weights moves four taps from nine within
       for (const { out, read } of pairs(width, height)) {
         const { tent, tent9, channels } = tentsOver(read, 1, width, bits)
         const texel = (image: Image, x: number, y: number) =>
-          image.data[
-            Math.min(read[1] - 1, Math.max(0, y)) * read[0] + Math.min(read[0] - 1, Math.max(0, x))
-          ]
+          image.data[clamp(y, 0, read[1] - 1) * read[0] + clamp(x, 0, read[0] - 1)]
         for (let py = 0; py < out[1]; py++)
           for (let px = 0; px < out[0]; px++) {
             const uv = [(px + 0.5) / out[0], (py + 0.5) / out[1]]

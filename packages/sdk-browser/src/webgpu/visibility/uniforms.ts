@@ -1,3 +1,4 @@
+import { visUniformLayout } from '../core/bindLayout.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { slotCount } from '../../gpu/draw/draw.ts'
 import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts'
@@ -26,8 +27,11 @@ export function writeWebgpuVisibilityUniforms(
   tableRows: number,
 ) {
   const { vis, run } = rt,
-    slots = visUniformSlots(vis)
-  if (vis.visUniPacked.length !== slots * 64) vis.visUniPacked = new Float32Array(slots * 64)
+    slots = visUniformSlots(vis),
+    layout = visUniformLayout(device.limits, slots),
+    slotWords = layout.strideWords
+  if (vis.visUniPacked.length !== slots * slotWords)
+    vis.visUniPacked = new Float32Array(slots * slotWords)
   const { visUniPacked, shadeUniPacked } = vis,
     [width, height] = rt.gpu.targetSize,
     { diagnostic } = run,
@@ -35,13 +39,13 @@ export function writeWebgpuVisibilityUniforms(
     pixelRatio = renderPixelRatio(rt),
     mipBias = renderMipBias(rt)
   const visUniform = (vis.visUniform ??= device.createBuffer({
-    size: slots * 256,
+    size: layout.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }))
   const visInts = new Uint32Array(visUniPacked.buffer)
   const computeSpan = computeRasterReady(rt) ? computeSpanFor(rt.context?.diagnosticGpuVariant) : 0
   for (let slot = 0; slot < slots; slot++) {
-    const base = slot * 64
+    const base = slot * slotWords
     visUniPacked.set(viewProj, base)
     visUniPacked[base + 16] = width
     visUniPacked[base + 17] = height

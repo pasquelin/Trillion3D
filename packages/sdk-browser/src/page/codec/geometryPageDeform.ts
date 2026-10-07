@@ -1,3 +1,4 @@
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import {
   CLUSTER_HEADER_WORDS,
   FLAG_MORPH,
@@ -59,13 +60,11 @@ export function readDeformation(head: DataView, flags: number) {
   return { skin, morphs }
 }
 
-/** Words of `count` fields of `bits` bits. */
-const words = (count: number, bits: number) => Math.ceil((count * bits) / 32)
-
 /** Words of every skin stream and of one target's six float32 streams. */
-export const skinWords = (skin: PageSkin, n: number) => skin.influences * (words(n, skin.bits) + n)
+export const skinWords = (skin: PageSkin, n: number) =>
+  skin.influences * (bitWords(n * skin.bits) + n)
 export const morphWords = (morph: PageMorph, n: number) =>
-  [...morph.position.bits, ...morph.normal.bits].reduce((sum, b) => sum + words(n, b), 0)
+  [...morph.position.bits, ...morph.normal.bits].reduce((sum, b) => sum + bitWords(n * b), 0)
 
 /** Each vertex's joints, then its weights, from the skin's streams at word `start`. */
 export function decodeSkin(
@@ -77,7 +76,7 @@ export function decodeSkin(
 ) {
   const width = skin.influences,
     n = joints.length / width,
-    jointWords = words(n, skin.bits),
+    jointWords = bitWords(n * skin.bits),
     weightStart = start + width * jointWords
   const floats = new Float32Array(body.buffer, body.byteOffset, body.length)
   for (let v = 0; v < n; v++)
@@ -117,7 +116,7 @@ export function validateRawDeformation(
   }
   if (flags & FLAG_SKIN)
     raw(
-      skinned + skin.influences * words(vertexCount, skin.bits),
+      skinned + skin.influences * bitWords(vertexCount * skin.bits),
       skin.influences * vertexCount,
       true,
     )

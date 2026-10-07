@@ -68,12 +68,12 @@ function assertPinnedOffsets(text: string) {
 test('the offsets the lighting shader reads are pinned, as numbers, not derived from the record size', () => {
   // A field moved in the struct, with the size constant and the writer moving with it, must still
   // fail here: the lighting shader reads the record by these offsets.
-  assertPinnedOffsets(VSM_PROJECTION_DATA_WGSL)
+  assertPinnedOffsets(VSM_PROJECTION_DATA_WGSL.text)
   assert.equal(VSM_PROJECTION_RECORD_BYTES, 288)
 })
 
 test('the pin fails when a field is added, removed or moved', () => {
-  const text = VSM_PROJECTION_DATA_WGSL
+  const text = VSM_PROJECTION_DATA_WGSL.text
   assert.throws(() =>
     assertPinnedOffsets(text.replace(' lightKind:u32,', ' lightKind:u32,\n extra:u32,')),
   )

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Path, Shape } from '../math/curves.ts'
 import { extrude, shape } from './shape.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 type G = ReturnType<typeof shape>
 const arrays = (g: G) => ({
@@ -115,12 +116,12 @@ function volumeOfBevel(
 ) {
   const layers: [number, number][] = []
   for (let s = 0; s <= segments; s++) {
-    const a = (s / segments) * (Math.PI / 2)
+    const a = (s / segments) * HALF_PI
     layers.push([-thickness * Math.cos(a), size * Math.sin(a)])
   }
   layers.push([depth, size])
   for (let s = segments - 1; s >= 0; s--) {
-    const a = (s / segments) * (Math.PI / 2)
+    const a = (s / segments) * HALF_PI
     layers.push([depth + thickness * Math.cos(a), size * Math.sin(a)])
   }
   let v = 0

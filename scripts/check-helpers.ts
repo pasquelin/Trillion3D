@@ -8,14 +8,11 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts'
+import { NATIVE_CRATES } from './native-crates.ts'
 import { SOURCE_UNITS, isTestModule, sourceFilesOf } from './repository-files.ts'
 
 /** Each package or crate is its own namespace: a helper is owned once per unit. */
-export const UNITS = [
-  ...SOURCE_UNITS,
-  'packages/asset-compiler-rust/src',
-  'packages/page-codec-wasm/src',
-]
+export const UNITS = [...SOURCE_UNITS, ...NATIVE_CRATES.map((crate) => `${crate.path}/src`)]
 
 export interface Helper {
   name: string

@@ -1,5 +1,6 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
 import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -75,9 +76,10 @@ function spacingsOf(bounds: readonly number[]): number[] {
   // The finest spacing is also the one that, doubled at each step, allows the last level
   // to cover the extent: all spacings are power-of-two multiples of the finest, and the
   // occupancy map of a level is the exact reduction of the previous level's map.
-  const finest = Math.max(
-    Math.min(cascadeSpacingMetres, Math.min(...sizes) / cascadeLayersAcross),
+  const finest = clampLowWins(
+    Math.min(...sizes) / cascadeLayersAcross,
     extent / (useful * 2 ** (cascadeLevels - 1)),
+    cascadeSpacingMetres,
   )
   const spacings: number[] = []
   for (let level = 0; level < cascadeLevels; level++) {

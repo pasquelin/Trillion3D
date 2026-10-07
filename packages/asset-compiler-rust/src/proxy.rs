@@ -1,9 +1,10 @@
 use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::{transform_point, world_matrices, Mat4};
+use crate::compiler_world::{world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::matrix::transform_point;
 
 pub mod albedo;
 pub(crate) mod assemble;
@@ -89,16 +90,7 @@ pub struct ProxyInputs<'a> {
 
 /// World matrix scale factor: longest of three linear columns.
 /// Object error multiplier when becoming world error, up to upper bound.
-pub fn world_scale(matrix: &Mat4) -> f64 {
-    (0..3)
-        .map(|column| {
-            (matrix[column * 4].powi(2)
-                + matrix[column * 4 + 1].powi(2)
-                + matrix[column * 4 + 2].powi(2))
-            .sqrt()
-        })
-        .fold(0.0f64, f64::max)
-}
+pub use trillion3d_math::linear::longest_column as world_scale;
 
 /// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
 pub use trillion3d_page_codec::bits::grid::object_units;
@@ -189,10 +181,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
 pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
     out.reserve(cut.len());
     for vertex in cut.as_chunks::<3>().0 {
-        let world = transform_point(
-            matrix,
-            [vertex[0] as f64, vertex[1] as f64, vertex[2] as f64],
-        );
+        let world = transform_point(matrix, vertex.map(f64::from));
         out.push(world[0] as f32);
         out.push(world[1] as f32);
         out.push(world[2] as f32);

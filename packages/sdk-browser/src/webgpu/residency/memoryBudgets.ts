@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { poolLayerBytes, poolLayerLimit, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import {
@@ -40,7 +41,8 @@ export type TexturePools = {
   liveBytes?: number
 }
 
-const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER)
+/** The pool layers `tiles` tiles fill. */
+const layersFor = (tiles: number) => ceilDiv(tiles, TILES_PER_LAYER)
 /** A lane's floor: its tails, and one tile to stream into when the lane streams. */
 const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(streams))
 

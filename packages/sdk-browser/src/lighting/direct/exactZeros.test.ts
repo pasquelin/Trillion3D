@@ -16,6 +16,8 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
@@ -37,17 +39,21 @@ const NAMES = [
   'isRect',
   'modelLight',
   'thinTransmission',
+  'lambertAlbedoMul',
   // Every function of the standard lobe's text.
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 
 test('the skipped thin transmission and back-facing lobes keep every sum, bit for bit, in f32', () => {
   const r = random(1564),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (const shadowed of [false, true])
     for (const rects of [false, true]) {
-      const shipped = `${directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true })}${STANDARD_LIGHTING_WGSL}`
+      const shipped = wgslModule(
+        directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true }),
+        STANDARD_LIGHTING_WGSL,
+      )
       assert.match(shipped, GUARDED)
       assert.match(shipped, EARLY)
       const K = wgslConstants(shipped)

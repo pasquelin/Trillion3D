@@ -1,5 +1,13 @@
-/** Canonical DAG displacement bound; callers prepare the same view position and world radius. */
-export const PROJECTED_BOUND_WGSL = `
+import { type WgslDecl, wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
+/** Canonical DAG displacement bound; callers prepare the same view position and world radius.
+ *  `inf` is the host's `INF`, the bound returned where none holds (no error, near plane reached)
+ *  and the slant's ceiling: the DAG's (`DAG_INF`) or the shadow render cull's. */
+export const projectedBoundWgsl = (inf: WgslDecl) =>
+  wgslBlock(
+    'PROJECTED_BOUND_WGSL',
+    [inf],
+    `
 fn projectedBound(error:f32,v:vec3f,radius:f32,stretch:f32,focal:f32,near:f32,perspective:f32,reference:bool)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
@@ -17,4 +25,5 @@ fn projectedBound(error:f32,v:vec3f,radius:f32,stretch:f32,focal:f32,near:f32,pe
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
-`
+`,
+  )

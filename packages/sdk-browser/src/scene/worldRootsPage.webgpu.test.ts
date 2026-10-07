@@ -8,6 +8,7 @@ import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts'
 import { worldRootsPageAddress } from './worldPageServe.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 test('every page lands in a WebGPU page slot as cooked', async () => {
   installGpuGlobals()
@@ -17,7 +18,7 @@ test('every page lands in a WebGPU page slot as cooked', async () => {
     const { bundle, offset, bytes } = table.pages.at(at)
     const address = worldRootsPageAddress(table.payload.url, bundle, offset),
       cooked = worldPage(bundle).bytes, // the fixture's page `bundle` is the triangle at x = bundle
-      pageBytes = Math.ceil(bytes / 4) * 4
+      pageBytes = alignUp(bytes, 4)
     const gpu = fakeDevice({ limits: { maxBufferSize: 1024 } }),
       cache = createGpuPageCache(gpu.device, source, { pageBytes, slots: 1 }),
       resident = await cache.load(address)

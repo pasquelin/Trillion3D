@@ -1,3 +1,4 @@
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
 import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
@@ -126,7 +127,7 @@ export function worldBudget(
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
     const { shadowPool, bounceProbes, effectTargets, frameTargets = 0, ...shares } = split()
     const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets - frameTargets
-    return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])))
+    return clamp(left - (pools[other] ?? shares[other]), 1, ceiling)
   }
   /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
   const redraw = (gpu: number, canvas = pools.canvas) => {

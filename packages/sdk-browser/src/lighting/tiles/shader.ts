@@ -1,6 +1,7 @@
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * THE LIGHT GRID: cells of `tileSize` pixels across and `gridSlices` slices of
@@ -20,14 +21,12 @@ import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts'
  * render matrix's depth rows give a point there its depth. Depth is REVERSE-Z
  * (`../../camera/depthConvention.ts`): the near plane at one, the background at zero.
  */
-export const LIGHT_TILES_SHADER = `
+export const LIGHT_TILES_SHADER = wgslProgram(
+  `
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,}
 @group(0) @binding(0) var<uniform> view:TileView;
 @group(0) @binding(1) var<storage,read> lights:DirectLights;
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;
-${directLightWgsl()}
-${GRID_BOUNDS_WGSL}
-${GRID_COMPACT_WGSL}
 /** The light count, one bound for the whole workgroup. */
 var<workgroup> lightCount:u32;
 @compute @workgroup_size(${GRID_LANES},1,1)
@@ -86,4 +85,6 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   writeSlices(lane);
   workgroupBarrier();
  }
-}`
+}`,
+  [directLightWgsl(), GRID_COMPACT_WGSL, GRID_BOUNDS_WGSL],
+)

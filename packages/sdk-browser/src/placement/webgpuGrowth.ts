@@ -21,6 +21,7 @@
  * Refused, so the owner opens the session again: rows the blend pass or a deformation draws, whose
  * tables are laid out at open (`rowsGrowInPlace`), and a session without a GPU cut or a device.
  */
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
 import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
@@ -117,7 +118,7 @@ function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
     pages = grownCapacity(rt.layout.packedPages.length, needed.pages)
   return {
     pages,
-    nodes: Math.ceil((needed.nodes * pages) / Math.max(1, needed.pages)),
+    nodes: ceilDiv(needed.nodes * pages, Math.max(1, needed.pages)),
     worlds: grownCapacity(rt.layout.selectionRoots.length, needed.worlds),
   }
 }

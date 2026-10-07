@@ -22,8 +22,8 @@
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
  * top-down pruning would then drop everything.
  *
- * Each list read indirectly keeps its dispatch argument's x then y behind its counter: its groups
- * in rows (`gridWgsl.ts`), which the arming kernel copies to the argument (`armWgsl.ts`).
+ * Each list read indirectly keeps its dispatch argument's x then y behind its counter
+ * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
  */
 export function dagWorkLayout(blockCount: number) {
   // Block counts, block offsets and two words per block of the draw mask (`compactWgsl.ts`): no
@@ -62,8 +62,13 @@ export const WORK_BLOCK_WORDS = 2 + SELECTION_WORKGROUP / 32
 
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { SELECTION_WORKGROUP } from '../../core/selection.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { DAG_INF } from './infDecl.ts'
 
-export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
+export const DAG_FLOOR_WGSL = wgslBlock(
+  'DAG_FLOOR_WGSL',
+  [DAG_INF],
+  `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
 /** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
  *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —
  *  never above the true value of one of its clusters. Without a sphere, negative radius, it
@@ -88,4 +93,5 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t
  let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
  return errorFloor(error,depth,radius,stretch,focal)>t;
 }
-`
+`,
+)

@@ -1,5 +1,7 @@
 import type { SceneProxyColumns } from '../../contracts/proxy.ts'
 import { proxyBoxesExtent, proxyTriangleBoxes } from './proxyBoxes.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 
 const rounded = new Float32Array(1),
   NO_LEAF = 0xffffffff
@@ -57,7 +59,7 @@ function quantizeChildren(
       const span = nodeBounds[base + axis + 3] - min
       // One additional quantization unit covers shader subtraction and reconstruction rounding.
       const unit = span > 0 ? ((boxes[slot * 6 + a] - min) / span) * 255 : a < 3 ? 0 : 255
-      const q = Math.max(0, Math.min(255, a < 3 ? Math.floor(unit) - 1 : Math.ceil(unit) + 1))
+      const q = clamp(a < 3 ? Math.floor(unit) - 1 : Math.ceil(unit) + 1, 0, 255)
       if (a < 4) low |= q << (a * 8)
       else high |= q << ((a - 4) * 8)
     }
@@ -88,7 +90,7 @@ function growTriangle(
       // Four f32 products/additions: gamma(7) bounds either fused or separate evaluation.
       const error =
         (Math.abs(x) + Math.abs(y) + Math.abs(z) + Math.abs(w)) *
-        ((7 * 2 ** -24) / (1 - 7 * 2 ** -24))
+        ((3.5 * FLOAT32_STEP) / (1 - 3.5 * FLOAT32_STEP))
       bounds[at + a] = Math.min(bounds[at + a], value)
       bounds[at + a + 3] = Math.max(bounds[at + a + 3], value)
       errors[t * 3 + a] = Math.max(errors[t * 3 + a], error)

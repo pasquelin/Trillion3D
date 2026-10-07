@@ -10,6 +10,8 @@ import {
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -55,8 +57,8 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  * several pyramids at once. The camera's `g` is zero: one pyramid, from
  * texel zero.
  */
-export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
+export const HIZ_SHADER = wgslProgram(
+  `struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
@@ -66,7 +68,6 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 var<workgroup> hizTile:array<f32,${S ** 2}>;
-${STATE_TALLY_WGSL}
 /** A texel of the pass's source level at \`at\`: the level-0 texture, copied into the pyramid on
  *  the way, when the source sits at offset zero; else the level the previous pass wrote. */
 fn hizSource(at:u32,origin:vec2i,x:u32,y:u32)->f32{
@@ -123,14 +124,14 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
   }
  }
 }
-${HIZ_HIDES_WGSL}
 // Only boxes the frame tests travel this far, each carrying the verdict row it answers for;
 // every other drawable row holds the verdict the partition wrote this frame (\`classifyRows\`).
 // The box count is the one the partition compacted: the CPU does not know it.
 // Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
 @compute @workgroup_size(64)
-fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
- if(id.x<atomicLoad(&state[${ST_TESTED}u])){testBox(id.x);}
+fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,64u);
+ if(i<atomicLoad(&state[${ST_TESTED}u])){testBox(i);}
  flushTally(lane);
 }
 fn testBox(i:u32){
@@ -149,4 +150,6 @@ fn testBox(i:u32){
   tallyAdd(${ST_REJECTED_TRIANGLES}u,b.triangles);
  }
 }
-`
+`,
+  [PAGE_INFO_STRUCT_WGSL, FLAT_INDEX_WGSL, STATE_TALLY_WGSL, HIZ_HIDES_WGSL],
+)

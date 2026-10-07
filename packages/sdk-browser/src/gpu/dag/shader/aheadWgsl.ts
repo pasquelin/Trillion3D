@@ -1,4 +1,5 @@
 import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * The view AHEAD of the camera: what the camera cut also evaluates so the pages the camera is about
@@ -23,8 +24,10 @@ import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts'
  */
 export const AHEAD_VIEW = 1
 
-export const DAG_AHEAD_WGSL = `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
-${DAG_AHEAD_DUE_WGSL}
+export const DAG_AHEAD_WGSL = wgslBlock(
+  'DAG_AHEAD_WGSL',
+  [DAG_AHEAD_DUE_WGSL],
+  `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
 fn aheadOn()->bool{return views[0u].ahead!=0u;}
 /** The view-ahead frustum, brought into the primitive's space by \`dagPrepare\` as the camera's
  *  (\`primitiveWgsl.ts\`), then the same box test. A primitive no camera culls is never outside it. */
@@ -53,4 +56,5 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  if(!selects(pixels,thresholdOf(w))){return;}
  emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }
-`
+`,
+)

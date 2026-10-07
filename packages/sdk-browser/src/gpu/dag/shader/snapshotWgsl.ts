@@ -5,6 +5,7 @@ import {
   REQUEST_PRIORITY_MAX,
   REQUEST_STAGED_WORDS,
 } from '../request.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
@@ -31,7 +32,10 @@ import {
  * admission comes back with where each level starts, so the host merges views without reading a
  * request's level.
  */
-export const DAG_READING_WGSL = `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
+export const DAG_READING_WGSL = wgslBlock(
+  'DAG_READING_WGSL',
+  [],
+  `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
  *  is truncated. */
 fn emitOne(page:u32,priority:u32){
  let slot=atomicAdd(&out.count,1u);
@@ -96,4 +100,5 @@ fn placeRanks()->u32{
  for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
  return place;
 }
-`
+`,
+)

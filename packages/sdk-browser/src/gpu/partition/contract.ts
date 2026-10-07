@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
  *
@@ -74,13 +76,17 @@ const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1
  * `state` and a uniform `uni.counting` declares it; its entry point calls `flushTally` from uniform
  * control flow. `ST_TESTED`, the tested boxes' allocator, is never tallied.
  */
-export const STATE_TALLY_WGSL = `var<workgroup> tally:array<atomic<u32>,${TALLY_WORDS}>;
+export const STATE_TALLY_WGSL = wgslBlock(
+  'STATE_TALLY_WGSL',
+  [],
+  `var<workgroup> tally:array<atomic<u32>,${TALLY_WORDS}>;
 fn tallyAdd(word:u32,n:u32){if(uni.counting!=0u){atomicAdd(&tally[word],n);}}
 fn flushTally(lane:u32){
  if(uni.counting==0u){return;}
  workgroupBarrier();
  if(lane>${ST_TESTED}u&&lane<${TALLY_WORDS}u){let n=atomicLoad(&tally[lane]);if(n!=0u){atomicAdd(&state[lane],n);}}
-}`
+}`,
+)
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
@@ -92,7 +98,11 @@ export const VERDICT_OCCLUDER = 0,
 
 /** Reject predicate, the same text in every module that binds `hizFlags`: a valid slot at the
  *  rejected verdict. Its negation is what draws. */
-export const HIZ_REJECTED_WGSL = `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`
+export const HIZ_REJECTED_WGSL = wgslBlock(
+  'HIZ_REJECTED_WGSL',
+  [],
+  `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`,
+)
 
 /** Bindings of the partition module, by name: the number `PARTITION_SHADER` declares each under. */
 export const PARTITION_BINDING = {

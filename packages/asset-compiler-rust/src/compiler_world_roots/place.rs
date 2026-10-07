@@ -5,11 +5,13 @@
 //! transpose of the object's matrix, texture sets as they are, colour four-wide. A mirrored
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
-use crate::compiler_world::{cofactor_direction, transform_point};
+use crate::compiler_world::cofactor_direction;
 use crate::dag::tight::ball_of_balls;
 use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 use crate::proxy::{place, world_scale};
-use crate::shared_math::{cross, dot, linear_columns, unit};
+use crate::shared_math::{linear_columns, unit};
+use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec3::{cross, dot};
 
 /// The attributes a world vertex may carry, in the order a page writes them, at the width a world
 /// page stores each: the page format's own.

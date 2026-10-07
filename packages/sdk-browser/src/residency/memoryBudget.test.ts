@@ -15,9 +15,9 @@ import {
 } from './memoryBudget.ts'
 import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 const [width, height] = [3840, 2160]
-const MiB = 1024 * 1024
 const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 })]
 
 test('the default reserve is the target rule on a 3840 × 2160 canvas, the most a chain holds', async () => {
@@ -36,10 +36,10 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
 })
 
 test('the default GPU total grows by exactly that reserve, and each pool keeps 512 MiB', () => {
-  const before = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + 1024 * MiB
+  const before = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + 1024 * MIB
   assert.equal(DEFAULT_GPU_BUDGET - before, effectChainBytesAt(width, height))
-  assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MiB)
-  assert.equal(DEFAULT_TEXTURE_POOL_BUDGET, 512 * MiB)
+  assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB)
+  assert.equal(DEFAULT_TEXTURE_POOL_BUDGET, 512 * MIB)
 })
 
 test('a larger declared canvas reserves more, and a canvas past it is the excess', () => {

@@ -1,3 +1,7 @@
+import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { withoutComments } from '../../../math/src/wgsl/comments.fixture.ts'
+
 /** The memory layout of a WGSL struct, computed from its source text by WGSL's layout rules. */
 export interface WgslStructLayout {
   /** The byte offset of each field. */
@@ -6,8 +10,6 @@ export interface WgslStructLayout {
   size: number
   align: number
 }
-
-const roundUp = (n: number, to: number) => Math.ceil(n / to) * to
 
 /** The size and alignment of a type: the scalars, `vecN` (`vec3f`, `vec4u`, `vec2<f32>`, ...), `mat4x4f`, `array<T,n>`. */
 function shapeOf(type: string): [size: number, align: number] {
@@ -21,7 +23,7 @@ function shapeOf(type: string): [size: number, align: number] {
   const array = /^array<(.+),(\d+)>$/.exec(type)
   if (array) {
     const [size, align] = shapeOf(array[1])
-    return [roundUp(size, align) * Number(array[2]), align]
+    return [alignUp(size, align) * Number(array[2]), align]
   }
   throw new Error(`wgslStructLayout: no layout rule for type ${type}`)
 }
@@ -45,8 +47,9 @@ function fields(body: string): string[] {
 }
 
 /** The layout of `struct <name>{...}` in `src`; throws when the struct or a field's type is unknown. */
-export function wgslStructLayout(src: string, name: string): WgslStructLayout {
-  const text = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+export function wgslStructLayout(input: WgslSource, name: string): WgslStructLayout {
+  const src = wgslSource(input)
+  const text = withoutComments(src)
   const start = new RegExp(`struct\\s+${name}\\s*\\{`).exec(text)
   if (!start) throw new Error(`wgslStructLayout: no struct ${name}`)
   const from = start.index + start[0].length
@@ -58,10 +61,10 @@ export function wgslStructLayout(src: string, name: string): WgslStructLayout {
     const m = /^(\w+)\s*:\s*(.+)$/s.exec(field)
     if (!m) throw new Error(`wgslStructLayout: cannot read the field "${field}" of ${name}`)
     const [size, fieldAlign] = shapeOf(m[2].replace(/\s+/g, ''))
-    at = roundUp(at, fieldAlign)
+    at = alignUp(at, fieldAlign)
     offsets[m[1]] = at
     at += size
     align = Math.max(align, fieldAlign)
   }
-  return { offsets, size: roundUp(at, align), align }
+  return { offsets, size: alignUp(at, align), align }
 }

@@ -20,7 +20,7 @@ const prefixKernel = () => {
 }
 
 test('the drawable-page prefix scans the block totals with the shared lane scan', () => {
-  assert.equal(DAG_SELECTION_SHADER.split(LANE_SCAN_WGSL).length, 2, 'the lane scan, once')
+  assert.equal(DAG_SELECTION_SHADER.split(LANE_SCAN_WGSL.text).length, 2, 'the lane scan, once')
   const kernel = prefixKernel()
   assert.match(kernel, /laneRun\(lane,count\)/, 'each lane owns a run of blocks')
   assert.match(kernel, /laneScan\(lane,total\)-total/, 'an exclusive prefix per run')

@@ -7,7 +7,7 @@
  * proportion to its radiance.
  */
 
-import { shaderFloat } from '../lighting/shaderConstants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
@@ -90,9 +90,6 @@ export function bloomTapText(
   vec2: string,
 ) {
   return taps
-    .map(
-      ([x, y, w]) =>
-        `c+=${sample(`${vec2}(${shaderFloat(x)},${shaderFloat(y)})`)}*${shaderFloat(w)};`,
-    )
+    .map(([x, y, w]) => `c+=${sample(`${vec2}(${wgslF32(x)},${wgslF32(y)})`)}*${wgslF32(w)};`)
     .join('\n')
 }

@@ -90,7 +90,7 @@ function walk(count: number, seed: number, frames: number, edges = false) {
     refreshBlendBoxes(tree)
     if (next() < 0.05)
       for (const state of [tree, oracle]) {
-        buildBlendStatics(state)
+        buildBlendStatics(state, state.uniformStride)
         refreshBlendPlan(state)
       }
     const kept = outcome(tree, orderBlendPasses(tree, eye))

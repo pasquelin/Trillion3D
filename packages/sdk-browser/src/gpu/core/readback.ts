@@ -1,4 +1,6 @@
 import { giveReadback, takeReadback } from './heldReadback.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+
 /**
  * The readbacks the proof tools and an explicit capture do, and that no frame does.
  *
@@ -46,7 +48,7 @@ export async function readGpuTextureR32F(
 }
 
 /** Row pitch of a readback buffer: RGBA8 rows padded to WebGPU's 256-byte alignment. */
-const readbackBytesPerRow = (width: number) => Math.ceil((width * 4) / 256) * 256
+const readbackBytesPerRow = (width: number) => alignUp(width * 4, 256)
 
 /** How `readGpuImage` reads: which level of the texture, and in which row order. */
 export interface ReadImageOptions {

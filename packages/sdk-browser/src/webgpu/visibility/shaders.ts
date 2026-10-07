@@ -1,10 +1,11 @@
 import { shaderErrors } from '../../gpu/core/shaderModule.ts'
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
-import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts'
+import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
   atlasLayoutEntries,
+  visUniformLayout,
   readOnly,
 } from '../core/bindLayout.ts'
 import {
@@ -71,7 +72,7 @@ export const shadeWithoutFeedbackCode = () =>
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
   drawSlots: number,
-  uniformSlots = 7,
+  slotCount = 7,
   variant?: DiagnosticGpuVariant,
   feedbackAB = false,
   feedback = true,
@@ -87,18 +88,20 @@ export async function createWebgpuVisibilityShaders(
   const zeroFlags = zeroFlagsBuffer(device, drawSlots)
   const visUniform = device.createBuffer({
     label: 'Trillion3D visibility uniforms',
-    size: uniformSlots * 256,
+    size: visUniformLayout(device.limits, slotCount).bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // With no variant, the two modules are exactly those from before: production compiles no
   // diagnostic stage.
   const visModule = device.createShaderModule({
-    code: variesVisibility(variant) ? VIS_SHADER + DIAGNOSTIC_VIS_WGSL : VIS_SHADER,
+    code: variesVisibility(variant) ? visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }) : VIS_SHADER,
   })
   const withoutFeedback = () => device.createShaderModule({ code: shadeWithoutFeedbackCode() })
   const shadeModule = feedback
     ? device.createShaderModule({
-        code: variesShade(variant) ? SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL : SHADE_SHADER,
+        code: variesShade(variant)
+          ? shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL })
+          : SHADE_SHADER,
       })
     : withoutFeedback()
   const shadeWithoutFeedback = feedbackAB ? withoutFeedback() : undefined

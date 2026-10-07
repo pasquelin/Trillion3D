@@ -43,15 +43,7 @@ export {
   boxTransform,
   boxUnion,
 } from '../../math/src/geometry/box.ts'
-export {
-  boxConeRejects,
-  CONE_LENGTH_RATIO,
-  CONE_LENGTH_RATIO_WGSL,
-  CONE_ORTHO_EPS,
-  CONE_ORTHO_EPS_WGSL,
-  HALF_PI,
-  HALF_PI_WGSL,
-} from '../../math/src/geometry/cone.ts'
+export { boxConeRejects, CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../math/src/geometry/cone.ts'
 export {
   boxTransformBatch,
   boxTransformUnionBatch,
@@ -97,6 +89,7 @@ export {
 } from '../../math/src/batch/transforms.ts'
 export { frustumClipBox, frustumExcludesBox } from '../../math/src/geometry/frustum/box.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
+export { HALF_PI } from '../../math/src/constants.ts'
 export {
   HIZ_NOTHING,
   hizBuildFlat,
@@ -108,7 +101,6 @@ export { hslToLinearRgb, linearToSrgb, srgbToLinear } from '../../math/src/color
 export { invertMatrix4 } from '../../math/src/matrix/matrix4Inverse.ts'
 export {
   linearPartScale,
-  SINGULAR_DETERMINANT_WGSL,
   SINGULAR_DETERMINANT,
   adjugateFactor,
   normalizedLinearDeterminant,

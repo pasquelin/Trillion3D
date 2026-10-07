@@ -1,6 +1,6 @@
 import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
-import { uniformStride } from '../../residency/pools.ts'
+import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
@@ -31,10 +31,10 @@ export function createCameraFrames(
   sources?: PackedDag['worldSources'],
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
-    stride = uniformStride(device.limits)
+    slots = uniformSlots(device.limits, ranges.length, 2)
   const f: Frames = {
-    ...{ device, frameData, ranges, stride, per: ranges[0].count },
-    ...rangeBuffers(device, ranges, stride, own),
+    ...{ device, frameData, ranges, per: ranges[0].count },
+    ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: { from: Infinity, to: -1 },
     written: 0,
@@ -48,7 +48,7 @@ export function createCameraFrames(
       layout,
       entries: dagGroupEntries(
         { ...group, frames: buffers[r], worlds: worldBuffers[r] },
-        { buffer: bounds, offset: r * stride, size: 16 },
+        { buffer: bounds, offset: slots.offset(r)[0], size: 16 },
       ),
     })
   const table = {
@@ -111,7 +111,6 @@ type Frames = {
   frameData: Float32Array<ArrayBuffer>
   frameInts: Uint32Array<ArrayBuffer>
   ranges: ReturnType<typeof cameraFrameRanges>
-  stride: number
   /** Primitives of a full range: the first range a word lands in is found by division. */
   per: number
   buffers: GPUBuffer[]
@@ -144,8 +143,8 @@ function writeNamed(
  *  once at its aligned offset. */
 function rangeBuffers(
   device: GPUDevice,
+  slots: UniformSlots,
   ranges: Frames['ranges'],
-  stride: number,
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
 ) {
   const buffers = ranges.map(({ count }) =>
@@ -164,12 +163,12 @@ function rangeBuffers(
   )
   const bounds = own({
     label: 'Trillion3D DAG frame ranges',
-    size: ranges.length * stride,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const words = new Uint32Array((ranges.length * stride) / 4)
+  const words = new Uint32Array(slots.bytes / 4)
   for (let r = 0; r < ranges.length; r++)
-    words.set([ranges[r].first, ranges[r].count], (r * stride) / 4)
+    words.set([ranges[r].first, ranges[r].count], r * slots.strideWords)
   device.queue.writeBuffer(bounds, 0, words)
   return { buffers, worldBuffers, bounds }
 }

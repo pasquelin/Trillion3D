@@ -7,8 +7,8 @@ import {
   VSM_RENDER_PAIR_BYTES,
 } from '../vsm/constants.ts'
 import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts'
-
-const MiB = 1024 * 1024
+import { MIB } from '../../../math/src/constants.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 /**
  * The virtual shadow maps of one sun on a device whose storage bindings hold `binding` bytes, at
@@ -20,7 +20,7 @@ const MiB = 1024 * 1024
  * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,
  * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
  */
-function oneSunShadowMaps(binding = 128 * MiB) {
+function oneSunShadowMaps(binding = 128 * MIB) {
   const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, binding)
   const lists = VSM_RENDER_PAIR_CAPACITY * (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES)
   return { layout, bytes: vsmResourceBytes(layout) + lists + vsmTransmissionBytes(layout) }
@@ -32,7 +32,7 @@ function oneSunShadowMaps(binding = 128 * MiB) {
  * cannot drift from them; `world/core/worldBudget.test.ts` holds it, within a MiB, to the same maps
  * summed again from their parts (`budget.fixture.ts`).
  */
-export const SHADOW_POOL_BYTES = Math.ceil(oneSunShadowMaps().bytes / MiB) * MiB
+export const SHADOW_POOL_BYTES = alignUp(oneSunShadowMaps().bytes, MIB)
 
 /**
  * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,

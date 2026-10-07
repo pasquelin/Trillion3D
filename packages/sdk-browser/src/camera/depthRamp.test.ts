@@ -2,12 +2,14 @@
 // 0.5 and 0, whatever the depth buffer holds. The resolve applies the weights to a pixel's clip
 // coordinates (`../visibility/shader/shadeWgsl.ts`). The expression is read out of the shipped
 // shader text and evaluated here, so a shader edit is what the test sees.
+import { saturate } from '../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeDepthRamp } from './depthConvention.ts'
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/request.ts'
 import {
   orthographicProjection,
@@ -47,7 +49,7 @@ const resolveOf = new Function(
 ) as (r: { x: number; y: number; z: number }, w: number, z: number) => number
 function resolveRamp(weights: Float32Array, clip: { z: number; w: number }) {
   const [x, y, z] = weights
-  return Math.min(1, Math.max(0, resolveOf({ x, y, z }, clip.w, clip.z)))
+  return saturate(resolveOf({ x, y, z }, clip.w, clip.z))
 }
 
 const close = (actual: number[], label: string) =>
@@ -81,7 +83,7 @@ test('The weights land at the offset they are given, nothing around them', () =>
 })
 
 test('The resolve uniform: the ramp is the last vec4f, 16-byte aligned', () => {
-  assert.match(SHADE_DECL_WGSL, /feedback:u32,depthRamp:vec4f,\}/)
+  assert.match(wgslModule(SHADE_DECL_WGSL), /feedback:u32,depthRamp:vec4f,\}/)
   // viewProj 16 words, viewport 2 and five scalars, one padding word: the ramp starts at word 24.
   assert.equal(DEPTH_RAMP_WORD, 16 + 4 + 4)
   assert.equal(DEPTH_RAMP_WORD % 4, 0)

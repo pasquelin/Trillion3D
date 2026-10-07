@@ -1,4 +1,7 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
+import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -16,7 +19,8 @@ import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
  * test found it ENTIRELY behind the already-drawn opaque (`../../gpu/core/transparentOcclusionWgsl.ts`). Neither
  * reorders anything: the output stays the table order, stripped of its dropped entries.
  */
-export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
+export const TRANSPARENT_COMPACT_SHADER = wgslProgram(
+  `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> entries:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read> selectionMask:array<u32>;
@@ -33,8 +37,8 @@ fn selected(i:u32)->bool{
  return selectionMask[uni.selectionOffset+cluster]!=0u;
 }
 @compute @workgroup_size(64)
-fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u){
- let group=id.x;
+fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let group=flatIndex(id,n,64u);
  if(group>=uni.groupCount){return;}
  let begin=group*${TRANSPARENT_GROUP}u;
  let end=min(begin+${TRANSPARENT_GROUP}u,uni.entryCount);
@@ -43,13 +47,13 @@ fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u){
  groupCounts[group]=count;
 }
 @compute @workgroup_size(64)
-fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u){
- let item=id.x;
+fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let item=flatIndex(id,n,64u);
  if(item>=uni.itemCount){return;}
  let base=itemRanges[item*2u];
  let held=itemRanges[item*2u+1u];
  let first=base/${TRANSPARENT_GROUP}u;
- let groups=(held+${TRANSPARENT_GROUP}u-1u)/${TRANSPARENT_GROUP}u;
+ let groups=ceilDiv(held,${TRANSPARENT_GROUP}u);
  var cursor=base;
  for(var g=0u;g<groups;g++){
   groupOffsets[first+g]=cursor;
@@ -62,8 +66,8 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u){
  indirect[o+3u]=0u;
 }
 @compute @workgroup_size(64)
-fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
+fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,64u);
  if(i>=uni.entryCount||!selected(i)){return;}
  let group=i/${TRANSPARENT_GROUP}u;
  let begin=group*${TRANSPARENT_GROUP}u;
@@ -71,4 +75,6 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u){
  for(var j=begin;j<i;j++){if(selected(j)){rank=rank+1u;}}
  instances[groupOffsets[group]+rank]=i;
 }
-`
+`,
+  [FLAT_INDEX_WGSL, ceilDiv],
+)

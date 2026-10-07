@@ -1,4 +1,5 @@
 import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts'
+import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 
 const scratch = new Float32Array(1),
   scratchWords = new Uint32Array(scratch.buffer)
@@ -14,7 +15,7 @@ const scratch = new Float32Array(1),
  * `x(1 + 2⁻²⁴)(1 − 2⁻⁵³)` and its rounding at least `x(1 + 2⁻⁴⁸)(1 − 2⁻⁵³)`, hence strictly
  * more than `x`. One multiplier and one rounding, no per-box bit manipulation.
  */
-const GROW = 1 + 2 ** -24
+const GROW = 1 + FLOAT32_STEP / 2
 
 /**
  * Depth bound a box carries to the occlusion kernel: an OVERESTIMATE of what the cluster will

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { Path, Shape, SplineCurve } from './curves.ts'
 import { Vector3 } from './vector3.ts'
 import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const near = (actual: number[], expected: number[], label: string, eps = 1e-12) =>
   within(actual, expected, label, eps)
@@ -170,7 +171,7 @@ test('a shape samples its lines, curves and arcs, and drops a closing repeat', (
 
 test('an arc sweeps the short or the long way as its direction says, and moves the pen', () => {
   const at = (a: number) => [Math.cos(a), Math.sin(a), 0]
-  const q = Math.PI / 2
+  const q = HALF_PI
   const arc = (start: number, end: number, sweep: number, clockwise?: boolean) => {
     const points = new Shape().absarc(0, 0, 1, start, end, clockwise).getPoints(4)
     // Five samples, a closing repeat dropped.

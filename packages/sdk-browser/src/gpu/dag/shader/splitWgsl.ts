@@ -1,5 +1,6 @@
-import { DAG_ACCESS_WGSL, dagPartBindings } from './bindings.ts'
-import { DAG_SELECTION_SHADER } from './shader.ts'
+import { DAG_BINDINGS_WGSL, dagPartBindings } from './bindings.ts'
+import { DAG_SELECTION_SHADER, dagSelectionWgsl } from './shader.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { dagPartCounts, type DagSplit } from '../split.ts'
 import { type TableSplit } from '../splitFlags.ts'
 import { PAGE_SECTIONS } from '../flagSections.ts'
@@ -52,11 +53,18 @@ function dagSplitAccessWgsl(split: DagSplit) {
   ].join('\n')
 }
 
+/** What the accessors' text depends on, short: each table's elements a part and parts, then the
+ *  sections the flags are cut at. */
+const splitKey = ({ clusters, nodes, cold, flagCuts }: DagSplit) =>
+  `${[clusters, nodes, cold].map(({ per, parts }) => `${per}x${parts}`).join(' ')} flags ${flagCuts.join(',')}`
+
 /**
  * The selection kernel for `split`: the shipped text itself when every table is whole, otherwise
  * the same stages over the split tables' parts — only the accessors change (`DAG_ACCESS_WGSL`).
  */
 export function dagSelectionShader(split?: DagSplit) {
   if (!split || !dagPartBindings(dagPartCounts(split)).length) return DAG_SELECTION_SHADER
-  return DAG_SELECTION_SHADER.replace(DAG_ACCESS_WGSL, dagSplitAccessWgsl(split))
+  return dagSelectionWgsl(
+    wgslBlock(`dagSplitAccess(${splitKey(split)})`, [DAG_BINDINGS_WGSL], dagSplitAccessWgsl(split)),
+  )
 }

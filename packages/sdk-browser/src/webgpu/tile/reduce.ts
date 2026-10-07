@@ -8,6 +8,7 @@
  * compute pass, one thread per phase pixel, that counts: one pixel in sixteen outside a barrier, all
  * of them during a convergence: the pixel writes its request and the analysis comes after.
  */
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts'
 import { REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
@@ -68,15 +69,12 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
       words[2] = phaseWord
       device.queue.writeBuffer(uniform, 0, words)
       const every = (phaseWord & FEEDBACK_EVERY) !== 0
-      const cols = every ? size[0] : Math.ceil(size[0] / FEEDBACK_STRIDE),
-        rows = every ? size[1] : Math.ceil(size[1] / FEEDBACK_STRIDE)
+      const cols = every ? size[0] : ceilDiv(size[0], FEEDBACK_STRIDE),
+        rows = every ? size[1] : ceilDiv(size[1], FEEDBACK_STRIDE)
       const pass = encoder.beginComputePass({ label: 'Trillion3D texture feedback reduce' })
       pass.setPipeline(pipeline.get())
       pass.setBindGroup(0, group!)
-      pass.dispatchWorkgroups(
-        Math.ceil(cols / REDUCE_WORKGROUP),
-        Math.ceil(rows / REDUCE_WORKGROUP),
-      )
+      pass.dispatchWorkgroups(ceilDiv(cols, REDUCE_WORKGROUP), ceilDiv(rows, REDUCE_WORKGROUP))
       pass.end()
     },
     destroy() {

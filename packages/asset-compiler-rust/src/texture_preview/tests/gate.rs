@@ -2,6 +2,7 @@
 //! the bar refuses, and what the report says of it.
 use super::*;
 use crate::texture_preview::blocks::quality::GATE_DB;
+use trillion3d_math::random::lcg32;
 
 pub(super) fn scene(material: Value) -> Value {
     json!({
@@ -32,10 +33,7 @@ fn noise(width: u32, height: u32) -> image::RgbaImage {
             .wrapping_mul(1_103_515_245)
             .wrapping_add(y.wrapping_mul(12_345))
             ^ 0x5eed;
-        let mut next = || {
-            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            (seed >> 24) as u8
-        };
+        let mut next = || (lcg32(&mut seed) >> 24) as u8;
         [next(), next(), next(), 255]
     })
 }

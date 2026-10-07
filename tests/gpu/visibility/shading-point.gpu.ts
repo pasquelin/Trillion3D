@@ -6,10 +6,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeOnDawn } from '../kit/computeRun.ts'
 import { SHADING_POINT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/shadingPoint.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
 // One triangle in the z = 0 plane, its normals tilted outward (a convex patch seen from +z).
-const SHADER = `${SHADING_POINT_WGSL}
-@group(0) @binding(0) var<storage,read_write> result:array<vec4f>;
+const SHADER = wgslProgram(
+  `@group(0) @binding(0) var<storage,read_write> result:array<vec4f>;
 @compute @workgroup_size(1) fn main(){
  let p0=vec3f(0.0);let p1=vec3f(2.0,0.0,0.0);let p2=vec3f(0.0,2.0,0.0);
  let P=vec3f(0.5,0.5,0.0);let b=vec3f(0.5,0.25,0.25);
@@ -19,7 +20,9 @@ const SHADER = `${SHADING_POINT_WGSL}
  result[2]=vec4f(shadingPointOffset(p1,vec3f(0.0,1.0,0.0),p0,p1,p2,n0,n1,n2),0.0);
  result[3]=vec4f(shadingPointOffset(P,b,p0,p1,p2,-n0,-n1,-n2),0.0);
  result[4]=vec4f(shadingPointOffset(P,b,p0,p1,p2,vec3f(0.0),vec3f(0.0),vec3f(0.0)),0.0);
-}`
+}`,
+  [SHADING_POINT_WGSL],
+)
 
 test('the projection keeps planes and vertices, curves the interior, rises on its lit side only', async () => {
   const { values, errors } = await computeOnDawn(SHADER, 80)

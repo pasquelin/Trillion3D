@@ -5,6 +5,7 @@
 // lobes set with neither a strength nor a coat (what `setLobes` leaves of maps that zeroed both):
 // the sums are the same numbers, bit for bit. A lobed fragment is proved on the GPU
 // (`tests/gpu/blend/lobes.gpu.ts`).
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -14,6 +15,7 @@ import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
 import { randomLampScope } from './shadedLightScope.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const LOOP = [
@@ -25,8 +27,9 @@ const LOOP = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 const LOBED = [...LOOP, 'lobeLight', 'anisotropicLobe']
 /** Lobes off, and on with nothing: no strength, no coat, a coat that lets everything through. */
@@ -35,7 +38,7 @@ const NOTHING = { on: true, strength: 0, coat: 0, coatRough: 0.5, coatN: [0, 0, 
 
 test('the lobed blend program sums a fragment without lobes as the lobeless one, bit for bit', () => {
   const r = random(2207),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   const key = { rectless: true, unshadowed: true }
   const lobed = blendShader(key),
     plain = blendShader({ ...key, lobeless: true })

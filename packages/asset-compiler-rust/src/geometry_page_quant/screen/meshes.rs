@@ -2,9 +2,11 @@
 //! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`).
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
+use core::f64::consts::GOLDEN_RATIO;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
-use trillion3d_page_codec::vec3::{add, length};
+use trillion3d_math::scalar::lerp;
+use trillion3d_math::vec3::{add, length};
 
 pub(super) type V = [f64; 3];
 
@@ -62,12 +64,12 @@ pub(super) fn gaussian(rng: &mut Xorshift) -> f64 {
     (-2.0 * u.ln()).sqrt() * (TAU * f64::from(rng.unit())).cos()
 }
 pub(super) fn uniform(rng: &mut Xorshift, low: f64, high: f64) -> f64 {
-    low + (high - low) * f64::from(rng.unit())
+    lerp(low, high, f64::from(rng.unit()))
 }
 
 /// An icosphere of `subdivisions` levels and `radius` metres, smooth normals, no texture.
 pub(super) fn sphere(subdivisions: usize, radius: f64) -> Mesh {
-    let t = (1.0 + 5f64.sqrt()) / 2.0;
+    let t = GOLDEN_RATIO;
     let seeds = [
         [-1., t, 0.],
         [1., t, 0.],

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { VsmCacheManager } from './cacheManager.ts'
 import { PROJECTION, VIEW } from './clipmap.fixture.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
+import { DEG2RAD } from '../../../math/src/constants.ts'
 
 const f32 = Math.fround
 const view = vsmLocalViewData(
@@ -24,7 +25,7 @@ function scale(inner: number, outer: number) {
   return m[0]
 }
 const expected = (angle: number) => f32(1 / Math.tan(f32(angle)))
-const WIDEST = (88.9 * Math.PI) / 180
+const WIDEST = 88.9 * DEG2RAD
 
 test("a spot's map takes its outer cone, rounded once to an f32", () => {
   for (const outer of [0.1, 0.6, Math.PI / 4, 1.2, 1.5])

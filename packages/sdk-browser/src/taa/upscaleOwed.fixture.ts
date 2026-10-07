@@ -1,6 +1,7 @@
 // What a display pixel is owed by the upscaling resolve, from the definitions alone: the oracles
 // `upscaleRun.fixture.ts`'s runs are checked against.
 import type { UpscaleFrame } from './upscaleRun.fixture.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 const sinc = (x: number) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x))
 /** Lanczos-2 from its definition, `sinc(x)·sinc(x/2)` on `|x| < 2`. */
@@ -17,10 +18,7 @@ export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'ring
   const [w, h] = frame.render,
     [jx, jy] = frame.jitter ?? [0, 0]
   const r = [((px + 0.5) * w) / frame.display[0] - 0.5, ((py + 0.5) * h) / frame.display[1] - 0.5]
-  const inGrid = (x: number, y: number) => [
-    Math.min(Math.max(x, 0), w - 1),
-    Math.min(Math.max(y, 0), h - 1),
-  ]
+  const inGrid = (x: number, y: number) => [clamp(x, 0, w - 1), clamp(y, 0, h - 1)]
   const sum = [0, 0, 0, 0],
     lo = [1e9, 1e9, 1e9, 1e9],
     hi = [-1e9, -1e9, -1e9, -1e9]
@@ -45,7 +43,5 @@ export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'ring
       [1, 1],
     ])
       bound(...(inGrid(Math.floor(r[0]) + dx, Math.floor(r[1]) + dy) as [number, number]))
-  return sum.map((s, i) =>
-    bounds === 'none' ? s / total : Math.min(Math.max(s / total, lo[i]), hi[i]),
-  )
+  return sum.map((s, i) => (bounds === 'none' ? s / total : clamp(s / total, lo[i], hi[i])))
 }

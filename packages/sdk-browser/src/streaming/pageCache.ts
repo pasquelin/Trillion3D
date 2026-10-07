@@ -1,3 +1,4 @@
+import { MIB } from '../../../math/src/constants.ts'
 import { evictOldest } from './evictOldest.ts'
 import { rangedReader } from '../cluster/ranged.ts'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
@@ -5,7 +6,7 @@ import { createTextureLevelStore, textureLevelShare } from '../texture/levelStor
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
-export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024
+export const DEFAULT_CACHED_BYTES = 256 * MIB
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its

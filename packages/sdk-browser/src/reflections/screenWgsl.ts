@@ -1,30 +1,68 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
-import { interleavedGradientWgsl } from '../gpu/shader/interleavedGradientWgsl.ts'
-import { REFLECTION_SEGMENT, SCREEN_TRACE_WGSL } from './traceShader.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { interleavedGradient } from '../../../math/src/wgsl/sampling.ts'
+import {
+  clipToUvUnflipped,
+  ndcToUvUnflipped,
+  perspectiveDivide,
+} from '../../../math/src/wgsl/projection.ts'
+import {
+  type ReflectionDepthRead,
+  REFLECTION_SEGMENT,
+  reflectionPlaneWgsl,
+  screenTraceWgsl,
+} from './traceShader.ts'
 import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
 import {
-  PROBE_MIRROR_RADIANCE_WGSL,
-  SCREEN_MIRROR_RADIANCE_WGSL,
+  SCREEN_MIRROR_RADIANCE,
   TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
 } from './modelShader.ts'
+import type { LitProgram } from '../lighting/deferred/shaders.ts'
 
-/** A program's lobe and fade (`ScreenLobeFade`); a `mirror` of its own walks the depth bounds. */
-const screenReflectionWgsl = (lobe: ScreenLobeFade = {}) => `
-// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
+/** The screen's view and source: what the lit pass binds in group 1, its projection and hits. */
+const SCREEN_REFLECTION_VIEW_WGSL = wgslBlock(
+  'SCREEN_REFLECTION_VIEW_WGSL',
+  [],
+  `// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
 // rough trace's seed.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
 @group(1) @binding(0) var reflectionColor:texture_2d<f32>;
 @group(1) @binding(1) var reflectionDepth:texture_depth_2d;
 @group(1) @binding(2) var<uniform> reflectionView:ReflectionView;
 fn reflectionProject(p:vec4f)->vec4f{let c=reflectionView.matrix*p;return vec4f(c.x,-c.y,c.z,c.w);}
-fn reflectionSize()->vec2f{return reflectionView.enabled.yz;}
-fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}
 // The reprojected source (source.ts): alpha 0 where the last image did not see the point.
-fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
-${SCREEN_TRACE_WGSL}
-${REFLECTION_CONE_WGSL}${lobe.mirror ? HIZ_TRACE_WGSL : ''}
-${screenRadianceShader(lobe)}`
+fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}`,
+)
+
+/** The screen's depth and size, as its walks read them (`ReflectionDepthRead`). */
+const SCREEN_REFLECTION_DEPTH: ReflectionDepthRead = {
+  depthAt: wgslFn(
+    'reflectionDepthAt',
+    [SCREEN_REFLECTION_VIEW_WGSL],
+    'fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}',
+  ),
+  size: wgslFn(
+    'reflectionSize',
+    [SCREEN_REFLECTION_VIEW_WGSL],
+    'fn reflectionSize()->vec2f{return reflectionView.enabled.yz;}',
+  ),
+}
+
+/** A program's lobe and fade (`ScreenLobeFade`); a `mirror` of its own walks the depth bounds. */
+const screenReflectionWgsl = (lobe: ScreenLobeFade = {}) =>
+  wgslBlock(
+    `screenReflectionWgsl(${lobe.filtered}, ${lobe.march}, ${lobe.mirror}, ${lobe.maxRoughness})`,
+    [
+      REFLECTION_CONE_WGSL,
+      SCREEN_REFLECTION_VIEW_WGSL,
+      screenTraceWgsl(SCREEN_REFLECTION_DEPTH),
+      ...(lobe.mirror ? [HIZ_TRACE_WGSL] : []),
+      screenRadianceShader(lobe),
+    ],
+    '',
+  )
 
 export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl()
 
@@ -41,7 +79,14 @@ export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl()
  *    depth change over `p` — finer than its crossing resolves —, or within the depth's own
  *    precision, two units of f32's last place (24-bit depth's step near the far plane is finer).
  *    The march reads a surface's plane once, not at each of its pixels. */
-const BLENDED_PLANE_WGSL = `
+const BLENDED_PLANE_WGSL = wgslBlock(
+  'BLENDED_PLANE_WGSL',
+  [
+    reflectionPlaneWgsl(SCREEN_REFLECTION_DEPTH),
+    SCREEN_REFLECTION_DEPTH.depthAt,
+    SCREEN_REFLECTION_DEPTH.size,
+  ],
+  `
 fn reflectionDepthClamped(p:vec2i)->f32{
  return reflectionDepthAt(clamp(p,vec2i(0),vec2i(reflectionSize())-vec2i(1)));
 }
@@ -58,7 +103,8 @@ fn reflectionOnPlane(p:vec2i,z:f32,plane:vec3f,at:vec2f)->f32{
 }
 fn reflectionCarries(plane:vec3f,last:vec2i,lastDepth:f32,p:vec2i,z:f32,span:f32)->bool{
  return lastDepth!=REFLECTION_CLEAR_DEPTH&&plane.z==1.0&&abs(lastDepth+dot(plane.xy,vec2f(p-last))-z)<=max(span,abs(z)*exp2(-22.0));
-}`
+}`,
+)
 
 /** Coarse samples of a blended surface's ray: the translucent trace is coarse; each one that finds
  *  the ray behind the depth, or past the edge of the last one's surface, walks the pixels since the
@@ -87,18 +133,26 @@ const TRANSLUCENT_TRACE_SAMPLES = 32
  *  The whole pixel walk is as clean but costs a pane's every pixel the screen's width. A perfect
  *  mirror keeps the depth pyramid's walk (`resolvedReflectionRay`, `screenReflection`), and so does
  *  the mirror transition, the march's ray traced once (`ScreenRadiance.march`). */
-export const TRANSLUCENT_SCREEN_REFLECTION_WGSL = `${screenReflectionWgsl({
-  march: 'translucentReflectionMarch',
-  maxRoughness: TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
-})}${BLENDED_PLANE_WGSL}
-// Where the samples start in their spacing: interleaved gradient noise over the pixel, turned each image
+export const TRANSLUCENT_SCREEN_REFLECTION_WGSL = wgslBlock(
+  'TRANSLUCENT_SCREEN_REFLECTION_WGSL',
+  [
+    interleavedGradient,
+    screenReflectionWgsl({
+      march: 'translucentReflectionMarch',
+      maxRoughness: TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
+    }),
+    BLENDED_PLANE_WGSL,
+    perspectiveDivide,
+    ndcToUvUnflipped,
+  ],
+  `// Where the samples start in their spacing: interleaved gradient noise over the pixel, turned each image
 // (\`translucentReflectionFrame\`): every pixel's offsets fill its interval evenly over the still
 // images the temporal accumulation averages. Otherwise (a negative turn), none: the same samples
 // everywhere, never a dither nothing averages.
 fn translucentReflectionOffset(p:vec2i)->f32{
  let turn=translucentReflectionFrame();
  if(turn<0.0){return 0.0;}
- return fract(${interleavedGradientWgsl('vec2f(p)')}+turn);
+ return fract(interleavedGradient(vec2f(p))+turn);
 }
 fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
  let origin=vec2i(floor(start));
@@ -168,7 +222,8 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
   last=next;
  }
  return vec4f(0.0);
-}`
+}`,
+)
 
 /** The water composite's (`../webgpu/water/compositeWgsl.ts`): its mirror ray bounded
  *  (`boundedReflectionRay`), the fluids' own quality tier (AGENTS.md rule 1), on the depth
@@ -179,31 +234,31 @@ export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl({
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
  *  no weight, and leaves its whole lobe to the environment reflection, never black. */
-const HELD_REFLECTION_WGSL = `
+const HELD_REFLECTION_WGSL = wgslBlock(
+  'HELD_REFLECTION_WGSL',
+  [screenReflectionWgsl({ filtered: 'heldReflection(P)' }), clipToUvUnflipped],
+  `
 @group(1) @binding(3) var roughHistory:texture_2d<f32>;
 fn heldReflection(P:vec3f)->vec4f{
  let projected=reflectionProject(vec4f(P,1.0));
- let at=vec2i((projected.xy/projected.w*0.5+vec2f(0.5))*reflectionSize());
+ let at=vec2i(clipToUvUnflipped(projected)*reflectionSize());
  let held=textureLoad(roughHistory,at,0);
  if(held.a>0.0){return vec4f(held.rgb,0.0);}
  return vec4f(0.0,0.0,0.0,1.0);
-}`
+}`,
+)
 
-/** Install screen hits at the one reflection-model entry of a lit program: its mirror radiance
- *  (`PROBE_MIRROR_RADIANCE_WGSL`, declared once in the opaque resolve's text, which its plain
- *  pipeline compiles as it is) becomes the screen's resolved over it (`SCREEN_MIRROR_RADIANCE_WGSL`),
- *  which keeps the existing miss behaviour: the probes with bounce, the environment without. */
-export function withScreenReflections(shader: string, history = false) {
-  const at = shader.indexOf(PROBE_MIRROR_RADIANCE_WGSL)
-  if (at < 0 || at !== shader.lastIndexOf(PROBE_MIRROR_RADIANCE_WGSL))
-    throw new Error('MIRROR_RADIANCE_UNMATCHED')
-  const reflection = history
-    ? screenReflectionWgsl({ filtered: 'heldReflection(P)' }) + HELD_REFLECTION_WGSL
-    : SCREEN_REFLECTION_WGSL
-  return (
-    shader.slice(0, at) +
-    SCREEN_MIRROR_RADIANCE_WGSL +
-    shader.slice(at + PROBE_MIRROR_RADIANCE_WGSL.length) +
-    reflection
+/** The lit program `lit` (`contractLightingProgram`) with screen hits at its one reflection-model
+ *  entry: its mirror radiance is the screen's resolved over its own model
+ *  (`SCREEN_MIRROR_RADIANCE`), which keeps the existing miss behaviour — the probes with bounce, the
+ *  environment without —, chosen before the text is assembled. With `history`, the rough lobe's
+ *  held history (`HELD_REFLECTION_WGSL`). */
+export function withScreenReflections(
+  lit: LitProgram,
+  { history = false }: { history?: boolean } = {},
+) {
+  return wgslModule(
+    lit(SCREEN_MIRROR_RADIANCE),
+    history ? HELD_REFLECTION_WGSL : SCREEN_REFLECTION_WGSL,
   )
 }

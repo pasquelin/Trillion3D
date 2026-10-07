@@ -6,16 +6,18 @@ import {
   withScreenReflections,
 } from './screenWgsl.ts'
 import {
-  MIRROR_TRANSITION_END,
+  SCREEN_REFLECTION_CUTOFF,
   TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
   MIRROR_WEIGHT_WGSL,
 } from './modelShader.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { MIRROR_TRANSITION_END, ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts'
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
-import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { DIRECT_LIGHTING_PROGRAM } from '../gpu/core/shaderTexts.fixture.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 test('a screen hit replaces the fallback; a miss or a disabled pass reads it, once', () => {
   const read = (options: Parameters<typeof resolvedDisplay>[0], rough: number) => {
@@ -28,9 +30,11 @@ test('a screen hit replaces the fallback; a miss or a disabled pass reads it, on
   assert.deepEqual(read({}, 0.2), { value: FILTERED, fallback: 0 })
   assert.deepEqual(read({ hit: false }, 0.2), { value: ENVIRONMENT, fallback: 1 })
   assert.deepEqual(read({ weight: () => 0.5 }, 0.2), { value: [6, 6, 6], fallback: 0 })
-  // In the roughness fade one read serves both the lobe share the trace left and the fade.
-  assert.deepEqual(read({}, 0.45), { value: [4, 4, 4], fallback: 1 })
-  assert.deepEqual(read({ hit: false }, 0.45), { value: ENVIRONMENT, fallback: 1 })
+  // In the roughness fade one read serves both the lobe share the trace left and the fade, at
+  // three quarters of the cutoff the shader reads (`wgslF32`).
+  const fading = (3 * Number(wgslF32(SCREEN_REFLECTION_CUTOFF))) / 4
+  assert.deepEqual(read({}, fading), { value: [4, 4, 4], fallback: 1 })
+  assert.deepEqual(read({ hit: false }, fading), { value: ENVIRONMENT, fallback: 1 })
 })
 
 test('the source reprojects the last lit image and lights nothing itself', () => {
@@ -40,7 +44,7 @@ test('the source reprojects the last lit image and lights nothing itself', () =>
 })
 
 test('the final direct resolve adds screen reflections over the environment, with no proxy', () => {
-  const shader = withScreenReflections(DIRECT_LIGHTING_SHADER, true)
+  const shader = withScreenReflections(DIRECT_LIGHTING_PROGRAM, { history: true })
   assert.match(functionText(shader, 'lightSurface'), /mirrorLighting/)
   assert.match(functionText(shader, 'mirrorRadiance'), /resolvedRadiance/)
   assert.match(functionText(shader, 'reflectedRadiance'), /return environmentReflection\(R,rough\)/)
@@ -68,7 +72,7 @@ test('the water mirror walks the depth bounds; a miss reads the filtered probes,
   assert.deepEqual(read(false), {
     ...none,
     value: FILTERED,
-    filteredAt: Number(MIRROR_TRANSITION_END),
+    filteredAt: Number(wgslF32(MIRROR_TRANSITION_END)),
   })
 })
 
@@ -78,8 +82,9 @@ test('a blended surface traces its mirror ray once: the full walk in the mirror 
     ['mirrorWeight'],
     {},
   )
-  const floor = Number(ROUGHNESS_FLOOR)
-  const end = Number(MIRROR_TRANSITION_END)
+  // The transition's ends as the shader reads them (`wgslF32`).
+  const floor = Number(wgslF32(ROUGHNESS_FLOOR))
+  const end = Number(wgslF32(MIRROR_TRANSITION_END))
   // A fallback that tells the roughness it is read at.
   const fallback = (rough: number) => [1 + rough, 2 + rough, 3 + rough]
   const atFloor = fallback(floor)
@@ -117,13 +122,13 @@ test('a blended surface traces its mirror ray once: the full walk in the mirror 
     assert.deepEqual(read(true, rough, false).value, RAY)
     assert.deepEqual(read(false, rough, true).value, missed.value)
     fallback(rough).forEach((x, i) => {
-      const mixed = x + (atFloor[i]! - x) * weight
+      const mixed = lerp(x, atFloor[i]!, weight)
       assert.ok(Math.abs(missed.value[i]! - mixed) < 1e-12, `${rough}: ${missed.value[i]}`)
     })
   }
   // A mirror walks; a surface past the transition marches, a miss on the fallback at its roughness;
   // one past the translucent fade traces nothing.
-  const faded = Number(TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS)
+  const faded = Number(wgslF32(TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS))
   for (const [hits, rough, value, walked, marched] of [
     [true, floor, RAY, 1, 0],
     [false, floor, atFloor, 1, 0],

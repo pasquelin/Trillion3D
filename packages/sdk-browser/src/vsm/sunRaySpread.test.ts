@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts'
 import { CODE, constructors, IDENTITY, unit } from './pageWorld.fixture.ts'
+import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
 const W = 1920,
   H = 1080,
@@ -33,7 +34,7 @@ const VIEW_TO_CLIP = new Mat([
 
 const { vsmSunRaySpread } = shaderRun<{
   vsmSunRaySpread: (...a: unknown[]) => number[]
-}>(CODE, ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'vsmFrameAround'], {
+}>(CODE, ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'frameAround', 'perspectiveDivide'], {
   ...constructors(CODE),
   vsmView: {
     viewToClip: VIEW_TO_CLIP,
@@ -93,8 +94,8 @@ test('a receiver facing away from the light or edge-on spreads without bound', (
     [1, 0, 0],
   ])
     // f32's greatest value, as the GPU stores the literal.
-    assert.deepEqual(
-      vsmSunRaySpread([0, 0, 1], 0.0047, n, [0, 0, 5], 1e-4, 1).map(Math.fround),
-      [3.4028234663852886e38, 3.4028234663852886e38],
-    )
+    assert.deepEqual(vsmSunRaySpread([0, 0, 1], 0.0047, n, [0, 0, 5], 1e-4, 1).map(Math.fround), [
+      FLOAT32_MAX,
+      FLOAT32_MAX,
+    ])
 })

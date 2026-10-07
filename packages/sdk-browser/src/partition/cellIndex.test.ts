@@ -8,6 +8,7 @@ import { createPartitionCells } from './cells.ts'
 import { io, noBudget, opened, settled } from './cells.fixture.ts'
 import { openAll, paged, walked } from './paged.fixture.ts'
 import { placedMesh, type RowLink } from './rows.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** A square world of `side` × `side` cells of 10 m, under the core node `rank` or the root, in
  *  the order the cook halves them (`split.rs`): its records and its cell files. */
@@ -63,7 +64,7 @@ test("a frame's cell work is the same on a world sixteen times as large", () => 
 const LATTICE = {
   cube: Math.hypot(10, 10, 1),
   rows: (_: number, total: number, rung: number) =>
-    Math.min(total, (Math.ceil((1.5 * Math.hypot(10, 10, 1) * 2 ** (rung / 2)) / 10) + 1) ** 2),
+    Math.min(total, (ceilDiv(1.5 * Math.hypot(10, 10, 1) * 2 ** (rung / 2), 10) + 1) ** 2),
 }
 
 test('before its first frame a partition reads what its camera reaches, alike at 1× and 16× the world', async () => {

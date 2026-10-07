@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import {
   PAGE_INFO_STRIDE,
   PAGE_DEFORM_WORD,
@@ -59,7 +60,7 @@ export function wholeDeformationPool(
   const blocks = pooled.map((block) => {
     const at = floats + 2
     floats += block.count * DEFORM_VERTEX_WORDS
-    rows += Math.ceil(block.count / DEFORMATION_LANES)
+    rows += ceilDiv(block.count, DEFORMATION_LANES)
     return at
   })
   return {

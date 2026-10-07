@@ -1,3 +1,4 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { RenderScaleBounds } from './renderScaleOption.ts'
 import { HEADROOM, THRESHOLD } from './scaleTargets.ts'
 
@@ -132,7 +133,7 @@ export function fitScale(w: ScaleWindow, learn: boolean, still: boolean) {
   }
   const cost = fittedCost(w)
   const fits = w.s * Math.sqrt(w.trial / cost)
-  let next = Math.min(w.max, Math.max(w.bounds.min, fits))
+  let next = clamp(fits, w.bounds.min, w.max)
   if (still) next = Math.min(next, w.s)
   // A fit a bound clamps goes exactly to the bound, whatever the threshold: the threshold is
   // for the noise, and a scale 0.8 % from the floor would never reach it. Else a drop is taken

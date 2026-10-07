@@ -24,6 +24,10 @@ const RESOLVE_FUNCTIONS = [
   'roughSamples',
   'reflectionPhase',
   'placementOf',
+  'maxChannel',
+  'pixelToNdcInv',
+  'transformHomogeneousPoint',
+  'perspectiveDivide',
 ]
 
 /** The shipped rough resolve run on the CPU at pixel (4, 4) of an 8 × 8 image by default: its inputs are

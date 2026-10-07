@@ -20,8 +20,10 @@
 // that MAKES the reproduction (the threshold, the formula, what the fix changed) and the shipped
 // block not to: a reproduction that no longer reproduces reassures wrongly.
 import assert from 'node:assert/strict'
-import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/inverseTransposeWgsl.ts'
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts'
+import {
+  INVERSE_TRANSPOSE_BEFORE,
+  INVERSE_TRANSPOSE_SHIPPED,
+} from '../../../packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts'
 
 /** Occurrences of `block` in `text`, without overlap. */
 function occurrences(text: string, block: string): number {
@@ -84,14 +86,25 @@ export function substitutePreviousForm({
 
 /** `text`, a shader holding the shipped inverse-transpose kernel, with the form from before
  *  defects 6 and 9 put back (`inverseTransposeBefore.fixture.ts`): the absolute threshold on the
- *  raw determinant. Both texts are the engine's: a proof writes neither, or it would replay its own
- *  variant of the defect. */
-export const inverseTransposeBeforeIn = (text: string, name: string) =>
-  substitutePreviousForm({
+ *  raw determinant, and the local vector a singular matrix returned. Both texts are the engine's: a
+ *  proof writes neither, or it would replay its own variant of the defect. Each function is
+ *  substituted where the program's assembly wrote it. */
+export const inverseTransposeBeforeIn = (text: string, name: string) => {
+  const origin = 'packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts'
+  const prepared = substitutePreviousForm({
     text,
-    shipped: INVERSE_TRANSPOSE_WGSL,
-    previous: INVERSE_TRANSPOSE_BEFORE_WGSL,
+    shipped: INVERSE_TRANSPOSE_SHIPPED.prep,
+    previous: INVERSE_TRANSPOSE_BEFORE.prep,
     name,
-    origin: 'packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts',
+    origin,
     marker: 'abs(det)<1e-20',
   })
+  return substitutePreviousForm({
+    text: prepared,
+    shipped: INVERSE_TRANSPOSE_SHIPPED.apply,
+    previous: INVERSE_TRANSPOSE_BEFORE.apply,
+    name,
+    origin,
+    marker: 'select(v,',
+  })
+}

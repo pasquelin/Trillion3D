@@ -7,6 +7,7 @@ import {
 } from '../../scene/core/environment.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Light } from './light.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea'])
@@ -15,7 +16,7 @@ export const lampCastsShadow = (light: Light) =>
   light.castShadow && LAMPS.has(light.kind) && light.kind !== 'rectArea'
 /** The store's spot cone is open on `(0, π/2)`: the widest half-angle it holds, the half-space
  *  less the one float the bound excludes. */
-const WIDEST_CONE = Math.PI / 2 - 1e-9
+const WIDEST_CONE = HALF_PI - 1e-9
 const eye = new Vector3(),
   aim = new Vector3(),
   right = new Vector3()

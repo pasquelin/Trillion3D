@@ -6,6 +6,7 @@
 //! weights are not searched: the batch measures the loss of this single mode
 //! and publishes it; a richer search would be a later, measured batch.
 use super::fit::{assign, fit, ladder_of, Endpoints, Texels};
+use trillion3d_math::vecn::distance2;
 
 /// The 4-bit interpolation weights, over 64.
 const WEIGHTS: [u8; 16] = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
@@ -21,11 +22,7 @@ fn quantise(endpoint: [f32; 4]) -> ([u8; 4], u8, [f32; 4]) {
         let high: [u8; 4] =
             endpoint.map(|v| (((v - f32::from(p)) / 2.0).round().clamp(0.0, 127.0)) as u8);
         let decoded = high.map(|h| f32::from(h * 2 + p));
-        let cost: f32 = decoded
-            .iter()
-            .zip(endpoint)
-            .map(|(d, v)| (d - v) * (d - v))
-            .sum();
+        let cost = distance2(decoded, endpoint);
         if best.as_ref().is_none_or(|b| cost < b.3) {
             best = Some((high, p, decoded, cost));
         }

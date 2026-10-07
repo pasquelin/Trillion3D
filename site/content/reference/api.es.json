@@ -1048,17 +1048,10 @@
     "description": "Dos formas, y solo dos: todo plano, o todo en `n` subvistas — `../batch/batch.ts` explica por qué una matriz viaja como subvista. La forma se fija ANTES del bucle, nunca dentro: un ternario por elemento cuesta un 6 % en doscientas mil composiciones, medido por el banco de matrices por lotes. Repite `composeMatrix4`, sobre `n` matrices."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolerancias del rechazo por cono, compartidas por el reflejo del lado del procesador y el shader: una transformación es conforme cuando sus columnas tienen la misma longitud con un margen de `CONE_LENGTH_RATIO` y son ortogonales con un margen de `CONE_ORTHO_EPS`, en relativo; un cono de ángulo ≥ `HALF_PI` nunca rechaza.",
-    "description": "Las variantes `_WGSL` son el texto insertado en el shader, como `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` en texto de shader."
+    "summary": "Tolerancias del rechazo por cono, compartidas por el reflejo del lado del procesador y el shader: una transformación es conforme cuando sus columnas tienen la misma longitud con un margen de `CONE_LENGTH_RATIO` y son ortogonales con un margen de `CONE_ORTHO_EPS`, en relativo; un cono de ángulo ≥ `HALF_PI` nunca rechaza."
   },
   "CONE_ORTHO_EPS": {
     "summary": "Cuánto pueden dos columnas no estar en escuadra y aun así contar como en escuadra."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` en texto de shader."
   },
   "coneRejects": {
     "summary": "Rechazo por cono de normales para no dibujar las caras traseras."
@@ -2243,9 +2236,6 @@
   },
   "HALF_PI": {
     "summary": "Un cuarto de vuelta, en radianes."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` en texto de shader."
   },
   "helper": {
     "summary": "La familia `helper`: las guías con las que se trabaja una escena, hechas de líneas y mallas.",
@@ -5418,9 +5408,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "El umbral, sobre el determinante NORMALIZADO.",
     "description": "Por debajo de 1e-12, el cubo de una escala se vuelve denormal en precisión simple: solo la normalización supera este suelo, así que este umbral ya solo juzga la forma de la matriz, nunca su tamaño."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "El umbral tal como lo escribe WGSL, producido a partir de la constante: un número, dos lenguajes."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Primera palabra del registro en el paquete."

@@ -10,6 +10,7 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts'
 import { lineDash } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The depth layer of every page the world cuts from `drawn`. */
 async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {
@@ -77,7 +78,7 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
   const along = [...new Set(Array.from(uv!).filter((_, i) => i % 2 === 0))].sort((a, b) => a - b)
   assert.deepEqual(along, [0, 1500, 3000])
   const runs = [
-    runShaderText<boolean>(LINE_DASH_WGSL),
+    runShaderText<boolean>(wgslSource(LINE_DASH_WGSL)),
     (at: number, [dashSize, gapSize]: number[]) => lineDash(at, dashSize, gapSize),
   ]
   // Across the second segment, as a raster interpolates its corners: dash 0.3, gap 0.2.
@@ -115,9 +116,10 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
   }
 })
 
-// Without the SDK module, which carries the compiler's tiled grid (`cutGrid.ts`), a cut
-// takes the finest grid a page holds: 2^-13 for a kilometre plane, never coarser than the tiled one.
-test('without the SDK module a kilometre plane takes the finest grid a page holds', async () => {
+// A cut keeps the compiler's tiled grid (`cutGrid.ts`, the TypeScript twin of its rules): a
+// kilometre plane takes the finest grid a page holds, 2^-13, coarser than the tile's 2^-15 a page
+// of that width could not hold.
+test('a kilometre plane takes the finest grid a page holds', async () => {
   const cut = await cutDrawnTriangles(
     drawnTriangles(geometry.plane(1000, 1000), 'triangles')!,
     false,

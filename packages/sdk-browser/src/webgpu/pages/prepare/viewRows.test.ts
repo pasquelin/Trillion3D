@@ -1,6 +1,7 @@
 // The page table is sized by what a view draws, never by the placements a scene repeats its
 // pages on. A scene placed twice as many times asks the same rows, the same corners and the same
 // draw words; only what its cut asks for grows them (the row cache, `../../row/slots.ts`).
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from '../../../page/cut/cutRule.fixture.ts'
@@ -26,7 +27,7 @@ const layoutOf = (count: number) => {
 }
 
 test('the rows, corners and draw words do not grow with the placements', () => {
-  const placed = Math.ceil(VIEW_ROWS / dag.pages.length) + 1
+  const placed = ceilDiv(VIEW_ROWS, dag.pages.length) + 1
   const [some, more] = [layoutOf(placed), layoutOf(2 * placed)]
   assert.ok(some.packedPages.length > VIEW_ROWS, 'past the rows a view holds')
   assert.equal(more.packedPages.length, 2 * some.packedPages.length)

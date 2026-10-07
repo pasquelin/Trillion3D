@@ -5,10 +5,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL, VIEW } from './viewLayout.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the view table yields the shipped struct and its WGSL offsets', () => {
   assert.equal(
-    BLEND_VIEW_WGSL,
+    wgslSource(BLEND_VIEW_WGSL),
     'struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,frameNoise:f32,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}',
   )
   assert.equal(BLEND_VIEW_SIZE, 144)

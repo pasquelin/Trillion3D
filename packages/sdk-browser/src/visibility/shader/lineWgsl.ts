@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * THE SCREEN-SPACE LINE: how a corner of a line quad (`drawnTriangles`, sdk-core `drawn.ts`)
  * leaves its segment.
@@ -19,14 +21,18 @@
  * Every path draws reversed depth: the near plane is `z = w`. The bench's CPU image oracle runs
  * its TypeScript twin, statement for statement (`bench/oracles/browser/cpu-image/line.ts`).
  */
-export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
+export const LINE_CLIP_WGSL = wgslBlock(
+  'LINE_CLIP_WGSL',
+  [],
+  `fn lineClip(clip:vec4f,along:vec4f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
  let f=clip.w-clip.z;let g=along.w-along.z;
  let c=clip-along*select(0.0,f/g,f<0.0&&g!=0.0);
  let t=(along.xy*c.w-c.xy*along.w)*viewport;
  let n=length(t);
  if(n==0.0){return c;}
  return vec4f(c.xy+vec2f(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
-}`
+}`,
+)
 
 /**
  * THE DASH: whether a pixel of a dashed line is drawn. `at` is the distance along the line of
@@ -37,7 +43,11 @@ export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,view
  * a line that is not dashed. The rasters read it through the cutout (`maskKeep`, `pageWgsl.ts`),
  * the transparent pass in its fragment stage; the CPU image oracle by its twin (`lineDash`).
  */
-export const LINE_DASH_WGSL = `fn lineDash(at:f32,dash:vec2f)->bool{
+export const LINE_DASH_WGSL = wgslBlock(
+  'LINE_DASH_WGSL',
+  [],
+  `fn lineDash(at:f32,dash:vec2f)->bool{
  let period=dash.x+dash.y;
  return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
-}`
+}`,
+)

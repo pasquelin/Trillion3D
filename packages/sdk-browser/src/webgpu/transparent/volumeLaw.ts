@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * KHR_materials_volume's Beer–Lambert law, one for the water's colour and for the shadow it casts:
  * light crossing a path `x` of a volume keeps `T = c^(x / d)` of itself, `c` its attenuation colour
@@ -29,10 +31,14 @@ export function volumeAttenuation(
 }
 
 /** The law in WGSL: the water's transmittance from its constant, the shadow's from its colour. */
-export const VOLUME_LAW_WGSL = `
+export const VOLUME_LAW_WGSL = wgslBlock(
+  'VOLUME_LAW_WGSL',
+  [],
+  `
 fn volumeTransmittance(k:vec3f,path:f32)->vec3f{return exp2(k*path);}
 fn volumeTransmittanceOf(colour:vec3f,distance:f32,path:f32)->vec3f{
  if(!(distance>0.0)){return vec3f(1.0);}
  let c=min(colour,vec3f(1.0));
  return select(vec3f(select(1.0,0.0,path!=0.0)),pow(c,vec3f(path/distance)),c>vec3f(0.0));
-}`
+}`,
+)

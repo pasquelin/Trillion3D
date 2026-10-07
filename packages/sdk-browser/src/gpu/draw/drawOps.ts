@@ -4,6 +4,8 @@ import { createGpuDrawBuffers } from './buffers.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../dispatch/grid.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
 
@@ -66,7 +68,7 @@ export function encodeDraw(
   // Only the groups the frame's items reach are counted and prefixed. The groups past them hold
   // zero by construction and nothing reads them, so bounding the serial prefix by the live count
   // is exact.
-  const liveGroups = Math.max(1, Math.ceil(n / WORKGROUP))
+  const liveGroups = workgroupCount(n, WORKGROUP)
   uniData[0] = count
   uniData[1] = d.corners
   uniData[2] = d.slotCap
@@ -86,11 +88,11 @@ export function encodeDraw(
   pass.setBindGroup(0, d.bindGroup)
   pass.setPipeline(d.countPipeline)
   // One workgroup per group of items: each lane reads its own item once (`countGroups`).
-  pass.dispatchWorkgroups(liveGroups)
+  dispatchRows(pass, liveGroups)
   pass.setPipeline(d.prefixPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(d.scatterPipeline)
-  pass.dispatchWorkgroups(liveGroups)
+  dispatchRows(pass, liveGroups)
 }
 
 /** Row buffers for `rows` rows, put in place by the pending growth's commit (`GpuDraw.grow`). */

@@ -9,6 +9,7 @@ import { Box3 } from '../math/box3.ts'
 import { Object3D } from './object3d.ts'
 import { Mesh } from './mesh.ts'
 import { Geometry } from '../geometry/geometry.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const down = (x: number, z: number) => new Ray(new Vector3(x, 10, z), new Vector3(0, -1, 0))
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9
@@ -52,7 +53,7 @@ test('nested transforms place the hit in the world, nearest object first', () =>
   parent.position.set(5, 0, 0)
   parent.scale.set(2, 2, 2)
   child.position.set(1, 1, 0) // world centre (7, 2, 0), half size 1
-  child.rotation.z = Math.PI / 2
+  child.rotation.z = HALF_PI
   below.position.set(7, -3, 0)
   parent.add(child)
   const hits = raycast([parent, below], down(7, 0))

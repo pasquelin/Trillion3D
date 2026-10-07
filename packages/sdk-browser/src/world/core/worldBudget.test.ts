@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts'
@@ -45,7 +46,6 @@ test('raycastTrees reads and sets the raycast tree cache budget', () => {
   assert.equal(handle.raycastTrees, 1024)
   handle.raycastTrees = before
 })
-const MiB = 1024 * 1024
 
 test("the default totals split into each pool's own default", () => {
   const handle = budget(null)
@@ -70,20 +70,20 @@ test('the shadow share holds the virtual shadow maps of one sun, within a MiB', 
   assert.equal(layout.poolPages, 2048)
   assert.equal(layout.poolPartsPerSlice, 1)
   assert.ok(bytes <= SHADOW_POOL_BYTES, `${bytes} bytes of maps, ${SHADOW_POOL_BYTES} held`)
-  assert.ok(SHADOW_POOL_BYTES - bytes < MiB, `${SHADOW_POOL_BYTES - bytes} bytes beside the maps`)
+  assert.ok(SHADOW_POOL_BYTES - bytes < MIB, `${SHADOW_POOL_BYTES - bytes} bytes beside the maps`)
   assert.equal(budget(null).split.shadowPool, SHADOW_POOL_BYTES)
 })
 
 test("the CPU total is the page cache's, whole: no shadow table is mirrored on the host", () => {
   assert.equal(DEFAULT_CPU_BUDGET, DEFAULT_CACHED_BYTES)
-  for (const total of [1, DEFAULT_CPU_BUDGET, 4096 * MiB])
+  for (const total of [1, DEFAULT_CPU_BUDGET, 4096 * MIB])
     assert.equal(budget(null, { cpu: total }).split.pageCache, total, `${total}`)
 })
 
 const FIXED = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES
 
 test('a GPU total redraws every pool by the split, and the pools never sum past it', () => {
-  for (const total of [FIXED + 2 * MiB, FIXED + 300 * MiB, 8192 * MiB]) {
+  for (const total of [FIXED + 2 * MIB, FIXED + 300 * MIB, 8192 * MIB]) {
     const pools = worldPools()
     const handle = budget(null, {}, pools)
     handle.gpu = total
@@ -106,9 +106,9 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
 // never lets the pools sum past it.
 test('the shadow maps fit their share on any device, and totals below 512 MiB never overflow', () => {
   const { shadowPool } = budget(null).split
-  for (const binding of [128 * MiB, 1024 * MiB, 4096 * MiB - 4])
+  for (const binding of [128 * MIB, 1024 * MIB, 4096 * MIB - 4])
     assert.ok(oneSunShadowMaps(binding).bytes <= shadowPool, `${binding} bytes a binding`)
-  for (const total of [64 * MiB, 256 * MiB, 511 * MiB, FIXED - 1]) {
+  for (const total of [64 * MIB, 256 * MIB, 511 * MIB, FIXED - 1]) {
     const pools = worldPools()
     const handle = budget(null, {}, pools)
     assert.throws(() => (handle.gpu = total), /GPU_BUDGET_UNDER_SHADOW_POOL/, `${total}`)
@@ -127,7 +127,7 @@ test('the GPU total counts the bounce probes at their largest, before the pools'
   const room = createBounceCascades([0, 0, 0, 6, 3, 6])
   assert.equal(2 * bounceProbeBytes(city.probes), BOUNCE_PROBE_BYTES)
   assert.ok(2 * bounceProbeBytes(room.probes) < BOUNCE_PROBE_BYTES)
-  for (const total of [DEFAULT_GPU_BUDGET, FIXED + 8 * MiB]) {
+  for (const total of [DEFAULT_GPU_BUDGET, FIXED + 8 * MIB]) {
     const handle = budget(null, { gpu: total })
     const { shadowPool, bounceProbes, geometryPool, texturePool } = handle.split
     assert.equal(bounceProbes, BOUNCE_PROBE_BYTES)
@@ -146,17 +146,17 @@ test('a total the rule cannot take is refused by name and changes nothing', () =
   assert.throws(() => (handle.cpu = 0), /INVALID_CPU_BUDGET/)
   assert.deepEqual({ ...pools, pageCache: undefined }, { pageCache: undefined })
   assert.equal(pools.pageCache.cpuBytes, DEFAULT_CACHED_BYTES)
-  handle.cpu = 64 * MiB
-  assert.equal(handle.split.pageCache, 64 * MiB)
+  handle.cpu = 64 * MIB
+  assert.equal(handle.split.pageCache, 64 * MIB)
 })
 
 test("a CPU total applies live to the world's page cache, the one every session reads through", () => {
   const pools = worldPools()
   const handle = budget(null, {}, pools)
-  const page = new Uint8Array(MiB)
+  const page = new Uint8Array(MIB)
   for (let i = 0; i < 8; i++) pools.pageCache.touch(`p${i}`, page)
-  handle.cpu = 3 * MiB
-  assert.equal(pools.pageCache.cpuBytes, 3 * MiB)
+  handle.cpu = 3 * MIB
+  assert.equal(pools.pageCache.cpuBytes, 3 * MIB)
   // No session reads: pages leave oldest first, at once, not at the next scene load.
   assert.deepEqual([...pools.pageCache.pages.keys()], ['p5', 'p6', 'p7'])
   // Every session the world opens — a reopen after a device loss among them — reads this cache.

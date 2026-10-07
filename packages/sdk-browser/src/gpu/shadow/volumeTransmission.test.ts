@@ -1,8 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts'
+import { blendTransmittanceWgsl } from './transmittanceWgsl.ts'
 import { FLAG_HAS_MAP, FLAG_HAS_UV } from '../../visibility/types.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
+
+/** The material reads the transmittance takes as providers, run as written: a half alpha, a
+ *  fixed colour. */
+const MASK_ALPHA = wgslFn(
+  'maskAlpha',
+  [],
+  'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return 0.5;}',
+)
+const COLOR_SAMPLE = wgslFn(
+  'colorSample',
+  [],
+  'fn colorSample(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->vec4f{return vec4f(0.25,0.5,1.0,0.5);}',
+)
 
 const world = (x = 1, y = 1, z = 1) => [
   [x, 0, 0, 0],
@@ -34,17 +49,25 @@ const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
     ray: number[],
   ) => number[]
 }>(
-  BLEND_TRANSMITTANCE_WGSL,
-  ['volumeBoundary', 'volumeWorldThickness', 'blendTransmittance', 'volumeTransmittanceOf'],
+  wgslModule(blendTransmittanceWgsl(MASK_ALPHA, COLOR_SAMPLE)),
+  [
+    'volumeBoundary',
+    'volumeWorldThickness',
+    'blendTransmittance',
+    'volumeTransmittanceOf',
+    'matrixWindingCwTriple',
+    'cofactor3',
+    'maskAlpha',
+    'colorSample',
+  ],
   {
     cross: (a: number[], b: number[]) => [
       a[1] * b[2] - a[2] * b[1],
       a[2] * b[0] - a[0] * b[2],
       a[0] * b[1] - a[1] * b[0],
     ],
+    mat3x3f: (...columns: number[][]) => columns,
     mix: (a: number[], b: number[], t: number) => a.map((v, i) => v * (1 - t) + b[i] * t),
-    maskAlpha: () => 0.5,
-    colorSample: () => [0.25, 0.5, 1, 0.5],
   },
 )
 const through = (p: Page) => blendTransmittance(p, [0, 0], [1, 0], [0, 1], [0, 0, 1])

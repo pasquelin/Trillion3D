@@ -1,0 +1,18 @@
+[package]
+name = "trillion3d-math"
+version = "0.1.0"
+edition = "2021"
+license = "PolyForm-Noncommercial-1.0.0"
+
+# No dependency: the WebAssembly module carries nothing more.
+[lib]
+name = "trillion3d_math"
+path = "src/lib.rs"
+
+# `golden`: the reference values' harness (`src/golden.rs`), for the dependents' tests only.
+[features]
+golden = []
+
+[dev-dependencies]
+# fdlibm in pure Rust from musl (MIT): what `src/acos.rs` and `src/trig.rs` are tested against.
+libm = "0.2.16"

@@ -12,17 +12,71 @@ imports it. Its contract:
 - Outputs go through an `out` argument or a flat array, never a fresh object per call.
 - One function per formula: a second copy of a formula elsewhere in the tree is a defect.
 - It imports nothing outside itself; `pnpm run check:cycles` fails when a module does.
-- "No GPU" means no GPU API call: the WGSL text twins of a primitive (string constants such as
-  `SINGULAR_DETERMINANT_WGSL`, `HALF_PI_WGSL`) belong to the package, beside the function they mirror.
+- "No GPU" means no GPU API call: the WGSL twins of the primitives belong to the package, in
+  `wgsl/` (below).
 - `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
   call the package.
 
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
-re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
-`sdk-core` and `sdk-browser`.
+`color/`, `scalar/`, `sequence/` (`halton.ts`), `batch/` and `wgsl/` (below); `index.ts` is the
+barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
+and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
+
+`scalar/`: counting and range helpers; `constants.ts`: shared numbers.
+
+### The WGSL library
+
+`packages/math/src/wgsl/` holds the shader side of the maths: each function or constant shaders
+share is one `WgslDecl` ([`decl.ts`](../packages/math/src/wgsl/decl.ts)), its name, its text and
+the declarations it depends on, held as objects, never as names. A shader keeps its own text and
+lists the declarations it uses; [`assemble.ts`](../packages/math/src/wgsl/assemble.ts) writes them
+before that text, each once, its dependencies first:
+
+```ts
+const SHADER = wgslProgram(OWN_TEXT, [hashUnit, worldMatrix3])
+```
+
+A shader fragment that several programs share is a declaration too, a `wgslBlock`: its text as
+written, its dependencies the library declarations and the fragments it uses. A template
+interpolates parameters only — numbers, layout constants, binding indices, names —, never another
+fragment's text. A fragment is named `X_WGSL` or `xWgsl(…)`; an expression or a statement a body
+splices is named otherwise (`FULLSCREEN_XY`, `MIRROR_TERM`). A factory `xWgsl(…)` that takes a
+provider, a function the fragment calls, lists it, and the assembler refuses a program holding two
+of its variants. Only a whole program calls `wgslProgram` (or `wgslModule`), which writes the
+program's own directives (`enable …;`) first; a declaration spliced into a template as text throws
+when the module is read. A program others extend — the lit program at the screen's mirror radiance
+(`withScreenReflections`), the blend module with the water's stage (`blendShader`) — takes what it
+gains as a parameter and is assembled with it.
+
+A function or constant a fragment calls but its host provides — `mipRead` of a cell reduction,
+`reflectionDepthAt` and `reflectionSize` of the screen walks, `vsmPoolLoad` of the shadow-map
+sampling, `mirrorRadiance` of the mirror term, `INF` of the projected bound — is a declaration
+under that name, which the fragment takes as a parameter and lists: a missing provider fails when
+the program is written, and two providers of one name are refused, never left to the shader
+compiler: the error names the path through the dependents by which each came and the first line
+where the two texts differ.
+The parts of one program — the DAG selection's `DAG_*_WGSL` fragments, which call one another and
+the structures of the program's own text — list the shared declarations they call, and the program
+lists every part.
+
+A name written twice with two texts, or a dependency cycle, throws when the pipeline is described:
+the text is built once a pipeline, never in a frame. Two operation orders of one formula round
+apart, so each is its own declaration under its own name, never merged. The library writes a number
+through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
+holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π), the greatest
+finite `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`, 3.4e38, never the greatest
+`f32`), the golden ratio's fraction and the singularity threshold are `wgslConst` declarations of
+[`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
+[`packages/math/src/constants.ts`](../packages/math/src/constants.ts), beside the shaders' own
+sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`). An integer
+expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u`) are one
+declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
+`library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
+declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
+finds no program declaring a module-scope name twice, whatever the texts, and
+`wgslDeclarations.test.ts` no source declaring a library name and no fragment spliced as text.
 
 ## Batch math for hosts
 
@@ -92,11 +146,9 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
 **Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
-(`math.rs` and `math_matrix.rs` in `packages/page-codec-wasm/src/`), bit-identical to the JavaScript
-loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
+(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`), bit-identical to the
+JavaScript loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
 `packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
-`hierarchyUpdateBatch` has a kernel too (`math_hierarchy.rs`, proven by its Rust tests), outside
-the governor.
 `metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
 `operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement` the
 sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches` how
@@ -106,6 +158,30 @@ clock steps instead. A host serving its page with the `Cross-Origin-Opener-Polic
 `Cross-Origin-Embedder-Policy` headers gets the fine clock back, one sample per call. A kernel is
 written only where a loop's measured share of the engine's frame passes 0.1 ms; batches serve hosts,
 no engine loop runs through one.
+
+### The Rust twins and their reference values
+
+The Rust maths primitives live once in `packages/math/rust` (`trillion3d-math`, no dependency):
+vectors, boxes, the 4×4 product in `f32` and `f64`, JavaScript's `Math.min`, `Math.max` and
+`Math.hypot`, fdlibm's arc cosine and sine. The page codec (and through it the WebAssembly kernels)
+and the compiler both depend on it and keep no copy. `packages/math/golden` holds the reference
+values every twin of a mirrored primitive — Rust, TypeScript, WGSL — is tested against bit for bit:
+the inputs and outputs of each case written by their bits, one JSON file per primitive, or per
+encoder and its decoder with their round trip (`oct.json`, `quantize.json`), one case per line
+(Prettier leaves the folder alone). The crate that owns a twin checks its files in one test
+(`packages/math/rust/src/golden.rs`); after a deliberate change of a primitive, `pnpm run
+golden:write` rewrites them all, the command each file names.
+
+- TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
+- TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
+  `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
+  (`packages/sdk-core/src/world/animation/`), `pageGrids.golden.test.ts` (`packages/page-codec/src/`).
+- WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
+- The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
+- The grid rule's TypeScript twin, `packages/page-codec/src/gridExponent.ts`, is held to the Rust
+  rule's own cases (`gridExponent.test.ts`) and to `grid.json` (`gridExponent.golden.test.ts`); on
+  every compiled scene, the run-time cut picks the grid the compiler wrote
+  (`tests/integration/runtime-cut-grid.test.ts`).
 
 ### Measured against the witness library
 
@@ -154,7 +230,7 @@ medians over three runs; the three exceptions are declared on their line.
 | `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
 | `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/math/src/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
-| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math_matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
+| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`packages/math/rust/src/matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
 | `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/math/src/matrix/singular.ts`) is kept; ceiling 2.2 |
 | `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
@@ -163,4 +239,4 @@ medians over three runs; the three exceptions are declared on their line.
 | `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
 | `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
 | `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/math/src/color/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | the Rust tests of `packages/page-codec-wasm/src/math_hierarchy.rs` |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `tests/integration/sdk-facade.test.ts` (parents before children); its Rust/WebAssembly kernel was removed, no host called it |

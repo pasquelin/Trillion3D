@@ -10,6 +10,7 @@ import {
   FLAG_SAMPLED,
 } from '../types.ts'
 import { CLASS_FEATURE } from './classWords.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys addressable: one more bit than the highest feature. */
 export const MATERIAL_CLASS_KEYS = 16384
@@ -51,7 +52,10 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
  * boolean per feature, each an override expression the backend compiler folds. Without a class
  * — the module compiled alone — every feature is off.
  */
-export const MATERIAL_CLASS_WGSL = `override CLASS_KEY:u32=0u;
+export const MATERIAL_CLASS_WGSL = wgslBlock(
+  'MATERIAL_CLASS_WGSL',
+  [],
+  `override CLASS_KEY:u32=0u;
 override SINGLE_CLASS:bool=false;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
@@ -74,4 +78,5 @@ fn classAdmits(id:u32)->bool{
  let pageIndex=(id>>8u)-1u;
  if(pageIndex>=uni.pageCount){return false;}
  return SINGLE_CLASS||pages[pageIndex].materialClass==CLASS_KEY;
-}`
+}`,
+)

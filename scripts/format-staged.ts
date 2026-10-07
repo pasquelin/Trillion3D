@@ -2,9 +2,7 @@
 // reads are written formatted and staged again, so a commit never carries a format the CI refuses.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { formatPattern } from './changed-steps.ts'
-
-/** The Rust crates `format:check` holds to `cargo fmt`. */
-const CRATES = ['packages/asset-compiler-rust', 'packages/page-codec-wasm']
+import { NATIVE_CRATES } from './native-crates.ts'
 
 const git = (...args: string[]) =>
   execFileSync('git', args, { encoding: 'utf8' }).split('\n').filter(Boolean)
@@ -15,7 +13,9 @@ const run = (command: string, args: string[]) => {
 
 const staged = git('diff', '--cached', '--name-only', '--diff-filter=ACMR')
 const prettier = staged.filter((file) => formatPattern.test(file))
-const crates = CRATES.filter((crate) => staged.some((file) => file.startsWith(`${crate}/`)))
+const crates = NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
+  staged.some((file) => file.startsWith(`${crate}/`)),
+)
 const rust = staged.filter((file) => file.endsWith('.rs') && crates.some((c) => file.startsWith(c)))
 
 // A file also changed outside the index would have those changes staged with its format.

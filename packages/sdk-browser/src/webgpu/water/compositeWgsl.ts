@@ -6,9 +6,8 @@ import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
   surfaceBindingsWgsl,
-  VIEW_WGSL,
-  WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts'
+import { VIEW_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
@@ -18,14 +17,11 @@ import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
-import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
-import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
-import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts'
-import { VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
-import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
 import { WATER_LOBELESS_WGSL, WATER_LOBES_WGSL } from './waterLobesWgsl.ts'
 import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -89,37 +85,44 @@ export const WATER_BINDINGS = {
  * clear-coat lobe (`waterLobesWgsl.ts`): a pixel without one sums the very same terms; with, the
  * stand-ins that read none (`WATER_LOBELESS_WGSL`, `lobeThrough` one).
  */
-export const waterCompositeShader = (unbounded = false, key: Partial<ContractKey> = {}) => {
+export const waterCompositeShader = (
+  unbounded = false,
+  key: Partial<ContractKey> = {},
+  { route }: { route?: WgslDecl } = {},
+) => {
   const lobes = !key.lobeless
-  return `${VIEW_WGSL}
-${BLEND_VIEW_WGSL}
-struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,}
-${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
-${CONTRACT_BINDINGS_WGSL}
+  const bindings = {
+    proxy: WATER_BINDINGS.proxy,
+    transmittance: WATER_BINDINGS.shadowTransmittance,
+  }
+  return wgslProgram(
+    `struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,}
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
-${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl({ proxy: WATER_BINDINGS.proxy, transmittance: WATER_BINDINGS.shadowTransmittance }, key, { pair: true })}
-${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
-${bounceReflectionWgsl(WATER_BINDINGS.surface)}
-${WATER_UNPACK_WGSL}
-${VOLUME_LAW_WGSL}
-${FULLSCREEN_VERTEX}
-${WORLD_AT_WGSL}
-${WATER_SHADOW_READ_WGSL}
-${WATER_TRANSMITTED_WGSL}
-${VOLUME_MARKED_WGSL}
-${lobes ? WATER_LOBES_WGSL : WATER_LOBELESS_WGSL}
-${WATER_COLOR_WGSL}
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{return waterColor(pixel);}
 struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
 @fragment fn composeWaterReactive(@builtin(position) pixel:vec4f)->Composed{
  let c=waterColor(pixel);
  return Composed(c,vec4f(0.0,1.0,0.0,c.a));
 }
-
-${unbounded ? SCREEN_REFLECTION_WGSL : BOUNDED_SCREEN_REFLECTION_WGSL}
-`
+`,
+    [
+      STANDARD_LIGHTING_WGSL,
+      declaredLightingWgsl(bindings, key, { pair: true }),
+      bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes),
+      bounceReflectionWgsl(WATER_BINDINGS.surface),
+      ...(lobes ? [WATER_LOBES_WGSL] : []),
+      WATER_COLOR_WGSL,
+      unbounded ? SCREEN_REFLECTION_WGSL : BOUNDED_SCREEN_REFLECTION_WGSL,
+      VIEW_WGSL,
+      BLEND_VIEW_WGSL,
+      surfaceBindingsWgsl('waterWord:texture_2d<f32>'),
+      CONTRACT_BINDINGS_WGSL,
+      FULLSCREEN_VERTEX,
+      ...(lobes ? [] : [WATER_LOBELESS_WGSL]),
+      ...(route ? [route] : []),
+    ],
+  )
 }

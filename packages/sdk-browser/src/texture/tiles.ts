@@ -1,3 +1,4 @@
+import { alignUp, ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import {
   previewFirstLevel,
   previewLastLevel,
@@ -35,7 +36,7 @@ const TILES_PER_ROW = 30
  * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the
  * sampler filters with the same weights wherever the streamer placed the tile.
  */
-export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH))
+export const POOL_LAYER_SIDE = nextPow2(TILES_PER_ROW * TILE_PITCH)
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */
 export const POOL_SUBTEXEL = 2 ** 24 / POOL_LAYER_SIDE
 /** One step of that grid in pool coordinates: 2^-24. */
@@ -58,7 +59,7 @@ export const mipLevelCountFor = (width: number, height: number) =>
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
   const [w, h] = levelSize(width, height, level)
-  return [Math.ceil(w / TILE_SIZE), Math.ceil(h / TILE_SIZE)]
+  return [ceilDiv(w, TILE_SIZE), ceilDiv(h, TILE_SIZE)]
 }
 
 /**
@@ -67,7 +68,7 @@ export function tilesAt(width: number, height: number, level: number): [number, 
  * level lands on a block boundary; the 1×1 level therefore starts at 128, and its padded block
  * ends at 132, inside the gutter. The shader (`../webgpu/tile/wgsl.ts`) applies the same rule.
  */
-export const tailOffset = (rank: number) => (TILE_SIZE - (TILE_SIZE >> rank) + 3) & ~3
+export const tailOffset = (rank: number) => alignUp(TILE_SIZE - (TILE_SIZE >> rank), 4)
 
 /** Layout of a texture: its streamed levels, their table entries, and its tail. */
 export type TileLayout = {

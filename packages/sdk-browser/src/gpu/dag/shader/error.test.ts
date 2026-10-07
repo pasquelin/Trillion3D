@@ -6,10 +6,10 @@ import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { withScreenErrorVariant } from './error.ts'
 import { referenceScreenError } from '../../../../../sdk-core/src/lod/screenErrorVariant.ts'
-import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts'
+import { REFERENCE_ERROR } from './referenceErrorDecl.ts'
 
 test('the default text is returned character for character, the constant being false', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes(REFERENCE_ERROR_DECL))
+  assert.ok(DAG_SELECTION_SHADER.includes(REFERENCE_ERROR.text))
   assert.equal(withScreenErrorVariant(DAG_SELECTION_SHADER, 'certifiee'), DAG_SELECTION_SHADER)
   // The certified bound is still there, operands and order unchanged.
   assert.match(DAG_SELECTION_SHADER, /return \(\(shift\*focal\)\/nearest\)\*\(slant\/closest\);/)
@@ -18,9 +18,9 @@ test('the default text is returned character for character, the constant being f
 test('the reference variant returns only the constant, and carries the same formula as the CPU', () => {
   const code = withScreenErrorVariant(DAG_SELECTION_SHADER, 'reference')
   assert.equal(code.split('const REFERENCE_ERROR:bool=true;').length, 2)
-  assert.ok(!code.includes(REFERENCE_ERROR_DECL))
+  assert.ok(!code.includes(REFERENCE_ERROR.text))
   assert.equal(
-    code.replace('const REFERENCE_ERROR:bool=true;', REFERENCE_ERROR_DECL),
+    code.replace('const REFERENCE_ERROR:bool=true;', REFERENCE_ERROR.text),
     DAG_SELECTION_SHADER,
   )
   // Shared shader branch: same operands, same order as `referenceScreenError`.

@@ -1,6 +1,7 @@
 // A walk over a partitioned world, as a session runs it: the rows are sized at open for
 // the first camera's view, the pages on its way and the cells it reaches read, and the frames then
 // follow the camera through the index on an engine that grows no buffer.
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Engine } from '../../engine/types.ts'
@@ -23,7 +24,7 @@ const CUBE = Math.hypot(8, 1, 8)
 const ladder = {
   cube: CUBE,
   rows: (_: number, total: number, rung: number) =>
-    Math.min(total, 4 * Math.ceil((Math.ceil((1.5 * CUBE * 2 ** (rung / 2)) / 10) + 1) ** 2 / 2)),
+    Math.min(total, 4 * ceilDiv((ceilDiv(1.5 * CUBE * 2 ** (rung / 2), 10) + 1) ** 2, 2)),
 }
 
 /** A grid of `side`² cells ten metres wide, each placing four nodes of one of two meshes. */

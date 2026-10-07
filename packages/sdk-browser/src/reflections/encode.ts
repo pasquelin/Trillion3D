@@ -1,6 +1,7 @@
 import type { ScreenReflection } from './gpu.ts'
 import type { DeferredProgram } from '../lighting/deferred/program.ts'
 import { REFLECTION_SOURCE_PASS } from './sourcePass.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /**
  * Encode the source, then the rough trace and its resolve, borrowing the HDR target. The source is
@@ -49,7 +50,7 @@ export function encodeReflectionSource(
         { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
       ],
     })
-    trace.setViewport(0, 0, Math.ceil(drawn[0] / 2), Math.ceil(drawn[1] / 2), 0, 1)
+    trace.setViewport(0, 0, ceilDiv(drawn[0], 2), ceilDiv(drawn[1], 2), 0, 1)
     trace.setPipeline(reflected.trace)
     trace.setBindGroup(0, group)
     trace.setBindGroup(1, reflection.group)

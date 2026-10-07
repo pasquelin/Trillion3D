@@ -11,7 +11,12 @@ import {
   ST_HISTORY_OCCLUDERS,
   ST_WITHDRAWN,
   VERDICT_REJECTED,
+  STATE_TALLY_WGSL,
 } from './contract.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { BOX_PROJECT_WGSL } from '../core/boxProjectWgsl.ts'
+import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 
 /**
  * Projection of a resident row, and what the frame keeps of it: the occluder history, the row's
@@ -45,10 +50,14 @@ import {
  * cluster occlusion test: that is what carries the conservativeness proof, and this kernel only
  * stores what it returns.
  */
-export const PARTITION_PROJECT_WGSL = `
+export const PARTITION_PROJECT_WGSL = wgslBlock(
+  'PARTITION_PROJECT_WGSL',
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL],
+  `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
- if(id.x<uni.rows){projectRow(id.x);}
+fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
+ let row=flatIndex(id,n,${PARTITION_WORKGROUP}u);
+ if(row<uni.rows){projectRow(row);}
  flushTally(lane);
 }
 fn projectRow(i:u32){
@@ -87,4 +96,5 @@ fn projectRow(i:u32){
  rowData[base+${ROW_FLAGS}u]=${FLAG_PROJECTED}u|select(0u,${FLAG_CLIP}u,box.clips!=0u)
   |select(0u,${FLAG_HISTORY}u,drawn!=0u)|select(0u,${FLAG_KEPT}u,kept);
 }
-`
+`,
+)

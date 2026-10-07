@@ -6,9 +6,35 @@ import {
 
 /** A binding of the stage: a buffer, or the normal atlas's view (`DEFORMATION_NORMALS`). */
 type DeformationResource = GPUBuffer | GPUTextureView
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { uniformSlots } from '../residency/pools.ts'
+
+/** The stage's image records, one per dispatch at its own aligned offset (`slot`): the image
+ *  number, then the rows that dispatch deforms — its padding groups leave past them. */
+function deformationImage(device: GPUDevice) {
+  const slots = uniformSlots(device.limits, 2, 4)
+  const buffer = device.createBuffer({
+    label: 'Trillion3D deformation image',
+    size: slots.offset(1)[0] + 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  // A record's two words that change, written at each slot; the queue copies them at the call.
+  const words = new Uint32Array(2)
+  return {
+    buffer,
+    entry: (slot: number) => ({ buffer, offset: slots.offset(slot)[0], size: 16 }),
+    write(frame: number, rows: number, wholeRows: number) {
+      words[0] = frame
+      words[1] = rows
+      device.queue.writeBuffer(buffer, 0, words)
+      if (!wholeRows) return
+      words[1] = wholeRows
+      device.queue.writeBuffer(buffer, slots.offset(1)[0], words)
+    },
+  }
+}
 
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {
@@ -21,12 +47,7 @@ export async function createDeformationCompute(device: GPUDevice) {
       entryPoint: 'deform',
     },
   })
-  const image = device.createBuffer({
-    label: 'Trillion3D deformation image',
-    size: 16,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const imageWords = new Uint32Array(4)
+  const image = deformationImage(device)
   const wholeBuffers: DeformationResource[] = []
   const held: { buffers: readonly DeformationResource[]; group: GPUBindGroup }[] = []
   const moved = (buffers: readonly DeformationResource[], slot: number) => {
@@ -40,12 +61,14 @@ export async function createDeformationCompute(device: GPUDevice) {
         buffers: [...buffers],
         group: device.createBindGroup({
           layout,
-          entries: [...buffers, image].map((resource, binding) => ({
+          entries: [...buffers, image.buffer].map((resource, binding) => ({
             binding,
             resource:
               binding === DEFORMATION_NORMALS
                 ? (resource as GPUTextureView)
-                : { buffer: resource as GPUBuffer },
+                : resource === image.buffer
+                  ? image.entry(slot)
+                  : { buffer: resource as GPUBuffer },
           })),
         }),
       }
@@ -59,22 +82,21 @@ export async function createDeformationCompute(device: GPUDevice) {
     whole?: { table: GPUBuffer; count: number },
   ) => {
     if (!rows && !whole?.count) return
-    imageWords[0] = frame
-    device.queue.writeBuffer(image, 0, imageWords)
+    image.write(frame, rows, whole?.count ?? 0)
     const pass = encoder.beginComputePass({ label: DEFORMATION_PASS })
     pass.setPipeline(pipeline)
     if (rows) {
       pass.setBindGroup(0, bind(buffers, 0))
-      pass.dispatchWorkgroups(...dispatchGrid(rows))
+      dispatchRows(pass, rows)
     }
     if (whole?.count) {
       for (let i = 0; i < 5; i++) wholeBuffers[i] = i === 3 ? whole.table : buffers[i]
       pass.setBindGroup(0, bind(wholeBuffers, 1))
-      pass.dispatchWorkgroups(...dispatchGrid(whole.count))
+      dispatchRows(pass, whole.count)
     }
     pass.end()
   }
-  return { encode, dispose: () => image.destroy() }
+  return { encode, dispose: () => image.buffer.destroy() }
 }
 
 export type DeformationCompute = Awaited<ReturnType<typeof createDeformationCompute>>

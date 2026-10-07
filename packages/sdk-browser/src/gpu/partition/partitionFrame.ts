@@ -11,6 +11,8 @@ import type { createPartitionUniformWriter, PartitionFrame } from './uniform.ts'
 import type { createPartitionCounters } from './counters.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import type { KeptFrame, PartitionSources } from './types.ts'
+import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../dispatch/grid.ts'
 
 /** The partition's kernels, in the order a frame dispatches them. */
 export const KERNELS = ['clearRows', 'projectRows', 'classifyRows'] as const
@@ -117,11 +119,12 @@ export function encodePartition(p: Partition, open: OpenPass) {
   // dispatch; then each row is projected, then classified.
   const pass = open.pass,
     rows = p.kept.rows,
-    rowGroups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP))
+    rowGroups = workgroupCount(rows, PARTITION_WORKGROUP)
   const clearThreads = partitionClearThreads(rows, p.inputs.slotUsed.size / 4)
+  const clearGroups = ceilDiv(clearThreads, PARTITION_WORKGROUP)
   for (let k = 0; k < KERNELS.length; k++) {
     pass.setPipeline(p.pipelines[k])
     pass.setBindGroup(0, p.groups[k])
-    pass.dispatchWorkgroups(k === CLEAR ? Math.ceil(clearThreads / PARTITION_WORKGROUP) : rowGroups)
+    dispatchRows(pass, k === CLEAR ? clearGroups : rowGroups)
   }
 }

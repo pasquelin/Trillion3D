@@ -10,6 +10,7 @@ import {
 import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
 import type { CameraMotion } from '../../camera/world.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 /**
  * The VIEW AHEAD of a moving camera, in its render frame (`./selection.ts`): what the cut also
@@ -45,7 +46,7 @@ const ORIGIN = [0, 0, 0],
  *  zero, and its side planes keep only what is in front of the eye. */
 function opened(scale: number, turn: number) {
   const half = Math.atan(1 / Math.abs(scale)) + turn
-  return half >= Math.PI / 2 ? 0 : Math.sign(scale) / Math.tan(half)
+  return half >= HALF_PI ? 0 : Math.sign(scale) / Math.tan(half)
 }
 
 /** Writes the view ahead of `cam` into `into`, or returns null for a camera that neither moves nor

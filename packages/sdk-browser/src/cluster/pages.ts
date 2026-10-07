@@ -1,3 +1,4 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { verifiedRun } from './verified.ts'
 import { unmetered, type ByteMeter } from './byteMeter.ts'
 import { checked } from './checked.ts'
@@ -31,19 +32,16 @@ export async function loadClusterPages(
   let next = 0,
     loaded = 0,
     pageBytesRead = 0
-  const workers = Array.from(
-    { length: Math.min(Math.max(1, workerCount), pages.length) },
-    async () => {
-      while (next < pages.length) {
-        combined.throwIfAborted()
-        const page = pages[next++]
-        const buffer = await fetchVerified(new URL(page.url, base).href, page, combined)
-        indices.set(page.url, new Uint32Array(buffer))
-        pageBytesRead += buffer.byteLength
-        progress(++loaded, pages.length)
-      }
-    },
-  )
+  const workers = Array.from({ length: clamp(workerCount, 1, pages.length) }, async () => {
+    while (next < pages.length) {
+      combined.throwIfAborted()
+      const page = pages[next++]
+      const buffer = await fetchVerified(new URL(page.url, base).href, page, combined)
+      indices.set(page.url, new Uint32Array(buffer))
+      pageBytesRead += buffer.byteLength
+      progress(++loaded, pages.length)
+    }
+  })
   try {
     await Promise.all(workers)
   } catch (error) {

@@ -1,3 +1,4 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 /** A struct field's WGSL type: its words, and its alignment in words (WGSL's struct rules). */
 const TYPES = {
   f32: [1, 1],
@@ -22,11 +23,11 @@ export function fieldLayout<T extends FieldTable>(name: string, table: T) {
     align = 1
   for (const [field, type] of table) {
     const [words, alignment] = TYPES[type]
-    end = Math.ceil(end / alignment) * alignment
+    end = alignUp(end, alignment)
     at[field as T[number][0]] = end
     end += words
     align = Math.max(align, alignment)
   }
   const wgsl = `struct ${name}{${table.map(([field, type]) => `${field}:${type},`).join('')}}`
-  return { at: at as Readonly<typeof at>, words: Math.ceil(end / align) * align, wgsl }
+  return { at: at as Readonly<typeof at>, words: alignUp(end, align), wgsl }
 }

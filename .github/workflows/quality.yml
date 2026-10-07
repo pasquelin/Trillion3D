@@ -102,7 +102,7 @@ jobs:
           lookup-only: true
       - if: steps.native.outputs.hit != 'true'
         uses: ./.github/actions/node
-      # Dependency crates of both crates (`lint:native` runs Clippy on each, from its own
+      # Dependency crates of the three crates (`lint:native` runs Clippy on each, from its own
       # `Cargo.lock` into its own `target/`).
       - uses: Swatinem/rust-cache@v2
         if: steps.native.outputs.hit != 'true'
@@ -110,6 +110,7 @@ jobs:
           workspaces: |
             packages/asset-compiler-rust
             packages/page-codec-wasm
+            packages/math/rust
       - if: steps.native.outputs.hit != 'true'
         run: pnpm run validate --group native
       - uses: actions/cache/save@v4

@@ -5,6 +5,7 @@ import { WHEEL_ROLE } from './vehicleLayout.ts'
 import { VEHICLE_SPECS } from './vehicleSpec.ts'
 import { wheelsOf } from './vehicleWheels.ts'
 import { BIKE, FOUR, HULL, rig, roles } from './vehicle.fixture.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 
 const { steers, driven, handbrake, sprocket } = WHEEL_ROLE
 
@@ -61,7 +62,7 @@ test('the steered wheels’ lock is the angle the turning radius asks of the whe
   }
   // A wheelbase longer than the radius locks at a right angle.
   const { body, wheels } = rig(FOUR.map(([x, z]) => [x, z * 4]))
-  assert.equal(wheelsOf(vehicle.car(body, { wheels, turnRadius: 2 })).maxSteer, Math.PI / 2)
+  assert.equal(wheelsOf(vehicle.car(body, { wheels, turnRadius: 2 })).maxSteer, HALF_PI)
 })
 
 test('a motorcycle drives its rear wheel; a tracked vehicle its rearmost wheel on each side', () => {

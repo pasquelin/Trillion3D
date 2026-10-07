@@ -351,17 +351,10 @@
     "summary": "네이티브 에셋 컴파일(prepare / CLI)의 옵션을 기술하는 JSON 스키마."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "프로세서 측 미러와 셰이더가 공유하는 원뿔 배제 허용치: 어떤 변환은 그 열들이 상대적으로 `CONE_LENGTH_RATIO` 이내로 같은 길이를 가지고 `CONE_ORTHO_EPS` 이내로 직교할 때 등각으로 간주된다; 각도가 `HALF_PI` 이상인 원뿔은 절대 배제되지 않는다.",
-    "description": "`_WGSL` 변형은 셰이더에 삽입되는 텍스트로, `SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)과 같은 종류다."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "셰이더 텍스트로서의 `CONE_LENGTH_RATIO`."
+    "summary": "프로세서 측 미러와 셰이더가 공유하는 원뿔 배제 허용치: 어떤 변환은 그 열들이 상대적으로 `CONE_LENGTH_RATIO` 이내로 같은 길이를 가지고 `CONE_ORTHO_EPS` 이내로 직교할 때 등각으로 간주된다; 각도가 `HALF_PI` 이상인 원뿔은 절대 배제되지 않는다."
   },
   "CONE_ORTHO_EPS": {
     "summary": "두 열이 직각에서 얼마나 벗어나도 여전히 직교로 간주되는가."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "셰이더 텍스트로서의 `CONE_ORTHO_EPS`."
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "컷아웃 응답 시트. `packages/asset-compiler-rust/src/cutout.rs`와 대응한다.",
@@ -1342,9 +1335,6 @@
   },
   "HALF_PI": {
     "summary": "4분의 1 회전, 라디안 단위."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "셰이더 텍스트로서의 `HALF_PI`."
   },
   "HIERARCHY_ROOT": {
     "summary": "한 번의 패스로 업데이트되는 전체 계층 구조: 부모가 자식보다 먼저 오도록 정렬된 `n`개의 노드가, 각각 로컬 행렬을 합성한 뒤 부모의 월드 행렬과 곱해진다.",
@@ -2746,9 +2736,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "정규화된 행렬식에 대한 임계값.",
     "description": "1e-12 미만에서는 어떤 스케일의 세제곱이 단정밀도에서 비정규화 수가 되어 버린다: 오직 정규화만이 그 하한을 넘어가므로, 이 임계값은 더 이상 행렬의 크기가 아니라 오직 그 형태만을 판단한다."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "그 상수로부터 렌더링된, WGSL이 쓰는 형태의 임계값: 하나의 숫자를, 두 언어로."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "팩 안 레코드의 첫 번째 워드."

@@ -16,6 +16,7 @@ import { createVsmResources } from './resources.ts'
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
 
 import { seeded } from './planFrames.fixture.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 export { seeded }
 export const PAGES = 2048
@@ -104,9 +105,9 @@ const cull = shaderRun<{
   vsmRectPixels: (view: number[], cull: Cull) => number[]
 }>(
   // The perspective box's corner list, `array<vec4f,8>(…)`, as a JavaScript array.
-  vsmRenderCullWgsl(res.layout).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
+  wgslSource(vsmRenderCullWgsl(res.layout)).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
   [
-    ...['vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective', 'vsmRectPixels'],
+    ...['vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective', 'vsmRectPixels', 'perspectiveDivide'],
     // The cull of the box in clip space they hand it to (`boxCullWgsl.ts`).
     ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
   ],

@@ -1,7 +1,7 @@
 import { encodeReflectionSource } from '../../reflections/encode.ts'
 import type { ScreenReflection } from '../../reflections/gpu.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts'
+import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_PROGRAM } from './shaders.ts'
 import { createContractVariants, type LitPrograms } from './contractVariants.ts'
 import { cutsIn } from './contractCuts.ts'
 import { createDeferredPlaceholders, type DeferredPlaceholders } from './setup.ts'
@@ -39,7 +39,12 @@ type LightingState = {
 const unlitProgram = (device: GPUDevice, bindings: DeferredBindings) =>
   createDeferredProgram(
     device,
-    { lighting: UNLIT_LIGHTING_SHADER, compose: UNLIT_COMPOSITIONS, label: 'UNLIT', direct: false },
+    {
+      lighting: () => UNLIT_LIGHTING_PROGRAM,
+      compose: UNLIT_COMPOSITIONS,
+      label: 'UNLIT',
+      direct: false,
+    },
     bindings,
   )
 

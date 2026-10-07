@@ -1,3 +1,4 @@
+import { ceilDiv, workgroupCount } from '../../../math/src/scalar/integers.ts'
 import { selectByKey } from '../../../math/src/select.ts'
 
 /**
@@ -13,8 +14,7 @@ import { selectByKey } from '../../../math/src/select.ts'
  */
 
 /** Nodes of the tree over `count` entries, `leaf` at most per leaf. */
-export const centreTreeNodes = (count: number, leaf: number) =>
-  2 * Math.max(1, Math.ceil(count / leaf)) - 1
+export const centreTreeNodes = (count: number, leaf: number) => 2 * workgroupCount(count, leaf) - 1
 
 /**
  * Builds the tree over `order[0, count)`, entry ranks whose centre `r` is `centres[3r..3r+3)`,
@@ -42,7 +42,7 @@ export function buildCentreTree(
     }
     // The left half takes a whole number of full leaves: every leaf but the last is full.
     const axis = longestAxis(centres, order, start, end),
-      middle = start + leaf * Math.ceil((end - start) / (2 * leaf))
+      middle = start + leaf * ceilDiv(end - start, 2 * leaf)
     // The median centre on `axis` at `middle`, the smaller before it and the larger after.
     selectByKey(order, (entry) => centres[3 * entry + axis], start, end, middle)
     build(start, middle)

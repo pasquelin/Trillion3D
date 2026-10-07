@@ -1,9 +1,9 @@
-// The `inverseTranspose3` kernel of `inverseTransposeWgsl.ts`, replayed in f32 on the CPU: the same
-// order of operations, the same rounding on every product and sum (`Math.fround`), the same guards.
-// This is the MODEL — what the shader must compute, not what it computes. What ties it to the text
-// the GPU runs is `tests/gpu/math/normal-transform.gpu.ts`, which compares, case by case, this model
-// with the shipped shader's output on Dawn; without it the model would be a second implementation,
-// free to drift in silence.
+// The `inverseTranspose3` kernel of `packages/math/src/wgsl/inverseTranspose.ts`, replayed in f32
+// on the CPU: the same order of operations, the same rounding on every product and sum
+// (`Math.fround`), the same guards. This is the MODEL — what the shader must compute, not what it
+// computes. What ties it to the text the GPU runs is `tests/gpu/math/normal-transform.gpu.ts`,
+// which compares, case by case, this model with the shipped shader's output on Dawn; without it the
+// model would be a second implementation, free to drift in silence.
 //
 // Written here rather than in a test: `normalTransform.test.ts` (lighting),
 // `packages/sdk-browser/src/gpu/dag/inverseTranspose.test.ts` (selection) and the GPU proof all read
@@ -103,10 +103,10 @@ export function inverseTransposeBefore(m: Mat3, v: Vec3): Vec3 {
 
 /**
  * The shipped kernel, in f32: the 3×3 divided by the sum of its absolute values before the
- * determinant, then the singular convention of `inverseTransposeWgsl.ts`. A zero, infinite or NaN
- * sum: the kernel zeroes the adjugate, so the product is the zero vector. A normalised determinant
- * under the threshold with a non-zero adjugate: the adjugate ALONE, without the `1/(det·t)` that
- * would be ±∞ — the cross product of the transformed edges, to 1/t².
+ * determinant, then the singular convention of `packages/math/src/wgsl/inverseTranspose.ts`. A
+ * zero, infinite or NaN sum: the kernel zeroes the adjugate, so the product is the zero vector. A
+ * normalised determinant under the threshold with a non-zero adjugate: the adjugate ALONE, without
+ * the `1/(det·t)` that would be ±∞ — the cross product of the transformed edges, to 1/t².
  */
 export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
   const t = m.reduce((s, column) => f(s + column.reduce((k, x) => f(k + Math.abs(x)), 0)), 0)

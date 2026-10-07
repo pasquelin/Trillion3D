@@ -351,17 +351,10 @@
     "summary": "Skema JSON yang mendokumentasikan opsi untuk kompilasi aset native (prepare / CLI)."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Toleransi penolakan kerucut, dibagikan bersama antara cerminan prosesor dan shader: sebuah transformasi bersifat conformal saat kolom-kolomnya berpanjang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`, secara relatif; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak.",
-    "description": "Varian `_WGSL` adalah teks yang disisipkan ke dalam shader, seperti `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` sebagai teks shader."
+    "summary": "Toleransi penolakan kerucut, dibagikan bersama antara cerminan prosesor dan shader: sebuah transformasi bersifat conformal saat kolom-kolomnya berpanjang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`, secara relatif; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak."
   },
   "CONE_ORTHO_EPS": {
     "summary": "Seberapa jauh dari siku-siku dua kolom masih dianggap tegak lurus."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` sebagai teks shader."
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "Lembar jawaban cutout, mencerminkan `packages/asset-compiler-rust/src/cutout.rs`.",
@@ -1350,9 +1343,6 @@
   },
   "HALF_PI": {
     "summary": "Seperempat putaran, dalam radian."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` sebagai teks shader."
   },
   "HIERARCHY_ROOT": {
     "summary": "HIERARKI PENUH diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya.",
@@ -2770,9 +2760,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "Ambang batas, pada determinan yang TERNORMALISASI.",
     "description": "Di bawah 1e-12, kubus sebuah skala menjadi denormal dalam presisi tunggal: hanya normalisasi yang menyeberangi batas bawah itu, jadi ambang batas ini tidak lagi menilai apa pun selain bentuk matriks itu, tidak pernah ukurannya."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "Ambang batas seperti ditulis WGSL, dirender dari konstantanya: satu angka, dua bahasa."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Kata pertama rekaman dalam paket itu."

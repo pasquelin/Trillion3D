@@ -1,4 +1,5 @@
 import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 /**
  * Engine memory budgets: FIXED-size pools, set by the host and never read off
@@ -8,10 +9,10 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts'
  * (`clamp`). The engine draws its geometry pool by this rule, its texture pools by
  * `../webgpu/residency/memoryBudgets.ts`.
  */
-export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024
+export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * MIB
 /** 512 MiB of textures, split between the colour and data atlases
  *  (`../webgpu/residency/memoryBudgets.ts`). */
-export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024
+export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * MIB
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
  *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables
@@ -25,6 +26,56 @@ export const storageBufferCap = (limits?: {
  *  under the 256 WebGPU guarantees. */
 export const uniformStride = (limits?: { minUniformBufferOffsetAlignment?: number }) =>
   Math.max(256, limits?.minUniformBufferOffsetAlignment ?? 256)
+
+/** Bytes `count` uniform slots occupy on a device of `limits`, `uniformStride` apart. */
+export const uniformSlotBytes = (limits: Parameters<typeof uniformStride>[0], count: number) =>
+  uniformStride(limits) * count
+
+/** Slots of one uniform buffer bound at dynamic offsets: where each lies and what it holds. */
+export type UniformSlots = {
+  /** Slots the buffer holds. */
+  readonly count: number
+  /** Words a slot really holds, the struct its kernels read: the rest of its stride is never
+   *  written nor compared. */
+  readonly words: number
+  /** Bytes between two slots: the device's `uniformStride`. */
+  readonly stride: number
+  /** Words between two slots: a slot's first word in an image laid as the buffer. */
+  readonly strideWords: number
+  /** Bytes the `count` slots occupy (`uniformSlotBytes`). */
+  readonly bytes: number
+  /** Slot `i`'s dynamic offset, one array a slot made once and kept, so a frame allocates none;
+   *  past `count` only on a `growable` layout — a list whose slots grow with the frame — made the
+   *  first time it is asked; a fixed layout refuses it. */
+  offset(i: number): number[]
+}
+
+/** The layout of `count` uniform slots of `words` words on a device of `limits`: the one place
+ *  where a slot's stride, its offsets and the bytes the slots occupy are drawn. `growable` lets
+ *  `offset` go past `count` (the slots of a list as long as the frame's); otherwise it throws. */
+export function uniformSlots(
+  limits: Parameters<typeof uniformStride>[0],
+  count: number,
+  words: number,
+  growable = false,
+): UniformSlots {
+  const stride = uniformStride(limits)
+  if (words * 4 > stride) throw new Error(`UNIFORM_SLOT_WORDS: ${words} words past ${stride} bytes`)
+  const offsets = Array.from({ length: count }, (_, i) => [i * stride])
+  return {
+    count,
+    words,
+    stride,
+    strideWords: stride / 4,
+    bytes: stride * count,
+    offset: (i) => {
+      if (i >= count && !growable) {
+        throw new Error(`UNIFORM_SLOT_PAST_COUNT: slot ${i} of ${count} slots of ${words} words`)
+      }
+      return (offsets[i] ??= [i * stride])
+    },
+  }
+}
 
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =

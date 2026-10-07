@@ -2,10 +2,16 @@
 //! it carries. The driver never places a light of its own — everything comes from
 //! imported data.
 use super::*;
-use crate::shared_math::{cross, divide, length, normalized_or};
+use crate::shared_math::normalized_or;
+use trillion3d_math::matrix::transform_direction;
+use trillion3d_math::vec3::{cross, normalize};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
-    vec![
+    matrix_columns(m).to_vec()
+}
+/// The matrix as sixteen floats, column by column.
+fn matrix_columns(m: &ufbx::Matrix) -> [f64; 16] {
+    [
         m.m00, m.m10, m.m20, 0.0, m.m01, m.m11, m.m21, 0.0, m.m02, m.m12, m.m22, 0.0, m.m03, m.m13,
         m.m23, 1.0,
     ]
@@ -23,16 +29,11 @@ pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64>
         [0.0, 1.0, 0.0]
     };
     let x = cross(up, z);
-    let x = divide(x, length(x));
+    let x = normalize(x);
     let y = cross(z, x);
     let n = &node.node_to_world;
-    let mul = |c: [f64; 3]| {
-        [
-            n.m00 * c[0] + n.m01 * c[1] + n.m02 * c[2],
-            n.m10 * c[0] + n.m11 * c[1] + n.m12 * c[2],
-            n.m20 * c[0] + n.m21 * c[1] + n.m22 * c[2],
-        ]
-    };
+    let columns = matrix_columns(n);
+    let mul = |c: [f64; 3]| transform_direction(&columns, c);
     let (cx, cy, cz) = (mul(x), mul(y), mul(z));
     vec![
         cx[0], cx[1], cx[2], 0.0, cy[0], cy[1], cy[2], 0.0, cz[0], cz[1], cz[2], 0.0, n.m03, n.m13,

@@ -5,6 +5,7 @@ import {
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Object3D } from '../object/object3d.ts'
 import type { Clip, Track } from './clip.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
 
 /** Keys per sway: the arc between two keys leaves the sine it follows by under one percent of
  *  the sway (`1 − cos(π / 24)`). */
@@ -46,7 +47,7 @@ export function windClip(bones: readonly Object3D[], options: WindOptions = {}):
     const unturned = parent ? [-parent.x, -parent.y, -parent.z, parent.w] : [0, 0, 0, 1]
     rotateByQuaternion(local, unturned, across[0], across[1], across[2])
     const values = times.flatMap((time) => {
-      const phase = (2 * Math.PI * time) / period - depth * Math.PI * 0.5
+      const phase = (TAU * time) / period - depth * HALF_PI
       axisAngleQuaternion(turn, local, angle * depth * (0.6 + 0.4 * Math.sin(phase)))
       return Array.from(multiplyQuaternion(posed, turn, rest))
     })

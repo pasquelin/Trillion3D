@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { cacheRun } from './triangleCache.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { SHADE_TRIS_SHADER } from './shadeCacheWgsl.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 const WIDTH = 24,
   HEIGHT = 16
@@ -69,10 +70,10 @@ test('each triangle two pixels read is cached, every pixel reads its decode bit 
   )
   assert.equal(run.cache[0], slots.length)
   // The fitting slots end where the cursor stopped; the dispatch covers them, a group no more.
-  const groups = Math.ceil(slots.length / 64)
+  const groups = ceilDiv(slots.length, 64)
   assert.deepEqual(
     [run.cache[SHADE_CACHE_END], ...run.work],
-    [slots.length, Math.min(groups, 2), Math.ceil(groups / 2), 1],
+    [slots.length, Math.min(groups, 2), ceilDiv(groups, 2), 1],
   )
   assert.ok(assertPixelsRead(run) > 0)
   // The frame holds every case: big, lone, past its page, every row cached.

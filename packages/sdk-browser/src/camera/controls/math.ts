@@ -1,3 +1,5 @@
+import { wrap } from '../../../../math/src/scalar/reals.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 /**
@@ -19,7 +21,7 @@ import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
  */
 export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>) {
   const halfAzimuth = spherical[1] / 2,
-    halfPolar = (spherical[2] - Math.PI / 2) / 2
+    halfPolar = (spherical[2] - HALF_PI) / 2
   const sy = Math.sin(halfAzimuth),
     cy = Math.cos(halfAzimuth),
     sx = Math.sin(halfPolar),
@@ -39,11 +41,11 @@ export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>
  * measured around the circle.
  */
 export function clampAzimuth(theta: number, min: number, max: number) {
-  const turn = 2 * Math.PI,
+  const turn = TAU,
     arc = max - min
   if (!Number.isFinite(arc) || arc >= turn) return theta
-  const span = ((arc % turn) + turn) % turn,
-    past = (((theta - min) % turn) + turn) % turn
+  const span = wrap(arc, turn),
+    past = wrap(theta - min, turn)
   if (past <= span) return theta
   return past - span < turn - past ? max : min
 }

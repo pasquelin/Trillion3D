@@ -1,6 +1,7 @@
 import type { VisMaterial } from '../types.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * THE SPRITE: where a corner of a sprite's quad (`drawnSprite`, sdk-core `drawnSprite.ts`) stands
@@ -20,7 +21,10 @@ import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
  * keeps its size on screen, 0 for every surface that is no sprite — which no raster moves.
  * The WGSL text and `spriteAt` below are the same arithmetic, in the same order.
  */
-export const SPRITE_WGSL = `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2f,sprite:vec2f)->vec4f{
+export const SPRITE_WGSL = wgslBlock(
+  'SPRITE_WGSL',
+  [],
+  `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2f,sprite:vec2f)->vec4f{
  let center=place[3];
  var a=corner*vec2f(length(place[0].xyz),length(place[1].xyz));
  if(sprite.y<0.0){a*=(toClip*center).w;}
@@ -28,7 +32,8 @@ export const SPRITE_WGSL = `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2
  let r=normalize(vec3f(toClip[0].x,toClip[1].x,toClip[2].x));
  let u=normalize(vec3f(toClip[0].y,toClip[1].y,toClip[2].y));
  return vec4f(center.xyz+(c*a.x-s*a.y)*r+(s*a.x+c*a.y)*u,1.0);
-}`
+}`,
+)
 
 /** Writes the two words every raster reads of a surface (`sprite`, above) into `out` at `at`:
  *  zeros on a surface that draws no sprite. */

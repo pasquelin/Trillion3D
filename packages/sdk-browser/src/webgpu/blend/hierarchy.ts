@@ -1,3 +1,4 @@
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../sdk-core/src/index.ts'
 import { buildCentreTree, centreTreeNodes } from '../../../../sdk-core/src/collision/centreTree.ts'
 import { refreshBlendWorlds } from './worlds.ts'
@@ -64,7 +65,7 @@ export function buildBlendHierarchy(blendState: BlendState) {
   tree.counts = new Int32Array(capacity)
   tree.skip = new Uint32Array(capacity)
   tree.boxes = new Float64Array(capacity * BOX_VALUES)
-  tree.mask = new Uint32Array((items.length + 31) >>> 5)
+  tree.mask = new Uint32Array(bitWords(items.length))
   const { first, links, counts, skip } = tree
   tree.nodes = boxed.length
     ? buildCentreTree(centres, tree.leaves, boxed.length, LEAF_ITEMS, links, counts)

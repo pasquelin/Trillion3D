@@ -35,8 +35,9 @@ import {
 } from './rowPageBound.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
-import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts'
-import { storageBufferCap } from '../residency/pools.ts'
+import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
+import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
 import { vsmWriteChanged } from './writeChanged.ts'
@@ -45,7 +46,6 @@ import {
   VSM_RENDER_ARGS_EXPAND,
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_CULL_SPECS,
-  VSM_RENDER_PARAMS_SLOT,
   vsmRenderCullWgsl,
 } from './renderCullWgsl.ts'
 import {
@@ -55,6 +55,8 @@ import {
   vsmChunkKernels,
   vsmChunkListGroups,
   vsmChunkListSizes,
+  vsmChunkPasses,
+  vsmChunkParamSlots,
   vsmChunkRows,
   vsmChunkRowsWithin,
   vsmContextBytes,
@@ -184,7 +186,7 @@ function vsmTransmissionWanted(
   counters: Uint32Array,
 ): VsmTransmissionCaps | undefined {
   const C = VSM_TRANSMISSION_COUNTERS
-  const grow = (held: number, need: number) => (need > held ? roundUpPow2(need) : held)
+  const grow = (held: number, need: number) => (need > held ? nextPow2(need) : held)
   const next = {
     records: grow(caps.records, counters[C.records]),
     patchWords: grow(caps.patchWords, counters[C.patchWords]),
@@ -328,6 +330,10 @@ interface Ctx extends VsmChunkKernels {
   buffers: Partial<
     Record<'params' | 'views' | 'candidates' | 'counts' | 'cmds' | 'pairs' | 'args', GPUBuffer>
   >
+  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
+  slots: UniformSlots
+  /** Each chunk's parameter offset, made once for every frame (`vsmChunkPasses`). */
+  passes: ReturnType<typeof vsmChunkPasses>
   /** What the chunk groups bound when made (`chunkGroups`). */
   bound: WebgpuBindIdentity
   /** The chunk groups over those alone, made again when one of them moved. */
@@ -459,6 +465,8 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
   const existing = contexts.get(trans)
   if (existing && existing.device === device) return existing
   const { layout } = trans
+  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
+  const slots = vsmChunkParamSlots(device.limits)
   const ctx: Ctx = {
     device,
     ...vsmTransmissionPipes(device, layout),
@@ -469,6 +477,8 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
+    slots,
+    passes: vsmChunkPasses('vsm.transmission', slots),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -541,6 +551,7 @@ export function encodeVsmTransmission(
   pass.setPipeline(ctx.clear.pipeline)
   pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
   pass.setBindGroup(1, groups.clear1)
+  // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
   if (bin) encodeBin(pass, ctx, scene, plan!, bin)
   // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty slice.
@@ -567,9 +578,6 @@ export function encodeVsmTransmission(
 // The frame's scratch of `encodeVsmTransmission`, rewritten each frame.
 const uniformImage = new Uint32Array(VSM_TRANSMISSION_UNIFORM_BYTES / 4)
 const viewList: number[] = []
-/** Each chunk's parameter offset, made once for every frame. */
-const chunkOffsets: number[][] = []
-const chunkOffset = (c: number) => (chunkOffsets[c] ??= [c * VSM_RENDER_PARAMS_SLOT])
 
 /** The groups of the clear, the number, the place and the resolve of `trans`: made once per
  *  transmission. */
@@ -614,10 +622,12 @@ function clearTablesGroup(
 }
 
 /** The transmission's lists for a chunk of `rows` of its `used` blended rows, by buffer: the
- *  render lists, its page list holding a header a command and the pages after them. */
+ *  render lists, their parameter slots `slots`, its page list holding a header a
+ *  command and the pages after them. */
 const transmissionSizes =
-  (used: number, rowCount: number, viewWords: number, holds: VsmChunk) => (rows: number) => ({
-    ...vsmChunkListSizes(rows, used, rowCount, viewWords, holds),
+  (used: number, rowCount: number, viewWords: number, holds: VsmChunk, slots: UniformSlots) =>
+  (rows: number) => ({
+    ...vsmChunkListSizes(rows, used, rowCount, viewWords, holds, slots),
     pairs:
       holds.cmds(rows) * VSM_TRANSMISSION_HEADER_BYTES +
       holds.pairs(rows) * VSM_TRANSMISSION_PAGE_BYTES,
@@ -625,10 +635,11 @@ const transmissionSizes =
 
 /**
  * The fewest bytes a transmission's chunk lists take to bin `used` of `rowCount` blended rows
- * under views of `viewWords` words and `viewMips` mips at `pages` pages (`vsmDrawFloorBytes`).
- * Asked with the first transmission.
+ * under views of `viewWords` words and `viewMips` mips at `pages` pages (`vsmDrawFloorBytes`), on
+ * a device of `limits`. Asked with the first transmission.
  */
 export function vsmTransmissionFloorBytes(
+  limits: GPUSupportedLimits,
   used: number,
   rowCount: number,
   viewWords: number,
@@ -639,7 +650,7 @@ export function vsmTransmissionFloorBytes(
   const holds = vsmWorstChunk(Math.min(CHUNK_ROWS, used), Math.min(viewMips, pages), pages)
   return vsmDrawFloorBytes(
     Math.min(CHUNK_ROWS, used),
-    transmissionSizes(used, rowCount, viewWords, holds),
+    transmissionSizes(used, rowCount, viewWords, holds, vsmChunkParamSlots(limits)),
   )
 }
 
@@ -754,13 +765,18 @@ function binPlan(
     frame.device,
     ctx.buffers,
     chosen.rows,
-    transmissionSizes(used, rowCount, views.length, chosen),
+    transmissionSizes(used, rowCount, views.length, chosen, ctx.slots),
   )
   const chunkRows = within.rows
   // The opaque raster's parameter slots (`renderPass.ts`), `rowCount` = the blended rows.
   if (within.size)
     vsmSetChunking(
-      { rowCount, viewCount: views.length / 4, chunks: ceilDiv(used, chunkRows), chunkRows },
+      {
+        rowCount,
+        viewCount: views.length / 4,
+        chunks: ceilDiv(used, chunkRows),
+        chunkRows,
+      },
       chosen,
     )
   return {
@@ -785,7 +801,7 @@ function binLists(
   plan: BinPlan,
 ) {
   const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views)
+  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }
 }
@@ -802,7 +818,7 @@ function encodeBin(
   encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, ctx, lists.args, plan.rowCount)
   const cull = { cull0: tables.cull0, cull1: lists.cull1, args: lists.args }
   for (let c = 0; c < plan.chunks; c++) {
-    const offset = chunkOffset(c)
+    const { offset } = ctx.passes.chunk(c)
     encodeVsmChunkCommands(pass, ctx, cull, args, c, offset)
     // A group per command, as the expand's arguments: its pages, then its triangles.
     const at = (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_EXPAND) * 4

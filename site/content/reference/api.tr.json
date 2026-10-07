@@ -359,17 +359,10 @@
     "summary": "Yerel varlık derlemesi (prepare / CLI) için seçenekleri belgeleyen JSON Şeması."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "İşlemci aynası ve shader tarafından paylaşılan koni eleme toleransları: bir dönüşüm, sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde göreli olarak ortogonal olduğunda konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez.",
-    "description": "`_WGSL` varyantları, `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`) gibi shader'a eklenen metindir."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "Shader metni olarak `CONE_LENGTH_RATIO`."
+    "summary": "İşlemci aynası ve shader tarafından paylaşılan koni eleme toleransları: bir dönüşüm, sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde göreli olarak ortogonal olduğunda konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez."
   },
   "CONE_ORTHO_EPS": {
     "summary": "İki sütunun kareden ne kadar uzak olabileceği ve yine de kare sayılabileceği."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "Shader metni olarak `CONE_ORTHO_EPS`."
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "`packages/asset-compiler-rust/src/cutout.rs`'i yansıtan kesit yanıt sayfası.",
@@ -1517,9 +1510,6 @@
   },
   "HALF_PI": {
     "summary": "Çeyrek bir tur, radyan cinsinden."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "Shader metni olarak `HALF_PI`."
   },
   "HIERARCHY_ROOT": {
     "summary": "Tek bir geçişte güncellenen TAM HİYERARŞİ: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur ve sonra bunu ebeveyninin dünya matrisiyle çarpar.",
@@ -3195,9 +3185,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "NORMALİZE EDİLMİŞ determinant üzerindeki eşik.",
     "description": "1e-12'nin altında, bir ölçeğin küpü tek hassasiyette denormal hale gelir: yalnızca normalizasyon bu tabanı geçer, bu yüzden bu eşik artık matrisin boyutu hakkında değil, yalnızca şekli hakkında karar verir."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "Sabitten oluşturulan, WGSL'nin yazdığı şekliyle eşik: bir sayı, iki dil."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Pakette kaydın ilk kelimesi."

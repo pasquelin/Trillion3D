@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * THE CUT RULE: the GPU kernel (`../../gpu/dag/shader/shader.ts`) and its CPU model
  * (`../../gpu/dag/oracle/oracle.fixture.ts`) decide a cluster with the predicate below, and nothing else
@@ -21,10 +23,14 @@
 
 /** The rule in WGSL, for the kernel that draws (`dagMask`): `drawsCompared` on the two comparisons
  *  the cut makes, the form a camera's `dagMask` calls on the bits `dagWanted` kept this frame. */
-export const CUT_RULE_WGSL = `fn drawsCluster(resident:bool,parentPixels:f32,ownPixels:f32,childResident:bool,threshold:f32)->bool{
+export const CUT_RULE_WGSL = wgslBlock(
+  'CUT_RULE_WGSL',
+  [],
+  `fn drawsCluster(resident:bool,parentPixels:f32,ownPixels:f32,childResident:bool,threshold:f32)->bool{
  return drawsCompared(resident,parentPixels>threshold,ownPixels<=threshold,childResident);
 }
 fn drawsCompared(resident:bool,parentAbove:bool,ownWithin:bool,childResident:bool)->bool{
  return resident&&parentAbove&&(ownWithin||!childResident);
 }
-`
+`,
+)

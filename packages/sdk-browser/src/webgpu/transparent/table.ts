@@ -1,3 +1,4 @@
+import { alignUp, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
@@ -76,7 +77,7 @@ function itemOrders(roots: ReadonlyArray<ClusterRoot<PageRec>>, paged: readonly 
       for (const index of local) order.push(owner.base + index)
     }
     orders.push(order)
-    length += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP
+    length += alignUp(order.length, TRANSPARENT_GROUP)
   }
   return { orders, length }
 }
@@ -125,7 +126,7 @@ export function createTransparentTable(
       entryOfPage[pageIndex] = entry
       if (words > maxVertexWords) maxVertexWords = words
     }
-    at += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP
+    at += alignUp(order.length, TRANSPARENT_GROUP)
   }
   return {
     entries,
@@ -138,7 +139,7 @@ export function createTransparentTable(
     /** Entries in use, including alignment padding. */
     length,
     capacity,
-    groupCount: Math.max(1, Math.ceil(capacity / TRANSPARENT_GROUP)),
+    groupCount: workgroupCount(capacity, TRANSPARENT_GROUP),
     /** Vertices one instance draws: the longest index run any transparent cluster holds. */
     maxVertexWords,
   }

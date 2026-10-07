@@ -5,10 +5,10 @@
 //! meets its reverse once positions are welded: a mesh with an open or one-way edge bounds no
 //! volume, and is refused by name.
 use super::refused;
-use crate::shared_math::{cross, divide, dot, sub};
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use trillion3d_math::vec3::{divide, sub, triple};
 
 /// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
 pub(super) const DENSITY: f64 = 1000.0;
@@ -47,7 +47,7 @@ pub(super) fn solid_mass(
     let (mut first, mut second) = ([0.0; 3], [[0.0; 3]; 3]);
     for t in triangles.as_chunks::<3>().0 {
         let [a, b, c] = t.map(|i| sub(at(i), origin));
-        let det = dot(a, cross(b, c));
+        let det = triple(a, b, c);
         let sum = [0, 1, 2].map(|k| a[k] + b[k] + c[k]);
         (volume, spanned) = (volume + det / 6.0, spanned + det.abs() / 6.0);
         for r in 0..3 {

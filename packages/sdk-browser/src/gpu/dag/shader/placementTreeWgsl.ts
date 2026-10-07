@@ -1,5 +1,8 @@
 import { TREE_GROUP } from '../placementTree.ts'
 import { CARD_ROOT } from '../../../visibility/shader/spriteWgsl.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { LEVEL_QUEUES } from './levelWgsl.ts'
 
 /**
  * The placement tree in the descent (`../placementTree.ts`): its levels top first, the last its
@@ -18,7 +21,10 @@ import { CARD_ROOT } from '../../../visibility/shader/spriteWgsl.ts'
  * leaves out, wherever the packing put it (`worldRoot`) —, and `dagPrepare` writes those alone.
  * Without one, it holds one root per placement, as it always did.
  */
-export const DAG_TREE_PREPARE_WGSL = `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
+export const DAG_TREE_PREPARE_WGSL = wgslBlock(
+  'DAG_TREE_PREPARE_WGSL',
+  [],
+  `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
 fn hasTree()->bool{return views[0u].treeTop>0u;}
 /** Queue 0's entries a view opens: one root per placement without a tree; with one, its top
  *  nodes, then the world DAG's root when it is packed. */
@@ -52,10 +58,14 @@ fn preparePlacement(w:u32){
  let open=unculledOf(w);
  putPlanes(slotOf(w)*FRAME,m,vi,open);preparePrimitive(w,pose,m,open);
 }
-`
+`,
+)
 
-/** The tree's share of the level descent (\`levelWgsl.ts\`), its \`queues\` in rotation. */
-export const treeDescentWgsl = (queues: number) => `const TREE_GROUP:u32=${TREE_GROUP}u;
+/** The tree's share of the level descent (`levelWgsl.ts`), on its queues in rotation. */
+export const DAG_TREE_DESCENT_WGSL = wgslBlock(
+  'DAG_TREE_DESCENT_WGSL',
+  [boxBehindPlane],
+  `const TREE_GROUP:u32=${TREE_GROUP}u;
 /** Member \`k\` of the tree's order (\`members\`, behind the cold records), deposited by its kept group
  *  under the view \`vi\`: its placement prepared, then its root tested as pass 0 tests an ungrouped
  *  one, unless its gate closes it (\`opensRoot\`). */
@@ -83,12 +93,13 @@ fn treeStep(src:u32,node:CullNode){
  *  infinite far plane (a NaN plane, \`farless\`) rejects nothing. */
 fn outsideView(v:u32,lo:vec3f,hi:vec3f)->bool{
  let noFar=(bitcast<u32>(views[v].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;
- for(var i=0u;i<6u;i++){if((i!=FAR_PLANE||!noFar)&&outsidePlane(views[v].planes[i],lo,hi)){return true;}}
+ for(var i=0u;i<6u;i++){if((i!=FAR_PLANE||!noFar)&&boxBehindPlane(views[v].planes[i],lo,hi)){return true;}}
  return false;
 }
 /** A kept cell opens its groups, a kept group its placements, in the next queue. */
 fn descendTree(src:u32,node:CullNode){
  let first=select(node.firstChild,views[0u].nodeCount+node.firstChild,node.kind==TREE_GROUP);
- queueAppend((src+1u)%${queues}u,first,node.childCount);
+ queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount);
 }
-`
+`,
+)

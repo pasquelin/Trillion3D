@@ -1,3 +1,4 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts'
 import { pageTableRows } from './pageTableRows.ts'
@@ -15,7 +16,7 @@ export const VIEW_ROWS = 1 << 18,
  *  growing view grows the table a few times, never once per image, and ahead of the rows it draws;
  *  within what a visibility ID names. */
 export const viewRowsFor = (asked: number) =>
-  Math.min(VIS_MAX_PAGES, Math.ceil((1.25 * Math.max(1, asked)) / ROW_STEP) * ROW_STEP)
+  Math.min(VIS_MAX_PAGES, alignUp(1.25 * Math.max(1, asked), ROW_STEP))
 
 /**
  * THE ROWS OF THE PAGE TABLE, bounded by the device. The visibility rows (`draw`) and the blended

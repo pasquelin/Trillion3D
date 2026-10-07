@@ -23,12 +23,14 @@ import { createWebgpuGpuState } from '../../webgpu/pages/state/gpu.ts'
 import { createWebgpuBlendState } from '../../webgpu/blend/state.ts'
 import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../../webgpu/blend/plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../../webgpu/blend/order.ts'
 import { itemKept } from '../../webgpu/blend/hierarchyCull.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -85,7 +87,7 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
   assert.ok(constant.length > 0)
   for (const slot of constant) assert.equal(slot, NO_HIZ_SLOT)
   assert.deepEqual(await rowHizSlots(true), [0, 1], 'an attenuated sprite keeps its rank')
-  assert.ok(HIZ_REJECTED_WGSL.includes('hizSlot!=0xffffffffu&&'))
+  assert.ok(wgslSource(HIZ_REJECTED_WGSL).includes('hizSlot!=0xffffffffu&&'))
   // A row moved to another rank keeps having none; any other row takes its new rank.
   const ints = new Uint32Array(64)
   ints[ROW_HIZ_SLOT_WORD] = NO_HIZ_SLOT
@@ -163,7 +165,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   )
   // Planes no box passes: the attenuated sprite leaves, the constant-size one stays.
   blendState.blendPlanes.set(Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? -1 : 0)))
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 1)
   assert.deepEqual(

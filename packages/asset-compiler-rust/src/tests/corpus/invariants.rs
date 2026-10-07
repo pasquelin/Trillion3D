@@ -105,7 +105,7 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         }
         // The projection spheres: each holds its cluster and sits in the replacing group's,
         // within the builder merge's own rounding.
-        use crate::shared_math::{length, point, sub};
+        use trillion3d_math::vec3::{length, point, sub};
         let beyond = |s: [f64; 4], c| length(sub(c, [s[0], s[1], s[2]])) - s[3] * (1.0 + 1e-12);
         let [x, y, z, r] = cluster.sphere;
         let outside = (cluster.indices.iter())

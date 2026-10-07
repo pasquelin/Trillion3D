@@ -15,6 +15,8 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { MaterialParameters } from '../../../../sdk-core/src/world/material/material.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The engine camera at `eye`, looking at the origin: 55° of field on a square image. */
 function camera(eye: number[]) {
@@ -40,7 +42,7 @@ function place(at: number[], turn: number, scale: number[]) {
   return m.elements
 }
 
-const run = runShaderText(SPRITE_WGSL)
+const run = runShaderText(wgslSource(SPRITE_WGSL))
 const CASES = [
   { eye: [0, 0, 6], at: [0.4, -0.2, 1], turn: 0, scale: [1, 1, 1], rotation: 0, attenuate: true },
   { eye: [7, 2, 0], at: [0, 1, 0], turn: 1.1, scale: [3, 1.5, 1], rotation: 0.7, attenuate: true },
@@ -138,12 +140,12 @@ test('one sprite seen from the front, the side and behind covers the same pixels
     [[5, 0, 0], 0],
     [[0, 0, -5], 0],
     [[0, 5, 0.001], 0],
-    [[0, 0, 5], Math.PI / 2],
+    [[0, 0, 5], HALF_PI],
   ] as const) {
     const seen = covered([...eye], turn)
     assert.ok(Math.abs(seen - front) <= front * 0.01, `${eye} turned ${turn}: ${seen} ≠ ${front}`)
   }
   // A quarter turn of the picture changes nothing to a square's coverage; half its scale does.
-  const turned = covered([5, 0, 0], 0, { rotation: Math.PI / 2 })
+  const turned = covered([5, 0, 0], 0, { rotation: HALF_PI })
   assert.ok(Math.abs(turned - front) <= front * 0.01)
 })

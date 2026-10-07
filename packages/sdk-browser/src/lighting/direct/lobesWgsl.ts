@@ -1,11 +1,20 @@
-import { INVERSE_PI, PI } from '../shaderConstants.ts'
+import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
+import {
+  DIELECTRIC_F0,
+  fresnelScalar,
+  fresnelSchlick,
+  lambertAlbedoMul,
+  ndotvFloor,
+} from '../../../../math/src/wgsl/lighting.ts'
 
 /**
  * The lighting of the physical material's anisotropic and clear-coat lobes
  * (`../../scene/physicalLobes.ts`), from the Khronos material extension equations: in the opaque
- * resolve's program that has them (`contractLightingShader`, `key.lobeless` false), which reads a
+ * resolve's program that has them (`contractLightingProgram`, `key.lobeless` false), which reads a
  * pixel's lobes from the lobes target (`LOBES_TARGET_WGSL`), in the blend pass's lobed programs,
  * which compute them in place (`../../webgpu/blend/physicalWgsl.ts`), and in the water composite's,
  * which reads what its surface stage left in that target (`../../webgpu/water/waterLobesWgsl.ts`).
@@ -24,13 +33,16 @@ import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
  * and half-vector once for the base and the coat (`standardLobe`). A rectangle stretches its polygon in the direction's frame before its fitted
  * lobe, and lights the coat with that lobe on the coat normal.
  */
-export const LOBES_LIGHTING_WGSL = `
+export const LOBES_LIGHTING_WGSL = wgslBlock(
+  'LOBES_LIGHTING_WGSL',
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor, vectorRejection],
+  `
 struct Lobes{on:bool,strength:f32,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
 /** A pixel's lobes: its direction \`d\` kept orthogonal to the normal the lighting reads, and what
  *  its lights share of them at its roughness \`rough\`. */
 fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,rough:f32){
- let t=d-N*dot(N,d);let l=dot(t,t);
+ let t=vectorRejection(d,N);let l=dot(t,t);
  lobes.on=true;
  lobes.strength=select(0.0,strength,l>1e-12);
  lobes.T=select(vec3f(0.0),t*inverseSqrt(max(l,1e-24)),l>1e-12);
@@ -38,8 +50,8 @@ fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:ve
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
  let alpha=rough*rough;
  lobes.at=mix(alpha,1.0,lobes.strength*lobes.strength);lobes.ab=alpha;
- lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(${PI}*lobes.at*lobes.ab);
- lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),max(dot(N,V),1e-4)));
+ lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
+ lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvFloor(N,V)));
  // Without a coat, its surface is never read (every coat term asks \`lobes.coat>0.0\`) and the base
  // goes through whole: 1-0*F is exactly 1.
  if(lobes.coat>0.0){
@@ -115,32 +127,44 @@ fn lobeRectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(incident.w<=0.0){return coat;}
  let E=light.colorIntensity.w*incident.w;
  let specular=rectLobe(r,N,V,f0,rough,lobes.strength,lobes.T)*light.colorIntensity.w*r.window;
- return (rgb*(1.0-metal)*${INVERSE_PI}*E+specular)*tint*lobes.through+coat;
-}`
+ return (lambertAlbedoMul(rgb,metal)*E+specular)*tint*lobes.through+coat;
+}`,
+)
 
 /** A lobeless program's stand-ins (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
  *  lets the whole base through, an exact one, and the mirror term is the surface's — every term
  *  they weigh keeps its bits. */
-export const LOBELESS_LIGHTING_WGSL = `fn lobeThrough()->f32{return 1.0;}
-fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{return m;}`
+export const LOBELESS_LIGHTING_WGSL = wgslBlock(
+  'LOBELESS_LIGHTING_WGSL',
+  [],
+  `fn lobeThrough()->f32{return 1.0;}
+fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{return m;}`,
+)
 
 /** The read of a pixel's lobes from the lobes target, a read-only storage texture: no sampled
  *  texture of the sixteen a stage is guaranteed (`../deferred/setup.ts`). `lobesAt` decodes a
  *  texel `w`, its coat normal turned by `side` (-1 where the water composite turned the stored
  *  normal to face the eye, `../../webgpu/water/waterLobesWgsl.ts`); `readLobes`, the opaque
  *  resolve's, reads the pixel's texel as it is stored. */
-export const LOBES_TARGET_WGSL = `
+export const LOBES_TARGET_WGSL = wgslBlock(
+  'LOBES_TARGET_WGSL',
+  [LOBE_PACK_WGSL],
+  `
 ${PHYSICAL_LOBES_TARGET.wgsl}
-${LOBE_PACK_WGSL}
 fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
  let s=unpack2x16unorm(w.z);
  setLobes(lobeOctDecode(w.x),s.x,s.y,bitcast<f32>(w.w),lobeOctDecode(w.y)*side,N,V,rough);
 }
-fn readLobes(coord:vec2i,N:vec3f,V:vec3f,rough:f32){lobesAt(textureLoad(physicalLobes,coord),1.0,N,V,rough);}`
+fn readLobes(coord:vec2i,N:vec3f,V:vec3f,rough:f32){lobesAt(textureLoad(physicalLobes,coord),1.0,N,V,rough);}`,
+)
 
 /** A lobeless resolve's stand-in (`LOBES_TARGET_WGSL`'s): no pixel carries the flag, none is read. */
-export const LOBELESS_TARGET_WGSL = `fn readLobes(coord:vec2i,N:vec3f,V:vec3f,rough:f32){}`
+export const LOBELESS_TARGET_WGSL = wgslBlock(
+  'LOBELESS_TARGET_WGSL',
+  [],
+  `fn readLobes(coord:vec2i,N:vec3f,V:vec3f,rough:f32){}`,
+)
 
 /** The surface reads its lobes where its flag says so (`contractSurfaceBody`), at its roughness. */
-export const readLobesWgsl = (flag: number) =>
+export const readLobesStatement = (flag: number) =>
   `if((surfaceFlag&${flag}u)!=0u){readLobes(coord,N,V,normal.a);}`

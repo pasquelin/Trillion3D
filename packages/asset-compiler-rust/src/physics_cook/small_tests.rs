@@ -3,7 +3,7 @@
 use super::stage::gathered;
 use super::tests::{cluster, golden_tile, RAMP, RAMP_TRIANGLES};
 use super::*;
-use crate::shared_math::{cross, dot, sub};
+use trillion3d_math::vec3::{cross, dot, sub};
 
 /// The same ramp 2^-12 as large, under half a millimetre: Jolt drops both its triangles, so it is
 /// cooked scaled up inside a `ScaledShape`. The module's tests restore it under an instance

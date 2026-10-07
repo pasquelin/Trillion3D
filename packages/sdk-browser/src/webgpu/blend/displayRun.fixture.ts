@@ -7,6 +7,7 @@ import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environme
 import { filmic, type Rgba } from './blendModel.fixture.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
 import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The curve the routes are run with, the reference display's. */
 export const ACES = TONE_MAPPING_RANK.aces
@@ -41,7 +42,7 @@ type RouteRun = (
 /** The shipped `displayRoute` of a pipeline made with `DISPLAY_ROUTE` `kind`. */
 const routeOf = (kind: 0 | 1 | 2) =>
   shaderRun<{ displayRoute: RouteRun }>(
-    `${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(0)}`,
+    wgslModule(DISPLAY_ROUTE_WGSL, displayMaskWgsl(0)),
     ROUTE_FUNCTIONS,
     routeScope(kind),
   ).displayRoute
@@ -64,7 +65,7 @@ export const displayFilterRun = (
   tintMap: (uv: number[]) => number[],
   addMap: (uv: number[]) => number[],
 ) =>
-  shaderRun<Filter>(DISPLAY_FILTER_SHADER, ['screen', 'layer', 'tint', 'add'], {
+  shaderRun<Filter>(DISPLAY_FILTER_SHADER, ['screen', 'layer', 'tint', 'add', 'ndcToUv'], {
     tintMap,
     addMap,
     layerSampler: 'linear',

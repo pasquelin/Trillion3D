@@ -1,3 +1,5 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+
 /**
  * One view's uniform block, described once.
  *
@@ -56,8 +58,7 @@ const VIEW_FIELDS = [
 ] as const satisfies readonly Field[]
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
-const firstWord = (field: Field, after: number): number =>
-  Math.ceil(after / field.align) * field.align
+const firstWord = (field: Field, after: number): number => alignUp(after, field.align)
 
 /** The word each field starts at, in declaration order. */
 const VIEW_WORD: Readonly<Record<string, number>> = Object.freeze(

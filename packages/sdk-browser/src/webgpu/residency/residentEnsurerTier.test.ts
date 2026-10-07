@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
@@ -61,7 +62,7 @@ test('a task starts no page past the published share', async () => {
     assert.equal(cache.resident.size, 12, 'every page admitted')
     assert.ok(tasks.length > 1, `across several tasks (${tasks.join(' ')})`)
     // A page starts only within the share: the share's worth, and the one begun at its edge.
-    for (const count of tasks) assert.ok(count <= Math.ceil(STREAMING_FRAME_MS / cost), `${count}`)
+    for (const count of tasks) assert.ok(count <= ceilDiv(STREAMING_FRAME_MS, cost), `${count}`)
   } finally {
     mock.restoreAll()
   }

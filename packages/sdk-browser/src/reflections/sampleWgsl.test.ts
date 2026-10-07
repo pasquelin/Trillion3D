@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stochasticReflectionShader } from './sampleWgsl.ts'
-import { contractLightingShader } from '../lighting/deferred/shaders.ts'
+import { contractLightingProgram } from '../lighting/deferred/shaders.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
-import { MIRROR_TRANSITION_END } from './modelShader.ts'
+import { MIRROR_TRANSITION_END } from '../lighting/shaderConstantsWgsl.ts'
 
 const trace = (bounce: boolean, unbounded: boolean) =>
-  functionsOf(stochasticReflectionShader(contractLightingShader(bounce), unbounded), [
+  functionsOf(stochasticReflectionShader(contractLightingProgram(bounce), { unbounded }), [
     'traceRoughReflection',
   ])
 
@@ -15,11 +15,13 @@ test('a rough sample spends the bounded Hi-Z walk, and a miss reads the filtered
     const sample = trace(bounce, false)
     assert.match(sample, /return vec4f\(boundedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/)
     assert.doesNotMatch(sample, /resolvedReflectionRay|reflectedRadiance\(|proxyReflectionRay/)
-    const ray = functionsOf(stochasticReflectionShader(contractLightingShader(bounce), false), [
-      'boundedReflectionRay',
-    ])
+    const program = stochasticReflectionShader(contractLightingProgram(bounce), {
+      unbounded: false,
+    })
+    const ray = functionsOf(program, ['boundedReflectionRay'])
     assert.match(ray, /screenReflection\(P\+N\*shadowFootprint,R\)/)
-    assert.ok(ray.includes(`filteredReflectedRadiance(P,N,R,${MIRROR_TRANSITION_END})`))
+    assert.ok(ray.includes('filteredReflectedRadiance(P,N,R,MIRROR_TRANSITION_END)'))
+    assert.ok(program.includes(MIRROR_TRANSITION_END.text))
     assert.doesNotMatch(ray, /resolvedReflectionRay|proxyReflectionRay/)
   }
 })
@@ -29,14 +31,14 @@ test("a reference session's program walks the whole ray with the program's whole
     const sample = trace(bounce, true)
     assert.match(sample, /return vec4f\(resolvedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/)
     assert.doesNotMatch(
-      stochasticReflectionShader(contractLightingShader(bounce), true),
+      stochasticReflectionShader(contractLightingProgram(bounce), { unbounded: true }),
       /boundedReflectionRay/,
     )
   }
 })
 
 test('the filtered reflection is the rough branch of the full one, without its proxy ray', () => {
-  const bounced = stochasticReflectionShader(contractLightingShader(true))
+  const bounced = stochasticReflectionShader(contractLightingProgram(true))
   const [filtered, full] = [
     functionsOf(bounced, ['filteredReflectedRadiance']),
     functionsOf(bounced, ['reflectedRadiance']),

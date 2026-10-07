@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { at, fixtureDrag, fixtureOrbit as orbit, round } from './controls.fixture.ts'
@@ -17,7 +18,7 @@ test('orbit starts with its angles unbounded: a full turn of azimuth, pole to po
 
 test('orbit holds the polar angle between its bounds, on a drag and on `update()`', () => {
   const { camera, controls, surface } = orbit(10)
-  controls.maxPolarAngle = Math.PI / 2
+  controls.maxPolarAngle = HALF_PI
   controls.update()
   // Dragging up would take the camera under the ground; the horizon stops it.
   fixtureDrag(surface, 0, -100)

@@ -1,11 +1,11 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
-import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts'
+import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
- *  (`GROUP_WIDTH`, `shader/gridWgsl.ts`). The real-GPU compile probe builds exactly these
+ *  (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these
  *  (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
 export async function createDagStages(
   device: GPUDevice,

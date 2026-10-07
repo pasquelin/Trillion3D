@@ -1,6 +1,12 @@
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
+import { invTranspose3Apply, uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
+import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { lecture, lectureDonnee, siCarte } from './maps.ts'
 import {
   AS_IS_FLAG,
@@ -13,7 +19,7 @@ import {
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
 import { FLAG_FOG_FREE } from '../types.ts'
-import { PHYSICAL_LOBES_CALL_WGSL, PHYSICAL_UV_WGSL } from './physicalWgsl.ts'
+import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -21,10 +27,9 @@ import { PHYSICAL_LOBES_CALL_WGSL, PHYSICAL_UV_WGSL } from './physicalWgsl.ts'
  * `HAS_UV`, `HAS_MAP` and the other class constants are pipeline overrides, never tested per pixel
  * on `page.flags`; a kept path runs the per-pixel test's arithmetic, operand for operand.
  */
-export const SHADE_SHADER = `${SHADE_DECL_WGSL}
-${NORMAL_VIEW_COLOR_WGSL}
-${EMISSIVE_AO_FLAG_WGSL}
-/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
+export const shadeShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
+  wgslProgram(
+    `/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
  *  transmission, and its shadow receiver's offset and plane. Private, so zero at each pixel's start:
  *  a path that finds none leaves zero, as a cleared texel holds. */
 var<private> thinOut:vec3f;
@@ -43,9 +48,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  // the resolve reads (\`decodeTriangle\`).
  let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;let c0=t.p0;let c1=t.p1;let c2=t.p2;
  let p=vec2f(pos.x,pos.y);
- let area=edge(s1.xy,s2.xy,s0.xy);
+ let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var rgb=page.baseColor.xyz;
- let bary=perspectiveBary(s0,s1,s2,t.iw,p,area);
+ let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
  var uv=vec2f(0.0);
  let absArea=abs(area);
  let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
@@ -64,7 +69,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
- ${PHYSICAL_UV_WGSL}
+ ${PHYSICAL_UV_READ}
  let request=shadeRequest(page,pos.xy,uv,ddx,ddy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
@@ -99,10 +104,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
  if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0);
+ var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,ROUGHNESS_FLOOR,1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
-  let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
+  let world3=worldMatrix3(page.world);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
   // and only the side the screen sees it from remains. The determinant test of the row's frame
@@ -118,9 +123,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    let lit=select(1.0,face,DOUBLE_SIDED);
    let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
    rcvOffset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
-   rcvPlane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
+   rcvPlane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
   }
-  var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
+  var N=uniteOuZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
@@ -159,7 +164,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
- ${PHYSICAL_LOBES_CALL_WGSL}
+ ${PHYSICAL_LOBES_CALL}
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
@@ -173,4 +178,21 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  storeReceiver(pos.xy,rcvOffset,rcvPlane);
  return surface;
 }
-`
+`,
+    [
+      NORMAL_VIEW_COLOR_WGSL,
+      EMISSIVE_AO_FLAG_WGSL,
+      SHADE_DECL_WGSL,
+      ROUGHNESS_FLOOR,
+      worldMatrix3,
+      invTranspose3Apply,
+      uniteOuZero,
+      edgeFunction,
+      perspectiveBarycentric,
+      faceNormal,
+      ...(diagnostic ? [diagnostic] : []),
+    ],
+  )
+
+/** The resolve's module without a diagnostic stage: what production compiles. */
+export const SHADE_SHADER = shadeShader()

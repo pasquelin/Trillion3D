@@ -11,6 +11,7 @@
 //! needs; past the last one, every node.
 use super::*;
 use std::collections::HashMap;
+use trillion3d_math::aabb::diagonal;
 
 /// How many sides the ladder lists.
 pub(crate) const RUNGS: usize = 32;
@@ -78,10 +79,8 @@ pub(crate) fn view_rows(records: &[Value]) -> (String, Vec<String>) {
             let Ok(bounds) = <Box6>::try_from(values) else {
                 continue;
             };
-            let diagonal = (0..3)
-                .map(|a| (bounds[a + 3] - bounds[a]).powi(2))
-                .sum::<f64>();
-            cube = cube.max(diagonal.sqrt());
+            let [x0, y0, z0, x1, y1, z1] = bounds;
+            cube = cube.max(diagonal([x0, y0, z0], [x1, y1, z1]));
             groups
                 .entry(part[0].as_u64())
                 .or_default()

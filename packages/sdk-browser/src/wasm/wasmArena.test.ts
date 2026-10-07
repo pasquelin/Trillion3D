@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { prepareSdkWasm, type SdkWasm } from './sdkWasm.ts'
 import { javaScriptBlocks, reserveArena, type ArenaRequest } from './wasmArena.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 const MODULE = readFileSync(join(import.meta.dirname, 'kernels.wasm'))
 
@@ -80,7 +81,7 @@ test('views are rebuilt when a LATER allocation grows memory', async () => {
   assert.equal(arena.generation(), 0, 'nothing has grown memory yet')
   // An allocation that has nothing to do with this buffer — another kernel's, on the same
   // module — replaces the module's `ArrayBuffer` and detaches the previous view.
-  const large = wasm.arena_alloc(64 * 1024 * 1024)
+  const large = wasm.arena_alloc(64 * MIB)
   assert.ok(large, 'the large reservation must succeed')
   assert.equal(before.length, 0, 'the previous view must have been detached by the growth')
   const after = arena.blocks()[0]
@@ -91,7 +92,7 @@ test('views are rebuilt when a LATER allocation grows memory', async () => {
   for (let i = 0; i < values.length; i++)
     assert.ok(Object.is(reread[i], values[i]), `block[${i}]: ${reread[i]} ≠ ${values[i]}`)
   assert.equal(arena.blocks()[0], after, 'without further growth, the blocks are not rebuilt')
-  wasm.arena_free(large, 64 * 1024 * 1024)
+  wasm.arena_free(large, 64 * MIB)
   arena.freed()
   assert.deepEqual(arena.blocks(), [], 'a released buffer no longer carries any view')
 })

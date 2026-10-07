@@ -7,11 +7,11 @@ import { surfaceOf } from '../../page/surface.ts'
 import { hostBlending } from '../../scene/materialBlending.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
-import { ORDER_STEP_STRIDE } from './orderSteps.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import { orderBlendPasses } from './order.ts'
 import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { planWords, RUN_WORDS } from './planLayout.ts'
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
 import type { TransparentTable } from '../transparent/table.ts'
@@ -23,8 +23,8 @@ type Kernel = {
   sortLoad(p: number): Vec
   sortStore(p: number, v: Vec): void
   blockPair(t: number, j: number, k: number, base: number): void
-  sortBlendStep(id: Vec): void
-  placeBlendSlots(id: Vec): void
+  sortBlendStep(lid: Vec, wid: Vec, n: Vec): void
+  placeBlendSlots(id: Vec, n: Vec): void
 }
 
 /** Every function the kernel declares, read from its text. */
@@ -57,14 +57,17 @@ function runOrder(blendState: BlendState, pass: number, gpu: ReturnType<typeof g
     words = blendState.orderStepWords
   for (const step of blendState.orderSteps[pass]) {
     for (const [name, rank] of Object.entries(ORDER_UNI))
-      scope.uni[name] = words[(step.uniform * ORDER_STEP_STRIDE) / 4 + rank]
+      scope.uni[name] = words[(step.uniform * blendState.uniformStride) / 4 + rank]
     const { uni } = scope
     if (step.entry === 1) {
-      for (let t = 0; t < step.groups * THREADS; t++) kernel.sortBlendStep([t, 0, 0])
+      for (let group = 0; group < step.groups; group++)
+        for (let t = 0; t < THREADS; t++)
+          kernel.sortBlendStep([t, 0, 0], [group, 0, 0], [step.groups, 1, 1])
       continue
     }
     if (step.entry === 2) {
-      for (let r = 0; r < step.groups * SLOT_GROUP; r++) kernel.placeBlendSlots([r, 0, 0])
+      for (let r = 0; r < step.groups * SLOT_GROUP; r++)
+        kernel.placeBlendSlots([r, 0, 0], [step.groups, 1, 1])
       continue
     }
     for (let group = 0; group < step.groups; group++) {
@@ -137,7 +140,7 @@ export function transparentScene(count: number, seed: number) {
     length: ranges.length / 2,
     itemRanges: Uint32Array.from(ranges),
   } as unknown as TransparentTable
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
   return { blendState, next }

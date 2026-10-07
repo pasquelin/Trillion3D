@@ -73,7 +73,7 @@ function walk(count: number, seed: number, frames: number, edges = false) {
     else if (roll < 0.7) refreshBlendPlan(blendState)
     else if (roll < 0.75) {
       // A remount: new statics, then the plan they need.
-      buildBlendStatics(blendState)
+      buildBlendStatics(blendState, blendState.uniformStride)
       refreshBlendPlan(blendState)
     }
     rankAndCheck(blendState, eye, `seed ${seed}, frame ${frame}`)

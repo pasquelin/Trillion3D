@@ -10,18 +10,43 @@
  *   every pass's), texel-plane bias and the one-sample paths (ray count 0);
  * - the sampling helpers: square-to-disk maps, the frame around a direction, the ray jitter step.
  *
- * Needs, in the module: the step-1 strings up to `VSM_PROJECTION_SAMPLE_WGSL`, `vsmNoiseTwo`
- * (`vsmBlueNoiseWgsl`) and the view `vsmView`: the projection's uniform (`projectionWgsl.ts`), or
- * the view a fragment stage builds from its own pixel (`../lighting/direct/shadowWgsl.ts`, the
- * traced read of a blended surface), with the same fields.
+ * Each fragment lists the declarations its text uses. What a host provides in its own variant
+ * comes in as a provider: the pool the page sampling reads (`vsmPoolLoad`, sampled through
+ * `vsmProjectionSampleWgsl`) and the rays' noise pair (`vsmNoiseTwo`, `vsmBlueNoiseTwo` or a
+ * fragment stage's own). The module brings the bindings and the view `vsmView`: the projection's
+ * uniform (`projectionWgsl.ts`), or the view a fragment stage builds from its own pixel
+ * (`../lighting/direct/shadowWgsl.ts`, the traced read of a blended surface), with the same
+ * fields.
  *
  * UNITS. World unit = metre. Where a world distance is compared with a literal in centimetres, the
  * literal is converted with `VSM_UNIT_PER_CM` (named at each place). Where a world distance is
  * related to a clipmap level (log2 of centimetres), the distance is converted to centimetres. Clip
  * and UV quantities are unitless and unchanged.
  */
-import { VSM_PLASTIC_STEP } from './blueNoise.ts'
-import { VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
+import { VSM_NOISE_TILE, VSM_PLASTIC_STEP } from './blueNoise.ts'
+import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
+import {
+  VSM_HANDLE_WGSL,
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_PAGE_LOOKUP_WGSL,
+  VSM_STRUCTS_WGSL,
+} from './pageTableWgsl.ts'
+import {
+  VSM_PROJECTION_DATA_READ_WGSL,
+  VSM_PROJECTION_DATA_WGSL,
+  vsmProjectionSampleWgsl,
+} from './projectionDataWgsl.ts'
+import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { FLOAT32_MAX, PI } from '../../../math/src/wgsl/constants.ts'
+import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import {
+  Frame3,
+  frameAround,
+  intoFrame,
+  outOfFrame,
+  tangentAcross,
+} from '../../../math/src/wgsl/basis.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
@@ -33,7 +58,11 @@ const CM = `${VSM_UNIT_PER_CM}`
  * (`extrapolate`, where the slope cap is above 0). `findSample(ptr<function,State>, time)` returns
  * a `VsmMarchStep` with `marchRayDepth` always set.
  */
-const vsmMarchWgsl = (name: string, state: string, findSample: string) => /* wgsl */ `
+const vsmMarchWgsl = (name: string, state: string, findSample: string) =>
+  wgslBlock(
+    `vsmMarchWgsl(${name})`,
+    [VSM_TRACE_COMMON_WGSL],
+    `
 fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapolate:bool)->VsmMarchHit{
  // Declared: a value far from every stored depth (device depths lie in [0, 1]): nothing held yet.
  let noHistory=-10000.0;
@@ -82,10 +111,14 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
  }
  return VsmMarchHit(false,0.0);
 }
-`
+`,
+  )
 
 /** The traces' common helpers and the ray jitter step. */
-export const VSM_TRACE_COMMON_WGSL = /* wgsl */ `
+export const VSM_TRACE_COMMON_WGSL = wgslBlock(
+  'VSM_TRACE_COMMON_WGSL',
+  [PI, FLOAT32_MAX, frameAround, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL, perspectiveDivide],
+  `
 struct VsmMarchStep{valid:bool,storedDepth:f32,marchRayDepth:f32,slopeCap:f32,restartSlope:bool,}
 fn vsmEmptyStep()->VsmMarchStep{return VsmMarchStep(false,0.0,0.0,0.0,false);}
 /** A march's result: whether it hit and, where it did, the stored depth of the sample that hit —
@@ -103,16 +136,6 @@ fn vsmMarchTime(i:i32,stepCount:i32,time:vec2f)->f32{
  let t=time.x*f32(i)+time.y;
  return t*t;
 }
-/** Point n of the additive 2D sequence (\`VSM_PLASTIC_STEP\`): its points spread evenly over the
- *  unit square. */
-fn vsmAdditive2d(n:i32)->vec2f{return fract(f32(n)*vec2f(${VSM_PLASTIC_STEP[0]},${VSM_PLASTIC_STEP[1]}));}
-/** Four blue-noise random values for a pixel, sample and frame (two reads of the blue-noise texture, offset by the additive sequence). */
-fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
- let dims=vec2f(VSM_NOISE_TILE.xy);
- let offset1=vec2i(vsmAdditive2d(i32(rayIndex))*dims);
- let offset2=vec2i(vsmAdditive2d(i32(rayIndex+rayTotal))*dims);
- return vec4f(vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset1),timeIndex),vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset2),timeIndex));
-}
 /** The ray count, samples per ray, extrapolation slope and dither scale of a trace. */
 struct VsmTraceSetup{voteAfter:i32,rayCount:i32,stepsPerRay:i32,slopeCapSetting:f32,ditherTexels:f32,}
 fn vsmTraceSetupSun()->VsmTraceSetup{
@@ -121,7 +144,6 @@ fn vsmTraceSetupSun()->VsmTraceSetup{
 fn vsmTraceSetupLocal()->VsmTraceSetup{
  return VsmTraceSetup(i32(vsm.traceVoteAfter),vsm.traceRaysLocal,vsm.traceStepsLocal,vsm.traceSlopeCapLocal,vsm.traceDitherLocal);
 }
-const VSM_PI:f32=3.1415926535897932;
 /** The smallest normal f32, 2^-126: added to a nonzero |p| (2^-25 at least, for E in [0, 1)) it
  *  rounds back to it, so it changes no quotient, and the square's centre gives 0 rather than 0/0. */
 const VSM_F32_MIN_NORMAL:f32=1.17549435e-38;
@@ -135,7 +157,7 @@ fn vsmSquareToDiskPolar(E:vec2f)->vec3f{
  let a=abs(p);
  let lo=min(a.x,a.y);
  let hi=max(a.x,a.y);
- let phi=(VSM_PI/4.0)*(lo/(hi+VSM_F32_MIN_NORMAL)+select(0.0,2.0,a.y>=a.x));
+ let phi=(PI/4.0)*(lo/(hi+VSM_F32_MIN_NORMAL)+select(0.0,2.0,a.y>=a.x));
  let quadrant=select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0));
  return vec3f(abs(vec2f(cos(phi),sin(phi)))*quadrant,hi);
 }
@@ -150,18 +172,6 @@ fn vsmSquareToDiskFast(E:vec2f)->vec2f{
  else{sf.y=select(-root,root,sf.y>0.0);}
  return sf;
 }
-/** A tangent basis around \`frameAxis\`: rows (x, y, z). */
-struct VsmFrame3{x:vec3f,y:vec3f,z:vec3f,}
-fn vsmFrameAround(frameAxis:vec3f)->VsmFrame3{
- let s=select(-1.0,1.0,frameAxis.z>=0.0);
- let a=-1.0/(s+frameAxis.z);
- let b=frameAxis.x*frameAxis.y*a;
- return VsmFrame3(vec3f(1.0+s*a*frameAxis.x*frameAxis.x,s*b,-s*frameAxis.x),vec3f(b,s+a*frameAxis.y*frameAxis.y,-frameAxis.y),frameAxis);
-}
-/** The vector \`v\` in the frame \`m\`: its dot with each of the frame's rows. */
-fn vsmIntoFrame(m:VsmFrame3,v:vec3f)->vec3f{return vec3f(dot(m.x,v),dot(m.y,v),dot(m.z,v));}
-/** The vector of components \`v\` in the frame \`m\` back in the world: the rows weighted by them. */
-fn vsmOutOfFrame(v:vec3f,m:VsmFrame3)->vec3f{return v.x*m.x+v.y*m.y+v.z*m.z;}
 /** The next ray's jitter bits: one step of a linear congruential generator modulo 2^32. Declared,
  *  without derivation: its multiplier and increment set every local ray's sample jitter after the
  *  first; another pair moves every penumbra pixel's noise. */
@@ -192,11 +202,11 @@ fn vsmAcrossLightOnScreen(e:vec3f,l:vec3f,n:vec3f,nl:f32,ndc:vec2f,toPixels:vec2
  */
 fn vsmSunRaySpread(l:vec3f,s:f32,n:vec3f,viewPosition:vec3f,ditherUv:f32,uvPerWorld:f32)->vec2f{
  let nl=dot(n,l);
- if(!(nl>0.0)){return vec2f(3.402823466e38);}
+ if(!(nl>0.0)){return vec2f(FLOAT32_MAX);}
  let clip=vsmView.viewToClip*vec4f(viewPosition,1.0);
- let ndc=clip.xy/clip.w;
+ let ndc=perspectiveDivide(clip).xy;
  let toPixels=0.5*vsmView.viewPixels.xy/clip.w;
- let across=vsmFrameAround(l);
+ let across=frameAround(l);
  let a=vsmAcrossLightOnScreen(across.x,l,n,nl,ndc,toPixels);
  let b=vsmAcrossLightOnScreen(across.y,l,n,nl,ndc,toPixels);
  let g=vec3f(dot(a,a),dot(b,b),dot(a,b));
@@ -212,10 +222,43 @@ fn vsmLocalMipAt(pd:VsmProjectionData,receiverInMap:vec3f,receiverDepthEye:f32)-
  }
  return 0u;
 }
-`
+`,
+)
 
-/** The clipmap ray's state and helpers. */
-export const VSM_TRACE_DIRECTIONAL_WGSL = /* wgsl */ `
+/** The rays' four random values a ray (\`vsmRayNoise4\`), from the noise pair \`noise\` provides
+ *  (\`vsmNoiseTwo\`). */
+const vsmRayNoiseWgsl = (noise: WgslDecl) =>
+  wgslBlock(
+    'vsmRayNoiseWgsl',
+    [VSM_NOISE_TILE, noise],
+    `
+/** Point n of the additive 2D sequence (\`VSM_PLASTIC_STEP\`): its points spread evenly over the
+ *  unit square. */
+fn vsmAdditive2d(n:i32)->vec2f{return fract(f32(n)*vec2f(${VSM_PLASTIC_STEP[0]},${VSM_PLASTIC_STEP[1]}));}
+/** Four blue-noise random values for a pixel, sample and frame (two reads of the blue-noise texture, offset by the additive sequence). */
+fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
+ let dims=vec2f(VSM_NOISE_TILE.xy);
+ let offset1=vec2i(vsmAdditive2d(i32(rayIndex))*dims);
+ let offset2=vec2i(vsmAdditive2d(i32(rayIndex+rayTotal))*dims);
+ return vec4f(vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset1),timeIndex),vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset2),timeIndex));
+}
+`,
+  )
+
+/** The clipmap ray's state and helpers, sampling the pages of \`pool\`. */
+const vsmTraceDirectionalWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'vsmTraceDirectionalWgsl',
+    [
+      VSM_TRACE_COMMON_WGSL,
+      vsmProjectionSampleWgsl(pool),
+      tangentAcross,
+      VSM_HANDLE_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      vsmMarchWgsl('vsmMarchSun', 'VsmSunRay', 'vsmSunRayStep'),
+    ],
+    `
 /** The depth slope in UV of the surface (the shading normal stands in for the geometric one). */
 fn vsmSunDepthGradientUv(pd:VsmProjectionData,planeNormal:vec3f)->vec2f{
  let planeUv=pd.planesToMapUv*vec4f(planeNormal,0.0);
@@ -283,21 +326,37 @@ fn vsmSunRayStep(rayState:ptr<function,VsmSunRay>,rayTime:f32)->VsmMarchStep{
  if(sunRead.valid){s.storedDepth=sunRead.depth;}
  return s;
 }
-${vsmMarchWgsl('vsmMarchSun', 'VsmSunRay', 'vsmSunRayStep')}
 /** A ray direction in the light's disk. lightDirection points to the light; sourceRadius is the sine of the half angle. */
 fn vsmSunDiskRayDirection(lightDirection:vec3f,sourceRadius:f32,E:vec2f)->vec3f{
  var rayDir=lightDirection;
  let diskUv=vsmSquareToDisk(E)*sourceRadius;
  let N=rayDir;
- let diskSide=cross(N,select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.x)>1e-6));
+ let diskSide=tangentAcross(N);
  let diskUp=cross(diskSide,N);
  rayDir+=diskSide*diskUv.x+diskUp*diskUv.y;
  return normalize(rayDir);
 }
-`
+`,
+  )
 
-/** The local lights' ray states and helpers. */
-export const VSM_TRACE_LOCAL_WGSL = /* wgsl */ `
+/** The local lights' ray states and helpers, sampling the pages of \`pool\`. */
+const vsmTraceLocalWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'vsmTraceLocalWgsl',
+    [
+      VSM_TRACE_COMMON_WGSL,
+      vsmProjectionSampleWgsl(pool),
+      perspectiveDivide,
+      sinFromCosUnclamped,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      vsmMarchWgsl('vsmMarchFace', 'VsmFaceRay', 'vsmFaceRayStep'),
+      vsmMarchWgsl('vsmMarchCrossFace', 'VsmCrossFaceRay', 'vsmCrossFaceRayStep'),
+    ],
+    `
 /** The depth slope in UV of the surface at a position. */
 fn vsmLocalDepthGradientUv(h:VsmHandle,pointInMap:vec3f,worldNormal:vec3f)->vec2f{
  let pd=vsmProjectionOf(h);
@@ -309,7 +368,7 @@ fn vsmLocalDepthGradientUv(h:VsmHandle,pointInMap:vec3f,worldNormal:vec3f)->vec2
 fn vsmLocalTexelPlaneBias(h:VsmHandle,pointInMap:vec3f,uvDepthSlope:vec2f)->f32{
  let pd=vsmProjectionOf(h);
  var mapUvz=pd.shiftedToMapUv*vec4f(pointInMap,1.0);
- mapUvz=vec4f(mapUvz.xyz/mapUvz.w,mapUvz.w);
+ mapUvz=vec4f(perspectiveDivide(mapUvz),mapUvz.w);
  let page=vsmLocalPageAt(pd.handle,mapUvz.xy,pd.finestMip);
  let mipTexels=f32(vsmTexelsAtLevel(page.coarserLevels));
  let texelMid=vec2f(page.mapTexelXY)+0.5;
@@ -329,8 +388,8 @@ fn vsmFaceRayBegin(h:VsmHandle,startInMap:vec3f,endInMap:vec3f,slopeCap:f32,dept
  let pd=vsmProjectionOf(h);
  let s4=pd.shiftedToMapUv*vec4f(startInMap,1.0);
  let e4=pd.shiftedToMapUv*vec4f(endInMap,1.0);
- var faceUvzStart=s4.xyz/s4.w;
- let faceUvzEnd=e4.xyz/e4.w;
+ var faceUvzStart=perspectiveDivide(s4);
+ let faceUvzEnd=perspectiveDivide(e4);
  let faceUvzStep=faceUvzEnd-faceUvzStart;
  if(clampUv){faceUvzStart=vec3f(saturate(faceUvzStart.xy),faceUvzStart.z);}
  faceUvzStart.z+=depthBias;
@@ -359,7 +418,6 @@ fn vsmFaceRayStep(rayState:ptr<function,VsmFaceRay>,rayTime:f32)->VsmMarchStep{
  }
  return s;
 }
-${vsmMarchWgsl('vsmMarchFace', 'VsmFaceRay', 'vsmFaceRayStep')}
 /** The state of a ray through two cube faces. */
 struct VsmCrossFaceRay{face0:VsmFaceRay,face1:VsmFaceRay,inFace1:bool,}
 /** Starts a two-face ray. */
@@ -388,7 +446,6 @@ fn vsmCrossFaceRayStep(rayState:ptr<function,VsmCrossFaceRay>,rayTime:f32)->VsmM
  (*rayState).face1=face1;
  return s;
 }
-${vsmMarchWgsl('vsmMarchCrossFace', 'VsmCrossFaceRay', 'vsmCrossFaceRayStep')}
 /** The shadow resolution scale at a depth. The 0.1 floor is 0.1 cm (·${CM}). */
 fn vsmReceiverPixelSize(pd:VsmProjectionData,sceneDepth:f32)->f32{
  let pixelWorldHere=vsmPixelWorldSize(sceneDepth,vsmView.viewToClip,vsmView.viewPixels.xy);
@@ -397,14 +454,18 @@ fn vsmReceiverPixelSize(pd:VsmProjectionData,sceneDepth:f32)->f32{
 /** The clamp on a local light's ray distance by the cosine of the angle. */
 fn vsmLocalRayReach(cosTheta:f32)->f32{
  // Declared: a local ray stops at three quarters of the way to the light, sooner off its axis.
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return 0.75*saturate(1.5/(cosTheta+vsm.traceConeCot*sinTheta));
 }
-`
+`,
+  )
 
 /** The light the traces read, as the projection's view uniform holds it (four a dispatch); a pass
  *  that traces from its own lights builds one. */
-export const VSM_TRACE_LIGHT_WGSL = /* wgsl */ `struct VsmProjectionLight{
+export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
+  'VSM_TRACE_LIGHT_WGSL',
+  [],
+  `struct VsmProjectionLight{
  shiftedPosition:vec3f,
  invRadius:f32,
  direction:vec3f,
@@ -412,7 +473,8 @@ export const VSM_TRACE_LIGHT_WGSL = /* wgsl */ `struct VsmProjectionLight{
  spotAngles:vec2f,
  mapId:i32,
  kind:u32,
-}`
+}`,
+)
 
 /**
  * Whether this sun ray provably misses, from its samples' tiles alone (`tileDepths`):
@@ -431,7 +493,16 @@ export const VSM_TRACE_LIGHT_WGSL = /* wgsl */ `struct VsmProjectionLight{
  * those helpers to the same bits at both call sites (it may fuse a multiply-add at one alone); the
  * tests run them in JavaScript.
  */
-const CLIPMAP_RAY_MISSES = /* wgsl */ `
+const clipmapRayMissesWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'clipmapRayMissesWgsl',
+    [
+      VSM_TRACE_COMMON_WGSL,
+      vsmTraceDirectionalWgsl(pool),
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmProjectionSampleWgsl(pool),
+    ],
+    `
 fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32)->bool{
  let time=vsmMarchTimeLine(stepCount,stepJitter);
  var tile=0xFFFFFFFFu;
@@ -447,7 +518,8 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  }
  return true;
 }
-`
+`,
+  )
 /**
  * A light's ray count (the adaptive ray count) under `guard`, decided after the first ray.
  * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`, false
@@ -465,7 +537,7 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
  * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
  */
-const rayCountWgsl = (
+const rayCountStatement = (
   guard: string,
   waveVotes: boolean,
 ) => /* wgsl */ `  if(${guard}&&i==0u&&running&&hit&&narrow){stopped=true;}
@@ -489,16 +561,35 @@ ${
  * (`vsmVoteAllTrue`) to stop its rays early, and to trace a point light's rays across two cube
  * faces when any of its rays crosses. Without, a fragment stage's, which has no wave on the web's
  * base path: every ray is traced but where the first one hit an occluder whose rays fall within the
- * pixel (`rayCountWgsl`), and each pixel takes two faces only where its own ray crosses.
+ * pixel (`rayCountStatement`), and each pixel takes two faces only where its own ray crosses.
  * The votes take the trace's `voteSplit`, uniform: whether they count by barrier (`voteWgsl`); a
  * fragment stage passes true, unread. With the votes, a group leaves its loops at once
- * where both its halves stopped (`rayCountWgsl`).
- * Needs `VsmProjectionLight` (`VSM_TRACE_LIGHT_WGSL`) and the view `vsmView` the module declares.
+ * where both its halves stopped (`rayCountStatement`).
+ * Reads the view `vsmView` the module declares, the pages of `pool` (`vsmPoolLoad`) and the noise
+ * pair `noise` provides (`vsmNoiseTwo`).
  */
-export const vsmTraceWgsl = (
-  waveVotes: boolean,
-) => /* wgsl */ `${waveVotes ? CLIPMAP_RAY_MISSES : ''}
-/** Traces the sun's rays. 'participating' = the lane takes part in the group's votes. */
+export const vsmTraceWgsl = (waveVotes: boolean, pool: WgslDecl, noise: WgslDecl) =>
+  wgslBlock(
+    `vsmTraceWgsl(${waveVotes})`,
+    [
+      VSM_CONSTANTS_WGSL,
+      Frame3,
+      frameAround,
+      intoFrame,
+      outOfFrame,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_TRACE_LIGHT_WGSL,
+      VSM_TRACE_COMMON_WGSL,
+      vsmTraceDirectionalWgsl(pool),
+      vsmTraceLocalWgsl(pool),
+      VSM_TRACE_RESULT_WGSL,
+      vsmRayNoiseWgsl(noise),
+      ...(waveVotes ? [clipmapRayMissesWgsl(pool)] : []),
+    ],
+    `/** Traces the sun's rays. 'participating' = the lane takes part in the group's votes. */
 fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition:vec3f,startOffset:f32,noise:f32,worldNormal:vec3f,participating:bool,voteSplit:bool)->VsmTraceResult{
  let settings=vsmTraceSetupSun();
  let h=vsmHandleFromIdDirectional(u32(mapId));
@@ -549,7 +640,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
   let running=traced&&!stopped;
   var hit=false;
   // Whether the first ray hit an occluder low enough that every ray of the pixel falls within one
-  // pixel of the others (\`rayCountWgsl\`): the occluder's surface the hit sample read is |Δ| deep
+  // pixel of the others (\`rayCountStatement\`): the occluder's surface the hit sample read is |Δ| deep
   // above the receiver, the rays spread over spreadPerDepth·|Δ| + spreadDither pixels.
   var narrow=false;
   if(running){
@@ -567,7 +658,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    }
    if(!hit){missCount+=1u;}
   }
-${rayCountWgsl('settings.voteAfter>0', waveVotes)} }
+${rayCountStatement('settings.voteAfter>0', waveVotes)} }
  if(traced){
   let rayCount=select(rayCap,min(stopIndex+1u,rayCap),stopped);
   result.shadowFactor=f32(missCount)/f32(rayCount);
@@ -595,7 +686,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
  var ditherUv=0.0;
  var ditherSlopeCap=0.0;
  var depthBiasCap=0.0;
- var basis:VsmFrame3;
+ var basis:Frame3;
  var frameDepthSlope=vec2f(0.0);
  var stepsPerRay=settings.stepsPerRay;
  var mipLevel=0u;
@@ -610,8 +701,8 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   ditherUv=(settings.ditherTexels*pd.ditherTexels)*pixelSizeHere;
   ditherSlopeCap=vsm.tracePlaneBiasCapLocal*ditherUv;
   depthBiasCap=vsm.tracePlaneBiasCapLocal*pixelSizeHere*depthPerDistance;
-  basis=vsmFrameAround(coneAxis);
-  let normalInFrame=vsmIntoFrame(basis,worldNormal);
+  basis=frameAround(coneAxis);
+  let normalInFrame=intoFrame(basis,worldNormal);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;
   if(coneSin==0.0){stepsPerRay=0;}
   mipLevel=vsmLocalMipAt(pd,shiftedInMap,sceneDepth);
@@ -631,19 +722,19 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   var startFace=vsmHandleInvalid();
   var endFace=vsmHandleInvalid();
   // A local ray's occluder height is not measured: no lane's rays are known to fall within one
-  // pixel (\`rayCountWgsl\`).
+  // pixel (\`rayCountStatement\`).
   let narrow=false;
   if(running){
    let noise4=vsmRayNoise4(pixelPos,vsmView.frameIndex,i,rayCap);
    let diskPoint=vsmSquareToDiskFast(noise4.xy)*coneSin;
    let sinSq=dot(diskPoint,diskPoint);
    let cosTheta=sqrt(1.0-sinSq);
-   let dir=vsmOutOfFrame(vec3f(diskPoint,cosTheta),basis);
+   let dir=outOfFrame(vec3f(diskPoint,cosTheta),basis);
    var ditheredStart=shiftedInMap;
    if(ditherUv>0.0){
     let ditherOffset=(noise4.zw-0.5)*ditherUv;
     let ditherDepth=min(ditherSlopeCap,2.0*max(0.0,dot(frameDepthSlope,ditherOffset)));
-    ditheredStart+=vsmOutOfFrame(vec3f(ditherOffset,ditherDepth),basis);
+    ditheredStart+=outOfFrame(vec3f(ditherOffset,ditherDepth),basis);
    }
    let rayReach=distToLight*vsmLocalRayReach(cosTheta);
    // The 1e-6 is centimetres.
@@ -671,7 +762,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
    }
    if(march.hitFound){hit=true;}else{missCount+=1u;}
   }
-${rayCountWgsl('rayCap>1u&&settings.voteAfter>0', waveVotes)}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
+${rayCountStatement('rayCap>1u&&settings.voteAfter>0', waveVotes)}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
   // The top 24 bits of the next word as a fraction: 5.96046447754e-08 is 2^-24, and an f32 holds
   // k · 2^-24 exactly for every k < 2^24.
  }
@@ -683,11 +774,16 @@ ${rayCountWgsl('rayCap>1u&&settings.voteAfter>0', waveVotes)}  if(running&&!stop
  return result;
 }
 
-`
+`,
+  )
 
 /** The shadow map sample result (debug members and the occluder distance no consumer
  *  reads dropped): what a trace returns. */
-export const VSM_TRACE_RESULT_WGSL = /* wgsl */ `
+export const VSM_TRACE_RESULT_WGSL = wgslBlock(
+  'VSM_TRACE_RESULT_WGSL',
+  [],
+  `
 struct VsmTraceResult{valid:bool,shadowFactor:f32,rayCount:u32,}
 fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(false,1.0,0u);}
-`
+`,
+)

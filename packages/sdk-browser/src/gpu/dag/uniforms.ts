@@ -16,6 +16,7 @@ import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -186,7 +187,7 @@ function readLevelCounts(ints: Uint32Array, at: number, into: Uint32Array) {
 /** A list the GPU wrote behind a header at word `at`: its count, bounded by what the readback
  *  holds, then its ranks, copied into `into`. */
 function readCountedList(ints: Uint32Array, at: number, into: number[]) {
-  const count = Math.min(ints[at] ?? 0, Math.max(0, ints.length - at - SELECTION_HEADER_WORDS))
+  const count = clamp(ints.length - at - SELECTION_HEADER_WORDS, 0, ints[at] ?? 0)
   for (let i = 0; i < count; i++) into[i] = ints[at + SELECTION_HEADER_WORDS + i]
   into.length = count
   return into

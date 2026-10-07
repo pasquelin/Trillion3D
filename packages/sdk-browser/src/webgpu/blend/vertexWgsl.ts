@@ -1,25 +1,18 @@
-import { BLEND_BINDINGS } from '../core/bindLayout.ts'
-import { BLEND_ITEM_WGSL } from './items.ts'
-import { BLEND_VIEW_WGSL } from './viewLayout.ts'
+import { VERTEX_LISTS_WGSL, VERTEX_READS_WGSL, vsOutWgsl } from './vertexReadsWgsl.ts'
 import * as itemFlags from '../../visibility/buffer.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
-import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
-import {
-  PAGE_GEOMETRY_WGSL,
-  PAGE_NORMAL_WGSL,
-  PAGE_UV1_WGSL,
-} from '../../visibility/shader/pageGeometryWgsl.ts'
-import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts'
-import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_UV1_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 
 /** A lobed program's two UV sets of the vertex: the second where the item names a record and its
  *  geometry carries one — a fragment reads it only under a record (`blendPhysicalBegin`). */
-const UV_PAIR_WGSL = `let uv0=pageUv(page,h,v);var uv1=uv0;
+const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
  if(it.physical!=0u&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
  out.uv=vec4f(uv0,uv1);`
 
@@ -31,15 +24,15 @@ const LAYOUTS = {
     ids: 'vec4u',
     word: ',it.physical',
     page: 'page.physical=it.physical;',
-    read: PAGE_UV1_WGSL,
-    write: UV_PAIR_WGSL,
+    read: [PAGE_UV1_WGSL],
+    write: UV_PAIR,
   },
   lobeless: {
     uv: 'vec2f',
     ids: 'vec3u',
     word: '',
     page: '',
-    read: '',
+    read: [],
     write: 'out.uv=pageUv(page,h,v);',
   },
 }
@@ -57,59 +50,25 @@ const LAYOUTS = {
  */
 export const blendVertexWgsl = (lobes: boolean) => {
   const layout = LAYOUTS[lobes ? 'lobed' : 'lobeless']
-  return `${VERTEX_READS_WGSL}
-${layout.read}
-${VERTEX_LISTS_WGSL}
-${vsOutWgsl(layout.uv, layout.ids)}
-${VERTEX_FACING_WGSL}
-${blendVertexStage(layout)}`
+  return wgslBlock(
+    `blendVertexWgsl(${lobes})`,
+    [
+      PAGE_GEOMETRY_WGSL,
+      NORMAL_TRANSFORM_WGSL,
+      uniteOuZero,
+      VERTEX_READS_WGSL,
+      ...layout.read,
+      VERTEX_LISTS_WGSL,
+      vsOutWgsl(layout.uv, layout.ids),
+      TRIANGLE_PALETTE_WGSL,
+      FACING_WGSL,
+    ],
+    blendVertexStage(layout),
+  )
 }
 
-/** What every vertex stage of the runs binds and reads before its layout's own reads. */
-const VERTEX_READS_WGSL = `${BLEND_VIEW_WGSL}
-${BLEND_ITEM_WGSL}
-@group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
-@group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
-@group(0) @binding(${BLEND_BINDINGS.uniform}) var<uniform> uni:BlendView;
-@group(0) @binding(${BLEND_BINDINGS.items}) var<storage,read> items:array<BlendItem>;
-${normalAtlasWgsl(BLEND_BINDINGS.normals)}
-${PAGE_INFO_STRUCT_WGSL}
-${PAGE_GEOMETRY_WGSL}
-${PAGE_NORMAL_WGSL}`
-
-/** The instances, cluster spans and diagnostics the stage reads, and its line and sprite rules. */
-const VERTEX_LISTS_WGSL = `@group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
-@group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec4u>;
-${NORMAL_TRANSFORM_WGSL}
-${LINE_CLIP_WGSL}
-${SPRITE_WGSL}`
-
-/** The stage's output, its UV and ids lanes those of the layout (`LAYOUTS`). */
-const vsOutWgsl = (
-  uv: string,
-  ids: string,
-) => `// What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
-// maps, their factors and the flags, constant over the call, therefore FLAT (no per-call binding).
-// \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
-// above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
-// \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:${uv},@location(2) view:vec3f,@location(3) normal:vec4f,@location(4) tangent:vec4f,@location(5) bitangent:vec4f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:${ids},@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}`
-
-/** The triangle palette and the facing test the stage calls. */
-const VERTEX_FACING_WGSL = `${TRIANGLE_PALETTE_WGSL}
-// An instance draws a paged cluster compaction kept, or a piece of indices of an unpaged primitive,
-// as the list plan expansion wrote it (expandWgsl.ts), both read through \`pageGeometryWgsl.ts\`.
-// The rank of the first instance of the call is read in the high bits of the vertex index, and
-// the local rank of the vertex in the low: the indirect argument of a slice starts at vertex
-// base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
-// between two plan entries — firstInstance would say the same, but WebGPU only opens it to an
-// indirect call under an extension.
-${FACING_WGSL}`
-
 /** The paged cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
-const VERTEX_PAGE_WGSL = ` var count=it.indexCount-slot.y;
+const VERTEX_PAGE = ` var count=it.indexCount-slot.y;
  var clusterId=0u;
  if((flags&${itemFlags.FLAG_PAGED}u)!=0u){
   let span=clusterSpans[slot.y];
@@ -128,7 +87,7 @@ const VERTEX_PAGE_WGSL = ` var count=it.indexCount-slot.y;
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);`
 
 /** The corner's colour, position, diagnostics and frame. */
-const VERTEX_CORNER_WGSL = ` let v=corners[local%3u];
+const VERTEX_CORNER = ` let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
  if((flags&${itemFlags.FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
  let p=pagePosition(page,h,v);
@@ -160,7 +119,15 @@ const VERTEX_CORNER_WGSL = ` let v=corners[local%3u];
   out.bitangent=vec4f(uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
  }`
 
-/** The vertex stage of a layout (`LAYOUTS`). */
+/**
+ * The vertex stage of a layout (`LAYOUTS`). An instance draws a paged cluster compaction kept, or a
+ * piece of indices of an unpaged primitive, as the list plan expansion wrote it (`expandWgsl.ts`),
+ * both read through `pageGeometryWgsl.ts`. The rank of the first instance of the call is read in
+ * the high bits of the vertex index, and the local rank of the vertex in the low: the indirect
+ * argument of a slice starts at vertex base << vertexShift. That is what lets a whole slice fit in
+ * ONE call, with nothing to bind between two plan entries — firstInstance would say the same, but
+ * WebGPU only opens it to an indirect call under an extension.
+ */
 const blendVertexStage = ({
   uv,
   ids,
@@ -183,9 +150,9 @@ const blendVertexStage = ({
  out.normal.w=it.subsurface.x;out.tangent.w=it.subsurface.y;out.bitangent.w=it.subsurface.z;
  var page:PageInfo;
  page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
-${VERTEX_PAGE_WGSL}
+${VERTEX_PAGE}
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=${uv}(0.0);out.view=vec3f(0.0);out.normal=vec4f(vec3f(0.0,0.0,1.0),out.normal.w);out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
-${VERTEX_CORNER_WGSL}
+${VERTEX_CORNER}
  ${write}
  return out;
 }`

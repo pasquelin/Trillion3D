@@ -1,5 +1,6 @@
 use super::*;
-use crate::shared_math::{bisect_centres, merge_aabb};
+use crate::shared_math::bisect_centres;
+use trillion3d_math::aabb::aabb_of_boxes;
 
 /// Node bounds: cluster box, sphere enclosing replacement spheres (`tight::ball_of_balls`),
 /// and max subtree replacement error. Single interval reading serves
@@ -9,13 +10,10 @@ fn node_bounds(
     boxes: &[([f64; 3], [f64; 3])],
     clusters: &[DagCluster],
 ) -> ([f64; 3], [f64; 3], [f64; 4], f64) {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
+    let (min, max) = aabb_of_boxes(span.iter().map(|&id| boxes[id]));
     let mut spheres = Vec::with_capacity(span.len());
     let mut max_parent_error = 0.0_f64;
     for &id in span {
-        let (bmin, bmax) = boxes[id];
-        merge_aabb(&mut min, &mut max, bmin, bmax);
         spheres.push(clusters[id].parent_sphere);
         if clusters[id].parent_error > max_parent_error {
             max_parent_error = clusters[id].parent_error;

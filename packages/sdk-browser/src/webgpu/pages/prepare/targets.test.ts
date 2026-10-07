@@ -1,3 +1,4 @@
+import { MIB } from '../../../../../math/src/constants.ts'
 import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import { runtime } from './targets.fixture.ts'
 import test from 'node:test'
@@ -43,7 +44,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80)
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
   }
-  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling')
+  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
   assert.deepEqual(resized, [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],

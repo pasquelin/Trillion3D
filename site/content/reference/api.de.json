@@ -1048,17 +1048,10 @@
     "description": "Zwei Formen, und nur zwei: alles flach, oder alles als `n` Teilsichten — `../batch/batch.ts` erklärt, warum eine Matrix als Teilsicht reist. Die Form wird VOR der Schleife entschieden, nie darin: ein Ternary pro Element kostet 6 % bei zweihunderttausend Zusammensetzungen, gemessen vom Batch-Matrizen-Bench. Wiederholt `composeMatrix4`, über `n` Matrizen."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Toleranzen der Kegelablehnung, geteilt zwischen der Prozessorseiten-Spiegelung und dem Shader: eine Transformation ist konform, wenn ihre Spalten bis auf `CONE_LENGTH_RATIO` dieselbe Länge haben und bis auf `CONE_ORTHO_EPS` relativ orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab.",
-    "description": "Die `_WGSL`-Varianten sind der in den Shader eingefügte Text, wie `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` als Shader-Text."
+    "summary": "Toleranzen der Kegelablehnung, geteilt zwischen der Prozessorseiten-Spiegelung und dem Shader: eine Transformation ist konform, wenn ihre Spalten bis auf `CONE_LENGTH_RATIO` dieselbe Länge haben und bis auf `CONE_ORTHO_EPS` relativ orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab."
   },
   "CONE_ORTHO_EPS": {
     "summary": "Wie sehr zwei Spalten nicht rechtwinklig sein dürfen und trotzdem als rechtwinklig zählen."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` als Shader-Text."
   },
   "coneRejects": {
     "summary": "Ablehnung durch den Normalenkegel, um Rückseiten nicht zu zeichnen."
@@ -2243,9 +2236,6 @@
   },
   "HALF_PI": {
     "summary": "Eine Vierteldrehung, in Radiant."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` als Shader-Text."
   },
   "helper": {
     "summary": "Die Familie `helper`: die Hilfsmittel, mit denen man an einer Szene arbeitet, aus Linien und Meshes gemacht.",
@@ -5418,9 +5408,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "Die Schwelle, auf der NORMALISIERTEN Determinante.",
     "description": "Unter 1e-12 wird der Kubus einer Skalierung in einfacher Genauigkeit denormal: nur die Normalisierung überschreitet diesen Mindestwert, also beurteilt diese Schwelle nur noch die Form der Matrix, nie ihre Größe."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "Die Schwelle, wie WGSL sie schreibt, aus der Konstante erzeugt: eine Zahl, zwei Sprachen."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Erstes Wort des Eintrags im Paket."

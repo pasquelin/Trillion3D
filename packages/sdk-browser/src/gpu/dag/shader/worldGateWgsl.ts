@@ -1,10 +1,15 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
 /**
  * The world DAG's gate in the descent (\`../worldLinks.ts\`): whether the world draws a
  * placement in its place, and the threshold each placement's cut is held to — the frame's, the
  * world DAG's scaled by its fade (\`../worldFade.ts\`). Outside the level text, so a descent of
  * another shape reads the same threshold.
  */
-export const DAG_WORLD_GATE_WGSL = `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
+export const DAG_WORLD_GATE_WGSL = wgslBlock(
+  'DAG_WORLD_GATE_WGSL',
+  [],
+  `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
 fn worldLinkOf(w:u32)->u32{return select(0xffffffffu,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
 /** \`view · world\` of the world DAG under the view \`vi\`, as \`preparePrimitive\` derives it: its
  *  world is the identity, its origin taken to the eye as the rebase takes it (\`../worldRebase.ts\`). */
@@ -32,4 +37,5 @@ fn thresholdOf(w:u32)->f32{
  let world=views[0u].worldLinks!=0u&&w==views[0u].worldRoot;
  return views[vi].pixelError*select(1.0,views[0u].worldScale,world);
 }
-`
+`,
+)

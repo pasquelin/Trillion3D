@@ -2,8 +2,10 @@
 // `shaderRun`: generated scenes, a slice laid out as the resolve writes it, a brute-force cast and
 // the texel store the read replaced.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { VSM_TRANSMISSION_NONE, vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
 import { type Tri, type V, BLOCK, geometry } from './transmissionSheets.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const WIDTH = 1024
 
@@ -53,7 +55,7 @@ export function memoryOf(casters: Caster[]) {
       slice[at++] = [0, 1, 2, 3].map((i) => (k + i < list.length ? recordsAt + 4 * list[k + i] : 0))
   }
   for (let t = 0; t < 64; t++) slice[t] = headers.slice(4 * t, 4 * t + 4)
-  const blocks = Math.ceil(at / BLOCK)
+  const blocks = ceilDiv(at, BLOCK)
   const chain = Array.from({ length: 32 }, (_, j) => (j < blocks ? j : NONE))
   for (let t = 0; t < 8; t++) slice[64 + t] = chain.slice(4 * t, 4 * t + 4)
   records.forEach((r, l) => r.forEach((w, t) => (slice[recordsAt + 4 * l + t] = w)))
@@ -77,7 +79,7 @@ export function reader(memory: Map<string, V>): Read {
       return flat.length === 1 ? new Array<number>(n).fill(flat[0]) : flat
     }
   return shaderRun<Read>(
-    vsmTransmissionReadWgsl(14),
+    wgslModule(vsmTransmissionReadWgsl(14)),
     [
       'vsmTransmissionThrough',
       'vsmTransmissionBlocks',
@@ -94,6 +96,7 @@ export function reader(memory: Map<string, V>): Read {
       'vsmTEdgeHolds',
       'vsmTEdge',
       'vsmTWeights',
+      'bilinear3',
     ],
     {
       vsm: { poolPages: 4, poolPagesXY: [2, 2] },

@@ -11,6 +11,7 @@ import {
 import type { DiagnosticGpuVariant } from './gpuVariant.ts'
 import { requestsComputeRaster } from './gpuGeometry.ts'
 import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 test('no variant requested: nothing to check, nothing to mount', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined)
@@ -49,7 +50,10 @@ test('each variant neutralises a single factor, and its stage exists in the modu
     const pipeline = blendVariantPipeline(variant)
     assert.deepEqual(pipeline, expected[variant] ?? production, variant)
     if (pipeline.entryPoint !== 'fs')
-      assert.match(DIAGNOSTIC_BLEND_WGSL, new RegExp(`@fragment fn ${pipeline.entryPoint}\\(`))
+      assert.match(
+        wgslSource(DIAGNOSTIC_BLEND_WGSL),
+        new RegExp(`@fragment fn ${pipeline.entryPoint}\\(`),
+      )
   }
 })
 

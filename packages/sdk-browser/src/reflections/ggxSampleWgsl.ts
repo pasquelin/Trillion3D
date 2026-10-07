@@ -1,4 +1,8 @@
-import { TWO_PI } from '../lighting/shaderConstants.ts'
+import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { GGX_DISTRIBUTION_WGSL } from '../lighting/standardLighting.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 
 /** GGX importance sampling of the split-sum radiance prefilter (N = V = R).
  * A sampled half-vector has PDF D(H) N.H; reflection changes measure by 4 V.H.
@@ -8,15 +12,17 @@ import { TWO_PI } from '../lighting/shaderConstants.ts'
  * own surface (behind its normal `N`), contributes zero weight: the surface stops it. Weighed by
  * the mirror ray alone, a rough lobe's directions under a floor seen low — a third of its weight at
  * roughness 0.3 — read what lies about the receiver on the screen. D is the engine's
- * \`ggxDistribution\`, which \`STANDARD_LIGHTING_WGSL\` brings to every program this one joins. */
-export const GGX_REFLECTION_SAMPLE_WGSL = `
+ * \`ggxDistribution\` (\`GGX_DISTRIBUTION_WGSL\`, \`standardLighting.ts\`). */
+export const GGX_REFLECTION_SAMPLE_WGSL = wgslBlock(
+  'GGX_REFLECTION_SAMPLE_WGSL',
+  [TWO_PI, tangentAround, sinFromCos, GGX_DISTRIBUTION_WGSL],
+  `
 fn stochasticReflection(R:vec3f,N:vec3f,rough:f32,xi:vec2f)->vec4f{
  let alpha=rough*rough;let a2=alpha*alpha;
  let cosine=sqrt((1.0-xi.y)/(1.0+(a2-1.0)*xi.y));
- let sine=sqrt(max(0.0,1.0-cosine*cosine));
- let phi=${TWO_PI}*xi.x;
- var axis=vec3f(0.0,0.0,1.0);if(abs(R.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
- let T=normalize(cross(axis,R));let B=cross(R,T);
+ let sine=sinFromCos(cosine);
+ let phi=TWO_PI*xi.x;
+ let T=tangentAround(R);let B=cross(R,T);
  let H=T*(cos(phi)*sine)+B*(sin(phi)*sine)+R*cosine;
  let L=reflect(-R,H);
  let distribution=ggxDistribution(a2,cosine,sine*sine);
@@ -24,4 +30,5 @@ fn stochasticReflection(R:vec3f,N:vec3f,rough:f32,xi:vec2f)->vec4f{
  let kernel=distribution*max(dot(R,L),0.0)*0.25*select(0.0,1.0,dot(N,L)>0.0);
  return vec4f(L,kernel/max(pdf,1e-20));
 }
-`
+`,
+)

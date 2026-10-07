@@ -351,17 +351,10 @@
     "summary": "描述原生资源编译(prepare / CLI)各项选项的 JSON Schema。"
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "圆锥剔除的容差,由处理器端的镜像实现和着色器共同使用:当一个变换的各列在相对意义上于 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,该变换被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会被剔除。",
-    "description": "带 `_WGSL` 后缀的变体是插入到着色器中的文本,和 `SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)是同一类东西。"
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "作为着色器文本的 `CONE_LENGTH_RATIO`。"
+    "summary": "圆锥剔除的容差,由处理器端的镜像实现和着色器共同使用:当一个变换的各列在相对意义上于 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,该变换被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会被剔除。"
   },
   "CONE_ORTHO_EPS": {
     "summary": "两个列偏离直角多远,仍然会被算作正交。"
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "作为着色器文本的 `CONE_ORTHO_EPS`。"
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "镂空回答表,与 `packages/asset-compiler-rust/src/cutout.rs` 保持一致。",
@@ -1342,9 +1335,6 @@
   },
   "HALF_PI": {
     "summary": "四分之一圈,单位为弧度。"
-  },
-  "HALF_PI_WGSL": {
-    "summary": "作为着色器文本的 `HALF_PI`。"
   },
   "HIERARCHY_ROOT": {
     "summary": "一次遍历更新的完整层级结构:`n` 个节点按父节点先于子节点排序,每个节点先合成自己的局部矩阵,再与父节点的世界矩阵相乘。",
@@ -2746,9 +2736,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "针对归一化后行列式的阈值。",
     "description": "低于 1e-12 时,某个缩放值的三次方在单精度下会变成非规格化数:只有归一化才能跨过这个下限,因此这个阈值判断的不再是矩阵的大小,而只是它的形状。"
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "以 WGSL 书写形式表示的阈值,从常量渲染而来:同一个数字,两种语言。"
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "该记录在打包中的第一个字。"

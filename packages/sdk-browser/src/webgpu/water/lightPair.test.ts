@@ -6,6 +6,7 @@
 // shadowed or not, in the standard, diffuse and toon models, thin or not, on a cell's list and on
 // every lamp. The rectangle's terms, which need the LTC table, are read in the text: each second
 // term is the first with the null albedo for the surface's.
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -15,12 +16,16 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { shadedLightScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 // The program without lobe code; the lobed one's pair is `lobedPair.test.ts`'s.
 const WATER = waterCompositeShader(false, { lobeless: true })
-const SINGLE = `${declaredLightingWgsl({ proxy: 13, transmittance: 18 })}${STANDARD_LIGHTING_WGSL}`
+const SINGLE = wgslModule(
+  declaredLightingWgsl({ proxy: 13, transmittance: 18 }),
+  STANDARD_LIGHTING_WGSL,
+)
 const K = wgslConstants(WATER)
 const SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
 const SHADING = [
@@ -30,14 +35,19 @@ const SHADING = [
   'fresnelSchlick',
   'ggxDistribution',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
+  // The maths library's, which the lobe calls.
+  'ndotvFloor',
+  'f0Of',
+  'lambertAlbedo',
 ]
 
 const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 
 test('one walk of the lights gives the two sums of two walks, bit for bit', () => {
   const r = random(1563),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (let round = 0; round < 600; round++) {
     const count = 1 + Math.floor(u(0, 24))

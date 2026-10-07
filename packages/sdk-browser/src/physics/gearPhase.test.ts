@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { joint } from '../../../sdk-core/src/physics/index.ts'
@@ -9,7 +10,7 @@ function turnOf(rig: Awaited<ReturnType<typeof jointRig>>, mesh: Parameters<type
     total = 0
   return () => {
     const step = rig.yaw(mesh) - last
-    total += step - 2 * Math.PI * Math.round(step / (2 * Math.PI))
+    total += step - TAU * Math.round(step / TAU)
     last += step
     return total
   }
@@ -36,7 +37,7 @@ test('gear and rack and pinion: a braked train keeps its teeth in phase over 10,
   const turns = [...wheels, pinion].map((body) => turnOf(rig, body))
   // Each error in the driven wheel's radians, against a hundredth of its tooth pitch; the first
   // second, while the motor starts the train, left to the correction.
-  const pitch = (n: number) => (2 * Math.PI) / n
+  const pitch = (n: number) => TAU / n
   const tolerances = [...teeth.slice(1).map(pitch), pitch(12)].map((p) => p / 100)
   const worst = tolerances.map(() => 0)
   for (let s = 0; s < 10_000; s++) {
@@ -113,6 +114,6 @@ test('gear linking: a wheel whose hinge is taken out and made again is held in p
   assert.ok(Math.abs(phase() - before) > 0.1, 'the wheel was turned out of mesh')
   rig.run(120)
   const error = Math.abs(phase() - before)
-  const tolerance = (2 * Math.PI) / 12 / 100
+  const tolerance = TAU / 12 / 100
   assert.ok(error < tolerance, `back in phase after the hinge came back: ${error} < ${tolerance}`)
 })

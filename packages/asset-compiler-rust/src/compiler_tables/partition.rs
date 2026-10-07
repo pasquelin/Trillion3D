@@ -17,10 +17,11 @@ mod boxes;
 pub(crate) mod pages;
 mod scene;
 pub(crate) mod split;
-use boxes::{grow, mesh_boxes, world_box, EMPTY};
+use boxes::{mesh_boxes, world_box};
 use pages::{write_pages, MeshSlots};
 use scene::{animated, hierarchy};
 use split::{split_cells, Placed, Region};
+use trillion3d_math::aabb::{grow_flat, EMPTY_FLAT};
 
 /// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
 type Box6 = [f64; 6];
@@ -154,10 +155,13 @@ fn write_cells(
     let mut bounds = Vec::with_capacity(cells.len());
     for (at, cell) in cells.iter().enumerate() {
         let mut parents = BTreeMap::<Option<usize>, Box6>::new();
-        let mut union = EMPTY;
+        let mut union = EMPTY_FLAT;
         for placed in cell {
-            grow(parents.entry(placed.parent).or_insert(EMPTY), &placed.local);
-            grow(&mut union, &placed.bounds);
+            grow_flat(
+                parents.entry(placed.parent).or_insert(EMPTY_FLAT),
+                &placed.local,
+            );
+            grow_flat(&mut union, &placed.bounds);
         }
         let mut counts = BTreeMap::<u64, usize>::new();
         for mesh in cell.iter().filter_map(|p| p.entry["mesh"].as_u64()) {

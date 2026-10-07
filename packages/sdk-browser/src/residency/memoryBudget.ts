@@ -5,6 +5,7 @@ import { effectChainBytesAt } from '../effects/targets.ts'
 import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { effectTargetReserve } from './effectReserve.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The largest canvas a budget declares: the effect chain's targets are reserved at its size. */
 export interface BudgetCanvas {
@@ -119,8 +120,8 @@ export function splitMemoryBudget(
           active.shadowReserve,
         )
       : {
-          geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
-          texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
+          geometryPool: clamp(half, 1, DEFAULT_GEOMETRY_POOL_BUDGET),
+          texturePool: clamp(half, 1, DEFAULT_TEXTURE_POOL_BUDGET),
         }),
     pageCache: cpu,
     textureLevels: textureLevelShare(cpu),

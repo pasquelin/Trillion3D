@@ -1,3 +1,4 @@
+import { lerp } from '../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -78,7 +79,7 @@ test('the same frames draw the same poses on the simulated trajectory, whenever 
     const [a, b] = [stateAt(n), stateAt(n + 1)].map((w) => new Float32Array(w.buffer)[2])
     assert.equal(
       y,
-      a + (b - a) * alpha,
+      lerp(a, b, alpha),
       `frame ${frame}: on the line between steps ${n} and ${n + 1}`,
     )
   })
@@ -107,7 +108,7 @@ test('a tick of no step leaves a moving body between its two steps, unless it mo
   // A query's run of no step sends the same poses again: drawn on.
   poses.receive(tick(2, 2), BODIES, bodies, 0)
   poses.apply(bodies, 0.5, true)
-  assert.equal(meshes[0].position.y, a + (b - a) * 0.5)
+  assert.equal(meshes[0].position.y, lerp(a, b, 0.5))
   // One that put the body somewhere: drawn there at once.
   const moved = tick(2, 2)
   new Float32Array(moved.buffer)[2] = 7

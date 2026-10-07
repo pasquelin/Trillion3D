@@ -3,6 +3,7 @@
 // moved off the level, removed, or the water gone, it is released; the page's own waves, `null`
 // among them, and a body are never touched; each change tells the world the mesh's content, and a
 // mesh the page bound to the world's surface is told when the water set again changes its count.
+import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { box, plane } from '../../../sdk-core/src/world/geometry/basic.ts'
@@ -43,7 +44,7 @@ function world() {
 /** A 28 × 20 m sheet laid flat at `y` by a quarter turn, as a page lays a plane. */
 const sheet = (y: number) => {
   const mesh = new Mesh(plane(28, 20, 4, 4), new Material('meshStandard'))
-  mesh.rotation.x = -Math.PI / 2
+  mesh.rotation.x = -HALF_PI
   mesh.position.y = y
   return mesh
 }
@@ -151,7 +152,7 @@ test('without water no holder asks a frame; a count outlives the frames without 
   assert.equal(told.get(bound), before + 1, 'the new count, after a frame without water')
   // A line at the level is no surface.
   const line = new Mesh(plane(28, 20), new Material('line'), 'lineSegments')
-  line.rotation.x = -Math.PI / 2
+  line.rotation.x = -HALF_PI
   root.add(line)
   carry.frame(surface)
   assert.equal(line.waves, undefined)

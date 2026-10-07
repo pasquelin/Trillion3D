@@ -17,6 +17,8 @@ import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { COMPUTE } from '../core/computeBindings.ts'
 import { WORLD_REBASE_WGSL } from './worldRebaseWgsl.ts'
 import { packDoubles } from '../../placement/composedMotion.ts'
+import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 
 type Ranges = GpuSelection['worldRanges']
 
@@ -37,7 +39,8 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint: 'rebaseWorlds' },
   })
-  const stride = uniformStride(device.limits)
+  const stride = uniformStride(device.limits),
+    width = groupWidth(device.limits)
   const uniforms = device.createBuffer({
     label: 'Trillion3D world rebase eye',
     size: Math.max(1, ranges.length) * stride,
@@ -66,7 +69,7 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
       pass.setPipeline(pipeline)
       ranges.forEach(({ count }, r) => {
         pass.setBindGroup(0, groups[r])
-        pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / 64)))
+        dispatchRows(pass, workgroupCount(count, 64), 1, width)
       })
       pass.end()
     },

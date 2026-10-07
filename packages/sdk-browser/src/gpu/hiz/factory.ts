@@ -1,5 +1,5 @@
 import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
-import { HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, HIZ_UNIFORM_BYTES as UNIFORM_BYTES } from './uniforms.ts'
+import { hizUniformSlots } from './uniforms.ts'
 import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import { TESTED_U32 } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
@@ -30,7 +30,7 @@ export async function createGpuHiz(
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
     h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -47,10 +47,11 @@ function hizState(
   buffers: GPUBuffer[],
   cap: number,
 ): HizState {
+  // The deepest pyramid's build passes, then the test's slot, at the device's alignment.
+  const slots = hizUniformSlots(device.limits)
   const uniforms = device.createBuffer({
     label: 'Trillion3D HiZ uniforms',
-    // The deepest pyramid's build passes, then the test's slot.
-    size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // Tested boxes and the frame state belong to the GPU partition, which does not exist yet.
@@ -71,9 +72,9 @@ function hizState(
       GPUTextureUsage.COPY_SRC,
     pagesGroup: hizPagesGroup(device, pipelines.pagesLayout),
     uniforms,
+    slots,
     // Only the words that changed go up: a frame of the same size and rows sends nothing.
-    image: new Uint32Array(uniforms.size / 4),
-    testOffset: [0],
+    image: new Uint32Array(slots.bytes / 4),
     idle,
     buffers,
     disposed: false,

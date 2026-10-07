@@ -12,8 +12,9 @@
 //! Every sphere is also kept no larger than the one it replaces, which falls back bit for bit.
 use super::bounds::{bounding_sphere, enclosing_sphere};
 use super::{DagCluster, DagGroup};
-use crate::shared_math::{length, merge_aabb, point, sub};
 use rayon::prelude::*;
+use trillion3d_math::aabb::aabb_of_boxes;
+use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_page_codec::min_ball::min_ball;
 
 /// Iterations of the centre pull toward the farthest ball, with a shrinking step.
@@ -71,14 +72,12 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
         }
     };
     consider([merged[0], merged[1], merged[2]], &mut best);
-    let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
-    for s in &live {
-        let (low, high) = (
+    let (lo, hi) = aabb_of_boxes(live.iter().map(|s| {
+        (
             [0, 1, 2].map(|a| s[a] - s[3]),
             [0, 1, 2].map(|a| s[a] + s[3]),
-        );
-        merge_aabb(&mut lo, &mut hi, low, high);
-    }
+        )
+    }));
     consider([0, 1, 2].map(|a| (lo[a] + hi[a]) * 0.5), &mut best);
     // Pull the centre toward the far point of the farthest ball, by 1/(k + 1) of the way at step k.
     let mut c = [best[0], best[1], best[2]];

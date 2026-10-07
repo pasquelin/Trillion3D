@@ -28,20 +28,24 @@
 // record dropped past the frame's count is zeroed that frame, where it was left until the count
 // reached it again — seed 1's third frame, records 8234 to 8238 of a count of 8234, words no shader
 // reads (`prevHandle.id < nextMapCount`); every word read, and every other buffer, kept.
+// Retaken when the invalidation read its rows' width off `num_workgroups` (`flatIndex`): its params'
+// third word, the width it carried, a pad, 0 — seed 2's third frame; every other word kept.
+// Retaken when the per-page thread-per-id bin read its rows' width off `num_workgroups` too: its
+// params' third word, the row pitch it carried, a pad, 0; every other word and buffer kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'b3d5701f77e2d5b7bea13a49a7219e040cdc0d2ff7ffb4f547373316d5d44577',
-    'a71bd242e6609c0b4ff01b985a2c95535b1979fd1c779420cca2f64bb800eaab',
-    '38a8f0eadae9a92682867dca8cabccb9351a94e2ed77edbefe6966acad6fd196',
+    '5f9fcbad2310bf24be7defe5dc3f359ed4ea8db31c6943bc3140126ab201e3d1',
+    '39d2f9cd7d229efb39c75705070cfb0150a4a03d3be5b19d229b08a252c721dd',
+    'd742542eb8c42384251021a7e2be4a238347dc6e0d260dbfc90c78007eb274ef',
   ],
   2: [
     '6f1d70f9e26b0eb55cf2dffc6b735dfab1f7a27eb6d4bc8a9232cb0f539cb203',
     '7c1efdf7558dd2f964a8f2c0dc4726b82f29a550a33f2ccb62e85f7a5d8f333a',
-    '252f762369d8500f530187e8dcd5f6bf76f13c9bff8c103e12dbff9a88fa9d45',
+    '404726114ac50fa65b9929bf5e47a247e253e13d40b68a967a4a19d6129fa69c',
   ],
 }
 

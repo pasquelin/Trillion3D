@@ -80,9 +80,9 @@ test('the cache is laid for the rows and the image, its passes over them in rows
   const depth = writes.find((w) => w.buffer.label === 'Trillion3D material cache dispatch')!
   assert.deepEqual([depth.offset, ...new Uint32Array(written(depth))], [8, 1])
   assert.deepEqual(dispatches, [
-    [2, 40],
+    [2, 40, 1],
     [4, 788],
-    [2, 3],
+    [2, 3, 1],
     ['Trillion3D material cache dispatch', 0],
   ])
   // A wider image of the same rows: the rows bound the triangles. Then the image bounds them:

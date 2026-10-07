@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
@@ -15,8 +16,9 @@ import {
   RECEIVER_TARGET_BYTES,
   RECEIVER_TARGET_FORMAT,
 } from '../visibility/shader/receiverTargetWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 test('thin transmission stays independent of albedo, disabled by default and on single sides', () => {
   const material = G.standardSurface()
@@ -77,8 +79,7 @@ test('shipped thin diffuse transmission integrates to its color, dark front and 
   assert.equal(thinTransmission(-0.5, 0), 0)
   assert.ok(Math.abs(thinTransmission(-0.5, 8) - 4 / Math.PI) < 1e-6)
   let integral = 0
-  for (let i = 0; i < 1024; i++)
-    integral += (thinTransmission(-(i + 0.5) / 1024, 1) * 2 * Math.PI) / 1024
+  for (let i = 0; i < 1024; i++) integral += (thinTransmission(-(i + 0.5) / 1024, 1) * TAU) / 1024
   assert.ok(Math.abs(integral - 1) < 1e-6)
 })
 

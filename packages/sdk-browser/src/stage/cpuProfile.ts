@@ -1,3 +1,5 @@
+import { quantile } from '../../../math/src/scalar/quantile.ts'
+
 /**
  * CPU step profile of a render loop: a bounded ring of recent images plus the worst images by total
  * duration, summarised on demand. It exists so an engine can report where its own CPU time goes in
@@ -34,8 +36,6 @@ export function createCpuStepProfile(
   let recorded = 0,
     cursor = 0,
     worstFilled = 0
-  const pick = (sorted: Float64Array, count: number, quantile: number) =>
-    sorted[Math.min(count - 1, Math.floor(quantile * count))]
   const reset = () => {
     recorded = 0
     cursor = 0
@@ -80,8 +80,8 @@ export function createCpuStepProfile(
         }
         const sorted = column.subarray(0, filed).sort()
         steps[names[c]] = {
-          p50: filed ? pick(sorted, filed, 0.5) : NaN,
-          p95: filed ? pick(sorted, filed, 0.95) : NaN,
+          p50: filed ? quantile(sorted, 0.5)! : NaN,
+          p95: filed ? quantile(sorted, 0.95)! : NaN,
           max: filed ? sorted[filed - 1] : NaN,
         }
       }

@@ -1,8 +1,10 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import type { ControlBase } from './base.ts'
 import { trackPointers } from './input.ts'
 import type { ControlPose } from './pose.ts'
 import { orbitOrientation } from './math.ts'
-import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
@@ -45,8 +47,8 @@ const HEAD_LOOK_SPEED = 0.002
  *  yaw would lose its meaning. */
 export const HEAD_DEFAULTS = {
   lookSpeed: null as number | null,
-  minPitch: POLAR_EPSILON - Math.PI / 2,
-  maxPitch: Math.PI / 2 - POLAR_EPSILON,
+  minPitch: POLAR_EPSILON - HALF_PI,
+  maxPitch: HALF_PI - POLAR_EPSILON,
 }
 
 export function createHead(
@@ -90,10 +92,10 @@ export function createHead(
       sample()
       const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED
       yaw -= lookX * speed
-      pitch = clampNumber(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
+      pitch = clampCompare(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
       lookX = lookY = 0
       angles[1] = yaw
-      angles[2] = Math.PI / 2 + pitch
+      angles[2] = HALF_PI + pitch
       orbitOrientation(orientation, angles)
       written.set(orientation)
       return yaw

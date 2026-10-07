@@ -6,44 +6,11 @@
 
 pub(crate) mod wide;
 
-/// Extends bounding box by another box, axis by axis in axis order.
-///
-/// `f64::min` and `f64::max` keep semantics: NaN in read box leaves bound
-/// as is, NaN in bound replaced by coordinate. Min corner compared
-/// only to min corner and max to max corner: no extra comparison deciding
-/// differently between `+0.0` and `−0.0`.
-pub(crate) fn merge_aabb<const N: usize>(
-    low: &mut [f64; N],
-    high: &mut [f64; N],
-    other_low: [f64; N],
-    other_high: [f64; N],
-) {
-    for axis in 0..N {
-        low[axis] = low[axis].min(other_low[axis]);
-        high[axis] = high[axis].max(other_high[axis]);
-    }
-}
-
-/// Extends bounding box by point: box reduced to point.
-pub(crate) fn extend_aabb<const N: usize>(
-    low: &mut [f64; N],
-    high: &mut [f64; N],
-    point: [f64; N],
-) {
-    merge_aabb(low, high, point, point);
-}
-
-/// Axis along which box widest. On tie, first axis wins:
-/// strict `>` comparison, NaN extent never alters choice.
-pub(crate) fn longest_axis(low: &[f64; 3], high: &[f64; 3]) -> usize {
-    let mut axis = 0;
-    for a in 1..3 {
-        if high[a] - low[a] > high[axis] - low[axis] {
-            axis = a;
-        }
-    }
-    axis
-}
+use trillion3d_math::aabb::aabb_of;
+pub(crate) use trillion3d_math::aabb::longest_axis;
+pub(crate) use trillion3d_math::linear::{linear_columns, uniform_scale};
+use trillion3d_math::random::hash_word;
+pub(crate) use trillion3d_math::vec3::{normalized_or, unit};
 
 /// Sorts group of ids on widest axis of centroids: median falls
 /// on `slice.len() / 2`, splitting group into two spatial halves.
@@ -51,11 +18,7 @@ pub(crate) fn longest_axis(low: &[f64; 3], high: &[f64; 3]) -> usize {
 /// Comparator sorts by coordinate (`total_cmp`, so NaN has a place), then by
 /// identifier: two coincident centroids keep same order from build to build.
 pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
-    for &id in slice.iter() {
-        extend_aabb(&mut low, &mut high, centres[id]);
-    }
+    let (low, high) = aabb_of(slice.iter().map(|&id| centres[id]));
     let axis = longest_axis(&low, &high);
     slice.sort_unstable_by(|&x, &y| {
         centres[x][axis]
@@ -64,51 +27,10 @@ pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
     });
 }
 
-/// Same box in single precision: site accumulating `f32` does not go through `f64`.
-pub(crate) fn extend_aabb_f32<const N: usize>(
-    low: &mut [f32; N],
-    high: &mut [f32; N],
-    point: [f32; N],
-) {
-    for axis in 0..N {
-        low[axis] = low[axis].min(point[axis]);
-        high[axis] = high[axis].max(point[axis]);
-    }
-}
-
 /// Padding bytes to reach next multiple of four: zero when already
 /// aligned. Alignment binary format requires of views.
 pub(crate) fn pad_to_4(length: usize) -> usize {
     (4 - length % 4) % 4
-}
-
-/// Small vector algebra on `[f64; 3]`, written once in the page codec beside the normal cone that
-/// reads it (`trillion3d_page_codec::vec3`): the compiler carries one implementation of each.
-pub use trillion3d_page_codec::vec3::{add, cross, divide, dot, length, point, scale, sub};
-
-/// Unit vector, or fallback when length stays under 1e-12: shorter,
-/// vector carries no direction and division makes no sense. Fallback belongs to
-/// site — light looks towards `-Z`, missing normal points up — so passed in.
-pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
-    let norm = length(vector);
-    if norm > 1e-12 {
-        divide(vector, norm)
-    } else {
-        fallback
-    }
-}
-
-/// `v` at unit length, if it has a finite, non-zero one.
-pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
-    unit_where(v, |length| length > 0.0 && length.is_finite())
-}
-
-/// `v` times the reciprocal of its length, when `usable` accepts that length. The guard is the
-/// caller's: `unit` refuses a non-finite length, the oracle only a non-positive one.
-/// `normalized_or` divides each part instead: the two round apart, and each keeps its callers' bits.
-pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
-    let length = length(v);
-    usable(length).then(|| scale(v, 1.0 / length))
 }
 
 /// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values), the
@@ -119,7 +41,7 @@ pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f
 pub(crate) struct WordHasher(u64);
 impl WordHasher {
     fn mix(&mut self, word: u64) {
-        self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(0x517cc1b727220a95);
+        self.0 = hash_word(self.0, word);
     }
 }
 impl std::hash::Hasher for WordHasher {
@@ -146,36 +68,8 @@ pub(crate) fn word_map<K, V>(capacity: usize) -> WordMap<K, V> {
 pub(crate) type WordSet<T> =
     std::collections::HashSet<T, std::hash::BuildHasherDefault<WordHasher>>;
 
-/// The step between two draws: the golden ratio's fractional part, as a 64-bit odd integer, so
-/// successive multiples of a counter spread evenly over the 64-bit range. A declared choice, not a
-/// tuned one: any odd multiplier with well-spread bits would serve.
-pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
-
-/// `x` mixed by a 64-bit avalanche finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64
-/// would round up to 1 near `u64::MAX`). Its shifts and multipliers are declared, not tuned.
-pub(crate) fn splitmix_unit(x: u64) -> f64 {
-    let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
-}
-
 /// Elapsed milliseconds from instant: compiler publishes durations in
 /// milliseconds only, converting in one place prevents seconds leak.
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {
     since.elapsed().as_secs_f64() * 1000.0
-}
-
-/// Equivalent uniform scale of 4x4 column matrix: cube root of
-/// volume linear part multiplies. Needed to transform length — light
-/// radius — from local space to world. Non-uniform matrix yields geometric
-/// mean of three scales, mirror yields same scale as reflection, degenerate
-/// matrix yields zero: zero length discarded by caller.
-pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
-    let [x, y, z] = linear_columns(m);
-    dot(x, cross(y, z)).abs().cbrt()
-}
-
-/// The three columns of the linear part of a column-major 4x4 matrix.
-pub(crate) fn linear_columns(m: &[f64; 16]) -> [[f64; 3]; 3] {
-    [0, 1, 2].map(|c| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]])
 }

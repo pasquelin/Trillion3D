@@ -4,6 +4,7 @@
  * commits them. Each turn is normalised by the engine's one quaternion normalisation
  * (`normalizeQuaternionAt`); the arithmetic is the drawn image's, so none of it may be reordered.
  */
+import { lerp } from '../../../math/src/scalar/reals.ts'
 import { normalizeQuaternionAt, slerpOnArc } from '../../../math/src/quaternion/quaternion.ts'
 
 /** The `count` slots listed in `list` on their newest states (`target`) exactly. */
@@ -42,9 +43,9 @@ export function interpolateAll(
       o = index * 7,
       p = index * 3,
       q = index * 4
-    position[p] = from[o] + (to[o] - from[o]) * alpha
-    position[p + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * alpha
-    position[p + 2] = from[o + 2] + (to[o + 2] - from[o + 2]) * alpha
+    position[p] = lerp(from[o], to[o], alpha)
+    position[p + 1] = lerp(from[o + 1], to[o + 1], alpha)
+    position[p + 2] = lerp(from[o + 2], to[o + 2], alpha)
     slerpOnArc(quaternion, q, from, o + 3, to, o + 3, alpha, arcs, index * 3)
     normalizeQuaternionAt(
       quaternion,

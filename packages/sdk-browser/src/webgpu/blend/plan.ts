@@ -1,3 +1,4 @@
+import { ceilDiv, bitWords } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
@@ -7,7 +8,7 @@ import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
 import { FRAME_EYE_WORDS, NOT_OWN, orderFrameWords } from './orderWgsl.ts'
-import { ORDER_STEP_STRIDE, orderStepCount, planOrderSteps } from './orderSteps.ts'
+import { orderStepCount, planOrderSteps } from './orderSteps.ts'
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts'
 import {
   PLAN_PIPELINE_MASK,
@@ -63,7 +64,7 @@ function sceneVertexShift(items: readonly BlendGpuItem[], paged: number, capacit
  *  that twice — a double-sided material drawn in two passes carries two plan entries. */
 function instanceCapacity(libres: readonly number[], shift: number, capacity: number) {
   let total = capacity
-  for (const count of libres) total += Math.ceil(count / blendChunkWords(shift, count))
+  for (const count of libres) total += ceilDiv(count, blendChunkWords(shift, count))
   return total * MAX_SIDES
 }
 
@@ -72,9 +73,12 @@ function instanceCapacity(libres: readonly number[], shift: number, capacity: nu
  *
  * A paged instance draws a cluster, an unpaged instance a chunk of at most one index stride. The
  * vertex index carries the rank of its run's first instance, not the item rank (`runs.ts`): that
- * is what lets a whole run fit in ONE draw, and all paged items share ONE bind group.
+ * is what lets a whole run fit in ONE draw, and all paged items share ONE bind group. The order's
+ * step words and the expansion's uniform slots lie `uniformStride` bytes apart: the device's
+ * dynamic-offset alignment, held in the state for the plan and the kernels' buffers.
  */
-export function buildBlendStatics(blendState: BlendState) {
+export function buildBlendStatics(blendState: BlendState, uniformStride: number) {
+  blendState.uniformStride = uniformStride
   const items = blendState.blendGpu,
     table = blendState.table
   const paged = table?.maxVertexWords ?? 0
@@ -106,14 +110,14 @@ export function buildBlendStatics(blendState: BlendState) {
       continue
     }
     const words = blendChunkWords(shift, item.count)
-    draws[i * 4 + 1] = Math.ceil(item.count / words)
+    draws[i * 4 + 1] = ceilDiv(item.count, words)
     draws[i * 4 + 3] = words
     room[item.transmissive ? 1 : 0] += MAX_SIDES * draws[i * 4 + 1]
   }
   blendState.instanceBase[1] = room[0]
   blendState.instanceCapacity = Math.max(1, room[0] + room[1])
   blendState.drawsPacked = draws
-  blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5))
+  blendState.keepPacked = new Uint32Array(Math.max(1, bitWords(items.length)))
   buildBlendHierarchy(blendState)
   // Same worst case for the plan tables, its slots and the frame data, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES
@@ -122,10 +126,10 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.runCount.fill(0)
   blendState.orderKeys = new Float64Array(Math.max(1, items.length))
   blendState.ownRanks = new Uint32Array(items.length)
-  blendState.frameDoubles = new Float64Array(Math.ceil(orderFrameWords(items.length, entries) / 2))
+  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(items.length, entries), 2))
   blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer)
   blendState.orderStepWords = new Uint32Array(
-    EXPAND_PASSES * orderStepCount(entries) * (ORDER_STEP_STRIDE / 4),
+    EXPAND_PASSES * orderStepCount(entries) * (blendState.uniformStride / 4),
   )
   blendState.planMoved = true
 }
@@ -249,6 +253,7 @@ function planBlendOrder(blendState: BlendState) {
           },
           blendState.orderStepWords,
           step,
+          blendState.uniformStride,
         )
       : []
     step += blendState.orderSteps[pass].length

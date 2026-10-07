@@ -4,6 +4,7 @@ import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
 import { volumeAttenuation } from './volumeLaw.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
  *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the marks word: one record
@@ -16,7 +17,11 @@ export const VOLUME_WORDS = 8
 export const VOLUME_FOG_FREE = 1
 export const VOLUME_LOBED = 2
 /** Whether volume `vol`'s marks word holds `bit`: every read of the word in a composite. */
-export const VOLUME_MARKED_WGSL = `fn volumeMarked(vol:Volume,bit:u32)->bool{return (u32(vol.attenuation.w)&bit)!=0u;}`
+export const VOLUME_MARKED_WGSL = wgslBlock(
+  'VOLUME_MARKED_WGSL',
+  [],
+  `fn volumeMarked(vol:Volume,bit:u32)->bool{return (u32(vol.attenuation.w)&bit)!=0u;}`,
+)
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {

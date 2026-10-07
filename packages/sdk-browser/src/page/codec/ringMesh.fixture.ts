@@ -1,6 +1,7 @@
 // A real page for the codec's tests and the GPU decoding proof: it comes out of the reference
 // encoder `packages/page-codec`, the oracle of the JavaScript decoder, so what is compared is two
 // reads of a real page, not of a buffer made for the occasion.
+import { TAU } from '../../../../math/src/constants.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
 
@@ -17,7 +18,7 @@ export function ringMesh(triangles: number, exponent: number, colorWidth = 4) {
     uv2 = new Float32Array(count * 2),
     color = new Float32Array(count * colorWidth)
   for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2
+    const angle = (i / count) * TAU
     position.set([Math.cos(angle) * 2.3 + 100.7, Math.sin(angle) * 2.3 - 40.1, i * 0.0173], i * 3)
     normal.set([Math.cos(angle) * 0.6, Math.sin(angle) * 0.6, i % 2 ? 0.8 : -0.8], i * 3)
     uv.set([i / count, 0.5 + Math.sin(angle) * 0.25], i * 2)

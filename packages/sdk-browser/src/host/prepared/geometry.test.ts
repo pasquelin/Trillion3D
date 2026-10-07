@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
@@ -38,7 +39,7 @@ test('a prepared geometry is the host’s: its normalised lists are edged and tu
     Array.from(wireframe(geometry).attributes.position.array),
     [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
   )
-  geometry.rotateZ(Math.PI / 2)
+  geometry.rotateZ(HALF_PI)
   // (1, 0, 0) turned is (0, 1, 0), written normalised as 127.
   assert.deepEqual(Array.from(geometry.attributes.normal.array), [0, 127, 0, 0, 0, 127, 0, 0, 127])
 })

@@ -7,6 +7,7 @@ import { writeKeyRecords } from './keyRecords.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { materialEpoch } from '../pages/io/refreshMaterials.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
@@ -31,7 +32,8 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
       : item.deformOutput
         ? item.vertexBase
         : 0
-  buildBlendStatics(blendState)
+  // The order's step words are laid at the device's alignment, as the kernels' buffers.
+  buildBlendStatics(blendState, uniformStride(device.limits))
   // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
   // with a zero instance count, and the readbacks keep naming the scene's items.
   blendState.visibleBlend.length = 0
