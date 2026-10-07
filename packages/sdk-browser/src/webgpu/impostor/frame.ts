@@ -8,6 +8,11 @@ import {
   planImpostorCards,
   type CardMoved,
 } from '../../impostor/cards.ts'
+import { cutViewPlanes } from '../../gpu/core/aheadView.ts'
+import { cutMotion } from '../pages/render/gpuCut.ts'
+
+/** The absolute planes the plan reads the roots in view through, filled each image. */
+const viewPlanes = new Float64Array(24)
 import { createImpostorPass, type ImpostorPass } from './pass.ts'
 
 /** A session's impostor tier on WebGPU: the pass, the baked meshes, and this image's cards. */
@@ -69,12 +74,15 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`): read
   // with no card, which would draw it twice; one the world does not hold — a host mesh, an object
   // outside its table — keeps its card.
+  // The views it may hold: the camera's, and the view ahead the cut also reads card bits in, so a
+  // root entering it is planned before the cut asks its pages.
   const selection = rt.run.gpuSelection,
     visible = selection?.visiblePlacements,
     linked = selection?.worldStandsIn
   type Visit = (rank: number, card?: boolean) => void
   const every = (visit: Visit) => roots.forEach((_, rank) => visit(rank))
-  const read = visible ? (visit: Visit) => visible(cam.planes, visit) : every
+  const planes = visible && cutViewPlanes(cam, cutMotion(rt), viewPlanes)
+  const read = planes ? (visit: Visit) => visible(planes, visit) : every
   const ranks =
     linked || visible ? (visit: Visit) => read((rank) => visit(rank, !linked?.(rank))) : undefined
   planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, ranks)

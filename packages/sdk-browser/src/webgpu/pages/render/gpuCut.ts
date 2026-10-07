@@ -63,18 +63,23 @@ export function renderGpuCut(
   if (cutFrame(rt, gpuDevice)) encodeImage(rt, gpuDevice, cam)
 }
 
+/** The camera's motion the view's cut reads its view ahead from: the main view's alone, which
+ *  looks a round trip further for pages that come from further away; none for a view aside. */
+export function cutMotion(rt: WebgpuPagesRuntime) {
+  const { run, context, views } = rt
+  run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.())
+  return views.active === views.main ? run.motion : undefined
+}
+
 /** The view's selection uniforms written, its last readback adopted and its cut admitted. */
 function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
-  const { run, context, services, views } = rt,
+  const { run, services } = rt,
     { viewport } = rt.setup,
     marks = rt.timing.marks
-  const main = views.active === views.main
   // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
-  // (`../../../page/cut/rule.ts`). The view ahead, the main view's alone, looks a round trip
-  // further for pages that come from further away.
-  run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.())
+  // (`../../../page/cut/rule.ts`).
   const uniforms = run.selectionUniforms
-  cameraSelectionUniforms(cam, pixelError, viewport, uniforms, main ? run.motion : undefined)
+  cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
   // A pool short of the views' cuts has the GPU rank the requests by admission (`request.ts`).
   uniforms.admitByLevel = services.residency.short()
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.

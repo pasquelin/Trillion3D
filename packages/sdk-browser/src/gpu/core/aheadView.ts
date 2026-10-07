@@ -106,3 +106,34 @@ export function holdAheadView(
 
 export const copyAheadView = (a?: AheadView | null): AheadView | null =>
   a ? { planes: a.planes.slice(), view: a.view.slice() } : null
+
+const heldAhead: AheadView = {
+  planes: new Float32Array(FRUSTUM_PLANE_VALUES),
+  view: new Float32Array(16),
+}
+
+/**
+ * The absolute planes of every view of `cam` the cut reads a root's card bit in, into `out`: the
+ * view ahead's when the camera moves — they hold the camera's frustum, the guard band and the view
+ * ahead (`aheadViewOf`), `motion` as the cut reads it this frame —, else the camera's own. A root
+ * outside them asks nothing of the cut, carded or not.
+ */
+export function cutViewPlanes(
+  cam: EngineCamera,
+  motion: CameraMotion | undefined,
+  out: Float64Array,
+) {
+  const ahead = motion && aheadViewOf(cam, motion, heldAhead)
+  if (!ahead) return (out.set(cam.planes), out)
+  const { eye } = cam,
+    relative = ahead.planes
+  for (let i = 0; i < relative.length; i += 4) {
+    out[i] = relative[i]
+    out[i + 1] = relative[i + 1]
+    out[i + 2] = relative[i + 2]
+    // A plane through the render frame's origin, the eye, moved back to the world's.
+    out[i + 3] =
+      relative[i + 3] - (relative[i] * eye[0] + relative[i + 1] * eye[1] + relative[i + 2] * eye[2])
+  }
+  return out
+}
