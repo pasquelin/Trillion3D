@@ -81,18 +81,6 @@ function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: 
   }
 }
 
-/** The world box of `pages`, six bounds flat. */
-function boxOf(pages: readonly { min: number[]; max: number[] }[]) {
-  const box = new Float64Array(BOX_VALUES).fill(Infinity)
-  for (let a = 3; a < 6; a++) box[a] = -Infinity
-  for (const { min, max } of pages)
-    for (let a = 0; a < 3; a++) {
-      box[a] = Math.min(box[a], min[a])
-      box[a + 3] = Math.max(box[a + 3], max[a])
-    }
-  return box
-}
-
 /**
  * The cut's root of the world DAG `dag`: its records worn through `wear` (a primitive's rank to the
  * mesh that draws it opaque, none otherwise), its group structure and culling hierarchy over them,
@@ -112,8 +100,9 @@ export function worldSelectionRoot(
     // No wearer: a record without a page, worn as any other only to stay a record.
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
+  // The world box: the root node's of the hierarchy over its pages, as a primitive's local box.
   const nodes = flatHierarchy(pages),
-    worldBox = boxOf(pages),
+    worldBox = nodes.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
   // The roots each bundle holds for its cell, those with a page alone: a record without one is
   // not a page, never held nor covered.
