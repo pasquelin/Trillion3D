@@ -4,20 +4,27 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRowUse } from './rowUse.ts'
+import { rowIdleSpan } from './rowCache.fixture.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 
 test('a table whose rows are all in use has no victim until a row goes unused', () => {
   const use = createRowUse(4)
   use.tick()
   for (const row of [0, 1, 2, 3]) use.stamp(row)
   assert.equal(use.victim(4), -1, 'every row stamped by the last readback')
-  for (let k = 1; k < use.idleReadbacks; k++) {
+  // Readbacks that name every row but 2, until a request may take a row back.
+  let span = 0,
+    victim = -1
+  while (victim < 0 && span < 1 << 16) {
     use.tick()
     for (const row of [0, 1, 3]) use.stamp(row)
-    assert.equal(use.victim(4), -1, `readback ${k}: row 2 still within the idle span`)
+    victim = use.victim(4)
+    span++
   }
-  use.tick()
-  for (const row of [0, 1, 3]) use.stamp(row)
-  assert.equal(use.victim(4), 2, 'row 2 unused for the whole span')
+  assert.equal(victim, 2, 'row 2, unused for the whole span')
+  assert.equal(span, rowIdleSpan(), 'a full table and a lone row wait the same span')
+  // The readbacks in flight and the image being encoded may still draw it: never taken before.
+  assert.ok(span > DAG_READBACK_SLOTS + 1, `span ${span}`)
 })
 
 test('rows given back and moved keep the count of the rows in use', () => {

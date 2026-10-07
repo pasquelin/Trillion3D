@@ -1,9 +1,6 @@
 // The CPU visbuffer: packed identifiers and depth, the oracle the GPU rasters are compared to. The
 // engine rasterises on the GPU alone; this keeps the identifier of the winning triangle and its depth.
-import {
-  signedArea,
-  type Projected,
-} from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import { signedArea, triangleAt, type Projected } from './projection.ts'
 import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts'
 import { uvTransformed } from '../../../../packages/sdk-core/src/texture/contract.ts'
 import { refreshSurface, surfaceSide } from '../../../../packages/sdk-browser/src/page/surface.ts'
@@ -11,7 +8,6 @@ import {
   DEPTH_CLEAR,
   depthNearer,
 } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import {
   assertVisibilityPageTriangles,
   VIS_MAX_PAGES,

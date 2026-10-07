@@ -7,7 +7,8 @@ import { cutRuntimePrimitive } from './runtimePrimitive.ts'
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { LINE_DASH_WGSL, lineDash } from '../../visibility/shader/lineWgsl.ts'
+import { LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts'
+import { lineDash } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts'
 
 /** The depth layer of every page the world cuts from `drawn`. */

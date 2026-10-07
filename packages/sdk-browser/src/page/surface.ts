@@ -3,9 +3,9 @@
  * engine's own words, and nothing of the host object it was read from.
  *
  * A page does not carry the host material declaration itself: every reader on the
- * way to the image — the cut's normal cones, the row writer, the software raster, the coplanar
- * layer batches, the frame audit, the transparent items — takes a side, a
- * transparency flag, a colour from this record. The record below is read ONCE per declaration, at
+ * way to the image — the cut's normal cones, the row writer, the coplanar layer batches, the
+ * frame audit, the transparent items — takes a side, a transparency flag, a colour from this
+ * record. The record below is read ONCE per declaration, at
  * the two boundaries that own that read (`../host/surfaceImport.ts` for the shaded fields,
  * `../scene/materialSide.ts` for the raster ones); downstream no file of the engine path names a
  * host material again.
@@ -108,9 +108,9 @@ function refreshSide(surface: PageSurface): PageSurface {
  *
  * The raster facts are reread on every call: a host writes `side`, `alphaTest` or `opacity` on
  * the declaration it shares with its mesh without bumping any version, and the transparent plan
- * (`../webgpu/blend/plan.ts`) and the software raster (`../visibility/raster.ts`) have to see it between
- * two images. The shaded fields, which walk the six map slots, are reread only when the version
- * moved — the comparison the page row already made before writing.
+ * (`../webgpu/blend/plan.ts`) has to see it between two images. The shaded fields, which walk the
+ * six map slots, are reread only when the version moved — the comparison the page row already
+ * made before writing.
  */
 export function refreshSurface(surface: PageSurface): PageSurface {
   const material = declarations.get(surface)

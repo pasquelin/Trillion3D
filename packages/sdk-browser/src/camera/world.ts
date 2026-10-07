@@ -9,30 +9,7 @@ import {
 import type { ControlVector } from './controls/types.ts'
 import type { HostRotation } from '../host/scene/graphNodes.ts'
 
-export {
-  createEngineCamera,
-  defaultEngineCamera,
-  holdCameraWorld,
-  type EngineCamera,
-} from './engineCamera.ts'
-
-/** Every number equal within `1e-7`, without a closure per compared matrix. */
-function nearlyEqual(a: ArrayLike<number>, b: ArrayLike<number>) {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) if (!(Math.abs(a[i] - b[i]) <= 1e-7)) return false
-  return true
-}
-
-/** The view the GPU partition's occluder history was taken from is this one: any camera movement,
- *  cut or projection change lets every row leave the occluders again (`occluderViewMoved`).
- *  `previous` is the camera `holdCameraWorld` holds: the sixteen view and projection numbers the
- *  frame entry copied, with nothing to walk up or invert again. */
-export function sameOccluderView(previous: EngineCamera | undefined, current: EngineCamera) {
-  if (!previous) return false
-  return (
-    nearlyEqual(previous.view, current.view) && nearlyEqual(previous.projection, current.projection)
-  )
-}
+export { createEngineCamera, defaultEngineCamera, type EngineCamera } from './engineCamera.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;

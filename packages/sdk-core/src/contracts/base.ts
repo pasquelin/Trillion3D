@@ -65,6 +65,6 @@ export interface StablePreview {
   width: number
   /** Height in pixels. */
   height: number
-  /** The renderer that drew it. */
+  /** The engine that drew it: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`). */
   backend: string
 }

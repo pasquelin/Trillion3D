@@ -50,7 +50,6 @@ function dropGpuHiz(rt: WebgpuPagesRuntime) {
   vis.visHizRestNone = undefined
   vis.visHizRestFront = undefined
   invalidateOccluderHistory(rt.run)
-  rt.run.previousOccluderView = undefined
 }
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {

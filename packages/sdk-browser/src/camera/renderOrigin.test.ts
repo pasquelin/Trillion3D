@@ -18,7 +18,8 @@ import { multiplyMatrix4, worldToRenderOrigin } from '../../../sdk-core/src/inde
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { sameRenderOrigin } from './renderOrigin.ts'
 import { engineCamera } from './camera.fixture.ts'
-import { createEngineCamera, holdCameraWorld, readCameraWorld } from './world.ts'
+import { createEngineCamera, readCameraWorld } from './world.ts'
+import { holdCameraWorld } from './engineCamera.ts'
 
 const DECALAGE: [number, number, number] = [50000, 50000, 50000]
 /** Pose of the primitive, of the eye and of its target, in multiples of 1/8. */

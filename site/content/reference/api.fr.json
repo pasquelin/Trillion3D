@@ -814,7 +814,8 @@
     "summary": "Format de cache externe requis pour le BLEND en clusters (8 avant que le manifeste soit paginé, 10 avant le format 11) ; les manifestes source gardent leur propre format."
   },
   "clusterErrorAtDepth": {
-    "summary": "La même erreur projetée quand la distance du centre à l’axe de vue et sa profondeur (−z de la vue) sont déjà connues : un nœud qui fixe plancher et plafond sur la même sphère partage sa profondeur."
+    "summary": "La même erreur projetée quand la distance du centre à l’axe de vue et sa profondeur (−z de la vue) sont déjà connues : un nœud qui fixe plancher et plafond sur la même sphère partage sa profondeur.",
+    "description": "Une erreur nulle donne 0 et une erreur infinie donne l’infini avant toute vérification ; tout autre paramètre est ensuite vérifié d’un coup — erreur, étirement et rayon finis et non négatifs, focale et plan proche finis et positifs, distance à l’axe finie et non négative, profondeur finie, poids de clip-w dans [0, 1] — avant la projection. Miroir Rust, une seule garde, mêmes verdicts : `projected_error_at` de `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` d’un cluster dont le centre de vue est donné, paramètres vérifiés.",
@@ -1786,8 +1787,8 @@
       "selectedTriangles": "Triangles choisis par la coupe.",
       "residentPages": "Pages gardées en mémoire.",
       "submittedTriangles": "Triangles envoyés : sur le chemin WebGPU par pages, chaque rangée dessinable — les rejets d’occultation viennent après l’envoi —, tenue par la table, donc exacte et de cette image.",
-      "totalSubmittedTriangles": "Tous les triangles envoyés, passes transparentes comprises. Null quand un moteur ne sait pas les compter.",
-      "pagesDetached": "Clusters qui ont quitté la coupe dessinée pendant cette session. Une caméra qui bouge détache des clusters à chaque image ; ce n’est pas un signe de pression sur le cache. Null pour un moteur qui ne suit pas de coupe.",
+      "totalSubmittedTriangles": "Tous les triangles envoyés, passes transparentes comprises. Null tant que l’image est en attente.",
+      "pagesDetached": "Clusters qui ont quitté la coupe dessinée pendant cette session. Une caméra qui bouge détache des clusters à chaque image ; ce n’est pas un signe de pression sur le cache. Null tant que le moteur ne le compte pas.",
       "cacheEvictions": "Pages vraiment évincées du cache qui nourrit la géométrie dessinée : le cache de pages GPU du moteur quand il en a un, le flux de pages de l’hôte sinon. C’est le signal de pression sur le cache.",
       "geometryAllocationBytes": "Octets de la mémoire de géométrie.",
       "vramBytes": "Octets de mémoire GPU.",
@@ -1797,7 +1798,7 @@
       "pagesLoading": "Pages en route.",
       "cacheHits": "Lectures de pages servies par le cache.",
       "cacheMisses": "Lectures de pages absentes du cache.",
-      "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées. La coupe CPU, elle, compte ses propres nœuds testés et ses propres rejets.",
+      "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.",
       "lodLevel": "Niveau de détail de la coupe.",
       "transparentMeshes": "Compteurs transparents de WebGPU. `transparentDrawCalls` compte chaque dessin, les deux moitiés d’un matériau en deux passes comprises ; `transparentSubmittedTriangles` compte les triangles de la coupe transparente une fois chacun, quel que soit le nombre de passes qui les rastérisent — la multiplication par passe est celle du GPU, puisque les nombres d’instances sont écrits par le compactage et jamais relus. Null quand ils ne sont pas disponibles.",
       "transparentFrustumRejected": "Clusters transparents hors de la vue.",
@@ -5082,7 +5083,7 @@
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Flottants de l’environnement dans le tampon GPU."
+    "summary": "Flottants de l’environnement dans le tampon GPU : les coefficients, 9 × 4, puis le bloc du brouillard, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Flottants d’une lumière dans le tampon GPU : cinq `vec4f`."
@@ -5580,7 +5581,7 @@
       "rgba": "Les pixels, quatre octets chacun.",
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels.",
-      "backend": "Le moteur de rendu qui l’a dessiné."
+      "backend": "Le moteur qui l’a dessiné : `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "STAGE_LABELS": {
@@ -6539,8 +6540,8 @@
       "selectedTriangles": "Triangles choisis par la coupe.",
       "residentPages": "Pages gardées en mémoire.",
       "submittedTriangles": "Triangles envoyés : sur le chemin WebGPU par pages, chaque rangée dessinable — les rejets d’occultation viennent après l’envoi —, tenue par la table, donc exacte et de cette image.",
-      "totalSubmittedTriangles": "Tous les triangles envoyés, passes transparentes comprises. Null quand un moteur ne sait pas les compter.",
-      "pagesDetached": "Clusters qui ont quitté la coupe dessinée pendant cette session. Une caméra qui bouge détache des clusters à chaque image ; ce n’est pas un signe de pression sur le cache. Null pour un moteur qui ne suit pas de coupe.",
+      "totalSubmittedTriangles": "Tous les triangles envoyés, passes transparentes comprises. Null tant que l’image est en attente.",
+      "pagesDetached": "Clusters qui ont quitté la coupe dessinée pendant cette session. Une caméra qui bouge détache des clusters à chaque image ; ce n’est pas un signe de pression sur le cache. Null tant que le moteur ne le compte pas.",
       "cacheEvictions": "Pages vraiment évincées du cache qui nourrit la géométrie dessinée : le cache de pages GPU du moteur quand il en a un, le flux de pages de l’hôte sinon. C’est le signal de pression sur le cache.",
       "geometryAllocationBytes": "Octets de la mémoire de géométrie.",
       "vramBytes": "Octets de mémoire GPU.",
@@ -6550,7 +6551,7 @@
       "pagesLoading": "Pages en route.",
       "cacheHits": "Lectures de pages servies par le cache.",
       "cacheMisses": "Lectures de pages absentes du cache.",
-      "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées. La coupe CPU, elle, compte ses propres nœuds testés et ses propres rejets.",
+      "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.",
       "lodLevel": "Niveau de détail de la coupe.",
       "transparentMeshes": "Compteurs transparents de WebGPU. `transparentDrawCalls` compte chaque dessin, les deux moitiés d’un matériau en deux passes comprises ; `transparentSubmittedTriangles` compte les triangles de la coupe transparente une fois chacun, quel que soit le nombre de passes qui les rastérisent — la multiplication par passe est celle du GPU, puisque les nombres d’instances sont écrits par le compactage et jamais relus. Null quand ils ne sont pas disponibles.",
       "transparentFrustumRejected": "Clusters transparents hors de la vue.",

@@ -1110,8 +1110,8 @@
       "selectedTriangles": "Số tam giác mà lát cắt đã chọn.",
       "residentPages": "Số trang được giữ trong bộ nhớ.",
       "submittedTriangles": "Số tam giác đã gửi: trên đường xử lý WebGPU-theo-trang, mọi hàng có thể vẽ — việc từ chối do che khuất diễn ra sau khi gửi —, được bảng đó giữ, do đó chính xác và thuộc về khung hình này.",
-      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi một backend không thể đếm chúng.",
-      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng trên một backend không theo dõi một lát cắt.",
+      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi ảnh còn đang chờ.",
+      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng khi engine chưa đếm chúng.",
       "cacheEvictions": "Số trang thực sự bị loại khỏi bộ nhớ đệm nuôi hình học được vẽ: bộ nhớ đệm trang GPU riêng của backend khi nó sở hữu một cái, hoặc bộ truyền tải trang của ứng dụng chủ trong trường hợp khác. Đây là tín hiệu áp lực bộ nhớ đệm.",
       "geometryAllocationBytes": "Số byte bộ nhớ hình học.",
       "vramBytes": "Số byte bộ nhớ GPU.",
@@ -1121,7 +1121,7 @@
       "pagesLoading": "Số trang đang trên đường tới.",
       "cacheHits": "Số lượt đọc trang được phục vụ từ bộ nhớ đệm.",
       "cacheMisses": "Số lượt đọc trang bị trượt khỏi bộ nhớ đệm.",
-      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm. Về phần mình, lát cắt CPU đếm các node mà chính nó kiểm tra và các lượt từ chối của chính nó.",
+      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm.",
       "lodLevel": "Mức chi tiết của lát cắt.",
       "transparentMeshes": "Các bộ đếm trong suốt của WebGPU. `transparentDrawCalls` đếm mọi lệnh vẽ, kể cả cả hai nửa của một vật liệu hai chặng; `transparentSubmittedTriangles` đếm các tam giác của lát cắt trong suốt mỗi tam giác một lần, bất kể số chặng rasterise chúng — phép nhân theo từng chặng đó là của riêng GPU, vì số lượng instance được ghi bởi bước nén gọn và không bao giờ được đọc lại. Rỗng khi không có sẵn.",
       "transparentFrustumRejected": "Các cụm trong suốt nằm ngoài góc nhìn.",
@@ -2735,7 +2735,7 @@
     "summary": "Điều mà engine cho biết về chính nó khi đang chạy: một lỗi mà khung nhìn đã vượt qua, vẽ trên những gì nó đã có (`degraded`), hoặc một lỗi nó không vượt qua được (`fatal`)."
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Các số thực của môi trường trong bộ đệm GPU."
+    "summary": "Các số thực của môi trường trong bộ đệm GPU: các hệ số, 9 × 4, rồi khối sương mù, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Các số thực của một nguồn sáng trong bộ đệm GPU: năm `vec4f`."
@@ -3273,7 +3273,7 @@
       "rgba": "Các điểm ảnh, mỗi điểm bốn byte.",
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
-      "backend": "Bộ kết xuất đã vẽ nó."
+      "backend": "Engine đã vẽ nó: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "StageProfile": {
@@ -3926,8 +3926,8 @@
       "selectedTriangles": "Số tam giác mà lát cắt đã chọn.",
       "residentPages": "Số trang được giữ trong bộ nhớ.",
       "submittedTriangles": "Số tam giác đã gửi: trên đường xử lý WebGPU-theo-trang, mọi hàng có thể vẽ — việc từ chối do che khuất diễn ra sau khi gửi —, được bảng đó giữ, do đó chính xác và thuộc về khung hình này.",
-      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi một backend không thể đếm chúng.",
-      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng trên một backend không theo dõi một lát cắt.",
+      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi ảnh còn đang chờ.",
+      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng khi engine chưa đếm chúng.",
       "cacheEvictions": "Số trang thực sự bị loại khỏi bộ nhớ đệm nuôi hình học được vẽ: bộ nhớ đệm trang GPU riêng của backend khi nó sở hữu một cái, hoặc bộ truyền tải trang của ứng dụng chủ trong trường hợp khác. Đây là tín hiệu áp lực bộ nhớ đệm.",
       "geometryAllocationBytes": "Số byte bộ nhớ hình học.",
       "vramBytes": "Số byte bộ nhớ GPU.",
@@ -3937,7 +3937,7 @@
       "pagesLoading": "Số trang đang trên đường tới.",
       "cacheHits": "Số lượt đọc trang được phục vụ từ bộ nhớ đệm.",
       "cacheMisses": "Số lượt đọc trang bị trượt khỏi bộ nhớ đệm.",
-      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm. Về phần mình, lát cắt CPU đếm các node mà chính nó kiểm tra và các lượt từ chối của chính nó.",
+      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm.",
       "lodLevel": "Mức chi tiết của lát cắt.",
       "transparentMeshes": "Các bộ đếm trong suốt của WebGPU. `transparentDrawCalls` đếm mọi lệnh vẽ, kể cả cả hai nửa của một vật liệu hai chặng; `transparentSubmittedTriangles` đếm các tam giác của lát cắt trong suốt mỗi tam giác một lần, bất kể số chặng rasterise chúng — phép nhân theo từng chặng đó là của riêng GPU, vì số lượng instance được ghi bởi bước nén gọn và không bao giờ được đọc lại. Rỗng khi không có sẵn.",
       "transparentFrustumRejected": "Các cụm trong suốt nằm ngoài góc nhìn.",
@@ -4496,7 +4496,8 @@
     "description": "Những gì API công khai trao ra là một trong số này: một ứng dụng chủ ghi vào bản sao mà nó nhận được không thay đổi gì trong bộ máy, và một ứng dụng chủ làm biến đổi một nguồn sáng mà nó đã gửi cũng không thay đổi gì cả — kho lưu trữ đã xác thực bản sao của chính nó khi đi vào. Bản sao được tạo ở nơi ứng dụng chủ đọc, không bao giờ trên đường xử lý khung hình: các bộ máy đọc bản ghi đang giữ và bộ đệm đã đóng gói, và không sao chép gì cả."
   },
   "clusterErrorAtDepth": {
-    "summary": "Cùng một sai số chiếu khi khoảng cách từ tâm đến trục nhìn và độ sâu của nó (−z của khung nhìn) đã được biết: một node đặt sàn và trần trên cùng một hình cầu chia sẻ độ sâu của nó."
+    "summary": "Cùng một sai số chiếu khi khoảng cách từ tâm đến trục nhìn và độ sâu của nó (−z của khung nhìn) đã được biết: một node đặt sàn và trần trên cùng một hình cầu chia sẻ độ sâu của nó.",
+    "description": "Sai số bằng không cho 0 và sai số vô hạn cho vô hạn trước mọi kiểm tra; mọi tham số khác sau đó được kiểm tra cùng một lúc — sai số, độ kéo giãn và bán kính hữu hạn và không âm, tiêu cự và mặt phẳng gần hữu hạn và dương, khoảng cách tới trục hữu hạn và không âm, độ sâu hữu hạn, trọng số clip-w trong [0, 1] — trước khi chiếu. Bản phản chiếu bằng Rust, một chốt chặn, cùng phán quyết: `projected_error_at` trong `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` của một cụm mà tâm khung nhìn của nó được cho, các tham số đã được xác thực.",

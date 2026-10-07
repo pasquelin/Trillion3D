@@ -3,14 +3,11 @@ import {
   surfaceOpacity,
   type PageSurface,
 } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { lineDash } from '../../../../packages/sdk-browser/src/visibility/shader/lineWgsl.ts'
-import {
-  perspectiveBary,
-  mapTexel,
-  type triangleAt,
-} from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { perspectiveBary, mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import { textureRgba, type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { HostAttributes } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import { lineDash } from './line.ts'
+import type { triangleAt } from './projection.ts'
 
 /** Interpolated alpha of the vertex colours; a three-component colour reads an alpha of one. */
 function vertexAlpha(

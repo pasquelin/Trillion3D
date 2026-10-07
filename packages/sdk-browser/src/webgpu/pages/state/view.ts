@@ -32,7 +32,6 @@ export const VIEW_RUN_KEYS = [
   'drawnMirrorsShown',
   'noOccluderHistory',
   'occluderViewMoved',
-  'previousOccluderView',
   'occluderSignature',
   'cutHeld',
   'gpuMetricsReady',

@@ -7,7 +7,7 @@ import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
 import { createLowerPass, createLowerTier } from './lowerTier.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, lowerPassOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 function banc(slots: number, visible: string[], ahead: string[]) {
@@ -65,7 +65,7 @@ test('the tier ahead holds tables for its last report only', () => {
 test('the jobs between two reports read one merged list, remade only after a report', () => {
   const b = banc(8, [], ['a0', 'a1', 'a2'])
   // The ensurer's lower pass reads its merged list: the tiers it is given, through the keys.
-  const lower = createLowerPass({ tracking: b.tracking, lowerTiers: () => [b.tier] } as never)
+  const lower = createLowerPass(lowerPassOptions(b.tracking, b.cache, () => [b.tier]))
   b.offerAhead(2)
   const first = lower.list()
   assert.deepEqual(

@@ -47,7 +47,7 @@ export type SceneFog = SceneLinearFog | SceneExponentialFog
 export const FOG_MODE = { none: 0, linear: 1, exponential: 2 } as const
 
 /** Floats of a fog in a GPU block: the colour and the mode, then the law's three parameters. */
-export const SCENE_FOG_FLOATS = 8
+const SCENE_FOG_FLOATS = 8
 
 /** A finite number, the one test every scene contract field is read with. */
 export const finite = (value: unknown): value is number =>

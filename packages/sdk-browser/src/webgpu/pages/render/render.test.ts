@@ -1,81 +1,71 @@
-// A10: `renderWebgpuPages` copies the occluder history's view (`run.previousOccluderView`) into
-// the same kept engine camera instead of allocating one per view change. `sameOccluderView` reads
-// only the view and the projection, so copying into an already-allocated structure must yield
-// exactly the same verdict, image after image, as a fresh structure.
+// The occluder history follows the drawn view's fingerprint (`../../../frame/viewRevision.ts`): a
+// still view keeps it, a moved view, projection or viewport lets every row leave the occluders
+// again, and a motion a held image read stays owed to the next drawn one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import {
-  createEngineCamera,
-  holdCameraWorld,
-  readCameraWorld,
-  sameOccluderView,
-  type EngineCamera,
-} from '../../../camera/world.ts'
+import { createFrameGateCore } from '../../../frame/gateCore.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 
-function poses(n: number) {
-  const cams: G.Camera[] = []
-  for (let i = 0; i < n; i++) {
-    const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
-    cam.position.set(Math.sin(i * 0.7) * 3, 0, 6 + i * 0.001)
-    if (i % 5 === 0) cam.fov = 40 + i // occasional projection change
-    cam.updateProjectionMatrix()
-    cam.updateMatrixWorld()
-    cams.push(cam)
-  }
-  return cams
+const VIEWPORT: [number, number] = [800, 600]
+
+/** A gate and a camera five units back; `read` is frame entry's view read, `draw` a drawn image's
+ *  read then take, as `renderWebgpuPages` does. */
+function occluderViews() {
+  const gate = createFrameGateCore(1),
+    camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
+  camera.position.z = 5
+  camera.updateMatrixWorld()
+  const read = (cam = camera, error = 1) => gate.viewChanged(engineCamera(cam), VIEWPORT, error)
+  const draw = (cam = camera) => (read(cam), gate.takeViewMoved())
+  return { gate, camera, read, draw }
 }
 
-test('copying a view into a kept engine camera matches a fresh one, verdict for verdict', () => {
-  const frames = poses(50)
-  let neuve: EngineCamera | undefined
-  let gardee: EngineCamera | undefined
-  for (const frame of frames) {
-    const courante = engineCamera(frame)
-    const viaNeuve = sameOccluderView(neuve, courante)
-    neuve = holdCameraWorld(createEngineCamera(), courante)
-    const viaCopie = sameOccluderView(gardee, courante)
-    gardee = holdCameraWorld(gardee ?? createEngineCamera(), courante)
-    assert.equal(viaCopie, viaNeuve, 'same-image verdict must not depend on a fresh structure')
-  }
+test('a still view keeps the occluder history; a moved view or projection leaves it', () => {
+  const { camera, draw } = occluderViews()
+  assert.equal(draw(), true, 'the first image has no history')
+  assert.equal(draw(), false, 'a still view keeps it')
+  camera.position.x = 1
+  camera.updateMatrixWorld()
+  assert.equal(draw(), true, 'a moved view leaves it')
+  assert.equal(draw(), false, 'still again: kept')
+  camera.fov = 75
+  camera.updateProjectionMatrix()
+  assert.equal(draw(), true, 'a projection cut leaves it')
 })
 
-test('the kept camera is the same object across frames: never reallocated, never left undefined', () => {
-  const frames = poses(3)
-  let kept: EngineCamera | undefined
-  const identities = new Set<EngineCamera>()
-  for (const frame of frames) {
-    const courante = engineCamera(frame)
-    sameOccluderView(kept, courante)
-    kept = holdCameraWorld(kept ?? createEngineCamera(), courante)
-    identities.add(kept)
-  }
-  assert.equal(identities.size, 1, 'the same camera instance is reused across every frame')
+test('the far plane and the quality threshold move the frame hold, not the occluders', () => {
+  const { camera, read, draw } = occluderViews()
+  draw()
+  assert.equal(read(camera, 2), true, 'the hold sees the threshold')
+  camera.far = 400
+  assert.equal(read(), true, 'the hold sees the far plane')
+  assert.equal(draw(), false, 'the occluders see neither: view and projection stood still')
 })
 
-test('a repeated identical pose is stable, and NaN in the world matrix never reports a false match', () => {
-  const a = G.perspectiveCamera(55, 1, 0.1, 100)
-  a.position.z = 5
-  a.lookAt(0, 0, 0)
-  a.updateMatrixWorld()
-  const kept = holdCameraWorld(createEngineCamera(), engineCamera(a))
-  assert.equal(sameOccluderView(kept, engineCamera(a)), true)
-  // The kept camera is frozen; THIS image's is copied from the host, which inverts its world matrix:
-  // a NaN must enter through the local pose, not by touching the numbers by hand, or it would be
-  // rewritten before the comparison.
-  const nanCam = a.clone()
-  nanCam.position.x = NaN
-  assert.equal(
-    sameOccluderView(kept, readCameraWorld(createEngineCamera(), nanCam)),
-    false,
-    'NaN never compares equal to itself',
-  )
+test('a motion a held image read stays owed to the next drawn image', () => {
+  const { camera, read, draw } = occluderViews()
+  draw()
+  camera.position.x = 2
+  camera.updateMatrixWorld()
+  read()
+  assert.equal(draw(), true, 'the drawn image after the held one still sees the motion')
+  assert.equal(draw(), false)
+})
+
+test('NaN in the world matrix never reports a still view', () => {
+  const { camera, draw } = occluderViews()
+  draw()
+  // A NaN enters through the local pose: the engine camera inverts the world matrix.
+  camera.position.x = NaN
+  camera.updateMatrixWorld()
+  assert.equal(draw(), true)
+  assert.equal(draw(), true, 'NaN never compares equal to itself')
 })
 
 // "Occluder history" lever: the history names pages only, so only what changes the pages drawn

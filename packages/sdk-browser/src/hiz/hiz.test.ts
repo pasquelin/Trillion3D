@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import type { HizPage } from './hiz.ts'
-import { sameOccluderView } from '../camera/world.ts'
 import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
 import { filterUnoccluded } from './unoccluded.fixture.ts'
 import { visibilityDepth } from './visibilityDepth.fixture.ts'
@@ -18,20 +17,6 @@ import { engineCamera } from '../camera/camera.fixture.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { hizRejects } from '../../../../bench/oracles/browser/hizRejects.ts'
-
-test('the occluder history view is left by camera motion and projection cuts', () => {
-  const previous = cameraAt(),
-    current = previous.clone()
-  assert.equal(sameOccluderView(engineCamera(previous), engineCamera(current)), true)
-  current.position.x = 1
-  current.updateMatrixWorld()
-  assert.equal(sameOccluderView(engineCamera(previous), engineCamera(current)), false)
-  current.position.x = 0
-  current.fov = 75
-  current.updateProjectionMatrix()
-  current.updateMatrixWorld()
-  assert.equal(sameOccluderView(engineCamera(previous), engineCamera(current)), false)
-})
 
 test('visibility depth after the visbuffer uses the far value as background and larger-wins z', () => {
   const material = G.basicSurface({ color: 0xff0000 })

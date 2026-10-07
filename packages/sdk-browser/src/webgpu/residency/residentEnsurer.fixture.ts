@@ -6,6 +6,10 @@ import { structureIndex } from '../../page/selection/structure.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import { createPageParents } from '../../page/selection/pageParents.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
+import { createPageAdmission } from './admission.ts'
+import type { LowerList, LowerPassOptions } from './lowerTier.ts'
+import { createFrameBudget } from '../../page/integration/frameBudget.ts'
+import { STREAMING_FRAME_MS } from '../../engine/common.ts'
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
 const IDENTITY = { elements: IDENTITY_MATRIX4 }
@@ -110,6 +114,23 @@ export const ensurerOptions = (
   lowerTiers: () => [],
   bytesRevision: () => 0,
 })
+
+/** The lower pass's options over `cache`, as the ensurer builds them, `lowerTiers` its tiers: no
+ *  read ahead, and a share that never waits. */
+export function lowerPassOptions(
+  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  cache: unknown,
+  lowerTiers: () => readonly LowerList[],
+): LowerPassOptions {
+  const options = { ...ensurerOptions(tracking, cache), lowerTiers }
+  return {
+    ...options,
+    admit: createPageAdmission(options),
+    budget: createFrameBudget(STREAMING_FRAME_MS),
+    nextShare: async () => {},
+    readAhead: undefined,
+  }
+}
 
 /** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */
 export const tierEnsurer = (

@@ -1,8 +1,7 @@
 import type { HostAttribute } from '../../../../packages/sdk-browser/src/host/resources.ts'
 import { srgbToLinear, type Texture } from '../../../../packages/sdk-core/src/index.ts'
 import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
-import type { Projected } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
-import { signedArea } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import { signedArea, type Projected } from './projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 
 /** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it: the rule

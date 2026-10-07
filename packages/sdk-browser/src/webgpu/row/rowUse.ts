@@ -37,8 +37,6 @@ export function createRowUse(capacity: number) {
     inUse--
   }
   const use = {
-    /** Readbacks a row stays unused before a request may take it back (`ROW_IDLE_READBACKS`). */
-    idleReadbacks: K,
     get clock() {
       return clock
     },

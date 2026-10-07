@@ -814,7 +814,8 @@
     "summary": "Formato di cache esterna richiesto per il BLEND in cluster (8 prima che il manifesto fosse paginato, 10 prima del formato 11); i manifesti sorgente mantengono il proprio formato."
   },
   "clusterErrorAtDepth": {
-    "summary": "Lo stesso errore proiettato quando la distanza del centro dall'asse di vista e la sua profondità (−z della vista) sono già note: un nodo che fissa pavimento e soffitto sulla stessa sfera condivide la sua profondità."
+    "summary": "Lo stesso errore proiettato quando la distanza del centro dall'asse di vista e la sua profondità (−z della vista) sono già note: un nodo che fissa pavimento e soffitto sulla stessa sfera condivide la sua profondità.",
+    "description": "Un errore nullo dà 0 e uno infinito dà infinito prima di ogni controllo; ogni altro parametro è poi controllato in una volta — errore, allungamento e raggio finiti e non negativi, lunghezza focale e piano vicino finiti e positivi, distanza dall'asse finita e non negativa, profondità finita, peso di clip-w in [0, 1] — prima della proiezione. Specchio in Rust, una sola guardia, stessi verdetti: `projected_error_at` di `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` di un cluster il cui centro di vista è dato, parametri verificati.",
@@ -1778,8 +1779,8 @@
       "selectedTriangles": "Triangoli scelti dal taglio.",
       "residentPages": "Pagine mantenute in memoria.",
       "submittedTriangles": "Triangoli inviati: sul percorso WebGPU per pagine, ogni riga disegnabile — i rifiuti di occlusione arrivano dopo l'invio —, mantenuta dalla tabella, quindi esatta e di questo fotogramma.",
-      "totalSubmittedTriangles": "Tutti i triangoli inviati, pass trasparenti inclusi. Nullo quando un motore non sa contarli.",
-      "pagesDetached": "Cluster che hanno lasciato il taglio disegnato durante questa sessione. Una camera in movimento stacca cluster a ogni fotogramma; non è un segno di pressione sulla cache. Nullo per un motore che non segue un taglio.",
+      "totalSubmittedTriangles": "Tutti i triangoli inviati, pass trasparenti inclusi. Nullo finché l'immagine è in sospeso.",
+      "pagesDetached": "Cluster che hanno lasciato il taglio disegnato durante questa sessione. Una camera in movimento stacca cluster a ogni fotogramma; non è un segno di pressione sulla cache. Nullo finché il motore non lo conta.",
       "cacheEvictions": "Pagine realmente sfrattate dalla cache che alimenta la geometria disegnata: la cache di pagine GPU del motore quando ne ha una, il flusso di pagine dell'host altrimenti. È il segnale di pressione sulla cache.",
       "geometryAllocationBytes": "Byte della memoria di geometria.",
       "vramBytes": "Byte di memoria GPU.",
@@ -1789,7 +1790,7 @@
       "pagesLoading": "Pagine in transito.",
       "cacheHits": "Letture di pagine servite dalla cache.",
       "cacheMisses": "Letture di pagine assenti dalla cache.",
-      "frustumRejected": "Ciò che il taglio ha scartato senza mantenerlo. Nel taglio del DAG per GPU, che percorre la gerarchia di selezione livello per livello, sono i nodi scartati dalla discesa — fuori dal frustum, o il cui limite di errore di sostituzione cade già sotto la soglia — più le pagine candidate che un test per pagina scarta poi. Un nodo scartato conta come uno, qualunque sia il numero di pagine del suo sottoalbero: quelle pagine non vengono mai visitate, quindi mai contate. Il taglio CPU, invece, conta i propri nodi testati e i propri rifiuti.",
+      "frustumRejected": "Ciò che il taglio ha scartato senza mantenerlo. Nel taglio del DAG per GPU, che percorre la gerarchia di selezione livello per livello, sono i nodi scartati dalla discesa — fuori dal frustum, o il cui limite di errore di sostituzione cade già sotto la soglia — più le pagine candidate che un test per pagina scarta poi. Un nodo scartato conta come uno, qualunque sia il numero di pagine del suo sottoalbero: quelle pagine non vengono mai visitate, quindi mai contate.",
       "lodLevel": "Livello di dettaglio del taglio.",
       "transparentMeshes": "Contatori trasparenti di WebGPU. `transparentDrawCalls` conta ogni disegno, entrambe le metà di un materiale in due pass incluse; `transparentSubmittedTriangles` conta i triangoli del taglio trasparente una volta ciascuno, qualunque sia il numero di pass che li rasterizzano — la moltiplicazione per pass è quella della GPU, poiché i numeri di istanze sono scritti dalla compattazione e mai riletti. Nullo quando non disponibili.",
       "transparentFrustumRejected": "Cluster trasparenti fuori dalla vista.",
@@ -5074,7 +5075,7 @@
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Float dell'ambiente nel buffer GPU."
+    "summary": "Float dell'ambiente nel buffer GPU: i coefficienti, 9 × 4, poi il blocco della nebbia, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Float di una luce nel buffer GPU: cinque `vec4f`."
@@ -5572,7 +5573,7 @@
       "rgba": "I pixel, quattro byte ciascuno.",
       "width": "Larghezza in pixel.",
       "height": "Altezza in pixel.",
-      "backend": "Il motore di rendering che l'ha disegnata."
+      "backend": "Il motore che l'ha disegnata: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "STAGE_LABELS": {
@@ -6531,8 +6532,8 @@
       "selectedTriangles": "Triangoli scelti dal taglio.",
       "residentPages": "Pagine mantenute in memoria.",
       "submittedTriangles": "Triangoli inviati: sul percorso WebGPU per pagine, ogni riga disegnabile — i rifiuti di occlusione arrivano dopo l'invio —, mantenuta dalla tabella, quindi esatta e di questo fotogramma.",
-      "totalSubmittedTriangles": "Tutti i triangoli inviati, pass trasparenti inclusi. Nullo quando un motore non sa contarli.",
-      "pagesDetached": "Cluster che hanno lasciato il taglio disegnato durante questa sessione. Una camera in movimento stacca cluster a ogni fotogramma; non è un segno di pressione sulla cache. Nullo per un motore che non segue un taglio.",
+      "totalSubmittedTriangles": "Tutti i triangoli inviati, pass trasparenti inclusi. Nullo finché l'immagine è in sospeso.",
+      "pagesDetached": "Cluster che hanno lasciato il taglio disegnato durante questa sessione. Una camera in movimento stacca cluster a ogni fotogramma; non è un segno di pressione sulla cache. Nullo finché il motore non lo conta.",
       "cacheEvictions": "Pagine realmente sfrattate dalla cache che alimenta la geometria disegnata: la cache di pagine GPU del motore quando ne ha una, il flusso di pagine dell'host altrimenti. È il segnale di pressione sulla cache.",
       "geometryAllocationBytes": "Byte della memoria di geometria.",
       "vramBytes": "Byte di memoria GPU.",
@@ -6542,7 +6543,7 @@
       "pagesLoading": "Pagine in transito.",
       "cacheHits": "Letture di pagine servite dalla cache.",
       "cacheMisses": "Letture di pagine assenti dalla cache.",
-      "frustumRejected": "Ciò che il taglio ha scartato senza mantenerlo. Nel taglio del DAG per GPU, che percorre la gerarchia di selezione livello per livello, sono i nodi scartati dalla discesa — fuori dal frustum, o il cui limite di errore di sostituzione cade già sotto la soglia — più le pagine candidate che un test per pagina scarta poi. Un nodo scartato conta come uno, qualunque sia il numero di pagine del suo sottoalbero: quelle pagine non vengono mai visitate, quindi mai contate. Il taglio CPU, invece, conta i propri nodi testati e i propri rifiuti.",
+      "frustumRejected": "Ciò che il taglio ha scartato senza mantenerlo. Nel taglio del DAG per GPU, che percorre la gerarchia di selezione livello per livello, sono i nodi scartati dalla discesa — fuori dal frustum, o il cui limite di errore di sostituzione cade già sotto la soglia — più le pagine candidate che un test per pagina scarta poi. Un nodo scartato conta come uno, qualunque sia il numero di pagine del suo sottoalbero: quelle pagine non vengono mai visitate, quindi mai contate.",
       "lodLevel": "Livello di dettaglio del taglio.",
       "transparentMeshes": "Contatori trasparenti di WebGPU. `transparentDrawCalls` conta ogni disegno, entrambe le metà di un materiale in due pass incluse; `transparentSubmittedTriangles` conta i triangoli del taglio trasparente una volta ciascuno, qualunque sia il numero di pass che li rasterizzano — la moltiplicazione per pass è quella della GPU, poiché i numeri di istanze sono scritti dalla compattazione e mai riletti. Nullo quando non disponibili.",
       "transparentFrustumRejected": "Cluster trasparenti fuori dalla vista.",

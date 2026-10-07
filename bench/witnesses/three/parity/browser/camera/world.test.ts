@@ -16,11 +16,11 @@ import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/i
 import {
   createEngineCamera,
   enginePose,
-  holdCameraWorld,
   readCameraWorld,
   resolveCameraWorld,
   type HostCamera,
 } from '../../../../../../packages/sdk-browser/src/camera/world.ts'
+import { holdCameraWorld } from '../../../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
 /** Three levels: frozen shear at the top, negative and non-uniform scale in the middle. */
 function hostileRig(fov = 50, aspect = 16 / 9) {

@@ -46,7 +46,7 @@ let movedCount = 0,
 /** Each moved node's box before its move, `BOX_VALUES` each: its roots not declaring their own
  *  (the shadows'). Per root: 1 once it is listed in `distinct`; 1 when its move in this call was
  *  its first. */
-let movedBoxes = new Float64Array(2 * BOX_VALUES),
+let movedBoxes = new Float64Array(BOX_VALUES),
   listedRoots = new Uint8Array(0),
   promotedRoots = new Uint8Array(0)
 /** Below one moved root in this many, the moved boxes are transformed one by one rather than as

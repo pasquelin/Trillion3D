@@ -39,7 +39,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     outputDiagnosticLogged: false,
     noOccluderHistory: true,
     occluderViewMoved: true,
-    previousOccluderView: undefined,
     rowsSyncedFrame: -1,
     motion: {},
     selectionUniforms: createSelectionUniforms(),

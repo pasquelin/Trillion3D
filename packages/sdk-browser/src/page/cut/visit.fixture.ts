@@ -10,9 +10,6 @@ import { take } from './take.fixture.ts'
  *  derived from its pages, derived here as the GPU cut's layout does when it carries none. */
 type WalkCulling = { nodes: Float64Array; stride: number; bounds?: Float64Array }
 
-/** Bounds derived once per node array: a placement copies the envelope, never the pages. */
-const derived = new Map<Float64Array, Float64Array>()
-
 /** The cut's descent over one root: node tests and pages interleaved. */
 export function traverse<T extends PageRecord>(
   s: SelectionState<T>,
@@ -25,8 +22,9 @@ export function traverse<T extends PageRecord>(
     for (let i = 0; i < pages.length; i++) take(s, pages, i, false, cones, boxes)
     return
   }
+  // Bounds derived for this descent alone: nothing outlives the call.
   const { nodes, stride } = culling,
-    bounds = cullingBoundsFor(culling, pages, derived)
+    bounds = cullingBoundsFor(culling, pages, new Map())
   const { stack, planes } = selectionScratch
   let top = 0
   stack[top++] = 0

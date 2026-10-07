@@ -1,8 +1,8 @@
 {
-  "bench": 77,
+  "bench": 69,
   "packages/asset-compiler-rust": 128,
-  "packages/page-codec-wasm": 16,
-  "packages/sdk-browser": 210,
+  "packages/page-codec-wasm": 14,
+  "packages/sdk-browser": 188,
   "packages/sdk-node": 8,
   "scripts": 66,
   "site": 3,

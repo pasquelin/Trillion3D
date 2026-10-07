@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { enginePose, holdCameraWorld, resolveCameraWorld, sameOccluderView } from './world.ts'
+import { enginePose, resolveCameraWorld } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
 import { createFrameGateCore } from '../frame/gateCore.ts'
@@ -19,7 +19,7 @@ import {
   poseRig,
 } from '../../../../tests/gpu/kit/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
-import { createEngineCamera, type CameraMotion } from './world.ts'
+import type { CameraMotion } from './world.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 const VIEWPORT: [number, number] = [1280, 720]
@@ -107,19 +107,16 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
   assert.equal(image(), true, 'still again: the frame becomes holdable once more')
 })
 
-test('boundary: the view history freezes the world pose, not the local pose', () => {
-  const { rig, camera, flattened } = sousRig(POSES_PARENT[1] as Pose)
-  const gelee = holdCameraWorld(createEngineCamera(), engineCamera(resolveCameraWorld(camera)))
-  assert.deepEqual([...gelee.world], [...flattened.matrixWorld.elements])
-  assert.equal(
-    sameOccluderView(engineCamera(gelee), engineCamera(camera)),
-    true,
-    'reread at once, the history describes this view',
-  )
+test('boundary: the occluder history follows the world pose, not the local pose', () => {
+  const { rig, camera } = sousRig(POSES_PARENT[1] as Pose)
+  const gate = createFrameGateCore(1)
+  const drawn = () => (gate.viewChanged(engineCamera(camera), VIEWPORT, 1), gate.takeViewMoved())
+  drawn()
+  assert.equal(drawn(), false, 'reread at once, the history describes this view')
   poseRig(rig, DEPLACE_ET_TOURNE, false)
   assert.equal(
-    sameOccluderView(engineCamera(gelee), engineCamera(camera)),
-    false,
+    drawn(),
+    true,
     'a rig that moves alone invalidates the history: the local pose, for its part, has not changed',
   )
 })

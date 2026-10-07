@@ -1,4 +1,4 @@
-import type { CameraMotion, EngineCamera, HostCamera } from '../../../camera/world.ts'
+import type { CameraMotion, HostCamera } from '../../../camera/world.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
@@ -52,7 +52,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   noOccluderHistory: boolean
   /** The view moved since the last image: every row may leave the occluders again. */
   occluderViewMoved: boolean
-  previousOccluderView: EngineCamera | undefined
   rowsSyncedFrame: number
   motion: CameraMotion
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */

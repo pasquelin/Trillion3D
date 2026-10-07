@@ -1,6 +1,6 @@
-// The CPU cut checks its frame's stretch, focal length, near plane and projection in each
-// cluster's projection (`clusterErrorAtDepth`): an unsound frame is refused, by name, at the first
-// cluster that projects, and never by a root that projects none.
+// The oracle cut checks its frame's stretch, focal length, near plane and projection in each
+// projection (`clusterErrorAtDepth`): an unsound frame is refused, by name, at the first cluster or
+// node bound that projects, and never by a root that projects none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../selection/selection.ts'
@@ -18,9 +18,14 @@ function rootsOf(culling: boolean, flat = false) {
   const fixture = dagFixture()
   const primitive = fixture.metadata.primitives[0]
   if (culling) primitive.culling = dagCulling()
-  // Nothing to project: every error zero, no replacement.
-  if (flat)
+  // Nothing to project: every error zero, no replacement — and a manifest that names none, so no
+  // node's replacement bound is projected either: the GPU cut projects one only where the manifest
+  // names it (`tooCoarse`, `../../gpu/dag/shader/levelWgsl.ts`).
+  if (flat) {
     for (const page of primitive.pages) Object.assign(page, { lodError: 0, parentError: null })
+    const tree = primitive.culling
+    if (tree) for (let at = 10; at < tree.nodes.length; at += tree.stride) tree.nodes[at] = -1
+  }
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,

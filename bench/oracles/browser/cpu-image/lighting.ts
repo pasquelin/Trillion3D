@@ -1,5 +1,5 @@
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from './projection.ts'
 import { backgroundRgb, sampleLinear, sampleMap } from './math.ts'
 import { shadingNormal } from './shadingNormal.ts'
 import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'

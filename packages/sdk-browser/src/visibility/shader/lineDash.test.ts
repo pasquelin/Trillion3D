@@ -2,7 +2,8 @@
 // shader text and its CPU twin decide it, and every path that draws a line reads that one formula.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LINE_DASH_WGSL, lineDash } from './lineWgsl.ts'
+import { LINE_DASH_WGSL } from './lineWgsl.ts'
+import { lineDash } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import { MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'

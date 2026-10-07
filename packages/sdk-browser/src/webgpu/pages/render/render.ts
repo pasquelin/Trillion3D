@@ -1,9 +1,4 @@
-import {
-  createEngineCamera,
-  holdCameraWorld,
-  sameOccluderView,
-  type HostCamera,
-} from '../../../camera/world.ts'
+import type { HostCamera } from '../../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { setWindingEpoch } from './winding.ts'
@@ -137,14 +132,9 @@ function drawFrameInputs(
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
   // A moved view lets every row the GPU partition kept leave the occluders again; while it stands
-  // still, the halves converge under the antialiasing jitter and an image can be held.
-  run.occluderViewMoved = !sameOccluderView(run.previousOccluderView, cam)
-  // The world pose is copied into the already-held camera: no clone per image.
-  if (run.occluderViewMoved)
-    run.previousOccluderView = holdCameraWorld(
-      run.previousOccluderView ?? createEngineCamera(),
-      cam,
-    )
+  // still, the halves converge under the antialiasing jitter and an image can be held. The motion
+  // is the view fingerprint's, the unjittered view and projection, since the last drawn image.
+  run.occluderViewMoved = run.gate.takeViewMoved()
   marks.blendStart = performance.now()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LINE_CLIP_WGSL, lineClip } from './lineWgsl.ts'
+import { LINE_CLIP_WGSL } from './lineWgsl.ts'
+import { lineClip } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import {
   lineProjection as project,
@@ -50,7 +51,7 @@ test('the drawn width is the CSS width times the pixel ratio', () => {
   }
 })
 
-// The CPU software raster widens a corner with `lineClip`, the WGSL text's twin: the same numbers,
+// The CPU image oracle widens a corner with `lineClip`, the WGSL text's twin: the same numbers,
 // in front of the eye, behind it, seen end-on, at every ratio.
 test('the CPU lineClip is the WGSL text, statement for statement', () => {
   const cases: Array<[number[], number[]]> = [

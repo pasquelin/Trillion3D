@@ -1,7 +1,7 @@
 // #838, #1483: a WebGPU session was opened again whenever an instance buffer grew — a partition's
 // parent scaled down, a batch one mesh too full —, its pool, its texture tiles and its held image
-// gone. Only the CPU cut grew in place; the GPU cut, the engine's one cut, now grows with the rows:
-// a cut made over every root replaces the running one between two images (`webgpuGrowth.ts`).
+// gone. The GPU cut, the engine's one cut, grows with the rows: a cut made over every root
+// replaces the running one between two images (`webgpuGrowth.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'

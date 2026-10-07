@@ -50,7 +50,7 @@ function hostBackend(
   return Object.assign(frame, { held, reads })
 }
 
-/** The CPU cut (`./cut.fixture.ts`) with the host answering for residency, as the WebGPU CPU path asks it: the rule on `./held.fixture.ts`'s readiness, its descent pruned on the open counts. */
+/** The CPU cut (`./cut.fixture.ts`) with the host answering for residency, as the host-side oracle asks it: the rule on `./held.fixture.ts`'s readiness, its descent pruned on the open counts. */
 export function cpuBackend(
   dag: RuleDag,
   threshold: number,

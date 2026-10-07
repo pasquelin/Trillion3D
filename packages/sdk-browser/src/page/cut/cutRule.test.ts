@@ -21,7 +21,7 @@ const dag = ruleDag(256)
 const backends: Record<string, (dag: RuleDag, threshold: number) => CutBackend> = {
   'GPU kernel model': oracleBackend,
   'GPU kernel WGSL camera call site': wgslBackend,
-  'CPU cut': cpuBackend,
+  'CPU oracle': cpuBackend,
 }
 
 const { isRoot, check, full, randomFrames, digest } = ruleChecks(dag)
