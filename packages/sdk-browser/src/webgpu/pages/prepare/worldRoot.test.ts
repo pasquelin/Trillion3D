@@ -160,8 +160,9 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
   const { context, hold } = await scene(t)
   const loads: [string, unknown][] = [],
     resident = new Set(['held'])
+  let inFlight = 0
   const cache = {
-    stats: () => ({ slots: 3, residentPages: resident.size }),
+    stats: () => ({ slots: 3, residentPages: resident.size, loading: inFlight }),
     get: (address: string) => resident.has(address),
     load: (address: string, _signal: unknown, tier: unknown) => (
       loads.push([address, tier]),
@@ -172,7 +173,7 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
     context,
     gpu: { cache },
     signal: new AbortController().signal,
-    setup: { geometryUrls: new Map(['held', 'a', 'b', 'c'].map((url) => [url, url])) },
+    setup: { geometryUrls: new Map(['held', 'a', 'b', 'c', 'd', 'e'].map((url) => [url, url])) },
   }
   takeLandedPages(rt as unknown as Parameters<typeof takeLandedPages>[0])
   for (const tell of hold.drawn!.landed) tell(['held', 'unknown', 'a', 'b', 'c'])
@@ -180,4 +181,9 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
     ['a', undefined],
     ['b', undefined],
   ])
+  // A load in flight takes the slot it lands in: a landed page counts it as taken.
+  loads.length = 0
+  inFlight = 1
+  for (const tell of hold.drawn!.landed) tell(['d', 'e'])
+  assert.deepEqual(loads, [['d', undefined]], 'one free slot, not two')
 })

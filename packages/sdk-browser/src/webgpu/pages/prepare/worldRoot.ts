@@ -138,7 +138,7 @@ export function coverHeldRoots(
  * taken by the pool while that read is shared: each page of the catalogue into a free slot,
  * unpinned — the pool, the one cache, evicts it as any page no tier holds —, so a page the cut asks
  * in a later frame is resident and its bundle is not read, hashed and split again. None past the
- * free slots: a landed page never evicts another.
+ * free slots, the loads in flight counted as taken: a landed page never evicts another.
  */
 export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 'signal' | 'setup'>) {
   const stream = rt.context.worldRoots?.drawn
@@ -147,7 +147,7 @@ export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 's
     const cache = rt.gpu.cache
     if (!cache) return
     const stats = cache.stats()
-    let free = stats.slots - stats.residentPages
+    let free = stats.slots - stats.residentPages - stats.loading
     for (let i = 0; i < addresses.length && free > 0; i++) {
       const address = addresses[i]
       if (cache.get(address) || !rt.setup.geometryUrls.has(address)) continue
