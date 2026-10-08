@@ -96,7 +96,7 @@ function rowPage(m: Mirror, scene: ArrayLike<number>, page: number) {
  *  was drawn before, let go. */
 function link(m: Mirror, w: number, object: number) {
   const before = m.objectOf[w]
-  if (before === object || object >= m.clusterOf.length) return
+  if (before === object) return
   if (before >= 0) {
     m.placementOf[before] = -1
     m.dirty.add(before)
