@@ -1,3 +1,5 @@
+import { fromUnorm8 } from '../../../../math/src/color/color.ts'
+
 /**
  * The clear colour, unpacked in one place.
  *
@@ -11,9 +13,9 @@
 /** The three sRGB channels of a packed clear colour, plus the opaque alpha a clear writes. */
 export function clearValueOf(clearColor: number) {
   return {
-    r: ((clearColor >> 16) & 0xff) / 0xff,
-    g: ((clearColor >> 8) & 0xff) / 0xff,
-    b: (clearColor & 0xff) / 0xff,
+    r: fromUnorm8((clearColor >> 16) & 0xff),
+    g: fromUnorm8((clearColor >> 8) & 0xff),
+    b: fromUnorm8(clearColor & 0xff),
     a: 1,
   }
 }

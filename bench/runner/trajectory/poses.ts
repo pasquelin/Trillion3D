@@ -1,9 +1,9 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
-import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
+import { boundsDiagonal, boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
-import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { Street } from '../street/street.ts'
 
@@ -120,9 +120,8 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     cx = centre[0],
     cz = centre[2]
   const sx = max.x - min.x,
-    sy = max.y - min.y,
     sz = max.z - min.z
-  const radius = length3(sx, sy, sz) / 2
+  const radius = boundsDiagonal(min.x, min.y, min.z, max.x, max.y, max.z) * 0.5
   const ground = modelFloor(bounds),
     eye = eyeHeight(bounds)
   const road = bounds.street ?? boxStreet(bounds)

@@ -1,5 +1,6 @@
 import { HALF_PI, QUARTER_PI } from '../../../packages/math/src/constants.ts'
 import { length2 } from '../../../packages/math/src/vector/vector.ts'
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 import { facing, fromGeometry, lathe, merge, moved, pairs, solid, type Mesh } from './mesh.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { triangulate } from '../../../packages/sdk-core/src/world/geometry/triangulate.ts'
@@ -127,11 +128,7 @@ function knight(turning: Turning) {
     indices.push(2 * n + caps[t], 2 * n + caps[t + 1], 2 * n + caps[t + 2])
     indices.push(3 * n + caps[t], 3 * n + caps[t + 2], 3 * n + caps[t + 1])
   }
-  const centre = [
-      HEAD.reduce((sum, [x]) => sum + x, 0) / n,
-      HEAD.reduce((sum, [, y]) => sum + y, 0) / n + 1.25,
-      0,
-    ],
+  const centre = [mean(HEAD.map(([x]) => x)), mean(HEAD.map(([, y]) => y)) + 1.25, 0],
     head = facing(solid(positions, indices), (v) => [
       positions[v * 3] - centre[0],
       positions[v * 3 + 1] - centre[1],

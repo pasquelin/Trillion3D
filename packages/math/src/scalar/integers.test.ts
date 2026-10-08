@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
-import { setBit, testBit } from './bits.fixture.ts'
+import { setBit } from './bits.ts'
+import { testBit } from './bits.fixture.ts'
 import { firstTrue, lastTrue } from './search.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {

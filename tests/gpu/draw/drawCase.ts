@@ -7,7 +7,7 @@ import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contrac
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
 import { DIRECT_PAGE, HEIGHT, WIDTH, pageOfId, type setupVisibility } from './drawVisibility.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { setBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 export interface DrawCase {
   name: string
