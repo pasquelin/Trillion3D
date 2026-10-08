@@ -3,12 +3,12 @@ import type { WriteRevision } from './hookCore.ts'
 import { hookHostNode, unhookHostNode } from './hooks.ts'
 import {
   SCAN_FLIPPED,
-  SCAN_MOVED,
   SCAN_POSED,
   SCAN_RESHAPED,
   adoptPose,
   scan,
   snapshot,
+  verdictOf,
   type NodeState,
   type WatchVerdict,
 } from './scan.ts'
@@ -96,9 +96,10 @@ export function createHostSceneWatch() {
   const scanOnce = (state: NodeState) => {
     if (state.read === reads) return
     state.read = reads
-    const found = scan(state)
-    if (found & SCAN_RESHAPED) verdict = 'reshaped'
-    else if (found & SCAN_MOVED && !verdict) verdict = 'moved'
+    const found = scan(state),
+      read = verdictOf(found)
+    if (read === 'reshaped') verdict = read
+    else if (read && !verdict) verdict = read
     if (found & SCAN_RESHAPED) return
     if (found & SCAN_FLIPPED) flipped.push(state.node)
     if (found & SCAN_POSED) written.add(state.node)
