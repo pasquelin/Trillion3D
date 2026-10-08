@@ -63,8 +63,7 @@ export function appendUnderSlot<E>(
 }
 
 /** The source node of a root: its first page's mesh. */
-export const rootSource = (root: ClusterRoot<PageRec>) =>
-  root.pages[0]?.sourceMesh as Object3D | undefined
+const rootSource = (root: ClusterRoot<PageRec>) => root.pages[0]?.sourceMesh as Object3D | undefined
 
 /** `appendUnderSlot` over the selection roots. */
 export const appendRootsUnderSlot = (
