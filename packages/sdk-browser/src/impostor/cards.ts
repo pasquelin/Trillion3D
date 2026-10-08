@@ -81,7 +81,7 @@ export function createImpostorCards<G>(section: ImpostorSection, hooks: CardHook
 
 export type ImpostorCards<G> = ReturnType<typeof createImpostorCards<G>>
 /** Told of each root whose card bit moved: the GPU cut's copy of the mark follows it. */
-export type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
+type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
 
 /** The roots `ranks` moved, or every root: their switch read again and their cards written. */
 export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks?: ArrayLike<number>) {
