@@ -1,6 +1,7 @@
-// The placements whose link moved reach the residency mirror whole: more moves than the list first
-// holds grow it, and the mirror reads the grown list, at the residency and at the cut. On a
-// generated world of 300 placements, 120 of them placed.
+// The placements whose link moved reach the residency mirror whole and once: more moves than the
+// list first holds grow it, the mirror reads the grown list at the residency, and the cut that
+// follows hands it no more — the moves after it, it does. On a generated world of 300 placements,
+// 120 of them placed.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { followWorldLinks } from './worldFollow.ts'
@@ -30,5 +31,9 @@ test('every moved link reaches the mirror, past the list’s first room', () => 
   selection.updateResidency(new Uint32Array(1))
   assert.deepEqual(told.at(-1), placed, 'at the residency')
   selection.dispatch({ view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never)
-  assert.deepEqual(told.at(-1), placed, 'at the cut')
+  assert.equal(told.length, 1, 'handed once: the cut that follows hands it no more')
+  // Moves after the residency reach the mirror at the cut.
+  selection.placeObject!(8, 8)
+  selection.dispatch({ view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never)
+  assert.deepEqual(told.at(-1), [8], 'at the cut')
 })

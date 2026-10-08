@@ -43,7 +43,9 @@ export function followWorldLinks(
   /** The moved ranks, increasing, read off the bitmap; the write ranges over them. `listed`: the
    *  ranks the list holds, -1 once a link moved since it was read. */
   let moved = new Int32Array(8),
-    listed = -1
+    listed = -1,
+    /** The list was handed to the mirror since the last move: the cut's upload hands it no more. */
+    handed = false
   const { updateResidency, dispatch } = selection
   /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`
    *  once for every move since — the one record of the moves, which the upload writes and the
@@ -62,9 +64,12 @@ export function followWorldLinks(
   selection.updateResidency = (next, changes, pages) => {
     rows = next
     pending = false
-    // Listed first: a list that grows is another array, the one the mirror must read.
-    const count = listMoved()
-    world.linksMoved?.(moved, count)
+    if (!handed) {
+      // Listed first: a list that grows is another array, the one the mirror must read.
+      const count = listMoved()
+      world.linksMoved?.(moved, count)
+      handed = true
+    }
     return updateResidency(next, changes, pages)
   }
   selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
@@ -75,6 +80,7 @@ export function followWorldLinks(
     selection.linkMoved?.(w)
     dirty[w >>> 5] |= 1 << (w & 31)
     listed = -1
+    handed = false
     low = Math.min(low, w)
     high = Math.max(high, w)
     pending = true
@@ -86,11 +92,13 @@ export function followWorldLinks(
     if (high < 0) return
     const count = listMoved()
     writeRanges(device, coldParts, moved, count, linkWords)
-    world.linksMoved?.(moved, count)
+    if (!handed) world.linksMoved?.(moved, count)
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length
     high = -1
+    // Taken up, the list is empty: nothing left to hand.
     listed = 0
+    handed = true
   }
   /** The camera of the last cut — its view and its eye —, and the moves seen since the first. */
   const held = {
