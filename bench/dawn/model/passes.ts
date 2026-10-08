@@ -19,11 +19,11 @@ export type { Frame } from './passConstants.ts'
 export const PASSES: K.PassModel[] = [
   {
     label: 'DAG selection',
-    formula: `(N + R)·${PRIMITIVE_BYTES} B rows; ${K.DAG_FIXED_DISPATCHES} + ${K.DAG_LEVELS} levels dependent dispatches`,
+    formula: `(N + R)·${PRIMITIVE_BYTES} B rows; ${K.DAG_FIXED_DISPATCHES} + ${K.DAG_LEVEL_DISPATCHES}·${K.DAG_LEVELS} levels dependent dispatches`,
     work: (f) => ({
       bytes: (f.N + f.R) * PRIMITIVE_BYTES,
       passes: 1,
-      dispatches: K.DAG_FIXED_DISPATCHES + K.DAG_LEVELS,
+      dispatches: K.DAG_FIXED_DISPATCHES + K.DAG_LEVEL_DISPATCHES * K.DAG_LEVELS,
     }),
     sources: [
       K.engine('gpu/dag/encode.ts', 'encodeDagKernels'),

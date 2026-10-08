@@ -5,6 +5,12 @@ import type { BenchReport } from '../merge.ts'
 import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
 import { PASSES, type Frame } from './passes.ts'
+import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES } from './passConstants.ts'
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
+import {
+  cutResources,
+  witnessEncoder,
+} from '../../../packages/sdk-browser/src/gpu/dag/encode.fixture.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
 const MACHINE = {
@@ -105,4 +111,16 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
   const dag = pass('DAG selection')
   const perRow = dag.work({ ...frame, N: 1, R: 0 }).bytes!
   assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
+})
+
+test('the selection’s dispatches are the encoder’s: nine, and two a level', () => {
+  for (const levels of [2, 3, 4, 5]) {
+    const { encoder, dispatches, armements } = witnessEncoder()
+    encodeDagKernels(encoder as never, cutResources(levels) as never)
+    assert.equal(
+      dispatches.length + armements.length,
+      DAG_FIXED_DISPATCHES + DAG_LEVEL_DISPATCHES * levels,
+      `${levels} levels`,
+    )
+  }
 })
