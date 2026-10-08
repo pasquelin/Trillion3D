@@ -40,7 +40,14 @@ import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorRoot } from './plan.ts'
-import { bakedLookup, point, readRoot, switchesAt, switchTable } from './switchTable.ts'
+import {
+  bakedLookup,
+  point,
+  readRoot,
+  switchesAt,
+  switchTable,
+  switchTableBytes,
+} from './switchTable.ts'
 
 /** The relative margin each class bound keeps from the switch's own, far past its rounding. */
 const SAFE = 1e-9
@@ -141,9 +148,11 @@ export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
     get changedCount() {
       return s.changedCount
     },
-    /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
+    /** Bytes of the per-root tables — its own and its switch table's — and the heaps: what the
+     *  roots hold, never what they did. */
     get hostBytes() {
       return (
+        (s.table ? switchTableBytes(s.table) : 0) +
         s.switched.byteLength +
         s.readAt.byteLength +
         s.key.byteLength +

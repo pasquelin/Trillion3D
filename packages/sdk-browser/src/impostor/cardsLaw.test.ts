@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
-import { impostorSection, MESH } from './section.fixture.ts'
+import { cardField as field, impostorSection, MESH } from './section.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
@@ -14,19 +14,6 @@ import type { ClusterRoot } from '../page/selection/types.ts'
 
 const VIEWPORT = [1280, 720]
 const GROUP = { atlas: MESH }
-
-/** `count` objects at one per 400 m² on a disk about the origin: the near ones whole, most far. */
-function field(count: number) {
-  const radius = Math.sqrt((count * 400) / Math.PI)
-  let seed = 11
-  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
-  return Array.from({ length: count }, () => {
-    const r = radius * Math.sqrt(next()),
-      a = 2 * Math.PI * next()
-    const elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, r * Math.cos(a), 0, r * Math.sin(a), 1]
-    return { mesh: MESH, world: { elements } } as unknown as ClusterRoot<unknown>
-  })
-}
 
 /** Image `k` of a camera swaying a metre about the origin, `turn` sweeping its view. */
 const swayAt = (k: number, turn = 0) => {

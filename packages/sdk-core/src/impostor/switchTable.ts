@@ -127,6 +127,15 @@ export function switchTable(
   return table
 }
 
+/** Bytes of `table`'s per-root tables: its numbers and, a slot each, its roots and entries. */
+export const switchTableBytes = (table: SwitchTable) =>
+  8 * (table.held.length + table.entries.length) +
+  table.linear.byteLength +
+  table.radius.byteLength +
+  table.texelDepth.byteLength +
+  table.triangleDepth.byteLength +
+  table.depthFocal.byteLength
+
 /** `table` at `n` roots, the numbers of those it held kept: a list grown in place reads only the
  *  roots appended. The arrays are the capacity (`resized`); a root past `n` is taken again from
  *  nothing should it come back (`rootSwitch`). */

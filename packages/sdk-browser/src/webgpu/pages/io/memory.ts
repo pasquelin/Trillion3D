@@ -18,6 +18,7 @@ import {
 import type { TexturePool } from '../../residency/memoryBudgets.ts'
 import { vertexBytesOf } from './metrics.ts'
 import { growWebgpuTables } from '../prepare/growTables.ts'
+import { impostorCardsBytes } from '../../../impostor/cards.ts'
 
 /**
  * A geometry budget less the vertex buffers held beside its slots (`vertexBytesOf`, #487):
@@ -39,11 +40,11 @@ export const textureBytesBeside = (rt: Pick<WebgpuPagesRuntime, 'vis' | 'gpu'>) 
   (rt.vis.textures?.sources.liveBytes ?? 0) + (rt.gpu.impostors?.pass.feed.bytes ?? 0)
 
 /** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
- *  plus the bounce proxy and the impostor tier's watch and card records. */
+ *  plus the bounce proxy and the impostor tier's tables (`impostorCardsBytes`). */
 export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
   const { services, bounce } = rt,
     impostors = rt.gpu.impostors
-  const tier = impostors ? impostors.watch.hostBytes + impostors.slots.records.byteLength : 0
+  const tier = impostors ? impostorCardsBytes(impostors) : 0
   return services.hostTableBytes() + (bounce.probes?.proxy.hostBytes ?? 0) + tier
 }
 

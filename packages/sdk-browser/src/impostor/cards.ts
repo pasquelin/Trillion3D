@@ -89,6 +89,25 @@ export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks: ArrayLike
   }
 }
 
+/** Bytes of the tier's host tables: the watch's (`hostBytes`), the card records and the slots to
+ *  send, the card each root holds and the roots that moved, and each mesh's roots switched and
+ *  cards. */
+export function impostorCardsBytes<G>(state: ImpostorCards<G>) {
+  const { slots } = state
+  let segments = 0
+  for (const segment of state.segments.values())
+    segments += segment.eligible.byteLength + 8 * segment.cards.length
+  return (
+    state.watch.hostBytes +
+    slots.records.byteLength +
+    slots.dirty.listed.byteLength +
+    slots.dirty.sorted.byteLength +
+    8 * state.holding.length +
+    state.moves.byteLength +
+    segments
+  )
+}
+
 /** A tier turned off (its path's drop), or a new root list: no card, and every root the cards
  *  were planned over its clusters again. */
 export function dropImpostorCards<G>(state: ImpostorCards<G> | undefined) {
