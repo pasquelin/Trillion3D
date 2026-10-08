@@ -32,6 +32,7 @@ export function createDagRuntime(
   const state = createDagRuntimeState()
   const chain = createDifferenceChain()
   const run: DagRun = {
+    linkMoved: undefined,
     resources,
     state,
     chain,
@@ -43,8 +44,12 @@ export function createDagRuntime(
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
     tree: createTreeFollower(resources, composed),
-    // Made with the face it tells (`selectionOver`).
-    links: undefined,
+    // A link move with no residency behind it goes to the cut's residency as the rows last stood;
+    // each move is told to the run's listener (`linkMoved`).
+    links: createLinkFollower(resources, {
+      updateResidency: (rows, changes) => void updateRuntimeResidency(run, rows, changes),
+      linkMoved: (w) => run.linkMoved?.(w),
+    }),
     moves: new Int32Array(8),
   }
   return selectionOver(run)
@@ -91,6 +96,12 @@ function selectionOver(run: DagRun): GpuSelection {
       run.tree?.touch(w)
     },
     placeObject: (w, object) => run.links?.place(w, object),
+    get linkMoved() {
+      return run.linkMoved
+    },
+    set linkMoved(listener) {
+      run.linkMoved = listener
+    },
     worldStandsIn: (w) => !!run.links?.standsIn(w),
     worldsMovedOnGpu() {
       if (live()) state.worldRevision++
@@ -127,9 +138,5 @@ function selectionOver(run: DagRun): GpuSelection {
       for (const buffer of buffers) buffer.destroy()
     },
   }
-  run.links = createLinkFollower(resources, {
-    updateResidency: (rows, changes) => void selection.updateResidency(rows, changes),
-    linkMoved: (w) => selection.linkMoved?.(w),
-  })
   return selection
 }

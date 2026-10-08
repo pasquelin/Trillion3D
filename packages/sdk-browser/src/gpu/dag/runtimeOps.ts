@@ -42,6 +42,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   tree: TreeFollower | undefined
   /** The world links' follower (`worldFollow.ts`), none without a world DAG. */
   links: LinkFollower | undefined
+  /** Told of each placement whose link moved (`GpuSelection.linkMoved`). */
+  linkMoved: ((world: number) => void) | undefined
   /** The placements a send moved, each once, increasing (`posesMoved`). */
   moves: Int32Array
 }
