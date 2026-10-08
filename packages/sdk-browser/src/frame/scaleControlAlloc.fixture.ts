@@ -46,15 +46,20 @@ const WARM = 30_000
 /** Rounds a measure takes, and the middle one: a round may also hold what a lower tier boxes,
  *  which only adds, or a collection, which only takes away; the median is neither. A loaded
  *  machine may leave the code in a lower tier for the first rounds: the rounds go on until the
- *  last `SETTLED` read alike — the code settled —, `MOST_ROUNDS` at most, and the last `ROUNDS`
- *  are read. */
+ *  last `SETTLED` read alike — within `SETTLE_BYTES` of one another, the heap's own accounting
+ *  noise —, `MOST_ROUNDS` at most, and the last `ROUNDS` are read. */
 const ROUNDS = 5,
   SETTLED = 3,
-  MOST_ROUNDS = 25
-/** Whether the last `SETTLED` rounds of `bytes` read alike. */
-const settled = (bytes: number[]) =>
-  bytes.length >= ROUNDS && bytes.slice(-SETTLED).every((round) => round === bytes.at(-1))
+  MOST_ROUNDS = 25,
+  SETTLE_BYTES = 4096
 const median = (bytes: number[]) => quantileFloorOf(bytes, 0.5) as number
+
+/** Whether the last `SETTLED` rounds of `bytes` read alike: the code settled. */
+export function settled(bytes: readonly number[]) {
+  if (bytes.length < ROUNDS) return false
+  const last = bytes.slice(-SETTLED)
+  return Math.max(...last) - Math.min(...last) <= SETTLE_BYTES
+}
 
 /** Bytes the heap grew by over `SAMPLES` runs of `run`, less an empty run's, each compiled by the
  *  optimiser after a collection — a collection after it would drop code that holds objects the
