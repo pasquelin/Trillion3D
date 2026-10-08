@@ -2,7 +2,6 @@
 // kernels' oracle (`oracle/oracle.fixture.ts`) under the threshold the cut last wrote to its
 // uniforms, so the factor a cut runs at decides the lists it lists.
 import * as G from '../../host/graph/graph.fixture.ts'
-import { asHostLibrary } from '../../host/resources.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { packDagSelection } from './pack.ts'
@@ -24,11 +23,10 @@ const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 2000)
  *  eye. */
 export function world() {
   const pages = scenePages(256, 8)
-  const worlds = Array.from({ length: 16 }, () => new G.Matrix4())
-  const roots = sceneRoots(pages, worlds)
-  worlds.forEach((m, w) =>
-    asHostLibrary<G.Matrix4>(m).makeTranslation((w % 4) * 6.5 - 9.75, (w >> 2) * 6.5 - 9.75, 0),
+  const worlds = Array.from({ length: 16 }, (_, w) =>
+    new G.Matrix4().makeTranslation((w % 4) * 6.5 - 9.75, (w >> 2) * 6.5 - 9.75, 0),
   )
+  const roots = sceneRoots(pages, worlds)
   const dag = packDagSelection(roots)
   const view = (z: number, pixels = 1): SelectionUniforms => {
     cam.position.set(0, 0, z)
