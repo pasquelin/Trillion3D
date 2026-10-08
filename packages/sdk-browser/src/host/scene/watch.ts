@@ -11,8 +11,8 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  */
 export const ENGINE_OWNED = 'trillion3dEngineOwned'
 
-/** No node flipped, none written. */
-const NONE_FLIPPED: readonly Object3D[] = []
+/** No node flipped. */
+const NONE: readonly Object3D[] = []
 
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
  *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
@@ -67,36 +67,29 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  // The nodes a hooked pose was written on, or a scan found moved, since they were last taken:
-  // what the engine follows of the host's writes, none other (`takeWritten`).
-  let written: Object3D[] = []
-  const writtenOnce = new Set<Object3D>()
-  const wrote = (node: Object3D) => {
-    if (writtenOnce.has(node)) return
-    writtenOnce.add(node)
-    written.push(node)
-  }
-  const mark: WriteRevision = { revision: 1, wrote }
-  let watched: NodeState[] = [],
-    // The watched nodes by their slot in the page's tree, where the journal names them.
-    states = new Map<number, NodeState>(),
+  // The nodes a hooked pose was written on, or a scan found posed, since they were last taken, in
+  // the order first written: what the engine follows of the host's writes (`takeWritten`).
+  let written = new Set<Object3D>(),
+    spare = new Set<Object3D>()
+  const mark: WriteRevision = { revision: 1, wrote: (node) => void written.add(node) }
+  // The watched nodes by their slot in the page's tree, where the journal names them.
+  let states = new Map<number, NodeState>(),
     seen = 0,
     // The nodes a scan found shown, hidden, set to cast or not, since they were last taken.
     flipped: Object3D[] = [],
     // The engine's write count the watched nodes were last read under.
     writesRead = -1,
-    // The read a node was last scanned in: once a read whatever its writes.
+    // How many reads were made: a node is compared once a read.
     reads = 0,
     verdict: WatchVerdict = 0
-  const scanned = new WeakMap<NodeState, number>()
-  /** `state` compared with its node, once a read: a flip noted, a move noted as written. */
+  /** `state` compared with its node, once a read: a flip and a pose move noted each on its own. */
   const scanOnce = (state: NodeState) => {
-    if (scanned.get(state) === reads) return
-    scanned.set(state, reads)
+    if (state.read === reads) return
+    state.read = reads
     const { visible, castShadow } = state
     const read = scan(state)
     if (state.visible !== visible || state.castShadow !== castShadow) flipped.push(state.node)
-    else if (read) wrote(state.node)
+    if (state.posed) written.add(state.node)
     if (read === 'reshaped') verdict = read
     else if (read && !verdict) verdict = read
   }
@@ -107,10 +100,11 @@ export function createHostSceneWatch() {
   return {
     /**
      * Sets the list of watched nodes: the source models of what the engine draws, the lights,
-     * and the ancestors of both, each read as it stands. To be called when the scene changes
-     * shape — one more instance, a light set after the fact — never per frame: the scene change
-     * that made the list stale is what announced it, and a node that enters the list is read
-     * as-is by that same frame.
+     * and the ancestors of both. To be called when the scene changes shape — one more instance,
+     * a node reparented — never per frame: the scene change that made the list stale is what
+     * announced it. A node still watched keeps what was last read of it, and the writes the
+     * journal holds for it are read at the next take; a node that enters the list is read as it
+     * stands.
      */
     observe(source: Object3D, drawn: WatchedSources) {
       const set = new Set<Object3D>()
@@ -123,60 +117,61 @@ export function createHostSceneWatch() {
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node)
       // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
       if (!set.size) withAncestors(source, set)
-      for (const state of watched) if (!set.has(state.node)) unhookHostNode(state.node, mark)
-      watched = []
+      const held = states
+      for (const state of held.values()) if (!set.has(state.node)) unhookHostNode(state.node, mark)
       states = new Map()
       for (const node of set) {
         hookHostNode(node, mark)
-        const state = snapshot(node)
-        watched.push(state)
-        states.set(node.index, state)
+        const kept = held.get(node.index)
+        states.set(node.index, kept?.node === node ? kept : snapshot(node))
       }
-      writesRead = nodeWrites()
+      if (writesRead < 0) writesRead = nodeWrites()
     },
     /** Takes what the host wrote since the previous read: one integer for the hooked poses, and
      *  for the other fields the scan of the watched nodes written since (`nodesWrittenSince`) —
-     *  every watched node only once the journal no longer holds them all. The count is read after
-     *  the scan: a matrix the scan takes into the tree counts as a write of its own. `reshaped`
-     *  says the list is to be rebuilt. */
+     *  every watched node only once the journal no longer holds them all. A write the scan itself
+     *  makes — a matrix taken into the tree — is read at the next take. `reshaped` says the list
+     *  is to be rebuilt. */
     take(): WatchVerdict {
       verdict = seen === mark.revision ? 0 : 'moved'
       seen = mark.revision
-      if (nodeWrites() === writesRead) return verdict
+      const to = nodeWrites()
+      if (to === writesRead) return verdict
       reads++
-      if (!nodesWrittenSince(writesRead, scanWritten)) for (const state of watched) scanOnce(state)
-      writesRead = nodeWrites()
+      if (!nodesWrittenSince(writesRead, scanWritten, to))
+        for (const state of states.values()) scanOnce(state)
+      writesRead = to
       return verdict
     },
     /** The nodes the scans found shown, hidden, set to cast or not since the last call, each
      *  where it was flipped: what their roots follow, none other (`followHostVisibility`). */
     takeFlipped(): readonly Object3D[] {
-      if (!flipped.length) return NONE_FLIPPED
+      if (!flipped.length) return NONE
       const taken = flipped
       flipped = []
       return taken
     },
-    /** The nodes a hooked pose was written on, or a scan found moved, since the last call: what
-     *  names the roots under them (`../../webgpu/pages/render/movedBatch.ts`). */
-    takeWritten(): readonly Object3D[] {
-      if (!written.length) return NONE_FLIPPED
+    /** The nodes a hooked pose was written on, or a scan found posed, since the last call, in the
+     *  order first written: what names the roots under them
+     *  (`../../webgpu/pages/render/movedBatch.ts`). */
+    takeWritten(): ReadonlySet<Object3D> {
       const taken = written
-      written = []
-      writtenOnce.clear()
+      written = spare
+      written.clear()
+      spare = taken
       return taken
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
      *  is hooked before the first observation: no host write can be pending there. */
-    pending: () => watched.length > 0 && seen !== mark.revision,
+    pending: () => states.size > 0 && seen !== mark.revision,
     /** The engine wrote the graph itself, under a scene revision it already incremented: the
-     *  poses it bumped are taken as seen, and that scene revision has the list observed anew. */
+     *  poses it bumped are taken as seen. */
     settle() {
       seen = mark.revision
     },
     /** Forgets every node: their writes no longer reach this watch. */
     release() {
-      for (const state of watched) unhookHostNode(state.node, mark)
-      watched = []
+      for (const state of states.values()) unhookHostNode(state.node, mark)
       states = new Map()
     },
   }

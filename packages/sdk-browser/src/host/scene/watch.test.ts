@@ -97,12 +97,16 @@ test('a write the engine made itself is settled with its revision, not announced
   assert.equal(gate.revisions.scene, before + 1, 'one change, one revision')
   gate.readScene(source, draws)
   assert.equal(gate.revisions.scene, before + 1, 'and none after')
-  // A structural engine write settled the same way leaves no reshape pending either.
+  // A structural engine write: the list is read anew, the node it still watches keeping what was
+  // last read of it, and the write the journal holds for it is read once at the next take — a host
+  // write in the same task could not be told apart —, then none after.
   new G.Group().add(mesh)
   gate.sceneChanged()
   gate.readScene(source, draws)
+  const reparented = gate.revisions.scene
+  assert.ok(reparented <= before + 3, 'the reparent costs its announce and its one read')
   gate.readScene(source, draws)
-  assert.equal(gate.revisions.scene, before + 2, 'the reparent costs its one revision')
+  assert.equal(gate.revisions.scene, reparented, 'and none after')
 })
 
 test("a lamp's target moved under another node: the new parent is hooked, its later pose is seen", () => {

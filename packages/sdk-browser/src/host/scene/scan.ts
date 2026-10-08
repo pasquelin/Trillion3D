@@ -28,6 +28,10 @@ export interface NodeState {
   matrix: Float64Array | null
   /** A light's numbers as last read; its target, read-only on the core's `Light`, never changes. */
   light: Float64Array | null
+  /** The read of the watch it was last compared in: once a read whatever its writes. */
+  read: number
+  /** Its last comparison found its pose moved: its matrix mode, or its matrix set by hand. */
+  posed: boolean
 }
 
 function lightValues(light: Light, into: Float64Array) {
@@ -63,6 +67,8 @@ export function snapshot(node: Object3D): NodeState {
     auto: node.matrixAutoUpdate,
     matrix: node.matrixAutoUpdate ? null : Float64Array.from(node._matrixElements),
     light: lit,
+    read: -1,
+    posed: false,
   }
 }
 
@@ -96,17 +102,18 @@ export function scan(state: NodeState): WatchVerdict {
   let moved = visible !== state.visible || castShadow !== state.castShadow
   state.visible = visible
   state.castShadow = castShadow
+  state.posed = false
   if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = auto
     state.matrix = auto ? null : Float64Array.from(node._matrixElements)
-    moved = true
+    moved = state.posed = true
   } else if (state.matrix && !sameElements(state.matrix, node._matrixElements)) {
     // Read without counting as a write; numbers written through the getter, or announced after
     // a write behind it, are taken into the tree here.
     copyMatrix4(state.matrix, node._matrixElements)
     node._matrixMoved()
-    moved = true
+    moved = state.posed = true
   }
   if (state.light && isLightNode(node) && scanLight(node, state.light)) moved = true
   if (reparented) return 'reshaped'
