@@ -4,13 +4,7 @@ import {
   type ResidencyChanges,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
-import {
-  refreshStretchAt,
-  refreshWorldStretch,
-  changedWorlds,
-  worldChangedAt,
-  writePrimitiveWords,
-} from './worlds.ts'
+import { refreshStretchAt, changedWorlds, worldChangedAt, writePrimitiveWords } from './worlds.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
 import type { createDagPoolList } from './poolList.ts'
@@ -56,18 +50,26 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it. The rows
   // whose read words moved go up, they alone: a translation goes up through the origins.
-  movedScratch = resized(movedScratch, packed.worldCount)
-  const moved = changedWorlds(packed.worlds, next, movedScratch)
+  // The live placements alone, the room a growth keeps left out.
+  const live = packed.worldSources.length
+  movedScratch = resized(movedScratch, live)
+  const moved = changedWorlds(packed.worlds, next, movedScratch, live)
   if (!moved) {
-    packed.worlds.set(next)
     if (originChanged) state.worldRevision++
     return originChanged
   }
-  // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
-  const stretched = refreshWorldStretch(packed.worlds, next, packed, frameData)
-  packed.worlds.set(next)
+  // Stretch reads the linear part alone: refreshed over the moved, before their copy.
+  let stretched = 0
+  for (let i = 0; i < moved; i++) {
+    const w = movedScratch[i]
+    if (refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
+      stretchedScratch = resized(stretchedScratch, stretched + 1)
+      stretchedScratch[stretched++] = w
+    }
+    packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
+  }
   frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
-  if (stretched) frames.writeRows()
+  if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
   // Cuts in hand and in flight keep their revision and still name what to stream (#358).
   state.worldRevision++
   return true

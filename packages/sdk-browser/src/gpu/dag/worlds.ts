@@ -54,13 +54,17 @@ export const worldChangedAt = (previous: Float32Array, next: Float32Array, w: nu
   return !sameLinearPart(previous, next, at, at) || previous[at + 15] !== next[at + 15]
 }
 
-/** The primitives of `next` whose read words differ from `previous`' (`worldChangedAt`), increasing,
- *  into `into`; their count. The scan `updateWorlds` runs before it touches a buffer, so an image
- *  whose roots stand still — or only moved — uploads no world. */
-export function changedWorlds(previous: Float32Array, next: Float32Array, into: Int32Array) {
+/** The primitives of the first `live` of `next` whose read words differ from `previous`'
+ *  (`worldChangedAt`), increasing, into `into`; their count. The scan `updateWorlds` runs before it
+ *  touches a buffer, so an image whose roots stand still — or only moved — uploads no world. */
+export function changedWorlds(
+  previous: Float32Array,
+  next: Float32Array,
+  into: Int32Array,
+  live = next.length / 16,
+) {
   let count = 0
-  for (let w = 0; w < next.length / 16; w++)
-    if (worldChangedAt(previous, next, w)) into[count++] = w
+  for (let w = 0; w < live; w++) if (worldChangedAt(previous, next, w)) into[count++] = w
   return count
 }
 
