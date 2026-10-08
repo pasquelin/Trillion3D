@@ -91,6 +91,7 @@ test('the bench timer reads every pass of each frame by label, its batches as on
             gapMs: 0,
             beginMs: 0,
             state: 'ok',
+            work: { ...emptyWork(), invocations: 100, boundBytes: 1000 },
           },
           {
             label: 'vsm.render.raster 4',
@@ -100,6 +101,7 @@ test('the bench timer reads every pass of each frame by label, its batches as on
             gapMs: 0.5,
             beginMs: 2,
             state: 'ok',
+            work: { ...emptyWork(), invocations: 100, boundBytes: 1000 },
           },
         ],
         unionMs: 6,
@@ -115,5 +117,10 @@ test('the bench timer reads every pass of each frame by label, its batches as on
   assert.equal(rasters.length, 1)
   assert.deepEqual([rasters[0].min, rasters[0].max, rasters[0].stage], [0, 6, 'shadows'])
   assert.equal(passes.find((pass) => pass.name === 'temporal antialiasing')!.n, 2)
+  assert.deepEqual(
+    [rasters[0].encoded.invocations, rasters[0].encoded.boundBytes],
+    [100, 1000],
+    'the encoded work is read per frame, batches added',
+  )
   assert.equal(rasters[0].waitMs, 0.25, 'the wait before a pass is told apart from its work')
 })

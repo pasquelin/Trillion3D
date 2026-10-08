@@ -1,6 +1,7 @@
 // The kernels that measure a machine: each runs alone on the engine's device, timed by two GPU
 // timestamps, and says how long its fixed work took. `machine.ts` turns the times into rates.
 import type { BenchGpu } from './device.ts'
+import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from './machineWgsl.ts'
 import { readBack } from './readBack.ts'
 
 const MIB = 1 << 20
@@ -13,55 +14,6 @@ export const TEXTURE_BYTES = TEXTURE_SIDE * TEXTURE_SIDE * 8
 export const THREAD_GROUPS = 32768
 export const GROUP_THREADS = 256
 export const CHAIN = 64
-
-const READ = /* wgsl */ `
-@group(0) @binding(0) var<storage, read> src: array<vec4f>;
-@group(0) @binding(1) var<storage, read_write> sink: array<f32>;
-@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) id: vec3u) {
-  let total = arrayLength(&src) / 8u;
-  var sum = vec4f(0.0);
-  for (var k = 0u; k < 8u; k++) { sum += src[id.x + k * total]; }
-  sink[id.x] = sum.x + sum.y + sum.z + sum.w;
-}`
-const WRITE = /* wgsl */ `
-@group(0) @binding(0) var<storage, read_write> dst: array<vec4f>;
-@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) id: vec3u) {
-  let total = arrayLength(&dst) / 8u;
-  for (var k = 0u; k < 8u; k++) { dst[id.x + k * total] = vec4f(f32(id.x), f32(k), 1.0, 1.0); }
-}`
-const TEXTURE_READ = /* wgsl */ `
-@group(0) @binding(0) var src: texture_2d<f32>;
-@group(0) @binding(1) var<storage, read_write> sink: array<f32>;
-@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) id: vec3u) {
-  var sum = vec4f(0.0);
-  for (var k = 0u; k < 16u; k++) {
-    let at = id.x + k * 1048576u;
-    sum += textureLoad(src, vec2u(at % 4096u, at / 4096u), 0);
-  }
-  sink[id.x] = sum.x + sum.y + sum.z + sum.w;
-}`
-const TEXTURE_WRITE = /* wgsl */ `
-@group(0) @binding(0) var dst: texture_storage_2d<rgba16float, write>;
-@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) id: vec3u) {
-  for (var k = 0u; k < 16u; k++) {
-    let at = id.x + k * 1048576u;
-    textureStore(dst, vec2u(at % 4096u, at / 4096u), vec4f(f32(id.x), f32(k), 1.0, 1.0));
-  }
-}`
-const TRIVIAL = /* wgsl */ `
-@group(0) @binding(0) var<storage, read_write> sink: array<u32>;
-@compute @workgroup_size(256) fn main(@builtin(global_invocation_id) id: vec3u) {
-  if (id.x == 0xFFFFFFFFu) { sink[0] = 1u; }
-}`
-const CHAINED = /* wgsl */ `
-@group(0) @binding(0) var<storage, read_write> sink: array<u32>;
-@compute @workgroup_size(1) fn main() { sink[0] = sink[0] + 1u; }`
-const FILL = /* wgsl */ `
-@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
-  let p = array(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
-  return vec4f(p[i], 0.0, 1.0);
-}
-@fragment fn fs() -> @location(0) vec4f { return vec4f(0.25, 0.5, 0.75, 1.0); }`
 
 /** The kernels of a device: `time(name)` runs one, alone on an idle queue, and returns its ms. */
 export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {

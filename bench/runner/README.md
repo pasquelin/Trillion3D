@@ -18,23 +18,50 @@ budgets, `null` for the unmeasured, CPU and GPU never added):
 
 ## The GPU bench on Dawn
 
-    node bench/dawn/run.ts <page> [--scenario orbit|drive|still|<file.json>] [--repeat 3]
-    node bench/dawn/suite.ts [priority|reference|all|<page[:scenario]>,…]
+    node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file.json>] [--repeat 3]
+    node bench/dawn/suite.ts [<page[:scenario]>,…]        # at most 5 scenes, never more
+    node bench/dawn/run.ts <page> --dissect <pass label> [--dissect-segment <name>]
+    node bench/dawn/run.ts <page> --ab <checkout A> <checkout B> [--rounds 6] [--least 0.05]
     pnpm run test:gpu                  # the GPU proofs on Dawn (bench/dawn/proofs.ts)
     pnpm run test:chrome               # the proofs Dawn cannot run, in Chrome
 
 `<page>` is an example's name (`drive-a-car`), a path, or a held-out validation page's prefix
 (`v06`) with `TRILLION3D_VALIDATION_DIR` set. Each run plays `--repeat` fresh processes; `--engine
-<checkout>` measures another clean checkout. `suite.ts` runs a page list under one lock: `priority`
-(five pages, one per cost the engine carries), `reference` (ten), `all` (those and the validation
-pages). Every option is listed in the header of `bench/dawn/run.ts` and `bench/dawn/suite.ts`;
+<checkout>` measures another clean checkout. **One scene carries the whole bench**: the example
+`an-open-world-of-every-cost`, played by the scenario `world` — an open world of blocks, a dense
+pebble bed under a low sun, transparents, lamps, TAA — every part a switch in the gallery, so it is
+seen and checked before it is measured. `suite.ts` runs that scene by default and a list of at most
+five (`MAX_SCENES`, `bench/dawn/suiteRuns.ts`): a longer list is refused, no option lifts it.
+Method: one scene first, then the five, never a full sweep; stop at the first bad scene.
 `--profile desktop|mobile` sets what the device grants (display, limits, features,
 `bench/dawn/profiles.ts`), never the GPU's speed.
 
 One bench at a time on the machine: `~/.trillion3d/gpu-bench.lock` refuses a second, the proofs
-included. The report, Markdown and JSON, lands in `.mesure/out/bench-gpu/`: per segment the GPU
-frame median and spread, the CPU, hitches, whether the plays drew the same images, the GPU by pass
-and kind, the CPU by step and the engine's counters. The proofs, their discovery rule and what is
+included. The report, Markdown and JSON, one file of each per run, lands in `.mesure/out/bench-gpu/`.
+It opens on **the five biggest gains**: the ms, the pass, its `file:line` and function, the cause the
+numbers prove (`wait`, `bandwidth`, `launch`, `occupancy`, `wasted work`, else `unproven`). Then,
+per segment:
+
+- the frame's GPU time on every frame: median, p95, min, max, the middle half and the deviation;
+- each pass's **work apart from its wait**: its begin and end timestamps, the idle before it, its
+  span; and **a doubt named** when a timer is lost (work encoded, no timestamp), a pass reads zero
+  with work, the passes do not add up to the frame, or the engine's own timer disagrees. A pass that
+  encoded nothing is a true zero (`empty`), never a lost timer: the driver writes no timestamp for it;
+- the ranking: each pass by its work, with what it encoded (workgroups, threads, vertices, bound and
+  stored MiB, read from the calls the engine makes), its **floor** (its stores at the attachment
+  rate, its threads at the launch rate, its fixed cost; and the ceiling were every bound byte
+  moved), its gain (at most, and at least) and its source;
+- the machine's limits, measured once per adapter and kept in `.mesure/machine/` (`--recalibrate`
+  measures again): read, write, texture and attachment GB/s, threads a ms, the cost of a pass, a
+  dispatch and a barrier;
+- the CPU by step and function, the engine's counters, the hitches and the images.
+
+`--dissect <pass>` takes a pass's shader apart by itself: a shader holds `// @cut <name> keep:
+<statement>` lines (`bench/dawn/shaderCuts.ts`); the bench makes one variant per cut, in memory,
+stopped there, plays each on the frame, and tells the cost of each step between two plays of the
+shader whole (their drift is the noise floor). `--ab` plays two checkouts' engines on the bench's
+own page, alternating A B / B A for the rounds, and gives the mean difference with its 95 %
+interval and a verdict — gain, loss, or noise. The proofs, their discovery rule and what is
 excluded: [docs/TESTS.md](../../docs/TESTS.md#gpu-proofs-on-dawn).
 
 ## The Chrome harness
@@ -56,40 +83,40 @@ each reference scene into `<out>/<scene>/<name>/` and skips a run that already h
 `<side>` is `before` or `after`. Chromium flags come from the engine (`harness/sideOptions.ts`);
 with two engines they are the union of both sides' needs.
 
-| Flag | Default | Effect |
-|---|---|---|
-| `--engine` | `webgl` | `webgpu` (webgpu-page-raster, the engine), `webgl2` (autonomous-pages-webgl¹), or a witness: `webgl` (exact-cluster-pages), `three-nu`, `three-lod` ([The witnesses](#the-witnesses)) |
-| `--engine-<side>` | `--engine` | per-side engine: the engine against a witness in one run, same poses, lights, caches and server |
-| `--before` / `--after` | none / `dist/` | a built `dist/` or a git ref; without `--before` one side is measured |
-| `--scene <name>` | from the cache, else `sponza` | any compiled folder of `.mesure/assets/`; sets each side's cache. `fluids`: no cache, an ocean, 100 floating bodies, 20 fires, 5 smoke volumes built through the public API (`fluids/fluids.ts`) |
-| `--cache-<side>` | the scene's cache | a compiled cache (`native/full`), to compare two compilers on one scene |
-| `--resources <dir>` | none | glTF resources mounted under `/assets/`; without it, un-based caches yield 404 textures |
-| `--views` | `overview,ground,street` | among `overview`, `ground`, `street`, `detail` (`trajectory/poses.ts`)² |
-| `--images` / `--warmup` | 60 / 8 | measured and warmup frames |
-| `--pixelError` | `0` | a list of screen-error thresholds |
-| `--width` / `--height` / `--dpr` | 1280 / 720 / 1 | CSS viewport; `--dpr 2` renders twice the pixels per axis |
-| `--out` / `--port` | `.mesure/out/<engine>-<timestamp>/` / 0 | output directory, server port |
-| `--bounce on\|off` | `off` | bounce lighting |
-| `--textures cache\|host` | `host` | `cache` skips every source image whose chain the cache carries; `host` decodes them all, as the Three witnesses need. The engine reads the baked levels either way |
-| `--texture-budget <ms>` | engine's 1.0 ms | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera --textures cache`) |
-| `--compression[-<side>] auto\|bc7\|astc\|none` | `auto` | block family of the WebGPU texture pools under `--textures cache`³ |
-| `--antialiasing on\|off` | `on` | TAA jitter and accumulation |
-| `--scale[-<side>] <s>` | display | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA |
-| `--reference` | off | class-2 image proof against the [reference image](#reference-images)⁴ |
-| `--profile on\|off` / `--profile-frames` | `on` / 120 | per-stage timing over the trailing measured frames; `off` for the beauty verdict |
-| `--lights N` | 0 | contract point lights (`lighting/lamps.ts`); without `--lights` or `--sun` the engine renders unlit albedo |
-| `--shadows on\|off` / `--moving-light` / `--intensity N` / `--range F` | `on` / off / 40 / 0.75 | shadow casting; the first light circles; light intensity; each light's range in grid cells |
-| `--sun` | off | directional sun with its virtual shadow maps |
-| `--file-lights on\|off` | `on` | the source file's own lights |
-| `--moving-node <node>` / `--moving-node-radius` | none / 1 | a named node circles each frame |
-| `--moving-camera` | off | the pose advances one trajectory step per measured frame⁵ |
-| `--instances N` | 1 | 1, 4, 9 or 12 grid copies; "geometry (MB)" = page cache plus vertex buffers |
-| `--math-path auto\|js\|wasm` | `auto` | batch maths path; `auto` lets the governor measure. "Batch Math Path" table per side and operation |
-| `--isolation on\|off` | `off` | COOP/COEP on the harness server: a cross-origin isolated page |
-| `--variant[-<side>]`, `--error-metric[-<side>]` | none | a diagnostic variant; the screen-error metric (`certifiee` or `reference`) |
-| `--gaze-network` | off | counts the bytes Chrome transferred instead of timing ([gaze/GAZE_NETWORK.md](gaze/GAZE_NETWORK.md)) |
-| `--visible` | off | a real window; headless caps display at 60 Hz on macOS |
-| `--geometry-pool` / `--texture-pool <MiB>` | 512 MiB each | [Measuring another scene](#measuring-another-scene) |
+| Flag                                                                   | Default                                 | Effect                                                                                                                                                                                           |
+| ---------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--engine`                                                             | `webgl`                                 | `webgpu` (webgpu-page-raster, the engine), `webgl2` (autonomous-pages-webgl¹), or a witness: `webgl` (exact-cluster-pages), `three-nu`, `three-lod` ([The witnesses](#the-witnesses))            |
+| `--engine-<side>`                                                      | `--engine`                              | per-side engine: the engine against a witness in one run, same poses, lights, caches and server                                                                                                  |
+| `--before` / `--after`                                                 | none / `dist/`                          | a built `dist/` or a git ref; without `--before` one side is measured                                                                                                                            |
+| `--scene <name>`                                                       | from the cache, else `sponza`           | any compiled folder of `.mesure/assets/`; sets each side's cache. `fluids`: no cache, an ocean, 100 floating bodies, 20 fires, 5 smoke volumes built through the public API (`fluids/fluids.ts`) |
+| `--cache-<side>`                                                       | the scene's cache                       | a compiled cache (`native/full`), to compare two compilers on one scene                                                                                                                          |
+| `--resources <dir>`                                                    | none                                    | glTF resources mounted under `/assets/`; without it, un-based caches yield 404 textures                                                                                                          |
+| `--views`                                                              | `overview,ground,street`                | among `overview`, `ground`, `street`, `detail` (`trajectory/poses.ts`)²                                                                                                                          |
+| `--images` / `--warmup`                                                | 60 / 8                                  | measured and warmup frames                                                                                                                                                                       |
+| `--pixelError`                                                         | `0`                                     | a list of screen-error thresholds                                                                                                                                                                |
+| `--width` / `--height` / `--dpr`                                       | 1280 / 720 / 1                          | CSS viewport; `--dpr 2` renders twice the pixels per axis                                                                                                                                        |
+| `--out` / `--port`                                                     | `.mesure/out/<engine>-<timestamp>/` / 0 | output directory, server port                                                                                                                                                                    |
+| `--bounce on\|off`                                                     | `off`                                   | bounce lighting                                                                                                                                                                                  |
+| `--textures cache\|host`                                               | `host`                                  | `cache` skips every source image whose chain the cache carries; `host` decodes them all, as the Three witnesses need. The engine reads the baked levels either way                               |
+| `--texture-budget <ms>`                                                | engine's 1.0 ms                         | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera --textures cache`)                                                                                  |
+| `--compression[-<side>] auto\|bc7\|astc\|none`                         | `auto`                                  | block family of the WebGPU texture pools under `--textures cache`³                                                                                                                               |
+| `--antialiasing on\|off`                                               | `on`                                    | TAA jitter and accumulation                                                                                                                                                                      |
+| `--scale[-<side>] <s>`                                                 | display                                 | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA                                                                                        |
+| `--reference`                                                          | off                                     | class-2 image proof against the [reference image](#reference-images)⁴                                                                                                                            |
+| `--profile on\|off` / `--profile-frames`                               | `on` / 120                              | per-stage timing over the trailing measured frames; `off` for the beauty verdict                                                                                                                 |
+| `--lights N`                                                           | 0                                       | contract point lights (`lighting/lamps.ts`); without `--lights` or `--sun` the engine renders unlit albedo                                                                                       |
+| `--shadows on\|off` / `--moving-light` / `--intensity N` / `--range F` | `on` / off / 40 / 0.75                  | shadow casting; the first light circles; light intensity; each light's range in grid cells                                                                                                       |
+| `--sun`                                                                | off                                     | directional sun with its virtual shadow maps                                                                                                                                                     |
+| `--file-lights on\|off`                                                | `on`                                    | the source file's own lights                                                                                                                                                                     |
+| `--moving-node <node>` / `--moving-node-radius`                        | none / 1                                | a named node circles each frame                                                                                                                                                                  |
+| `--moving-camera`                                                      | off                                     | the pose advances one trajectory step per measured frame⁵                                                                                                                                        |
+| `--instances N`                                                        | 1                                       | 1, 4, 9 or 12 grid copies; "geometry (MB)" = page cache plus vertex buffers                                                                                                                      |
+| `--math-path auto\|js\|wasm`                                           | `auto`                                  | batch maths path; `auto` lets the governor measure. "Batch Math Path" table per side and operation                                                                                               |
+| `--isolation on\|off`                                                  | `off`                                   | COOP/COEP on the harness server: a cross-origin isolated page                                                                                                                                    |
+| `--variant[-<side>]`, `--error-metric[-<side>]`                        | none                                    | a diagnostic variant; the screen-error metric (`certifiee` or `reference`)                                                                                                                       |
+| `--gaze-network`                                                       | off                                     | counts the bytes Chrome transferred instead of timing ([gaze/GAZE_NETWORK.md](gaze/GAZE_NETWORK.md))                                                                                             |
+| `--visible`                                                            | off                                     | a real window; headless caps display at 60 Hz on macOS                                                                                                                                           |
+| `--geometry-pool` / `--texture-pool <MiB>`                             | 512 MiB each                            | [Measuring another scene](#measuring-another-scene)                                                                                                                                              |
 
 1. The autonomous engine decodes geometry pages itself, hence the only one incrementing
    `pagesDecodedWasm`; it needs a cache of exact clusters, else the explorer rejects the run with
@@ -161,17 +188,17 @@ capture", never 0 px. `null` means unmeasured, never inferred.
 
 All read on **one frame**, the measured loop's last (`series[].sides[].recordedFrame`).
 
-| Counter | Meaning |
-|---|---|
-| `selectedTriangles` | the frame's cluster cut before frustum and occlusion rejection; `null` without a cut |
-| `drawnTriangles` | the published cut, opaque and transparent, minus clusters with no resident page; on WebGL2 the nearest resident ancestors stand in. Counted at cut commit, no GPU readback; occlusion not subtracted |
-| `coverage` (`resume.md`) | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected; on WebGL2 non-zero while ancestors stand in |
-| `submittedTriangles` | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending |
-| `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns |
-| `frameHeld` | the frame was held (scene unchanged): zero clusters drawn is a record, not a missing reading |
-| `uncoveredTriangles` | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value |
-| `hiZ` | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count |
-| `gpuSelectionFallback` | GPU cut selection fell back to the CPU cut; `null` without GPU selection |
+| Counter                   | Meaning                                                                                                                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `selectedTriangles`       | the frame's cluster cut before frustum and occlusion rejection; `null` without a cut                                                                                                                 |
+| `drawnTriangles`          | the published cut, opaque and transparent, minus clusters with no resident page; on WebGL2 the nearest resident ancestors stand in. Counted at cut commit, no GPU readback; occlusion not subtracted |
+| `coverage` (`resume.md`)  | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected; on WebGL2 non-zero while ancestors stand in                                                                                |
+| `submittedTriangles`      | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending                                                                                                                    |
+| `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns                                                                                                   |
+| `frameHeld`               | the frame was held (scene unchanged): zero clusters drawn is a record, not a missing reading                                                                                                         |
+| `uncoveredTriangles`      | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value                                                                                                   |
+| `hiZ`                     | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count                                                                                              |
+| `gpuSelectionFallback`    | GPU cut selection fell back to the CPU cut; `null` without GPU selection                                                                                                                             |
 
 **Per-stage cost** (`series[].sides[].stageProfile`): per stage CPU and GPU p50/p95 (never summed),
 shadow metrics, device timing method, profiling overhead. **CPU bounds**
@@ -335,7 +362,7 @@ Measurement, export and site build are separate; rebuilding the portal never lau
    needs the same arguments, repository state, built JavaScript, asset manifest, browser version and
    machine, and an error-free measurement; a mismatch refuses to overwrite evidence.
 2. Export: `node bench/runner/summary/summaryGlobal.ts --from .mesure/out/<campaign> --to
-   .mesure/out/<campaign>-report --id <campaign>` (defaults: `.mesure/out/global`,
+.mesure/out/<campaign>-report --id <campaign>` (defaults: `.mesure/out/global`,
    `<from>/report-data`, `current`).
 3. Stage: `node bench/runner/report/publishReport.ts --from .mesure/out/<campaign>-report` writes
    `site/reports/<id>/`, replaces the campaign staged before and writes the catalogue; an ID already
