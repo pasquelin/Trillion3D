@@ -18,6 +18,8 @@ import {
   takeAsideView,
 } from './swap.ts'
 import { tablesHeld } from './listCap.ts'
+import { coarsenTick } from './coarsening.ts'
+import { recutView } from './runtimeState.ts'
 import { pickSlot } from './readbackSlot.ts'
 import { encodeSwap } from './swapEncode.ts'
 import { createAsideSlots, type AsideSlots } from './asideSlots.ts'
@@ -97,6 +99,8 @@ function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCom
   // main view's cut.
   aside.syncTables(uniforms, aside)
   if (tablesHeld(resources, state)) return undefined
+  // A coarsened view whose wait ran out tries its own threshold (`coarsening.ts`).
+  if (coarsenTick(slots.coarse)) recutView(swap, view)
   const same = sameCut(swap, view, uniforms, state)
   // The mask in place is this very cut's: nothing to run — but its lists, neither read whole nor
   // in flight, copied again at their size while they are still in `out`.

@@ -4,6 +4,7 @@ import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
 import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
+import { coarsenTick } from './coarsening.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
@@ -127,13 +128,19 @@ function selectionOver(run: DagRun): GpuSelection {
     },
     dispatch(next, shared) {
       syncTables(next, mainView)
+      // One image: a coarsened view whose wait ran out tries its own threshold (`coarsening.ts`).
+      if (live() && coarsenTick(state.coarse)) recutMain(resources.swap, state)
       return run.dispatch(next, shared)
     },
     peek: () => (state.dead ? null : state.last),
     aside: () => createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }),
     adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
     failed: () => state.dead,
-    flush: () => flushRuntime(run, selection),
+    flush: () =>
+      flushRuntime(run, (uniforms) => {
+        syncTables(uniforms, mainView)
+        run.dispatch(uniforms)
+      }),
     dispose() {
       state.disposed = true
       state.dead = true

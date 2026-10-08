@@ -1,7 +1,7 @@
 import {
   SELECTION_NONE as NONE,
-  type GpuSelection,
   type ResidencyChanges,
+  type SelectionUniforms,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
@@ -225,7 +225,11 @@ export function writeMark({ resources, state, tree }: DagRun, w: number, mark: n
 
 /** `GpuSelection.flush`: the reads in flight drained, a list grown or a cut coarsened and the cut
  *  made again on it, the cut made again under the poses in place. */
-export async function flushRuntime({ resources, state }: DagRun, selection: GpuSelection) {
+export async function flushRuntime(
+  { resources, state }: DagRun,
+  /** The main view's cut under `uniforms`, the tables synced first: no image of its own. */
+  cut: (uniforms: SelectionUniforms) => void,
+) {
   await state.pending
   // A cut past its list grows it, or past the device coarsens (`listCap.ts`): the drain grows it,
   // then cuts again on it, rather than hand back the cut before; a factor that moved back cuts
@@ -234,9 +238,9 @@ export async function flushRuntime({ resources, state }: DagRun, selection: GpuS
   const { cuts } = resources.swap
   const again = () => (state.grow || state.factorMoved) && !state.dead
   for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again();) {
-    selection.dispatch(asked)
+    cut(asked)
     await state.pending
-    selection.dispatch(asked)
+    cut(asked)
     await state.pending
   }
   // The cut submitted on the residency in place, whatever the poses: never `sameCut`.
@@ -248,7 +252,7 @@ export async function flushRuntime({ resources, state }: DagRun, selection: GpuS
     !readFor(state, submitted.uniforms)
   ) {
     // Cut again under the poses in place: a drain never hands back one they have left.
-    selection.dispatch(submitted.uniforms)
+    cut(submitted.uniforms)
     await state.pending
   }
   const last = state.dead ? null : state.last

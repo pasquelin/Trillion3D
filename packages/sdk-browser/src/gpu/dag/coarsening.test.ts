@@ -1,9 +1,10 @@
 // The factor a view's threshold is cut under past the device's list: it rises on an overflow
-// alone, tries the view's own threshold again once the view clearly changed, never twice for a
-// still view — whatever the law the cut follows —, and a grown list releases it.
+// alone; it tries the view's own threshold again once the view clearly changed, once its own ask
+// scaled would fit, or, still, after a wait each failed try doubles — whatever the law the cut
+// follows —; a grown list releases it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { coarsenAfter, createCoarsening, type Coarsening } from './coarsening.ts'
+import { coarsenAfter, coarsenTick, createCoarsening, type Coarsening } from './coarsening.ts'
 
 const CAP = 1000
 
@@ -80,5 +81,48 @@ test('a list grown since releases the factor', () => {
   image(c, 3 * CAP)
   assert.ok(c.factor > 1)
   assert.equal(coarsenAfter(c, CAP, 2 * CAP, false), true)
+  assert.equal(c.factor, 1)
+})
+
+/** `images` images of a still view whose ask is `own` at its own threshold and `coarse` at any
+ *  factor above it — the levels as steps —: a try at its wait's end, and, raised back, the cut
+ *  under the factor. The images each try came at. */
+function still(c: Coarsening, images: number, own: number, coarse: number) {
+  const tries: number[] = []
+  for (let k = 1; k <= images; k++) {
+    if (!coarsenTick(c)) continue
+    tries.push(k)
+    if (coarsenAfter(c, own, CAP, own > CAP)) coarsenAfter(c, coarse, CAP, false)
+  }
+  return tries
+}
+
+test('a still view whose own cut fits again, its coarse ask unmoved, comes back after its wait', () => {
+  const c = createCoarsening()
+  coarsenAfter(c, 1.05 * CAP, CAP, true)
+  coarsenAfter(c, 0.5 * CAP, CAP, false)
+  assert.ok(c.factor > 1)
+  // A tenth of the content streams out: its own ask falls to 0.945, its coarse one does not move.
+  assert.equal(coarsenAfter(c, 0.5 * CAP, CAP, false), false, 'nothing the coarse ask can tell')
+  assert.deepEqual(still(c, 200, 0.945 * CAP, 0.5 * CAP), [64], 'one try, at the wait’s end')
+  assert.equal(c.factor, 1)
+})
+
+test('a still view that still overflows tries at doubling waits, up to the longest', () => {
+  const c = createCoarsening()
+  coarsenAfter(c, 1.05 * CAP, CAP, true)
+  coarsenAfter(c, 0.5 * CAP, CAP, false)
+  const tries = still(c, 20000, 1.05 * CAP, 0.5 * CAP)
+  const waits = tries.map((image, k) => image - (tries[k - 1] ?? 0))
+  assert.deepEqual(waits.slice(0, 8), [64, 128, 256, 512, 1024, 2048, 4096, 4096])
+  assert.ok(c.factor > 1)
+})
+
+test('an ask at the factor that scales the own ask under the list tries it at once', () => {
+  const c = createCoarsening()
+  coarsenAfter(c, 1.05 * CAP, CAP, true)
+  coarsenAfter(c, 0.5 * CAP, CAP, false)
+  // The law holds: a tenth less at the factor is a tenth less at its own threshold, 0.945.
+  assert.equal(coarsenAfter(c, 0.45 * CAP, CAP, false), true)
   assert.equal(c.factor, 1)
 })

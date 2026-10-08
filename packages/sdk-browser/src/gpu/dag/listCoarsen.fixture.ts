@@ -20,7 +20,8 @@ import type { SelectionUniforms } from '../core/selection.ts'
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 2000)
 
 /** Sixteen pyramids of eight detail levels (`scenePages`) on a grid, and the view of a camera at
- *  `z` before them, the placements' worlds taken at its eye. */
+ *  `z` before them on a window of `pixels` times 1280×720, the placements' worlds taken at its
+ *  eye. */
 export function world() {
   const pages = scenePages(256, 8)
   const worlds = Array.from({ length: 16 }, () => new G.Matrix4())
@@ -29,11 +30,12 @@ export function world() {
     asHostLibrary<G.Matrix4>(m).makeTranslation((w % 4) * 6.5 - 9.75, (w >> 2) * 6.5 - 9.75, 0),
   )
   const dag = packDagSelection(roots)
-  const view = (z: number): SelectionUniforms => {
+  const view = (z: number, pixels = 1): SelectionUniforms => {
     cam.position.set(0, 0, z)
     cam.lookAt(0, 0, 0)
     cam.updateMatrixWorld()
-    const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, [1280, 720])
+    const side = Math.sqrt(pixels)
+    const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, [1280 * side, 720 * side])
     packedWorldsToRenderOrigin(dag, roots, uniforms.cameraWorld!)
     return uniforms
   }
@@ -58,10 +60,13 @@ export async function worldCut(deviceCap: number) {
   const held = {} as { resources: NonNullable<Awaited<ReturnType<typeof createDagResources>>> }
   let viewed!: SelectionUniforms
   const threshold = () => held.resources.uniformData[viewWord('pixelError')]
-  writtenReadbacks(fake.device, () => ({
-    cap: held.resources.listCap,
-    cut: scene.lists(viewed, threshold()),
-  }))
+  // Each readback mapped: the image it came in and the threshold it was cut under.
+  const readouts: { image: number; threshold: number }[] = []
+  let images = 0
+  writtenReadbacks(fake.device, () => {
+    readouts.push({ image: images, threshold: threshold() })
+    return { cap: held.resources.listCap, cut: scene.lists(viewed, threshold()) }
+  })
   const resources = await createDagResources(fake.device, scene.dag, null)
   if (!resources) throw new Error('the fake device refused the tables')
   held.resources = resources
@@ -69,9 +74,10 @@ export async function worldCut(deviceCap: number) {
   /** One image under `uniforms` and its drain. */
   const frame = async (uniforms: SelectionUniforms) => {
     viewed = uniforms
+    images++
     selection.dispatch(uniforms)
     await selection.flush()
     return selection.peek()
   }
-  return { ...scene, fake, resources, selection, frame, threshold }
+  return { ...scene, fake, resources, selection, frame, threshold, readouts }
 }
