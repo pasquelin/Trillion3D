@@ -115,6 +115,9 @@ export type GpuSelection = {
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean
+  /** The factor the main view's projected-error threshold is cut under: 1 but past the list one
+   *  binding holds, where the cut coarsens until it fits (`../dag/listCap.ts`, `coarsened`). */
+  readonly coarsen: number
   /** `roots` — later placements of primitives it holds — appended behind its own, in the room
    *  its tables kept (`../dag/pack.ts`, `appendDagRoots`), cut from the next dispatch on. False
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a

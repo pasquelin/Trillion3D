@@ -78,7 +78,8 @@ function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommand
   if (compute) cutMain(cut, encoder, snap, i >= 0)
   else encodeDagDifference(encoder, resources)
   if (i >= 0) claimCopy(cut, encoder, i, snap)
-  return settleMain(cut, { encoder, shared, i, captured: snap, serial: swap.cut, undo })
+  const settled = { encoder, shared, i, captured: snap, serial: swap.cut, undo }
+  return settleMain(cut, { ...settled, coarsen: state.coarsen })
 }
 
 /** The main cut's lists, still in `out` and copied by no slot, copied into `encoder` before a view
@@ -98,7 +99,8 @@ function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission
     serial = state.owed
   encodeDagDifference(encoder, resources)
   claimCopy(cut, encoder, i, captured)
-  return settleMain(cut, { encoder, shared: encoder, i, captured, serial, undo })
+  const coarsen = state.coarsen
+  return settleMain(cut, { encoder, shared: encoder, i, captured, serial, coarsen, undo })
 }
 
 /** The main view cuts under `snap` into `encoder`, its difference in the cut's last pass when a
@@ -106,9 +108,17 @@ function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission
 function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUniforms, copy: boolean) {
   const { resources, state } = cut,
     { swap, uniformData, packed, listCap } = resources
-  writeDagUniforms(uniformData, packed, snap, listCap, saveRegionFor(swap, MAIN_VIEW))
+  writeDagUniforms(
+    uniformData,
+    packed,
+    snap,
+    listCap,
+    saveRegionFor(swap, MAIN_VIEW),
+    state.coarsen,
+  )
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(encoder, resources, copy)
+  state.factorMoved = false
   noteCut(swap, MAIN_VIEW, {
     uniforms: snap,
     residency: state.residencyRevision,
@@ -136,8 +146,8 @@ function claimCopy(
 }
 
 /** The submission of a dispatch: slot `i` (-1 none), copied from the main cut `serial` under
- *  `captured`, read once the buffer ran; everything claimed given back (`undo`) when it is dropped.
- *  Without `shared`, submitted here. */
+ *  `captured` and the factor `coarsen` (`listCap.ts`), read once the buffer ran; everything
+ *  claimed given back (`undo`) when it is dropped. Without `shared`, submitted here. */
 function settleMain(
   cut: MainCut,
   done: {
@@ -146,20 +156,22 @@ function settleMain(
     i: number
     captured: SelectionUniforms
     serial: number
+    coarsen: number
     undo: () => void
   },
 ): SelectionSubmission | undefined {
-  const { encoder, shared, i, captured, serial, undo } = done
+  const { encoder, shared, i, undo } = done
+  const read = { captured: done.captured, serial: done.serial, coarsen: done.coarsen }
   if (!shared) {
     cut.resources.device.queue.submit([encoder.finish()])
-    if (i >= 0) readMain(cut, i, captured, serial)
+    if (i >= 0) readMain(cut, i, read)
     return undefined
   }
   let settled = false
   return (submitted: boolean) => {
     if (settled) return
     settled = true
-    if (submitted) return void (i >= 0 && readMain(cut, i, captured, serial))
+    if (submitted) return void (i >= 0 && readMain(cut, i, read))
     undo()
     if (i >= 0) cut.state.mapped[i] = false
   }

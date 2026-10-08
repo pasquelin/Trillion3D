@@ -23,7 +23,7 @@ const read = (slot: ReturnType<typeof slotOf>) =>
       scratch: createDagOutputScratch(),
       levelsWord: 0,
     },
-    { limits: {}, pageCount: 4, listFull: false },
+    { limits: {}, pageCount: 4, listFull: false, coarsen: 1 },
   )
 
 test('a refused mapping rejects as SlotMapRefused; an error past it is the engine’s own', async () => {

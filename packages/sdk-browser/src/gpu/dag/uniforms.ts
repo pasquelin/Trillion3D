@@ -63,7 +63,9 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
  * and the shader together. The camera runs one view on buffers sized for one, whose queues hold
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
- * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none.
+ * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
+ * factor its projected-error threshold is cut under, 1 but past the list the device holds
+ * (`coarsened`, `listCap.ts`).
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -71,6 +73,7 @@ export function writeDagUniforms(
   uniforms: DagViewUniforms,
   listCap: number,
   saveRegion = REGION_NONE,
+  coarsen = 1,
 ) {
   const W = viewWord
   target.fill(0)
@@ -78,7 +81,7 @@ export function writeDagUniforms(
   target.set(uniforms.view, W('view'))
   target[W('pixelScale')] = uniforms.pixelScale[0]
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
-  target[W('pixelError')] = uniforms.pixelError
+  target[W('pixelError')] = uniforms.pixelError * coarsen
   target[W('near')] = uniforms.near
   const ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
   ints[W('clusterCount')] = packed.pageCount

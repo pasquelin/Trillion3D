@@ -20,7 +20,7 @@ type Op = () => void
 
 /** `dagMask` and the kernels before the snapshot, as their outputs: `cut` written into `out`, on a
  *  list of `cap` ranks; past it, the readout says it is truncated. */
-export function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
+function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   const asked = cut.asked.slice(0, cap),
     drawn = cut.drawn.slice(0, cap)
   out.fill(0, 0, 2 * (HEAD + cap))
@@ -29,6 +29,27 @@ export function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   out.set(asked, HEAD)
   out[HEAD + cap] = cut.drawn.length
   out.set(drawn, 2 * HEAD + cap)
+}
+
+/** `device`'s readbacks map what the kernels would have written for `lists()` on a list of its
+ *  cap, and its compute passes do nothing: the readbacks stand for what they write. */
+export function writtenReadbacks(device: GPUDevice, lists: () => { cap: number; cut: RigCut }) {
+  const create = device.createBuffer.bind(device)
+  device.createBuffer = (descriptor: GPUBufferDescriptor) => {
+    const buffer = create(descriptor)
+    if (descriptor.usage & GPUBufferUsage.MAP_READ)
+      buffer.getMappedRange = () => {
+        const bytes = new ArrayBuffer(descriptor.size),
+          { cap, cut } = lists()
+        writeCut(new Uint32Array(bytes), cap, cut)
+        return bytes
+      }
+    return buffer
+  }
+  const encode = device.createCommandEncoder.bind(device)
+  const pass = new Proxy({}, { get: () => () => {} })
+  device.createCommandEncoder = () =>
+    Object.assign(encode(), { beginComputePass: () => pass }) as unknown as GPUCommandEncoder
 }
 
 /** `placements` placements of the fixture's primitive, cut on a list of `cap` ranks. */

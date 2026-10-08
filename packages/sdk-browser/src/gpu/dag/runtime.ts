@@ -109,6 +109,9 @@ function selectionOver(run: DagRun): GpuSelection {
     get growing() {
       return state.growing
     },
+    get coarsen() {
+      return state.coarsen
+    },
     appendRoots: (roots) => appendRoots(run, roots),
     // The root travels behind the stretch in the frame buffer (`resources.ts`).
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),

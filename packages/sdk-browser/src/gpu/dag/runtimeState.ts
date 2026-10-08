@@ -23,8 +23,13 @@ export type DagRuntimeState = {
   grow: number
   /** A list being made: no frame cuts until it is in place or refused. */
   growing: boolean
-  /** The device refused a larger list: a truncated readout now goes to the host as it is. */
+  /** The device refused a larger list: a truncated readout now coarsens the cut (`listCap.ts`). */
   listFull: boolean
+  /** The factor the main view's threshold is cut under (`coarsened`, `listCap.ts`): 1 but past
+   *  the list the device holds. */
+  coarsen: number
+  /** The factor moved since the main view's last cut: the drain cuts again under it (`flush`). */
+  factorMoved: boolean
   /** The device refused the saved regions the views aside ask (`swap.ts`): they cut without one. */
   regionsFull: boolean
 }
@@ -44,13 +49,20 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   grow: 0,
   growing: false,
   listFull: false,
+  coarsen: 1,
+  factorMoved: false,
   regionsFull: false,
 })
 
 /** The next dispatch cuts and reads back again: the main view's cut and readback in hand stand on
  *  no residency any more. The cut in hand stays. */
 export function recutMain(swap: MaskSwap, state: DagRuntimeState) {
-  const cut = swap.cuts[MAIN_VIEW - 1]
-  if (cut) cut.residency = -1
+  recutView(swap, MAIN_VIEW)
   if (state.readback) state.readback.residency = -1
+}
+
+/** `view`'s next dispatch cuts again: its cut in hand stands on no residency any more. */
+export function recutView(swap: MaskSwap, view: number) {
+  const cut = swap.cuts[view - 1]
+  if (cut) cut.residency = -1
 }

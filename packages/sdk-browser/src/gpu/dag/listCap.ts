@@ -1,4 +1,5 @@
 import { validationScope } from '../core/errorScope.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
@@ -27,12 +28,35 @@ export const initialListCap = (limits: Limits, pageCount: number) =>
  * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
  * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list doubles past it, within the
  * catalogue and what one binding holds.
- * `undefined` when even that cannot hold the cut: the readout stays truncated and the host says
- * so; the GPU cut is the engine's one (#1483).
+ * `undefined` when even that cannot hold the cut: the cut coarsens instead (`coarsened`); the GPU
+ * cut is the engine's one.
  */
 export function grownListCap(limits: Limits, pageCount: number, cap: number, needed: number) {
   const next = Math.min(pageCount, deviceListCap(limits), 2 * Math.max(cap, needed))
   return next > cap && next >= Math.min(needed, pageCount) ? next : undefined
+}
+
+/** The share of the list a coarsened cut aims to fill: the law below may err by a factor 2 either
+ *  way before the cut leaves the band where its factor holds (`coarsened`). */
+const COARSE_FILL = 1 / 2
+/** The coarsest factor: under the law it divides the ranks by 2³², so a cut still past the list
+ *  there is made of its roots and cell stand-ins alone, which no threshold coarsens further. */
+const COARSEST = 2 ** 16
+
+/**
+ * THE FACTOR A VIEW'S PROJECTED-ERROR THRESHOLD IS CUT UNDER, past what one binding lists. A cut
+ * at threshold τ keeps clusters of about τ² pixels each, so its ranks follow D(f) = D(1) / f² under
+ * τ·f. `factor` is the one the readout was cut at, `demand` the ranks it asked (`listDemand`) of a
+ * list of `cap`, `past` whether it overflowed a list that cannot grow (`grownListCap`). Past, the
+ * factor rises to where the cut fills `COARSE_FILL` of the list — √2 at least, `COARSEST` at most —
+ * and the descent stops at coarser levels or the cells until it fits; it falls back, to 1 at the
+ * least, only once the cut asks an eighth of the list, to the same fill. Between the two it holds:
+ * no image after image flips. Below the device's list the factor is 1 and the threshold the view's.
+ */
+export function coarsened(factor: number, demand: number, cap: number, past: boolean) {
+  const fit = factor * Math.sqrt(demand / (COARSE_FILL * Math.max(1, cap)))
+  if (past) return clamp(fit, factor * Math.SQRT2, COARSEST)
+  return factor > 1 && fit <= factor / 2 ? Math.max(1, fit) : factor
 }
 
 /** Ranks the cut asked of its readout, kept or not: the camera requests' counter, and the drawn
@@ -69,9 +93,9 @@ export function createDagList(
  * Gives the camera cut a list of `listCap` ranks and `regions` saved journals, between two frames
  * and with no readback in flight: a new readout and its slots, the bind groups that name it, and
  * the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
- * cannot grant them keeps the old readout whole and says `false`, so the host falls back on the
- * next truncated readout — or the views aside cut without a region — rather than on an error of the
- * whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
+ * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
+ * coarsens its cut (`coarsened`) — or the views aside cut without a region — rather than end on an
+ * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
  * `pageCones`, keeps its own (`layout.ts`).
  */
 async function growDagList(
@@ -147,8 +171,8 @@ function moveKeptSnapshot(
 
 /** Grows the list to `state.grow`, and `out` to the regions the views aside ask, behind the
  *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
- *  cuts and reads again — on the grown list, or, refused, to hand the truncated readout to the host
- *  and draw the views aside without a region. */
+ *  cuts and reads again — on the grown list, or, refused, to coarsen the cut past it
+ *  (`coarsened`) and draw the views aside without a region. */
 function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
     cap = Math.max(state.grow, resources.listCap),

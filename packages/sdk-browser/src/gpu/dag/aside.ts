@@ -118,7 +118,8 @@ function cutAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCommandE
     { swap, uniformData, packed, listCap } = resources
   const owed = aside.copyOwed(shared)
   const undo = holdSwap(swap, view)
-  writeDagUniforms(uniformData, packed, uniforms, listCap, saveRegionFor(swap, view))
+  const { coarsen } = aside.slots
+  writeDagUniforms(uniformData, packed, uniforms, listCap, saveRegionFor(swap, view), coarsen)
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(shared, resources, false)
   // One copy of the uniforms, kept by the swap and by the readback alike: none is written after.
@@ -155,7 +156,7 @@ function copyLists(
   slots.mapped[i] = true
   slots.next = 1 - i
   slots.inFlight = slots.copiedSerial[i] = serial
-  const captured = { uniforms: snap, worldRevision: state.worldRevision }
+  const captured = { uniforms: snap, worldRevision: state.worldRevision, coarsen: slots.coarsen }
   return { i, read: () => slots.read(i, ranks, listCap, captured, serial) }
 }
 

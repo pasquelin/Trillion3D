@@ -1,9 +1,10 @@
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
- * A TRUNCATED READOUT NAMES NO EXIT (#1483). A list the device could not grow is read by its head
- * (`../../gpu/dag/listCap.ts`): the frame's mask draws the whole cut, so a page past the head has
- * not left it, and must not leave the sets the residency keeps and evicts from. Such a list is
+ * A TRUNCATED READOUT NAMES NO EXIT. A list still past the device at the coarsest cut — its roots
+ * and cells alone (`../../gpu/dag/listCap.ts`, `COARSEST`) — is read by its head: the frame's
+ * mask draws the whole cut, so a page past the head has not left it, and must not leave the sets
+ * the residency keeps and evicts from. Such a list is
  * published as its head, then every page the list held before that the head does not name, in the
  * held order: entries only. The head keeps its ranks, so the claims of the next readbacks, which
  * name ranks of the GPU list, still find their pages (`./claimedDifference.ts`).
