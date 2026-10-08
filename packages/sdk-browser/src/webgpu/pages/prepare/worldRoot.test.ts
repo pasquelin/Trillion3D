@@ -49,7 +49,7 @@ test('a placed row is linked to the object its cell places there, a parked one t
   const linked = () => (linkWorldObject(rt, 0), links.at(-1)![1])
   assert.equal(linked(), -1, 'no cell placed it')
   // Cell 1's first node, of mesh 0: the cell's first object, the table's rank 1.
-  setRowCell(rows, 0, { cell: 1, node: 0, meshes: Int32Array.of(0) })
+  setRowCell(rows, 0, { cell: 1, node: 0 })
   assert.equal(linked(), 1)
   root.parked = true
   assert.equal(linked(), -1, 'parked')

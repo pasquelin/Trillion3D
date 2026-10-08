@@ -30,15 +30,13 @@ export function createCellPlacements(
     place(cell: number, { nodes, ranks, locals }: CellRows, url: string) {
       if (!rowsFree(meshes, ranks, url)) return false
       const placements: Placement[] = []
-      // Each node's mesh, which the world's objects of the cell are read against (`rowCells.ts`).
-      const nodeMeshes = Int32Array.from({ length: nodes }, (_, node) => ranks[2 * node + 1])
       for (let node = 0; node < nodes; node++) {
         const parent = ranks[2 * node] < 0 ? root : parents[ranks[2 * node]]
         const mesh = meshes.get(ranks[2 * node + 1])!
         const local = locals.subarray(MATRIX_VALUES * node, MATRIX_VALUES * (node + 1))
         placements.push({ mesh, row: takeRow(mesh), parent, local })
         for (const link of mesh.links)
-          setRowCell(link.placements!, placements[node].row, { cell, node, meshes: nodeMeshes })
+          setRowCell(link.placements!, placements[node].row, { cell, node })
         write(placements[node])
       }
       held.set(cell, placements)

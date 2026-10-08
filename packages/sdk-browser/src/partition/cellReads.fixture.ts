@@ -21,7 +21,7 @@ function gridRoots(count: number) {
     dependencies: [0, 1 + 2 * cell, 2 + 2 * cell],
   })
   const bytes = encodeWorldRoots({
-    ...{ version: 4, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
+    ...{ version: 5, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
     payload: { url: 'world-roots.bin', sha256: sha(bin), bytes: bin.byteLength },
     bundles,
     pages: bundles.map(({ bytes }, bundle) => ({

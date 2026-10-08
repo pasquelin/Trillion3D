@@ -45,8 +45,8 @@ pub(crate) use cover::RootCover;
 
 /// Version of the world-roots products: 2 since their records, 3 since an object root names its
 /// object by its table rank, 4 since a placed object is one level-0 cluster and a super-root a
-/// `WGP3` page carrying its attributes.
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 4;
+/// `WGP3` page carrying its attributes, 5 since a cell names each node's first object.
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 5;
 /// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.
@@ -57,11 +57,13 @@ pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
 /// bundles. A world over it is refused at cook, its cell named.
 pub(crate) const WORLD_TOP_BUDGET_BYTES: usize = 4 * BOOTSTRAP_BUNDLE_BYTES;
 
-/// One primitive of one placed object: its cell, its node, the primitive's rank in the manifest,
-/// its material, its world matrix and the root cover it places.
+/// One primitive of one placed object: its cell, its node and the node's rank among its cell's —
+/// the order the cell's file places them in —, the primitive's rank in the manifest, its material,
+/// its world matrix and the root cover it places.
 pub(crate) struct Instance<'a> {
     pub cell: usize,
     pub node: usize,
+    pub slot: usize,
     pub primitive: usize,
     pub material: Option<u64>,
     pub matrix: Mat4,
@@ -106,12 +108,13 @@ pub(super) fn stage_world_roots(
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let mut instances = Vec::new();
     for (cell, members) in cells.iter().enumerate() {
-        for &node in members {
+        for (slot, &node) in members.iter().enumerate() {
             let mesh = nodes.get(node).and_then(|n| n["mesh"].as_u64());
             for &primitive in mesh.and_then(|m| by_mesh.get(&m)).into_iter().flatten() {
                 instances.push(Instance {
                     cell,
                     node,
+                    slot,
                     primitive,
                     material: primitives[primitive]["material"].as_u64(),
                     matrix: world[node],

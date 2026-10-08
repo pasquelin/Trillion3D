@@ -16,9 +16,9 @@ import {
 } from './worldRoots.ts'
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 4
+const VERSION = 5
 /** Bytes of each header and record (`records.rs`). */
-const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 8, 24]
+const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 16, 24]
 const [DAG_HEADER, CLUSTER, GROUP] = [24, 176, 64]
 /** An index word naming nothing. */
 const NONE = 0xffffffff
@@ -95,7 +95,8 @@ function tablePages({ view, word }: Opened, at: number, count: number): WorldRoo
 }
 
 /** The table's cells at `cellsAt` and their objects at `objectsAt`, checked: each cell's objects
- *  follow the last's, and every object needs only bundles of the table. */
+ *  follow the last's, each node's first object is one of its cell's, and every object needs only
+ *  bundles of the table. */
 function tableCells(
   { word, list }: Opened,
   [cellsAt, objectsAt]: number[],
@@ -103,8 +104,11 @@ function tableCells(
 ): WorldRoots['cells'] {
   let next = 0
   for (let cell = 0; cell < cellCount; cell++) {
+    const count = word(cellsAt + cell * CELL + 4)
     if (word(cellsAt + cell * CELL) !== next) refuse(`cell ${cell} objects`)
-    next += word(cellsAt + cell * CELL + 4)
+    for (const first of list(cellsAt + cell * CELL + 8))
+      if (first !== NONE && first >= count) refuse(`cell ${cell} nodes`)
+    next += count
   }
   if (next !== objectCount) refuse('cells and objects')
   for (let object = 0; object < objectCount; object++)
@@ -117,6 +121,10 @@ function tableCells(
   return {
     count: cellCount,
     first: (cell) => word(cellsAt + cell * CELL),
+    nodeObject(cell, node) {
+      const nodes = list(cellsAt + cell * CELL + 8)
+      return node < nodes.length && nodes[node] !== NONE ? nodes[node] : -1
+    },
     objects(cell) {
       const first = word(cellsAt + cell * CELL)
       return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))

@@ -66,7 +66,7 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
     association = rec.sourceMesh && context.associations.get(rec.sourceMesh)
   if (!at || association?.meshes === undefined) return -1
   const primitive = association.primitives ?? 0
-  return objects.objectOf(at.cell, at.node, at.meshes, association.meshes, primitive)
+  return objects.objectOf(at.cell, at.node, association.meshes, primitive)
 }
 
 /** Each placement of `roots` the new `cut` packs draws the object its row places now, as a row

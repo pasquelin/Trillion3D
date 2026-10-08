@@ -67,3 +67,22 @@ test('a root appended to the list in place is read, its radius taken', () => {
   assert.equal(watch.radiusOf(rank), TREE.objectRadius)
   assert.equal(planImpostors(roots, section, view, FOCAL).switched[rank], 1)
 })
+
+test('roots whose scale changes every image keep the watch at its size', () => {
+  const roots = field(200),
+    watch = createImpostorWatch(),
+    view = viewAt([0, 2, 0], 0)
+  watch.update(roots, section, view, FOCAL, COS)
+  const held = watch.hostBytes
+  assert.ok(held > 0)
+  for (let image = 1; image <= 300; image++) {
+    // Every root scaled a little more: each takes another sphere, another bound.
+    roots.forEach((root, rank) => {
+      const elements = root.world.elements as number[]
+      for (const k of [0, 5, 10]) elements[k] = 1 + image / 1000
+      watch.touch(rank)
+    })
+    watch.update(roots, section, view, FOCAL, COS)
+  }
+  assert.equal(watch.hostBytes, held, 'a bound a root, never one a shape it once took')
+})

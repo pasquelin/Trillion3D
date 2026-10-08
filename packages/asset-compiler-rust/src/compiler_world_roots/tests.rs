@@ -55,6 +55,7 @@ pub(super) fn world(covers: &[RootCover; 2], tiles: usize) -> Vec<Instance<'_>> 
                 instances.push(Instance {
                     cell,
                     node,
+                    slot: object,
                     primitive,
                     material,
                     matrix,

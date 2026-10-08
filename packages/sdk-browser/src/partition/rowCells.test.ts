@@ -22,7 +22,7 @@ test('a row names its cell and node while it holds them, grown or not', () => {
   for (const [node, { row }] of held.entries())
     for (const link of links) {
       const at = rowCell(link.placements!, row)!
-      assert.deepEqual([at.cell, at.node, [...at.meshes]], [9, node, [4, 4]])
+      assert.deepEqual([at.cell, at.node], [9, node])
     }
   // Grown in place, the rows keep where they lie.
   const before = links[0].placements!

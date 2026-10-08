@@ -73,6 +73,10 @@ export type WorldRoots = {
     objects(cell: number): WorldRootsObject[]
     /** The rank of `cell`'s first object among the table's: its record says it. */
     first(cell: number): number
+    /** The first object of node `node` of `cell` — its rank in the cell's file, the order the
+     *  partition places it in —, counted from the cell's first; -1 for a node the cook continued
+     *  nothing of. The cook writes it (`compiler_world_roots/cells.rs`). */
+    nodeObject(cell: number, node: number): number
     cellOf(object: number): number
   }
 }

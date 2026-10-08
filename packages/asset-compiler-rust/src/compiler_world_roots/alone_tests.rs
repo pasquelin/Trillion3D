@@ -173,6 +173,7 @@ fn a_world_whose_pinned_top_exceeds_the_budget_is_refused_naming_its_cell() {
         instances.push(Instance {
             cell,
             node,
+            slot: node,
             primitive: 2,
             material: Some(material),
             matrix: translation([x, 0.0, 1500.0]),

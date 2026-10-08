@@ -47,6 +47,9 @@ pub(super) fn object_dependencies(
 ) -> Result<Objects> {
     let needs = needs_of(world, bundle_of, closed, instances.len());
     let (mut table, mut outside) = (vec![Vec::new(); cells], Vec::new());
+    // Per cell, each node's first object, by the node's rank in the cell: one a node the world
+    // build placed nothing for, or whose mesh holds no cover, never has.
+    let mut nodes: Vec<Vec<Option<usize>>> = vec![Vec::new(); cells];
     let mut in_cell = vec![None; instances.len()];
     for ((instance, needs), at) in instances.iter().zip(needs).zip(&mut in_cell) {
         if instance.cover.clusters.is_empty() {
@@ -69,6 +72,11 @@ pub(super) fn object_dependencies(
         roots.sort_unstable();
         roots.dedup();
         *at = Some(table[instance.cell].len());
+        let firsts = &mut nodes[instance.cell];
+        if firsts.len() <= instance.slot {
+            firsts.resize(instance.slot + 1, None);
+        }
+        firsts[instance.slot].get_or_insert(table[instance.cell].len());
         table[instance.cell].push(json!({"node":instance.node,"primitive":instance.primitive,
             "roots":roots,"dependencies":needs}));
     }
@@ -80,6 +88,9 @@ pub(super) fn object_dependencies(
         .zip(instances)
         .map(|(at, instance)| at.map(|at| first[instance.cell] + at))
         .collect();
-    let table = table.into_iter().map(|objects| json!({"objects":objects}));
+    let table = table
+        .into_iter()
+        .zip(nodes)
+        .map(|(objects, nodes)| json!({"objects":objects,"nodes":nodes}));
     Ok((table.collect(), ranks, outside))
 }

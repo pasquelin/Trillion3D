@@ -72,6 +72,7 @@ fn field(cover: &RootCover, side: usize) -> Vec<Instance<'_>> {
             Instance {
                 cell: 0,
                 node: k,
+                slot: k,
                 primitive: 0,
                 material: Some(0),
                 matrix,
@@ -154,12 +155,12 @@ fn a_placed_object_is_one_cluster_and_always_has_a_world_parent() {
     let (cover, wide) = (textured(8, 6.0), wide_cover());
     let mut instances = field(&cover, 4);
     // Alone in its material, its roots more than a page holds: nothing groups it.
-    let lone = Instance {
-        material: Some(9),
-        node: 99,
+    let (material, node) = (Some(9), 99);
+    instances.push(Instance {
+        material,
+        node,
         ..field(&wide, 1).remove(0)
-    };
-    instances.push(lone);
+    });
     let world = world_dag(&instances, &|| Ok(())).expect("world");
     let objects: Vec<usize> = (0..world.clusters.len())
         .filter(|&id| world.origins[id].is_some())
@@ -185,8 +186,7 @@ fn a_placed_object_is_one_cluster_and_always_has_a_world_parent() {
         let group = &world.groups[cluster.group.expect("a world parent")];
         assert!(cluster.lod_error <= group.error);
     }
-    // The lone object's parent is a copy of it, at its error, cut into clusters a page holds:
-    // the pages that stand in for it.
+    // The lone object's parent: a copy of it at its error, in clusters a page holds, its stand-ins.
     let id = objects[objects.len() - 1];
     let group = &world.groups[world.clusters[id].group.unwrap()];
     assert_eq!(group.children.as_slice(), [id].as_slice());

@@ -9,8 +9,15 @@ import type { WorldRoots, WorldRootsCluster, WorldRootsObject } from './worldRoo
 /** A world-roots table stated plainly: its pages and cells as lists. */
 export type WorldRootsSpec = Omit<WorldRoots, 'pages' | 'cells'> & {
   pages: { bundle: number; offset: number; bytes: number; level: number; lodError: number }[]
-  cells: { objects: WorldRootsObject[] }[]
+  /** Each cell's objects and, per node of its file, the first of the node's objects (-1 for
+   *  none); absent, every run of one published node is a node of the file. */
+  cells: { objects: WorldRootsObject[]; nodes?: number[] }[]
 }
+
+/** Per run of one published node among `objects`, its first object: the nodes when a spec states
+ *  none. */
+const runsOf = (objects: readonly WorldRootsObject[]) =>
+  objects.flatMap((object, k) => (k === 0 || objects[k - 1].node !== object.node ? [k] : []))
 
 const NONE = 0xffffffff
 
@@ -64,6 +71,7 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
   let first = 0
   for (const cell of spec.cells) {
     r.word(first, cell.objects.length)
+    r.pooled((cell.nodes ?? runsOf(cell.objects)).map((k) => (k < 0 ? NONE : k)))
     first += cell.objects.length
   }
   for (const object of objects) {
@@ -90,7 +98,7 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
 /** `clusters` and `groups` as `world-roots.dag`, version `version`. */
 export function encodeWorldRootsDag(
   { clusters, groups }: { clusters: readonly WorldRootsCluster[]; groups: readonly ClusterGroup[] },
-  version = 4,
+  version = 5,
 ) {
   const r = writer('WRTD')
   const index = (value: number | null) => value ?? NONE

@@ -49,14 +49,18 @@ impl Records {
             self.float(value.get(at).unwrap_or(value).as_f64().unwrap_or(f64::NAN));
         }
     }
-    /// `values` in the pool: its first word and its length.
+    /// `values` in the pool: its first word and its length; a `null` written `u32::MAX` when
+    /// `nullable`.
     pub(super) fn pooled(&mut self, values: &Value) -> Result<()> {
+        self.pooled_words(values, false)
+    }
+    pub(super) fn pooled_words(&mut self, values: &Value, nullable: bool) -> Result<()> {
         let values = values
             .as_array()
             .ok_or_else(|| invalid("a list is not a list"))?;
         let first = self.pool.len() as u32;
         for value in values {
-            self.pool.push(word(value, false)?);
+            self.pool.push(word(value, nullable)?);
         }
         self.word(first);
         self.word(values.len() as u32);
@@ -84,7 +88,8 @@ fn digest(hex: &Value) -> Result<Vec<u8>> {
 /// `world-roots.table` of `table`, the cook's table with its `payload` named: an 80-byte header
 /// (magic, version, budget, pinned bundles, pinned bytes, the five counts, the binary's length as
 /// two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages (bundle,
-/// offset, level and length, then the error as `f64`), 8-byte cells, 24-byte objects and the pool.
+/// offset, level and length, then the error as `f64`), 16-byte cells (first object, count, then each
+/// node's first object in the pool, `u32::MAX` for none), 24-byte objects and the pool.
 pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
     let (bundles, pages, cells) = (
         list(table, "bundles")?,
@@ -136,6 +141,7 @@ pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
         let count = list(cell, "objects")?.len() as u32;
         r.word(first);
         r.word(count);
+        r.pooled_words(&cell["nodes"], true)?;
         first += count;
     }
     for object in objects {

@@ -31,10 +31,9 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
-  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell, its rank
-   *  among the cell's nodes, and the mesh rank of each node of that cell; a column of its own,
-   *  absent until a cell places one. */
-  cells?: ({ cell: number; node: number; meshes: Int32Array } | undefined)[]
+  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
+   *  among the cell's nodes; a column of its own, absent until a cell places one. */
+  cells?: ({ cell: number; node: number } | undefined)[]
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {

@@ -241,7 +241,6 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     /** `cell` left: a bundle no placed cell needs any more is let go, and its objects read. */
     release(cell: number) {
       bundles.release(cell)
-      objects.release(cell)
     },
     has: bundles.has,
     /** The bundles past the top the placed cells hold now, ascending. */

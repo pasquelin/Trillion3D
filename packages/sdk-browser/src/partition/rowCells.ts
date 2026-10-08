@@ -7,7 +7,7 @@
  */
 import type { PlacementRows } from '../placement/rows.ts'
 
-/** Where a row's node lies (`PlacementRows.cells`), its meshes shared by the cell's rows. */
+/** Where a row's node lies (`PlacementRows.cells`): its cell and its rank among the cell's nodes. */
 export type RowCell = NonNullable<NonNullable<PlacementRows['cells']>[number]>
 
 /** Row `index` of `rows` places `at` now, or nothing. */

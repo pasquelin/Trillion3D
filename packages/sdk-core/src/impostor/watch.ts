@@ -84,8 +84,10 @@ function createState() {
     changedCount: 0,
     touched: [] as number[],
     table: undefined as ReturnType<typeof switchTable> | undefined,
-    /** The `ON` bound of each root shape this focal length and frustum met, by its three numbers. */
-    onAt: new Map<string, number>(),
+    /** Each root's `ON` bound and the three numbers it was taken from — its switch depths and
+     *  sphere —, taken again when one changes; NaN for a new focal length or frustum. */
+    bound: new Float64Array(0),
+    boundOf: new Float64Array(0),
     every: true,
     reads: 0,
   }
@@ -118,6 +120,22 @@ export function createImpostorWatch() {
     get reads() {
       return s.reads
     },
+    /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
+    get hostBytes() {
+      let entries = 0
+      for (const anchor of s.anchors) for (const heap of anchor.heaps.values()) entries += heap.size
+      return (
+        s.switched.byteLength +
+        s.readAt.byteLength +
+        s.key.byteLength +
+        s.at.byteLength +
+        s.bucket.byteLength +
+        s.slack.byteLength +
+        s.bound.byteLength +
+        s.boundOf.byteLength +
+        8 * (s.home.length + entries)
+      )
+    },
     /** Roots waiting in the heaps: never more than the roots. */
     get waiting() {
       let size = 0
@@ -144,7 +162,7 @@ export function createImpostorWatch() {
       s.frame++
       if (roots !== s.roots || section !== s.section || focal !== s.focal || cos !== s.cos)
         s.every = true
-      if (focal !== s.focal || cos !== s.cos) s.onAt.clear()
+      if (focal !== s.focal || cos !== s.cos) s.bound.fill(NaN)
       // A list grown in place: the roots appended are read, the others keep their verdict; one
       // shortened is read whole.
       const held = s.count
@@ -184,6 +202,12 @@ function fit(s: State, n: number) {
   s.at = keep(s.at)
   s.bucket = keep(s.bucket)
   s.slack = keep(s.slack)
+  const bound = new Float64Array(n).fill(NaN)
+  bound.set(s.bound.subarray(0, Math.min(n, s.bound.length)))
+  s.bound = bound
+  const boundOf = new Float64Array(n * 3)
+  boundOf.set(s.boundOf.subarray(0, Math.min(n * 3, s.boundOf.length)))
+  s.boundOf = boundOf
   s.home.length = n
   s.count = n
 }
@@ -302,7 +326,8 @@ function onDistance(c: number, a: number, b: number, rho: number) {
   return high * (1 + SAFE)
 }
 
-/** Root `rank`'s `ON` bound, its sphere's reach about the pivot taken from its world and entry. */
+/** Root `rank`'s `ON` bound, its sphere's reach about the pivot taken from its world and entry;
+ *  kept while its switch depths and sphere stay. */
 function onBound(s: State, reading: Reading, rank: number, a: number, b: number) {
   const world = s.roots![rank].world.elements,
     centre = reading.table.entries[rank]?.centre ?? [0, 0, 0]
@@ -312,10 +337,15 @@ function onBound(s: State, reading: Reading, rank: number, a: number, b: number)
     world[2] * centre[0] + world[6] * centre[1] + world[10] * centre[2],
   )
   const rho = reading.table.radius[rank] + offset,
-    shape = `${a},${b},${rho}`
-  let bound = s.onAt.get(shape)
-  if (bound === undefined) s.onAt.set(shape, (bound = onDistance(s.cos, a, b, rho)))
-  return bound
+    of = s.boundOf,
+    at = rank * 3
+  if (Number.isNaN(s.bound[rank]) || of[at] !== a || of[at + 1] !== b || of[at + 2] !== rho) {
+    s.bound[rank] = onDistance(s.cos, a, b, rho)
+    of[at] = a
+    of[at + 1] = b
+    of[at + 2] = rho
+  }
+  return s.bound[rank]
 }
 
 /** Root `rank` read at the view: its verdict, and the heap it waits in. */
