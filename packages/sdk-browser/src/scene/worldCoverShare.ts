@@ -13,9 +13,11 @@
  * alike.
  */
 export function createCoverShare(
-  bundlesOf: (cell: number) => Int32Array,
+  bundlesOf: (cell: number) => ArrayLike<number>,
   has: (bundle: number) => boolean,
   rootsIn: (bundle: number) => number,
+  /** Told of each cell the share forgets: what else is kept of it may go too. */
+  forgotten: (cell: number) => void = () => {},
 ) {
   /** Per cell asked, the roots each of its bundles adds, counted once; per cell refused, the room.
    *  A cell let go — released, or past the plan's reach — is forgotten (`forget`, `keep`). */
@@ -54,15 +56,16 @@ export function createCoverShare(
     forget(cell: number) {
       roots.delete(cell)
       refused.delete(cell)
+      forgotten(cell)
     },
-    /** The cells the plan reaches now: every other is forgotten. */
+    /** The cells the plan reaches now: every other is forgotten — a cell refused was counted
+     *  first. */
     keep(cells: { has(cell: number): boolean }) {
       for (const cell of roots.keys()) if (!cells.has(cell)) share.forget(cell)
-      for (const cell of refused.keys()) if (!cells.has(cell)) refused.delete(cell)
     },
-    /** Cells counted now: what the share holds. */
+    /** Cells counted now, each once: a cell refused was counted first. */
     get cells() {
-      return roots.size + refused.size
+      return roots.size
     },
   }
   return share

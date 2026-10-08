@@ -46,10 +46,14 @@ type Watcher = (bundle: number, held: boolean) => void
 /** The bundles of `table` the cells hold, each counted once whatever the cells sharing it, their
  *  bytes in `bytes`; and each cell's bundles, listed on its first hold. Its `watchers` hear each
  *  bundle the cells start or stop holding. */
-function createBundleCounts(table: WorldRoots, watchers: Set<Watcher>) {
+function createBundleCounts(
+  table: WorldRoots,
+  watchers: Set<Watcher>,
+  cellBundles: ReturnType<typeof createCellBundles>,
+) {
   const held = new Map<number, Held>()
-  /** Each cell held: its bundles, and its holds, each released once. */
-  const cells = new Map<number, { bundles: readonly number[]; holds: number }>()
+  /** Each cell held: its holds, each released once. */
+  const cells = new Map<number, number>()
   let bytes = 0
   const counts = {
     held,
@@ -89,34 +93,38 @@ function createBundleCounts(table: WorldRoots, watchers: Set<Watcher>) {
     followed: (bundle: number) => counts.byCells(bundle) && !held.get(bundle)!.failed,
     /** `cell` left: its bundles are let go, once. */
     release(cell: number) {
-      const own = cells.get(cell)
-      if (!own) return
-      for (const bundle of own.bundles) counts.letGo(bundle, true)
-      if (--own.holds === 0) cells.delete(cell)
+      const holds = cells.get(cell)
+      if (!holds) return
+      for (const bundle of cellBundles(cell)) counts.letGo(bundle, true)
+      if (holds === 1) cells.delete(cell)
+      else cells.set(cell, holds - 1)
     },
     /** Whether a hold keeps `cell`. */
     holds: (cell: number) => cells.has(cell),
     /** `cell`'s bundles, counted once more. */
     listed(cell: number) {
-      let own = cells.get(cell)
-      if (own) own.holds++
-      else cells.set(cell, (own = { bundles: cellDependencies(table, cell), holds: 1 }))
-      return own.bundles
+      cells.set(cell, (cells.get(cell) ?? 0) + 1)
+      return cellBundles(cell)
     },
   }
   return counts
 }
 
-/** Per cell of `table`, the bundles past the top it needs, listed once while the cell is asked of,
- *  forgotten as it is let go. */
+/** Per cell of `table`, the bundles past the top it needs: the one list of a cell, made once while
+ *  the cell is held or asked of, forgotten as it is let go. */
 function createCellBundles(table: WorldRoots) {
-  const needs = new Map<number, Int32Array>()
+  const lists = new Map<number, readonly number[]>()
   const of = (cell: number) => {
-    let bundles = needs.get(cell)
-    if (!bundles) needs.set(cell, (bundles = Int32Array.from(cellDependencies(table, cell))))
+    let bundles = lists.get(cell)
+    if (!bundles) lists.set(cell, (bundles = cellDependencies(table, cell)))
     return bundles
   }
-  return Object.assign(of, { forget: (cell: number) => void needs.delete(cell), needs })
+  return Object.assign(of, {
+    forget: (cell: number) => void lists.delete(cell),
+    get size() {
+      return lists.size
+    },
+  })
 }
 
 /** The session's queue a world's bundles are read through: bound by each session, let go as it
@@ -158,19 +166,16 @@ export function createWorldBundles(
   rootsIn: (bundle: number) => number = () => 0,
 ) {
   const watchers = new Set<Watcher>(),
-    counts = createBundleCounts(table, watchers),
+    cellBundles = createCellBundles(table),
+    counts = createBundleCounts(table, watchers, cellBundles),
     { held, take, letGo, listed } = counts
-  const byCell = (bundle: number) => take(bundle, true),
-    cellBundles = createCellBundles(table)
+  const byCell = (bundle: number) => take(bundle, true)
+  // A cell the cover forgets — let go, or past the plan's reach — that no hold keeps: its bundles'
+  // list goes with its counts.
   const binding = createBinding(table, url),
-    cover = createCoverShare(cellBundles, counts.byCells, rootsIn),
-    keepCounted = cover.keep
-  // A cell past the plan's reach that no hold keeps: its bundles' list goes with its counts.
-  cover.keep = (reached) => {
-    keepCounted(reached)
-    for (const cell of cellBundles.needs.keys())
-      if (!reached.has(cell) && !counts.holds(cell)) cellBundles.forget(cell)
-  }
+    cover = createCoverShare(cellBundles, counts.byCells, rootsIn, (cell) => {
+      if (!counts.holds(cell)) cellBundles.forget(cell)
+    })
   /** The pages of `bundles` not read yet, held as `owns`, read through `session` as `asked`. */
   const readOn = (
     session: PageQueue,
@@ -221,13 +226,12 @@ export function createWorldBundles(
      *  cell once no hold keeps it. */
     release(cell: number) {
       counts.release(cell)
-      if (counts.holds(cell)) return
-      cellBundles.forget(cell)
-      cover.forget(cell)
+      if (!counts.holds(cell)) cover.forget(cell)
     },
-    /** Cells whose counts are kept: those held or asked of, never every cell met. */
+    /** Cells whose counts are kept, each once: those held or asked of, never every cell met — a
+     *  cell the cover counts holds its bundles' list. */
     get countedCells() {
-      return cellBundles.needs.size + cover.cells
+      return cellBundles.size
     },
     /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a world's
      *  model not partitioned, one cell, holds from its load, before any session. */
