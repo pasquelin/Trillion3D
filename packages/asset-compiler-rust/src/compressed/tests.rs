@@ -46,9 +46,9 @@ fn draco_reference_box_reaches_existing_accessors() {
         for axis in 0..3 {
             assert!((positions.value(vertex, axis).unwrap().abs() - 0.5).abs() < 0.001);
         }
-        let length: f64 = (0..3)
-            .map(|axis| normals.value(vertex, axis).unwrap().powi(2))
-            .sum();
+        let length = trillion3d_math::vecn::squared_length(
+            [0, 1, 2].map(|axis| normals.value(vertex, axis).unwrap()),
+        );
         assert!((length - 1.).abs() < 0.02);
     }
     for face in 0..12 {

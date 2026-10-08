@@ -167,7 +167,9 @@ fn coarse_defects(
             for t in d.corners.chunks(3) {
                 let samples =
                     [0, 1, 2].map(|k| trillion3d_math::aabb::centre(t[k], t[(k + 1) % 3]));
-                let centroid = std::array::from_fn(|a| (t[0][a] + t[1][a] + t[2][a]) / 3.0);
+                let centroid = std::array::from_fn(|a| {
+                    trillion3d_math::scalar::mean([t[0][a], t[1][a], t[2][a]])
+                });
                 for sample in samples.into_iter().chain([centroid]) {
                     let near = points
                         .iter()
