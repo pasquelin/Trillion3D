@@ -12,8 +12,21 @@ const counts = (submits: number) =>
 const frame = (gpuMs: number, sample: FrameRecord['sample'] = null): FrameRecord => ({
   drawn: true,
   gpu: {
-    passes: [{ label: 'Trillion3D temporal antialiasing', kind: 'render', ms: gpuMs }],
+    passes: [
+      {
+        label: 'Trillion3D temporal antialiasing',
+        kind: 'render',
+        ms: gpuMs,
+        spanMs: gpuMs,
+        gapMs: 0,
+        beginMs: 0,
+        state: 'ok',
+        work: emptyWork(),
+      },
+    ],
     unionMs: gpuMs,
+    gapMs: 0,
+    windowMs: gpuMs,
     complete: true,
   },
   cpuMs: 2,

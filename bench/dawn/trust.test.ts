@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { BenchPass } from './benchPasses.ts'
 import { readPasses } from './passSpans.ts'
+import { emptyWork } from './passWorkHooks.ts'
 import { spread } from './summary.ts'
 import { timerDoubts } from './trust.ts'
 
@@ -53,8 +54,8 @@ test('stamps with a pass the driver skipped read as lost, one of no length as em
       label,
       kind: 'compute' as const,
       at: 2 * k,
+      ...emptyWork(),
       calls: label === 'empty' ? 0 : 1,
-      indirect: 0,
     })),
     true,
   )
@@ -74,8 +75,8 @@ test("an injected wait is the pass-after-it's gap, not its work", () => {
       label,
       kind: 'compute' as const,
       at: 2 * k,
+      ...emptyWork(),
       calls: 1,
-      indirect: 0,
     })),
     true,
   )

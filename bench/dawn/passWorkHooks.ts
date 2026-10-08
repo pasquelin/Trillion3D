@@ -142,7 +142,7 @@ export function installWorkHooks(
   after(device, 'createBindGroup', (_s, [d], made) => {
     const resources = new Map<object, number>()
     for (const { resource } of (d as GPUBindGroupDescriptor).entries) {
-      const r = resource as GPUBufferBinding & GPUTextureView & GPUSampler
+      const r = resource as { buffer?: GPUBuffer; size?: number; offset?: number } & GPUTextureView
       if (r.buffer) resources.set(r.buffer, r.size ?? r.buffer.size - (r.offset ?? 0))
       else {
         const t = textures.get(views.get(r) ?? {})

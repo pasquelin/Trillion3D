@@ -70,13 +70,10 @@ export function installDissect(
       const label = labelOf(this)
       if (active && label && label.includes(active.pass))
         for (const module of pipelines.get(args[0] as object) ?? []) {
-          const code = codes.get(module)
-          if (!code) continue
+          const info = infos.get(module)
+          if (!info) continue
           const modules = seen.get(label) ?? new Map<string, string[]>()
-          modules.set(
-            hashOf(code),
-            cutsOf(code).map((c) => c.name),
-          )
+          modules.set(info.hash, info.cuts)
           seen.set(label, modules)
         }
       return original.apply(this, args)
