@@ -8,7 +8,7 @@ import { FRAME_VEC4 } from './types.ts'
 import {
   primitiveFrameWords,
   primitiveWordAt,
-  refreshWorldStretch,
+  refreshMovedStretch,
   changedWorlds,
 } from './worlds.ts'
 
@@ -35,14 +35,24 @@ const reference = (worlds: Float32Array) =>
   Float32Array.from({ length: WORLDS }, (_, w) => maxStretch(worlds.subarray(w * 16, w * 16 + 16)))
 
 function packedOf() {
-  return { worldCount: WORLDS, worldStretch: new Float32Array(WORLDS) }
+  return { worldStretch: new Float32Array(WORLDS) }
 }
+
+/** Every primitive, as a send that moved them all names them, and the ones whose stretch moved. */
+const ALL = Int32Array.from({ length: WORLDS }, (_, w) => w),
+  stretched = new Int32Array(WORLDS)
+const refresh = (
+  previous: Float32Array,
+  next: Float32Array,
+  packed: ReturnType<typeof packedOf>,
+  frameData: Float32Array,
+) => refreshMovedStretch(previous, next, packed, frameData, ALL, WORLDS, stretched)
 
 test('a moved origin recomputes no stretch and pushes no frame', () => {
   const previous = scene(),
     packed = packedOf(),
     frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4)
-  assert.equal(refreshWorldStretch(new Float32Array(WORLDS * 16), previous, packed, frameData), 4)
+  assert.equal(refresh(new Float32Array(WORLDS * 16), previous, packed, frameData), 4)
   const stretch = packed.worldStretch.slice(),
     frames = frameData.slice()
   // The render frame follows the eye: only translations change, from one frame to the next.
@@ -52,7 +62,7 @@ test('a moved origin recomputes no stretch and pushes no frame', () => {
     next[w * 16 + 13] -= 2000
     next[w * 16 + 14] += 3
   }
-  assert.equal(refreshWorldStretch(previous, next, packed, frameData), 0)
+  assert.equal(refresh(previous, next, packed, frameData), 0)
   assert.deepEqual([...packed.worldStretch], [...stretch])
   assert.deepEqual([...frameData], [...frames])
   // And what the full recompute would have written is already there.
@@ -63,11 +73,12 @@ test('a single resized primitive is the only one recomputed, to the float', () =
   const previous = scene(),
     packed = packedOf(),
     frameData = new Float32Array(WORLDS * FRAME_VEC4 * 4)
-  refreshWorldStretch(new Float32Array(WORLDS * 16), previous, packed, frameData)
+  refresh(new Float32Array(WORLDS * 16), previous, packed, frameData)
   const next = previous.slice()
   next[2 * 16 + 5] = 9.5
   next[0 * 16 + 12] = 42
-  assert.equal(refreshWorldStretch(previous, next, packed, frameData), 1)
+  assert.equal(refresh(previous, next, packed, frameData), 1)
+  assert.equal(stretched[0], 2, 'the resized one listed')
   assert.deepEqual([...packed.worldStretch], [...reference(next)])
   assert.equal(frameData[(2 * FRAME_VEC4 + 6) * 4], reference(next)[2])
 })

@@ -8,29 +8,32 @@ import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
 
 /**
- * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
- * their count.
+ * Object-to-view stretch of the `count` primitives of `moved` whose linear part moved, recomputed
+ * for them only and listed in `into`, increasing as `moved` is; returns their count.
  *
  * A pose that only moved keeps its linear part. Stretch depends only on the nine linear
  * coefficients — `maxStretch` reads only those — so recomputing it for a moved translation would
- * yield the exact same float, then push the whole frame buffer again. Zero returned here means "no
- * stretch changed": the buffer has nothing to receive.
+ * yield the exact same float, then push its frame row again. Zero returned here means "no stretch
+ * changed": the buffer has nothing to receive.
  */
-export function refreshWorldStretch(
+export function refreshMovedStretch(
   previous: Float32Array,
   next: Float32Array,
-  packed: Pick<PackedDag, 'worldCount' | 'worldStretch'>,
+  packed: Pick<PackedDag, 'worldStretch'>,
   frameData: Float32Array,
+  moved: ArrayLike<number>,
+  count: number,
+  into: Int32Array,
 ) {
-  let count = 0
-  for (let w = 0; w < packed.worldCount; w++)
-    if (refreshStretchAt(previous, next, packed, frameData, w)) count++
-  return count
+  let stretched = 0
+  for (let i = 0; i < count; i++)
+    if (refreshStretchAt(previous, next, packed, frameData, moved[i])) into[stretched++] = moved[i]
+  return stretched
 }
 
-/** Primitive `w`'s stretch recomputed when its linear part moved (`refreshWorldStretch`); whether
+/** Primitive `w`'s stretch recomputed when its linear part moved (`refreshMovedStretch`); whether
  *  it was. */
-export function refreshStretchAt(
+function refreshStretchAt(
   previous: Float32Array,
   next: Float32Array,
   packed: Pick<PackedDag, 'worldStretch'>,

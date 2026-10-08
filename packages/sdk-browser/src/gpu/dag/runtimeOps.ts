@@ -5,7 +5,12 @@ import {
   type TableSync,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
-import { refreshStretchAt, changedWorlds, worldChangedAt, writePrimitiveWords } from './worlds.ts'
+import {
+  refreshMovedStretch,
+  changedWorlds,
+  worldChangedAt,
+  writePrimitiveWords,
+} from './worlds.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
 import type { createDagPoolList } from './poolList.ts'
@@ -49,7 +54,7 @@ function voidCuts(state: DagRuntimeState) {
  *  those of `named` alone (`updateNamedWorlds`) —; those whose pose moved. */
 export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int32Array) {
   const { resources, state } = run,
-    { packed, frames, frameData } = resources
+    { packed, frames } = resources
   if (state.disposed || state.dead) return NO_RANKS
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
   if (named) return updateNamedWorlds(run, next, named)
@@ -61,19 +66,7 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   const live = packed.worldSources.length
   movedScratch = resized(movedScratch, live)
   const moved = changedWorlds(packed.worlds, next, movedScratch, live)
-  // Stretch reads the linear part alone: refreshed over the moved, before their copy.
-  let stretched = 0
-  for (let i = 0; i < moved; i++) {
-    const w = movedScratch[i]
-    if (refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
-      stretchedScratch = resized(stretchedScratch, stretched + 1)
-      stretchedScratch[stretched++] = w
-    }
-    packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
-  }
-  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
-  if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
-  return posesMoved(run, moved, origins)
+  return posesMoved(run, sendMoved(run, next, moved), origins)
 }
 
 /** No placement moved. */
@@ -81,7 +74,7 @@ const NO_RANKS = new Int32Array(0)
 
 /** The placements whose pose moved: the `moved` first of `movedScratch` — their read words — and
  *  `origins` — their exact translation —, each once, increasing. One moved: the cuts in hand and
- *  in flight keep their revision and still name what to stream (#358). */
+ *  in flight keep their revision and still name what to stream. */
 function posesMoved({ state, moves }: DagRun, moved: number, origins: Int32Array) {
   if (!moved && !origins.length) return NO_RANKS
   for (let i = 0; i < moved; i++) moves.listed.add(movedScratch[i])
@@ -105,28 +98,40 @@ const rewritten = new Int32Array(1)
  * the packing holds are kept once, here: every step below reads them alone.
  */
 function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
-  const { packed, frames, frameData } = run.resources
+  const { packed, frames } = run.resources
   let held = all.length
   while (held && all[held - 1] >= packed.worldSources.length) held--
   const named = held === all.length ? all : all.subarray(0, held)
   const origins = frames.writeWorldOrigins(named)
-  let moved = 0,
-    stretched = 0
-  for (const w of named) {
-    const changed = worldChangedAt(packed.worlds, next, w)
-    if (changed && refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
-      if (stretched === stretchedScratch.length)
-        stretchedScratch = resized(stretchedScratch, stretched + 1)
-      stretchedScratch[stretched++] = w
-    }
+  movedScratch = resized(movedScratch, named.length)
+  let moved = 0
+  for (const w of named) if (worldChangedAt(packed.worlds, next, w)) movedScratch[moved++] = w
+  return posesMoved(run, sendMoved(run, next, moved), origins)
+}
+
+/** The `moved` first placements of `movedScratch`, whose read words moved: their stretch
+ *  refreshed where their linear part moved, before their copy (`refreshMovedStretch`), their
+ *  worlds copied into those held and sent, each run to its range, with the rows whose stretch
+ *  moved; their count. */
+function sendMoved({ resources }: DagRun, next: Float32Array, moved: number) {
+  const { packed, frames, frameData } = resources
+  stretchedScratch = resized(stretchedScratch, moved)
+  const stretched = refreshMovedStretch(
+    packed.worlds,
+    next,
+    packed,
+    frameData,
+    movedScratch,
+    moved,
+    stretchedScratch,
+  )
+  for (let i = 0; i < moved; i++) {
+    const w = movedScratch[i]
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
-    if (!changed) continue
-    if (moved === movedScratch.length) movedScratch = resized(movedScratch, moved + 1)
-    movedScratch[moved++] = w
   }
   if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
-  return posesMoved(run, moved, origins)
+  return moved
 }
 
 /** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the

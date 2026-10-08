@@ -8,7 +8,7 @@ import { measure, rapport } from '../../core/index.ts'
 import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import {
   changedWorlds,
-  refreshWorldStretch,
+  refreshMovedStretch,
 } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
@@ -25,8 +25,10 @@ rootWorlds(worlds, roots)
 // The previous scene's worlds: the first root turned — the scan lists it, and reads every root.
 const previous = worlds.slice()
 previous[0] += 0.5
-const listed = new Int32Array(ROOTS)
-const packed = { worldCount: ROOTS, worldStretch: new Float32Array(ROOTS) }
+const listed = new Int32Array(ROOTS),
+  everyRoot = Int32Array.from({ length: ROOTS }, (_, i) => i),
+  stretched = new Int32Array(ROOTS)
+const packed = { worldStretch: new Float32Array(ROOTS) }
 const frameData = new Float32Array(ROOTS * 7 * 4)
 
 const results = await measure({
@@ -53,7 +55,8 @@ const results = await measure({
     },
     {
       name: 'stretch scan, a root turned',
-      input: () => refreshWorldStretch(previous, worlds, packed, frameData),
+      input: () =>
+        refreshMovedStretch(previous, worlds, packed, frameData, everyRoot, ROOTS, stretched),
       size: ROOTS,
     },
   ],
