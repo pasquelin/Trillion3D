@@ -381,12 +381,12 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  */
 const VSM_TRANSMISSION_EDGE_WGSL = wgslBlock(
   'VSM_TRANSMISSION_EDGE_WGSL',
-  [],
+  [edgeFunction],
   `
 fn vsmTEdge(a:vec2f,b:vec2f,p:vec2f)->f32{
  let swap=b.x<a.x||(b.x==a.x&&b.y<a.y);
  let lo=select(a,b,swap);let hi=select(b,a,swap);
- return (hi.x-lo.x)*(p.y-lo.y)-(hi.y-lo.y)*(p.x-lo.x);
+ return edgeFunction(lo,hi,p);
 }
 fn vsmTEdgeHolds(a:vec2f,b:vec2f,third:vec2f,p:vec2f)->bool{
  let side=vsmTEdge(a,b,third);

@@ -1,4 +1,5 @@
-import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
+import { GOLDEN_FRACTION, PLASTIC_STEP_X, PLASTIC_STEP_Y } from '../../../math/src/constants.ts'
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { fract } from '../../../math/src/scalar/reals.ts'
@@ -26,23 +27,6 @@ const VSM_BLUE_NOISE_SIZE = 64
 const VSM_BLUE_NOISE_SLICES = 64
 
 const GOLDEN = GOLDEN_FRACTION
-/** The step of the additive 2D sequence, (1/p, 1/p²), p the plastic number: its points spread
- *  evenly over the unit square. The pair's slices walk it, and so do the rays' noise offsets
- *  (`vsmAdditive2d`, `traceWgsl.ts`). */
-export const VSM_PLASTIC_STEP = [0.7548776662466927, 0.5698402909980532] as const
-const [R2X, R2Y] = VSM_PLASTIC_STEP
-
-/** A small deterministic generator of uniform numbers in [0, 1) from a 32-bit seed. */
-function prng(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 /** The rank map of an n×n torus (n a power of two), values (rank + 0.5)/n² in (0, 1). */
 function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
@@ -130,7 +114,7 @@ function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
   }
 
   // Initial binary pattern: 10% random minority pixels, relaxed until stable.
-  const random = prng(seed)
+  const random = mulberry32(seed)
   const pattern = new Uint8Array(N),
     energy = new Float64Array(N)
   const ones = Math.max(1, Math.floor(N / 10))
@@ -192,8 +176,8 @@ function vsmBlueNoiseTexels(): Uint8Array {
     for (let i = 0; i < n * n; i++) {
       const o = (t * n * n + i) * 4
       out[o] = q(a[i] + t * GOLDEN)
-      out[o + 1] = q(b[i] + t * R2X)
-      out[o + 2] = q(c[i] + t * R2Y)
+      out[o + 1] = q(b[i] + t * PLASTIC_STEP_X)
+      out[o + 2] = q(c[i] + t * PLASTIC_STEP_Y)
       out[o + 3] = 255
     }
   return (cachedTexels = out)

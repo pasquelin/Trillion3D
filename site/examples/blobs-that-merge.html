@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, opening, ease, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#0d0a12');
@@ -239,7 +239,7 @@
       // The viewer's hand wins: a press or a wheel on the canvas ends the opening where it is.
       opening(world, (time) => {
         const k = ease.out(time / 3.5);
-        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        world.camera.position.set(...mix({ math }, from, to, k));
         return time < 3.5;
       });
       let time = 0, warm = 0, shown = 0;

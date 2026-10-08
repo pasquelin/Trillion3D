@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { TAU } from '../../../packages/math/src/constants.ts'
+import { mix } from '../../../packages/math/src/scalar/reals.ts'
 import { randomStream, snap, type RandomStream } from './random.ts'
 import {
   blur,
@@ -113,7 +114,7 @@ function marble(random: RandomStream) {
       const vein = Math.abs(Math.sin(((x + y) / SIZE) * TAU * 2 + turbulence[y * SIZE + x] * 7)),
         weight = Math.exp(-vein * 5)
       for (let k = 0; k < 3; k++)
-        image.data[(y * SIZE + x) * 3 + k] = white[k] * (1 - weight) + grey[k] * weight
+        image.data[(y * SIZE + x) * 3 + k] = mix(white[k], grey[k], weight)
     }
   return image
 }

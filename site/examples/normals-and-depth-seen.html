@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, words, opening, ease, mix } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -133,7 +133,7 @@
       const FROM = [4, 16, 30], TO = [9, 4.8, 12];
       opening(world, (time) => {
         const t = ease.out(time / 3.2);
-        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * t));
+        world.camera.position.set(...mix({ math }, FROM, TO, t));
         return t < 1;
       });
       let turn = 0;

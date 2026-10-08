@@ -175,7 +175,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // entry's camera projections read `length2` from the vector module, whose lazy init it starts.
   assert.equal(baseline.outputFiles[0].contents.length, 3_727)
   assert.equal(proposed.outputFiles[0].contents.length, 2_007)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_822)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

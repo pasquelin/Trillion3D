@@ -10,6 +10,7 @@ import { rigReach, type RigReach } from './rigLevers.ts'
 import { BLEND_SIN, holdTables, intervalOf, type HoldTable } from './poseHold.ts'
 import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 import { objectEdits } from '../../scene/core/nodeEdits.ts'
+import { dotScalar3, dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
 
 /** The most a held point may stray from where the true pose draws it, in pixels: under one
  *  pixel's half, it lands on the same pixel centre or the next. */
@@ -436,8 +437,8 @@ function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView)
   const x = m[12] - view.eye[0],
     y = m[13] - view.eye[1],
     z = m[14] - view.eye[2],
-    depth = x * view.forward[0] + y * view.forward[1] + z * view.forward[2],
-    lateral = Math.sqrt(Math.max(0, x * x + y * y + z * z - depth * depth))
+    depth = dotVector3Xyz(view.forward, x, y, z),
+    lateral = Math.sqrt(Math.max(0, dotScalar3(x, y, z, x, y, z) - depth * depth))
   const stretch = root.parent ? root.parent.matrixWorld.getMaxScaleOnAxis() : 1
   const pixels = screenErrorBound(
     moved,

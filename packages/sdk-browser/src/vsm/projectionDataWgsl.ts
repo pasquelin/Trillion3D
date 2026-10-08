@@ -20,6 +20,7 @@
 import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from './pageTableWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
@@ -188,6 +189,7 @@ export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
       VSM_PAGE_ADDRESS_WGSL,
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      pow2FromExponent,
     ],
     `
 /** The biased level of a distance, without a depth-of-field bias. A clipmap's levels all carry its
@@ -235,10 +237,10 @@ fn vsmLevelToLevelOf(h:VsmHandle,levelOffset:i32)->VsmLevelToLevel{
  let offsetA=vec2f(vsmProjectionData[a].cornerSteps);
  let offsetB=vec2f(vsmProjectionData[b].cornerSteps);
  var r:VsmLevelToLevel;
- r.scale=select(f32(1u<<u32(-levelOffset)),1.0/f32(1u<<u32(levelOffset)),levelOffset>=0);
+ r.scale=select(pow2FromExponent(-levelOffset),1.0/pow2FromExponent(levelOffset),levelOffset>=0);
  // The scale's inverse, as exact as it: a depth taken to this level multiplies by it, to the bit
  // what dividing by the scale gives (\`clipmapDepth.test.ts\`).
- r.depthInverse=select(1.0/f32(1u<<u32(-levelOffset)),f32(1u<<u32(levelOffset)),levelOffset>=0);
+ r.depthInverse=select(1.0/pow2FromExponent(-levelOffset),pow2FromExponent(levelOffset),levelOffset>=0);
  r.bias=vec3f(0.25*(offsetB-r.scale*offsetA),0.0);
  let offsetZA=vsmProjectionData[a].lightViewToClip[3][2];
  let offsetZB=vsmProjectionData[b].lightViewToClip[3][2];

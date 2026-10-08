@@ -4,6 +4,7 @@ import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { PARTITION_WORKGROUP } from '../partition/contract.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Occlusion test of transparent clusters, one table entry per thread.
@@ -41,11 +42,11 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_
  // Same rectangle clipping, same mip, same pyramid walk as the opaque main-pass cull
  // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
  // transparent passes' own.
- let open=((unculled[i>>5u]>>(i&31u))&1u)!=0u;
+ let open=bitIsSet(unculled[bitWord(i)],i);
  let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
 `,
-    [PARTITION_UNI_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL, FLAT_INDEX_WGSL],
+    [PARTITION_UNI_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL, FLAT_INDEX_WGSL, bitWord, bitIsSet],
   )
 }

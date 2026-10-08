@@ -87,7 +87,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   }
   const { vsmMaskFactor } = shaderRun<{ vsmMaskFactor: (channel: number) => number }>(
     resolve,
-    ['vsmMaskFactor'],
+    ['vsmMaskFactor', 'byteOf'],
     scope,
   )
   assert.deepEqual([0, 1, 2, 3].map(vsmMaskFactor), [1, f(f(3) / f(7)), 1, f(f(2) / f(5))])

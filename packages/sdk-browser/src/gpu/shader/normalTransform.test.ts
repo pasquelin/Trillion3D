@@ -6,7 +6,7 @@
 //
 // WHAT THIS FILE HOLDS, AND HOW. It reads no shader text with regex patterns: a suite of
 // `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
-// CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
+// CALCULATION — `xformNormal` = unitOrZero(inverseTranspose3(mat3(world), n)) — on f32 model from
 // `tests/gpu/math/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
 // flattened then collapsed — and threshold crossed on both sides.
 // This model is not the shader: `tests/gpu/math/normal-transform.gpu.ts` executes text
@@ -119,7 +119,7 @@ test('selection kernel and lighting read exact same text, character for characte
     [
       'lighting',
       NORMAL_TRANSFORM_WGSL,
-      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'uniteOuZero'],
+      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'unitOrZero'],
     ],
     ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
   ] as const) {
@@ -138,7 +138,7 @@ test('lighting normal passes through shared inverse-transpose, without recomputi
   const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0]
   assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal duplicated')
   assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel')
-  assert.ok(corps.includes('uniteOuZero('), 'xformNormal must return unit or zero direction')
+  assert.ok(corps.includes('unitOrZero('), 'xformNormal must return unit or zero direction')
   assert.doesNotMatch(
     corps,
     /\bdet\b|cross\(/,

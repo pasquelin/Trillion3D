@@ -28,9 +28,9 @@ import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcT
 import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
 import { minimise } from './ltc-minimise.ts'
 import { hypot3 } from '../packages/math/src/float/hypot.ts'
+import { PI } from '../packages/math/src/constants.ts'
 
 type V3 = [number, number, number]
-const PI = Math.PI
 
 /** The engine's specular lobe times the cosine, Fresnel at 1: `standardLighting`'s D·Vis·NdotL. */
 function lobe(v: V3, l: V3, alpha: number) {

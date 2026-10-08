@@ -172,7 +172,7 @@
           pose();
           world.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
-            lens.zoom = Math.max(0.6, Math.min(8, lens.zoom * Math.exp(-event.deltaY * 0.0015)));
+            lens.zoom = math.clamp(lens.zoom * Math.exp(-event.deltaY * 0.0015), 0.6, 8);
           }, { passive: false });
           let held = null;
           world.canvas.addEventListener('pointerdown', (event) => (held = [event.clientX, event.clientY, ...pan]));

@@ -1,6 +1,6 @@
 import { PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { inverseTranspose3, uniteOuZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { f0Of, fresnelSchlick, lambertAlbedo, ndotvFloor } from '../../../math/src/wgsl/lighting.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
@@ -84,16 +84,16 @@ fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec
  * WORLD normal of a local normal under a world pose: the inverse-transpose of the 3×3 when
  * it is regular, the transformed face normal when the pose flattens the primitive onto a
  * plane, the zero vector when it collapses it onto a line or a point — the whole convention is
- * written in `packages/math/src/wgsl/inverseTranspose.ts`. `uniteOuZero` rather than `normalize`: `normalize` of the
+ * written in `packages/math/src/wgsl/inverseTranspose.ts`. `unitOrZero` rather than `normalize`: `normalize` of the
  * zero vector yields NaN, and a shading NaN spreads through screen derivatives to neighbouring
- * pixels. On a non-zero vector, `uniteOuZero` returns `normalize(v)`: the regular case does not
+ * pixels. On a non-zero vector, `unitOrZero` returns `normalize(v)`: the regular case does not
  * move by a bit.
  */
 export const NORMAL_TRANSFORM_WGSL = wgslBlock(
   'NORMAL_TRANSFORM_WGSL',
-  [worldMatrix3, inverseTranspose3, uniteOuZero],
+  [worldMatrix3, inverseTranspose3, unitOrZero],
   `
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return uniteOuZero(inverseTranspose3(worldMatrix3(world),n));
+ return unitOrZero(inverseTranspose3(worldMatrix3(world),n));
 }`,
 )

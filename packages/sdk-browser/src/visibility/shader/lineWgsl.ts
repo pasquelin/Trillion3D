@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { floorMod } from '../../../../math/src/wgsl/reals.ts'
 
 /**
  * THE SCREEN-SPACE LINE: how a corner of a line quad (`drawnTriangles`, sdk-core `drawn.ts`)
@@ -45,9 +46,9 @@ export const LINE_CLIP_WGSL = wgslBlock(
  */
 export const LINE_DASH_WGSL = wgslBlock(
   'LINE_DASH_WGSL',
-  [],
+  [floorMod],
   `fn lineDash(at:f32,dash:vec2f)->bool{
  let period=dash.x+dash.y;
- return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
+ return dash.x<=0.0||floorMod(at,period)<=dash.x;
 }`,
 )

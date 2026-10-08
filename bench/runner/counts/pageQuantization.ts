@@ -17,6 +17,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
+import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { readCacheManifest } from '../assets/cacheManifest.ts'
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
 
@@ -58,9 +59,7 @@ export function accessorReader(dir: string) {
 
 /** Largest angle, in degrees, between two unit normals read off their own arrays. */
 function normalAngle(a: Float32Array, at: number, b: Float32Array, bt: number) {
-  let dot = 0
-  for (let axis = 0; axis < 3; axis += 1) dot += a[at + axis] * b[bt + axis]
-  return Math.acos(clamp(dot, -1, 1)) * RAD2DEG
+  return Math.acos(clamp(dotVector3(a, b, at, bt), -1, 1)) * RAD2DEG
 }
 
 async function measureCache(full: string) {

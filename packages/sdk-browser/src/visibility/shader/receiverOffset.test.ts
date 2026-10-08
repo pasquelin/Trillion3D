@@ -47,9 +47,9 @@ const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
  let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
  let invT=invTranspose3Prep(world3);
- var n0=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
- var n1=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
- var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
+ var n0=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
+ var n1=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
+ var n2=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
  if(HAS_VERTEX_NORMAL){
   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
   let lit=select(1.0,face,DOUBLE_SIDED);
@@ -149,7 +149,7 @@ const HELPERS = [
   'faceNormal',
   'vertexNormals',
   'transformedNormals',
-  'uniteOuZero',
+  'unitOrZero',
   'shadingPointOffset',
   'worldMatrix3',
   'windingKept',

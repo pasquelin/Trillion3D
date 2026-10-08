@@ -15,9 +15,13 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Kernel = { groupGrid: (g: number) => number[]; flatIndex: (...v: unknown[]) => number }
 const kernel = (width: number) =>
-  shaderRun<Kernel>(wgslModule(GROUP_GRID_WGSL, FLAT_INDEX_WGSL), ['groupGrid', 'flatIndex'], {
-    GROUP_WIDTH: width,
-  })
+  shaderRun<Kernel>(
+    wgslModule(GROUP_GRID_WGSL, FLAT_INDEX_WGSL),
+    ['groupGrid', 'ceilDiv', 'flatIndex'],
+    {
+      GROUP_WIDTH: width,
+    },
+  )
 
 test('the WGSL split is the host one, and slice by slice it rises to it', () => {
   for (const width of [1, 3, 7]) {

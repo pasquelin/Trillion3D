@@ -9,9 +9,10 @@ import {
   PHYSICAL_SURFACE_FLAG,
 } from '../../scene/physicalLobes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
 import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
+import { unitToSigned2, unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
 /** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
  *  read from its three texels: the very words the table holds. */
@@ -48,7 +49,7 @@ fn physicalAt(i:u32)->PhysicalInfo{
 export const physicalCoreWgsl = (sampled: string) =>
   wgslBlock(
     `physicalCoreWgsl(${sampled})`,
-    [ROUGHNESS_FLOOR, uniteOuZero, tangentFallback, vectorRejection],
+    [ROUGHNESS_FLOOR, unitOrZero, tangentFallback, vectorRejection, unitToSigned2, unitToSigned3],
     `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
@@ -87,7 +88,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  let r=physicalRecord;
  var strength=r.lobes.x;var rotation=r.lobes.y;var coat=r.lobes.z;var coatRough=r.lobes.w;
  if(r.maps.x!=0u){
-  let m=physicalSample(0u,r.maps.x).rgb;let d=m.rg*2.0-1.0;
+  let m=physicalSample(0u,r.maps.x).rgb;let d=unitToSigned2(m.rg);
   strength*=m.b;
   if(dot(d,d)>0.0){rotation+=atan2(d.y,d.x);}
  }
@@ -113,7 +114,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  var coatN=coatBase;
  if(coat>0.0&&r.maps.w!=0u){
   let c=physicalCoord(3u);
-  let n=physicalSample(3u,r.maps.w).xyz*2.0-1.0;
+  let n=unitToSigned3(physicalSample(3u,r.maps.w).xyz);
   // The anisotropy's frame where it is the coat's own: the same normal, the first UV set, no
   // transform on the map.
   var frame=frame0;
@@ -123,7 +124,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
    frame=cotangentFrame(coatBase,e1,e2,m*c.d1,m*c.d2);
   }
   let f=screenFace*coatFace;
-  coatN=uniteOuZero(frame.T*(f*n.x*r.coatNormalScale.x)+frame.B*(f*n.y*r.coatNormalScale.y)+coatBase*n.z);
+  coatN=unitOrZero(frame.T*(f*n.x*r.coatNormalScale.x)+frame.B*(f*n.y*r.coatNormalScale.y)+coatBase*n.z);
  }
  return PhysicalLobes(direction,coatN,strength,coat,coatRough);
 }

@@ -22,6 +22,8 @@ import {
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import { GEOMETRY_HISTORY_WGSL, CLOSEST_SURFACE_WGSL } from './geometryHistoryWgsl.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
+import { RANGE_BOUND } from '../../../math/src/wgsl/constants.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 
 /** One neighbour's luma into the 3×3 blur (1, ½, ¼ for centre, sides and corners, over sixteen) and
  *  into the luma's slopes across it (a Sobel pair, over eight), in both resolves: the blurred luma
@@ -108,12 +110,12 @@ export const taaShader = (asIs: boolean, blended = false, filtered = false, reac
   return wgslProgram(
     `@fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
- let last=vec2i(view.viewport.xy)-vec2i(1);
+ let size=vec2i(view.viewport.xy);let last=size-vec2i(1);
  var filtered=vec4f(0.0);
- var lo=vec4f(1e9);var hi=vec4f(-1e9);var blur=vec3f(0.0);
+ var lo=vec4f(RANGE_BOUND);var hi=vec4f(-RANGE_BOUND);var blur=vec3f(0.0);
 ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerText(filtered, 'vars')} var k=0u;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
-  let at=clamp(coord+vec2i(dx,dy),vec2i(0),last);
+  let at=clampToExtent(coord+vec2i(dx,dy),size);
   let sample=${read.color('at')};
   let weight=view.weights[k>>2u][k&3u];k++;
   filtered+=sample*weight;
@@ -168,6 +170,8 @@ export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) =>
       SHADING_HISTORY_WGSL,
       CLOSEST_SURFACE_WGSL,
       CURRENT_SHARE_WGSL,
+      RANGE_BOUND,
+      clampToExtent,
     ],
     `${layer.layerText(filtered, 'bindings')}
 struct TaaOut{${at(0)}color:vec4f,${at(1)}share:vec4f,${at(2)}geometry:vec2u,${at(3)}moire:u32,${filtered ? `${at(4)}tint:vec4f,${at(5)}add:vec4f,` : ''}}`,

@@ -1,6 +1,6 @@
 import { insideTriangle, triangleNormal } from './closest.ts'
 import type { CapsuleContact } from './capsule.ts'
-import { scaleVector3 } from '../../../math/src/vector/vector.ts'
+import { dotScalar3, scaleVector3 } from '../../../math/src/vector/vector.ts'
 
 /**
  * A SPHERE LOWERED ONTO A TRIANGLE: how far a sphere moving straight down travels before it
@@ -86,12 +86,12 @@ function dropOnEdge(
   const ex = v[q] - v[p],
     ey = v[q + 1] - v[p + 1],
     ez = v[q + 2] - v[p + 2]
-  const length = ex * ex + ey * ey + ez * ez
+  const length = dotScalar3(ex, ey, ez, ex, ey, ez)
   if (length === 0) return
   const wx = centre[0] - v[p],
     wy = centre[1] - v[p + 1],
     wz = centre[2] - v[p + 2]
-  const along = (wx * ex + wy * ey + wz * ez) / length,
+  const along = dotScalar3(wx, wy, wz, ex, ey, ez) / length,
     rise = ey / length
   // Offset and downward direction, each without its part along the edge.
   const ox = wx - along * ex,
@@ -100,10 +100,10 @@ function dropOnEdge(
   const dx = rise * ex,
     dy = rise * ey - 1,
     dz = rise * ez
-  const a = dx * dx + dy * dy + dz * dz
+  const a = dotScalar3(dx, dy, dz, dx, dy, dz)
   if (a < 1e-12) return // A vertical edge: the sphere slides along it, never onto it.
-  const b = -(ox * dx + oy * dy + oz * dz),
-    c = ox * ox + oy * oy + oz * oz - radius * radius,
+  const b = -dotScalar3(ox, oy, oz, dx, dy, dz),
+    c = dotScalar3(ox, oy, oz, ox, oy, oz) - radius * radius,
     discriminant = b * b - a * c
   if (discriminant < 0) return
   const t = (b - Math.sqrt(discriminant)) / a

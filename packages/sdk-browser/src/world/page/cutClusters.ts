@@ -1,6 +1,7 @@
 /** The clusters of the runtime cutter (`runtimeCut.ts`) and the texture spans that set its grid. */
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
-import { distanceVector3, length3 } from '../../../../math/src/vector/vector.ts'
+import { distanceVector3 } from '../../../../math/src/vector/vector.ts'
+import { triangleArea } from '../../../../math/src/geometry/triangle.ts'
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */
@@ -33,13 +34,7 @@ function createRun(positions: Float32Array) {
   const edge = (u: number, v: number) => distanceVector3(positions, positions, v * 3, u * 3)
   const grow = (v: number) => boxExpandByPoint(grown, 0, p(v, 0), p(v, 1), p(v, 2))
   const measure = (a: number, b: number, c: number) => {
-    const ux = p(b, 0) - p(a, 0),
-      uy = p(b, 1) - p(a, 1),
-      uz = p(b, 2) - p(a, 2),
-      vx = p(c, 0) - p(a, 0),
-      vy = p(c, 1) - p(a, 1),
-      vz = p(c, 2) - p(a, 2)
-    nextArea = length3(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2
+    nextArea = triangleArea(positions, a * 3, b * 3, c * 3)
     nextLongest = Math.max(edge(a, b), edge(b, c), edge(c, a))
     grown.set(box)
     grow(a)

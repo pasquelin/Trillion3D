@@ -55,10 +55,13 @@ function argumentKernels(scope: {
     Record<'vsmRenderArgsCull' | 'vsmRenderArgsExpand' | 'vsmRenderArgsDraw', Kernel>
   >(
     VSM_RENDER_ARGS_WGSL,
-    ['vsmRenderChunkCounter', 'vsmRenderArgsAt', 'groupGrid', 'vsmRenderArgsCull'].concat([
-      'vsmRenderArgsExpand',
-      'vsmRenderArgsDraw',
-    ]),
+    [
+      'vsmRenderChunkCounter',
+      'vsmRenderArgsAt',
+      'groupGrid',
+      'ceilDiv',
+      'vsmRenderArgsCull',
+    ].concat(['vsmRenderArgsExpand', 'vsmRenderArgsDraw']),
     { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: DEFAULT_GROUP_WIDTH, ...scope },
   )
 }

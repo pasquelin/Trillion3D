@@ -1,11 +1,11 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
-import { bitLength, ceilDiv, pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
+import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
+import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
+import { bitLength, byteOf, ceilDiv, pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
   MORPH_WORDS,
-  OCT_SCALE,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
 } from './format.ts'
@@ -21,12 +21,12 @@ import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
  */
 export const COTANGENT_FRAME_WGSL = wgslBlock(
   'COTANGENT_FRAME_WGSL',
-  [],
+  [DIVISOR_FLOOR],
   `struct CotangentFrame{T:vec3f,B:vec3f,}
 fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{
  let p=cross(e2,N);let q=cross(N,e1);
  let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
- let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
+ let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),DIVISOR_FLOOR));
  return CotangentFrame(T*scale,B*scale);
 }`,
 )
@@ -46,7 +46,15 @@ fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFra
 export function clusterDecodeWgsl(buffer: string) {
   return wgslBlock(
     `clusterDecodeWgsl(${buffer})`,
-    [octDecodeScalar, CLUSTER_HEADER_WGSL, bitLength, ceilDiv, pow2FromExponent],
+    [
+      octDecodeScalar,
+      OCT_BYTE_STEP,
+      CLUSTER_HEADER_WGSL,
+      bitLength,
+      byteOf,
+      ceilDiv,
+      pow2FromExponent,
+    ],
     `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
@@ -158,7 +166,7 @@ fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
 // Two octahedral bytes back to a unit vector.
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let q=clusterField(base+h.normal,vertex*16u,16u);
- return octDecodeScalar(vec2f(f32(q&255u)*${OCT_SCALE}-1.0,f32((q>>8u)&255u)*${OCT_SCALE}-1.0));
+ return octDecodeScalar(vec2f(f32(byteOf(q,0u))*OCT_BYTE_STEP-1.0,f32(byteOf(q,1u))*OCT_BYTE_STEP-1.0));
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{

@@ -17,6 +17,7 @@ import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
 import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -73,6 +74,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
       ROUGHNESS_FLOOR,
+      wireframeEdge,
     ],
     `fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;
@@ -123,7 +125,7 @@ const BLEND_DIAGNOSTIC = ` if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   if(s.alpha<=0.01){discard;}
   var color=vec3f(0.204,0.827,0.6);
   if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){
-   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
+   let edge=wireframeEdge(in.bary,width);
    color=mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge);
   }else if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTERS}u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&${itemFlags.FLAG_DIAGNOSTIC_LOD}u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}

@@ -4,6 +4,7 @@ import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts'
 import { SHAPE } from './layout.ts'
 import type { PhysicsPrimitive } from './options.ts'
 import { primitive, type ResolvedShape } from './shape.ts'
+import { lengthSqVector3 } from '../../../math/src/vector/vector.ts'
 
 type Scale = { x: number; y: number; z: number }
 
@@ -68,7 +69,7 @@ function turned(d: readonly number[], [x, y, z, w]: readonly number[] = [0, 0, 0
  *  a declared centre `to` by the parallel axis theorem: I + m(|d|² E − d dᵀ), nine, column-major. */
 function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: readonly number[]) {
   const d = to ? to.map((c, i) => c - cooked.centerOfMass[i]) : [0, 0, 0]
-  const dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
+  const dd = lengthSqVector3(d)
   return cooked.inertia.map((v, n) => {
     const [row, col] = [n % 3, (n / 3) | 0]
     return (v * mass) / cooked.mass + mass * ((row === col ? dd : 0) - d[row] * d[col])

@@ -3,7 +3,7 @@
 // an order that alternates every round, so neither always runs first on a cold cache.
 import v8 from 'node:v8'
 import vm from 'node:vm'
-import { median } from '../../packages/math/src/scalar/quantile.ts'
+import { median, quantile } from '../../packages/math/src/scalar/quantile.ts'
 import type { Stats } from '../../site/examples/kit/measureTypes.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
 
@@ -80,9 +80,7 @@ async function series(calculation: (input: unknown) => unknown, input: unknown):
 
 export function stats(durees: number[]): Stats {
   const t = durees.slice().sort((a, b) => a - b)
-  const n = t.length
-  const i95 = Math.min(Math.ceil(n * 0.95) - 1, n - 1)
-  return { medianeMs: median(t), p95Ms: t[i95], minMs: t[0], tours: n }
+  return { medianeMs: median(t), p95Ms: quantile(t, 0.95)!, minMs: t[0], tours: t.length }
 }
 
 /** The median of the per-round quotients calculation / witness, minus one: each quotient reads two

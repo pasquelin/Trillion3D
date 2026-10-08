@@ -12,6 +12,8 @@
  */
 
 import { closestBetweenSegments } from './segmentPair.ts'
+import { triangleCross } from '../../../math/src/geometry/triangle.ts'
+import { dotScalar3, lengthSqVector3 } from '../../../math/src/vector/vector.ts'
 
 type Numbers = ArrayLike<number>
 
@@ -41,16 +43,8 @@ function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number,
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
  *  length (four times the squared area), zero for a degenerate triangle. */
 export function triangleNormal(out: Float64Array, v: Numbers, at: number) {
-  const ux = v[at + 3] - v[at],
-    uy = v[at + 4] - v[at + 1],
-    uz = v[at + 5] - v[at + 2],
-    wx = v[at + 6] - v[at],
-    wy = v[at + 7] - v[at + 1],
-    wz = v[at + 8] - v[at + 2]
-  out[0] = uy * wz - uz * wy
-  out[1] = uz * wx - ux * wz
-  out[2] = ux * wy - uy * wx
-  return out[0] * out[0] + out[1] * out[1] + out[2] * out[2]
+  triangleCross(out, 0, v, at, at + 3, at + 6)
+  return lengthSqVector3(out)
 }
 
 /** Whether a point of the triangle's plane lies on the inner side of all three edges, the
@@ -72,8 +66,14 @@ export function insideTriangle(
     const px = x - v[from],
       py = y - v[from + 1],
       pz = z - v[from + 2]
-    const turn =
-      (ey * pz - ez * py) * n[0] + (ez * px - ex * pz) * n[1] + (ex * py - ey * px) * n[2]
+    const turn = dotScalar3(
+      ey * pz - ez * py,
+      ez * px - ex * pz,
+      ex * py - ey * px,
+      n[0],
+      n[1],
+      n[2],
+    )
     if (turn < 0) return false
   }
   return true

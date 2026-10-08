@@ -5,6 +5,7 @@ import type { Track, TrackKind } from './clip.ts'
 import { oldSegmentSpeed } from '../../../../../bench/oracles/core/length-rule.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
 import { TAU } from '../../../../math/src/constants.ts'
+import { distanceSqQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 
 // The length rule moved `segmentSpeed` off `Math.hypot` (a vector's speed, a quaternion's lengths)
@@ -77,5 +78,20 @@ test('a segment speed under the length rule keeps every decision and the hold ve
     const verdict = (speed: number) =>
       screenErrorBound(moved(speed), 1, 2 * halton(n + 1, 19), depth, 0.5, focal, 0.1) < 0.5
     assert.equal(verdict(now), verdict(was), seen)
+  }
+})
+
+test('the arc chord, `to` turned to `from`’s side before it is measured, is the old sum bit for bit', () => {
+  const cases = [...EDGES, ...Array.from({ length: 4096 }, (_, n) => segment(n + 1))]
+  const keys = cases.filter(([kind]) => kind === 'quaternion').map(([, k]) => k)
+  for (const [n, k] of keys.entries()) {
+    for (const sign of [1, -1]) {
+      const from = Float64Array.from(Float32Array.from(k.slice(0, 4))),
+        to = Float64Array.from(Float32Array.from(k.slice(4, 8)))
+      let was = 0
+      for (let c = 0; c < 4; c++) was += (sign * to[c] - from[c]) ** 2
+      for (let c = 0; c < 4; c++) to[c] *= sign
+      assert.ok(Object.is(distanceSqQuaternion(to, from), was), `pair ${n}, sign ${sign}`)
+    }
   }
 })

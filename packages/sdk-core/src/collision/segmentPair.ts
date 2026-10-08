@@ -1,18 +1,13 @@
 // The closest points of two segments, the pair `closest.ts` measures a segment against each edge of
 // a triangle with.
 
+import { clampCompare } from '../../../math/src/scalar/reals.ts'
+import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
+
 type Numbers = ArrayLike<number>
 
-// Stryker disable next-line EqualityOperator: at 0 and at 1 both branches return the value itself.
-const unit = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value)
-
-/** The squared distance of points `a[aAt..aAt+3]` and `b[bAt..bAt+3]`. */
-function squaredGap(a: Numbers, aAt: number, b: Numbers, bAt: number) {
-  const dx = a[aAt] - b[bAt],
-    dy = a[aAt + 1] - b[bAt + 1],
-    dz = a[aAt + 2] - b[bAt + 2]
-  return dx * dx + dy * dy + dz * dz
-}
+/** A parameter held to `[0, 1]` by two comparisons: −0 and NaN go through as they come. */
+const unit = (value: number) => clampCompare(value, 0, 1)
 
 /** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
 const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, dz: number) =>
@@ -60,5 +55,5 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
     out[k] = s === 1 ? first[3 + k] : first[k] + s * (first[3 + k] - first[k])
     out[3 + k] = t === 1 ? second[3 + k] : second[k] + t * (second[3 + k] - second[k])
   }
-  return squaredGap(out, 0, out, 3)
+  return distanceSqVector3(out, out, 0, 3)
 }

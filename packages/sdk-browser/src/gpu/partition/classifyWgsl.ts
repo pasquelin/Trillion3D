@@ -19,6 +19,7 @@ import {
   STATE_TALLY_WGSL,
 } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
 
@@ -35,7 +36,7 @@ import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
  */
 export const PARTITION_CLASSIFY_WGSL = wgslBlock(
   'PARTITION_CLASSIFY_WGSL',
-  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, HIZ_LEVEL_WGSL],
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, HIZ_LEVEL_WGSL, bitWord, bitMask],
   `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
@@ -51,7 +52,7 @@ fn classifyRow(i:u32){
  rowData[base+${ROW_FLAGS}u]=(held&~${FLAG_PREV_REST}u)|select(0u,${FLAG_PREV_REST}u,rest!=0u);
  // Verdict the compute raster reads: a row's half, before any occlusion test.
  flags[i]=select(${VERDICT_OCCLUDER}u,${VERDICT_KEPT}u,rest!=0u);
- if(rest!=0u){atomicOr(&restBits[i>>5u],1u<<(i&31u));}
+ if(rest!=0u){atomicOr(&restBits[bitWord(i)],bitMask(i));}
  else{tallyAdd(${ST_OCCLUDERS}u,1u);}
  let item=items[i];
  atomicAdd(&slotUsed[rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);

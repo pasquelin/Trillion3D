@@ -74,7 +74,7 @@ test("past one dimension's groups, bound writes the window's dispatch in rows; m
   type Run = { groupGrid: (g: number) => number[]; flatIndex: (...v: unknown[]) => number }
   const { groupGrid, flatIndex } = shaderRun<Run>(
     particlesWgsl(false),
-    ['groupGrid', 'flatIndex'],
+    ['groupGrid', 'ceilDiv', 'flatIndex'],
     { GROUP_WIDTH: DEFAULT_GROUP_WIDTH },
   )
   // A window of 65,535 · 64 + 1 slots: its 65,536 groups in two rows of 65,535.

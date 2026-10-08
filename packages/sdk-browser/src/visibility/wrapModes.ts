@@ -1,5 +1,6 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { floorMod2 } from '../../../math/src/wgsl/reals.ts'
 
 /**
  * Addressing mode of a texture, a nibble of bits carried in its header of the page table
@@ -58,9 +59,9 @@ export function wrapNibble(map: Texture | undefined) {
  */
 export const WRAP_COORD_WGSL = wgslBlock(
   'WRAP_COORD_WGSL',
-  [],
+  [floorMod2],
   `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
- let p=t-2.0*floor(t*0.5);
+ let p=floorMod2(t);
  return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
 }
 struct WrapTaps{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,}

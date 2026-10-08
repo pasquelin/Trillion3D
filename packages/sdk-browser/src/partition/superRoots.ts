@@ -19,7 +19,7 @@ import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoot
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 import { projectedErrorAt } from '../page/selection/projection.ts'
 import { sphereUnion } from '../../../math/src/geometry/sphere.ts'
-import { length2, length3 } from '../../../math/src/vector/vector.ts'
+import { distanceVector3, length2 } from '../../../math/src/vector/vector.ts'
 import { perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 import type { PartitionOptics } from './plan.ts'
 
@@ -82,7 +82,7 @@ export function cellSuperRootError(
   lens: SuperRootLens,
 ) {
   const at = cell * SUPER_ROOT_FLOATS
-  const centre = length3(bounds[at + 1] - eye[0], bounds[at + 2] - eye[1], bounds[at + 3] - eye[2])
+  const centre = distanceVector3(bounds, eye, at + 1, 0)
   const distance = Math.max(0, centre - bounds[at + 4])
   // On the diagonal a point at `distance` lies at depth `distance·cos θ`, `distance·sin θ` off axis.
   const cos = 1 / length2(1, lens.slope),

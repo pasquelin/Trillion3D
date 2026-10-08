@@ -6,6 +6,7 @@ import {
   WRAP_T_REPEAT,
 } from '../../visibility/wrapModes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { floorMod2 } from '../../../../math/src/wgsl/reals.ts'
 
 /**
  * The shader side of a texture's sampling words (`sampling.ts`), inside `TILE_POOL_WGSL`
@@ -22,7 +23,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const SAMPLING_WGSL = wgslBlock(
   'SAMPLING_WGSL',
-  [TILE_READ_WGSL],
+  [TILE_READ_WGSL, floorMod2],
   `/** The centre of the texel a coordinate falls in, for a nearest read; the coordinate otherwise. */
 fn pickTexel(texel:vec2f,nearest:bool)->vec2f{return select(texel,floor(texel)+0.5,nearest);}
 /** One axis of a tap line folded once (\`foldLine\`): the folded centre, the direction the taps run
@@ -30,7 +31,7 @@ fn pickTexel(texel:vec2f,nearest:bool)->vec2f{return select(texel,floor(texel)+0
 fn foldAxis(t:f32,reach:f32,repeat:bool,mirror:bool)->vec3f{
  if(!repeat&&!mirror){return vec3f(t,1.0,select(0.0,1.0,t-reach>=0.0&&t+reach<=1.0));}
  let k=floor(t);
- let odd=mirror&&k-2.0*floor(k*0.5)>0.5;
+ let odd=mirror&&floorMod2(k)>0.5;
  let inside=floor(t-reach)==k&&floor(t+reach)==k;
  return vec3f(select(t-k,1.0-(t-k),odd),select(1.0,-1.0,odd),select(0.0,1.0,inside));
 }

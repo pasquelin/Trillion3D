@@ -1,6 +1,7 @@
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 
 /**
  * The guide program: every instance is a segment `a → b` (a point is a segment of zero length)
@@ -56,7 +57,7 @@ struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
 }
 @group(0) @binding(1) var sceneDepth: texture_depth_2d;
 fn sceneAt(p: vec2i) -> f32 {
-  return textureLoad(sceneDepth, clamp(p, vec2i(0), vec2i(view.scene) - 1), 0);
+  return textureLoad(sceneDepth, clampToExtent(p, vec2i(view.scene)), 0);
 }
 fn slopeAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
   return min(abs(sceneAt(p + axis) - centre), abs(centre - sceneAt(p - axis)));
@@ -76,5 +77,5 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   return in.color;
 }
 `,
-  [GUIDE_CORNER_WGSL],
+  [GUIDE_CORNER_WGSL, clampToExtent],
 )

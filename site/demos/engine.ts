@@ -5,6 +5,8 @@
 export * from '../../packages/sdk/common/math.ts'
 export { RAD2DEG, TAU } from '../../packages/math/src/constants.ts'
 export { clamp, saturate } from '../../packages/math/src/scalar/reals.ts'
+export { length3 } from '../../packages/math/src/vector/vector.ts'
+export { unorm8 } from '../../packages/math/src/color/color.ts'
 export { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 export { DIAGNOSTICS } from '../../packages/sdk/common/diagnostics.ts'
 export { LOD_QUALITY, adaptivePixelError, lodQuality } from '../../packages/sdk/common/contracts.ts'

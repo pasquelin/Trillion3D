@@ -6,6 +6,7 @@ import {
   copyScaledVector3,
   crossVector3,
   dotVector3,
+  length3,
   lengthSqVector3,
   normalizeVector3,
   scaleVector3,
@@ -62,7 +63,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
       return [
         valueView('what the engine returns', [
           ['crossVector3(out, a, b)', show(out)],
-          ['its length', formatNumber(Math.sqrt(lengthSqVector3(out)))],
+          ['its length', formatNumber(length3(out[0], out[1], out[2]))],
           ['out = a, aliased', show(aliased)],
         ]),
         canvasView('a, b and their cross product, from above', (context, width, height) =>
@@ -91,7 +92,10 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
           ['lengthSqVector3(v)', formatNumber(squared)],
           ['Math.sqrt of it — the reference length, bit for bit', formatNumber(Math.sqrt(squared))],
           ['normalizeVector3(v)', show(normalized)],
-          ['length of the normalised vector', formatNumber(Math.sqrt(lengthSqVector3(normalized)))],
+          [
+            'length of the normalised vector',
+            formatNumber(length3(normalized[0], normalized[1], normalized[2])),
+          ],
         ]),
       ]
     },
@@ -110,7 +114,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
         valueView('in place', [
           ['before', before],
           ['after', show(v)],
-          ['length', formatNumber(Math.sqrt(lengthSqVector3(v)))],
+          ['length', formatNumber(length3(v[0], v[1], v[2]))],
         ]),
         valueView('the zero vector', [
           ['note', 'all three at zero: nothing changes — the divisor is `length || 1`'],

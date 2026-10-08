@@ -35,6 +35,7 @@ const run = shaderRun<{
     'unjitteredDepth',
     'surfaceSlope',
     'footprintDepth',
+    'clampToExtent',
     'worldAt',
     'pixelToNdc',
     'unprojectPoint',

@@ -95,6 +95,7 @@ export function reader(memory: Map<string, V>): Read {
       'vsmTInside',
       'vsmTEdgeHolds',
       'vsmTEdge',
+      'edgeFunction',
       'vsmTWeights',
       'bilinear3',
     ],

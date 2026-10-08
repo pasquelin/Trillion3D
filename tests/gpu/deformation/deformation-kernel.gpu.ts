@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { OCT_SCALE } from '../../../packages/sdk-browser/src/cluster/format.ts'
+import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
 import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/slotLayout.ts'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { BUFFERS, FRAMES, MOVED, REST, waves } from './deformationKernelCases.ts'
@@ -46,7 +46,7 @@ test('the deformation kernel decodes, deforms and keeps the history the engine d
     assert.deepEqual(field(copied, v, 0), field(skin, v, 0), `whole copy, vertex ${v}`)
     assert.deepEqual(field(copied, v, 3), field(skin, v, 3), `whole copy history, vertex ${v}`)
     field(copied, v, 6).forEach((c, axis) =>
-      assert.ok(Math.abs(c - field(skin, v, 6)[axis]) <= OCT_SCALE, `whole copy normal, ${v}`),
+      assert.ok(Math.abs(c - field(skin, v, 6)[axis]) <= OCT_BYTE_STEP, `whole copy normal, ${v}`),
     )
   }
 })

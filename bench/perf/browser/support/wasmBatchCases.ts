@@ -4,6 +4,7 @@
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
 import { xorshiftRandom } from '../../../core/index.ts'
 import { copyMatrix4 } from '../../../../packages/math/src/matrix/matrix4.ts'
+import { TAU } from '../../../../packages/math/src/constants.ts'
 
 /** Measured batch sizes: from what a frame moves to what a whole scene carries. */
 export const TAILLES = [1_000, 10_000, 100_000]
@@ -71,8 +72,8 @@ const HOSTILES = MATRICES.length * BOXES.length
 
 /** An ordinary matrix: a hand-written arbitrary rotation, translation and non-uniform scale. */
 function matriceOrdinaire(alea: () => number) {
-  const c = Math.cos(alea() * 6.283185307179586),
-    s = Math.sin(alea() * 6.283185307179586)
+  const c = Math.cos(alea() * TAU),
+    s = Math.sin(alea() * TAU)
   const sx = 0.5 + alea() * 2,
     sy = 0.5 + alea() * 2,
     sz = 0.5 + alea() * 2

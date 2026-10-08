@@ -1,7 +1,11 @@
 // One segment of a track between two keys, as `sample` draws it: the most its value moves per
 // second, which bounds how far a pose kept since lags the true one (`trackMotion.ts`).
 import type { Track } from './clip.ts'
-import { lengthQuaternion, slerpArc } from '../../../../math/src/quaternion/quaternion.ts'
+import {
+  distanceSqQuaternion,
+  lengthQuaternion,
+  slerpArc,
+} from '../../../../math/src/quaternion/quaternion.ts'
 import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** What `segmentSpeed` gives a segment at whose end the value itself leaps. */
@@ -51,9 +55,9 @@ function arcSpeed(values: ArrayLike<number>, i: number, span: number) {
     sin = arc[2],
     omega = angle / span
   if (Math.abs(lengthA - 1) < 1e-6 && Math.abs(lengthB - 1) < 1e-6 && sin >= 1e-6) return omega
-  let chord = 0
-  for (let c = 0; c < 4; c++) chord += (sign * to[c] - from[c]) ** 2
+  // `to` on `from`'s side first: the chord is then the squared gap of the two held keys.
   for (let c = 0; c < 4; c++) to[c] *= sign
+  const chord = distanceSqQuaternion(to, from)
   if (sin < 1e-6) return normalised(from, to, span, 0, Math.sqrt(chord) / span)
   const longest = Math.max(lengthA, lengthB)
   return normalised(
@@ -102,12 +106,9 @@ function cubicLine(v: ArrayLike<number>, i: number, span: number, width: number)
  * the origin less the most `p` leaves its chord, `bend · span² / 8`. Unbounded when `m` reaches 0.
  */
 function normalised(a: Float64Array, b: Float64Array, span: number, bend: number, speed: number) {
-  let chord = 0,
-    along = 0
-  for (let c = 0; c < 4; c++) {
-    chord += (b[c] - a[c]) ** 2
-    along -= a[c] * (b[c] - a[c])
-  }
+  const chord = distanceSqQuaternion(a, b)
+  let along = 0
+  for (let c = 0; c < 4; c++) along -= a[c] * (b[c] - a[c])
   const lambda = chord > 0 ? saturate(along / chord) : 0
   let near = 0
   for (let c = 0; c < 4; c++) near += (a[c] + lambda * (b[c] - a[c])) ** 2

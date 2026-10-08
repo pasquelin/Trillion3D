@@ -10,6 +10,8 @@ import {
   type ResultRow,
 } from '../../site/examples/kit/measureTypes.ts'
 
+export { xorshiftRandom } from '../../packages/math/src/sequence/random.ts'
+
 /** One named input to measure, or to verify only when `measure` is `false`. */
 export interface MeasureCase<Entree = unknown> {
   name: string
@@ -52,16 +54,6 @@ export function parElement<E, R>(f: (element: E, index: number) => R) {
     sortie.length = list.length
     for (let i = 0; i < list.length; i++) sortie[i] = f(list[i], i)
     return sortie
-  }
-}
-
-export function xorshiftRandom(depart: number) {
-  let state = depart >>> 0 || 0x9e3779b9
-  return () => {
-    state = (state ^ (state << 13)) >>> 0
-    state = (state ^ (state >>> 17)) >>> 0
-    state = (state ^ (state << 5)) >>> 0
-    return state / 4294967296
   }
 }
 

@@ -30,7 +30,7 @@
     <p data-words="credit"></p>
     <script type="module">
       import { createWorld, light, math } from '../runtime/engine.js';
-      import { controls, readout, words, language, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, words, language, opening, ease, mix } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -86,7 +86,7 @@
       // down the avenue. A press or a wheel on the canvas hands the camera back at once.
       opening(world, (time) => {
         const t = ease.smooth((time - 0.5) / 12);
-        const at = (from, to) => from.map((value, axis) => value + (to[axis] - value) * t);
+        const at = (from, to) => mix({ math }, from, to, t);
         world.camera.position.set(...at(START.eye, END.eye));
         world.controls.target.set(...at(START.look, END.look));
         return t < 1;

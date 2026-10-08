@@ -2,49 +2,7 @@
 //! ray: every compiler stage that bounds geometry grows its boxes here, with the same bits on every
 //! machine.
 
-/// The lower of a bound and a coordinate: `f64::min`, a NaN coordinate leaving the bound and a NaN
-/// bound taking the coordinate, but `−0.0` below `+0.0` whichever comes first, as JavaScript's
-/// `Math.min` and WebAssembly's `f64.min` order them. `f64::min` leaves that pair unspecified: x86
-/// returns its second operand, ARM `−0.0`, and a page minimum would change sign between hosts.
-/// Equal operands differ only by that sign, so the OR of their bits is the negative one.
-#[inline]
-fn lower(bound: f64, coordinate: f64) -> f64 {
-    if bound == coordinate {
-        f64::from_bits(bound.to_bits() | coordinate.to_bits())
-    } else {
-        bound.min(coordinate)
-    }
-}
-
-/// `lower`'s twin: `f64::max`, `+0.0` above `−0.0` (the AND of their bits).
-#[inline]
-fn upper(bound: f64, coordinate: f64) -> f64 {
-    if bound == coordinate {
-        f64::from_bits(bound.to_bits() & coordinate.to_bits())
-    } else {
-        bound.max(coordinate)
-    }
-}
-
-/// `lower` in single precision.
-#[inline]
-fn lower_f32(bound: f32, coordinate: f32) -> f32 {
-    if bound == coordinate {
-        f32::from_bits(bound.to_bits() | coordinate.to_bits())
-    } else {
-        bound.min(coordinate)
-    }
-}
-
-/// `upper` in single precision.
-#[inline]
-fn upper_f32(bound: f32, coordinate: f32) -> f32 {
-    if bound == coordinate {
-        f32::from_bits(bound.to_bits() & coordinate.to_bits())
-    } else {
-        bound.max(coordinate)
-    }
-}
+use crate::js::{lower, lower_f32, upper, upper_f32};
 
 /// Extends bounding box by another box, axis by axis in axis order, by `lower` and `upper`: NaN
 /// in the read box leaves the bound as is, NaN in the bound is replaced by the coordinate. Min

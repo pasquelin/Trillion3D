@@ -82,7 +82,7 @@ const DECODE = [
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
   'clusterSurfaceHeader clusterStream clusterWidths clusterStep pow2FromExponent bitLength ceilDiv',
   'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition clusterGrid',
-  'clusterUv clusterNormal clusterColor octDecodeScalar',
+  'clusterUv clusterNormal clusterColor octDecodeScalar byteOf',
 ].flatMap((line) => line.split(' '))
 /** Column-major 4×4 product, which `shaderRun`'s operators leave to the scope. */
 const product = (a: readonly number[], b: readonly number[]) =>

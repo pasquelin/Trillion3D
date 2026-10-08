@@ -91,7 +91,7 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
   assert.ok(DRAW_SHADER.includes(`restAt(i)*${HALF_SLOTS}u+item.bin`))
   assert.match(
     DRAW_SHADER,
-    /fn restAt\(i:u32\)->u32\{return \(restBits\[i>>5u\]>>\(i&31u\)\)&1u;\}/,
+    /fn restAt\(i:u32\)->u32\{return bitAt\(restBits\[bitWord\(i\)\],i\);\}/,
   )
   assert.match(DRAW_SHADER, /indirect\[o\+3u\]=0u/)
 })

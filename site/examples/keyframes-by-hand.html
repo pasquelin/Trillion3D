@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, animation } from '../runtime/engine.js';
-      import { controls, readout, words } from '../runtime/kit.js';
+      import { controls, readout, words, ease } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -103,8 +103,8 @@
       const eased = { time: [], at: [] };
       for (let k = 0; k < keys.time.length - 1; k++)
         for (let step = 0; step < 7; step++) {
-          const u = step / 7, s = u * u * (3 - 2 * u);
-          eased.time.push(keys.time[k] + (keys.time[k + 1] - keys.time[k]) * u);
+          const u = step / 7, s = ease.smooth(u);
+          eased.time.push(math.lerp(keys.time[k], keys.time[k + 1], u));
           eased.at.push([k, s]);
         }
       eased.time.push(clock);

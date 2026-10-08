@@ -8,6 +8,7 @@ import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { HALF_MAX } from '../../../math/src/wgsl/constants.ts'
 
 /** The weight a history stores at most: a bound on binary16 storage, never the window it keeps
  *  (`params.y`); binary16 has 1/32 weight spacing there, RGB arithmetic binary32. */
@@ -58,8 +59,6 @@ const REFLECTION_CLIP_SAMPLES = 4
  *  allows is never under the moment's, about the last four images' samples: a source still met is
  *  kept; one gone leaves the moment in a few images, and the clip follows. */
 const REFLECTION_MOMENT_RENEWED = 0.25
-/** binary16's largest finite value, the moment's storage. */
-const REFLECTION_MOMENT_MAX = 65504
 /** The frames of its own weight a history keeps across a placement change it cannot follow:
  *  a moved or newly resident source's stale share halves each frame, whatever weight W the filter
  *  gathers there (about 1 on a glossy receiver, more on a rough one), while a moving view, which
@@ -152,7 +151,6 @@ const REFLECTION_MOVING_KEPT:f32=${REFLECTION_MOVING_KEPT}.0;
 const REFLECTION_CLIP_SIGMAS:f32=${REFLECTION_CLIP_SIGMAS}.0;
 const REFLECTION_CLIP_SAMPLES:f32=${REFLECTION_CLIP_SAMPLES}.0;
 const REFLECTION_MOMENT_RENEWED:f32=${REFLECTION_MOMENT_RENEWED};
-const REFLECTION_MOMENT_MAX:f32=${REFLECTION_MOMENT_MAX}.0;
 /** What \`roughSamples\` gathered round the pixel for the clip, unwidened: the traced mean and its
  *  weight, and the per-channel deviation; the mean square of every texel's brightest channel it
  *  read, -1 with none. */
@@ -266,7 +264,7 @@ ${GATHER_BOUNDS}\n${BOUNDED}
  // A pixel no texel reached this image keeps its history as it is.
  let kept=select(min(history.a,cap*current.a),history.a,current.a<=0.0);
  let total=kept+current.a;
- let root=min(sqrt(max(square,0.0)),REFLECTION_MOMENT_MAX);
+ let root=min(sqrt(max(square,0.0)),HALF_MAX);
  if(total<=0.0){return ReflectionResolved(vec4f(0.0),root);}
  let mean=history.rgb+(current.rgb-history.rgb)*(current.a/total);
  return ReflectionResolved(vec4f(mean,min(total,${REFLECTION_HISTORY_WEIGHT}.0)),root);
@@ -279,5 +277,6 @@ ${GATHER_BOUNDS}\n${BOUNDED}
     taaReprojectWgsl(false),
     maxChannel,
     perspectiveDivide,
+    HALF_MAX,
   ],
 )

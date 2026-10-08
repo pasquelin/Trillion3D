@@ -1,6 +1,7 @@
 import type { EngineCamera } from './engineCamera.ts'
 import {
   crossVector3,
+  distanceVector3,
   dotVector3,
   length3,
   normalizeVector3,
@@ -107,7 +108,7 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   const elapsed = now - (motion.lastMs ?? now),
     step = elapsed > 0 ? elapsed : 0,
     a = motion.ahead ?? REST,
-    change = length3(velocity[0] - a[0], velocity[1] - a[1], velocity[2] - a[2]),
+    change = distanceVector3(velocity, a),
     moving = continues(
       change,
       length3(a[0], a[1], a[2]),

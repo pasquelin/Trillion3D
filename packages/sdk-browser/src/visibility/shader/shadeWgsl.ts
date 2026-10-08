@@ -1,8 +1,12 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
-import { invTranspose3Apply, uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
-import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
+import { invTranspose3Apply, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import {
+  edgeFunction,
+  perspectiveBarycentric,
+  wireframeEdge,
+} from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
@@ -65,7 +69,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(model==${SURFACE_MODEL.matcap}u){
   // The row's normal matrix, as the rows pass composed it (\`rowFrame\`).
   let it=rowFrame(pageIndex,page.world).invT;let h=pageHeader(page);let k=pageTriangle(page,h,tri);
-  uv=matcapUv(uniteOuZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
+  uv=matcapUv(unitOrZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
@@ -95,7 +99,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
  if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}
  if(uni.mode==${SHADE_MODE.wireframe}u){
-  let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
+  let edgeW=wireframeEdge(bary,width);
   return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
  }
  if(uni.mode==${SHADE_MODE.clusters}u){return diagnosticSurface(hashColor(page.clusterHash),request);}
@@ -125,9 +129,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    rcvOffset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
    rcvPlane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
   }
-  var N=uniteOuZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
+  var N=unitOrZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
-   N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
+   N=unitOrZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
   }
   // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
@@ -147,7 +151,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
-   N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
+   N=unitOrZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
@@ -186,9 +190,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       ROUGHNESS_FLOOR,
       worldMatrix3,
       invTranspose3Apply,
-      uniteOuZero,
+      unitOrZero,
       edgeFunction,
       perspectiveBarycentric,
+      wireframeEdge,
       faceNormal,
       ...(diagnostic ? [diagnostic] : []),
     ],

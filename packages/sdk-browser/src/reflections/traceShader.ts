@@ -1,5 +1,6 @@
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
+import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** The host's read of the depth a reflection walks (`reflectionDepthAt`, `fn(p:vec2i)->f32`) and
@@ -119,7 +120,7 @@ fn reflectionPixelBounds(p:vec2i)->vec2f{
  *  what the walk divided by `exp2` and floored before, exactly: two divisions and two floors fewer
  *  a step. */
 const CELL = 'vec2f(f32(pixel.x>>u32(level)),f32(pixel.y>>u32(level)))'
-const side = 'f32(1<<u32(level))'
+const side = 'pow2FromExponent(level)'
 const into = `let into:vec2f=${CELL};`
 
 /** Screen-space pixel DDA, written from the projected-segment equations.
@@ -150,7 +151,14 @@ const into = `let into:vec2f=${CELL};`
 export const screenTraceWgsl = (read: ReflectionDepthRead) =>
   wgslBlock(
     'SCREEN_TRACE_WGSL',
-    [reflectionPlaneWgsl(read), read.depthAt, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
+    [
+      reflectionPlaneWgsl(read),
+      read.depthAt,
+      FAR_VALUE,
+      perspectiveDivide,
+      ndcToUvUnflipped,
+      pow2FromExponent,
+    ],
     `fn reflectionExit(c:vec4f,d:vec4f)->f32{
  // The four side planes and the two depth planes: how far inside each the ray starts, and how fast
  // it leaves it.

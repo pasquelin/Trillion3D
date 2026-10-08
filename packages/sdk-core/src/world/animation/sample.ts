@@ -6,7 +6,7 @@ import {
   slerpOnArc,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Track, TrackBinding } from './clip.ts'
-import { saturate } from '../../../../math/src/scalar/reals.ts'
+import { mix, saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
  *  a straight line (quaternions on the arc), the earlier key held (`step`), or glTF's cubic
@@ -46,8 +46,7 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
     bound.arcKey = i
     slerpOnArc(out, 0, values, i * size, values, j * size, w, arc, 0)
   } else {
-    for (let c = 0; c < size; c++)
-      out[c] = values[i * size + c] * (1 - w) + values[j * size + c] * w
+    for (let c = 0; c < size; c++) out[c] = mix(values[i * size + c], values[j * size + c], w)
   }
   // Once, whatever the branch: the slerp's line too.
   if (tr.kind === 'quaternion') normalizeQuaternion(out)

@@ -9,6 +9,7 @@ import {
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
@@ -36,6 +37,7 @@ const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
     VERTEX_NORMALS_WGSL,
     faceNormal,
     SHADING_POINT_WGSL,
+    unitOrZero,
   ],
   `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
@@ -65,7 +67,7 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`).
  let plane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
  let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
- return ShadowReceiver(offset,select(vec3f(0.0),normalize(plane),dot(plane,plane)>0.0));
+ return ShadowReceiver(offset,unitOrZero(plane));
 }`,
 )
 

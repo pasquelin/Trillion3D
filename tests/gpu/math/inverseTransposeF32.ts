@@ -118,7 +118,7 @@ export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
   return divide(adjugate, f(det * t))
 }
 
-/** The kernel's `uniteOuZero`: `normalize(v)`, but zero for a zero or non-finite vector. */
+/** The kernel's `unitOrZero`: `normalize(v)`, but zero for a zero or non-finite vector. */
 const unitOrZero = (a: Vec3): Vec3 => (dot(a, a) > 0 ? unit(a) : [0, 0, 0])
 
 /** The lighting shader's `xformNormal(world, n)`: the world 3×3's inverse-transpose applied to the

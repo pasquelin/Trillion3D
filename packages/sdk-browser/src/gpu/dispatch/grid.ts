@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { ceilDiv as ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * DISPATCHES IN ROWS: a pass counts one thread per page, node, slot or listed entry, and a scene
@@ -56,10 +57,10 @@ fn flatIndex(id:vec3u,n:vec3u,lanes:u32)->u32{return id.x+id.y*n.x*lanes;}
  *  pipeline sets `GROUP_WIDTH` where the device's limit is not WebGPU's guaranteed one. */
 export const GROUP_GRID_WGSL = wgslBlock(
   'GROUP_GRID_WGSL',
-  [],
+  [ceilDivWgsl],
   `override GROUP_WIDTH:u32=${DEFAULT_GROUP_WIDTH}u;
 /** The \`(x, y)\` workgroups of a dispatch of \`groups\`, in rows of at most \`GROUP_WIDTH\`. */
-fn groupGrid(groups:u32)->vec2u{return vec2u(min(groups,GROUP_WIDTH),(max(groups,1u)-1u)/GROUP_WIDTH+1u);}
+fn groupGrid(groups:u32)->vec2u{return vec2u(min(groups,GROUP_WIDTH),ceilDiv(max(groups,1u),GROUP_WIDTH));}
 `,
 )
 

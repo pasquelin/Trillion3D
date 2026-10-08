@@ -1,6 +1,7 @@
 import { clamp } from '../../math/src/scalar/reals.ts'
 import { floorLog2 } from '../../math/src/scalar/integers.ts'
 import { length3Float32 } from '../../math/src/vector/lengthFloat32.ts'
+import { OCT_BYTE_STEP } from '../../math/src/constants.ts'
 /**
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
@@ -58,8 +59,7 @@ export function quantize(values: ArrayLike<number>, n: number, exponent: number)
   return { min, exponent, bits, cells }
 }
 
-const f = Math.fround,
-  OCT_STEP = f(2 / 255)
+const f = Math.fround
 
 /** A grid value back to its float, `min + q * step` in 32-bit steps, the product exact and the sum
  *  rounded once: the one every reader decodes with (`dequant`, `bits/quant.rs`). */
@@ -68,8 +68,8 @@ export const dequant = (min: number, q: number, step: number) => f(min + f(q * s
 /** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
  *  32-bit steps: the one decoder the reader and the encoder below share. */
 export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
-  let x = f(f((q & 255) * OCT_STEP) - 1),
-    y = f(f(((q >>> 8) & 255) * OCT_STEP) - 1)
+  let x = f(f((q & 255) * OCT_BYTE_STEP) - 1),
+    y = f(f(((q >>> 8) & 255) * OCT_BYTE_STEP) - 1)
   const z = f(f(1 - Math.abs(x)) - Math.abs(y))
   if (z < 0) {
     const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1))

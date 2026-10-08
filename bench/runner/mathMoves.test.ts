@@ -11,6 +11,9 @@ import {
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { quantile } from '../../packages/math/src/scalar/quantile.ts'
 import { clamp } from '../../packages/math/src/scalar/reals.ts'
+import { alignUp } from '../../packages/math/src/scalar/integers.ts'
+import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
+import { mulberry32 } from '../../packages/math/src/sequence/random.ts'
 import {
   HALTON_SWEEP,
   edgeValues,
@@ -138,4 +141,30 @@ test('the light tiles cut their rays by the engine slab test, as before to two u
     assert.ok(ulps(n0, n1) <= 2 && ulps(f0, f1) <= 2, `ray ${i} enters and leaves`)
   }
   assert.ok(hits > HALTON_SWEEP / 2, `${hits} rays hit`)
+})
+
+test('the p95 of a series is the nearest rank its clock read, at every length', () => {
+  for (let n = 0; n <= 2000; n++) {
+    const t = Array.from({ length: n }, (_, i) => i)
+    assert.equal(quantile(t, 0.95), t[Math.min(Math.ceil(n * 0.95) - 1, n - 1)], `${n} samples`)
+  }
+})
+
+test("the aerial props' turns about +Y are axisAngleQuaternion's, bit for bit", () => {
+  // The draw `r` is a whole number over 2³²: `r · TAU` is `2 · (r · π)` exactly, halved exactly.
+  const random = mulberry32(7),
+    q = new Float64Array(4)
+  for (const r of [0, 1 - 2 ** -32, ...Array.from({ length: HALTON_SWEEP }, random)]) {
+    const turn = r * Math.PI,
+      old = [0, Math.sin(turn), 0, Math.cos(turn)]
+    axisAngleQuaternion(q, [0, 1, 0], r * TAU)
+    for (let k = 0; k < 4; k++) assert.ok(Object.is(q[k], old[k]), `draw ${r}`)
+  }
+})
+
+test('the facade aligns its byte offsets to four as the mask did', () => {
+  for (let offset = 0; offset < 1 << 16; offset++)
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
+  for (const offset of [2 ** 31 - 8, 2 ** 31 - 5, 2 ** 31 - 4])
+    assert.equal(alignUp(offset, 4), (offset + 3) & ~3, `${offset}`)
 })

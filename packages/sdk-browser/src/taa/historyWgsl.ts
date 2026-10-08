@@ -3,7 +3,7 @@ import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { clampToExtent, hashUnit } from '../../../math/src/wgsl/sampling.ts'
 
 /** The samples a history read a display pixel or more away keeps beside the current one. */
 const MOVING_SAMPLES = 4
@@ -71,13 +71,13 @@ fn pageOf(id:u32)->TaaPage{
  */
 export const HISTORY_TEXEL_WGSL = wgslBlock(
   'HISTORY_TEXEL_WGSL',
-  [hashUnit],
+  [hashUnit, clampToExtent],
   `
 fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  let seed=(u32(coord.y)*65536u+u32(coord.x))*8u+u32(view.jitter.w);
  // 0x5bd1e995u: odd 32-bit constant with well-spread bits that flips the seed for the second coordinate, so it is decorrelated from the first; any odd value with well-spread bits would serve, this one is declared, not tuned.
  let offset=vec2f(hashUnit(seed),hashUnit(seed^0x5bd1e995u))*0.999-0.4995;
- return clamp(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(0),vec2i(view.viewport.xy)-vec2i(1));
+ return clampToExtent(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(view.viewport.xy));
 }`,
 )
 
@@ -188,7 +188,7 @@ ${share(' if(uncovered){sharePast=vec4f(0.0);}\n')} let animated=${centrePage}.a
   }
   historyCount=min(historyCount,historyCap(previous.xy,coord,lumaNow,clamp(toYcocg(read.rgb).x,lo.x,hi.x)));
   alpha=currentShare(1.0/historyCount,reach,max(cover,animated),uncovered);
- }else{${still ? stillAverage(share('sharePast', PAST_SHARE)) : ''}lo=vec4f(-1e9);hi=vec4f(1e9);}
+ }else{${still ? stillAverage(share('sharePast', PAST_SHARE)) : ''}lo=vec4f(-RANGE_BOUND);hi=vec4f(RANGE_BOUND);}
  historyCount=min(historyCount,1.0/max(alpha,1e-6));
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);

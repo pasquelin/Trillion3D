@@ -5,15 +5,12 @@
  */
 
 import type { Families } from './engineTypes.ts'
-import { saturate } from '../../../packages/math/src/scalar/reals.ts'
+import { saturate, smoothstep } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The curves a move eases on: `t` from 0 to 1 (clamped) gives how far along it is. */
 export const ease = {
   /** Slow at both ends, the smoothstep. */
-  smooth: (t: number) => {
-    const x = saturate(t)
-    return x * x * (3 - 2 * x)
-  },
+  smooth: (t: number) => smoothstep(saturate(t)),
   /** Slow at both ends, more sharply: a cubic in, then out. */
   inOut: (t: number) => {
     const x = saturate(t)

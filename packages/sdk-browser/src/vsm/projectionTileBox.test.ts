@@ -119,7 +119,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
     let held = 0
     const { vsmTileBound } = shaderRun<{
       vsmTileBound: (valid: boolean, p: V3, lane: number) => void
-    }>(CODE, ['vsmTileBound', 'vsmOrderedKey'], {
+    }>(CODE, ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'], {
       ...s,
       atomicOr: (_p: unknown, v: number) => void (held |= v),
     })

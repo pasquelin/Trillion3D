@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, opening, ease, valueNoise } from '../runtime/kit.js';
+      import { controls, readout, seeded, opening, ease, valueNoise, mix } from '../runtime/kit.js';
 
       // A sequence in [0, 1) from a seed: the same planet on every run.
       const world = createWorld('view', { controls: 'orbit' });
@@ -256,7 +256,7 @@
       // The viewer's hand wins: a press or a wheel on the canvas ends the opening where it is.
       opening(world, (time) => {
         const k = ease.out(time / 3.5);
-        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        world.camera.position.set(...mix({ math }, from, to, k));
         return time < 3.5;
       });
       let turn = 0;

@@ -20,6 +20,7 @@ import {
   samplingFootprintWgsl,
 } from '../../texture/samplingFootprint.ts'
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
 const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
@@ -81,7 +82,14 @@ const tilePoolWgsl = (mipBias: string) => {
   const lod = atlasLodWgsl(mipBias)
   return wgslBlock(
     'tilePoolWgsl',
-    [WRAP_COORD_WGSL, SAMPLING_WGSL, TILE_SLOT_WGSL, lod, samplingFootprintWgsl(lod)],
+    [
+      WRAP_COORD_WGSL,
+      SAMPLING_WGSL,
+      TILE_SLOT_WGSL,
+      unitToSigned2,
+      lod,
+      samplingFootprintWgsl(lod),
+    ],
     `const TEXEL_TILE:f32=${TILE_SIZE}.0;
 const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
@@ -93,7 +101,7 @@ const PAGE_LEVELS:u32=${MAX_LEVELS}u;
 const PAGE_TRANSFORM:u32=${PAGE_TRANSFORM_WORD}u;
 struct TileTap{uv:vec2f,layer:i32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
-fn rebuiltZ(xy:vec2f)->f32{let n=xy*2.0-1.0;return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
+fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
 /** LOD a footprint asks of a texture, clamped to its levels: the single rule for choosing a level
  *  of a texture at the default filters, for the read as for the request. */
 fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size),0.0,f32(s.last));}

@@ -31,7 +31,7 @@ export function cacheRun(width: number, height: number, none = false) {
   }
   const decode = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
-    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar'.split(
+    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar byteOf'.split(
       ' ',
     ),
     {
@@ -64,13 +64,14 @@ export function cacheRun(width: number, height: number, none = false) {
       'clipToFramebuffer',
       'perspectiveDivide',
       'invTranspose3Apply',
-      'uniteOuZero',
+      'unitOrZero',
       'pageSprite',
       'spriteAt',
       'composeRowFrame',
       'invTranspose3Prep',
       'absoluteSum3',
       'isFiniteScale',
+      'isFiniteWord',
       'worldMatrix3',
       'windingKept',
     ],
@@ -124,6 +125,9 @@ export function cacheRun(width: number, height: number, none = false) {
       'storeWord',
       'storeVec3',
       'storeRowFrame',
+      'bitWord',
+      'bitMask',
+      'ceilDiv',
     ],
     scope,
   )
@@ -142,6 +146,9 @@ export function cacheRun(width: number, height: number, none = false) {
       'cacheVec3',
       'cacheVec4',
       'pixelTriangle',
+      'bitWord',
+      'bitMask',
+      'byteOf',
     ],
     scope,
   )

@@ -87,12 +87,23 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
   }
   const { storeReceiver } = shaderRun<{
     storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
-  }>(wgslModule(receiverStoreWgsl(0)), ['storeReceiver', 'octEncode'], scope)
+  }>(
+    wgslModule(receiverStoreWgsl(0)),
+    ['storeReceiver', 'octEncode', 'ndcToUvUnflipped', 'pow2FromExponent'],
+    scope,
+  )
   const { shadowReceiver } = shaderRun<{
     shadowReceiver: (pixel: number[]) => { offset: number[]; plane: number[] }
   }>(
     wgslModule(receiverTargetReadWgsl(0, 0)),
-    ['shadowReceiver', 'shadowReceiverTexel', 'shadowReceiverOf', 'octDecode'],
+    [
+      'shadowReceiver',
+      'shadowReceiverTexel',
+      'shadowReceiverOf',
+      'octDecode',
+      'unitToSigned2',
+      'pow2FromExponent',
+    ],
     scope,
   )
   const r = random(1570)

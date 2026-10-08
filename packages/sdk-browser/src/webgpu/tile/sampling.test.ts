@@ -17,6 +17,7 @@ import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 /** The colour's public read, on the camera's pool. */
@@ -136,8 +137,9 @@ const readOf = (lx: number, ly: number, granted: number) => {
     'lx',
     'ly',
     'granted',
+    'DIVISOR_FLOOR',
     `const select=(f,t,c)=>c?t:f,ratio=${line('let ratio')},taps=${line('\\n\\s*taps')};return [taps,${line('raw-')}];`,
-  )(lx, ly, granted) as [number, number]
+  )(lx, ly, granted, wgslConstants(FOOTPRINT).DIVISOR_FLOOR) as [number, number]
 }
 
 // #443: the hardware's anisotropic rule: N taps, the ratio rounded up within the

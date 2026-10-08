@@ -1,7 +1,7 @@
-import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { DIVISOR_FLOOR, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { GGX_DISTRIBUTION_WGSL } from '../lighting/standardLighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { tangentFrame } from '../../../math/src/wgsl/basis.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 
 /** GGX importance sampling of the split-sum radiance prefilter (N = V = R).
@@ -15,20 +15,20 @@ import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
  * \`ggxDistribution\` (\`GGX_DISTRIBUTION_WGSL\`, \`standardLighting.ts\`). */
 export const GGX_REFLECTION_SAMPLE_WGSL = wgslBlock(
   'GGX_REFLECTION_SAMPLE_WGSL',
-  [TWO_PI, tangentAround, sinFromCos, GGX_DISTRIBUTION_WGSL],
+  [TWO_PI, DIVISOR_FLOOR, tangentFrame, sinFromCos, GGX_DISTRIBUTION_WGSL],
   `
 fn stochasticReflection(R:vec3f,N:vec3f,rough:f32,xi:vec2f)->vec4f{
  let alpha=rough*rough;let a2=alpha*alpha;
  let cosine=sqrt((1.0-xi.y)/(1.0+(a2-1.0)*xi.y));
  let sine=sinFromCos(cosine);
  let phi=TWO_PI*xi.x;
- let T=tangentAround(R);let B=cross(R,T);
+ let tangents=tangentFrame(R);let T=tangents.x;let B=tangents.y;
  let H=T*(cos(phi)*sine)+B*(sin(phi)*sine)+R*cosine;
  let L=reflect(-R,H);
  let distribution=ggxDistribution(a2,cosine,sine*sine);
- let pdf=distribution*cosine/(4.0*max(dot(R,H),1e-20));
+ let pdf=distribution*cosine/(4.0*max(dot(R,H),DIVISOR_FLOOR));
  let kernel=distribution*max(dot(R,L),0.0)*0.25*select(0.0,1.0,dot(N,L)>0.0);
- return vec4f(L,kernel/max(pdf,1e-20));
+ return vec4f(L,kernel/max(pdf,DIVISOR_FLOOR));
 }
 `,
 )
