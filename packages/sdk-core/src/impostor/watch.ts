@@ -318,11 +318,7 @@ function setVerdict(s: State, rank: number, on: boolean) {
   const value = on ? 1 : 0
   if (s.switched[rank] === value) return
   s.switched[rank] = value
-  if (s.changedCount === s.changed.length) {
-    const next = new Int32Array(s.changed.length * 2)
-    next.set(s.changed)
-    s.changed = next
-  }
+  s.changed = resized(s.changed, s.changedCount + 1)
   s.changed[s.changedCount++] = rank
 }
 
