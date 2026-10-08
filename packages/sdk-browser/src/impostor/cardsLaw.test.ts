@@ -10,7 +10,6 @@ import { cardField as field, impostorSection, MESH } from './section.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
-import type { ClusterRoot } from '../page/selection/types.ts'
 
 const VIEWPORT = [1280, 720]
 const GROUP = { atlas: MESH }
