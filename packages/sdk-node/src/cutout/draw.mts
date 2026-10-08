@@ -1,5 +1,6 @@
 import { encodePng } from './png.mts'
 import { resize, type Thumbnail } from './thumb.mts'
+import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Putting a texture on a terminal, whatever that terminal can do.
@@ -49,9 +50,10 @@ function iterm(png: Buffer): string {
 
 /** Two texels per character, the aspect kept: upper half as foreground, lower half as background. */
 function blocks(thumbnail: Thumbnail): string[] {
-  const rows = Math.max(
+  const rows = clampLowWins(
+    Math.round((COLUMNS * thumbnail.height) / thumbnail.width / 2) * 2,
     2,
-    Math.min(ROWS * 2, Math.round((COLUMNS * thumbnail.height) / thumbnail.width / 2) * 2),
+    ROWS * 2,
   )
   const small = resize(thumbnail, COLUMNS, rows)
   const texel = (x: number, y: number) => {

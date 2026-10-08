@@ -8,6 +8,7 @@ import { VIEWPORT } from './sharedSceneProof.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
  *  rereads its pixels and public counters. The frame bound is closed as a host does: that is what
@@ -97,8 +98,8 @@ export function colorAt(
   [w, h]: readonly [number, number] = VIEWPORT,
 ) {
   project(point.set(x, y, z), camera)
-  const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
-    py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
+  const px = clamp(Math.round(((point.x + 1) / 2) * (w - 1)), 0, w - 1),
+    py = clamp(Math.round(((point.y + 1) / 2) * (h - 1)), 0, h - 1),
     i = (py * w + px) * 4
   return [pixels[i], pixels[i + 1], pixels[i + 2]]
 }

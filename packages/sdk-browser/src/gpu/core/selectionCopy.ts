@@ -1,4 +1,4 @@
-import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
+import { sameElements, sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { copyAheadView } from './aheadView.ts'
 import type { SelectionUniforms } from './selection.ts'
 
@@ -20,9 +20,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     a.cameraWorld[2] !== b.cameraWorld[2]
   )
     return false
-  if (!sameElements(a.view, b.view)) return false
-  for (let i = 0; i < 24; i++) if (a.planes[i] !== b.planes[i]) return false
-  return true
+  return sameElements(a.view, b.view) && sameValues(a.planes, b.planes)
 }
 
 export function copySelectionUniforms(source: SelectionUniforms): SelectionUniforms {

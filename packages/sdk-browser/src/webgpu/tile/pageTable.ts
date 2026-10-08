@@ -1,4 +1,4 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { lastTrue } from '../../../../math/src/scalar/search.ts'
 import {
   entryLevel,
   MAX_LEVELS,
@@ -117,13 +117,7 @@ const descend = (table: Table, key: TileKey, visit: (index: number) => boolean) 
 
 /** The tile of entry `entry`: its texture by the entries' bases, then its level and place. */
 function tileAt({ layouts, bases }: Table, entry: number): TileKey {
-  let lo = 0,
-    hi = layouts.length - 1
-  while (lo < hi) {
-    const mid = ceilDiv(lo + hi, 2)
-    if (bases[mid] <= entry) lo = mid
-    else hi = mid - 1
-  }
+  const lo = lastTrue(0, layouts.length - 1, (mid) => bases[mid] <= entry)
   const layout = layouts[lo],
     local = entry - bases[lo]
   let level = layout.tail - 1

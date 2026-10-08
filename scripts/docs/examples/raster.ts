@@ -1,5 +1,7 @@
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { snap, type RandomStream } from './random.ts'
+import { clampLowWins, lerp, smoothstep, wrap } from '../../../packages/math/src/scalar/reals.ts'
 
 /**
  * A small raster toolkit for the textures drawn in code: square float images of one or three
@@ -84,8 +86,8 @@ export function blur(image: Raster, sigma: number): Raster {
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++)
         weights.forEach((weight, i) => {
-          const sx = (x + dx * (i - radius) + size) % size,
-            sy = (y + dy * (i - radius) + size) % size
+          const sx = wrap(x + dx * (i - radius), size),
+            sy = wrap(y + dy * (i - radius), size)
           for (let k = 0; k < channels; k++)
             out.data[(y * size + x) * channels + k] +=
               (source.data[(sy * size + sx) * channels + k] * weight) / total
@@ -99,12 +101,12 @@ export function blur(image: Raster, sigma: number): Raster {
 export function normalMap(height: Raster, strength: number): Raster {
   const { size } = height,
     out = raster(size, [0, 0, 0]),
-    at = (x: number, y: number) => height.data[((y + size) % size) * size + ((x + size) % size)]
+    at = (x: number, y: number) => height.data[wrap(y, size) * size + wrap(x, size)]
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const dx = (at(x + 1, y) - at(x - 1, y)) * strength,
         dy = (at(x, y + 1) - at(x, y - 1)) * strength,
-        length = Math.hypot(dx, dy, 1)
+        length = length3(dx, dy, 1)
       ;[-dx, dy, 1].forEach(
         (value, k) => (out.data[(y * size + x) * 3 + k] = (value / length) * 127.5 + 127.5),
       )
@@ -120,17 +122,16 @@ export function valueNoise(size: number, cells: number, octaves: number, random:
   const total = new Float64Array(size * size)
   for (let octave = 0, amplitude = 1; octave < octaves; octave++, amplitude /= 2) {
     const count = cells * 2 ** octave,
-      lattice = Array.from({ length: count * count }, random.next),
-      smooth = (t: number) => t * t * (3 - 2 * t)
+      lattice = Array.from({ length: count * count }, random.next)
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++) {
         const [u, v] = [(x / size) * count, (y / size) * count],
           [i, j] = [Math.floor(u), Math.floor(v)],
-          [fu, fv] = [smooth(u - i), smooth(v - j)],
+          [fu, fv] = [smoothstep(u - i), smoothstep(v - j)],
           value = (a: number, b: number) => lattice[((j + b) % count) * count + ((i + a) % count)],
-          top = value(0, 0) + (value(1, 0) - value(0, 0)) * fu,
-          bottom = value(0, 1) + (value(1, 1) - value(0, 1)) * fu
-        total[y * size + x] += amplitude * (top + (bottom - top) * fv)
+          top = lerp(value(0, 0), value(1, 0), fu),
+          bottom = lerp(value(0, 1), value(1, 1), fu)
+        total[y * size + x] += amplitude * lerp(top, bottom, fv)
       }
   }
   const peak = total.reduce((max, value) => Math.max(max, value), 0)
@@ -146,12 +147,10 @@ export function png(image: Raster) {
         k === 3
           ? 255
           : Math.floor(
-              Math.max(
+              clampLowWins(
+                snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
                 0,
-                Math.min(
-                  255,
-                  snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
-                ),
+                255,
               ),
             )
   return encodePng(image.size, image.size, rgba)

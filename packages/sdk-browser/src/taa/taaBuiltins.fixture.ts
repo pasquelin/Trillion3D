@@ -1,8 +1,8 @@
 // What the temporal resolve calls beyond `shaderRunBuiltins.fixture.ts`, for the runs of its
 // shipped text in JavaScript: the half-float packing its flicker history is stored with (the
-// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash (the maths library's
-// `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
-import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
+// engine's own half conversion, `packages/math/src/float/half.ts`), and the engine's integer hash (the
+// maths library's `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
@@ -78,14 +78,17 @@ export const textureGatherOf =
     return [at(0, 1), at(1, 1), at(1, 0), at(0, 0)]
   }
 
+/** The library functions the resolve calls, wherever the program writes them. */
+const LIBRARY = ['perspectiveDivide', 'byteOf', 'unorm8', 'clampToExtent']
+
 /** The resolve's own functions in `shader`, what the fixtures run of it: the colour space's two, the
- *  perspective divide the flicker measure calls and every one declared after the deformation's, the
- *  hash left to the scope's integer one. */
+ *  library's it calls and every one declared after the deformation's, the hash left to the scope's
+ *  integer one. */
 export function resolveFunctions(shader: string) {
   const declared = [...shader.matchAll(/\bfn (\w+)\(/g)].map((match) => match[1])
   const own = declared.slice(declared.indexOf('deformedPrevious') + 1)
-  const divide = declared.includes('perspectiveDivide') ? ['perspectiveDivide'] : []
-  return ['toYcocg', 'fromYcocg', ...divide, ...own.filter((name) => name !== 'hashUnit')]
+  const library = LIBRARY.filter((name) => declared.includes(name) && !own.includes(name))
+  return ['toYcocg', 'fromYcocg', ...library, ...own.filter((name) => name !== 'hashUnit')]
 }
 
 /** The uniform's fields past the header the fixtures fill: no camera move since the last image,

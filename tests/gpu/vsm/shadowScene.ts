@@ -2,6 +2,8 @@
 // otherwise than another away from every edge (its canvas read back with `kit/patternImage.ts`).
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
+import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
+import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
 
@@ -35,7 +37,7 @@ export async function openBenchWorld(
 
 /** The luminance of pixel `i` of an RGBA image. */
 export const luminance = (p: Uint8Array, i: number) =>
-  0.2126 * p[4 * i] + 0.7152 * p[4 * i + 1] + 0.0722 * p[4 * i + 2]
+  luminanceOf(p[4 * i], p[4 * i + 1], p[4 * i + 2])
 
 /**
  * How `stopped` shades otherwise than `settled`, the same pose at rest, `open` being that pose
@@ -59,13 +61,12 @@ export function shadingGap(
     const d = luminance(open, i) - luminance(settled, i)
     if (d > 0) darkening.push(d)
   }
-  darkening.sort((a, b) => a - b)
   // The factor 1/2 is not derived: it is the midpoint between "unchanged" (0) and "shadowed" (the
   // median darkening), so a pixel counts on the side it is nearer to; it stands for a noise level
   // the frame cannot measure on its own. Sensitivity: every count below is monotone in it — a
   // smaller factor lets texture and 8-bit noise in as "moved", a larger one drops penumbra pixels.
   // With nothing darkened the step is 0 and `shadowedOffEdge` stays 0: the proof fails, as it should.
-  const step = (darkening[darkening.length >> 1] ?? 0) / 2
+  const step = (quantileFloorOf(darkening, 0.5) ?? 0) / 2
   const edge = (i: number) => {
     const x = i % width,
       y = (i - x) / width,

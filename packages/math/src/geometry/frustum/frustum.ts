@@ -1,3 +1,5 @@
+import { length3 } from '../../vector/vector.ts'
+
 /**
  * Planes of a viewing frustum, stored flat: twenty-four floats, four per plane `a, b, c, d`,
  * facing inward — a point is inside when `a*x + b*y + c*z + d >= 0` for all six.
@@ -34,7 +36,7 @@ function storePlane(
   unit: boolean,
 ) {
   if (unit) {
-    const reciprocal = 1 / Math.sqrt(a * a + b * b + c * c)
+    const reciprocal = 1 / length3(a, b, c)
     a *= reciprocal
     b *= reciprocal
     c *= reciprocal
@@ -109,4 +111,44 @@ export function frustumFarPlane(
 ) {
   if (!Number.isFinite(far)) return
   storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize)
+}
+
+/** The signed distance of `(x, y, z)` to the plane `a, b, c, d` stored at `p[at]` — a distance
+ *  for a unit normal, a scaled one otherwise: `a*x + b*y + c*z + d`, summed left to right. */
+function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z: number) {
+  return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
+}
+
+/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`, the planes
+ *  in their slot order at constant offsets; a NaN, comparing false, keeps the point. */
+export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
+  return !(
+    planeDistance(planes, 0, x, y, z) < 0 ||
+    planeDistance(planes, 4, x, y, z) < 0 ||
+    planeDistance(planes, 8, x, y, z) < 0 ||
+    planeDistance(planes, 12, x, y, z) < 0 ||
+    planeDistance(planes, 16, x, y, z) < 0 ||
+    planeDistance(planes, 20, x, y, z) < 0
+  )
+}
+
+/** True when the sphere of centre `(x, y, z)` and radius `reach` lies wholly behind one of the six
+ *  unit `planes`: some `planeDistance` below `−reach`, the planes in their slot order at constant
+ *  offsets. A NaN, comparing false, keeps the sphere. */
+export function frustumExcludesSphere(
+  planes: ArrayLike<number>,
+  x: number,
+  y: number,
+  z: number,
+  reach: number,
+) {
+  const behind = -reach
+  return (
+    planeDistance(planes, 0, x, y, z) < behind ||
+    planeDistance(planes, 4, x, y, z) < behind ||
+    planeDistance(planes, 8, x, y, z) < behind ||
+    planeDistance(planes, 12, x, y, z) < behind ||
+    planeDistance(planes, 16, x, y, z) < behind ||
+    planeDistance(planes, 20, x, y, z) < behind
+  )
 }

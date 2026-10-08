@@ -5,6 +5,7 @@ import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { FluidsPayload, FluidsScene } from './fluids.ts'
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { posterCapture } from '../harness/measurePage.ts'
 
 type Sdk = typeof SdkBrowser
@@ -48,7 +49,7 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
     geometry.plane(400, 400),
     material.meshPhysical({ color: '#1d6d8c', roughness: 0.05, transmission: 1, thickness: 2 }),
   )
-  sea.rotation.set(-Math.PI / 2, 0, 0)
+  sea.rotation.set(-HALF_PI, 0, 0)
   sea.position.set(27, scene.water.level, 27)
   world.scene.add(sea)
   const flame = material.meshBasic({ color: '#ff8a2a', transparent: true, blending: 'additive' })

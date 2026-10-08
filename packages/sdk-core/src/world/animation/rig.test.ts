@@ -6,6 +6,9 @@ import { object } from '../object/index.ts'
 import { geometry } from '../geometry/index.ts'
 import { material } from '../material/index.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { rigReach } from './rigLevers.ts'
+import { halton } from '../../../../math/src/sequence/halton.ts'
+import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 
 const close = (actual: number, expected: number, tolerance = 1e-5) =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} ≠ ${expected}`)
@@ -103,4 +106,53 @@ test('wind bends each bone no further than the angle it declares', () => {
       const w = Math.min(1, Math.abs(track.values[k * 4 + 3]))
       assert.ok(2 * Math.acos(w) <= 0.2 + 1e-6)
     }
+})
+
+test('rig levers under the length rule keep the hold verdict of `Math.hypot` over a sweep', () => {
+  for (let n = 1; n <= 4096; n++) {
+    const h = (base: number, shift = 0) => 4 * halton(n + shift, base) - 2
+    const root = object.group(),
+      arm = object.group(),
+      hand = object.mesh(geometry.box(1 + h(2), 1 + h(3), 1 + h(5)))
+    ;[arm.name, hand.name] = ['arm', 'hand']
+    root.add(arm.add(hand))
+    arm.position.set(h(7), h(2, 99), n % 7 ? h(3, 99) : 0)
+    arm.scale.set(h(5, 99), 1, n % 5 ? h(7, 99) : 0)
+    hand.position.set(h(2, 199), n % 3 ? h(3, 199) : -0, h(5, 199))
+    hand.scale.setScalar(h(7, 199))
+    const turn = (name: string) => animation.quaternionTrack(name, [0, 1], [0, 0, 0, 1, 0, 0, 0, 1])
+    const reach = rigReach(root, [
+      animation.clip('c', 1, [turn('arm.quaternion'), turn('hand.quaternion')]),
+    ])
+    // The levers and radius as `Math.hypot` gave them: the oracle.
+    const box = hand.localBounds()!,
+      grow = (node: typeof arm | typeof hand) =>
+        Math.max(...[node.scale.x, node.scale.y, node.scale.z].map(Math.abs))
+    let handSpan = 0
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z]) handSpan = Math.max(handSpan, Math.hypot(x, y, z))
+    const p = hand.position,
+      q = arm.position,
+      armSpan = Math.max(0, Math.hypot(p.x, p.y, p.z) + grow(hand) * handSpan),
+      radius = 1 * Math.max(0, Math.hypot(q.x, q.y, q.z) + grow(arm) * armSpan)
+    const was = [radius, 1 * grow(arm) * armSpan, 1 * grow(arm) * 1 * grow(hand) * handSpan],
+      now = [
+        reach.radius,
+        reach.levers.get('arm.quaternion')!,
+        reach.levers.get('hand.quaternion')!,
+      ]
+    // The hold verdict (`mixerHold.ts`): a lever's drift over a frame, as pixels in the rig's ball,
+    // below half a pixel; the focal length puts the old drift near it, where a verdict could turn.
+    const depth = 3 + 99 * halton(n, 11),
+      verdict = (lever: number, ball: number, focal: number) =>
+        screenErrorBound(lever / 120, 1, halton(n, 13), depth, ball, focal, 0.1) < 0.5
+    for (let k = 0; k < 3; k++) {
+      const seen = `rig ${n} term ${k}: ${now[k]} / ${was[k]}`
+      assert.ok(Math.abs(now[k] - was[k]) <= 2 ** -46 * was[k], seen)
+      if (!(was[1] > 0 && was[2] > 0) || k === 0) continue
+      const focal = ((0.25 + 0.5 * halton(n, 17)) * depth * 120) / was[k]
+      assert.equal(verdict(now[k], now[0], focal), verdict(was[k], was[0], focal), seen)
+    }
+  }
 })

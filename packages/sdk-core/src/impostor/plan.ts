@@ -7,7 +7,7 @@
  * the same number the compiler keys its `impostors` entries by
  * (`packages/asset-compiler-rust/src/impostor/stage.rs`): there is no second mesh table. The switch is the
  * engine's one oracle (`switch.ts`), never a per-scene constant: `f` is the engine's focal length
- * in pixels (`pixelScaleOf`), `z` the pivot's view depth, each bound taken where the projection
+ * in pixels (`focalPixels`), `z` the pivot's view depth, each bound taken where the projection
  * magnifies most off the view axis (`switchesAt`), `R`, `T`, `c` and `r_f` only from the baked
  * manifest.
  *

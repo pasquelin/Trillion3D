@@ -23,6 +23,13 @@ fn mix_is_exact_at_both_ends_and_rounds_apart_from_lerp() {
 }
 
 #[test]
+fn half_diagonal_is_half_the_hypotenuse() {
+    assert_eq!(half_diagonal(3.0, 4.0), 2.5);
+    let (w, h) = (0.3f64, 1.7);
+    assert_eq!(half_diagonal(w, h).to_bits(), (w.hypot(h) / 2.0).to_bits());
+}
+
+#[test]
 fn remap_places_a_value_between_its_bounds_unclamped() {
     assert_eq!(remap(5.0f64, 0.0, 10.0), 0.5);
     assert_eq!(remap(15.0f64, 10.0, 20.0), 0.5);
@@ -65,6 +72,26 @@ fn hermite_basis_sums_to_one_on_values_and_meets_both_ends() {
             -2.0 * w3 + 3.0 * w2,
             w3 - w2
         ]
+    );
+}
+
+#[test]
+fn bytes_return_to_the_unit_interval_and_back() {
+    for b in 0..=255u8 {
+        assert_eq!(byte_to_unit(b).to_bits(), (b as f64 / 255.0).to_bits());
+        assert_eq!(byte_to_unit_f32(b).to_bits(), (b as f32 / 255.0).to_bits());
+        assert_eq!(unit_to_byte(byte_to_unit(b)), b);
+        assert_eq!(unit_to_byte_f32(byte_to_unit_f32(b)), b);
+    }
+}
+
+#[test]
+fn perspective_slope_is_the_tangent_of_the_half_field() {
+    assert!((perspective_slope(90.0) - 1.0).abs() < 1e-15);
+    let fov = 55.0f64;
+    assert_eq!(
+        perspective_slope(fov).to_bits(),
+        (fov.to_radians() * 0.5).tan().to_bits()
     );
 }
 

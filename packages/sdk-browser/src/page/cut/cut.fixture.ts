@@ -6,7 +6,7 @@ import { selectionScratch, selectionState, type PageRecord } from './state.fixtu
 import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../host/matrixElements.ts'
 import type { ClusterRoot } from '../selection/types.ts'
-import { pixelScaleOf } from '../../streaming/priority.ts'
+import { pixelScale } from '../../../../math/src/projection/camera.ts'
 import type { EngineCamera } from '../../camera/world.ts'
 import type { HeldResidency } from './held.fixture.ts'
 
@@ -64,7 +64,7 @@ export function selectVisiblePages<T extends PageRecord>(
   // World frustum planes are those image entry set, in the host's depth convention: an image
   // computes them once, for all of its consumers, and nothing is copied here.
   const worldPlanes = cam.planes
-  pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale)
+  pixelScale(selectionScratch.pixelScale, cam.projection, viewport?.[0], viewport?.[1])
   const result = options.result ?? createSelectionResult<T>()
   const shown = into ?? ([] as T[])
   const wanted = options.wanted ?? ([] as T[])

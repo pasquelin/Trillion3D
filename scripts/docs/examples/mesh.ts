@@ -1,3 +1,5 @@
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
+import { divideVector3, length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import { snap, type Vec3 } from './random.ts'
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts'
@@ -27,19 +29,20 @@ export function pairs(...lists: readonly (readonly number[])[]) {
 
 function normalized(vectors: number[]) {
   for (let v = 0; v < vectors.length; v += 3) {
-    const length = Math.hypot(vectors[v], vectors[v + 1], vectors[v + 2]) + 1e-12
-    for (let k = 0; k < 3; k++) vectors[v + k] /= length
+    const length = length3(vectors[v], vectors[v + 1], vectors[v + 2]) + 1e-12
+    divideVector3(vectors, v, length)
   }
   return vectors
 }
 
-/** The mesh on the `snap` grid; its normals, once snapped, are brought back to unit length. */
+/** The mesh on the `snap` grid; its normals, once snapped, are brought back to unit length by a
+ *  divide, not `normalizeVector3`'s product by the reciprocal: the published meshes hold its bits. */
 export function snapped(mesh: Mesh): Mesh {
   const normals = mesh.normals.map(snap)
   for (let v = 0; v < normals.length; v += 3) {
     const [x, y, z] = normals.slice(v, v + 3),
-      length = Math.sqrt(x * x + y * y + z * z) || 1
-    for (let k = 0; k < 3; k++) normals[v + k] /= length
+      length = length3(x, y, z) || 1
+    divideVector3(normals, v, length)
   }
   return { ...mesh, positions: mesh.positions.map(snap), normals, uvs: mesh.uvs.map(snap) }
 }
@@ -126,7 +129,7 @@ export function facing(mesh: Mesh, outward: (vertex: number) => Vec3): Mesh {
 
 /** A flat disc of `segments` sides at height `y`, facing up or down: sdk-core's `circle`, laid flat. */
 export function disc(radius: number, y: number, segments: number, up = true): Mesh {
-  const flat = geometry.circle(radius, segments).rotateX(((up ? -1 : 1) * Math.PI) / 2)
+  const flat = geometry.circle(radius, segments).rotateX((up ? -1 : 1) * HALF_PI)
   return { ...fromGeometry(flat.translate(0, y, 0)), uvs: [] }
 }
 
@@ -140,13 +143,14 @@ export function lathe(
   segments: number,
   { caps = true, repeat }: { caps?: boolean; repeat?: readonly [number, number] } = {},
 ): Mesh {
-  const body = fromGeometry(geometry.lathe(profile, segments, Math.PI / 2))
+  const body = fromGeometry(geometry.lathe(profile, segments, HALF_PI))
   if (!repeat) body.uvs = []
   else {
     const arcs = [0]
     for (let row = 1; row < profile.length; row++)
       arcs.push(
-        arcs[row - 1] + Math.hypot(...[0, 1].map((k) => profile[row][k] - profile[row - 1][k])),
+        arcs[row - 1] +
+          length2(profile[row][0] - profile[row - 1][0], profile[row][1] - profile[row - 1][1]),
       )
     body.uvs = body.uvs.map((value, i) =>
       i % 2 ? arcs[Math.floor(i / 2 / (segments + 1))] / repeat[1] : value * repeat[0],

@@ -1,4 +1,5 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts'
+import { PI } from '../../../packages/math/src/constants.ts'
 import { createHistory, type Command } from './history.ts'
 import { isWithin, poseCommand, poseOf, samePose, type Pose } from './commands.ts'
 import { writeAutosave } from './storage.ts'
@@ -12,7 +13,7 @@ const STAGE = 0x0e1621
  *  each command holds a few numbers, or an object that was removed. */
 const HISTORY_CAPACITY = 100
 /** The steps snapping rounds a drag to: half a grid square, 15°, a tenth of the size. */
-const SNAP = { translate: 0.5, rotate: Math.PI / 12, scale: 0.1 }
+const SNAP = { translate: 0.5, rotate: PI / 12, scale: 0.1 }
 
 /**
  * The editor's hold on one world: its helper marks (grid, axes, selection outline, the handles),

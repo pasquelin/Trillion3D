@@ -12,6 +12,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/blend/coplanar-layers.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
 import { FACING, openFacingWorld, region } from '../frame/facingWorld.ts'
@@ -46,8 +47,6 @@ async function readings() {
   }
 }
 
-const luminance = ([r, g, b]: number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b
-
 /** The widest gap of one channel between two pixels of a region. A flat square drawn alone stays
  *  within a few levels — what light the view direction changes across it —; a pixel of another
  *  layer jumps by the gap between the two colours, tens of levels. */
@@ -61,8 +60,9 @@ const spread = (pixels: number[][]) =>
 test('coplanar layers draw the top one alone, and a blended glass over its base', async () => {
   const errors: string[] = []
   const read = await runOnDawn(readings, null, errors)
-  const darkest = (pixels: number[][]) => Math.min(...pixels.map(luminance))
-  const lightest = (pixels: number[][]) => Math.max(...pixels.map(luminance))
+  const darkest = (pixels: number[][]) => Math.min(...pixels.map(([r, g, b]) => luminance(r, g, b)))
+  const lightest = (pixels: number[][]) =>
+    Math.max(...pixels.map(([r, g, b]) => luminance(r, g, b)))
   console.log(
     JSON.stringify({
       held: read.held,

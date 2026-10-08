@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { toSpherical, fromSpherical } from './spherical.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { HALF_PI } from '../../../../math/src/constants.ts'
+import { clamp } from '../scalar/reals.ts'
+import { HALF_PI } from '../constants.ts'
 
 test('clamping preserves interior and boundary values and rejects either excess', () => {
   for (const [value, expected] of [

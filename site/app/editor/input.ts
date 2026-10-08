@@ -1,5 +1,6 @@
 import type { SceneActions } from './actions.ts'
 import type { Session } from './session.ts'
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 
 /** How far a press may travel, in CSS pixels, and still be a click that selects: past it, the
  *  press was an orbit of the camera. */
@@ -26,7 +27,7 @@ export function bindInput(session: Session, actions: SceneActions, canvas: HTMLC
   const release = (event: PointerEvent) => {
     const from = pressed
     pressed = null
-    if (!from || Math.hypot(event.offsetX - from.x, event.offsetY - from.y) > CLICK_SLOP) return
+    if (!from || length2(event.offsetX - from.x, event.offsetY - from.y) > CLICK_SLOP) return
     const hit = session.world.raycast({ x: event.offsetX, y: event.offsetY })
     session.select(hit?.object ?? null)
   }

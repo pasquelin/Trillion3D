@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { floorLog2 } from '../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
 /**
@@ -16,13 +17,13 @@ import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
-  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL, perspectiveDivide],
+  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL, perspectiveDivide, floorLog2],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
 fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
  let maxSpan=spanTexels-1;
- let mipOffset=i32(log2(f32(spanTexels)))-1;
+ let mipOffset=i32(floorLog2(u32(spanTexels)))-1;
  let spanLog2=firstLeadingBit(r.zw-r.xy);
  var mip=max(max(spanLog2.x,spanLog2.y)-mipOffset,0);
  let d=(r.zw>>vec2u(u32(mip)))-(r.xy>>vec2u(u32(mip)));

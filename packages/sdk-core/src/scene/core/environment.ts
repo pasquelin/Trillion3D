@@ -14,7 +14,8 @@
  * environment irradiance stays black whatever its exposure.
  */
 import type { NumberSink } from '../../../../math/src/matrix/matrix4.ts'
-import { packFog, type SceneFog } from './fog.ts'
+import { EngineError } from '../../contracts/cache.ts'
+import { finite, packFog, validateSceneFog, type SceneFog } from './fog.ts'
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
@@ -134,4 +135,29 @@ export function packEnvironment(environment: SceneEnvironment | undefined, out: 
   for (let k = 0; k < ENVIRONMENT_COEFFICIENTS; k++)
     for (let c = 0; c < 3; c++) out[k * 4 + c] = sh[k * 3 + c]
   return out
+}
+/** Checks the scene's exposure, curve and surrounding light. */
+export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
+  if (!finite(environment?.exposure) || environment.exposure <= 0)
+    throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposure must be > 0', {
+      exposure: environment?.exposure,
+    })
+  const validated: SceneEnvironment = { exposure: environment.exposure }
+  const { toneMapping, irradiance, fog } = environment
+  if (fog !== undefined) validated.fog = validateSceneFog(fog)
+  if (toneMapping !== undefined) {
+    if (!(toneMapping in TONE_MAPPING_RANK))
+      throw new EngineError('INVALID_SCENE_ENVIRONMENT', `unknown tone mapping ${toneMapping}`, {
+        toneMapping,
+      })
+    validated.toneMapping = toneMapping
+  }
+  if (irradiance !== undefined) {
+    if (irradiance.length !== ENVIRONMENT_COEFFICIENTS * 3 || !irradiance.every(finite))
+      throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'irradiance expects 27 finite numbers', {
+        length: irradiance.length,
+      })
+    validated.irradiance = [...irradiance]
+  }
+  return validated
 }

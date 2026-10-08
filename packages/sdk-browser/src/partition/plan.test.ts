@@ -14,6 +14,7 @@ import {
   type SuperRootPlan,
 } from './plan.ts'
 import { AHEAD } from './aheadShare.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 }
@@ -50,12 +51,12 @@ test('the reach follows the zoom: its frustum, and an orthographic box, widen as
   // The box `[-10, 10] × [-5, 5]` at zoom 0.5 sees `[-20, 20] × [-10, 10]` up to its far plane.
   const box = { left: -10, right: 10, top: 5, bottom: -5 }
   const orthographic = { ...optics, far: 1000, zoom: 0.5, orthographic: box }
-  assert.equal(cellReach(orthographic), Math.hypot(1000, 20, 10))
+  assert.equal(cellReach(orthographic), length3(1000, 20, 10))
   // A negative near plane draws behind the eye, as far as it goes.
-  assert.equal(cellReach({ ...orthographic, near: -2000 }), Math.hypot(2000, 20, 10))
+  assert.equal(cellReach({ ...orthographic, near: -2000 }), length3(2000, 20, 10))
   // A box given right to left and bottom up is as wide.
   const mirrored = { left: 10, right: -10, top: -5, bottom: 5 }
-  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), Math.hypot(1000, 20, 10))
+  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), length3(1000, 20, 10))
 })
 
 test('a sheared root reads every cell the world reach holds, by its least singular value', () => {

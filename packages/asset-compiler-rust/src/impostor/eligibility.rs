@@ -20,7 +20,7 @@ pub(crate) const ATLAS_LIMIT: usize = 8192;
 /// length in device pixels (2146) the compiler judges distances with. A narrower
 /// field or a taller screen moves the switch at run time, never the bake.
 pub(crate) fn reference_focal() -> f64 {
-    1117.0 / (55.0f64.to_radians() * 0.5).tan()
+    1117.0 / trillion3d_math::scalar::perspective_slope(55.0)
 }
 
 /// What the mesh says of itself.

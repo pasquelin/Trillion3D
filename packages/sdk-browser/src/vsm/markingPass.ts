@@ -28,6 +28,8 @@ import {
   vsmWriteDepthFromDeviceZ,
 } from './constants.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
+import { copyMatrix4, negateColumnMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -209,9 +211,7 @@ export function vsmDispatchPerPageBin(pass: GPUComputePassEncoder, bin: VsmPerPa
  * negated, column-major as the engine's.
  */
 export function vsmForwardZViewToClip(projection: ArrayLike<number>, out = new Float32Array(16)) {
-  for (let i = 0; i < 16; i++) out[i] = projection[i]
-  for (let r = 0; r < 4; r++) out[8 + r] = -projection[8 + r]
-  return out
+  return negateColumnMatrix4(out, projection, 2)
 }
 
 // ---- Pass inputs -------------------------------------------------------------------------------
@@ -393,14 +393,10 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     f.fill(0)
     const v = frame.view
     if (v) {
-      for (let i = 0; i < 16; i++) f[i] = v.viewToClip[i]
+      copyMatrix4(f, v.viewToClip)
       // From the f32 matrix just written, the one the shader holds; a perspective by its M[3][3].
       vsmWriteDepthFromDeviceZ(f, 16, f, f[15] < 1)
-      for (let k = 0; k < 3; k++) {
-        const high = Math.fround(v.originShift[k])
-        f[20 + k] = high
-        f[24 + k] = v.originShift[k] - high
-      }
+      for (let k = 0; k < 3; k++) writeSplitDouble(f, 20 + k, 24 + k, v.originShift[k])
       u[28] = v.viewRectMin[0]
       u[29] = v.viewRectMin[1]
       u[30] = v.viewSize[0]

@@ -1,4 +1,16 @@
-import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
+import {
+  decomposeMatrix4,
+  writeRotationQuaternion,
+} from '../../../../math/src/matrix/matrix4Trs.ts'
+import {
+  conjugateQuaternion,
+  multiplyQuaternionVectorFirst,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import {
+  crossVector3,
+  lengthSqVector3,
+  normalizeVector3,
+} from '../../../../math/src/vector/vector.ts'
 import { setNodeQuaternion, type TransformTree } from './transformTree.ts'
 import { updateNodeWorldMatrix } from './update.ts'
 
@@ -8,18 +20,26 @@ import { updateNodeWorldMatrix } from './update.ts'
  * rotation then removes the parent's world rotation, a unit quaternion whose inverse is its
  * conjugate. Two aims have no line of sight or no `x`, and each keeps a defined answer: the eye on
  * the target takes `z = (0, 0, 1)`; a line of sight along `up` moves `z` by `0.0001` off the up
- * axis, renormalises it, and crosses again. A parent with non-uniform or sheared scale is not
- * compensated exactly: its rotation is read from its normalised columns.
+ * axis, renormalises it, and crosses again. The parent's rotation and scale are those of
+ * `decomposeMatrix4`: a parent of negative determinant carries its mirror on `x`, and the node's
+ * world `z` and `y` still follow the aim, its `x` mirrored. A parent with non-uniform or sheared
+ * scale is not compensated exactly: its rotation is read from its normalised columns.
  */
 
-/** The basis being built, stored by row as `writeRotationQuaternion` reads it; then the parent's
- *  normalised columns. One buffer each, written and read within one call. */
-const basis = new Float64Array(9),
-  aim = new Float64Array(4),
-  parentTurn = new Float64Array(4)
+/** The basis being built, stored by row as `writeRotationQuaternion` reads it, and its three axes;
+ *  then the parent's decomposition. One buffer each, written and read within one call; pure, so a
+ *  bundle that never aims a node drops them. */
+const basis = /* @__PURE__ */ new Float64Array(9),
+  forward = /* @__PURE__ */ new Float64Array(3),
+  right = /* @__PURE__ */ new Float64Array(3),
+  above = /* @__PURE__ */ new Float64Array(3),
+  aim = /* @__PURE__ */ new Float64Array(4),
+  parentPosition = /* @__PURE__ */ new Float64Array(3),
+  parentTurn = /* @__PURE__ */ new Float64Array(4),
+  parentScale = /* @__PURE__ */ new Float64Array(3)
 
 /** Writes into `basis` the rotation that aims the node at `(tx, ty, tz)` from the eye `world`
- *  carries in its translation. Scalars throughout: `up` is read once. */
+ *  carries in its translation. */
 function writeAimBasis(
   world: ArrayLike<number>,
   tx: number,
@@ -28,81 +48,40 @@ function writeAimBasis(
   up: ArrayLike<number>,
   viewer: boolean,
 ) {
-  const ux = up[0],
-    uy = up[1],
-    uz = up[2]
-  const ex = world[12],
-    ey = world[13],
-    ez = world[14]
   // A camera or a light looks down its −z, so `z` runs from the target to the eye; an object
   // presents its +z, so `z` runs from the eye to the target.
-  let fx: number, fy: number, fz: number
   if (viewer) {
-    fx = ex - tx
-    fy = ey - ty
-    fz = ez - tz
+    forward[0] = world[12] - tx
+    forward[1] = world[13] - ty
+    forward[2] = world[14] - tz
   } else {
-    fx = tx - ex
-    fy = ty - ey
-    fz = tz - ez
+    forward[0] = tx - world[12]
+    forward[1] = ty - world[13]
+    forward[2] = tz - world[14]
   }
-  // The squared length serves twice: the zero test, then the normalisation.
-  let lengthSq = fx * fx + fy * fy + fz * fz
-  let k: number
   // A zero sum means the squares are zero or underflowed: `(fx, fy, 1)` then has length exactly 1 in a
   // double, already unit.
-  if (lengthSq === 0) fz = 1
-  else {
-    k = 1 / (Math.sqrt(lengthSq) || 1)
-    fx *= k
-    fy *= k
-    fz *= k
+  if (lengthSqVector3(forward) === 0) forward[2] = 1
+  else normalizeVector3(forward)
+  crossVector3(right, up, forward)
+  if (lengthSqVector3(right) === 0) {
+    if (Math.abs(up[2]) === 1) forward[0] += 0.0001
+    else forward[2] += 0.0001
+    normalizeVector3(forward)
+    crossVector3(right, up, forward)
   }
-  let rx = uy * fz - uz * fy,
-    ry = uz * fx - ux * fz,
-    rz = ux * fy - uy * fx
-  lengthSq = rx * rx + ry * ry + rz * rz
-  if (lengthSq === 0) {
-    if (Math.abs(uz) === 1) fx += 0.0001
-    else fz += 0.0001
-    k = 1 / (Math.sqrt(fx * fx + fy * fy + fz * fz) || 1)
-    fx *= k
-    fy *= k
-    fz *= k
-    rx = uy * fz - uz * fy
-    ry = uz * fx - ux * fz
-    rz = ux * fy - uy * fx
-    lengthSq = rx * rx + ry * ry + rz * rz
-  }
-  k = 1 / (Math.sqrt(lengthSq) || 1)
-  rx *= k
-  ry *= k
-  rz *= k
+  normalizeVector3(right)
   // Columns x, y = z × x, z; `y` is unit already, the cross product of two orthonormal axes.
-  basis[0] = rx
-  basis[1] = fy * rz - fz * ry
-  basis[2] = fx
-  basis[3] = ry
-  basis[4] = fz * rx - fx * rz
-  basis[5] = fy
-  basis[6] = rz
-  basis[7] = fx * ry - fy * rx
-  basis[8] = fz
-}
-
-/** Writes into `basis` the rotation of the world matrix `world`: each of its three columns divided
- *  by its length, by one division and three products. */
-function writeColumnRotation(world: ArrayLike<number>) {
-  for (let column = 0; column < 3; column++) {
-    const at = column * 4
-    const cx = world[at],
-      cy = world[at + 1],
-      cz = world[at + 2]
-    const k = 1 / Math.sqrt(cx * cx + cy * cy + cz * cz)
-    basis[column] = cx * k
-    basis[3 + column] = cy * k
-    basis[6 + column] = cz * k
-  }
+  crossVector3(above, forward, right)
+  basis[0] = right[0]
+  basis[1] = above[0]
+  basis[2] = forward[0]
+  basis[3] = right[1]
+  basis[4] = above[1]
+  basis[5] = forward[1]
+  basis[6] = right[2]
+  basis[7] = above[2]
+  basis[8] = forward[2]
 }
 
 /**
@@ -124,23 +103,18 @@ function aimQuaternion(
   writeAimBasis(world, tx, ty, tz, up, viewer)
   writeRotationQuaternion(out, basis)
   if (!parentWorld) return out
-  writeColumnRotation(parentWorld)
-  writeRotationQuaternion(parentTurn, basis)
-  // local = c ⊗ q, with c = conj(p) = (−p.xyz, p.w) the parent's inverse rotation. The vector
-  // part of the product is c.xyz·q.w + c.w·q.xyz + c.xyz × q.xyz, its scalar c.w·q.w − c.xyz·q.xyz.
-  // The conjugate is negated once, as a value: a NaN keeps the sign that negation gives it.
-  const cx = -parentTurn[0],
-    cy = -parentTurn[1],
-    cz = -parentTurn[2],
-    cw = parentTurn[3]
-  const qx = out[0],
-    qy = out[1],
-    qz = out[2],
-    qw = out[3]
-  out[0] = cx * qw + cw * qx + cy * qz - cz * qy
-  out[1] = cy * qw + cw * qy + cz * qx - cx * qz
-  out[2] = cz * qw + cw * qz + cx * qy - cy * qx
-  out[3] = cw * qw - cx * qx - cy * qy - cz * qz
+  decomposeMatrix4(parentWorld, parentPosition, parentTurn, parentScale)
+  // The parent's linear part is `R·S`, its mirror on `x` alone: `S = |S|·D`, `D = diag(±1, 1, 1)`.
+  // The local turn `D·R⁻¹·A·D` gives the world `R·S·D·R⁻¹·A·D = |S|·A·D` for a uniform `|S|`: the
+  // aim `A` with its `x` mirrored. `R⁻¹` is the conjugate; conjugating a turn by the mirror `D`
+  // keeps its `x` and `w` and negates its `y` and `z`, the axis being an axial vector. The local
+  // turn is the product `c ⊗ q`, `c` the parent's conjugate and `q` the world aim.
+  conjugateQuaternion(parentTurn, parentTurn)
+  multiplyQuaternionVectorFirst(out, parentTurn, out)
+  if (parentScale[0] < 0) {
+    out[1] = -out[1]
+    out[2] = -out[2]
+  }
   return out
 }
 

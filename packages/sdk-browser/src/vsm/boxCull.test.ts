@@ -121,7 +121,7 @@ test("the mip level covering a rect is each cull's own, bit for bit", () => {
   const name = ['vsmLevelHoldingRect']
   const invalidation = run(INVALIDATION_BOX_CULL, name),
     render = run(RENDER_BOX_CULL, name),
-    shared = [run(INVALIDATION, name), run(RENDER, name)]
+    shared = [INVALIDATION, RENDER].map((text) => run(text, [...name, 'floorLog2']))
   for (let k = 0; k < CASES; k++) {
     const d = inputs(4000 + k)
     // Rects of pixels or pages, from one texel to the whole map, a few empty or reversed.

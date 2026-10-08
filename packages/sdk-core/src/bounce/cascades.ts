@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { boxDiagonal } from '../../../math/src/geometry/box.ts'
 import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 
 /**
@@ -127,17 +127,10 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     reserveCount: probesPerLevel * BOUNCE_SETTINGS.cascadeLevels,
     invalidLevels: 0,
     levels,
-    reach:
-      hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
-      BOUNCE_SETTINGS.rayReachFraction,
+    reach: boxDiagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction,
     replan(nextBounds) {
       const planned = spacingsOf(nextBounds)
-      const reach =
-        hypot3(
-          nextBounds[3] - nextBounds[0],
-          nextBounds[4] - nextBounds[1],
-          nextBounds[5] - nextBounds[2],
-        ) * BOUNCE_SETTINGS.rayReachFraction
+      const reach = boxDiagonal(nextBounds) * BOUNCE_SETTINGS.rayReachFraction
       cascades.invalidLevels = 0
       for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i
       for (let i = 0; i < planned.length; i++) {

@@ -1,4 +1,5 @@
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
+import { transformPointRow } from '../../../math/src/vector/vector.ts'
 import type { HizPage } from './types.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 
@@ -42,21 +43,21 @@ export function projectCornersInto(
       x = corners[at],
       y = corners[at + 1],
       z = corners[at + 2]
-    const viewZ = v[2] * x + v[6] * y + v[10] * z + v[14]
-    const vd = affine ? 1 : v[3] * x + v[7] * y + v[11] * z + v[15]
+    const viewZ = transformPointRow(v, 2, x, y, z)
+    const vd = affine ? 1 : transformPointRow(v, 3, x, y, z)
     if (-(vd === 1 ? viewZ : viewZ * (1 / vd)) <= near) {
       // The result of a box that clips the near plane reads no corner: nothing to project.
       clipsNear = true
       break
     }
-    const cw = mirrored ? -viewZ : e[3] * x + e[7] * y + e[11] * z + e[15]
+    const cw = mirrored ? -viewZ : transformPointRow(e, 3, x, y, z)
     if (cw <= 0 || !Number.isFinite(cw)) {
       clipsNear = true
       break
     }
-    const ndcX = (e[0] * x + e[4] * y + e[8] * z + e[12]) / cw,
-      ndcY = (e[1] * x + e[5] * y + e[9] * z + e[13]) / cw,
-      ndcZ = (e[2] * x + e[6] * y + e[10] * z + e[14]) / cw
+    const ndcX = transformPointRow(e, 0, x, y, z) / cw,
+      ndcY = transformPointRow(e, 1, x, y, z) / cw,
+      ndcZ = transformPointRow(e, 2, x, y, z) / cw
     if (ndcX < lowX) lowX = ndcX
     if (ndcX > highX) highX = ndcX
     if (ndcY < lowY) lowY = ndcY

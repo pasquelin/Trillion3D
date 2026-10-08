@@ -17,6 +17,7 @@ import {
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
 const SLOT_WORDS = 13
@@ -126,7 +127,7 @@ async function decodePages(pages: ClusterPage[]) {
     const pass = encoder.beginComputePass()
     pass.setBindGroup(0, group)
     pass.setPipeline(pipeline)
-    pass.dispatchWorkgroups(Math.ceil(Math.max(vertexCount, indexCount / 3) / 64))
+    pass.dispatchWorkgroups(ceilDiv(Math.max(vertexCount, indexCount / 3), 64))
     pass.end()
     encoder.copyBufferToBuffer(output, 0, target, 0, outputBytes)
     device.queue.submit([encoder.finish()])

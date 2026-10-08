@@ -5,6 +5,7 @@ import {
   PROXY_NODE_WORDS,
 } from '../../../sdk-core/src/index.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { byteOf } from '../../../math/src/wgsl/integer.ts'
 import { unorm8x3 } from '../../../math/src/wgsl/color.ts'
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
@@ -59,7 +60,7 @@ struct ResidentProxy{
 /** Slab ray/box traversal, guard at 1e-20. */
 export const BOUNCE_NODE_WGSL = wgslBlock(
   'BOUNCE_NODE_WGSL',
-  [],
+  [byteOf],
   `
 const NODE_FLOATS:u32=${PROXY_NODE_FLOATS}u;
 const NODE_WORDS:u32=${PROXY_NODE_WORDS}u;
@@ -89,9 +90,9 @@ fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
  let high=proxy.words[base+1u];
  let span=(frame.high-frame.low)/255.0;
  return ProxyChild(
-  Box(frame.low+span*vec3f(f32(low&255u),f32((low>>8u)&255u),f32((low>>16u)&255u)),
-      frame.low+span*vec3f(f32((low>>24u)&255u),f32(high&255u),f32((high>>8u)&255u))),
-  proxy.words[base+2u],(high>>16u)&255u,(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
+  Box(frame.low+span*vec3f(f32(byteOf(low,0u)),f32(byteOf(low,1u)),f32(byteOf(low,2u))),
+      frame.low+span*vec3f(f32(byteOf(low,3u)),f32(byteOf(high,0u)),f32(byteOf(high,1u)))),
+  proxy.words[base+2u],byteOf(high,2u),(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
 }`,
 )
 

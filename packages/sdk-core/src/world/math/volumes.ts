@@ -1,5 +1,8 @@
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
-import { frustumPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
+import {
+  frustumContainsPoint,
+  frustumPlanesFromMatrix,
+} from '../../../../math/src/geometry/frustum/frustum.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { Vector3 } from './vector3.ts'
 import type { Box3 } from './box3.ts'
@@ -184,12 +187,8 @@ export class Frustum {
   intersectsBox(b: Box3) {
     return !frustumExcludesBox(this.planes, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
   }
-  /** Whether a point is in view. */
+  /** Whether a point is in view (`frustumContainsPoint`). */
   containsPoint(p: XYZ) {
-    const planes = this.planes
-    for (let i = 0; i < 24; i += 4)
-      if (planes[i] * p.x + planes[i + 1] * p.y + planes[i + 2] * p.z + planes[i + 3] < 0)
-        return false
-    return true
+    return frustumContainsPoint(this.planes, p.x, p.y, p.z)
   }
 }

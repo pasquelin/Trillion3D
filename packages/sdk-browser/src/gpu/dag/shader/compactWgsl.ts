@@ -2,7 +2,7 @@ import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
-import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -29,7 +29,7 @@ import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, ceilDiv, FLAT_INDEX_WGSL],
+  [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL],
   `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
@@ -40,8 +40,8 @@ fn blockBase()->u32{return 0u;}
  *  flag, set by \`dagMask\` with the flag itself, cleared by \`dagPrepare\` with the block count. */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
-fn drawMaskWord(i:u32)->u32{return drawMaskBase()+(i>>5u);}
-fn drawBit(i:u32)->u32{return 1u<<(i&31u);}
+fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
+fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
 /** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */

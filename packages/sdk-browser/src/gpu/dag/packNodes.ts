@@ -1,6 +1,7 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
 import type { ClusterCut } from '../../page/selection/math.ts'
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import {
   NODE_MIN,
   NODE_FIRST_CHILD,
@@ -35,9 +36,6 @@ import {
  * writes zero; the kernel's host keeps it (`readiness.ts`), and descent never drops an
  * open subtree on its floor.
  */
-/** Largest f32: the shader cannot write an infinite constant, and its floor reads
- *  this value where the CPU bound returns infinity. Both reject the same subtree. */
-const INF32 = 3.4e38
 
 type Culling = NonNullable<DagRoot['culling']>
 
@@ -94,7 +92,9 @@ export function packCullingNodes(
     nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
     nodeInts[dst + NODE_WORLD] = world
     const floor = bounds[at + OWN_FLOOR]
-    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32
+    // The shader cannot write an infinite constant: its floor reads `FINITE_SENTINEL` (its `INF`)
+    // where the CPU bound returns infinity, and both reject the same subtree.
+    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : FINITE_SENTINEL
     nodeInts[dst + NODE_OPEN] = 0
     nodeInts[dst + NODE_KIND] = 0
     nodeInts[dst + NODE_PAD] = 0

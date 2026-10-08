@@ -5,6 +5,7 @@ import type * as PageExplorateur from '../harness/explorerPage.ts'
 import type * as PageMeasure from '../harness/measurePage.ts'
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { MovingNode } from '../report/types.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 // Named by its backend export at build time (`webgpuPagesEngine`), by whatever name a test double
 // exports otherwise: the lookup below is a plain dynamic index by design, so the namespace type
@@ -65,7 +66,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   let movingNode: MovingNode = null
   const moveNode = (frame: number) => {
     if (!node || (movingNode && 'error' in movingNode)) return
-    const angle = (frame / 30) * Math.PI * 2,
+    const angle = (frame / 30) * TAU,
       r = options.movingNodeRadius ?? 1
     const matrix = new Float32Array(16)
     matrix[0] = matrix[5] = matrix[10] = matrix[15] = 1

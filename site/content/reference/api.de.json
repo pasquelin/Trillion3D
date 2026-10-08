@@ -441,20 +441,20 @@
       "max": "Die Ecke mit den größten x-, y- und z-Werten.",
       "set": "Legt beide Ecken fest.",
       "makeEmpty": "Leert die Box, bereit zu wachsen.",
-      "isEmpty": "Ob die Box nichts enthält.",
+      "isEmpty": "Ob die Box nichts enthält (`boxIsEmpty`).",
       "copy": "Übernimmt die Ecken einer anderen Box.",
       "clone": "Eine neue Box mit denselben Ecken.",
       "expandByPoint": "Vergrößert die Box gerade genug, um einen Punkt aufzunehmen.",
       "expandByScalar": "Vergrößert die Box um `s` auf jeder Seite.",
       "union": "Vergrößert die Box, damit sie auch eine andere Box enthält.",
-      "setFromArray": "Die kleinste Box um eine flache Liste von Koordinaten.",
+      "setFromArray": "Die kleinste Box um eine flache Liste von Koordinaten: jeder vollständige Punkt, einer je `itemSize` Zahlen.",
       "setFromPoints": "Die kleinste Box um eine Liste von Punkten.",
       "setFromObject": "Die Box in der Welt von allem unter `node`, wobei die Box jedes Inhalts von seiner Weltmatrix getragen wird.",
       "applyMatrix4": "Verschiebt die Box mit einer Matrix und hält sie an den Achsen ausgerichtet.",
-      "getCenter": "Die Mitte der Box.",
+      "getCenter": "Die Mitte der Box (`boxCenter`); die einer leeren Box ist der Ursprung.",
       "getSize": "Breite, Höhe und Tiefe der Box.",
-      "containsPoint": "Ob ein Punkt in der Box liegt.",
-      "intersectsBox": "Ob sich zwei Boxen überschneiden.",
+      "containsPoint": "Ob ein Punkt in der Box liegt, ihre Flächen eingeschlossen (`boxContainsPoint`).",
+      "intersectsBox": "Ob sich zwei Boxen überschneiden, sich berührende Flächen eingeschlossen (`boxesOverlap`).",
       "getBoundingSphere": "Die Kugel, die durch die Ecken geht (`sphereFromBounds`); eine leere Box ergibt einen Radius von −1.",
       "equals": "Ob zwei Boxen dieselben Ecken haben."
     }
@@ -887,7 +887,7 @@
       "clone": "Eine neue Farbe mit denselben Kanälen.",
       "getHex": "0xRRGGBB, in sRGB kodiert und auf das Byte gerundet.",
       "getHexString": "Die Farbe in sechs Hexadezimalziffern, wie `'ff8800'`.",
-      "getStyle": "Die Farbe als CSS-Text, wie `'rgb(255,136,0)'`.",
+      "getStyle": "Die Farbe als CSS-Hex-Text, wie `'#ff8800'`.",
       "lerp": "Nähert die Farbe einer anderen um `t` an, von 0 bis 1.",
       "multiplyScalar": "Macht jeden Kanal `s`-mal heller.",
       "equals": "Ob zwei Farben dieselben Kanäle haben.",
@@ -1828,7 +1828,7 @@
       "planes": "Sechs normalisierte Ebenen, je vier Zahlen: die Anordnung des Kerns.",
       "setFromProjectionMatrix": "Die sechs Ebenen dessen, was eine Kameramatrix sieht.",
       "intersectsBox": "Ob eine Box zumindest teilweise sichtbar ist.",
-      "containsPoint": "Ob ein Punkt in der Ansicht liegt."
+      "containsPoint": "Ob ein Punkt in der Ansicht liegt (`frustumContainsPoint`)."
     }
   },
   "FRUSTUM_PLANE_VALUES": {
@@ -2480,8 +2480,8 @@
       "set": "Schreibt die drei Zahlen."
     }
   },
-  "hslToLinearRgb": {
-    "summary": "Farbton, Sättigung und Helligkeit zu drei linearen Komponenten, geschrieben in `out[o..o+2]`."
+  "hslToRgb": {
+    "summary": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben in `out[o..o+2]`."
   },
   "httpPageSource": {
     "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`."
@@ -3972,7 +3972,7 @@
       "makeRotationY": "Wird zu einer Drehung um y.",
       "makeRotationZ": "Wird zu einer Drehung um z.",
       "setPosition": "Setzt nur den Verschiebungsteil.",
-      "getMaxScaleOnAxis": "Die größte Streckung auf einer Achse.",
+      "getMaxScaleOnAxis": "Die größte Streckung auf einer Achse: die längste der drei Spalten (`length3`).",
       "equals": "Ob zwei Matrizen dieselben Zahlen haben."
     }
   },
@@ -4159,7 +4159,7 @@
     "description": "Die Länge ist die Quadratwurzel der vier Quadrate, summiert wie `hypot4` sie summiert (Kahan), ohne dessen Skalierung mit der größten Größe: innerhalb von `SQUARED_MIN`..`SQUARED_MAX` fügt diese Skalierung nur Rundungen hinzu, vier Divisionen hinein und ein Produkt heraus. Gegenüber dem exakten `q / |q|` nicht schlechter als die skalierte Länge in jeder gemessenen Eingabefamilie und in den meisten besser (maximal 2,7 → 2,3 ULP, Mittel 0,73 → 0,64 bei nahezu normierten Quaternionen), und vier Divisionen billiger. Außerhalb dieses Bereichs, bei null, NaN, unendlich oder Größen nahe den Grenzen, ist die Länge die von `hypot4`, wie zuvor."
   },
   "normalizeVector3": {
-    "summary": "Normalisiert den Vektor bei `at` an Ort und Stelle: jede Komponente wird mit `1 / (length || 1)` multipliziert, sodass ein Nullvektor null bleibt."
+    "summary": "Normalisiert den Vektor bei `at` an Ort und Stelle: jede Komponente wird mit `1 / (length3 || 1)` multipliziert, sodass ein Nullvektor null bleibt; ein Vektor kürzer als 2^-1024 wird zuerst exakt mit 2^1000 skaliert, damit der Kehrwert seiner Länge nicht überläuft."
   },
   "normalMatrix3": {
     "summary": "`out = transpose(inverse(3×3-Block von m))`, spaltenweise auf neun Zahlen: die Matrix, die die Normalen einer von `m` transformierten Oberfläche trägt, Scherung und ungleichmäßige Skalierung eingeschlossen."
@@ -4931,7 +4931,7 @@
       "copy": "Übernimmt die Zahlen eines anderen Quaternions.",
       "clone": "Ein neues Quaternion mit denselben Zahlen.",
       "identity": "Kehrt zu keiner Rotation zurück.",
-      "setFromAxisAngle": "Wird zu einer Drehung von `angle` Radiant um die Achse `v`.",
+      "setFromAxisAngle": "Wird zu einer Drehung von `angle` Radiant um die Achse `v`, die zuerst auf Länge 1 gebracht wird (`normalizeVector3`).",
       "setFromEuler": "Die Rotation aus drei Euler-Winkeln, in der Reihenfolge, die sie benennen (`localTurnQuaternion`).",
       "setFromRotationMatrix": "Aus dem oberen 3×3 einer spaltenweisen Matrix, deren Spalten Länge eins haben.",
       "setFromUnitVectors": "Die kürzeste Rotation, die den Einheitsvektor `a` auf den Einheitsvektor `b` bringt.",
@@ -4941,7 +4941,7 @@
       "invert": "Wird zur Drehung, die diese rückgängig macht.",
       "conjugate": "Kehrt den Achsenteil um: die umgekehrte Drehung für ein Einheitsquaternion.",
       "dot": "Wie sehr zwei Rotationen übereinstimmen, von −1 bis 1.",
-      "length": "Die Größe der vier Zahlen zusammen.",
+      "length": "Die Größe der vier Zahlen zusammen (`lengthQuaternion`).",
       "normalize": "Bringt die Zahlen auf Größe 1 zurück, eine reine Rotation.",
       "angleTo": "Der Winkel zwischen zwei Rotationen, in Radiant.",
       "slerp": "Sphärische Interpolation zu `q`, über den kürzesten Bogen.",
@@ -6227,8 +6227,8 @@
       "add": "Fügt einen anderen 2D-Vektor hinzu.",
       "sub": "Zieht einen anderen 2D-Vektor ab.",
       "multiplyScalar": "Multipliziert beide Zahlen mit `s`.",
-      "length": "Die Länge des 2D-Pfeils.",
-      "normalize": "Behält die Richtung, bringt die Länge auf 1 zurück.",
+      "length": "Die Länge des 2D-Pfeils (`length2`).",
+      "normalize": "Behält die Richtung, bringt die Länge auf 1 zurück; ein Nullvektor bleibt null.",
       "distanceTo": "Seine Entfernung zu einem anderen 2D-Punkt.",
       "fromArray": "Liest zwei Zahlen aus einer Liste.",
       "toArray": "Die beiden Zahlen als Liste."
@@ -6259,7 +6259,7 @@
       "cross": "Wird zum Pfeil senkrecht zu beiden.",
       "crossVectors": "Wird zum Pfeil senkrecht zu `u` und `v`.",
       "lengthSq": "Die quadrierte Länge: schneller zu erhalten.",
-      "length": "Die Länge des Pfeils.",
+      "length": "Die Länge des Pfeils (`length3`).",
       "setLength": "Behält die Richtung, setzt die Länge.",
       "normalize": "Behält die Richtung, bringt die Länge auf 1 zurück.",
       "distanceToSquared": "Die Entfernung zu einem Punkt, quadriert.",
@@ -7649,6 +7649,7 @@
       "isSkeleton": "Immer `true`: unterscheidet ein Skelett.",
       "bones": "Die Knoten, die seine Gelenke sind, in Gelenkreihenfolge.",
       "boneInverses": "Sechzehn Zahlen pro Knochen, spaltenweise: die Inverse seiner Weltmatrix in der Bind-Pose.",
+      "inverses": "Die sechzehn Zahlen jedes Knochens aus `boneInverses`, in Gelenkreihenfolge, als einmal angelegte Ansichten.",
       "palette": "Schreibt die Palette eines bei `meshWorld` platzierten Meshes ab `at` nach `out`: für jedes Gelenk die Zeilen von `meshWorld⁻¹ · boneWorld · boneInverse`, die einen Bind-Pose-Vertex des Meshes dorthin bringen, wohin sein Knochen ihn trägt, im eigenen Koordinatensystem des Meshes — sodass die danach angewendete Platzierung des Meshes es dort zeichnet, wo der Knochen steht, gleich welche eigene Pose der Mesh-Knoten hat. Die Welt jedes Knochens ist die, die sein Knoten hält (`matrixWorld`)."
     }
   },
@@ -7684,8 +7685,8 @@
       "matrix": "Seine Weltpose, sechzehn Fließkommazahlen in spaltenmajorer Ordnung."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, ein einziges Literal, damit jeder Leser des Umschalters dieselbe Zahl rundet."
+  "PI": {
+    "summary": "Eine halbe Drehung, in Radiant: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format des Abschnitts `impostors`, den eine Laufzeit liest (#817 Teil 1, vom Compiler gebacken)."

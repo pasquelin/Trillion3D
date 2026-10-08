@@ -441,20 +441,20 @@
       "max": "Le coin avec les plus grands x, y et z.",
       "set": "Règle les deux coins.",
       "makeEmpty": "Vide la boîte, prête à grandir.",
-      "isEmpty": "Si la boîte ne contient rien.",
+      "isEmpty": "Si la boîte ne contient rien (`boxIsEmpty`).",
       "copy": "Prend les coins d’une autre boîte.",
       "clone": "Une nouvelle boîte avec les mêmes coins.",
       "expandByPoint": "Agrandit la boîte juste assez pour tenir un point.",
       "expandByScalar": "Agrandit la boîte de `s` de chaque côté.",
       "union": "Agrandit la boîte pour qu’elle contienne aussi une autre boîte.",
-      "setFromArray": "La plus petite boîte autour d’une liste plate de coordonnées.",
+      "setFromArray": "La plus petite boîte autour d’une liste plate de coordonnées : chaque point entier, un tous les `itemSize` nombres.",
       "setFromPoints": "La plus petite boîte autour d’une liste de points.",
       "setFromObject": "La boîte dans le monde de tout ce qui est sous `node`, la boîte de chaque contenu portée par sa matrice du monde.",
       "applyMatrix4": "Déplace la boîte par une matrice et la garde alignée sur les axes.",
-      "getCenter": "Le milieu de la boîte.",
+      "getCenter": "Le milieu de la boîte (`boxCenter`) ; celui d’une boîte vide est l’origine.",
       "getSize": "Largeur, hauteur et profondeur de la boîte.",
-      "containsPoint": "Si un point est dans la boîte.",
-      "intersectsBox": "Si deux boîtes se chevauchent.",
+      "containsPoint": "Si un point est dans la boîte, ses faces comprises (`boxContainsPoint`).",
+      "intersectsBox": "Si deux boîtes se chevauchent, faces qui se touchent comprises (`boxesOverlap`).",
       "getBoundingSphere": "La sphère qui passe par les coins (`sphereFromBounds`) ; une boîte vide donne un rayon de −1.",
       "equals": "Si deux boîtes ont les mêmes coins."
     }
@@ -887,7 +887,7 @@
       "clone": "Une nouvelle couleur avec les mêmes canaux.",
       "getHex": "0xRRVVBB, encodé en sRGB et arrondi à l’octet.",
       "getHexString": "La couleur en six chiffres hexadécimaux, comme `'ff8800'`.",
-      "getStyle": "La couleur en texte CSS, comme `'rgb(255,136,0)'`.",
+      "getStyle": "La couleur en texte CSS hexadécimal, comme `'#ff8800'`.",
       "lerp": "Rapproche la couleur d’une autre de `t`, de 0 à 1.",
       "multiplyScalar": "Rend chaque canal `s` fois plus clair.",
       "equals": "Si deux couleurs ont les mêmes canaux.",
@@ -1836,7 +1836,7 @@
       "planes": "Six plans normalisés, quatre nombres chacun : la disposition du cœur.",
       "setFromProjectionMatrix": "Les six plans de ce que voit une matrice de caméra.",
       "intersectsBox": "Si une boîte est au moins en partie visible.",
-      "containsPoint": "Si un point est dans la vue."
+      "containsPoint": "Si un point est dans la vue (`frustumContainsPoint`)."
     }
   },
   "FRUSTUM_PLANE_VALUES": {
@@ -2488,8 +2488,8 @@
       "set": "Écrit les trois nombres."
     }
   },
-  "hslToLinearRgb": {
-    "summary": "Teinte, saturation et luminosité vers trois composantes linéaires écrites dans `out[o..o+2]`."
+  "hslToRgb": {
+    "summary": "Teinte, saturation et luminosité vers trois composantes RGB écrites dans `out[o..o+2]`."
   },
   "httpPageSource": {
     "summary": "Une source de pages qui récupère les pages en HTTP, par clé, depuis `baseUrl`."
@@ -3980,7 +3980,7 @@
       "makeRotationY": "Devient un tour autour de y.",
       "makeRotationZ": "Devient un tour autour de z.",
       "setPosition": "Règle seulement la partie déplacement.",
-      "getMaxScaleOnAxis": "Le plus grand étirement sur un axe.",
+      "getMaxScaleOnAxis": "Le plus grand étirement sur un axe : la plus longue des trois colonnes (`length3`).",
       "equals": "Si deux matrices ont les mêmes nombres."
     }
   },
@@ -4167,7 +4167,7 @@
     "description": "La longueur est la racine carrée des quatre carrés sommés comme `hypot4` les somme (Kahan), sans sa mise à l’échelle par la plus grande magnitude : dans `SQUARED_MIN`..`SQUARED_MAX`, cette mise à l’échelle n’ajoute que des arrondis — quatre divisions à l’entrée et un produit à la sortie. Face au `q / |q|` exact, pas pire que la longueur mise à l’échelle sur toutes les familles d’entrées mesurées et meilleure sur la plupart (maximum 2,7 → 2,3 ULP, moyenne 0,73 → 0,64 sur des quaternions quasi unitaires), et moins chère de quatre divisions. Hors de cette plage — zéro, un NaN, un infini, des magnitudes proches des limites — la longueur est celle de `hypot4`, comme avant."
   },
   "normalizeVector3": {
-    "summary": "Normalise le vecteur en `at` sur place : chaque composante est multipliée par `1 / (length || 1)`, si bien qu’un vecteur nul reste nul."
+    "summary": "Normalise le vecteur en `at` sur place : chaque composante est multipliée par `1 / (length3 || 1)`, si bien qu’un vecteur nul reste nul ; un vecteur plus court que 2^-1024 est d’abord multiplié exactement par 2^1000, pour que l’inverse de sa longueur ne déborde pas."
   },
   "normalMatrix3": {
     "summary": "`out = transpose(inverse(bloc 3×3 de m))`, colonne par colonne sur neuf nombres : la matrice qui porte les normales d’une surface transformée par `m`, cisaillement et échelle inégale compris."
@@ -4939,7 +4939,7 @@
       "copy": "Prend les nombres d’un autre quaternion.",
       "clone": "Un nouveau quaternion avec les mêmes nombres.",
       "identity": "Revient à aucune rotation.",
-      "setFromAxisAngle": "Devient un tour de `angle` radians autour de l’axe `v`.",
+      "setFromAxisAngle": "Devient un tour de `angle` radians autour de l’axe `v`, ramené d’abord à la longueur 1 (`normalizeVector3`).",
       "setFromEuler": "La rotation de trois angles d’Euler, dans l’ordre qu’ils nomment (`localTurnQuaternion`).",
       "setFromRotationMatrix": "À partir du 3×3 du haut d’une matrice colonne par colonne dont les colonnes sont de longueur un.",
       "setFromUnitVectors": "La plus courte rotation qui amène le vecteur unité `a` sur le vecteur unité `b`.",
@@ -4949,7 +4949,7 @@
       "invert": "Devient le tour qui défait celui-ci.",
       "conjugate": "Retourne la partie axe : le tour inverse pour un quaternion unité.",
       "dot": "À quel point deux rotations sont d’accord, de −1 à 1.",
-      "length": "La taille des quatre nombres ensemble.",
+      "length": "La taille des quatre nombres ensemble (`lengthQuaternion`).",
       "normalize": "Ramène les nombres à une taille de 1, une rotation pure.",
       "angleTo": "L’angle entre deux rotations, en radians.",
       "slerp": "Interpolation sphérique vers `q`, par l’arc le plus court.",
@@ -6235,8 +6235,8 @@
       "add": "Ajoute un autre vecteur 2D.",
       "sub": "Retire un autre vecteur 2D.",
       "multiplyScalar": "Multiplie les deux nombres par `s`.",
-      "length": "La longueur de la flèche 2D.",
-      "normalize": "Garde la direction, ramène la longueur à 1.",
+      "length": "La longueur de la flèche 2D (`length2`).",
+      "normalize": "Garde la direction, ramène la longueur à 1 ; un vecteur nul reste nul.",
       "distanceTo": "Sa distance à un autre point 2D.",
       "fromArray": "Lit deux nombres dans une liste.",
       "toArray": "Les deux nombres en liste."
@@ -6267,7 +6267,7 @@
       "cross": "Devient la flèche perpendiculaire aux deux.",
       "crossVectors": "Devient la flèche perpendiculaire à `u` et `v`.",
       "lengthSq": "La longueur au carré : plus rapide à obtenir.",
-      "length": "La longueur de la flèche.",
+      "length": "La longueur de la flèche (`length3`).",
       "setLength": "Garde la direction, règle la longueur.",
       "normalize": "Garde la direction, ramène la longueur à 1.",
       "distanceToSquared": "La distance à un point, au carré.",
@@ -7649,6 +7649,7 @@
       "isSkeleton": "Toujours `true` : identifie un squelette.",
       "bones": "Les nœuds qui en sont les articulations, dans l’ordre des articulations.",
       "boneInverses": "Seize nombres par os, colonne par colonne : l’inverse de sa matrice du monde à la pose de liaison.",
+      "inverses": "Les seize nombres de chaque os dans `boneInverses`, dans l’ordre des articulations, en vues faites une seule fois.",
       "palette": "Écrit dans `out`, à partir de `at`, la palette d’un maillage placé à `meshWorld` : pour chaque articulation, les lignes de `meshWorld⁻¹ · boneWorld · boneInverse`, qui amènent un sommet du maillage en pose de liaison là où son os le porte, dans le repère propre du maillage — si bien que le placement du maillage, appliqué ensuite, le dessine là où se tient l’os quelle que soit la pose du nœud du maillage. Le monde de chaque os est celui que tient son nœud (`matrixWorld`)."
     }
   },
@@ -7684,8 +7685,8 @@
       "matrix": "Sa pose monde, seize flottants en ordre colonne-majeur."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, un seul littéral, afin que chaque lecteur de la bascule arrondisse le même nombre."
+  "PI": {
+    "summary": "Un demi-tour, en radians : `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format de la section `impostors` que lit une exécution (#817 partie 1, cuite par le compilateur)."

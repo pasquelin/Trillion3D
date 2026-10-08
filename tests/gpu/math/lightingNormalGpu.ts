@@ -9,11 +9,12 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { uniteOuZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
 import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuModule } from '../kit/webgpuDevice.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 const WORKGROUP = 64
 
@@ -51,12 +52,12 @@ fn probed(N:vec3f)->vec3f{return ${substitution};}
  let V=vec3f(0.0,0.0,1.0);
  let rgb=vec3f(0.8,0.7,0.6);
  let lit=standardLighting(rgb,c.material.x,c.material.y,N,V,c.light);
- let truth=standardLighting(rgb,c.material.x,c.material.y,uniteOuZero(c.truth.xyz),V,c.light);
+ let truth=standardLighting(rgb,c.material.x,c.material.y,unitOrZero(c.truth.xyz),V,c.light);
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(truth,0.0);
 }`,
-    [NORMAL_TRANSFORM_WGSL, uniteOuZero, STANDARD_LIGHTING_WGSL],
+    [NORMAL_TRANSFORM_WGSL, unitOrZero, STANDARD_LIGHTING_WGSL],
   )
 
 type Input = { shader: string; data: Float32Array<ArrayBuffer>; count: number }
@@ -84,7 +85,7 @@ async function run({ shader, data, count }: Input) {
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(Math.ceil(count / WORKGROUP))
+  pass.dispatchWorkgroups(ceilDiv(count, WORKGROUP))
   pass.end()
   device.queue.submit([encoder.finish()])
   const values = Array.from(new Float32Array((await readGpuBuffer(device, output, bytes))!.buffer))

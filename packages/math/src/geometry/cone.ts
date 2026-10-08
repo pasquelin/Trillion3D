@@ -1,5 +1,5 @@
 import { coneRejects } from '../projection/projectionOracles.ts'
-import { hypot3 } from '../float/hypot.ts'
+import { length3 } from '../vector/vector.ts'
 import { clamp } from '../scalar/reals.ts'
 
 /**
@@ -27,7 +27,7 @@ function sphereSpreadAngle(
   pz: number,
   pw: number,
 ) {
-  const d = hypot3(px - cx * pw, py - cy * pw, pz - cz * pw)
+  const d = length3(px - cx * pw, py - cy * pw, pz - cz * pw)
   if (!(d > radius * pw)) return Math.PI
   const t = (radius * pw) / d
   return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t)
@@ -37,11 +37,12 @@ function sphereSpreadAngle(
  * Rejection of a local box by its normal cone, viewed from a world point.
  *
  * The box is replaced by its sphere: center `(min + max) * 0.5` transformed by `world`
- * (4x4 column-major, homogeneous division), radius `hypot((max - min) * 0.5) * scale` — the scale
+ * (4x4 column-major, homogeneous division), radius `length3((max - min) * 0.5) * scale` — the scale
  * of a conformal transformation. The cone axis passes through `normal` (3x3 column-major, the normal
  * matrix of `world`) and is then normalized; a zero axis or view direction does not reject.
  * The verdict is `coneRejects` of the clamped dot product, the cone angle, and the sphere's
- * perspective spread; a parameter it refuses does not reject either.
+ * perspective spread; a parameter it refuses does not reject either. Every length is `length3`,
+ * the order of the shader's `length()` this function mirrors.
  *
  * The camera is one homogeneous view point `eye` (`EngineCamera.viewPoint`): its position and 1
  * under a perspective projection, the direction back to it and 0 under an orthographic one. The
@@ -74,7 +75,7 @@ export function boxConeRejects(
   let ax = normal[0] * a0 + normal[3] * a1 + normal[6] * a2,
     ay = normal[1] * a0 + normal[4] * a1 + normal[7] * a2,
     az = normal[2] * a0 + normal[5] * a1 + normal[8] * a2
-  const al = Math.sqrt(ax * ax + ay * ay + az * az)
+  const al = length3(ax, ay, az)
   if (!(al > 0)) return false
   const inverse = 1 / al
   ax *= inverse
@@ -90,10 +91,10 @@ export function boxConeRejects(
   // is the same, bit for bit, for every input (NaN included: it rejected nothing either).
   const toward = ax * vx + ay * vy + az * vz
   if (!(toward < 0)) return false
-  const vl = hypot3(vx, vy, vz)
+  const vl = length3(vx, vy, vz)
   if (!(vl > 0)) return false
   const radius =
-    hypot3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
+    length3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
   const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW)
   const dot = clamp(toward / vl, -1, 1)
   try {

@@ -3,6 +3,7 @@ import {
   createJobHeap,
   takeAdmissible,
 } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
@@ -26,7 +27,7 @@ interface AdmissionJob {
 }
 
 const ACTIVE_LIMIT = 6,
-  TRANSFER_BUDGET = 2 * 1024 * 1024
+  TRANSFER_BUDGET = 2 * MIB
 /**
  * The engine's admission, as `streaming/queueTransfer.ts`'s pump runs it: each job queued in the
  * heap as it arrives, the first admissible taken out. The pump itself needs a live transfer
@@ -80,7 +81,7 @@ function arrivals(factory: (byteBudget: number, countBudget: number) => QueueFac
     targets.push({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     })
-  const queue = factory(64 * 1024 * 1024, 4096)
+  const queue = factory(64 * MIB, 4096)
   const bytes = new Uint32Array(16)
   for (let i = 0; i < 5000; i++) queue.queue(targets[i % 8], `page-${i % 900}.bin`, bytes)
   let drained = 0

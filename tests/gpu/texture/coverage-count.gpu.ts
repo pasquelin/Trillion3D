@@ -12,6 +12,7 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The shipped count's read through the workgroup's alphas, and the direct read it replaces. */
 const SHARED = `  for(var j=i;j<81u;j+=64u){alphas[j]=alphaAt(o+vec2u(j%9u,j/9u));}
@@ -106,7 +107,7 @@ async function countBins({ texts, cases }: { texts: string[]; cases: CountCase[]
         pass = encoder.beginComputePass()
       pass.setPipeline(pipeline)
       pass.setBindGroup(0, group)
-      pass.dispatchWorkgroups(Math.ceil(dispatch[0] / 8), Math.ceil(dispatch[1] / 8))
+      pass.dispatchWorkgroups(ceilDiv(dispatch[0], 8), ceilDiv(dispatch[1], 8))
       pass.end()
       device.queue.submit([encoder.finish()])
       const words = (await readGpuBuffer(device, cover, bytes))!

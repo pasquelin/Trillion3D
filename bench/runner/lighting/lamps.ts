@@ -4,10 +4,12 @@
 // its floor, each light bearing a range derived from the cell size. It applies to any imported model;
 // the benchmark knows nothing of the measurement set provided to it.
 
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import { modelFloor } from '../trajectory/poses.ts'
 import type { Bounds } from '../trajectory/poses.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { LightsSummary } from '../report/types.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */
 type PointLight = SceneLight & { position: [number, number, number] }
@@ -51,10 +53,10 @@ function gridLights(
     sy = Math.max(0, bounds.max.y - bounds.min.y),
     sz = Math.max(1e-3, bounds.max.z - bounds.min.z)
   const columns = Math.max(1, Math.round(Math.sqrt((count * sx) / sz))),
-    rows = Math.ceil(count / columns)
+    rows = ceilDiv(count, columns)
   const stepX = sx / columns,
     stepZ = sz / rows
-  const cell = Math.hypot(stepX, stepZ)
+  const cell = length2(stepX, stepZ)
   // Streetlight height: a fraction of the model's height, never less than two meters.
   const height = modelFloor(bounds) + Math.max(2, sy * 0.04)
   const lights: PointLight[] = []

@@ -3,6 +3,7 @@
  * a test that hands the reader a table or a DAG it states plainly: a header, fixed-size records,
  * then the `u32` pool their lists lie in.
  */
+import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
 import type { WorldRoots, WorldRootsCluster, WorldRootsObject } from './worldRoots.ts'
 
@@ -60,7 +61,7 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
   const objects = spec.cells.flatMap((cell) => cell.objects)
   r.raw(digest(spec.payload.sha256))
   for (const bundle of spec.bundles) {
-    r.word(bundle.offset % 2 ** 32, Math.floor(bundle.offset / 2 ** 32), bundle.bytes, bundle.count)
+    r.word(...uint64Words(bundle.offset), bundle.bytes, bundle.count)
     r.pooled(bundle.dependencies)
     r.raw(digest(bundle.sha256))
   }
@@ -90,8 +91,7 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
     spec.cells.length,
     objects.length,
     poolWords,
-    bytes % 2 ** 32,
-    Math.floor(bytes / 2 ** 32),
+    ...uint64Words(bytes),
   ])
 }
 

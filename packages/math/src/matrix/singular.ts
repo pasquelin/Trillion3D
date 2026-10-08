@@ -49,6 +49,20 @@ export function linearPartScale(m: ArrayLike<number>) {
   )
 }
 
+/** The squared Frobenius distance of the linear part of the column-major 4×4 at `m[at]` to the
+ *  identity: column by column, the squares of its three terms less the identity's, the column's
+ *  three summed left to right and then added to the total. */
+export function linearPartIdentityDistanceSq(m: ArrayLike<number>, at = 0) {
+  let sum = 0
+  for (let column = 0; column < 3; column++) {
+    const x = m[at + column * 4],
+      y = m[at + column * 4 + 1],
+      z = m[at + column * 4 + 2]
+    sum += (x - +(column === 0)) ** 2 + (y - +(column === 1)) ** 2 + (z - +(column === 2)) ** 2
+  }
+  return sum
+}
+
 /**
  * Determinant of the NORMALISED linear part, in the WGSL kernel order: the three columns
  * divided by the scale, then `a · (b × c)`. Columns are divided BEFORE the product, never the

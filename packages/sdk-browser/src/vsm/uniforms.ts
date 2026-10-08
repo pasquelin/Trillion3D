@@ -25,6 +25,7 @@ import {
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
 import type { VsmLayout } from './layout.ts'
+import { focalScale } from '../../../math/src/projection/camera.ts'
 import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
@@ -128,7 +129,7 @@ export function writeVsmUniforms(
   f[20] = VSM_SCREEN_RAY_SHARE
   f[21] = frame.viewTanHalfFovY ?? 0
   u[22] = VSM_TRACE_VOTE_AFTER
-  f[23] = 1 / Math.tan(VSM_TRACE_CONE_LIMIT)
+  f[23] = focalScale(VSM_TRACE_CONE_LIMIT)
   i[24] = VSM_TRACE_RAYS_SUN
   i[25] = VSM_TRACE_STEPS_SUN
   f[26] = VSM_TRACE_SLOPE_CAP_SUN

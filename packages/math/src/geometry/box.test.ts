@@ -1,0 +1,89 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {
+  boxCenter,
+  boxCenterFrom,
+  boxContainsPoint,
+  boxEmpty,
+  boxesOverlap,
+  boxFromPoints,
+  boxPointDistance,
+} from './box.ts'
+
+test('boxCenter: the midpoint of each pair of bounds, at the offset', () => {
+  const out = new Float64Array(4)
+  boxCenter(out, 1, -1, 2, 4, 3, 6, 10)
+  assert.deepEqual([...out], [0, 1, 4, 7])
+})
+
+test('boxCenterFrom: the centre less the point, each bound moved first, as the eye key had it', () => {
+  const out = new Float64Array(4)
+  boxCenterFrom(out, 1, [9, -1, 2, 4, 3, 6, 10], 1, 1, 1, 1)
+  assert.deepEqual([...out], [0, 0, 3, 6])
+  // Far from the origin, the offset keeps digits the plain midpoint loses.
+  const far = [1e16, 0, 0, 1e16 + 2, 0, 0]
+  boxCenterFrom(out, 0, far, 0, 1e16, 0, 0)
+  assert.equal(out[0], 1)
+  assert.equal((far[0] + far[3]) / 2 - 1e16, 0)
+  for (let i = 1; i <= 512; i++) {
+    const box = [-i, 2 - i, 3 * i, i * 1.5, 7 + i, 4 * i + 0.1],
+      ex = 0.1 * i,
+      ey = -0.3 * i,
+      ez = 1e3 / i
+    boxCenterFrom(out, 0, box, 0, ex, ey, ez)
+    const old = [
+      (box[0] - ex + (box[3] - ex)) / 2,
+      (box[1] - ey + (box[4] - ey)) / 2,
+      (box[2] - ez + (box[5] - ez)) / 2,
+    ]
+    for (let k = 0; k < 3; k++) assert.ok(Object.is(out[k], old[k]), `${i}.${k}`)
+  }
+})
+
+test('boxContainsPoint: inside and on a face true, outside false, a NaN counts as inside', () => {
+  const box = [9, -1, -1, -1, 1, 1, 1]
+  assert.equal(boxContainsPoint(box, 1, 0, 0.5, -0.5), true)
+  assert.equal(boxContainsPoint(box, 1, 1, -1, 0), true)
+  assert.equal(boxContainsPoint(box, 1, 1.5, 0, 0), false)
+  assert.equal(boxContainsPoint(box, 1, 0, 0, -2), false)
+  assert.equal(boxContainsPoint(box, 1, NaN, 0, 0), true)
+})
+
+test('boxesOverlap: touching faces overlap, disjoint boxes do not, an empty box overlaps nothing', () => {
+  const a = [0, 0, 0, 1, 1, 1]
+  assert.equal(boxesOverlap(a, 0, [7, 1, 0, 0, 2, 1, 1], 1), true)
+  assert.equal(boxesOverlap(a, 0, [1.5, 0, 0, 2, 1, 1], 0), false)
+  assert.equal(boxesOverlap(a, 0, [0.2, 0.2, 2, 0.8, 0.8, 3], 0), false)
+  const empty = new Float64Array(6)
+  boxEmpty(empty, 0)
+  assert.equal(boxesOverlap(empty, 0, a, 0), false)
+  assert.equal(boxesOverlap(a, 0, empty, 0), false)
+})
+
+test('boxFromPoints: strided points from an offset, the bounds of the ones counted', () => {
+  // Stride 4: the fourth number of each point, and the points past `count`, are not read.
+  const points = [99, 1, 5, -2, 100, -3, 0, 4, 100, 2, 7, 1, 100, -50, -50, -50]
+  const out = new Float64Array(7).fill(42)
+  boxFromPoints(out, 1, points, 1, 3, 4)
+  assert.deepEqual([...out], [42, -3, 0, -2, 2, 7, 4])
+})
+
+test('boxFromPoints: −0 sits below +0, a NaN makes its bounds NaN, no point leaves the box empty', () => {
+  const out = new Float64Array(6)
+  boxFromPoints(out, 0, [0, 0, 0, -0, -0, -0], 0, 2)
+  assert.ok(Object.is(out[0], -0) && Object.is(out[3], 0))
+  boxFromPoints(out, 0, [1, NaN, 2, 3, 4, 5], 0, 2)
+  assert.ok(Number.isNaN(out[1]) && Number.isNaN(out[4]))
+  assert.deepEqual([out[0], out[3], out[2], out[5]], [1, 3, 2, 5])
+  boxFromPoints(out, 0, [], 0, 0)
+  assert.deepEqual([...out], [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
+})
+
+test('boxPointDistance: 0 inside, the gap past a face, the root of the gaps past a corner', () => {
+  const box = [0, 0, 0, 1, 1, 1]
+  assert.equal(boxPointDistance(box, 0, 0.5, 0.5, 0.5), 0)
+  assert.equal(boxPointDistance(box, 0, 3, 0.5, 0.5), 2)
+  // Gaps 2, 3, 6 past the corner (1, 1, 1): a quadruple, the root exact.
+  assert.equal(boxPointDistance(box, 0, 3, 4, 7), 7)
+  assert.equal(boxPointDistance(box, 0, -2, -3, -6), 7)
+})

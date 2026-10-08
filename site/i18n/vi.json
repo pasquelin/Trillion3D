@@ -880,8 +880,8 @@
     "srgbToLinear": {
       "description": "Đường cong sRGB chính xác — `c / 12,92` dưới mức 0,04045, `((c + 0,055) / 1,055)^2,4` phía trên — và nghịch đảo của nó, các giá trị âm bị giới hạn về không trước khi lấy lũy thừa."
     },
-    "hslToLinearRgb": {
-      "description": "Sắc độ, độ bão hòa và độ sáng chuyển thành ba thành phần tuyến tính ghi tại `out[o..o+2]`. `setHSL` của mốc tham chiếu từng số hạng một: sắc độ được cuộn vòng, độ bão hòa và độ sáng bị giới hạn trong `[0, 1]`, độ bão hòa bằng không trả về màu xám, rồi tới đường dốc theo từng đoạn. Không có đường cong chuyển đổi nào được áp dụng — không gian làm việc của mốc tham chiếu đã là tuyến tính sẵn rồi."
+    "hslToRgb": {
+      "description": "Sắc độ, độ bão hòa và độ sáng chuyển thành ba thành phần RGB ghi tại `out[o..o+2]`. `setHSL` của mốc tham chiếu từng số hạng một: sắc độ được cuộn vòng, độ bão hòa và độ sáng bị giới hạn trong `[0, 1]`, độ bão hòa bằng không trả về màu xám, rồi tới đường dốc theo từng đoạn. RGB ra theo đúng mã hóa mà HSL được cho: không có đường cong chuyển đổi nào được áp dụng."
     },
     "boxUnion": {
       "description": "Một hộp là sáu con số lưu phẳng bắt đầu từ `o`: ba cận dưới, ba cận trên. Một hộp rỗng có các cận dưới ở `+Infinity` và các cận trên ở `-Infinity`; một cận NaN không làm cho một hộp trở thành rỗng. Việc mở rộng và hợp nhất nhận các cận đó làm tham số, nên không có đối tượng tạm thời nào được dựng cho mỗi lệnh gọi."

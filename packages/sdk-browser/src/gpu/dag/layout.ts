@@ -30,8 +30,9 @@ import {
 } from './clusterFlags.ts'
 import { REQUEST_STAGED_WORDS } from './request.ts'
 import { stagedRequestsWord } from './readoutWords.ts'
-import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { lastTrue } from '../../../../math/src/scalar/search.ts'
 export {
   SELECTION_HEADER_WORDS,
   evictionWord,
@@ -112,14 +113,11 @@ export const stagedOutputBytes = (listCap: number, regions = 0) =>
  *  step with each region the readout gains. */
 export function listCapHeld(bytes: number) {
   // A rank is a word: past 2^32 ranks no list is named, and the halving stays exact.
-  let low = 0,
-    high = clamp(Math.floor(bytes / 4), 0, 2 ** 32)
-  while (low < high) {
-    const mid = ceilDiv(low + high, 2)
-    if (stagedOutputBytes(mid) <= bytes) low = mid
-    else high = mid - 1
-  }
-  return low
+  return lastTrue(
+    0,
+    clamp(Math.floor(bytes / 4), 0, 2 ** 32),
+    (mid) => stagedOutputBytes(mid) <= bytes,
+  )
 }
 /** Readback slots the cut alternates between (`dispatch.ts`): the cache reads a drawn list at
  *  most this many frames behind the GPU, plus the frame being encoded. */

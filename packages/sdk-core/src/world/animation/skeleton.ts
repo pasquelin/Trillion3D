@@ -1,13 +1,19 @@
-import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { linearStretchBound, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { linearPartIdentityDistanceSq } from '../../../../math/src/matrix/singular.ts'
 import type { Object3D } from '../object/object3d.ts'
+import {
+  distanceVector3,
+  transformAffinePointRowMajor,
+} from '../../../../math/src/vector/vector.ts'
 
 /** Floats of one joint of a palette: the three rows of its affine matrix. */
 export const PALETTE_FLOATS = 12
 
 const meshInverse = new Float64Array(16),
   joint = new Float64Array(16),
-  boneWorld = new Float64Array(16)
+  boneWorld = new Float64Array(16),
+  carried = new Float64Array(3)
 
 /**
  * The bones a skinned mesh bends by, and each bone's inverse bind matrix: what takes the mesh from
@@ -19,8 +25,8 @@ export class Skeleton {
   /** The nodes that are its joints, in joint order. */ readonly bones: Object3D[]
   /** Sixteen numbers a bone, column-major: the inverse of its world matrix in the bind pose. */
   readonly boneInverses: Float64Array
-  /** Each bone's sixteen numbers of `boneInverses`, as a view made once. */
-  private readonly inverses: Float64Array[]
+  /** Each bone's sixteen numbers of `boneInverses`, in joint order, as views made once. */
+  readonly inverses: readonly Float64Array[]
   constructor(bones: Object3D[], boneInverses?: ArrayLike<number> | null) {
     this.bones = bones
     this.boneInverses = new Float64Array(bones.length * 16)
@@ -90,23 +96,20 @@ export function paletteReach(
 ) {
   let most = 0
   for (let j = 0; j < joints && j * 4 + 3 < reach.length; j++) {
-    const m = at + j * PALETTE_FLOATS,
-      cx = reach[j * 4],
-      cy = reach[j * 4 + 1],
-      cz = reach[j * 4 + 2],
-      r = reach[j * 4 + 3]
-    let moved = 0,
-      frobenius = 0
-    for (let row = 0; row < 3; row++) {
-      const x = palette[m + row * 4],
-        y = palette[m + row * 4 + 1],
-        z = palette[m + row * 4 + 2]
-      const d =
-        x * cx + y * cy + z * cz + palette[m + row * 4 + 3] - (row ? (row > 1 ? cz : cy) : cx)
-      moved += d * d
-      frobenius += (x - +(row === 0)) ** 2 + (y - +(row === 1)) ** 2 + (z - +(row === 2)) ** 2
-    }
-    most = Math.max(most, Math.sqrt(moved) + Math.sqrt(frobenius) * r)
+    const m = at + j * PALETTE_FLOATS
+    transformAffinePointRowMajor(
+      carried,
+      palette,
+      reach[j * 4],
+      reach[j * 4 + 1],
+      reach[j * 4 + 2],
+      0,
+      m,
+    )
+    // The joint's rows sit where a column-major matrix keeps its columns: the same squares.
+    const frobenius = linearPartIdentityDistanceSq(palette, m)
+    const moved = distanceVector3(carried, reach, 0, j * 4)
+    most = Math.max(most, moved + Math.sqrt(frobenius) * reach[j * 4 + 3])
   }
   return most
 }
@@ -116,22 +119,7 @@ export function paletteReach(
  *  the joints carry it. */
 export function paletteStretch(palette: Float32Array, at: number, joints: number) {
   let most = 1
-  for (let j = 0; j < joints; j++) {
-    const m = at + j * PALETTE_FLOATS
-    let rows = 0,
-      columns = 0
-    for (let k = 0; k < 3; k++) {
-      const r = m + k * 4
-      rows = Math.max(
-        rows,
-        Math.abs(palette[r]) + Math.abs(palette[r + 1]) + Math.abs(palette[r + 2]),
-      )
-      columns = Math.max(
-        columns,
-        Math.abs(palette[m + k]) + Math.abs(palette[m + 4 + k]) + Math.abs(palette[m + 8 + k]),
-      )
-    }
-    most = Math.max(most, Math.sqrt(rows * columns))
-  }
+  for (let j = 0; j < joints; j++)
+    most = Math.max(most, linearStretchBound(palette, at + j * PALETTE_FLOATS))
   return most
 }

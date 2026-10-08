@@ -1,3 +1,4 @@
+import { floorLog2 } from '../../../packages/math/src/scalar/integers.ts'
 import { TEXTURE, aspectFormat, srgbPair, usageRefusedBy, type Features } from './formats.ts'
 
 /**
@@ -39,7 +40,7 @@ const NO_FEATURES: Features = new Set<string>()
 function fullChain({ width, height, depthOrArrayLayers, dimension }: TextureInfo) {
   if (dimension === '1d') return 1
   const side = Math.max(width, height, dimension === '3d' ? depthOrArrayLayers : 1)
-  return Math.floor(Math.log2(side)) + 1
+  return floorLog2(side) + 1
 }
 
 /** `descriptor` read as the rules read a texture, refused when the device would refuse it. */

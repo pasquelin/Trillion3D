@@ -11,6 +11,7 @@ import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 type Fn = (...args: unknown[]) => unknown
 const ROUTINES = ['clusterField', 'clusterWidths', 'clusterStep']
@@ -21,6 +22,7 @@ const HELPERS = [
   'octDecodeScalar',
   'pow2FromExponent',
   'bitLength',
+  'byteOf',
   'ceilDiv',
   'clusterStream',
   'clusterWindow',
@@ -98,8 +100,7 @@ function decodeAll(call: (name: string, ...args: unknown[]) => unknown) {
   return out
 }
 
-let seed = 7
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+const random = lcgFloatRandom(7)
 const floats = (n: number, f: (i: number) => number) =>
   Float32Array.from({ length: n }, (_, i) => f(i))
 

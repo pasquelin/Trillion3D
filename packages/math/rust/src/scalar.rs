@@ -23,6 +23,12 @@ pub fn remap<T: Real>(value: T, low: T, high: T) -> T {
     (value - low) / (high - low)
 }
 
+/// Half the diagonal of a `width` by `height` rectangle, `hypot(width, height) / 2`.
+#[inline]
+pub fn half_diagonal(width: f64, height: f64) -> f64 {
+    width.hypot(height) / 2.0
+}
+
 /// A value of the unit interval on a byte: clamped to `[0, 1]`, times 255, rounded half away from
 /// zero; NaN gives `0`.
 #[inline]
@@ -34,6 +40,25 @@ pub fn unit_to_byte(value: f64) -> u8 {
 #[inline]
 pub fn unit_to_byte_f32(value: f32) -> u8 {
     (value.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+/// A byte on the unit interval, `b / 255`.
+#[inline]
+pub fn byte_to_unit(byte: u8) -> f64 {
+    f64::from(byte) / 255.0
+}
+
+/// `byte_to_unit` in single precision.
+#[inline]
+pub fn byte_to_unit_f32(byte: u8) -> f32 {
+    f32::from(byte) / 255.0
+}
+
+/// The slope `tan(fov / 2)` of a perspective camera's half field, `fov` in degrees: the half
+/// height of the image plane one unit ahead.
+#[inline]
+pub fn perspective_slope(fov_degrees: f64) -> f64 {
+    (fov_degrees.to_radians() * 0.5).tan()
 }
 
 /// The cubic Hermite basis at `w ∈ [0, 1]`, by `w² = w·w` and `w³ = w²·w`: the weights of the

@@ -46,7 +46,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
-import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
+import { ceilDiv, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -85,6 +85,10 @@ import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
+/** The share of an edge value's terms' magnitude the cover test allows for rounding, 2⁻²⁰. */
+const EDGE_SLACK = 2 ** -20
+/** The texels a cell comes in grown by in the cover tests, 2⁻¹⁰. */
+const CELL_GROWTH = 2 ** -10
 /** Texels a side of a cell. */
 const VSM_TRANSMISSION_CELL = 8
 /** Cells a side of a page. */
@@ -310,10 +314,6 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  if(build[VSM_T_STAMPS+key]!=frame.stamp){return VSM_T_NONE;}
  return key;
 }
-fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
- let y=u32(floor((f32(i)+0.5)/f32(size.x)));
- return rect.xy+vec2u(i-size.x*y,y);
-}
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
@@ -335,7 +335,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,((cmd.y>>19u)&1u)!=0u);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  if(vsmTPageKey(levelOffset,mip,vsmTRectPage(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
+  if(vsmTPageKey(levelOffset,mip,rectCell(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
  }
  workgroupBarrier();
  if(lane==0u){
@@ -347,7 +347,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  }
  let base=workgroupUniformLoad(&wgBase);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  let vPage=vsmTRectPage(rect,size,i);
+  let vPage=rectCell(rect,size,i);
   let key=vsmTPageKey(levelOffset,mip,vPage,markMask,slice);
   if(key==VSM_T_NONE){continue;}
   let at=base+atomicAdd(&wgFound,1u);
@@ -365,6 +365,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       frameWgsl(layout),
+      rectCell,
     ],
   )
 
@@ -381,12 +382,12 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  */
 const VSM_TRANSMISSION_EDGE_WGSL = wgslBlock(
   'VSM_TRANSMISSION_EDGE_WGSL',
-  [],
+  [edgeFunction],
   `
 fn vsmTEdge(a:vec2f,b:vec2f,p:vec2f)->f32{
  let swap=b.x<a.x||(b.x==a.x&&b.y<a.y);
  let lo=select(a,b,swap);let hi=select(b,a,swap);
- return (hi.x-lo.x)*(p.y-lo.y)-(hi.y-lo.y)*(p.x-lo.x);
+ return edgeFunction(lo,hi,p);
 }
 fn vsmTEdgeHolds(a:vec2f,b:vec2f,third:vec2f,p:vec2f)->bool{
  let side=vsmTEdge(a,b,third);
@@ -418,21 +419,21 @@ fn vsmTEdgeMeets(a:vec2f,b:vec2f,s:f32,lo:vec2f,hi:vec2f)->bool{
  let px=select(lo.x,hi.x,-s*d.y>0.0);
  let py=select(lo.y,hi.y,s*d.x>0.0);
  let u=d.x*(py-a.y);let v=d.y*(px-a.x);
- return s*(u-v)>=-(abs(u)+abs(v))*${2 ** -20};
+ return s*(u-v)>=-(abs(u)+abs(v))*${EDGE_SLACK};
 }
 fn vsmTCovers(a:vec2f,b:vec2f,c:vec2f,s:f32,lo:vec2f,hi:vec2f)->bool{
  return vsmTEdgeMeets(a,b,s,lo,hi)&&vsmTEdgeMeets(b,c,s,lo,hi)&&vsmTEdgeMeets(c,a,s,lo,hi);
 }
 /** The cells a box [lo, hi] grown by 2⁻¹⁰ texel meets, first and last, on the page. */
 fn vsmTCellRange(lo:vec2f,hi:vec2f)->vec4f{
- let grow=${2 ** -10};
+ let grow=${CELL_GROWTH};
  let c0=clamp(floor((lo-grow)/${VSM_TRANSMISSION_CELL}.0),vec2f(0.0),vec2f(${VSM_TRANSMISSION_CELLS - 1}.0));
  let c1=clamp(floor((hi+grow)/${VSM_TRANSMISSION_CELL}.0),vec2f(0.0),vec2f(${VSM_TRANSMISSION_CELLS - 1}.0));
  return vec4f(c0,c1);
 }
 /** Whether triangle (a, b, c) of orientation \`s\` may cover cell \`cell\`: the cell grown by 2⁻¹⁰. */
 fn vsmTCoversCell(a:vec2f,b:vec2f,c:vec2f,s:f32,cell:vec2f)->bool{
- let grow=${2 ** -10};
+ let grow=${CELL_GROWTH};
  let lo=cell*${VSM_TRANSMISSION_CELL}.0-grow;
  return vsmTCovers(a,b,c,s,lo,lo+${VSM_TRANSMISSION_CELL}.0+2.0*grow);
 }`,
@@ -1002,13 +1003,13 @@ fn vsmTHitOf(b0:u32,v:u32,r:VsmTReceiver)->VsmTHit{
  if(r.directional){
   let hit=dot(vsmTWeights(a,b,c,r.p),vec3f(t1.zw,bitcast<f32>(t2.x)));
   distance=hit-r.d;
-  if(!(distance>${2 ** -20}*max(abs(hit),abs(r.d)))){return none;}
+  if(!(distance>${EDGE_SLACK}*max(abs(hit),abs(r.d)))){return none;}
  }else{
   let n=vec3f(t1.zw,bitcast<f32>(t2.x));let w=bitcast<f32>(t2.y);
   let along=dot(n,r.at);
   if(along==0.0){return none;}
   distance=(along-w)/along;
-  if(!(distance>${2 ** -20}*max(length(r.at),abs(w))/abs(along))){return none;}
+  if(!(distance>${EDGE_SLACK}*max(length(r.at),abs(w))/abs(along))){return none;}
  }
  var q=t2.z;
  var through=vec3f(1.0);

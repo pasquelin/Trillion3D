@@ -4,7 +4,9 @@ import {
   copyMatrix4,
   determinantMatrix4,
   linearPartDeterminant,
+  linearStretchBound,
   multiplyMatrix4,
+  transposeMatrix4,
 } from './matrix4.ts'
 
 const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -84,4 +86,55 @@ test('copyMatrix4: the sixteen numbers land at their offsets, and the buffer giv
   assert.equal(copyMatrix4(out, m, 2), out)
   assert.deepEqual(out.subarray(2), m)
   assert.deepEqual([...out.subarray(0, 2)], [-1, -1])
+})
+
+test('transposeMatrix4: rows become columns, into another buffer or in place', () => {
+  const m = Float64Array.from({ length: 16 }, (_, i) => i)
+  const expected = [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]
+  assert.deepEqual([...transposeMatrix4(new Float64Array(16), m)], expected)
+  assert.deepEqual([...transposeMatrix4(m, m)], expected)
+})
+
+/** A column-major 4×4 from the rows of its linear part. */
+const fromRows = (r: number[][]) =>
+  Float64Array.from([...[0, 1, 2].flatMap((c) => [r[0][c], r[1][c], r[2][c], 0]), 7, 8, 9, 1])
+
+test('linearStretchBound: √(largest row sum × largest column sum) of the linear part', () => {
+  assert.equal(
+    linearStretchBound(
+      fromRows([
+        [2, 0, 0],
+        [0, 3, 0],
+        [0, 0, 4],
+      ]),
+    ),
+    4,
+  )
+  const shear = [
+    [1, 2, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ]
+  assert.equal(linearStretchBound(fromRows(shear)), 3)
+  // A quarter turn about z.
+  const turn = [
+    [0, -1, 0],
+    [1, 0, 0],
+    [0, 0, 1],
+  ]
+  assert.equal(linearStretchBound(fromRows(turn)), 1)
+})
+
+test('linearStretchBound: a row-major 3×4 copy at an offset gives the same bits', () => {
+  const rows = [
+    [0.3, -1.7, 0.2],
+    [2.9, 0.1, -0.6],
+    [-0.4, 0.8, 1.3],
+  ]
+  // Row sums 2.2, 3.6, 2.5; column sums 3.6, 2.6, 2.1: √(3.6 · 3.6) within an ulp of 3.6.
+  const columnMajor = fromRows(rows)
+  const rowMajor = Float64Array.from([5, 5, ...rows.flatMap((r, i) => [...r, i])])
+  const bound = linearStretchBound(columnMajor)
+  assert.ok(Math.abs(bound - 3.6) <= 4 * Number.EPSILON, String(bound))
+  assert.ok(Object.is(linearStretchBound(rowMajor, 2), bound))
 })

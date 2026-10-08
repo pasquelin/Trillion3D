@@ -1,7 +1,7 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
-import { interleavedGradient } from '../../../math/src/wgsl/sampling.ts'
+import { clampToExtent, interleavedGradient } from '../../../math/src/wgsl/sampling.ts'
 import {
   clipToUvUnflipped,
   ndcToUvUnflipped,
@@ -85,10 +85,11 @@ const BLENDED_PLANE_WGSL = wgslBlock(
     reflectionPlaneWgsl(SCREEN_REFLECTION_DEPTH),
     SCREEN_REFLECTION_DEPTH.depthAt,
     SCREEN_REFLECTION_DEPTH.size,
+    clampToExtent,
   ],
   `
 fn reflectionDepthClamped(p:vec2i)->f32{
- return reflectionDepthAt(clamp(p,vec2i(0),vec2i(reflectionSize())-vec2i(1)));
+ return reflectionDepthAt(clampToExtent(p,vec2i(reflectionSize())));
 }
 fn reflectionPlane(p:vec2i,z:f32)->vec3f{
  let left:f32=reflectionDepthClamped(p-vec2i(1,0));let right:f32=reflectionDepthClamped(p+vec2i(1,0));

@@ -1,4 +1,5 @@
 import { localFileGlobs } from './scripts/repository-files.ts'
+import { MATHS_FORMS, MATHS_HOME, MATHS_ORACLES } from './scripts/lint-maths.ts'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
@@ -20,6 +21,14 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
+    // The inline forms of a formula `packages/math` holds (`scripts/lint-maths.ts`), refused outside
+    // it and its declared oracles. A later block that sets `no-restricted-syntax` for its own files
+    // replaces these entries there, so it lists them too.
+    files: ['**/*.{ts,mts,tsx}'],
+    ignores: [MATHS_HOME, ...MATHS_ORACLES],
+    rules: { 'no-restricted-syntax': ['error', ...MATHS_FORMS] },
+  },
+  {
     files: ['site/app/**/*.tsx'],
     languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
     plugins: { react, 'react-hooks': reactHooks },
@@ -32,6 +41,7 @@ export default tseslint.config(
   },
   {
     files: ['site/app/**/*.{ts,tsx}'],
+    ignores: MATHS_ORACLES,
     rules: {
       // An effect returns its cleanup or nothing: an expression body returns whatever the
       // expression gives (`scrollTo` gives a promise), and React calls it at the next commit.
@@ -42,6 +52,7 @@ export default tseslint.config(
             'CallExpression[callee.name=/^use(Layout)?Effect$/] > ArrowFunctionExpression[expression=true]',
           message: 'An effect body is a block: it returns its cleanup or nothing.',
         },
+        ...MATHS_FORMS,
       ],
     },
   },
@@ -74,7 +85,7 @@ export default tseslint.config(
     // accessor in dictionary mode, a hash lookup per read (#26). The plan and the request reader
     // are read a few times a frame.
     files: ['packages/sdk-core/src/scene/light-shadow/*.ts'],
-    ignores: ['**/*.test.ts', '**/plan.ts', '**/requests.ts'],
+    ignores: ['**/plan.ts', '**/requests.ts', ...MATHS_ORACLES],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -83,6 +94,7 @@ export default tseslint.config(
           message:
             'A data field or a function, never an accessor: it puts the object in dictionary mode.',
         },
+        ...MATHS_FORMS,
       ],
     },
   },

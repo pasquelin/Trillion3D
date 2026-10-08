@@ -4,6 +4,7 @@ import { bufferPacker } from './gltf.ts'
 import type { GltfDocument, GltfMaterial, GltfNode, Primitive } from './gltf-types.ts'
 import { snapped, type Mesh } from './mesh.ts'
 import { snap } from './random.ts'
+import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
 
 type Colour = readonly [number, number, number]
 
@@ -96,6 +97,7 @@ export class SceneGltf {
 
 /** A turn of `angle` radians about +Y, as the quaternion a node's `rotation` takes, rounded. */
 export const yaw = (angle: number) =>
-  [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)].map(
+  Array.from(
+    axisAngleQuaternion(new Float64Array(4), [0, 1, 0], angle),
     (value) => Math.round(snap(value) * 1e6) / 1e6,
   )

@@ -7,6 +7,8 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { TAU } from '../../packages/math/src/constants.ts'
+import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
 
 export const compiler = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
@@ -148,13 +150,13 @@ export function world(side: number, district?: string) {
   })
   const nodes: object[] = []
   for (let i = 0; i < side * side; i++) {
-    const yaw = (i * 2.399963) % (2 * Math.PI),
+    const yaw = (i * 2.399963) % TAU,
       scale = 0.75 + ((i * 7) % 10) / 20
     nodes.push({
       name: `${KINDS[i % 3].name} ${i}`,
       mesh: i % 3,
       translation: [(i % side) * SPACING, 0, Math.floor(i / side) * SPACING],
-      rotation: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)],
+      rotation: Array.from(axisAngleQuaternion(new Float64Array(4), [0, 1, 0], yaw)),
       scale: [scale, scale, scale],
     })
   }

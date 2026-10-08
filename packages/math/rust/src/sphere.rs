@@ -1,5 +1,5 @@
 //! Bounding spheres `[x, y, z, radius]` in `f64`, a negative radius for an empty one. The merge is
-//! the recurrence of `growSphere` (`packages/sdk-browser/src/page/cut/bounds.ts`): sequential and
+//! the recurrence of `sphereUnion` (`packages/math/src/geometry/sphere.ts`): sequential and
 //! not commutative, so `enclosing_sphere` neither reorders nor splits its list.
 
 use crate::vec3::{length, sub};

@@ -1,7 +1,7 @@
 import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
+import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../math/src/wgsl/constants.ts'
 
 /** Bytes of one bloom uniform slot; slots lie the device's `uniformStride` apart, the alignment
  *  of their dynamic offsets. */
@@ -61,9 +61,9 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
  */
 export const BLOOM_COMPOSE_WGSL = wgslBlock(
   'BLOOM_COMPOSE_WGSL',
-  [bloomLevelWgsl(1), FINITE_SENTINEL],
-  `fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(65520.0);
-return select(v*FINITE_SENTINEL,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-65504.0),vec4f(65504.0))),held);}`,
+  [bloomLevelWgsl(1), FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW],
+  `fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(HALF_OVERFLOW);
+return select(v*FINITE_SENTINEL,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-HALF_MAX),vec4f(HALF_MAX))),held);}`,
 )
 
 /** The layout of a level's group, one per device: the bloom's passes and the composition that

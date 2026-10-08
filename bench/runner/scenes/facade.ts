@@ -20,6 +20,7 @@ import { join, resolve } from 'node:path'
 import { parseArgs } from '../harness/options.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../site/examples/kit/random.ts'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts'
 import { facadeTexture } from './facadeTexture.ts'
 
@@ -27,8 +28,6 @@ const TEXTURE_FILE = 'facade-checker.png'
 
 /** Between two and four hundred thousand triangles, the count drawn from the seed like the rest. */
 export const defaultTriangles = (seed: number) => 200_000 + Math.round(mulberry32(seed)() * 200_000)
-
-const aligned = (value: number) => (value + 3) & ~3
 
 /** The glTF of a block: one mesh, one primitive per wall, one material over the checker. */
 export function facadeGltf(walls: WallMesh[]) {
@@ -38,7 +37,7 @@ export function facadeGltf(walls: WallMesh[]) {
     primitives: Record<string, unknown>[] = []
   let offset = 0
   const push = (data: ArrayBufferView, target: number) => {
-    const start = aligned(offset),
+    const start = alignUp(offset, 4),
       bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
     if (start > offset) chunks.push(Buffer.alloc(start - offset))
     chunks.push(bytes)

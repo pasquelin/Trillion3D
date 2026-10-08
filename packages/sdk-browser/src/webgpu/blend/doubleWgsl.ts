@@ -1,5 +1,6 @@
 import { DOUBLE_WORDS_WGSL } from './doubleWordsWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { lowBits, wideProduct } from '../../../../math/src/wgsl/integer.ts'
 /**
  * DOUBLE-PRECISION ARITHMETIC ON THE GPU, IN INTEGERS.
  *
@@ -20,7 +21,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const DOUBLE_WGSL = wgslBlock(
   'DOUBLE_WGSL',
-  [DOUBLE_WORDS_WGSL],
+  [DOUBLE_WORDS_WGSL, lowBits, wideProduct],
   `
 /**
  * The double nearest \`m·2^(scale−1078)\`, ties to even. \`m\` carries the significand and three bits
@@ -100,7 +101,7 @@ fn dMul(a:vec2u,b:vec2u)->vec2u{
  // Its leading bit is 104 or 105: shifted right by 49 or 50, it stands at 55.
  let shift=select(17u,18u,(upper.x>>9u)!=0u);
  var m=vec2u((upper.y>>shift)|(upper.x<<(32u-shift)),(lower.y>>shift)|(upper.y<<(32u-shift)));
- if(low.y!=0u||(lower.y&((1u<<shift)-1u))!=0u){m.y=m.y|1u;}
+ if(low.y!=0u||(lower.y&lowBits(shift))!=0u){m.y=m.y|1u;}
  return dRound(sign,scale+i32(shift)-17,m);
 }
 /**

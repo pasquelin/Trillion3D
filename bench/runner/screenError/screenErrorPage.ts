@@ -5,6 +5,7 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { posterCapture } from '../harness/measurePage.ts'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 export interface HoldOptions {
   sdkUrl: string
@@ -57,7 +58,7 @@ export async function holdAndCapture(o: HoldOptions) {
     }
     const file = `${o.tag}-${view}`
     const text = new TextEncoder().encode(backend.selectedClusterIds().join('\n'))
-    const padded = new Uint8Array(Math.ceil(text.length / 4) * 4 || 4).fill(10)
+    const padded = new Uint8Array(alignUp(text.length, 4) || 4).fill(10)
     padded.set(text)
     await capture(`${file}.ids`, padded)
     rows.push({ view, held, canvas: [canvas.width, canvas.height] })

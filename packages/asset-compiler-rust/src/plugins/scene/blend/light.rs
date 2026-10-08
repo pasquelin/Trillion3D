@@ -19,6 +19,7 @@
 //! receives none: the engine contract refuses any envelope to a lamp that has neither centre nor
 //! range.
 use super::*;
+use trillion3d_math::scalar::half_diagonal;
 
 /// The object type that holds a lamp.
 pub(super) const OB_LAMP: i64 = 10;
@@ -126,7 +127,7 @@ fn area_radius(lamp: &At<'_>) -> f64 {
     match lamp.int("area_shape", LA_AREA_SQUARE) {
         LA_AREA_DISK => x / 2.0,
         LA_AREA_ELLIPSE => x.max(y) / 2.0,
-        LA_AREA_SQUARE => x.hypot(x) / 2.0,
-        _ => x.hypot(y) / 2.0,
+        LA_AREA_SQUARE => half_diagonal(x, x),
+        _ => half_diagonal(x, y),
     }
 }

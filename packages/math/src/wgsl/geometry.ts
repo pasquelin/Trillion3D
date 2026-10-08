@@ -1,4 +1,5 @@
 import { wgslFn } from './decl.ts'
+import { DIVISOR_FLOOR } from './constants.ts'
 
 /**
  * Triangles, planes and rays, as the shaders compute them. A plane is a `vec4f`, its normal in
@@ -72,12 +73,21 @@ export const sphereBehindPlane = wgslFn(
   'fn sphereBehindPlane(plane:vec4f,centre:vec3f,radius:f32)->bool{return planeDistance(plane,centre)< -radius;}',
 )
 
-/** The reciprocal of a ray's direction for the slab test, a component under 1e-20 in magnitude
- *  taken as +1e-20: no division in a traversal's loop, and no infinity on a zero axis. */
+/** The half extents `e` of a box carried by the linear part of `world`: per axis the absolute
+ *  columns against them, `|world[0]|·e.x + |world[1]|·e.y + |world[2]|·e.z` (`transformHalfExtent`
+ *  of `../geometry/box.ts`). */
+export const transformHalfExtent = wgslFn(
+  'transformHalfExtent',
+  [],
+  'fn transformHalfExtent(world:mat4x4f,e:vec3f)->vec3f{return abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;}',
+)
+
+/** The reciprocal of a ray's direction for the slab test, a component under `DIVISOR_FLOOR` (1e-20)
+ *  in magnitude taken as +1e-20: no division in a traversal's loop, and no infinity on a zero axis. */
 export const rayInverseDirection = wgslFn(
   'rayInverseDirection',
-  [],
-  'fn rayInverseDirection(direction:vec3f)->vec3f{return vec3f(1.0)/select(direction,vec3f(1e-20),abs(direction)<vec3f(1e-20));}',
+  [DIVISOR_FLOOR],
+  'fn rayInverseDirection(direction:vec3f)->vec3f{return vec3f(1.0)/select(direction,vec3f(DIVISOR_FLOOR),abs(direction)<vec3f(DIVISOR_FLOOR));}',
 )
 
 /** The slab test (`../geometry/slab.ts`, which divides where this multiplies by the reciprocal):

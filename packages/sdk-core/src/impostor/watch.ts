@@ -28,8 +28,7 @@
  * alone; a new root list, section, focal length or frustum shape, or a view no longer rigid, reads
  * every root once.
  */
-import { hypot3 } from '../../../math/src/float/hypot.ts'
-import { keepNumbers } from '../../../math/src/vector/vector.ts'
+import { keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorRoot } from './plan.ts'
@@ -257,8 +256,8 @@ const gap = { travel: 0, chord: 0 }
 function apart(eye: Float64Array, forward: Float64Array, to: Anchor) {
   const e = to.eye,
     f = to.forward
-  gap.travel = hypot3(eye[0] - e[0], eye[1] - e[1], eye[2] - e[2])
-  gap.chord = hypot3(forward[0] - f[0], forward[1] - f[1], forward[2] - f[2])
+  gap.travel = length3(eye[0] - e[0], eye[1] - e[1], eye[2] - e[2])
+  gap.chord = length3(forward[0] - f[0], forward[1] - f[1], forward[2] - f[2])
   return gap
 }
 
@@ -356,7 +355,7 @@ function onDistance(c: number, a: number, b: number, rho: number) {
 function onBound(s: State, reading: Reading, rank: number, a: number, b: number) {
   const world = s.roots![rank].world.elements,
     centre = reading.table.entries[rank]?.centre ?? [0, 0, 0]
-  const offset = hypot3(
+  const offset = length3(
     world[0] * centre[0] + world[4] * centre[1] + world[8] * centre[2],
     world[1] * centre[0] + world[5] * centre[1] + world[9] * centre[2],
     world[2] * centre[0] + world[6] * centre[1] + world[10] * centre[2],
@@ -394,7 +393,7 @@ function read(s: State, reading: Reading, rank: number) {
   }
   const a = table.texelDepth[rank],
     b = table.triangleDepth[rank],
-    d = hypot3(point[0], point[1], point[2])
+    d = length3(point[0], point[1], point[2])
   const never = Math.max(a, b) * (1 - SAFE),
     always = onBound(s, reading, rank, a, b)
   if (d < never) {

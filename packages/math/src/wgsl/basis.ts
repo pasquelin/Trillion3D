@@ -7,7 +7,7 @@ import { wgslFn, wgslStruct } from './decl.ts'
  * a unit axis, branchless, and the moves into and out of it.
  */
 
-export const tangentAround = wgslFn(
+const tangentAround = wgslFn(
   'tangentAround',
   [],
   `fn tangentAround(v:vec3f)->vec3f{
@@ -68,6 +68,13 @@ export const frameAround = wgslFn(
  let b=axis.x*axis.y*a;
  return Frame3(vec3f(1.0+s*a*axis.x*axis.x,s*b,-s*axis.x),vec3f(b,s+a*axis.y*axis.y,-axis.y),axis);
 }`,
+)
+
+/** The frame of `tangentAround(N)`: its `x` that tangent, its `y` `cross(N, x)`, its `z` `N`. */
+export const tangentFrame = wgslFn(
+  'tangentFrame',
+  [Frame3, tangentAround],
+  'fn tangentFrame(N:vec3f)->Frame3{let T=tangentAround(N);return Frame3(T,cross(N,T),N);}',
 )
 
 /** The vector `v` in the frame `m`: its dot with each of the frame's rows. */

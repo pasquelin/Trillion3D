@@ -1,3 +1,4 @@
+import { HALF_PI, TAU } from '../../../packages/math/src/constants.ts'
 import { bottom, createWorkshop, top, type Part } from './geometry.ts'
 
 /** Name, glTF base color RGBA, metallic factor, roughness factor. */
@@ -49,8 +50,8 @@ export function createObservatory() {
   const cornice = w.block(1, [-3, top(body), lanternZ], [7.4, 0.24, 4.4])
   const drum = w.turned(1, [-3, top(cornice), lanternZ], 2.1, 1.1, 24)
   const dome = w.patch(2, 128, 32, (u, v) => {
-    const a = u * Math.PI * 2,
-      b = (v * Math.PI) / 2
+    const a = u * TAU,
+      b = v * HALF_PI
     const r = 2.35 * Math.cos(b) * (1 + 0.025 * Math.cos(24 * a))
     return [-3 + r * Math.cos(a), top(drum) + 2.7 * Math.sin(b), lanternZ - r * Math.sin(a)]
   })
@@ -81,7 +82,7 @@ export function createObservatory() {
     center = [0.6, bottom(stem) + ringRadius, 0.2]
   for (const tilt of [0, 0.75, 1.5]) w.ring(3, center, ringRadius, 0.075, tilt)
   w.patch(2, 96, 48, (u, v) => {
-    const a = u * Math.PI * 2,
+    const a = u * TAU,
       b = (1 - v) * Math.PI
     const r = 0.83 + 0.045 * Math.sin(a * 18) * Math.sin(b * 10)
     return [

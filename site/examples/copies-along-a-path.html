@@ -53,7 +53,7 @@
       // the path (yaw), tipped with its slope (pitch). The roll about the path is the copy's own.
       const pose = (share) => {
         const t = parameterAt(share), at = path.getPoint(t), along = path.getTangent(t);
-        return { at, yaw: Math.atan2(along.x, along.z), pitch: -Math.asin(Math.max(-1, Math.min(1, along.y))) };
+        return { at, yaw: Math.atan2(along.x, along.z), pitch: -Math.asin(math.clamp(along.y, -1, 1)) };
       };
       const place = (mesh, share, roll = 0, lift = 0) => {
         const { at, yaw, pitch } = pose(share);

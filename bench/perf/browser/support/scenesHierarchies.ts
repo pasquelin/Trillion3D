@@ -8,6 +8,8 @@ import * as THREE from 'three'
 import { xorshiftRandom } from '../../../core/index.ts'
 import { dansDe } from './scenesCore.ts'
 import { boxes } from './scenesVolumes.ts'
+import { length3 } from '../../../../packages/math/src/vector/vector.ts'
+import { HALF_PI } from '../../../../packages/math/src/constants.ts'
 
 const alea = xorshiftRandom(60617)
 const dans = dansDe(alea)
@@ -116,12 +118,12 @@ export const hierarchicalCones = hierarchicalBoxes.map(([b, m], i) => {
   const e = world.elements
   return {
     axe: [dans(1), dans(1), dans(1)],
-    angle: alea() * (Math.PI / 2),
+    angle: alea() * HALF_PI,
     min: b.slice(0, 3),
     max: b.slice(3, 6),
     world,
     normal: new THREE.Matrix3().getNormalMatrix(world),
-    scale: Math.hypot(e[0], e[1], e[2]),
+    scale: length3(e[0], e[1], e[2]),
     eye: hierarchicalViews[i % hierarchicalViews.length].eye,
   }
 })

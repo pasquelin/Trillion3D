@@ -1,4 +1,5 @@
 import { GRID_TOLERANCE } from '../../frame/refreshClock.ts'
+import { snap } from '../../../../math/src/scalar/reals.ts'
 
 /** Intervals in a row that must sit on the display's grid before a frame's time is put on it: one
  *  interval landing there by chance — a variable-refresh display presenting whenever a frame is
@@ -137,7 +138,7 @@ function frame(s: GridState, grid: GridTime, now: number) {
       grid.delta = 0
       return
     }
-    s.run = Math.abs(gap - Math.round(gap / period) * period) <= tolerance ? s.run + 1 : 0
+    s.run = Math.abs(gap - snap(gap, period)) <= tolerance ? s.run + 1 : 0
     s.seen = now
     if (s.run >= RECENT) {
       const k = Math.round((now - s.start) / period),

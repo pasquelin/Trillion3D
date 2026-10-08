@@ -15,10 +15,13 @@ import { ROW_DASH_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { floorMod } from '../../../../math/src/wgsl/reals.ts'
 
 type Dash = (at: number, dash: number[]) => boolean
 const DASHES: Record<string, Dash> = {
-  wgsl: runShaderText<boolean>(wgslSource(LINE_DASH_WGSL)),
+  wgsl: runShaderText<boolean>(LINE_DASH_WGSL.text, {
+    floorMod: runShaderText<number>(floorMod.text),
+  }),
   cpu: (at, [dashSize, gapSize]) => lineDash(at, dashSize, gapSize),
 }
 

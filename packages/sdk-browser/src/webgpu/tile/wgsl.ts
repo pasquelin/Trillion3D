@@ -20,6 +20,8 @@ import {
   samplingFootprintWgsl,
 } from '../../texture/samplingFootprint.ts'
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
 const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
@@ -81,7 +83,16 @@ const tilePoolWgsl = (mipBias: string) => {
   const lod = atlasLodWgsl(mipBias)
   return wgslBlock(
     'tilePoolWgsl',
-    [WRAP_COORD_WGSL, SAMPLING_WGSL, TILE_SLOT_WGSL, lod, samplingFootprintWgsl(lod)],
+    [
+      WRAP_COORD_WGSL,
+      SAMPLING_WGSL,
+      TILE_SLOT_WGSL,
+      unitToSigned2,
+      lowHalf,
+      highHalf,
+      lod,
+      samplingFootprintWgsl(lod),
+    ],
     `const TEXEL_TILE:f32=${TILE_SIZE}.0;
 const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
@@ -93,7 +104,7 @@ const PAGE_LEVELS:u32=${MAX_LEVELS}u;
 const PAGE_TRANSFORM:u32=${PAGE_TRANSFORM_WORD}u;
 struct TileTap{uv:vec2f,layer:i32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
-fn rebuiltZ(xy:vec2f)->f32{let n=xy*2.0-1.0;return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
+fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}
 /** LOD a footprint asks of a texture, clamped to its levels: the single rule for choosing a level
  *  of a texture at the default filters, for the read as for the request. */
 fn slotLod(s:TileSlot,ddx:vec2f,ddy:vec2f)->f32{return clamp(atlasLod(ddx*s.size,ddy*s.size),0.0,f32(s.last));}
@@ -109,7 +120,7 @@ fn poolTap(origin:vec2f,texel:vec2f,layer:i32)->TileTap{return TileTap(vec2f(poo
 fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
 fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&${AXIS_MASK}u),f32((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u))*TEXEL_PITCH+TEXEL_BORDER;}
 fn placeLayer(word:u32)->i32{return i32((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}
-fn sizeOf(word:u32)->vec2f{return vec2f(f32(word&0xffffu),f32(word>>16u));}
+fn sizeOf(word:u32)->vec2f{return vec2f(f32(lowHalf(word)),f32(highHalf(word)));}
 /** Size of a level, \`max(size >> level, 1)\` as the CPU lays it out (\`../../texture/tiles.ts\`): the
  *  size times 2^-level built from its exponent bits — exact, where \`exp2\` may stray by ULPs —, 0
  *  from level 127 on, as the division by 2^level gave. */

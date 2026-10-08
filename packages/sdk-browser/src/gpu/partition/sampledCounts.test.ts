@@ -95,7 +95,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   }
   const partition = shaderRun<Record<string, Fn>>(
     PARTITION_SHADER,
-    ['projectRow', 'classifyRow', ...own],
+    ['projectRow', 'classifyRow', 'bitWord', 'bitMask', ...own],
     {
       ...scope,
       uni: { ...uni, viewMoved: frame.viewMoved, levelOffset: levels, levelWidth: levels },

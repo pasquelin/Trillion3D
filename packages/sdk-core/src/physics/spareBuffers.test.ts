@@ -2,13 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandWriter } from './commands.ts'
 import { SpareBuffers } from './spareBuffers.ts'
+import { lcgImulWord } from '../../../math/src/sequence/seeded.fixture.ts'
 
 /** NaN, -NaN, ±0, ±Inf and the largest finite float, as a frame's command words can carry. */
 const EDGES = [0x7fc00000, 0xffc00001, 0, 0x80000000, 0x7f800000, 0xff800000, 0x7f7fffff]
 
 test('a take carries the words develop copied out, in a buffer handed back when one holds them', () => {
-  let seed = 7
-  const next = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0)
+  const next = lcgImulWord(7)
   const writer = new CommandWriter()
   const inFlight: ArrayBuffer[] = []
   const seen = new Set<ArrayBuffer>()

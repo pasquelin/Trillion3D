@@ -164,7 +164,7 @@
         savePng: () => savePicture(),
       }, (values, key) => {
         if (key === undefined || key === 'sunHeight') {
-          const rise = (values.sunHeight * Math.PI) / 180;
+          const rise = math.degToRad(values.sunHeight);
           sun.position.set(Math.cos(rise) * 12, Math.sin(rise) * 20, Math.cos(rise) * 9);
           sun.color.set('#ff9a5c').lerp(math.color('#fff4e4'), Math.min(1, values.sunHeight / 40));
         }

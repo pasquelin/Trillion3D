@@ -3,7 +3,7 @@ import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -73,7 +73,7 @@ export const drawShader = (layerSlots: number) => {
 @group(0) @binding(7) var<storage, read> restBits:array<u32>;
 @group(0) @binding(8) var<storage, read> slotUsed:array<u32>;
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
-fn restAt(i:u32)->u32{return (restBits[i>>5u]>>(i&31u))&1u;}
+fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
 fn selected(item:DrawItem)->bool{
  if(uni.selectionEnabled==0u){return true;}
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
@@ -169,6 +169,6 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
 `,
-    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL, ceilDiv],
+    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL, ceilDiv, bitWord, bitAt],
   )
 }

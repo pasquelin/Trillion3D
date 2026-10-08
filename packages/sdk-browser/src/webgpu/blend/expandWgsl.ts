@@ -8,6 +8,7 @@ import { EXPAND_BINDING as B } from './expandBindings.ts'
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -62,7 +63,7 @@ export const BLEND_EXPAND_SHADER = wgslProgram(
 @group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
-fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
+fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
  *  primitive carries, nothing at all if the frustum rejected its item. */
 fn instancesOf(i:u32)->u32{
@@ -151,5 +152,5 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  args[o+3u]=0u;
 }
 `,
-  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL],
+  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL, bitWord, bitIsSet],
 )

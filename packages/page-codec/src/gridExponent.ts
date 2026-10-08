@@ -7,6 +7,8 @@
  */
 import { UV_EXPONENT } from './geometryPage.ts'
 import { MAX_BITS, MAX_EXPONENT } from './pageGrids.ts'
+import { clamp, clampLowWins } from '../../math/src/scalar/reals.ts'
+import { floorLog2 as integerFloorLog2 } from '../../math/src/scalar/integers.ts'
 
 /** A tile spans 2^1 = 2 m of the world. */
 const TILE_EXTENT_LOG2 = 1
@@ -16,7 +18,7 @@ const LN2_STEPS = [0, 1, 2, 5, 11, 22, 44, 88, 177, 354, 709]
 const ln2Steps = (p: number) => LN2_STEPS[p] ?? 0
 
 /** The `p` of the spacing 2^(p-52) of the doubles between `e` and `e + 1` (`spacing`). */
-const spacing = (e: number) => 31 - Math.clz32(e >= 0 ? e : -e - 1)
+const spacing = (e: number) => integerFloorLog2(e >= 0 ? e : -e - 1)
 
 const bits = new DataView(new ArrayBuffer(8))
 
@@ -52,7 +54,6 @@ function ceilLog2(x: number): number {
   const [e, f] = split(x)
   return f === 0 ? e : e + 1 - Number(f <= ln2Steps(spacing(e) - 1))
 }
-const clamp = (x: number) => Math.min(MAX_EXPONENT, Math.max(-MAX_EXPONENT, x))
 
 /** `metres` in the object units of a primitive the largest world `scale` places; a missing, zero
  *  or non-finite scale leaves it as is (`object_units`). */
@@ -66,7 +67,8 @@ export const tileLog2 = (scale: number | null) =>
 /** The finest grid on which a positive `span` fits a page's field: at most 2^23 steps; a NaN or
  *  a negative span 2^-23, a zero the finest grid, an infinite one the coarsest
  *  (`finest_exponent`). */
-const finestExponent = (span: number) => clamp(ceilLog2(span) - (MAX_BITS - 1))
+const finestExponent = (span: number) =>
+  clamp(ceilLog2(span) - (MAX_BITS - 1), -MAX_EXPONENT, MAX_EXPONENT)
 
 /** The grid of a primitive: its widest extent, capped at its tile, in 2^16 steps, or an eighth of
  *  its DAG's finest error, the finer, never finer than `finestExponent` (`grid_exponent`). */
@@ -76,7 +78,7 @@ function gridExponent(extent: number, finestError: number | null, tile: number) 
     finest = positive ? finestExponent(extent) : -(MAX_BITS - 2)
   const byExtent = Math.min(widest, tile) - 16
   const byError = finestError === null ? byExtent : floorLog2(finestError / 8)
-  return clamp(Math.max(Math.min(byExtent, byError), finest))
+  return clamp(clampLowWins(byExtent, finest, byError), -MAX_EXPONENT, MAX_EXPONENT)
 }
 
 /** A `blended` primitive's grid is the finest its pages hold; any other's `gridExponent`

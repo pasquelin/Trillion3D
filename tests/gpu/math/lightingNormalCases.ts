@@ -4,6 +4,8 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { Vec3 } from '../kit/vecTypes.ts'
 import { DROPOUT_DEG, normalVerdict } from './inverseTransposeF32.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
+import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
 
 /** The `scale ∘ rotation` pose `worldPose` and `lightingCase` take. */
 export interface PoseParams {
@@ -38,7 +40,7 @@ export interface GpuRow {
 }
 
 /** Rec. 709 luminance: a lit colour compared by a single number. */
-export const luminance = ([r, g, b]: number[]): number => 0.2126 * r + 0.7152 * g + 0.0722 * b
+export const luminance = ([r, g, b]: number[]): number => luminanceOf(r, g, b)
 
 /** The light and material every case is lit with. */
 export const LIT_MATERIAL = { light: [0.3, 0.8, 0.5, 3], metal: 0.1, roughness: 0.4 }
@@ -53,7 +55,7 @@ export function worldPose({ s, kind, axis, angleDeg }: PoseParams): G.Matrix4 {
   const scale = kind === 'uniform' ? [s, s, s] : [s, s * 1.7, s * 0.6]
   const rotation = new G.Quaternion().setFromAxisAngle(
     new G.Vector3(...axis).normalize(),
-    (angleDeg * Math.PI) / 180,
+    angleDeg * DEG2RAD,
   )
   return new G.Matrix4().compose(new G.Vector3(), rotation, new G.Vector3(...scale))
 }

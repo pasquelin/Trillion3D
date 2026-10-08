@@ -4,12 +4,14 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { batisseur, square } from '../kit/sharedSceneProof.ts'
 import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts'
+import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 export { BACKGROUND }
 export const SIZE: [number, number] = [1280, 720]
 const DISTANCE = 3
 const MOTION_PIXELS = 8
-const HALF_Y = DISTANCE * Math.tan((55 * Math.PI) / 360)
+const HALF_Y = DISTANCE * perspectiveSlope(55)
 const HALF_X = (HALF_Y * SIZE[0]) / SIZE[1]
 
 /** Full coverage includes only the horizontal padding the camera's translation requires. */
@@ -77,7 +79,7 @@ export function waterCostCamera() {
 
 /** The motion translates eight screen pixels, without rotating or changing projected scale. */
 export function poseWaterCost(camera: G.Camera, frame: number, moving: boolean) {
-  const offsetPixels = moving ? MOTION_PIXELS * Math.sin((frame * Math.PI) / 30) : 0
+  const offsetPixels = moving ? MOTION_PIXELS * Math.sin((frame * TAU) / 60) : 0
   const x = (offsetPixels / SIZE[0]) * 2 * HALF_X
   camera.position.set(x, 0, DISTANCE)
   camera.lookAt(x, 0, 0)

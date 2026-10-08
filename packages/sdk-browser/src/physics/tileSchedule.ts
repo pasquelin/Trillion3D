@@ -7,6 +7,7 @@ import { createTileKeeps } from './tileKeeps.ts'
 import { createTileReads } from './tileReads.ts'
 import type { createResidentTiles } from './tileResident.ts'
 import { moversOf, nearness, selectNearest, type Placed, type TileShape } from './tilePlace.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** Tile bodies one update builds at most, nearest first: each an ADD in the worker's next step, so
  *  an eye arriving among a thousand placements of a resident tile adds them over frames. */
@@ -85,7 +86,7 @@ export class TileSchedule {
       wanted = this.wanted,
       wants = this.wants,
       pass = this.pass,
-      near = Math.min(wants, Math.max(slots, 0))
+      near = clamp(slots, 0, wants)
     if (near < wants) selectNearest(wanted, wants, near)
     for (let i = 0; i < near; i++) wanted[i].shape.slotted = pass
     let bytes = free

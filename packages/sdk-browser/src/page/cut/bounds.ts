@@ -1,3 +1,4 @@
+import { sphereUnion } from '../../../../math/src/geometry/sphere.ts'
 import type { ClusterCut } from '../selection/math.ts'
 
 /**
@@ -25,49 +26,6 @@ export const OWN_FLOOR = 0,
    *  (`../../gpu/dag/hierarchy.ts`). */
   HAS_ROOT = 9
 
-/** Grows the bounding sphere stored at `at` to cover the one read at `from`.
- *  Negative radius: accumulator still empty. */
-/** TypeScript mirror of the incremental sphere merge in `packages/math/rust/src/sphere.rs`: the
- *  same recurrence, two languages, nothing to share between the two code stores. */
-export function growSphere(
-  into: Float64Array,
-  at: number,
-  sphere: ArrayLike<number>,
-  from: number,
-) {
-  const radius = sphere[from + 3]
-  if (!(radius >= 0)) return
-  const cx = sphere[from],
-    cy = sphere[from + 1],
-    cz = sphere[from + 2]
-  const held = into[at + 3]
-  if (!(held >= 0)) {
-    into[at] = cx
-    into[at + 1] = cy
-    into[at + 2] = cz
-    into[at + 3] = radius
-    return
-  }
-  const dx = cx - into[at],
-    dy = cy - into[at + 1],
-    dz = cz - into[at + 2]
-  const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-  if (distance + radius <= held) return
-  if (distance + held <= radius) {
-    into[at] = cx
-    into[at + 1] = cy
-    into[at + 2] = cz
-    into[at + 3] = radius
-    return
-  }
-  const next = (distance + held + radius) * 0.5,
-    ratio = (next - held) / distance
-  into[at] += dx * ratio
-  into[at + 1] += dy * ratio
-  into[at + 2] += dz * ratio
-  into[at + 3] = next
-}
-
 /** Folds a cluster into the bounds of its leaf node. */
 function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   const own = rec.lodError,
@@ -75,7 +33,7 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   // Cluster with no error band: the node no longer certifies a rejection.
   if (own === undefined || own === null) values[at + OWN_FLOOR] = 0
   else if (own < values[at + OWN_FLOOR]) values[at + OWN_FLOOR] = own
-  if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0)
+  if (sphere) sphereUnion(values, at + OWN_SPHERE, sphere, 0)
   // A cluster that nothing replaces projects to infinity: its band bounds nothing.
   const parent = rec.parentError
   if (parent === undefined || parent === null || !Number.isFinite(parent)) {
@@ -83,15 +41,15 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
     return
   }
   const band = rec.parentSphere ?? sphere
-  if (band) growSphere(values, at + PARENT_SPHERE, band, 0)
+  if (band) sphereUnion(values, at + PARENT_SPHERE, band, 0)
 }
 
 /** Folds a child node into its parent's bounds. */
 function foldChild(values: Float64Array, at: number, from: number) {
   if (values[from + OWN_FLOOR] < values[at + OWN_FLOOR])
     values[at + OWN_FLOOR] = values[from + OWN_FLOOR]
-  growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE)
-  growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE)
+  sphereUnion(values, at + OWN_SPHERE, values, from + OWN_SPHERE)
+  sphereUnion(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE)
   if (values[from + HAS_ROOT] === 1) values[at + HAS_ROOT] = 1
 }
 

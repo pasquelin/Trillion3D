@@ -31,7 +31,7 @@ export {
   transformDirectionVector3,
   transformHomogeneousPoint,
 } from './vector/vector.ts'
-export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './color/color.ts'
+export { hslToRgb, linearToSrgb, srgbToLinear } from './color/color.ts'
 export {
   BOX_VALUES,
   boxCornersInto,
@@ -92,6 +92,6 @@ export {
   normalizeQuaternion,
   rotateByQuaternion,
 } from './quaternion/quaternion.ts'
-// The scalar helpers and the other constants are engine internals, deep-imported by their users;
-// only `HALF_PI` was public before they had a home.
-export { HALF_PI } from './constants.ts'
+// `HALF_PI` and `PI` are public; the scalar helpers and the other constants are engine internals,
+// deep-imported by their users.
+export { HALF_PI, PI } from './constants.ts'

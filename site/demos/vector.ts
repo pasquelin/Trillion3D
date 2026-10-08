@@ -1,9 +1,12 @@
 /** Vector and colour demos: the engine function runs on what the reader sets, live. */
 import {
+  RAD2DEG,
   addScaledVector3,
+  clamp,
   copyScaledVector3,
   crossVector3,
   dotVector3,
+  length3,
   lengthSqVector3,
   normalizeVector3,
   scaleVector3,
@@ -38,10 +41,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
           ['a', show(a)],
           ['b', show(b)],
           ['dotVector3(a, b)', formatNumber(dot)],
-          [
-            'angle between them',
-            `${formatNumber((Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI)}°`,
-          ],
+          ['angle between them', `${formatNumber(Math.acos(clamp(cosine, -1, 1)) * RAD2DEG)}°`],
         ]),
         canvasView('a and b, seen from above (x to the right, z down)', (context, width, height) =>
           drawVectors(context, width, height, [
@@ -63,7 +63,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
       return [
         valueView('what the engine returns', [
           ['crossVector3(out, a, b)', show(out)],
-          ['its length', formatNumber(Math.sqrt(lengthSqVector3(out)))],
+          ['its length', formatNumber(length3(out[0], out[1], out[2]))],
           ['out = a, aliased', show(aliased)],
         ]),
         canvasView('a, b and their cross product, from above', (context, width, height) =>
@@ -92,7 +92,10 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
           ['lengthSqVector3(v)', formatNumber(squared)],
           ['Math.sqrt of it — the reference length, bit for bit', formatNumber(Math.sqrt(squared))],
           ['normalizeVector3(v)', show(normalized)],
-          ['length of the normalised vector', formatNumber(Math.sqrt(lengthSqVector3(normalized)))],
+          [
+            'length of the normalised vector',
+            formatNumber(length3(normalized[0], normalized[1], normalized[2])),
+          ],
         ]),
       ]
     },
@@ -111,7 +114,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
         valueView('in place', [
           ['before', before],
           ['after', show(v)],
-          ['length', formatNumber(Math.sqrt(lengthSqVector3(v)))],
+          ['length', formatNumber(length3(v[0], v[1], v[2]))],
         ]),
         valueView('the zero vector', [
           ['note', 'all three at zero: nothing changes — the divisor is `length || 1`'],

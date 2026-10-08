@@ -3,6 +3,8 @@
 // drapes and end walls, open to the sky over the court. Synthetic: it stands for sponza's depth
 // (near columns in front of far walls in the same tiles), never for its image. `atriumDepth`
 // ray-casts it as the engine's depth buffer holds it — reverse-Z, infinite far, 0 on the sky.
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
+import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { mulberry32 } from '../../../site/examples/kit/random.ts'
 import {
   pixelRay,
@@ -58,7 +60,7 @@ function atriumBoxes(): Box[] {
 /** `count` lamps of range `range`, uniform in the atrium's volume, from a fixed seed. */
 export function atriumLamps(count: number, range: number, seed = 1249): Light[] {
   const r = mulberry32(seed),
-    u = (lo: number, hi: number) => Math.fround(lo + (hi - lo) * r())
+    u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
   return Array.from({ length: count }, () => ({
     centre: [u(-HALF_X + 0.5, HALF_X - 0.5), u(0.3, HEIGHT - 0.5), u(-HALF_Z + 0.3, HALF_Z - 0.3)],
     radius: Math.fround(range),
@@ -100,8 +102,8 @@ export function atriumDepth(
 
 /** The moving camera's poses: down the court, turning toward the arcades, from the ground. */
 export const ATRIUM_POSES: { eye: Vec3; yaw: number; pitch: number }[] = [
-  { eye: [-13.5, 1.7, 0], yaw: -Math.PI / 2, pitch: 0.05 },
-  { eye: [-9, 1.7, 1.5], yaw: -Math.PI / 2 + 0.35, pitch: 0.1 },
-  { eye: [-4, 1.7, -1.5], yaw: -Math.PI / 2 - 0.6, pitch: 0.15 },
-  { eye: [2, 1.7, 0.5], yaw: -Math.PI / 2 + 0.9, pitch: 0.2 },
+  { eye: [-13.5, 1.7, 0], yaw: -HALF_PI, pitch: 0.05 },
+  { eye: [-9, 1.7, 1.5], yaw: -HALF_PI + 0.35, pitch: 0.1 },
+  { eye: [-4, 1.7, -1.5], yaw: -HALF_PI - 0.6, pitch: 0.15 },
+  { eye: [2, 1.7, 0.5], yaw: -HALF_PI + 0.9, pitch: 0.2 },
 ]

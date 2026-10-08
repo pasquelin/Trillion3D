@@ -1,4 +1,5 @@
 import { determinantMatrix4, type NumberSink } from './matrix4.ts'
+import { length3 } from '../vector/vector.ts'
 
 /**
  * Position, rotation and scale of a column-major 4×4 matrix, both ways. Quaternion
@@ -66,9 +67,9 @@ export function decomposeMatrix4(
   quaternion: NumberSink,
   scale: NumberSink,
 ) {
-  let sx = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2])
-  const sy = Math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6])
-  const sz = Math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10])
+  let sx = length3(m[0], m[1], m[2])
+  const sy = length3(m[4], m[5], m[6])
+  const sz = length3(m[8], m[9], m[10])
   if (determinantMatrix4(m) < 0) sx = -sx
   position[0] = m[12]
   position[1] = m[13]

@@ -16,7 +16,7 @@
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
-import { NORMAL_VIEW_COLOR } from './normalViewColor.ts'
+import { signedToUnit3 } from '../../../math/src/wgsl/reals.ts'
 
 export const SURFACE_MODEL = {
   standard: 0,
@@ -100,10 +100,11 @@ const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))'
 const DIFFUSE_COSINE = 'max(nl,0.0)'
 /** The matcap coordinate of the view-space normal `n`. */
 const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495'
+/** A view-space unit normal as the debug colour of the normals view. */
 export const NORMAL_VIEW_COLOR_WGSL = wgslBlock(
   'NORMAL_VIEW_COLOR_WGSL',
-  [],
-  `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`,
+  [signedToUnit3],
+  'fn normalViewColor(N:vec3f)->vec3f{return signedToUnit3(N);}',
 )
 
 /**

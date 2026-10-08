@@ -1,12 +1,13 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { Geometry } from '../world/geometry/geometry.ts'
-import { crossVector3 } from '../../../math/src/vector/vector.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { crossVector3, length3 } from '../../../math/src/vector/vector.ts'
 import { readPoints } from '../world/geometry/bounds.ts'
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts'
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts'
 import { SOFT_VERTEX_WORDS } from './softLayout.ts'
 import { softSettings } from './softSettings.ts'
+import { SQRT3, TAU } from '../../../math/src/constants.ts'
+import { decayRate } from '../../../math/src/scalar/reals.ts'
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
  *  a volume (its closed triangles, held up by the gas inside). */
@@ -74,7 +75,7 @@ const SOFT_STEP_LOSS = 0.01
  * same share a second at any step. Its swing settles within seconds; it falls at most at `g / c`,
  * 16.3 m/s.
  */
-export const SOFT_DAMPING = -Math.log(1 - SOFT_STEP_LOSS) / PHYSICS_STEP
+export const SOFT_DAMPING = decayRate(1 - SOFT_STEP_LOSS, PHYSICS_STEP)
 
 /** Declared: a volume keeps within a tenth of its rest volume, or its pressure is refused. */
 const SOFT_MAX_SWELL = 0.1
@@ -94,8 +95,8 @@ const SOFT_SUBSTEPS = 5
  */
 function heldPressure(vertexMass: number, area: number, stretch: number, step: number) {
   const dt = step / SOFT_SUBSTEPS,
-    radius = Math.sqrt(area / (4 * Math.PI))
-  const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * Math.sqrt(3))
+    radius = Math.sqrt(area / (2 * TAU))
+  const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * SQRT3)
   return (Math.cbrt(1 + SOFT_MAX_SWELL) - 1) / give
 }
 
@@ -216,7 +217,7 @@ function spreadMass(vertices: Float32Array, indices: number[], count: number, s:
   if (!indices.length)
     for (let i = 0; i + 1 < count; i++) {
       const u = edge(edgeU, i, i + 1),
-        length = hypot3(u[0], u[1], u[2])
+        length = length3(u[0], u[1], u[2])
       share(i, length / 2)
       share(i + 1, length / 2)
       whole += length
@@ -224,7 +225,7 @@ function spreadMass(vertices: Float32Array, indices: number[], count: number, s:
   for (let t = 0; t < indices.length; t += 3) {
     const [a, b, c] = [indices[t], indices[t + 1], indices[t + 2]]
     const n = crossVector3(edgeU, edge(edgeU, a, b), edge(edgeV, a, c)),
-      area = hypot3(n[0], n[1], n[2]) / 2
+      area = length3(n[0], n[1], n[2]) / 2
     share(a, area / 3)
     share(b, area / 3)
     share(c, area / 3)

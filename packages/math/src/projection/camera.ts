@@ -5,6 +5,7 @@ import {
 } from '../geometry/frustum/frustum.ts'
 import { multiplyMatrix4, type NumberSink } from '../matrix/matrix4.ts'
 import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
+import { length2 } from '../vector/vector.ts'
 
 /**
  * Engine perspective camera, in REVERSED DEPTH and infinite far plane: near plane
@@ -31,6 +32,50 @@ const HALF_DEGREE = Math.PI / 360
  *  one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a pixel's size read it. */
 export function perspectiveSlope(fov: number, zoom = 1) {
   return Math.tan(fov * HALF_DEGREE) / zoom
+}
+
+/** The diagonal slope of that camera at picture `aspect`: `perspectiveSlope(fov, zoom) ·
+ *  length2(1, aspect)`, how far off its axis, per unit ahead, a corner of its picture lies. */
+export function perspectiveDiagonalSlope(fov: number, aspect: number, zoom = 1) {
+  return perspectiveSlope(fov, zoom) * length2(1, aspect)
+}
+
+/** The distance from the eye to a corner of the frustum's section at view `depth`, a vertical
+ *  `slope` and picture `aspect`: `depth · √(1 + slope² · (1 + aspect²))`, each square a product. */
+export function frustumCornerDistance(depth: number, slope: number, aspect: number) {
+  return depth * Math.sqrt(1 + slope * slope * (1 + aspect * aspect))
+}
+
+/** The projection scale of a perspective of half field `half` radians: `1 / Math.tan(half)`, the
+ *  cotangent its first two diagonal entries hold. */
+export const focalScale = (half: number) => 1 / Math.tan(half)
+
+/** The half field, radians, of a projection scale `s` of either sign: `Math.atan(1 / |s|)`, the
+ *  inverse of `focalScale` on `(0, π/2)`. */
+export const halfAngleOfFocalScale = (s: number) => Math.atan(1 / Math.abs(s))
+
+/**
+ * Pixels per unit of view-space extent at unit depth under projection `p`, at a viewport `w × h`
+ * pixels: `[(w·|p[0]|) / 2, (h·|p[5]|) / 2]` into `out`, the half viewport times the projection's
+ * scale on each axis. Under an orthographic projection, pixels per unit of extent at any depth.
+ */
+export function pixelScale<T extends NumberSink>(out: T, p: ArrayLike<number>, w = 1, h = 1) {
+  out[0] = (w * Math.abs(p[0])) / 2
+  out[1] = (h * Math.abs(p[5])) / 2
+  return out
+}
+
+/** The larger of `pixelScale`'s two, `Math.max((w·|p[0]|) / 2, (h·|p[5]|) / 2)`: the focal length
+ *  in pixels a screen-space error is measured with. */
+export function focalPixels(p: ArrayLike<number>, w = 1, h = 1) {
+  return Math.max((w * Math.abs(p[0])) / 2, (h * Math.abs(p[5])) / 2)
+}
+
+/** The world size of one pixel per unit of view depth under a perspective `p`, or of one pixel
+ *  under an orthographic one, `h` pixels high (at least one): `1 / ((max(1, h)·|p[5]|) / 2)`, the
+ *  reciprocal of `pixelScale`'s vertical scale. */
+export function pixelFootprint(p: ArrayLike<number>, h: number) {
+  return 1 / ((Math.max(1, h) * Math.abs(p[5])) / 2)
 }
 
 type Box = { left: number; right: number; top: number; bottom: number }

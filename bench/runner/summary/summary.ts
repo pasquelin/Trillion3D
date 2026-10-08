@@ -1,5 +1,6 @@
 // Statistics, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { summarize } from '../../../packages/sdk-core/src/index.ts'
 import { computePaths } from './summaryCompute.ts'
 import { p50p95, passes, type Distribution } from './summaryPasses.ts'
@@ -19,8 +20,7 @@ export const machineLoad = () => loadavg()
 const ms = (d: Distribution, key: 'p50' | 'p95') => (d ? d[key].toFixed(3) : '—')
 const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value))
 /** Bytes in megabytes, or a dash: a zero would not be distinct from an absent reading. */
-const mo = (value: number | null | undefined) =>
-  value == null ? '—' : (value / (1024 * 1024)).toFixed(1)
+const mo = (value: number | null | undefined) => (value == null ? '—' : (value / MIB).toFixed(1))
 /** A three-state witness: `yes`, `no`, or a dash when this engine does not publish it. */
 const oui = (value: boolean | null | undefined) => (value == null ? '—' : value ? 'yes' : 'no')
 /** Reservoirs requested of the engine: in MiB when the bench gave them, otherwise its defaults. */

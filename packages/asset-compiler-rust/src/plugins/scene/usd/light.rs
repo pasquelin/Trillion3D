@@ -21,6 +21,7 @@
 //! an angular diameter, not a length: a directional has neither centre nor range, and the
 //! engine contract already refuses it any envelope.
 use super::*;
+use trillion3d_math::scalar::half_diagonal;
 
 /// Default half-angle of the `ShapingAPI` cone, in degrees.
 const DEFAULT_CONE: f64 = 90.0;
@@ -102,7 +103,7 @@ fn extent(
         Shape::Rect => {
             let width = number(world, prim, "inputs:width", DEFAULT_SIDE) * scale;
             let height = number(world, prim, "inputs:height", DEFAULT_SIDE) * scale;
-            (width * height, Some(width.hypot(height) / 2.0))
+            (width * height, Some(half_diagonal(width, height)))
         }
         Shape::Distant => (1.0, None),
     }

@@ -28,6 +28,8 @@ import {
   selectionListCap,
   stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
 
 /** One cut to run: a packed scene, the camera's uniforms and each page's residency, every page
  *  resident when none is given. */
@@ -65,9 +67,10 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
     [readiness.isReady, residentBase(packed.pageCount)],
     [readiness.isChildReady, childBase(packed.pageCount)],
   ] as const
-  for (const [ready, base] of sets)
-    for (let page = 0; page < packed.pageCount; page++)
-      if (ready(page)) cold[base + (page >>> 5)] |= 1 << (page & 31)
+  for (const [ready, base] of sets) {
+    const bits = cold.subarray(base)
+    for (let page = 0; page < packed.pageCount; page++) if (ready(page)) setBit(bits, page)
+  }
   return cold
 }
 
@@ -79,7 +82,7 @@ function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
   const listCap = selectionListCap(packed.pageCount)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
   writeDagUniforms(views, packed, uniforms, listCap)
-  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(Math.max(1, packed.pageCount), SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),

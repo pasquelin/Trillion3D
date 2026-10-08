@@ -135,7 +135,7 @@
       const ABOVE = { position: [0, 58, 40], target: [0, 0, 2] };
       const INSIDE = { position: [0, 1.7, 25.5], target: [0, 1.4, 19.5] };
       // A flight takes six seconds; the opening waits a second above the maze first.
-      const flyTo = flights(world, ease.smooth);
+      const flyTo = flights({ math }, world, ease.smooth);
       let to = INSIDE;
       controls({
         hedgeHeight: [0.3, 4, 2.6, 0.1],

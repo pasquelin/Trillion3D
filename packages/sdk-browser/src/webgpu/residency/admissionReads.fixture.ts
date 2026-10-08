@@ -4,11 +4,12 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 /** A random world: pages whose parents come before them, some without bytes, some resident, some
  *  wanted by the camera, the rest split between the two lower tiers. */
 export function world(seed: number) {
-  const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296
+  const random = lcgFloatRandom(seed)
   const count = 1 + Math.floor(random() * 24)
   const pages = Array.from({ length: count }, (_, i) => pageOf(`p${i}`))
   const parents = new Map<PageRec, PageRec[]>()

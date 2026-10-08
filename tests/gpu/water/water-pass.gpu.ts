@@ -12,6 +12,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, assertSoundProof, type PageProofResult } from '../kit/enginePageProof.ts'
+import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
 import { BACKGROUND, GROUND, WATER } from './waterPassCases.ts'
 
 interface WaterCaseReading {
@@ -28,15 +29,12 @@ interface Result extends PageProofResult {
   cases?: WaterCaseReading[]
 }
 
-/** Display value of a linear channel, as the unlit composition encodes it. */
-const srgb = (c: number) =>
-  Math.round((c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055) * 255)
 /** Fresnel at normal incidence: what the face-on centre reflects, and does not transmit. */
 const f0 = ((WATER.ior - 1) / (WATER.ior + 1)) ** 2
 /** The basin's centre: the ground, tinted, attenuated over its depth, less the reflected share. */
 const basin = GROUND.color.map((ground, i) => {
   const sigma = -Math.log(WATER.attenuationColor[i]) / WATER.attenuationDistance
-  return srgb((1 - f0) * WATER.tint[i] * ground * Math.exp(-sigma * GROUND.depth))
+  return linearToSrgb8((1 - f0) * WATER.tint[i] * ground * Math.exp(-sigma * GROUND.depth))
 })
 /** In front of nothing, the transmitted share covers nothing: the background stays, less Fresnel. */
 const nothing = [BACKGROUND >> 16, (BACKGROUND >> 8) & 255, BACKGROUND & 255].map((c) =>
@@ -46,7 +44,7 @@ const EXPECTED: Record<string, number[]> = {
   basin,
   'declared-deeper': basin,
   'nothing-behind': nothing,
-  blend: WATER.tint.map(srgb),
+  blend: WATER.tint.map(linearToSrgb8),
 }
 /** Display levels the composition may round to on a channel. */
 const TOLERANCE = 3

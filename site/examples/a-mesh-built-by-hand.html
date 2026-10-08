@@ -40,9 +40,10 @@
         return triangles;
       }
 
-      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-      const unit = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+      const operandA = math.vector3(), operandB = math.vector3();
+      const sub = (a, b) => operandA.fromArray(a).sub(operandB.fromArray(b)).toArray();
+      const cross = (a, b) => operandA.fromArray(a).cross(operandB.fromArray(b)).toArray();
+      const unit = (v) => operandA.fromArray(v).normalize().toArray();
 
       // The triangles into buffers. Sharp: every face owns its three corners and one normal, so
       // the light breaks at each edge. Smooth: a corner shared by several faces is written once,

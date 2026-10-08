@@ -29,7 +29,7 @@
     <canvas id="view"></canvas>
     <p data-words="credit"></p>
     <script type="module">
-      import { createWorld, light } from '../runtime/engine.js';
+      import { createWorld, light, math } from '../runtime/engine.js';
       import { controls, circling } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -45,7 +45,7 @@
       world.controls.target.set(0, 0.22, 0);
 
       controls({ lampTurn: [-180, 180, 40, 1], lampHeight: [0, 1.2, 0.6], colour: '#ffd9a8', exposure: [0.3, 3, 1], circle: () => (round.gliding ? round.stop() : round.restart()) }, (values) => {
-        const turn = (values.lampTurn * Math.PI) / 180;
+        const turn = math.degToRad(values.lampTurn);
         lamp.position.set(Math.sin(turn) * 0.9, values.lampHeight, Math.cos(turn) * 0.9);
         lamp.color.set(values.colour);
         world.exposure = values.exposure;

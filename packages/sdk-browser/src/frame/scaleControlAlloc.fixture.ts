@@ -1,5 +1,6 @@
 import v8 from 'node:v8'
 import vm from 'node:vm'
+import { quantileFloorOf } from '../../../math/src/scalar/quantile.ts'
 
 /**
  * Bytes a run of the render-scale control allocates, as the optimiser compiles it — the measure
@@ -40,7 +41,7 @@ const WARM = 30 * SAMPLES
 /** Rounds a measure takes, and the middle one: a round may also hold what a lower tier boxes,
  *  which only adds, or a collection, which only takes away; the median is neither. */
 const ROUNDS = 5
-const median = (bytes: number[]) => bytes.sort((a, b) => a - b)[ROUNDS >> 1]
+const median = (bytes: number[]) => quantileFloorOf(bytes, 0.5) as number
 
 /** Bytes the heap grew by over `SAMPLES` runs of `run`, less an empty run's, each compiled by the
  *  optimiser after a collection — a collection after it would drop code that holds objects the

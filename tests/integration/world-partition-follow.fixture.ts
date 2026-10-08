@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { length3 } from '../../packages/math/src/vector/vector.ts'
 import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
@@ -87,7 +88,7 @@ export async function assertNoneMissing(
     const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'))
     for (const { translation } of body.nodes) {
       const [x, y, z] = translation.map((value: number) => value * scale)
-      if (Math.hypot(x - eye.x, y - eye.y, z - eye.z) > reach) continue
+      if (length3(x - eye.x, y - eye.y, z - eye.z) > reach) continue
       near++
       assert.ok(drawn.has(key(x, z)), `the node at ${[x, y, z]} is drawn`)
     }

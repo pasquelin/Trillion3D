@@ -8,7 +8,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 
 /** A lobed program's two UV sets of the vertex: the second where the item names a record and its
  *  geometry carries one — a fragment reads it only under a record (`blendPhysicalBegin`). */
@@ -55,7 +55,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
     [
       PAGE_GEOMETRY_WGSL,
       NORMAL_TRANSFORM_WGSL,
-      uniteOuZero,
+      unitOrZero,
       VERTEX_READS_WGSL,
       ...layout.read,
       VERTEX_LISTS_WGSL,
@@ -114,9 +114,9 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  // carries the flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
  if((flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u){
   let t=vertT(page.vertexBase,v);
-  out.tangent=vec4f(uniteOuZero((it.world*vec4f(t.xyz,0.0)).xyz),out.tangent.w);
+  out.tangent=vec4f(unitOrZero((it.world*vec4f(t.xyz,0.0)).xyz),out.tangent.w);
   if((flags&${itemFlags.FLAG_BACK}u)!=0u){out.tangent=vec4f(-out.tangent.xyz,out.tangent.w);}
-  out.bitangent=vec4f(uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
+  out.bitangent=vec4f(unitOrZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
  }`
 
 /**

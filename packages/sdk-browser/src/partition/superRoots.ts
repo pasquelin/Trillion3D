@@ -18,9 +18,9 @@
 import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 import { projectedErrorAt } from '../page/selection/projection.ts'
-import { growSphere } from '../page/cut/bounds.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
-import { perspectiveSlope } from '../../../math/src/projection/camera.ts'
+import { sphereUnion } from '../../../math/src/geometry/sphere.ts'
+import { distanceVector3, length2 } from '../../../math/src/vector/vector.ts'
+import { perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 import type { PartitionOptics } from './plan.ts'
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the
@@ -39,7 +39,7 @@ export function cellSuperRoots(
   cells: number,
 ) {
   const bounds = new Float64Array(cells * SUPER_ROOT_FLOATS)
-  // Not seen yet: no error, an empty sphere (a negative radius, `growSphere`).
+  // Not seen yet: no error, an empty sphere (a negative radius, `sphereUnion`).
   for (let at = 0; at < bounds.length; at += SUPER_ROOT_FLOATS) bounds[at + 4] = -1
   for (const { origin, parentError, parentSphere } of clusters) {
     if (origin === null) continue
@@ -47,7 +47,7 @@ export function cellSuperRoots(
     if (parentError === null || !parentSphere) bounds[at] = Infinity
     else if (bounds[at] !== Infinity) {
       bounds[at] = Math.max(bounds[at], parentError)
-      growSphere(bounds, at + 1, parentSphere, 0)
+      sphereUnion(bounds, at + 1, parentSphere, 0)
     }
   }
   // A cell absent from the DAG, or one an unreplaced object root keeps, is always near.
@@ -67,7 +67,7 @@ export type SuperRootLens = Pick<
  *  orthographic camera, which projects no depth. */
 export function lensSlope(optics: PartitionOptics) {
   if (optics.orthographic) return 0
-  return perspectiveSlope(optics.fov, optics.zoom || 1) * Math.sqrt(1 + optics.aspect ** 2)
+  return perspectiveDiagonalSlope(optics.fov, optics.aspect, optics.zoom || 1)
 }
 
 /**
@@ -82,10 +82,10 @@ export function cellSuperRootError(
   lens: SuperRootLens,
 ) {
   const at = cell * SUPER_ROOT_FLOATS
-  const centre = hypot3(bounds[at + 1] - eye[0], bounds[at + 2] - eye[1], bounds[at + 3] - eye[2])
+  const centre = distanceVector3(bounds, eye, at + 1, 0)
   const distance = Math.max(0, centre - bounds[at + 4])
   // On the diagonal a point at `distance` lies at depth `distance·cos θ`, `distance·sin θ` off axis.
-  const cos = 1 / Math.sqrt(1 + lens.slope * lens.slope),
+  const cos = 1 / length2(1, lens.slope),
     sin = lens.slope * cos
   const focal = Math.max(lens.pixelScale[0], lens.pixelScale[1])
   return projectedErrorAt(

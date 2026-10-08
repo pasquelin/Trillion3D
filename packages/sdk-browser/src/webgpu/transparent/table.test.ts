@@ -7,6 +7,7 @@ import type { BlendGpuItem } from '../blend/state.ts'
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts'
 import { evaluateTransparentCompaction } from './compactCpu.fixture.ts'
 import { CULL_STRIDE } from '../../gpu/dag/types.ts'
+import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 const mesh = (name: string) => ({ name }) as unknown as G.HostMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
@@ -45,10 +46,7 @@ const item = (sourceMesh: G.HostMesh | undefined, paged: boolean) =>
   ({ sourceMesh, matrix: sourceMesh, paged }) as unknown as BlendGpuItem
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
-function stream(seed: number) {
-  let state = seed
-  return () => (state = (state * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
-}
+const stream = lcgMaskedRandom
 
 /** The order the culling walk emits a primitive's pages in — the one the CPU cut published. */
 function walk(source: ClusterRoot<PageRec>) {

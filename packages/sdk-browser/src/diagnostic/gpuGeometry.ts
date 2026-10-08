@@ -1,6 +1,7 @@
 import type { DiagnosticGpuVariant } from './gpuVariant.ts'
 import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { unorm8 } from '../../../math/src/wgsl/color.ts'
 
 /**
  * DIAGNOSTIC fragment stages of the geometry pass, added to the two visibility modules for
@@ -23,7 +24,7 @@ export const DIAGNOSTIC_VIS_WGSL = wgslBlock(
  *  resolve stage asks: no depth target keeps another class's pixels), then the identifier. */
 export const DIAGNOSTIC_SHADE_WGSL = wgslBlock(
   'DIAGNOSTIC_SHADE_WGSL',
-  [],
+  [unorm8],
   `
 @fragment fn shade_plat_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  if(!classAdmits(textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r)){discard;}
@@ -32,7 +33,7 @@ export const DIAGNOSTIC_SHADE_WGSL = wgslBlock(
 @fragment fn shade_ids_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  let packed=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;
  if(!classAdmits(packed)){discard;}
- return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0),0u);
+ return diagnosticSurface(vec3f(unorm8(packed,0u)),0u);
 }`,
 )
 

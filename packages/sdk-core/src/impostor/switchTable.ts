@@ -4,8 +4,7 @@
  * taken again only when the root, its world's linear part or the focal length changes. One table
  * per holder — a plan, a watch —, so both read the same numbers through the same functions.
  */
-import { hypot3 } from '../../../math/src/float/hypot.ts'
-import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import {
   impostorMeshBaked,
@@ -62,7 +61,7 @@ export const point = /* @__PURE__ */ new Float64Array(3)
  */
 export function switchesAt(texelDepth: number, triangleDepth: number, v: Float64Array) {
   const depth = Math.abs(v[2]),
-    cosine = depth / hypot3(v[0], v[1], v[2])
+    cosine = depth / length3(v[0], v[1], v[2])
   return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth
 }
 

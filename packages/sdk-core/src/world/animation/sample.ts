@@ -1,11 +1,15 @@
 import {
+  conjugateQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   slerpArc,
   slerpOnArc,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Track, TrackBinding } from './clip.ts'
-import { saturate } from '../../../../math/src/scalar/reals.ts'
+import { hermiteBasis } from '../../../../math/src/scalar/hermite.ts'
+import { mix, saturate } from '../../../../math/src/scalar/reals.ts'
+
+const basis = new Float64Array(4)
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
  *  a straight line (quaternions on the arc), the earlier key held (`step`), or glTF's cubic
@@ -26,12 +30,11 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
   if (tr.interpolation === 'step' || w === 0) {
     for (let c = 0; c < size; c++) out[c] = values[i * stride + at + c]
   } else if (cubic) {
-    const w2 = w * w,
-      w3 = w2 * w
-    const a = 2 * w3 - 3 * w2 + 1,
-      b = w3 - 2 * w2 + w,
-      c1 = -2 * w3 + 3 * w2,
-      d = w3 - w2
+    hermiteBasis(basis, w)
+    const a = basis[0],
+      b = basis[1],
+      c1 = basis[2],
+      d = basis[3]
     for (let c = 0; c < size; c++)
       out[c] =
         a * values[i * stride + size + c] +
@@ -45,8 +48,7 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
     bound.arcKey = i
     slerpOnArc(out, 0, values, i * size, values, j * size, w, arc, 0)
   } else {
-    for (let c = 0; c < size; c++)
-      out[c] = values[i * size + c] * (1 - w) + values[j * size + c] * w
+    for (let c = 0; c < size; c++) out[c] = mix(values[i * size + c], values[j * size + c], w)
   }
   // Once, whatever the branch: the slerp's line too.
   if (tr.kind === 'quaternion') normalizeQuaternion(out)
@@ -60,10 +62,6 @@ export function difference(tr: Track, value: Float64Array, reference: Float64Arr
     for (let c = 0; c < value.length; c++) value[c] -= reference[c]
     return value
   }
-  inverted[0] = -reference[0]
-  inverted[1] = -reference[1]
-  inverted[2] = -reference[2]
-  inverted[3] = reference[3]
-  return multiplyQuaternion(value, inverted, value)
+  return multiplyQuaternion(value, conjugateQuaternion(inverted, reference), value)
 }
 const inverted = new Float64Array(4)

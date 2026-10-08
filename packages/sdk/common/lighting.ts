@@ -45,7 +45,4 @@ export type {
   SceneProxyDescriptor,
 } from '../../sdk-core/src/contracts/proxy.ts'
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/sunEntries.ts'
-export {
-  validateSceneEnvironment,
-  validateSceneLight,
-} from '../../sdk-core/src/scene/light/validate.ts'
+export { validateSceneLight } from '../../sdk-core/src/scene/light/validate.ts'

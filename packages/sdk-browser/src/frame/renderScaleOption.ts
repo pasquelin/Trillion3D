@@ -1,4 +1,4 @@
-import { clamp } from '../../../math/src/scalar/reals.ts'
+import { clamp, snap } from '../../../math/src/scalar/reals.ts'
 /**
  * The render scale a page asks: the fraction of the display, per axis, the image is drawn at before
  * temporal antialiasing rebuilds it to the display. `'auto'` lets the frame budget choose it
@@ -37,4 +37,4 @@ export function renderScaleBounds(option: RenderScale | undefined): RenderScaleB
 /** One display axis drawn at `scale`: the axis itself at 1, otherwise a multiple of eight, so a
  *  scale never lands on an odd size. */
 export const renderExtent = (display: number, scale: number) =>
-  scale >= 1 ? display : clamp(Math.round((scale * display) / 8) * 8, 8, display)
+  scale >= 1 ? display : clamp(snap(scale * display, 8), 8, display)

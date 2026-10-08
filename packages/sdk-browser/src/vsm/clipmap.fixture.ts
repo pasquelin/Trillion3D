@@ -1,6 +1,7 @@
 // The sun's clipmap tests' camera and light-space helpers.
 import { VSM_SUN_FINEST_LEVEL, VSM_SUN_COARSEST_LEVEL } from './constants.ts'
-import { createVsmClipmap, vsmTransformPoint, type VsmClipmap } from './clipmap.ts'
+import { createVsmClipmap, type VsmClipmap } from './clipmap.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 
 export const SUN = { id: 'sun', direction: [0.3, -0.9, 0.2] }
@@ -20,7 +21,13 @@ export function frame(cache: VsmCacheManager, eye: number[], width = 1024) {
 }
 /** World metres → the clipmap's light space, centimetres. */
 export const lightSpace = (clipmap: VsmClipmap, p: number[]) =>
-  vsmTransformPoint(clipmap.lightViewRotation, p[0] * 100, p[1] * 100, p[2] * 100)
+  transformAffinePoint(
+    new Float64Array(3),
+    clipmap.lightViewRotation,
+    p[0] * 100,
+    p[1] * 100,
+    p[2] * 100,
+  )
 /** The world direction (metres) of the light-space axis `axis`. */
 export const lightAxis = (clipmap: VsmClipmap, axis: number) => {
   const m = clipmap.lightViewRotation

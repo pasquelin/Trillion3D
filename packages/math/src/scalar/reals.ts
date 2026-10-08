@@ -22,5 +22,45 @@ export const saturate = (x: number) => clamp(x, 0, 1)
 /** The line from `a` to `b` at the unclamped `t`: `a + (b - a) * t`, exact at `t = 0`. */
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+/** The blend of `a` and `b` at `t` weighted from both ends: `a * (1 - t) + b * t`, exact at `t = 0`
+ *  and `t = 1`; another rounding than `lerp`'s, so the two keep apart (`mix` of the Rust crate's
+ *  `scalar.rs`). */
+export const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t
+
+/** The smoothstep polynomial `t * t * (3 - 2 * t)` of `t` in `[0, 1]`: 0 and 1 at the ends, flat at
+ *  both. Not clamped: `smoothstep(saturate(t))` holds a `t` out of the interval. */
+export const smoothstep = (t: number) => t * t * (3 - 2 * t)
+
+/** `value` at the nearest multiple of `step`, a half step rounding up: `Math.round(value / step) * step`. */
+export const snap = (value: number, step: number) => Math.round(value / step) * step
+
 /** `x` wrapped into `[0, n[` by a floored modulo, `n > 0`: `((x % n) + n) % n`. */
 export const wrap = (x: number, n: number) => ((x % n) + n) % n
+
+/** The fractional part of `x` toward −∞, in `[0, 1)` short of rounding: `x − Math.floor(x)`, WGSL's
+ *  `fract`. A negative tiny `x` rounds to 1. */
+export const fract = (x: number) => x - Math.floor(x)
+
+/** `x` modulo `n` floored, the sign of `n`: `x − n · Math.floor(x / n)`. Unlike `wrap`
+ *  it takes one division and one product, and a negative `n` folds into `(n, 0]`. */
+export const floorMod = (x: number, n: number) => x - n * Math.floor(x / n)
+
+/** The rate that leaves the share `left` of a quantity after `time` of exponential decay,
+ *  `−ln(left) / time`: the inverse of `decayFactor`. */
+export const decayRate = (left: number, time: number) => -Math.log(left) / time
+
+/** The share of a quantity left after `dt` of exponential decay at `rate` per unit, `exp(−rate · dt)`. */
+export const decayFactor = (rate: number, dt: number) => Math.exp(-rate * dt)
+
+/** `out[i] = lerp(from[i], to[i], t)` over `out`'s length; `t === 1` copies `to` exactly — a lerp
+ *  there can miss `to` by a rounding — so a blend run to its end lands on its target. */
+export function lerpArray(
+  out: Float32Array | Float64Array,
+  from: ArrayLike<number>,
+  to: ArrayLike<number>,
+  t: number,
+) {
+  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
+  else for (let i = 0; i < out.length; i++) out[i] = lerp(from[i], to[i], t)
+  return out
+}

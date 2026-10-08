@@ -10,7 +10,9 @@ import {
 import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
 import type { CameraMotion } from '../../camera/world.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { focalScale, halfAngleOfFocalScale } from '../../../../math/src/projection/camera.ts'
 
 /**
  * The VIEW AHEAD of a moving camera, in its render frame (`./selection.ts`): what the cut also
@@ -45,8 +47,8 @@ const ORIGIN = [0, 0, 0],
 /** A projection scale `cot(half field)` opened by `turn` radians; a field past the half turn takes
  *  zero, and its side planes keep only what is in front of the eye. */
 function opened(scale: number, turn: number) {
-  const half = Math.atan(1 / Math.abs(scale)) + turn
-  return half >= HALF_PI ? 0 : Math.sign(scale) / Math.tan(half)
+  const half = halfAngleOfFocalScale(scale) + turn
+  return half >= HALF_PI ? 0 : Math.sign(scale) * focalScale(half)
 }
 
 /** Writes the view ahead of `cam` into `into`, or returns null for a camera that neither moves nor
@@ -74,7 +76,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
   frustumPlanesFromMatrix(planes, clip)
   frustumFarPlane(planes, 16, view, cam.far, true)
   for (let i = 0; i < 6; i++) {
-    const toward = -(planes[i * 4] * dx + planes[i * 4 + 1] * dy + planes[i * 4 + 2] * dz)
+    const toward = -dotVector3Xyz(planes, dx, dy, dz, i * 4)
     if (toward > 0) planes[i * 4 + 3] += toward
   }
   out.planes.set(planes)

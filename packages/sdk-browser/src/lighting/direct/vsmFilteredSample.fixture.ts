@@ -10,6 +10,7 @@ export const FILTER = [
   'vsmFilterPageOf',
   'vsmFilterOwnPage',
   'vsmConsumerSlopeBiasAt',
+  'pow2FromExponent',
   'testTransmission',
   'testReset',
 ]
@@ -122,6 +123,7 @@ export const SUN_READ = [
   'vsmShadowRead',
   'vsmShadowFactor',
   'vsmShadowFiltered',
+  'vsmReceiverFromEye',
   'vsmShadowTraced',
   'interleavedGradient',
   'vsmConsumerSlope',

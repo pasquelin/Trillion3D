@@ -5,12 +5,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { run, world } from './admissionReads.fixture.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 test('reads that come back out of order admit the same pages in the same order as develop', async () => {
   let reordered = 0
   for (let seed = 1; seed <= 200; seed++) {
-    let draw = seed
-    const random = () => (draw = (draw * 1103515245 + 12345) >>> 0) / 4294967296
+    const random = lcgFloatRandom(seed)
     const settled: string[] = []
     const arrival = (url: string) =>
       new Promise<void>((done) =>

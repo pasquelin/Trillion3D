@@ -1,9 +1,10 @@
 import { wgslConst, wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
+import { byteOf } from './integer.ts'
 
 /**
- * Colours as the shaders read and write them: three bytes of a word as a colour, a colour's
- * luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
+ * Colours as the shaders read and write them: a byte or three bytes of a word as a unit value, a
+ * colour's luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
  */
 
 /** The low three bytes of `packed`, red first, each over 255: divided, as written, never
@@ -12,6 +13,13 @@ export const unorm8x3 = wgslFn(
   'unorm8x3',
   [],
   'fn unorm8x3(packed:u32)->vec3f{return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;}',
+)
+
+/** Byte `k` of `word` (`byteOf`) over 255, a unit value: divided, as `unorm8x3` divides. */
+export const unorm8 = wgslFn(
+  'unorm8',
+  [byteOf],
+  'fn unorm8(word:u32,k:u32)->f32{return f32(byteOf(word,k))/255.0;}',
 )
 
 /** The luminance weights of the linear sRGB primaries. */

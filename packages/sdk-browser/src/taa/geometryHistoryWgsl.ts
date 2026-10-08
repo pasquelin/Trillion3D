@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
+import { RANGE_BOUND } from '../../../math/src/wgsl/constants.ts'
 /** Geometry retained with every display pixel: full placement identity and reversed depth.
  * Four taps bound the slope represented by the historical pixel footprint; `slack`, the current
  * surface's own depth step across one render texel (`closestSurface`), widens it: a frame drawn
@@ -11,7 +12,7 @@ import { FLOAT32_STEP } from '../../../math/src/constants.ts'
  * (`pageOf`, `historyWgsl.ts`). */
 export const GEOMETRY_HISTORY_WGSL = wgslBlock(
   'GEOMETRY_HISTORY_WGSL',
-  [],
+  [RANGE_BOUND],
   `
 fn geometryDepthAccepts(expected:f32,low:f32,high:f32)->bool{
  let rounding=${wgslF32(4 * FLOAT32_STEP)}*max(abs(expected),max(abs(low),abs(high)));
@@ -27,7 +28,7 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
  let corner=(floor(uv*size-0.5)+1.0)/size;
  let kept=textureGather(0,geometryHistory,texelSampler,corner);
  let bits=textureGather(1,geometryHistory,texelSampler,corner);
- var range=geometryTap(vec2f(1e9,-1e9),kept.w,bits.w,identity);
+ var range=geometryTap(vec2f(RANGE_BOUND,-RANGE_BOUND),kept.w,bits.w,identity);
  range=geometryTap(range,kept.z,bits.z,identity);
  range=geometryTap(range,kept.x,bits.x,identity);
  range=geometryTap(range,kept.y,bits.y,identity);

@@ -248,20 +248,20 @@
       "max": "Sudut dengan x, y dan z terbesar.",
       "set": "Mengatur kedua sudut.",
       "makeEmpty": "Membuat kotak tidak menyimpan apa pun, siap untuk membesar.",
-      "isEmpty": "Apakah kotak itu tidak menyimpan apa pun.",
+      "isEmpty": "Apakah kotak itu tidak menyimpan apa pun (`boxIsEmpty`).",
       "copy": "Mengambil sudut-sudut kotak lain.",
       "clone": "Kotak baru dengan sudut yang sama.",
       "expandByPoint": "Membesarkan kotak secukupnya untuk menampung sebuah titik.",
       "expandByScalar": "Membesarkan kotak sebesar `s` di setiap sisi.",
       "union": "Membesarkan kotak agar juga menampung kotak lain.",
-      "setFromArray": "Kotak terkecil di sekitar daftar koordinat yang datar.",
+      "setFromArray": "Kotak terkecil di sekitar daftar koordinat yang datar: setiap titik utuh, satu per `itemSize` angka.",
       "setFromPoints": "Kotak terkecil di sekitar daftar titik.",
       "setFromObject": "Kotak dunia dari semua yang ada di bawah `node`, kotak setiap konten dibawa matriks dunianya.",
       "applyMatrix4": "Memindahkan kotak dengan sebuah matriks dan menjaganya tetap sejajar sumbu.",
-      "getCenter": "Titik tengah kotak itu.",
+      "getCenter": "Titik tengah kotak itu (`boxCenter`); titik tengah kotak kosong adalah titik asal.",
       "getSize": "Seberapa lebar, tinggi dan dalam kotak itu.",
-      "containsPoint": "Apakah sebuah titik ada di dalam kotak.",
-      "intersectsBox": "Apakah dua kotak saling tumpang tindih.",
+      "containsPoint": "Apakah sebuah titik ada di dalam kotak, sisi-sisinya termasuk (`boxContainsPoint`).",
+      "intersectsBox": "Apakah dua kotak saling tumpang tindih, sisi yang bersentuhan termasuk (`boxesOverlap`).",
       "getBoundingSphere": "Bola yang melalui sudut-sudutnya (`sphereFromBounds`); kotak kosong memberi radius −1.",
       "equals": "Apakah dua kotak punya sudut yang sama."
     }
@@ -552,7 +552,7 @@
       "clone": "Warna baru dengan kanal yang sama.",
       "getHex": "0xRRGGBB, dikodekan sRGB dan dibulatkan ke byte.",
       "getHexString": "Warna sebagai enam digit heksa, seperti `'ff8800'`.",
-      "getStyle": "Warna sebagai string CSS, seperti `'rgb(255,136,0)'`.",
+      "getStyle": "Warna sebagai string hex CSS, seperti `'#ff8800'`.",
       "lerp": "Menggerakkan warna menuju warna lain sebesar `t`, dari 0 sampai 1.",
       "multiplyScalar": "Membuat setiap kanal `s` kali lebih terang.",
       "equals": "Apakah dua warna punya kanal yang sama.",
@@ -1151,7 +1151,7 @@
       "planes": "Enam bidang ternormalisasi, empat angka masing-masing: tata letak inti itu.",
       "setFromProjectionMatrix": "Enam bidang dari apa yang dilihat sebuah matriks kamera.",
       "intersectsBox": "Apakah sebuah kotak setidaknya sebagian dalam tampilan.",
-      "containsPoint": "Apakah sebuah titik dalam tampilan."
+      "containsPoint": "Apakah sebuah titik dalam tampilan (`frustumContainsPoint`)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1972,7 +1972,7 @@
       "makeRotationY": "Menjadi putaran mengelilingi y.",
       "makeRotationZ": "Menjadi putaran mengelilingi z.",
       "setPosition": "Hanya mengatur bagian pergerakan.",
-      "getMaxScaleOnAxis": "Regangan terbesar sepanjang sumbu mana pun.",
+      "getMaxScaleOnAxis": "Regangan terbesar sepanjang sumbu mana pun: yang terpanjang dari tiga kolom (`length3`).",
       "equals": "Apakah dua matriks menyimpan angka yang sama."
     }
   },
@@ -2664,7 +2664,7 @@
       "copy": "Mengambil angka quaternion lain.",
       "clone": "Quaternion baru dengan angka yang sama.",
       "identity": "Mengatur ulang ke tanpa rotasi sama sekali.",
-      "setFromAxisAngle": "Menjadi putaran sebesar `angle` radian mengelilingi sumbu `v`.",
+      "setFromAxisAngle": "Menjadi putaran sebesar `angle` radian mengelilingi sumbu `v`, yang lebih dulu dibuat sepanjang 1 (`normalizeVector3`).",
       "setFromEuler": "Rotasi tiga sudut Euler, dalam urutan mereka disebutkan (`localTurnQuaternion`).",
       "setFromRotationMatrix": "Dari 3×3 atas sebuah matriks column-major yang kolomnya berpanjang satuan.",
       "setFromUnitVectors": "Rotasi terpendek yang membawa vektor satuan `a` ke vektor satuan `b`.",
@@ -2674,7 +2674,7 @@
       "invert": "Menjadi putaran yang membatalkan ini.",
       "conjugate": "Membalik bagian sumbunya: putaran berlawanan untuk sebuah quaternion satuan.",
       "dot": "Seberapa besar dua rotasi setuju, dari −1 sampai 1.",
-      "length": "Besar keempat angka itu bersama.",
+      "length": "Besar keempat angka itu bersama (`lengthQuaternion`).",
       "normalize": "Menskalakan angka-angkanya ke ukuran 1, sebuah rotasi murni.",
       "angleTo": "Sudut antara dua rotasi, dalam radian.",
       "slerp": "Interpolasi bola menuju `q`, sepanjang busur yang lebih pendek.",
@@ -3820,8 +3820,8 @@
       "add": "Menambahkan vektor 2D lain.",
       "sub": "Mengurangkan vektor 2D lain.",
       "multiplyScalar": "Mengalikan kedua angka dengan `s`.",
-      "length": "Seberapa panjang anak panah 2D itu.",
-      "normalize": "Menyimpan arahnya, membuat panjangnya 1.",
+      "length": "Seberapa panjang anak panah 2D itu (`length2`).",
+      "normalize": "Menyimpan arahnya, membuat panjangnya 1; vektor nol tetap nol.",
       "distanceTo": "Seberapa jauh dari titik 2D lain.",
       "fromArray": "Membaca dua angka dari sebuah daftar.",
       "toArray": "Kedua angka itu sebagai sebuah daftar."
@@ -3852,7 +3852,7 @@
       "cross": "Menjadi anak panah tegak lurus keduanya.",
       "crossVectors": "Menjadi anak panah tegak lurus `u` dan `v`.",
       "lengthSq": "Panjangnya, dikuadratkan: lebih cepat didapat.",
-      "length": "Seberapa panjang anak panah itu.",
+      "length": "Seberapa panjang anak panah itu (`length3`).",
       "setLength": "Menyimpan arahnya, mengatur panjangnya.",
       "normalize": "Menyimpan arahnya, membuat panjangnya 1.",
       "distanceToSquared": "Jarak ke sebuah titik, dikuadratkan.",
@@ -5119,8 +5119,8 @@
   "holdCameraWorld": {
     "summary": "Menyalin sebuah kamera mesin ke kamera lain, yang kemudian mempertahankan tampilan bit demi bit."
   },
-  "hslToLinearRgb": {
-    "summary": "Hue, saturasi, dan kecerahan menjadi tiga komponen linear ditulis ke `out[o..o+2]`."
+  "hslToRgb": {
+    "summary": "Hue, saturasi, dan kecerahan menjadi tiga komponen RGB ditulis ke `out[o..o+2]`."
   },
   "httpPageSource": {
     "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`."
@@ -6209,7 +6209,7 @@
     "description": "Panjangnya adalah akar kuadrat dari empat kuadrat yang dijumlahkan seperti `hypot4` menjumlahkannya (Kahan), tanpa penskalaannya oleh besaran terbesar: dalam `SQUARED_MIN`..`SQUARED_MAX` penskalaan itu hanya menambah pembulatan — empat pembagian masuk dan satu perkalian keluar. Terhadap `q / |q|` yang eksak, tidak lebih buruk dari panjang berskala pada keluarga masukan mana pun yang diukur dan lebih baik pada sebagian besar (maksimum 2,7 → 2,3 ULP, rata-rata 0,73 → 0,64 pada kuaternion hampir satuan), dan empat pembagian lebih murah. Di luar rentang itu — nol, NaN, tak hingga, besaran dekat batas — panjangnya adalah milik `hypot4`, seperti sebelumnya."
   },
   "normalizeVector3": {
-    "summary": "Menormalisasi vektor di `at` di tempat: setiap komponen dikalikan `1 / (length || 1)`, sehingga vektor nol tetap nol."
+    "summary": "Menormalisasi vektor di `at` di tempat: setiap komponen dikalikan `1 / (length3 || 1)`, sehingga vektor nol tetap nol; vektor yang lebih pendek dari 2^-1024 lebih dulu diskalakan tepat dengan 2^1000, agar kebalikan panjangnya tidak meluap."
   },
   "normalizedLinearDeterminant": {
     "summary": "Determinan bagian linear TERNORMALISASI, dalam urutan kernel WGSL: ketiga kolom dibagi dengan skala, lalu `a · (b × c)`.",
@@ -7650,6 +7650,7 @@
       "isSkeleton": "Selalu `true`: membedakan skeleton.",
       "bones": "Node yang menjadi sendinya, menurut urutan sendi.",
       "boneInverses": "Enam belas angka per tulang, berurutan kolom: invers matriks dunianya pada pose bind.",
+      "inverses": "Enam belas angka setiap tulang dalam `boneInverses`, menurut urutan sendi, sebagai tampilan yang dibuat satu kali.",
       "palette": "Menulis palet mesh yang ditempatkan di `meshWorld` ke `out` mulai dari `at`: untuk setiap sendi, baris `meshWorld⁻¹ · boneWorld · boneInverse`, yang membawa vertex pose bind mesh ke tempat tulangnya membawanya, dalam kerangka mesh sendiri — sehingga penempatan mesh, yang diterapkan sesudahnya, menggambarnya di tempat tulang berdiri apa pun pose node mesh sendiri. Dunia setiap tulang adalah yang dipegang node-nya (`matrixWorld`)."
     }
   },
@@ -7685,8 +7686,8 @@
       "matrix": "Pose dunianya, enam belas float dalam urutan kolom."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, satu literal, agar setiap pembaca peralihan membulatkan angka yang sama."
+  "PI": {
+    "summary": "Setengah putaran, dalam radian: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format bagian `impostors` yang dibaca runtime (#817 bagian 1, dipanggang oleh kompilator)."

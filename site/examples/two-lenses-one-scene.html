@@ -40,6 +40,8 @@
       const blocks = object.group();
       world.scene.add(blocks);
       const buildings = [];
+      // The scratches a length is read in: on the ground, and in the air.
+      const ground = math.vector2(), gaze = math.vector3();
       const add = (mesh, x, y, z) => (mesh.position.set(x, y, z), blocks.add(mesh), mesh);
       const box = geometry.box(1, 1, 1), crown = geometry.cone(1, 1, 24), trunk = geometry.cylinder(0.08, 0.1, 1, 12);
       for (let i = 0; i < 6; i++)
@@ -61,7 +63,7 @@
             const tall = centre ? 11 : 0.8 + random() ** 2 * 5.5, deep = lots.length === 2 ? 2.6 : w;
             const body = add(object.mesh(box, WALLS[Math.floor(random() * WALLS.length)]), cx + dx, 0, cz + dz);
             const roof = add(object.mesh(box, ROOF), cx + dx, 0, cz + dz);
-            buildings.push({ body, roof, tall, w, deep, delay: Math.hypot(cx, cz) * 0.06 + random() * 0.3 });
+            buildings.push({ body, roof, tall, w, deep, delay: ground.set(cx, cz).length() * 0.06 + random() * 0.3 });
           }
         }
       // Cars: each drives along one street, one way, and comes round again at the table's edge.
@@ -89,10 +91,10 @@
       eye.position.set(20, 15, 22);
       world.controls.target.set(...target);
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
-      const radians = (degrees) => (degrees * Math.PI) / 180;
+      const radians = math.degToRad;
       const direction = () => {
-        const p = world.camera.position, d = [p.x - target[0], p.y - target[1], p.z - target[2]], length = Math.hypot(...d);
-        return { d: d.map((value) => value / length), length };
+        const p = world.camera.position, d = gaze.set(p.x - target[0], p.y - target[1], p.z - target[2]), length = d.length();
+        return { d: d.normalize().toArray(), length };
       };
       const standAt = (d, distance) => {
         world.camera.position.set(target[0] + d[0] * distance, target[1] + d[1] * distance, target[2] + d[2] * distance);
@@ -171,7 +173,7 @@
           d = [Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az)];
           if (turn.t === 1) turn = null;
         } else if (drift) {
-          const az = Math.atan2(d[0], d[2]) + step * 0.08, flat = Math.hypot(d[0], d[2]);
+          const az = Math.atan2(d[0], d[2]) + step * 0.08, flat = ground.set(d[0], d[2]).length();
           d = [flat * Math.sin(az), d[1], flat * Math.cos(az)];
         }
         // Steady, the frame follows the wheel: the height seen is read back from the distance.

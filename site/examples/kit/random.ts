@@ -7,46 +7,43 @@
  */
 
 import { ease } from './opening.ts'
+import {
+  lcgRandom,
+  mulberry32 as mulberry32Sequence,
+} from '../../../packages/math/src/sequence/random.ts'
+import { fract } from '../../../packages/math/src/scalar/reals.ts'
+import type { Families } from './engineTypes.ts'
 
 /** A sequence of numbers in [0, 1) from a seed. */
 export type Random = () => number
 
-/** The example pages' sequence: a linear congruential step on 32-bit integers, so a seed always
- *  gives the same numbers. */
-export function seeded(seed: number): Random {
-  let state = seed >>> 0
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296
-}
+/** The example pages' sequence: `lcgRandom`, a linear congruential step on 32-bit integers, so a
+ *  seed always gives the same numbers. */
+export const seeded: (seed: number) => Random = lcgRandom
 
 /** Mulberry32: a 32-bit sequence on integer arithmetic alone, so every machine draws the same
  *  numbers; the scenes modelled in code, the bench's facade and the correctness campaigns. */
-export function mulberry32(seed: number): Random {
-  let state = seed >>> 0
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0
-    let value = Math.imul(state ^ (state >>> 15), state | 1)
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
-  }
-}
+export const mulberry32: (seed: number) => Random = mulberry32Sequence
 
 /** The temple's scatter: a value in [0, 1) for `index` and channel `k`, the fraction of a scaled
  *  sine. */
 export function sineHash(index: number, k: number): number {
-  const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453
-  return t - Math.floor(t)
+  return fract(Math.sin(index * 12.9898 + k * 78.233) * 43758.5453)
 }
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 /**
  * Smooth value noise in [-1, 1] in up to three dimensions: hashed values at the whole lattice
  * points, joined by a smoothstep along each axis. A whole `z` reads a flat slice, so a 2D relief
  * passes its octave there; `seed` draws another field. The lattice is hashed with the odd
  * multipliers of the `z` axis and of the seed given here, so each page keeps the relief it was
- * laid out with.
+ * laid out with. The blends are the engine's `math.lerp`, handed in with the families.
  */
-export function valueNoise(zMultiplier = 2147483647, seedMultiplier = 1597334677) {
+export function valueNoise(
+  { math }: Families<'math'>,
+  zMultiplier = 2147483647,
+  seedMultiplier = 1597334677,
+) {
+  const { lerp } = math
   const lattice = (i: number, j: number, k: number, seed: number) => {
     let h =
       Math.imul(i, 374761393) ^

@@ -1,6 +1,12 @@
 import type { Capsule, CapsuleContact, CapsulePush } from './capsule.ts'
 import type { CharacterCollision } from './characterCollision.ts'
-import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
+import {
+  addScaledVector3,
+  dotVector3,
+  length2,
+  length3,
+  normalizeVector3,
+} from '../../../math/src/vector/vector.ts'
 import { workgroupCount } from '../../../math/src/scalar/integers.ts'
 
 /**
@@ -64,8 +70,8 @@ export interface MoveRules {
 
 /** Removes from `v` its component into the surface `direction` leaves. */
 function clip(v: Float64Array, direction: Float64Array) {
-  const into = v[0] * direction[0] + v[1] * direction[1] + v[2] * direction[2]
-  if (into < 0) for (let k = 0; k < 3; k++) v[k] -= into * direction[k]
+  const into = dotVector3(v, direction)
+  if (into < 0) addScaledVector3(v, direction, -into)
 }
 
 /** Whether a contact is floor under `how`: under the centre, walkable, no higher than a step. */
@@ -77,7 +83,7 @@ export function isFloor({ normal, surface, point }: CapsuleContact, how: MoveRul
 const push: CapsulePush = (contact) => {
   const { normal, depth } = contact
   const under = normal[1] > 0,
-    across = hypot2(normal[0], normal[2])
+    across = length2(normal[0], normal[2])
   let amount = depth
   if (isFloor(contact, rules)) {
     // Straight up until the touched point is one radius from the centre: exact for an edge or
@@ -90,7 +96,8 @@ const push: CapsulePush = (contact) => {
     report.ground = true
   } else if (rules.onGround && normal[1] >= 0 && across > 0) {
     if (under && firstPass) return
-    ;[away[0], away[1], away[2]] = [normal[0] / across, 0, normal[2] / across]
+    ;[away[0], away[1], away[2]] = [normal[0], 0, normal[2]]
+    normalizeVector3(away)
     amount = depth / across
     report.wall = true
   } else {
@@ -123,7 +130,7 @@ export function slide(
 ) {
   ;[body, report, rules] = [moving, into, how]
   const { capsule } = moving
-  const length = hypot3(delta[0], delta[1], delta[2])
+  const length = length3(delta[0], delta[1], delta[2])
   // Half a radius a part, so that nothing thinner than the body is crossed; a body with no
   // thickness (a radius of 0, or not a number) has nothing to part by and moves in one.
   const parts = capsule.radius > 0 ? workgroupCount(length, 0.5 * capsule.radius) : 1

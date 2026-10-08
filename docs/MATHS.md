@@ -15,16 +15,83 @@ imports it. Its contract:
 - "No GPU" means no GPU API call: the WGSL twins of the primitives belong to the package, in
   `wgsl/` (below).
 - `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
-  call the package.
+  call the package: a method whose body re-derives a formula calls the package; per-component
+  arithmetic (`multiply`, `min`, `addScalar`) stays.
 
-Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
+Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
+float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
+rounded in float32 as the GPU computes it),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
-spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `scalar/`, `sequence/` (`halton.ts`), `batch/` and `wgsl/` (below); `index.ts` is the
+spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
+and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
+reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`search.ts`, the binary searches; `hermite.ts`), `sequence/`
+(`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
+`sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
+against), `batch/` and `wgsl/` (below); `index.ts` is the
 barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
-`scalar/`: counting and range helpers; `constants.ts`: shared numbers.
+`scalar/`: counting and range helpers, and `uint64.ts`, the integer two little-endian
+32-bit words hold; `constants.ts`: shared numbers.
+
+### Lengths
+
+One rule computes every length (`packages/math/src/vector/vector.ts`). `length3(x, y, z)` sums
+the squares left to right — the order of WGSL's `length()` — and returns `Math.sqrt` of that sum
+while it lies in the normal band, from 2^-969 up to the largest finite double: there, every square
+that underflowed is below half an ulp of the sum, and the plain root holds the length the squares
+define. Outside the band — a zero vector, components below about 1e-146 or past about 1e154 —
+it returns `hypot3`, which scales first and neither overflows nor underflows; a NaN component
+gives NaN. `length2(x, y)` is the same rule in the plane with `hypot2`, `lengthQuaternion` on
+four terms with `hypot4`. A distance is that length of `a − b`, component by component
+(`distanceVector3`; `distanceSqVector3` without the root); a matrix column's length is the length
+of its three terms (`decomposeMatrix4`). A normalise multiplies each component by
+`1 / (length || 1)`, so a zero vector stays zero; a vector shorter than 2^-1024, whose inverse
+would overflow, is first scaled by 2^1000, exactly (`normalizeVector3`, `normalizeVector2`). So a
+host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises to a unit vector
+(`vector/lengthRange.test.ts`). The rule and `Math.hypot` differ in the last bit on many inputs
+of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves. A
+site moved from the plain root keeps its bits inside the band and, declared, gains the true
+length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
+bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
+`page/selection/projection.ts`, a light's far distance in `world/core/worldLights.ts`, and the
+light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
+within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
+(`lightRotation.test.ts`).
+
+The declared exceptions, each held to bits the rule would change:
+
+- `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
+  `packages/page-codec-wasm/src/math.rs` (`hypot`); the normal-cone reference
+  `tests/kit/reference/cone.ts`, held to `packages/page-codec-wasm/src/normal_cone.rs`; `length`
+  of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
+  reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
+  outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
+  within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
+  `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
+  axis lengths must round alike; and the generators whose published files hold the builtin's bits,
+  the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
+  `scripts/docs/observatory/write.ts` (`hypot4`).
+- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
+  `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
+  summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut_error.rs`
+  by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
+  `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
+  past the band too (`sphereUnion.test.ts`).
+- A division by the length to normalise, which keeps each component correctly rounded:
+  `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
+  and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
+  sampler's twin; the octahedral encoders of `packages/page-codec/src/pageGrids.ts`, float32
+  twins of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
+  `ik.ts`, for the reason of its length; `normalized` of
+  `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
+  because the validated direction feeds the shadow clipmap's own normalise and basis in double and
+  the rule's product differs from that quotient in the last bit on about two directions in three;
+  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits
+  (the doc generators' divides are `divideVector3`).
 
 ### The WGSL library
 
@@ -65,18 +132,50 @@ A name written twice with two texts, or a dependency cycle, throws when the pipe
 the text is built once a pipeline, never in a frame. Two operation orders of one formula round
 apart, so each is its own declaration under its own name, never merged. The library writes a number
 through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
-holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π), the greatest
-finite `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`, 3.4e38, never the greatest
-`f32`), the golden ratio's fraction and the singularity threshold are `wgslConst` declarations of
+holds, the engine's one helper that writes a number as WGSL; π, π/4, 1/π, 2π, 1/(2π), √2, the
+greatest finite and the least normal `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`,
+3.4e38, never the greatest `f32`), the golden ratio's fraction and angle, the plastic steps, the
+half-float bounds and the singularity threshold are `wgslConst` declarations of
 [`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
 [`packages/math/src/constants.ts`](../packages/math/src/constants.ts), beside the shaders' own
-sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`). An integer
+sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`,
+`DIVISOR_FLOOR`, `RANGE_BOUND`). An integer
 expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u`) are one
 declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
 `library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
 declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
-finds no program declaring a module-scope name twice, whatever the texts, and
-`wgslDeclarations.test.ts` no source declaring a library name and no fragment spliced as text.
+finds no program declaring a module-scope name twice, whatever the texts,
+`wgslDeclarations.test.ts` no program holding a library declaration but as the library's text and
+no fragment spliced as text, and `check:wgsl-library` (below) no source declaring a library name.
+
+### The gates
+
+Three gates keep a formula in its one home; each runs in `check:changed` and in the CI's
+`validate`:
+
+- the lint (`no-restricted-syntax`, the selectors of
+  [`scripts/lint-maths.ts`](../scripts/lint-maths.ts)) refuses, outside `packages/math`, the
+  inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
+  `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
+  `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a
+  number, negated or after another factor (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`,
+  `perspectiveSlope`) and
+  `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
+- `check:helpers` reports a free function of any tree whose signature and body are those of a
+  `packages/math` function, whatever its name and its parameters' names;
+- `check:wgsl-library` reports a shader whose text declares a function, a constant or a structure
+  the WGSL library holds.
+
+The declared oracles — the bench's reference implementations and witnesses, the image metric's
+reference, the test kit's references, the before-forms a rewrite is proved against, and the test
+modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
+purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
+
+Some spellings are conventions, not formulas, and stay where they are written: a texel's centre
+(`+ 0.5`), an all-ones "none" word, a division guard whose floor belongs to its site (`max(x, 1e-6)`:
+one shared floor would move pixels), a sign flip, and an
+expression whose rounding differs from the shared function's (it keeps its form, as the Lengths
+section does for its own).
 
 ## Batch math for hosts
 
@@ -89,7 +188,9 @@ or batch, follows these conventions:
   returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
-  as its only value and repeats the formula of its unit function, which stays the oracle.
+  as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
+  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
+  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:

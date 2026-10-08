@@ -6,6 +6,8 @@ import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.t
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
 import { DIRECT_PAGE, HEIGHT, WIDTH, pageOfId, type setupVisibility } from './drawVisibility.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
 
 export interface DrawCase {
   name: string
@@ -21,13 +23,13 @@ const MASK_OFFSET = 11
 function records(items: DrawItem[], cap: number) {
   const n = Math.min(items.length, cap),
     words = new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
-    rest = new Uint32Array(Math.max(1, Math.ceil(cap / 32)))
+    rest = new Uint32Array(Math.max(1, ceilDiv(cap, 32)))
   for (const [i, item] of items.slice(0, n).entries()) {
     words.set(
       [item.pageIndex, item.bin, item.selectionIndex ?? 0, item.layer ?? 0, item.triangles ?? 0],
       i * DRAW_ITEM_U32,
     )
-    if (item.rest) rest[i >>> 5] |= 1 << (i & 31)
+    if (item.rest) setBit(rest, i)
   }
   return { n, words, rest }
 }

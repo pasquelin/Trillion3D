@@ -9,7 +9,7 @@ import {
   oracleBackend,
   stripUniforms,
 } from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import { seeded } from '../kit/randomDraw.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const THRESHOLD = 0.1,
@@ -20,7 +20,7 @@ test('the kernel draws its CPU model’s cut, each leaf once, whatever pages are
   const model = oracleBackend(dag, THRESHOLD)
   const isRoot = (page: number) => dag.pages[page].group === null
   // Full residency, then frames with pages removed at random; the roots always stay.
-  const next = seeded(486)
+  const next = lcgRandom(486)
   const frames = Array.from({ length: FRAMES }, (_, frame) => {
     const keep = frame ? 0.3 + 0.6 * next() : 1
     return Uint8Array.from(dag.pages, (_, page) => (isRoot(page) || next() < keep ? 1 : 0))

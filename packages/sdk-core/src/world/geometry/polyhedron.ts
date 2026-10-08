@@ -1,7 +1,7 @@
 import { GeometryBuilder, normalize } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
-import { hypot2 } from '../../../../math/src/float/hypot.ts'
-import { TAU } from '../../../../math/src/constants.ts'
+import { length2 } from '../../../../math/src/vector/vector.ts'
+import { PI, TAU } from '../../../../math/src/constants.ts'
 
 type V3 = [number, number, number]
 
@@ -21,7 +21,7 @@ export function polyhedron(vertices: number[], indices: number[], radius = 1, de
   const put = (p: V3) => {
     const n = normalize(p[0], p[1], p[2])
     const u = Math.atan2(n[2], -n[0]) / TAU + 0.5,
-      v = Math.atan2(n[1], hypot2(n[0], n[2])) / Math.PI + 0.5
+      v = Math.atan2(n[1], length2(n[0], n[2])) / PI + 0.5
     return b.vertex([n[0] * radius, n[1] * radius, n[2] * radius], n, [u, v])
   }
   for (let f = 0; f + 2 < indices.length; f += 3) {

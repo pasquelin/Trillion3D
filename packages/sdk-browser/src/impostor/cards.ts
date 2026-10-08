@@ -99,8 +99,7 @@ export function dropImpostorCards<G>(
   Object.assign(state, createImpostorCards<G>(state.section))
 }
 
-const pixelScale = [0, 0],
-  pivot = new Float64Array(3),
+const pivot = new Float64Array(3),
   ORIGIN = [0, 0, 0] as const
 
 const mark = (
@@ -134,8 +133,7 @@ export function planImpostorCards<G>(
   /** Whether a root may take a card: one another structure draws far away takes none. */
   carded?: (rank: number) => boolean,
 ) {
-  core.pixelScaleOf(cam.projection, viewport, pixelScale)
-  const focal = Math.max(pixelScale[0], pixelScale[1])
+  const focal = core.focalPixels(cam.projection, viewport?.[0], viewport?.[1])
   // Another root list: the old one's cards dropped, their bits cleared, every root read again.
   if (state.roots && state.roots !== roots) dropImpostorCards(state, state.roots, moved)
   state.roots = roots

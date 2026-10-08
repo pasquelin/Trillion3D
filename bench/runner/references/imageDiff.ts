@@ -1,5 +1,6 @@
 // Image deltas between the harness's captures, for `bench.ts`. A black capture compares equal to
 // any other black capture: it is refused by name, never counted as 0 px.
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 import { compareImages } from '../../../packages/sdk-core/src/index.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { flipMap } from './flip.ts'
@@ -76,6 +77,6 @@ export function referenceDiff(
   return {
     ...diff,
     reference: reference.name,
-    flipMean: map.reduce((s, e) => s + e, 0) / map.length,
+    flipMean: mean(map),
   }
 }

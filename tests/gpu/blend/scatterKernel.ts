@@ -17,6 +17,7 @@ import { EXPAND_GROUP } from '../../../packages/sdk-browser/src/webgpu/blend/pla
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** What the kernel reads, word for word, and how many words of each output it writes. */
 export interface ExpansionInput {
@@ -64,7 +65,7 @@ async function expand(input: ExpansionInput) {
     clusters: { buffer: buffer(input.clusters, storage) },
     scratch: {
       buffer: buffer(
-        new Uint32Array(input.entries + Math.ceil(input.entries / EXPAND_GROUP)),
+        new Uint32Array(input.entries + ceilDiv(input.entries, EXPAND_GROUP)),
         storage,
       ),
     },

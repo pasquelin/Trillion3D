@@ -6,6 +6,8 @@ import {
 } from '../../../../../math/src/wgsl/inverseTranspose.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { transformPoint } from '../../../../../math/src/wgsl/projection.ts'
+import { transformHalfExtent } from '../../../../../math/src/wgsl/geometry.ts'
 
 /**
  * The normal-cone rejection of the DAG selection kernel, and the per-page word that caches it with
@@ -13,7 +15,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_CONE_WGSL = wgslBlock(
   'DAG_CONE_WGSL',
-  [invTranspose3Apply, absoluteSum3, isFiniteScale],
+  [invTranspose3Apply, absoluteSum3, isFiniteScale, transformHalfExtent, transformPoint],
   `/** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
@@ -43,8 +45,8 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(!conformalOf(w)){return false;}
  let world=worldPose(w);
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
- let center=(world*vec4f(c,1.0)).xyz;
- let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
+ let center=transformPoint(world,c);
+ let we=transformHalfExtent(world,e);
  let eye=viewPoint();
  let toCam=eye.xyz-center*eye.w;
  let dist=length(toCam);

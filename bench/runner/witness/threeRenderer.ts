@@ -4,6 +4,7 @@
 // output at exposure 1, its image read back from the GPU and its GPU time read from its timestamp
 // queries. Served to the page under `/runner/`, it imports only `three` — never the engine.
 import * as THREE from 'three/webgpu'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 export interface WitnessRendererOptions {
   width: number
@@ -65,7 +66,7 @@ export async function readWitnessImage(
   const backend = renderer.backend as unknown as BackendInternals
   const { device } = backend
   const row = width * 4,
-    stride = Math.ceil(row / 256) * 256
+    stride = alignUp(row, 256)
   const buffer = device.createBuffer({
     size: stride * height,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,

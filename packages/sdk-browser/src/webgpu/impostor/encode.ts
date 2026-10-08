@@ -7,8 +7,7 @@ import { IMPOSTOR_PASS } from './pipelines.ts'
 import type { WebgpuImpostors } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
-const viewWords = new Float32Array(CARD_VIEW_FLOATS),
-  pixelScale = [0, 0]
+const viewWords = new Float32Array(CARD_VIEW_FLOATS)
 
 /** The view the card pass reads: the render view-projection and the camera's own at the eye
  *  (`matrixAtRenderOrigin`), the eye in two singles a component, the focal length's logarithm. */
@@ -18,8 +17,8 @@ function cardView(rt: WebgpuPagesRuntime) {
   matrixAtRenderOrigin(viewWords, core.viewProj, eye, 0)
   matrixAtRenderOrigin(viewWords, cam.viewProjection, eye, 16)
   for (let k = 0; k < 3; k++) writeSplitDouble(viewWords, 32 + k, 36 + k, eye[k])
-  core.pixelScaleOf(cam.projection, rt.setup.viewport ?? rt.gpu.targetSize, pixelScale)
-  viewWords[35] = Math.log2(Math.max(pixelScale[0], pixelScale[1]))
+  const viewport = rt.setup.viewport ?? rt.gpu.targetSize
+  viewWords[35] = Math.log2(core.focalPixels(cam.projection, viewport?.[0], viewport?.[1]))
   viewWords[39] = 0
   return viewWords
 }

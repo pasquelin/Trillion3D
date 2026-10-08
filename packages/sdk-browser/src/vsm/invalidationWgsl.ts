@@ -24,6 +24,7 @@ import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 
 /** Thread group size of the instance load balancer. */
 export const VSM_INVALIDATION_GROUP_SIZE = 64
@@ -136,7 +137,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  var shiftedCenter=vec3f(0.0);
  // Distance cull for local lights.
  if(!sunMap){
-  shiftedCenter=(localToShifted*vec4f(inst.boxCentre,1.0)).xyz;
+  shiftedCenter=transformPoint(localToShifted,inst.boxCentre);
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
@@ -226,6 +227,7 @@ export function vsmInvalidationWgsl(layout: VsmLayout) {
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_BOX_CULL_WGSL,
       FLAT_INDEX_WGSL,
+      transformPoint,
     ],
   )
 }

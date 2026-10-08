@@ -1,4 +1,5 @@
 import { clusterErrorAtDepth } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
+import { length2, transformPointRow } from '../../../../math/src/vector/vector.ts'
 
 /**
  * Distance to the view axis, `|(view(p).x, view(p).y)|`, of a point given component by component:
@@ -6,14 +7,12 @@ import { clusterErrorAtDepth } from '../../../../sdk-core/src/lod/screenErrorBou
  * already-separated numbers. One write of the multiplies, the sums and the square root.
  */
 export function viewLateralOf(x: number, y: number, z: number, e: ArrayLike<number>) {
-  const vx = e[0] * x + e[4] * y + e[8] * z + e[12]
-  const vy = e[1] * x + e[5] * y + e[9] * z + e[13]
-  return Math.sqrt(vx * vx + vy * vy)
+  return length2(transformPointRow(e, 0, x, y, z), transformPointRow(e, 1, x, y, z))
 }
 
 /** View depth, `−view(p).z` (the camera looks toward −z), of the same point. No square root. */
 export function viewDepthOf(x: number, y: number, z: number, e: ArrayLike<number>) {
-  return -(e[2] * x + e[6] * y + e[10] * z + e[14])
+  return -transformPointRow(e, 2, x, y, z)
 }
 
 /** `viewLateralOf` of the centre of a sphere stored at `offset`. */

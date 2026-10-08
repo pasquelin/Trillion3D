@@ -6,6 +6,7 @@ import { formatValue } from './model/metrics.ts'
 import type { ReportRecord } from './model/types.ts'
 import type { Dictionary } from '../../content/i18n/dictionary.ts'
 import type { Locale } from '../../content/locale.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 
 interface ConditionsProps {
   a: ReportRecord
@@ -36,7 +37,7 @@ export function Conditions({ a, b, locale }: ConditionsProps) {
     const raw = record?.settings?.[key]
     if (typeof raw === 'boolean') return t(raw ? 'report.yes' : 'report.no')
     if (typeof raw !== 'number') return t('report.unknown')
-    return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit)
+    return formatValue(unit === 'MiB' ? raw / MIB : raw, locale, unit)
   }
   return (
     <Section level={3} title={t('report.protocol')}>

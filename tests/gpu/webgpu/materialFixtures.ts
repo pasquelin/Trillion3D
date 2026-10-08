@@ -8,6 +8,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import * as img from './materialImages.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 
 /** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
 const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' }
@@ -111,7 +112,7 @@ export const fixtures: Fixture[] = [
       map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT
       map.magFilter = G.HOST_FILTER_LINEAR
       map.repeat.set(4, 4)
-      map.rotation = Math.PI / 6
+      map.rotation = 30 * DEG2RAD
       return { map }
     },
     {
@@ -128,7 +129,7 @@ export const fixtures: Fixture[] = [
   // differ, so the proof is the contrast each engine gains (`ANISOTROPY_GAIN`, the runner).
   ...[1, 16].map((anisotropy) =>
     unlit(`grazing stripes, anisotropy ${anisotropy}`, () => ({ map: img.stripeMap(anisotropy) }), {
-      tilt: (-75 * Math.PI) / 180,
+      tilt: -75 * DEG2RAD,
       points: GRAZING_ROW,
       difference: [0, 255],
       reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
@@ -141,7 +142,7 @@ export const fixtures: Fixture[] = [
   // (past the 16:1 grant, clamped by each sampler its own way) leaf edges are judged by holes.
   ...[80, 84, 88].map((degrees) =>
     unlit(`foliage at a grazing angle of ${degrees}°, anisotropy 16`, img.foliage, {
-      tilt: (-degrees * Math.PI) / 180,
+      tilt: -degrees * DEG2RAD,
       behind: 0x6a3d9a,
       points: GRAZING_ROW,
       difference: [0, degrees < 88 ? 2 : 255],

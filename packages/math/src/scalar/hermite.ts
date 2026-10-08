@@ -28,3 +28,19 @@ export function splineSpan(
     q = 3 * c - 3 * b - 2 * u - v
   return k * w3 + q * w2 + u * w + b
 }
+
+/**
+ * The cubic Hermite basis at `w` in `[0, 1]`, into `out[0..4]`, by `w² = w·w` and `w³ = w²·w`: the
+ * weights of the start value `2w³ − 3w² + 1`, of the start tangent `w³ − 2w² + w`, of the end
+ * value `−2w³ + 3w²` and of the end tangent `w³ − w²`. The twin of the Rust crate's
+ * `hermite_basis`; it rounds otherwise than `splineSpan`, so the two forms keep apart.
+ */
+export function hermiteBasis(out: Float64Array, w: number) {
+  const w2 = w * w,
+    w3 = w2 * w
+  out[0] = 2 * w3 - 3 * w2 + 1
+  out[1] = w3 - 2 * w2 + w
+  out[2] = -2 * w3 + 3 * w2
+  out[3] = w3 - w2
+  return out
+}

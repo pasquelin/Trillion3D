@@ -17,6 +17,8 @@ import {
   type Vec3,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { Light } from './lightTileCity.ts'
+import { distanceSqVector3 } from '../../../packages/math/src/vector/vector.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The pass's work: its columns and cells, a light against a column's planes, the runs solved
  *  (each at most eight section evaluations, `NEWTON_STEPS` an end), the slices marked — each a list entry. */
@@ -31,7 +33,7 @@ type GridWork = {
 /** Each column's lists, slice by slice, the ranks in increasing order; the lights within its
  *  planes, which alone may reach its pixels; the pass's work. */
 export function gridLists(view: TileView, lights: Light[], grid = GRID) {
-  const [columnsX, columnsY] = [view.width, view.height].map((n) => Math.ceil(n / grid.cell))
+  const [columnsX, columnsY] = [view.width, view.height].map((n) => ceilDiv(n, grid.cell))
   const cells = columnsX * columnsY * grid.slices
   const work: GridWork = {
     columns: columnsX * columnsY,
@@ -86,11 +88,11 @@ export function walkGrid(
 
 /** Whether a light's range holds a point: its term is not an exact zero there. */
 export const reaches = (p: Vec3, { centre: c, radius }: Light) =>
-  (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2 < radius ** 2
+  distanceSqVector3(p, c) < radius * radius
 
 /** The per-tile pass at `width` × `height` over `lights` lights: each tile
  *  of 16 pixels reads its 256 depths and tests every light against its two slices. */
 export const tilePassWork = (width: number, height: number, lights: number) => {
-  const tiles = Math.ceil(width / 16) * Math.ceil(height / 16)
+  const tiles = ceilDiv(width, 16) * ceilDiv(height, 16)
   return { texels: width * height, tileTests: tiles * lights }
 }

@@ -73,6 +73,8 @@ function walkOf(depth: Float64Array, levels: Level[]) {
       'reflectionOnSurface',
       'reflectionBoundsAt',
       'reflectionBoundsLevels',
+      'pow2FromExponent',
+      'clampToExtent',
       ...PLANE,
     ],
     {

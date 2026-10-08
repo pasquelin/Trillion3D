@@ -39,5 +39,3 @@ export const TRIANGLE_BLOCK = 8,
 /** Corners per full block: a block's bits are `BLOCK_CORNERS × width`, so a prefix of widths
  *  locates it. */
 export const BLOCK_CORNERS = 3 * TRIANGLE_BLOCK
-/** `2 / 255` as the nearest 32-bit float: an octahedral byte to `[-1, 1]`. */
-export const OCT_SCALE = Math.fround(2 / 255)

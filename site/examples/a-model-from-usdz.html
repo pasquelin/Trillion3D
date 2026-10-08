@@ -76,8 +76,8 @@
       turn.stop();
       opening(world, (time) => {
         const t = ease.smooth((time - 0.8) / 5);
-        world.camera.position.set(...mix(START.eye, OVER.eye, t));
-        world.controls.target.set(...mix(START.look, OVER.look, t));
+        world.camera.position.set(...mix({ math }, START.eye, OVER.eye, t));
+        world.controls.target.set(...mix({ math }, START.look, OVER.look, t));
         if (t < 1) return true;
         turn.restart();
         return false;

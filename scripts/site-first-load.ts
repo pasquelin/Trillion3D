@@ -9,7 +9,7 @@
 import { resolve } from 'node:path'
 import type { Browser } from 'playwright'
 import { routeThree } from './three-route.ts'
-import { median } from './median.ts'
+import { quantileFloorOf } from '../packages/math/src/scalar/quantile.ts'
 import { launchChrome } from '../bench/runner/harness/chrome.ts'
 import { createDocsServer } from './docs/serve.ts'
 import { listen } from './static-server.ts'
@@ -55,7 +55,13 @@ try {
     const samples: LoadSample[] = []
     for (let i = 0; i < runs; i += 1) samples.push(await loadOnce(browser, origin, route))
     const summary = Object.fromEntries(
-      SUMMARY_KEYS.map((key) => [key, median(samples.map((sample) => sample[key]))]),
+      SUMMARY_KEYS.map((key) => [
+        key,
+        quantileFloorOf(
+          samples.map((sample) => sample[key]),
+          0.5,
+        ) as number,
+      ]),
     )
     console.log(JSON.stringify({ route, runs, ...summary }))
   }

@@ -4,6 +4,7 @@ import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { isNanWord } from '../../../../../math/src/wgsl/integer.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
@@ -61,7 +62,7 @@ const FAR_PLANE:u32=4u;
 /** True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
-fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
+fn farless()->bool{return isNanWord(bitcast<u32>(views[vi].planes[FAR_PLANE].x));}
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
 fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
@@ -163,6 +164,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_RECORD_WGSL,
       DAG_AHEAD_WGSL,
       boxBehindPlane,
+      isNanWord,
     ],
   )
 

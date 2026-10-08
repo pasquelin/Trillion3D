@@ -1,5 +1,6 @@
 import {
   axisAngleQuaternion,
+  conjugateQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
@@ -38,6 +39,10 @@ const scratch = {
 }
 const X = [1, 0, 0],
   Y = [0, 1, 0]
+/** `Math.hypot`'s length, not the length rule: a straight or folded chain bends by angles its last
+ *  bits decide (an arc cosine at ±1, a roll about an axis the elbow lies on), so a length or an
+ *  axis one bit off turns a bone far from its pose there (docs/MATHS.md "Lengths"). The turn's
+ *  axis is divided by this length for the same reason. */
 const length = (v: ArrayLike<number>) => hypot3(v[0], v[1], v[2])
 const clampedAcos = (x: number) => Math.acos(clamp(x, -1, 1))
 const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
@@ -72,10 +77,7 @@ function turnInWorld(node: Object3D, axis: ArrayLike<number>, radians: number) {
   global[1] = g.y
   global[2] = g.z
   global[3] = g.w
-  inverse[0] = -g.x
-  inverse[1] = -g.y
-  inverse[2] = -g.z
-  inverse[3] = g.w
+  conjugateQuaternion(inverse, global)
   multiplyQuaternion(q, inverse, turn)
   multiplyQuaternion(q, q, global)
   const l = node.quaternion

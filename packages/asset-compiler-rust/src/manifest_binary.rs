@@ -172,11 +172,11 @@ pub fn columns(
         TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
-    let mut offset = (header_bytes + 7) & !7;
+    let mut offset = header_bytes.next_multiple_of(8);
     for index in 0..COLUMNS {
         offsets[index] =
             u32::try_from(offset).map_err(|_| bad("Manifest binary exceeds four gigabytes"))?;
-        offset = (offset + columns[index].bytes.len() + 7) & !7;
+        offset = (offset + columns[index].bytes.len()).next_multiple_of(8);
     }
     let mut bytes = vec![0u8; offset];
     bytes[0..4].copy_from_slice(&MANIFEST_BINARY_MAGIC.to_le_bytes());

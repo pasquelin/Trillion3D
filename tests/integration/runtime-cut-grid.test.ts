@@ -13,6 +13,7 @@ import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4, IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/index.ts'
 import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
+import { length3 } from '../../packages/math/src/vector/vector.ts'
 
 const root = new URL('../../', import.meta.url)
 
@@ -27,7 +28,7 @@ type GltfNode = {
 
 /** The longest of a world matrix's three linear columns (`proxy.rs` `world_scale`). */
 const worldScale = (m: Float64Array) =>
-  Math.max(0, ...[0, 4, 8].map((c) => Math.sqrt(m[c] ** 2 + m[c + 1] ** 2 + m[c + 2] ** 2)))
+  Math.max(0, ...[0, 4, 8].map((c) => length3(m[c], m[c + 1], m[c + 2])))
 
 /** The largest world scale each mesh of a glTF is placed at, every node no other names as a child a
  *  root (`compiler_world.rs` `world_matrices`, `proxy.rs` `mesh_scales`). */

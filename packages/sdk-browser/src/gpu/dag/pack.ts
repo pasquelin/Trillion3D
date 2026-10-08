@@ -1,4 +1,5 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
@@ -382,9 +383,7 @@ export function rootWorlds(worlds: Float32Array, roots: readonly DagRoot[]) {
  */
 export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[]) {
   for (let w = 0; w < roots.length; w++) {
-    const world = roots[w].world.elements,
-      at = w * 16
-    for (let i = 0; i < 16; i++) if (worlds[at + i] !== Math.fround(world[i])) return true
+    if (!sameMatrixFloat32(worlds, roots[w].world.elements, w * 16)) return true
   }
   return false
 }

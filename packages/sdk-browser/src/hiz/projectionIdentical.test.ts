@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 import { projectCornersInto } from './corners.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /**
  * Arithmetic without the shortcuts, written here once: one dot product for the view
@@ -53,13 +54,7 @@ function reference(
 }
 
 /** A fixed-seed generator: the same boxes on every run. */
-function seededDraw(seed: number) {
-  let state = seed >>> 0
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0
-    return state / 4294967296
-  }
-}
+const seededDraw = lcgRandom
 
 function randomBoxes(count: number) {
   const next = seededDraw(20260916)

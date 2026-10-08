@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { bitMask, bitWord, byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { InvT3, invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
@@ -101,7 +102,7 @@ fn composeRowFrame(world:mat4x4f)->RowFrame{
 /** Reads of the cache as plain words — the resolve's, and the triangles pass's. */
 const CACHE_READ_WGSL = wgslBlock(
   'CACHE_READ_WGSL',
-  [ROW_FRAME_WGSL],
+  [ROW_FRAME_WGSL, bitWord, bitMask, byteOf],
   `
 fn cacheVec2(at:u32)->vec2f{return bitcast<vec2f>(vec2u(shadeCache[at],shadeCache[at+1u]));}
 fn cacheVec3(at:u32)->vec3f{return bitcast<vec3f>(vec3u(shadeCache[at],shadeCache[at+1u],shadeCache[at+2u]));}
@@ -117,11 +118,11 @@ fn rowFrame(row:u32,world:mat4x4f)->RowFrame{
 fn cachedSlot(row:u32,tri:u32)->u32{
  let rows=shadeCache[SHADE_CACHE_ROWS];
  if(!SHADE_CACHE||row>=rows){return NO_SLOT;}
- let word=shadeCache[rowMarks(rows,row)+PLANE_WORDS+(tri>>5u)];
- let bit=1u<<(tri&31u);
+ let word=shadeCache[rowMarks(rows,row)+PLANE_WORDS+bitWord(tri)];
+ let bit=bitMask(tri);
  if((word&bit)==0u){return NO_SLOT;}
  let record=ROW_RECORDS+row*ROW_RECORD_WORDS;
- let before=(shadeCache[record+ROW_PREFIX+(tri>>7u)]>>(((tri>>5u)&3u)*8u))&255u;
+ let before=byteOf(shadeCache[record+ROW_PREFIX+(tri>>7u)],bitWord(tri)&3u);
  return shadeCache[record+ROW_BASE]+before+countOneBits(word&(bit-1u));
 }`,
 )
@@ -168,7 +169,7 @@ fn markKind(id:u32,left:u32,leftLeft:u32,up:u32)->u32{
  return select(1u,2u,id==up);
 }
 fn markTriangle(rows:u32,row:u32,tri:u32,kind:u32){
- let at=rowMarks(rows,row)+(tri>>5u);let bit=1u<<(tri&31u);
+ let at=rowMarks(rows,row)+bitWord(tri);let bit=bitMask(tri);
  if(kind==0u||(atomicLoad(&shadeCache[at+PLANE_WORDS])&bit)!=0u){return;}
  if(kind==2u||(atomicOr(&shadeCache[at],bit)&bit)!=0u){atomicOr(&shadeCache[at+PLANE_WORDS],bit);}
 }
@@ -234,7 +235,7 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  atomicMax(&shadeCache[SHADE_CACHE_END],base+count);
  openSlice(0u,(base+count-1u)>>6u);
 }`,
-  [PAGE_INFO_STRUCT_WGSL, FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, ROW_FRAME_WGSL],
+  [PAGE_INFO_STRUCT_WGSL, FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, ROW_FRAME_WGSL, bitWord, bitMask],
 )
 
 /** The triangles pass, the page decoded by the resolve's own text. */

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 const f = Math.fround
 
@@ -20,14 +21,17 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
   const transform = functionText(code, 'vsmLevelToLevelOf')
   assert.match(
     transform,
-    /r\.scale=select\(f32\(1u<<u32\(-levelOffset\)\),1\.0\/f32\(1u<<u32\(levelOffset\)\),levelOffset>=0\);/,
+    /r\.scale=select\(pow2FromExponent\(-levelOffset\),1\.0\/pow2FromExponent\(levelOffset\),levelOffset>=0\);/,
   )
   // Its inverse, carried to every read that takes a depth to a level (the filtered taps and the
   // transmission too): 1 / f32(2^m) for a scale 2^m, 2^k for a scale 1 / f32(2^k).
   assert.match(
     transform,
-    /r\.depthInverse=select\(1\.0\/f32\(1u<<u32\(-levelOffset\)\),f32\(1u<<u32\(levelOffset\)\),levelOffset>=0\);/,
+    /r\.depthInverse=select\(1\.0\/pow2FromExponent\(-levelOffset\),pow2FromExponent\(levelOffset\),levelOffset>=0\);/,
   )
+  // `pow2FromExponent(n)` is 2^n for n in [-126, 127] (`libraryInteger.test.ts`), as `f32(1u << n)`
+  // was for n in [0, 31]: a level gap is at most the sun's 16 (levels 6 to 22).
+  for (let n = 0; n <= 31; n++) assert.equal(f((1 << n) >>> 0), 2 ** n, `1u << ${n}`)
   for (let k = -24; k <= 24; k++) {
     const scale = k < 0 ? f(2 ** -k) : f(1 / f(2 ** k)),
       inverse = k < 0 ? f(1 / f(2 ** -k)) : f(2 ** k)
@@ -50,8 +54,7 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
 })
 
 test('in f32, (raw − bias) / 2^-k is (raw − bias) · 2^k, and (raw − 0) / 1 is raw', () => {
-  let seed = 1563
-  const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+  const next = lcgRandom(1563)
   const word = new Float32Array(1),
     bits = new Uint32Array(word.buffer)
   const values = [0, -0, 1, 2 ** -24, 2 ** -126, 0.5]

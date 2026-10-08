@@ -1,4 +1,10 @@
-import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
+import {
+  crossVector3,
+  divideVector3,
+  length3,
+  lengthSqVector3,
+} from '../../../packages/math/src/vector/vector.ts'
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 
@@ -56,9 +62,9 @@ export function createWorkshop() {
       const du = point(u + 0.00001, v).map((x, k) => x - p[k])
       const dv = point(u, v + 0.00001).map((x, k) => x - p[k])
       const n = crossVector3([0, 0, 0], du, dv)
-      const length = Math.hypot(...n)
-      return length > 1e-6 * (Math.hypot(...du) ** 2 + Math.hypot(...dv) ** 2)
-        ? n.map((x) => x / length)
+      const length = length3(n[0], n[1], n[2])
+      return length > 1e-6 * (lengthSqVector3(du) + lengthSqVector3(dv))
+        ? divideVector3(n, 0, length)
         : null
     }
     /** At a pole every column meets in one point and one tangent vanishes: the normal there is
@@ -129,7 +135,7 @@ export function createWorkshop() {
       }
       // Flutes ripple the radius round the shaft, which a lathe profile cannot carry.
       grid(material, segments, 24, (u, v) => {
-        const angle = u * Math.PI * 2
+        const angle = u * TAU
         const r = profile(v) * (1 + 0.06 * Math.cos(angle * flutes))
         return [base[0] + r * Math.cos(angle), base[1] + v * height, base[2] - r * Math.sin(angle)]
       })

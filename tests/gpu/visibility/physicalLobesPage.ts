@@ -5,11 +5,12 @@
 // geometry, its maps and its material go through the engine's page rows, atlases, resolve or blend
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { HALF_PI, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { runOnDevice as withDevice } from '../kit/deviceProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { compilePages } from './compiledPages.ts'
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 
 const camera = cameraFace()
 
@@ -89,11 +90,10 @@ const stillness = (metrics: object, events: unknown[], m = metrics as Record<str
 
 /** A pixel's brightness where world point `(x, y, 0)` lands. */
 export const level = (pixels: number[], x: number, y: number) =>
-  colorAt(new Uint8Array(pixels), camera, x, y).reduce((sum, channel) => sum + channel, 0) / 3
+  mean(colorAt(new Uint8Array(pixels), camera, x, y))
 
-/** Where an image is brightest: the centroid, column and row, of the pixels within 2 % of its
- *  brightest one — a saturated highlight is a plateau, whose first pixel says nothing of where it
- *  lies. */
+/** Where an image is brightest: the centroid of the pixels within 2 % of its brightest one — a
+ *  saturated highlight is a plateau, whose first pixel says nothing of where it lies. */
 function brightest(pixels: number[]) {
   const sums: number[] = []
   for (let i = 0; i < pixels.length; i += 4) sums.push(pixels[i] + pixels[i + 1] + pixels[i + 2])
@@ -167,7 +167,7 @@ export const CLEARCOAT_CASES: Record<string, G.SurfaceParameters> = {
 export const ANISOTROPY_CASES: Record<string, G.SurfaceParameters> = {
   none: METAL,
   along: { ...METAL, anisotropy: 0.8 },
-  turned: { ...METAL, anisotropy: 0.8, anisotropyRotation: Math.PI / 2 },
+  turned: { ...METAL, anisotropy: 0.8, anisotropyRotation: HALF_PI },
   strengthMapZero: { ...METAL, anisotropy: 0.8, anisotropyMap: texel(255, 128, 0, 255) },
 }
 

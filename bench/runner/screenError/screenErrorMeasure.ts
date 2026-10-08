@@ -2,8 +2,9 @@
 // oracle: forward, points of the drawn triangles to the source; reverse, points of the
 // source to the drawn triangles. A distance becomes pixels through the cut's own projection
 // (`screenErrorBound`, radius zero); the camera, its frustum and its focal length are the
-// engine's (`lookAtNode`, `updateCameraFrame`, `pixelScaleOf`), and the nearest-surface queries
+// engine's (`lookAtNode`, `updateCameraFrame`, `focalPixels`), and the nearest-surface queries
 // run on the engine's triangle tree.
+import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import {
   createCameraFrame,
@@ -30,7 +31,8 @@ import {
   forEachTriangleInBox,
   nearestTriangleOnRay,
 } from '../../../packages/sdk-core/src/collision/triangleQuery.ts'
-import { pixelScaleOf } from '../../../packages/sdk-browser/src/streaming/priority.ts'
+import { focalPixels } from '../../../packages/math/src/projection/camera.ts'
+import { quantileFloor } from '../../../packages/math/src/scalar/quantile.ts'
 
 /** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner
  *  points. Fixed, so two runs read the same points. */
@@ -69,8 +71,8 @@ export function viewOf(pose: CameraPose, width: number, height: number) {
     tree.worldViews[node].slice(),
     pose.far,
   )
-  const [fx, fy] = pixelScaleOf(projection, [width, height], [0, 0])
-  return { frame, eye: pose.position, near: pose.near, focal: Math.max(fx, fy) }
+  const focal = focalPixels(projection, width, height)
+  return { frame, eye: pose.position, near: pose.near, focal }
 }
 type View = ReturnType<typeof viewOf>
 
@@ -86,7 +88,7 @@ function inView(view: View, p: Float64Array) {
 }
 /** Pixels a displacement `distance` at the point last read by `inView` moves on screen. */
 const pixels = (view: View, distance: number) =>
-  screenErrorBound(distance, 1, Math.hypot(q[0], q[1]), -q[2], 0, view.focal, view.near)
+  screenErrorBound(distance, 1, length2(q[0], q[1]), -q[2], 0, view.focal, view.near)
 
 const segment = new Float64Array(6),
   closest = new Float64Array(6),
@@ -115,8 +117,7 @@ function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
 /** Largest value and 99th percentile (not `summarize`: it refuses the infinite errors). */
 function summary(values: number[]) {
   const sorted = Float64Array.from(values).sort()
-  const at = (share: number) =>
-    sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))] ?? 0
+  const at = (share: number) => quantileFloor(sorted, share) ?? 0
   return { points: sorted.length, max: at(1), p99: at(0.99) }
 }
 
@@ -180,7 +181,7 @@ export function measureView(o: {
       shift = (nudge * depth) / view.focal
     for (let k = 0; k < 3; k++) ray[k] = p[k] + shift * NUDGE[k] - view.eye[k]
     const hit = nearestTriangleOnRay(shownTree, view.eye, ray)
-    const length = Math.hypot(ray[0], ray[1], ray[2]),
+    const length = length3(ray[0], ray[1], ray[2]),
       margin = (HIDDEN_MARGIN_PX * depth) / view.focal
     return hit !== null && hit.t * length < length - margin
   }

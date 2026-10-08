@@ -1,13 +1,9 @@
 import { EngineError } from '../../contracts/cache.ts'
 import type { SceneLight } from './contracts.ts'
-import {
-  ENVIRONMENT_COEFFICIENTS,
-  TONE_MAPPING_RANK,
-  type SceneEnvironment,
-} from '../core/environment.ts'
-import { finite, validateSceneFog } from '../core/fog.ts'
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { finite } from '../core/fog.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { addScaledVector3, dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 function vector(value: unknown, field: string, id: string): [number, number, number] {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(finite))
@@ -17,6 +13,10 @@ function vector(value: unknown, field: string, id: string): [number, number, num
     })
   return [value[0], value[1], value[2]]
 }
+/** `value` divided by its `Math.hypot` length (docs/MATHS.md "Lengths", a declared use): the
+ *  validated direction feeds, in double, the shadow clipmap's own normalise and basis, and the
+ *  rule's product by an inverse root differs from this quotient in the last bit on about two
+ *  directions in three; one not longer than 1e-6 is refused. */
 function normalized(value: [number, number, number], id: string): [number, number, number] {
   const length = hypot3(value[0], value[1], value[2])
   if (!(length > 1e-6))
@@ -165,37 +165,12 @@ function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: a rect casts no shadow`, {})
   const normal = requiredDirection(light.direction, id, 'a rect requires the normal of its face')
   const right = vector(light.right, 'right', id)
-  const along = right[0] * normal[0] + right[1] * normal[1] + right[2] * normal[2]
+  addScaledVector3(right, normal, -dotVector3(right, normal))
   validated.direction = normal
-  validated.right = normalized([0, 1, 2].map((k) => right[k] - along * normal[k]) as never, id)
+  validated.right = normalized(right, id)
   const size = light.size
   if (!Array.isArray(size) || size.length !== 2 || !size.every((side) => finite(side) && side > 0))
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: size expects two sides > 0`, { size })
   validated.size = [size[0], size[1]]
-  return validated
-}
-/** Checks the scene's exposure, curve and surrounding light. */
-export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
-  if (!finite(environment?.exposure) || environment.exposure <= 0)
-    throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposure must be > 0', {
-      exposure: environment?.exposure,
-    })
-  const validated: SceneEnvironment = { exposure: environment.exposure }
-  const { toneMapping, irradiance, fog } = environment
-  if (fog !== undefined) validated.fog = validateSceneFog(fog)
-  if (toneMapping !== undefined) {
-    if (!(toneMapping in TONE_MAPPING_RANK))
-      throw new EngineError('INVALID_SCENE_ENVIRONMENT', `unknown tone mapping ${toneMapping}`, {
-        toneMapping,
-      })
-    validated.toneMapping = toneMapping
-  }
-  if (irradiance !== undefined) {
-    if (irradiance.length !== ENVIRONMENT_COEFFICIENTS * 3 || !irradiance.every(finite))
-      throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'irradiance expects 27 finite numbers', {
-        length: irradiance.length,
-      })
-    validated.irradiance = [...irradiance]
-  }
   return validated
 }

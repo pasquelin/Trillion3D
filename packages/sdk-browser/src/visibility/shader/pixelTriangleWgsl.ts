@@ -3,7 +3,7 @@ import {
   InvT3,
   invTranspose3Apply,
   invTranspose3Prep,
-  uniteOuZero,
+  unitOrZero,
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
@@ -42,19 +42,19 @@ export const PIXEL_BARY_WGSL = wgslBlock(
  * The triangle's three vertex normals in the world, one per column, turned to `side`. The three
  * undergo the SAME matrix: normalisation, determinant and adjugate are computed once for the
  * pixel (`invTranspose3Prep`, or the row's frame the resolve reads, `shadeCacheWgsl.ts`), and each
- * normal only keeps the 3×3 product. uniteOuZero returns normalize on any non-zero vector; it only
+ * normal only keeps the 3×3 product. unitOrZero returns normalize on any non-zero vector; it only
  * differs where normalize would yield NaN — collapsed face, degenerate triangle. On a rank-2 pose,
  * invTranspose3Apply returns the transformed FACE normal: the three vertex normals fall on the same
  * direction, and interpolation keeps it.
  */
 export const VERTEX_NORMALS_WGSL = wgslBlock(
   'VERTEX_NORMALS_WGSL',
-  [invTranspose3Prep, invTranspose3Apply, uniteOuZero],
+  [invTranspose3Prep, invTranspose3Apply, unitOrZero],
   `fn vertexNormals(page:PageInfo,h:ClusterHeader,corners:vec3u,world3:mat3x3f,side:f32)->mat3x3f{
  return transformedNormals(page,h,corners,invTranspose3Prep(world3),side);
 }
 fn transformedNormals(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,side:f32)->mat3x3f{
- return mat3x3f(uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.x)))*side,uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.y)))*side,uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.z)))*side);
+ return mat3x3f(unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,corners.x)))*side,unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,corners.y)))*side,unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,corners.z)))*side);
 }`,
 )
 

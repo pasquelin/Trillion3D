@@ -12,6 +12,8 @@
  */
 
 import { closestBetweenSegments } from './segmentPair.ts'
+import { triangleCross } from '../../../math/src/geometry/triangle.ts'
+import { dotScalar3, lengthSqVector3 } from '../../../math/src/vector/vector.ts'
 
 type Numbers = ArrayLike<number>
 
@@ -30,7 +32,7 @@ const edge = new Float64Array(6),
 function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
   // Stryker disable next-line EqualityOperator,ConditionalExpression: flat: NaN height, never kept
   if (area > 0) {
-    const h = planeSide(p, 0, v, at) / area
+    const h = heightAbove(p, 0, v, at, normal) / area
     // Stryker disable next-line EqualityOperator: `out` holds three numbers, a 4th write is dropped
     for (let k = 0; k < 3; k++) out[k] = p[k] - h * normal[k]
     if (insideTriangle(out[0], out[1], out[2], v, at, normal)) return h * h * area
@@ -41,16 +43,8 @@ function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number,
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
  *  length (four times the squared area), zero for a degenerate triangle. */
 export function triangleNormal(out: Float64Array, v: Numbers, at: number) {
-  const ux = v[at + 3] - v[at],
-    uy = v[at + 4] - v[at + 1],
-    uz = v[at + 5] - v[at + 2],
-    wx = v[at + 6] - v[at],
-    wy = v[at + 7] - v[at + 1],
-    wz = v[at + 8] - v[at + 2]
-  out[0] = uy * wz - uz * wy
-  out[1] = uz * wx - ux * wz
-  out[2] = ux * wy - uy * wx
-  return out[0] * out[0] + out[1] * out[1] + out[2] * out[2]
+  triangleCross(out, 0, v, at, at + 3, at + 6)
+  return lengthSqVector3(out)
 }
 
 /** Whether a point of the triangle's plane lies on the inner side of all three edges, the
@@ -72,8 +66,14 @@ export function insideTriangle(
     const px = x - v[from],
       py = y - v[from + 1],
       pz = z - v[from + 2]
-    const turn =
-      (ey * pz - ez * py) * n[0] + (ez * px - ex * pz) * n[1] + (ex * py - ey * px) * n[2]
+    const turn = dotScalar3(
+      ey * pz - ez * py,
+      ez * px - ex * pz,
+      ex * py - ey * px,
+      n[0],
+      n[1],
+      n[2],
+    )
     if (turn < 0) return false
   }
   return true
@@ -125,8 +125,8 @@ function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, ar
   // distance 0, as its own pair, by the end search.
   // Stryker disable all: flat triangle, end on the plane
   if (area === 0) return false
-  const d0 = planeSide(segment, 0, v, at),
-    d1 = planeSide(segment, 3, v, at)
+  const d0 = heightAbove(segment, 0, v, at, normal),
+    d1 = heightAbove(segment, 3, v, at, normal)
   if (d0 * d1 > 0 || d0 === d1) return false
   // Stryker restore all
   const t = d0 / (d0 - d1)
@@ -134,8 +134,8 @@ function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, ar
   return insideTriangle(out[0], out[1], out[2], v, at, normal)
 }
 
-/** The signed, unnormalised height of point `p[k..k+3]` above the plane of `normal`. */
-function planeSide(p: Numbers, k: number, v: Numbers, at: number) {
-  const n = normal
-  return (p[k] - v[at]) * n[0] + (p[k + 1] - v[at + 1]) * n[1] + (p[k + 2] - v[at + 2]) * n[2]
+/** The signed, unnormalised height of point `p[k..k+3]` above the plane through vertex `v[at]` of
+ *  normal `n`: `(p − vertex) · n`. */
+export function heightAbove(p: Numbers, k: number, v: Numbers, at: number, n: Numbers) {
+  return dotScalar3(p[k] - v[at], p[k + 1] - v[at + 1], p[k + 2] - v[at + 2], n[0], n[1], n[2])
 }

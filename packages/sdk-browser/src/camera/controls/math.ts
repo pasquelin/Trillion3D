@@ -1,6 +1,9 @@
 import { wrap } from '../../../../math/src/scalar/reals.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
-import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import {
+  rotateByQuaternion,
+  yawPitchQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
 import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
@@ -20,17 +23,7 @@ import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
  * down -Z, the identity, which is what makes this the turntable orientation.
  */
 export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>) {
-  const halfAzimuth = spherical[1] / 2,
-    halfPolar = (spherical[2] - HALF_PI) / 2
-  const sy = Math.sin(halfAzimuth),
-    cy = Math.cos(halfAzimuth),
-    sx = Math.sin(halfPolar),
-    cx = Math.cos(halfPolar)
-  out[0] = cy * sx
-  out[1] = sy * cx
-  out[2] = -sy * sx
-  out[3] = cy * cx
-  return out
+  return yawPitchQuaternion(out, spherical[1], spherical[2] - HALF_PI)
 }
 
 /**

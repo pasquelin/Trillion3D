@@ -55,7 +55,7 @@
         brush.fillRect(0, 0, W, H / 2);
         // The sun, and its glow: wider across near the top, where a row of the picture is a
         // smaller circle of the sky.
-        const sx = sky.turn * W, sy = H * (0.5 - sky.height / 180), stretch = 1 / Math.cos((sky.height * Math.PI) / 180);
+        const sx = sky.turn * W, sy = H * (0.5 - sky.height / 180), stretch = 1 / Math.cos(math.degToRad(sky.height));
         brush.save();
         brush.translate(sx, sy);
         brush.scale(stretch, 1);
@@ -115,7 +115,7 @@
       // The sky's direction from its place in the picture, as the sphere's own texture lays it:
       // across is the turn from +x toward +z, down the angle from straight up.
       function towards(sky) {
-        const turn = sky.turn * Math.PI * 2, fromUp = Math.PI / 2 - (sky.height * Math.PI) / 180;
+        const turn = sky.turn * Math.PI * 2, fromUp = Math.PI / 2 - math.degToRad(sky.height);
         return [Math.sin(fromUp) * Math.cos(turn), Math.cos(fromUp), Math.sin(fromUp) * Math.sin(turn)];
       }
 

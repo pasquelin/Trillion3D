@@ -3,6 +3,7 @@ import { core } from '../../impostor/borrowed.ts'
 import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the camera's own, both
  *  at the eye, then the eye in two singles a component — the high words with the focal length's
@@ -82,7 +83,7 @@ struct CardVary{
  let k2=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,2u),1.0);let k3=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,3u),1.0);
  let p=cardCorner(view.basis,centre,radius,order[v]);
  let m=c.inverse;
- let back=mat3x3f(m[0].xyz,m[1].xyz,m[2].xyz);
+ let back=worldMatrix3(m);
  let eye=-(back*origin)-pivot;
  let frames=c.shape.y;let hemi=c.shape.z;
  let k=impView(eye,frames,hemi);
@@ -91,10 +92,11 @@ struct CardVary{
  let lod=max(0.0,log2(length(centre))-c.shape.w-view.eyeHigh.w);
  // A card wholly past one side of the frustum: one point beyond the far side for each vertex.
  let clip=select(view.viewProj*vec4f(p,1.0),vec4f(0.0,0.0,-1.0,1.0),cardOutside(k0,k1,k2,k3));
- // The normal matrix, transpose(inverse), by its rows read as columns.
+ // The normal matrix, transpose(inverse).
+ let normalMatrix=transpose(back);
  return CardVary(clip,back*(p-origin)-pivot,i,vec4f(eye,c.shape.x),
   vec4f(k.w,lod),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
-  na,nb,nc,vec3f(m[0].x,m[1].x,m[2].x),vec3f(m[0].y,m[1].y,m[2].y),vec3f(m[0].z,m[1].z,m[2].z));
+  na,nb,nc,normalMatrix[0],normalMatrix[1],normalMatrix[2]);
 }
 /** The card's surface at this pixel, and its depth: the blended surface point, at the eye,
  *  projected. A texel under the coverage cut is no surface: the pixel is discarded, in every stage
@@ -128,5 +130,5 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
 }`,
-    [IMPOSTOR_CARD_WGSL, tangentImpostor, core.SPRITE_WGSL],
+    [IMPOSTOR_CARD_WGSL, tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
   )

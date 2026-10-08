@@ -77,7 +77,7 @@
         for (const { mesh, level } of branches) mesh.visible = level <= values.branches;
         for (const { mesh, level, rank } of leaves) mesh.visible = level <= values.branches && rank < values.leaves;
         leafMaterial.alphaTest = values.cutoff;
-        const turn = (values.sun * Math.PI) / 180;
+        const turn = math.degToRad(values.sun);
         sun.position.set(Math.sin(turn) * 8, 9, Math.cos(turn) * 8);
         world.invalidate();
       }, world);
