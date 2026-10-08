@@ -34,6 +34,7 @@ import type { worldRootDag } from './worldSuperRoots.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 import { meshes } from './meshes.ts'
+import { primitiveFinder } from './primitiveLookup.ts'
 import { meshSurface } from '../page/surface.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
@@ -145,15 +146,16 @@ export function worldWearers(
   primitives: readonly Primitive[],
   associations: ReadonlyMap<Object3D, { meshes?: number; primitives?: number }>,
 ) {
-  const byKey = new Map<string, HostMesh>()
+  // Each manifest primitive to the first mesh that draws it, found by its association.
+  const find = primitiveFinder(primitives),
+    byPrimitive = new Map<Primitive, HostMesh>()
   for (const mesh of meshes(source)) {
-    const association = associations.get(mesh),
-      key = `${association?.meshes}/${association?.primitives ?? 0}`
-    if (association && !byKey.has(key)) byKey.set(key, mesh)
+    const primitive = find(associations.get(mesh))
+    if (primitive && !byPrimitive.has(primitive)) byPrimitive.set(primitive, mesh)
   }
   return (rank: number): WorldWearer | undefined => {
     const primitive = primitives[rank],
-      mesh = primitive && byKey.get(`${primitive.mesh}/${primitive.primitive}`)
+      mesh = primitive && byPrimitive.get(primitive)
     if (!mesh) return undefined
     const surface = meshSurface(mesh)
     return drawsBlended(primitive, surface) ? undefined : { mesh, surface }
