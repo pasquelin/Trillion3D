@@ -1,4 +1,4 @@
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * A TRUNCATED READOUT NAMES NO EXIT (#1483). A list the device could not grow is read by its head
@@ -16,12 +16,12 @@ export function createHeadUnion() {
     epoch = 0
   return (head: ArrayLike<number>, held: ArrayLike<number>, heldCount: number) => {
     const count = head.length + heldCount
-    if (out.length < count) out = grown(out, count)
+    if (out.length < count) out = resized(out, count)
     epoch++
     let n = 0
     for (let i = 0; i < head.length; i++) {
       const id = head[i]
-      if (id >= marks.length) marks = grown(marks, id + 1, marks.length)
+      if (id >= marks.length) marks = resized(marks, id + 1)
       marks[id] = epoch
       out[n++] = id
     }

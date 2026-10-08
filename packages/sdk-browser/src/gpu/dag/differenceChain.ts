@@ -1,6 +1,6 @@
 import { SELECTION_NONE as NONE, type CutClaims } from '../core/selection.ts'
 import { differenceWord } from './layout.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** What the host holds of the readbacks the chain follows: no GPU list, the readback in hand, or
  *  an older one the claims name ranks in. */
@@ -67,10 +67,10 @@ export function createDifferenceChain() {
         const count = Math.min(l ? drawn : asked, listCap),
           from = at + l * listCap
         if (!adoptable) {
-          if (sinceSpare[l].length < count) sinceSpare[l] = grown(sinceSpare[l], count)
+          if (sinceSpare[l].length < count) sinceSpare[l] = resized(sinceSpare[l], count)
           carry(sinceSpare[l], ints, from, count, l, null)
         } else if (holds !== HOLDS_NONE) {
-          if (spare[l].length < count) spare[l] = grown(spare[l], count)
+          if (spare[l].length < count) spare[l] = resized(spare[l], count)
           const last = l ? claims.drawn : claims.asked
           carry(spare[l], ints, from, count, l, holds === HOLDS_CLAIMED ? last : null)
           if (l) claims.drawn = spare[l]

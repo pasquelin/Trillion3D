@@ -7,7 +7,7 @@
  * (`worldUpload.ts`); a host walk, which names none, sends every one.
  */
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import { grown } from '../../../page/cut/sparseInts.ts'
+import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { createDenseKeySet, type DenseKeySet } from '../../cut/denseKeys.ts'
 
 /** The ranks listed since the last take, each once, and the increasing view a take hands out. */
@@ -31,7 +31,7 @@ export function noteWorldMoved(
  *  overwrites. */
 export function takeMovedWorlds(moved: MovedWorlds) {
   const { list, count } = moved.listed
-  if (moved.sorted.length < count) moved.sorted = grown(moved.sorted, count)
+  if (moved.sorted.length < count) moved.sorted = resized(moved.sorted, count)
   const ranks = moved.sorted.subarray(0, count)
   ranks.set(list.subarray(0, count))
   ranks.sort()

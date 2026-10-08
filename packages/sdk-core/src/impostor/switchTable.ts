@@ -5,6 +5,7 @@
  * per holder — a plan, a watch —, so both read the same numbers through the same functions.
  */
 import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import {
   impostorMeshBaked,
@@ -127,19 +128,15 @@ export function switchTable(
 }
 
 /** `table` at `n` roots, the numbers of those it held kept: a list grown in place reads only the
- *  roots appended. */
+ *  roots appended. The arrays are the capacity (`resized`); a root past `n` is taken again from
+ *  nothing should it come back (`rootSwitch`). */
 function resize(table: SwitchTable, n: number) {
-  const keep = (from: Float64Array, per = 1, fill = 0) => {
-    const next = new Float64Array(n * per).fill(fill)
-    next.set(from.subarray(0, Math.min(next.length, from.length)))
-    return next
-  }
   table.held.length = table.entries.length = n
-  table.linear = keep(table.linear, LINEAR.length, NaN)
-  table.radius = keep(table.radius)
-  table.texelDepth = keep(table.texelDepth)
-  table.triangleDepth = keep(table.triangleDepth)
-  table.depthFocal = keep(table.depthFocal, 1, NaN)
+  table.linear = resized(table.linear, n * LINEAR.length, NaN)
+  table.radius = resized(table.radius, n)
+  table.texelDepth = resized(table.texelDepth, n)
+  table.triangleDepth = resized(table.triangleDepth, n)
+  table.depthFocal = resized(table.depthFocal, n, NaN)
 }
 
 /** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */

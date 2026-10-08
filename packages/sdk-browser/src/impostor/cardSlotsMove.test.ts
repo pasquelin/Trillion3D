@@ -25,5 +25,5 @@ test('a segment moved to the end writes its own records, not every record', () =
   assert.equal(first.start + first.capacity, slots.used, 'moved to the end')
   assert.ok(slots.records.length >= slots.used * CARD_FLOATS)
   assert.equal(slots.full, false, 'not every record')
-  assert.equal(slots.dirty.count, 64, 'its 64 records')
+  assert.equal(slots.dirty.listed.count, 64, 'its 64 records')
 })

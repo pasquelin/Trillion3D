@@ -150,15 +150,3 @@ function addKey(t: Table, key: number, delta: number) {
   else t.values[at] = next
   return next
 }
-
-/** A buffer of at least `size` entries, at least twice `list`'s, holding `list`'s first `keep`
- *  entries: a list grown one entry at a time is copied a logarithmic number of times. */
-export function grown<T extends Int32Array | Uint32Array | Uint8Array>(
-  list: T,
-  size: number,
-  keep = 0,
-): T {
-  const next = new (list.constructor as new (length: number) => T)(Math.max(size, list.length * 2))
-  if (keep) next.set(list.subarray(0, keep))
-  return next
-}

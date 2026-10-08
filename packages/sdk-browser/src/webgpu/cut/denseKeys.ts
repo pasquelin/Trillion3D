@@ -1,4 +1,5 @@
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * Membership over integer keys, with the members listed densely in a typed array. Testing, adding
@@ -36,7 +37,7 @@ export function createDenseKeySet(mirror?: unknown[]) {
     /** True when the key was not a member yet; `value` fills the mirror entry beside it. */
     add(key: number, value?: unknown) {
       if (rank.get(key) !== 0) return false
-      if (count === list.length) list = grown(list, count + 1, count)
+      if (count === list.length) list = resized(list, count + 1)
       rank.set(key, count + 1)
       list[count] = key
       if (mirror) mirror[count] = value

@@ -11,7 +11,7 @@ import {
   worldsChanged,
   writePrimitiveWords,
 } from './worlds.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
 import type { createDagPoolList } from './poolList.ts'
 import type { createDagDispatch } from './dispatch.ts'
@@ -91,11 +91,11 @@ function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, nam
     if (w >= packed.worldCount || !worldChangedAt(packed.worlds, next, w)) continue
     if (refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
       if (stretched === stretchedScratch.length)
-        stretchedScratch = grown(stretchedScratch, stretched + 1, stretched)
+        stretchedScratch = resized(stretchedScratch, stretched + 1)
       stretchedScratch[stretched++] = w
     }
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
-    if (moved === movedScratch.length) movedScratch = grown(movedScratch, moved + 1, moved)
+    if (moved === movedScratch.length) movedScratch = resized(movedScratch, moved + 1)
     movedScratch[moved++] = w
   }
   if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)

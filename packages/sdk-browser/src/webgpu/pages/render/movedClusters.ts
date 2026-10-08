@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts'
 import { boxEquals } from '../../../../../math/src/geometry/box.ts'
-import { grown } from '../../../../../sdk-core/src/world/transform-tree/storage.ts'
+import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -50,10 +50,10 @@ export function noteOwnMove(rt: WebgpuPagesRuntime, rank: number) {
   if (!localBox || !worldBox || !pose) return false
   boxTransform(was, 0, localBox, 0, pose)
   if (!boxEquals(was, 0, worldBox, 0)) return false
-  if (own.length < roots.length) own = grown(own, Int32Array, roots.length)
+  if (own.length < roots.length) own = resized(own, roots.length)
   if (kept === ranks.length) {
-    ranks = grown(ranks, Int32Array, 2 * kept)
-    poses = grown(poses, Float64Array, 2 * poses.length)
+    ranks = resized(ranks, 2 * kept)
+    poses = resized(poses, 2 * poses.length)
   }
   poses.set(pose, kept * 16)
   ranks[kept] = rank

@@ -1,4 +1,4 @@
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { coalesceRanges, type RangeRule } from '../residency/ranges.ts'
 import { PAGE_TABLE_RULE } from './pageTableRule.ts'
 
@@ -15,8 +15,8 @@ export function createPageUploads(size: number) {
       if (marked[index]) return
       marked[index] = 1
       if (count === changed.length) {
-        changed = grown(changed, count + 1, count)
-        rule.steps = grown(rule.steps, changed.length)
+        changed = resized(changed, count + 1)
+        rule.steps = resized(rule.steps, changed.length)
       }
       changed[count++] = index
     },

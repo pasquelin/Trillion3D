@@ -27,6 +27,7 @@
  */
 import { rowCell } from '../../partition/rowCells.ts'
 import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { createMovedWorlds, takeMovedWorlds } from '../../webgpu/pages/render/movedWorlds.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
@@ -255,7 +256,8 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
   const groups = groupLevel(tree).base
   for (let g = from / TREE_SPAN; g * TREE_SPAN < tree.count; g++)
     nodeInts[(groups + g) * DAG_NODE_FLOATS + NODE_CHILD_COUNT] = groupMembers(tree, g)
-  return { nodes: refitPlacementTree(packed, tree, batch), members: [from, tree.count] as const }
+  const nodes = Array.from(refitPlacementTree(packed, tree, batch))
+  return { nodes, members: [from, tree.count] as const }
 }
 
 /** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
@@ -278,21 +280,22 @@ export function refitPlacementTree(
   touched.clear()
   for (const w of placements)
     if (tree.slot[w] !== NONE) touched.add(Math.floor(tree.slot[w] / TREE_SPAN))
-  const rewritten: number[] = []
   for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
     above.clear()
     for (const j of touched) {
       fitNode(packed, tree, l, j)
-      rewritten.push(tree.levels[l].base + j)
+      rewritten.listed.add(tree.levels[l].base + j)
       above.add(Math.floor(j / TREE_SPAN))
     }
     ;[touched, above] = [above, touched]
   }
-  return rewritten.sort((a, b) => a - b)
+  return takeMovedWorlds(rewritten)
 }
 
-/** The nodes a refit fits at one level and those above them, kept from one refit to the next. */
-const refitSets = [new Set<number>(), new Set<number>()]
+/** The nodes a refit fits at one level and those above them, and the nodes it rewrote, kept from
+ *  one refit to the next: what it returns is a view the next refit overwrites. */
+const refitSets = [new Set<number>(), new Set<number>()],
+  rewritten = createMovedWorlds()
 
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0

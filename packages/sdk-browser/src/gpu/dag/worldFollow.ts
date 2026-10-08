@@ -16,7 +16,7 @@ import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
@@ -54,7 +54,7 @@ export function followWorldLinks(
     if (high >= 0)
       for (let word = low >>> 5; word <= high >>> 5; word++)
         for (let bits = dirty[word]; bits; bits &= bits - 1) {
-          if (count === moved.length) moved = grown(moved, count + 1, count)
+          if (count === moved.length) moved = resized(moved, count + 1)
           moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
         }
     return (listed = count)

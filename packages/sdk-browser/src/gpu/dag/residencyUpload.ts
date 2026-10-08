@@ -1,6 +1,6 @@
 import type { ResidencyChanges } from '../core/selection.ts'
 import { childBase, residentBase, residentWords } from './layout.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { createDagReadiness } from './readiness.ts'
 import { writeParts, writeRanges, type DagParts } from './split.ts'
@@ -107,8 +107,8 @@ export function createDagResidencyUpload(resources: {
     if (!settled.pages.length && !settled.nodes.length) return false
     if (moved) for (const page of settled.pages) moved(page)
     const most = Math.max(settled.pages.length, settled.nodes.length)
-    if (changed.pages.length < most) changed.pages = grown(changed.pages, most)
-    if (touched.length < most) touched = grown(touched, most)
+    if (changed.pages.length < most) changed.pages = resized(changed.pages, most)
+    if (touched.length < most) touched = resized(touched, most)
     changed.pages.set(settled.pages)
     changed.count = settled.pages.length
     for (const { values, base } of sets)

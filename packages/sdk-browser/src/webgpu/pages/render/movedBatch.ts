@@ -11,7 +11,7 @@ import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
 import { appendRootsUnder } from './movedNode.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
-import { grown } from '../../../../../sdk-core/src/world/transform-tree/storage.ts'
+import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -65,8 +65,7 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
     if (box && !noteOwnMove(rt, movedList[j])) boxUnionBatch(before, box, 1)
   }
   const at = nodeCount * BOX_VALUES
-  if (at + BOX_VALUES > movedBoxes.length)
-    movedBoxes = grown(movedBoxes, Float64Array, movedBoxes.length * 2)
+  if (at + BOX_VALUES > movedBoxes.length) movedBoxes = resized(movedBoxes, movedBoxes.length * 2)
   movedBoxes.set(before, at)
   movedEnds[nodeCount++] = movedCount
 }

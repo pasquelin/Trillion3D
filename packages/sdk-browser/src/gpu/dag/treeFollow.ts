@@ -12,22 +12,12 @@ import type { GpuSelection } from '../core/selection.ts'
 import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-
-/** The tree nodes an upload names, ascending, kept from one upload to the next. */
-let sorted = new Int32Array(64)
+import { createMovedWorlds, takeMovedWorlds } from '../../webgpu/pages/render/movedWorlds.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges. */
-function uploadNodes(
-  device: GPUDevice,
-  nodeParts: DagParts,
-  packed: PackedDag,
-  nodes: readonly number[],
-) {
-  if (sorted.length < nodes.length)
-    sorted = new Int32Array(Math.max(nodes.length, sorted.length * 2))
-  for (let i = 0; i < nodes.length; i++) sorted[i] = nodes[i]
+function uploadNodes(device: GPUDevice, nodeParts: DagParts, packed: PackedDag, nodes: Int32Array) {
   const source = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-  writeRanges(device, nodeParts, sorted, nodes.length, source)
+  writeRanges(device, nodeParts, nodes, nodes.length, source)
 }
 
 /** `selection`, its tree followed on `nodeParts` from now on, the groups of the placements
@@ -40,10 +30,11 @@ export function followPlacementTree(
   const { device, packed, nodeParts } = resources,
     tree = packed.placementTree
   if (!tree) return selection
-  const upload = (nodes: readonly number[]) => uploadNodes(device, nodeParts, packed, nodes)
-  const all = Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
-  // What moved since the tree was last read: refitted once, before the next cut reads it.
-  const dirty = new Set<number>()
+  const upload = (nodes: Int32Array) => uploadNodes(device, nodeParts, packed, nodes)
+  const all = Int32Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
+  // What moved since the tree was last read, each placement once: refitted once, before the next
+  // cut reads it.
+  const dirty = createMovedWorlds()
   // The tree was fitted as it was packed: the roots composed since are read at its first cut.
   let whole = !!composed
   if (composed) tree.composed = composed
@@ -51,9 +42,9 @@ export function followPlacementTree(
     if (whole) {
       fitPlacementTree(packed, tree)
       upload(all)
-    } else if (dirty.size) upload(refitPlacementTree(packed, tree, dirty))
+    } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeMovedWorlds(dirty)))
     whole = false
-    dirty.clear()
+    dirty.listed.clear()
   }
   const { dispatch, parkWorld, markWorld, updateWorlds } = selection
   selection.dispatch = (uniforms, shared) => {
@@ -62,15 +53,15 @@ export function followPlacementTree(
   }
   selection.parkWorld = (w, parked) => {
     parkWorld(w, parked)
-    dirty.add(w)
+    dirty.listed.add(w)
   }
   selection.markWorld = (w, mark) => {
     const opened = opensTree(packed.mark[w])
     markWorld(w, mark)
-    if (opensTree(packed.mark[w]) !== opened) dirty.add(w)
+    if (opensTree(packed.mark[w]) !== opened) dirty.listed.add(w)
   }
   // A pose a call named fits its group again; a host walk, which names none, fits every box.
-  selection.placementMoved = (w) => void dirty.add(w)
+  selection.placementMoved = (w) => void dirty.listed.add(w)
   selection.updateWorlds = (worlds, named) => {
     const moved = updateWorlds(worlds, named)
     if (moved && !named) whole = true
@@ -82,7 +73,7 @@ export function followPlacementTree(
   const { composedPlacement } = selection
   selection.composedPlacement = (w, linked) => {
     composedPlacement?.(w, linked)
-    if (w < tree.slot.length) dirty.add(w)
+    if (w < tree.slot.length) dirty.listed.add(w)
   }
   return selection
 }

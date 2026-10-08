@@ -23,20 +23,13 @@ function cardView(rt: WebgpuPagesRuntime) {
   return viewWords
 }
 
-/** The slots written since the last image, increasing, and the runs the cut's one run writer
- *  joins them into (`writeRanges`). */
-let sorted = new Int32Array(16)
-/** Where those runs go and come from, kept from one image to the next. */
-const target = {
-  device: undefined as GPUDevice | undefined,
-  buffer: undefined as GPUBuffer | undefined,
-}
-const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-  target.device!.queue.writeBuffer(target.buffer!, offset, data, from, size)
-const source = { data: new Float32Array(0), sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
+/** The card buffer the runs go to, as the one run writer's table (`writeRanges`), and the records
+ *  they come from: kept from one image to the next. */
+const parts = { buffers: [] as GPUBuffer[], bytes: 0 },
+  source = { data: new Float32Array(0), sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
 
-/** The records written since the last image, through the cut's one run writer; all of them into a
- *  buffer just made. */
+/** The records written since the last image, increasing, each once (`takeMovedWorlds`), through
+ *  the cut's one run writer; all of them into a buffer just made. */
 function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuffer) {
   const slots = state.slots,
     records = slots.records
@@ -45,16 +38,12 @@ function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuf
     state.uploadedTo = buffer
     return uploaded(slots)
   }
-  const { list, count } = slots.dirty
-  if (!count) return uploaded(slots)
-  if (sorted.length < count) sorted = new Int32Array(Math.max(count, sorted.length * 2))
-  sorted.set(list.subarray(0, count))
-  sorted.subarray(0, count).sort()
-  target.device = device
-  target.buffer = buffer
+  const ranks = core.takeMovedWorlds(slots.dirty)
+  if (!ranks.length) return uploaded(slots)
+  parts.buffers[0] = buffer
+  parts.bytes = buffer.size
   source.data = records
-  core.writeRanges(device, into, sorted, count, source)
-  target.device = target.buffer = undefined
+  core.writeRanges(device, parts, ranks, ranks.length, source)
   uploaded(slots)
 }
 

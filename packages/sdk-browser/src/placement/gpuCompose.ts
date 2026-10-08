@@ -31,6 +31,7 @@
  * of these: the CPU's row write follows them.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { MOTION_SKIP, packDoubles } from './composedMotion.ts'
@@ -98,13 +99,6 @@ function createComposeState(roots: number) {
 
 export type ComposeState = ReturnType<typeof createComposeState>
 type ComposeGpu = ReturnType<typeof createComposeGpu>
-
-function grown(array: Float64Array<ArrayBuffer>, length: number) {
-  if (array.length >= length) return array
-  const next = new Float64Array(length * 2)
-  next.set(array)
-  return next
-}
 
 /**
  * Takes `world` as `parent`'s world and links `links` to it. `whole`: they are every row that
@@ -215,9 +209,9 @@ function takeSlot(
   if (p !== undefined) return slot
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
-  state.worlds = grown(state.worlds, state.slots * 16)
-  state.previous = grown(state.previous, state.slots * 16)
-  state.slotBoxes = grown(state.slotBoxes, state.slots * BOX_VALUES)
+  state.worlds = resized(state.worlds, state.slots * 16)
+  state.previous = resized(state.previous, state.slots * 16)
+  state.slotBoxes = resized(state.slotBoxes, state.slots * BOX_VALUES)
   state.previous.set(world, slot * 16)
   return slot
 }

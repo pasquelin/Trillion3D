@@ -1,7 +1,7 @@
 import type { PackedDag } from './types.ts'
 import { packDoubles } from '../../placement/composedMotion.ts'
 import { writeRanges, type RangeTarget } from './split.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
  *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
@@ -67,7 +67,7 @@ export function createWorldOrigins(
       for (let k = 0; k < length; k++) {
         const row = all ? k : named[k]
         if (row >= sources.length || !take(row)) continue
-        if (count === changed.length) changed = grown(changed, count + 1, count)
+        if (count === changed.length) changed = resized(changed, count + 1)
         changed[count++] = row
       }
       if (count) writeRanges(device, target, changed, count, source)

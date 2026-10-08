@@ -57,7 +57,7 @@ export function createCardSlots() {
     holes: 0,
     /** Slots written since the last upload, once each; every slot when `full` — after a pack, which
      *  moves them all. */
-    dirty: core.createDenseKeySet(),
+    dirty: core.createMovedWorlds(),
     full: true,
     /** Records written: what a test counts. */
     writes: 0,
@@ -114,12 +114,12 @@ export function writeCardRecord(
 }
 
 function markDirty(slots: CardSlots, slot: number) {
-  if (!slots.full) slots.dirty.add(slot)
+  if (!slots.full) slots.dirty.listed.add(slot)
 }
 
 /** The slots written are uploaded: the list starts again empty. */
 export function uploaded(slots: CardSlots) {
-  slots.dirty.clear()
+  slots.dirty.listed.clear()
   slots.full = false
 }
 

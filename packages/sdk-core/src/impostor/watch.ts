@@ -31,6 +31,7 @@
 import { keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorRoot } from './plan.ts'
 import { bakedLookup, point, readRoot, switchesAt, switchTable } from './switchTable.ts'
@@ -94,10 +95,18 @@ function createState() {
     boundOf: new Float64Array(0),
     every: true,
     reads: 0,
+    reading: {} as Reading,
   }
 }
 
 type State = ReturnType<typeof createState>
+
+/** Roots waiting in the heaps of `s`. */
+function waiting(s: State) {
+  let size = 0
+  for (const anchor of s.anchors) for (const heap of anchor.heaps.values()) size += heap.size
+  return size
+}
 type Reading = {
   view: ArrayLike<number>
   byMesh: ReturnType<typeof bakedLookup>
@@ -126,8 +135,6 @@ export function createImpostorWatch() {
     },
     /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
     get hostBytes() {
-      let entries = 0
-      for (const anchor of s.anchors) for (const heap of anchor.heaps.values()) entries += heap.size
       return (
         s.switched.byteLength +
         s.readAt.byteLength +
@@ -137,14 +144,12 @@ export function createImpostorWatch() {
         s.slack.byteLength +
         s.bound.byteLength +
         s.boundOf.byteLength +
-        8 * (s.home.length + entries)
+        8 * (s.home.length + waiting(s))
       )
     },
     /** Roots waiting in the heaps: never more than the roots. */
     get waiting() {
-      let size = 0
-      for (const anchor of s.anchors) for (const heap of anchor.heaps.values()) size += heap.size
-      return size
+      return waiting(s)
     },
     /** Root `rank`'s world radius, as the switch took it. */
     radiusOf: (rank: number) => s.table!.radius[rank],
@@ -172,13 +177,16 @@ export function createImpostorWatch() {
       const held = s.count
       if (roots.length < held) s.every = true
       if (roots.length !== held) fit(s, roots.length)
-      Object.assign(s, { roots, section, focal, cos })
-      const reading: Reading = {
-        view,
-        byMesh: bakedLookup(section),
-        table: (s.table = switchTable(s.holder, roots, section, focal)),
-        carded,
-      }
+      s.roots = roots
+      s.section = section
+      s.focal = focal
+      s.cos = cos
+      // One reading a watch, its fields set each update: nothing made an image.
+      const reading = s.reading
+      reading.view = view
+      reading.byMesh = bakedLookup(section)
+      reading.table = s.table = switchTable(s.holder, roots, section, focal)
+      reading.carded = carded
       const moved = !keepNumbers(s.view, view)
       eyeOf(view, s.eye)
       for (let k = 0; k < 3; k++) s.forward[k] = view[4 * k + 2]
@@ -191,26 +199,23 @@ export function createImpostorWatch() {
   }
 }
 
-/** The per-root arrays at `n` roots, each verdict and place kept; a root past `n` leaves its heap. */
+/** The per-root arrays at `n` roots, each verdict and place kept; a root past `n` leaves its heap
+ *  and its verdict. The arrays are the capacity (`resized`): a list grown root by root is copied a
+ *  logarithmic number of times. */
 function fit(s: State, n: number) {
   for (let rank = n; rank < s.count; rank++) leave(s, rank)
-  const keep = <T extends Uint8Array | Uint32Array | Int32Array | Float64Array>(from: T) => {
-    const next = new (from.constructor as new (length: number) => T)(n)
-    next.set(from.subarray(0, Math.min(n, from.length)))
-    return next
+  if (n < s.count) {
+    s.switched.fill(0, n, s.count)
+    s.bound.fill(NaN, n, s.count)
   }
-  s.switched = keep(s.switched)
-  s.readAt = keep(s.readAt)
-  s.key = keep(s.key)
-  s.at = keep(s.at)
-  s.bucket = keep(s.bucket)
-  s.slack = keep(s.slack)
-  const bound = new Float64Array(n).fill(NaN)
-  bound.set(s.bound.subarray(0, Math.min(n, s.bound.length)))
-  s.bound = bound
-  const boundOf = new Float64Array(n * 3)
-  boundOf.set(s.boundOf.subarray(0, Math.min(n * 3, s.boundOf.length)))
-  s.boundOf = boundOf
+  s.switched = resized(s.switched, n)
+  s.readAt = resized(s.readAt, n)
+  s.key = resized(s.key, n)
+  s.at = resized(s.at, n)
+  s.bucket = resized(s.bucket, n)
+  s.slack = resized(s.slack, n)
+  s.bound = resized(s.bound, n, NaN)
+  s.boundOf = resized(s.boundOf, n * 3)
   s.home.length = n
   s.count = n
 }
