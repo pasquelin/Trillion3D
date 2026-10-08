@@ -26,11 +26,17 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
     rows: () =>
       gpu.writes
         .filter(({ label }) => label === 'Trillion3D DAG frames')
-        .flatMap(({ offset, bytes }) =>
-          Array.from({ length: bytes.byteLength / ROW_BYTES }, (_, k): [number, Uint32Array] => [
-            (offset + k * ROW_BYTES) / 4,
-            new Uint32Array(bytes.buffer, bytes.byteOffset + k * ROW_BYTES, ROW_BYTES / 4),
-          ]),
-        ),
+        .flatMap(({ offset, bytes }) => {
+          // A write of the frames is whole rows, from a row's start: never a word alone.
+          if (offset % ROW_BYTES || bytes.byteLength % ROW_BYTES)
+            throw new Error(`a frames write of ${bytes.byteLength} B at ${offset} is no whole rows`)
+          return Array.from(
+            { length: bytes.byteLength / ROW_BYTES },
+            (_, k): [number, Uint32Array] => [
+              (offset + k * ROW_BYTES) / 4,
+              new Uint32Array(bytes.buffer, bytes.byteOffset + k * ROW_BYTES, ROW_BYTES / 4),
+            ],
+          )
+        }),
   }
 }
