@@ -48,7 +48,7 @@ test('roots appended into the room read as a packing of every root at that capac
     pages: [2 * per, counts.pages],
     nodes: [2 * nodes, counts.nodes],
     worlds: [2, 5],
-    tree: { nodes: [], members: [0, 0] },
+    tree: { nodes: new Int32Array(0), members: [0, 0] },
   })
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)

@@ -17,7 +17,8 @@ import type { createWorldResidencyMirror } from './worldMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
 import { keyBase } from './layout.ts'
-import { writeParts, writeRanges } from './split.ts'
+import { writeParts } from './split.ts'
+import { uploadNodes } from './treeFollow.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -229,14 +230,13 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
   // The tree nodes joined, in the run writer's ranges.
-  const nodes = Int32Array.from(added.tree.nodes)
-  const nodeSource = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-  writeRanges(device, nodeParts, nodes, nodes.length, nodeSource)
+  uploadNodes(device, nodeParts, packed, added.tree.nodes)
   if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)
   for (let w = w0; w < w1; w++) writePrimitiveWords(frameData, packed, w)
   frames.writeRows(w0, w1)
-  // The appended placements' worlds and exact translations, they alone.
-  const appended = Int32Array.from({ length: w1 - w0 }, (_, k) => w0 + k)
-  frames.writeNamedWorlds(packed.worlds, appended, appended.length)
+  // The appended placements' worlds, one range, and their exact translations, they alone.
+  frames.writeWorlds(packed.worlds, w0, w1)
+  const appended = new Int32Array(w1 - w0)
+  for (let k = 0; k < appended.length; k++) appended[k] = w0 + k
   frames.writeWorldOrigins(appended)
 }

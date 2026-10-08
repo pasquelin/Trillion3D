@@ -260,7 +260,8 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
   const groups = groupLevel(tree).base
   for (let g = from / TREE_SPAN; g * TREE_SPAN < tree.count; g++)
     nodeInts[(groups + g) * DAG_NODE_FLOATS + NODE_CHILD_COUNT] = groupMembers(tree, g)
-  const nodes = Array.from(refitPlacementTree(packed, tree, batch))
+  // A copy of the refit's view, which the next refit overwrites: the append sends it later.
+  const nodes = refitPlacementTree(packed, tree, batch).slice()
   return { nodes, members: [from, tree.count] as const }
 }
 

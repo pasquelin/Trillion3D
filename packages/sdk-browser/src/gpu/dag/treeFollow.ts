@@ -14,8 +14,14 @@ import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 
-/** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges. */
-function uploadNodes(device: GPUDevice, nodeParts: DagParts, packed: PackedDag, nodes: Int32Array) {
+/** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges: a refit's,
+ *  an append's (`../dag/runtimeOps.ts`). */
+export function uploadNodes(
+  device: GPUDevice,
+  nodeParts: DagParts,
+  packed: PackedDag,
+  nodes: Int32Array,
+) {
   const source = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
   writeRanges(device, nodeParts, nodes, nodes.length, source)
 }

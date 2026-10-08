@@ -74,7 +74,9 @@ export function createCameraFrames(
     writeNamedRows: (named: Int32Array, count: number) =>
       writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, count),
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
-    writeWorlds: (next: Float32Array) => writeWorlds(f, next),
+    /** The world matrices in `next` of primitives `[from, to)` — every one by default —, each run
+     *  to its range. */
+    writeWorlds: (next: Float32Array, from = 0, to = Infinity) => writeWorlds(f, next, from, to),
     /** The world matrices in `next` of the `count` increasing primitives of `named`: the ones a
      *  call moved, each run to its range (`writeRanges`). */
     writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
@@ -174,18 +176,19 @@ function writeRows({ device, ranges, buffers, frameData }: Frames, from: number,
   }
 }
 
-function writeWorlds(f: Frames, next: Float32Array) {
+function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
   const { device, ranges, worldBuffers } = f
   for (let r = 0; r < ranges.length; r++) {
     const { first, count } = ranges[r],
-      bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)
-    if (bytes > 0)
+      a = Math.max(from, first),
+      b = Math.min(to, first + count, next.length / 16)
+    if (a < b)
       device.queue.writeBuffer(
         worldBuffers[r],
-        0,
+        (a - first) * WORLD_BYTES,
         next.buffer as ArrayBuffer,
-        next.byteOffset + first * WORLD_BYTES,
-        bytes,
+        next.byteOffset + a * WORLD_BYTES,
+        (b - a) * WORLD_BYTES,
       )
   }
 }

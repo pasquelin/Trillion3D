@@ -285,7 +285,7 @@ export type DagAppended = {
   pages: readonly [number, number]
   nodes: readonly [number, number]
   worlds: readonly [number, number]
-  tree: { nodes: readonly number[]; members: readonly [number, number] }
+  tree: { nodes: Int32Array; members: readonly [number, number] }
 }
 
 /**
@@ -340,7 +340,7 @@ export function appendDagRoots(
     pages: [from.pages, live.pages],
     nodes: [from.nodes, live.nodes],
     worlds: [from.worlds, live.worlds],
-    tree: { nodes: joined?.nodes ?? [], members: joined?.members ?? [0, 0] },
+    tree: { nodes: joined?.nodes ?? new Int32Array(0), members: joined?.members ?? [0, 0] },
   }
 }
 
