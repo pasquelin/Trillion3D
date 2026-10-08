@@ -3,6 +3,7 @@
 //! whose error drops or whose normals turn their back on their faces.
 use super::*;
 use crate::geometry_page::{Attribute, FLAG_NORMAL};
+use trillion3d_math::vec3::{divide_f32, length_f32};
 
 /// A mesh with one normal per vertex.
 #[derive(Default)]
@@ -20,14 +21,14 @@ impl Shaded {
             u[2] * v[0] - u[0] * v[2],
             u[0] * v[1] - u[1] * v[0],
         ];
-        let length = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        let normal = divide_f32(n, length_f32(n));
         let first = (self.positions.len() / 3) as u32;
         for j in 0..=nv {
             for i in 0..=nu {
                 let (a, b) = (i as f32 / nu as f32, j as f32 / nv as f32);
                 for k in 0..3 {
                     self.positions.push(origin[k] + a * u[k] + b * v[k]);
-                    self.normals.push(n[k] / length);
+                    self.normals.push(normal[k]);
                 }
             }
         }

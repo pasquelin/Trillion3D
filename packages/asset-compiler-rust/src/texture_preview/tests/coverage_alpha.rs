@@ -2,6 +2,7 @@ use super::coverage_filtered::strays;
 use super::*;
 use crate::texture_preview::collect::atlas_textures;
 use crate::texture_preview::coverage::{cutoff_byte, Covered};
+use trillion3d_math::scalar::{mix, unit_to_byte_f32};
 
 /// Foliage: a smooth random field cut by a soft edge, four octaves of value noise from 32 texels
 /// down to 4, the alpha ramp two texels wide — what a leaf atlas's mask looks like.
@@ -16,9 +17,9 @@ fn foliage(side: u32) -> image::RgbaImage {
         let smooth = |t: f32| t * t * (3.0 - 2.0 * t);
         let fx = smooth((x % period) as f32 / period as f32);
         let fy = smooth((y % period) as f32 / period as f32);
-        let top = lattice(cx, cy, seed) * (1.0 - fx) + lattice(cx + 1, cy, seed) * fx;
-        let bottom = lattice(cx, cy + 1, seed) * (1.0 - fx) + lattice(cx + 1, cy + 1, seed) * fx;
-        top * (1.0 - fy) + bottom * fy
+        let top = mix(lattice(cx, cy, seed), lattice(cx + 1, cy, seed), fx);
+        let bottom = mix(lattice(cx, cy + 1, seed), lattice(cx + 1, cy + 1, seed), fx);
+        mix(top, bottom, fy)
     };
     rgba_from(side, side, |x, y| {
         let n = [(32, 0.5), (16, 0.25), (8, 0.15), (4, 0.1)]
@@ -26,8 +27,7 @@ fn foliage(side: u32) -> image::RgbaImage {
             .enumerate()
             .map(|(seed, &(period, weight))| weight * octave(x, y, period, seed as u32))
             .sum::<f32>();
-        let alpha = ((n - 0.55) * 8.0 + 0.5).clamp(0.0, 1.0);
-        [60, 140, 40, (alpha * 255.0).round() as u8]
+        [60, 140, 40, unit_to_byte_f32((n - 0.55) * 8.0 + 0.5)]
     })
 }
 

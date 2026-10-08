@@ -11,7 +11,7 @@ use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
-use trillion3d_math::aabb::{diagonal, extend_aabb};
+use trillion3d_math::aabb::{aabb_of, diagonal};
 use trillion3d_math::random::splitmix_draw as draw;
 use trillion3d_math::vec3::{dot, length, point, sub};
 use trillion3d_math::vecn::weighted_mean;
@@ -49,10 +49,7 @@ pub(super) fn pieces(
     // The corners the triangles use: a shared accessor may hold positions of other meshes.
     let used: BTreeSet<u32> = triangles.iter().copied().collect();
     let corners: Vec<[f64; 3]> = used.into_iter().map(|i| point(pos, i)).collect();
-    let (mut low, mut high) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
-    for &p in &corners {
-        extend_aabb(&mut low, &mut high, p);
-    }
+    let (low, high) = aabb_of(corners.iter().copied());
     let eps = diagonal(low, high) * 1e-6;
     let planes = face_planes((pos, triangles), &corners, eps);
     let (mut state, mut seeds) = (seed, Vec::new());

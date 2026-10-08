@@ -496,7 +496,7 @@ function sunsOf(bound: VsmRowBound, clipmaps: readonly VsmClipmap[]) {
     const now = axesOf(clipmap.lightViewRotation, axesScratch)
     if (now.some((v, i) => v !== sun.shape.axes[i])) {
       rebin = true
-      if (now.some((v, i) => v !== sun.seen[i])) turning = true
+      if (!sameValues(now, sun.seen)) turning = true
     }
     sun.seen.set(now)
     return sun

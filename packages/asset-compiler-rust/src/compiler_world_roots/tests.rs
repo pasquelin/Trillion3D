@@ -7,6 +7,7 @@ use super::world::world_dag;
 use super::*;
 use crate::compiler_world::translation;
 use crate::dag::{build_dag_tallied, DagAttributes, DAG_CLUSTER_TRIANGLES, DAG_GROUP_MAX};
+use trillion3d_math::vec3::{length, sub};
 
 const TILE: f64 = 1000.0;
 const SIDE: usize = 4;
@@ -133,7 +134,7 @@ fn errors_stay_monotone_across_the_super_roots() {
         assert!(cluster.lod_error <= cluster.parent_error);
         // A parent's sphere holds its child's, or the child's projected error can pass its own.
         let (s, p) = (cluster.sphere, cluster.parent_sphere);
-        let apart = ((0..3).map(|a| (s[a] - p[a]).powi(2)).sum::<f64>()).sqrt();
+        let apart = length(sub([s[0], s[1], s[2]], [p[0], p[1], p[2]]));
         let slack = p[3] * 1e-6 + 1e-6;
         assert!(apart + s[3] <= p[3] + slack, "{s:?} out of {p:?}");
     }

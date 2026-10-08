@@ -13,8 +13,8 @@ use crate::shared_math::linear_columns;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::aabb::diagonal;
 use trillion3d_math::matrix::transform_point;
-use trillion3d_math::vec3::{length, sub};
 
 /// Report contract: the atlas layout, its maps and their chains. A change moves it.
 pub(crate) const IMPOSTOR_VERSION: u32 = 1;
@@ -153,7 +153,7 @@ fn stage_impostors(
             placed.entry(mesh as usize).or_default().push(world[node]);
         }
     }
-    let reach = length(sub([b[3], b[4], b[5]], [b[0], b[1], b[2]]));
+    let reach = diagonal([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
     let by_mesh = primitives_by_mesh(inputs.primitives);
     let mut meshes = Vec::with_capacity(placed.len());
     for (mesh, placements) in placed {

@@ -15,6 +15,7 @@ import {
 import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
 import { length2 } from '../../../../math/src/vector/vector.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls,
@@ -109,8 +110,7 @@ export function createCharacterCameraControls(
     unlock: () => head.unlock(),
     update(delta = 0) {
       pose.readPosition(at)
-      if (!at.every((value, k) => value === written[k]))
-        body.place(at[0], at[1] - api.eyeHeight, at[2])
+      if (!sameValues(at, written)) body.place(at[0], at[1] - api.eyeHeight, at[2])
       const yaw = head.turn(orientation)
       const strafe = axisOf(keys, ...STRAFE),
         advance = axisOf(keys, ...ADVANCE)

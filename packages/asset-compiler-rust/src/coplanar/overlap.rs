@@ -1,5 +1,5 @@
 use super::*;
-use trillion3d_math::aabb::{corners, extend_aabb};
+use trillion3d_math::aabb::{aabb_of, corners};
 use trillion3d_math::vec2::{barycentric, double_area};
 use trillion3d_math::vec3::{dot, point_checked};
 
@@ -13,13 +13,7 @@ pub struct Footprint {
 /// Axis-aligned rectangle of a surface in the plane frame, from the world box of its clusters. This
 /// is the cheap filter: two surfaces whose rectangles miss each other never read a triangle.
 pub fn rectangle(surface: &Surface, u: [f64; 3], v: [f64; 3]) -> Rect {
-    let mut low = [f64::INFINITY; 2];
-    let mut high = [f64::NEG_INFINITY; 2];
-    for point in corners(surface.low, surface.high) {
-        let flat = [dot(u, point), dot(v, point)];
-        extend_aabb(&mut low, &mut high, flat);
-    }
-    (low, high)
+    aabb_of(corners(surface.low, surface.high).map(|point| [dot(u, point), dot(v, point)]))
 }
 
 /// An axis-aligned rectangle in the frame of a plane: its low corner, then its high one.

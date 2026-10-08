@@ -26,7 +26,7 @@ fn smooth_normals(seed: u64) -> Case {
             let (x, y) = (sheet.x_of(v), sheet.y_of(v));
             let dx = (z((x + 1).min(NX), y) - z(x.saturating_sub(1), y)) / 2.0;
             let dy = (z(x, (y + 1).min(NY)) - z(x, y.saturating_sub(1))) / 2.0;
-            let length = (dx * dx + dy * dy + 1.0).sqrt();
+            let length = trillion3d_math::vec3::length_f32([dx, dy, 1.0]);
             [-dx / length, -dy / length, 1.0 / length]
         })
         .collect();

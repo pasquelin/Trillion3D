@@ -28,7 +28,7 @@ fn boxes(list: &[([f64; 3], [f64; 3])]) -> (f64, [f64; 3], [[f64; 3]; 3]) {
     let mut inertia = [[0.0; 3]; 3];
     for (o, s) in list {
         let d = [0, 1, 2].map(|k| o[k] + s[k] / 2.0 - centre[k]);
-        let square = |v: &[f64; 3]| v.iter().map(|x| x * x).sum::<f64>();
+        let square = |v: &[f64; 3]| trillion3d_math::vecn::squared_length(*v);
         for (r, row) in inertia.iter_mut().enumerate() {
             for (c, value) in row.iter_mut().enumerate() {
                 let own = if r == c {

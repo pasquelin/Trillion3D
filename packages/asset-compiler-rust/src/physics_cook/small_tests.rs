@@ -3,7 +3,8 @@
 use super::stage::gathered;
 use super::tests::{cluster, golden_tile, RAMP, RAMP_TRIANGLES};
 use super::*;
-use trillion3d_math::vec3::{cross, dot, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::dot;
 
 /// The same ramp 2^-12 as large, under half a millimetre: Jolt drops both its triangles, so it is
 /// cooked scaled up inside a `ScaledShape`. The module's tests restore it under an instance
@@ -52,7 +53,7 @@ fn a_tile_of_small_triangles_keeps_its_surface() {
     let at = |i: u32| std::array::from_fn(|k| pos[3 * i as usize + k] as f64);
     let dropped = triangles.as_chunks().0.iter().filter(|&&[a, b, c]| {
         let (a, b, c) = (at(a), at(b), at(c));
-        let doubled = cross(sub(b, a), sub(c, a));
+        let doubled = triangle_cross(a, b, c);
         dot(doubled, doubled) <= 1e-12 // `IndexedTriangle::IsDegenerate`
     });
     assert_eq!(dropped.count(), triangles.len() / 3);

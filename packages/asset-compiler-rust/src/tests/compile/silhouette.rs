@@ -9,7 +9,8 @@
 //! cut triangle may face against the normals of the source vertices it names.
 use super::*;
 use crate::proxy::cut::in_cut;
-use trillion3d_math::vec3::{cross, dot, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::dot;
 
 type Point = [f64; 3];
 
@@ -40,7 +41,7 @@ impl Grid {
         let mut depth = vec![f64::NEG_INFINITY; self.size[0] * self.size[1]];
         for t in indices.chunks(3) {
             let p = [0, 1, 2].map(|k| mesh.positions[t[k] as usize]);
-            if self.sign * cross(sub(p[1], p[0]), sub(p[2], p[0]))[self.axis] <= 0.0 {
+            if self.sign * triangle_cross(p[0], p[1], p[2])[self.axis] <= 0.0 {
                 continue;
             }
             let area = (p[1][u] - p[0][u]) * (p[2][v] - p[0][v])
@@ -140,13 +141,13 @@ pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64
 /// Each cut of `primitive` against `mesh`, its source, one line per defect.
 pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
     let (low, high) = trillion3d_math::aabb::aabb_of(mesh.positions.iter().copied());
-    let diagonal = trillion3d_math::vec3::length(sub(high, low));
+    let diagonal = trillion3d_math::aabb::diagonal(low, high);
     let mut defects = Vec::new();
     for (t, cut) in page_cuts(objects, primitive) {
         for c in cut.chunks(3) {
             let p = [0, 1, 2].map(|k| mesh.positions[c[k] as usize]);
             let n = [0, 1, 2].map(|k| mesh.normals[c[k] as usize]);
-            let facing = cross(sub(p[1], p[0]), sub(p[2], p[0]));
+            let facing = triangle_cross(p[0], p[1], p[2]);
             if dot(facing, std::array::from_fn(|a| n[0][a] + n[1][a] + n[2][a])) < 0.0 {
                 defects.push(format!("cut {t}: triangle {p:?} faces against its normals"));
             }

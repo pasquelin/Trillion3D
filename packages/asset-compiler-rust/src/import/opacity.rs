@@ -17,7 +17,7 @@ pub(super) struct Opacity<'m> {
 /// `TransparencyFactor`. Black, or a zero factor, is opaque; white and a full
 /// factor, invisible.
 pub(crate) fn opacity_from_transparency(color: [f64; 3], factor: f64) -> f64 {
-    let transparency = (color[0] + color[1] + color[2]) / 3.0 * factor;
+    let transparency = trillion3d_math::scalar::mean(color) * factor;
     (1.0 - transparency).clamp(0.0, 1.0)
 }
 

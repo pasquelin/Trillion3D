@@ -4,6 +4,7 @@ import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { createProxySettling } from './proxySettling.ts'
 import { createProxyLeaves } from './proxyLeaves.ts'
 import { createProxyRefit } from './proxyRefit.ts'
+import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** What a sync changed: owners moved (the tree was refitted), leaves settled, or nothing. */
 export type ProxySync = 'moved' | 'settled' | null
@@ -102,9 +103,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         if (!world) world = IDENTITY_MATRIX4
         const bind = source === -1 ? IDENTITY_MATRIX4 : binds[source]
         proxyNodeDelta(delta, world, bind, source === -1 ? IDENTITY_MATRIX4 : inverses[source])
-        let moved = false
-        for (let i = 0; i < 16; i++) moved ||= Math.fround(delta[i]) !== deltas[node][i]
-        if (!moved) continue
+        if (sameMatrixFloat32(deltas[node], delta)) continue
         deltas[node].set(delta)
         for (const group of groups) dirty.add(group)
       }

@@ -9,6 +9,7 @@ import { UV_EXPONENT } from './geometryPage.ts'
 import { MAX_BITS, MAX_EXPONENT } from './pageGrids.ts'
 import { clamp, clampLowWins } from '../../math/src/scalar/reals.ts'
 import { floorLog2 as integerFloorLog2 } from '../../math/src/scalar/integers.ts'
+import { uint64FromWords } from '../../math/src/scalar/uint64.ts'
 
 /** A tile spans 2^1 = 2 m of the world. */
 const TILE_EXTENT_LOG2 = 1
@@ -30,7 +31,7 @@ function split(x: number): [e: number, f: number] {
   const high = bits.getUint32(0)
   return [
     (high >>> 20) - 1023 - (subnormal ? 64 : 0),
-    (high & 0xfffff) * 2 ** 32 + bits.getUint32(4),
+    uint64FromWords(bits.getUint32(4), high & 0xfffff),
   ]
 }
 
