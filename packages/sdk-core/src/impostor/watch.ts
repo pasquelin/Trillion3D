@@ -95,6 +95,8 @@ function createState() {
     boundOf: new Float64Array(0),
     every: true,
     reads: 0,
+    /** Places taken in the heaps this update: a root waiting again, or an old anchor's merged. */
+    pushes: 0,
     reading: {} as Reading,
   }
 }
@@ -133,6 +135,10 @@ export function createImpostorWatch() {
     get reads() {
       return s.reads
     },
+    /** Places the last update took in the heaps: never more than its reads and an old anchor's. */
+    get pushes() {
+      return s.pushes
+    },
     /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
     get hostBytes() {
       return (
@@ -167,7 +173,7 @@ export function createImpostorWatch() {
       cos: number,
       carded?: (rank: number) => boolean,
     ) {
-      s.reads = s.changedCount = 0
+      s.reads = s.changedCount = s.pushes = 0
       s.frame++
       if (roots !== s.roots || section !== s.section || focal !== s.focal || cos !== s.cos)
         s.every = true
@@ -310,7 +316,7 @@ function takeSpent(s: State, reading: Reading) {
     if (anchors[a].heaps.size || a === anchors.length - 1) anchors[kept++] = anchors[a]
     else letGo(s, anchors[a])
   anchors.length = kept
-  while (s.anchors.length > ANCHORS) mergeNewest(s)
+  while (s.anchors.length > ANCHORS) mergeOldest(s)
 }
 
 /** Sets root `rank`'s verdict, noting it when it changed. */
@@ -460,23 +466,26 @@ function wait(s: State, rank: number, bucket: number, slack: number) {
   s.key[rank] = slack - spent
   s.home[rank] = heap
   heap.push(rank)
+  s.pushes++
 }
 
-/** The anchor before the newest emptied into it, each key lowered by the measure between the two
- *  anchors: an entry leaves no later than it would have. */
-function mergeNewest(s: State) {
-  const before = s.anchors[s.anchors.length - 2],
-    newest = s.anchors[s.anchors.length - 1],
-    between = apart(newest.eye, newest.forward, before)
-  for (const [bucket, heap] of before.heaps) {
-    const into = heapOf(s, newest, bucket),
+/** The second-oldest anchor emptied into the oldest, each key lowered by the measure between the
+ *  two: an entry leaves no later than it would have. The old anchors hold what the view left
+ *  behind, few roots each; the newest, which the reads fill, is never merged. */
+function mergeOldest(s: State) {
+  const into = s.anchors[0],
+    from = s.anchors[1],
+    between = apart(into.eye, into.forward, from)
+  for (const [bucket, heap] of from.heaps) {
+    const target = heapOf(s, into, bucket),
       shift = measure(bucket, between)
     for (const rank of heap.items) {
       s.key[rank] -= shift
-      s.home[rank] = into
-      into.push(rank)
+      s.home[rank] = target
+      target.push(rank)
+      s.pushes++
     }
   }
-  letGo(s, before)
-  s.anchors.splice(s.anchors.length - 2, 1)
+  letGo(s, from)
+  s.anchors.splice(1, 1)
 }
