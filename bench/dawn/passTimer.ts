@@ -3,27 +3,11 @@
 // — the union of its passes' spans, passes the GPU overlaps counted once — and never from a host
 // clock a busy main thread would stretch. A pass the engine times keeps its own timestamps: a frame
 // that holds one is marked, its total left out.
+import { readPasses, type FrameGpu, type PassWork, type TimedPass } from './passSpans.ts'
 import { readBack } from './readBack.ts'
 
 /** Timestamps of one frame: two per pass. */
 const CAPACITY = 4096
-
-/** One timed pass of a frame: `ms` its own share of the frame's GPU time. */
-export type TimedPass = { label: string; kind: 'render' | 'compute'; ms: number }
-/** A frame's passes and their union, ms; `complete` false when the engine timed one of them. */
-export type FrameGpu = { passes: TimedPass[]; unionMs: number; complete: boolean }
-
-/** The union of `[begin, end]` spans, in their unit. */
-export function unionOf(spans: readonly [number, number][]) {
-  let total = 0,
-    reach = -Infinity
-  for (const [begin, end] of [...spans].sort((a, b) => a[0] - b[0])) {
-    if (end <= reach) continue
-    total += end - Math.max(begin, reach)
-    reach = end
-  }
-  return total
-}
 
 /** The pass timer of one device; `quiet` runs the bench's own commands uncounted. */
 export function createPassTimer(quiet: <T>(work: () => T) => T) {
@@ -34,7 +18,9 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     open = false,
     slot = 0,
     engineTimed = false
-  const passes: { label: string; kind: TimedPass['kind']; at: number }[] = []
+  const passes: ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[] = []
+  /** The pass encoders being tallied, by the record of the pass they run. */
+  const records = new WeakMap<object, PassWork>()
   return {
     /** The descriptor a pass begins with: the engine's own, with the bench's timestamps added
      *  when it carries none — a copy, so a descriptor the engine keeps is never changed. */
@@ -51,13 +37,30 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       if (slot + 2 > CAPACITY) return descriptor
       const at = slot
       slot += 2
-      passes.push({ label: descriptor?.label || encoderLabel || `(${kind} pass)`, kind, at })
+      passes.push({
+        label: descriptor?.label || encoderLabel || `(${kind} pass)`,
+        kind,
+        at,
+        calls: 0,
+        indirect: 0,
+      })
       const timestampWrites = {
         querySet: set,
         beginningOfPassWriteIndex: at,
         endOfPassWriteIndex: at + 1,
       }
       return { ...descriptor, timestampWrites } as D
+    },
+    /** How many passes this window holds. */
+    size: () => passes.length,
+    /** The pass encoder just made for the descriptor `wrap` answered: its calls are tallied. */
+    watch(pass: object, wrapped: boolean) {
+      if (wrapped) records.set(pass, passes[passes.length - 1])
+    },
+    /** Tallies what the pass `self` encodes (`countCalls`): work of some size, or indirect. */
+    tally(self: object, indirect: boolean, size: number) {
+      const record = records.get(self)
+      if (record && (indirect || size > 0)) record[indirect ? 'indirect' : 'calls']++
     },
     /** Opens a frame's window on `on`, the device the engine draws with. */
     open(on: GPUDevice) {
@@ -83,7 +86,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     async close(): Promise<FrameGpu | null> {
       open = false
       if (!device || !set || !read || !resolved) return null
-      if (!slot) return { passes: [], unionMs: 0, complete: !engineTimed }
+      if (!slot) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
       const [s, r, from, count] = [set, read, resolved, slot]
       const stamps = new BigInt64Array(
         await readBack({ quiet }, device, r, count * 8, (encoder) => {
@@ -91,22 +94,42 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
           encoder.copyBufferToBuffer(from, 0, r, 0, count * 8)
         }),
       )
-      // A pass's own share: its span less what a pass submitted before it already covered — a
-      // tiled GPU runs passes overlapped, each span holding its neighbours' (the engine's own
-      // rule, `gpu/timing/sample.ts`). The shares add up to the union.
-      const spans: [number, number][] = []
-      let covered = -Infinity
-      const timed = passes.map(({ label, kind, at }) => {
-        const begin = Number(stamps[at]) / 1e6,
-          end = Number(stamps[at + 1]) / 1e6
-        // A pass the driver skipped writes no timestamp: zero, or an end before its beginning.
-        if (!(stamps[at] > 0n && end >= begin)) return { label, kind, ms: 0 }
-        spans.push([begin, end])
-        const own = Math.max(0, end - Math.max(begin, covered))
-        covered = Math.max(covered, end)
-        return { label, kind, ms: own }
-      })
-      return { passes: timed, unionMs: unionOf(spans), complete: !engineTimed }
+      return readPasses(stamps, passes, !engineTimed)
     },
+  }
+}
+
+/** The calls of a pass encoder that do GPU work, by the arguments that give them a size: a direct
+ *  call tallies when its size is above zero, an indirect one always. */
+const CALLS: Record<string, [indirect: boolean, size: (args: number[]) => number]> = {
+  dispatchWorkgroups: [false, ([x, y = 1, z = 1]) => x * y * z],
+  dispatchWorkgroupsIndirect: [true, () => 1],
+  draw: [false, ([vertices, instances = 1]) => vertices * instances],
+  drawIndexed: [false, ([indices, instances = 1]) => indices * instances],
+  drawIndirect: [true, () => 1],
+  drawIndexedIndirect: [true, () => 1],
+}
+
+/** Makes every pass encoder of `globals` tell `timer` what it encodes, so a pass the driver wrote no
+ *  timestamp for is known empty, or lost with work (`passSpans.ts`). */
+export function countCalls(
+  globals: Record<string, { prototype: Record<string, (...args: never[]) => unknown> }>,
+  timer: Pick<ReturnType<typeof createPassTimer>, 'tally'>,
+) {
+  for (const encoder of ['GPUComputePassEncoder', 'GPURenderPassEncoder'] as const)
+    for (const [name, [indirect, size]] of Object.entries(CALLS)) {
+      const proto = globals[encoder].prototype
+      const original = proto[name]
+      if (!original) continue
+      proto[name] = function (this: object, ...args: never[]) {
+        timer.tally(this, indirect, size(args as unknown as number[]))
+        return original.apply(this, args)
+      }
+    }
+  const render = globals.GPURenderPassEncoder.prototype
+  const bundles = render.executeBundles
+  render.executeBundles = function (this: object, ...args: never[]) {
+    timer.tally(this, false, (args[0] as unknown as unknown[]).length)
+    return bundles.apply(this, args)
   }
 }

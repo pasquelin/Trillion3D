@@ -10,7 +10,9 @@ import { gpuBusy } from './gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
 import { pageAddress, readPage, runPage } from './page.ts'
 import { createPlayer } from './scenario.ts'
-import { benchPasses, countsPerFrame, passTimes, roundNumbers, spread } from './summary.ts'
+import { benchPasses } from './benchPasses.ts'
+import { timerDoubts } from './trust.ts'
+import { countsPerFrame, passTimes, roundNumbers, spread } from './summary.ts'
 
 /** Plays `options.scenario` once; `stem` names its images. Resolves to the play's numbers. */
 export async function playScenario(options: BenchOptions, stem: string) {
@@ -83,12 +85,19 @@ export async function playScenario(options: BenchOptions, stem: string) {
             `${stem}-${segment.name.replace(/\W+/g, '-')}.png`,
           )
         : null
+    const numbers = roundNumbers(frames)
+    const bench = benchPasses(frames)
     segments.push({
       name: segment.name,
       measured: segment.measure !== false,
-      numbers: roundNumbers(frames),
+      numbers,
       passes: passTimes(frames),
-      benchPasses: benchPasses(frames),
+      benchPasses: bench,
+      doubts: timerDoubts({
+        passes: bench,
+        frame: numbers.gpuMs,
+        engineFrame: numbers.engineFrameGpuMs,
+      }),
       counts: countsPerFrame(frames),
       image,
     })

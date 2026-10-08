@@ -7,7 +7,7 @@ import type { World } from '../../packages/sdk-browser/src/index.ts'
 import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts'
 import type { BenchGpu, Counts } from './device.ts'
 import type { BenchBrowser } from './dom.ts'
-import type { FrameGpu } from './passTimer.ts'
+import type { FrameGpu } from './passSpans.ts'
 import { settleWorkers } from './worker.ts'
 
 /** The display interval the bench's clock advances by, ms: a 120 Hz display. */

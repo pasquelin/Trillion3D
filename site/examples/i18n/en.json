@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Drag to look around. Switch parts of the world on and off, or change place.",
+    "controls": {
+      "place": "Place",
+      "blocks": "Blocks",
+      "pebbles": "Pebbles",
+      "panes": "Glass panes",
+      "water": "Water",
+      "lamps": "Lamps",
+      "sunShadows": "Sun shadows",
+      "view": "View"
+    },
+    "choices": {
+      "place": {
+        "overview": "overview",
+        "among": "among the blocks",
+        "pebbles": "by the pebbles"
+      },
+      "view": {
+        "beauty": "beauty",
+        "clusters": "clusters"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Mount or unmount the viewer. Each attachment owns one world and each removal disposes it.",
     "controls": {

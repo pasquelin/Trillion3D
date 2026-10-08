@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Fais glisser pour regarder autour. Allume ou éteins chaque partie du monde, ou change d’endroit.",
+    "controls": {
+      "place": "Endroit",
+      "blocks": "Blocs",
+      "pebbles": "Galets",
+      "panes": "Vitres",
+      "water": "Eau",
+      "lamps": "Lampes",
+      "sunShadows": "Ombres du soleil",
+      "view": "Vue"
+    },
+    "choices": {
+      "place": {
+        "overview": "vue d’ensemble",
+        "among": "entre les blocs",
+        "pebbles": "près des galets"
+      },
+      "view": {
+        "beauty": "rendu",
+        "clusters": "clusters"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Montez ou démontez la vue. Chaque montage possède un monde et chaque retrait le libère.",
     "controls": {

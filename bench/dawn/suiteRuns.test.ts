@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MAX_SCENES, suiteRuns } from './suiteRuns.ts'
 
-test('the default suite is the bench scene alone', () => {
-  assert.deepEqual(suiteRuns(), ['bench-scene:world'])
+test('the default suite is the open-world example alone', () => {
+  assert.deepEqual(suiteRuns(), ['an-open-world-of-every-cost:world'])
 })
 
 test('a suite of the cap is played, one past it is refused', () => {

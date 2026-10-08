@@ -57,6 +57,12 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
     /** The middle play's passes and commands: the play whose time is the median. */
     passes: mid.passes,
     benchPasses: mid.benchPasses,
+    /** The middle play's frame time over all its frames: median, p95, dispersion. */
+    frame: mid.numbers.gpuMs,
+    /** The GPU idle between passes in the middle play's frame, ms. */
+    idleMs: mid.numbers.idleMs,
+    /** Every doubt any play raised, told once. */
+    doubts: [...new Set(of.flatMap((segment) => segment.doubts))],
     counts: mid.counts,
     images,
     sameImages,

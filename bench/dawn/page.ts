@@ -7,15 +7,12 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
 import { measureOutput } from '../core/paths.ts'
-import { BENCH_SCENE, writeBenchScene } from './benchScene.ts'
 
 /** Where a held-out validation page lies: outside the repository, never tuned against. */
 const VALIDATION_DIR = process.env.TRILLION3D_VALIDATION_DIR ?? ''
 
-/** The page file a name means: the bench's own generated scene, a path, an example's name in
- *  `root`, or a validation page's prefix (`v06`). */
+/** The page file a name means: a path, an example's name in `root`, or a validation page's prefix (`v06`). */
 export function pageFile(name: string, root: string) {
-  if (name === BENCH_SCENE) return writeBenchScene()
   if (existsSync(name)) return resolve(name)
   const example = join(root, 'site', 'examples', `${name.replace(/\.html$/, '')}.html`)
   if (existsSync(example)) return example
@@ -52,8 +49,7 @@ export function readPage(file: string) {
  * the page's address switches (`?trillion3dGpuLog=1`).
  */
 export function pageAddress(file: string, root: string, search: string) {
-  const folder =
-    VALIDATION_DIR && dirname(file) === resolve(VALIDATION_DIR) ? 'validation' : 'examples'
+  const folder = dirname(file).endsWith('examples') ? 'examples' : 'validation'
   return `${pathToFileURL(join(root, 'site', folder, basename(file))).href}${search}`
 }
 

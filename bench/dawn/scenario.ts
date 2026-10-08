@@ -3,7 +3,7 @@
 // frame (`recorder.js`) — in named segments, each measured and optionally captured on its own.
 import { readFileSync } from 'node:fs'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
-import { WORLD_SCENARIO } from './benchScene.ts'
+import { WORLD_SCENARIO } from './worldScenario.ts'
 import type { BenchBrowser } from './dom.ts'
 
 /** A point on the canvas as shares of its width and height, so a scenario plays at any size. */
@@ -102,6 +102,8 @@ export function createPlayer(browser: BenchBrowser, world: World) {
   const pose = ({ position, target }: Pose) => {
     world.camera.position.set(...position)
     world.camera.lookAt(...target)
+    // An orbiting page turns round its controls' target: it follows the pose.
+    world.controls?.target.set(...target)
   }
   const replay = (event: RecordedEvent) => {
     if (event.type === 'keydown' || event.type === 'keyup') key(event.type, event.code!, event.key)

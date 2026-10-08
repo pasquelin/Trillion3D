@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "拖动环顾四周。开关世界的各个部分，或更换位置。",
+    "controls": {
+      "place": "位置",
+      "blocks": "方块",
+      "pebbles": "鹅卵石",
+      "panes": "玻璃板",
+      "water": "水",
+      "lamps": "灯",
+      "sunShadows": "太阳阴影",
+      "view": "视图"
+    },
+    "choices": {
+      "place": {
+        "overview": "全景",
+        "among": "方块之间",
+        "pebbles": "鹅卵石旁"
+      },
+      "view": {
+        "beauty": "成品",
+        "clusters": "簇"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "挂载或卸载查看器。每次挂载拥有一个世界，每次移除都会释放它。",
     "controls": {

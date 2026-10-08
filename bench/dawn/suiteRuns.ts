@@ -1,6 +1,6 @@
 // Which runs a suite plays: the bench's one scene by default, at most `MAX_SCENES` ever. No option
 // lifts the cap: a suite of more is refused before any run starts.
-import { BENCH_SCENE } from './benchScene.ts'
+import { BENCH_SCENE } from './worldScenario.ts'
 
 /** The most scenes one suite plays. A test of more is a test of the wrong thing. */
 export const MAX_SCENES = 5

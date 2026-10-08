@@ -40,11 +40,29 @@ function segmentDetail(segment: Segment) {
     '',
     `GPU by kind of pass: compute shaders ${ms(segment.computeMs?.median)} ms · drawing ${ms(segment.renderMs?.median)} ms.`,
     '',
+    segment.frame
+      ? `Frame over all ${segment.frame.n} timed frames: median ${ms(segment.frame.median)} · p95 ${ms(segment.frame.p95)} · min ${ms(segment.frame.min)} · max ${ms(segment.frame.max)} · middle half ${ms(segment.frame.iqr)} · std ${ms(segment.frame.std)} ms. GPU idle between passes ${ms(segment.idleMs?.median)} ms.`
+      : '',
+    '',
+    segment.doubts.length
+      ? 'TIMER DOUBTFUL:\n' + segment.doubts.map((doubt) => `- ${doubt}`).join('\n')
+      : 'Timers coherent: no pass reads zero or lost, the passes add up to the frame, the engine agrees.',
+    '',
     table(
-      ['pass (bench timer, every pass)', 'kind', 'stage', 'median ms', 'p95 ms', 'share'],
+      [
+        'pass (bench timer, every pass)',
+        'kind',
+        'stage',
+        'work median ms',
+        'p95 ms',
+        'share',
+        'wait before ms',
+        'span ms',
+        'timer',
+      ],
       benchPasses
-        .filter((pass) => pass.median >= 0.01 || pass.p95 >= 0.05)
-        .slice(0, 30)
+        .filter((pass) => pass.median >= 0.01 || pass.p95 >= 0.05 || pass.doubtful)
+        .slice(0, 40)
         .map((pass) => [
           pass.name,
           pass.kind,
@@ -52,6 +70,9 @@ function segmentDetail(segment: Segment) {
           ms(pass.median, 3),
           ms(pass.p95, 3),
           percent(pass.share),
+          ms(pass.waitMs, 3),
+          ms(pass.spanMs, 3),
+          pass.lost ? `LOST ${pass.lost}` : pass.empty ? `empty ${pass.empty}` : 'ok',
         ]),
     ),
     '',

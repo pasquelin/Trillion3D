@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { COUNTS, type Counts } from './device.ts'
 import type { FrameRecord } from './frames.ts'
-import { benchPasses, countsPerFrame, passKey, passTimes, roundNumbers, spread } from './summary.ts'
+import { benchPasses } from './benchPasses.ts'
+import { countsPerFrame, passKey, passTimes, roundNumbers, spread } from './summary.ts'
 
 const counts = (submits: number) =>
   ({ ...Object.fromEntries(COUNTS.map((key) => [key, 0])), submits }) as Counts
@@ -31,7 +32,15 @@ const sample = (frameNumber: number, passes: [string, number][]) => ({
 })
 
 test('a spread reads the median, the 95th percentile and the extremes, ignoring what is not a number', () => {
-  assert.deepEqual(spread([3, 1, 2, Number.NaN]), { median: 2, p95: 3, min: 1, max: 3, n: 3 })
+  assert.deepEqual(spread([3, 1, 2, Number.NaN]), {
+    median: 2,
+    p95: 3,
+    min: 1,
+    max: 3,
+    n: 3,
+    iqr: 1,
+    std: Math.sqrt(2 / 3),
+  })
   assert.equal(spread([Number.NaN]), null)
 })
 
@@ -73,18 +82,37 @@ test('the bench timer reads every pass of each frame by label, its batches as on
       ...frame(6),
       gpu: {
         passes: [
-          { label: 'vsm.render.raster 3', kind: 'render', ms: 2 },
-          { label: 'vsm.render.raster 4', kind: 'render', ms: 4 },
+          {
+            label: 'vsm.render.raster 3',
+            kind: 'render',
+            ms: 2,
+            spanMs: 2,
+            gapMs: 0,
+            beginMs: 0,
+            state: 'ok',
+          },
+          {
+            label: 'vsm.render.raster 4',
+            kind: 'render',
+            ms: 4,
+            spanMs: 4,
+            gapMs: 0.5,
+            beginMs: 2,
+            state: 'ok',
+          },
         ],
         unionMs: 6,
+        gapMs: 0.5,
+        windowMs: 6.5,
         complete: true,
       },
     },
     // A frame the engine timed itself is left out: its passes carry the engine's timestamps.
-    { ...frame(9), gpu: { passes: [], unionMs: 0, complete: false } },
+    { ...frame(9), gpu: { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: false } },
   ])
   const rasters = passes.filter((pass) => pass.name === 'vsm.render.raster *')
   assert.equal(rasters.length, 1)
   assert.deepEqual([rasters[0].min, rasters[0].max, rasters[0].stage], [0, 6, 'shadows'])
   assert.equal(passes.find((pass) => pass.name === 'temporal antialiasing')!.n, 2)
+  assert.equal(rasters[0].waitMs, 0.25, 'the wait before a pass is told apart from its work')
 })
