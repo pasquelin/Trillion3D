@@ -22,7 +22,7 @@ fn wavy_normals(n: usize) -> Vec<f32> {
         .flat_map(|v| {
             let (x, y) = ((v % (n + 1)) as f32, (v / (n + 1)) as f32);
             let (a, b) = ((x * 1.3).sin() * 0.6, (y * 0.7).cos() * 0.6);
-            let length = (a * a + b * b + 1.0).sqrt();
+            let length = trillion3d_math::vec3::length_f32([a, b, 1.0]);
             [a / length, b / length, 1.0 / length]
         })
         .collect()

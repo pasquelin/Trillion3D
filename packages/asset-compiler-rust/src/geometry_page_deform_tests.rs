@@ -137,11 +137,7 @@ fn all_influences_and_float_weights_survive_large_joint_separation() {
     assert_eq!(decoded.attribute(6).unwrap()[1] * 1000.0, 500.0);
     let reach = half.reach(&POSITIONS[..9]);
     let delta = decoded.attribute(7).unwrap();
-    let radius = delta[..3]
-        .iter()
-        .map(|v| f64::from(*v).powi(2))
-        .sum::<f64>()
-        .sqrt();
+    let radius = trillion3d_math::vec3::length([0, 1, 2].map(|axis| f64::from(delta[axis])));
     assert!(reach["targets"][0].as_f64().unwrap() >= radius);
 }
 

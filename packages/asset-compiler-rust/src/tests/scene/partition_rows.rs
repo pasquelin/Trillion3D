@@ -85,9 +85,9 @@ pub(super) fn assert_root(directory: &Path, root: &Value) {
                 .iter()
                 .filter_map(Value::as_f64)
                 .collect();
-            let centre = |axis: usize| (b[axis] + b[axis + 3]) / 2.0;
+            let centre = trillion3d_math::aabb::centre([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
             let cube: Vec<f64> = (0..6)
-                .map(|at| centre(at % 3) + if at < 3 { -half } else { half })
+                .map(|at| centre[at % 3] + if at < 3 { -half } else { half })
                 .collect();
             let mut held = BTreeMap::<u64, u64>::new();
             for (other, nodes) in records.iter().zip(&files) {

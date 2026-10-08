@@ -2,14 +2,19 @@
 //! disc with softened edge, window is uniform veil, between the two is gradient
 //! covering entire surface — shape no cutout has.
 use super::*;
+use trillion3d_math::scalar::unit_to_byte_f32;
 
 /// Disc of radius  entirely present, absent beyond , softened between the two.
 fn sheet_image(plein: f32, empty: f32) -> image::RgbaImage {
     image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
-        let part = ((empty - rayon) / (empty - plein)).clamp(0.0, 1.0);
-        image::Rgba([40, 120, 40, (part * 255.0).round() as u8])
+        image::Rgba([
+            40,
+            120,
+            40,
+            unit_to_byte_f32((empty - rayon) / (empty - plein)),
+        ])
     })
 }
 
@@ -90,8 +95,7 @@ fn the_band_is_counted_in_source_pixels() {
     let large = image::RgbaImage::from_fn(128, 128, |x, y| {
         let (dx, dy) = (x as f32 - 63.5, y as f32 - 63.5);
         let rayon = (dx * dx + dy * dy).sqrt();
-        let part = ((45.0 - rayon) / 3.0).clamp(0.0, 1.0);
-        image::Rgba([40, 120, 40, (part * 255.0).round() as u8])
+        image::Rgba([40, 120, 40, unit_to_byte_f32((45.0 - rayon) / 3.0)])
     });
     assert!(measure(&large).looks_like_cutout());
 }

@@ -4,14 +4,14 @@
 //! Texture written here in PNG rather than committed: shape tested,
 //! reading in code expresses measured property better than binary file.
 use super::*;
+use trillion3d_math::scalar::unit_to_byte_f32;
 
 /// Leaf: full disc with 3-pixel softened edge, empty background.
 fn sheet_png() -> Vec<u8> {
     let image = image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
-        let part = ((21.0 - rayon) / 3.0).clamp(0.0, 1.0);
-        image::Rgba([40, 120, 40, (part * 255.0).round() as u8])
+        image::Rgba([40, 120, 40, unit_to_byte_f32((21.0 - rayon) / 3.0)])
     });
     let mut png = Vec::new();
     image
