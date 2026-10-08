@@ -1,7 +1,7 @@
 import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts'
 import { rootedUnder } from '../../../host/world/rooted.ts'
 import { namedNode, poseNode } from '../../../host/world/moveByName.ts'
-import { finishMoves, noteNode } from './movedBatch.ts'
+import { finishMoves, noteMoved } from './movedBatch.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -56,24 +56,22 @@ export function setWebgpuTransforms(
   }
 }
 
-/** The nodes the call moved, each once: what its pass notes (`moved`). */
+/** The nodes the call moved, each once, with the host's it takes: what its pass notes (`moved`). */
 const posed = new Set<Object3D>()
 
-/** One node posed, noted once when the move moved it (`noteNode`), and its pose taken by the
+/** One node posed, kept for the call's pass when the move moved it, and its pose taken by the
  *  scene watch as the engine's (`adoptPose`): the next image reads no host write back. */
 function pose(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
   if (!poseNode(node, matrix)) return
   rt.run.gate.adoptPose(node)
-  if (posed.has(node)) return
   posed.add(node)
-  noteNode(rt, node)
 }
 
-/** The moves of one call taken: the nodes it moved noted as they moved, and those the host wrote
- *  before it in the same task (`takeHostMoves`) with them (`noteNode`), one pass of the transform
- *  tree — every matrix it holds, page records, selection roots, transparent copies, carries the
- *  new places, and the pass walks what the writes changed, nothing else —, then the moved roots'
- *  rows and boxes (`finishMoves`). */
+/** The moves of one call taken: the nodes it moved and those the host wrote before it in the same
+ *  task (`takeHostMoves`) noted at once (`noteMoved`) — a node under another moved one moving
+ *  with it, never twice —, one pass of the transform tree — every matrix it holds, page records,
+ *  selection roots, transparent copies, carries the new places, and the pass walks what the writes
+ *  changed, nothing else —, then the moved roots' rows and boxes (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
   try {
     // The watch heard the call's own writes too: the host's are the others.
@@ -81,11 +79,12 @@ function moved(rt: WebgpuPagesRuntime) {
     for (const node of rt.run.gate.takeHostMoves())
       if (!posed.has(node)) {
         host = true
-        noteNode(rt, node)
+        posed.add(node)
       }
     // The deformation's staleness noted before this pass compared the worlds the host has since
     // rewritten: its next update reads them again, as after a host write the image reads.
     if (host) rt.vis.deformation?.frame.forget()
+    noteMoved(rt, posed)
     rt.setup.worlds.refresh()
     finishMoves(rt)
   } finally {

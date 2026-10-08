@@ -10,6 +10,7 @@ import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
 import { appendRootsUnder } from './movedNode.ts'
+import { chainShown } from '../../../host/world/rooted.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
@@ -56,15 +57,17 @@ const LOT_SHARE = 8
 /**
  * The nodes `nodes` were written — an engine move's, the host's the scene watch heard —, before
  * the transform tree's pass takes them: the roots whose mesh lies in each one's subtree, walked
- * once in the tree (`appendRootsUnder`), and their box before the move. The work follows the
- * nodes written, never the scene's roots.
+ * once in the tree (`appendRootsUnder`), and their box before the move. A node under another
+ * written node moves with it, in its turn, never again (`chainShown`). The work follows the nodes
+ * written, never the scene's roots.
  */
-export function noteMoved(rt: WebgpuPagesRuntime, nodes: Iterable<Object3D>) {
-  for (const node of nodes) noteNode(rt, node)
+export function noteMoved(rt: WebgpuPagesRuntime, nodes: ReadonlySet<Object3D>) {
+  const scene = rt.setup.source
+  for (const node of nodes) if (chainShown(node, scene, nodes) !== null) noteNode(rt, node)
 }
 
 /** `noteMoved` for one node. */
-export function noteNode(rt: WebgpuPagesRuntime, node: Object3D) {
+function noteNode(rt: WebgpuPagesRuntime, node: Object3D) {
   const from = movedCount,
     roots = rt.layout.selectionRoots
   movedCount = appendRootsUnder(roots, node, movedList, from)

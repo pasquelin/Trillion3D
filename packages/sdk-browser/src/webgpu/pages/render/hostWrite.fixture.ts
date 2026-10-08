@@ -18,7 +18,7 @@ export function hostScene(count: number, blend = false) {
   meshes.forEach((mesh, k) => (mesh.name = `m${k}`))
   const worlds = hostWorldPlacements(source)
   const roots = meshes.map((mesh) => selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds))
-  const { rt, run } = runtime(source, roots, worlds)
+  const { rt, run, motions } = runtime(source, roots, worlds)
   const sent: number[] = [],
     parks: number[] = [],
     blendGpu = blend ? meshes.map((mesh) => ({ sourceMesh: mesh })) : []
@@ -37,13 +37,14 @@ export function hostScene(count: number, blend = false) {
     parkWorld: (rank: number) => void parks.push(rank),
     markWorld() {},
   } as never
-  const drawn = roots.map((root) => root.pages[0])
+  // The drawn entries, read again whenever the watched list is: roots a test adds included.
+  const drawn = () => roots.map((root) => root.pages[0])
   const image = () => {
     run.gate.readScene(source, drawn)
     uploadWorlds(rt)
   }
   image()
-  return { source, holder, meshes, roots, worlds, rt, run, sent, parks, blendGpu, image }
+  return { source, holder, meshes, roots, worlds, rt, run, sent, parks, blendGpu, motions, image }
 }
 
 /** Every read the scene watch's scan makes of a node's matrix mode on `meshes`, counted. */

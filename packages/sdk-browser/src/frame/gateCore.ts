@@ -92,7 +92,7 @@ export function createFrameGateCore(holdValues: number) {
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),
-    updateWorlds: (worlds: HostWorldPlacements, moved?: (nodes: Iterable<Object3D>) => void) =>
+    updateWorlds: (worlds: HostWorldPlacements, moved?: (nodes: ReadonlySet<Object3D>) => void) =>
       updateWorlds(core, worlds, moved),
     /** The nodes the host wrote, its poses or its matrices, which no world pass read yet: an
      *  engine move takes them with its own, its pass refreshing them (`movedBatch.ts`). */
@@ -225,7 +225,7 @@ const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same
 function updateWorlds(
   core: GateState,
   worlds: HostWorldPlacements,
-  moved?: (nodes: Iterable<Object3D>) => void,
+  moved?: (nodes: ReadonlySet<Object3D>) => void,
 ) {
   if (core.worldsRevision === core.revisions.scene) return false
   core.worldsRevision = core.revisions.scene

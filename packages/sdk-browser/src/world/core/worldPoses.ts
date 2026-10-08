@@ -4,7 +4,7 @@ import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tr
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { Batch, Seat } from './worldBatches.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { rootedUnder } from '../../host/world/rooted.ts'
+import { chainShown, rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
@@ -67,21 +67,6 @@ function spriteRow(world: ArrayLike<number>) {
 
 /** True when `node` is drawn: rooted under `scene`, and it and every ancestor visible. */
 export const shownUnder = (node: Object3D, scene: Object3D) => rootedUnder(node, scene, true)
-
-/**
- * Whether the rows under moved `node` are drawn — the scene itself, or every ancestor visible up
- * to `scene` (`shownUnder` of its parent) —, or `null` when an ancestor moved too: that one's
- * subtree writes `node`'s rows, once. One climb; a bone under a moved bone stops at its parent.
- */
-function chainShown(node: Object3D, scene: Object3D, moved: ReadonlySet<Object3D>) {
-  let shown: boolean | undefined = node === scene || undefined
-  for (let up = node.parent; up; up = up.parent) {
-    if (moved.has(up)) return null
-    if (shown === undefined && !up.visible) shown = false
-    else if (shown === undefined && up === scene) shown = true
-  }
-  return shown ?? false
-}
 
 /**
  * The per-frame change list of a world: the nodes whose pose or visibility moved since the last
