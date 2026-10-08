@@ -4,19 +4,12 @@
  * placement parked or taken back, marked past what a box holds or posed by a call that names it
  * (`placementMoved`), refits its group and the nodes above; a host walk, which names no placement,
  * refits every box once, as the worlds it moves are sent whole. Each refit writes back
- * the tree nodes it changed, never the placements' own nodes, before the tree is read again: by the
- * CPU, for the placements a view may hold (`visiblePlacements`), or by the cut. A pose the GPU
+ * the tree nodes it changed, never the placements' own nodes, before the cut reads the tree again. A pose the GPU
  * composes (`../../placement/gpuCompose.ts`) is not one the host holds: the group of a root composed
  * so is open while it is, and no other (`composedPlacement`).
  */
 import type { GpuSelection } from '../core/selection.ts'
-import {
-  fitPlacementTree,
-  opensTree,
-  refitPlacementTree,
-  treeNodeCount,
-  visitPlacements,
-} from './placementTree.ts'
+import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 
@@ -42,8 +35,7 @@ export function followPlacementTree(
   if (!tree) return selection
   const upload = (nodes: readonly number[]) => uploadNodes(device, nodeParts, packed, nodes)
   const all = Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
-  // What moved since the tree was last read: refitted once, before whoever reads it next — the
-  // CPU's plan of the image (`visiblePlacements`) or the cut.
+  // What moved since the tree was last read: refitted once, before the next cut reads it.
   const dirty = new Set<number>()
   let whole = false
   const refit = () => {
@@ -74,10 +66,6 @@ export function followPlacementTree(
     const moved = updateWorlds(worlds, named)
     if (moved && !named) whole = true
     return moved
-  }
-  selection.visiblePlacements = (planes, visit) => {
-    refit()
-    visitPlacements(packed, tree, planes, visit)
   }
   // A root a parent composes on the GPU holds a pose the CPU does not: its group opens, and only
   // its own, from its link to its unlink (`../../placement/gpuCompose.ts`).

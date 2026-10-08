@@ -21,6 +21,7 @@
  * every cluster (`worldRootPages`): a placement's link compares its object's parent band with its
  * group's super-roots' own band (`gpu/dag/worldLinks.ts`), and both stay equal.
  */
+import { drawsBlended } from '../page/selection/collect.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { HostMesh } from '../host/resources.ts'
@@ -155,9 +156,6 @@ export function worldWearers(
       mesh = primitive && byKey.get(`${primitive.mesh}/${primitive.primitive}`)
     if (!mesh) return undefined
     const surface = meshSurface(mesh)
-    const blended = primitive.pass === 'clustered-blend' || primitive.pass === 'shared-blend'
-    return blended || surface.transparent || surface.transmission > 0
-      ? undefined
-      : { mesh, surface }
+    return drawsBlended(primitive, surface) ? undefined : { mesh, surface }
   }
 }

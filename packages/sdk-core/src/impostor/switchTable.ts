@@ -91,9 +91,6 @@ export type SwitchTable = {
   triangleDepth: Float64Array
   /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
   depthFocal: Float64Array
-  /** Whether a plan read every root since the table was made: until one did, a root out of view
-   *  would hold no verdict, and take its card only as it enters — each taken bit voiding the cut. */
-  everyRead: boolean
 }
 const tables = new WeakMap<object, SwitchTable>()
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
@@ -123,7 +120,6 @@ export function switchTable(
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
       depthFocal: new Float64Array(n).fill(NaN),
-      everyRead: false,
     }
     tables.set(holder, table)
   }
@@ -132,7 +128,7 @@ export function switchTable(
 }
 
 /** `table` at `n` roots, the numbers of those it held kept: a list grown in place reads only the
- *  roots appended. Until a plan reads them, not every root holds a verdict. */
+ *  roots appended. */
 function resize(table: SwitchTable, n: number) {
   const keep = (from: Float64Array, per = 1, fill = 0) => {
     const next = new Float64Array(n * per).fill(fill)
@@ -145,7 +141,6 @@ function resize(table: SwitchTable, n: number) {
   table.texelDepth = keep(table.texelDepth)
   table.triangleDepth = keep(table.triangleDepth)
   table.depthFocal = keep(table.depthFocal, 1, NaN)
-  table.everyRead = false
 }
 
 /** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */

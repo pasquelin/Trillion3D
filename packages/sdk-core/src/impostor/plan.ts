@@ -50,11 +50,8 @@ export interface ImpostorCard {
 export interface ImpostorPlan {
   /** One card per switched root it read, in the order it read them. */
   cards: ImpostorCard[]
-  /** Root ranks the cut suppresses: 1 at a switched root, 0 elsewhere. A plan of some ranks keeps
-   *  the verdict of the others as the last plan that read them left it. */
+  /** Root ranks the cut suppresses: 1 at a switched root, 0 elsewhere. */
   switched: Uint8Array
-  /** The ranks the plan read when given some (`planImpostors`, `ranks`); absent, every rank. */
-  visited?: number[]
 }
 
 export { impostorBakedByMesh } from './switchTable.ts'
@@ -73,16 +70,6 @@ export function planImpostors(
   view: ArrayLike<number>,
   focalPixels: number,
   into?: ImpostorPlan,
-  /** Hands each rank to read to `visit`, when only some can change what the image draws (the
-   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); a rank it does not read keeps
-   *  its verdict — out of view, it draws nothing either way, and its card bit never moves by the
-   *  view leaving it: each move would void the cut in hand. The first plan over a table reads every
-   *  root, as the plan of every root does, so each holds its verdict before the view reaches it.
-   *  Absent, every root, every image. */
-  ranks?: (visit: (rank: number) => void) => void,
-  /** Whether a root may take a card: one another structure draws far away takes none, whatever
-   *  its distance. Absent, every root may. */
-  carded?: (rank: number) => boolean,
 ): ImpostorPlan {
   const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
   if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
@@ -94,18 +81,7 @@ export function planImpostors(
     table: switchTable(plan, roots, section, focalPixels),
     count: 0,
   }
-  const read = (rank: number) => planRoot(reading, rank, carded?.(rank) !== false)
-  if (ranks && reading.table.everyRead) {
-    const visited: number[] = (plan.visited = [])
-    ranks((rank) => {
-      visited.push(rank)
-      read(rank)
-    })
-  } else {
-    if (plan.visited) delete plan.visited
-    for (let rank = 0; rank < roots.length; rank++) read(rank)
-    reading.table.everyRead = true
-  }
+  for (let rank = 0; rank < roots.length; rank++) planRoot(reading, rank)
   plan.cards.length = reading.count
   return plan
 }
@@ -121,11 +97,10 @@ function planRoot(
     count: number
   },
   rank: number,
-  carded = true,
 ) {
   const { plan, table } = reading,
     root = reading.roots[rank],
-    entry = readRoot(table, rank, root, reading.byMesh, reading.view, carded)
+    entry = readRoot(table, rank, root, reading.byMesh, reading.view)
   // Each rank read takes its verdict here, whatever it held: nothing is cleared ahead of the read.
   if (!entry || !switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) {
     plan.switched[rank] = 0

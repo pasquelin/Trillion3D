@@ -8,7 +8,6 @@ import {
   closeAlone,
   closePairs,
   packedOf,
-  range,
   rowCache,
   rowIdleSpan,
 } from './rowCache.fixture.ts'

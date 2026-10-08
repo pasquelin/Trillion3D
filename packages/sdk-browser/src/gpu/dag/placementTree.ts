@@ -26,12 +26,8 @@
  * (`nodeOpen`). A parked member, or a member slot no placement holds yet, holds nothing.
  */
 import { rowCell } from '../../partition/rowCells.ts'
-import {
-  boxEmpty,
-  boxTransform,
-  boxUnion,
-  frustumExcludesBox,
-} from '../../../../sdk-core/src/index.ts'
+import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_NONE as NONE, SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
@@ -292,48 +288,6 @@ export function refitPlacementTree(
   return rewritten.sort((a, b) => a - b)
 }
 
-/**
- * Hands `visit` every placement the camera's frustum (`planes`, absolute, as the CPU tests boxes)
- * may hold: the members of the groups whose box meets it, under nodes whose box does, then every
- * placement the tree leaves out — the world DAG's. What the tree culls is what the cut's descent
- * culls first, so the CPU's per-placement work in a frame — the impostor plan — follows the view
- * as the GPU's does.
- */
-export function visitPlacements(
-  packed: Pick<PackedDag, 'nodes' | 'worldCount' | 'world'>,
-  tree: PlacementTree,
-  planes: Float64Array,
-  visit: (placement: number) => void,
-) {
-  const { nodes } = packed,
-    bottom = tree.levels.length - 1
-  const outside = (n: number) => {
-    const at = n * DAG_NODE_FLOATS
-    return frustumExcludesBox(
-      planes,
-      nodes[at + NODE_MIN],
-      nodes[at + NODE_MIN + 1],
-      nodes[at + NODE_MIN + 2],
-      nodes[at + NODE_MAX],
-      nodes[at + NODE_MAX + 1],
-      nodes[at + NODE_MAX + 2],
-    )
-  }
-  const walk = (l: number, j: number) => {
-    if (outside(tree.levels[l].base + j)) return
-    const first = j * TREE_SPAN
-    if (l !== bottom) {
-      for (let c = first; c < Math.min(first + TREE_SPAN, tree.levels[l + 1].count); c++)
-        walk(l + 1, c)
-      return
-    }
-    for (let k = first; k < first + groupMembers(tree, j); k++)
-      if (tree.order[k] !== NONE) visit(tree.order[k])
-  }
-  for (let j = 0; j < tree.levels[0].count; j++) walk(0, j)
-  if (packed.world) visit(packed.world.root)
-}
-
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0
 
@@ -404,9 +358,12 @@ function writeBox(nodes: Float32Array, n: number, opened: boolean) {
   let reach = 0
   for (let a = 0; a < 6; a++) reach = Math.max(reach, Math.abs(box[a]))
   for (let a = 0; a < 3; a++) reach = Math.max(reach, box[a + 3] - box[a])
-  const grow = reach * MARGIN
+  boxGrow(grownBox, 0, box, 0, reach * MARGIN)
   for (let a = 0; a < 3; a++) {
-    nodes[at + NODE_MIN + a] = box[a] - grow
-    nodes[at + NODE_MAX + a] = box[a + 3] + grow
+    nodes[at + NODE_MIN + a] = grownBox[a]
+    nodes[at + NODE_MAX + a] = grownBox[a + 3]
   }
 }
+/** A node's box grown by its margin, before its corners are written apart (`NODE_MIN`,
+ *  `NODE_MAX`). */
+const grownBox = new Float64Array(6)

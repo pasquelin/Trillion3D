@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
-import { refitPlacementTree, visitPlacements } from './placementTree.ts'
+import { refitPlacementTree } from './placementTree.ts'
 import { packDagSelection } from './selection.ts'
 import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
@@ -79,14 +79,13 @@ test('moving, parking or opening one placement refits its group and its cell, at
   }
 })
 
-test('the CPU reads through the tree every placement the frustum may hold, and no more as the world grows', () => {
+test('the descent reads through the tree every placement the frustum may hold, and no more as the world grows', () => {
   const camera = fieldCamera([30, 2, -30], [30, 0, -200], 120),
     { planes } = engineCamera(camera)
   const seen = [40, 160].map((side) => {
     const roots = placementField(side, 6),
       dag = packDagSelection(roots),
-      visited = new Set<number>()
-    visitPlacements(dag, dag.placementTree!, planes, (w) => visited.add(w))
+      visited = new Set(fieldCut(roots, camera, true, dag).placements)
     // Every placement whose world box meets the frustum is read.
     const box = new Float64Array(6)
     roots.forEach((root, w) => {
@@ -121,12 +120,8 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
     const cut = fieldCut(roots, camera, true, dag)
     assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
   }
-  const seen = new Set<number>()
-  visitPlacements(
-    dag,
-    tree,
-    engineCamera(fieldCamera([30, 40, 30], [30, 0, -30], 400)).planes,
-    (w) => seen.add(w),
+  const seen = new Set(
+    fieldCut(roots, fieldCamera([30, 40, 30], [30, 0, -30], 400), true, dag).placements,
   )
   assert.ok(
     [80, 90, 99].every((w) => seen.has(w)),
@@ -183,9 +178,8 @@ test("a growth's batch far from the packed placements fills its own groups: none
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
   const dag = packDagSelection(near, capacity)
   assert.ok(appendDagRoots(dag, far))
-  const seen: number[] = []
-  const at = engineCamera(fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)).planes
-  visitPlacements(dag, dag.placementTree!, at, (w) => seen.push(w))
+  const at = fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)
+  const seen = fieldCut([...near, ...far], at, true, dag).placements
   assert.ok(
     seen.length > 0 && seen.every((w) => w >= 80),
     `${seen.filter((w) => w < 80).length} near read`,
