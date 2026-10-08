@@ -1,6 +1,7 @@
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { snap, type RandomStream } from './random.ts'
+import { clampLowWins, lerp, smoothstep } from '../../../packages/math/src/scalar/reals.ts'
 
 /**
  * A small raster toolkit for the textures drawn in code: square float images of one or three
@@ -121,17 +122,16 @@ export function valueNoise(size: number, cells: number, octaves: number, random:
   const total = new Float64Array(size * size)
   for (let octave = 0, amplitude = 1; octave < octaves; octave++, amplitude /= 2) {
     const count = cells * 2 ** octave,
-      lattice = Array.from({ length: count * count }, random.next),
-      smooth = (t: number) => t * t * (3 - 2 * t)
+      lattice = Array.from({ length: count * count }, random.next)
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++) {
         const [u, v] = [(x / size) * count, (y / size) * count],
           [i, j] = [Math.floor(u), Math.floor(v)],
-          [fu, fv] = [smooth(u - i), smooth(v - j)],
+          [fu, fv] = [smoothstep(u - i), smoothstep(v - j)],
           value = (a: number, b: number) => lattice[((j + b) % count) * count + ((i + a) % count)],
-          top = value(0, 0) + (value(1, 0) - value(0, 0)) * fu,
-          bottom = value(0, 1) + (value(1, 1) - value(0, 1)) * fu
-        total[y * size + x] += amplitude * (top + (bottom - top) * fv)
+          top = lerp(value(0, 0), value(1, 0), fu),
+          bottom = lerp(value(0, 1), value(1, 1), fu)
+        total[y * size + x] += amplitude * lerp(top, bottom, fv)
       }
   }
   const peak = total.reduce((max, value) => Math.max(max, value), 0)
@@ -147,12 +147,10 @@ export function png(image: Raster) {
         k === 3
           ? 255
           : Math.floor(
-              Math.max(
+              clampLowWins(
+                snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
                 0,
-                Math.min(
-                  255,
-                  snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
-                ),
+                255,
               ),
             )
   return encodePng(image.size, image.size, rgba)

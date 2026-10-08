@@ -107,7 +107,13 @@ const cull = shaderRun<{
   // The perspective box's corner list, `array<vec4f,8>(…)`, as a JavaScript array.
   wgslSource(vsmRenderCullWgsl(res.layout)).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
   [
-    ...['vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective', 'vsmRectPixels', 'perspectiveDivide'],
+    ...[
+      'vsmShiftedBoxOrtho',
+      'vsmShiftedBoxPerspective',
+      'vsmRectPixels',
+      'perspectiveDivide',
+      'transformPoint',
+    ],
     // The cull of the box in clip space they hand it to (`boxCullWgsl.ts`).
     ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
   ],

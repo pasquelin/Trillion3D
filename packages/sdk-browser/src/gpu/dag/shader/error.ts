@@ -16,10 +16,11 @@ import { REFERENCE_ERROR } from './referenceErrorDecl.ts'
 import { DAG_INF } from './infDecl.ts'
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { transformPoint } from '../../../../../math/src/wgsl/projection.ts'
 
 export const DAG_ERROR_WGSL = wgslBlock(
   'DAG_ERROR_WGSL',
-  [REFERENCE_ERROR, DAG_INF, projectedBoundWgsl(DAG_INF), CUT_RULE_WGSL],
+  [REFERENCE_ERROR, DAG_INF, projectedBoundWgsl(DAG_INF), CUT_RULE_WGSL, transformPoint],
   `
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
  *  deformation reach (\`deformReach\`), moved by at most \`error\`:
@@ -30,7 +31,7 @@ export const DAG_ERROR_WGSL = wgslBlock(
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
- let v=(e*vec4f(sphere.xyz,1.0)).xyz;
+ let v=transformPoint(e,sphere.xyz);
  return projectedBound(error,v,sphere.w+deformReach,stretch,focal,views[vi].near,views[vi].perspective,REFERENCE_ERROR);
 }
 /** The two screen errors the cut rule compares, projected once: its replacement's (\`x\`, the

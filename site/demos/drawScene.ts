@@ -3,7 +3,7 @@
  * looking down its own −z, its field of view, and the boxes coloured by the verdict the engine
  * function returned — nothing here decides anything, it only draws what it was handed.
  */
-import { perspectiveSlope } from './engine.ts'
+import { TAU, perspectiveSlope } from './engine.ts'
 
 const KEPT = '#199e70'
 const STRADDLING = '#c98500'
@@ -100,7 +100,7 @@ function drawFrustum(
   context.stroke()
   context.fillStyle = '#3987e5'
   context.beginPath()
-  context.arc(cx, cy, 4, 0, Math.PI * 2)
+  context.arc(cx, cy, 4, 0, TAU)
   context.fill()
 }
 

@@ -35,6 +35,8 @@
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
+import { rectCell } from '../../../math/src/wgsl/integer.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
@@ -179,7 +181,7 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
 const FRUSTUM_WGSL = /* wgsl */ `
 /** The frustum cull of a box under an orthographic view, identity local-to-world. */
 fn vsmShiftedBoxOrtho(center:vec3f,extent:vec3f,m:mat4x4f,nearClip:bool)->VsmBoxInView{
- return vsmBoxInOrthoView((m*vec4f(center,1.0)).xyz,extent.x*m[0].xyz,extent.y*m[1].xyz,extent.z*m[2].xyz,nearClip);
+ return vsmBoxInOrthoView(transformPoint(m,center),extent.x*m[0].xyz,extent.y*m[1].xyz,extent.z*m[2].xyz,nearClip);
 }
 /** The frustum cull of a box under a perspective view, identity local-to-world. */
 fn vsmShiftedBoxPerspective(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f)->VsmBoxInView{
@@ -359,6 +361,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
       FLOAT32_MAX,
+      transformPoint,
     ],
   )
 
@@ -414,8 +417,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,staticLayer);
  for(var i=lane;i<size.x*size.y;i+=${VSM_RENDER_GROUP}u){
-  let rowInRect=u32(floor((f32(i)+0.5)/f32(size.x)));
-  let vPage=rect.xy+vec2u(i-size.x*rowInRect,rowInRect);
+  let vPage=rectCell(rect,size,i);
   let offset=vsmTableEntryAt(levelOffset,mipLevel,vPage);
   let page=vsmTableEntryAtOffset(offset);
   // The instance's own layer of this page is uncached: its static slice for a static instance, its
@@ -446,6 +448,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       FLAT_INDEX_WGSL,
+      rectCell,
     ],
   )
 

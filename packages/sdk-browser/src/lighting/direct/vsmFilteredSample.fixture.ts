@@ -10,6 +10,7 @@ export const FILTER = [
   'vsmFilterPageOf',
   'vsmFilterOwnPage',
   'vsmConsumerSlopeBiasAt',
+  'pow2FromExponent',
   'testTransmission',
   'testReset',
 ]

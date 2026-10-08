@@ -127,7 +127,7 @@
       const level = math.vector2();
       const frame = (node, margin) => {
         const { centre, radius: r } = bounds(node), from = lookFrom();
-        const polar = Math.min(1.22, Math.max(0.35, Math.acos(from.d[1]))), flat = level.set(from.d[0], from.d[2]).length() || 1;
+        const polar = math.clamp(Math.acos(from.d[1]), 0.35, 1.22), flat = level.set(from.d[0], from.d[2]).length() || 1;
         const d = [(Math.sin(polar) * from.d[0]) / flat, Math.cos(polar), (Math.sin(polar) * from.d[2]) / flat];
         const to = fitDistance(r, margin);
         flight = { from, to: { target: centre, d, length: to }, span: 1.2 + 0.35 * Math.abs(Math.log(to / from.length)), nearest: r * 0.8, resume: drift.gliding || Boolean(flight?.resume && glide.gliding) };

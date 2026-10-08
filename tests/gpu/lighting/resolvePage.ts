@@ -1,9 +1,8 @@
 /**
- * The deferred resolve's lists on the GPU (#849, #1249, #1369): each scene's lights go through the
- * engine's light store and buffer, its view through the deferred view uniform, its shadows through
- * the deferred pass's own stand-ins (`createDeferredPlaceholders`); each cell record is bound as the
- * resolve's tile lists, and the sums the shipped resolve writes (`resolveHarness.ts`) are read back
- * as f32 bits.
+ * The deferred resolve's lists on the GPU: each scene's lights go through the engine's light store
+ * and buffer, its view through the deferred view uniform, its shadows through the deferred pass's
+ * own stand-ins (`createDeferredPlaceholders`); each cell record is bound as the resolve's tile
+ * lists, and the sums the shipped resolve writes (`resolveHarness.ts`) are read back as f32 bits.
  *
  * The bindings are the resolve's layout (`deferredLayoutEntries`) seen by a compute stage, minus
  * what the harness never reads; each is given the resource the deferred program binds there when a
@@ -39,6 +38,7 @@ import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subs
 import { PHYSICAL_LOBES_BINDING } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The resolve's bindings the harness never reads: the surfaces, the receiver offset's, the
  *  subsurface and the lobes, which its entries set by hand. */
@@ -181,7 +181,7 @@ export async function run(scenes: ResolveScene[]) {
       const pass = encoder.beginComputePass()
       pass.setPipeline(pipeline)
       pass.setBindGroup(0, device.createBindGroup({ layout, entries }))
-      pass.dispatchWorkgroups(Math.ceil(count / 64))
+      pass.dispatchWorkgroups(ceilDiv(count, 64))
       pass.end()
       device.queue.submit([encoder.finish()])
       const bits = (await readGpuBuffer(device, output, output.size))!

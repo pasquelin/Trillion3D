@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { tangentFrame } from '../../../math/src/wgsl/basis.ts'
+import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 import { clipToUvUnflipped } from '../../../math/src/wgsl/projection.ts'
 
 /** Up to four mip cells enclose a cone section; integrate their covered areas.
@@ -21,10 +22,10 @@ import { clipToUvUnflipped } from '../../../math/src/wgsl/projection.ts'
  *   of them may hold a hit (one, else none) — the test a coarser block passes whole by. */
 export const REFLECTION_CONE_FILTER_WGSL = wgslBlock(
   'REFLECTION_CONE_FILTER_WGSL',
-  [tangentAround, clipToUvUnflipped],
+  [tangentFrame, clipToUvUnflipped, pow2FromExponent],
   `
 fn reflectionReceiverPlane(c:vec4f,N:vec3f,q0:vec2f,z0:f32)->vec4f{
- let T:vec3f=tangentAround(N);let B:vec3f=cross(N,T);
+ let tangents=tangentFrame(N);let T:vec3f=tangents.x;let B:vec3f=tangents.y;
  let offset:f32=0.01*abs(c.w);
  let c1:vec4f=c+reflectionProject(vec4f(T,0.0))*offset;
  let c2:vec4f=c+reflectionProject(vec4f(B,0.0))*offset;
@@ -52,7 +53,7 @@ fn reflectionConeMeets(pixel:vec2i,level:i32,side:f32,limits:vec2f,receiver:vec4
  return max(range.x,range.y)>planeDepth+slack+abs(planeDepth)*exp2(-20.0);
 }
 fn reflectionConeCell(at:vec2f,footprint:vec2f,level:i32,limits:vec2f,receiver:vec4f,q0:vec2f,covered:bool)->vec4f{
- let side:f32=exp2(f32(level));
+ let side:f32=pow2FromExponent(level);
  let radius:vec2f=max(footprint,vec2f(0.5));
  let low:vec2f=max(at-radius,vec2f(0.0));
  let high:vec2f=min(at+radius,reflectionSize());

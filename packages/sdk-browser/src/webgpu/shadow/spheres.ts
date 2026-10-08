@@ -1,7 +1,7 @@
 import { ceilFloat32, writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
-import { boxCenter } from '../../../../math/src/geometry/box.ts'
+import { boxCenter, transformHalfExtent } from '../../../../math/src/geometry/box.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -40,16 +40,14 @@ function writeClusterSphere(
     writeSplitDouble(out, base + axis, base + 4 + axis, centreScratch[axis])
     centreError += (centreScratch[axis] - (out[base + axis] + out[base + 4 + axis])) ** 2
   }
-  const radius = length3(
-    Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
-    Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
-    Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,
-  )
+  const h = transformHalfExtent(extentScratch, 0, e, hx, hy, hz)
+  const radius = length3(h[0], h[1], h[2])
   out[base + 3] = ceilFloat32(radius + Math.sqrt(centreError))
   out[base + 7] = 0
 }
 
 const centreScratch = new Float64Array(3)
+const extentScratch = new Float64Array(3)
 const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS)
 
 /** Grows the flat box to the cluster's world sphere: an overestimate, never an underestimate. */

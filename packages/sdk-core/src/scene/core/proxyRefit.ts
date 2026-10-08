@@ -1,20 +1,11 @@
 import type { SceneProxyColumns } from '../../contracts/proxy.ts'
+import { proxyChildCount } from './proxy.ts'
 import { proxyBoxesExtent, proxyTriangleBoxes } from './proxyBoxes.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
+import { ceilFloat32, floorFloat32 } from '../../../../math/src/float/splitDouble.ts'
 
-const rounded = new Float32Array(1),
-  NO_LEAF = 0xffffffff
-const bits = new Uint32Array(rounded.buffer)
-/** Round a bound outwards, including negative zero and subnormals. */
-function outward(value: number, upper: boolean) {
-  rounded[0] = value
-  if (upper ? rounded[0] < value : rounded[0] > value) {
-    if (rounded[0] === 0) bits[0] = upper ? 1 : 0x80000001
-    else bits[0] += rounded[0] > 0 === upper ? 1 : -1
-  }
-  return rounded[0]
-}
+const NO_LEAF = 0xffffffff
 
 /**
  * The node whose leaf child holds each triangle, so a refit marks the leaves of the moved
@@ -30,7 +21,7 @@ function indexLeaves(nodeChildren: SceneProxyColumns['nodeChildren'], triangleCo
     if (flags >>> 24 === 0) continue
     const node = Math.floor(at / 12),
       first = nodeChildren[at + 2],
-      end = Math.min(first + ((flags >>> 16) & 255), leafNode.length)
+      end = Math.min(first + proxyChildCount(flags), leafNode.length)
     for (let t = first; t < end; t++) {
       shared ||= leafNode[t] !== NO_LEAF && leafNode[t] !== node
       leafNode[t] = node
@@ -65,7 +56,7 @@ function quantizeChildren(
     }
     nodeChildren[at] = low
     nodeChildren[at + 1] = high
-    if (((high >>> 16) & 255) === 0) grow(nodeChildren[at + 2])
+    if (proxyChildCount(high) === 0) grow(nodeChildren[at + 2])
   }
 }
 
@@ -111,7 +102,7 @@ function fitChildren(
     const at = node * 12 + slot * 3,
       flags = nodeChildren[at + 1]
     if (flags >>> 24 === 0) continue
-    const count = (flags >>> 16) & 255,
+    const count = proxyChildCount(flags),
       first = nodeChildren[at + 2]
     for (let a = 0; a < 6; a++) {
       let bound = a < 3 ? Infinity : -Infinity
@@ -123,10 +114,10 @@ function fitChildren(
               ? Math.min(bound, bounds[t * 6 + a] - errors[t * 3 + a])
               : Math.max(bound, bounds[t * 6 + a] + errors[t * 3 + a - 3])
       boxes[slot * 6 + a] = bound
-      nodeBounds[base + a] = outward(
-        a < 3 ? Math.min(nodeBounds[base + a], bound) : Math.max(nodeBounds[base + a], bound),
-        a >= 3,
-      )
+      nodeBounds[base + a] =
+        a < 3
+          ? floorFloat32(Math.min(nodeBounds[base + a], bound))
+          : ceilFloat32(Math.max(nodeBounds[base + a], bound))
     }
   }
 }
@@ -157,7 +148,7 @@ function childMoved(
     const at = node * 12 + slot * 3,
       flags = nodeChildren[at + 1]
     if (flags >>> 24 === 0) continue
-    const count = (flags >>> 16) & 255,
+    const count = proxyChildCount(flags),
       first = nodeChildren[at + 2]
     if (count === 0) dirty = nodeChanged[first] === 1
     else if (shared) for (let t = first; t < first + count; t++) dirty ||= !!changed[t]

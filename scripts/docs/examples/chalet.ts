@@ -3,6 +3,8 @@ import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts
 import { SceneGltf } from './gltf-scene.ts'
 import { empty, fromGeometry, merge, type Mesh } from './mesh.ts'
 import type { Vec3 } from './random.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Footprint and storey of the chalet, in metres; its walls of octagonal logs, `LOG_RADIUS` in
  *  radius and `LOG_SEGMENTS` quads long; its balcony slabs and boards, `SLAB` thick. */
@@ -114,7 +116,7 @@ function shingleRoof(eaves: number): Mesh {
     along = WIDTH + 2 * OVERHANG,
     [bw, bl] = BOARD,
     lap = bl * (2 / 3),
-    rows = Math.ceil((slope - bl) / lap) + 1,
+    rows = ceilDiv(slope - bl, lap) + 1,
     parts: Mesh[] = []
   for (const side of [1, -1])
     for (let row = 0; row < rows; row++) {
@@ -123,9 +125,9 @@ function shingleRoof(eaves: number): Mesh {
         start = -along / 2 - (odd * bw) / 2 + bw / 2,
         y = eaves + RISE - s * Math.sin(angle) + 0.02 + odd * 0.005,
         z = side * s * Math.cos(angle),
-        count = Math.ceil(along / bw) + odd
+        count = ceilDiv(along, bw) + odd
       for (let k = 0; k < count; k++) {
-        const x = Math.min(Math.max(start + k * bw, -along / 2 + bw / 4), along / 2 - bw / 4)
+        const x = clamp(start + k * bw, -along / 2 + bw / 4, along / 2 - bw / 4)
         parts.push(block([bw * 0.94, THICKNESS, bl], [x, y, z], side * angle))
       }
     }

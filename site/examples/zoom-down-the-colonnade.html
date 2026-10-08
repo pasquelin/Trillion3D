@@ -77,7 +77,7 @@
       const zoom = opening(world, (time) => place(51 - Math.cos(phase + time / 2) * 39, kept));
       function start() {
         kept = spanned();
-        phase = Math.acos(Math.min(1, Math.max(-1, (51 - world.camera.fov) / 39)));
+        phase = Math.acos(math.clamp((51 - world.camera.fov) / 39, -1, 1));
         zoom.restart();
       }
       controls({ fieldOfView: [12, 90, 50, 1], dollyZoom: () => (zoom.gliding ? zoom.stop() : start()) }, (values, key) => {

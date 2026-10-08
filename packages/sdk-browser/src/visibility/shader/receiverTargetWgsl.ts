@@ -1,5 +1,8 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
+import { ndcToUvUnflipped } from '../../../../math/src/wgsl/projection.ts'
+import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
+import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * THE SHADOW RECEIVER TARGET: the resolve, which has the pixel's triangle decoded already, writes
@@ -22,17 +25,17 @@ export const RECEIVER_TARGET_BYTES = 8
 export const receiverStoreWgsl = (binding: number) =>
   wgslBlock(
     `receiverStoreWgsl(${binding})`,
-    [octEncode],
+    [octEncode, ndcToUvUnflipped, pow2FromExponent],
     `
 @group(0) @binding(${binding}) var receiverOutput:texture_storage_2d<${RECEIVER_TARGET_FORMAT},write>;
 fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
  if(!all(vec2u(pos)<textureDimensions(receiverOutput))){return;}
  if(dot(plane,plane)<=0.0){textureStore(receiverOutput,vec2i(pos),vec4u(0u));return;}
- let q=vec2u(round(saturate(octEncode(plane)*0.5+0.5)*1023.0));
+ let q=vec2u(round(saturate(ndcToUvUnflipped(octEncode(plane)))*1023.0));
  let m=max(max(abs(offset.x),abs(offset.y)),abs(offset.z));
  var e=-26;
- if(m>0.0){e=clamp(i32(ceil(log2(m))),-26,4);if(m>exp2(f32(e))&&e<4){e+=1;}}
- let k=vec3u(vec3i(round(clamp(offset/exp2(f32(e)),vec3f(-1.0),vec3f(1.0))*4095.0))+vec3i(4096));
+ if(m>0.0){e=clamp(i32(ceil(log2(m))),-26,4);if(m>pow2FromExponent(e)&&e<4){e+=1;}}
+ let k=vec3u(vec3i(round(clamp(offset/pow2FromExponent(e),vec3f(-1.0),vec3f(1.0))*4095.0))+vec3i(4096));
  let x=q.x|(q.y<<10u)|(u32(e+27)<<20u)|((k.x&127u)<<25u);
  let y=(k.x>>7u)|(k.y<<6u)|(k.z<<19u);
  textureStore(receiverOutput,vec2i(pos),vec4u(x,y,0u,0u));
@@ -45,7 +48,7 @@ fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
 export const receiverTargetReadWgsl = (group: number, binding: number) =>
   wgslBlock(
     `receiverTargetReadWgsl(${group}, ${binding})`,
-    [octDecode],
+    [octDecode, unitToSigned2, pow2FromExponent],
     `
 @group(${group}) @binding(${binding}) var receiverTarget:texture_2d<u32>;
 struct ShadowReceiver{offset:vec3f,plane:vec3f,}
@@ -55,8 +58,8 @@ fn shadowReceiverOf(t:vec2u)->ShadowReceiver{
  let field=(t.x>>20u)&31u;
  if(field==0u){return ShadowReceiver(vec3f(0.0),vec3f(0.0));}
  let k=vec3u((t.x>>25u)|((t.y&63u)<<7u),(t.y>>6u)&8191u,t.y>>19u);
- let offset=vec3f(vec3i(k)-vec3i(4096))/4095.0*exp2(f32(i32(field)-27));
- let plane=octDecode(vec2f(f32(t.x&1023u),f32((t.x>>10u)&1023u))/1023.0*2.0-1.0);
+ let offset=vec3f(vec3i(k)-vec3i(4096))/4095.0*pow2FromExponent(i32(field)-27);
+ let plane=octDecode(unitToSigned2(vec2f(f32(t.x&1023u),f32((t.x>>10u)&1023u))/1023.0));
  return ShadowReceiver(offset,plane);
 }`,
   )

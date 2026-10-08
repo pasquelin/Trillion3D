@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { lerp } from '../../packages/math/src/scalar/reals.ts'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
 import type { BenchBrowser } from './dom.ts'
+import { TAU } from '../../packages/math/src/constants.ts'
 
 /** A point on the canvas as shares of its width and height, so a scenario plays at any size. */
 type At = [x: number, y: number]
@@ -94,7 +95,7 @@ export function createPlayer(browser: BenchBrowser, world: World) {
   }
   const orbitAt = (segment: Segment, i: number): At => {
     const { swing, cycle } = { ...ORBIT, ...segment.orbit }
-    return [0.5 + (Math.sin((i / cycle) * Math.PI * 4) * swing) / width, 0.6]
+    return [0.5 + (Math.sin((i / cycle) * TAU * 2) * swing) / width, 0.6]
   }
   const pose = ({ position, target }: Pose) => {
     world.camera.position.set(...position)

@@ -5,6 +5,7 @@ import {
   SAMPLE_MIP_NEAREST,
 } from './sampling.ts'
 import { type WgslDecl, wgslBlock, wgslFn, wgslStruct } from '../../../math/src/wgsl/decl.ts'
+import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
 
 const ANISOTROPY_SLACK = 0.01
 
@@ -23,8 +24,8 @@ export const TILE_SLOT_WGSL = wgslStruct(
 export const atlasLodWgsl = (mipBias: string) =>
   wgslFn(
     'atlasLod',
-    [],
-    `fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py)),1e-20))+${mipBias};}`,
+    [DIVISOR_FLOOR],
+    `fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py)),DIVISOR_FLOOR))+${mipBias};}`,
   )
 
 /** How one sample reads (`TileRead`): the coordinate after the texture's transform, the line
@@ -51,7 +52,7 @@ fn tapOffset(i:u32,n:u32)->f32{return (f32(i)+0.5)/f32(n)-0.5;}
 export const samplingFootprintWgsl = (lod: WgslDecl) =>
   wgslBlock(
     'samplingFootprintWgsl',
-    [TILE_SLOT_WGSL, TILE_READ_WGSL, lod],
+    [TILE_SLOT_WGSL, TILE_READ_WGSL, DIVISOR_FLOOR, lod],
     `fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  let px=ddx*s.size;let py=ddy*s.size;
  let granted=((s.sampling>>${SAMPLE_ANISOTROPY_SHIFT}u)&15u)+1u;
@@ -59,7 +60,7 @@ export const samplingFootprintWgsl = (lod: WgslDecl) =>
  var taps=1u;var axis=vec2f(0.0);
  if(aniso&&granted>1u){
   let lx=dot(px,px);let ly=dot(py,py);
-  let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),1e-20)),f32(granted));
+  let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),DIVISOR_FLOOR)),f32(granted));
   taps=select(1u,u32(ceil(ratio-${ANISOTROPY_SLACK})),ratio>${1 + ANISOTROPY_SLACK});
   raw-=log2(f32(taps));
   axis=select(vec2f(0.0),select(ddy,ddx,lx>=ly),taps>1u);

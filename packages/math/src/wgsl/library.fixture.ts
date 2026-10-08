@@ -11,6 +11,7 @@ import * as lighting from './lighting.ts'
 import * as matrix from './matrix.ts'
 import * as octahedral from './octahedral.ts'
 import * as projection from './projection.ts'
+import * as reals from './reals.ts'
 import * as sampling from './sampling.ts'
 
 /** The library's declaration files, by name: a file left out of this list would escape the tests
@@ -27,6 +28,7 @@ const MODULES = {
   matrix,
   octahedral,
   projection,
+  reals,
   sampling,
 }
 /** The files that declare nothing: the declaration type, the assembler, its comment reader, the

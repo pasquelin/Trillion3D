@@ -1,6 +1,7 @@
 /** Transform tree and batches: a real tree, updated by the engine, drawn from above. */
 import {
   addTransformNode,
+  axisAngleQuaternion,
   createTransformTree,
   lookAtNode,
   nodeWorldDirection,
@@ -19,9 +20,9 @@ import type { TransformTree } from './engine.ts'
 function builtTree(state: DemoState, children = 3) {
   const tree = createTransformTree(8)
   const root = addTransformNode(tree, -1)
-  const half = state.turn * 0.5
+  const [qx, qy, qz, qw] = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], state.turn)
   setNodePosition(tree, root, state.x, 0, 0)
-  setNodeQuaternion(tree, root, 0, Math.sin(half), 0, Math.cos(half))
+  setNodeQuaternion(tree, root, qx, qy, qz, qw)
   const nodes = []
   for (let index = 0; index < children; index++) {
     const node = addTransformNode(tree, root)

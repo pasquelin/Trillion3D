@@ -9,6 +9,7 @@ import { modelFloor } from '../trajectory/poses.ts'
 import type { Bounds } from '../trajectory/poses.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { LightsSummary } from '../report/types.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */
 type PointLight = SceneLight & { position: [number, number, number] }
@@ -52,7 +53,7 @@ function gridLights(
     sy = Math.max(0, bounds.max.y - bounds.min.y),
     sz = Math.max(1e-3, bounds.max.z - bounds.min.z)
   const columns = Math.max(1, Math.round(Math.sqrt((count * sx) / sz))),
-    rows = Math.ceil(count / columns)
+    rows = ceilDiv(count, columns)
   const stepX = sx / columns,
     stepZ = sz / rows
   const cell = length2(stepX, stepZ)

@@ -22,6 +22,18 @@ export const saturate = (x: number) => clamp(x, 0, 1)
 /** The line from `a` to `b` at the unclamped `t`: `a + (b - a) * t`, exact at `t = 0`. */
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+/** The blend of `a` and `b` at `t` weighted from both ends: `a * (1 - t) + b * t`, exact at `t = 0`
+ *  and `t = 1`; another rounding than `lerp`'s, so the two keep apart (`mix` of the Rust crate's
+ *  `scalar.rs`). */
+export const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t
+
+/** The smoothstep polynomial `t * t * (3 - 2 * t)` of `t` in `[0, 1]`: 0 and 1 at the ends, flat at
+ *  both. Not clamped: `smoothstep(saturate(t))` holds a `t` out of the interval. */
+export const smoothstep = (t: number) => t * t * (3 - 2 * t)
+
+/** `value` at the nearest multiple of `step`, a half step rounding up: `Math.round(value / step) * step`. */
+export const snap = (value: number, step: number) => Math.round(value / step) * step
+
 /** `x` wrapped into `[0, n[` by a floored modulo, `n > 0`: `((x % n) + n) % n`. */
 export const wrap = (x: number, n: number) => ((x % n) + n) % n
 

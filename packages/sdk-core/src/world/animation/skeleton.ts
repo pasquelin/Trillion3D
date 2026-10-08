@@ -1,5 +1,6 @@
 import { linearStretchBound, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { linearPartIdentityDistanceSq } from '../../../../math/src/matrix/singular.ts'
 import type { Object3D } from '../object/object3d.ts'
 import {
   distanceVector3,
@@ -105,13 +106,8 @@ export function paletteReach(
       0,
       m,
     )
-    let frobenius = 0
-    for (let row = 0; row < 3; row++) {
-      const x = palette[m + row * 4],
-        y = palette[m + row * 4 + 1],
-        z = palette[m + row * 4 + 2]
-      frobenius += (x - +(row === 0)) ** 2 + (y - +(row === 1)) ** 2 + (z - +(row === 2)) ** 2
-    }
+    // The joint's rows sit where a column-major matrix keeps its columns: the same squares.
+    const frobenius = linearPartIdentityDistanceSq(palette, m)
     const moved = distanceVector3(carried, reach, 0, j * 4)
     most = Math.max(most, moved + Math.sqrt(frobenius) * reach[j * 4 + 3])
   }

@@ -36,7 +36,7 @@ pub fn pack(colour: [f64; 3]) -> u32 {
 /// `trillion3d_math::color::srgb_to_linear`. The preview table (`texture_preview/curves.rs`) takes
 /// its `f32` form, which rounds apart on 214 of the 256 bytes.
 pub fn srgb_to_linear(byte: u8) -> f64 {
-    trillion3d_math::color::srgb_to_linear(byte as f64 / 255.0)
+    trillion3d_math::color::srgb_to_linear(trillion3d_math::scalar::byte_to_unit(byte))
 }
 
 fn factor(material: &Value) -> [f64; 3] {

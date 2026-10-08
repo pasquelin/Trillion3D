@@ -44,6 +44,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'blendGeometricNormal',
     'facingDiscarded',
     'lineDash',
+    'floorMod',
     'blendShadowFootprint',
     // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
     'blendPhysicalBegin',
@@ -60,7 +61,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     colorSample: () => (counts.color++, [0.5, 0.5, 0.5, alpha]),
     dataSample: () => (counts.data++, [1, 1, 1, 1]),
     blendRequest: () => 7,
-    uniteOuZero: (v: number[]) => v,
+    unitOrZero: (v: number[]) => v,
     declaredLighting: lit,
     bounceLighting: lit,
     environmentLighting: lit,

@@ -1,5 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { octDecodeHemi, octEncodeHemi } from '../../../../math/src/wgsl/octahedral.ts'
+import { ndcToUvUnflipped } from '../../../../math/src/wgsl/projection.ts'
+import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
 /**
  * The octahedral mapping and the three-frame blend, object space, pivot at the bounding-sphere
@@ -25,13 +27,13 @@ fn impWeights(f:vec2f)->vec3f{
  */
 const IMPOSTOR_VIEW_WGSL = wgslBlock(
   'IMPOSTOR_VIEW_WGSL',
-  [octEncodeHemi, octDecodeHemi, IMPOSTOR_MATH_WGSL],
+  [octEncodeHemi, octDecodeHemi, ndcToUvUnflipped, IMPOSTOR_MATH_WGSL],
   `
 struct ImpView{a:vec2f,b:vec2f,c:vec2f,w:vec3f}
 /** The three frames and weights seen from \`eye\` (object space, pivot-relative). */
 fn impView(eye:vec3f,frames:f32,hemi:f32)->ImpView{
  let last=frames-1.0;
- let g=clamp((octEncodeHemi(normalize(eye),hemi)*0.5+0.5)*last,vec2f(0.0),vec2f(last));
+ let g=clamp(ndcToUvUnflipped(octEncodeHemi(normalize(eye),hemi))*last,vec2f(0.0),vec2f(last));
  let g0=min(floor(g),vec2f(last-1.0));
  let f=g-g0;
  return ImpView(g0,select(g0+vec2f(0.0,1.0),g0+vec2f(1.0,0.0),f.x>f.y),g0+vec2f(1.0),impWeights(f));
@@ -48,7 +50,7 @@ fn impFrameNormal(frame:vec2f,frames:f32,hemi:f32)->vec3f{return octDecodeHemi(f
  */
 const IMPOSTOR_TAP_WGSL = wgslBlock(
   'IMPOSTOR_TAP_WGSL',
-  [],
+  [unitToSigned3],
   `
 struct ImpTap{uv:vec2f,point:vec3f}
 /** The view ray (origin \`eye\`, direction \`ray\`, object space) on the plane of frame \`frame\`
@@ -79,7 +81,7 @@ fn impBlend(a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f,lod:f32)->ImpBlend{
  let orm=w.x*textureSampleLevel(impostorOrm,impostorSampler,a.uv,lod).xyz
         +w.y*textureSampleLevel(impostorOrm,impostorSampler,b.uv,lod).xyz
         +w.z*textureSampleLevel(impostorOrm,impostorSampler,c.uv,lod).xyz;
- return ImpBlend(colour,normalize(packed*2.0-1.0),orm,w.x*a.point+w.y*b.point+w.z*c.point);
+ return ImpBlend(colour,normalize(unitToSigned3(packed)),orm,w.x*a.point+w.y*b.point+w.z*c.point);
 }`,
 )
 

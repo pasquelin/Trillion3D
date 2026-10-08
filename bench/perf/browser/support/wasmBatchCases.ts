@@ -3,6 +3,8 @@
 // shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
 import { xorshiftRandom } from '../../../core/index.ts'
+import { copyMatrix4 } from '../../../../packages/math/src/matrix/matrix4.ts'
+import { TAU } from '../../../../packages/math/src/constants.ts'
 
 /** Measured batch sizes: from what a frame moves to what a whole scene carries. */
 export const TAILLES = [1_000, 10_000, 100_000]
@@ -70,8 +72,8 @@ const HOSTILES = MATRICES.length * BOXES.length
 
 /** An ordinary matrix: a hand-written arbitrary rotation, translation and non-uniform scale. */
 function matriceOrdinaire(alea: () => number) {
-  const c = Math.cos(alea() * 6.283185307179586),
-    s = Math.sin(alea() * 6.283185307179586)
+  const c = Math.cos(alea() * TAU),
+    s = Math.sin(alea() * TAU)
   const sx = 0.5 + alea() * 2,
     sy = 0.5 + alea() * 2,
     sz = 0.5 + alea() * 2
@@ -104,7 +106,7 @@ export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: 
       i < HOSTILES
         ? BOXES[Math.floor(i / MATRICES.length) % BOXES.length]
         : [alea() * -50, alea() * -50, alea() * -50, alea() * 50, alea() * 50, alea() * 50]
-    for (let k = 0; k < 16; k++) lot.mats[i * 16 + k] = m[k]
+    copyMatrix4(lot.mats, m, i * 16)
     for (let k = 0; k < 6; k++) lot.boxes[i * 6 + k] = b[k]
   }
 }

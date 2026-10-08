@@ -1,4 +1,5 @@
 import { PROXY_CHILD_WORDS } from '../../contracts/proxy.ts'
+import { proxyChildCount } from './proxy.ts'
 
 /** Leaf child word bit: the leaf's triangles are canonical and traced under their owners' poses. */
 export const PROXY_LEAF_OWNED = 1 << 25
@@ -44,7 +45,7 @@ export function createProxyLeaves(
   for (let at = 1; at < children.length; at += PROXY_CHILD_WORDS) {
     if (children[at] >>> 24 === 0) continue
     children[at] = ((children[at] & 0xffffff) | PRESENT) >>> 0
-    const count = (children[at] >>> 16) & 255,
+    const count = proxyChildCount(children[at]),
       first = children[at + 1]
     if (!count) continue
     for (let t = first; t < first + count; t++) leafOf[t] = words.length

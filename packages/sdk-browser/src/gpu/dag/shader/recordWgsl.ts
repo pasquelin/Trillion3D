@@ -1,6 +1,6 @@
 import { SELECTION_LIST_CAP } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { bitIsSet, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
@@ -18,7 +18,7 @@ import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
  */
 export const DAG_RECORD_WGSL = wgslBlock(
   'DAG_RECORD_WGSL',
-  [ceilDiv],
+  [ceilDiv, bitWord, bitIsSet],
   `const COLD:u32=13u;
 fn pageWorld(i:u32)->u32{return coldAt(i);}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
@@ -37,7 +37,7 @@ fn boxMax(r:u32)->vec3f{return vec3f(coldF(r,8u),coldF(r,9u),coldF(r,10u));}
 fn trianglesOf(r:u32)->u32{return coldAt(coldBase()+r*COLD+12u);}
 /** The cut rule's two bit sets follow the working table, one word for thirty-two pages:
  *  \`resident(c)\` then \`resident(childGroup(c))\` (\`../../../page/cut/readiness.ts\`). */
-fn isResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+(i>>5u))&(1u<<(i&31u)))!=0u;}
-fn childResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+residentWords()+(i>>5u))&(1u<<(i&31u)))!=0u;}
+fn isResident(i:u32)->bool{return bitIsSet(coldAt(views[0u].clusterCount+bitWord(i)),i);}
+fn childResident(i:u32)->bool{return bitIsSet(coldAt(views[0u].clusterCount+residentWords()+bitWord(i)),i);}
 `,
 )

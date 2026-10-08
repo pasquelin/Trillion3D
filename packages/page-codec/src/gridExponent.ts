@@ -7,7 +7,7 @@
  */
 import { UV_EXPONENT } from './geometryPage.ts'
 import { MAX_BITS, MAX_EXPONENT } from './pageGrids.ts'
-import { clamp } from '../../math/src/scalar/reals.ts'
+import { clamp, clampLowWins } from '../../math/src/scalar/reals.ts'
 import { floorLog2 as integerFloorLog2 } from '../../math/src/scalar/integers.ts'
 
 /** A tile spans 2^1 = 2 m of the world. */
@@ -78,7 +78,7 @@ function gridExponent(extent: number, finestError: number | null, tile: number) 
     finest = positive ? finestExponent(extent) : -(MAX_BITS - 2)
   const byExtent = Math.min(widest, tile) - 16
   const byError = finestError === null ? byExtent : floorLog2(finestError / 8)
-  return clamp(Math.max(Math.min(byExtent, byError), finest), -MAX_EXPONENT, MAX_EXPONENT)
+  return clamp(clampLowWins(byExtent, finest, byError), -MAX_EXPONENT, MAX_EXPONENT)
 }
 
 /** A `blended` primitive's grid is the finest its pages hold; any other's `gridExponent`

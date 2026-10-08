@@ -4,11 +4,12 @@ import { writeFileSync } from 'node:fs'
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts'
 import type { BenchGpu } from './device.ts'
 import { readBack } from './readBack.ts'
+import { alignUp } from '../../packages/math/src/scalar/integers.ts'
 
 /** Reads `texture` (8-bit RGBA or BGRA) back as RGBA rows, `width` × `height`, uncounted. */
 async function readTexture(gpu: BenchGpu, device: GPUDevice, texture: GPUTexture) {
   const { width, height, format } = texture
-  const stride = Math.ceil((width * 4) / 256) * 256
+  const stride = alignUp(width * 4, 256)
   const read = gpu.quiet(() =>
     device.createBuffer({
       size: stride * height,

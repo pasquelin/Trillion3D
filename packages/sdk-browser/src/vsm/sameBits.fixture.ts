@@ -62,6 +62,7 @@ export function sameBits(a: unknown, b: unknown, keys?: readonly string[]): bool
  *  a vector), `arrayLength` and the `array<T,N>(…)` lists of `withArrays`. */
 export const MORE_BUILTINS = {
   firstLeadingBit: each((x) => floorLog2(Number(x) < 0 ? ~Number(x) : Number(x))),
+  countLeadingZeros: each((x) => Math.clz32(Number(x))),
   inverseSqrt: each((x) => 1 / Math.sqrt(Number(x))),
   mat4x4f: (...columns: number[][]) => new Mat(columns.flat()),
   $b: (op: string, a: unknown, b: unknown) =>

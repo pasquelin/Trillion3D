@@ -15,6 +15,8 @@ import * as THREE from 'three'
 import { MeshoptSimplifier } from 'meshoptimizer'
 import { mesurerThree } from './threeMeasurePage.ts'
 import type { MeasureViewOptions } from '../harness/measureOptions.ts'
+import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 
 /** Each level beyond the original: target triangle fraction, tolerated error (relative to
  *  mesh size), and on-screen height in pixels under which it replaces the previous one. */
@@ -57,7 +59,7 @@ function buildLevels(geometry: THREE.BufferGeometry) {
 
 /** Distance at which an object of radius `rayon` is `pixels` pixels high. */
 const distancePour = (rayon: number, pixels: number, height: number, fov: number) =>
-  (rayon * height) / (2 * pixels * Math.tan((fov * Math.PI) / 360))
+  (rayon * height) / (2 * pixels * perspectiveSlope(fov))
 
 /**
  * Replaces each indexed mesh of `root` with a `THREE.LOD` at its levels, same material,
@@ -93,7 +95,7 @@ export async function detailLevels(root: THREE.Object3D, options: MeasureViewOpt
     // world scale is read on the first matrix column, without decomposing.
     if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere()
     const e = mesh.matrixWorld.elements
-    const rayon = (mesh.geometry.boundingSphere?.radius ?? 0) * Math.hypot(e[0], e[1], e[2])
+    const rayon = (mesh.geometry.boundingSphere?.radius ?? 0) * length3(e[0], e[1], e[2])
     const lod = new THREE.LOD()
     lod.name = mesh.name
     lod.position.copy(mesh.position)

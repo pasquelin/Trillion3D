@@ -21,7 +21,7 @@ const SHADERS = [
 
 /** Body of the vertex-normal branch, the one that follows the geometric normal. */
 function vertexNormalBranch(wgsl: string, vertexNormal: string) {
-  const geometric = wgsl.indexOf('var N=uniteOuZero(')
+  const geometric = wgsl.indexOf('var N=unitOrZero(')
   assert.notEqual(geometric, -1, 'the shader does start from a geometric normal')
   const start = wgsl.indexOf(`if(${vertexNormal}){`, geometric)
   assert.notEqual(start, -1, 'the vertex normal does have its branch')

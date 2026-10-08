@@ -1,4 +1,8 @@
 import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
+
+/** One face's edge cross product, reused across faces. */
+const face = new Float64Array(3)
 
 /**
  * Per-vertex normals from the faces around each vertex: the cross product of two edges is the
@@ -18,18 +22,10 @@ export function computeNormals<T extends Float32Array | Float64Array = Float32Ar
     const a = (index ? index[k] : k) * 3,
       b = (index ? index[k + 1] : k + 1) * 3,
       c = (index ? index[k + 2] : k + 2) * 3
-    const ax = positions[a],
-      ay = positions[a + 1],
-      az = positions[a + 2]
-    const e1x = positions[b] - ax,
-      e1y = positions[b + 1] - ay,
-      e1z = positions[b + 2] - az
-    const e2x = positions[c] - ax,
-      e2y = positions[c + 1] - ay,
-      e2z = positions[c + 2] - az
-    const nx = e1y * e2z - e1z * e2y,
-      ny = e1z * e2x - e1x * e2z,
-      nz = e1x * e2y - e1y * e2x
+    triangleCross(face, 0, positions, a, b, c)
+    const nx = face[0],
+      ny = face[1],
+      nz = face[2]
     // Corner by corner, as a repeated index sums twice.
     normals[a] += nx
     normals[a + 1] += ny

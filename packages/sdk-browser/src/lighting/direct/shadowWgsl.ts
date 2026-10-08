@@ -23,6 +23,8 @@ import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { byteOf, pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
+import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 import {
   ALL_SHADOW_KINDS,
   byShadowKind,
@@ -176,7 +178,7 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
 const filteredReadWgsl = (kinds: ShadowKinds) =>
   wgslBlock(
     `filteredReadWgsl(${shadowKindsLabel(kinds)})`,
-    [perspectiveDivide],
+    [perspectiveDivide, pow2FromExponent],
     `
 const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.length}>(${PCF_TAPS.map(([x, y]) => `vec2f(${x},${y})`).join(',')});
 /** A page of the filtered read's level, translated once for the block texels in it: none (\`kind\`
@@ -197,7 +199,7 @@ fn vsmFilterPage(requested:VsmHandle,sm:VsmMapRead,page:vec2u,clipmap:bool)->Vsm
  if(!e.anyLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
  if(!clipmap){
   // A lamp's coarser mip has its depth's scale; the finer entry holds that mip's page.
-  return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/f32(1u<<e.coarserLevels),vec2f(0.0),1.0,0.0);
+  return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/pow2FromExponent(i32(e.coarserLevels)),vec2f(0.0),1.0,0.0);
  }
  let own=i32(sm.handle.id)-i32(requested.id);
  if(e.thisLevelMapped){
@@ -388,6 +390,7 @@ const tracedReadWgsl = (b: VsmConsumerBindings, kinds: ShadowKinds) =>
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_RESULT_WGSL,
       vsmTraceWgsl(false, vsmPoolRead(b.pool), PIXEL_NOISE_TWO),
+      DIVISOR_FLOOR,
     ],
     `
 /** The view fields the traces read (\`vsmView\`), filled from the pixel by \`vsmShadowTraced\`. */
@@ -395,7 +398,7 @@ struct VsmPixelView{shiftedToView:mat4x4f,viewToClip:mat4x4f,originShiftHigh:vec
 var<private> vsmView:VsmPixelView;
 fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
- let angular=max(shadowAngularPixel,1e-20);
+ let angular=max(shadowAngularPixel,DIVISOR_FLOOR);
  let depth=shadowFootprint/angular;
  let frame=vsm.frameStamp;
  vsmView.shiftedToView=mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
@@ -529,7 +532,7 @@ export type DirectShadowOptions = {
 const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) =>
   wgslBlock(
     `vsmMaskWgsl(${binding}, ${shadowKindsLabel(kinds)})`,
-    [VSM_MASK_TABLE_READ_WGSL, perspectiveDivide],
+    [VSM_MASK_TABLE_READ_WGSL, perspectiveDivide, byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
@@ -605,6 +608,6 @@ fn vsmMaskFactor(channel:u32)->f32{
   vsmMaskWord=textureLoad(vsmShadowMask,vsmMaskPixel,layer,0).r;
   vsmMaskLayer=layer;
  }
- return vsmMaskDecode((vsmMaskWord>>(8u*(channel%4u)))&255u);
+ return vsmMaskDecode(byteOf(vsmMaskWord,channel%4u));
 }`,
   )

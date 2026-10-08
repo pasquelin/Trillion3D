@@ -1,3 +1,4 @@
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 /**
  * A scene light, version 2. Units are radiometric and linear (P1): `color` is a linear colour and
  * `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds,
@@ -67,7 +68,7 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'
  */
 export const LIGHT_SETTINGS = {
   /** Angular radius of the solar disk in radians; zero explicitly requests hard shadows. */
-  sunAngularRadius: (0.5357 * Math.PI) / 360,
+  sunAngularRadius: (0.5357 * DEG2RAD) / 2,
   /**
    * The longest list of a cell of the light grid a MOVING image draws from (X2): past it, the
    * cell's lights are summed in full. A scene of at most this many lights resolves with a light

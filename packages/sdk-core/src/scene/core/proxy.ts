@@ -21,6 +21,10 @@ import { decodeProxyOwnership } from './proxyOwnership.ts'
 import { EngineError } from '../../contracts/index.ts'
 import { invalidProxy as bad } from './proxyError.ts'
 
+/** The triangle count in bits 16–23 of a child's second word: a leaf's triangles, 0 for an inner
+ *  child, whose link names a node. */
+export const proxyChildCount = (word: number) => (word >>> 16) & 255
+
 /**
  * Rejects a proxy descriptor this engine could not read, before a single byte is
  * requested. A manifest without a descriptor is not an error: it is a cache from before bounce, and
@@ -65,7 +69,7 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
       const words = nodeChildren[base + 1],
         offset = nodeChildren[base + 2]
       if (words >>> 24 === 0) continue
-      const count = (words >>> 16) & 255
+      const count = proxyChildCount(words)
       if (count === 0 && offset <= node)
         throw bad('A scene proxy child does not point forward', { node, slot, offset })
       if (count === 0 && offset >= descriptor.nodes)

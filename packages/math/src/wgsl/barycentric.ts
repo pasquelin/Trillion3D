@@ -53,3 +53,12 @@ export const planeBarycentric = wgslFn(
  return vec3f(1.0-v-w,v,w);
 }`,
 )
+
+/** The wireframe's edge weight at the barycentric `b` of a pixel, `width` the barycentrics' change
+ *  across one pixel: 1 on an edge, falling to 0 over 1.2 pixels inward, the least of the three
+ *  edges' smoothsteps taken. */
+export const wireframeEdge = wgslFn(
+  'wireframeEdge',
+  [],
+  'fn wireframeEdge(b:vec3f,width:vec3f)->f32{return 1.0-min(min(smoothstep(0.0,width.x*1.2,b.x),smoothstep(0.0,width.y*1.2,b.y)),smoothstep(0.0,width.z*1.2,b.z));}',
+)

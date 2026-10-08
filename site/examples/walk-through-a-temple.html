@@ -571,7 +571,7 @@
       function dress() {
         const { fx, fz } = gaze();
         const leap = motion.leap.map(({ x }) => x), air = motion.air.x;
-        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: math.clamp(-eased.dip * 25, 0, 1) };
         for (const { side, top, low, root, fingers, thumb } of arms) {
           const h = handPose(side, pose, camera.fov, camera.aspect);
           aim(top, h.shoulder, h.elbow);
@@ -620,9 +620,9 @@
         }
         eased.dipSpeed += (-160 * eased.dip - 20 * eased.dipSpeed) * dt;
         eased.dip = Math.max(-0.35, eased.dip + eased.dipSpeed * dt);
-        eased.sprint = Math.max(0, Math.min(1, (going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed)));
+        eased.sprint = math.clamp((going - PACE.walkSpeed) / (PACE.sprintSpeed - PACE.walkSpeed), 0, 1);
         if (Math.abs(ease('fov', 75 + 10 * eased.sprint, 6, dt) - camera.fov) > 0.01) camera.fov = eased.fov;
-        ease('tilt', Math.max(-0.1, Math.min(0.1, (vx * fz - vz * fx) * 0.015)), 8, dt);
+        ease('tilt', math.clamp((vx * fz - vz * fx) * 0.015, -0.1, 0.1), 8, dt);
         dress();
 
         // The game.

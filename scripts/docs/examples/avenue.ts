@@ -3,6 +3,7 @@ import { SceneGltf, yaw } from './gltf-scene.ts'
 import { lathe, moved, pairs, solid } from './mesh.ts'
 import { randomStream } from './random.ts'
 import { box, heightfield, spline, torusKnot } from './solids.ts'
+import { clampLowWins } from '../../../packages/math/src/scalar/reals.ts'
 
 /**
  * `detail-by-pixel-error`: an avenue of fluted marble urns leading to a bronze knot on its
@@ -23,7 +24,7 @@ function flutedUrn(segments = 120, samples = 72) {
     positions = [...urn.positions]
   for (let v = 0; v < positions.length; v += 3) {
     const [x, y, z] = positions.slice(v, v + 3),
-      belly = Math.max(0, Math.min(1, 1 - Math.abs(y - 0.85) / 0.5)) ** 0.6,
+      belly = clampLowWins(1 - Math.abs(y - 0.85) / 0.5, 0, 1) ** 0.6,
       wave = 1 + 0.045 * belly * Math.cos(24 * Math.atan2(-z, x))
     positions[v] = x * wave
     positions[v + 2] = z * wave
@@ -33,7 +34,7 @@ function flutedUrn(segments = 120, samples = 72) {
 
 /** A meadow flat along the avenue, rising into rolling hills away from it. */
 function meadowHeight(x: number, z: number) {
-  const away = Math.max(0, Math.min(1, (Math.abs(x) - 9) / 20)),
+  const away = clampLowWins((Math.abs(x) - 9) / 20, 0, 1),
     hills =
       1.8 * Math.sin(x * 0.07 + 1.3) * Math.cos(z * 0.05) + 1.2 * Math.sin(z * 0.11 + x * 0.03)
   return -0.05 + away ** 1.5 * (2.5 + hills)

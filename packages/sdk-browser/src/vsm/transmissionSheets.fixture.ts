@@ -23,6 +23,7 @@ export const geometry = shaderRun<{
   wgslModule(vsmTransmissionReadWgsl(14)) + vsmTransmissionBinWgsl(LAYOUT),
   [
     'vsmTEdge',
+    'edgeFunction',
     'vsmTEdgeHolds',
     'vsmTInside',
     'vsmTEdgeMeets',
@@ -33,17 +34,8 @@ export const geometry = shaderRun<{
   {},
 )
 
-/** A seeded generator in [0, 1). */
-export function random(seed: number) {
-  let s = seed >>> 0
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0
-    let t = s
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32
-  }
-}
+/** A seeded generator in [0, 1), the Mulberry32 sequence. */
+export { mulberry32 as random } from '../../../math/src/sequence/random.ts'
 
 /** A sheet of `n` × `n` quads over [lo, hi]², corners moved by `move`, each quad cut along
  *  alternating diagonals: as the sea's grid is drawn. */

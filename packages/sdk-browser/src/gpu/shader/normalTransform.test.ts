@@ -6,7 +6,7 @@
 //
 // WHAT THIS FILE HOLDS, AND HOW. It reads no shader text with regex patterns: a suite of
 // `assert.match` on WGSL breaks on first reformat and guarantees no arithmetic. It tests
-// CALCULATION — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n)) — on f32 model from
+// CALCULATION — `xformNormal` = unitOrZero(inverseTranspose3(mat3(world), n)) — on f32 model from
 // `tests/gpu/math/inverseTransposeF32.ts`: rotation tracked across all scales, singular poses —
 // flattened then collapsed — and threshold crossed on both sides.
 // This model is not the shader: `tests/gpu/math/normal-transform.gpu.ts` executes text
@@ -22,7 +22,6 @@ import { NORMAL_TRANSFORM_WGSL as NORMAL_TRANSFORM } from '../../lighting/standa
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import {
-  DEG,
   DROPOUT_DEG,
   angleBetween,
   unit,
@@ -37,6 +36,7 @@ import {
   TINY_REGULAR,
   THRESHOLD_SCALE,
 } from '../../../../../tests/gpu/math/normalTransformCases.ts'
+import { RAD2DEG } from '../../../../math/src/constants.ts'
 
 /** The lighting normal transformation, as a program holds it. */
 const NORMAL_TRANSFORM_WGSL = wgslModule(NORMAL_TRANSFORM)
@@ -52,7 +52,7 @@ test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => 
     assert.ok(v.ok, `${cas.name} : ${v.reason}`)
   }
   // Without effective rotation, these cases prove nothing: true normal must have moved.
-  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * DEG > 10).length
+  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * RAD2DEG > 10).length
   assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`)
 })
 
@@ -81,7 +81,7 @@ test('outside threshold band, batch did not move rendered normal', () => {
       angleBetween(
         xformNormalModel(cas.world, cas.normal),
         xformNormalBefore(cas.world, cas.normal),
-      ) * DEG
+      ) * RAD2DEG
     assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`)
   }
 })
@@ -94,7 +94,7 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
   for (const cas of FLATTENED) {
     const v = verdict(cas, xformNormalModel(cas.world, cas.normal))
     assert.ok(v.ok, `${cas.name} : ${v.reason}`)
-    const gap = angleBetween(cas.truth, unit(cas.normal)) * DEG
+    const gap = angleBetween(cas.truth, unit(cas.normal)) * RAD2DEG
     assert.ok(gap > 10, `${cas.name} : local and true normals differ by only ${gap}°`)
   }
   for (const cas of COLLAPSED)
@@ -119,7 +119,7 @@ test('selection kernel and lighting read exact same text, character for characte
     [
       'lighting',
       NORMAL_TRANSFORM_WGSL,
-      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'uniteOuZero'],
+      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'unitOrZero'],
     ],
     ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
   ] as const) {
@@ -138,7 +138,7 @@ test('lighting normal passes through shared inverse-transpose, without recomputi
   const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0]
   assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal duplicated')
   assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel')
-  assert.ok(corps.includes('uniteOuZero('), 'xformNormal must return unit or zero direction')
+  assert.ok(corps.includes('unitOrZero('), 'xformNormal must return unit or zero direction')
   assert.doesNotMatch(
     corps,
     /\bdet\b|cross\(/,

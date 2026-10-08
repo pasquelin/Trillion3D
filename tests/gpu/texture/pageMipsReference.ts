@@ -10,6 +10,7 @@ import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/full
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One chain of the proof: its pool format, size, colour rule, cutoff, and level 0's RGBA8 bytes. */
 export interface ChainCase {
@@ -128,7 +129,7 @@ export function encodeReferenceChain(
       const pass = encoder.beginComputePass()
       pass.setPipeline(count)
       const dispatch = ([w, h]: [number, number]) =>
-        pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8))
+        pass.dispatchWorkgroups(ceilDiv(w, 8), ceilDiv(h, 8))
       if (level === 1) {
         pass.setBindGroup(0, countGroup(0, 0))
         dispatch([width, height])

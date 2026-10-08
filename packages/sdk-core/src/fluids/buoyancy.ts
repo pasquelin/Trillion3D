@@ -6,6 +6,7 @@
  * A body floats on its own when its density is below the water's: the push is the water's weight
  * displaced, and the physics module measures the displaced volume exactly.
  */
+import { PI } from '../../../math/src/constants.ts'
 import { nextPow2 } from '../../../math/src/scalar/integers.ts'
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts'
 import { Waves, type WaveSpec } from './waves.ts'
@@ -78,7 +79,7 @@ export function createWater(spec: WaterSpec): Water {
 export function sliceLength(water: Pick<Water, 'waves'>) {
   let shortest = Infinity
   for (let i = 0; i < water.waves.count; i++)
-    if (water.waves.amplitude[i] > 0) shortest = Math.min(shortest, Math.PI / water.waves.k[i])
+    if (water.waves.amplitude[i] > 0) shortest = Math.min(shortest, PI / water.waves.k[i])
   return Number.isFinite(shortest) ? shortest : 0
 }
 

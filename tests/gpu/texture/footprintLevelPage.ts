@@ -9,6 +9,7 @@ import {
 } from '../../../packages/sdk-browser/src/texture/samplingFootprint.ts'
 import { runCompute } from '../kit/computeRun.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One read: the texture's filter word and last level, its size, and the footprint's gradients. */
 export interface FootprintCase {
@@ -48,7 +49,7 @@ export async function run(cases: FootprintCase[]) {
   const { adapter, values, errors } = await runCompute({
     code: footprintWgsl(),
     bytes: cases.length * 16,
-    workgroups: Math.ceil(cases.length / 64),
+    workgroups: ceilDiv(cases.length, 64),
     options: { inputs: [u32] },
   })
   const reads = cases.map((_, n) => values.slice(n * 4, n * 4 + 3))

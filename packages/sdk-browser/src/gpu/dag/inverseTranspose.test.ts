@@ -112,7 +112,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   assert.match(corps, /let finite=isFiniteScale\(t\);/, 'null, infinite or NaN sum not rejected')
   assert.match(
     isFiniteScale.text,
-    /return \(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
+    /return \(t>0\.0\)&&isFiniteWord\(bitcast<u32>\(t\)\);/,
     'null, infinite or NaN sum not rejected',
   )
   assert.match(

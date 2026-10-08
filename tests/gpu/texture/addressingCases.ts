@@ -10,6 +10,7 @@ import {
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
 } from '../../../packages/sdk-browser/src/host/surfaceConstants.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The three host wrap modes, by name. */
 const MODES: [string, number][] = [
@@ -30,7 +31,7 @@ export const TOLERANCE = 0.5
 
 /** Texel index `i` brought back into the image by the wrap mode alone. */
 function wrapIndex(i: number, size: number, wrap: number) {
-  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return Math.min(size - 1, Math.max(0, i))
+  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return clamp(i, 0, size - 1)
   const period = wrap === HOST_WRAP_REPEAT ? size : 2 * size
   const j = ((i % period) + period) % period
   return j < size ? j : period - 1 - j

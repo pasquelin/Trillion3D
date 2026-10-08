@@ -39,6 +39,8 @@ import {
   type VsmViewport,
 } from './clipmap.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightSetup } from './localLight.ts'
+import { clampLowWins } from '../../../math/src/scalar/reals.ts'
+import { uniqueSortedInPlace } from '../../../math/src/scalar/integers.ts'
 
 /** Next-map data stride on the GPU (`VsmNextMap`). */
 export const VSM_NEXT_MAP_BYTES = 16
@@ -155,7 +157,7 @@ export function vsmSeenPlanes(
   height: number,
 ) {
   multiplyMatrix4(seenClip, projection, view)
-  const wider = 1 + 2 / Math.max(1, Math.min(width, height))
+  const wider = 1 + 2 / clampLowWins(width, 1, height)
   for (let k = 3; k < 16; k += 4) seenClip[k] *= wider
   frustumPlanesFromMatrix(out, seenClip)
   return out
@@ -479,10 +481,8 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
     touchedIds[dropped + j] = id
   }
   state.nextMapsHeldCount = taken
-  const touched = touchedIds.subarray(0, dropped + taken).sort()
-  let distinct = 0
-  for (let j = 0; j < touched.length; j++)
-    if (j === 0 || touched[j] !== touched[j - 1]) touched[distinct++] = touched[j]
+  const touched = touchedIds.subarray(0, dropped + taken)
+  const distinct = uniqueSortedInPlace(touched)
   vsmWriteChangedRecords(
     state.device,
     state.resources.nextMaps,

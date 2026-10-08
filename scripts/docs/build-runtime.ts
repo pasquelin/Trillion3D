@@ -12,7 +12,8 @@ import { inlineModules } from './inline-modules.ts'
 const RUNTIME_ENTRIES = {
   engine: 'packages/sdk-browser/src/index.ts',
   // The examples' own panels and pieces, imported beside the engine; they bundle nothing of it,
-  // and a piece builds with the engine families the page hands it.
+  // and a piece builds with the engine families the page hands it. The few `packages/math`
+  // constants and helpers they read are a chunk the engine shares, loaded once.
   kit: 'site/examples/kit/index.ts',
 }
 

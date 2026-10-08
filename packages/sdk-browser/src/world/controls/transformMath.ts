@@ -2,6 +2,7 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import { Plane, type Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { signedAngleVector3 } from '../../../../math/src/vector/vector.ts'
+import { snap } from '../../../../math/src/scalar/reals.ts'
 
 /** What a transform control does to its object. */
 export type TransformMode = 'translate' | 'rotate' | 'scale'
@@ -39,7 +40,7 @@ export type DragStart = {
 export type DragPose = { position: Vector3; quaternion: Quaternion; scale: Vector3 }
 
 const UNIT = { x: new Vector3(1, 0, 0), y: new Vector3(0, 1, 0), z: new Vector3(0, 0, 1) }
-const round = (value: number, step?: number) => (step ? Math.round(value / step) * step : value)
+const round = (value: number, step?: number) => (step ? snap(value, step) : value)
 
 /** A handle's axis as a world direction: turned with the object in local space, and always for
  *  a scale, which acts along the object's own axes. */

@@ -1,6 +1,7 @@
 import { REFLECTION_SEGMENT } from './traceShader.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { tangentFrame } from '../../../math/src/wgsl/basis.ts'
+import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
@@ -19,7 +20,7 @@ import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/proj
  * `reflectionConeSection`: the section at fraction `t`, its footprint in pixels and depth spread. */
 export const REFLECTION_CONE_TRACE_WGSL = wgslBlock(
   'REFLECTION_CONE_TRACE_WGSL',
-  [tangentAround, sinFromCos, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
+  [tangentFrame, sinFromCos, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped, pow2FromExponent],
   `
 fn reflectionGgxMass(u:f32,k:f32)->f32{
  let d:f32=k-1.0;
@@ -58,7 +59,7 @@ fn reflectionConeLimits(z0:f32,z1:f32,spread:f32)->vec2f{
  return vec2f(min(z0,z1)-spread,max(z0,z1)+spread);
 }
 fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT}
- let T:vec3f=tangentAround(R);let B:vec3f=cross(R,T);
+ let tangents=tangentFrame(R);let T:vec3f=tangents.x;let B:vec3f=tangents.y;
  let projectedT:vec4f=reflectionProject(vec4f(T,0.0));
  let projectedB:vec4f=reflectionProject(vec4f(B,0.0));
  let basis:vec4f=sqrt(projectedT*projectedT+projectedB*projectedB);
@@ -88,12 +89,12 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
    // A coarser block of cells round the axis, half a cell each way: where none of its four can
    // hold what the cone meets until the axis has moved as far as the cone's section allows within
    // it, that stretch is passed whole and the next block taken a level up; else a level down.
-   let halfSide:f32=0.5*exp2(f32(coarse));
+   let halfSide:f32=0.5*pow2FromExponent(coarse);
    let far:f32=min(1.0,entered+halfSide/pixels);
    let farSection:vec4f=reflectionConeSection(c,d,e,reach,far,basis,slope,size);
    let room:f32=halfSide-max(max(farSection.x,farSection.y),0.5);
    // A block that does not outrun a cell of the cone's own level is not tried: a step there.
-   if(room<=exp2(f32(level))){coarse=level;continue;}
+   if(room<=pow2FromExponent(level)){coarse=level;continue;}
    let next:f32=min(1.0,entered+room/pixels);
    let limits:vec2f=reflectionConeLimits(z0,mix(a.z,b.z,next),farSection.z);
    if(reflectionConeCell(at,vec2f(halfSide),coarse,limits,receiver,start,false).a==0.0){
@@ -105,7 +106,7 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
    coarse-=1;
    continue;
   }
-  let side:f32=exp2(f32(level));
+  let side:f32=pow2FromExponent(level);
   let cell:vec2f=floor(at/side);
   var boundary:vec2f=vec2f(FAR_VALUE);
   if(delta.x>0.0){boundary.x=((cell.x+1.0)*side-start.x)/delta.x;}

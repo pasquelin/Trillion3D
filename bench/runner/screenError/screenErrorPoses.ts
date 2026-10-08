@@ -2,10 +2,11 @@
 // (the CMP scripts' `dagsim.py`, `cameras`), placed from the source's own box: three angles
 // at 1.2, 2, 5 and 20 radii around an object, and a terrain seen from the ground, the air and
 // afar. `bench` is the bench's four named views (`trajectory/poses.ts`, `VIEWS`), read off the engine's box.
-import { length3 } from '../../../packages/math/src/vector/vector.ts'
+import { boxRadius } from '../../../packages/math/src/geometry/box.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { TriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
 import { VIEWS, poseAt, type Bounds } from '../trajectory/poses.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 export const POSE_SETS = ['orbit', 'terrain', 'bench'] as const
 export type PoseSet = (typeof POSE_SETS)[number]
@@ -14,7 +15,7 @@ export interface NamedPose {
   pose: CameraPose
 }
 
-const ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]
+const ANGLES = [0, TAU / 3, (2 * TAU) / 3]
 const FOV = 55
 
 /** Height of the source corner nearest to `(x, z)` in plan: the ground a walker stands on. */
@@ -42,7 +43,7 @@ export function auditPoses(
   const lo = tree.bounds.subarray(0, 3),
     hi = tree.bounds.subarray(3, 6)
   const c: Vec = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2]
-  const radius = length3(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2
+  const radius = boxRadius(tree.bounds)
   const near = Math.max(radius / 10000, 0.01),
     far = set === 'terrain' ? Math.max(radius * 20, 4000) : radius * 40
   const at = (view: string, position: Vec, target: Vec) => ({

@@ -1,4 +1,4 @@
-import { HALF_PI, TAU } from '../../../packages/math/src/constants.ts'
+import { GOLDEN_FRACTION, HALF_PI, TAU } from '../../../packages/math/src/constants.ts'
 import { facing, fromGeometry, solid, welded, type Mesh } from './mesh.ts'
 import type { Vec3 } from './random.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
@@ -42,7 +42,7 @@ export function heightfield(size: number, cells: number, height: (x: number, z: 
 }
 
 /** The icosahedron: three golden rectangles, one in each pair of axes, and its twenty faces. */
-const T = (1 + Math.sqrt(5)) / 2
+const T = 1 + GOLDEN_FRACTION
 const ICOSAHEDRON = [
   [-1, T, 0, 1, T, 0, -1, -T, 0, 1, -T, 0],
   [0, -1, T, 0, 1, T, 0, -1, -T, 0, 1, -T],

@@ -2,16 +2,26 @@ import { wgslConst } from './decl.ts'
 import { wgslF32 } from './number.ts'
 import { SINGULAR_DETERMINANT as SINGULAR } from '../matrix/singular.ts'
 import {
+  FAR_VALUE as FAR,
   FINITE_SENTINEL as FINITE,
   FLOAT32_MAX as F32_MAX,
+  FLOAT32_MIN_NORMAL as F32_MIN_NORMAL,
+  GOLDEN_ANGLE as ANGLE,
   GOLDEN_FRACTION as GOLDEN,
+  GOLDEN_U32 as GOLDEN_WORD,
+  HALF_MAX as HALF,
+  HALF_OVERFLOW as HALF_PAST,
+  PLASTIC_STEP_X,
+  PLASTIC_STEP_Y,
+  QUARTER_PI as QUARTER,
   TAU,
 } from '../constants.ts'
 
 /**
  * The numbers shaders name, each the `f32` nearest its TypeScript value (`wgslF32`), declared once:
- * π and its multiples, the greatest finite `f32`, the finite stand-in for infinity, the golden
- * ratio's fraction (`../constants.ts`), and the engine's singularity threshold
+ * π and its multiples, √2, the greatest and the least normal `f32`, the finite stand-in for
+ * infinity, the golden ratio's fraction and angle, the plastic steps, the half-float bounds
+ * (`../constants.ts`), and the engine's singularity threshold
  * (`../matrix/singular.ts`), which the processor reads in double and the shader in single; then the
  * shaders' own sentinels, one per value and meaning. A shader lists the one it names.
  */
@@ -74,12 +84,62 @@ export const INFINITE_THRESHOLD = wgslConst(
 
 /** 1e30, a distance or a bound past any scene's: an empty range's start, a ray's exit along an axis
  *  it does not move on. Its square still overflows, so it is never squared. */
-export const FAR_VALUE = wgslConst('FAR_VALUE', [], `const FAR_VALUE:f32=${wgslF32(1e30)};`)
+export const FAR_VALUE = wgslConst('FAR_VALUE', [], `const FAR_VALUE:f32=${wgslF32(FAR)};`)
 
 /** The golden ratio's fraction in 32 bits, `⌊GOLDEN_FRACTION · 2³²⌋` = 0x9e3779b9: an odd salt
  *  with well-spread bits, which decorrelates two hashes of one seed. */
 export const GOLDEN_U32 = wgslConst(
   'GOLDEN_U32',
   [],
-  `const GOLDEN_U32:u32=0x${Math.floor(GOLDEN * 2 ** 32).toString(16)}u;`,
+  `const GOLDEN_U32:u32=0x${GOLDEN_WORD.toString(16)}u;`,
 )
+
+/** An eighth of a turn, π/4. */
+export const QUARTER_PI = wgslConst('QUARTER_PI', [], `const QUARTER_PI:f32=${wgslF32(QUARTER)};`)
+
+/** The square root of two, the diagonal of a unit square. */
+export const SQRT2 = wgslConst('SQRT2', [], `const SQRT2:f32=${wgslF32(Math.SQRT2)};`)
+
+/** The golden angle, π(3 − √5): the turn between two successive points of a sunflower spiral. */
+export const GOLDEN_ANGLE = wgslConst(
+  'GOLDEN_ANGLE',
+  [],
+  `const GOLDEN_ANGLE:f32=${wgslF32(ANGLE)};`,
+)
+
+/** The steps of the additive two-dimensional sequence, (1/p, 1/p²), p the plastic number. */
+export const PLASTIC_STEP = wgslConst(
+  'PLASTIC_STEP',
+  [],
+  `const PLASTIC_STEP:vec2f=vec2f(${wgslF32(PLASTIC_STEP_X)},${wgslF32(PLASTIC_STEP_Y)});`,
+)
+
+/** The least positive normal `f32`, 2⁻¹²⁶: a floor that keeps a quotient off the subnormals. */
+export const FLOAT32_MIN_NORMAL = wgslConst(
+  'FLOAT32_MIN_NORMAL',
+  [],
+  `const FLOAT32_MIN_NORMAL:f32=${wgslF32(F32_MIN_NORMAL)};`,
+)
+
+/** The greatest finite half float, 65504: a half-float target's bound. */
+export const HALF_MAX = wgslConst('HALF_MAX', [], `const HALF_MAX:f32=${wgslF32(HALF)};`)
+
+/** 65520, the least magnitude a half float rounds to infinity: every value under it stores
+ *  finite in a half-float target. */
+export const HALF_OVERFLOW = wgslConst(
+  'HALF_OVERFLOW',
+  [],
+  `const HALF_OVERFLOW:f32=${wgslF32(HALF_PAST)};`,
+)
+
+/** 1e-20, the floor a divisor or a root's argument is held to: under every square a scene's
+ *  derivatives, densities or angles give, over the `f32` underflow, so the quotient stays finite. */
+export const DIVISOR_FLOOR = wgslConst(
+  'DIVISOR_FLOOR',
+  [],
+  `const DIVISOR_FLOOR:f32=${wgslF32(1e-20)};`,
+)
+
+/** 1e9, a bound past any colour or depth a history range holds: an empty range starts at
+ *  (RANGE_BOUND, −RANGE_BOUND), an open one is (−RANGE_BOUND, RANGE_BOUND). */
+export const RANGE_BOUND = wgslConst('RANGE_BOUND', [], `const RANGE_BOUND:f32=${wgslF32(1e9)};`)

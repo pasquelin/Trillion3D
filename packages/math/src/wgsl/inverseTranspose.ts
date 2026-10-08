@@ -1,5 +1,6 @@
 import { wgslFn, wgslStruct } from './decl.ts'
 import { SINGULAR_DETERMINANT } from './constants.ts'
+import { isFiniteWord } from './integer.ts'
 
 /**
  * The 3×3 inverse-transpose, the normal matrix of a world, written once for the whole engine
@@ -16,7 +17,7 @@ import { SINGULAR_DETERMINANT } from './constants.ts'
  * `adjoint*v` without the factor (infinite as the determinant is zero), which is the cross
  * product of the transformed edges up to a positive factor, so a flattened face keeps its
  * normal and its winding; a collapsed one (rank ≤ 1, or a null, infinite or NaN sum) has a zero
- * adjoint, and `uniteOuZero` returns the null vector rather than a NaN.
+ * adjoint, and `unitOrZero` returns the null vector rather than a NaN.
  *
  * What depends only on the matrix (normalisation, determinant, the adjoint's three cross
  * products) is gathered in `invTranspose3Prep`, computed once; `invTranspose3Apply` keeps per
@@ -39,8 +40,8 @@ export const absoluteSum3 = wgslFn(
  *  bit. */
 export const isFiniteScale = wgslFn(
   'isFiniteScale',
-  [],
-  'fn isFiniteScale(t:f32)->bool{return (t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;}',
+  [isFiniteWord],
+  'fn isFiniteScale(t:f32)->bool{return (t>0.0)&&isFiniteWord(bitcast<u32>(t));}',
 )
 
 export const invTranspose3Prep = wgslFn(
@@ -70,8 +71,8 @@ export const inverseTranspose3 = wgslFn(
   'fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{return invTranspose3Apply(invTranspose3Prep(m),v);}',
 )
 
-export const uniteOuZero = wgslFn(
-  'uniteOuZero',
+export const unitOrZero = wgslFn(
+  'unitOrZero',
   [],
-  'fn uniteOuZero(v:vec3f)->vec3f{return select(vec3f(0.0),normalize(v),dot(v,v)>0.0);}',
+  'fn unitOrZero(v:vec3f)->vec3f{return select(vec3f(0.0),normalize(v),dot(v,v)>0.0);}',
 )

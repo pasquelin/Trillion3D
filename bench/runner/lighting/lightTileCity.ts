@@ -12,6 +12,7 @@ import {
   type Vec3,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
+import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 
 export type Light = { centre: Vec3; radius: number }
 /** `blocks`: each block's building height by `blockIndex`, 0 for an empty block. */
@@ -68,18 +69,15 @@ export function buildCity(seed = 42): City {
   return { blocks, lights }
 }
 
-/** The parameters where the ray `o + s·d` enters and leaves the box: entry past exit on a miss. */
+/** The entry and exit `slab` reuses. */
+const span = new Float64Array(2)
+
+/** The parameters where the ray `o + s·d` enters and leaves the box, by the engine's slab test
+ *  (`slabCut`): entry past exit on a miss. */
 export function slab(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) {
-  let near = -Infinity,
-    far = Infinity
-  for (let a = 0; a < 3; a++) {
-    const inv = 1 / d[a],
-      t1 = (lo[a] - o[a]) * inv,
-      t2 = (hi[a] - o[a]) * inv
-    near = Math.max(near, Math.min(t1, t2))
-    far = Math.min(far, Math.max(t1, t2))
-  }
-  return [near, far]
+  span[0] = -Infinity
+  span[1] = Infinity
+  return slabCut(span, lo, 0, hi, 0, o, d) ? [span[0], span[1]] : [Infinity, -Infinity]
 }
 
 /** The ray parameter where it leaves its cell `k` along axis `a`, Infinity when parallel. */

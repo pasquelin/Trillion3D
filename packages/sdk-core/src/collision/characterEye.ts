@@ -1,6 +1,6 @@
 import { RUN_CADENCE, type CharacterSettings } from './characterSettings.ts'
 import { length2 } from '../../../math/src/vector/vector.ts'
-import { TAU } from '../../../math/src/constants.ts'
+import { PI, TAU } from '../../../math/src/constants.ts'
 
 /**
  * WHERE THE EYE RIDES ON A CHARACTER'S BODY: a height to add to `eyeHeight`, drawn after the
@@ -42,7 +42,7 @@ export function createCharacterEye(
         settings.walkSpeed > 0
           ? Math.min(1, length2(velocity[0], velocity[2]) / settings.walkSpeed)
           : 0
-      if (grounded) stride = (stride + Math.PI * RUN_CADENCE * pace * delta) % TAU
+      if (grounded) stride = (stride + PI * RUN_CADENCE * pace * delta) % TAU
       if (settings.landingDip <= 0) dip = sinking = 0
       else if (dip !== 0 || sinking !== 0) {
         const rate = 1 / settings.landingDip,

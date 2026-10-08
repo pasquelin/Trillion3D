@@ -23,7 +23,7 @@ type Readers = {
 const readers = (words: number[]) =>
   shaderRun<Readers>(
     wgslModule(BOUNCE_NODE_WGSL, PROXY_ALBEDO_WGSL),
-    ['proxyChild', 'proxyAlbedoOf', 'unorm8x3'],
+    ['proxyChild', 'proxyAlbedoOf', 'unorm8x3', 'byteOf'],
     {
       proxy: { words, childrenWord: 0 },
       proxyAlbedo: words,

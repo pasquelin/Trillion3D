@@ -1,5 +1,10 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { ceilDiv as ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
+import {
+  bitAt,
+  bitMask,
+  bitWord,
+  ceilDiv as ceilDivWgsl,
+} from '../../../../math/src/wgsl/integer.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
@@ -97,16 +102,24 @@ fn pixelSlot(id:u32)->u32{
   let at=group.xy*MATERIAL_TILE_SIZE+lane.xy+vec2u(x,y);
   if(all(at<size)){
    let slot=pixelSlot(textureLoad(vis,vec2i(at),0).r);
-   if(slot<MATERIAL_TILE_SLOTS){marks[slot>>5u]|=1u<<(slot&31u);}
+   if(slot<MATERIAL_TILE_SLOTS){marks[bitWord(slot)]|=bitMask(slot);}
   }
  }}
  if(marks.x!=0u){atomicOr(&held[0],marks.x);}
  if(marks.y!=0u){atomicOr(&held[1],marks.y);}
  workgroupBarrier();
- if(index>=MATERIAL_TILE_SLOTS||((atomicLoad(&held[index>>5u])>>(index&31u))&1u)==0u){return;}
+ if(index>=MATERIAL_TILE_SLOTS||bitAt(atomicLoad(&held[bitWord(index)]),index)==0u){return;}
  let at=atomicAdd(&tileDraws[index*4u+1u],1u);
  if(at==0u){atomicStore(&tileDraws[index*4u],6u);}
  classTiles[tileListStart(index)+at]=group.y*materialTilesX(size)+group.x;
 }`,
-  [PAGE_INFO_STRUCT_WGSL, SHADE_UNI_WGSL, MATERIAL_CLASS_WGSL, CONSTANTS_WGSL],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    SHADE_UNI_WGSL,
+    MATERIAL_CLASS_WGSL,
+    CONSTANTS_WGSL,
+    bitWord,
+    bitMask,
+    bitAt,
+  ],
 )

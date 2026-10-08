@@ -28,6 +28,7 @@ import {
   selectionListCap,
   stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One cut to run: a packed scene, the camera's uniforms and each page's residency, every page
  *  resident when none is given. */
@@ -79,7 +80,7 @@ function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
   const listCap = selectionListCap(packed.pageCount)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
   writeDagUniforms(views, packed, uniforms, listCap)
-  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(Math.max(1, packed.pageCount), SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),

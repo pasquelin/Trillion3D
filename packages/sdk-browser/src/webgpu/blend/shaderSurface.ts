@@ -4,7 +4,8 @@ import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
 /** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
  *  (\`shadowFootprint\`). */
@@ -16,12 +17,12 @@ const BLEND_SHADOW_FOOTPRINT_WGSL = wgslBlock(
 
 const BLEND_SURFACE_NORMAL_WGSL = wgslBlock(
   'BLEND_SURFACE_NORMAL_WGSL',
-  [uniteOuZero],
+  [unitOrZero],
   `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
  *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point: what the blend
  *  stage bends by its map (\`blendSurface\`). */
 fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
- // uniteOuZero yields normalize wherever the vector is not null: same bits as before on an
+ // unitOrZero yields normalize wherever the vector is not null: same bits as before on an
  // ordinary surface, a null vector — and not NaN — on a collapsed face, whose a NaN would win
  // neighbouring pixels through screen derivatives. A rank-2 pose does not arrive there null:
  // xformNormal already gave it the flattened face's normal.
@@ -31,9 +32,9 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  // light, and the surface would render exactly zero. Same rule as the opaque resolve, which only
  // flips the interpolated normal.
  let flags=in.ids.y;
- var N=uniteOuZero(-cross(q0,q1));
+ var N=unitOrZero(-cross(q0,q1));
  if((flags&${FLAG_HAS_NORMAL}u)!=0u){
-  N=uniteOuZero(in.normal.xyz);
+  N=unitOrZero(in.normal.xyz);
   let face=select(-1.0,1.0,front);
   if((flags&${FLAG_DOUBLE}u)!=0u){N*=face;}
  }
@@ -71,7 +72,8 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
   return wgslBlock(
     `blendSurfaceWgsl(${lobes})`,
     [
-      uniteOuZero,
+      unitOrZero,
+      unitToSigned3,
       COTANGENT_FRAME_WGSL,
       BLEND_SURFACE_NORMAL_WGSL,
       BLEND_SHADOW_FOOTPRINT_WGSL,
@@ -107,14 +109,14 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  if(in.maps.y!=0u){metal*=dataSample(in.maps.y,${uv},gradX,gradY,sampled).b;}
  if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,${uv},gradX,gradY,sampled).r-1.0);}
  if(in.maps.z!=0u){
-  let mapN=dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz*2.0-vec3f(1.0);
+  let mapN=unitToSigned3(dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz);
   // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
   // sign, as on the geometric normal above.
   let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);
   var T=-frame.T;var B=-frame.B;
-  if((flags&2048u)!=0u){T=uniteOuZero(in.tangent.xyz);B=uniteOuZero(in.bitangent.xyz);}
+  if((flags&2048u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
   if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
-  N=uniteOuZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
+  N=unitOrZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,${uv},gradX,gradY,sampled).rgb;}

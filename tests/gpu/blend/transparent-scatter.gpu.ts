@@ -22,6 +22,7 @@ import {
   PLAN_SHARED_BIT,
   planEntry,
 } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
+import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import { xorshiftRandom as seeded } from '../../../bench/core/index.ts'
 import { expandOnGpu } from './scatterKernel.ts'
 
@@ -39,7 +40,7 @@ function plan(items: number, unpaged: number[], base: { instances: number; args:
   const draws = new Uint32Array(items * 4),
     counts = new Uint32Array(items),
     clusters = new Uint32Array(items * CLUSTERS),
-    keep = new Uint32Array((items + 31) >> 5)
+    keep = new Uint32Array(bitWords(items))
   for (let item = 0; item < items; item++) {
     const own = unpaged.includes(item)
     draws[item * 4] = own ? DRAW_UNPAGED : item

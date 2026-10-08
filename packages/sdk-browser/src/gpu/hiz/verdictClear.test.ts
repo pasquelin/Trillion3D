@@ -65,10 +65,14 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
     tallyAdd: () => {},
   }
   const uni = { rows: f.rows, width: 64, height: 48, levels: 4, layerTop: 1, hasRest: f.hasRest }
-  const partition = shaderRun<Record<string, Fn>>(PARTITION_SHADER, ['projectRow', 'classifyRow'], {
-    ...scope,
-    uni: { ...uni, viewMoved: 0, levelOffset: levels, levelWidth: levels },
-  })
+  const partition = shaderRun<Record<string, Fn>>(
+    PARTITION_SHADER,
+    ['projectRow', 'classifyRow', 'bitWord', 'bitMask'],
+    {
+      ...scope,
+      uni: { ...uni, viewMoved: 0, levelOffset: levels, levelWidth: levels },
+    },
+  )
   const bounds: Record<string, number>[] = []
   const hiz = shaderRun<Record<string, Fn>>(HIZ_SHADER, ['testBox'], { ...scope, bounds, uni: {} })
   for (let i = 0; i < f.rows; i++) partition.projectRow(i)

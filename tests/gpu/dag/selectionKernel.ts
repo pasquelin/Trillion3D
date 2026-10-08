@@ -21,6 +21,7 @@ import { readBuffer } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
+import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 
 export type { SelectionCase } from './selectionCase.ts'
 
@@ -64,7 +65,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     wanted = stage('dagWanted'),
     mask = stage('dagMask'),
     sort = stage('dagSortRequests')
-  const groups = (threads: number) => Math.max(1, Math.ceil(threads / SELECTION_WORKGROUP))
+  const groups = (threads: number) => workgroupCount(threads, SELECTION_WORKGROUP)
 
   const bind = (selection: SelectionCase, write?: StageOutput) =>
     bindCase(device, layout, selection, write)

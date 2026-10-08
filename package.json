@@ -90,6 +90,7 @@
     "check:cycles": "node --experimental-strip-types scripts/check-cycles.ts",
     "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust,tsx --no-tips",
     "check:helpers": "node scripts/check-helpers.ts",
+    "check:wgsl-library": "node scripts/check-wgsl-library.ts",
     "check:unused": "node scripts/check-unused.ts",
     "validate": "node scripts/validate.ts",
     "check:structure": "tsc -p tsconfig.core.json --noEmit",

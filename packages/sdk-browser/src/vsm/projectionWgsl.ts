@@ -44,7 +44,16 @@ import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { ceilDiv as ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
+import {
+  bitIsSet,
+  bitMask,
+  bitWord,
+  ceilDiv as ceilDivWgsl,
+  isFiniteWord,
+  lowBits,
+} from '../../../math/src/wgsl/integer.ts'
+import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
@@ -242,7 +251,7 @@ fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
 /** The scene depth at a buffer UV: its nearest texel, clamped to the buffer. */
 fn vsmSampleSceneDepth(uv:vec2f)->f32{
  let size=vec2i(textureDimensions(vsmSceneDepth));
- let t=clamp(vec2i(floor(uv*vec2f(size))),vec2i(0),size-1);
+ let t=clampToExtent(vec2i(floor(uv*vec2f(size))),size);
  return textureLoad(vsmSceneDepth,t,0);
 }
 /** The screen-space ray cast (4 samples), its four depths read at once
@@ -343,7 +352,7 @@ const VSM_TILE_REACH:f32=1.015625;
  * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distance
  * and its inverse square root then round within a few units in the last place, which the reach's
  * 1/64 holds many times over. A box whose squared distance to the centre is under the smallest
- * normal f32 (\`VSM_F32_MIN_NORMAL\`, the traces' constant) holds it, whatever the device does with
+ * normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it, whatever the device does with
  * subnormals.
  */
 fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
@@ -352,7 +361,7 @@ fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
  let c=light.shiftedPosition;
  let d=max(max(low-c,c-high),vec3f(0.0));
  let g=dot(d,d);
- return g<VSM_F32_MIN_NORMAL||inverseSqrt(g)*VSM_TILE_REACH>=light.invRadius;
+ return g<FLOAT32_MIN_NORMAL||inverseSqrt(g)*VSM_TILE_REACH>=light.invRadius;
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
@@ -415,7 +424,7 @@ fn vsmOrderedValue(k:vec3u)->vec3f{
  *  subgroup, read with subgroups only. Its \`held\` is 0, 1 or 3: their greatest is their union.
  *  Reached in uniform flow. */
 fn vsmTileBound(valid:bool,p:vec3f,lane:u32){
- let finite=all((bitcast<vec3u>(p)&vec3u(0x7f800000u))!=vec3u(0x7f800000u));
+ let finite=isFiniteWord(bitcast<u32>(p.x))&&isFiniteWord(bitcast<u32>(p.y))&&isFiniteWord(bitcast<u32>(p.z));
  var held=0u;var high=vec3u(0u);var low=vec3u(0u);
  if(valid){
   held=select(3u,1u,finite);
@@ -433,8 +442,8 @@ fn vsmTileBound(valid:bool,p:vec3f,lane:u32){
 }
 /** The lights 0 to \`count\` − 1, 32 a word (\`count\` ≤ 64). */
 fn vsmLightsBelow(count:u32)->vec2u{
- let low=select(0xffffffffu,(1u<<count)-1u,count<32u);
- let high=select(select(0u,(1u<<(count-32u))-1u,count>32u),0xffffffffu,count>=64u);
+ let low=select(0xffffffffu,lowBits(count),count<32u);
+ let high=select(select(0u,lowBits(count-32u),count>32u),0xffffffffu,count>=64u);
  return vec2u(low,high);
 }
 /** Lane k's light k, once every lane joined the box: a candidate of the tile where it may reach it. */
@@ -443,7 +452,7 @@ fn vsmTileCandidate(k:u32,lightCount:u32){
  if(k>=lightCount||held==0u){return;}
  var high=vec3u(0u);var low=vec3u(0u);
  for(var i=0u;i<3u;i++){high[i]=atomicLoad(&vsmTileBounds[i]);low[i]=~atomicLoad(&vsmTileBounds[3u+i]);}
- if(vsmLightMayReachTile(k,vsmOrderedValue(low),vsmOrderedValue(high),(held&2u)!=0u)){atomicOr(&vsmTileCandidates[k>>5u],1u<<(k&31u));}
+ if(vsmLightMayReachTile(k,vsmOrderedValue(low),vsmOrderedValue(high),(held&2u)!=0u)){atomicOr(&vsmTileCandidates[bitWord(k)],bitMask(k));}
 }
 `
 
@@ -533,7 +542,7 @@ fn vsmProjectTile(pixel:VsmPixel,lights:vec2u,tileLights:vec2u,lightCount:u32,vo
   for(var lane=0u;lane<min(4u,lightCount-first);lane++){
    if((held&(1u<<lane))==0u){continue;}
    let k=first+lane;
-   let r=vsmProjectLight(k,pixel,(lights[k>>5u]&(1u<<(k&31u)))!=0u,voteSplit);
+   let r=vsmProjectLight(k,pixel,bitIsSet(lights[bitWord(k)],k),voteSplit);
    word|=vsmMaskCode(r)<<(8u*lane);
   }
   if(pixel.inRect){textureStore(vsmShadowMask,pixel.pos,layer,vec4u(word,0u,0u,0u));}
@@ -631,6 +640,13 @@ export function vsmProjectionWgsl(
       unprojectPoint,
       perspectiveDivide,
       ceilDivWgsl,
+      bitWord,
+      bitMask,
+      bitIsSet,
+      isFiniteWord,
+      lowBits,
+      FLOAT32_MIN_NORMAL,
+      clampToExtent,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
     ],
   )

@@ -17,6 +17,8 @@ import { join, resolve } from 'node:path'
 import { parseArgs } from '../harness/options.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../site/examples/kit/random.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
+import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
 import { groundHeight, groundTile, lathe, PROPS, type ShapeMesh } from './aerialModel.ts'
 
 /** The world: `TILES`² ground tiles of `TILE` metres, `CELLS`² quads each, `RELIEF` metres of relief. */
@@ -118,12 +120,12 @@ export function aerialScene(seed: number, props: number, lamps: number) {
     let pick = random() * shares,
       k = 0
     while ((pick -= PROPS[k].share) >= 0) k++
-    const turn = random() * Math.PI,
+    const turn = random() * TAU,
       scale = 0.7 + random() * 0.6
     nodes.push({
       mesh: first + k,
       translation: place(),
-      rotation: [0, Math.sin(turn), 0, Math.cos(turn)],
+      rotation: Array.from(axisAngleQuaternion(new Float64Array(4), [0, 1, 0], turn)),
       scale: [scale, scale, scale],
     })
     instanced += triangles[first + k]

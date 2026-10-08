@@ -1,4 +1,6 @@
-import { wgslFn } from './decl.ts'
+import { wgslConst, wgslFn } from './decl.ts'
+import { wgslF32 } from './number.ts'
+import { OCT_BYTE_STEP as BYTE_STEP } from '../constants.ts'
 
 /**
  * The octahedral map: a unit vector projected on `|x|+|y|+|z| = 1`, its lower half folded over the
@@ -71,4 +73,12 @@ export const octDecodeScalar = wgslFn(
  }
  return normalize(vec3f(x,y,z));
 }`,
+)
+
+/** The step of an octahedral byte, 2/255 in `f32`: a byte `q` back to `[-1, 1]` as
+ *  `f32(q)·OCT_BYTE_STEP − 1` (`OCT_BYTE_STEP` of `../constants.ts`, `OCT_SCALE` of the Rust codec). */
+export const OCT_BYTE_STEP = wgslConst(
+  'OCT_BYTE_STEP',
+  [],
+  `const OCT_BYTE_STEP:f32=${wgslF32(BYTE_STEP)};`,
 )

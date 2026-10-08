@@ -40,7 +40,7 @@ test('the square-to-disk map reads 1 - 2^-24 and the smallest normal f32 as thei
   assert.equal(literal(map, /2\.0\*E-([0-9.e-]+);/), 1 - 2 ** -24)
   const guard = literal(
     wgslSource(VSM_TRACE_COMMON_WGSL),
-    /const VSM_F32_MIN_NORMAL:f32=([0-9.e-]+);/,
+    /const FLOAT32_MIN_NORMAL:f32=([0-9.e-]+);/,
   )
   assert.equal(guard, 2 ** -126)
   // A nonzero |p| = |2E - (1 - 2^-24)| of an f32 E in [0, 1) is 2^-25 at least: the guard added

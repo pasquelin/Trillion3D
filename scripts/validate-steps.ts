@@ -30,8 +30,15 @@
 // source file is newer than any cached artefact. `build` and `test` stay: the binary is there,
 // restored, and the suite that drives it must run.
 /** The fast gates that read the whole tree, which `check:changed` runs too: each `check:x` is
- *  `node scripts/check-x.ts`. */
-export const TREE_GATES = ['check:translations', 'check:english'] as const
+ *  `node scripts/check-x.ts`. The two maths gates are among them: a helper copied from
+ *  `packages/math` (`check:helpers`) and a WGSL library declaration written again
+ *  (`check:wgsl-library`); the lint refuses the maths' inline forms (`scripts/lint-maths.ts`). */
+export const TREE_GATES = [
+  'check:translations',
+  'check:english',
+  'check:helpers',
+  'check:wgsl-library',
+] as const
 
 export const VALIDATE_GROUPS = {
   quick: [
@@ -41,7 +48,6 @@ export const VALIDATE_GROUPS = {
     'check:lines',
     'check:cycles',
     'check:duplicates',
-    'check:helpers',
     'lint:js',
     'check:unused',
     'check:no-js',

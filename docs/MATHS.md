@@ -22,12 +22,13 @@ Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`
 float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
 rounded in float32 as the GPU computes it),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
-spheres, cones, slabs, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal and pixel
-scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
+spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
+and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
 `scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest rank and the median), `sequence/`
-(`halton.ts`; `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old
-expression against), `batch/` and `wgsl/` (below); `index.ts` is the
+(`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
+`sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
+against), `batch/` and `wgsl/` (below); `index.ts` is the
 barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
@@ -129,18 +130,49 @@ A name written twice with two texts, or a dependency cycle, throws when the pipe
 the text is built once a pipeline, never in a frame. Two operation orders of one formula round
 apart, so each is its own declaration under its own name, never merged. The library writes a number
 through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
-holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π), the greatest
-finite `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`, 3.4e38, never the greatest
-`f32`), the golden ratio's fraction and the singularity threshold are `wgslConst` declarations of
+holds, the engine's one helper that writes a number as WGSL; π, π/4, 1/π, 2π, 1/(2π), √2, the
+greatest finite and the least normal `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`,
+3.4e38, never the greatest `f32`), the golden ratio's fraction and angle, the plastic steps, the
+half-float bounds and the singularity threshold are `wgslConst` declarations of
 [`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
 [`packages/math/src/constants.ts`](../packages/math/src/constants.ts), beside the shaders' own
-sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`). An integer
+sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`,
+`DIVISOR_FLOOR`, `RANGE_BOUND`). An integer
 expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u`) are one
 declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
 `library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
 declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
-finds no program declaring a module-scope name twice, whatever the texts, and
-`wgslDeclarations.test.ts` no source declaring a library name and no fragment spliced as text.
+finds no program declaring a module-scope name twice, whatever the texts,
+`wgslDeclarations.test.ts` no program holding a library declaration but as the library's text and
+no fragment spliced as text, and `check:wgsl-library` (below) no source declaring a library name.
+
+### The gates
+
+Three gates keep a formula in its one home; each runs in `check:changed` and in the CI's
+`validate`:
+
+- the lint (`no-restricted-syntax`, the selectors of
+  [`scripts/lint-maths.ts`](../scripts/lint-maths.ts)) refuses, outside `packages/math`, the
+  inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
+  `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
+  `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a
+  number (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`, `perspectiveSlope`) and
+  `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
+- `check:helpers` reports a free function of any tree whose signature and body are those of a
+  `packages/math` function, whatever its name and its parameters' names;
+- `check:wgsl-library` reports a shader whose text declares a function, a constant or a structure
+  the WGSL library holds.
+
+The declared oracles — the bench's reference implementations and witnesses, the image metric's
+reference, the test kit's references, the before-forms a rewrite is proved against, and the test
+modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
+purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
+
+Some spellings are conventions, not formulas, and stay where they are written: a texel's centre
+(`+ 0.5`), an all-ones "none" word, a division guard whose floor belongs to its site (`max(x, 1e-6)`:
+one shared floor would move pixels), a point on a circle (`r cos a, r sin a`), a sign flip, and an
+expression whose rounding differs from the shared function's (it keeps its form, as the Lengths
+section does for its own).
 
 ## Batch math for hosts
 

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { coverFault, type RuleDag } from './cutRule.fixture.ts'
 import type { CutBackend } from './cutRuleBackends.fixture.ts'
 import { createCutReadiness } from './readiness.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The cut `develop` drew at full residency on `ruleDag(256)` before the view-bounded tables
  *  (b114cd29b): its size and the FNV-1a hash of its sorted page list, per
@@ -18,11 +19,8 @@ export const DEVELOP_FULL_CUT: Record<number, string> = {
   1: '14:701c5fb6',
 }
 
-/** A reproducible sequence in [0, 1). */
-export function random(seed: number) {
-  let s = seed >>> 0
-  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32
-}
+/** A reproducible sequence in [0, 1): the lcg32 sequence of the maths package. */
+export const random = lcgRandom
 
 export function ruleChecks(dag: RuleDag) {
   const isRoot = (page: number) => dag.pages[page].group === null

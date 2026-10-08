@@ -48,6 +48,7 @@ import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { firstTrue, lastTrue } from '../../../math/src/scalar/search.ts'
 import { FLOAT32_STEP, SQRT3 } from '../../../math/src/constants.ts'
 import { dotScalar3, dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
@@ -723,14 +724,7 @@ const MEET_EDGES = Float64Array.from({ length: 128 }, (_, i) =>
 /** The first of `edges` at or above `v` (an integer sum: itself while the edges are exact). */
 function edgeOf(edges: Float64Array, v: number) {
   if (edges[v] === v) return v
-  let lo = 0,
-    hi = edges.length - 1
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (edges[mid] >= v) hi = mid
-    else lo = mid + 1
-  }
-  return lo
+  return firstTrue(0, edges.length - 1, (mid) => edges[mid] >= v)
 }
 // A block's rows' summed pairs and faces met over the lights.
 const rowPairs = new Float64Array(BLOCK),
@@ -897,13 +891,7 @@ class Heaviest implements Top {
   top(k: number) {
     const { rows, sums, weight, n } = this
     if (k >= rows[n]) return sums[n]
-    let lo = 0,
-      hi = n
-    while (lo < hi) {
-      const mid = ceilDiv(lo + hi, 2)
-      if (rows[mid] <= k) lo = mid
-      else hi = mid - 1
-    }
+    const lo = lastTrue(0, n, (mid) => rows[mid] <= k)
     return sums[lo] + (k - rows[lo]) * weight[lo]
   }
 }
@@ -1054,14 +1042,11 @@ function measure(
   sc.mostPairs = worst.pages
   sc.mostCmds = worst.cmdsPerRow
   const { chunk } = sc
-  let lo = worst.rows,
-    hi = Math.max(lo, candidates)
-  while (lo < hi) {
-    const mid = ceilDiv(lo + hi, 2)
-    if (chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap) lo = mid
-    else hi = mid - 1
-  }
-  chunk.rows = lo
+  chunk.rows = lastTrue(
+    worst.rows,
+    Math.max(worst.rows, candidates),
+    (mid) => chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap,
+  )
   return chunk
 }
 

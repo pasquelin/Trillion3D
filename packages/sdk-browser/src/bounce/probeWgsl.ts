@@ -6,7 +6,7 @@ import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
-import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { GOLDEN_ANGLE, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { PROBE_TEXELS } from './atlas.ts'
@@ -78,7 +78,6 @@ const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
-const GOLDEN_ANGLE:f32=2.39996323;
 /** Writes vector \`k\` of the probe whose first texel is \`probe\`, where \`probeAt\` reads it (\`atlas.ts\`). */
 fn probeStore(probe:vec3u,k:u32,value:vec4f){
  textureStore(probesOut,vec2u(probe.x+k,probe.y),probe.z,value);
@@ -185,6 +184,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     QUEUED_PROBE_WGSL,
     BOUNCE_TRACE_WGSL,
     TWO_PI,
+    GOLDEN_ANGLE,
     hashUnit,
     sinFromCos,
     SURFACE_RAY_WGSL,

@@ -6,6 +6,7 @@ import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts'
 import type { PhysicsBodyOptions, PhysicsOption } from './options.ts'
 import { SOFT_VERTEX_WORDS } from './softLayout.ts'
 import { softSettings } from './softSettings.ts'
+import { SQRT3, TAU } from '../../../math/src/constants.ts'
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
  *  a volume (its closed triangles, held up by the gas inside). */
@@ -93,8 +94,8 @@ const SOFT_SUBSTEPS = 5
  */
 function heldPressure(vertexMass: number, area: number, stretch: number, step: number) {
   const dt = step / SOFT_SUBSTEPS,
-    radius = Math.sqrt(area / (4 * Math.PI))
-  const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * Math.sqrt(3))
+    radius = Math.sqrt(area / (2 * TAU))
+  const give = ((stretch + dt ** 2 / vertexMass) * radius) / (2 * SQRT3)
   return (Math.cbrt(1 + SOFT_MAX_SWELL) - 1) / give
 }
 

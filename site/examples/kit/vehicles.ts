@@ -1,5 +1,6 @@
 import type { Engine, Families, Mesh, Vec3 } from './engineTypes.ts'
 import { vehicleParts, type Hulled } from './vehicleParts.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 
 type World = Pick<Engine.World, 'camera' | 'raycast'>
 
@@ -83,7 +84,7 @@ export function vehicles(
       { type: 'cylinder', radius: 0.12, radiusBottom: 0.14, halfHeight: 2.25 },
       paint('#4a5630'),
       [0, 0.9, -3.5],
-      [Math.PI / 2, 0, 0],
+      [HALF_PI, 0, 0],
     )
     for (const x of [-1.55, 1.55]) block(built, [0.62, 0.12, 7.2], tyre, [x, -0.05, 0])
     const wheels = [-2.75, -1.65, -0.55, 0.55, 1.65, 2.75].flatMap((z) =>

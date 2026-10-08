@@ -156,8 +156,9 @@ impl Surface {
     /// Occlusion, roughness, metallic in `[0, 1]`, at the coordinates of each texture's set.
     pub fn orm(&self, uv: [[f64; 2]; 3]) -> [f64; 3] {
         let byte = |t: &Option<Texels>, uv, c: usize| {
-            t.as_ref()
-                .map_or(1.0, |t| f64::from(t.sample(uv)[c]) / 255.0)
+            t.as_ref().map_or(1.0, |t| {
+                trillion3d_math::scalar::byte_to_unit(t.sample(uv)[c])
+            })
         };
         [
             byte(&self.occlusion, uv[2], 0),

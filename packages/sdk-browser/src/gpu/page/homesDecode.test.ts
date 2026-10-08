@@ -21,6 +21,7 @@ const HELPERS = [
   'octDecodeScalar',
   'pow2FromExponent',
   'bitLength',
+  'byteOf',
   'ceilDiv',
   'clusterStream',
   'clusterWindow',

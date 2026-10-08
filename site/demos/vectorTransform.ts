@@ -1,6 +1,7 @@
 /** Vector demos, continued: a point and a direction carried by a matrix. */
 import {
   applyMatrix3Vector3,
+  axisAngleQuaternion,
   composeMatrix4,
   transformAffinePoint,
   transformDirectionVector3,
@@ -18,9 +19,9 @@ export const VECTOR_TRANSFORM_DEMOS: Record<string, DemoDef> = {
       slider('z', 'point z', -3, 3, 0.5, 0.1),
     ],
     run(state) {
-      const half = state.turn * 0.5
       const m = new Float64Array(16)
-      composeMatrix4(m, [2, 0, 0], [0, Math.sin(half), 0, Math.cos(half)], [1, 1, 1])
+      const turn = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], state.turn)
+      composeMatrix4(m, [2, 0, 0], turn, [1, 1, 1])
       const point = vector(0, 0, 0)
       transformAffinePoint(point, m, state.x, 0, state.z)
       const clip = new Float64Array(4)
@@ -46,12 +47,11 @@ export const VECTOR_TRANSFORM_DEMOS: Record<string, DemoDef> = {
       slider('scale', 'scale of the matrix', 0.2, 3, 2, 0.05),
     ],
     run(state) {
-      const half = state.turn * 0.5
       const m = new Float64Array(16)
       composeMatrix4(
         m,
         [5, 5, 5],
-        [0, Math.sin(half), 0, Math.cos(half)],
+        axisAngleQuaternion(new Float64Array(4), [0, 1, 0], state.turn),
         [state.scale, state.scale, state.scale],
       )
       const direction = vector(0, 0, 0)

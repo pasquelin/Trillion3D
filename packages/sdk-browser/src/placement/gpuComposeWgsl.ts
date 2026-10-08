@@ -17,6 +17,7 @@ import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** The parent slot of a root that follows none. */
@@ -48,10 +49,10 @@ const SHARED = [PRODUCT_WGSL, TO_F32_WGSL, FLAT_INDEX_WGSL]
  */
 const SAME_WORD_WGSL = wgslBlock(
   'SAME_WORD_WGSL',
-  [],
+  [isNanWord],
   `
 fn sameWord(a:u32,b:u32)->bool{
- return (a==b&&(a&0x7fffffffu)<=0x7f800000u)||((a|b)&0x7fffffffu)==0u;
+ return (a==b&&!isNanWord(a))||((a|b)&0x7fffffffu)==0u;
 }`,
 )
 

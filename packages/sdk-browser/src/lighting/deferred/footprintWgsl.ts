@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
+import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 
 /**
  * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
@@ -24,11 +25,11 @@ import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
  */
 export const PIXEL_FOOTPRINT_WGSL = wgslBlock(
   'PIXEL_FOOTPRINT_WGSL',
-  [WORLD_AT_WGSL],
+  [WORLD_AT_WGSL, clampToExtent],
   `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */
 fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{
- return textureLoad(depth,clamp(coord+axis*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
+ return textureLoad(depth,clampToExtent(coord+axis*k,vec2i(view.viewport.xy)),0);
 }
 /** The slope of the surface at \`coord\` (depth \`z\`) along \`axis\`, from a side whose two pixels
  *  continue it, the straighter of two; none when neither does. */

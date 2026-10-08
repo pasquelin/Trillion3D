@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, seeded, language, ease, opening } from '../runtime/kit.js';
+      import { controls, readout, seeded, language, ease, opening, mix } from '../runtime/kit.js';
 
       // A bell curve drawn from a seeded sequence (the kit's `seeded`): the same sky on every run.
       const next = seeded(21);
@@ -177,7 +177,7 @@
       const from = [0, 34, 30], to = [2, 6, 13.5];
       const intro = opening(world, (time) => {
         const k = ease.out(time / 4);
-        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        world.camera.position.set(...mix({ math }, from, to, k));
         world.controls.target.set(0, 0, 0);
         return time < 4;
       });

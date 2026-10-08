@@ -1,4 +1,4 @@
-import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { nextPow2, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { saturate, clamp } from '../../../../math/src/scalar/reals.ts'
 import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
@@ -174,11 +174,9 @@ function upload(p: Records, table: { view: GPUTextureView | undefined }, device:
     // would fail. It goes once the queue's work is done, the frame's submit long since made.
     const old = p.texture
     if (old) void device.queue.onSubmittedWorkDone().then(() => old.destroy())
-    let height = 1
-    while (height < rows) height *= 2
     p.texture = device.createTexture({
       label: 'Trillion3D physical records',
-      size: [ROW_TEXELS, height],
+      size: [ROW_TEXELS, nextPow2(rows)],
       format: 'rgba32uint',
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     })

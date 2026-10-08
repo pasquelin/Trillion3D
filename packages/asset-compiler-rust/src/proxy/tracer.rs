@@ -2,6 +2,7 @@
 //! oracle traces the source scene with it (`oracle`), and the impostor bake the level-0 mesh
 //! (`impostor`), through a hit filter that lets a ray through a cut texel.
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
+use trillion3d_math::aabb::ray_aabb;
 use trillion3d_math::triangle::{ray_triangle, triangle_cross};
 use trillion3d_math::vec3::unit_or_itself;
 
@@ -62,17 +63,16 @@ pub struct Hit {
     pub barycentric: [f64; 2],
 }
 
+/// Whether the ray crosses node `node`'s box before `limit`: `ray_aabb` on its six stored bounds.
 fn slab(world: &World, node: usize, origin: [f64; 3], inverse: [f64; 3], limit: f64) -> bool {
-    let base = node * 6;
-    let mut entry = 0.0f64;
-    let mut exit = limit;
-    for axis in 0..3 {
-        let low = (world.node_bounds[base + axis] as f64 - origin[axis]) * inverse[axis];
-        let high = (world.node_bounds[base + 3 + axis] as f64 - origin[axis]) * inverse[axis];
-        entry = entry.max(low.min(high));
-        exit = exit.min(low.max(high));
-    }
-    entry <= exit
+    let bound = |k: usize| world.node_bounds[node * 6 + k] as f64;
+    ray_aabb(
+        [bound(0), bound(1), bound(2)],
+        [bound(3), bound(4), bound(5)],
+        origin,
+        inverse,
+        limit,
+    )
 }
 
 /// Ray-triangle test by barycentric coordinates, double-sided: a wall has no front or back for light.

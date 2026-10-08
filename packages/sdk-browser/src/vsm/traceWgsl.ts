@@ -23,7 +23,7 @@
  * related to a clipmap level (log2 of centimetres), the distance is converted to centimetres. Clip
  * and UV quantities are unitless and unchanged.
  */
-import { VSM_NOISE_TILE, VSM_PLASTIC_STEP } from './blueNoise.ts'
+import { VSM_NOISE_TILE } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
@@ -37,9 +37,15 @@ import {
   vsmProjectionSampleWgsl,
 } from './projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { FLOAT32_MAX, PI } from '../../../math/src/wgsl/constants.ts'
+import {
+  FLOAT32_MAX,
+  FLOAT32_MIN_NORMAL,
+  PLASTIC_STEP,
+  QUARTER_PI,
+  SQRT2,
+} from '../../../math/src/wgsl/constants.ts'
 import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
-import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { perspectiveDivide, transformPoint } from '../../../math/src/wgsl/projection.ts'
 import {
   Frame3,
   frameAround,
@@ -117,7 +123,16 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
 /** The traces' common helpers and the ray jitter step. */
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [PI, FLOAT32_MAX, frameAround, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL, perspectiveDivide],
+  [
+    QUARTER_PI,
+    SQRT2,
+    FLOAT32_MAX,
+    FLOAT32_MIN_NORMAL,
+    frameAround,
+    VSM_STRUCTS_WGSL,
+    VSM_PROJECTION_DATA_WGSL,
+    perspectiveDivide,
+  ],
   `
 struct VsmMarchStep{valid:bool,storedDepth:f32,marchRayDepth:f32,slopeCap:f32,restartSlope:bool,}
 fn vsmEmptyStep()->VsmMarchStep{return VsmMarchStep(false,0.0,0.0,0.0,false);}
@@ -144,9 +159,6 @@ fn vsmTraceSetupSun()->VsmTraceSetup{
 fn vsmTraceSetupLocal()->VsmTraceSetup{
  return VsmTraceSetup(i32(vsm.traceVoteAfter),vsm.traceRaysLocal,vsm.traceStepsLocal,vsm.traceSlopeCapLocal,vsm.traceDitherLocal);
 }
-/** The smallest normal f32, 2^-126: added to a nonzero |p| (2^-25 at least, for E in [0, 1)) it
- *  rounds back to it, so it changes no quotient, and the square's centre gives 0 rather than 0/0. */
-const VSM_F32_MIN_NORMAL:f32=1.17549435e-38;
 /** Maps the unit square onto the unit disk, each square ring onto a circle: the unit direction
  *  and the radius (the ring). The ring is the larger coordinate; the angle runs over the eighth of
  *  the circle the smaller one's share sets, turned a quarter where y is the larger, and the
@@ -157,7 +169,9 @@ fn vsmSquareToDiskPolar(E:vec2f)->vec3f{
  let a=abs(p);
  let lo=min(a.x,a.y);
  let hi=max(a.x,a.y);
- let phi=(PI/4.0)*(lo/(hi+VSM_F32_MIN_NORMAL)+select(0.0,2.0,a.y>=a.x));
+ // The smallest normal f32 added to a nonzero |p| (2^-25 at least, for E in [0, 1)) rounds back
+ // to it, so it changes no quotient, and the square's centre gives 0 rather than 0/0.
+ let phi=QUARTER_PI*(lo/(hi+FLOAT32_MIN_NORMAL)+select(0.0,2.0,a.y>=a.x));
  let quadrant=select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0));
  return vec3f(abs(vec2f(cos(phi),sin(phi)))*quadrant,hi);
 }
@@ -165,7 +179,7 @@ fn vsmSquareToDiskPolar(E:vec2f)->vec3f{
 fn vsmSquareToDisk(E:vec2f)->vec2f{let r=vsmSquareToDiskPolar(E);return r.xy*r.z;}
 /** A cheaper map of the square onto the disk, without trigonometry. */
 fn vsmSquareToDiskFast(E:vec2f)->vec2f{
- var sf=E*sqrt(2.0)-sqrt(0.5);
+ var sf=E*SQRT2-sqrt(0.5);
  let sq=sf*sf;
  let root=sqrt(2.0*max(sq.x,sq.y)-min(sq.x,sq.y));
  if(sq.x>sq.y){sf.x=select(-root,root,sf.x>0.0);}
@@ -212,7 +226,7 @@ fn vsmSunRaySpread(l:vec3f,s:f32,n:vec3f,viewPosition:vec3f,ditherUv:f32,uvPerWo
  let g=vec3f(dot(a,a),dot(b,b),dot(a,b));
  let d=0.5*(g.x-g.y);
  let sigma=sqrt(0.5*(g.x+g.y)+sqrt(d*d+g.z*g.z));
- return sigma*vec2f(2.0*s,sqrt(2.0)*ditherUv/uvPerWorld);
+ return sigma*vec2f(2.0*s,SQRT2*ditherUv/uvPerWorld);
 }
 /** The mip level of a local light for a receiver (its footprint, or 0 without a receiver cover). */
 fn vsmLocalMipAt(pd:VsmProjectionData,receiverInMap:vec3f,receiverDepthEye:f32)->u32{
@@ -230,11 +244,11 @@ fn vsmLocalMipAt(pd:VsmProjectionData,receiverInMap:vec3f,receiverDepthEye:f32)-
 const vsmRayNoiseWgsl = (noise: WgslDecl) =>
   wgslBlock(
     'vsmRayNoiseWgsl',
-    [VSM_NOISE_TILE, noise],
+    [VSM_NOISE_TILE, PLASTIC_STEP, noise],
     `
-/** Point n of the additive 2D sequence (\`VSM_PLASTIC_STEP\`): its points spread evenly over the
+/** Point n of the additive 2D sequence (\`PLASTIC_STEP\`): its points spread evenly over the
  *  unit square. */
-fn vsmAdditive2d(n:i32)->vec2f{return fract(f32(n)*vec2f(${VSM_PLASTIC_STEP[0]},${VSM_PLASTIC_STEP[1]}));}
+fn vsmAdditive2d(n:i32)->vec2f{return fract(f32(n)*PLASTIC_STEP);}
 /** Four blue-noise random values for a pixel, sample and frame (two reads of the blue-noise texture, offset by the additive sequence). */
 fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
  let dims=vec2f(VSM_NOISE_TILE.xy);
@@ -257,6 +271,7 @@ const vsmTraceDirectionalWgsl = (pool: WgslDecl) =>
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       vsmMarchWgsl('vsmMarchSun', 'VsmSunRay', 'vsmSunRayStep'),
+      transformPoint,
     ],
     `
 /** The depth slope in UV of the surface (the shading normal stands in for the geometric one). */
@@ -300,7 +315,7 @@ struct VsmSunRay{
 fn vsmSunRayBegin(pd:VsmProjectionData,originInMap:vec3f,rayDir:vec3f,rayLength:f32,startOffset:f32,uvDepthSlope:vec2f,texelShift:vec2f,slopeCap:f32)->VsmSunRay{
  let rayStart=originInMap+rayDir*startOffset;
  let rayVector=rayDir*rayLength;
- var sunUvzStart=(pd.shiftedToMapUv*vec4f(rayStart,1.0)).xyz;
+ var sunUvzStart=transformPoint(pd.shiftedToMapUv,rayStart);
  let sunUvzStep=(pd.shiftedToMapUv*vec4f(rayVector,0.0)).xyz;
  var planeBias=vsmSunTexelPlaneBias(uvDepthSlope,texelShift);
  planeBias=max(0.0,planeBias-abs(startOffset*pd.lightViewToClip[2][2]));
@@ -583,6 +598,7 @@ export const vsmTraceWgsl = (waveVotes: boolean, pool: WgslDecl, noise: WgslDecl
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_COMMON_WGSL,
+      transformPoint,
       vsmTraceDirectionalWgsl(pool),
       vsmTraceLocalWgsl(pool),
       VSM_TRACE_RESULT_WGSL,
@@ -612,7 +628,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
  var spreadDither=0.0;
  if(traced){
   pd=vsmProjectionOf(levelMap);
-  let viewPosition=(vsmView.shiftedToView*vec4f(shiftedPosition,1.0)).xyz;
+  let viewPosition=transformPoint(vsmView.shiftedToView,shiftedPosition);
   let eyeDistance=length(viewPosition);
   let ditherHere=f32(settings.ditherTexels)*pd.ditherTexels;
   if(ditherHere>0.0){

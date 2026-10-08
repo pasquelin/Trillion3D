@@ -1,6 +1,7 @@
 // The engine's shaders hold the maths library and their shared fragments as declarations their
-// programs list (`packages/math/src/wgsl/`): no source writes a library declaration again, and no
-// template splices a fragment's text, which would write it once per host that splices it.
+// programs list (`packages/math/src/wgsl/`): every program holds a library declaration once, as its
+// own text, and no template splices a fragment's text, which would write it once per host that
+// splices it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -19,18 +20,12 @@ function sources() {
     .map((file) => [file, readFileSync(new URL(file, root), 'utf8')] as const)
 }
 
-test('no shader declares a name of the WGSL library outside the library', () => {
-  // A shader lists the library's declarations: no source of the engine writes one, and a program
-  // holds each library name once, as the library's very text — another text is a second formula.
-  const written: string[] = []
-  for (const [file, text] of sources())
-    for (const decl of WGSL_LIBRARY)
-      if (new RegExp(`\\b(?:fn|const|struct)\\s+${decl.name}\\b`).test(text))
-        written.push(`${file}: ${decl.name}`)
-  assert.deepEqual(written, [])
+test('every program holds each library declaration once, as the library writes it', () => {
+  // No source of the tree writes a library declaration (`scripts/check-wgsl-library.ts`, a gate of
+  // `validate` and `check:changed`). What the assembler guarantees of a program it writes, each
+  // declaration once and as the library's very text, is read here on the text every program finally
+  // holds, whoever wrote it: another text is a second formula.
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
-  // A test-only check: what the assembler guarantees of a program it writes, each declaration once
-  // and as its own text, read on the text every program finally holds, whoever wrote it.
   const apart: string[] = []
   for (const decl of WGSL_LIBRARY) {
     const declares = new RegExp(`\\b${decl.kind}\\s+${decl.name}\\b`, 'g')

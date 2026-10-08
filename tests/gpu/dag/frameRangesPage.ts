@@ -17,6 +17,7 @@ import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/sha
 import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first range's behind the
  *  camera, the second's before it, its outer columns past the frustum's sides. Small, so its tables
@@ -55,7 +56,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
   const { packed, uniforms } = sceneView(8, 2, poses)
-  const lying = reporting(device, framesBytes(Math.ceil(packed.worldCount / 2)))
+  const lying = reporting(device, framesBytes(ceilDiv(packed.worldCount, 2)))
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported

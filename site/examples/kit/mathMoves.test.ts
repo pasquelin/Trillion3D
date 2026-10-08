@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { math } from '../../../packages/sdk-core/src/world/math/index.ts'
-import { HALTON_SWEEP, haltonSpan } from '../../../packages/math/src/sequence/sweep.fixture.ts'
-import { mix } from './opening.ts'
+import {
+  HALTON_SWEEP,
+  edgeValues,
+  haltonSpan,
+} from '../../../packages/math/src/sequence/sweep.fixture.ts'
+import { HALF_PI, RAD2DEG, TAU } from '../../../packages/math/src/constants.ts'
+import { clamp, saturate } from '../../../packages/math/src/scalar/reals.ts'
+import { unorm8 } from '../../../packages/math/src/color/color.ts'
+import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
+import { formatNumber } from '../../demos/kit.ts'
+import { ease, mix } from './opening.ts'
 import { matcapBall } from './painted.ts'
 import { valueNoise } from './random.ts'
 
@@ -75,5 +84,81 @@ test("the kit's mix blends by math.lerp, the formula it wrote before, number for
     const now = mix({ math }, a, b, t),
       old = oldMix(a, b, t)
     for (let k = 0; k < 3; k++) assert.ok(Object.is(now[k], old[k]), `sweep ${i}`)
+  }
+})
+
+test('the vector demo prints the angle it printed, by RAD2DEG and clamp', () => {
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const cosine = haltonSpan(i, 2, -1.5, 1.5),
+      old = (Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI,
+      now = Math.acos(clamp(cosine, -1, 1)) * RAD2DEG
+    assert.equal(formatNumber(now), formatNumber(old), `cosine ${cosine}`)
+  }
+})
+
+test("the courtyard's star and the kit's quarter turns are the radians they were written as", () => {
+  for (let k = 0; k < 16; k++)
+    assert.ok(Object.is((k * TAU) / 16 + TAU / 16, (k * Math.PI) / 8 + Math.PI / 8), `point ${k}`)
+  assert.ok(Object.is(HALF_PI, Math.PI / 2))
+})
+
+/** A sweep of `[lo, hi]` with its edge values, NaN and both infinities. */
+const sweep = (lo: number, hi: number) => [
+  ...edgeValues(lo, hi),
+  NaN,
+  Infinity,
+  -Infinity,
+  ...Array.from({ length: HALTON_SWEEP }, (_, i) => haltonSpan(i + 1, 2, lo, hi)),
+]
+
+/** `sweep` without NaN, the infinities and -0: what a slider or a clock gives. */
+const finite = (lo: number, hi: number) =>
+  sweep(lo, hi).filter((x) => Number.isFinite(x) && !Object.is(x, -0))
+
+test("the colour demo's bytes are unorm8's, the clamp after the round", () => {
+  for (const c of sweep(-2, 3))
+    assert.ok(Object.is(unorm8(c), Math.round(saturate(c) * 255)), `channel ${c}`)
+})
+
+// The pages' clamps were `Math.min(hi, Math.max(lo, v))` or `Math.max(lo, Math.min(hi, v))`; the
+// family's is the comparison clamp. They part only at a -0 fed to a bound of 0 (+0 before, -0
+// now), which no page site feeds: each clamps a difference with a non-zero constant, an index,
+// a ratio of those or a value between bounds that are not 0.
+test("the pages' clamps are the family's, but for a -0 at a bound of 0", () => {
+  const bounds = [
+    [0, 1],
+    [-1, 1],
+    [-1, 0.9],
+    [0.6, 8],
+    [14, 58],
+    [0.35, 1.22],
+    [0, 2],
+    [-0.1, 0.1],
+  ]
+  // A turn's limit, a speed times a clock step, is +0 when the frame lasted none.
+  for (const most of finite(0, 2).slice(0, 128)) bounds.push([-most, most])
+  for (const [lo, hi] of bounds)
+    for (const v of sweep(-60, 60)) {
+      if (Object.is(v, -0) && lo === 0) continue
+      const now = math.clamp(v, lo, hi)
+      assert.ok(Object.is(now, Math.min(hi, Math.max(lo, v))), `${v} in [${lo}, ${hi}]`)
+      assert.ok(Object.is(now, Math.max(lo, Math.min(hi, v))), `${v} in [${lo}, ${hi}]`)
+    }
+})
+
+test("the demos' turns about +Y are axisAngleQuaternion's, zeros' signs included", () => {
+  const q = new Float64Array(4)
+  for (const turn of finite(0, 6.28)) {
+    const half = turn * 0.5
+    const old = [0, Math.sin(half), 0, Math.cos(half)]
+    axisAngleQuaternion(q, [0, 1, 0], turn)
+    for (let k = 0; k < 4; k++) assert.ok(Object.is(q[k], old[k]), `turn ${turn}`)
+  }
+})
+
+test("the hand-keyed page's eased steps are the kit's smoothstep", () => {
+  for (let step = 0; step < 7; step++) {
+    const u = step / 7
+    assert.ok(Object.is(ease.smooth(u), u * u * (3 - 2 * u)), `step ${step}`)
   }
 })

@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls, pointerOnPlane, readout, seeded, opening, ease } from '../runtime/kit.js';
+      import { controls, pointerOnPlane, readout, seeded, opening, ease, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#efc493');
@@ -147,7 +147,7 @@
       // The opening glides down to the array; the viewer's first press or wheel ends it.
       opening(world, (time) => {
         const k = ease.out(time / 5);
-        world.camera.position.set(...FROM.map((value, axis) => value + (TO[axis] - value) * k));
+        world.camera.position.set(...mix({ math }, FROM, TO, k));
         return time < 5;
       });
 
@@ -176,8 +176,8 @@
           } else if (ui.turn === 'steadily') {
             // No faster than the motors allow: a fixed angle per second on each axis.
             const most = ui.turnSpeed * step;
-            dish.yaw += Math.max(-most, Math.min(most, errYaw));
-            dish.pitch += Math.max(-most, Math.min(most, errPitch));
+            dish.yaw += math.clamp(errYaw, -most, most);
+            dish.pitch += math.clamp(errPitch, -most, most);
           } else {
             // A spring pulls each joint toward its angle and a light damper lets it overshoot.
             const stiff = (ui.turnSpeed * 3) ** 2, damp = 2 * 0.3 * Math.sqrt(stiff);

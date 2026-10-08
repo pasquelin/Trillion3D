@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, side } from '../runtime/engine.js';
-      import { controls, seeded, opening, ease } from '../runtime/kit.js';
+      import { controls, seeded, opening, ease, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#8cc3ee');
@@ -193,7 +193,7 @@
       const bounce = (t) => (t <= 0 ? 0.001 : t >= 1 ? 1 : 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2);
       opening(world, (glide) => {
         const k = ease.out(glide / 4);
-        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * k));
+        world.camera.position.set(...mix({ math }, from, to, k));
         return glide < 4;
       });
       world.onFrame(({ delta }) => {

@@ -254,12 +254,12 @@
             const dx = subject[0] - at[0], dy = subject[1] - at[1], dz = subject[2] - at[2], far = reach.set(dx, dy, dz).length();
             [yaw, pitch] = [Math.atan2(dx, dz), Math.atan2(dy, ground.set(dx, dz).length())];
             // Tracking, the lens zooms to keep the subject about ten metres across.
-            fov = Math.max(14, Math.min(58, (2 * Math.atan(5 / far) * 180) / Math.PI));
+            fov = math.clamp((2 * Math.atan(5 / far) * 180) / Math.PI, 14, 58);
           }
           // The motors turn no faster than 1.2 radians a second on each axis.
           const most = 1.2 * step;
-          unit.yaw = wrap(unit.yaw + Math.max(-most, Math.min(most, wrap(yaw - unit.yaw))));
-          unit.pitch += Math.max(-most, Math.min(most, pitch - unit.pitch));
+          unit.yaw = wrap(unit.yaw + math.clamp(wrap(yaw - unit.yaw), -most, most));
+          unit.pitch += math.clamp(pitch - unit.pitch, -most, most);
           unit.fov += (fov - unit.fov) * (1 - Math.exp(-step * 2));
           const cx = state.car.x - at[0], cz = state.car.z - at[2], cy = 1 - at[1], look = [Math.sin(unit.yaw) * Math.cos(unit.pitch), Math.sin(unit.pitch), Math.cos(unit.yaw) * Math.cos(unit.pitch)];
           unit.seesCar = (look[0] * cx + look[1] * cy + look[2] * cz) / reach.set(cx, cy, cz).length() > Math.cos(math.degToRad(unit.fov / 2));
