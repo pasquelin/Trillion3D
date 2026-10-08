@@ -12,11 +12,11 @@
  */
 import {
   frustumExcludesBox,
-  impostorBakedByMesh,
   type ImpostorMaps,
   type ImpostorSection,
 } from '../../../sdk-core/src/index.ts'
 import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
+import { bakedLookup } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { boxEmpty, boxUnion } from '../../../math/src/geometry/box.ts'
 import { core } from './borrowed.ts'
@@ -60,7 +60,7 @@ export function createImpostorCards<G>(section: ImpostorSection, hooks: CardHook
   return {
     section,
     hooks,
-    baked: impostorBakedByMesh(section),
+    baked: bakedLookup(section),
     watch: createImpostorWatch(),
     slots: createCardSlots(),
     segments: new Map<number, CardSegment<G>>(),
