@@ -63,10 +63,6 @@ export function createCoverShare(
     keep(cells: { has(cell: number): boolean }) {
       for (const cell of roots.keys()) if (!cells.has(cell)) share.forget(cell)
     },
-    /** Cells counted now, each once: a cell refused was counted first. */
-    get cells() {
-      return roots.size
-    },
   }
   return share
 }

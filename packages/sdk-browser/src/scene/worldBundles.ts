@@ -119,12 +119,7 @@ function createCellBundles(table: WorldRoots) {
     if (!bundles) lists.set(cell, (bundles = cellDependencies(table, cell)))
     return bundles
   }
-  return Object.assign(of, {
-    forget: (cell: number) => void lists.delete(cell),
-    get size() {
-      return lists.size
-    },
-  })
+  return Object.assign(of, { forget: (cell: number) => void lists.delete(cell) })
 }
 
 /** The session's queue a world's bundles are read through: bound by each session, let go as it
@@ -227,11 +222,6 @@ export function createWorldBundles(
     release(cell: number) {
       counts.release(cell)
       if (!counts.holds(cell)) cover.forget(cell)
-    },
-    /** Cells whose counts are kept, each once: those held or asked of, never every cell met — a
-     *  cell the cover counts holds its bundles' list. */
-    get countedCells() {
-      return cellBundles.size
     },
     /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a world's
      *  model not partitioned, one cell, holds from its load, before any session. */
