@@ -39,6 +39,9 @@ export function createCameraFrames(
     pending: { from: Infinity, to: -1 },
     written: 0,
     spans: new Int32Array(RESIDENCY_RULE.cap * 2),
+    eye: new Float64Array(3).fill(NaN),
+    sources,
+    held: new Float32Array(24),
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -56,11 +59,24 @@ export function createCameraFrames(
     buffers,
     worldBuffers,
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
-     *  its range; whether any moved. */
+     *  its range; how many moved, listed in `originsChanged`. Every one sent asks the rebase of the
+     *  whole table; those of `named`, while the eye the worlds stand at is known (`worldsAt`), are
+     *  the caller's to send again at it (`writeNamedWorlds`). */
     writeWorldOrigins(named?: Int32Array) {
       const moved = origins.write(named)
-      if (moved) f.written++
+      if (moved && (!named || Number.isNaN(f.eye[0]))) f.written++
       return moved
+    },
+    get originsChanged() {
+      return origins.changed
+    },
+    /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
+    forgetOrigin: (row: number) => origins.forget(row),
+    /** The eye the GPU's worlds stand at once the rebase that brings them there is queued, or
+     *  none while one is in flight (`worldRebase.ts`). */
+    worldsAt(eye?: ArrayLike<number>) {
+      if (eye) f.eye.set(eye)
+      else f.eye.fill(NaN)
     },
     /** Bumped at every write of worlds or origins to the GPU: what is written there is absolute
      *  until the rebase brings it to the eye (`worldRebase.ts`), the one place that knows it. */
@@ -85,10 +101,15 @@ export function createCameraFrames(
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
     writeWorlds: (next: Float32Array) => writeWorlds(f, next),
     /** The world matrices in `next` of the `count` increasing primitives of `named`: the ones a
-     *  call moved, each run to its range (`writeRanges`). */
+     *  call moved, each run to its range (`writeRanges`). At the eye the worlds stand at, when it
+     *  is known: each translation brought there here, the bits the rebase writes, so no rebase of
+     *  the whole table follows a pose; absolute otherwise, the next cut rebasing the table. */
     writeNamedWorlds(next: Float32Array, named: Int32Array, count: number) {
-      f.written++
-      writeNamed(f, worldBuffers, 16, next, named, count)
+      if (Number.isNaN(f.eye[0]) || !f.sources) {
+        f.written++
+        return writeNamed(f, worldBuffers, 16, next, named, count)
+      }
+      writeAtEye(f, next, named, count)
     },
     /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
      *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
@@ -122,6 +143,32 @@ type Frames = {
   written: number
   /** The runs a named write joins its placements into (`writeRanges`). */
   spans: Int32Array
+  /** The eye the GPU's worlds stand at, NaN while unknown (`worldsAt`). */
+  eye: Float64Array
+  /** The placements whose exact translations the worlds carry. */
+  sources: PackedDag['worldSources']
+  /** The absolute translations a write at the eye sets aside, three a placement. */
+  held: Float32Array
+}
+
+/** The world matrices of `named` written at the eye: each translation the single nearest its exact
+ *  one less the eye's — `toF32(dSub(t, e))`, the rebase's bits —, set in `next` while its run is
+ *  written, the absolute one put back after. */
+function writeAtEye(f: Frames, next: Float32Array, named: Int32Array, count: number) {
+  if (f.held.length < count * 3) f.held = new Float32Array(Math.max(count * 3, f.held.length * 2))
+  const { eye, held } = f,
+    sources = f.sources!
+  for (let i = 0; i < count; i++) {
+    const w = named[i],
+      t = sources[w].world.elements
+    for (let k = 0; k < 3; k++) {
+      held[i * 3 + k] = next[w * 16 + 12 + k]
+      next[w * 16 + 12 + k] = t[12 + k] - eye[k]
+    }
+  }
+  writeNamed(f, f.worldBuffers, 16, next, named, count)
+  for (let i = 0; i < count; i++)
+    for (let k = 0; k < 3; k++) next[named[i] * 16 + 12 + k] = held[i * 3 + k]
 }
 
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers

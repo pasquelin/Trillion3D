@@ -79,12 +79,21 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
   }
 }
 
+/** A dispatch of a cut, the main view's or a view's aside: its uniforms, the caller's encoder. */
+type Dispatch = (
+  uniforms: SelectionUniforms,
+  shared: GPUCommandEncoder,
+) => ReturnType<GpuSelection['dispatch']>
+
 /**
- * `selection` whose dispatches bring its worlds to the uniforms' eye first, when that eye moved or
- * worlds were written since, by whatever path (`worldsWritten`): the pass in the caller's encoder,
- * or in one of its own submitted before. What the GPU holds is taken as rebased once the pass is
- * queued — at once in its own encoder, at the caller's settlement in a shared one —: a buffer the
- * caller drops, or a dispatch that throws, leaves the next cut to rebase again.
+ * `selection` whose dispatches — the main view's, and every view's aside (`aside`) — bring its
+ * worlds to their uniforms' eye first, when that eye is not the one they stand at or worlds were
+ * written since, by whatever path (`worldsWritten`): the pass in the caller's encoder, or in one of
+ * its own submitted before. What the GPU holds is taken as rebased once the pass is queued — at
+ * once in its own encoder, at the caller's settlement in a shared one —: a buffer the caller drops,
+ * or a dispatch that throws, leaves the next cut to rebase again. The selection is told the eye its
+ * worlds stand at (`worldsAt`), none while a pass is in flight: a pose sent meanwhile is written
+ * absolute and asks the next pass.
  */
 export function rebaseWorldsOnGpu(
   selection: GpuSelection,
@@ -93,30 +102,40 @@ export function rebaseWorldsOnGpu(
 ) {
   const held = new Float64Array(3).fill(NaN)
   let rebased = -1
-  const { dispatch, dispose } = selection
+  const { dispatch, dispose, aside } = selection
   const commit = (eye: ArrayLike<number>, written: number) => {
     held.set(eye)
     rebased = written
+    selection.worldsAt?.(held)
   }
-  selection.dispatch = (uniforms: SelectionUniforms, shared?: GPUCommandEncoder) => {
-    const eye = Float64Array.from(uniforms.cameraWorld),
-      written = selection.worldsWritten
-    const due =
-      written !== rebased || eye[0] !== held[0] || eye[1] !== held[1] || eye[2] !== held[2]
-    if (due) {
+  const at = (eye: ArrayLike<number>) =>
+    eye[0] === held[0] && eye[1] === held[1] && eye[2] === held[2]
+  const rebasing =
+    (cut: Dispatch): Dispatch =>
+    (uniforms, shared) => {
+      const written = selection.worldsWritten
+      if (written === rebased && at(uniforms.cameraWorld)) return cut(uniforms, shared)
+      // Held until the pass is queued: the eye of a shared buffer settles with it.
+      const eye = Float64Array.from(uniforms.cameraWorld)
+      selection.worldsAt?.()
       const encoder = shared ?? device.createCommandEncoder()
       rebase.encode(encoder, eye)
       if (!shared) {
         device.queue.submit([encoder.finish()])
         commit(eye, written)
       }
+      const settle = cut(uniforms, shared)
+      if (!shared || !settle) return settle
+      return (submitted: boolean) => {
+        if (submitted) commit(eye, written)
+        settle(submitted)
+      }
     }
-    const settle = dispatch(uniforms, shared)
-    if (!due || !shared || !settle) return settle
-    return (submitted: boolean) => {
-      if (submitted) commit(eye, written)
-      settle(submitted)
-    }
+  selection.dispatch = rebasing(dispatch as Dispatch)
+  selection.aside = () => {
+    const cut = aside()
+    cut.dispatch = rebasing(cut.dispatch) as typeof cut.dispatch
+    return cut
   }
   selection.dispose = () => {
     rebase.dispose()

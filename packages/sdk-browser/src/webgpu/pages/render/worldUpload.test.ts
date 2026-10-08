@@ -83,7 +83,7 @@ for (const kind of ['GPU selection', 'no selection'] as const)
   })
 
 test('a pose a call named sends its world alone, every other left as the cut holds it', () => {
-  const calls: [Float32Array, boolean, boolean, Int32Array][] = []
+  const calls: [Float32Array, Int32Array][] = []
   const rt = image(false, {
     updateWorlds: (...args: never[]) => (calls.push(args as never), true),
   })
@@ -96,8 +96,7 @@ test('a pose a call named sends its world alone, every other left as the cut hol
   })
   noteWorldMoved(rt.run, 1)
   uploadWorlds(rt, cam)
-  const [[worlds, , walked, named]] = calls
-  assert.equal(walked, false)
+  const [[worlds, named]] = calls
   assert.deepEqual([...named], [1], 'the one named placement')
   assert.equal(worlds[1 * 16 + 12], 2, 'its world taken')
   assert.equal(worlds[0 * 16 + 12] + worlds[2 * 16 + 12], 0, 'no other read')

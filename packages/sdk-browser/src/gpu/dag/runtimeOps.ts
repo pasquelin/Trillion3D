@@ -46,18 +46,13 @@ function voidCuts(state: DagRuntimeState) {
 
 /** `GpuSelection.updateWorlds`: the placements sent, compared with the last ones — every one, or
  *  those of `named` alone (`updateNamedWorlds`). */
-export function updateRuntimeWorlds(
-  run: DagRun,
-  next: Float32Array,
-  posesMoved: boolean,
-  named?: Int32Array,
-) {
+export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int32Array) {
   const { resources, state } = run,
     { packed, frames, frameData } = resources
   if (state.disposed || state.dead) return false
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
-  if (named) return updateNamedWorlds(run, next, posesMoved, named)
-  const originChanged = posesMoved && frames.writeWorldOrigins()
+  if (named) return updateNamedWorlds(run, next, named)
+  const originChanged = frames.writeWorldOrigins() > 0
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it.
   if (!worldsChanged(packed.worlds, next)) {
@@ -70,28 +65,26 @@ export function updateRuntimeWorlds(
   frames.writeWorlds(next)
   if (stretched) frames.writeRows()
   // Cuts in hand and in flight keep their revision and still name what to stream (#358).
-  if (posesMoved) state.worldRevision++
+  state.worldRevision++
   return true
 }
 
-/** The placements that moved among those of `named`, and those whose stretch moved with them. */
+/** The placements that moved among those of `named`, those whose stretch moved with them, and
+ *  the placements written: the moved and those whose exact translation alone moved. */
 let movedScratch = new Int32Array(8),
-  stretchedScratch = new Int32Array(8)
+  stretchedScratch = new Int32Array(8),
+  writtenScratch = new Int32Array(8)
 
 /**
  * The placements of `named`, increasing — the ones a call moved —, compared with the worlds last
  * received and those that moved sent, each run to its range, with their exact translations and,
  * where the linear part moved, their stretch: a frame's CPU and upload follow what moved, never
- * the placements' count.
+ * the placements' count. A placement whose exact translation alone moved is written again too: its
+ * world at the eye changed (`writeNamedWorlds`).
  */
-function updateNamedWorlds(
-  { resources, state }: DagRun,
-  next: Float32Array,
-  posesMoved: boolean,
-  named: Int32Array,
-) {
+function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, named: Int32Array) {
   const { packed, frames, frameData } = resources
-  const originChanged = posesMoved && frames.writeWorldOrigins(named)
+  const origins = frames.writeWorldOrigins(named)
   let moved = 0,
     stretched = 0
   for (const w of named) {
@@ -105,10 +98,37 @@ function updateNamedWorlds(
     if (moved === movedScratch.length) movedScratch = grown(movedScratch, moved + 1, moved)
     movedScratch[moved++] = w
   }
-  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+  const written = mergeIncreasing(movedScratch, moved, frames.originsChanged, origins)
+  if (written) frames.writeNamedWorlds(packed.worlds, writtenScratch, written)
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
-  if (posesMoved && (moved || originChanged)) state.worldRevision++
-  return moved > 0 || originChanged
+  if (moved || origins) state.worldRevision++
+  return moved > 0 || origins > 0
+}
+
+/** The two increasing lists joined into `writtenScratch`, each placement once; their count. */
+function mergeIncreasing(a: Int32Array, na: number, b: Int32Array, nb: number) {
+  if (writtenScratch.length < na + nb) writtenScratch = grown(writtenScratch, na + nb)
+  let i = 0,
+    j = 0,
+    n = 0
+  while (i < na || j < nb) {
+    const next = j >= nb || (i < na && a[i] <= b[j]) ? a[i++] : b[j++]
+    if (n === 0 || writtenScratch[n - 1] !== next) writtenScratch[n++] = next
+  }
+  return n
+}
+
+/** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the
+ *  pose it composed on the GPU — words the host never wrote — is replaced by the host's own, its
+ *  world and its exact translation written again whatever the caches held. */
+export function rewritePlacement({ resources, state }: DagRun, w: number) {
+  const { packed, frames } = resources
+  if (w >= packed.worldCount) return
+  frames.forgetOrigin(w)
+  writtenScratch[0] = w
+  frames.writeWorldOrigins(writtenScratch.subarray(0, 1))
+  frames.writeNamedWorlds(packed.worlds, writtenScratch, 1)
+  state.worldRevision++
 }
 
 /** `GpuSelection.appendRoots`: roots packed behind the others, their words sent. */

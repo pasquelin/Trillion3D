@@ -52,7 +52,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   if (!hostWalked) {
     rootWorldsAt(worldUpdates, selectionRoots, named)
     rt.timing.worldCounts.rootsRebased = named.length
-    if (named.length) run.gpuSelection?.updateWorlds(worldUpdates, true, false, named)
+    if (named.length) run.gpuSelection?.updateWorlds(worldUpdates, named)
     return true
   }
   rt.timing.worldCounts.rootsRebased = selectionRoots.length
@@ -60,7 +60,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // the ones the cut holds, bit for bit, whatever the eye.
   const posesMoved = rootWorldsMoved(worldUpdates, selectionRoots)
   rootWorlds(worldUpdates, selectionRoots)
-  const posted = run.gpuSelection?.updateWorlds(worldUpdates, true, true)
+  const posted = run.gpuSelection?.updateWorlds(worldUpdates)
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
   // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.

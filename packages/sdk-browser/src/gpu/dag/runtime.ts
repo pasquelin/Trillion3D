@@ -11,6 +11,7 @@ import {
   appendRoots,
   flushRuntime,
   parkRoot,
+  rewritePlacement,
   updateRuntimeResidency,
   updateRuntimeWorlds,
   writeMark,
@@ -68,8 +69,9 @@ function selectionOver(run: DagRun): GpuSelection {
     get worldRevision() {
       return state.worldRevision
     },
-    updateWorlds: (next, posesMoved = true, _walked = true, named) =>
-      updateRuntimeWorlds(run, next, posesMoved, named),
+    updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
+    worldsAt: (eye) => frames.worldsAt(eye),
+    composedPlacement: (w, composed) => !composed && live() && rewritePlacement(run, w),
     worldsMovedOnGpu() {
       if (live()) state.worldRevision++
     },

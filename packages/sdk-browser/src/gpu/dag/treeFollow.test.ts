@@ -50,7 +50,7 @@ test('a pose a call names refits its group and the nodes above it, never the who
     tree = packed.placementTree!.levels.reduce((sum, { count }) => sum + count, 0)
   ;(roots[70].world.elements as Float64Array)[12] = 1000
   selection.placementMoved!(70)
-  selection.updateWorlds(packed.worlds, true, false)
+  selection.updateWorlds(packed.worlds, Int32Array.of(70))
   selection.dispatch({} as never)
   // A node per level of the tree, their runs joined: a sixth of its nodes at most.
   assert.ok(sent() <= (tree / 6) * nodeBytes, `${sent() / nodeBytes} of ${tree} nodes sent`)
@@ -60,7 +60,7 @@ test('a pose a call names refits its group and the nodes above it, never the who
   assert.ok(seen.includes(70))
   // A host walk names none: every box is fitted again.
   const before = sent()
-  selection.updateWorlds(packed.worlds, true, true)
+  selection.updateWorlds(packed.worlds)
   selection.dispatch({} as never)
   assert.equal(sent() - before, tree * nodeBytes, 'every tree node')
 })
