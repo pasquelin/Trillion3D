@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import { dAdd, dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { shaderRun } from './shaderRun.fixture.ts'
+import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { dAdd, dDiv, dMul, dSub } from '../../../math/src/wgsl/double.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 type Pair = number[]
 type Run = {

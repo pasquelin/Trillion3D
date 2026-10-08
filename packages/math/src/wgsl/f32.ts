@@ -5,9 +5,7 @@
 import { wgslFn } from './decl.ts'
 import { dExponent, dIsNan, dNan, dSignificand, wideShiftRight } from './doubleWords.ts'
 
-/** The double a single-precision word widens to, exactly: a subnormal becomes a normal double. The
- *  one widening of both compose passes (`gpuComposeWgsl.ts`): the motion's worlds
- *  (`gpuMotionWgsl.ts`), the rows pass's sphere centre. */
+/** The double a single-precision word widens to, exactly: a subnormal becomes a normal double. */
 export const fromF32 = wgslFn(
   'fromF32',
   [dNan],

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
-import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts'
+import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'
 import { worldRootsPageAddress } from './worldPageServe.ts'
 
 test('every page of the cooked world is served as its own bytes, in world space', async () => {

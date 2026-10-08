@@ -1,7 +1,7 @@
 /**
  * The temporal pass's word on the linked placements' motion (`gpuCompose.ts`), kept apart from the
- * compose passes so the temporal pass reaches it without their modules: the decision, and the
- * doubles' shader form it is written in.
+ * compose passes so the temporal pass reaches it without their modules: the decision, written as
+ * the shaders hold a double (`packDoubles`).
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'

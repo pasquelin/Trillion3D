@@ -39,7 +39,7 @@ import { createCoverShare } from './worldCoverShare.ts'
 type WorldHold = { signal?: AbortSignal; priority?: number }
 /** A bundle held: how many holds — a cell's or a page read's —, how many of them cells', and its
  *  pages once read. */
-type Held = { cells: number; byCells: number; pages?: WorldRootsPage[]; failed?: boolean }
+type Held = { holds: number; byCells: number; pages?: WorldRootsPage[]; failed?: boolean }
 /** Told that `bundle` is held by a cell now, or by none any more. */
 type Watcher = (bundle: number, held: boolean) => void
 
@@ -62,10 +62,10 @@ function createBundleCounts(
     take(bundle: number, byCell = false) {
       let own = held.get(bundle)
       if (!own) {
-        held.set(bundle, (own = { cells: 0, byCells: 0 }))
+        held.set(bundle, (own = { holds: 0, byCells: 0 }))
         bytes += table.bundles[bundle].bytes
       }
-      own.cells++
+      own.holds++
       if (byCell && own.byCells++ === 0 && !own.failed)
         for (const watcher of watchers) watcher(bundle, true)
       return own
@@ -75,7 +75,7 @@ function createBundleCounts(
       if (!own) return
       if (byCell && --own.byCells === 0 && !own.failed)
         for (const watcher of watchers) watcher(bundle, false)
-      if (--own.cells > 0) return
+      if (--own.holds > 0) return
       held.delete(bundle)
       bytes -= table.bundles[bundle].bytes
     },

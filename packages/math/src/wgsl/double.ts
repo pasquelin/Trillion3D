@@ -1,20 +1,20 @@
 /**
  * DOUBLE-PRECISION ARITHMETIC ON THE GPU, IN INTEGERS.
  *
- * WGSL has no 64-bit float, and the transparent paint order is decided on doubles (`order.ts`): the
- * GPU must reach the CPU's keys to the bit, or two items whose keys differ only in their last bits
- * would swap. A double is held as its IEEE bits, `vec2u(high word, low word)`, and each operation
- * rounds once, to nearest, ties to even, subnormals and infinities included: the result IS the
- * CPU's, not an approximation of it.
+ * WGSL has no 64-bit float, and a decision the CPU makes on doubles — an order of keys, a pose —
+ * is the GPU's to the bit only if the GPU computes it in the same doubles: two keys that differ in
+ * their last bits would otherwise swap. A double is held as its IEEE bits, `vec2u(high word, low
+ * word)`, and each operation rounds once, to nearest, ties to even, subnormals and infinities
+ * included: the result IS the CPU's, not an approximation of it.
  *
  * Every intermediate is an exact integer below 2^33, masked back to 32 bits where a carry may leave
- * it, and no product of two words exceeds 32 bits (16-bit halves): the same text then runs as is in
- * `shaderRun`, whose integers are JavaScript doubles, which is how the tests compare it with the CPU
- * bit for bit.
+ * it, and no product of two words exceeds 32 bits (16-bit halves): the same text then runs as is
+ * in a JavaScript reading of the shader, whose integers are doubles, which is how its tests compare
+ * it with the CPU bit for bit.
  *
- * A NaN result is the one pattern of all ones: as an unsigned 64-bit number it lies above +∞, which
- * is where the order ranks a NaN key (`paintOrder.ts`, `precedes`). The other keys are squares and
- * sums of squares, never negative, so their bits compare as the numbers do.
+ * A NaN result is the one pattern of all ones: as an unsigned 64-bit number it lies above +∞, where
+ * an order of keys ranks a NaN one. Keys that are squares and sums of squares, never negative,
+ * compare by their bits as the numbers do.
  */
 import { wgslFn } from './decl.ts'
 import {

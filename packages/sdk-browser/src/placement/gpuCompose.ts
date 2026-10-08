@@ -78,7 +78,6 @@ function createComposeState(roots: number) {
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
     /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
     rootParams: new Uint32Array(64),
-    /** What the roots pass's parameters were last written for. */
     rowParams: new Uint32Array(4),
     /** Each linked root's local box through its local matrix: its box in its parent's frame. */
     rankBoxes: new Float64Array(Math.max(1, roots) * BOX_VALUES),

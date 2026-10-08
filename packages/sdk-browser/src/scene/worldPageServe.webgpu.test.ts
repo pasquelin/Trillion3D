@@ -6,7 +6,7 @@ import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts'
+import { worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'
 import { worldRootsPageAddress } from './worldPageServe.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 

@@ -100,7 +100,7 @@ export function linkWorldObject(
  * Follows on `sets` the holders the world's held cells add to the root cover
  * (`../../residency/coverHolders.ts`): the roots one cell alone needs — a lone object's copy, the
  * top of a material only that cell wears, a cell's super-root no top continued (`top.rs`) — in
- * each bundle the cells start or stop holding (`../../../scene/worldHeldBundles.ts`), as the
+ * each bundle the cells start or stop holding (`../../../scene/worldBundles.ts`), as the
  * packed world DAG names them. Each move wakes the next image, which loads them. The room the cover
  * leaves past the floor's other pages bounds them: the plan holds no far cell whose roots would
  * pass it (`cover`). A cell let go past the keep sphere takes its roots out with it: the far
