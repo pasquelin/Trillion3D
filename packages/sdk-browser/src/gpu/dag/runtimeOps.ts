@@ -2,6 +2,7 @@ import {
   SELECTION_NONE as NONE,
   type GpuSelection,
   type ResidencyChanges,
+  type TableSync,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import { refreshStretchAt, changedWorlds, worldChangedAt, writePrimitiveWords } from './worlds.ts'
@@ -31,6 +32,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   uploadResidency: ReturnType<typeof createDagResidencyUpload>
   poolList: ReturnType<typeof createDagPoolList>
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
+  /** The followers' steps every cut takes before it encodes (`GpuSelection.beforeCut`). */
+  beforeCut: TableSync[]
 }
 
 /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */

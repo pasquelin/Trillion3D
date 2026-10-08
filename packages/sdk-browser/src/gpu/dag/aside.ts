@@ -1,4 +1,4 @@
-import type { SelectionSubmission, SelectionUniforms } from '../core/selection.ts'
+import type { SelectionSubmission, SelectionUniforms, TableSync } from '../core/selection.ts'
 import type { AsideCut } from '../core/aside.ts'
 import { copySelectionUniforms } from '../core/selectionCopy.ts'
 import { writeDagUniforms } from './uniforms.ts'
@@ -23,14 +23,19 @@ import { encodeSwap } from './swapEncode.ts'
 import { createAsideSlots, type AsideSlots } from './asideSlots.ts'
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+/** What a view aside takes of the main cut: its owed copy (`dispatch.ts`, `copyOwed`), and the
+ *  step every cut on the tables takes before it encodes (`runtime.ts`, `syncTables`). */
+type MainShare = {
+  copyOwed: (encoder: GPUCommandEncoder) => SelectionSubmission | undefined
+  syncTables: TableSync
+}
 /** What a view aside's dispatches share: the tables, the state, its token, its readback slots, and
- *  the main cut's owed copy (`dispatch.ts`, `copyOwed`). */
-type Aside = {
+ *  what it takes of the main cut. */
+type Aside = MainShare & {
   resources: DagResources
   state: DagRuntimeState
   view: number
   slots: AsideSlots
-  copyOwed: (encoder: GPUCommandEncoder) => SelectionSubmission | undefined
 }
 
 const noop = () => {}
@@ -54,7 +59,7 @@ const noop = () => {}
 export function createAsideCut(
   resources: DagResources,
   state: DagRuntimeState,
-  copyOwed: Aside['copyOwed'],
+  main: MainShare,
 ): AsideCut {
   const view = takeAsideView(resources.swap)
   const aside: Aside = {
@@ -62,7 +67,7 @@ export function createAsideCut(
     state,
     view,
     slots: createAsideSlots(resources, state, view),
-    copyOwed,
+    ...main,
   }
   return {
     dispatch: (uniforms, shared) => dispatchAside(aside, uniforms, shared),
@@ -87,7 +92,11 @@ export function createAsideCut(
 function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCommandEncoder) {
   const { resources, state, view, slots } = aside,
     { swap } = resources
-  if (slots.disposed || tablesHeld(resources, state)) return undefined
+  if (slots.disposed) return undefined
+  // What moved since the last cut reaches the tables before this view reads them, as before the
+  // main view's cut.
+  aside.syncTables(uniforms, view)
+  if (tablesHeld(resources, state)) return undefined
   const same = sameCut(swap, view, uniforms, state)
   // The mask in place is this very cut's: nothing to run — but its lists, neither read whole nor
   // in flight, copied again at their size while they are still in `out`.

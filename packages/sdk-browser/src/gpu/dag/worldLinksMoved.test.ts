@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { followWorldLinks } from './worldFollow.ts'
+import { stepsOnly } from './stepsOnly.fixture.ts'
 import type { GpuSelection } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 
@@ -18,10 +19,7 @@ test('every moved link reaches the mirror, past the list’s first room', () => 
     linksMoved: (placements: Int32Array, count: number) =>
       void told.push(Array.from(placements.subarray(0, count))),
   }
-  const selection = {
-    updateResidency: () => true,
-    dispatch: () => undefined,
-  } as unknown as GpuSelection
+  const selection = stepsOnly<Partial<GpuSelection>>({ updateResidency: () => true })
   const device = { queue: { writeBuffer: () => {} } } as unknown as GPUDevice
   const coldParts = { buffers: [{} as GPUBuffer], bytes: 4 * 300 }
   const packed = { world } as unknown as PackedDag

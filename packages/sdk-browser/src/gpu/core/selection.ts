@@ -12,6 +12,10 @@ import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 
+/** A step a cut takes on the tables before it encodes, under its uniforms, for its view — the
+ *  main one or one aside (`../dag/swap.ts`) — (`GpuSelection.beforeCut`). */
+export type TableSync = (uniforms: SelectionUniforms, view: number) => void
+
 export const SELECTION_NONE = 0xffffffff,
   SELECTION_WORKGROUP = 64
 
@@ -136,6 +140,10 @@ export type GpuSelection = {
   isChildReady(page: number): boolean
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void
+  /** Registers `step`, which every cut on these tables runs before it encodes — the main view's
+   *  and each view aside's (`../dag/aside.ts`) —: what moved since the last cut written to the
+   *  tables it reads (`../dag/treeFollow.ts`, `../dag/worldFollow.ts`). */
+  beforeCut(step: TableSync): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(uniforms: SelectionUniforms, shared?: GPUCommandEncoder): SelectionSubmission | undefined

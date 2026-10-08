@@ -44,19 +44,16 @@ export function followPlacementTree(
   // The tree was fitted as it was packed: the roots composed since are read at its first cut.
   let whole = !!composed
   if (composed) tree.composed = composed
-  const refit = () => {
+  // Before every cut on the tables, the main view's or one aside.
+  selection.beforeCut(() => {
     if (whole) {
       fitPlacementTree(packed, tree)
       upload(all)
     } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeSorted(dirty)))
     whole = false
     dirty.listed.clear()
-  }
-  const { dispatch, parkWorld, markWorld, updateWorlds } = selection
-  selection.dispatch = (uniforms, shared) => {
-    refit()
-    return dispatch(uniforms, shared)
-  }
+  })
+  const { parkWorld, markWorld, updateWorlds } = selection
   selection.parkWorld = (w, parked) => {
     parkWorld(w, parked)
     dirty.listed.add(w)

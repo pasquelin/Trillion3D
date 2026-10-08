@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { followPlacementTree } from './treeFollow.ts'
+import { stepsOnly } from './stepsOnly.fixture.ts'
 import type { GpuSelection } from '../core/selection.ts'
 
 /** A field of `side`² placements under a followed tree, its selection a stand-in, the placements
@@ -20,13 +21,12 @@ function followed(side = 40, composed?: ReadonlySet<number>) {
         void writes.push(size),
     },
   } as unknown as GPUDevice
-  const selection = {
-    dispatch: () => undefined,
+  const selection = stepsOnly({
     updateWorlds: () => true,
     parkWorld: () => {},
     markWorld: () => {},
     worldsMovedOnGpu: () => {},
-  } as unknown as GpuSelection
+  } as Partial<GpuSelection>)
   const nodeParts = { buffers: [{} as GPUBuffer], bytes: packed.nodes.byteLength }
   followPlacementTree(
     selection,

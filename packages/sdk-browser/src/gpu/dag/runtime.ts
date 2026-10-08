@@ -1,4 +1,4 @@
-import type { GpuSelection } from '../core/selection.ts'
+import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
@@ -7,6 +7,7 @@ import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
+import { MAIN_VIEW } from './swap.ts'
 import {
   appendRoots,
   flushRuntime,
@@ -38,6 +39,7 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
+    beforeCut: [],
   }
   return selectionOver(run)
 }
@@ -50,6 +52,14 @@ function selectionOver(run: DagRun): GpuSelection {
   // bind one buffer at one offset, whatever the split.
   const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
   const live = () => !state.disposed && !state.dead
+  // The one step every cut on these tables takes before it encodes, the main view's and each view
+  // aside's: the root and mark words parked or marked since go up as one interval (CPU-15), then
+  // what each follower holds (`beforeCut`).
+  const syncTables = (uniforms: SelectionUniforms, view: number) => {
+    if (!live()) return
+    frames.flushWords()
+    for (const step of run.beforeCut) step(uniforms, view)
+  }
   const selection: GpuSelection = {
     get hostBytes() {
       const pool = poolList.entries.byteLength
@@ -87,13 +97,13 @@ function selectionOver(run: DagRun): GpuSelection {
       // stays.
       if (live() && poolList.note(page, held)) recutMain(resources.swap, state)
     },
-    // The root and mark words parked or marked since the last cut go up as one interval (CPU-15).
+    beforeCut: (step) => void run.beforeCut.push(step),
     dispatch(next, shared) {
-      if (live()) frames.flushWords()
+      syncTables(next, MAIN_VIEW)
       return run.dispatch(next, shared)
     },
     peek: () => (state.dead ? null : state.last),
-    aside: () => createAsideCut(resources, state, run.copyOwed),
+    aside: () => createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }),
     adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
     failed: () => state.dead,
     flush: () => flushRuntime(run, selection),

@@ -13,6 +13,7 @@ import { coverAt, worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { followWorldLinks } from './worldFollow.ts'
+import { stepsOnly } from './stepsOnly.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { oracleBackend, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 
@@ -140,8 +141,7 @@ test('a placement that gives its object back turns it out before the next cut, n
   const host = fakeDevice({ limits: SHADOW_LIMITS }),
     resources = (await createDagResources(host.device, packed))!
   // The cut itself is the GPU's: here only what the follower hands it before encoding counts.
-  const runtime = createDagRuntime(resources)
-  runtime.dispatch = () => undefined
+  const runtime = stepsOnly(createDagRuntime(resources))
   const selection = followWorldLinks(runtime, resources)
   // Cell 1's four objects placed and drawable: their world group is ready.
   for (let o = 4; o < 8; o++) {

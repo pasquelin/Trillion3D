@@ -46,7 +46,7 @@ export function followWorldLinks(
     listed = -1,
     /** The list was handed to the mirror since the last move: the cut's upload hands it no more. */
     handed = false
-  const { updateResidency, dispatch } = selection
+  const { updateResidency } = selection
   /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`
    *  once for every move since — the one record of the moves, which the upload writes and the
    *  mirror reads —; their count. */
@@ -100,26 +100,33 @@ export function followWorldLinks(
     listed = 0
     handed = true
   }
-  /** The camera of the last cut — its view and its eye —, and the moves seen since the first. */
-  const held = {
-    view: new Float64Array(16).fill(NaN),
-    eye: new Float64Array(3).fill(NaN),
-  }
-  let moves = 0
-  selection.dispatch = (uniforms, shared) => {
+  /** Each view's camera at its last cut — its view and its eye —, and the moves it saw since its
+   *  first. */
+  const cameras = new Map<number, ViewCamera>()
+  // Before every cut on the tables, the main view's or one aside.
+  selection.beforeCut((uniforms, view) => {
     takeUp()
     if (pending && rows) selection.updateResidency(rows, NO_ROWS)
     // A camera that moved takes the next scale of the world's threshold, its transitions dithered
-    // in time; a still one keeps its own, whatever arrives meanwhile: no hand-over flickers.
-    if (cameraMoved(held, uniforms)) moves++
-    world.scale = worldFadeScale(moves)
-    return dispatch(uniforms, shared)
-  }
+    // in time; a still one keeps its own, whatever arrives meanwhile: no hand-over flickers. Each
+    // view counts its own camera's moves: two views cut in turn move neither.
+    let camera = cameras.get(view)
+    if (!camera) cameras.set(view, (camera = createViewCamera()))
+    if (cameraMoved(camera, uniforms)) camera.moves++
+    world.scale = worldFadeScale(camera.moves)
+  })
   return selection
 }
 
+type ViewCamera = { view: Float64Array; eye: Float64Array; moves: number }
+const createViewCamera = (): ViewCamera => ({
+  view: new Float64Array(16).fill(NaN),
+  eye: new Float64Array(3).fill(NaN),
+  moves: 0,
+})
+
 /** Whether `uniforms`' camera — its view, its eye — is not the one `held`, which takes it. */
-function cameraMoved(held: { view: Float64Array; eye: Float64Array }, uniforms: SelectionUniforms) {
+function cameraMoved(held: ViewCamera, uniforms: SelectionUniforms) {
   const view = keepNumbers(held.view, uniforms.view)
   return !(keepNumbers(held.eye, uniforms.cameraWorld) && view)
 }
