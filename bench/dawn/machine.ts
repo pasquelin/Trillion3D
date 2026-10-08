@@ -15,9 +15,20 @@ import {
   THREAD_GROUPS,
   createKernels,
 } from './machineKernels.ts'
+import {
+  FMA_ITERATIONS,
+  FMA_LANES,
+  OVERDRAW,
+  RASTER_SIDE,
+  SHARED_READS,
+  TAP_GRID,
+  TAPS,
+  TRIANGLE_SIDE,
+  WORK_THREADS,
+} from './machineWork.ts'
 
 /** Changes when a kernel does: a machine file of another version is measured again. */
-const MACHINE_VERSION = 2
+const MACHINE_VERSION = 3
 /** A machine file older than this is measured again: drivers, clocks and cooling change. */
 const MAX_AGE_DAYS = 30
 
@@ -31,6 +42,18 @@ export type Machine = {
   textureReadGBs: number
   textureWriteGBs: number
   attachmentGBs: number
+  /** Texels loaded and filtered from a cached texture, a second (10⁹). */
+  texelLoadG: number
+  texelFilterG: number
+  /** Fused multiply-adds, two operations each, a second (10¹²). */
+  aluTflops: number
+  /** Workgroup memory read, GB/s. */
+  sharedGBs: number
+  /** Pixels written to four attachments, fragments shaded and stored, triangles set up, a second
+   *  (10⁹). */
+  mrt4G: number
+  fragmentsG: number
+  trianglesG: number
   /** Threads that touch no memory, launched a ms. */
   threadsPerMs: number
   /** One compute pass of one workgroup, from its begin to the next's: the fixed cost of a pass. */
@@ -72,6 +95,13 @@ export function machineFrom(adapter: string, ms: Record<string, number>, date: s
     textureReadGBs: rate(TEXTURE_BYTES, ms.textureRead),
     textureWriteGBs: rate(TEXTURE_BYTES, ms.textureWrite),
     attachmentGBs: rate(TEXTURE_BYTES, ms.attachment),
+    texelLoadG: rate(TAP_GRID ** 2 * TAPS, ms.texelLoad),
+    texelFilterG: rate(TAP_GRID ** 2 * TAPS, ms.texelFilter),
+    aluTflops: rate(2 * WORK_THREADS * FMA_ITERATIONS * FMA_LANES, ms.alu) / 1e3,
+    sharedGBs: rate(WORK_THREADS * SHARED_READS * 16, ms.shared),
+    mrt4G: rate(RASTER_SIDE ** 2, ms.attachments4),
+    fragmentsG: rate(OVERDRAW * RASTER_SIDE ** 2, ms.fragments),
+    trianglesG: rate(TRIANGLE_SIDE ** 2, ms.triangles),
     threadsPerMs: (THREAD_GROUPS * GROUP_THREADS) / ms.threads,
     passMs: ms.passes / CHAIN,
     dispatchMs: ms.independent / CHAIN,

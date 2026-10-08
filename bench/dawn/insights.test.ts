@@ -15,6 +15,13 @@ const machine = {
   passMs: 0.002,
   dispatchMs: 0.0015,
   barrierMs: 0.0005,
+  texelLoadG: 500,
+  texelFilterG: 250,
+  aluTflops: 20,
+  sharedGBs: 4000,
+  mrt4G: 25,
+  fragmentsG: 100,
+  trianglesG: 4,
 } as Machine
 const pass = (name: string, median: number, waitMs = 0, stage = 'other') =>
   ({

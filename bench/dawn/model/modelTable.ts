@@ -1,10 +1,11 @@
 // The frame's cost model against a measured frame: each pass's floor (`floor.ts`) from its work
-// (`passes.ts`) on the machine's peaks, its measured time (the bench's own share of the pass,
+// (`passes.ts`) on the machine's rates (`../machine.ts`), its measured time (the bench's own share of the pass,
 // `../passTimer.ts`), their ratio and the milliseconds above the floor, ranked by the latter.
 // Passes the model does not hold are listed with their time alone. Pure.
 import type { BenchReport } from '../merge.ts'
 import { table } from '../reportText.ts'
-import { floorOf, type Peaks } from './floor.ts'
+import { floorOf } from './floor.ts'
+import type { Machine } from '../machine.ts'
 import { PASSES, type Frame } from './passes.ts'
 
 /** The frame a bench report measured: its sizes and counters, with what no counter says. */
@@ -28,11 +29,16 @@ export function frameOf(
 }
 
 /** The rows of the model against the measured segment `segment` of `report`. */
-export function modelRows(report: BenchReport, frame: Frame, peaks: Peaks, segment?: string) {
+export function modelRows(
+  report: BenchReport,
+  frame: Frame,
+  machine: Partial<Machine>,
+  segment?: string,
+) {
   const measured = report.segments.find((s) => (segment ? s.name === segment : s.measured))!
   const times = new Map(measured.benchPasses.map((pass) => [pass.name, pass.median]))
   const rows = PASSES.map((pass) => {
-    const floor = floorOf(pass.work(frame), peaks)
+    const floor = floorOf(pass.work(frame), machine)
     const ms = times.get(pass.label) ?? 0
     times.delete(pass.label)
     return {

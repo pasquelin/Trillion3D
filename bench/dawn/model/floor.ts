@@ -1,10 +1,10 @@
 // A pass's theoretical floor on this machine: its work in each resource over that resource's
-// measured peak (`../peaks/`), the slowest resource binding — a pass can do no better than the
-// resource it uses most of its peak — plus its fixed cost as a pass. A lower bound, never a
+// measured rate (`../machine.ts`), the slowest resource binding — a pass can do no better than the
+// resource it uses most of its rate — plus its fixed cost as a pass. A lower bound, never a
 // prediction: what a pass takes above it is waste, overlap aside. Pure.
-import type { Resource } from '../peaks/plan.ts'
+import type { Machine } from '../machine.ts'
 
-/** A pass's work by resource, in the peaks' work units: bytes moved to or from memory, texels
+/** A pass's work by resource, in the machine's work units: bytes moved to or from memory, texels
  *  loaded or filtered, floating-point operations, workgroup-memory bytes, pixels written by the
  *  raster (one target, or four), fragments shaded, triangles set up; `passes` its passes, each
  *  costing an empty dispatch's fixed time (a render pass's attachments are its bytes), and
@@ -26,37 +26,36 @@ export type Work = Partial<
   >
 >
 
-/** The machine's peaks, as `peaks/run.ts` measured them: a rate per resource in its unit
- *  (GB/s, Gtexel/s, TFLOP/s, Gpixel/s, Gtriangle/s), a pass's fixed cost in ms. */
-export type Peaks = Partial<Record<Resource, number>>
-
-/** Each kind of work, the peak it runs at and that peak's unit (work per ms at a rate of one). */
-const RESOURCES: [keyof Work, Resource, number][] = [
-  ['bytes', 'copy', 1e6],
-  ['texels', 'texelLoad', 1e6],
-  ['filtered', 'texelFilter', 1e6],
-  ['flops', 'alu', 1e9],
-  ['shared', 'shared', 1e6],
-  ['pixels', 'fill', 1e6],
-  ['pixelsMrt4', 'fillMrt4', 1e6],
-  ['fragments', 'fragments', 1e6],
-  ['triangles', 'triangles', 1e6],
+/** Each kind of work, its rate on `machine`, work a ms. Memory moves at the faster of the read and
+ *  write streams — a lower bound, reads and writes mixed —; a pixel written is 8 bytes stored into
+ *  the attachment. */
+const RATES: [keyof Work, (machine: Machine) => number][] = [
+  ['bytes', (m) => Math.max(m.readGBs, m.writeGBs) * 1e6],
+  ['texels', (m) => m.texelLoadG * 1e6],
+  ['filtered', (m) => m.texelFilterG * 1e6],
+  ['flops', (m) => m.aluTflops * 1e9],
+  ['shared', (m) => m.sharedGBs * 1e6],
+  ['pixels', (m) => (m.attachmentGBs / 8) * 1e6],
+  ['pixelsMrt4', (m) => m.mrt4G * 1e6],
+  ['fragments', (m) => m.fragmentsG * 1e6],
+  ['triangles', (m) => m.trianglesG * 1e6],
 ]
 
-/** The floor of `work` on `peaks`, ms, and the resource that binds it (`pass` when only the
- *  passes' fixed cost is left). Memory moves at the copy kernel's rate, reads and writes mixed. */
-export function floorOf(work: Work, peaks: Peaks) {
+/** The floor of `work` on `machine`, ms, and the resource that binds it (`pass` when only the
+ *  passes' fixed cost is left): a pass costs `passMs`, a dispatch that waits for the one before a
+ *  dispatch and its barrier. */
+export function floorOf(work: Work, machine: Partial<Machine>) {
   let ms = 0,
     bound = 'pass'
-  for (const [kind, resource, perMs] of RESOURCES) {
+  for (const [kind, rateOf] of RATES) {
     const amount = work[kind] ?? 0,
-      rate = peaks[resource]
-    if (!amount || !rate) continue
-    const t = amount / (rate * perMs)
+      rate = rateOf(machine as Machine)
+    if (!amount || !(rate > 0)) continue
+    const t = amount / rate
     if (t > ms) [ms, bound] = [t, kind]
   }
   const fixed =
-    (work.passes ?? 0) * (peaks.computePass ?? 0) +
-    (work.dispatches ?? 0) * (peaks.dependentDispatch ?? 0)
+    (work.passes ?? 0) * (machine.passMs ?? 0) +
+    (work.dispatches ?? 0) * ((machine.dispatchMs ?? 0) + (machine.barrierMs ?? 0))
   return { ms: ms + fixed, bound: ms >= fixed ? bound : 'pass' }
 }

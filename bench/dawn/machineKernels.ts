@@ -4,6 +4,7 @@ import type { BenchGpu } from './device.ts'
 import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from './machineWgsl.ts'
 import { MIB } from '../../packages/math/src/constants.ts'
 import { readBack } from './readBack.ts'
+import { createWorkKernels } from './machineWork.ts'
 
 /** A buffer a kernel streams: 128 MiB, the storage binding every device grants. */
 export const STREAM_BYTES = 128 * MIB
@@ -95,7 +96,9 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     chained: bind(pChained, { buffer: other }),
     apart: apart.map((buffer) => bind(pChained, { buffer })),
   }
+  const work = createWorkKernels(device, { run, one, stamps }, { fill: pFill, target })
   const kernels = {
+    ...work.kernels,
     /** 128 MiB read once, summed. */
     read: () => one((p) => dispatch(p, pRead, bindings.read, groups)),
     write: () => one((p) => dispatch(p, pWrite, bindings.write, groups)),
@@ -153,6 +156,7 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
   return {
     kernels,
     destroy() {
+      work.destroy()
       for (const held of [
         set,
         resolved,

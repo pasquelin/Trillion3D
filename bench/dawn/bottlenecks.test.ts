@@ -6,7 +6,7 @@ import type { Machine } from './machine.ts'
 import { emptyWork } from './passWorkHooks.ts'
 
 const machine: Machine = {
-  version: 2,
+  version: 3,
   adapter: 'test',
   date: '',
   readGBs: 400,
@@ -18,6 +18,13 @@ const machine: Machine = {
   passMs: 0.002,
   dispatchMs: 0.0015,
   barrierMs: 0.0005,
+  texelLoadG: 500,
+  texelFilterG: 250,
+  aluTflops: 20,
+  sharedGBs: 4000,
+  mrt4G: 25,
+  fragmentsG: 100,
+  trianglesG: 4,
 }
 const pass = (name: string, median: number, extra: Partial<BenchPass> & { work?: object } = {}) =>
   ({

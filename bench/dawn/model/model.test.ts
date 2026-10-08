@@ -5,7 +5,15 @@ import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
 import { PASSES, type Frame } from './passes.ts'
 
-const PEAKS = { copy: 400, texelLoad: 500, fill: 50, triangles: 4, computePass: 0.01 }
+// 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
+const MACHINE = {
+  readGBs: 400,
+  writeGBs: 300,
+  texelLoadG: 500,
+  attachmentGBs: 400,
+  trianglesG: 4,
+  passMs: 0.01,
+}
 const frame: Frame = {
   P: 2056 * 1144,
   D: 4112 * 2294,
@@ -21,11 +29,11 @@ const pass = (label: string) => PASSES.find((p) => p.label === label)!
 
 test('a floor is its slowest resource at its peak, plus a fixed cost a pass', () => {
   // 400 MB at 400 GB/s: 1 ms; 100 M texels at 500 Gtexel/s: 0.2 ms.
-  assert.deepEqual(floorOf({ bytes: 400e6, texels: 100e6 }, PEAKS), { ms: 1, bound: 'bytes' })
-  const f = floorOf({ texels: 1e9, bytes: 4e6, passes: 2 }, PEAKS)
+  assert.deepEqual(floorOf({ bytes: 400e6, texels: 100e6 }, MACHINE), { ms: 1, bound: 'bytes' })
+  const f = floorOf({ texels: 1e9, bytes: 4e6, passes: 2 }, MACHINE)
   assert.equal(f.bound, 'texels')
   assert.ok(Math.abs(f.ms - (2 + 0.02)) < 1e-12)
-  assert.deepEqual(floorOf({ flops: 1e9 }, PEAKS), { ms: 0, bound: 'pass' }, 'an unmeasured peak')
+  assert.deepEqual(floorOf({ flops: 1e9 }, MACHINE), { ms: 0, bound: 'pass' }, 'an unmeasured peak')
 })
 
 test('the passes count their shipped constants', () => {
@@ -67,7 +75,7 @@ const report = {
 test('a measured frame ranks its passes by the milliseconds above their floor', () => {
   const f = frameOf(report, { cover: 1, reach: 1, rough: 0, placements: 1e3 })
   assert.deepEqual(f, frame)
-  const model = modelRows(report, f, PEAKS)
+  const model = modelRows(report, f, MACHINE)
   assert.deepEqual(
     model.rows.map((r) => r.label),
     ['temporal antialiasing', 'HDR composition + present'],

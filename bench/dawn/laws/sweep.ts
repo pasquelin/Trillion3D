@@ -1,10 +1,10 @@
 // Scale laws measured: each point of each law (`points.ts`) a bench run of the scene family
 // (`world.html`) under one lock, the cooked scenes made first, then each law's table — per point
 // the frame, the passes and the counters, per column the exponent it grows with (`lawTable.ts`).
-//   node bench/dawn/laws/sweep.ts <law>[,<law>…] [--peaks] [--repeat 1] [--cpu-profile]
+//   node bench/dawn/laws/sweep.ts <law>[,<law>…] [--repeat 1] [--cpu-profile]
 //     [--only <x,…>] [-- <run options for every point>]
-// Laws: world, runtime, pixels, lights, distance. `--peaks` measures the GPU's peaks first
-// (`../peaks/run.ts`), under the same lock. Waits for the machine's bench lock. Tables land in
+// Laws: world, runtime, pixels, lights, distance. Each run measures the machine once and keeps it
+// (`../machine.ts`). Waits for the machine's bench lock. Tables land in
 // `.mesure/out/laws/`, each run's report in `.mesure/out/bench-gpu/`.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -23,7 +23,6 @@ const here = (file: string) => new URL(file, import.meta.url).pathname
 const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
-    peaks: { type: 'boolean', default: false },
     repeat: { type: 'string', default: '1' },
     'cpu-profile': { type: 'boolean', default: false },
     only: { type: 'string' },
@@ -41,7 +40,6 @@ for (const point of laws.flatMap((law) => law.points))
 const points = laws.reduce((sum, law) => sum + law.points.length, 0)
 const release = await waitBenchLock(`laws ${names} (${points} points)`)
 const env = { ...process.env, [LOCK_OWNER]: String(process.pid) }
-if (values.peaks) await runChild([here('../peaks/run.ts')], env, false, 600_000)
 let failures = 0
 for (const law of laws) failures += await measure(law)
 release()
