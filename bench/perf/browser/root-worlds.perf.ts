@@ -7,8 +7,8 @@ import * as THREE from 'three'
 import { measure, rapport } from '../../core/index.ts'
 import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import {
+  changedWorlds,
   refreshWorldStretch,
-  worldsChanged,
 } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
@@ -22,9 +22,10 @@ const roots: DagRoot[] = Array.from({ length: ROOTS }, (_, i) => ({
 }))
 const worlds = new Float32Array(ROOTS * 16)
 rootWorlds(worlds, roots)
-// The previous scene's worlds: the first root one step away — the scan finds it at once.
+// The previous scene's worlds: the first root turned — the scan lists it, and reads every root.
 const previous = worlds.slice()
-previous[12] += 0.5
+previous[0] += 0.5
+const listed = new Int32Array(ROOTS)
 const packed = { worldCount: ROOTS, worldStretch: new Float32Array(ROOTS) }
 const frameData = new Float32Array(ROOTS * 7 * 4)
 
@@ -42,12 +43,16 @@ const results = await measure({
     },
     {
       name: 'change scan, first root moved',
-      input: () => worldsChanged(previous, worlds),
+      input: () => changedWorlds(previous, worlds, listed),
       size: ROOTS,
     },
-    { name: 'change scan, nothing moved', input: () => worldsChanged(worlds, worlds), size: ROOTS },
     {
-      name: 'stretch scan, a translation moved',
+      name: 'change scan, nothing moved',
+      input: () => changedWorlds(worlds, worlds, listed),
+      size: ROOTS,
+    },
+    {
+      name: 'stretch scan, a root turned',
       input: () => refreshWorldStretch(previous, worlds, packed, frameData),
       size: ROOTS,
     },
@@ -58,4 +63,4 @@ const results = await measure({
   options: { tours: 500, budgetMs: 1500 },
 })
 
-rapport('rebase-racines', [results])
+rapport('mondes-racines', [results])
