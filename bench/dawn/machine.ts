@@ -18,6 +18,8 @@ import {
 
 /** Changes when a kernel does: a machine file of another version is measured again. */
 const MACHINE_VERSION = 2
+/** A machine file older than this is measured again: drivers, clocks and cooling change. */
+const MAX_AGE_DAYS = 30
 
 /** What a machine can do, from timed kernels. Rates in GB/s (10⁹ bytes a second), costs in ms. */
 export type Machine = {
@@ -82,7 +84,7 @@ export async function measureMachine(gpu: BenchGpu, device: GPUDevice, adapter: 
   device.pushErrorScope('validation')
   let made: ReturnType<typeof createKernels>
   try {
-    made = createKernels(gpu, device)
+    made = gpu.quiet(() => createKernels(gpu, device))
   } catch (error) {
     await device.popErrorScope()
     throw error
@@ -117,7 +119,8 @@ export async function machineFor(
   if (!recalibrate && existsSync(file)) {
     try {
       const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
-      if (kept.version === MACHINE_VERSION) return kept
+      const young = Date.now() - Date.parse(kept.date) < MAX_AGE_DAYS * 86_400_000
+      if (kept.version === MACHINE_VERSION && young) return kept
     } catch {
       // A file cut short when its writer was killed: measured again.
     }

@@ -25,6 +25,7 @@ const pass = (name: string, median: number, extra: Partial<BenchPass> & { work?:
     stage: 'other',
     kind: 'compute',
     median,
+    mean: median,
     waitMs: 0,
     share: 0.1,
     encoded: { ...emptyWork(), calls: 1, groups: 1000, invocations: 256_000, ...extra.work },
@@ -157,4 +158,11 @@ test('a pass of many batches pays the fixed cost of each', () => {
     new Map(),
   )
   assert.ok(row.floorMs >= 40 * machine.passMs, `${row.floorMs}`)
+})
+
+test('a pass that runs on some frames only costs its mean, not the zero of its median', () => {
+  const sometimes = { ...pass('sometimes', 0), mean: 1.5 } as BenchPass
+  const [row] = rankBottlenecks([sometimes], machine, {}, new Map())
+  assert.equal(row.workMs, 1.5)
+  assert.notEqual(row.evidence, 'under 1 µs measured: nothing to gain')
 })

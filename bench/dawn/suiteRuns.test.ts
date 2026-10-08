@@ -16,3 +16,8 @@ test('the words of the removed sets are refused, not run as page names', () => {
   for (const word of ['all', 'reference', 'priority'])
     assert.throws(() => suiteRuns(word), /BENCH_SUITE.*no longer/)
 })
+
+test('an empty list and a removed word with a scenario are refused', () => {
+  assert.throws(() => suiteRuns(','), /BENCH_SUITE/)
+  assert.throws(() => suiteRuns('priority:orbit,x'), /no longer/)
+})

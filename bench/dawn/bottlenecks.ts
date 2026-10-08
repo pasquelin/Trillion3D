@@ -64,7 +64,7 @@ function causeOf(
   floors: ReturnType<typeof floorsOf>,
   counters: Record<string, number | undefined>,
 ): [Cause, string] {
-  const work = pass.median
+  const work = pass.mean
   // A pass that took no time has nothing to gain, and a floor of zero is not most of zero.
   if (work < 0.001) return ['unproven', 'under 1 µs measured: nothing to gain']
   const idle = IDLE_COUNTERS[pass.name]
@@ -124,15 +124,15 @@ export function rankBottlenecks(
         name: pass.name,
         stage: pass.stage,
         kind: pass.kind,
-        workMs: pass.median,
+        workMs: pass.mean,
         waitMs: pass.waitMs,
         share: pass.share,
         encoded: pass.encoded,
         floorMs: floors.floorMs,
         floorMaxMs: floors.floorMaxMs,
-        gainMs: Math.max(0, pass.median - floors.floorMs),
+        gainMs: Math.max(0, pass.mean - floors.floorMs),
         // What cannot be said of an unsized encoding is nothing: its time is not explained either.
-        unexplainedMs: pass.encoded.unsized > 0 ? 0 : Math.max(0, pass.median - floors.floorMaxMs),
+        unexplainedMs: pass.encoded.unsized > 0 ? 0 : Math.max(0, pass.mean - floors.floorMaxMs),
         cause,
         evidence,
         source: sources.get(pass.name) ?? null,

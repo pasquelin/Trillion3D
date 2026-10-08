@@ -97,6 +97,22 @@ export function installWorkHooks(
         else work.boundBytes += bytes
       }
     })
+    // A vertex or index buffer is read by the draws as a bound buffer is: its slice counts once.
+    for (const name of ['setVertexBuffer', 'setIndexBuffer']) {
+      after(proto, name, (self, args) => {
+        const work = lookup(self)
+        const buffer = (name === 'setVertexBuffer' ? args[1] : args[0]) as GPUBuffer | null
+        if (!work || !buffer) return
+        const [offset, size] = (
+          name === 'setVertexBuffer' ? [args[2], args[3]] : [args[2], args[3]]
+        ) as [number | undefined, number | undefined]
+        let state = passes.get(self)
+        if (!state) passes.set(self, (state = { size: 0, seen: new Set() }))
+        if (state.seen.has(buffer)) return
+        state.seen.add(buffer)
+        work.boundBytes += size ?? buffer.size - (offset ?? 0)
+      })
+    }
     const compute = kind === 'GPUComputePassEncoder'
     /** A direct call of `items` threads or vertices: counted when it has some. */
     const direct = (name: string, items: (a: number[]) => number) =>

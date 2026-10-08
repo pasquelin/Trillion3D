@@ -37,9 +37,9 @@ export const labelStem = (name: string) =>
 
 /** A source's lines, split once however many labels are looked for in it. */
 const split = new Map<string, string[]>()
-const linesOf = (text: string) => {
-  let lines = split.get(text)
-  if (!lines) split.set(text, (lines = text.split('\n')))
+const linesOf = (file: string, text: string) => {
+  let lines = split.get(file)
+  if (!lines) split.set(file, (lines = text.split('\n')))
   return lines
 }
 
@@ -82,7 +82,7 @@ function sourceOf(sources: readonly [string, string][], name: string): PassSourc
   let fallback: PassSource | null = null
   for (const byPart of [false, true])
     for (const [file, text] of sources) {
-      const lines = linesOf(text)
+      const lines = linesOf(file, text)
       const at = lines.findIndex((line) => named(line, file, byPart))
       if (at < 0) continue
       // A constant (`const TAA_PASS = '…'`): the encoder is a file that begins a pass with it.
@@ -91,7 +91,7 @@ function sourceOf(sources: readonly [string, string][], name: string): PassSourc
         ? sources.filter(([, other]) => other.includes(constant) && BEGINS.test(other))
         : []
       const [userFile, userText] = users[0] ?? [file, text]
-      const userLines = linesOf(userText)
+      const userLines = linesOf(userFile, userText)
       const line = users[0]
         ? userLines.findIndex((l) => l.includes(constant!) && !/^\s*import\b|=\s*['"`]/.test(l))
         : at

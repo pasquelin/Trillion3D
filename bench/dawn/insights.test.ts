@@ -22,6 +22,7 @@ const pass = (name: string, median: number, waitMs = 0, stage = 'other') =>
     stage,
     kind: 'compute',
     median,
+    mean: median,
     waitMs,
     share: 0.1,
     encoded: { ...emptyWork(), calls: 1, groups: 1000, invocations: 1e5 },

@@ -75,9 +75,9 @@ export function benchPasses(frames: readonly FrameRecord[]) {
         empty: c.empty,
         unknown: c.unknown,
         doubtful: c.lost > 0 || c.unknown > 0,
-        /** What the pass encodes per frame, the median: summed over its batches. */
+        /** What the pass encodes per frame, the mean — a pass that runs on some frames only is not zero. */
         encoded: Object.fromEntries(
-          WORK_KEYS.map((key) => [key, spread(c.encoded[key])?.median ?? 0]),
+          WORK_KEYS.map((key) => [key, spread(c.encoded[key])?.mean ?? 0]),
         ) as PassWork,
       }
     })

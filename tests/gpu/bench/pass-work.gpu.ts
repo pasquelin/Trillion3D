@@ -65,3 +65,66 @@ test(
     assert.equal(by.overridden.boundBytes, 1 << 16)
   },
 )
+
+const DRAW = /* wgsl */ `
+@vertex fn vs(@location(0) p: vec2f) -> @builtin(position) vec4f { return vec4f(p, 0.0, 1.0); }
+@fragment fn fs() -> @location(0) vec4f { return vec4f(1.0); }`
+
+test(
+  'a vertex buffer and an index buffer are read by the draws: their slices are bound bytes',
+  { timeout: 120_000 },
+  async () => {
+    const frame = await runOnDawn(async () => {
+      const gpu = installGpu({ limits: null, featuresOff: [] })
+      const adapter = (await navigator.gpu.requestAdapter())!
+      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+      const module = device.createShaderModule({ code: DRAW })
+      const pipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: {
+          module,
+          buffers: [
+            { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
+          ],
+        },
+        fragment: { module, targets: [{ format: 'rgba8unorm' }] },
+      })
+      const target = device.createTexture({
+        size: [64, 64],
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      })
+      const vertices = device.createBuffer({ size: 4096, usage: GPUBufferUsage.VERTEX })
+      const indices = device.createBuffer({ size: 1024, usage: GPUBufferUsage.INDEX })
+      await device.queue.onSubmittedWorkDone()
+      gpu.timer.open(device)
+      const encoder = device.createCommandEncoder()
+      const pass = encoder.beginRenderPass({
+        label: 'drawn',
+        colorAttachments: [
+          {
+            view: target.createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: [0, 0, 0, 0],
+          },
+        ],
+      })
+      pass.setPipeline(pipeline)
+      pass.setVertexBuffer(0, vertices, 0, 2048)
+      pass.setIndexBuffer(indices, 'uint16')
+      pass.drawIndexed(3)
+      pass.end()
+      device.queue.submit([encoder.finish()])
+      return (await gpu.timer.close()) as FrameGpu
+    }, null)
+    const [drawn] = frame.passes
+    assert.equal(
+      drawn.work.boundBytes,
+      2048 + 1024,
+      'the vertex slice, then the whole index buffer',
+    )
+    assert.equal(drawn.work.attachBytes, 64 * 64 * 4)
+    assert.equal(drawn.work.vertices, 3)
+  },
+)
