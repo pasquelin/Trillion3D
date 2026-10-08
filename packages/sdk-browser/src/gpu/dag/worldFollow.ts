@@ -16,7 +16,6 @@ import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 
 /** No page of the rows moved: only the links did. */
@@ -41,7 +40,6 @@ export function followWorldLinks(
     high = -1
   /** The moved ranks, increasing, read off the bitmap; the write ranges over them. */
   let moved = new Int32Array(8)
-  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2)
   const { updateResidency, dispatch } = selection
   selection.updateResidency = (next, changes, moved) => {
     rows = next
@@ -71,7 +69,7 @@ export function followWorldLinks(
         if (count === moved.length) moved = grown(moved, count + 1, count)
         moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
       }
-    writeRanges(device, coldParts, moved, count, linkWords, ranges)
+    writeRanges(device, coldParts, moved, count, linkWords)
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length
     high = -1

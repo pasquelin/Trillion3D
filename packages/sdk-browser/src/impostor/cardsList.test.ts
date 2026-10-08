@@ -4,7 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
-import { CARD_FLOATS, createImpostorCards, planImpostorCards } from './cards.ts'
+import { createImpostorCards, planImpostorCards } from './cards.ts'
+import { CARD_FLOATS } from './cardSlots.ts'
 import { engineAt, impostorScene, impostorSection, VIEWPORT } from './section.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
 

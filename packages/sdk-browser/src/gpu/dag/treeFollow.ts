@@ -19,7 +19,6 @@ import {
 } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges. */
 function uploadNodes(
@@ -28,10 +27,9 @@ function uploadNodes(
   packed: PackedDag,
   nodes: readonly number[],
 ) {
-  const sorted = Int32Array.from(nodes),
-    ranges = new Int32Array(RESIDENCY_RULE.cap * 2)
+  const sorted = Int32Array.from(nodes)
   const source = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-  writeRanges(device, nodeParts, sorted, sorted.length, source, ranges)
+  writeRanges(device, nodeParts, sorted, sorted.length, source)
 }
 
 /** `selection`, its tree followed on `nodeParts` from now on; as it is without a tree. */

@@ -1,7 +1,7 @@
 import { core } from '../../impostor/borrowed.ts'
 import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { cardPipelines } from './pipelines.ts'
-import { CARD_FLOATS } from '../../impostor/cards.ts'
+import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { createImpostorFeed } from './feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
 

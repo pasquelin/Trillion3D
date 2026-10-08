@@ -18,18 +18,18 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { boxEmpty, boxUnion } from '../../../math/src/geometry/box.ts'
 import { core } from './borrowed.ts'
 import {
   createCardSlots,
   freeSlot,
   slotAtEnd,
   writeCardRecord,
+  type CardHolder,
   type CardSegment,
 } from './cardSlots.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
-
-export { CARD_FLOATS } from './cardSlots.ts'
 
 /**
  * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
@@ -51,19 +51,23 @@ export function createImpostorCards<G>(section: ImpostorSection) {
     watch: createImpostorWatch(),
     slots: createCardSlots(),
     segments: new Map<number, CardSegment<G>>(),
-    /** Per root: its place among its mesh's switched roots, or -1; the world its card holds. */
-    eligibleAt: new Int32Array(0),
-    cardOf: [] as (ArrayLike<number> | undefined)[],
-    /** Roots whose world moved since the last image (`worldsMoved`); all of them when `allMoved`. */
-    moves: [] as number[],
+    /** Per root: the card it holds. */
+    holding: [] as (CardHolder | undefined)[],
+    /** Roots whose world moved since the last image (`worldsMoved`), each once; all of them when
+     *  `allMoved`. */
+    moves: core.createDenseKeySet(),
     allMoved: false,
-    /** Whether the tier planned since it was made or dropped, and the root list it planned. */
-    live: false,
+    /** The root list the cards were planned over; none before the first plan or after a drop. */
     roots: undefined as readonly ClusterRoot<unknown>[] | undefined,
     /** This image's runs, `runs[0 .. runCount)`, and the cards they draw. */
     runs: [] as CardRun<G>[],
     runCount: 0,
     count: 0,
+    /** What this image's plan reads, kept from one image to the next. */
+    image: {
+      roots: [] as readonly ClusterRoot<unknown>[],
+      moved: undefined as CardMoved | undefined,
+    },
   }
 }
 
@@ -75,20 +79,23 @@ export type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
 export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks?: ArrayLike<number>) {
   if (!ranks) return void (state.allMoved = true)
   for (let i = 0; i < ranks.length; i++) {
-    state.moves.push(ranks[i])
+    state.moves.add(ranks[i])
     state.watch.touch(ranks[i])
   }
 }
 
-/** A tier turned off (its path's drop): no card, and every root its clusters again. */
+/** A tier turned off (its path's drop), or a new root list: no card, and every root the cards
+ *  were planned over its clusters again. */
 export function dropImpostorCards<G>(
   state: ImpostorCards<G> | undefined,
   roots: readonly ClusterRoot<unknown>[],
   moved?: CardMoved,
 ) {
-  if (!state?.live) return
-  for (const segment of state.segments.values())
-    for (let i = 0; i < segment.eligibleCount; i++) mark(roots, segment.eligible[i], false, moved)
+  if (!state?.roots) return
+  for (const segment of state.segments.values()) {
+    const { list, count } = segment.eligible
+    for (let i = 0; i < count; i++) mark(roots, list[i], false, moved)
+  }
   Object.assign(state, createImpostorCards<G>(state.section))
 }
 
@@ -105,12 +112,7 @@ const mark = (
   if (core.markCard(roots[rank], card)) moved?.(rank, roots[rank])
 }
 
-/** What one image's plan reads. */
-type Image<G> = {
-  state: ImpostorCards<G>
-  roots: readonly ClusterRoot<unknown>[]
-  moved?: CardMoved
-}
+type Image<G> = ImpostorCards<G>
 
 /**
  * THE IMAGE'S IMPOSTOR PLAN: the switch of `roots` at the engine's focal length for `viewport`,
@@ -133,31 +135,23 @@ export function planImpostorCards<G>(
   carded?: (rank: number) => boolean,
 ) {
   core.pixelScaleOf(cam.projection, viewport, pixelScale)
-  const focal = Math.max(pixelScale[0], pixelScale[1]),
-    image: Image<G> = { state, roots, moved }
+  const focal = Math.max(pixelScale[0], pixelScale[1])
   // Another root list: the old one's cards dropped, their bits cleared, every root read again.
   if (state.roots && state.roots !== roots) dropImpostorCards(state, state.roots, moved)
   state.roots = roots
-  if (state.eligibleAt.length !== roots.length) fitRoots(state, roots.length)
+  state.image.roots = roots
+  state.image.moved = moved
+  if (state.holding.length < roots.length) state.holding.length = roots.length
   if (state.allMoved) state.watch.touchAll()
   const { watch } = state
   watch.update(roots, state.section, cam.view, focal, impostorViewCosine(cam.projection), carded)
-  state.live = true
   for (let i = 0; i < watch.changedCount; i++) {
     const rank = watch.changed[i]
-    if (watch.switched[rank]) enlist(image, rank)
-    else delist(image, rank)
+    if (watch.switched[rank]) enlist(state, rank)
+    else delist(state, rank)
   }
-  followMoves(image)
-  drawable(image, cam, atlasOf)
-}
-
-/** The per-root tables at `n` roots, each switched root's place kept. */
-function fitRoots<G>(state: ImpostorCards<G>, n: number) {
-  const next = new Int32Array(n).fill(-1)
-  next.set(state.eligibleAt.subarray(0, Math.min(n, state.eligibleAt.length)))
-  state.eligibleAt = next
-  state.cardOf.length = n
+  followMoves(state)
+  drawable(state, cam, atlasOf)
 }
 
 /** The segment of `mesh`, made as its first root switches. */
@@ -167,111 +161,129 @@ function segmentOf<G>(state: ImpostorCards<G>, mesh: number): CardSegment<G> {
     segment = {
       mesh,
       entry: state.baked.get(mesh)!,
-      ...{ start: state.slots.used, capacity: 0, count: 0, worlds: [], holders: new Map() },
-      ...{ eligible: new Int32Array(4), eligibleCount: 0, box: new Float64Array(6) },
+      ...{ start: state.slots.used, capacity: 0, count: 0, cards: [], holders: new Map() },
+      ...{ eligible: core.createDenseKeySet(), box: new Float64Array(6), stale: false },
       ...{ group: undefined, gated: false, pending: [] },
     }
+    boxEmpty(segment.box, 0)
     state.segments.set(mesh, segment)
   }
   return segment
 }
 
-/** Root `rank`'s pivot sphere grown into its segment's box. */
-function grow<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
+/** Root `rank`'s pivot sphere joined to its segment's box. */
+function grow<G>(state: Image<G>, segment: CardSegment<G>, rank: number) {
   const centre = segment.entry.centre ?? ORIGIN,
-    radius = image.state.watch.radiusOf(rank),
-    box = segment.box
-  transformAffinePoint(pivot, image.roots[rank].world.elements, centre[0], centre[1], centre[2])
-  const first = segment.eligibleCount === 1
-  for (let k = 0; k < 3; k++) {
-    box[k] = first ? pivot[k] - radius : Math.min(box[k], pivot[k] - radius)
-    box[k + 3] = first ? pivot[k] + radius : Math.max(box[k + 3], pivot[k] + radius)
-  }
+    radius = state.watch.radiusOf(rank)
+  transformAffinePoint(
+    pivot,
+    state.image.roots[rank].world.elements,
+    centre[0],
+    centre[1],
+    centre[2],
+  )
+  const [x, y, z] = pivot
+  boxUnion(segment.box, 0, x - radius, y - radius, z - radius, x + radius, y + radius, z + radius)
+}
+
+/** The segment's box fitted again to the roots switched: one left or moved since. */
+function refit<G>(state: Image<G>, segment: CardSegment<G>) {
+  segment.stale = false
+  boxEmpty(segment.box, 0)
+  const { list, count } = segment.eligible
+  for (let i = 0; i < count; i++) grow(state, segment, list[i])
 }
 
 /** Root `rank`'s switch now holds: listed with its mesh, its card taken unless the mesh waits. */
-function enlist<G>(image: Image<G>, rank: number) {
-  const { state, roots } = image,
+function enlist<G>(state: Image<G>, rank: number) {
+  const { roots } = state.image,
     segment = segmentOf(state, roots[rank].mesh!)
-  if (segment.eligibleCount === segment.eligible.length) {
-    const next = new Int32Array(segment.eligible.length * 2)
-    next.set(segment.eligible)
-    segment.eligible = next
-  }
-  state.eligibleAt[rank] = segment.eligibleCount
-  segment.eligible[segment.eligibleCount++] = rank
-  grow(image, segment, rank)
+  segment.eligible.add(rank)
+  grow(state, segment, rank)
   if (segment.gated) return
   // With its atlas, the card at once; without, the image's view of the mesh decides (`drawable`).
   if (segment.group === undefined) return void segment.pending.push(rank)
-  mark(roots, rank, true, image.moved)
-  takeCard(image, segment, rank)
+  mark(roots, rank, true, state.image.moved)
+  takeCard(state, segment, rank)
 }
 
 /** Root `rank`'s switch no longer holds: its card given back, its clusters drawn again. */
-function delist<G>(image: Image<G>, rank: number) {
-  const { state, roots } = image,
-    at = state.eligibleAt[rank]
-  if (at < 0) return
-  const segment = state.segments.get(roots[rank].mesh!)!
-  const last = segment.eligible[--segment.eligibleCount]
-  segment.eligible[at] = last
-  state.eligibleAt[last] = at
-  state.eligibleAt[rank] = -1
-  mark(roots, rank, false, image.moved)
-  giveCard(image, segment, rank)
+function delist<G>(state: Image<G>, rank: number) {
+  const { roots } = state.image,
+    segment = state.segments.get(roots[rank].mesh!)
+  if (!segment?.eligible.remove(rank)) return
+  segment.stale = true
+  mark(roots, rank, false, state.image.moved)
+  giveCard(state, segment, rank)
 }
 
 /** Root `rank`'s card: the record of its world, shared with a root of its mesh placed by the same
- *  world — two primitives of one placement are one card. */
-function takeCard<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
-  const { state, roots } = image,
+ *  world — two primitives of one placement are one card —, read from the root as it is written. */
+function takeCard<G>(state: Image<G>, segment: CardSegment<G>, rank: number) {
+  const { roots, moved } = state.image,
     world = roots[rank].world.elements,
     radius = state.watch.radiusOf(rank)
   // A radius the switch has not taken yet draws no card: the root keeps its clusters.
-  if (!(radius > 0)) return mark(roots, rank, false, image.moved)
-  if (state.cardOf[rank]) return
-  state.cardOf[rank] = world
+  if (!(radius > 0)) return mark(roots, rank, false, moved)
+  if (state.holding[rank]) return
   const held = segment.holders.get(world)
-  if (held) return void held.roots++
-  const slot = slotAtEnd(state.slots, state.segments.values(), segment)
-  segment.holders.set(world, { slot: segment.count, roots: 1 })
-  segment.worlds[segment.count++] = world
+  if (held) {
+    held.roots++
+    state.holding[rank] = held
+    return
+  }
+  const slot = slotAtEnd(state.slots, state.segments.values(), segment),
+    card: CardHolder = { slot: segment.count, world, roots: 1 }
+  segment.holders.set(world, card)
+  segment.cards[segment.count++] = card
+  state.holding[rank] = card
   writeCardRecord(state.slots, slot, world, segment.entry, radius)
 }
 
-function giveCard<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
-  const { state } = image,
-    world = state.cardOf[rank]
-  if (!world) return
-  state.cardOf[rank] = undefined
-  const held = segment.holders.get(world)!
-  if (--held.roots) return
-  segment.holders.delete(world)
-  freeSlot(state.slots, segment, held.slot)
+function giveCard<G>(state: Image<G>, segment: CardSegment<G>, rank: number) {
+  const card = state.holding[rank]
+  if (!card) return
+  state.holding[rank] = undefined
+  if (--card.roots) return
+  segment.holders.delete(card.world)
+  freeSlot(state.slots, segment, card)
 }
 
-/** The roots that moved: their mesh's box grown, their card written again. */
-function followMoves<G>(image: Image<G>) {
-  const { state, roots } = image
-  const follow = (rank: number) => {
-    if (rank >= roots.length || state.eligibleAt[rank] < 0) return
-    const segment = state.segments.get(roots[rank].mesh!)!
-    grow(image, segment, rank)
-    const world = state.cardOf[rank],
-      held = world && segment.holders.get(world)
-    if (held)
-      writeCardRecord(
-        state.slots,
-        segment.start + held.slot,
-        world,
-        segment.entry,
-        state.watch.radiusOf(rank),
-      )
+/** Root `rank` moved: its segment's box fitted again before the next view test, its card written
+ *  from the root's world as it now is — a world remade elsewhere, the card's key follows it. */
+function follow<G>(state: Image<G>, rank: number) {
+  const { roots } = state.image
+  if (rank >= roots.length) return
+  const segment = state.segments.get(roots[rank].mesh!)
+  if (!segment?.eligible.has(rank)) return
+  segment.stale = true
+  const card = state.holding[rank]
+  if (!card) return
+  const world = roots[rank].world.elements
+  if (card.world !== world) {
+    if (segment.holders.get(card.world) === card) segment.holders.delete(card.world)
+    card.world = world
+    segment.holders.set(world, card)
   }
-  if (state.allMoved) for (let rank = 0; rank < roots.length; rank++) follow(rank)
-  else for (const rank of state.moves) follow(rank)
-  state.moves.length = 0
+  writeCardRecord(
+    state.slots,
+    segment.start + card.slot,
+    world,
+    segment.entry,
+    state.watch.radiusOf(rank),
+    true,
+  )
+}
+
+/** The roots that moved since the last image (`impostorWorldsMoved`). */
+function followMoves<G>(state: Image<G>) {
+  if (state.allMoved)
+    for (let rank = 0; rank < state.image.roots.length; rank++) follow(state, rank)
+  else {
+    const { list, count } = state.moves
+    for (let i = 0; i < count; i++) follow(state, list[i])
+  }
+  state.moves.clear()
   state.allMoved = false
 }
 
@@ -279,21 +291,21 @@ function followMoves<G>(image: Image<G>) {
  *  lands or given back as it leaves, and its run drawn. A mesh out of view leaves the roots that
  *  switched to their card, which draws nothing there either way, until the view asks its atlas. */
 function drawable<G>(
-  image: Image<G>,
+  state: Image<G>,
   cam: EngineCamera,
   atlasOf: (mesh: number, maps: ImpostorMaps) => G | undefined,
 ) {
-  const { state } = image
   state.runCount = state.count = 0
   for (const segment of state.segments.values()) {
-    const box = segment.box,
-      pending = segment.pending
-    if (!segment.eligibleCount) {
+    const pending = segment.pending
+    if (!segment.eligible.count) {
       pending.length = 0
       continue
     }
+    if (segment.stale) refit(state, segment)
+    const box = segment.box
     if (frustumExcludesBox(cam.planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
-      if (!segment.gated) for (const rank of pending) cardAt(image, segment, rank, true)
+      if (!segment.gated) for (const rank of pending) cardAt(state, segment, rank, true)
       pending.length = 0
       continue
     }
@@ -304,9 +316,10 @@ function drawable<G>(
     Object.assign(segment, { group, gated: group === undefined })
     // In view without its atlas, its roots keep their clusters until it lands; as it lands, each
     // takes its card.
-    if (group === undefined ? !gated : !held)
-      for (let i = 0; i < segment.eligibleCount; i++)
-        cardAt(image, segment, segment.eligible[i], group !== undefined)
+    if (group === undefined ? !gated : !held) {
+      const { list, count } = segment.eligible
+      for (let i = 0; i < count; i++) cardAt(state, segment, list[i], group !== undefined)
+    }
     if (group === undefined || !segment.count) continue
     const run = (state.runs[state.runCount++] ??= { group, first: 0, count: 0 })
     Object.assign(run, { group, first: segment.start, count: segment.count })
@@ -315,9 +328,9 @@ function drawable<G>(
 }
 
 /** Root `rank`'s card bit set or cleared, its card taken when its mesh's atlas is held. */
-function cardAt<G>(image: Image<G>, segment: CardSegment<G>, rank: number, card: boolean) {
-  if (image.state.eligibleAt[rank] < 0) return
-  mark(image.roots, rank, card, image.moved)
-  if (!card) giveCard(image, segment, rank)
-  else if (segment.group !== undefined) takeCard(image, segment, rank)
+function cardAt<G>(state: Image<G>, segment: CardSegment<G>, rank: number, card: boolean) {
+  if (!segment.eligible.has(rank)) return
+  mark(state.image.roots, rank, card, state.image.moved)
+  if (!card) giveCard(state, segment, rank)
+  else if (segment.group !== undefined) takeCard(state, segment, rank)
 }

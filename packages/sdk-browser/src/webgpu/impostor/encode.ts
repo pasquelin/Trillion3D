@@ -1,7 +1,8 @@
 import { core } from '../../impostor/borrowed.ts'
 import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
-import { CARD_FLOATS } from '../../impostor/cards.ts'
-import { uploaded } from '../../impostor/cardSlots.ts'
+import { CARD_FLOATS, uploaded } from '../../impostor/cardSlots.ts'
+import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { IMPOSTOR_PASS } from './pipelines.ts'
 import type { WebgpuImpostors } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -9,34 +10,26 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 const viewWords = new Float32Array(CARD_VIEW_FLOATS),
   pixelScale = [0, 0]
 
-/** `matrix · translation(eye)` rounded once into `out` at `at`: the matrix at the eye. */
-function atEye(out: Float32Array, at: number, matrix: ArrayLike<number>, eye: ArrayLike<number>) {
-  for (let k = 0; k < 12; k++) out[at + k] = matrix[k]
-  for (let r = 0; r < 4; r++)
-    out[at + 12 + r] =
-      matrix[12 + r] + matrix[r] * eye[0] + matrix[4 + r] * eye[1] + matrix[8 + r] * eye[2]
-}
-
-/** The view the card pass reads: the render view-projection and the camera's own at the eye, the
- *  eye in two singles a component, the focal length's logarithm. */
+/** The view the card pass reads: the render view-projection and the camera's own at the eye
+ *  (`matrixAtRenderOrigin`), the eye in two singles a component, the focal length's logarithm. */
 function cardView(rt: WebgpuPagesRuntime) {
   const cam = rt.run.gate.cam,
     eye = cam.eye
-  atEye(viewWords, 0, core.viewProj, eye)
-  atEye(viewWords, 16, cam.viewProjection, eye)
-  for (let k = 0; k < 3; k++) {
-    const high = Math.fround(eye[k])
-    viewWords[32 + k] = high
-    viewWords[36 + k] = eye[k] - high
-  }
+  matrixAtRenderOrigin(viewWords, core.viewProj, eye, 0)
+  matrixAtRenderOrigin(viewWords, cam.viewProjection, eye, 16)
+  for (let k = 0; k < 3; k++) writeSplitDouble(viewWords, 32 + k, 36 + k, eye[k])
   core.pixelScaleOf(cam.projection, rt.setup.viewport ?? rt.gpu.targetSize, pixelScale)
   viewWords[35] = Math.log2(Math.max(pixelScale[0], pixelScale[1]))
   viewWords[39] = 0
   return viewWords
 }
 
-/** The records written since the last image, each run of consecutive slots in one write; all of
- *  them into a buffer just made. */
+/** The slots written since the last image, increasing, and the runs the cut's one run writer
+ *  joins them into (`writeRanges`). */
+let sorted = new Int32Array(16)
+
+/** The records written since the last image, through the cut's one run writer; all of them into a
+ *  buffer just made. */
 function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuffer) {
   const slots = state.slots,
     records = slots.records
@@ -45,19 +38,18 @@ function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuf
     state.uploadedTo = buffer
     return uploaded(slots)
   }
-  const dirty = slots.dirty.subarray(0, slots.dirtyCount).sort()
-  for (let i = 0; i < dirty.length;) {
-    let end = i + 1
-    while (end < dirty.length && dirty[end] === dirty[end - 1] + 1) end++
-    device.queue.writeBuffer(
-      buffer,
-      dirty[i] * CARD_FLOATS * 4,
-      records,
-      dirty[i] * CARD_FLOATS,
-      (end - i) * CARD_FLOATS,
-    )
-    i = end
-  }
+  const { list, count } = slots.dirty
+  if (sorted.length < count) sorted = new Int32Array(Math.max(count, sorted.length * 2))
+  sorted.set(list.subarray(0, count))
+  sorted.subarray(0, count).sort()
+  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+    device.queue.writeBuffer(buffer, offset, data, from, size)
+  core.writeRanges(device, into, sorted, count, {
+    data: records,
+    sourceBase: 0,
+    targetBase: 0,
+    stride: CARD_FLOATS,
+  })
   uploaded(slots)
 }
 

@@ -6,7 +6,6 @@ import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeRanges } from './split.ts'
-import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 /** Bytes of one primitive's world matrix in `worlds`. */
@@ -38,7 +37,6 @@ export function createCameraFrames(
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: { from: Infinity, to: -1 },
     written: 0,
-    spans: new Int32Array(RESIDENCY_RULE.cap * 2),
     eye: new Float64Array(3).fill(NaN),
     sources,
     held: new Float32Array(24),
@@ -141,8 +139,6 @@ type Frames = {
   pending: { from: number; to: number }
   /** Writes of worlds or origins to the GPU so far (`worldsWritten`). */
   written: number
-  /** The runs a named write joins its placements into (`writeRanges`). */
-  spans: Int32Array
   /** The eye the GPU's worlds stand at, NaN while unknown (`worldsAt`). */
   eye: Float64Array
   /** The placements whose exact translations the worlds carry. */
@@ -174,7 +170,7 @@ function writeAtEye(f: Frames, next: Float32Array, named: Int32Array, count: num
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
  *  of their ranges, which start at the range's first primitive: one table split in equal parts. */
 function writeNamed(
-  { device, per, spans }: Frames,
+  { device, per }: Frames,
   buffers: GPUBuffer[],
   stride: number,
   data: Float32Array,
@@ -183,7 +179,7 @@ function writeNamed(
 ) {
   const parts = { buffers, bytes: per * stride * 4 },
     source = { data, sourceBase: 0, targetBase: 0, stride }
-  writeRanges(device, parts, named, count, source, spans)
+  writeRanges(device, parts, named, count, source)
 }
 
 /** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written

@@ -1,5 +1,4 @@
 import type { ResidencyChanges } from '../core/selection.ts'
-import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 import { childBase, residentBase, residentWords } from './layout.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
@@ -63,7 +62,6 @@ export function createDagResidencyUpload(resources: {
   )
   /** Words or nodes the last apply changed, and the ranges that cover them. */
   let touched = new Int32Array(8)
-  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2)
   const changed = { pages: new Int32Array(8), count: 0 }
   const sets = [
     { values: readiness.isReady, base: residentBase(pageCount) },
@@ -78,14 +76,12 @@ export function createDagResidencyUpload(resources: {
     stride: number,
     count: number,
   ) =>
-    writeRanges(
-      device,
-      target,
-      touched,
-      count,
-      { data, sourceBase: base, targetBase: base, stride },
-      ranges,
-    )
+    writeRanges(device, target, touched, count, {
+      data,
+      sourceBase: base,
+      targetBase: base,
+      stride,
+    })
   // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
   // readiness's state with nothing resident; from then on only what moves is.
   const words = new Int32Array(Math.max(1, residentWords(pageCount)))
@@ -130,8 +126,7 @@ export function createDagResidencyUpload(resources: {
   return Object.defineProperties(apply, {
     /** Bytes of the host tables: the readiness and this upload's change lists. */
     hostBytes: {
-      get: () =>
-        readiness.hostBytes + touched.byteLength + ranges.byteLength + changed.pages.byteLength,
+      get: () => readiness.hostBytes + touched.byteLength + changed.pages.byteLength,
     },
     /** The cut rule's residency of a packed page (`readiness.ts`). */
     isReady: { value: readiness.isReady },

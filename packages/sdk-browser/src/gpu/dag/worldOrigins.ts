@@ -1,7 +1,6 @@
 import type { PackedDag } from './types.ts'
 import { packDoubles } from '../../placement/composedMotion.ts'
 import { writeRanges, type RangeTarget } from './split.ts'
-import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
@@ -26,7 +25,6 @@ export function createWorldOrigins(
   const slots = ranges.reduce((sum, { count }) => sum + count, 0),
     words = new Uint32Array(Math.max(slots, sources?.length ?? 0) * 8),
     next = new Uint32Array(8),
-    spans = new Int32Array(RESIDENCY_RULE.cap * 2),
     source = { data: words, sourceBase: 0, targetBase: 0, stride: 8 }
   let changed = new Int32Array(8)
   /** Placement `row`'s translation taken into `words`; whether it moved. */
@@ -77,7 +75,7 @@ export function createWorldOrigins(
         if (count === changed.length) changed = grown(changed, count + 1, count)
         changed[count++] = row
       }
-      if (count) writeRanges(device, target, changed, count, source, spans)
+      if (count) writeRanges(device, target, changed, count, source)
       return count
     },
   }

@@ -3,7 +3,7 @@ import { CLUSTER_WORDS } from './layout.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import type { DagPartTable } from './shader/bindings.ts'
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts'
-import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts'
+import { RESIDENCY_RULE, coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
@@ -117,12 +117,41 @@ export type RangeSource = {
   stride: number
 }
 
+/** Bytes a run may leave unchanged between two indices of a wide record and still be one write. */
+const WIDE_GAP_BYTES = 256
+/** Records of at least this many bytes are wide: a skipped one costs more than a write. */
+const WIDE_BYTES = 64
+/** Writes a wide upload makes at most; past it, the narrowest gaps join. */
+const WIDE_CAP = 1024
+
+/** The runs a write joins its indices into: one scratch for every upload, grown to the widest. */
+const spans = new Int32Array(WIDE_CAP * 2)
+let steps = new Int32Array(64)
+
+/**
+ * How the indices of records of `stride` words join into writes: narrow ones by the residency
+ * flush's rule (`RESIDENCY_RULE`), indices 64 apart in one write and everything at once past 32;
+ * wide ones — a world, a tree node, a card — by their bytes, a run spanning at most
+ * `WIDE_GAP_BYTES` unchanged, up to `WIDE_CAP` writes, the narrowest gaps joined past it: scattered
+ * moves never rewrite everything between the lowest and the highest.
+ */
+function ruleFor(stride: number, count: number): RangeRule {
+  const bytes = stride * 4
+  if (bytes < WIDE_BYTES) return RESIDENCY_RULE
+  if (steps.length < count) steps = new Int32Array(Math.max(count, steps.length * 2))
+  return {
+    gap: 1 + Math.floor(WIDE_GAP_BYTES / bytes),
+    cap: WIDE_CAP,
+    overflow: 'narrowest',
+    steps,
+  }
+}
+
 /**
  * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
- * the ranges the residency flush's rule makes (`RESIDENCY_RULE`, `coalesceRanges`), each sent as
- * one write into `parts` — the residency bits and node counts, the placement tree's nodes, the
- * placements' links — or through `parts` when it is a `RangeTarget` — the worlds a call named.
- * `ranges` is a scratch of `RESIDENCY_RULE.cap` pairs.
+ * ranges (`ruleFor`, `coalesceRanges`), each sent as one write into `parts` — the residency bits
+ * and node counts, the placement tree's nodes, the placements' links — or through `parts` when it is
+ * a `RangeTarget` — the worlds a call named, the impostor cards.
  */
 export function writeRanges(
   device: GPUDevice,
@@ -130,12 +159,11 @@ export function writeRanges(
   sorted: Int32Array,
   count: number,
   { data, sourceBase, targetBase, stride }: RangeSource,
-  ranges: Int32Array,
 ) {
-  const spans = coalesceRanges(sorted, count, ranges, RESIDENCY_RULE)
-  for (let r = 0; r < spans; r++) {
-    const first = ranges[r * 2],
-      bytes = (ranges[r * 2 + 1] - first + 1) * stride * 4,
+  const runs = coalesceRanges(sorted, count, spans, ruleFor(stride, count))
+  for (let r = 0; r < runs; r++) {
+    const first = spans[r * 2],
+      bytes = (spans[r * 2 + 1] - first + 1) * stride * 4,
       offset = (targetBase + first * stride) * 4,
       from = data.byteOffset + (sourceBase + first * stride) * 4
     if (typeof parts === 'function') parts(offset, data.buffer as ArrayBuffer, from, bytes)
