@@ -49,7 +49,6 @@ struct Card{world:mat4x4f,low:vec4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f}
 @group(1) @binding(3) var impostorSampler:sampler;
 /** The card's world translation at the eye: the high words' difference, then the low words'. */
 fn cardOrigin(c:Card)->vec3f{return (c.world[3].xyz-view.eyeHigh.xyz)+(c.low.xyz-view.eyeLow.xyz);}
-fn cardLinear(c:Card)->mat3x3f{return mat3x3f(c.world[0].xyz,c.world[1].xyz,c.world[2].xyz);}
 /** Corner \`k\` of a card centred at \`centre\` (at the eye), counter-clockwise from the lower left:
  *  the shared sprite basis at half-extent \`radius\`, keeping its world size. */
 fn cardCorner(basis:mat4x4f,centre:vec3f,radius:f32,k:u32)->vec3f{
@@ -79,7 +78,7 @@ struct CardVary{
  var order=array<u32,4>(1u,2u,0u,3u);
  let c=cards[i];
  let origin=cardOrigin(c);let pivot=c.pivot.xyz;let radius=c.pivot.w;
- let centre=cardLinear(c)*pivot+origin;
+ let centre=worldMatrix3(c.world)*pivot+origin;
  let k0=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,0u),1.0);let k1=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,1u),1.0);
  let k2=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,2u),1.0);let k3=view.viewProj*vec4f(cardCorner(view.basis,centre,radius,3u),1.0);
  let p=cardCorner(view.basis,centre,radius,order[v]);
@@ -110,7 +109,7 @@ fn cardPixel(in:CardVary)->CardPixel{
   impTap(in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod),in.weightsLod.xyz,lod);
  if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
  let c=cards[in.card];
- let clip=view.viewProj*vec4f(cardLinear(c)*(b.point+c.pivot.xyz)+cardOrigin(c),1.0);
+ let clip=view.viewProj*vec4f(worldMatrix3(c.world)*(b.point+c.pivot.xyz)+cardOrigin(c),1.0);
  return CardPixel(b,clip.z/clip.w);
 }
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}

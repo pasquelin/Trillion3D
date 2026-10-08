@@ -92,8 +92,8 @@ fn treeStep(src:u32,node:CullNode){
 /** View \`v\`'s frustum test of a render-frame box, as \`outsideFrustum\` tests a primitive's: an
  *  infinite far plane (a NaN plane, \`farless\`) rejects nothing. */
 fn outsideView(v:u32,lo:vec3f,hi:vec3f)->bool{
- let noFar=(bitcast<u32>(views[v].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;
- for(var i=0u;i<6u;i++){if((i!=FAR_PLANE||!noFar)&&boxBehindPlane(views[v].planes[i],lo,hi)){return true;}}
+ let skip=select(6u,FAR_PLANE,farlessOf(v));
+ for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(views[v].planes[i],lo,hi)){return true;}}
  return false;
 }
 /** A kept cell opens its groups, a kept group its placements, in the next queue. */
