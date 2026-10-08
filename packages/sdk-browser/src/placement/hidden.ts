@@ -17,6 +17,9 @@ export function shownChain(node: Object3D) {
   return true
 }
 
+/** The entries to read of a list, `ranks[0 .. count)`: those under the nodes the host flipped. */
+export type Subset = { readonly ranks: ArrayLike<number>; readonly count: number }
+
 /**
  * Sets `hidden` on each entry from its source node's chain, and hands each entry that flipped to
  * `flipped`. Consecutive entries of one source share one walk.
@@ -25,11 +28,12 @@ function followHidden<E extends { hidden?: boolean }>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
   flipped: (entry: E, rank: number) => void,
-  ranks?: ArrayLike<number>,
+  subset?: Subset,
 ) {
   let last: Object3D | undefined,
     lastHidden = false
-  const count = ranks ? ranks.length : entries.length
+  const ranks = subset?.ranks,
+    count = subset ? subset.count : entries.length
   for (let k = 0; k < count; k++) {
     const rank = ranks ? ranks[k] : k,
       entry = entries[rank],
@@ -61,8 +65,8 @@ const moved = new Float64Array(BOX_VALUES),
  * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
  * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
  * `movingOnly` says every root that flipped `moves` already: the static casters under it stay.
- * `ranks`, when given, are the roots to read — those under the nodes the host flipped —, the
- * others standing as they are.
+ * `under`, when given, names the roots and the see-through draws to read — those under the nodes
+ * the host flipped —, the others standing as they are.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
@@ -73,7 +77,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   moves?: (rank: number) => boolean,
-  ranks?: ArrayLike<number>,
+  under?: { roots: Subset; seeThrough: Subset },
 ) {
   boxEmpty(moved, 0)
   let movingOnly = true
@@ -91,9 +95,10 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
       flipped(rank, root)
       if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1)
     },
-    ranks,
+    under?.roots,
   )
-  const count = ranks ? ranks.length : roots.length
+  const ranks = under?.roots.ranks,
+    count = under ? under.roots.count : roots.length
   for (let k = 0; k < count; k++) {
     const rank = ranks ? ranks[k] : k,
       root = roots[rank],
@@ -102,6 +107,11 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     flipped(rank, root)
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
   }
-  followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry))
+  followHidden(
+    seeThrough.entries,
+    seeThrough.sourceOf,
+    (entry) => seeThrough.flipped?.(entry),
+    under?.seeThrough,
+  )
   return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly }
 }

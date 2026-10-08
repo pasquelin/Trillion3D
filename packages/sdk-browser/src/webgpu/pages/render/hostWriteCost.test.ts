@@ -1,47 +1,11 @@
 // A host pose write costs what it changed, never the scene: the node written names the roots under
-// it (`noteListed`), whose worlds alone are compared and sent, and the rows of no other root are
-// rewritten. On generated scenes of 10³ and 10⁵ meshes, one host pose write an image.
+// it (`noteMoved`), whose worlds alone are compared and sent, and the rows of no other root are
+// rewritten; a light set through the engine walks no root, and a hide or a matrix announced has the
+// scene watch read that node alone. On generated scenes of 10³ and 10⁵ meshes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
-import { runtime, selectionRoot } from '../../core/transformShear.fixture.ts'
-import { hostWorldPlacements } from '../../../host/world/placements.ts'
-import { uploadWorlds } from './worldUpload.ts'
-
-/** A scene of `count` meshes under one group, each a selection root, its first image taken. */
-function scene(count: number) {
-  const source = new G.Group(),
-    first = G.mesh()
-  const meshes = [first, ...Array.from({ length: count - 1 }, () => G.mesh(first.geometry))]
-  for (const mesh of meshes) source.add(mesh)
-  const worlds = hostWorldPlacements(source)
-  const roots = meshes.map((mesh) => selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds))
-  const { rt, run } = runtime(source, roots, worlds)
-  const sent: number[] = [],
-    parks: number[] = []
-  Object.assign(rt, {
-    vis: {},
-    timing: { worldCounts: { rootsUploaded: 0 } },
-    blendState: { ...rt.blendState, blendGpu: [] },
-  })
-  Object.assign(rt.layout, { worldUpdates: new Float32Array(count * 16) })
-  run.gpuSelection = {
-    // What a send compares and copies: the worlds of every root, or of those named.
-    updateWorlds: (_: Float32Array, named?: Int32Array) => (
-      sent.push(named ? named.length : count),
-      named ?? new Int32Array(0)
-    ),
-    parkWorld: (rank: number) => void parks.push(rank),
-    markWorld() {},
-  } as never
-  const drawn = roots.map((root) => root.pages[0])
-  const image = () => {
-    run.gate.readScene(source, drawn)
-    uploadWorlds(rt)
-  }
-  image()
-  return { meshes, roots, rt, sent, parks, image }
-}
+import { hostScene as scene } from './hostWrite.fixture.ts'
+import { refreshSceneLights } from '../io/hostApi.ts'
 
 test('one host pose write an image costs the same at 10³ and 10⁵ roots', () => {
   const costs = [1e3, 1e5].map((count) => {
@@ -69,4 +33,53 @@ test('a host hide flips the roots under the node hidden alone, at 10³ as at 10�
     assert.deepEqual(parks, [5], `${count} roots`)
     assert.ok(roots[5].parked && !roots[4].parked)
   }
+})
+
+test('a light set through the engine an image walks no root, at 10³ as at 10⁵ roots', () => {
+  for (const count of [1e3, 1e5]) {
+    const { rt, sent, image } = scene(count)
+    Object.assign(rt, {
+      capture: { capturedRevision: 0 },
+      diag: { engineDiagnostic() {} },
+      lights: { ...rt.lights, store: { count: 1, lightingView: 0, unlit: false } },
+    })
+    sent.length = 0
+    for (let frame = 0; frame < 4; frame++) {
+      refreshSceneLights(rt)
+      image()
+      assert.equal(rt.timing.worldCounts.rootsUploaded, 0, `${count} roots, image ${frame}`)
+    }
+    assert.deepEqual(sent, [], 'nothing sent')
+  }
+})
+
+/** Every read the scene watch's scan makes of a node's matrix mode on `meshes`, counted. */
+function countScans(meshes: readonly object[]) {
+  let reads = 0
+  for (const mesh of meshes) {
+    let proto = Object.getPrototypeOf(mesh)
+    while (!Object.getOwnPropertyDescriptor(proto, 'matrixAutoUpdate'))
+      proto = Object.getPrototypeOf(proto)
+    const own = Object.getOwnPropertyDescriptor(proto, 'matrixAutoUpdate')!
+    Object.defineProperty(mesh, 'matrixAutoUpdate', {
+      get: () => (reads++, own.get!.call(mesh)),
+      set: (value: boolean) => own.set!.call(mesh, value),
+    })
+  }
+  return () => reads
+}
+
+test('one hide and one announced matrix an image scan the same nodes at 10³ and 10⁵', () => {
+  const scans = [1e3, 1e5].map((count) => {
+    const { meshes, image } = scene(count)
+    const reads = countScans(meshes)
+    const before = reads()
+    for (let frame = 0; frame < 4; frame++) {
+      meshes[frame * 3].visible = false
+      meshes[frame * 3 + 1].matrixWorldNeedsUpdate = true
+      image()
+    }
+    return reads() - before
+  })
+  assert.equal(scans[0], scans[1], `${scans[0]} reads against ${scans[1]}`)
 })

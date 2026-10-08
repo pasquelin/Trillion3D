@@ -46,9 +46,13 @@ type GateState = {
 }
 
 /** What the world pass a scene revision owes read of the host's writes (`updateWorlds`): whether
- *  the scene changed shape — every root walked —, else the nodes shown, hidden or set to cast or
- *  not, whose roots alone follow. The poses written are the transform tree's listed nodes. */
-type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
+ *  every root is walked — the scene changed shape —, else the nodes shown, hidden or set to cast
+ *  or not, and the nodes whose pose or matrix was written, whose roots alone follow. */
+type HostWrite = {
+  reshaped: boolean
+  flipped: readonly Object3D[]
+  moved: readonly Object3D[]
+}
 
 /**
  * The engine's frame gate: the three revisions, the view origin, the reread of the graph
@@ -89,8 +93,14 @@ export function createFrameGateCore(holdValues: number) {
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),
-    updateWorlds: (worlds: HostWorldPlacements, listed?: () => void) =>
-      updateWorlds(core, worlds, listed),
+    updateWorlds: (worlds: HostWorldPlacements, moved?: (nodes: readonly Object3D[]) => void) =>
+      updateWorlds(core, worlds, moved),
+    /** The nodes the host wrote, its poses or its matrices, which no world pass read yet: an
+     *  engine move takes them with its own, its pass refreshing them (`movedBatch.ts`). */
+    takeHostMoves: () => core.sceneWatch.takeWritten(),
+    /** A light, the environment or the lighting view changed through the engine: the scene moves
+     *  and the watched list is read anew, no root walked. */
+    lightsChanged: () => lightsChanged(core),
     engineWriting: () => engineWriting(core),
     noteWorldsUpdated: () => noteWorldsUpdated(core),
     /** The engine moved poses in place: the three steps above, `engineWriting` first so an
@@ -120,7 +130,7 @@ function gateState(holdValues: number): GateState {
     pixelError: 0,
     hostPosesOwed: false,
     reshaped: true,
-    write: { reshaped: true, flipped: [] },
+    write: { reshaped: true, flipped: [], moved: [] },
   }
 }
 
@@ -142,9 +152,15 @@ const observe = (core: GateState, source: Object3D, drawn: FrameGateSources) =>
  *  wrote into the source graph on the way is announced by this revision: the watch does not
  *  announce it a second time, and the next `readScene` reads the list anew under it. */
 function sceneChanged(core: GateState) {
+  lightsChanged(core)
+  core.reshaped = true
+}
+
+/** The scene moved and no root with it: a light, the environment. The watched list is read anew
+ *  under the new revision (`readScene`). */
+function lightsChanged(core: GateState) {
   bumpScene(core.revisions)
   core.sceneWatch.settle()
-  core.reshaped = true
 }
 
 /**
@@ -213,18 +229,23 @@ const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same
 
 /** Once per scene revision no engine move already took, brings the world matrices up to date
  *  (the transform tree's pass, which walks only what was written since the last) and returns what
- *  the host wrote (`HostWrite`); `listed` first reads the nodes written, unless the scene changed
- *  shape — every root is then walked. A frame nothing announced runs no pass: what is listed waits
- *  for the next. */
-function updateWorlds(core: GateState, worlds: HostWorldPlacements, listed?: () => void) {
+ *  the host wrote (`HostWrite`); `moved` first hears the nodes written — read off the scene watch,
+ *  never a list the page shares —, unless every root is to be walked. A frame nothing announced
+ *  runs no pass. */
+function updateWorlds(
+  core: GateState,
+  worlds: HostWorldPlacements,
+  moved?: (nodes: readonly Object3D[]) => void,
+) {
   if (core.worldsRevision === core.revisions.scene) return false
   core.worldsRevision = core.revisions.scene
   core.hostPosesOwed = false
   const write = core.write
   write.reshaped = core.reshaped
   write.flipped = core.sceneWatch.takeFlipped()
+  write.moved = core.sceneWatch.takeWritten()
   core.reshaped = false
-  if (!write.reshaped) listed?.()
+  if (!write.reshaped) moved?.(write.moved)
   worlds.refresh()
   return write
 }
@@ -244,7 +265,7 @@ function engineWriting(core: GateState) {
 /** The rows already carry the current revision's matrices: written by the engine's own move,
  *  on the only roots it moved — unless a host write is owed. */
 function noteWorldsUpdated(core: GateState) {
-  if (!core.hostPosesOwed) core.worldsRevision = core.revisions.scene
+  if (!core.hostPosesOwed && !core.reshaped) core.worldsRevision = core.revisions.scene
 }
 
 /** What frame entry reads: the quality settings, the host camera and its motion, the viewport,

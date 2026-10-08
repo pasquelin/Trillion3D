@@ -1,7 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { MatrixElements } from '../matrixElements.ts'
-import type { TransformTree } from '../../../../sdk-core/src/world/transform-tree/transformTree.ts'
 
 /**
  * World matrices of the drawn nodes of a scene, read where they live: the transform tree every
@@ -17,9 +16,6 @@ export interface HostWorldPlacements {
   of(node: Object3D): MatrixElements
   /** Brings every world matrix up to date with the poses written since the last pass. */
   refresh(): void
-  /** Each node written since the last pass — its pose, its matrix, its parent —, as its slot in the
-   *  tree, before the pass takes it: the pass brings it and its subtree up to date. */
-  listed(visit: (tree: TransformTree, slot: number) => void): void
 }
 
 /** The world matrices of `source`'s scene, brought up to date a first time: the one entry that
@@ -30,8 +26,5 @@ export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
   return {
     of: (node) => node.matrixWorld,
     refresh: () => void updateTransformTree(tree),
-    listed(visit) {
-      for (let i = 0; i < tree.listedCount; i++) visit(tree, tree.listed[i])
-    },
   }
 }

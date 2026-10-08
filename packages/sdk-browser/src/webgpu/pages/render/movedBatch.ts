@@ -10,6 +10,7 @@ import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
 import { appendRootsUnderSlot } from './movedNode.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -53,18 +54,21 @@ let movedBoxes = new Float64Array(BOX_VALUES),
 const LOT_SHARE = 8
 
 /**
- * Every node written since the last pass of the transform tree — an engine move's, a host write's
- * —, before the pass takes it: the roots whose mesh lies in its subtree, walked once in the tree
- * (`appendRootsUnderSlot`), and their box before the move. The work follows the nodes written,
- * never the scene's roots.
+ * The nodes `nodes` were written — an engine move's, the host's the scene watch heard —, before
+ * the transform tree's pass takes them: the roots whose mesh lies in each one's subtree, walked
+ * once in the tree (`appendRootsUnderSlot`), and their box before the move. The work follows the
+ * nodes written, never the scene's roots.
  */
-export function noteListed(rt: WebgpuPagesRuntime) {
-  const roots = rt.layout.selectionRoots
-  rt.setup.worlds.listed((tree, slot) => {
-    const from = movedCount
-    movedCount = appendRootsUnderSlot(roots, tree, slot, movedList, from)
-    noteBefore(rt, from)
-  })
+export function noteMoved(rt: WebgpuPagesRuntime, nodes: readonly Object3D[]) {
+  for (const node of nodes) noteNode(rt, node)
+}
+
+/** `noteMoved` for one node. */
+export function noteNode(rt: WebgpuPagesRuntime, node: Object3D) {
+  const from = movedCount,
+    roots = rt.layout.selectionRoots
+  movedCount = appendRootsUnderSlot(roots, Object3D._treeOf(node), node.index, movedList, from)
+  noteBefore(rt, from)
 }
 
 /** The roots a node moved, `movedList[from .. movedCount)`: their box before the move, kept for
@@ -113,7 +117,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     promotedRoots = new Uint8Array(roots.length)
     listedRoots = new Uint8Array(roots.length)
   }
-  // One node's ranks are already distinct (`appendRootsUnder`); several nodes' may overlap.
+  // One node's ranks are already distinct (`appendRootsUnderSlot`); several nodes' may overlap.
   let ranks = movedList,
     count = movedCount
   if (nodeCount > 1) {

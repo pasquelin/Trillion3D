@@ -1,7 +1,7 @@
 import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts'
 import { rootedUnder } from '../../../host/world/rooted.ts'
 import { namedNode, poseNode } from '../../../host/world/moveByName.ts'
-import { finishMoves, noteListed } from './movedBatch.ts'
+import { finishMoves, noteNode } from './movedBatch.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -14,7 +14,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   const node = namedNode(rt.setup.source, nodeName, matrix)
   rt.run.gate.engineWriting()
   try {
-    poseNode(node, matrix)
+    pose(rt, node, matrix)
   } finally {
     moved(rt)
   }
@@ -52,20 +52,34 @@ export function setWebgpuTransforms(
           { nodeName: node.name },
         )
       copyMatrix4(request, matrices, 0, k * 16)
-      poseNode(node, request)
+      pose(rt, node, request)
     }
   } finally {
     moved(rt)
   }
 }
 
-/** The moves of one call taken: the nodes written since the last pass — the call's, and a host
- *  write's before it in the same task — noted (`noteListed`), one pass of the transform tree —
- *  every matrix it holds, page records, selection roots, transparent copies, carries the new
- *  places, and the pass walks what the writes changed, nothing else —, then the moved roots' rows
- *  and boxes (`finishMoves`). */
+/** The nodes the call moved, each once: what its pass notes (`moved`). */
+const posed = new Set<Object3D>()
+
+/** One node posed, noted once when the move moved it (`noteNode`). */
+function pose(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
+  if (!poseNode(node, matrix) || posed.has(node)) return
+  posed.add(node)
+  noteNode(rt, node)
+}
+
+/** The moves of one call taken: the nodes it moved noted as they moved, and those the host wrote
+ *  before it in the same task (`takeHostMoves`) with them (`noteNode`), one pass of the transform tree — every matrix it
+ *  holds, page records, selection roots, transparent copies, carries the new places, and the pass
+ *  walks what the writes changed, nothing else —, then the moved roots' rows and boxes
+ *  (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
-  noteListed(rt)
-  rt.setup.worlds.refresh()
-  finishMoves(rt)
+  try {
+    for (const node of rt.run.gate.takeHostMoves()) if (!posed.has(node)) noteNode(rt, node)
+    rt.setup.worlds.refresh()
+    finishMoves(rt)
+  } finally {
+    posed.clear()
+  }
 }

@@ -4,9 +4,9 @@ import { followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { takeSorted } from '../../cut/denseKeys.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
-import { finishMoves, noteListed } from './movedBatch.ts'
-import { appendRootsUnder } from './movedNode.ts'
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { finishMoves, noteMoved } from './movedBatch.ts'
+import { appendRootsUnderSlot, appendUnderSlot } from './movedNode.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -14,8 +14,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
  * an image that nothing touched would find them all identical. The engine index is therefore only
  * recomputed at a scene-revision change, and a node that `setWebgpuTransform` just moved has
  * already recomputed it — and rewritten its own rows (`movedRoot.ts`). A host write is followed
- * the same way: the nodes it wrote, as the transform tree lists them, name the roots under them
- * (`noteListed`), whose rows alone are rewritten and whose worlds alone go up; the nodes it showed,
+ * the same way: the nodes it wrote, as the scene watch heard them, name the roots under them
+ * (`noteMoved`), whose rows alone are rewritten and whose worlds alone go up; the nodes it showed,
  * hid or set to cast or not flip the roots under them alone. Only a scene that changed shape walks
  * every root, and then rewrites every row the GPU cut reads. Returns whether the poses moved.
  *
@@ -27,7 +27,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 export function uploadWorlds(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout
-  const write = run.gate.updateWorlds(rt.setup.worlds, () => noteListed(rt))
+  const write = run.gate.updateWorlds(rt.setup.worlds, (nodes) => noteMoved(rt, nodes))
   const reshaped = !!write && write.reshaped
   // The deformation's staleness noted before this refresh (`pending`, read by the hold) compared
   // the worlds the host has since rewritten: the frame's `update` reads them again.
@@ -41,12 +41,13 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   // roots covered are drawn again, static casters included unless every root that flipped was
   // moving already: the static layer never held those (`../../shadow/mobility.ts`).
   if (reshaped || (write && write.flipped.length)) {
+    const blend = rt.blendState.blendGpu
     const flipped = followHostVisibility(
       selectionRoots,
-      { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
+      { entries: blend, sourceOf: blendSource },
       flipWorld(rt),
       rt.lights.mobility.moves,
-      reshaped ? undefined : rootsUnderFlipped(rt, write.flipped),
+      reshaped ? undefined : underFlipped(rt, write.flipped),
     )
     if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly)
   }
@@ -55,10 +56,10 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   if (!worldsMoved) return false
   run.worldUploadRevision = run.gate.revisions.scene
   // The placements a call or a host write moved, each named beside its rows' write
-  // (`movedWorlds.ts`): their worlds alone go up. A scene that changed shape names none: every
-  // one does. The GPU cut says which poses its
-  // send moved (`updateWorlds`) — without one, those named, or those a scan finds —, and the
-  // impostor cards follow those alone.
+  // (`movedWorlds.ts`): their worlds alone go up — a write that moved no pose, a light dimmed, names
+  // none and sends nothing. A scene that changed shape names none: every one does. The GPU cut
+  // says which poses its send moved (`updateWorlds`) — without one, those named, or those a scan
+  // finds —, and the impostor cards follow those alone.
   const named = takeSorted(run.movedWorlds),
     selection = run.gpuSelection,
     cards = rt.gpu?.impostors
@@ -70,8 +71,8 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     return true
   }
   rt.timing.worldCounts.rootsUploaded = selectionRoots.length
-  // A host write that moved no pose — a light dimmed — keeps the table. The GPU cut compares the
-  // worlds it holds with those sent, and says so; without one, the host scans.
+  // A reshape that moved no pose keeps the table. The GPU cut compares the worlds it holds with
+  // those sent, and says so; without one, the host scans.
   let moved: Int32Array
   if (selection) {
     rootWorlds(worldUpdates, selectionRoots)
@@ -94,13 +95,28 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   return true
 }
 
-/** The roots under the nodes `flipped`, as many as they hold — a root under two counted twice,
- *  which its second read leaves as the first left it. */
-function rootsUnderFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
-  let count = 0
-  for (const node of flipped)
-    count = appendRootsUnder(rt.layout.selectionRoots, node, flippedRanks, count)
-  flippedRanks.length = count
-  return flippedRanks
+/** The roots and the see-through draws under the nodes `flipped`, read in the tree
+ *  (`appendUnderSlot`) — one under two listed twice, its second read leaving it as the first —:
+ *  what a flip reads, none other. */
+function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
+  const roots = rt.layout.selectionRoots,
+    blend = rt.blendState.blendGpu
+  let rootCount = 0,
+    blendCount = 0
+  for (const node of flipped) {
+    const tree = Object3D._treeOf(node)
+    rootCount = appendRootsUnderSlot(roots, tree, node.index, flippedRoots, rootCount)
+    blendCount = appendUnderSlot(blend, blendSource, tree, node.index, flippedBlend, blendCount)
+  }
+  under.roots.count = rootCount
+  under.seeThrough.count = blendCount
+  return under
 }
-const flippedRanks: number[] = []
+const flippedRoots: number[] = [],
+  flippedBlend: number[] = []
+const under = {
+  roots: { ranks: flippedRoots, count: 0 },
+  seeThrough: { ranks: flippedBlend, count: 0 },
+}
+/** The source node of a see-through draw. */
+const blendSource = (item: { sourceMesh?: unknown }) => item.sourceMesh as Object3D | undefined
