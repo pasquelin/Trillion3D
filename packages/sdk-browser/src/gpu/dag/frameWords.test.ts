@@ -1,12 +1,19 @@
 // The root and mark words written between two cuts go up as the rows that hold them, each run to
 // its range, never the span between the lowest and the highest: two marks far apart send two
-// rows. On 5000 generated placements.
+// rows, and two rows side by side one write the frames' mock reads as both. On 5000 generated
+// placements, and on a generated field of 16.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCameraFrames } from './frameRanges.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { mockDagDevice } from './selection.fixture.ts'
+import { createGpuDagSelection, packDagSelection } from './selection.ts'
+import { placementField } from './placementTree.fixture.ts'
+import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { createSelectionUniforms } from '../core/selection.ts'
 
 const COUNT = 5000,
   ROW_BYTES = FRAME_VEC4 * 16
@@ -48,4 +55,22 @@ test('two words far apart go up as their two rows', () => {
   assert.deepEqual([word(3, 1), word(3, 2), word(4990, 1)], [7, 8, 9])
   table.flushWords()
   assert.equal(fake.writes.length, before + 2, 'nothing more to send')
+})
+
+test('two marks on rows side by side reach the cut, read off their one write', async () => {
+  installGpuGlobals()
+  const packed = packDagSelection(placementField(4, 6))
+  const { device, rows } = mockDagDevice(packed)
+  const selection = (await createGpuDagSelection(device, packed))!
+  const earlier = rows().length
+  selection.markWorld(4, SHADOWLESS_ROOT)
+  selection.markWorld(5, SHADOWLESS_ROOT)
+  selection.dispatch(createSelectionUniforms())
+  const marks = rows()
+    .slice(earlier)
+    .map(([first, words]) => [first / (FRAME_VEC4 * 4), words[primitiveWordAt(0) + 3]])
+  assert.deepEqual(marks, [
+    [4, SHADOWLESS_ROOT],
+    [5, SHADOWLESS_ROOT],
+  ])
 })

@@ -4,6 +4,9 @@ import type { MapFaults } from '../../../../../tests/kit/gpu/mockBuffers.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
 import { FRAME_VEC4 } from './types.ts'
 
+/** Bytes of one host row of the frames. */
+const ROW_BYTES = FRAME_VEC4 * 16
+
 /**
  * The kit's device (`mockGpu`) running the DAG selection on the CPU double of its kernel, with
  * the counts the selection tests read.
@@ -17,14 +20,17 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
     readbackCopies: () => gpu.copyUsages.filter((usage) => usage & GPUBufferUsage.MAP_READ).length,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: gpu.destroyedMaps,
-    /** Writes of one host row (`frameRanges.ts`, `flushWords`), each as its first word's index
-     *  in its buffer and its words. */
+    /** The host rows the writes to the frames sent (`frameRanges.ts`), every write decoded into
+     *  the rows it holds — one run of several included —, each as its first word's index in its
+     *  buffer and its words. */
     rows: () =>
       gpu.writes
-        .filter(({ bytes }) => bytes.byteLength === FRAME_VEC4 * 16)
-        .map(({ offset, bytes }): [number, Uint32Array] => [
-          offset / 4,
-          new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4),
-        ]),
+        .filter(({ label }) => label === 'Trillion3D DAG frames')
+        .flatMap(({ offset, bytes }) =>
+          Array.from({ length: bytes.byteLength / ROW_BYTES }, (_, k): [number, Uint32Array] => [
+            (offset + k * ROW_BYTES) / 4,
+            new Uint32Array(bytes.buffer, bytes.byteOffset + k * ROW_BYTES, ROW_BYTES / 4),
+          ]),
+        ),
   }
 }
