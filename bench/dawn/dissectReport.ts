@@ -9,13 +9,16 @@ export type Variant = { cut: string | null; frameMs: number; passMs: number; iqr
 type Step = { from: string; to: string; frameMs: number; passMs: number; noise: boolean }
 
 /** The steps of `cuts` (in shader order) from the variants measured: the whole shader first and
- *  last, then one variant a cut. The first cut's own time is the base — the launch, and what it keeps. */
+ *  after each cut, one variant a cut. The first cut's own time is the base — the launch, and what it keeps. */
 export function stepsOf(cuts: readonly string[], variants: readonly Variant[]) {
   const whole = variants.filter((v) => v.cut === null)
   const by = new Map(variants.filter((v) => v.cut !== null).map((v) => [v.cut!, v]))
-  const drift = Math.abs(whole[0].frameMs - whole.at(-1)!.frameMs)
-  const base = (whole[0].frameMs + whole.at(-1)!.frameMs) / 2
-  const wholePass = (whole[0].passMs + whole.at(-1)!.passMs) / 2
+  // The whole shader was played between cuts: how far those plays spread is how far the machine went.
+  const wholes = whole.map((v) => v.frameMs)
+  const drift = Math.max(...wholes) - Math.min(...wholes)
+  const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
+  const base = mean(wholes)
+  const wholePass = mean(whole.map((v) => v.passMs))
   const points = [
     ...cuts.map((c) => [c, by.get(c)!] as const),
     ['end', { frameMs: base, passMs: wholePass }] as const,

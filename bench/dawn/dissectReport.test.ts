@@ -42,3 +42,12 @@ test('a step smaller than the drift between the two whole runs is called noise',
   assert.equal(steps[1].noise, true, '0.05 ms is under the 0.2 ms the machine drifted')
   assert.equal(steps[2].noise, false)
 })
+
+test('a machine that drifts in the middle shows in the whole runs between the cuts', () => {
+  const { driftMs, steps } = stepsOf(
+    ['a', 'b'],
+    [v(null, 12, 2), v('a', 10, 0.1), v(null, 12.6, 2.6), v('b', 10.4, 0.5), v(null, 12, 2)],
+  )
+  assert.ok(Math.abs(driftMs - 0.6) < 1e-9, 'the ends agree, the middle does not')
+  assert.equal(steps[1].noise, true, 'a 0.4 ms step under a 0.6 ms drift is noise')
+})

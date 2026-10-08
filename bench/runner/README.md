@@ -51,10 +51,14 @@ per segment:
   stored MiB, read from the calls the engine makes), its **floor** (its stores at the attachment
   rate, its threads at the launch rate, its fixed cost; and the ceiling were every bound byte
   moved), its gain (at most, and at least) and its source;
-- the machine's limits, measured once per adapter and kept in `.mesure/machine/` (`--recalibrate`
-  measures again): read, write, texture and attachment GB/s, threads a ms, the cost of a pass, a
+- the machine's limits, measured once per adapter and kept in `~/.trillion3d/machine/` beside the bench lock, shared
+  by every checkout (`--recalibrate` measures again, in the first play only; a machine measured
+  while the GPU is busy with others serves its run and is not kept): read, write, texture and attachment GB/s, threads a ms, the cost of a pass, a
   dispatch and a barrier;
-- the CPU by step and function, the engine's counters, the hitches and the images.
+- the CPU by step and function, the engine's counters, the hitches and the images. The bench's
+  own probes (the encoding read, the timers) cost the main thread about a millisecond a frame on
+  the bench scene (25.4 ms against 23.8–25.1 before them): read the main-thread figure as an
+  upper bound, the GPU's as exact.
 
 `--dissect <pass>` takes a pass's shader apart by itself: a shader holds `// @cut <name> keep:
 <statement>` lines (`bench/dawn/shaderCuts.ts`); the bench makes one variant per cut, in memory,

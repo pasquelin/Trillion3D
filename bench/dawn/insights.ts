@@ -22,7 +22,7 @@ export function buildInsights(
   const segments = report.segments
     .filter((segment) => segment.measured)
     .map((segment) => {
-      // The counters of the segment's own last image: a pass is judged on what it drew.
+      // The counters over the segment's own images: a pass is judged on what it drew.
       const ranking = rankBottlenecks(
         segment.benchPasses,
         report.machine,
@@ -31,7 +31,7 @@ export function buildInsights(
       )
       return { name: segment.name, ranking, top: topGains(ranking) }
     })
-  // A pass a segment lacks gave nothing there: every figure is a mean over all the segments, and the
+  // A pass a segment lacks gave nothing there: every figure is a mean over the segments that drew, and the
   // row (its cause, its evidence) is the segment's where the pass gives most.
   const total = new Map<
     string,
@@ -50,7 +50,8 @@ export function buildInsights(
       held.wait += b.waitMs
       total.set(b.name, held)
     }
-  const n = segments.length
+  // A segment that drew nothing (a held image) has no pass to give: it is not one to divide by.
+  const n = segments.filter(({ ranking }) => ranking.length).length || 1
   const averaged = [...total.values()].map(({ best, at, gain, certain, work, wait }) => ({
     ...best,
     // Its cause and evidence are the segment's where the pass gives most; its figures the mean.

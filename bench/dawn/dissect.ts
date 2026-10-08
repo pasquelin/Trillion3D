@@ -115,12 +115,13 @@ export async function dissect(options: BenchOptions, pass: string, segmentName?:
     const [{ hash, cuts }] = modules
     const run = (cut: string | null) => playVariant(options, scenario, { pass, hash, cut }, out)
     const variants: Variant[] = []
+    // The shader whole between every two cuts: a machine that drifts mid-way shows in them.
     variants.push(numbersOf(await run(null), pass, null))
     for (const cut of cuts) {
       console.error(`dissect: cut ${cut}`)
       variants.push(numbersOf(await run(cut), pass, cut))
+      variants.push(numbersOf(await run(null), pass, null))
     }
-    variants.push(numbersOf(await run(null), pass, null))
     const result = stepsOf(cuts, variants)
     const stem = join(out, `${stamp()}-dissect-${pass.replace(/\W+/g, '-')}`)
     writeFileSync(`${stem}.md`, dissectText(pass, segment.name, result, variants))

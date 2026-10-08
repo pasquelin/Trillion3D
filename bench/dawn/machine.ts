@@ -4,7 +4,7 @@
 // could not beat on this GPU, whatever its shader.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { RACINE } from '../core/paths.ts'
+import { homedir } from 'node:os'
 import { spread } from './summary.ts'
 import type { BenchGpu } from './device.ts'
 import {
@@ -41,9 +41,10 @@ export type Machine = {
   disturbed?: boolean
 }
 
-/** The cache file of an adapter, off git (`.mesure/` is). */
+/** The cache file of an adapter: in the home, beside the bench lock, so every checkout and worktree
+ *  of the machine shares it. */
 const fileOf = (adapter: string) =>
-  join(RACINE, '.mesure', 'machine', `${adapter.replace(/[^\w.-]+/g, '-')}.json`)
+  join(homedir(), '.trillion3d', 'machine', `${adapter.replace(/[^\w.-]+/g, '-')}.json`)
 
 /** The median of `runs` timings of `kernel` after two it throws away. */
 async function median(kernel: () => Promise<number>, runs = 7) {
@@ -79,9 +80,19 @@ export function machineFrom(adapter: string, ms: Record<string, number>, date: s
 /** Measures the machine on the engine's device: every kernel, its commands uncounted. */
 export async function measureMachine(gpu: BenchGpu, device: GPUDevice, adapter: string) {
   device.pushErrorScope('validation')
-  const { kernels, destroy } = createKernels(gpu, device)
+  let made: ReturnType<typeof createKernels>
+  try {
+    made = createKernels(gpu, device)
+  } catch (error) {
+    await device.popErrorScope()
+    throw error
+  }
+  const { kernels, destroy } = made
   const refused = await device.popErrorScope()
-  if (refused) throw new Error(`BENCH_MACHINE: ${refused.message}`)
+  if (refused) {
+    destroy()
+    throw new Error(`BENCH_MACHINE: ${refused.message}`)
+  }
   try {
     const ms: Record<string, number> = {}
     for (const [name, kernel] of Object.entries(kernels)) ms[name] = await median(kernel)

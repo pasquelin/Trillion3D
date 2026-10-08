@@ -44,10 +44,10 @@ test('a run’s top gains are means over every segment, each row the segment whe
   assert.equal(top[0].cause, 'wait', 'the cause is the segment’s where the pass waits')
   const [a, b] = segments.map((s) => s.ranking[0])
   assert.ok(
-    Math.abs(top[0].gainMs - (a.waitMs + b.gainMs) / 3) < 1e-9,
-    'its figure the mean of what each of the three segments gives, the empty one nothing',
+    Math.abs(top[0].gainMs - (a.waitMs + b.gainMs) / 2) < 1e-9,
+    'its figure the mean of what each segment that drew gives: the empty one is not one to divide by',
   )
-  assert.ok(Math.abs(top[0].waitMs - 0.8 / 3) < 1e-9)
+  assert.ok(Math.abs(top[0].waitMs - 0.8 / 2) < 1e-9)
 })
 
 test('each segment is judged on its own engine counters', () => {

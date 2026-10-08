@@ -61,13 +61,21 @@ const variant = options.profileName === 'desktop' ? '' : `-${options.profileName
 const stem = join(out, `${stamp()}-${options.name}-${options.scenario.name}${variant}`)
 const plays: BenchPlay[] = []
 const args = process.argv.slice(2).filter((arg) => arg !== '--cpu-profile')
+/** `--recalibrate` measures the machine once: in the first play, the others read what it kept. */
+const later = args.filter((arg) => arg !== '--recalibrate')
 for (let k = 0; k < options.repeat; k++) {
   // The last play is the profiled one when the CPU is profiled: the others' timings stand
   // without the profiler's cost.
   const profiled = options.cpuProfile && k === options.repeat - 1
   const report = `${stem}-play${k + 1}.json`
   const child = await runChild(
-    [process.argv[1], ...args, '--child-report', report, ...(profiled ? ['--cpu-profile'] : [])],
+    [
+      process.argv[1],
+      ...(k ? later : args),
+      '--child-report',
+      report,
+      ...(profiled ? ['--cpu-profile'] : []),
+    ],
     // The run that holds the lock lends it on: this run's, or the suite's it is a child of.
     { ...process.env, [LOCK_OWNER]: process.env[LOCK_OWNER] ?? String(process.pid) },
     false,

@@ -19,6 +19,8 @@ const PARENT = new Set([
   '--child-report',
   '--repeat',
 ])
+/** Flags the parent keeps to itself: the machine is measured once, not by every child. */
+const ALONE = new Set(['--recalibrate'])
 
 /** `args` (the run's own, page included) less what the parent decides. */
 export function childArgs(args: readonly string[]) {
@@ -26,7 +28,10 @@ export function childArgs(args: readonly string[]) {
   for (let i = 0; i < args.length; i++) {
     const token = args[i]
     const name = token.split('=')[0]
-    if (name === '--ab') i += token.includes('=') ? 1 : 2
+    if (name === '--ab') {
+      if (token !== '--ab') throw new Error('BENCH_AB: --ab takes its two checkouts as words')
+      i += 2
+    } else if (ALONE.has(name)) continue
     else if (PARENT.has(name)) i += token.includes('=') ? 0 : 1
     else if (!token.startsWith('--'))
       continue // the page: the parent gives its file
