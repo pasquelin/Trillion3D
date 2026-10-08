@@ -1,12 +1,13 @@
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
-import { BLEND_VIEW_SIZE } from './uniforms.ts'
+import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
 import { createBlendExpand } from './expand.ts'
 import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts'
 import { writeKeyRecords } from './keyRecords.ts'
-import { writeBlendExpansionCpu } from './expandCpu.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { materialEpoch } from '../pages/io/refreshMaterials.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
@@ -31,26 +32,15 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
       : item.deformOutput
         ? item.vertexBase
         : 0
-  buildBlendStatics(blendState)
+  // The order's step words are laid at the device's alignment, as the kernels' buffers.
+  buildBlendStatics(blendState, uniformStride(device.limits))
   // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
   // with a zero instance count, and the readbacks keep naming the scene's items.
   blendState.visibleBlend.length = 0
   for (const item of items) blendState.visibleBlend.push(item)
-  blendState.itemPacked = new Float32Array(items.length * BLEND_ITEM_WORDS)
-  blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer)
-  blendState.itemBuffer = device.createBuffer({
-    label: 'Trillion3D blend item records',
-    size: items.length * BLEND_ITEM_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  blendState.viewBuffer = device.createBuffer({
-    label: 'Trillion3D blend view uniform',
-    size: BLEND_VIEW_SIZE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  allocateBlendRecords(blendState, device)
   // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
-  // gives it, and one indirect argument per slice. They belong to the scene, and the CPU fallback
-  // writes them itself when the device has no compute stage.
+  // gives it, and one indirect argument per slice. They belong to the scene.
   const entries = blendState.maxPlanEntries
   refreshBlendScene(rt, device)
   blendState.expandedBuffer = device.createBuffer({
@@ -77,7 +67,25 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
     },
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
   )
-  blendState.expand?.uploadDraws(blendState.drawsPacked)
+  blendState.expand.uploadDraws(blendState.drawsPacked)
+}
+
+/** The item records, host side and on the device, and the view uniform: one scene buffer, one
+ *  frame buffer. */
+function allocateBlendRecords(blendState: WebgpuPagesRuntime['blendState'], device: GPUDevice) {
+  const count = blendState.blendGpu.length
+  blendState.itemPacked = new Float32Array(count * BLEND_ITEM_WORDS)
+  blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer)
+  blendState.itemBuffer = device.createBuffer({
+    label: 'Trillion3D blend item records',
+    size: count * BLEND_ITEM_WORDS * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  blendState.viewBuffer = device.createBuffer({
+    label: 'Trillion3D blend view uniform',
+    size: BLEND_VIEW_SIZE,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
 }
 
 /** Releases the transparent pass's scene buffers; the groups that cited them are voided by their
@@ -85,33 +93,37 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
 export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
   blendState.expand?.dispose()
   blendState.expand = undefined
-  for (const tampon of ['expandedBuffer', 'argsBuffer', 'itemBuffer', 'viewBuffer'] as const) {
-    blendState[tampon]?.destroy()
-    blendState[tampon] = undefined
+  for (const buffer of ['expandedBuffer', 'argsBuffer', 'itemBuffer', 'viewBuffer'] as const) {
+    blendState[buffer]?.destroy()
+    blendState[buffer] = undefined
   }
 }
 
 /**
- * Records, boxes, volumes and the encode plan, rebuilt after a scene change.
+ * Records, volumes and the encode plan, rebuilt after a scene change.
  *
  * This is the ONLY remaining loop over items, and a camera that moves does not trigger it: it
- * only restarts on a matrix move or a resource mount.
+ * only restarts on a matrix move or a resource mount. With `posesOnly` — a frame whose scene moved
+ * (`../pages/render/render.ts`) —, the records are written whole only when a material's values
+ * moved since they last were (`materialEpoch`): otherwise only the poses can have, and each item
+ * compares its sixteen matrix words, the moved ones sent as one span (`writeBlendPoses`). What a
+ * record reads besides — material, flags, maps, its lobe and deformation words — moves with a
+ * material, a texture's sampling (a whole rewrite, `followSampling`) or a new scene (`prepare`).
  */
-export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
+export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, posesOnly = false) {
   const { blendState, vis } = rt,
-    items = blendState.blendGpu,
-    packed = blendState.itemPacked,
-    ints = blendState.itemInts
-  if (!blendState.itemBuffer || !items.length) return
-  for (let i = 0; i < items.length; i++) writeBlendItemRecord(packed, ints, i, items[i], vis)
-  device.queue.writeBuffer(
-    blendState.itemBuffer,
-    0,
-    packed.buffer as ArrayBuffer,
-    0,
-    packed.byteLength,
-  )
+    buffer = blendState.itemBuffer
+  if (!buffer || !blendState.blendGpu.length) {
+    // No item left: no lobe either, so the lobes target and the lobed programs are dropped too.
+    blendState.lobed = blendState.waterLobed = false
+    return
+  }
+  const epoch = materialEpoch(rt),
+    whole = !posesOnly || blendState.recordEpoch !== epoch
+  if (whole) writeBlendRecords(rt, device.queue, buffer, epoch)
+  else writeBlendPoses(blendState, device.queue, buffer)
   refreshBlendPlan(blendState)
+  if (!whole) return
   // A blending written on a surface starts its compile here, off the frame (`reach.ts`).
   vis.blendPipelines?.reach({
     modes: blendState.planModes,
@@ -120,26 +132,73 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
   writeVolumeRecords(rt, device)
 }
 
+/** Every record written whole, and the lobe switches derived from them. */
+function writeBlendRecords(
+  rt: WebgpuPagesRuntime,
+  queue: GPUQueue,
+  buffer: GPUBuffer,
+  epoch: number,
+) {
+  const { blendState, vis } = rt,
+    items = blendState.blendGpu,
+    packed = blendState.itemPacked
+  let lobed = false,
+    waterLobed = false
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis) !== 0
+    lobed ||= item.lobed
+    waterLobed ||= item.lobed && !!item.transmissive
+  }
+  blendState.lobed = lobed
+  blendState.waterLobed = waterLobed
+  blendState.recordEpoch = epoch
+  // A transmissive surface that brings a lobe: the water's lobed stage compiles, off the frame, the
+  // frames held until it lands (`lobedStage.ts`).
+  if (waterLobed) blendState.water?.lobed.ask()
+  queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
+}
+
+/** The poses alone: each item whose matrix moved writes its sixteen words, and the span from the
+ *  first moved to the last is sent — none when no pose moved. */
+function writeBlendPoses(
+  blendState: WebgpuPagesRuntime['blendState'],
+  queue: GPUQueue,
+  buffer: GPUBuffer,
+) {
+  const items = blendState.blendGpu,
+    packed = blendState.itemPacked
+  let first = -1,
+    last = -1
+  for (let i = 0; i < items.length; i++) {
+    const pose = items[i].matrix.elements,
+      base = i * BLEND_ITEM_WORDS
+    let k = 0
+    while (k < 16 && packed[base + k] === Math.fround(pose[k])) k++
+    if (k === 16) continue
+    packed.set(pose, base)
+    if (first < 0) first = i
+    last = i
+  }
+  if (first < 0) return
+  const at = first * BLEND_ITEM_WORDS * 4
+  const bytes = (last - first + 1) * BLEND_ITEM_WORDS * 4
+  queue.writeBuffer(buffer, at, packed.buffer, at, bytes)
+}
+
 /**
  * What the image asks of the kernels: the plan when it moved, the frustum verdict when it moved,
  * the frame data, then for each pass its order and its expansion, chained in ONE compute pass.
  *
  * Dispatches of the same compute pass are ordered and see the previous writes: blend can therefore
  * hand its work memory back to transmission, whose instances and arguments live in their own
- * regions. Without a compute stage, the CPU writes exactly the same words (`expandCpu.ts`).
+ * regions.
  */
-export function encodeBlendExpansion(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-) {
+export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState } = rt,
     expand = blendState.expand,
     { runCount, seeds } = blendState
-  if (!expand) {
-    writeBlendExpansionCpu(blendState, device)
-    return
-  }
+  if (!expand) return
   // No slot to draw: a frame without an eye paints nothing (`order.ts`).
   if (!runCount[0] && !runCount[1]) return
   if (blendState.planMoved) {

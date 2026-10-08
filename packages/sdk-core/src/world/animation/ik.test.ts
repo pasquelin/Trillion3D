@@ -5,6 +5,7 @@ import { Object3D } from '../object/object3d.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { ikChain } from './ikChain.fixture.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 function parentedChain() {
   const parent = new Object3D(),
@@ -52,12 +53,8 @@ test('IK weights preserve zero poses, blend partial rotations and clamp overshoo
       full = parentedChain(),
       target = new Vector3(6, 0, 4)
     solveTwoBoneIK(full.root, full.mid, full.end, target)
-    const expectedRoot = a.root.quaternion
-      .clone()
-      .slerp(full.root.quaternion, Math.min(1, Math.max(0, weight)))
-    const expectedMid = a.mid.quaternion
-      .clone()
-      .slerp(full.mid.quaternion, Math.min(1, Math.max(0, weight)))
+    const expectedRoot = a.root.quaternion.clone().slerp(full.root.quaternion, saturate(weight))
+    const expectedMid = a.mid.quaternion.clone().slerp(full.mid.quaternion, saturate(weight))
     solveTwoBoneIK(a.root, a.mid, a.end, target, undefined, weight)
     assert.ok(a.root.quaternion.angleTo(expectedRoot) < 1e-6)
     assert.ok(a.mid.quaternion.angleTo(expectedMid) < 1e-6)

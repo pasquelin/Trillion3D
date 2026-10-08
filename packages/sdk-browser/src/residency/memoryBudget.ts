@@ -5,6 +5,7 @@ import { effectChainBytesAt } from '../effects/targets.ts'
 import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { effectTargetReserve } from './effectReserve.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The largest canvas a budget declares: the effect chain's targets are reserved at its size. */
 export interface BudgetCanvas {
@@ -75,12 +76,12 @@ export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES
  *   root cover, the texture tails — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the decoded-page cache takes it all (`pageCache.ts`), the session's manifest tables and
  *   transfer queue reserved off it.
- *   The cut's host tables — group closure, the rule's readiness, the residency sets and the cut's
- *   differences, sized by what the view asks for and the pool holds — are held in
- *   the cache's share too: the session reserves their bytes there (`hostTableBytes`, the
- *   streamer's `reserve`), read each time the cache weighs itself, and the decoded pages keep the
- *   rest. The decoded texture levels take at most `textureLevelShare` of it (`textureLevels`), and
- *   yield first to the pages a frame keeps.
+ *   The cut's host tables — the GPU cut publication's host mirrors: group closure, the rule's
+ *   readiness, the residency sets and the cut's differences, sized by what the view asks for and
+ *   the pool holds — are held in the cache's share too: the session reserves their bytes there
+ *   (`hostTableBytes`, the streamer's `reserve`), read each time the cache weighs itself, and the
+ *   decoded pages keep the rest. The decoded texture levels take at most `textureLevelShare` of it
+ *   (`textureLevels`), and yield first to the pages a frame keeps.
  * With a session's `active` memory, each share is what it holds — the frame's targets with what
  * else is live beside the pools (`frameTargets`) — and the two pools the rest, less the shadows
  * still to be made (`shadowReserve`), within their floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the
@@ -119,8 +120,8 @@ export function splitMemoryBudget(
           active.shadowReserve,
         )
       : {
-          geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
-          texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
+          geometryPool: clamp(half, 1, DEFAULT_GEOMETRY_POOL_BUDGET),
+          texturePool: clamp(half, 1, DEFAULT_TEXTURE_POOL_BUDGET),
         }),
     pageCache: cpu,
     textureLevels: textureLevelShare(cpu),

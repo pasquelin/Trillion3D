@@ -28,7 +28,7 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
   },
   {
     id: 'detectCapabilities',
-    example: `const capabilities = await detectCapabilities('webgpu', canvas);
-console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
+    example: `const capabilities = await detectCapabilities();
+console.log(capabilities.tier, capabilities.reason);`,
   },
 ]

@@ -1,4 +1,5 @@
 import { PAGE_SECTIONS, FLAG_SECTIONS } from './flagSections.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * A CUT'S TABLES IN PARTS, past one storage binding of the device. `frames` and `worlds` split in
@@ -19,7 +20,7 @@ export type TableSplit = { per: number; parts: number }
 export function splitTable(count: number, bytes: number, cap: number): TableSplit {
   const per = Math.max(1, Math.floor(cap / bytes))
   if (count <= per) return { per: Math.max(1, count), parts: 1 }
-  return { per, parts: Math.ceil(count / per) }
+  return { per, parts: ceilDiv(count, per) }
 }
 
 /** First word of section `s` of a `flags` of `queueCap` per queue over `pageCount` pages: the

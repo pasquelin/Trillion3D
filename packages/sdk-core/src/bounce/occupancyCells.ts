@@ -1,3 +1,4 @@
+import { workgroupCount } from '../../../math/src/scalar/integers.ts'
 // The cell arithmetic of the bounce occupancy map (`occupancy.ts`): marking a block, the 2×2×2
 // reduction to the next level and the one-cell dilation, in place on flat maps, nothing allocated
 // per cell.
@@ -24,7 +25,7 @@ export function mark(map: Uint8Array, dims: number[], low: number[], high: numbe
 
 /** Map reduction: a cell in the next level is marked if any of the eight sub-cells are marked. */
 export function reduce(map: Uint8Array, dims: number[]) {
-  const next = dims.map((size) => Math.max(1, Math.ceil(size / 2)))
+  const next = dims.map((size) => workgroupCount(size, 2))
   const out = new Uint8Array(next[0] * next[1] * next[2])
   for (let z = 0; z < dims[2]; z++)
     for (let y = 0; y < dims[1]; y++) {

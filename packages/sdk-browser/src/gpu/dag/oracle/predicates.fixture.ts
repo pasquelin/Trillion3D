@@ -15,8 +15,8 @@ import {
 } from '../records.fixture.ts'
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
 import { dagScratch, projectedError } from './math.fixture.ts'
-import { drawsCluster } from '../../../page/cut/rule.ts'
-import type { MatrixElements } from '../../../math/matrixElements.ts'
+import { drawsCluster } from '../../../page/cut/rule.fixture.ts'
+import type { MatrixElements } from '../../../host/matrixElements.ts'
 
 /** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
 export type CutRuleAt = (

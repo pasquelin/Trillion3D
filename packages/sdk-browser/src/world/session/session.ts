@@ -1,6 +1,6 @@
 import { DEFAULT_SCOPE, setScreenErrorVariant } from '../../../../sdk-core/src/index.ts'
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions } from '../../backend/types.ts'
+import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import { watchOpening } from './openWatch.ts'
 

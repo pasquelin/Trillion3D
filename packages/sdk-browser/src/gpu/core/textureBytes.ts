@@ -1,3 +1,5 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+
 /** Bytes per texel of the uncompressed formats the engine may allocate. */
 const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   r8unorm: 1,
@@ -41,6 +43,9 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc7-rgba-unorm-srgb': 16,
   'astc-4x4-unorm': 16,
   'astc-4x4-unorm-srgb': 16,
+  'etc2-rgba8unorm': 16,
+  'etc2-rgba8unorm-srgb': 16,
+  'eac-rg11unorm': 16,
 }
 
 function extent(size: GPUExtent3D): [number, number, number] {
@@ -65,9 +70,7 @@ export function textureBytesOf(
       h = Math.max(1, height >> level),
       d = volume ? Math.max(1, depth >> level) : depth
     bytes +=
-      perTexel !== undefined
-        ? w * h * d * perTexel
-        : Math.ceil(w / 4) * Math.ceil(h / 4) * d * perBlock!
+      perTexel !== undefined ? w * h * d * perTexel : ceilDiv(w, 4) * ceilDiv(h, 4) * d * perBlock!
   }
   return bytes * (descriptor.sampleCount ?? 1)
 }

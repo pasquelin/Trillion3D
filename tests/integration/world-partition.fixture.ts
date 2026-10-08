@@ -7,6 +7,8 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { TAU } from '../../packages/math/src/constants.ts'
+import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
 
 export const compiler = fileURLToPath(
   new URL('../../packages/asset-compiler-rust/target/release/trillion3d-compiler', import.meta.url),
@@ -23,8 +25,8 @@ export async function compiled(root: string, { gltf, bin }: { gltf: object; bin:
   return pathToFileURL(join(root, 'cache/native/full/manifest.json'))
 }
 
-/** Serves files from disk to `fetch`, the page's location at `pointer`, and a WebGL2 context
- *  stand-in to any canvas; `read` counts every byte fetched, and names every file. */
+/** Serves files from disk to `fetch`, the page's location at `pointer`, and a canvas whose
+ *  context answers every call; `read` counts every byte fetched, and names every file. */
 export function machine(t: TestContext, pointer: URL) {
   const read = { bytes: 0, urls: [] as string[] }
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
@@ -39,19 +41,15 @@ export function machine(t: TestContext, pointer: URL) {
     string,
     unknown
   >
-  const answers: Record<string, unknown> = {
-    then: undefined, // not a promise
-    isContextLost: () => false,
-    getSupportedExtensions: () => ['EXT_color_buffer_half_float'],
-    getExtension: (name: string) => (name === 'EXT_color_buffer_half_float' ? {} : null),
-    checkFramebufferStatus: () => 1, // every constant is 1: complete
-    canvas,
-  }
-  const gl = new Proxy(answers, {
-    get: (_, key: string) =>
-      key in answers ? answers[key] : /^[A-Z_0-9]+$/.test(key) ? 1 : () => ({}),
+  const answers: Record<string, unknown> = { then: undefined /* not a promise */, canvas }
+  const context = new Proxy(answers, {
+    get: (_, key: string) => (key in answers ? answers[key] : () => ({})),
   })
-  Object.assign(canvas, { getContext: () => gl, addEventListener() {}, removeEventListener() {} })
+  Object.assign(canvas, {
+    getContext: () => context,
+    addEventListener() {},
+    removeEventListener() {},
+  })
   for (const [name, value] of Object.entries({
     location: { href: pointer.href },
     document: { createElement: () => canvas },
@@ -152,13 +150,13 @@ export function world(side: number, district?: string) {
   })
   const nodes: object[] = []
   for (let i = 0; i < side * side; i++) {
-    const yaw = (i * 2.399963) % (2 * Math.PI),
+    const yaw = (i * 2.399963) % TAU,
       scale = 0.75 + ((i * 7) % 10) / 20
     nodes.push({
       name: `${KINDS[i % 3].name} ${i}`,
       mesh: i % 3,
       translation: [(i % side) * SPACING, 0, Math.floor(i / side) * SPACING],
-      rotation: [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)],
+      rotation: Array.from(axisAngleQuaternion(new Float64Array(4), [0, 1, 0], yaw)),
       scale: [scale, scale, scale],
     })
   }

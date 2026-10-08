@@ -45,3 +45,29 @@ test('the frame clears nothing from the encoder: its first dispatch zeroes what 
   })
   partition.dispose()
 })
+
+test('rows past one dimension of a dispatch run in rows of 65,535 groups (`dispatchGrid`)', async () => {
+  const rows = 65_535 * 64 + 1
+  const { device } = fakeDevice()
+  const partition = (await createGpuPartition(device, rows, {
+    items: buffer('items'),
+    flags: buffer('flags'),
+    restBits: buffer('rest'),
+    slotUsed: { ...buffer('slots'), size: 4 * 300 },
+    pyramid: () => buffer('pyramid'),
+  }))!
+  partition.beginFrame({ clearBuffer() {} } as unknown as GPUCommandEncoder, frame(rows))
+  const { encoder, calls } = recordingEncoder()
+  partition.encode({ pass: encoder.beginComputePass() })
+  // 65,536 groups of 64 rows: two rows of 65,535, the second's threads past the count leaving;
+  // the clear's 131,071 rest-bit words, 2,048 groups, one row.
+  assert.deepEqual(
+    calls.map(({ entry, direct, rows }) => [entry, direct, rows]),
+    [
+      ['clearRows', 2048, undefined],
+      ['projectRows', 65_535, 2],
+      ['classifyRows', 65_535, 2],
+    ],
+  )
+  partition.dispose()
+})

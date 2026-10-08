@@ -1,3 +1,4 @@
+import { nextPow2 } from '../../../math/src/scalar/integers.ts'
 /** Buffers kept for a writer to fill again: enough for the page's and the worker's in flight. */
 const SPARE_BUFFERS = 4
 
@@ -16,7 +17,7 @@ export class SpareBuffers {
     let at = spare.length - 1
     while (at >= 0 && spare[at].byteLength < bytes) at--
     let buffer: ArrayBuffer
-    if (at < 0) buffer = new ArrayBuffer(Math.max(4096, 2 ** Math.ceil(Math.log2(bytes))))
+    if (at < 0) buffer = new ArrayBuffer(Math.max(4096, nextPow2(bytes)))
     else {
       buffer = spare[at]
       spare[at] = spare[spare.length - 1]

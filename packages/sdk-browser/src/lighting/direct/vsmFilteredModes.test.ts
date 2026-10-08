@@ -4,7 +4,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { VSM_UNIFORMS_WGSL, writeVsmUniforms } from '../../vsm/uniforms.ts'
-import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_VSM_SPECS, vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
+import { vsmPoolLoadOf } from '../../vsm/resources.ts'
+import { vsmBlueNoiseTwo } from '../../vsm/blueNoise.ts'
 import { vsmTraceWgsl } from '../../vsm/traceWgsl.ts'
 import { wgslStructLayout } from '../../vsm/wgslStructLayout.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
@@ -12,6 +14,8 @@ import { type V, MAP, run } from './vsmFilteredRead.fixture.ts'
 import { SUN_READ as READ, sunWorld } from './vsmFilteredSample.fixture.ts'
 import { VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Read = { vsmShadowRead: (...a: unknown[]) => number; testTransmission: () => V }
 
@@ -51,8 +55,8 @@ test('the traced read dithers a penumbra by at most a thirtieth and leaves 0 and
 })
 
 test('only the blended and water reads switch: the opaque resolve reads its mask, and no pool', () => {
-  const resolve = directShadowWgsl(14, 25),
-    blend = directShadowWgsl(null, 18)
+  const resolve = wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+    blend = wgslModule(directShadowWgsl(18))
   assert.doesNotMatch(blend, /vsmShadowTraced|vsmTraceSun/, 'no traces in the default')
   assert.doesNotMatch(resolve, /vsmShadowRead|vsmFilterTaps|vsmTraceSun|translucentShadowFilter;/)
   assert.doesNotMatch(resolve, /return vsmShadowFactor\(|vsmMaskPixel\.x>=0|vsmPool0/)
@@ -61,7 +65,7 @@ test('only the blended and water reads switch: the opaque resolve reads its mask
 })
 
 test('the mode and the view tangent have their words in the uniforms, the default the setting', () => {
-  const { offsets, size } = wgslStructLayout(VSM_UNIFORMS_WGSL, 'VsmUniforms')
+  const { offsets, size } = wgslStructLayout(wgslSource(VSM_UNIFORMS_WGSL), 'VsmUniforms')
   assert.equal(size, VSM_UNIFORMS_BYTES)
   assert.equal(offsets.translucentShadowFilter, 12)
   assert.equal(offsets.viewTanHalfFovY, 84)
@@ -85,14 +89,19 @@ test('the mode and the view tangent have their words in the uniforms, the defaul
 })
 
 test('the traced read runs the projection’s traces without its wave votes', () => {
-  const projection = vsmProjectionWgsl(
-    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
-    { subgroups: false },
-  )
-  assert.ok(projection.includes(vsmTraceWgsl(true)), 'the compute projection votes')
-  assert.equal(vsmTraceWgsl(true).match(/vsmVoteAllTrue\(/g)?.length, 5)
-  assert.equal(vsmTraceWgsl(false).match(/vsmVoteAllTrue\(/g), null)
-  const blend = directShadowWgsl(null, 18, undefined, true)
-  assert.ok(blend.includes(vsmTraceWgsl(false)), 'a fragment traces every ray')
+  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+  const projection = vsmProjectionWgsl(layout, { subgroups: false })
+  // The projection's providers: its pool and its blue noise's pair.
+  const trace = (waveVotes: boolean) =>
+    vsmTraceWgsl(
+      waveVotes,
+      vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+      vsmBlueNoiseTwo(1, 0),
+    )
+  assert.ok(projection.includes(trace(true).text), 'the compute projection votes')
+  assert.equal(wgslSource(trace(true)).match(/vsmVoteAllTrue\(/g)?.length, 5)
+  assert.equal(wgslSource(trace(false)).match(/vsmVoteAllTrue\(/g), null)
+  const blend = wgslModule(directShadowWgsl(18, { traced: true }))
+  assert.ok(blend.includes(trace(false).text), 'a fragment traces every ray')
   assert.match(blend, /anyCrossing=running&&startFace\.id!=endFace\.id;/)
 })

@@ -1,6 +1,7 @@
 /** The clusters of the runtime cutter (`runtimeCut.ts`) and the texture spans that set its grid. */
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { distanceSqVector3, distanceVector3 } from '../../../../math/src/vector/vector.ts'
+import { triangleArea } from '../../../../math/src/geometry/triangle.ts'
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */
@@ -30,17 +31,10 @@ function createRun(positions: Float32Array) {
     nextArea = 0,
     nextLongest = 0
   const p = (v: number, axis: number) => positions[v * 3 + axis]
-  const edge = (u: number, v: number) =>
-    hypot3(p(v, 0) - p(u, 0), p(v, 1) - p(u, 1), p(v, 2) - p(u, 2))
+  const edge = (u: number, v: number) => distanceVector3(positions, positions, v * 3, u * 3)
   const grow = (v: number) => boxExpandByPoint(grown, 0, p(v, 0), p(v, 1), p(v, 2))
   const measure = (a: number, b: number, c: number) => {
-    const ux = p(b, 0) - p(a, 0),
-      uy = p(b, 1) - p(a, 1),
-      uz = p(b, 2) - p(a, 2),
-      vx = p(c, 0) - p(a, 0),
-      vy = p(c, 1) - p(a, 1),
-      vz = p(c, 2) - p(a, 2)
-    nextArea = hypot3(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2
+    nextArea = triangleArea(positions, a * 3, b * 3, c * 3)
     nextLongest = Math.max(edge(a, b), edge(b, c), edge(c, a))
     grown.set(box)
     grow(a)
@@ -56,8 +50,7 @@ function createRun(positions: Float32Array) {
     add(a: number, b: number, c: number, fresh: boolean) {
       if (!fresh) {
         measure(a, b, c)
-        const diagonal =
-          (grown[3] - grown[0]) ** 2 + (grown[4] - grown[1]) ** 2 + (grown[5] - grown[2]) ** 2
+        const diagonal = distanceSqVector3(grown, grown, 3, 0)
         fresh =
           diagonal > compactSquared(count + 1, area + nextArea, Math.max(longest, nextLongest))
       }

@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SHADE_SHADER } from './shadeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
 import { integers } from '../../texture/integerVectors.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -33,13 +34,17 @@ test('every way out of the resolve leaves the receiver word the double write lef
   let texel: number[] = []
   const { storeReceiver } = shaderRun<{
     storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
-  }>(receiverStoreWgsl(0), ['storeReceiver', 'receiverOct'], {
-    receiverOutput: {},
-    textureDimensions: () => [8, 8],
-    textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
-    vec3i: integers(3, false),
-    vec4u: integers(4, true),
-  })
+  }>(
+    wgslModule(receiverStoreWgsl(0)),
+    ['storeReceiver', 'octEncode', 'ndcToUvUnflipped', 'pow2FromExponent'],
+    {
+      receiverOutput: {},
+      textureDimensions: () => [8, 8],
+      textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
+      vec3i: integers(3, false),
+      vec4u: integers(4, true),
+    },
+  )
   const resolve = bodyOf('shadeSurface'),
     setAt = resolve.indexOf('rcvOffset=')
   // Each return of the resolve, by the text: those before the receiver is set never set it.

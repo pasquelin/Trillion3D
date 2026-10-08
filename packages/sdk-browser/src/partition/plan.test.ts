@@ -7,12 +7,15 @@ import { createCellIndex } from './cellIndex.ts'
 import {
   boxDistance,
   cellReach,
+  holdPriority,
   inCellFrame,
   KEEP,
   planCells as planIndexed,
   type SuperRootPlan,
 } from './plan.ts'
 import { AHEAD } from './aheadShare.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 }
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] })
@@ -48,12 +51,12 @@ test('the reach follows the zoom: its frustum, and an orthographic box, widen as
   // The box `[-10, 10] × [-5, 5]` at zoom 0.5 sees `[-20, 20] × [-10, 10]` up to its far plane.
   const box = { left: -10, right: 10, top: 5, bottom: -5 }
   const orthographic = { ...optics, far: 1000, zoom: 0.5, orthographic: box }
-  assert.equal(cellReach(orthographic), Math.hypot(1000, 20, 10))
+  assert.equal(cellReach(orthographic), length3(1000, 20, 10))
   // A negative near plane draws behind the eye, as far as it goes.
-  assert.equal(cellReach({ ...orthographic, near: -2000 }), Math.hypot(2000, 20, 10))
+  assert.equal(cellReach({ ...orthographic, near: -2000 }), length3(2000, 20, 10))
   // A box given right to left and bottom up is as wide.
   const mirrored = { left: 10, right: -10, top: -5, bottom: 5 }
-  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), Math.hypot(1000, 20, 10))
+  assert.equal(cellReach({ ...orthographic, orthographic: mirrored }), length3(1000, 20, 10))
 })
 
 test('a sheared root reads every cell the world reach holds, by its least singular value', () => {
@@ -132,4 +135,15 @@ test('a cell is drawn by its super-roots until the cut needs its objects', () =>
   // Without super-roots the plan reads every cell's objects.
   const plain = planCells(cells, eye, reach, new Set())
   assert.deepEqual([plain.visible, plain.far, plain.demoted], [[0, 1, 2, 3], [], []])
+})
+
+test("a cell's holds read strictly after the view's own pages, nearer first, even at the eye", () => {
+  const at = (distance: number, ahead?: boolean) =>
+    holdPriority({ distance: () => distance }, { eye: [0, 0, 0], reach: 100 }, 0, ahead)
+  assert.ok(at(0) > PRIORITY_VISIBLE, 'a cell around the eye after the visible pages')
+  assert.ok(at(0) < at(50) && at(50) < PRIORITY_VISIBLE + 1, 'nearer first, within the band')
+  assert.ok(
+    at(0, true) > PRIORITY_PREFETCH && at(200) > PRIORITY_PREFETCH,
+    'and after the prefetch',
+  )
 })

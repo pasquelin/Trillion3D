@@ -1,40 +1,43 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
-// two copies in the same text would be two chances of seeing it drift.
+// two copies in the same text would be two chances of seeing it drift, as before this lot.
 import { importWrapMode } from '../../host/wrapImport.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import {
-  PAGE_INFO_STRUCT_WGSL,
-  EDGE_WGSL,
-  PAGE_VERTEX_WGSL,
-  PAGE_UV_WGSL,
-  MASK_KEEP_WGSL,
-  BARY_WEIGHTS_WGSL,
-} from './pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, PAGE_VERTEX_WGSL, PAGE_UV_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { WRAP_COORD_WGSL } from '../wrapModes.ts'
 import { linearTexels } from '../../../../../tests/gpu/texture/addressingCases.ts'
-import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
+import {
+  COLOR_SAMPLE_WGSL,
+  DATA_SAMPLE_WGSL,
+  SHADOW_TILE_POOL_WGSL,
+  maskAlphaWgsl,
+} from '../../webgpu/tile/wgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const SMALL_SHADER = rasterSource(4, 16)
 
 /** How many times `fragment` appears, character for character, in `text`. */
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
+/** That `fragment`, a declaration's own text (`.text`), appears once in each of `shaders`; what a
+ *  fragment declares with its uses is read through `wgslSource`. */
 function eachOnce(fragment: string, shaders: Record<string, string>) {
   for (const [name, text] of Object.entries(shaders))
     assert.equal(occurrences(text, fragment), 1, `${name} should carry the fragment once`)
 }
 
 test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader that reads it', () => {
-  assert.match(PAGE_INFO_STRUCT_WGSL, /struct PageInfo\{/)
-  eachOnce(PAGE_INFO_STRUCT_WGSL, {
+  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /struct PageInfo\{/)
+  eachOnce(PAGE_INFO_STRUCT_WGSL.text, {
     SMALL_SHADER,
     SHADE_SHADER,
     VIS_SHADER,
@@ -42,44 +45,57 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
   })
 })
 
-test('EDGE_WGSL declares fn edge only once in the small-triangle raster and in shading', () => {
-  assert.match(EDGE_WGSL, /fn edge\(/)
-  eachOnce(EDGE_WGSL, { SMALL_SHADER, SHADE_SHADER })
+test('edgeFunction declares fn edgeFunction only once in the small-triangle raster and in shading', () => {
+  assert.match(wgslSource(edgeFunction), /fn edgeFunction\(/)
+  eachOnce(edgeFunction.text, { SMALL_SHADER, SHADE_SHADER })
 })
 
 test('PAGE_VERTEX_WGSL declares fn vertPos only once in the raster and shading', () => {
-  assert.match(PAGE_VERTEX_WGSL, /fn vertPos\(/)
-  eachOnce(PAGE_VERTEX_WGSL, { SHADE_SHADER, VIS_SHADER })
+  assert.match(wgslSource(PAGE_VERTEX_WGSL), /fn vertPos\(/)
+  eachOnce(PAGE_VERTEX_WGSL.text, { SHADE_SHADER, VIS_SHADER })
 })
 
 test('PAGE_UV_WGSL declares fn vertUv only once in the raster and shading', () => {
-  assert.match(PAGE_UV_WGSL, /fn vertUv\(/)
-  eachOnce(PAGE_UV_WGSL, { SHADE_SHADER, VIS_SHADER })
+  assert.match(wgslSource(PAGE_UV_WGSL), /fn vertUv\(/)
+  eachOnce(PAGE_UV_WGSL.text, { SHADE_SHADER, VIS_SHADER })
 })
 
-test('WRAP_COORD_WGSL declares fn wrapCoord only once, directly as via MASK_KEEP_WGSL', () => {
-  assert.match(WRAP_COORD_WGSL, /fn wrapCoord\(/)
-  eachOnce(WRAP_COORD_WGSL, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER })
+test('WRAP_COORD_WGSL declares fn wrapCoord only once, directly as via maskKeepWgsl', () => {
+  assert.match(wgslSource(WRAP_COORD_WGSL), /fn wrapCoord\(/)
+  eachOnce(WRAP_COORD_WGSL.text, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER })
 })
 
-test('MASK_KEEP_WGSL declares fn maskKeep only once in the raster', () => {
-  assert.match(MASK_KEEP_WGSL, /fn maskKeep\(/)
-  eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER })
+test('maskKeepWgsl declares fn maskKeep only once in the rasters, camera and shadow', () => {
+  const cameraAlpha = maskAlphaWgsl(false)
+  const shadowAlpha = maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)
+  const camera = maskKeepWgsl(cameraAlpha)
+  const shadow = maskKeepWgsl(shadowAlpha)
+  assert.match(wgslSource(camera), /fn maskKeep\(/)
+  const { VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN } = ENGINE_SHADERS
+  eachOnce(camera.text, { SMALL_SHADER, VIS_SHADER, VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN })
+  // One text, its read of the map provided: each variant lists its own and is named after it, so
+  // two variants never share a name.
+  assert.equal(shadow.text, camera.text)
+  assert.ok(camera.deps.includes(cameraAlpha) && shadow.deps.includes(shadowAlpha))
+  assert.equal(camera.name, 'maskKeepWgsl(maskAlphaWgsl(false))')
+  assert.equal(shadow.name, 'maskKeepWgsl(maskAlphaWgsl(true))')
 })
 
-test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in the raster', () => {
-  assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/)
-  eachOnce(BARY_WEIGHTS_WGSL, { SHADE_SHADER })
+test('affineBarycentric declares fn affineBarycentric only once in shading, never in the raster', () => {
+  // The affine weights reach the shaders through the perspective ones, their one caller.
+  const affineBarycentric = perspectiveBarycentric.deps.find((d) => d.name === 'affineBarycentric')!
+  assert.match(wgslSource(affineBarycentric), /fn affineBarycentric\(/)
+  eachOnce(affineBarycentric.text, { SHADE_SHADER })
   // The raster decides coverage on its three edges, not on derived weights.
-  assert.doesNotMatch(SMALL_SHADER, /baryWeights/)
+  assert.doesNotMatch(SMALL_SHADER, /affineBarycentric/)
 })
 
-// Under linear filtering with `Repeat`, a period's seam must mix the last texel and
+// Defect 7: under linear filtering with `Repeat`, a period's seam must mix the last texel and
 // the first. The oracle rule is in tests/gpu/texture/addressingCases.ts, written
 // independently of `wrapLinear` and already checked against the real WebGPU sampler by
 // `tests/gpu/texture/texture-addressing.gpu.ts`: the low rank comes from the coordinate shifted by
-// a half-texel, and each of the two ranks undergoes the mode for itself (OpenGL ES 3.0 § 3.8.10,
-// the same rule as WebGPU). Copying it here would make a third write of the same rule.
+// a half-texel, and each of the two ranks undergoes the mode for itself (WebGPU's sampler rule).
+// Copying it here used to make a third write of the same rule.
 const regle = linearTexels
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
 const valeur = ([i0, i1, weights]: [number, number, number]) => i0 * (1 - weights) + i1 * weights
@@ -108,21 +124,21 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
 // read that took the folded coordinate alone would reopen the defect.
 test("atlas reads fold by their texture's nibble and mix four taps", () => {
   assert.match(
-    WRAP_COORD_WGSL,
+    wgslSource(WRAP_COORD_WGSL),
     /struct WrapTaps\{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,\}/,
   )
   for (const [nom, bloc] of Object.entries({
-    COLOR_SAMPLE_WGSL,
-    MASK_ALPHA_WGSL: maskAlphaWgsl(true),
-    DATA_SAMPLE_WGSL,
+    COLOR_SAMPLE_WGSL: wgslSource(COLOR_SAMPLE_WGSL),
+    MASK_ALPHA_WGSL: wgslSource(maskAlphaWgsl(true)),
+    DATA_SAMPLE_WGSL: wgslSource(DATA_SAMPLE_WGSL),
   })) {
     // Each level folds on its own size: a mip level's seam is half of its own texel wide.
     assert.match(
-      `${COLOR_SAMPLE_WGSL}${DATA_SAMPLE_WGSL}${bloc}`,
+      `${wgslSource(COLOR_SAMPLE_WGSL)}${wgslSource(DATA_SAMPLE_WGSL)}${bloc}`,
       /(color|data)Blend\(/,
       `${nom} must read through the level blend`,
     )
-    // The header is read once, then the default read — the footprint's level, no
+    // #360, #361: the header is read once, then the default read — the footprint's level, no
     // other test — unless the page's maps take their filter rule (`sampled`), blended and
     // shadow alike.
     assert.match(
@@ -136,18 +152,17 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
       `${nom} must read its footprint once when sampled`,
     )
   }
-  for (const [nom, bloc] of Object.entries({ COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL })) {
+  for (const [nom, bloc] of Object.entries({
+    COLOR_SAMPLE_WGSL: wgslSource(COLOR_SAMPLE_WGSL),
+    DATA_SAMPLE_WGSL: wgslSource(DATA_SAMPLE_WGSL),
+  })) {
     assert.match(
       bloc,
       /let t=wrapUv\(uv,s\.wrap,levelSize\(s\.size,level\)\);/,
       `${nom} must fold each level on that level's size`,
     )
     assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`)
-    assert.match(
-      bloc,
-      /mix\(mix\(s00,s10,t\.poids\.x\),mix\(s01,s11,t\.poids\.x\),t\.poids\.y\)/,
-      nom,
-    )
+    assert.match(bloc, /bilinear4\(s00,s10,s01,s11,t\.poids\)/, nom)
   }
   for (const [nom, text] of Object.entries({
     SMALL_SHADER,

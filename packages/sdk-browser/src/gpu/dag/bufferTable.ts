@@ -6,6 +6,7 @@ import { stagedOutputBytes } from './layout.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
 export type DagBufferRow = { label: string; size: number; copySource?: boolean }
@@ -50,7 +51,7 @@ export function cameraCutBuffers(
   >,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
-  const blockCount = Math.ceil(packed.pageCount / SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
     workLayout = dagWorkLayout(blockCount)
   const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount)
   const split = dagSplit(limits, packed, {
@@ -102,9 +103,19 @@ export function cameraCutBuffers(
       ...namedParts('pageCones', parts.pageCones),
       ...namedParts('flags', parts.flags),
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
+      // Each kept list's rank of every page, bound in place of `work` by its own kernels
+      // (`shader/differenceWgsl.ts`): a page's word each, as the draw mask.
+      ranks0: ranksRow(0, packed.pageCount),
+      ranks1: ranksRow(1, packed.pageCount),
     } satisfies Record<string, DagBufferRow>,
   }
 }
+
+/** Kept list `l`'s rank of each of `pageCount` pages. */
+const ranksRow = (l: number, pageCount: number): DagBufferRow => ({
+  label: `Trillion3D DAG kept ranks ${l}`,
+  size: Math.max(16, pageCount * 4),
+})
 
 /** The rows of a `flags` of `words` cut at `cuts` (`split.ts`); a camera's are copy sources. */
 function flagRows(
@@ -123,10 +134,11 @@ function flagRows(
   }))
 }
 
-/** The readout of a cut whose list holds `listCap` ranks, as `createDagList` makes it (`listCap.ts`). */
-export const readoutRow = (listCap: number): DagBufferRow => ({
+/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, as
+ *  `createDagList` makes it (`listCap.ts`). */
+export const readoutRow = (listCap: number, regions = 0): DagBufferRow => ({
   label: 'Trillion3D DAG readback',
-  size: stagedOutputBytes(listCap),
+  size: stagedOutputBytes(listCap, regions),
   copySource: true,
 })
 

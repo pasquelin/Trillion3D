@@ -26,6 +26,8 @@ const NOT_MESSAGES = new Set([
   'TRILLION3D_CACHE_LOCK_WAIT_MS',
   'WEIGHTS_0',
   'alembic-ogawa-1-gltf-3',
+  // The file name of a two-channel ETC2-family level (`texture_preview/blocks.rs`).
+  'eac-rg',
   'hdr-radiance-rgbe-1',
   'image-plugin-3',
   'ma-mel-subset-1-gltf-8',
@@ -38,7 +40,7 @@ const NOT_MESSAGES = new Set([
 ])
 /** The families of the compiler's report codes, by their first word. */
 const FAMILIES =
-  'alembic|autonomous|blend|bmp|dds|eac|exr|hdr|image|ktx2|light|ma|material|node|psd|texture|unity|usd'
+  'alembic|blend|bmp|dds|eac|exr|hdr|image|ktx2|light|ma|material|node|psd|texture|unity|usd'
 const CODE_LITERAL = new RegExp(
   `"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|CANCELLED|(?:${FAMILIES})-[a-z0-9-]+)(?=[":])`,
   'g',

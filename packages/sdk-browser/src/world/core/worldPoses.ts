@@ -1,12 +1,12 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { Batch, Seat } from './worldBatches.ts'
-import { copyElements } from '../../math/matrixElements.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 /** Rows a session composes on the GPU under their parent (`placement/gpuCompose.ts`). */
 export type PoseComposer = {
@@ -98,123 +98,28 @@ function chainShown(node: Object3D, scene: Object3D, moved: ReadonlySet<Object3D
  * parks, takes or marks it from that write as it does every row.
  */
 export function createWorldPoses() {
-  const moved = new Set<Object3D>()
-  const ranges = new Map<Batch, { rows: PlacementRows; from: number; to: number }>()
-  /** Rows `from`..`to` of a batch were written: the range sent before the next frame grows. */
-  const touchRange = (batch: Batch, from: number, to: number) => {
-    if (!batch.rows) return
-    const range = ranges.get(batch)
-    if (range && range.rows === batch.rows) {
-      range.from = Math.min(range.from, from)
-      range.to = Math.max(range.to, to)
-    } else ranges.set(batch, { rows: batch.rows, from, to })
+  const state: PoseState = {
+    moved: new Set(),
+    ranges: new Map(),
+    composed: new Map(),
+    dropped: new Set(),
+    movedUnder: new Map(),
+    composedKey: undefined,
+    composedEpoch: -1,
   }
-  const touch = (batch: Batch, row: number) => touchRange(batch, row, row)
-  /** Parents whose children the session composes, and whether each parent was drawn. */
-  const composed = new Map<Object3D, boolean>()
-  /** Parents taken out of `composed` during an `apply`: unlinked at its end unless linked again. */
-  const dropped = new Set<Object3D>()
-  /** The children of each composed parent that moved on their own, gathered by `apply`. */
-  const movedUnder = new Map<Object3D, Object3D[]>()
-  let composedKey: object | undefined,
-    composedEpoch = -1
-  /**
-   * The links of `children` when each is a seated leaf mesh, else null: each child's own local
-   * matrix, whose product by the parent's world is the child's world as the transform tree
-   * composes it (`refreshNode`), the same factors in the same order.
-   */
-  const linksOf = (children: readonly Object3D[], seats: ReadonlyMap<Mesh, Seat>) => {
-    const links = []
-    for (const child of children) {
-      const seat = seats.get(child as Mesh)
-      if (!seat || !seat.batch.rows || seat.row < 0 || child.children.length) return null
-      if ((child as Mesh).primitive === 'sprite') return null
-      links.push({ rows: seat.batch.rows, index: seat.row, local: child._matrixElements })
-    }
-    return links
-  }
-  /** Writes one seated mesh's world matrix — a sprite's row (`spriteRow`) — and flags into its
-   *  row: whether it is shown, and whether it casts no shadow. */
-  const writeSeat = (mesh: Mesh, seat: Seat, shown: boolean) => {
-    const rows = seat.batch.rows
-    if (!rows || seat.row < 0) return
-    const world = mesh.matrixWorld.elements
-    rows.matrices.set(mesh.primitive === 'sprite' ? spriteRow(world) : world, seat.row * 16)
-    rows.live[seat.row] = shown ? 1 : 0
-    rows.shadowless[seat.row] = mesh.castShadow ? 0 : 1
-    touch(seat.batch, seat.row)
-  }
-  const writeTwin = (node: Object3D, twin: PosedTwin, shown: boolean) => {
-    copyElements(twin.matrix.elements, node.matrixWorld.elements)
-    twin.matrixAutoUpdate = false
-    twin.visible = shown
-  }
-  /** Links every child of `node`, drawn or not as `drawn` says, when the session composes them. */
-  const linkChildren = (
-    node: Object3D,
-    drawn: boolean,
-    seats: ReadonlyMap<Mesh, Seat>,
-    composer: PoseComposer,
-  ) => {
-    const links = node.children.length ? linksOf(node.children, seats) : null
-    if (links && composer.link(node, node.matrixWorld.elements, links, true))
-      composed.set(node, drawn)
-  }
-  /**
-   * A composed parent sends its world, its children follow on the GPU; each child that moved on
-   * its own has its row written and sends its local matrix. False, the parent dropped, when its own
-   * drawn state flipped — every child's flag follows it —, a moved child is no seated leaf any
-   * more, or the session refuses: its subtree is then written whole.
-   */
-  const followParent = (
-    node: Object3D,
-    drawn: boolean,
-    seats: ReadonlyMap<Mesh, Seat>,
-    composer: PoseComposer | undefined,
-  ) => {
-    const children = movedUnder.get(node) ?? NONE
-    const links = composed.get(node) === drawn ? linksOf(children, seats) : null
-    if (composer && links && composer.link(node, node.matrixWorld.elements, links, false)) {
-      for (const child of children)
-        writeSeat(child as Mesh, seats.get(child as Mesh)!, drawn && child.visible)
-      return true
-    }
-    composed.delete(node)
-    dropped.add(node)
-    return false
-  }
-  /** Writes the rows and twins of `node`'s subtree. A composed parent sends its world instead
-   *  (`followParent`); one dropped is written whole and linked again, as `link` asks of `node`. */
-  const writeSubtree = (
-    node: Object3D,
-    shown: boolean,
-    seats: ReadonlyMap<Mesh, Seat>,
-    twins: ReadonlyMap<Object3D, PosedTwin>,
-    composer: PoseComposer | undefined,
-    link: boolean,
-  ) => {
-    const drawn = shown && node.visible
-    const seat = seats.get(node as Mesh)
-    if (seat) writeSeat(node as Mesh, seat, drawn)
-    const twin = twins.get(node)
-    if (twin) writeTwin(node, twin, drawn)
-    const linked = composed.has(node)
-    if (linked && followParent(node, drawn, seats, composer)) return
-    for (const child of node.children) writeSubtree(child, drawn, seats, twins, composer, false)
-    if (composer && (link || linked)) linkChildren(node, drawn, seats, composer)
-  }
+  const touchRange = (batch: Batch, from: number, to: number) => touchRows(state, batch, from, to)
   return {
-    touch,
+    touch: (batch: Batch, row: number) => touchRange(batch, row, row),
     touchRange,
-    writeSeat,
+    writeSeat: (mesh: Mesh, seat: Seat, shown: boolean) => writeSeat(state, mesh, seat, shown),
     writeTwin,
     /** A node's pose, visibility or `castShadow` moved: it and its subtree are written before the
      *  next frame. */
     moved(node: Object3D) {
-      moved.add(node)
+      state.moved.add(node)
     },
     get pending() {
-      return moved.size > 0 || ranges.size > 0
+      return state.moved.size > 0 || state.ranges.size > 0
     },
     /** Writes what moved, then hands every touched range to `send`. */
     apply(
@@ -224,53 +129,193 @@ export function createWorldPoses() {
       send: (rows: PlacementRows, from: number, to: number) => void,
       composer?: PoseComposer,
     ) {
-      // Another session or another seating holds none of the links: the composed parents' rows
-      // are written whole again, and linked anew where they still may be.
-      if (composed.size && (composer?.key !== composedKey || composer?.epoch !== composedEpoch)) {
-        for (const parent of composed.keys()) {
-          moved.add(parent)
-          dropped.add(parent)
-        }
-        composed.clear()
-      }
-      composedKey = composer?.key
-      composedEpoch = composer?.epoch ?? -1
-      if (moved.size) {
-        updateTransformTree(Object3D._treeOf(scene))
-        // A child of a composed parent is written through it: the parent sends its world, the
-        // child's row and link follow (`followParent`).
-        for (const node of moved) {
-          const parent = node._alive ? node.parent : null
-          if (!parent || !composed.has(parent)) continue
-          const children = movedUnder.get(parent)
-          if (children) children.push(node)
-          else movedUnder.set(parent, [node])
-        }
-        for (const parent of movedUnder.keys()) moved.add(parent)
-        for (const node of moved) {
-          if (!node._alive) continue
-          // A node of a loaded model is drawn from its graph node, which holds its local pose:
-          // each moved node is written there, its subtree follows in the graph.
-          writeModelNode(node)
-          const shown = chainShown(node, scene, moved)
-          if (shown === null) continue
-          writeSubtree(node, shown, seats, twins, composer, node !== scene)
-        }
-        moved.clear()
-        movedUnder.clear()
-      }
-      // A parent dropped and not linked again: every row it held is the CPU's, written above. The
-      // unlink reads no world: a parent destroyed since it was linked is unlinked all the same.
-      for (const parent of dropped)
-        if (!composed.has(parent)) composer?.link(parent, NONE, NONE, true)
-      dropped.clear()
-      for (const [batch, range] of ranges)
-        if (batch.rows === range.rows) send(range.rows, range.from, range.to)
-      ranges.clear()
+      relink(state, composer)
+      if (state.moved.size) writeMoved(state, scene, { seats, twins, composer })
+      sendRanges(state, send, composer)
     },
     /** A session about to open reads every row as written: no range is left to send it. */
     settle() {
-      ranges.clear()
+      state.ranges.clear()
     },
   }
+}
+
+/** What a world's change list holds between two frames (`createWorldPoses`). */
+type PoseState = {
+  /** The nodes whose pose or visibility moved since the last frame. */
+  moved: Set<Object3D>
+  /** The rows written since the last frame, per batch. */
+  ranges: Map<Batch, { rows: PlacementRows; from: number; to: number }>
+  /** Parents whose children the session composes, and whether each parent was drawn. */
+  composed: Map<Object3D, boolean>
+  /** Parents taken out of `composed` during an `apply`: unlinked at its end unless linked again. */
+  dropped: Set<Object3D>
+  /** The children of each composed parent that moved on their own, gathered by `apply`. */
+  movedUnder: Map<Object3D, Object3D[]>
+  composedKey: object | undefined
+  composedEpoch: number
+}
+
+/** What one `apply` writes the moved subtrees with: the seats, the twins, the session's composer. */
+type PoseFrame = {
+  seats: ReadonlyMap<Mesh, Seat>
+  twins: ReadonlyMap<Object3D, PosedTwin>
+  composer: PoseComposer | undefined
+}
+
+/** Rows `from`..`to` of a batch were written: the range sent before the next frame grows. */
+function touchRows({ ranges }: PoseState, batch: Batch, from: number, to: number) {
+  if (!batch.rows) return
+  const range = ranges.get(batch)
+  if (range && range.rows === batch.rows) {
+    range.from = Math.min(range.from, from)
+    range.to = Math.max(range.to, to)
+  } else ranges.set(batch, { rows: batch.rows, from, to })
+}
+
+/**
+ * The links of `children` when each is a seated leaf mesh, else null: each child's own local
+ * matrix, whose product by the parent's world is the child's world as the transform tree
+ * composes it (`refreshNode`), the same factors in the same order.
+ */
+function linksOf(children: readonly Object3D[], seats: ReadonlyMap<Mesh, Seat>) {
+  const links = []
+  for (const child of children) {
+    const seat = seats.get(child as Mesh)
+    if (!seat || !seat.batch.rows || seat.row < 0 || child.children.length) return null
+    if ((child as Mesh).primitive === 'sprite') return null
+    links.push({ rows: seat.batch.rows, index: seat.row, local: child._matrixElements })
+  }
+  return links
+}
+
+/** Writes one seated mesh's world matrix — a sprite's row (`spriteRow`) — and flags into its
+ *  row: whether it is shown, and whether it casts no shadow. */
+function writeSeat(state: PoseState, mesh: Mesh, seat: Seat, shown: boolean) {
+  const rows = seat.batch.rows
+  if (!rows || seat.row < 0) return
+  const world = mesh.matrixWorld.elements
+  rows.matrices.set(mesh.primitive === 'sprite' ? spriteRow(world) : world, seat.row * 16)
+  rows.live[seat.row] = shown ? 1 : 0
+  rows.shadowless[seat.row] = mesh.castShadow ? 0 : 1
+  touchRows(state, seat.batch, seat.row, seat.row)
+}
+
+function writeTwin(node: Object3D, twin: PosedTwin, shown: boolean) {
+  copyMatrix4(twin.matrix.elements, node.matrixWorld.elements)
+  twin.matrixAutoUpdate = false
+  twin.visible = shown
+}
+
+/** Links every child of `node`, drawn or not as `drawn` says, when the session composes them. */
+function linkChildren(
+  state: PoseState,
+  node: Object3D,
+  drawn: boolean,
+  { seats, composer }: PoseFrame,
+) {
+  const links = node.children.length ? linksOf(node.children, seats) : null
+  if (links && composer?.link(node, node.matrixWorld.elements, links, true))
+    state.composed.set(node, drawn)
+}
+
+/**
+ * A composed parent sends its world, its children follow on the GPU; each child that moved on
+ * its own has its row written and sends its local matrix. False, the parent dropped, when its own
+ * drawn state flipped — every child's flag follows it —, a moved child is no seated leaf any
+ * more, or the session refuses: its subtree is then written whole.
+ */
+function followParent(state: PoseState, node: Object3D, drawn: boolean, frame: PoseFrame) {
+  const { seats, composer } = frame
+  const children = state.movedUnder.get(node) ?? NONE
+  const links = state.composed.get(node) === drawn ? linksOf(children, seats) : null
+  if (composer && links && composer.link(node, node.matrixWorld.elements, links, false)) {
+    for (const child of children)
+      writeSeat(state, child as Mesh, seats.get(child as Mesh)!, drawn && child.visible)
+    return true
+  }
+  state.composed.delete(node)
+  state.dropped.add(node)
+  return false
+}
+
+/** Writes the rows and twins of `node`'s subtree. A composed parent sends its world instead
+ *  (`followParent`); one dropped is written whole and linked again, as `link` asks of `node`. */
+function writeSubtree(
+  state: PoseState,
+  node: Object3D,
+  shown: boolean,
+  frame: PoseFrame,
+  link: boolean,
+) {
+  const drawn = shown && node.visible
+  const seat = frame.seats.get(node as Mesh)
+  if (seat) writeSeat(state, node as Mesh, seat, drawn)
+  const twin = frame.twins.get(node)
+  if (twin) writeTwin(node, twin, drawn)
+  const linked = state.composed.has(node)
+  if (linked && followParent(state, node, drawn, frame)) return
+  for (const child of node.children) writeSubtree(state, child, drawn, frame, false)
+  if (frame.composer && (link || linked)) linkChildren(state, node, drawn, frame)
+}
+
+/** Another session or another seating holds none of the links: the composed parents' rows are
+ *  written whole again, and linked anew where they still may be. */
+function relink(state: PoseState, composer: PoseComposer | undefined) {
+  const { composed } = state
+  if (
+    composed.size &&
+    (composer?.key !== state.composedKey || composer?.epoch !== state.composedEpoch)
+  ) {
+    for (const parent of composed.keys()) {
+      state.moved.add(parent)
+      state.dropped.add(parent)
+    }
+    composed.clear()
+  }
+  state.composedKey = composer?.key
+  state.composedEpoch = composer?.epoch ?? -1
+}
+
+/** Writes every moved node's subtree, once, after the transform tree's frame pass. */
+function writeMoved(state: PoseState, scene: Object3D, frame: PoseFrame) {
+  const { moved, movedUnder, composed } = state
+  updateTransformTree(Object3D._treeOf(scene))
+  // A child of a composed parent is written through it: the parent sends its world, the
+  // child's row and link follow (`followParent`).
+  for (const node of moved) {
+    const parent = node._alive ? node.parent : null
+    if (!parent || !composed.has(parent)) continue
+    const children = movedUnder.get(parent)
+    if (children) children.push(node)
+    else movedUnder.set(parent, [node])
+  }
+  for (const parent of movedUnder.keys()) moved.add(parent)
+  for (const node of moved) {
+    if (!node._alive) continue
+    // A node of a loaded model is drawn from its graph node, which holds its local pose:
+    // each moved node is written there, its subtree follows in the graph.
+    writeModelNode(node)
+    const shown = chainShown(node, scene, moved)
+    if (shown === null) continue
+    writeSubtree(state, node, shown, frame, node !== scene)
+  }
+  moved.clear()
+  movedUnder.clear()
+}
+
+/** Unlinks every parent dropped and not linked again, then hands each touched range to `send`. */
+function sendRanges(
+  state: PoseState,
+  send: (rows: PlacementRows, from: number, to: number) => void,
+  composer: PoseComposer | undefined,
+) {
+  // A parent dropped and not linked again: every row it held is the CPU's, written above. The
+  // unlink reads no world: a parent destroyed since it was linked is unlinked all the same.
+  for (const parent of state.dropped)
+    if (!state.composed.has(parent)) composer?.link(parent, NONE, NONE, true)
+  state.dropped.clear()
+  for (const [batch, range] of state.ranges)
+    if (batch.rows === range.rows) send(range.rows, range.from, range.to)
+  state.ranges.clear()
 }

@@ -25,7 +25,16 @@ const motionRun = shaderRun<{
   motionWords(previous: number[], current: number[], eye: Pair[]): number[]
 }>(
   COMPOSE_ROOTS_WGSL,
-  [...DOUBLE_HELPERS, 'dDiv', 'toF32', 'fromF32', 'sameWord', 'inverse4', 'motionWords'],
+  [
+    ...DOUBLE_HELPERS,
+    'dDiv',
+    'toF32',
+    'fromF32',
+    'sameWord',
+    'isNanWord',
+    'inverse4',
+    'motionWords',
+  ],
   { countLeadingZeros },
 )
 

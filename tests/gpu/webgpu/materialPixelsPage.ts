@@ -1,8 +1,8 @@
-// Page side of the material proof: each fixture rendered by its pair of renderers — the witness
-// and the WebGPU engine unless it names WebGL2 —, one engine for all, then read at the same points.
-// The witness is drawn the way the explorer draws a witness engine — sRGB output, the filmic curve
-// once a light exists, identity without one — and each engine presents into its own canvas.
-import type * as THREE from 'three'
+// Page side of the material proof: each fixture rendered by the witness — Three's WebGPU renderer —
+// and by the WebGPU engine, one engine for all, then read at the same points. The witness is drawn
+// the way the witness draws — sRGB output, the filmic curve once a light exists, identity without
+// one — and each renderer presents into its own canvas.
+import type * as THREE from 'three/webgpu'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { cameraFace, releaseScene } from '../kit/sharedSceneProof.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -15,30 +15,18 @@ import {
   rgbAt,
   witnessImage,
   engineImage,
-  webgl2Image,
   CLEAR_COLOR,
 } from './materialPixelsRender.ts'
-import type {
-  BackendFactory,
-  BackendDiagnostic,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
-import { referenceBackend } from '../../../bench/witnesses/referenceBackend.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
-import {
-  autonomousPagesBackend,
-  webgpuPagesBackend,
-} from '../../../packages/sdk-browser/src/measurement/measurement.ts'
 import {
   createSceneLightStore,
   type SceneLightStore,
 } from '../../../packages/sdk-core/src/index.ts'
 
 interface Sides {
-  referenceBackend: BackendFactory
-  webgpuPagesBackend: BackendFactory
-  autonomousPagesBackend: BackendFactory
   device: GPUDevice
-  renderer: THREE.WebGLRenderer
+  renderer: THREE.WebGPURenderer
   canvas: HTMLCanvasElement
   camera: G.Camera
   sun: G.Object3D
@@ -59,7 +47,7 @@ interface Comparison {
   difference: number[]
   reason: string
   held: boolean
-  events: BackendDiagnostic[]
+  events: EngineDiagnostic[]
   samples: Reading[]
   /** Pixels where the engine shows the background and the reference a surface (`behind`). */
   holes?: number
@@ -85,24 +73,16 @@ async function drawn(
   renderer: Renderer,
   fixture: Fixture,
   sides: Sides,
-  events: BackendDiagnostic[],
+  events: EngineDiagnostic[],
 ): Promise<{ pixels: ArrayLike<number>; held: boolean }> {
   const scene = sceneOf(fixture, sides.sun)
   const { camera } = sides
   const lights = fixture.lit ? sides.stores.sun : sides.stores.none
-  if (renderer === 'webgl2') return webgl2Image(sides.autonomousPagesBackend, scene, lights, camera)
   if (renderer === 'webgpu') {
-    const { pixels, held } = await engineImage(
-      sides.webgpuPagesBackend,
-      scene,
-      sides.device,
-      lights,
-      camera,
-      events,
-    )
+    const { pixels, held } = await engineImage(scene, sides.device, lights, camera, events)
     return { pixels: pixels ?? [], held }
   }
-  const pixels = witnessImage(sides.referenceBackend, scene, sides.renderer, camera)
+  const pixels = await witnessImage(scene, sides.renderer, camera)
   releaseScene(scene)
   return { pixels, held: true }
 }
@@ -110,8 +90,8 @@ async function drawn(
 /** One fixture on its pair of renderers: the readings at its points and the engine's
  *  diagnostics. */
 async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
-  const events: BackendDiagnostic[] = []
-  const pair = fixture.pair ?? WITNESS_PAIR
+  const events: EngineDiagnostic[] = []
+  const pair = WITNESS_PAIR
   const reference = await drawn(pair[0], fixture, sides, events)
   const engine = await drawn(pair[1], fixture, sides, events)
   const truth = truthOf(fixture, sides.camera, reference.pixels, engine.pixels)
@@ -144,7 +124,7 @@ export async function run() {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device, errors } = gpu
-  const { renderer, canvas } = witnessRenderer()
+  const { renderer, canvas } = await witnessRenderer()
   // The sun of the witness and the stores of the engine, built once: a light added to another
   // scene moves there, and an unlit fixture reads the empty store.
   const sun = G.directionalLight(new G.Color(SUN.color), SUN.intensity)
@@ -154,9 +134,6 @@ export async function run() {
   const stores = { none: createSceneLightStore(), sun: createSceneLightStore() }
   stores.sun.add(SUN)
   const sides: Sides = {
-    referenceBackend,
-    webgpuPagesBackend,
-    autonomousPagesBackend,
     device,
     renderer,
     canvas,

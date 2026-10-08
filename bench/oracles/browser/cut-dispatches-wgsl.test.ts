@@ -4,13 +4,16 @@
 // Pinned here, in Node.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DESCENT_BEFORE } from './cut-dispatches-wgsl.ts'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
+import {
+  DAG_SELECTION_SHADER_BEFORE,
+  DESCENT_BEFORE,
+  SHIPPED_STAGES,
+} from './cut-dispatches-wgsl.ts'
 import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 
 test('the shipped stages reach the frozen descent only through the calls it answers as they do', () => {
   const frozen = [...DESCENT_BEFORE.matchAll(/\bfn (\w+)\(/g)].map((m) => m[1])
-  const stages = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, '').replace(
+  const stages = SHIPPED_STAGES.replace(DAG_LEVEL_WGSL.text, '').replace(
     /\/\*[\s\S]*?\*\/|\/\/.*$/gm,
     '',
   )
@@ -28,4 +31,14 @@ test('the shipped stages reach the frozen descent only through the calls it answ
     'drawnAppend(i)',
     'resetCounters()',
   ])
+})
+
+// #1483: the shipped drawn clear moved out of the descent into the swap kernels, and the frozen
+// module declared it twice — a redeclaration Dawn refused before a single frame was timed.
+test('the frozen module declares each function once', () => {
+  const names = [...DAG_SELECTION_SHADER_BEFORE.matchAll(/^fn (\w+)\(/gm)].map((m) => m[1])
+  assert.deepEqual(
+    names.filter((name, i) => names.indexOf(name) !== i),
+    [],
+  )
 })

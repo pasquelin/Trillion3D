@@ -3,6 +3,8 @@
  * looking down its own −z, its field of view, and the boxes coloured by the verdict the engine
  * function returned — nothing here decides anything, it only draws what it was handed.
  */
+import { TAU, perspectiveSlope } from './engine.ts'
+
 const KEPT = '#199e70'
 const STRADDLING = '#c98500'
 const REJECTED = '#d95926'
@@ -83,7 +85,7 @@ function drawFrustum(
   height: number,
 ) {
   // `fov` is vertical; from above, what bounds the picture is the horizontal half-angle.
-  const half = Math.atan(aspect * Math.tan(((fov / 2) * Math.PI) / 180))
+  const half = Math.atan(aspect * perspectiveSlope(fov))
   const far = height
   context.fillStyle = 'rgba(57,135,229,0.12)'
   context.strokeStyle = 'rgba(57,135,229,0.7)'
@@ -98,7 +100,7 @@ function drawFrustum(
   context.stroke()
   context.fillStyle = '#3987e5'
   context.beginPath()
-  context.arc(cx, cy, 4, 0, Math.PI * 2)
+  context.arc(cx, cy, 4, 0, TAU)
   context.fill()
 }
 

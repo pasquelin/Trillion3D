@@ -1,5 +1,11 @@
 import type { EngineCamera } from './engineCamera.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import {
+  crossVector3,
+  distanceVector3,
+  dotVector3,
+  length3,
+  normalizeVector3,
+} from '../../../math/src/vector/vector.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
 
 /** Last eye position and way back, kept from frame to frame to derive the eye's velocity (world
@@ -60,9 +66,11 @@ const continues = (change: number, before: number, now: number) => change <= Mat
  *  otherwise. */
 const steady = (held: number | undefined, moves: boolean, holds: boolean, stepMs: number) =>
   !moves ? 0 : holds ? (held ?? 0) + stepMs : stepMs
-/** The rest a first read compares with, and the last read's turn as a vector (axis × rate). */
+/** The rest a first read compares with, the last read's turn as a vector (axis × rate), and the
+ *  view's way back read as a row. */
 const REST = new Float64Array(3),
-  spin = new Float64Array(3)
+  spin = new Float64Array(3),
+  way = new Float64Array(3)
 
 /**
  * Reads one frame of the camera's motion: the eye's velocity and turn rate since the last read, both
@@ -87,29 +95,28 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
     // their cross product. Read from the cross and dot products, which is exactly zero for the same
     // way back — its unit length is only rounded, so an arc cosine would read a still camera as
     // turning.
-    const back = motion.lastBack,
-      x = view[2],
-      y = view[6],
-      z = view[10]
-    axis[0] = back[1] * z - back[2] * y
-    axis[1] = back[2] * x - back[0] * z
-    axis[2] = back[0] * y - back[1] * x
-    const sin = hypot3(axis[0], axis[1], axis[2])
-    motion.turn = Math.atan2(sin, back[0] * x + back[1] * y + back[2] * z) / dt
-    for (let k = 0; k < 3 && sin > 0; k++) axis[k] /= sin
+    const back = motion.lastBack
+    way[0] = view[2]
+    way[1] = view[6]
+    way[2] = view[10]
+    crossVector3(axis, back, way)
+    const sin = length3(axis[0], axis[1], axis[2])
+    motion.turn = Math.atan2(sin, dotVector3(back, way)) / dt
+    // A zero axis (no turn) stays zero.
+    normalizeVector3(axis)
   }
   const elapsed = now - (motion.lastMs ?? now),
     step = elapsed > 0 ? elapsed : 0,
     a = motion.ahead ?? REST,
-    change = hypot3(velocity[0] - a[0], velocity[1] - a[1], velocity[2] - a[2]),
+    change = distanceVector3(velocity, a),
     moving = continues(
       change,
-      hypot3(a[0], a[1], a[2]),
-      hypot3(velocity[0], velocity[1], velocity[2]),
+      length3(a[0], a[1], a[2]),
+      length3(velocity[0], velocity[1], velocity[2]),
     ),
     turn = motion.turn,
     turning = continues(
-      hypot3(axis[0] * turn - spin[0], axis[1] * turn - spin[1], axis[2] * turn - spin[2]),
+      length3(axis[0] * turn - spin[0], axis[1] * turn - spin[1], axis[2] * turn - spin[2]),
       was,
       turn,
     )
@@ -123,5 +130,5 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   back[1] = view[6]
   back[2] = view[10]
   motion.lastMs = now
-  return hypot3(velocity[0], velocity[1], velocity[2])
+  return length3(velocity[0], velocity[1], velocity[2])
 }

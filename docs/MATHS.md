@@ -3,6 +3,180 @@
 The maths the engine computes with, exported by `trillion3d`, `packages/sdk-core` and
 `packages/sdk-browser` alike; the rest of the public API is [SDK.md](SDK.md).
 
+## The maths package
+
+`packages/math` (`@trillion3d/math`) holds the engine's primitive maths, and every other package
+imports it. Its contract:
+
+- Pure functions: no state that outlives a call (module scratch buffers are reused within a call and never read across calls), no DOM, GPU API, clock or worker.
+- Outputs go through an `out` argument or a flat array, never a fresh object per call.
+- One function per formula: a second copy of a formula elsewhere in the tree is a defect.
+- It imports nothing outside itself; `pnpm run check:cycles` fails when a module does.
+- "No GPU" means no GPU API call: the WGSL twins of the primitives belong to the package, in
+  `wgsl/` (below).
+- `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
+  call the package: a method whose body re-derives a formula calls the package; per-component
+  arithmetic (`multiply`, `min`, `addScalar`) stays.
+
+Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
+float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
+rounded in float32 as the GPU computes it),
+`quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
+spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
+and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
+reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`search.ts`, the binary searches; `hermite.ts`), `sequence/`
+(`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
+`sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
+against), `batch/` and `wgsl/` (below); `index.ts` is the
+barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
+and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
+
+`scalar/`: counting and range helpers, and `uint64.ts`, the integer two little-endian
+32-bit words hold; `constants.ts`: shared numbers.
+
+### Lengths
+
+One rule computes every length (`packages/math/src/vector/vector.ts`). `length3(x, y, z)` sums
+the squares left to right — the order of WGSL's `length()` — and returns `Math.sqrt` of that sum
+while it lies in the normal band, from 2^-969 up to the largest finite double: there, every square
+that underflowed is below half an ulp of the sum, and the plain root holds the length the squares
+define. Outside the band — a zero vector, components below about 1e-146 or past about 1e154 —
+it returns `hypot3`, which scales first and neither overflows nor underflows; a NaN component
+gives NaN. `length2(x, y)` is the same rule in the plane with `hypot2`, `lengthQuaternion` on
+four terms with `hypot4`. A distance is that length of `a − b`, component by component
+(`distanceVector3`; `distanceSqVector3` without the root); a matrix column's length is the length
+of its three terms (`decomposeMatrix4`). A normalise multiplies each component by
+`1 / (length || 1)`, so a zero vector stays zero; a vector shorter than 2^-1024, whose inverse
+would overflow, is first scaled by 2^1000, exactly (`normalizeVector3`, `normalizeVector2`). So a
+host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises to a unit vector
+(`vector/lengthRange.test.ts`). The rule and `Math.hypot` differ in the last bit on many inputs
+of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves. A
+site moved from the plain root keeps its bits inside the band and, declared, gains the true
+length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
+bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
+`page/selection/projection.ts`, a light's far distance in `world/core/worldLights.ts`, and the
+light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
+within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
+(`lightRotation.test.ts`).
+
+The declared exceptions, each held to bits the rule would change:
+
+- `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
+  `packages/page-codec-wasm/src/math.rs` (`hypot`); the normal-cone reference
+  `tests/kit/reference/cone.ts`, held to `packages/page-codec-wasm/src/normal_cone.rs`; `length`
+  of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
+  reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
+  outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
+  within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
+  `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
+  axis lengths must round alike; and the generators whose published files hold the builtin's bits,
+  the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
+  `scripts/docs/observatory/write.ts` (`hypot4`).
+- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
+  `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
+  summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut_error.rs`
+  by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
+  `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
+  past the band too (`sphereUnion.test.ts`).
+- A division by the length to normalise, which keeps each component correctly rounded:
+  `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
+  and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
+  sampler's twin; the octahedral encoders of `packages/page-codec/src/pageGrids.ts`, float32
+  twins of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
+  `ik.ts`, for the reason of its length; `normalized` of
+  `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
+  because the validated direction feeds the shadow clipmap's own normalise and basis in double and
+  the rule's product differs from that quotient in the last bit on about two directions in three;
+  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits
+  (the doc generators' divides are `divideVector3`).
+
+### The WGSL library
+
+`packages/math/src/wgsl/` holds the shader side of the maths: each function or constant shaders
+share is one `WgslDecl` ([`decl.ts`](../packages/math/src/wgsl/decl.ts)), its name, its text and
+the declarations it depends on, held as objects, never as names. A shader keeps its own text and
+lists the declarations it uses; [`assemble.ts`](../packages/math/src/wgsl/assemble.ts) writes them
+before that text, each once, its dependencies first:
+
+```ts
+const SHADER = wgslProgram(OWN_TEXT, [hashUnit, worldMatrix3])
+```
+
+A shader fragment that several programs share is a declaration too, a `wgslBlock`: its text as
+written, its dependencies the library declarations and the fragments it uses. A template
+interpolates parameters only — numbers, layout constants, binding indices, names —, never another
+fragment's text. A fragment is named `X_WGSL` or `xWgsl(…)`; an expression or a statement a body
+splices is named otherwise (`FULLSCREEN_XY`, `MIRROR_TERM`). A factory `xWgsl(…)` that takes a
+provider, a function the fragment calls, lists it, and the assembler refuses a program holding two
+of its variants. Only a whole program calls `wgslProgram` (or `wgslModule`), which writes the
+program's own directives (`enable …;`) first; a declaration spliced into a template as text throws
+when the module is read. A program others extend — the lit program at the screen's mirror radiance
+(`withScreenReflections`), the blend module with the water's stage (`blendShader`) — takes what it
+gains as a parameter and is assembled with it.
+
+A function or constant a fragment calls but its host provides — `mipRead` of a cell reduction,
+`reflectionDepthAt` and `reflectionSize` of the screen walks, `vsmPoolLoad` of the shadow-map
+sampling, `mirrorRadiance` of the mirror term, `INF` of the projected bound — is a declaration
+under that name, which the fragment takes as a parameter and lists: a missing provider fails when
+the program is written, and two providers of one name are refused, never left to the shader
+compiler: the error names the path through the dependents by which each came and the first line
+where the two texts differ.
+The parts of one program — the DAG selection's `DAG_*_WGSL` fragments, which call one another and
+the structures of the program's own text — list the shared declarations they call, and the program
+lists every part.
+
+A name written twice with two texts, or a dependency cycle, throws when the pipeline is described:
+the text is built once a pipeline, never in a frame. Two operation orders of one formula round
+apart, so each is its own declaration under its own name, never merged. The library writes a number
+through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
+holds, the engine's one helper that writes a number as WGSL; π, π/4, 1/π, 2π, 1/(2π), √2, the
+greatest finite and the least normal `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`,
+3.4e38, never the greatest `f32`), the golden ratio's fraction and angle, the plastic steps, the
+half-float bounds and the singularity threshold are `wgslConst` declarations of
+[`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
+[`packages/math/src/constants.ts`](../packages/math/src/constants.ts), beside the shaders' own
+sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`,
+`DIVISOR_FLOOR`, `RANGE_BOUND`). An integer
+expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u`) are one
+declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
+`library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
+declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
+finds no program declaring a module-scope name twice, whatever the texts,
+`wgslDeclarations.test.ts` no program holding a library declaration but as the library's text and
+no fragment spliced as text, and `check:wgsl-library` (below) no source declaring a library name.
+
+### The gates
+
+Three gates keep a formula in its one home; each runs in `check:changed` and in the CI's
+`validate`:
+
+- the lint (`no-restricted-syntax`, the selectors of
+  [`scripts/lint-maths.ts`](../scripts/lint-maths.ts)) refuses, outside `packages/math`, the
+  inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
+  `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
+  `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a
+  number, negated or after another factor (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`,
+  `perspectiveSlope`) and
+  `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
+- `check:helpers` reports a free function of any tree whose signature and body are those of a
+  `packages/math` function, whatever its name and its parameters' names;
+- `check:wgsl-library` reports a shader whose text declares a function, a constant or a structure
+  the WGSL library holds.
+
+The declared oracles — the bench's reference implementations and witnesses, the image metric's
+reference, the test kit's references, the before-forms a rewrite is proved against, and the test
+modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
+purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
+
+Some spellings are conventions, not formulas, and stay where they are written: a texel's centre
+(`+ 0.5`), an all-ones "none" word, a division guard whose floor belongs to its site (`max(x, 1e-6)`:
+one shared floor would move pixels), a sign flip, and an
+expression whose rounding differs from the shared function's (it keeps its form, as the Lengths
+section does for its own).
+
 ## Batch math for hosts
 
 A host moving ten thousand instances or culling ten thousand boxes would otherwise loop, one object
@@ -14,22 +188,24 @@ or batch, follows these conventions:
   returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
-  as its only value and repeats the formula of its unit function, which stays the oracle.
+  as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
+  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
+  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:
   `MATRIX_VALUES` 16, `POSITION_VALUES` 3, `QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4
   (centre then radius) and `NORMAL_MATRIX_VALUES` 9 in
-  `packages/sdk-core/src/math/batch/strides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z) in
-  `packages/sdk-core/src/math/primitives/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes
+  `packages/math/src/batch/strides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z) in
+  `packages/math/src/geometry/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes
   `a, b, c, d`, facing inward, in the order of `frustumPlanesFromMatrix`) in
-  `packages/sdk-core/src/math/frustum/frustum.ts`. Matrices read one at a time travel as
+  `packages/math/src/geometry/frustum/frustum.ts`. Matrices read one at a time travel as
   **sub-views** of sixteen numbers (`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load,
   never per frame: `multiplyMatrix4` reads its operands at constant indices.
 
 **Allocate once, reuse every frame.** Culling ten thousand boxes and bringing the survivors' centres
 into view space is two calls (the batches' tests are `batch.test.ts` and `transforms.test.ts` in
-`packages/sdk-core/src/math/batch/`):
+`packages/math/src/batch/`):
 
 ```javascript
 import {
@@ -71,11 +247,9 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
 **Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
-(`math.rs` and `math_matrix.rs` in `packages/page-codec-wasm/src/`), bit-identical to the JavaScript
-loop; a governor (`packages/sdk-core/src/math/path/governor.ts`, wired in
-`packages/sdk-browser/src/math/batchRuntime.ts`) plays the faster measured, per operation.
-`hierarchyUpdateBatch` has a kernel too (`math_hierarchy.rs`, proven by its Rust tests), outside
-the governor.
+(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`), bit-identical to the
+JavaScript loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
+`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
 `metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
 `operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement` the
 sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches` how
@@ -85,6 +259,30 @@ clock steps instead. A host serving its page with the `Cross-Origin-Opener-Polic
 `Cross-Origin-Embedder-Policy` headers gets the fine clock back, one sample per call. A kernel is
 written only where a loop's measured share of the engine's frame passes 0.1 ms; batches serve hosts,
 no engine loop runs through one.
+
+### The Rust twins and their reference values
+
+The Rust maths primitives live once in `packages/math/rust` (`trillion3d-math`, no dependency):
+vectors, boxes, the 4×4 product in `f32` and `f64`, JavaScript's `Math.min`, `Math.max` and
+`Math.hypot`, fdlibm's arc cosine and sine. The page codec (and through it the WebAssembly kernels)
+and the compiler both depend on it and keep no copy. `packages/math/golden` holds the reference
+values every twin of a mirrored primitive — Rust, TypeScript, WGSL — is tested against bit for bit:
+the inputs and outputs of each case written by their bits, one JSON file per primitive, or per
+encoder and its decoder with their round trip (`oct.json`, `quantize.json`), one case per line
+(Prettier leaves the folder alone). The crate that owns a twin checks its files in one test
+(`packages/math/rust/src/golden.rs`); after a deliberate change of a primitive, `pnpm run
+golden:write` rewrites them all, the command each file names.
+
+- TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
+- TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
+  `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
+  (`packages/sdk-core/src/world/animation/`), `pageGrids.golden.test.ts` (`packages/page-codec/src/`).
+- WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
+- The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
+- The grid rule's TypeScript twin, `packages/page-codec/src/gridExponent.ts`, is held to the Rust
+  rule's own cases (`gridExponent.test.ts`) and to `grid.json` (`gridExponent.golden.test.ts`); on
+  every compiled scene, the run-time cut picks the grid the compiler wrote
+  (`tests/integration/runtime-cut-grid.test.ts`).
 
 ### Measured against the witness library
 
@@ -100,8 +298,8 @@ the witness calls are the migration table.
 Each unit function's page in the portal's [API reference](https://www.trillion3d.com/#/en/api) gives
 what it computes, the witness call it replaces, its proof and ratio, written once in
 `site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`). The functions live in
-`packages/sdk-core/src/math/matrix/` (matrices), `packages/sdk-core/src/math/primitives/` (vectors,
-colours, camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
+`packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
+`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine does not read the host's clip-depth convention. It composes its own projection from the
 declared optics — field, aspect, near plane, zoom — in **reversed depth with an infinite far
@@ -121,7 +319,7 @@ far plane, the adaptive threshold and the shadow range.
 
 ### Batch functions
 
-`packages/sdk-core/src/math/batch/`: `batch.ts`, with `culling.ts`, `points.ts`, `transforms.ts`
+`packages/math/src/batch/`: `batch.ts`, with `culling.ts`, `points.ts`, `transforms.ts`
 and `color.ts` beside it. The proof is `pnpm run perf:core` (`three-vs-core-batch-*.perf.ts`).
 Ratios are the batch's speed-up over the witness's loop, rounded from the range of the per-run
 medians over three runs; the three exceptions are declared on their line.
@@ -131,15 +329,15 @@ medians over three runs; the three exceptions are declared on their line.
 | `frustumKeepsBoxBatch(kept, planes, boxes, n)` | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1) |
 | `sphereFromBoundsBatch(out, boxes, n)` | four values per box, `sphereFromBounds` | `for … box.getBoundingSphere(s)` | bench `Box3.getBoundingSphere batch` (×2.2) |
 | `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
-| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/math/src/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
-| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math_matrix.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`packages/math/rust/src/matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
-| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2 |
+| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/math/src/matrix/singular.ts`) is kept; ceiling 2.2 |
 | `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
 | `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)` | the reverse, `decomposeMatrix4` | `for … m.decompose(p, q, s)` | bench `Matrix4.decompose batch` (×1.1) |
 | `transformPointsBatch(out, m, points, n)` | `n` points by one affine matrix, `transformAffinePoint` | `for … v.applyMatrix4(m)` | bench `Vector3.applyMatrix4 batch` (×1.4) |
 | `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
 | `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
-| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | the Rust tests of `packages/page-codec-wasm/src/math_hierarchy.rs` |
+| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/math/src/color/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `tests/integration/sdk-facade.test.ts` (parents before children); its Rust/WebAssembly kernel was removed, no host called it |

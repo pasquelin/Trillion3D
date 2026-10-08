@@ -6,7 +6,7 @@
  * compiler's, coarser only where a caller passes a primitive's own), octahedral normal bytes,
  * colour bytes — and packs the same streams, without sharing a line.
  */
-import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts'
+import { bitsFor, dequant, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts'
 import { firstUse, storedPositions } from './pagePositions.ts'
 import {
   deformCells,
@@ -21,6 +21,9 @@ import {
   type PageAttributes,
   type PageCell,
 } from './pageAttributes.ts'
+import { saturate } from '../../math/src/scalar/reals.ts'
+import { ceilFloat32 } from '../../math/src/float/splitDouble.ts'
+import { distanceVector3 } from '../../math/src/vector/vector.ts'
 
 const MAGIC = 0x33504757,
   VERSION = 7,
@@ -63,25 +66,25 @@ function gatherAttribute(original: readonly number[], attr: PageAttribute, width
   return out
 }
 
-/** The largest distance a vertex's quantized position lies from its source one. */
-function positionError(
+/** A vertex's quantized position, each component the float32 the page decodes. */
+const stored = new Float64Array(3)
+
+/** The largest distance a vertex's quantized position lies from its source one, as the float32
+ *  the header carries, rounded up so nothing exceeds it (`quantization_error`, `bits/quant.rs`,
+ *  the same bits on its float32 sources). */
+export function positionError(
   positions: QuantizedGrid,
   position: PageAttribute,
   original: readonly number[],
 ) {
+  const step = 2 ** positions.exponent
   let error = 0
-  original.forEach((_, i) => {
-    let d = 0
+  original.forEach((source, i) => {
     for (let c = 0; c < 3; c++)
-      d +=
-        (Math.fround(
-          positions.min[c] + Math.fround(positions.cells[i * 3 + c] * 2 ** positions.exponent),
-        ) -
-          position.array[original[i] * 3 + c]) **
-        2
-    error = Math.max(error, Math.sqrt(d))
+      stored[c] = dequant(positions.min[c], positions.cells[i * 3 + c], step)
+    error = Math.max(error, distanceVector3(stored, position.array, 0, source * 3))
   })
-  return ceil32(error)
+  return ceilFloat32(error)
 }
 
 /** The page's attributes quantized into `cells`, each one that is present checked; returns the
@@ -111,7 +114,7 @@ function quantizeAttributes(
       )
     else if (bit === 8) {
       const record = quantize(
-        values.map((v) => Math.max(0, Math.min(1, v))),
+        values.map((v) => saturate(v)),
         4,
         COLOR_EXPONENT,
       )

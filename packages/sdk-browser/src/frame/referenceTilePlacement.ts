@@ -1,8 +1,5 @@
-import { linearToSrgb8, srgbToLinear } from '../../../sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8, srgbToLinear } from '../../../math/src/color/color.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
-
-/** WebGPU's portable `maxTextureDimension2D`: the side every device grants a target. */
-export const PORTABLE_TEXTURE_SIDE = 8192
 
 /** One tile of the reference: where its pixels land in the output, and how the camera's
  *  projection is scaled and shifted to draw it (`ViewTile`). */

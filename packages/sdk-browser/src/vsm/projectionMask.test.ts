@@ -12,6 +12,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 
 const f = Math.fround
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
@@ -27,7 +28,7 @@ const half = (x: number) => {
 const develop = (s: number, noise: number) => {
   const scale = f(1 / 15)
   let x = s
-  if (s > f(scale / 4) && s < 1) x = Math.min(Math.max(f(s + f(f(noise - 0.5) * scale)), 0), 1)
+  if (s > f(scale / 4) && s < 1) x = saturate(f(s + f(f(noise - 0.5) * scale)))
   return half(f((Math.round(f(x * 15)) & 15) / 15))
 }
 

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 test('GPU skin blending normalizes source weights without changing their stored bytes', () => {
   const weights = new Float32Array([0.2, 0.3])
@@ -15,7 +16,7 @@ test('GPU skin blending normalizes source weights without changing their stored 
       count: number,
       point: number[],
     ) => number[]
-  }>(DEFORM_WGSL, ['deformSkin'], {
+  }>(wgslModule(DEFORM_WGSL), ['deformSkin'], {
     deformWeight: (_h: unknown, _p: unknown, _v: number, k: number) => weights[k],
     deformJointId: (_h: unknown, _p: unknown, _v: number, k: number) => k,
     // Scalar multiplication is the identity palette's action on this vector.

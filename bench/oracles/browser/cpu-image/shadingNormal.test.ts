@@ -1,4 +1,4 @@
-// `shadingNormal.ts` is written on the core's flat vectors (`packages/sdk-core/src/math/primitives/vector.ts`),
+// `shadingNormal.ts` is written on the core's flat vectors (`packages/math/src/vector/vector.ts`),
 // without the host library. Oracle: `bench/oracles/browser/shading-normals.ts`, the file written on the host library, copied
 // as-is with its `Vector3`/`Matrix3`. The `shading-normals.perf.ts` bench replays 42 000 frames;
 // this test hard-codes a handful, two of which show the operation order:
@@ -116,7 +116,7 @@ test('negative scale and shear, with no vertex normal or map: the geometric norm
 // always returns `frameOut`, the same module buffer (documented at the top of the file: “no
 // allocation, [...] returned in one of them”); checking that on many chained calls, each with a
 // normal map and different frames, is the same method as the “allocation” test of
-// `packages/sdk-core/src/math/transform-tree/update.test.ts`: the identity of the returned buffer, not an allocation
+// `packages/sdk-core/src/world/transform-tree/update.test.ts`: the identity of the returned buffer, not an allocation
 // count, attests that no buffer is built along the way.
 test('normal-mapped surface: a thousand shaded pixels in a row always return the same buffer', () => {
   const matrix = new G.Matrix4().fromArray([

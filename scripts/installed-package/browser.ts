@@ -10,7 +10,7 @@ export async function runInstalledBrowser({
   root,
   html,
   moduleName,
-  decodeWorkerPath,
+  pageWorkerPath,
   integrationWorkerPath,
   commonWorkerPath,
   allowNodeModules = false,
@@ -21,7 +21,7 @@ export async function runInstalledBrowser({
   /** The page, or what writes it for the port the fixture server listens on. */
   html: string | ((port: number) => string)
   moduleName: string | null
-  decodeWorkerPath: string
+  pageWorkerPath: string
   integrationWorkerPath: string
   commonWorkerPath: string
   allowNodeModules?: boolean
@@ -50,10 +50,8 @@ export async function runInstalledBrowser({
       replayUrl: `http://localhost:${port}${replayUrl}`,
       commonWorkerPath,
     })
-    const { geometryUrl } = result
     const workers = await page.evaluate(runInstalledWorkers, {
-      pageUrl: geometryUrl,
-      decodeWorkerUrl: `http://127.0.0.1:${port}${decodeWorkerPath}`,
+      pageWorkerUrl: `http://127.0.0.1:${port}${pageWorkerPath}`,
       integrationWorkerUrl: `http://127.0.0.1:${port}${integrationWorkerPath}`,
       requests: installedWorkerRequests(),
     })

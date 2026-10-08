@@ -1,4 +1,4 @@
-// The sun's adaptive ray count (`rayCountWgsl`): a lane whose first ray hit an occluder whose rays
+// The sun's adaptive ray count (`rayCountStatement`): a lane whose first ray hit an occluder whose rays
 // stay within a pixel stops there alone, whatever its half; a half none of whose lanes hit a wider
 // one stops after one ray (lit); one whose rays all hit stops after the second (umbra); a lane in a
 // wide penumbra, or that missed beside a lane that hit a wide one, traces all seven. The shipped

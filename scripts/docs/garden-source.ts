@@ -2,6 +2,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { geometry, type Geometry } from '../../packages/sdk-core/src/world/geometry/index.ts'
+import { crossVector3 } from '../../packages/math/src/vector/vector.ts'
+import { hypot3 } from '../../packages/math/src/float/hypot.ts'
 
 interface GltfBufferView {
   buffer: number
@@ -79,8 +81,10 @@ export async function writeGarden(directory: string) {
         b = point(u, v + 0.0001)
       const x = a.map((n, i) => n - p[i]),
         y = b.map((n, i) => n - p[i])
-      const n = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]]
-      const length = Math.hypot(...n) || 1
+      const n = crossVector3([0, 0, 0], x, y)
+      // `hypot3`, the bits of `Math.hypot`, not `length3`: the published normals' bounds in
+      // `garden.gltf` hold its bits.
+      const length = hypot3(n[0], n[1], n[2]) || 1
       positions.push(...p)
       normals.push(...n.map((c) => c / length))
     }

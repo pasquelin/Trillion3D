@@ -6,8 +6,9 @@ import { blendLightResources } from '../blend/lighting.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { VOLUME_WORDS } from '../transparent/transmission.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../blend/order.ts'
-import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts'
+import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
@@ -86,10 +87,10 @@ export function prepared() {
   blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new G.Scene())
   // The scene's transparent list IS the draw list: static tables and the encode plan are built with
   // it, as `prepareBlendResources` does.
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
-  // The image sort posts the keys, the frustum verdict and the slices the pass encodes.
-  // The three copies are at the same place: their keys are equal, and source order splits them.
+  // The image sort posts the keys, the frustum verdict and the slices the pass encodes (the copies
+  // share one place: equal keys, split by source order).
   orderBlendPasses(blendState, [0, 0, 0])
   blendState.visibleBlend.push(...blendState.blendGpu)
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
@@ -112,7 +113,7 @@ export function targets(gpu: WebgpuGpuState) {
     depthTexture: {},
     feedbackView: {},
     asIsShare: { view: {} },
-    surfaces: { views: () => views },
+    surfaces: { views: () => views, lobesView: {}, width: 8, height: 8, lobes: { width: 1 } },
     backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {
       uniform: {},
@@ -122,7 +123,6 @@ export function targets(gpu: WebgpuGpuState) {
     },
   })
 }
-
 /** One pass as the replay records it. */
 const recordOf = (descriptor: GPURenderPassDescriptor) => ({
   label: descriptor.label!,
@@ -172,10 +172,10 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   } as unknown as GPUCommandEncoder
   const rt = {
     // A textured scene: its pipelines write the feedback.
-    vis: { visEnabled: true, blendPipelines: anyPipelines(), writesFeedback: true },
+    vis: { blendPipelines: anyPipelines(), writesFeedback: true, physicalTable: {} },
     gpu,
     capture: { capturing: false },
-    lights: { buffer: {}, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.
     blendState,

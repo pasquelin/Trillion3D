@@ -1,8 +1,10 @@
+import { alignUp, ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
 } from '../../../sdk-core/src/index.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 
 /**
  * Virtual-texture tile geometry: what the physical pool, the page table and the shader
@@ -12,9 +14,12 @@ import {
  *
  * A tile carries 128×128 useful texels and a 4-texel gutter on each side, copied from
  * neighbours of the same level: linear filtering at a tile edge thus reads neighbouring
- * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles in a
- * 4096 side, the rest unused. Every measure is a multiple of four: a block-compressed pool
- * (`blockFormats.ts`) copies whole 4×4 blocks, and its tiles land on block boundaries.
+ * texels, not those of the next tile in the pool — which may be resident at another level, or not
+ * at all: a hand-made bilinear without the gutter would pay four loads a tap and still seam there.
+ * A pool layer stores 30×30 tiles in a 4096 side, the rest unused: a larger side reads no faster
+ * and only coarsens the budget's grain, a layer being what the budget allocates. Every measure is
+ * a multiple of four: a block-compressed pool (`blockFormats.ts`) copies whole 4×4 blocks, and
+ * its tiles land on block boundaries.
  *
  * A texture's levels split in two: STREAMED levels, from 0 through the last that exceeds
  * 64 texels, cut into resident tiles on demand; and the TAIL, from the first level whose
@@ -31,7 +36,7 @@ const TILES_PER_ROW = 30
  * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the
  * sampler filters with the same weights wherever the streamer placed the tile.
  */
-export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH))
+export const POOL_LAYER_SIDE = nextPow2(TILES_PER_ROW * TILE_PITCH)
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */
 export const POOL_SUBTEXEL = 2 ** 24 / POOL_LAYER_SIDE
 /** One step of that grid in pool coordinates: 2^-24. */
@@ -54,7 +59,7 @@ export const mipLevelCountFor = (width: number, height: number) =>
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
   const [w, h] = levelSize(width, height, level)
-  return [Math.ceil(w / TILE_SIZE), Math.ceil(h / TILE_SIZE)]
+  return [ceilDiv(w, TILE_SIZE), ceilDiv(h, TILE_SIZE)]
 }
 
 /**
@@ -63,7 +68,7 @@ export function tilesAt(width: number, height: number, level: number): [number, 
  * level lands on a block boundary; the 1×1 level therefore starts at 128, and its padded block
  * ends at 132, inside the gutter. The shader (`../webgpu/tile/wgsl.ts`) applies the same rule.
  */
-export const tailOffset = (rank: number) => (TILE_SIZE - (TILE_SIZE >> rank) + 3) & ~3
+export const tailOffset = (rank: number) => alignUp(TILE_SIZE - (TILE_SIZE >> rank), 4)
 
 /** Layout of a texture: its streamed levels, their table entries, and its tail. */
 export type TileLayout = {
@@ -98,6 +103,20 @@ export function tileLayout(width: number, height: number): TileLayout {
 /** A pool slot: tile column, row and layer. */
 export type TilePlace = { x: number; y: number; layer: number }
 
+/** Bits of a place's column and row, then of its layer, in the 24 low bits of a table word. */
+export const PLACE_AXIS_BITS = 6
+export const PLACE_LAYER_BITS = 12
+/** Most layers a pool holds: what a place's layer field addresses. */
+export const POOL_MAX_LAYERS = 1 << PLACE_LAYER_BITS
+/** The layers a lane pool may take on a device of `limits`: its granted array layers —
+ *  WebGPU's guaranteed ones when it names none (`textureLimits`) —, within what a place
+ *  addresses. */
+export const poolLayerLimit = (limits?: { maxTextureArrayLayers?: number }) =>
+  Math.min(textureLimits(limits).layers, POOL_MAX_LAYERS)
+/** A place in 24 bits — column, row, layer —, as the shader reads it (`placeOrigin`). */
+export const packPlace = (place: TilePlace) =>
+  place.x | (place.y << PLACE_AXIS_BITS) | (place.layer << (2 * PLACE_AXIS_BITS))
+
 export function placeOf(index: number): TilePlace {
   const layer = Math.floor(index / TILES_PER_LAYER),
     rest = index - layer * TILES_PER_LAYER
@@ -111,5 +130,5 @@ export function placeOf(index: number): TilePlace {
  */
 const ENTRY_SERVED = 0x80000000
 export const packEntry = (place: TilePlace, level: number) =>
-  (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0
+  (ENTRY_SERVED | packPlace(place) | (level << 24)) >>> 0
 export const entryLevel = (word: number) => (word >>> 24) & 0x7f

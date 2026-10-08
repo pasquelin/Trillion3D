@@ -7,19 +7,28 @@ import assert from 'node:assert/strict'
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { randomPage } from '../../page/decode/randomPages.fixture.ts'
+import { randomPage } from '../../page/codec/randomPages.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 type Fn = (...args: unknown[]) => unknown
-const ROUTINES = ['clusterPow2', 'clusterBitsFor', 'clusterField', 'clusterWidths', 'clusterStep']
+const ROUTINES = ['clusterField', 'clusterWidths', 'clusterStep']
 const READERS = ['clusterHeader', 'clusterTriangle', 'clusterIndex', 'clusterPosition', 'clusterUv']
 const ATTRIBUTES = ['clusterNormal', 'clusterColor', 'clusterJoint', 'clusterWeight']
 const NAMES = [...ROUTINES, ...READERS, ...ATTRIBUTES, 'clusterMorph']
-const HELPERS = ['clusterStream', 'clusterWindow', 'clusterBlock', 'clusterGrid'].concat([
-  'clusterPointHeader',
-  'clusterSurfaceHeader',
-])
+const HELPERS = [
+  'octDecodeScalar',
+  'pow2FromExponent',
+  'bitLength',
+  'byteOf',
+  'ceilDiv',
+  'clusterStream',
+  'clusterWindow',
+  'clusterBlock',
+  'clusterGrid',
+].concat(['clusterPointHeader', 'clusterSurfaceHeader'])
 /** WGSL's integers where the decode leans on them: it divides integers alone, and truncates;
  *  `i32` of a `u32` keeps its bits, `>>` of a negative `i32` is arithmetic. */
 const INTEGERS = {
@@ -53,10 +62,14 @@ function decoder(page: Uint8Array, after: (i: number) => number) {
       return after(i)
     },
   })
-  const run = shaderRun<Record<string, Fn>>(clusterDecodeWgsl('pool'), [...NAMES, ...HELPERS], {
-    pool,
-    ...INTEGERS,
-  })
+  const run = shaderRun<Record<string, Fn>>(
+    wgslModule(clusterDecodeWgsl('pool')),
+    [...NAMES, ...HELPERS],
+    {
+      pool,
+      ...INTEGERS,
+    },
+  )
   const call = (name: string, ...args: unknown[]) => ((running = name), run[name](...args))
   return { call, past }
 }
@@ -87,8 +100,7 @@ function decodeAll(call: (name: string, ...args: unknown[]) => unknown) {
   return out
 }
 
-let seed = 7
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+const random = lcgFloatRandom(7)
 const floats = (n: number, f: (i: number) => number) =>
   Float32Array.from({ length: n }, (_, i) => f(i))
 

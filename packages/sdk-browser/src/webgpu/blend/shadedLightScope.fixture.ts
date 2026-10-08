@@ -30,3 +30,30 @@ export function shadedLightScope(
   }
   return { normal, scope }
 }
+
+/**
+ * A random lamp set around a random point `P`, drawn in one fixed order — points, spots and suns in
+ * turn, in range and past it, each with the shadow slot `slot` gives it (−1 for none) — and the
+ * random scope `shadedLightScope` draws for it next.
+ */
+export function randomLampScope(
+  r: () => number,
+  u: (lo: number, hi: number) => number,
+  K: Record<string, number>,
+  round: number,
+  slot: (kind: number, rank: number) => number,
+) {
+  const count = 1 + Math.floor(u(0, 16))
+  const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
+  const items = [...Array(count).keys()].map((rank) => {
+    const kind = [0, K.KIND_SPOT, K.KIND_SUN][rank % 3]
+    return {
+      positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
+      colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
+      directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
+      params: [kind, slot(kind, rank), 0, kind === K.KIND_SPOT ? 0.9 : 0],
+      shape: [u(0, 0.05), 0, 0, 0],
+    }
+  })
+  return { count, P, items, ...shadedLightScope(r, u, K, count, items, round) }
+}

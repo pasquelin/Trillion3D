@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Bounce budget in milliseconds.
@@ -35,7 +36,6 @@ export function createBounceBudget(budgetMs: number): BounceBudget {
   const target = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS
   /** Both loop bounds: never beyond published ceilings, never below the floor. */
-  const bounded = (fraction: number) => Math.min(1, Math.max(budgetFloor, fraction))
   let load = 1,
     lastMs: number | null = null,
     samples = 0
@@ -56,8 +56,8 @@ export function createBounceBudget(budgetMs: number): BounceBudget {
       if (ms === null || !Number.isFinite(ms) || ms <= 0) return
       lastMs = ms
       samples++
-      const wanted = bounded((load * target) / ms)
-      load = bounded(load + (wanted - load) * budgetSmoothing)
+      const wanted = clamp((load * target) / ms, budgetFloor, 1)
+      load = clamp(lerp(load, wanted, budgetSmoothing), budgetFloor, 1)
     },
   }
 }

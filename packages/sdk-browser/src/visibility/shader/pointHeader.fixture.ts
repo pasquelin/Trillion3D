@@ -9,9 +9,9 @@ import * as F from '../types.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import type { Vec } from '../../texture/shaderRun.fixture.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
-let seed = 831
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+const random = lcgFloatRandom(831)
 const floats = (n: number, at: () => number) => Float32Array.from({ length: n }, at)
 
 /** A quantized page of `triangles` triangles over `vertices` vertices, its attributes `full` or
@@ -80,9 +80,9 @@ function scene() {
 const DECODE = [
   'pageHeader pageHeaderFor pageSurfaceRead deformWholeCopy pageCorner pageTriangle pagePosition',
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
-  'clusterSurfaceHeader clusterStream clusterWidths clusterStep clusterPow2 clusterBitsFor',
+  'clusterSurfaceHeader clusterStream clusterWidths clusterStep pow2FromExponent bitLength ceilDiv',
   'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition clusterGrid',
-  'clusterUv clusterNormal clusterColor',
+  'clusterUv clusterNormal clusterColor octDecodeScalar byteOf',
 ].flatMap((line) => line.split(' '))
 /** Column-major 4×4 product, which `shaderRun`'s operators leave to the scope. */
 const product = (a: readonly number[], b: readonly number[]) =>
@@ -108,6 +108,7 @@ export const cameraViewProj = (zoom: number) =>
 /** The camera vertex stages and what they call beside the decode, and the scope they read. */
 export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow'].concat(
   ['instanceCorner', 'hardwareIdle', 'hardwareCorner', 'pageClip', 'computeTakes', 'screen'],
+  ['clipToPixel'],
   ['screenBox', 'boxOf', 'pageLine', 'lineClip'],
 )
 export const VIS_VS_SCOPE = {

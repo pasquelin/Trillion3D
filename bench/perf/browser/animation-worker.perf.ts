@@ -1,4 +1,4 @@
-// The animation samples taken ahead on a worker (`packages/sdk-browser/src/math/animationAhead.ts`)
+// The animation samples taken ahead on a worker (`packages/sdk-browser/src/animation/animationAhead.ts`)
 // against the synchronous WebAssembly sampler and Three's `AnimationMixer`, on the duel's scene
 // (`support/animationRigs.ts`): 400 rigs of 25 bones, a position and a rotation track each, at a
 // fixed step. What is timed is the main thread alone: `advanceMixers` (or Three's updates) per
@@ -6,16 +6,17 @@
 // paced by a timer, as a display's interval paces them, so the worker's buffer can come back; the
 // three sides run in rounds whose order rotates, and each round's first frames, while the worker
 // has nothing ready yet, are left out. The scene's poses through the worker are bit for bit the
-// main thread's (`packages/sdk-browser/src/math/animationAhead.test.ts`).
+// main thread's (`packages/sdk-browser/src/animation/animationAhead.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { NodeDomWorker } from '../../oracles/browser/pageDecodeNodeWorker.ts'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
-import { lendAnimationSampler } from '../../../packages/sdk-browser/src/math/batchAnimation.ts'
-import { sampleAhead } from '../../../packages/sdk-browser/src/math/animationAhead.ts'
-import { countingSampler } from '../../../packages/sdk-browser/src/math/animationAhead.fixture.ts'
+import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
+import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
+import { sampleAhead } from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
+import { countingSampler } from '../../../packages/sdk-browser/src/animation/animationAhead.fixture.ts'
 import {
   advanceMixers,
   lendActionSampler,
@@ -23,9 +24,7 @@ import {
 import { FRAME, animationRigs } from './support/animationRigs.ts'
 
 await prepareSdkWasm(
-  readFileSync(
-    join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
-  ),
+  readFileSync(join(import.meta.dirname, '../../../packages/sdk-browser/src/wasm/kernels.wasm')),
 )
 const { sampler, counts: aheadCounts } = countingSampler((await lendAnimationSampler())!)
 lendActionSampler(sampler)
@@ -40,7 +39,10 @@ const ROUNDS = 24,
 const { scene, mixersThree } = animationRigs()
 
 const worker = new NodeDomWorker(
-  new URL('../../../packages/sdk-browser/src/math/animationWorker.fixture.ts', import.meta.url),
+  new URL(
+    '../../../packages/sdk-browser/src/animation/animationWorker.fixture.ts',
+    import.meta.url,
+  ),
 )
 const start = () => worker
 const pause = () => new Promise((resolve) => setTimeout(resolve, PAUSE_MS))
@@ -68,13 +70,10 @@ async function round(side: Side) {
   updates[side].push(median(frames))
   cpus[side].push((cpu() - from) / (FRAMES - WARM))
 }
-const median = (values: number[]) => quantile(values, 0.5)
-function quantile(values: number[], q: number) {
-  const sorted = [...values].sort((a, b) => a - b)
-  return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]
-}
+const rank = (values: number[], q: number) => quantileOf(values, q) as number
+const median = (values: number[]) => rank(values, 0.5)
 const spread = (values: number[], digits = 0) =>
-  `${median(values).toFixed(digits)} [${quantile(values, 0.25).toFixed(digits)}–${quantile(values, 0.75).toFixed(digits)}]`
+  `${median(values).toFixed(digits)} [${rank(values, 0.25).toFixed(digits)}–${rank(values, 0.75).toFixed(digits)}]`
 const paired = (a: number[], b: number[]) => a.map((v, i) => v / b[i])
 
 const SIDES: Side[] = ['sync', 'ahead', 'three']

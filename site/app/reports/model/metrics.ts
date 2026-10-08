@@ -1,4 +1,5 @@
 import type { Locale } from '../../../content/locale.ts'
+import { MIB } from '../../../../packages/math/src/constants.ts'
 import { isObject, readPath } from './contract.ts'
 import type { ReportRecord, TimingStat } from './types.ts'
 
@@ -18,10 +19,10 @@ export const METRICS = {
   triangles: { unit: '', path: 'drawnTriangles' },
   selected: { unit: '', path: 'selectedTriangles' },
   uncovered: { unit: '', path: 'uncoveredTriangles' },
-  geometry: { unit: 'MiB', path: 'geometryBytes', divisor: 1048576 },
-  textures: { unit: 'MiB', path: 'metrics.textureResidentBytes', divisor: 1048576 },
-  textureBudget: { unit: 'MiB', path: 'metrics.textureBudgetBytes', divisor: 1048576 },
-  pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: 1048576 },
+  geometry: { unit: 'MiB', path: 'geometryBytes', divisor: MIB },
+  textures: { unit: 'MiB', path: 'metrics.textureResidentBytes', divisor: MIB },
+  textureBudget: { unit: 'MiB', path: 'metrics.textureBudgetBytes', divisor: MIB },
+  pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: MIB },
   calls: { unit: '', path: 'metrics.drawCalls' },
   preparation: { unit: 'ms', path: 'preparationMs' },
 } satisfies Record<string, MetricDefinition>

@@ -32,7 +32,8 @@ function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
     seen,
     profileResets,
     waits,
-    backends: [{ id: 'engine-test', scene: { children: [] } }],
+    // The engine publishes its selected cut (`selectedPageIds`), the only source left to read it.
+    engine: { id: 'engine-test', selectedPageIds: () => [] },
     setDiagnostic: () => {},
     setPose: () => {},
     awaitPages: async () => waits.push(seen.at(-1)),
@@ -44,7 +45,7 @@ function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
       return metrics
     },
     flush: async () => {},
-    capture: () => new Uint8Array(4),
+    capture: async () => new Uint8Array(4),
     dispose: () => {},
   } as unknown as Mock
 }
@@ -84,8 +85,6 @@ async function mesurer(
     modulesUrl: '../',
     backend: 'createEngine',
     engineId: 'engine-test',
-    autonomous: false,
-    witness: false,
     page: 'lighting/lightingPage.ts',
     gltfUrl: null,
     pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
@@ -99,7 +98,6 @@ async function mesurer(
     maxPages: 4,
     geometryPoolBytes: null,
     texturePoolBytes: null,
-    geometryPoolCeilingBytes: null,
     livePools: null,
     instances: 1,
     stageProfile: false,
@@ -140,17 +138,17 @@ test('the measured moving loop publishes real requestAnimationFrame intervals', 
 })
 
 test('measureView keeps an explicit `null` in metrics instead of erasing it', async () => {
-  const { metrics } = await mesurer({ triangles: null, gpuSelectionFallback: null, drawCalls: 3 })
+  const { metrics } = await mesurer({ triangles: null, frameHeld: null, drawCalls: 3 })
   assert.equal(metrics.triangles, null, '`null` must stay, not disappear from the reading')
-  assert.equal(metrics.gpuSelectionFallback, null)
+  assert.equal(metrics.frameHeld, null)
   assert.equal(metrics.drawCalls, 3, 'a measured number always passes')
   assert.ok('triangles' in metrics, 'the key itself must be present, not only `undefined`')
 })
 
 test('measureView keeps an explicit `false`, distinct from an absent counter', async () => {
-  const { metrics } = await mesurer({ frameHeld: false, gpuSelectionFallback: true })
+  const { metrics } = await mesurer({ frameHeld: false, coverageReady: true })
   assert.equal(metrics.frameHeld, false)
-  assert.equal(metrics.gpuSelectionFallback, true)
+  assert.equal(metrics.coverageReady, true)
 })
 
 test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
@@ -186,7 +184,7 @@ test('stage profile covers the moving suffix and capture keeps its last pose', a
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)')
   }
-  assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (WebGL2)')
+  assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (#1016)')
 })
 
 test('the CPU bounds cover the profiled images only: none of the warm-up, none of the capture', async () => {

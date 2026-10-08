@@ -1,6 +1,6 @@
 import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
-import { uniformStride } from '../../residency/pools.ts'
+import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
@@ -29,8 +29,77 @@ export function createCameraFrames(
   sources?: PackedDag['worldSources'],
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
-    stride = uniformStride(device.limits),
-    per = ranges[0].count
+    slots = uniformSlots(device.limits, ranges.length, 2)
+  const f: Frames = {
+    ...{ device, frameData, ranges, per: ranges[0].count },
+    ...rangeBuffers(device, slots, ranges, own),
+    frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
+    pending: { from: Infinity, to: -1 },
+  }
+  const { buffers, worldBuffers, bounds } = f
+  const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
+  /** Range `r`'s bind group: `group`, its `frames`, its `worlds`, its `range`. */
+  const bindGroup = (layout: GPUBindGroupLayout, group: DagGroup, r: number) =>
+    device.createBindGroup({
+      layout,
+      entries: dagGroupEntries(
+        { ...group, frames: buffers[r], worlds: worldBuffers[r] },
+        { buffer: bounds, offset: slots.offset(r)[0], size: 16 },
+      ),
+    })
+  const table = {
+    ranges,
+    buffers,
+    worldBuffers,
+    writeWorldOrigins: origins.write,
+    originBytes: origins.hostBytes,
+    bindGroup,
+    /** One bind group per range (`bindGroup`), with its primitive count. */
+    bindGroups: (layout: GPUBindGroupLayout, group: DagGroup) =>
+      ranges.map(({ count }, r) => ({ count, bindGroup: bindGroup(layout, group, r) })),
+    /** The host rows of primitives `[from, to)` — every one by default —, each to its range's
+     *  buffer at its row. `dagPrepare` writes the rest. */
+    writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),
+    /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
+    writeWorlds: (next: Float32Array) => writeWorlds(f, next),
+    /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
+     *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
+    writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
+    /**
+     * The words written since the last flush, one write per range the interval crosses: the host
+     * rows between them hold what their range already holds, or planes `dagPrepare` writes again
+     * before any kernel reads them (`shader/shader.ts`). Nothing when no word was written.
+     */
+    flushWords: () => flushWords(f),
+  }
+  table.writeRows()
+  table.writeWorlds(worlds)
+  table.writeWorldOrigins()
+  return table
+}
+
+type Frames = {
+  device: GPUDevice
+  frameData: Float32Array<ArrayBuffer>
+  frameInts: Uint32Array<ArrayBuffer>
+  ranges: ReturnType<typeof cameraFrameRanges>
+  /** Primitives of a full range: the first range a word lands in is found by division. */
+  per: number
+  buffers: GPUBuffer[]
+  worldBuffers: GPUBuffer[]
+  bounds: GPUBuffer
+  /** Words written and not yet sent: one interval, in `frameInts` indices. */
+  pending: { from: number; to: number }
+}
+
+/** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written
+ *  once at its aligned offset. */
+function rangeBuffers(
+  device: GPUDevice,
+  slots: UniformSlots,
+  ranges: Frames['ranges'],
+  own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
+) {
   const buffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG frames',
@@ -45,94 +114,70 @@ export function createCameraFrames(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
   )
-  const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
   const bounds = own({
     label: 'Trillion3D DAG frame ranges',
-    size: ranges.length * stride,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const words = new Uint32Array((ranges.length * stride) / 4)
+  const words = new Uint32Array(slots.bytes / 4)
   for (let r = 0; r < ranges.length; r++)
-    words.set([ranges[r].first, ranges[r].count], (r * stride) / 4)
+    words.set([ranges[r].first, ranges[r].count], r * slots.strideWords)
   device.queue.writeBuffer(bounds, 0, words)
-  const frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
-  /** Words written and not yet sent: one interval, in `frameInts` indices. */
-  const pending = { from: Infinity, to: -1 }
-  const table = {
-    ranges,
-    buffers,
-    worldBuffers,
-    writeWorldOrigins: origins.write,
-    originBytes: origins.hostBytes,
-    /** One bind group per range: `group`, its `frames`, its `worlds`, its `range`. */
-    bindGroups(
-      layout: GPUBindGroupLayout,
-      group: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
-    ) {
-      return ranges.map(({ count }, r) => ({
-        count,
-        bindGroup: device.createBindGroup({
-          layout,
-          entries: dagGroupEntries(
-            { ...group, frames: buffers[r], worlds: worldBuffers[r] },
-            { buffer: bounds, offset: r * stride, size: 16 },
-          ),
-        }),
-      }))
-    },
-    /** Every host row, each to its range's buffer, from its start. `dagPrepare` writes the rest. */
-    writeRows() {
-      for (let r = 0; r < ranges.length; r++) {
-        const { first, count } = ranges[r]
-        device.queue.writeBuffer(buffers[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS)
-      }
-    },
-    /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
-    writeWorlds(next: Float32Array) {
-      for (let r = 0; r < ranges.length; r++) {
-        const { first, count } = ranges[r],
-          bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)
-        if (bytes > 0)
-          device.queue.writeBuffer(
-            worldBuffers[r],
-            0,
-            next.buffer as ArrayBuffer,
-            next.byteOffset + first * WORLD_BYTES,
-            bytes,
-          )
-      }
-    },
-    /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
-     *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
-    writeWord(w: number, slot: number, value: number) {
-      const at = primitiveWordAt(w) + slot
-      frameInts[at] = value
-      if (at < pending.from) pending.from = at
-      if (at > pending.to) pending.to = at
-    },
-    /**
-     * The words written since the last flush, one write per range the interval crosses: the host
-     * rows between them hold what their range already holds, or planes `dagPrepare` writes again
-     * before any kernel reads them (`shader/shader.ts`). Nothing when no word was written.
-     */
-    flushWords() {
-      const { from, to } = pending
-      if (to < from) return
-      pending.from = Infinity
-      pending.to = -1
-      for (let r = Math.floor(from / ROW_FLOATS / per); r < ranges.length; r++) {
-        const start = ranges[r].first * ROW_FLOATS,
-          end = start + ranges[r].count * ROW_FLOATS - 1
-        if (start > to) break
-        const a = Math.max(from, start),
-          b = Math.min(to, end)
-        device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1)
-      }
-    },
+  return { buffers, worldBuffers, bounds }
+}
+
+function writeRows({ device, ranges, buffers, frameData }: Frames, from: number, to: number) {
+  for (let r = 0; r < ranges.length; r++) {
+    const { first, count } = ranges[r],
+      a = Math.max(from, first),
+      b = Math.min(to, first + count)
+    if (a < b)
+      device.queue.writeBuffer(
+        buffers[r],
+        (a - first) * ROW_FLOATS * 4,
+        frameData,
+        a * ROW_FLOATS,
+        (b - a) * ROW_FLOATS,
+      )
   }
-  table.writeRows()
-  table.writeWorlds(worlds)
-  table.writeWorldOrigins()
-  return table
+}
+
+function writeWorlds({ device, ranges, worldBuffers }: Frames, next: Float32Array) {
+  for (let r = 0; r < ranges.length; r++) {
+    const { first, count } = ranges[r],
+      bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)
+    if (bytes > 0)
+      device.queue.writeBuffer(
+        worldBuffers[r],
+        0,
+        next.buffer as ArrayBuffer,
+        next.byteOffset + first * WORLD_BYTES,
+        bytes,
+      )
+  }
+}
+
+function writeWord({ frameInts, pending }: Frames, w: number, slot: number, value: number) {
+  const at = primitiveWordAt(w) + slot
+  frameInts[at] = value
+  if (at < pending.from) pending.from = at
+  if (at > pending.to) pending.to = at
+}
+
+function flushWords({ device, ranges, buffers, frameInts, pending, per }: Frames) {
+  const { from, to } = pending
+  if (to < from) return
+  pending.from = Infinity
+  pending.to = -1
+  for (let r = Math.floor(from / ROW_FLOATS / per); r < ranges.length; r++) {
+    const start = ranges[r].first * ROW_FLOATS,
+      end = start + ranges[r].count * ROW_FLOATS - 1
+    if (start > to) break
+    const a = Math.max(from, start),
+      b = Math.min(to, end)
+    device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1)
+  }
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
+/** A cut's group without its range's own buffers (`dagGroupEntries`). */
+type DagGroup = Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>

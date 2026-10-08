@@ -7,6 +7,7 @@
 // path, in the water as in its shadow, where the water let 10⁻⁵ of it through and the shadow's
 // `pow(0, y)` is undefined. The shadow's raster keeps its per-fragment `c^(x / d)` on every colour
 // that is not black, bit for bit.
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -14,6 +15,7 @@ import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import { VOLUME_LAW_WGSL, volumeAttenuation } from './volumeLaw.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const f = Math.fround,
   LOG2E = f(Math.LOG2E)
@@ -25,14 +27,13 @@ const ulp = (x: number) => {
   return word[0] - at
 }
 const error = (value: number, exact: number) => Math.abs(value - exact) / ulp(exact)
-let seed = 1563
-const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+const random = lcgRandom(1563)
 /** The best f32 `pow(x, y)` WGSL allows: exp2(y·log2 x), each correctly rounded. */
 const pow = (x: number, y: number) => f(2 ** f(y * f(Math.log2(x))))
 
 test('the water attenuation from its f64 constant is closer to c^(x / d) than the per-pixel log and exp', () => {
   const develop = (c: number, d: number, x: number) => {
-    const sigma = f(-f(Math.log(f(Math.min(Math.max(c, f(1e-5)), 1)))) / d)
+    const sigma = f(-f(Math.log(f(clamp(c, f(1e-5), 1)))) / d)
     return f(2 ** f(f(-sigma * x) * LOG2E))
   }
   const k = [0, 0, 0]
@@ -122,10 +123,15 @@ test('the composite reads the per-volume terms and the shadow its law', () => {
   )
   assert.match(composite, /refract\(-V,N,vol\.eta\)/)
   assert.match(composite, /sample\.rgb\*volumeTransmittance\(vol\.attenuation\.rgb,path\)/)
+  // Fresnel on the volume's reflectance through the engine's one fifth-power term.
   assert.match(
     functionText(composite, 'waterColor'),
-    /let grazing2=grazing\*grazing;\s*let F=vol\.f0\+\(1\.0-vol\.f0\)\*\(grazing2\*grazing2\*grazing\);/,
+    /let F=fresnelScalar\(vol\.f0,max\(dot\(Nv,V\),0\.0\)\);/,
   )
-  for (const name of ['waterColor', 'transmittedBackdrop'])
+  assert.match(
+    functionText(composite, 'fresnelScalar'),
+    /let x=clamp\(1\.0-cosine,0\.0,1\.0\);let x2=x\*x;return f0\+\(1\.0-f0\)\*\(x2\*x2\*x\);/,
+  )
+  for (const name of ['waterColor', 'transmittedBackdrop', 'fresnelScalar'])
     assert.doesNotMatch(functionText(composite, name), /pow\(|log\(|exp\(|\/max\(vol/)
 })

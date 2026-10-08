@@ -1,10 +1,11 @@
 /**
- * One baked impostor over the DAG fixture's root, as the runtime tests of both GPU paths read it
- * (`webgpu/impostor/frame.test.ts`, `webgl/impostor/frame.test.ts`): its section, its roots, a level
+ * One baked impostor over the DAG fixture's root, as the runtime tests read it
+ * (`webgpu/impostor/frame.test.ts`): its section, its roots, a level
  * reader answering decoded levels, and the cameras and cut they are seen with.
  */
 import type { ImpostorSection } from '../../../sdk-core/src/index.ts'
-import { collectClusterPages, selectVisiblePages } from '../page/selection/selection.ts'
+import { collectClusterPages } from '../page/selection/selection.ts'
+import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
 import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'

@@ -1,12 +1,13 @@
 use super::materials;
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{required_index, values};
-use crate::compiler_world::{transform_point, world_matrices};
+use crate::compiler_world::world_matrices;
 use crate::proxy::bvh;
 use crate::proxy::tracer::World;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
+use trillion3d_math::matrix::transform_point;
 
 fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_SOURCE", message)

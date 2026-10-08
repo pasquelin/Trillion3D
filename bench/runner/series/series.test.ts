@@ -8,7 +8,7 @@ import { rm } from 'node:fs/promises'
 import { runSeries } from './series.ts'
 import { contexte, page, pose } from './seriesTestFixtures.ts'
 
-test('runSeries publishes submittedTriangles, totalSubmittedTriangles, frameHeld and gpuSelectionFallback from metrics', async () => {
+test('runSeries publishes submittedTriangles, totalSubmittedTriangles, and frameHeld from metrics', async () => {
   const { ctx, side, OUT } = await contexte()
   try {
     const { row } = await runSeries(
@@ -17,7 +17,6 @@ test('runSeries publishes submittedTriangles, totalSubmittedTriangles, frameHeld
         submittedTriangles: 1000,
         totalSubmittedTriangles: 1200,
         frameHeld: true,
-        gpuSelectionFallback: false,
       }),
       side,
       'salon',
@@ -28,7 +27,6 @@ test('runSeries publishes submittedTriangles, totalSubmittedTriangles, frameHeld
     assert.equal(row.submittedTriangles, 1000)
     assert.equal(row.totalSubmittedTriangles, 1200)
     assert.equal(row.frameHeld, true)
-    assert.equal(row.gpuSelectionFallback, false)
     assert.equal(row.recordedFrame, ctx.settings.frames - 1, 'names the frame described by metrics')
   } finally {
     await rm(OUT, { recursive: true, force: true })
@@ -42,7 +40,6 @@ test('runSeries publishes null, never inferred 0 or false, when engine counts no
     assert.equal(row.submittedTriangles, null)
     assert.equal(row.totalSubmittedTriangles, null)
     assert.equal(row.frameHeld, null)
-    assert.equal(row.gpuSelectionFallback, null)
   } finally {
     await rm(OUT, { recursive: true, force: true })
   }

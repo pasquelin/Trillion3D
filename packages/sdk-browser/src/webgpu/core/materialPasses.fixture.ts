@@ -2,9 +2,13 @@ import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { RenderBundles } from '../../gpu/core/renderBundles.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
 
-/** A runtime reduced to what the resolve reads, and an encoder that records its passes: its
- *  render passes, and the labels of its compute passes in `computePasses`. Its class set holds
+/** A runtime reduced to what the resolve reads, a device that records its bundles, and an encoder
+ *  that records its passes: its render passes — what their bundles draw replayed there —, and the
+ *  labels of its compute passes in `computePasses`. Its class set holds
  *  `compiled`; `made` names each class a pipeline's `get` had to compile — one nothing asked
  *  (`PreparedPipeline.get`). */
 export function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
@@ -35,6 +39,7 @@ export function resolveFixture(classes: number[], compiled: number[], single: nu
     vis: {
       writesFeedback: true,
       shadeBindGroup: 'bind group',
+      shadeBundles: new RenderBundles(2),
       shadeClasses: {
         of: (key: number) => ({
           get: () => {
@@ -74,14 +79,17 @@ export function resolveFixture(classes: number[], compiled: number[], single: nu
         colors: desc.colorAttachments ?? [],
       }
       passes.push(pass)
-      return {
+      const commands = {
         setViewport() {},
         setBindGroup() {},
         setPipeline: (p: unknown) => pass.pipelines.push(p),
         draw: () => pass.draws++,
+        executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(commands, bundles),
         end() {},
       }
+      return commands
     },
   } as unknown as GPUCommandEncoder
-  return { rt, encoder, passes, computePasses, made, ordinary, direct, tiles }
+  const { device, bundles } = fakeDevice()
+  return { rt, device, bundles, encoder, passes, computePasses, made, ordinary, direct, tiles }
 }

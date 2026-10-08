@@ -10,7 +10,7 @@
 //! treats its empty triangle as a special case and may leave the fan, so such a ring stays on
 //! the ear path — the output of a scene does not move by one index. A star polygon turns the
 //! same way at every corner but swings round twice: it crosses itself and has no fan.
-use super::plane::side;
+use trillion3d_math::vec2::double_area;
 
 /// True when the fan from the first corner is exactly the ear cut of `flat`, walked in the
 /// sense `turn` (`1.0` direct, `-1.0` indirect).
@@ -18,7 +18,7 @@ pub(super) fn fan_is_exact(flat: &[[f64; 2]], turn: f64) -> bool {
     let sides = flat.len();
     let turns_one_way = (0..sides).all(|rank| {
         let (before, after) = ((rank + sides - 1) % sides, (rank + 1) % sides);
-        turn * side(flat[before], flat[rank], flat[after]) > 0.0
+        turn * double_area(flat[before], flat[rank], flat[after]) > 0.0
     });
     turns_one_way && swings_once(flat)
 }

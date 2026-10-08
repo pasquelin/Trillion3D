@@ -5,6 +5,8 @@ import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One texture, its RGBA8 bytes, read as a `texture_2d_array` by every batch. */
 interface TapTexture {
@@ -43,8 +45,9 @@ function seamRead() {
  * The taps' shader: the engine's wrap WGSL through a sampler in clamp, as the atlas samples its
  * pool, on target 0; the raw coordinate through the sampler set to the map's mode on target 1.
  */
-const tapsWgsl = () => `${WRAP_COORD_WGSL}
-struct Tap{uv:vec2f,flags:u32,pad:u32,}
+const tapsWgsl = () =>
+  wgslProgram(
+    `struct Tap{uv:vec2f,flags:u32,pad:u32,}
 @group(0) @binding(0) var maps:texture_2d_array<f32>;
 @group(0) @binding(1) var engineSampler:sampler;
 @group(0) @binding(2) var mapSampler:sampler;
@@ -60,7 +63,9 @@ struct Read{@location(0) engine:vec4f,@location(1) sampler:vec4f,}
  var read=textureSampleLevel(maps,engineSampler,t.proche,0,0.0);
  if((c.flags&${BLEND_BIT}u)!=0u&&t.couture){read=seamRead(t);}
  return Read(read,textureSampleLevel(maps,mapSampler,c.uv,0,0.0));
-}`
+}`,
+    [WRAP_COORD_WGSL],
+  )
 
 type Input = { code: string; textures: TapTexture[]; batches: TapBatch[] }
 
@@ -133,7 +138,7 @@ async function sample({ code, textures, batches }: Input) {
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    const row = Math.ceil((n * 16) / 256) * 256
+    const row = alignUp(n * 16, 256)
     const readbacks = targets.map((texture) => {
       const usage = GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       const buffer = device.createBuffer({ size: row, usage })

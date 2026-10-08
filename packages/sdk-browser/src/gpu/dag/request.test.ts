@@ -1,37 +1,32 @@
-// BROADCAST request: the page and its priority in a word, and the order that priority gives.
+// BROADCAST request: the page and its priority, staged as two words, and the order it gives.
 //
 // Requests rank by the SUBSTITUTE's screen error — a missing cluster is drawn by a coarser
 // ancestor, and that ancestor's error is what the eye sees. The WebGPU path published them in the
 // order of an atomic counter, i.e. in none. This test holds both halves:
-// ① the word yields exactly what was put in it, and quantification never reverses two errors;
-// ② the order the cut publishes is that of the WebGL2 formula, on the same scene.
+// ① the staged pair yields what was put in it, and quantification never reverses two errors;
+// ② the order the kernel's model publishes follows `clusterErrorPixels`, on the same scene; the
+// shipped kernel is held to it on a device (`tests/gpu/dag/request-order.gpu.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { REQUEST_PRIORITY_MAX, REQUEST_STEP_MAX } from './request.ts'
+import { orderFault, REQUEST_STEP, requestScene, substitutePixels } from './requestScene.fixture.ts'
 import {
-  packRequest,
-  REQUEST_PAGE_MAX,
-  REQUEST_PRIORITY_MAX,
-  REQUEST_PRIORITY_SCALE,
-  REQUEST_STEP_MAX,
-  requestPage,
-  requestPriority,
-} from './request.ts'
-import { requestScene } from './requestScene.fixture.ts'
-import {
-  clusterErrorPixels,
-  maxStretch,
-  multiplyMatrix4,
-  transformAffinePoint,
-} from '../../../../sdk-core/src/index.ts'
-import { quantizeAheadPriority, quantizeRequestPriority, requestRank } from './request.fixture.ts'
+  quantizeAheadPriority,
+  quantizeRequestPriority,
+  requestRank,
+  stagedPage,
+  stagedPriority,
+  stagedRequest,
+} from './request.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 
-test('the request word yields the page and the priority that were put in it', () => {
-  for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])
+test('a staged request yields the page and the priority put in it, the page a whole word', () => {
+  // Past the twenty-two bits a word shared with the priority held: an open world's instances.
+  for (const page of [0, 1, 4095, 1959791, 2 ** 22, 2 ** 32 - 1])
     for (const priority of [0, 1, 512, REQUEST_PRIORITY_MAX]) {
-      const mot = packRequest(page, priority)
-      assert.equal(requestPage(mot), page, `page ${page} / priority ${priority}`)
-      assert.equal(requestPriority(mot), priority, `page ${page} / priority ${priority}`)
+      const staged = stagedRequest(page, priority)
+      assert.equal(stagedPage(staged), page, `page ${page} / priority ${priority}`)
+      assert.equal(stagedPriority(staged), priority, `page ${page} / priority ${priority}`)
     }
 })
 
@@ -65,60 +60,14 @@ test('every visible request outranks every request ahead, served soonest first, 
   assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now')
 })
 
-function coupe(threshold: number) {
-  const scene = requestScene(threshold)
-  return { ...scene, reading: evaluateDagSelectionKernel(scene.packed, scene.uni) }
-}
-
-test('published order decreases with the substitute’s screen error, like the WebGL2 path', () => {
-  const { pages, packed, cam, uni, reading } = coupe(1)
+test('published order decreases with the substitute’s screen error (`clusterErrorPixels`)', () => {
+  const scene = requestScene(1),
+    reading = evaluateDagSelectionKernel(scene.packed, scene.uni)
   assert.ok(reading.pageIds.length > 100, 'the cut must keep enough to rank')
-  const focal = Math.max(uni.pixelScale[0], uni.pixelScale[1])
-  // View of each pose, composed as the kernel composes it: on matrices BROUGHT TO THE RENDER
-  // FRAME, those `packedWorldsToRenderOrigin` wrote into `packed.worlds`. Taking the roots'
-  // would mix an absolute world with a relative view, and put the whole scene on the eye — which
-  // would yield an infinite error for half the cut, in silence.
-  const views = Array.from({ length: packed.worldCount }, (_, w) => {
-    const view = new Float64Array(16)
-    multiplyMatrix4(
-      view,
-      cam.viewRelative,
-      Float64Array.from(packed.worlds.subarray(w * 16, w * 16 + 16)),
-    )
-    return { view, stretch: maxStretch(view as unknown as readonly number[]) }
-  })
-  // SUBSTITUTE screen error, by the core formula (`clusterErrorPixels`), of which `projected`
-  // (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
-  // snapshot, is what makes the proof non-circular.
-  const centre = new Float64Array(4)
-  const pixelsDe = (id: number) => {
-    const page = pages[id % pages.length],
-      { view, stretch } = views[Math.floor(id / pages.length)]
-    const sphere = (page.parentError === null ? page.sphere : page.parentSphere) as number[]
-    const bande = page.parentError === null ? (page.lodError ?? 0) : page.parentError
-    transformAffinePoint(centre, view, sphere[0], sphere[1], sphere[2])
-    return clusterErrorPixels(
-      bande,
-      stretch,
-      centre[0],
-      centre[1],
-      centre[2],
-      sphere[3],
-      focal,
-      cam.near,
-    )
-  }
-  const pixels = reading.pageIds.map(pixelsDe)
+  const pixels = reading.pageIds.map(substitutePixels(scene))
   assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors')
-  // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
-  // between two clusters of the same step order is indifferent — ties are not broken —, and the boundary between two steps is floating, the kernel rounding in
-  // f32 what this proof recomputes in f64. One step is 2^(1/16), i.e. 4.43 %.
-  const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE)
-  for (let i = 1; i < pixels.length; i++)
-    assert.ok(
-      pixels[i] <= pixels[i - 1] * PAS,
-      `rank ${i}: ${pixels[i]} px steps more than one step past ${pixels[i - 1]} px`,
-    )
+  const fault = orderFault(pixels)
+  assert.equal(fault, -1, `rank ${fault}: ${pixels[fault]} px past ${pixels[fault - 1]} px`)
   // And the first is indeed the most costly absence of the whole cut, to the step.
-  assert.ok(pixels[0] * PAS >= Math.max(...pixels), 'the head is not the most expensive')
+  assert.ok(pixels[0] * REQUEST_STEP >= Math.max(...pixels), 'the head is not the most expensive')
 })

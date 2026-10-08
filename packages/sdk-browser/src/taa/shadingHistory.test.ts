@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { FLICKER_COUNT_RATE, SHADING_HISTORY_WGSL, flickerParallax } from './shadingHistoryWgsl.ts'
 import { stillViewFields, taaBuiltins } from './taaBuiltins.fixture.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 
 /** The ghosting update's share, the fade of the flicker totals, and the most the count holds. */
 const FLICKER_GHOSTING = 0.05,
@@ -57,7 +58,7 @@ const everySecond = (t: number) => (Math.floor(t / 2) % 2 ? 1 : -1)
 test('the count limits and their fade-in, at a period of two images: the analytic cases', () => {
   const rate = FLICKER_COUNT_RATE
   assert.ok(Math.abs(rate - (1 - 0.95 ** 2)) < 1e-12)
-  const fade = (count: number) => Math.min(Math.max(count * rate - 0.5, 0), 1)
+  const fade = (count: number) => saturate(count * rate - 0.5)
   assert.equal(fade(1), 0, 'one flicker')
   const second = 1 / (1 - (1 - FLICKER_GHOSTING) ** 2)
   assert.ok(Math.abs(second - 10.256) < 1e-3, `a flicker every second image: ${second}`)
@@ -85,7 +86,7 @@ test('a flicker every second image holds about ten counts, half faded in', () =>
   // Its analytic 10.26 and 0.5, less the count's floor to 20/255 each image: 9.5 and 0.43.
   const peak = Math.max(...tail.map(({ count }) => count))
   assert.ok(peak > 9.3 && peak < 10.27, `count ${peak}`)
-  const fade = (count: number) => Math.min(Math.max(count * FLICKER_COUNT_RATE - 0.5, 0), 1)
+  const fade = (count: number) => saturate(count * FLICKER_COUNT_RATE - 0.5)
   assert.ok(fade(peak) > 0.4 && fade(peak) <= 0.5, `fade ${fade(peak)}`)
   const error = Math.max(...tail.map((image) => image.error))
   assert.ok(error > 0 && error < flickers(everyImage, 200).at(-1)!.error, `error ${error}`)

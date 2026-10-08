@@ -104,8 +104,8 @@ test('every binding a stage of the visibility, resolve and transparent passes re
       }
   }
   // The visibility fragment picks its cutout's level with the frame's texture bias.
-  const fragment = wgslStageBindings(VIS_SHADER).find(({ entry }) => entry === 'vis_fs')
-  assert.ok(fragment?.bindings.has(VIS_BINDINGS.uniform), 'vis_fs reads the uniform')
+  const fragment = wgslStageBindings(VIS_SHADER).find(({ entry }) => entry === 'vis_hiz_fs')
+  assert.ok(fragment?.bindings.has(VIS_BINDINGS.uniform), 'vis_hiz_fs reads the uniform')
 })
 
 /** First layout a constructor creates on a fake device of its own. */

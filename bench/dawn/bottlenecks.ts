@@ -1,6 +1,7 @@
 // The passes ranked by what they really cost — their work, never their wait — each set against the
 // least the machine could do it in: the floor. What a pass encoded and what the machine can do are
 // facts; the cause named is the one the numbers prove, and "to dissect" where they cannot say.
+import { MIB } from '../../packages/math/src/constants.ts'
 import type { BenchPass } from './benchPasses.ts'
 import type { Machine } from './machine.ts'
 import type { PassSource } from './passSource.ts'
@@ -75,7 +76,7 @@ function causeOf(
   if (floors.stores >= BOUND * work)
     return [
       'bandwidth',
-      `its attachments' ${(pass.encoded.attachBytes / (1 << 20)).toFixed(0)} MiB take ${inMs(floors.stores)} to store, ${inMs(work)} measured`,
+      `its attachments' ${(pass.encoded.attachBytes / MIB).toFixed(0)} MiB take ${inMs(floors.stores)} to store, ${inMs(work)} measured`,
     ]
   if (floors.launch >= BOUND * work)
     return [

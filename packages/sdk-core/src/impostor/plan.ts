@@ -7,7 +7,7 @@
  * the same number the compiler keys its `impostors` entries by
  * (`packages/asset-compiler-rust/src/impostor/stage.rs`): there is no second mesh table. The switch is the
  * engine's one oracle (`switch.ts`), never a per-scene constant: `f` is the engine's focal length
- * in pixels (`pixelScaleOf`), `z` the pivot's view depth, each bound taken where the projection
+ * in pixels (`focalPixels`), `z` the pivot's view depth, each bound taken where the projection
  * magnifies most off the view axis (`switchesAt`), `R`, `T`, `c` and `r_f` only from the baked
  * manifest.
  *
@@ -15,9 +15,8 @@
  * `switched`, so the cut skips its clusters in the same breath. A card without the skip would draw
  * the object twice; the skip without the card would be a hole (CONTRIBUTING, Streaming rule 1).
  */
-import { hypot3 } from '../math/primitives/hypot.ts'
-import { transformAffinePoint } from '../math/primitives/vector.ts'
-import { maxStretch } from '../math/projectionOracles.ts'
+import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import {
   impostorMeshBaked,
   type ImpostorMap,
@@ -106,7 +105,7 @@ const point = /* @__PURE__ */ new Float64Array(3)
  */
 function switchesAt(texelDepth: number, triangleDepth: number, v: Float64Array) {
   const depth = Math.abs(v[2]),
-    cosine = depth / hypot3(v[0], v[1], v[2])
+    cosine = depth / length3(v[0], v[1], v[2])
   return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth
 }
 

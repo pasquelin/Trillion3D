@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
-import { collectClusterPages, rootCoverage, selectVisiblePages, type PageRec } from './selection.ts'
+import { collectClusterPages, rootCoverage, type PageRec } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 test('budget pressure down to the pinned roots still draws the surface once, by the root', () => {
   const cam = wideCamera(),

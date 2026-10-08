@@ -14,9 +14,10 @@ import {
 } from '../../../../packages/sdk-core/src/index.ts'
 import { hierarchyNodes } from './coreEquivalence.ts'
 import { SRGB_REFERENCE_GAP } from '../../../oracles/core/three-duel.ts'
+import { dotVector3, length3 } from '../../../../packages/math/src/vector/vector.ts'
 
 const columnNorm = (m: ArrayLike<number>, c: number) =>
-  Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2])
+  length3(m[c * 4], m[c * 4 + 1], m[c * 4 + 2])
 /** Largest cosine between two linear columns: zero without shear. */
 function cisaillement(m: ArrayLike<number>) {
   let worst = 0
@@ -25,7 +26,7 @@ function cisaillement(m: ArrayLike<number>) {
     [0, 2],
     [1, 2],
   ]) {
-    const dot = m[a * 4] * m[b * 4] + m[a * 4 + 1] * m[b * 4 + 1] + m[a * 4 + 2] * m[b * 4 + 2]
+    const dot = dotVector3(m, m, a * 4, b * 4)
     worst = Math.max(worst, Math.abs(dot) / (columnNorm(m, a) * columnNorm(m, b)))
   }
   return worst

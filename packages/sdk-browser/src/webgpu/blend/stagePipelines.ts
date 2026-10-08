@@ -1,5 +1,6 @@
 import { reflectionLayout } from '../../reflections/layout.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
+import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 import {
   buildRenderPipeline,
   preparedPipeline,
@@ -9,7 +10,7 @@ import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts'
 import { refreshSurface } from '../../page/surface.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
@@ -38,8 +39,7 @@ export interface ModePipelines {
   precompile(modes: readonly Blending[]): Promise<void>
 }
 
-/** The one lazy set of both transparent paths: the blend pass's three culls per mode, the fallback
- *  pass's one pipeline per mode (`pages/prepare/pipelines.ts`). A mode's descriptors are described
+/** The transparent pass's lazy set: its three culls per mode. A mode's descriptors are described
  *  once, at its first use. */
 export function pipelinesByMode(
   device: GPUDevice,
@@ -80,8 +80,12 @@ export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
 export interface BlendModePipelines extends RankedPipelines {
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number }
-  /** The pipelines of the program a frame of key `key` is lit with (`createForwardVariants`). */
-  lit(key: Partial<ContractKey>): BlendModePipelines
+  /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
+   *  or not (`createForwardVariants`). */
+  lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines
+  /** The compile a frame of lobed items waits for while no program with the lobe code is ready:
+   *  the one with every code path, which lights any (`askLobedPrograms`). */
+  lobedAwaited(): Promise<unknown> | undefined
   /** Starts the compile of what a change of the scene or of a setting now reaches (`reach.ts`). */
   reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }): void
   at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline
@@ -111,7 +115,9 @@ export async function blendStagePipelines(
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `group2`, the
- *  display mask's layout of a filtered image's pipelines. */
+ *  display mask's layout of a filtered image's pipelines. Each draws one coplanar layer over the
+ *  opaque depth (`TRANSPARENT_DEPTH_LAYER`): a glass lying on its base covers it, as the opaque
+ *  layers and the lines cover the faces they lie on. */
 export function stageDescriptors(
   device: GPUDevice,
   module: GPUShaderModule,
@@ -132,6 +138,8 @@ export function stageDescriptors(
       format: 'depth32float',
       depthWriteEnabled: depthWrite,
       depthCompare: DEPTH_COMPARE,
+      // Reversed depth: moving closer to the eye ADDS units.
+      depthBias: depthLayerUnits(TRANSPARENT_DEPTH_LAYER),
     },
   }))
 }

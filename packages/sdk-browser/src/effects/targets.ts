@@ -22,33 +22,21 @@ export const effectPassTargets = (passes: number) => Math.min(passes, PASS_TARGE
 
 /** Bytes per pixel of every pass target: `rgba16float`, the bloom's own format. */
 const PASS_TEXEL_BYTES = BLOOM_TEXEL_BYTES
-/** Bytes per pixel of the WebGL2 target the engine draws into: its half-float radiance, its 24-bit
- *  depth padded to four bytes, and the one-byte mark of the surfaces the curve skips. */
-const SCENE_TEXEL_BYTES = PASS_TEXEL_BYTES + 4 + 1
-
 /**
- * Bytes of a chain's shared targets on a `width × height` image: `targets` pass targets and, on
- * WebGL2 (`scene`), the target the engine draws into; nothing without a pass target. Every kind
- * holds its own besides (`EFFECT_KIND_BYTES`). The one rule both renderers count their targets by
- * and the memory budget reserves them by (`../residency/memoryBudget.ts`).
+ * Bytes of a chain's `targets` pass targets on a `width × height` image. Every kind holds its own
+ * besides (`EFFECT_KIND_BYTES`). The one rule the renderer counts its targets by and the memory
+ * budget reserves them by (`../residency/memoryBudget.ts`).
  */
-export function effectTargetBytes(width: number, height: number, targets: number, scene: boolean) {
-  if (!targets) return 0
-  return width * height * targets * PASS_TEXEL_BYTES + (scene ? sceneTargetBytes(width, height) : 0)
-}
-
-/** Bytes of one WebGL2 scene target on a `width × height` image: the chain's, or the one WebGL2
- *  draws below the display in (`../world/render/renderScale.ts`). */
-export const sceneTargetBytes = (width: number, height: number) =>
-  width * height * SCENE_TEXEL_BYTES
+export const effectTargetBytes = (width: number, height: number, targets: number) =>
+  width * height * targets * PASS_TEXEL_BYTES
 
 /** Every kind, read off the one table typed by all of them. */
 export const EFFECT_KINDS = Object.keys(EFFECT_KIND_BYTES) as readonly EffectKind[]
 
-/** Bytes of every target a chain may hold on a `width × height` image: two pass targets, the
- *  WebGL2 scene target, and every kind's own. */
+/** Bytes of every target a chain may hold on a `width × height` image: two pass targets and every
+ *  kind's own. */
 export function effectChainBytesAt(width: number, height: number) {
-  let bytes = effectTargetBytes(width, height, PASS_TARGETS, true)
+  let bytes = effectTargetBytes(width, height, PASS_TARGETS)
   for (const kind of EFFECT_KINDS) bytes += EFFECT_KIND_BYTES[kind](width, height)
   return bytes
 }

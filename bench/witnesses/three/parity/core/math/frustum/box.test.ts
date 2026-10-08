@@ -1,9 +1,8 @@
 // Lot M2, frustumBox.ts: box against viewing frustum — inside, outside, straddling, and a box
 // intersecting the near plane —, compared against planes built independently and tested box by box and point by point.
 //
-// Clipping is `[0, 1]` on both sides; only depth DIRECTION differs, which swaps the
-// NEAR plane and the FAR plane. The six planes are therefore the same set, in another order — and
-// a box verdict only reads a set.
+// The engine's planes are Three's `[0, 1]` planes with the NEAR plane and the FAR plane swapped:
+// the same set, in another order — and a box verdict only reads a set.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'

@@ -3,13 +3,13 @@
  * and the loader's rule for naming them, each built as the host loader built it from the same
  * declaration (`./graph.ts` assembles them).
  */
+import { QUARTER_PI, RAD2DEG } from '../../../../math/src/constants.ts'
 import type {
   TableCamera,
   TableLight,
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { numbered } from '../graph/serial.ts'
 import { aimOf } from '../graph/kinds.ts'
 import { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { HostMesh } from '../resources.ts'
@@ -18,9 +18,6 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
  *  animated property is written with. */
 const RESERVED = /[[\].:/]/g
-/** Degrees per radian, the factor a field of view is converted by. */
-const RAD_TO_DEG = 180 / Math.PI
-
 /** The loader's unique-name rule: sanitised, then numbered from the second use on. */
 export function uniqueNames() {
   const used = new Set<string>()
@@ -37,11 +34,11 @@ export function uniqueNames() {
 }
 
 export function light(declared: TableLight, name: string) {
-  const made = numbered(new Light(declared.type))
+  const made = new Light(declared.type)
   if (declared.color) made.color.setRGB(declared.color[0], declared.color[1], declared.color[2])
   if (declared.type === 'spot') {
     const inner = declared.innerConeAngle ?? 0,
-      outer = declared.outerConeAngle ?? Math.PI / 4
+      outer = declared.outerConeAngle ?? QUARTER_PI
     made.angle = outer
     made.penumbra = 1 - inner / outer
   }
@@ -60,23 +57,21 @@ export function light(declared: TableLight, name: string) {
 
 export function camera(declared: TableCamera) {
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0]
-  return numbered(
-    declared.type === 'perspective'
-      ? new Camera('perspective', {
-          fov: (declared.yfov ?? 0) * RAD_TO_DEG,
-          aspect: declared.aspectRatio || 1,
-          near: declared.znear || 1,
-          far: declared.zfar || 2e6,
-        })
-      : new Camera('orthographic', {
-          near: declared.znear ?? 0,
-          far: declared.zfar ?? 0,
-          left: -x,
-          right: x,
-          top: y,
-          bottom: -y,
-        }),
-  )
+  return declared.type === 'perspective'
+    ? new Camera('perspective', {
+        fov: (declared.yfov ?? 0) * RAD2DEG,
+        aspect: declared.aspectRatio || 1,
+        near: declared.znear || 1,
+        far: declared.zfar || 2e6,
+      })
+    : new Camera('orthographic', {
+        near: declared.znear ?? 0,
+        far: declared.zfar ?? 0,
+        left: -x,
+        right: x,
+        top: y,
+        bottom: -y,
+      })
 }
 
 /** Morph weights set on a mesh, the first of them to the first targets; a mesh that morphs

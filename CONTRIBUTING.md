@@ -61,10 +61,9 @@ The rules of #483, for every change to geometry, streaming, memory, shadows or e
    crash; a lost device is rebuilt without a reload.
 6. **Bounded by the view**, not by the world's size ("Work follows what is seen").
 7. **Main thread bounded**: decoding, parsing and IO in workers.
-8. **WebGL2 is degraded, never broken**.
-9. **Proven by a test of the invariant**, on two scenes, one an open world.
-10. **Nothing rebuilt every frame**: moving content takes the dynamic or GPU-deformation path.
-11. **Examples use the engine**, never a per-frame workaround.
+8. **Proven by a test of the invariant**, on two scenes, one an open world.
+9. **Nothing rebuilt every frame**: moving content takes the dynamic or GPU-deformation path.
+10. **Examples use the engine**, never a per-frame workaround.
 
 ## Code
 

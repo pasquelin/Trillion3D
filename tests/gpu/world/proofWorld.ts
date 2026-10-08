@@ -1,6 +1,6 @@
 // What the proofs that open a whole world on Dawn share: the page's frame, the loop that settles a
-// pose, the bench scenes read from disk, and the image a world opened on the engine's own choice of
-// backend draws. Written in an area until the kit (`../kit/`) holds it.
+// pose, the bench scenes read from disk, and the image a world opened with the engine's defaults
+// draws. Written in an area until the kit (`../kit/`) holds it.
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts'
@@ -41,18 +41,20 @@ export const benchManifest = (scene: string) =>
 export { drawnPixels } from '../kit/sceneImageProof.ts'
 
 /**
- * `manifestUrl` opened with no `backends` option — the engine reads the machine and chooses —, lit
- * by `lights` before its first frame (a cache whose light table is empty is lit by its host or by
- * nothing), settled at its first point of interest and read back: what the engine chose and
- * mounted, in its own words (`backend-choice`), and the image, bottom row first.
+ * `manifestUrl` opened with no `engine` option — the session's own engine —, lit by
+ * `lights` before its first frame (a cache whose light table is empty is lit by its host or by
+ * nothing), settled at its first point of interest and read back: the texture source the session
+ * opened with, in its own words (`texture-source`), and the image, bottom row first.
  */
-export async function defaultBackendImage(manifestUrl: string, lights: SceneLight[] = []) {
+export async function defaultWorldImage(manifestUrl: string, lights: SceneLight[] = []) {
   const { openMeasuredWorld } = await measurementSdk()
-  const canvas = proofCanvas('default-backend')
-  const { world, chosen } = await openDefaultWorld(openMeasuredWorld, canvas, manifestUrl, lights)
+  const canvas = proofCanvas('default-world')
+  const opened = await openDefaultWorld(openMeasuredWorld, canvas, manifestUrl, lights)
+  const { world } = opened
   try {
     const held = await settle(world)
-    return { ...chosen(), held: held !== null, pixels: new Uint8Array(world.capture()) }
+    const pixels = new Uint8Array(await world.capture())
+    return { textureSource: opened.textureSource(), held: held !== null, pixels }
   } finally {
     world.dispose()
     canvas.remove()

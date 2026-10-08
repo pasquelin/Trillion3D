@@ -1,3 +1,4 @@
+import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
@@ -18,10 +19,11 @@ const SKIPPED = -1
  *
  * A claim is believed when the held list holds that very id at that rank: the page stays, with the
  * record of its rank, and no id is looked up — the one pass a frame runs over every rank. Any
- * other rank is read by its mark, as the CPU cut reads all of them (`./hashedDifference.ts`): no
- * mark, it entered; the held epoch, the GPU lost sight of it in between and the host still holds it
- * — a page that left a voided snapshot and came back —; marked by this very list, a repeat. Then
- * the held ranks no claim named and no mark kept are the exits, in the order of the held list.
+ * other rank is read by its mark, as a list without claims reads all of them
+ * (`./hashedDifference.ts`): no mark, it entered; the held epoch, the GPU lost sight of it in
+ * between and the host still holds it — a page that left a voided snapshot and came back —;
+ * marked by this very list, a repeat. Then the held ranks no claim named and no mark kept are the
+ * exits, in the order of the held list.
  * Entries in the order of `ids`, exits in the order held, repeats and ids without a record skipped:
  * the hashed difference's lists, record for record, whatever ranks the claims name — they only
  * decide how many ids are looked up.
@@ -38,7 +40,7 @@ export function applyClaimed(
 ) {
   const { mark, recordOf, pages, ids: kept, count: keptCount, next, entered, exited } = held,
     epoch = held.epoch,
-    words = (keptCount + 31) >>> 5
+    words = bitWords(keptCount)
   if (held.named.length < words) held.named = grown(held.named, words)
   held.named.fill(0, 0, words)
   // A held page keeps the record of the rank it held: a packed rank's record never changes, the
@@ -85,7 +87,7 @@ export function applyClaimed(
     let bits = ~named[w]
     if (w === words - 1 && keptCount & 31) bits &= (1 << (keptCount & 31)) - 1
     for (; bits; bits &= bits - 1) {
-      const id = kept[(w << 5) + 31 - Math.clz32(bits & -bits)]
+      const id = kept[(w << 5) + floorLog2(bits & -bits)]
       if (mark.set(id, epoch) !== PENDING) {
         exited[exitedCount++] = id
         mark.set(id, 0)

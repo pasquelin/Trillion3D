@@ -12,7 +12,7 @@ test('outside reference mode, the options are the page’s own, untouched', () =
   assert.deepEqual(referenceOptions(options), { options, reference: null })
 })
 
-test('reference mode switches off every approximation it names, whatever the page asked', () => {
+test('reference mode switches off every approximation it names, whatever the page asked', async () => {
   const asked = { ...BOSS, reference: true, renderScale: 0.5, temporalAntialiasing: true }
   const { options, reference } = referenceOptions(asked)
   assert.deepEqual(reference?.approximations, REFERENCE_APPROXIMATIONS)
@@ -29,33 +29,34 @@ test('reference mode switches off every approximation it names, whatever the pag
   assert.equal(options.pixelRatio, 2)
   // shadowResolution: a shrunk pool refuses the capture by name.
   const capture = referenceCapture(
-    () => new Uint8Array(16),
+    async () => new Uint8Array(16),
     reference,
     () => 1,
   )
-  assert.throws(capture, { code: 'REFERENCE_SHADOWS_REDUCED' })
+  await assert.rejects(capture(), { code: 'REFERENCE_SHADOWS_REDUCED' })
 })
 
-test('shadowResolution: refused while shadows draw coarser than asked, read at each capture', () => {
+test('shadowResolution: refused while shadows draw coarser than asked, read at each capture', async () => {
   const { reference } = referenceOptions({ ...BOSS, reference: true })
-  const image = () => new Uint8Array(16)
+  const image = async () => new Uint8Array(16)
   /** The reference capture under a frame whose shadows publish `bias`. */
   const under = (bias: number | null | undefined) => referenceCapture(image, reference, () => bias)
   // `shadowResolutionBias` (`vsmStats.ts`): null while no shadow map runs, 0 at the full pool
   // drawing every page at the level asked — both pass, as the image is the reference's.
-  for (const bias of [null, undefined, 0]) assert.doesNotThrow(under(bias), `${bias} passes`)
+  for (const bias of [null, undefined, 0])
+    await assert.doesNotReject(under(bias)(), `${bias} passes`)
   // A halving of the pool, or a fill bias however small, refuses it by name with the bias read.
   for (const bias of [1, 3, 0.25, 2 ** -126])
-    assert.throws(under(bias), {
+    await assert.rejects(under(bias)(), {
       code: 'REFERENCE_SHADOWS_REDUCED',
       details: { shadowResolutionBias: bias },
     })
   // The bias of the frame captured, not of the session's opening: the pool regrown, it passes.
   let bias = 1
   const capture = referenceCapture(image, reference, () => bias)
-  assert.throws(capture, { code: 'REFERENCE_SHADOWS_REDUCED' })
+  await assert.rejects(capture(), { code: 'REFERENCE_SHADOWS_REDUCED' })
   bias = 0
-  assert.equal(capture().length, 16)
+  assert.equal((await capture()).length, 16)
   // Outside reference mode, the session's own capture, unguarded.
   const own = referenceCapture(image, null, () => 1)
   assert.equal(own, image)

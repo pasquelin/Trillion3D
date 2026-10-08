@@ -4,14 +4,19 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { assertCacheIdentity } from './cache.ts'
 import { identity, refusesIdentity } from './cache.fixture.ts'
+import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts'
+
+/** The texture levels' version this runtime reads (7 since the ETC2 family), and the one before. */
+const LEVELS = TEXTURE_PREVIEW_VERSION,
+  OLDER = LEVELS - 1
 
 test('identity refuses undecoded sidecars, incompatible formats and stale texture layouts', () => {
   assert.doesNotThrow(() => assertCacheIdentity(identity as never))
   assert.doesNotThrow(() => assertCacheIdentity({ ...identity, formatVersion: undefined } as never))
   refusesIdentity({ ...identity, binary: { url: 'columns.bin' } }, 'INVALID_CACHE', {})
-  refusesIdentity({ ...identity, schema: 10 }, 'UNSUPPORTED_FORMAT', {
-    schema: 10,
-    formatVersion: 9,
+  refusesIdentity({ ...identity, schema: 12 }, 'UNSUPPORTED_FORMAT', {
+    schema: 12,
+    formatVersion: 11,
   })
   refusesIdentity({ ...identity, formatVersion: 1, schema: 1 }, 'UNSUPPORTED_FORMAT', {
     formatVersion: 1,
@@ -31,16 +36,18 @@ test('identity refuses undecoded sidecars, incompatible formats and stale textur
   refusesIdentity(
     { ...identity, textures: {} },
     'STALE_CACHE',
-    { textureVersion: null, expected: 6 },
-    ['absent', '6'],
+    { textureVersion: null, expected: LEVELS },
+    ['absent', `${LEVELS}`],
   )
   refusesIdentity(
-    { ...identity, textures: { version: 5 } },
+    { ...identity, textures: { version: OLDER } },
     'STALE_CACHE',
-    { textureVersion: 5, expected: 6 },
-    ['version 5', '6'],
+    { textureVersion: OLDER, expected: LEVELS },
+    [`version ${OLDER}`, `${LEVELS}`],
   )
-  assert.doesNotThrow(() => assertCacheIdentity({ ...identity, textures: { version: 6 } } as never))
+  assert.doesNotThrow(() =>
+    assertCacheIdentity({ ...identity, textures: { version: LEVELS } } as never),
+  )
 })
 
 test('identity accepts whole meshes and refuses stale primitives with actionable identity', () => {
@@ -49,17 +56,17 @@ test('identity accepts whole meshes and refuses stale primitives with actionable
   assert.doesNotThrow(() =>
     assertCacheIdentity({
       ...identity,
-      schema: 10,
-      formatVersion: 10,
+      schema: 12,
+      formatVersion: 12,
       primitives: [blend],
     } as never),
   )
-  // Before format 10 no clustered blend was written: the refusal names the format it needs.
+  // A clustered blend is written at format 12 only: the refusal names the format it needs.
   refusesIdentity(
     { ...identity, primitives: [blend] },
     'UNSUPPORTED_FORMAT',
-    { formatVersion: 9 },
-    ['clustered-blend', 'format 10'],
+    { formatVersion: 11 },
+    ['clustered-blend', 'format 12'],
   )
   const whole = { mesh: 3, primitive: 7, pass: 'shared-blend', pages: [] }
   assert.doesNotThrow(() => assertCacheIdentity({ ...identity, primitives: [whole] } as never))

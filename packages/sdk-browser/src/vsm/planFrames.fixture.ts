@@ -4,7 +4,7 @@
 // point lights: what each frame left in the buffers it wrote, and what it asked of the device.
 import { createHash } from 'node:crypto'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { perspectiveProjection } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import {
@@ -17,16 +17,8 @@ import { encodeVsmInvalidations, vsmInvalidationPhaseFromShadowBoxes } from './i
 import { encodeVsmRender } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 
-/** Seeded uniform numbers in [0, 1). */
-export function seeded(seed: number) {
-  let s = seed >>> 0
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0
-    let t = Math.imul(s ^ (s >>> 15), 1 | s)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32
-  }
-}
+/** Seeded uniform numbers in [0, 1), the Mulberry32 sequence. */
+export { mulberry32 as seeded } from '../../../math/src/sequence/random.ts'
 
 /** One frame's world: its lights, the eye (looking down −Z) and the boxes that moved. */
 export interface PlanWorld {
@@ -93,7 +85,7 @@ export function planFrames() {
   const marking = createVsmMarking(device, res)
   // The engine's per-page entries, built as `vsmEncode.ts` builds them.
   const perPage = vsmPerPageFrame()
-  const rows = device.createBuffer({ size: 16, usage: 0 })
+  const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   // The shadow page group the engine keeps (`shadowPageGroup`): the same every frame.
   const pageLayout = {} as GPUBindGroupLayout,
     pageGroup = {} as GPUBindGroup

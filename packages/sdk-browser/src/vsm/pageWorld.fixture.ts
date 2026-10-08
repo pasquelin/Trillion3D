@@ -99,6 +99,7 @@ export const PAGE_FUNCTIONS = [
   'vsmClipmapTexelDepth',
   'vsmCoarserLevelPage',
   'vsmLevelToLevelOf',
+  'pow2FromExponent',
   'vsmHandleOffset',
   'vsmHandleInvalid',
   ...TABLE_FUNCTIONS,

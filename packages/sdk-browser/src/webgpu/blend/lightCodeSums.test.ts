@@ -7,6 +7,7 @@
 // thin or not, on a cell's list and on every lamp —: the sums are the same numbers, bit for bit.
 // The rectangle's term needs the LTC table: no lamp of these sets is one, and the program with
 // rectangle code holds the same text for it (`rectlessResolve.test.ts`).
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -15,9 +16,10 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
-import { shadedLightScope } from './shadedLightScope.fixture.ts'
+import { randomLampScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
@@ -27,8 +29,9 @@ const SHARED = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 /** What the shadow read does for a light with no slot: no transmission, a factor of one. */
 const NO_SLOT =
@@ -37,11 +40,13 @@ const NO_SLOT =
 /** The pass's program at a key, and the loop it walks its lights with. */
 const PASSES = {
   blend: {
-    text: (key: Partial<ContractKey>) => blendShader(key),
+    // The programs of a scene without lobes; the lobed ones sum as they do (`lobedSums.test.ts`).
+    text: (key: Partial<ContractKey>) => blendShader({ ...key, lobeless: true }),
     loop: ['sliceLighting', 'declaredLight'],
   },
   water: {
-    text: (key: Partial<ContractKey>) => waterCompositeShader(false, key),
+    // The same, the lobed pair summing as it does (`../water/lobedPair.test.ts`).
+    text: (key: Partial<ContractKey>) => waterCompositeShader(false, { ...key, lobeless: true }),
     loop: ['sliceLightingPair', 'declaredLightPair'],
   },
 }
@@ -59,7 +64,7 @@ const flat = (sum: ReturnType<Sum>) => (Array.isArray(sum) ? sum : [...sum.lit, 
 
 test('each forward variant sums what the program with every code path sums, bit for bit, in f32', () => {
   const r = random(1832),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0,
     sums = 0
   for (const [name, pass] of Object.entries(PASSES)) {
@@ -70,22 +75,11 @@ test('each forward variant sums what the program with every code path sums, bit 
       const variant = pass.text(key)
       assert.notEqual(variant, full)
       for (let round = 0; round < 120; round++) {
-        const count = 1 + Math.floor(u(0, 16))
-        const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
         const kept = (kind: number) =>
           !key.unshadowed && !(kind === K.KIND_SUN ? key.sunless : key.localless)
-        const items = [...Array(count).keys()].map((rank) => {
-          const kind = [0, K.KIND_SPOT, K.KIND_SUN][rank % 3]
-          return {
-            positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
-            colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
-            directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
-            // A slot where the key keeps the shadow code of the light's kind; none where it leaves it out.
-            params: [kind, kept(kind) && rank % 2 ? rank : -1, 0, kind === K.KIND_SPOT ? 0.9 : 0],
-            shape: [u(0, 0.05), 0, 0, 0],
-          }
-        })
-        const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round)
+        // A slot where the key keeps the shadow code of the light's kind; none where it drops it.
+        const slot = (kind: number, rank: number) => (kept(kind) && rank % 2 ? rank : -1)
+        const { count, P, items, normal: N, scope: shared } = randomLampScope(r, u, K, round, slot)
         const scope = {
           ...F32_SCOPE,
           ...shared,

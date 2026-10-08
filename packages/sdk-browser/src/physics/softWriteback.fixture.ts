@@ -1,5 +1,5 @@
 import { CommandWriter, FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/physics/index.ts'
-import { axisAngleQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { axisAngleQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
 import { ropeLine, writeSoftBody } from './soft.fixture.ts'

@@ -3,6 +3,7 @@ import { taaRenderMatrix } from '../../taa/frame.ts'
 import type { PartitionFrame } from '../../gpu/partition/uniform.ts'
 import type { EngineCamera } from '../../camera/world.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { prepared } from '../pages/state/prepared.ts'
 
 const noLevels: Array<{ offset: number; width: number }> = []
 const noMatrix = new Float64Array(16)
@@ -53,16 +54,13 @@ export function encodeWebgpuPartition(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
-  useIndirect: boolean,
 ) {
   const { layout, run, vis, gpu, timing } = rt,
     { rows } = layout,
-    partition = vis.gpuPartition
-  const twoPass =
-    useIndirect && !!partition && !!vis.gpuHiz && !!vis.visHizRestBack && rows.packedCount >= 2
+    partition = prepared(vis, 'gpuPartition')
+  const twoPass = rows.packedCount >= 2
   const counts = timing.partitionCounts
   counts.rows = rows.packedCount
-  if (!partition) return { twoPass: false }
   const start = performance.now()
   frame.view = cam.view
   // The render matrix, temporal-antialiasing jitter included: the pyramid the occlusion test reads
@@ -77,12 +75,12 @@ export function encodeWebgpuPartition(
   frame.rows = rows.packedCount
   frame.width = gpu.targetSize[0]
   frame.height = gpu.targetSize[1]
-  frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels
+  frame.levels = twoPass ? prepared(vis, 'gpuHiz').levels() : noLevels
   frame.layerTop = visLayerTop(vis)
   frame.hasRest = twoPass
   // A moved view, a moved world or a dropped history free the rows the test kept: what stood
   // still no longer does, and each of them may leave the occluders again.
-  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory
+  frame.viewMoved = run.occluderViewMoved || run.noOccluderHistory
   // The sampled frame: its kernels count, and its counters are copied (`encodeCounts`).
   frame.counting = partition.countsDue(run.frame)
   partition.beginFrame(encoder, frame)

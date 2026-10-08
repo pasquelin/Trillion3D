@@ -4,9 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from './pageTracking.ts'
-import { urlsOf } from '../pages/helpers.ts'
+import { pageAddress } from './pageSlots.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+
+/** The pool addresses of a list: what a trace set over its records names. */
+const urlsOf = (pages: readonly PageRec[]) => pages.map(pageAddress)
 
 /** A catalogue where one page in three is addressed by its geometry page, shared by pairs. */
 function catalogue(size: number) {

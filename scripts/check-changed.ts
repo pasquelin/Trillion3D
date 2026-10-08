@@ -11,6 +11,7 @@ import {
 import { documentationTests } from './docs/tests.ts'
 import { generateApiFiles } from './generate-api-reference.ts'
 import { gitPaths } from './git-paths.ts'
+import { goldenChecks } from './golden-checks.ts'
 import { heavyStep } from './heavy-lock.ts'
 import { pnpmCommand } from './only-pnpm.ts'
 import { repositoryFiles } from './repository-files.ts'
@@ -50,12 +51,18 @@ async function main(): Promise<void> {
   // A push's one heavy step, the seconds-long build the type check may need, runs beside other
   // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
   if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
+  // A changed reference value runs the golden tests that read it, Rust and TypeScript: a reader
+  // not yet added to the index (untracked, not ignored) is a candidate too.
+  const golden = withTests
+    ? goldenChecks(changed, [...new Set([...paths, ...untracked])])
+    : { crates: [], tests: [] }
   const testFiles = !withTests
     ? []
     : [
         ...new Set([
           ...relatedTests(files, changed),
           ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
+          ...golden.tests,
         ]),
       ]
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`)
@@ -110,6 +117,12 @@ async function main(): Promise<void> {
       case 'rust':
         if (withTests) heavyStep('clippy', runRust)
         break
+      case 'golden':
+        if (withTests && golden.crates.length)
+          heavyStep('golden', () =>
+            run('node', ['scripts/native.ts', 'golden-check', ...golden.crates]),
+          )
+        break
       case 'tests':
         runUnitTests(testFiles)
         break
@@ -122,20 +135,11 @@ async function main(): Promise<void> {
   else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.')
 }
 
+// Every crate of `native-crates.ts`, formatted and linted with its own flags (`native.ts`): the
+// compiler links the codec and the maths, so a change in one is checked across them all.
 function runRust(): void {
-  const manifest = ['--manifest-path', 'packages/asset-compiler-rust/Cargo.toml']
-  run('cargo', ['fmt', '--all', ...manifest, '--', '--check'])
-  run('cargo', [
-    'clippy',
-    '--release',
-    '--locked',
-    ...manifest,
-    '--all-targets',
-    '--all-features',
-    '--',
-    '-D',
-    'warnings',
-  ])
+  run('node', ['scripts/native.ts', 'fmt-check'])
+  run('node', ['scripts/native.ts', 'lint'])
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()

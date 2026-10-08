@@ -8,11 +8,18 @@
  */
 import type { VsmBindingSpec } from './resources.ts'
 import { type VsmPmKernel, vsmPmModule } from './physicalPagesWgsl.ts'
-import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import type { VsmLayout } from './layout.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Mask mips: 8x4 bits → 4x4, 8x8 (gathered 2x2) → 4x4, 4x4 → placed 2x2. */
-const VSM_MIP_MASK_WGSL = /* wgsl */ `
+const VSM_MIP_MASK_WGSL = wgslBlock(
+  'VSM_MIP_MASK_WGSL',
+  [],
+  `
 fn vsmFoldMask8x4(mask2x1:vec2u)->u32{
  // Two 4x4 16-bit masks at once.
  var packed=mask2x1.x|(mask2x1.y<<16u);
@@ -35,7 +42,8 @@ fn vsmFoldMask4x4(mask4x4:u32,oddCell:vec2u)->u32{
  let shift=oddCell.y*8u+oddCell.x*2u;
  return mask2x2<<shift;
 }
-`
+`,
+)
 
 /** Builds the hierarchical page marks, one thread per physical page. */
 function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
@@ -48,8 +56,17 @@ function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
     { resource: 'staleRects', binding: 5, access: 'atomic' },
     { resource: 'mappedRects', binding: 6, access: 'atomic' },
   ]
-  const body = /* wgsl */ `
-${VSM_MIP_MASK_WGSL}
+  const body = wgslBlock(
+    'pageFlagPyramid',
+    [
+      VSM_MIP_MASK_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COVER_GATHER_WGSL,
+    ],
+    `
 /** True when this hierarchical texel already held Flag (someone else continues). */
 fn pmOrMarkAtLevel(flag:u32,entryCell:VsmTableCell,pyramidLevel:u32)->bool{
  let pyramidTexel=entryCell.tableXY>>vec2u(pyramidLevel);
@@ -108,13 +125,14 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
   }
  }
 }
-`
+`,
+  )
   return {
     label: 'PageFlagPyramid',
     entryPoint: 'vsmPageFlagPyramid',
     specs,
     perPage: false,
-    code: vsmPmModule(layout, specs, body, { coverGather: true }),
+    code: vsmPmModule(layout, specs, body),
   }
 }
 
@@ -126,7 +144,17 @@ function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
     { resource: 'projectionData', binding: 2 },
   ]
   const g = VSM_PER_PAGE_GROUP_XY
-  const body = /* wgsl */ `
+  const body = wgslBlock(
+    'fillCoarserFallbacks',
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PER_PAGE_DISPATCH_WGSL,
+    ],
+    `
 fn pmFallbacksDirectional(setup:VsmMapWalk,projectionData:VsmProjectionData){
  let loopEnd=vsmPagesAcross(0u);
  for(var pageY=setup.walkStart.y;pageY<loopEnd;pageY+=setup.walkStep){
@@ -186,8 +214,8 @@ fn pmFallbacksLocal(setup:VsmMapWalk){
  }
 }
 @compute @workgroup_size(${g},${g})
-fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u){
- let setup=vsmMapWalkOf(dispatchThreadId);
+fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
+ let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
  if(!setup.valid||setup.handle.isSinglePage){return;}
  let projectionData=vsmProjectionOf(setup.handle);
  if(projectionData.lightKind==LIGHT_KIND_DIRECTIONAL){
@@ -196,7 +224,8 @@ fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u
   pmFallbacksLocal(setup);
  }
 }
-`
+`,
+  )
   return {
     label: 'FillCoarserFallbacks',
     entryPoint: 'vsmFillCoarserFallbacks',

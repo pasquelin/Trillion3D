@@ -4,6 +4,7 @@
 //! from its tree (`pages.rs`).
 use super::*;
 use std::ops::Range;
+use trillion3d_math::aabb::aabb_of;
 
 /// One placed node: its rank in the published scene, its world box, the core rank of its parent
 /// (`None`: a scene root) and its box in that parent's frame, its descriptor as the cell writes
@@ -41,14 +42,8 @@ fn halve(mut group: Vec<Placed>, out: &mut Vec<Vec<Placed>>) -> Region {
             halves: None,
         };
     }
-    let spread = |axis: usize| {
-        let (low, high) = group
-            .iter()
-            .fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), p| {
-                (l.min(p.centre(axis)), h.max(p.centre(axis)))
-            });
-        high - low
-    };
+    let (low, high) = aabb_of(group.iter().map(|p| [0, 1, 2].map(|axis| p.centre(axis))));
+    let spread = |axis: usize| high[axis] - low[axis];
     let axis = (0..3)
         .max_by(|a, b| spread(*a).total_cmp(&spread(*b)))
         .unwrap_or(0);

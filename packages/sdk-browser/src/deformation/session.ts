@@ -4,7 +4,7 @@ import type { PageRec } from '../page/selection/selection.ts'
 import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { createDeformationSkip } from './screen.ts'
 
@@ -42,10 +42,15 @@ export function createSessionDeformation(
   const skip = createDeformationSkip()
   return {
     frame,
-    /** This image's records (`frame.update`), a root whose reach spans less than `pixelError`
+    /** Frame `tick`'s records (`frame.update`), a root whose reach spans less than `pixelError`
      *  drawn at rest (`screen.ts`). Returns whether a record moved. */
-    update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
-      return frame.update(skip(roots, cam, viewport, pixelError))
+    update(
+      cam: EngineCamera,
+      viewport: readonly number[] | undefined,
+      pixelError: number,
+      tick: number,
+    ) {
+      return frame.update(skip(roots, cam, viewport, pixelError), tick)
     },
     changedOfWorld(world: object) {
       return frame.dirty[rankOf(world)] === 1

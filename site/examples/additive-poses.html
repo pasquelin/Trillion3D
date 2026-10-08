@@ -55,7 +55,7 @@
         const joints = new Uint16Array(positions.count * 4),
           weights = new Float32Array(positions.count * 4);
         for (let v = 0; v < positions.count; v++) {
-          const height = Math.max(0, Math.min(2, positions.getY(v) / 1.5));
+          const height = math.clamp(positions.getY(v) / 1.5, 0, 2);
           const low = Math.floor(height),
             high = Math.min(2, low + 1),
             mix = height - low;

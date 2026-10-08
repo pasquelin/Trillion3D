@@ -4,7 +4,7 @@
  * The node carries from the manifest the replacement error CEILING, enough to drop a subtree
  * that is too FINE. It carries from `packCullingNodes` the own-error FLOOR, enough to drop
  * the too COARSE as well: above the threshold none of its clusters is fine enough. That is the
- * half the CPU cut applies too (`../../../page/cut/node.ts`).
+ * half the oracle applies too (`../oracle/nodeVerdict.fixture.ts`).
  *
  * Under the cut rule (`../../../page/cut/rule.ts`) a cluster too coarse is still drawn when its
  * finer group is not resident: it is then the nearest resident ancestor of what is missing. The
@@ -22,12 +22,13 @@
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
  * top-down pruning would then drop everything.
  *
- * Each list read indirectly keeps its dispatch argument's x then y behind its counter: its groups
- * in rows (`gridWgsl.ts`), which the arming kernel copies to the argument (`armWgsl.ts`).
+ * Each list read indirectly keeps its dispatch argument's x then y behind its counter
+ * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
  */
 export function dagWorkLayout(blockCount: number) {
-  // Block counts, block offsets, two words per block of the draw mask (`compactWgsl.ts`), then a
-  // word per page of each kept list: the rank the page held there (`differenceWgsl.ts`).
+  // Block counts, block offsets and two words per block of the draw mask (`compactWgsl.ts`): no
+  // word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
+  // `flags`, `differenceWgsl.ts`).
   const base = blockCount * WORK_BLOCK_WORDS,
     viewWords = base + FRAME_COUNTERS,
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS
@@ -44,26 +45,30 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroupsMax,
     /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
     frame: drawnGroupsMax + 1,
-    words: drawnGroupsMax + 2,
+    /** The two kept lists' group counts, then the journal a swap writes back's, x and y each
+     *  (`armWgsl.ts`). */
+    listGroups: drawnGroupsMax + 2,
+    words: drawnGroupsMax + 8,
   }
 }
 
 /** Words of the frame counters: the live list's counter and argument, three queue counters, the
  *  candidates' counter and argument, the drawn log's counter and argument. */
 const FRAME_COUNTERS = 12
-/** First word of kept list `l`'s rank of each page, a word a page, in zones of `blockCount` words
- *  as every block zone of `work`: behind a block's drawn count, its offset and the two words of its
- *  draw mask, a bit a page (`compactWgsl.ts`). */
-export const rankBlockWord = (l: number) => 2 + SELECTION_WORKGROUP / 32 + l * SELECTION_WORKGROUP
-/** Words of `work` per block of sixty-four pages ahead of the counters: its drawn count and its
- *  offset, the draw mask, then the two kept lists' ranks. Bounded by the request's page field
- *  (`REQUEST_PAGE_MAX`): two ranks a page fit a binding. */
-export const WORK_BLOCK_WORDS = rankBlockWord(2)
+/** Words of `work` per block of sixty-four pages ahead of the counters: its drawn count, its
+ *  offset and its draw mask, a bit a page (`compactWgsl.ts`). A quarter of a byte a page: a binding
+ *  holds those of half a billion pages. */
+export const WORK_BLOCK_WORDS = 2 + SELECTION_WORKGROUP / 32
 
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { SELECTION_WORKGROUP } from '../../core/selection.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { DAG_INF } from './infDecl.ts'
 
-export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
+export const DAG_FLOOR_WGSL = wgslBlock(
+  'DAG_FLOOR_WGSL',
+  [DAG_INF],
+  `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
 /** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
  *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —
  *  never above the true value of one of its clusters. Without a sphere, negative radius, it
@@ -88,4 +93,5 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)-
  let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
  return errorFloor(error,depth,radius,stretch,focal)>views[vi].pixelError;
 }
-`
+`,
+)

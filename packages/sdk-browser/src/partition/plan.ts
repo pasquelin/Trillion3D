@@ -21,13 +21,18 @@
  * the page moves the cells' parents (`sizing.ts`).
  */
 import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts'
-import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts'
-import { drawnView, perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { boxPointDistance } from '../../../math/src/geometry/box.ts'
+import {
+  drawnView,
+  frustumCornerDistance,
+  perspectiveSlope,
+} from '../../../math/src/projection/camera.ts'
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { AHEAD } from './aheadShare.ts'
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 const inverse = new Float64Array(MATRIX_VALUES),
   view = new Float64Array(4)
@@ -50,10 +55,9 @@ export function cellReach(optics: PartitionOptics) {
     // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
     // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near))
-    return hypot3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
+    return length3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
   }
-  const slope = perspectiveSlope(optics.fov, zoom)
-  return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect))
+  return frustumCornerDistance(far, perspectiveSlope(optics.fov, zoom), optics.aspect)
 }
 
 /**
@@ -78,6 +82,20 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   for (let at = 0; at < bounds.length; at += 6)
     nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]))
   return nearest
+}
+
+/** The read priority of what `cell` holds, seen from `local` (`cellHolds.ts`, `farCells.ts`):
+ *  strictly after the view's own pages, read at the band's own value, in the visible priority's
+ *  band — the prefetch one's when `ahead`, by default past the reach —, nearer first within each. */
+export function holdPriority(
+  index: Pick<CellIndex, 'distance'>,
+  local: { eye: ArrayLike<number>; reach: number },
+  cell: number,
+  ahead?: boolean,
+) {
+  const distance = index.distance(cell, local.eye)
+  const band = (ahead ?? distance > local.reach) ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
+  return band + (1 + (distance / (distance + local.reach) || 0)) / 2
 }
 
 /**

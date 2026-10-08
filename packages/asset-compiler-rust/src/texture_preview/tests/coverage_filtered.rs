@@ -1,5 +1,6 @@
 use super::*;
 use crate::texture_preview::coverage::{cut_bin, filtered_covered, scale_table};
+use trillion3d_math::random::xorshift32;
 
 /// Filtered samples of a square `level` (RGBA8) at or above `cutoff`, four a texel.
 fn covered(level: &[u8], cutoff: u8) -> u64 {
@@ -67,9 +68,7 @@ fn the_bin_search_between_the_corners_finds_the_scan_s_bin() {
     };
     let mut seed = 0x2545_f491u32;
     let mut byte = || {
-        seed ^= seed << 13;
-        seed ^= seed >> 17;
-        seed ^= seed << 5;
+        xorshift32(&mut seed);
         [0, 255, seed & 255, seed >> 24][(seed >> 8 & 3) as usize]
     };
     for c in [1, 64, 128, 191, 255] {

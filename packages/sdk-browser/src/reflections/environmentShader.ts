@@ -1,6 +1,6 @@
 import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { shaderLanguage } from '../math/shaderLanguage.ts'
-import { reflectionBandsShader } from './bandsShader.ts'
+import { REFLECTION_BANDS_WGSL } from './bandsShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Where a program reads its environment's nine radiance coefficients. */
 export interface EnvironmentSource {
@@ -16,20 +16,21 @@ export interface EnvironmentSource {
  *  every program falls back to where no screen hit and no probe answers, never black. An
  *  all-zero environment exits before the band moments. The diffuse term reads the same
  *  coefficients through the cosine lobe. */
-export function environmentReflectionShader(
-  language: 'wgsl' | 'glsl',
-  { prelude, direction, coefficient }: EnvironmentSource,
-) {
+export function environmentReflectionShader({
+  prelude,
+  direction,
+  coefficient,
+}: EnvironmentSource) {
   const magnitude = Array.from({ length: 9 }, (_, k) => `abs(${coefficient(k)})`).join('+')
-  return `${reflectionBandsShader(language)}
-${shaderLanguage(
-  `
+  return wgslBlock(
+    `environmentReflectionShader(${prelude}, ${direction})`,
+    [REFLECTION_BANDS_WGSL],
+    `
 fn environmentReflection(R:vec3f,rough:f32)->vec3f{
  ${prelude}
  if(dot(${magnitude},vec3f(1.0))==0.0){return vec3f(0.0);}
- var bands:vec3f=reflectionProbeBands(rough);
+ let bands:vec3f=reflectionProbeBands(rough);
  return max(vec3f(0.0),${filteredRadianceShader(coefficient, direction, 'bands')});
 }`,
-  language,
-)}`
+  )
 }

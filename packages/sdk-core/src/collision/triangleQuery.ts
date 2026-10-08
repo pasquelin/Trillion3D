@@ -1,5 +1,6 @@
-import { slabCut } from '../math/primitives/slab.ts'
+import { slabCut } from '../../../math/src/geometry/slab.ts'
 import { insideTriangle, triangleNormal } from './closest.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import type { TriangleTree } from './triangleTree.ts'
 
 /**
@@ -118,7 +119,7 @@ function crossTriangle(
   at: number,
 ) {
   if (triangleNormal(normal, v, at) === 0) return -1
-  const facing = normal[0] * d[0] + normal[1] * d[1] + normal[2] * d[2]
+  const facing = dotVector3(normal, d)
   if (facing === 0) return -1
   const height =
     normal[0] * (v[at] - o[0]) + normal[1] * (v[at + 1] - o[1]) + normal[2] * (v[at + 2] - o[2])

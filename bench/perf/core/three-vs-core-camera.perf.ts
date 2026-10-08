@@ -1,15 +1,16 @@
 // Three.js vs sdk-core, camera: the perspective projection and the frustum planes of a clip
-// matrix. The engine's depth is reversed and its far plane infinite by design (`packages/sdk-core/src/math/primitives/camera.ts`),
-// so the projection compares its x and y terms only, and the frustum its four side planes, the
-// ones both conventions share. Both sides store the compared terms in the same loop, four or
-// sixteen stores per element. The view and view-projection are the inverse and the product
-// measured by the matrices bench.
+// matrix. The engine's depth is reversed and its far plane infinite by design
+// (`packages/math/src/projection/camera.ts`), so the projection compares its x and y
+// terms only, and the frustum its four side planes, the ones Three's projection and the engine's
+// share. Both sides store the compared terms in the same loop, four or sixteen stores per element.
+// The view and view-projection are the inverse and the product measured by the matrices bench.
 import * as THREE from 'three'
-import { perspectiveProjection } from '../../../packages/sdk-core/src/math/primitives/camera.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
+import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'
 import {
   FRUSTUM_PLANE_VALUES,
   frustumPlanesFromMatrix,
-} from '../../../packages/sdk-core/src/math/frustum/frustum.ts'
+} from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts'
@@ -17,7 +18,6 @@ import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts'
 const ASPECT = 1.5,
   NEAR = 0.1,
   FAR = 1000
-const DEG2RAD = Math.PI / 180
 const fov = Float64Array.from({ length: N }, () => rnd(20, 120))
 const projectionThree = new THREE.Matrix4()
 const projection = new Float64Array(16)
@@ -28,7 +28,7 @@ const lines: Measurement[] = []
 lines.push(
   await duel({
     name: 'Matrix4.makePerspective',
-    fichier: 'packages/sdk-core/src/math/primitives/camera.ts',
+    fichier: 'packages/math/src/projection/camera.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
         // The bounds `PerspectiveCamera.updateProjectionMatrix` derives from its field of view.
@@ -69,7 +69,7 @@ const sides = new Float64Array(N * 16),
 lines.push(
   await duel({
     name: 'Frustum.setFromProjectionMatrix',
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     three: () => {
       for (let i = 0; i < N; i++) {
         frustum.setFromProjectionMatrix(clip.three[i])
@@ -91,7 +91,7 @@ lines.push(
       }
       return sides
     },
-    motif: 'four side planes only: near and far follow each convention',
+    motif: 'four side planes only: the engine swaps near and far',
   }),
 )
 

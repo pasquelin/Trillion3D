@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Object3D } from './object3d.ts'
-import { updateTransformTree } from '../../math/transform-tree/pass.ts'
+import { updateTransformTree } from '../transform-tree/pass.ts'
 
 const treeOf = (node: Object3D) => Object3D._treeOf(node)
 

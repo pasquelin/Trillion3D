@@ -2,6 +2,7 @@ import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/sr
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
@@ -15,7 +16,11 @@ export const TILE_STRIDE_WORDS = 2
  * the light array for a pass that knows the scene holds no more (`../tiles/shader.ts`); by
  * default it holds as many as the buffer bound.
  */
-export const directLightWgsl = (slots?: number) => `
+export const directLightWgsl = (slots?: number) =>
+  wgslBlock(
+    `directLightWgsl(${slots ?? ''})`,
+    [RECT_LIGHT_WGSL],
+    `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
  *  the view depth every \`SLICES_PER_OCTAVE\` slices from the near plane, the last reaching to
@@ -59,7 +64,6 @@ fn rangeWindow(distance:f32,range:f32)->f32{
  let ratio=distance/range;
  return pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
 }
-${RECT_LIGHT_WGSL}
 /** Normalized direction toward the light and attenuation; w at zero when the point is out of
  *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
@@ -86,5 +90,6 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  *  this many times its squared range, far above the f32 roundings of \`length\`, so
  *  \`directIncidence\` and \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;
-`
+`,
+  )
 export const DIRECT_LIGHT_WGSL = directLightWgsl()

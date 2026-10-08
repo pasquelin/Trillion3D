@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Geometry } from './geometry.ts'
 import { BufferAttribute, pendingAttribute } from '../buffer/attribute.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const points = (values: number[]) => new BufferAttribute(new Float32Array(values), 3)
 const positionsOf = (g: Geometry) => Array.from(g.getAttribute('position')!.array)
@@ -33,13 +34,13 @@ test('only a change of positions forgets the bounds: groups and other lists keep
 
 test('quarter turns about x and y carry each axis onto the next, and center uses all three axes', () => {
   near(
-    positionsOf(new Geometry().setAttribute('position', points([0, 1, 0])).rotateX(Math.PI / 2)),
+    positionsOf(new Geometry().setAttribute('position', points([0, 1, 0])).rotateX(HALF_PI)),
     [0, 0, 1],
     'x',
     1e-6,
   )
   near(
-    positionsOf(new Geometry().setAttribute('position', points([0, 0, 1])).rotateY(Math.PI / 2)),
+    positionsOf(new Geometry().setAttribute('position', points([0, 0, 1])).rotateY(HALF_PI)),
     [1, 0, 0],
     'y',
     1e-6,

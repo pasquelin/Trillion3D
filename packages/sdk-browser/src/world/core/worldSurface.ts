@@ -9,7 +9,6 @@
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { hostSide } from '../../scene/materialSide.ts'
 import { composesWithBackground, hostBlending } from '../../scene/materialBlending.ts'
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts'
@@ -93,18 +92,14 @@ function drawBothSidesOnce(surface: GraphSurface) {
 /**
  * The raster state of a surface that draws line quads (`drawn.ts`): its `linewidth` in CSS
  * pixels (the rasters scale it by the host's pixel ratio each frame), a dashed line's dash and
- * gap, both sides in one pass — a quad widened on screen has no face to cull —, and one
- * coplanar layer over the faces the lines lie on: the pages the world cuts for it carry the layer
- * on WebGPU (`../page/runtimePrimitive.ts`), and this polygon offset gives it on WebGL2, signed
- * for its forward depth (nearer is smaller).
+ * gap, both sides in one pass — a quad widened on screen has no face to cull. The coplanar layer
+ * over the faces the lines lie on is the pages' own: the world cuts them carrying it
+ * (`../page/runtimePrimitive.ts`).
  */
 function drawLines(surface: GraphSurface, material: Material) {
   writeLineWidth(surface, material)
   if (material.kind === 'lineDashed') writeDash(surface, material)
   drawBothSidesOnce(surface)
-  surface.polygonOffset = true
-  surface.polygonOffsetFactor = 0
-  surface.polygonOffsetUnits = -depthLayerUnits(LINE_DEPTH_LAYER)
 }
 
 /** A sprite's turn in the image, as its material says it: its `rotation`, 0 by
@@ -130,7 +125,7 @@ function drawSprite(surface: GraphSurface, material: Material) {
 
 /** What a mesh draws of its geometry: faces, line quads (`drawLines`), a sprite's quad, or a
  *  cloth's faces (`sheet`), seen from both sides: every pass that draws them — the visibility and
- *  material passes, the shadows they cast, WebGL2 — culls neither face and turns the normal of a
+ *  material passes, the shadows they cast — culls neither face and turns the normal of a
  *  back face toward the eye, off this one side. A blended cloth keeps its two passes, back then
  *  front, as a blended double-sided surface does. */
 export type SurfaceReading = 'faces' | 'lines' | 'sprite' | 'sheet'

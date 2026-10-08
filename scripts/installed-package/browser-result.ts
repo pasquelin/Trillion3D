@@ -1,5 +1,5 @@
 import type { EvaluatedInstalledPage } from './browser-page.ts'
-import type { DecodeWorkerResult, IntegrationWorkerResult } from './workers.ts'
+import type { IntegrationWorkerResult, PageWorkerResult } from './workers.ts'
 import type { RequestRecord } from './server.ts'
 import { INSTALLED_SCENE_TRIANGLES } from './scene.ts'
 
@@ -13,7 +13,7 @@ export interface InstalledBrowserProof {
   capture: EvaluatedInstalledPage['capture']
   hierarchy: EvaluatedInstalledPage['hierarchy']
   commonWorker: CommonWorkerMessage | undefined
-  workerDecode: { wasm?: boolean; vertexCount: number | null; taskMs?: number }
+  workerPage: { nodes: number | null; taskMs?: number }
   workerIntegration: { count?: number; pageCount?: number; taskMs?: number }
   requests: RequestRecord[]
   moduleRequestCount: number
@@ -41,7 +41,7 @@ export function installedBrowserResult({
   errors,
 }: {
   result: EvaluatedInstalledPage
-  workers: { decode: DecodeWorkerResult; integration: IntegrationWorkerResult }
+  workers: { page: PageWorkerResult; integration: IntegrationWorkerResult }
   requests: RequestRecord[]
   evidence: RequestRecord[]
   allowNodeModules: boolean
@@ -51,14 +51,14 @@ export function installedBrowserResult({
   const { metrics, capture, hierarchy } = result
   // The page result crosses the `page.evaluate` boundary untyped: cast once, at the point it is read.
   const commonWorker = result.commonWorker as CommonWorkerMessage | undefined
-  const { decode, integration } = workers
+  const { page, integration } = workers
   if (errors.length) throw new Error(`installed browser errors: ${errors.join('; ')}`)
   if (
-    !(metrics?.pagesDecodedOffThread > 0) ||
+    !(metrics?.pagesChecked > 0) ||
     !drawsItsWholeCut(metrics) ||
     capture.aaDifferentPixels !== 0 ||
-    !decode?.ok ||
-    !decode.wasm ||
+    !page?.ok ||
+    page.cells?.nodes !== 1 ||
     !integration?.ok ||
     commonWorker?.translation?.join(',') !== '7,10,15' ||
     !commonWorker?.commonSubset ||
@@ -77,11 +77,7 @@ export function installedBrowserResult({
     capture,
     hierarchy,
     commonWorker,
-    workerDecode: {
-      wasm: decode.wasm,
-      vertexCount: decode.decoded?.vertexCount ?? null,
-      taskMs: decode.taskMs,
-    },
+    workerPage: { nodes: page.cells?.nodes ?? null, taskMs: page.taskMs },
     workerIntegration: {
       count: integration.count,
       pageCount: integration.pageCount,

@@ -1,9 +1,14 @@
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { maxChannel } from '../../../math/src/wgsl/sampling.ts'
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import { taaReprojectWgsl } from '../taa/shaderWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { HALF_MAX } from '../../../math/src/wgsl/constants.ts'
 
 /** The weight a history stores at most: a bound on binary16 storage, never the window it keeps
  *  (`params.y`); binary16 has 1/32 weight spacing there, RGB arithmetic binary32. */
@@ -25,7 +30,7 @@ const REFLECTION_FILTER_ROUGHNESS = 0.001
  *  floor and under the cutoff (`sampleWgsl.ts`), widened by the lobe tolerance the filter accepts a
  *  neighbour within, twice for the rounding of the compares. Outside it, every texel the filter
  *  accepts, the pixel's own and its lobe's, holds no weight: no gather can find one. */
-const REFLECTION_GATHER_LOW = Number(ROUGHNESS_FLOOR) - 2 * REFLECTION_FILTER_ROUGHNESS
+const REFLECTION_GATHER_LOW = ROUGHNESS_FLOOR - 2 * REFLECTION_FILTER_ROUGHNESS
 const REFLECTION_GATHER_HIGH = SCREEN_REFLECTION_CUTOFF + 2 * REFLECTION_FILTER_ROUGHNESS
 /** The frames of its own weight a history keeps while its sources or camera move at a pixel whose
  *  neighbourhood holds too few traced samples to clip it by (`REFLECTION_CLIP_SAMPLES`): a
@@ -54,8 +59,6 @@ const REFLECTION_CLIP_SAMPLES = 4
  *  allows is never under the moment's, about the last four images' samples: a source still met is
  *  kept; one gone leaves the moment in a few images, and the clip follows. */
 const REFLECTION_MOMENT_RENEWED = 0.25
-/** binary16's largest finite value, the moment's storage. */
-const REFLECTION_MOMENT_MAX = 65504
 /** The frames of its own weight a history keeps across a placement change it cannot follow:
  *  a moved or newly resident source's stale share halves each frame, whatever weight W the filter
  *  gathers there (about 1 on a glossy receiver, more on a rough one), while a moving view, which
@@ -92,12 +95,16 @@ const BOUNDED = ' for(var y=lower.y;y<upper.y;y++){for(var x=lower.x;x<upper.x;x
  *  one-pixel slope a stored depth may differ from it by. It is called before any non-uniform
  *  return: the slope is a derivative. A stored depth off it is another surface, the point was hidden (disocclusion): the
  *  history resolve and the reflection source (`sourceWgsl.ts`) reject by it. */
-export const PREVIOUS_DEPTH_WGSL = `
+export const PREVIOUS_DEPTH_WGSL = wgslBlock(
+  'PREVIOUS_DEPTH_WGSL',
+  [],
+  `
 fn previousDepthOf(coord:vec2i,z:f32,id:u32)->vec2f{
  let projected=view.prevViewProj*pointBefore(pixelPoint(coord,z),id);
  let expected=projected.z/projected.w;
  return vec2f(expected,max(abs(dpdx(expected))+abs(dpdy(expected)),1e-7));
-}`
+}`,
+)
 
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
  * with TAA: no neighbourhood clamp, colour transform or TAA history is involved.
@@ -115,9 +122,8 @@ fn previousDepthOf(coord:vec2i,z:f32,id:u32)->vec2f{
  * reads the identifier and depth of a texel's pixel (`owner`) off the one it resolves from the
  * record the trace wrote at the texel (`owners`, `sampleWgsl.ts`): one read where there were two,
  * the same bits. */
-export const REFLECTION_RESOLVE_WGSL = `
-${FULLSCREEN_VERTEX}
-${PAGE_INFO_STRUCT_WGSL}
+export const REFLECTION_RESOLVE_WGSL = wgslProgram(
+  `
 struct ReflectionResolveView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,clip:vec4f,}
 /** The mean and its weight; the root mean square of the samples' brightest channel. */
 struct ReflectionResolved{@location(0) mean:vec4f,@location(1) moment:f32,}
@@ -134,9 +140,6 @@ struct ReflectionResolved{@location(0) mean:vec4f,@location(1) moment:f32,}
 @group(0) @binding(10) var<storage,read> motion:array<mat4x4f>;
 @group(0) @binding(11) var historyMoment:texture_2d<f32>;
 @group(0) @binding(12) var owners:texture_2d<u32>;
-${taaReprojectWgsl(false)}
-${PREVIOUS_DEPTH_WGSL}
-${REFLECTION_PHASE_WGSL}
 const REFLECTION_FILTER_RADIUS:f32=${REFLECTION_FILTER_RADIUS}.0;
 const REFLECTION_FILTER_PLANE:f32=${REFLECTION_FILTER_PLANE};
 const REFLECTION_FILTER_ROUGHNESS:f32=${REFLECTION_FILTER_ROUGHNESS};
@@ -148,7 +151,6 @@ const REFLECTION_MOVING_KEPT:f32=${REFLECTION_MOVING_KEPT}.0;
 const REFLECTION_CLIP_SIGMAS:f32=${REFLECTION_CLIP_SIGMAS}.0;
 const REFLECTION_CLIP_SAMPLES:f32=${REFLECTION_CLIP_SAMPLES}.0;
 const REFLECTION_MOMENT_RENEWED:f32=${REFLECTION_MOMENT_RENEWED};
-const REFLECTION_MOMENT_MAX:f32=${REFLECTION_MOMENT_MAX}.0;
 /** What \`roughSamples\` gathered round the pixel for the clip, unwidened: the traced mean and its
  *  weight, and the per-channel deviation; the mean square of every texel's brightest channel it
  *  read, -1 with none. */
@@ -158,7 +160,7 @@ var<private> moment:f32;
 /** The 4 × 4 block's texels the clip's gather accepted, one bit each: a widened gather reads them
  *  again without testing them again, and the others not at all. */
 var<private> accepted:u32;
-fn pointAt(coord:vec2i,z:f32)->vec3f{let position=pixelPoint(coord,z);return position.xyz/position.w;}
+fn pointAt(coord:vec2i,z:f32)->vec3f{return perspectiveDivide(pixelPoint(coord,z));}
 // \`widen\` scales the tent's reach; a widened gather follows the clip's, so it gathers none.
 fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
@@ -194,7 +196,7 @@ ${GATHER_BOUNDS}\n${BOUNDED}
    if(off*off>plane*dot(offset,offset)){continue;}
   }
   if(clipping){accepted=accepted|bit;near+=vec4f(traced.rgb*traced.a,traced.a);square+=traced.rgb*traced.rgb*traced.a;}
-  if(!wide){let top=max(traced.r,max(traced.g,traced.b));bright+=vec2f(top*top,1.0)*traced.a;}
+  if(!wide){let top=maxChannel(traced.rgb);bright+=vec2f(top*top,1.0)*traced.a;}
   if(far>=reach){continue;}
   sum+=vec4f(traced.rgb*traced.a,traced.a)*(1.0-sqrt(far)/radius);
  }}
@@ -248,7 +250,7 @@ ${GATHER_BOUNDS}\n${BOUNDED}
  if(view.clip.x!=0.0&&history.a>0.0){
   if(neighbourhood.a>=REFLECTION_CLIP_SAMPLES){
    // Its deviation, never under the moment's about the history's mean.
-   let top=max(history.r,max(history.g,history.b));
+   let top=maxChannel(history.rgb);
    let box=REFLECTION_CLIP_SIGMAS*max(spread,vec3f(sqrt(max(square-top*top,0.0))));
    let inside=clamp(history.rgb,neighbourhood.rgb-box,neighbourhood.rgb+box);
    clipped=any(inside!=history.rgb);
@@ -262,8 +264,19 @@ ${GATHER_BOUNDS}\n${BOUNDED}
  // A pixel no texel reached this image keeps its history as it is.
  let kept=select(min(history.a,cap*current.a),history.a,current.a<=0.0);
  let total=kept+current.a;
- let root=min(sqrt(max(square,0.0)),REFLECTION_MOMENT_MAX);
+ let root=min(sqrt(max(square,0.0)),HALF_MAX);
  if(total<=0.0){return ReflectionResolved(vec4f(0.0),root);}
  let mean=history.rgb+(current.rgb-history.rgb)*(current.a/total);
  return ReflectionResolved(vec4f(mean,min(total,${REFLECTION_HISTORY_WEIGHT}.0)),root);
-}`
+}`,
+  [
+    FULLSCREEN_VERTEX,
+    PAGE_INFO_STRUCT_WGSL,
+    PREVIOUS_DEPTH_WGSL,
+    REFLECTION_PHASE_WGSL,
+    taaReprojectWgsl(false),
+    maxChannel,
+    perspectiveDivide,
+    HALF_MAX,
+  ],
+)

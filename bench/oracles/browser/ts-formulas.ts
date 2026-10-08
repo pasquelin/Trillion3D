@@ -2,7 +2,7 @@
 // as-is. These copies are wanted duplicates — it is against
 // them that the shared functions are opposed, value by value, by `Object.is`.
 
-/** A vertex whose only two screen coordinates matter, as `packages/sdk-browser/src/visibility/projection.ts` reads it. */
+/** A vertex whose only two screen coordinates matter, as `./cpu-image/projection.ts` reads it. */
 interface ScreenPoint {
   x: number
   y: number
@@ -29,7 +29,7 @@ export function referenceOutsidePlanes(
   return false
 }
 
-/** Signed area as `packages/sdk-browser/src/visibility/raster.ts`, `packages/sdk-browser/src/hiz/depth.ts` and `packages/sdk-browser/src/page/raster.ts` wrote it. */
+/** Signed area unfactored: the copy `signedArea` (`./cpu-image/projection.ts`) is opposed to. */
 export function referenceSignedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
 }
@@ -48,7 +48,7 @@ export function referenceDevicePixels(
   return Math.floor(logical * (pixelRatio ?? fallback))
 }
 
-/** `packages/sdk-browser/src/gpu/timing/sample.ts` and `packages/sdk-browser/src/webgl/core/frameTimer.ts` from before: nanoseconds to milliseconds. */
+/** `packages/sdk-browser/src/gpu/timing/sample.ts` from before: nanoseconds to milliseconds. */
 export function referenceNsToMs(nanoseconds: number) {
   return nanoseconds / 1e6
 }

@@ -1,4 +1,4 @@
-import { sameValues } from '../math/matrixElements.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { keptBefore, type TickRecords } from './protocol.ts'
 
 /** Where a thing's state a step before its newest comes from, as a tick brings it (`take`). */
@@ -20,7 +20,7 @@ type States = { from: Float32Array | Float64Array; to: Float32Array | Float64Arr
 
 /**
  * THE TWO STEPS EVERYTHING THE PHYSICS DRAWS IS DRAWN BETWEEN: a body's pose (`poses.ts`), a
- * vehicle's wheels (`vehicles.ts`), a soft body's vertices (`softBodies.ts`), the character's feet
+ * vehicle's wheels (`vehicles.ts`), a soft body's vertices (`softVertices.ts`), the character's feet
  * (`physicsCharacter.ts`). Each is kept, under a key below `capacity`, as its state at the newest
  * step a tick brought and its state a step before (`FROM`), in its drawer's own store; every frame
  * draws all of them at the one fraction `t` of that step the frame's time stands at (`along`,
@@ -157,15 +157,4 @@ export function eachRecord(
     )
     at = end
   }
-}
-
-/** `out`, `t` of the way from `from` to `to` (`along`): on their line, past `to` beyond 1. */
-export function lerpInto(
-  out: Float32Array | Float64Array,
-  from: ArrayLike<number>,
-  to: ArrayLike<number>,
-  t: number,
-) {
-  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
-  else for (let i = 0; i < out.length; i++) out[i] = from[i] + (to[i] - from[i]) * t
 }

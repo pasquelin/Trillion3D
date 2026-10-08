@@ -7,7 +7,9 @@ import {
   cooked,
   declared,
   fixture,
+  hull,
   landed,
+  settle,
   modelStreamer,
   place,
   stubFetch,
@@ -103,18 +105,16 @@ test('a declared body a rescale refused is made again once its model is back at 
 
 test('a body whose collider is another node’s mesh leaves that node’s tile out too', async () => {
   const collider = { tiles: [tile()], material: null }
-  const hull = { type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 }
   const three = [place(0), place(1), place(2)]
-  const body = declared(0, [0, 0, 0], { isKinematic: true }, hull, { colliderNode: 1 })
+  const body = declared(0, [0, 0, 0], { isKinematic: true }, hull(), { colliderNode: 1 })
   const file = { ...cooked([collider, collider, collider], three), bodies: [body] }
-  const { tiles, bodies, errors } = await streamedModel(file, await ramp())
-  tiles.update([0, 0, 0], 1000)
-  await landed()
+  const streamer = await streamedModel(file, await ramp())
+  const { bodies, errors } = streamer
+  await settle(streamer, [0, 0, 0], 1000)
   assert.deepEqual(errors, [])
   assert.equal(bodies.count.bodies, 2, 'the body and node 2’s tile: node 1’s ground is the body’s')
   const older = { ...file, bodies: [{ ...body, colliderNode: undefined }] }
   const before = await streamedModel(older, await ramp())
-  before.tiles.update([0, 0, 0], 1000)
-  await landed()
+  await settle(before, [0, 0, 0], 1000)
   assert.equal(before.bodies.count.bodies, 3, 'a file cooked before it keeps node 1’s tile')
 })

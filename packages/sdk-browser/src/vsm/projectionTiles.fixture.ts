@@ -145,6 +145,12 @@ export const NAMES = [
   'vsmMaskCode',
   'vsmLayerLights',
   'vsmLightsBelow',
+  'ceilDiv',
+  'bitWord',
+  'bitMask',
+  'bitAt',
+  'bitIsSet',
+  'isFiniteWord',
 ]
 
 export const CASES = ['lit', 'mixed', 'sky', 'edge', 'far', 'infinite', 'corner']

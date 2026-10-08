@@ -1,7 +1,7 @@
 // What ties `xformNormal`'s f32 model to the shader the GPU runs, and what keeps its criterion
 // honest.
 //
-// `packages/sdk-browser/src/math/normalTransform.test.ts` checks the lighting normal's arithmetic on
+// `packages/sdk-browser/src/gpu/shader/normalTransform.test.ts` checks the lighting normal's arithmetic on
 // an f32 MODEL (`inverseTransposeF32.ts`), with no GPU: a regression shows in the unit tests, but a
 // model is a second implementation, free to drift from the shipped text unseen. Here the engine's
 // `NORMAL_TRANSFORM_WGSL` runs on Dawn on EXACTLY the same cases (`normalTransformCases.ts`), and
@@ -13,7 +13,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  DEG,
   DROPOUT_DEG,
   angleBetween,
   normalVerdict,
@@ -21,6 +20,7 @@ import {
 } from './inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './normalTransformCases.ts'
 import { SUBSTITUTIONS, lightNormals } from './lightingNormalGpu.ts'
+import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 
 test('the shipped normal transform renders the model, the true normal, and zero for no face', async () => {
   const cases = [...CASES, ...FLATTENED, TINY_REGULAR, ...COLLAPSED]
@@ -38,7 +38,7 @@ test('the shipped normal transform renders the model, the true normal, and zero 
     // The model, to the one gap expected: the GPU's `normalize` and the model's round their last
     // f32 place apart.
     const model = xformNormalModel(lit.world, lit.normal)
-    const gap = angleBetween(rendered, model) * DEG
+    const gap = angleBetween(rendered, model) * RAD2DEG
     assert.ok(gap < 1e-3, `${lit.name}: shader ${rendered}, model ${model}, ${gap}° apart`)
     // The right normal: the rotated surface's, on the right side, unit, at any scale — and where
     // the pose flattens the primitive, the transformed face's, worked out by hand.

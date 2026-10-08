@@ -1,6 +1,7 @@
 // Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { FRAMES_PER_SEGMENT, VIEWS } from '../trajectory/poses.ts'
 import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts'
 import { lightingSettings } from '../lighting/lightingOptions.ts'
@@ -35,7 +36,7 @@ function packageDir(root: string, name: string) {
 export function resolveMounts(root: string, sides: SideBase[], resources: string | null = null) {
   return [
     { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
-    // Modules imported by the page via URL: `series/cutPage.ts`, `witness/witnessPage.ts`.
+    // Modules imported by the page via URL: `series/cutPage.ts`, `witness/threeLights.ts`.
     { prefix: '/runner/', dir: join(root, 'bench/runner') },
     { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: ASSETS },
@@ -96,9 +97,9 @@ export function readOptions(argv: string[], root: string) {
     if (!flags.has(name)) return null
     const value = number(name, 0)
     if (!(value > 0)) throw new Error(`--${name} must be a strictly positive number of MiB`)
-    return Math.round(value * 1024 * 1024)
+    return Math.round(value * MIB)
   }
-  const engine = flags.get('engine') ?? 'webgl'
+  const engine = flags.get('engine') ?? 'webgpu'
   if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`)
   const views = (flags.get('views') ?? 'overview,ground,street')
     .split(',')
@@ -126,8 +127,6 @@ export function readOptions(argv: string[], root: string) {
     maxPages: flags.has('max-pages') ? number('max-pages', 0) : null,
     geometryPoolBytes: mioSi('geometry-pool'),
     texturePoolBytes: mioSi('texture-pool'),
-    // `--geometry-pool-ceiling`: maximum pool that an in-session setting may request.
-    geometryPoolCeilingBytes: mioSi('geometry-pool-ceiling'),
     // `--geometry-pool-live` / `--texture-pool-live`: same pools, but adjusted IN
     // SESSION after warmup via `explorer.setMemoryBudgets` — like an application slider.
     livePools: live(flags, mioSi),

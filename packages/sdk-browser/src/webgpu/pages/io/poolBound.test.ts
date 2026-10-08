@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
+import { settledImage } from '../settledImage.fixture.ts'
 
 // `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
@@ -15,33 +16,33 @@ import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 function budgetedQuad(geometryPoolBytes: number) {
   const fixture = coarseQuadScene(),
     { device } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     viewport: [32, 32],
     geometryPoolBytes,
-    geometryPoolCeilingBytes: 1 << 20,
   })
   return { fixture, backend }
 }
 
-/** Renders and waits for the loads it asked, until the resident set stops moving; `each` reads
- *  every image's metrics. Returns the pages resident at the end. */
-async function stream(
-  backend: ReturnType<typeof budgetedQuad>['backend'],
-  each: (metrics: ReturnType<typeof backend.metrics>) => void,
-) {
-  let before = -1,
-    resident = backend.metrics().residentPages ?? 0
-  for (let round = 0; round < 8 && resident !== before; round++) {
-    before = resident
-    backend.render(camera())
-    const metrics = backend.metrics()
-    each(metrics)
-    resident = metrics.residentPages ?? 0
-    await backend.flush!()
-  }
-  return resident
+type Backend = ReturnType<typeof budgetedQuad>['backend']
+
+/** Draws and drains the pose until it settles (`settledImage`): the GPU cut's requests come with
+ *  the readback the drain adopts, their loads land in the drain of the image after it, and the
+ *  pages enter the residency at the image after that. `each` reads every image's metrics. Returns
+ *  the pages resident at the end. */
+async function stream(backend: Backend, each: (metrics: ReturnType<Backend['metrics']>) => void) {
+  await settledImage({
+    render: (cam) => {
+      backend.render(cam)
+      each(backend.metrics())
+    },
+    flush: (options) => backend.flush(options),
+    metrics: () => backend.metrics(),
+    pendingUrls: () => backend.pendingUrls(),
+    pageUrls: () => backend.pageUrls(),
+  })
+  return backend.metrics().residentPages ?? 0
 }
 
 /** What an image holds is under the budget, or the budget is under the root cover and the pool

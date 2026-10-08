@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sphereArrays, turnPoint } from './sphere.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`)
 
@@ -14,8 +15,8 @@ test('whole turns place cardinal axes exactly even before and after the first tu
   }
   near(turnPoint(1 / 8)[0], Math.SQRT1_2)
   near(turnPoint(1 / 8)[1], Math.SQRT1_2)
-  near(turnPoint(0.25, Math.PI / 2, Math.PI)[0], -Math.SQRT1_2)
-  near(turnPoint(0.25, Math.PI / 2, Math.PI)[1], Math.SQRT1_2)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[0], -Math.SQRT1_2)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[1], Math.SQRT1_2)
   near(turnPoint(0.5, 0, Math.PI)[0], 0)
   near(turnPoint(0.5, 0, Math.PI)[1], 1)
 })
@@ -65,7 +66,7 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
 })
 
 test('a full arc starting away from zero rotates its first point by that offset', () => {
-  const [x, y] = turnPoint(0, Math.PI / 2)
+  const [x, y] = turnPoint(0, HALF_PI)
   assert.ok(Math.abs(x) < 1e-8)
   assert.equal(y, 1)
 })

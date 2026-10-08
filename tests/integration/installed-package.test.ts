@@ -57,10 +57,10 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     assert.ok(archive, 'pnpm pack did not report an archive')
     const entries = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).split('\n')
     for (const path of [
-      'package/dist/sdk-browser/src/page/decode/pageCodec.wasm',
-      'package/dist/sdk-browser/src/page/decode/pageDecodeWorker.js',
+      'package/dist/sdk-browser/src/wasm/kernels.wasm',
+      'package/dist/sdk-browser/src/page/work/pageWorker.js',
       'package/dist/sdk-browser/src/page/integration/pageIntegrationWorker.js',
-      'package/dist/sdk-browser/src/math/animationWorker.js',
+      'package/dist/sdk-browser/src/animation/animationWorker.js',
       'package/dist/sdk-node/src/cli/cli.mjs',
     ])
       assert.ok(entries.includes(path), `${path} missing from the package`)

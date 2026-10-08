@@ -1,3 +1,4 @@
+import { DEG2RAD } from '../../../math/src/constants.ts'
 /*
  * THE VEHICLES A BODY STARTS AS: three real machines, every number read from them or declared as
  * a game's choice, never tuned on a scene. The engine's torque is given per kilogram of the body
@@ -123,7 +124,7 @@ const COMMON = {
   brakeGrip: 1,
   drive: 'rear',
   trackTurn: 0.6,
-  maxLean: (45 * Math.PI) / 180,
+  maxLean: 45 * DEG2RAD,
   clutch: 10,
 } as const
 

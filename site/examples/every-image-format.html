@@ -287,7 +287,7 @@
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       world.controls.update();
       // The opening is the first flight, down to the wide view.
-      const flyTo = flights(world);
+      const flyTo = flights({ math }, world);
       flyTo(WIDE, 4);
 
       // The size of each picture as a file; the two that are no file take their bytes in memory.

@@ -1,56 +1,9 @@
-import { hslToLinearRgb, srgbToLinear } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { clusterHue } from '../../diagnostic/colors.ts'
-import { pageAddress } from '../row/pageSlots.ts'
-import type { VisMaterial } from '../../visibility/types.ts'
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
  *  image, never reallocated. */
 export const viewProj = new Float64Array(16)
-/** Three linear components reread immediately: a diagnostic colour allocates nothing more. */
-const tint = new Float64Array(3)
-export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6]
 
-/** Base colour of a declaration through the transfer curve, for the fallback draw's uniform.
- *  The curve is the repository's (`packages/sdk-core/src/math/primitives/color.ts`), whose gap to the host library's rounded
- *  constants is measured and declared; no beauty pass reads this path. */
-export function linearColor(surface: VisMaterial): [number, number, number] {
-  const base = surface.baseColor
-  return [srgbToLinear(base[0]), srgbToLinear(base[1]), srgbToLinear(base[2])]
-}
-/** Diagnostic colour of a cluster: its golden-ratio hue, through the same transfer curve. */
-export function clusterRgb(id: string): [number, number, number] {
-  hslToLinearRgb(tint, 0, clusterHue(id), 0.75, 0.55)
-  return [srgbToLinear(tint[0]), srgbToLinear(tint[1]), srgbToLinear(tint[2])]
-}
-
-/** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
-export function triangleSum(pages: readonly PageRec[], transparent?: boolean) {
-  let total = 0
-  for (let i = 0; i < pages.length; i++)
-    if (transparent === undefined || !!pages[i].transparent === transparent)
-      total += pages[i].triangles
-  return total
-}
-/** Copies the records of `source` whose transparency matches, into an array the caller owns. */
-export function partitionByPass(source: readonly PageRec[], transparent: boolean, into: PageRec[]) {
-  into.length = 0
-  for (let i = 0; i < source.length; i++)
-    if (!!source[i].transparent === transparent) into.push(source[i])
-  return into
-}
-/** The packed ranks of `partitionByPass`, in the same order: the two lists stay parallel. */
-export function partitionPacked(
-  source: readonly PageRec[],
-  packed: readonly number[],
-  transparent: boolean,
-  into: number[],
-) {
-  into.length = 0
-  for (let i = 0; i < source.length; i++)
-    if (!!source[i].transparent === transparent) into.push(packed[i])
-  return into
-}
 type DrawnMirror = {
   shown: PageRec[]
   shownPacked: number[]
@@ -61,20 +14,14 @@ type DrawnMirror = {
 type DrawnMirrorFlag = Pick<DrawnMirror, 'drawnMirrorsShown'>
 /**
  * Sole owner of the `drawnMirrorsShown` flag: true when `drawn` is the copy of `shown` as it
- * stands. On the GPU path, `drawn` is nothing else: adoption remakes it when the readback
- * changes, resume after a surface capture too, and the CPU cut marks the divergence at its
- * entry because it is the only one that writes these lists another way. These functions are the
- * only ones that write the flag, initial value included: nothing is copied yet, the first image
- * will do it.
+ * stands. `drawn` is nothing else: adoption remakes it when the readback changes. These functions
+ * are the only ones that write the flag, initial value included: nothing is copied yet, the first
+ * image will do it.
  */
 export const unmirroredDrawn = (): DrawnMirrorFlag => ({ drawnMirrorsShown: false })
 /** `drawn` has just been remade from `shown` by the caller itself. */
 export function markDrawnMirrored(run: DrawnMirrorFlag) {
   run.drawnMirrorsShown = true
-}
-/** `drawn` will be written other than by copy: the next image will have to remake it. */
-export function markDrawnDiverged(run: DrawnMirrorFlag) {
-  run.drawnMirrorsShown = false
 }
 /** Copies `source` into `target`, rank by rank: neither push, nor a prior clear. */
 export function copyPages<T>(target: T[], source: readonly T[]) {
@@ -82,13 +29,13 @@ export function copyPages<T>(target: T[], source: readonly T[]) {
   target.length = source.length
 }
 /** The same for packed ranks, from a typed list: `target` takes `source`'s live length. A typed
- *  buffer is grown and never shrunk, so `count` names its live ranks when it is shorter. */
+ *  buffer is grown and never shrunk, so `count` names its live ranks when it is shorter (`#1235`). */
 export function copyPacked(target: number[], source: ArrayLike<number>, count = source.length) {
   for (let i = 0; i < count; i++) target[i] = source[i]
   target.length = count
 }
 /** Remakes `drawn` from `shown`, whether the flag is raised or not. */
-export function copyDrawnFromShown(run: DrawnMirror) {
+function copyDrawnFromShown(run: DrawnMirror) {
   copyPages(run.drawn, run.shown)
   copyPages(run.drawnPacked, run.shownPacked)
   markDrawnMirrored(run)
@@ -99,9 +46,3 @@ export function mirrorDrawnFromShown(run: DrawnMirror) {
   copyDrawnFromShown(run)
   return true
 }
-/** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
-export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
-  for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i])
-}
-/** The pool addresses of a cut — each one a page url — for the trace sets. */
-export const urlsOf = (pages: readonly PageRec[]) => pages.map(pageAddress)

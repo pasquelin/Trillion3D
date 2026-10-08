@@ -1,3 +1,4 @@
+import { GOLDEN_FRACTION, HALF_PI, TAU } from '../../../packages/math/src/constants.ts'
 import { facing, fromGeometry, solid, welded, type Mesh } from './mesh.ts'
 import type { Vec3 } from './random.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
@@ -33,7 +34,7 @@ export function box(sx: number, sy: number, sz: number, uvScale?: number): Mesh 
 
 /** A square of side `size` centred on the origin, `cells` cells a side, `y = height(x, z)`. */
 export function heightfield(size: number, cells: number, height: (x: number, z: number) => number) {
-  const ground = fromGeometry(geometry.plane(size, size, cells, cells).rotateX(-Math.PI / 2))
+  const ground = fromGeometry(geometry.plane(size, size, cells, cells).rotateX(-HALF_PI))
   const positions = ground.positions.map((value, i, all) =>
     i % 3 === 1 ? height(all[i - 1], all[i + 1]) : value,
   )
@@ -41,7 +42,7 @@ export function heightfield(size: number, cells: number, height: (x: number, z: 
 }
 
 /** The icosahedron: three golden rectangles, one in each pair of axes, and its twenty faces. */
-const T = (1 + Math.sqrt(5)) / 2
+const T = 1 + GOLDEN_FRACTION
 const ICOSAHEDRON = [
   [-1, T, 0, 1, T, 0, -1, -T, 0, 1, -T, 0],
   [0, -1, T, 0, 1, T, 0, -1, -T, 0, 1, -T],
@@ -87,7 +88,7 @@ export function torusKnot(
     normals = swap(knot.normals),
     positions = swap(knot.positions).map((value, i) => {
       const at = Math.floor(i / 3) * 2,
-        [u, v] = [knot.uvs[at], knot.uvs[at + 1]].map((t) => 2 * Math.PI * t)
+        [u, v] = [knot.uvs[at], knot.uvs[at + 1]].map((t) => TAU * t)
       return value + tube * normals[i] * (ripple(u, v) - 1)
     })
   const closed = welded({ ...knot, positions, normals })

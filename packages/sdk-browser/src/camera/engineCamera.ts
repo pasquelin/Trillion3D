@@ -6,14 +6,15 @@ import {
   updateCameraFrame,
   type CameraFrame,
 } from '../../../sdk-core/src/index.ts'
-import { drawnView } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { drawnView } from '../../../math/src/projection/camera.ts'
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
   updateRenderOriginFrame,
   type RenderOriginFrame,
 } from './renderOrigin.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { clipWindowMatrix4 } from '../../../math/src/projection/clip.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 
 /**
  * The engine camera: the numbers of a frame, in owned buffers rewritten in place.
@@ -119,7 +120,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
     const [x, y, w, h] = drawnView(box, optics.aspect, optics.zoom || 1, seen)
     orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far)
   } else perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom)
-  applyViewTile(into.projection, optics.viewTile, box)
+  applyViewTile(into.projection, optics.viewTile)
   updateCameraFrame(into, into.projection, into.world, into.far)
   // The render frame is set here, in the same pass: what leaves in single precision will read
   // the view without translation, never an absolute view accompanied by relative worlds.
@@ -131,31 +132,22 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   return into
 }
 
-/** Scales and shifts `projection` so a tile of a wider view fills its target. */
-function applyViewTile(
-  projection: Float64Array,
-  tile: ViewTile | null | undefined,
-  orthographic: OrthographicBox | null | undefined,
-) {
+/**
+ * Scales and shifts `projection` so a tile of a wider view fills its target: the clip window
+ * `x' = scaleX·x − offsetX·w`, `y' = scaleY·y − offsetY·w`. A perspective column 2 (w = −z) thus
+ * takes +offset and an orthographic column 3 (w = 1) −offset; the projection's zero entries stay
+ * +0 under the tile's positive finite scales.
+ */
+function applyViewTile(projection: Float64Array, tile: ViewTile | null | undefined) {
   if (!tile) return
-  const { scaleX, scaleY, offsetX, offsetY } = tile
-  projection[0] *= scaleX
-  projection[5] *= scaleY
-  // A perspective column 2 is read at w = −z, so takes +offset; an orthographic one at w = 1, −.
-  if (orthographic) {
-    projection[12] = projection[12] * scaleX - offsetX
-    projection[13] = projection[13] * scaleY - offsetY
-  } else {
-    projection[8] = projection[8] * scaleX + offsetX
-    projection[9] = projection[9] * scaleY + offsetY
-  }
+  clipWindowMatrix4(projection, projection, tile.scaleX, tile.scaleY, -tile.offsetX, -tile.offsetY)
 }
 
 /** `perspective` and `viewPoint` of a camera whose world and eye are set: the eye, or the
  *  camera's own +z — the way back toward it —, weighted by the projection. */
 function writeViewPoint(into: EngineCamera, perspective: number) {
   const w = into.world,
-    length = hypot3(w[8], w[9], w[10]) || 1,
+    length = length3(w[8], w[9], w[10]) || 1,
     flat = (1 - perspective) / length
   into.perspective = perspective
   for (let axis = 0; axis < 3; axis++)
@@ -176,10 +168,10 @@ export function defaultEngineCamera() {
 }
 
 /**
- * Copies an engine camera into another, which then keeps the view bit for bit. A view held
- * from frame to frame (Hi-Z history) or rendered aside (second capture view) thus describes
- * the view actually drawn, even when the source is the child of a rig. Nothing is recomputed:
- * derived matrices are already set on the source.
+ * Copies an engine camera into another, which then keeps the view bit for bit. A view a caller
+ * holds from frame to frame or renders aside thus describes the view actually drawn, even when
+ * the source is the child of a rig. Nothing is recomputed: derived matrices are already set on
+ * the source.
  */
 export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineCamera {
   into.world.set(from.world)

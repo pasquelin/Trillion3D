@@ -7,10 +7,14 @@ import {
   keptSnapshotWord,
   residentReadbackBytes,
   selectionListCap,
+  stagedOutputBytes,
 } from './layout.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import type { createDagResources } from './resources.ts'
-import type { DagRuntimeState } from './dispatch.ts'
+import type { CameraFrames } from './frameRanges.ts'
+import { newRegions, regionsWanted } from './swap.ts'
+import { storageBufferCap } from '../../residency/pools.ts'
+import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -23,8 +27,8 @@ export const initialListCap = (limits: Limits, pageCount: number) =>
  * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
  * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list doubles past it, within the
  * catalogue and what one binding holds.
- * `undefined` when even that cannot hold the cut: the readout stays truncated and the host falls
- * back to the CPU cut, saying so.
+ * `undefined` when even that cannot hold the cut: the readout stays truncated and the host says
+ * so; the GPU cut is the engine's one (#1483).
  */
 export function grownListCap(limits: Limits, pageCount: number, cap: number, needed: number) {
   const next = Math.min(pageCount, deviceListCap(limits), 2 * Math.max(cap, needed))
@@ -38,19 +42,20 @@ export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
   return Math.max(ints[OUT_COUNT], drawnWordOffset ? ints[drawnWordOffset] : 0)
 }
 
-/** The readout of a cut whose list holds `listCap` ranks: the buffer the kernels write, and the
- *  readback slots the frame copies it into, each made by `own` (`resources.ts`). */
+/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals
+ *  (`swap.ts`): the buffer the kernels write, and the readback slots the frame copies it into, each
+ *  made by `own` (`resources.ts`). */
 export function createDagList(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   listCap: number,
-  residentCut: boolean,
+  regions = 0,
 ) {
   const outputBytes = (HEAD + listCap) * 4,
-    // A resident cut adds its drawn list and one burst of its eviction queue (`EVICTION_BURST`).
-    readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes
+    // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
+    readbackBytes = residentReadbackBytes(listCap)
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
   // (`shader/snapshotWgsl.ts`).
-  const output = makeDagBuffer(own, readoutRow(listCap))
+  const output = makeDagBuffer(own, readoutRow(listCap, regions))
   const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
     own({
       size: readbackBytes,
@@ -61,14 +66,21 @@ export function createDagList(
 }
 
 /**
- * Gives the camera cut a list of `listCap` ranks, between two frames and with no readback in
- * flight: a new readout and its slots, the bind groups that name it, and the old ones destroyed.
- * Made under an out-of-memory scope: a device that cannot grant the larger list keeps the old one
- * whole and says `false`, so the host falls back on the next truncated readout rather than on an
- * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's
- * list, in `pageCones`, keeps its own (`layout.ts`).
+ * Gives the camera cut a list of `listCap` ranks and `regions` saved journals, between two frames
+ * and with no readback in flight: a new readout and its slots, the bind groups that name it, and
+ * the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
+ * cannot grant them keeps the old readout whole and says `false`, so the host falls back on the
+ * next truncated readout — or the views aside cut without a region — rather than on an error of the
+ * whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
+ * `pageCones`, keeps its own (`layout.ts`).
  */
-async function growDagList(resources: DagResources, listCap: number, disposed: () => boolean) {
+async function growDagList(
+  resources: DagResources,
+  listCap: number,
+  regions: number,
+  disposed: () => boolean,
+) {
+  if (stagedOutputBytes(listCap, regions) > storageBufferCap(resources.device.limits)) return false
   const made: GPUBuffer[] = []
   const make = (descriptor: GPUBufferDescriptor) => {
     const buffer = resources.device.createBuffer(descriptor)
@@ -79,7 +91,7 @@ async function growDagList(resources: DagResources, listCap: number, disposed: (
   try {
     const { value, error } = await validationScope(
       resources.device,
-      () => createDagList(make, listCap, resources.residentCut),
+      () => createDagList(make, listCap, regions),
       'out-of-memory',
     )
     if (!error) list = value
@@ -92,11 +104,14 @@ async function growDagList(resources: DagResources, listCap: number, disposed: (
     return false
   }
   const old = [resources.output, ...resources.readback]
-  if (resources.residentCut) moveKeptSnapshot(resources.device, resources, list)
+  moveKeptSnapshot(resources.device, resources, list)
   Object.assign(resources, list)
   resources.buffers.push(...made)
   resources.group.out = list.output
   resources.ranges = resources.frames.bindGroups(resources.layout, resources.group)
+  resources.rankGroups = rankGroups(resources)
+  // The saved journals and the lists were the old readout's (`swap.ts`).
+  newRegions(resources.swap, regions)
   for (const buffer of old) {
     resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
     buffer.destroy()
@@ -108,7 +123,7 @@ async function growDagList(resources: DagResources, listCap: number, disposed: (
  * The kept snapshot carried into the grown readout, lengths and both lists, each at the place the
  * new cap gives it (`keptSnapshotWord`): the next copy's difference is taken against it as if the
  * list had not grown, and the readbacks since keep naming their pages by its ranks
- * (`differenceChain.ts`). The ranks beside it in `work` stay where they are.
+ * (`differenceChain.ts`). The ranks of each page stay where they are (`rankGroups`).
  */
 function moveKeptSnapshot(
   device: GPUDevice,
@@ -130,21 +145,53 @@ function moveKeptSnapshot(
   device.queue.submit([encoder.finish()])
 }
 
-/** Grows the list to `state.grow` behind the readbacks in `state.pending`; no frame cuts until it
- *  is in place or refused, and the next one cuts and reads again — on the grown list, or, refused,
- *  to hand the truncated readout to the host. */
-export function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
-  const wanted = state.grow
+/** Grows the list to `state.grow`, and `out` to the regions the views aside ask, behind the
+ *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
+ *  cuts and reads again — on the grown list, or, refused, to hand the truncated readout to the host
+ *  and draw the views aside without a region. */
+function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
+  const { swap } = resources,
+    cap = Math.max(state.grow, resources.listCap),
+    regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
   state.grow = 0
   state.growing = true
   state.pending = state.pending
     .catch(() => {})
     .then(async () => {
       try {
-        if (!(await growDagList(resources, wanted, () => state.disposed))) state.listFull = true
+        if (await growDagList(resources, cap, regions, () => state.disposed)) return
+        if (cap > resources.listCap) state.listFull = true
+        if (regions > swap.regions) state.regionsFull = true
       } finally {
         state.growing = false
-        state.submittedResidencyRevision = state.readbackResidencyRevision = -1
+        recutMain(swap, state)
       }
     })
+}
+
+/** True when the list must grow, or `out` must hold the saved regions the views aside ask. */
+const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
+  !!state.grow || (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
+
+/** True when no cut may run on the tables now: disposed, lost, or a list or regions to grow —
+ *  which wait for the readbacks in flight, then grow (`queueDagListGrowth`): no frame cuts on the
+ *  old ones. The main view's dispatch (`dispatch.ts`) and a view's aside (`aside.ts`) alike. */
+export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
+  if (state.disposed || state.dead || state.growing) return true
+  if (!growthAsked(resources, state)) return false
+  if (!state.mapped.includes(true)) queueDagListGrowth(resources, state)
+  return true
+}
+
+/** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference
+ *  kernels bind (`shader/differenceWgsl.ts`), made again with the ranges when `out` is. */
+export function rankGroups(resources: {
+  layout: GPUBindGroupLayout
+  frames: Pick<CameraFrames, 'bindGroup'>
+  group: Parameters<CameraFrames['bindGroup']>[1]
+  ranks: GPUBuffer[]
+}) {
+  const { layout, frames, group } = resources
+  // The first range's group alone: the difference reads no primitive's words.
+  return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
 }

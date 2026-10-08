@@ -7,6 +7,7 @@ import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts'
 import { stochasticReflectionShader } from './sampleWgsl.ts'
 import { REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts'
 import { reflectionBoundsPipelines } from './boundsPyramid.ts'
+import type { LitProgram } from '../lighting/deferred/shaders.ts'
 
 /** The source reprojects the last image's unfogged colour, which the final pass writes as its
  * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
@@ -16,7 +17,7 @@ import { reflectionBoundsPipelines } from './boundsPyramid.ts'
  * its slowest one, never their sum. */
 export async function reflectionPipelines(
   device: GPUDevice,
-  shader: string,
+  lit: LitProgram,
   layout: GPUBindGroupLayout,
   { unboundedReflections = false }: { unboundedReflections?: boolean } = {},
 ) {
@@ -34,7 +35,7 @@ export async function reflectionPipelines(
     program(
       createCheckedShaderModule(
         device,
-        stochasticReflectionShader(shader, unboundedReflections),
+        stochasticReflectionShader(lit, { unbounded: unboundedReflections }),
         'REFLECTION_TRACE',
       ),
       [layout, reflectionLayout(device), reflectionOwnerLayout(device)],
@@ -55,7 +56,7 @@ export async function reflectionPipelines(
     program(
       createCheckedShaderModule(
         device,
-        withReflectionSourceOutput(withScreenReflections(shader, true)),
+        withReflectionSourceOutput(withScreenReflections(lit, { history: true })),
         'REFLECTION_RESOLVE',
       ),
       [layout, reflectionLayout(device)],

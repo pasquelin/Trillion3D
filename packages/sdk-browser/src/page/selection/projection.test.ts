@@ -1,20 +1,18 @@
-// The zero-threshold paths decide without projecting, and the shared distance does not
-// change a bit. Oracle: the general path, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
+// The cut's projections, shared distance included, do not change a bit from the general path.
+// Oracle: the general path, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { clusterSphereValid, pageCarriesClusterError } from '../../../../sdk-core/src/index.ts'
-import { clusterPixels, projectedClusterError, type ClusterCut } from './math.ts'
-import { drawsCluster } from '../cut/rule.ts'
+import { projectedClusterError, type ClusterCut } from './math.ts'
+import { clusterPixels } from './frame.fixture.ts'
 import {
-  pixelsAtZero,
-  errorFloorAt,
   projectedErrorAt,
   viewDepth,
   viewDepthOf,
   viewLateral,
   viewLateralOf,
 } from './projection.ts'
+import { errorFloorAt } from './projection.fixture.ts'
 import {
   referenceErrorFloorPixels,
   referenceProjectCentre,
@@ -63,19 +61,6 @@ function verdict<V>(run: () => V): { value: V | undefined; threw: boolean } {
   }
 }
 
-/** A record prepare would let through: a finite positive error with its valid sphere. */
-function prepared(rec: ClusterCut) {
-  const page = { lodError: rec.lodError, sphere: rec.sphere } as unknown as Parameters<
-    typeof pageCarriesClusterError
-  >[0]
-  const own = rec.lodError === undefined && rec.sphere === undefined
-  if (!own && !pageCarriesClusterError(page)) return false
-  const parent = rec.parentError
-  if (parent === undefined || parent === null) return true
-  if (!Number.isFinite(parent) || parent < (rec.lodError ?? 0)) return false
-  return parent === 0 || clusterSphereValid(rec.parentSphere ?? rec.sphere)
-}
-
 /** `[own, parent]` of the general path, copied out of its buffer. */
 const pixels = (rec: ClusterCut) =>
   Array.from(clusterPixels(rec, view, STRETCH, FOCAL, NEAR, 1, new Float64Array(2)))
@@ -103,28 +88,9 @@ test('the cut rule reads the pre-lot projections, at the same bits', () => {
   }
 })
 
-test('at a zero threshold, the rule decides without projection as it does on the projections', () => {
-  let vus = 0
-  for (const rec of records()) {
-    if (!prepared(rec)) continue
-    vus++
-    const zero = pixelsAtZero(rec, new Float64Array(2)),
-      projected = pixels(rec)
-    for (const childResident of [true, false])
-      assert.equal(
-        drawsCluster(true, zero[1], zero[0], childResident, 0),
-        drawsCluster(true, projected[1], projected[0], childResident, 0),
-        `${JSON.stringify(rec)} child ${childResident}`,
-      )
-  }
-  // Guard of the test itself: the prepared domain is not empty.
-  assert.ok(vus > 100, `only ${vus} prepared records`)
-})
-
-test('a malformed own error is refused on both sides when the sphere is there', () => {
+test('a malformed own error is refused when the sphere is there', () => {
   for (const lodError of [-1, Number.NaN]) {
     const rec: ClusterCut = { lodError, sphere: [0, 0, 20, 1], parentError: 1 }
-    assert.throws(() => pixelsAtZero(rec, new Float64Array(2)))
     assert.throws(() => pixels(rec))
   }
 })

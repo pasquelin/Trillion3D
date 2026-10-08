@@ -114,7 +114,7 @@
       world.controls.maxDistance = 35;
       world.controls.maxPolarAngle = Math.PI / 2 - 0.03;
       const say = words();
-      const route = tour(world, [
+      const route = tour({ math }, world, [
         { name: 'entrance', position: [15, 5, 16], target: [0, 1, 5], seconds: 2.5, hold: 0.8 },
         { name: 'pond', position: [-13, 4, -1], target: [-7, 0, -7], seconds: 2.2, hold: 1 },
         { name: 'bridge', position: [-7, 2.2, 1], target: [-7, 0.8, -7], seconds: 1.8, hold: 0.8 },

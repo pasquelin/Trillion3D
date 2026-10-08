@@ -1,10 +1,10 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { dagRoots } from '../../backend/pagesBackend.fixture.ts'
+import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { QUAD_MANIFEST, quadScene } from '../../backend/pagesBackendScenes.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
-import type { BackendDiagnostic } from '../../backend/types.ts'
+import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
+import { webgpuPagesEngine } from './pages.ts'
+import type { EngineDiagnostic } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
@@ -86,17 +86,17 @@ export type PagedQuad = ReturnType<typeof pagedQuad>
 /** The WebGPU backend over one such fixture, on the mock device, with its page reader. */
 export function pagedQuadBackend(
   fixture: PagedQuad,
-  events: BackendDiagnostic[],
+  events: EngineDiagnostic[],
   readGeometryPage = async (url: string) => fixture.bytes.get(url)!,
 ) {
   const gpu = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: fixture.metadata.primitives[0].pages.length,
     viewport: [32, 32],
     readGeometryPage,
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   } as never)
   return { gpu, backend }
 }

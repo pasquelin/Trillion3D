@@ -58,7 +58,7 @@ const walks = await measure({
   name: 'updateMatrixWorld(true) over listener-hooked nodes',
   fichier: [
     'packages/sdk-browser/src/host/scene/hooks.ts',
-    'packages/sdk-core/src/world/math/observed.ts',
+    'packages/sdk-core/src/world/observed.ts',
   ],
   cas: [
     { name: `${NODES} listener-hooked nodes`, input: hooked(), size: NODES },

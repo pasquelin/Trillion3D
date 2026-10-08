@@ -1,5 +1,5 @@
 //! Raw ABI of the shared buffer and the calculation batches: no `wasm-bindgen`, only integers and
-//! byte offsets in linear memory, like `wasm.rs` for the page decoder.
+//! byte offsets in linear memory.
 //!
 //! The buffer is allocated here as `f64`, so it is eight-byte aligned: JavaScript can overlay
 //! `Float64Array`, `Float32Array` or `Uint32Array` views at will. Nothing is copied on the
@@ -7,10 +7,8 @@
 //! memory and invalidate every view: that is the only moment it happens, and the JavaScript loader
 //! rebuilds its views there and nowhere else.
 
-use crate::math::{box_transform_batch, BOX_VALUES, MATRIX_VALUES};
-use crate::math_hierarchy::{hierarchy_update_batch, POSITION_VALUES, QUATERNION_VALUES};
-use crate::math_matrix::multiply_matrix4_batch;
-use crate::wasm::{fuite, rends};
+use crate::math::{box_transform_batch, BOX_VALUES};
+use trillion3d_math::matrix::{multiply_matrix4_batch, MATRIX_VALUES};
 
 /// Version of this ABI's contract. The loader refuses a module that does not return the one it expects.
 const CONTRACT: u32 = 1;
@@ -20,6 +18,18 @@ const WORD: usize = 8;
 /// linear memory the host could no longer return: an engine calculation batch does not weigh a
 /// gigabyte, and a size like that comes from a wrong count, not from a scene.
 const MAX_BYTES: usize = 1 << 30;
+
+/// Hands `values` to the caller as an offset in linear memory.
+fn leak<T>(values: Vec<T>) -> u32 {
+    Box::into_raw(values.into_boxed_slice()) as *mut T as u32
+}
+
+/// Releases an allocation made by `leak`: a sliced box's capacity equals its length.
+unsafe fn release<T>(offset: u32, len: usize) {
+    if offset != 0 {
+        drop(Vec::from_raw_parts(offset as *mut T, len, len));
+    }
+}
 
 /// The contract version this module honours.
 #[no_mangle]
@@ -41,7 +51,7 @@ pub extern "C" fn arena_alloc(bytes: usize) -> u32 {
     if bytes == 0 || bytes > MAX_BYTES {
         return 0;
     }
-    fuite(vec![0f64; bytes.div_ceil(WORD)])
+    leak(vec![0f64; bytes.div_ceil(WORD)])
 }
 
 /// Releases an `arena_alloc` reservation.
@@ -50,7 +60,7 @@ pub extern "C" fn arena_alloc(bytes: usize) -> u32 {
 /// `offset` must come from `arena_alloc` with this same `bytes`, and must not already have been released.
 #[no_mangle]
 pub unsafe extern "C" fn arena_free(offset: u32, bytes: usize) {
-    rends::<f64>(offset, bytes.div_ceil(WORD));
+    release::<f64>(offset, bytes.div_ceil(WORD));
 }
 
 /// `n` boxes transformed by `n` matrices. The three offsets are bytes, eight-byte aligned.
@@ -80,31 +90,6 @@ pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n
         core::slice::from_raw_parts_mut(out as *mut f64, values),
         core::slice::from_raw_parts(a as *const f64, values),
         core::slice::from_raw_parts(b as *const f64, values),
-        n,
-    );
-}
-
-/// The whole hierarchy: `n` nodes ordered parents before children. Offsets are bytes, eight-byte
-/// aligned, except `parents`, which holds `n` 32-bit words aligned on four.
-///
-/// # Safety
-/// The five ranges must fit in live `arena_alloc` reservations, be disjoint, and hold
-/// `16 · n`, `3 · n`, `4 · n` and `3 · n` floats respectively, then `n` integers.
-#[no_mangle]
-pub unsafe extern "C" fn math_hierarchy_update_batch(
-    world: u32,
-    positions: u32,
-    rotations: u32,
-    scales: u32,
-    parents: u32,
-    n: usize,
-) {
-    hierarchy_update_batch(
-        core::slice::from_raw_parts_mut(world as *mut f64, n * MATRIX_VALUES),
-        core::slice::from_raw_parts(positions as *const f64, n * POSITION_VALUES),
-        core::slice::from_raw_parts(rotations as *const f64, n * QUATERNION_VALUES),
-        core::slice::from_raw_parts(scales as *const f64, n * POSITION_VALUES),
-        core::slice::from_raw_parts(parents as *const u32, n),
         n,
     );
 }

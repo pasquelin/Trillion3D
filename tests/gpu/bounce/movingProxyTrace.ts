@@ -9,15 +9,15 @@ import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/node
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
 /** Farther than any ray of the proof travels. */
 const REACH = 200
 const SHIPPED = 'fn proxySteps()->u32{return proxy.steps;}'
 
-const SHADER = `${residentProxyWgsl(0)}
-@group(0) @binding(1) var<storage,read> rays:array<vec4f>;
+const SHADER = wgslProgram(
+  `@group(0) @binding(1) var<storage,read> rays:array<vec4f>;
 @group(0) @binding(2) var<storage,read_write> hits:array<vec4f>;
-${BOUNCE_TRACE_WGSL}
 @compute @workgroup_size(1) fn main(@builtin(global_invocation_id) id:vec3u){
  let origin=rays[id.x*2u].xyz;
  let direction=rays[id.x*2u+1u].xyz;
@@ -25,7 +25,9 @@ ${BOUNCE_TRACE_WGSL}
  let blocked=proxyBlocked(origin,direction,${REACH}.0);
  hits[id.x*2u]=vec4f(select(0.0,1.0,hit.found),hit.distance,select(f32(hit.owner),-1.0,hit.owner==PROXY_POSED),select(0.0,1.0,blocked));
  hits[id.x*2u+1u]=vec4f(proxyOwnerCentre(hit.triangle,hit.owner),proxyOwnerAlbedo(hit.owner).r);
-}`
+}`,
+  [residentProxyWgsl(0), BOUNCE_TRACE_WGSL],
+)
 
 export type RayReading = {
   found: boolean

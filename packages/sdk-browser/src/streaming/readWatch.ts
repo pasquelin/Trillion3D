@@ -11,7 +11,7 @@ type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => v
  * `landed` never goes back.
  */
 export function createReadWatch(
-  subscribe: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>,
+  subscribe: (url: string, signal: AbortSignal, priority?: number) => Promise<Uint8Array>,
 ) {
   const watches = new Set<Watch>()
   let owed = false
@@ -24,7 +24,7 @@ export function createReadWatch(
       watches.forEach((watch) => watch.heard())
     })
   }
-  const read = (url: string, signal?: AbortSignal, priority?: number) => {
+  const read = (url: string, signal: AbortSignal, priority?: number) => {
     const reading = subscribe(url, signal, priority)
     if (!watches.size || (priority ?? PRIORITY_VISIBLE) > PRIORITY_VISIBLE) return reading
     let askedBy: Watch[] | undefined

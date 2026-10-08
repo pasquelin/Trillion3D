@@ -18,12 +18,13 @@ import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 
 /** Thread group size of the instance load balancer. */
 export const VSM_INVALIDATION_GROUP_SIZE = 64
@@ -59,7 +60,7 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
 
 /** Group 1: 0 params (uniform), 1 instances, 2 items. */
 const VSM_INVALIDATION_GROUP1_WGSL = /* wgsl */ `
-struct VsmInvalidationParams{invItemCount:u32,boxCount:u32,groupsX:u32,pad:u32,}
+struct VsmInvalidationParams{invItemCount:u32,boxCount:u32,pad:vec2u,}
 struct VsmInvalidationInstance{
  localToWorld0:vec4f,
  localToWorld1:vec4f,
@@ -136,7 +137,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  var shiftedCenter=vec3f(0.0);
  // Distance cull for local lights.
  if(!sunMap){
-  shiftedCenter=(localToShifted*vec4f(inst.boxCentre,1.0)).xyz;
+  shiftedCenter=transformPoint(localToShifted,inst.boxCentre);
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
@@ -183,10 +184,10 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   }
  }
 }
-/** The load-balanced entry point: one thread per (item, instance of the item). */
+/** The load-balanced entry point: one thread per (item, instance of the item), in rows. */
 @compute @workgroup_size(VSM_INVALIDATION_GROUP_SIZE)
-fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lidx:u32){
- let thread=(wid.y*vsmInv.groupsX+wid.x)*VSM_INVALIDATION_GROUP_SIZE+lidx;
+fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
+ let thread=flatIndex(wid,nwg,1u)*VSM_INVALIDATION_GROUP_SIZE+lidx;
  if(thread>=vsmInv.boxCount||vsmInv.invItemCount==0u){return;}
  // Item of this thread: the last whose prefix is <= thread.
  var lo=0u;
@@ -212,19 +213,21 @@ fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_inde
 
 /** The whole instance invalidation module (entry `vsmStaleBoxes`). */
 export function vsmInvalidationWgsl(layout: VsmLayout) {
-  return [
-    VSM_CONSTANTS_WGSL,
-    VSM_UNIFORMS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-    vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
-    VSM_INVALIDATION_GROUP1_WGSL,
-    VSM_PROJECTION_DATA_READ_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-    VSM_BOX_CULL_WGSL,
-    VSM_PAGE_OVERLAP_WGSL,
-    VSM_INVALIDATE_INSTANCE_PAGES_WGSL,
-  ].join('\n')
+  return wgslProgram(
+    [VSM_INVALIDATION_GROUP1_WGSL, VSM_PAGE_OVERLAP_WGSL, VSM_INVALIDATE_INSTANCE_PAGES_WGSL].join(
+      '\n',
+    ),
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PAGE_MARKS_GATHER_WGSL,
+      VSM_BOX_CULL_WGSL,
+      FLAT_INDEX_WGSL,
+      transformPoint,
+    ],
+  )
 }

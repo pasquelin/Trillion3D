@@ -68,7 +68,6 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
 export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {
   if (!rt.diag.traceEnabled) return
   rt.diag.traceDiagnostic('frame', 'Frame waiting for GPU coverage', {
-    backend: 'webgpu-page-raster',
     frame: rt.run.frame,
     submission: rt.run.imageRevision,
     source: 'gpu',

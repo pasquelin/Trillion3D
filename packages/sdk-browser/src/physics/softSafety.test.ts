@@ -1,4 +1,5 @@
 // Damping safety of a soft body: what its damping lets it fall at, whole or hanging (`soft.ts`, `SOFT_DAMPING`).
+import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
@@ -112,10 +113,10 @@ test('a soft body falling whole is never held back: past its swing, it falls as 
 test('a rope coiled at rest hangs out to its length: never taken for diverged', async () => {
   for (const length of [2, 5]) {
     // 80 points on a coil of 0.15 m radius, 0.1 m high, pinned at its first, 7 m up.
-    const turns = length / (2 * Math.PI * 0.15),
+    const turns = length / (TAU * 0.15),
       points: number[] = []
     for (let i = 0; i < 80; i++) {
-      const t = (i / 79) * turns * 2 * Math.PI
+      const t = (i / 79) * turns * TAU
       points.push(0.15 * Math.cos(t), (i / 79) * 0.1, 0.15 * Math.sin(t))
     }
     const jolt = await softWorld()

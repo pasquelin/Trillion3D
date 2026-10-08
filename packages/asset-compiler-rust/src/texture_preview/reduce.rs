@@ -1,5 +1,6 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
+use trillion3d_math::scalar::{byte_to_unit_f32, unit_to_byte_f32};
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
@@ -111,7 +112,7 @@ fn decode_table(kind: AtlasKind) -> &'static [f32; 256] {
 fn encode(value: f32, kind: AtlasKind) -> u8 {
     match kind {
         AtlasKind::Color | AtlasKind::Coverage(_) => linear_to_srgb(value),
-        AtlasKind::Data => (value.clamp(0.0, 1.0) * 255.0).round() as u8,
+        AtlasKind::Data => unit_to_byte_f32(value),
     }
 }
 
@@ -140,7 +141,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let x1 = (column * 2 + 1).min(width - 1);
             let at = |x: usize, y: usize| (y * width + x) * 4;
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
-            let a: [f32; 4] = std::array::from_fn(|i| f32::from(previous[texels[i] + 3]) / 255.0);
+            let a: [f32; 4] = std::array::from_fn(|i| byte_to_unit_f32(previous[texels[i] + 3]));
             let coverage = (matches!(kind, AtlasKind::Coverage(_)) && a.iter().any(|&w| w != a[0]))
                 .then(|| a.iter().sum::<f32>());
             for channel in 0..3 {
@@ -153,7 +154,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             }
             let u = a[0].max(a[1]).min(a[2].max(a[3]));
             let v = a[0].min(a[1]).max(a[2].min(a[3]));
-            out.push(((u + v) * 0.5 * 255.0).round() as u8);
+            out.push(unit_to_byte_f32((u + v) * 0.5));
         }
     }
     out

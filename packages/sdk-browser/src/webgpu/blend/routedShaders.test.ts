@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { close, display, srgb } from './blendModel.fixture.ts'
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts'
-import { PARTICLE_ROUTED_WGSL } from '../particles/particlesWgsl.ts'
+import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts'
 import { waterRoutedShader } from '../water/routedWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts'
@@ -51,8 +51,8 @@ test('a particle routes its straight colour, where the mask is set', () => {
   }
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
   const { fsRouted } = shaderRun<Particle>(
-    PARTICLE_ROUTED_WGSL,
-    ['fsRouted', 'particle', ...ROUTE_FUNCTIONS],
+    PARTICLE_DRAW_WGSL,
+    ['fsRouted', 'particle', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
     scope,
   )
   // The uniform is read at each call: one run serves both views.
@@ -109,6 +109,8 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         blendGrads: () => ({}),
         blendBase: () => [0, 0, 0, 1],
         blendKeeps: () => true,
+        // The lobed program's: an item that names no physical record sets nothing.
+        blendPhysicalBegin: () => undefined,
         blendSurface: () => surface,
         uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
         BlendOut: (

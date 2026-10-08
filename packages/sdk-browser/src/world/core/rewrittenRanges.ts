@@ -1,9 +1,9 @@
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
+import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 
-/** Marks `ranges` of `geometry`'s lists written: a reader that uploads them sends those alone —
- *  the WebGL2 draw, which clears them; the WebGPU path is handed the ranges themselves. */
+/** Marks `ranges` of `geometry`'s lists written: a reader that uploads them sends those alone and
+ *  clears them (`../../cluster/batchMesh.ts`); the engine is handed the ranges themselves. */
 export function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]) {
   for (const { name, from, count } of ranges) {
     const list = geometry.attributes[name] as BufferAttribute,

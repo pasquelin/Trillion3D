@@ -1,13 +1,16 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
-import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts'
+import { GOLDEN_FRACTION } from '../../../../math/src/wgsl/constants.ts'
+import { luminance } from '../../../../math/src/wgsl/color.ts'
+import { hashUnit } from '../../../../math/src/wgsl/sampling.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** Ranks a sampled image cycles through: past that many, the offset walks the same path again. */
 export const SAMPLED_RANKS = 1024
 
 /** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
  *  scene that holds a rectangle (`declaredLightWgsl`). */
-const RECT_WEIGHT_WGSL = `
- if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`
+const RECT_WEIGHT = `
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*luminance(light.colorIntensity.rgb);}`
 
 /**
  * Sampled resolve of a cell's light list, for a MOVING image that temporal
@@ -35,17 +38,18 @@ const RECT_WEIGHT_WGSL = `
  * the two weight walks would cost twice the full sum they estimate. The grid pass settles
  * that per-cell fact once, in its count's high bit; the resolve reads the flag, never the list.
  */
-export const directLightSamplingWgsl = (rects = true) => `
+export const directLightSamplingWgsl = (rects = true) =>
+  wgslBlock(
+    `directLightSamplingWgsl(${rects})`,
+    [hashUnit, GOLDEN_FRACTION, luminance],
+    `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
-const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
-const GOLDEN_RATIO:f32=0.61803399;
-${HASH_UNIT_WGSL}
 /** Unshadowed weight of a light at the point: its share of the pixel's drawing. Zero exactly
  *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
  *  that could contribute is ever left undrawable. */
-fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{${rects ? RECT_WEIGHT_WGSL : ''}
+fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{${rects ? RECT_WEIGHT : ''}
  let incidence=directIncidence(light,P);
- return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
+ return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*luminance(light.colorIntensity.rgb);
 }
 /** Weight of the \`index\`th light of a list starting at \`first\` in the pool. */
 fn listedWeight(first:u32,index:u32,N:vec3f,P:vec3f)->f32{
@@ -73,7 +77,7 @@ fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao
  // run once per light any pixel of the group drew, and the walk would then cost what it saves.
  var chosen:array<u32,LIGHT_SAMPLES>;
  var used=0u;
- let offset=fract(hashUnit(u32(pixel.y)*65536u+u32(pixel.x))+f32(rank)*GOLDEN_RATIO);
+ let offset=fract(hashUnit(u32(pixel.y)*65536u+u32(pixel.x))+f32(rank)*GOLDEN_FRACTION);
  var running=0.0;
  var point=0u;
  var next=offset/f32(LIGHT_SAMPLES)*total;
@@ -92,13 +96,15 @@ fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao
   }
  }
  var result=vec3f(0.0);
+ let shading=lobeSurface(rgb,metal,rough,N,V);
  for(var slot=0u;slot<used;slot++){
   let light=directLights.items[tileLights[first+chosen[slot]%TILE_LIGHTS]];
   // An exact light counts once; a drawn one is divided by its probability, the points it holds
   // on average: its share of the total, times the points.
   var factor=1.0;
   if(chosen[slot]<TILE_LIGHTS){factor=total/(f32(LIGHT_SAMPLES)*lightWeight(light,N,P));}
-  result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factor;
+  result+=declaredLight(light,rgb,metal,rough,N,V,P,ao,shading)*factor;
  }
  return result;
-}`
+}`,
+  )

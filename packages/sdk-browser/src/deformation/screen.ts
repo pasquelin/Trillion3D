@@ -1,7 +1,8 @@
-import { pixelScaleOf } from '../streaming/priority.ts'
+import { boxCenter } from '../../../math/src/geometry/box.ts'
+import { focalPixels } from '../../../math/src/projection/camera.ts'
 import { worldStretch } from '../page/cut/logic.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
@@ -9,20 +10,23 @@ import type { PageRec } from '../page/selection/selection.ts'
 
 type Roots = readonly ClusterRoot<PageRec>[]
 
+const centre = new Float64Array(3)
+
 /** How many pixels `reach` of root's units spans at worst, seen from `cam`: from the nearest point
  *  of its rest box the reach can bring closer. */
 function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, focal: number) {
   const box = root.worldBox
   if (!box) return Infinity
-  const x = (box[0] + box[3]) / 2,
-    y = (box[1] + box[4]) / 2,
-    z = (box[2] + box[5]) / 2
+  boxCenter(centre, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+  const x = centre[0],
+    y = centre[1],
+    z = centre[2]
   return screenErrorBound(
     reach * worldStretch(root),
     1,
     viewLateralOf(x, y, z, cam.view),
     viewDepthOf(x, y, z, cam.view),
-    hypot3(box[3] - x, box[4] - y, box[5] - z),
+    length3(box[3] - x, box[4] - y, box[5] - z),
     focal,
     cam.near,
     cam.perspective,
@@ -37,7 +41,6 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
  * allocates nothing.
  */
 export function createDeformationSkip() {
-  const scale: [number, number] = [1, 1]
   let roots: Roots = [],
     cam: EngineCamera | undefined,
     focal = 0,
@@ -53,8 +56,7 @@ export function createDeformationSkip() {
     roots = frameRoots
     cam = frameCam
     threshold = pixelError
-    pixelScaleOf(cam.projection, viewport, scale)
-    focal = Math.max(scale[0], scale[1])
+    focal = focalPixels(cam.projection, viewport?.[0], viewport?.[1])
     return skipped
   }
 }

@@ -1,7 +1,8 @@
 // Defect 9 (`NORMAL_TRANSFORM_WGSL`, `standardLighting.ts`): the `abs(det)<1e-20` guard bore on the
 // RAW determinant of the world 3×3. A uniform-scale rotation s has determinant ±s³: from s ≲ 2.15e-7
 // the lighting normal stayed LOCAL, unrotated — the surface lit as if it had not turned. Defect 6 in
-// another file, fixed by sharing one text (`inverseTransposeWgsl.ts`) instead of writing a variant.
+// another file, fixed by sharing one text (`packages/math/src/wgsl/inverseTranspose.ts`) instead
+// of writing a variant.
 //
 // The engine's lighting texts run on Dawn (`lightingNormalGpu.ts`); the truth is the graph's f64
 // normal matrix, and the luminance gap is the same BRDF's, lit on the GPU with the rendered normal
@@ -10,7 +11,6 @@
 //   node bench/dawn/proofs.ts tests/gpu/math/normal-transform-small-scale.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { NORMAL_TRANSFORM_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import {
   LIT_MATERIAL,
   campaign,
@@ -19,7 +19,6 @@ import {
   normalGap,
 } from './lightingNormalCases.ts'
 import { lightNormals } from './lightingNormalGpu.ts'
-import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 
 test('the lighting normal follows a quarter turn at every scale, about the threshold too', async () => {
   const cases = [1e3, 1, 1e-3, 1e-6, 2.155e-7, 2.154e-7, 1e-7, 1e-8, 1e-12, 1e-16].flatMap((s) =>
@@ -49,13 +48,12 @@ test('the lighting normal follows a quarter turn at every scale, about the thres
 })
 
 test('the form before the fix lost the rotation at small scales; the shipped text never does', async () => {
-  // The previous text put back into the shipped one, with the same guard as defect 6:
+  // The previous text put back into the shipped program, with the same guard as defect 6:
   // `substitutionBefore.ts` fails naming what is missing if the block is gone, doubled or pasted
   // crookedly. A merely "different" text would prove nothing.
-  const before = inverseTransposeBeforeIn(NORMAL_TRANSFORM_WGSL, 'NORMAL_TRANSFORM_WGSL')
   const cases = campaign()
   const [then, now] = await Promise.all([
-    lightNormals(cases, { transform: before }),
+    lightNormals(cases, { before: true }),
     lightNormals(cases),
   ])
   const dropouts = (rows: typeof now.rows) =>

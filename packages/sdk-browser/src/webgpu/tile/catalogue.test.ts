@@ -60,7 +60,7 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   const [astcFill, astc] = tileCatalogue([map()], () => chain, reader, poolEncoding('astc'))
   assert.equal(astc.lane, 'two-channel')
   assert.equal(astcFill.lane, 'two-channel', 'the fill opens no RGBA layer of its own')
-  const refused = { ...chain, layouts: { bc7: 'lossless', astc: 'rgba' } as const }
+  const refused = { ...chain, layouts: { bc7: 'lossless', astc: 'rgba', etc2: 'rgba' } as const }
   const [, lossless] = tileCatalogue([map()], () => refused, reader, bc7)
   assert.equal(lossless.lane, 'lossless')
   const [hostFill, host] = tileCatalogue([map()], () => undefined, reader, bc7)

@@ -12,7 +12,7 @@ import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'
 import { startModule } from './module.fixture.ts'
 import { addSoft, at, settle, softWorld } from './soft.fixture.ts'
-import { cooked, landed, streamedModel } from './tiles.fixture.ts'
+import { cooked, landed, sharedShapes, streamedModel } from './tiles.fixture.ts'
 import { FLAT } from './records.fixture.ts'
 import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts'
 
@@ -83,10 +83,14 @@ test('a compiled model’s cooked cloth is made from its settings alone and move
   assert.equal(tiles.modelOf(words[1]), null)
 })
 
+/** The cooked soft bodies of a session over `writer` and `bodies`, a refusal failing the test. */
+const cookedSofts = (...[writer, bodies]: Parameters<typeof sharedShapes>) =>
+  createCookedSoftBodies(writer, bodies, sharedShapes(writer, bodies), () => {}, assert.fail)
+
 test('a model opened again before its settings arrive holds its cooked cloth once', async () => {
   const { model, writer, bodies } = await opened()
   writer.take()
-  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail)
+  const softs = cookedSofts(writer, bodies)
   softs.open(model, [cookedCloth(1)], new AbortController().signal)
   softs.open(model, [cookedCloth(1)], new AbortController().signal)
   await landed()
@@ -95,7 +99,7 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
 
 test('a late refusal of a cooked cloth its model opened again gives back no slot', async () => {
   const { model, writer, bodies } = await opened()
-  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail)
+  const softs = cookedSofts(writer, bodies)
   const owners = () => Array.from({ length: 8 }, (_, slot) => bodies.slots.at(slot)).filter(Boolean)
   const streamers = owners()
   softs.open(model, [cookedCloth(1)], new AbortController().signal)
@@ -164,7 +168,7 @@ test('a model rescaled has its cooked cloth released and refused by name, once; 
 test('a cooked cloth takes the flags a page-built one does, its model’s visibility its own', async () => {
   const { model, writer, bodies } = await opened()
   writer.take()
-  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail)
+  const softs = cookedSofts(writer, bodies)
   model.visible = false
   softs.open(model, [cookedCloth(1)], new AbortController().signal)
   await landed()

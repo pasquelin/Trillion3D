@@ -1,6 +1,7 @@
 // A bench report as Markdown: what was played and how, each segment's frame (GPU, CPU, hitches,
 // stability, same images), its GPU by stage and pass and its commands, the CPU by engine step and
 // by function, the engine's counters, and what went wrong.
+import { MIB } from '../../packages/math/src/constants.ts'
 import { REFRESH_MS } from './frames.ts'
 import type { BenchReport } from './merge.ts'
 import { insightsText, type Insights } from './insights.ts'
@@ -11,7 +12,7 @@ export const ms = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(digits)
 const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s.max)})` : '—')
 /** Bytes as mebibytes, `digits` decimals. */
-export const mib = (bytes: number, digits = 0) => (bytes / 1048576).toFixed(digits)
+export const mib = (bytes: number, digits = 0) => (bytes / MIB).toFixed(digits)
 export const percent = (share: number | null) =>
   share === null ? '—' : `${(share * 100).toFixed(1)} %`
 export const table = (head: string[], rows: (string | number)[][]) =>

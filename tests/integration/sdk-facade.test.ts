@@ -98,10 +98,11 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   )
-  // 737: the public API holds neither a shadow atlas, a CPU transport, nested Hi-Z oracles nor
-  // example-only helpers; it holds four names the public signatures carry: PageHome, PageHomes, QualityResolution and
-  // WorldQualityOptions.
-  assert.equal(inventory.exports.length, 741)
+  // 720 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // it), a shadow atlas, a CPU transport, nested Hi-Z oracles, example-only helpers nor the removed
+  // graphics path's renderer, CPU page decoding and comparison layout; it holds the names the
+  // public signatures carry: PageHome, PageHomes, QualityResolution and WorldQualityOptions.
+  assert.equal(inventory.exports.length, 720)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -165,13 +166,16 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const proposed = await bundle('./packages/sdk/index.ts')
   const browserProposed = await bundle('./packages/sdk/browser.ts')
   const inputs = Object.keys(proposed.metafile.inputs)
-  assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')))
+  assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The engine entry shrank with the retired exports (4 396 to 3 868); the two others grew with the
-  // machine-independent quaternion normalisation and arc trigonometry (determinism).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_868)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_141)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821)
+  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry: the engine
+  // core; the package, with the machine-independent quaternion normalisation and arc trigonometry;
+  // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
+  // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
+  // entry's camera projections read `length2` from the vector module, whose lazy init it starts.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_725)
+  assert.equal(proposed.outputFiles[0].contents.length, 2_006)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_795)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

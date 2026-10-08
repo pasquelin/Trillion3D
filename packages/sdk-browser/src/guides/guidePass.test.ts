@@ -6,7 +6,8 @@ import assert from 'node:assert/strict'
 import { createGuideSet } from './guideSet.ts'
 import { createWebgpuGuidePass } from './guidePass.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../webgpu/frame/hold.ts'
+import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts'
+import { unsettledMask } from '../webgpu/frame/unsettled.ts'
 import { settledRt } from '../webgpu/frame/hold.fixture.ts'
 import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts'
 import {
@@ -16,7 +17,7 @@ import {
   guidesShown,
 } from '../webgpu/pages/render/encodeGuides.ts'
 import { families } from '../host/families.ts'
-import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/fullscreen.ts'
+import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 
 // The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
 await families.guides.load()

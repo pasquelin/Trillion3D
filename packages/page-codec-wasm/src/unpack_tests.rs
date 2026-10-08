@@ -8,15 +8,14 @@ use crate::bits::MAX_BITS;
 use crate::triangles::{CornerCode, Spans};
 use crate::unpack::reference::reference;
 use crate::writer::BitWriter;
+use trillion3d_math::random::xorshift32;
+use trillion3d_math::GOLDEN_32;
 
 struct Rng(u32);
 
 impl Rng {
     fn next(&mut self) -> u32 {
-        self.0 ^= self.0 << 13;
-        self.0 ^= self.0 >> 17;
-        self.0 ^= self.0 << 5;
-        self.0
+        xorshift32(&mut self.0)
     }
     fn below(&mut self, n: u32) -> u32 {
         self.next() % n
@@ -152,7 +151,7 @@ fn the_audits_page_shapes_decode_to_the_same_words() {
 
 #[test]
 fn ten_thousand_random_pages_and_their_corruptions_decode_the_same() {
-    let (mut rng, mut refused) = (Rng(0x9E37_79B9), [0; 5]);
+    let (mut rng, mut refused) = (Rng(GOLDEN_32), [0; 5]);
     for i in 0..10_000 {
         let n = 1 + rng.below(if i % 50 == 0 { 65_535 } else { 400 }) as usize;
         let triangles = 1 + rng.below(300) as usize;

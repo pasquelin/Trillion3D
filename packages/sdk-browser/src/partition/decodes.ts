@@ -1,6 +1,6 @@
 /**
- * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM: a cell file, or a page of
- * the cell index. Its verified bytes are handed to the decode pool as soon as a frame needs them
+ * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM (#575): a cell file, or a page of
+ * the cell index. Its verified bytes are handed to the page worker pool as soon as a frame needs them
  * (`cellDecode.ts`, `readCellPage`); a later frame places its rows, or opens the page, within the
  * one integration budget (`cells.ts`). Only what the last frame planned is kept: the map follows
  * the view, not the world.
@@ -52,7 +52,9 @@ export function createDecodes<Key, Decoded extends object>() {
 /** Where `takeDecoded` reads and spends: the frame's io, its budget, and whether its list is read
  *  ahead of need. */
 type Taking = {
-  io: { bytes(url: string): Uint8Array | undefined; loading(url: string): boolean } & {
+  io: {
+    bytes(url: string): Uint8Array | undefined
+    failed(url: string): boolean
     request(urls: readonly string[], ahead: boolean): void
   }
   budget: { admits(): boolean; spend(): void }
@@ -60,8 +62,9 @@ type Taking = {
 }
 
 /** Takes each file of `list` whose decode landed while the budget admits it (`taken`: false while
- *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer. True when
- *  one needed now is left for a later frame. */
+ *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer — never one
+ *  refused for good, which waits for nothing: no frame is drawn again for it. True when one needed
+ *  now is left for a later frame. */
 export function takeDecoded<Key, Decoded extends object>(
   list: readonly Key[],
   { io, budget, ahead }: Taking,
@@ -74,13 +77,15 @@ export function takeDecoded<Key, Decoded extends object>(
   let later = false
   for (const key of list) {
     const address = url(key)
+    if (io.failed(address)) continue
     const decoded = files.decoded(
       key,
       () => io.bytes(address),
       (b) => decode(b, address),
     )
     if (!decoded || !budget.admits()) {
-      if (!files.has(key) && !io.loading(address)) ask.push(address)
+      // Asked again while on its way: the frame waits on its landing, never on nothing.
+      if (!files.has(key)) ask.push(address)
       later ||= !ahead
       continue
     }

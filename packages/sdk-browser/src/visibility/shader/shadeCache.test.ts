@@ -9,14 +9,14 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { SHADE_CACHE_SHADER, shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
 
 type V = number[]
 type Frame = { invT: { adj: V[]; scale: number; regular: boolean }; positive: boolean }
 const cross = F32_SCOPE.cross as (a: V, b: V) => V,
   dot = F32_SCOPE.dot as (a: V, b: V) => number
-const READ = shadeCacheReadWgsl(0)
+const READ = wgslModule(shadeCacheReadWgsl(0))
 const words: number[] = []
 const scope = {
   ...F32_SCOPE,
@@ -34,8 +34,18 @@ const PIXEL = shaderRun<{
   rowFrame: (row: number, world: Mat) => Frame
   composeRowFrame: (world: Mat) => Frame
 }>(
-  READ + INVERSE_TRANSPOSE_WGSL,
-  ['rowFrame', 'cacheVec3', 'composeRowFrame', 'invTranspose3Prep'],
+  READ,
+  [
+    'rowFrame',
+    'cacheVec3',
+    'composeRowFrame',
+    'invTranspose3Prep',
+    'absoluteSum3',
+    'isFiniteScale',
+    'isFiniteWord',
+    'worldMatrix3',
+    'windingKept',
+  ],
   scope,
 )
 
@@ -73,7 +83,7 @@ test('each row a pixel reads reads the frame its pixels compose, bit for bit', (
   WORLDS.forEach((_, row) => (words[marks + row * ROW_MARK_WORDS + (row % 2) * PLANE_WORDS] = 1))
   const pass = shaderRun<{ shade_rows: (g: V, n: V) => void }>(
     SHADE_CACHE_SHADER,
-    'shade_rows storeRowFrame storeVec3 storeWord composeRowFrame invTranspose3Prep rowMarks flatIndex'.split(
+    'shade_rows storeRowFrame storeVec3 storeWord composeRowFrame invTranspose3Prep absoluteSum3 isFiniteScale isFiniteWord worldMatrix3 windingKept rowMarks flatIndex'.split(
       ' ',
     ),
     {

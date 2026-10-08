@@ -3,7 +3,7 @@ import test from 'node:test'
 import { userNotice, type RuntimeEvent } from './events.ts'
 
 test('only an unrecovered blocking fatal event offers the scene retry action', () => {
-  for (const type of ['fatal', 'fallback', 'capability', 'optimization'])
+  for (const type of ['fatal', 'degraded'])
     for (const audience of ['blocking', 'diagnostic'])
       for (const recovered of [false, true]) {
         const event = {

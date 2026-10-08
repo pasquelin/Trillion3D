@@ -3,8 +3,13 @@
 // the runs the CPU sliced from the whole paint order — the same image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { orderBlendPasses, refreshEyeKeys } from './order.ts'
-import { expandBlendPlan, orderBlendPlanCpu } from './expandCpu.ts'
+import { orderBlendPasses } from './order.ts'
+import {
+  cpuModel,
+  expandBlendPlan,
+  orderBlendPlanCpu,
+  refreshEyeKeys,
+} from './expandCpu.fixture.ts'
 import { planItem, planPipeline } from './plan.ts'
 import { PLAN_SHARED_BIT } from './planEntry.ts'
 import { RUN_WORDS } from './planLayout.ts'
@@ -91,10 +96,11 @@ test('the slots paint the instances the runs painted, in their order, with their
         const seeds = blendState.seeds[pass]
         if (!seeds.length) continue
         // Before: the whole pass ranked by `precedes`, then sliced.
-        const before = referenceOrder(seeds, blendState.blendGpu)
+        const before = referenceOrder(seeds, blendState.orderKeys)
         const after = Array.from(orderBlendPlanCpu(blendState, pass))
         assert.deepEqual(after, before, `${count} items, frame ${frame}, pass ${pass}: order`)
-        const slots = Array.from(blendState.runs[pass].subarray(0, blendState.slotCounts[pass] * 2))
+        const runs = cpuModel(blendState).runs[pass],
+          slots = Array.from(runs.subarray(0, blendState.slotCounts[pass] * 2))
         const instances = painted(blendState, before, slicedRuns(before))
         assert.ok(instances.length > seeds.length / 4, 'most entries paint')
         assert.deepEqual(

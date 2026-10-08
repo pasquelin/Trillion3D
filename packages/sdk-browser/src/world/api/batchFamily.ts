@@ -9,7 +9,7 @@ export type FloatBatch = Float32Array | Float64Array
 
 /**
  * The `batch` family: a thousand matrices at once instead of a loop, over the core's batched
- * kernels (`packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`).
+ * kernels (`packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`).
  */
 export const batch = {
   /**

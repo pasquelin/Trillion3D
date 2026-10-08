@@ -1,3 +1,5 @@
+mod build_inputs;
+
 use sha2::{Digest, Sha256};
 use std::{
     env, fs,
@@ -8,9 +10,6 @@ use std::{
 /// The physics cook's C++ (`packages/physics-jolt-wasm`): the physics engine from the pinned submodule and
 /// `cook/cook.cpp`, built by the same CMake file as the web module (`-DCOOK=ON`).
 const PHYSICS: &str = "../physics-jolt-wasm";
-
-/// The page codec (`packages/page-codec-wasm`), a path dependency built into the compiler.
-const CODEC: &str = "../page-codec-wasm";
 
 /// The repository's cargo configuration, which sets the C++ flags the C++ simplifier is built with.
 const CARGO_CONFIG: &str = "../../.cargo/config.toml";
@@ -99,31 +98,25 @@ fn physics_cook(output: &Path) -> String {
     commit
 }
 
-fn source_files(directory: &Path, into: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    for entry in fs::read_dir(directory)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            if path.file_name().is_some_and(|name| name == "tests") {
-                continue;
-            }
-            source_files(&path, into)?;
-        } else if path.extension().is_some_and(|ext| ext == "rs") {
-            into.push(path);
-        }
-    }
-    Ok(())
-}
-
 fn main() -> std::io::Result<()> {
     let mut files = Vec::new();
-    source_files(Path::new("src"), &mut files)?;
-    // The page codec is linked in: its encoding is the compiler's, so it enters the hash.
-    source_files(&Path::new(CODEC).join("src"), &mut files)?;
+    build_inputs::production_sources(Path::new("."), &mut files)?;
+    let dependencies = build_inputs::path_dependencies()?;
+    // The path dependencies, theirs too, are linked in: their encoding and their arithmetic are
+    // the compiler's, so their production sources enter the hash and their folders are watched.
+    for path in &dependencies {
+        build_inputs::production_sources(path, &mut files)?;
+        files.push(path.join("Cargo.toml"));
+        println!("cargo:rerun-if-changed={}/src", path.display());
+    }
     files.extend([
         PathBuf::from("Cargo.toml"),
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
-        Path::new(CODEC).join("Cargo.toml"),
+        PathBuf::from("build_inputs.rs"),
+        PathBuf::from("build_inputs/code.rs"),
+        PathBuf::from("build_inputs/declarations.rs"),
+        PathBuf::from("build_inputs/manifest.rs"),
         // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);
@@ -133,15 +126,23 @@ fn main() -> std::io::Result<()> {
     // next build would keep the previous implementation hash — a cache key that stays still while
     // the compiler moves.
     println!("cargo:rerun-if-changed=src");
-    println!("cargo:rerun-if-changed={CODEC}/src");
     let mut digest = Sha256::new();
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
-    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`).
+    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`)
+    // and what `trillion3d-compiler --build-inputs` prints for a launch to call it stale.
     let inputs: Vec<String> = files
         .iter()
         .map(|path| path.display().to_string())
         .collect();
     fs::write(output.join("implementation_inputs.txt"), inputs.join("\n"))?;
+    // The crate folders those inputs are in, each ending in `/`: where a launch looks for a newer
+    // file before it reads the list, so it reads no manifest of its own.
+    let crates: String = [PathBuf::from(".")]
+        .iter()
+        .chain(&dependencies)
+        .map(|folder| format!("{}/\n", folder.display()))
+        .collect();
+    fs::write(output.join("implementation_crates.txt"), crates)?;
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());
         digest.update(path.to_string_lossy().as_bytes());

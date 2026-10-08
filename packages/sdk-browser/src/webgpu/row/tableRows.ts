@@ -1,25 +1,22 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts'
 import { pageTableRows } from './pageTableRows.ts'
 
 /**
- * THE ROWS A VIEW IS GIVEN: a fixed visible-cluster budget. The page table is sized by
- * what a view draws, never by the world's placements: a scene asks at most `VIEW_ROWS` rows however
- * many times its pages are placed. A scene whose packed instances exceed them is cut on the CPU
- * (`../pages/prepare/preparePages.ts`), which claims a row for each cluster it selects and nothing
- * more: its table opens at `CUT_ROWS` and grows by what its cut selects (`viewRowsFor`).
+ * THE ROWS A VIEW IS GIVEN (#1232): the page table is sized by what a view draws, never by the
+ * world's placements. It opens at `VIEW_ROWS` at most, and is a cache of what the GPU cut draws and
+ * asks for (`slots.ts`, #1483): a view whose requests the table cannot serve grows it by them, in
+ * steps of `ROW_STEP` (`viewRowsFor`).
  */
 export const VIEW_ROWS = 1 << 18,
-  CUT_ROWS = 1 << 16
+  ROW_STEP = 1 << 16
 
-/** Whether a scene of `instances` packed pages is cut on the CPU: past the rows a view holds. */
-export const cutsOnCpu = (instances: number) => instances > VIEW_ROWS
-
-/** The rows a view holds once its cut selected `asked`: a quarter more, in steps of `CUT_ROWS`, so a
+/** The rows a view holds once its cut asked `asked`: a quarter more, in steps of `ROW_STEP`, so a
  *  growing view grows the table a few times, never once per image, and ahead of the rows it draws;
  *  within what a visibility ID names. */
 export const viewRowsFor = (asked: number) =>
-  Math.min(VIS_MAX_PAGES, Math.ceil((1.25 * Math.max(1, asked)) / CUT_ROWS) * CUT_ROWS)
+  Math.min(VIS_MAX_PAGES, alignUp(1.25 * Math.max(1, asked), ROW_STEP))
 
 /**
  * THE ROWS OF THE PAGE TABLE, bounded by the device. The visibility rows (`draw`) and the blended
@@ -45,7 +42,7 @@ export function boundTableRows(
 }
 
 /**
- * The rows a table of `held` rows grows to when `asked` (`boundTableRows`) asks more: no
+ * The rows a table of `held` rows grows to when `asked` (`boundTableRows`) asks more (#216): no
  * visibility row gives way, nor a caster row, and a table the device bounds stays within one
  * binding, its casters' rows taking what the binding leaves beside the visibility rows.
  */

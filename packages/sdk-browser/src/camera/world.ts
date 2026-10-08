@@ -1,5 +1,6 @@
-import { decomposeMatrix4, invertMatrix4 } from '../../../sdk-core/src/index.ts'
-import { copyElements, type HostNodeMatrix, type MatrixElements } from '../math/matrixElements.ts'
+import { decomposeMatrix4 } from '../../../sdk-core/src/index.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { type HostNodeMatrix, type MatrixElements } from '../host/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
@@ -9,12 +10,7 @@ import {
 import type { ControlVector } from './controls/types.ts'
 import type { HostRotation } from '../host/scene/graphNodes.ts'
 
-export {
-  createEngineCamera,
-  defaultEngineCamera,
-  holdCameraWorld,
-  type EngineCamera,
-} from './engineCamera.ts'
+export { createEngineCamera, defaultEngineCamera, type EngineCamera } from './engineCamera.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
@@ -49,7 +45,7 @@ export {
  * WHAT THE CONTRACT GUARANTEES ABOUT FRAME REVISIONS. Nothing here reads or increments a
  * revision: neither `scene`, nor `resources`, nor `view`. The pose enters the decision to
  * hold or replay a frame by a single path, the view fingerprint (`../frame/viewRevision.ts`,
- * which the WebGL gate calls `viewChanged`), which compares the sixteen numbers of the view.
+ * which the frame gate calls `viewChanged`), which compares the sixteen numbers of the view.
  * ORDER is therefore the guarantee: frame entry copies the pose BEFORE the adaptive threshold
  * (`resolvePixelError`) and BEFORE the view fingerprint, and the fingerprint is reread BEFORE
  * the hold decision. A rig the host moves without touching the camera thus moves the
@@ -65,7 +61,7 @@ export type { CameraMotion } from './motion.ts'
  *
  * What the engine READS of it: the world pose its own graph resolves, and the optics it
  * declares. What the engine WRITES on it: nothing a FRAME writes. The pose setters, `lookAt`
- * and the matrix a campaign restore puts back are the host's own gestures — framing, home,
+ * and the matrix a restore puts back are the host's own gestures — framing, home,
  * controls, the view a measurement came from — which the explorer performs on the host's behalf
  * at the boundary; a frame never touches them.
  *
@@ -99,35 +95,14 @@ export type HostCamera = {
   /** LOCAL matrix, the other face of the pose: what a restore puts back beside the three fields. */
   readonly matrix: HostNodeMatrix
   /** Its world matrix. */ readonly matrixWorld: MatrixElements
-  /** Projection in the HOST's depth convention, finite far plane included. The engine composes
-   *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
-  readonly projectionMatrix: MatrixElements
-  /** Its inverse, which the host renderer keeps beside it and hands its own shaders. */
-  readonly projectionMatrixInverse?: MatrixElements
   /** Updates its world matrix. */
   updateWorldMatrix(ancestors: boolean, descendants: boolean): void
   /** Updates its world matrix, children too. */ updateMatrixWorld(force?: boolean): void
   /** Rebuilds its projection. */ updateProjectionMatrix(): void
   /** Turns it toward a point. */ lookAt(target: ControlVector): void
-  /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
+  /** A view of its own the host keeps — the pose a measurement comes back to. */
   clone(): HostCamera
 }
-/** The matrices and depth range a host draws a frame with, as the engine hands them over. */
-export type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {
-  /** The projection. */ projection: Float32Array
-  /** The camera's world matrix. */ world: Float64Array
-  /** The view matrix. */ view: Float64Array
-  /** Where the eye is. */ eye: Float32Array
-}
-export const createHostDrawCamera = (): HostDrawCamera => ({
-  projection: new Float32Array(16),
-  world: new Float64Array(16),
-  view: new Float64Array(16),
-  eye: new Float32Array(3),
-  near: 0,
-  far: 0,
-})
-
 /** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
 export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void }
 
@@ -157,7 +132,7 @@ export function readCameraWorld(
   aspect = camera.aspect,
 ): EngineCamera {
   resolveCameraWorld(camera)
-  copyElements(into.world, camera.matrixWorld.elements)
+  copyMatrix4(into.world, camera.matrixWorld.elements)
   optics.fov = camera.fov
   optics.aspect = aspect
   optics.near = camera.near
@@ -166,22 +141,6 @@ export function readCameraWorld(
   optics.orthographic = camera.orthographic
   optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null
   return writeEngineCamera(into, optics)
-}
-
-/**
- * Flat camera matrices for a draw that retains the host renderer's finite-depth projection.
- * The view is the inverse of the world matrix, inverted into the buffer the engine owns
- * (`invertMatrix4`, `sdk-core`): the host's own inverse is its business, and nothing here
- * writes on the camera it was handed.
- */
-export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
-  resolveCameraWorld(camera)
-  into.projection.set(camera.projectionMatrix.elements)
-  into.world.set(camera.matrixWorld.elements)
-  invertMatrix4(into.view, into.world)
-  for (let k = 0; k < 3; k++) into.eye[k] = into.world[12 + k] // No `subarray` view per frame.
-  ;({ near: into.near, far: into.far } = camera)
-  return into
 }
 
 const poseTranslation = new Float64Array(3),

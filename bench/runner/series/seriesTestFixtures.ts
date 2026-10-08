@@ -14,7 +14,6 @@ export function page(metrics: Record<string, unknown>): Page {
   return {
     evaluate: async () => ({
       cpuFrameMs: [],
-      cpuSelectMs: [],
       gpuFrameMs: [],
       stageProfile: null,
       importedLights: null,

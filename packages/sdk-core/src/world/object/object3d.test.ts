@@ -8,10 +8,11 @@ import { cloneObject } from './clone.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { mismatch } from '../../scene/core/nodeAttach.fixture.ts'
 import { Quaternion } from '../math/quaternion.ts'
-import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { Vector3 } from '../math/vector3.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const near = (actual: Vector3, expected: number[]) => {
   actual.toArray().forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-12))
@@ -86,10 +87,10 @@ test("a clone keeps a light's values, a camera's optics, and shares a mesh's con
 test('attach keeps the world matrix, and position, rotation and scale hold the new pose', () => {
   const [from, to, node] = [new Group(), new Group(), new Object3D()]
   from.position.set(1, 2, 3)
-  from.rotation.set(0, Math.PI / 2, 0)
+  from.rotation.set(0, HALF_PI, 0)
   from.scale.set(2, 3, 4)
   to.position.set(-4, 0, 1)
-  to.rotation.set(Math.PI / 2, 0, 0)
+  to.rotation.set(HALF_PI, 0, 0)
   from.add(node)
   node.position.set(1, -1, 2)
   node.updateWorldMatrix(true, false)
@@ -157,11 +158,11 @@ test('axis rotation helpers turn the local basis and translation follows the tur
     ['Z', [0, 0, 1]],
   ] as const) {
     const node = new Object3D()
-    assert.equal(node[`rotate${axis}`](Math.PI / 2), node)
+    assert.equal(node[`rotate${axis}`](HALF_PI), node)
     near(node.getWorldDirection(), [...expected])
   }
   const node = new Object3D()
-  assert.equal(node.rotateOnAxis(new Vector3(0, 0, 1), Math.PI / 2), node)
+  assert.equal(node.rotateOnAxis(new Vector3(0, 0, 1), HALF_PI), node)
   assert.equal(node.translateOnAxis(new Vector3(1, 0, 0), 3), node)
   near(node.position, [0, 3, 0])
   near(node.getWorldPosition(), [0, 3, 0])

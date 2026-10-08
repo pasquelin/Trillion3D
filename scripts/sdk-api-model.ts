@@ -128,10 +128,7 @@ export function consumerImports(root = ROOT): Map<string, Set<string>> {
       const clause = node.importClause
       const specifier = node.moduleSpecifier.text
       const publicEntry = specifier === 'trillion3d'
-      const internalEntry =
-        specifier.includes('/sdk-core/') ||
-        specifier.includes('/sdk-browser/') ||
-        specifier.includes('/sdk-node/')
+      const internalEntry = /\/(?:math\/src|sdk-core|sdk-browser|sdk-node)\//.test(specifier)
       if (!publicEntry && !internalEntry) continue
       if (clause?.name) addConsumer(consumers, 'default', path)
       const bindings = clause?.namedBindings

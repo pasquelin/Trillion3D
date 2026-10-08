@@ -1,15 +1,17 @@
 import {
   axisAngleQuaternion,
+  conjugateQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
-} from '../../math/matrix/quaternion.ts'
-import { hypot3 } from '../../math/primitives/hypot.ts'
-import { crossVector3, dotVector3, subVector3 } from '../../math/primitives/vector.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { crossVector3, dotVector3, subVector3 } from '../../../../math/src/vector/vector.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'
 import type { Object3D } from '../object/object3d.ts'
 
 import type { XYZLike } from '../math/likes.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 const scratch = {
   a: new Float64Array(3),
@@ -37,8 +39,12 @@ const scratch = {
 }
 const X = [1, 0, 0],
   Y = [0, 1, 0]
+/** `Math.hypot`'s length, not the length rule: a straight or folded chain bends by angles its last
+ *  bits decide (an arc cosine at ±1, a roll about an axis the elbow lies on), so a length or an
+ *  axis one bit off turns a bone far from its pose there (docs/MATHS.md "Lengths"). The turn's
+ *  axis is divided by this length for the same reason. */
 const length = (v: ArrayLike<number>) => hypot3(v[0], v[1], v[2])
-const clampedAcos = (x: number) => Math.acos(Math.min(1, Math.max(-1, x)))
+const clampedAcos = (x: number) => Math.acos(clamp(x, -1, 1))
 const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
   clampedAcos(dotVector3(a, b) / (length(a) * length(b) || 1))
 /** Some axis across `v`: `v × x`, or `v × y` when `v` runs nearly along x. */
@@ -71,10 +77,7 @@ function turnInWorld(node: Object3D, axis: ArrayLike<number>, radians: number) {
   global[1] = g.y
   global[2] = g.z
   global[3] = g.w
-  inverse[0] = -g.x
-  inverse[1] = -g.y
-  inverse[2] = -g.z
-  inverse[3] = g.w
+  conjugateQuaternion(inverse, global)
   multiplyQuaternion(q, inverse, turn)
   multiplyQuaternion(q, q, global)
   const l = node.quaternion
@@ -133,7 +136,7 @@ export function solveTwoBoneIK(
   subVector3(at, t, a)
   const lab = length(ab),
     lcb = length(cb),
-    lat = Math.min(Math.max(length(at), 1e-6), (lab + lcb) * (1 - 1e-6))
+    lat = clamp(length(at), 1e-6, (lab + lcb) * (1 - 1e-6))
   const bend0 = angle(ac, ab),
     knee0 = angle(subVector3(ba, a, b), cb),
     bend1 = clampedAcos((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)),

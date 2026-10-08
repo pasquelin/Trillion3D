@@ -2,8 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FACING_DROP, FACING_WGSL } from './facing.ts'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts'
+import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Corner = readonly [x: number, y: number, z: number, w: number]
 type Triangle = readonly [Corner, Corner, Corner]
@@ -15,7 +16,7 @@ const drawn = { triangle: [] as unknown as Triangle, viewport: [0, 0] }
 const shipped = shaderRun<{
   vertexFacing: (cull: number, world: Mat, page: 0, h: 0, corners: number[]) => number
   facingDiscarded: (mode: number, front: boolean) => boolean
-}>(FACING_WGSL, ['vertexFacing', 'facingDiscarded'], {
+}>(FACING_WGSL, ['vertexFacing', 'facingDiscarded', 'perspectiveDivide'], {
   uni: { viewProj: IDENTITY, viewport: drawn.viewport },
   pagePosition: (_page: 0, _h: 0, k: number) => [...drawn.triangle[k]],
   // The corner carries its own `w`: the position the shader extends with 1 is already clip space.
@@ -121,5 +122,9 @@ test('the blend module runs the facing test and discards on front_facing', () =>
   assert.match(BLEND_SHADER, /fn vertexFacing\(/)
   assert.match(BLEND_SHADER, /facingDiscarded\(in\.water>>16u,front\)/)
   assert.doesNotMatch(BLEND_SHADER, /fn vertexCulled\(/, 'one facing test, not two')
-  assert.match(WATER_SURFACE_WGSL, /\(in\.water&65535u\)/, 'the water rank stored without the mode')
+  assert.match(
+    wgslModule(waterSurfaceWgsl(true)),
+    /\(in\.water&65535u\)/,
+    'the water rank stored without the mode',
+  )
 })

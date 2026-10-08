@@ -6,7 +6,7 @@
  *
  * The gain, declared: stands for how many reads the estimate remembers, about eight; a measure
  * weighs `(7/8)^n` after `n` later reads, half of it gone after 5.2. Sensitivity: the view ahead
- * adds the estimate to its horizon (`prefetchHorizonMs`, `../backend/common.ts`), so one read `L`
+ * adds the estimate to its horizon (`prefetchHorizonMs`, `../engine/common.ts`), so one read `L`
  * milliseconds late lengthens it by `L / 8`, and a lasting change of the network is followed to
  * 95 % within 23 reads (`ln 0.05 / ln (7/8)` = 22.4). A larger gain follows a change sooner and
  * jumps at every slow answer; a smaller one does the reverse.

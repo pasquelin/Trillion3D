@@ -1,9 +1,14 @@
-import { ERR_K, INPUT_K, wgslFloat } from '../partition/margins.ts'
-const K = wgslFloat(ERR_K),
-  IN = wgslFloat(INPUT_K)
+import { ERR_K, INPUT_K } from '../partition/margins.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+const K = wgslF32(ERR_K),
+  IN = wgslF32(INPUT_K)
 
 /** Shared conservative dot and quotient arithmetic used by camera and shadow occlusion. */
-export const PROJECTION_SLACK_WGSL = `
+export const PROJECTION_SLACK_WGSL = wgslBlock(
+  'PROJECTION_SLACK_WGSL',
+  [],
+  `
 /**
  * A four-term dot product on an anchored point, and enough to bound its error: the value, the
  * sum of absolute values of the terms, and the share of input rounding —
@@ -22,4 +27,5 @@ fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
 fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
  return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
 }
-`
+`,
+)

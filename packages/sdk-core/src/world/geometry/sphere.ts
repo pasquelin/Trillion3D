@@ -1,3 +1,5 @@
+import { wrap } from '../../../../math/src/scalar/reals.ts'
+import { TAU } from '../../../../math/src/constants.ts'
 // The turn lives here, in a module with no import: the lighting scene that draws a sphere
 // bundles it without the geometry builder and its buffers.
 /** The four points where a turn crosses an axis, exactly: cosine and sine of 0, ¼, ½, ¾ turn. */
@@ -13,9 +15,9 @@ const AXES: readonly (readonly [number, number])[] = [
  * said: the point a circular primitive places. On a whole turn, a fraction that lands on an axis
  * is exactly there, where the trigonometric functions would leave 6e-17 for the maths' 0.
  */
-export function turnPoint(fraction: number, start = 0, length = Math.PI * 2) {
-  if (start === 0 && length === Math.PI * 2 && Number.isInteger(4 * fraction))
-    return AXES[(((4 * fraction) % 4) + 4) % 4]
+export function turnPoint(fraction: number, start = 0, length = TAU) {
+  if (start === 0 && length === TAU && Number.isInteger(4 * fraction))
+    return AXES[wrap(4 * fraction, 4)]
   const angle = start + fraction * length
   return [Math.cos(angle), Math.sin(angle)] as const
 }

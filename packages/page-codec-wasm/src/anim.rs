@@ -1,15 +1,18 @@
 //! The animation sampler: every track of one action sampled at one clip time from packed arrays
-//! (`packages/sdk-browser/src/math/batchAnimation.ts` packs them), the twin term by term of
+//! (`packages/sdk-browser/src/animation/batchAnimation.ts` packs them), the twin term by term of
 //! `sample` (`packages/sdk-core/src/world/animation/sample.ts`): the same key search, weights,
-//! cubic spline, slerp along the arc kept per key segment (the arc cosine and sine of `acos.rs`
-//! and `trig.rs`, as `slerpArc`/`slerpOnArc`), and the same quaternion normalisation
-//! (`normalizeQuaternion`), with JavaScript's `Math.min`, `Math.max` and `Math.hypot` (`math.rs`).
+//! cubic spline, slerp along the arc kept per key segment (`slerpArc`/`slerpOnArc`, the
+//! `slerp_arc`/`slerp_weights` of `trillion3d_math::quaternion`), and the same quaternion
+//! normalisation (`normalizeQuaternion`, its `normalize`), with JavaScript's `Math.min` and
+//! `Math.max` (`trillion3d_math::js`).
 //!
 //! A track is described by `TRACK_WORDS` words: where its times start in `data`, its key count
 //! (one at least), where its values start, its width, its kind (`QUATERNION` bit, interpolation in
 //! the bits above) and where its sample starts in `out`. A quaternion track is four wide.
 
-use crate::math::{compensated_squares, hypot, js_max, js_min};
+use trillion3d_math::js::clamp01;
+use trillion3d_math::quaternion::{normalize, slerp_arc, slerp_weights};
+use trillion3d_math::scalar::{hermite, hermite_basis, mix, remap};
 
 /// Words describing one track.
 pub const TRACK_WORDS: usize = 6;
@@ -22,33 +25,6 @@ pub const LINEAR: u32 = 0;
 pub const STEP: u32 = 1 << 1;
 pub const CUBIC: u32 = 2 << 1;
 const INTERPOLATION: u32 = 3 << 1;
-
-/// The squared length `normalize` takes unscaled between these two, `2^-900` and `2^900`
-/// (`SQUARED_MIN`, `SQUARED_MAX` of `packages/sdk-core/src/math/matrix/quaternion.ts`).
-const SQUARED_MIN: f64 = f64::from_bits(0x07B0_0000_0000_0000);
-const SQUARED_MAX: f64 = f64::from_bits(0x7830_0000_0000_0000);
-
-/// `normalizeQuaternion` on `q`: the compensated sum of the squares unscaled between
-/// `SQUARED_MIN` and `SQUARED_MAX`, the scaled length of `Math.hypot` outside.
-fn normalize(q: &mut [f64]) {
-    let (x, y, z, w) = (q[0], q[1], q[2], q[3]);
-    let squared = compensated_squares([x, y, z, w]);
-    let length = if (SQUARED_MIN..=SQUARED_MAX).contains(&squared) {
-        squared.sqrt()
-    } else {
-        // `hypot4(x, y, z, w) || 1`.
-        let h = hypot([x, y, z, w]);
-        if h == 0.0 || h.is_nan() {
-            1.0
-        } else {
-            h
-        }
-    };
-    q[0] = x / length;
-    q[1] = y / length;
-    q[2] = z / length;
-    q[3] = w / length;
-}
 
 /// Every track of `tracks` (`TRACK_WORDS` words each) sampled at `t`: its key kept in `keys`, its
 /// arc in `arcs` (`ARC_VALUES` each), its numbers written in `out`.
@@ -82,7 +58,7 @@ pub fn sample_tracks(
         let j = (i + 1).min(count - 1);
         let span = f64::from(times[j]) - f64::from(times[i]);
         let w = if span > 0.0 {
-            js_min(1.0, js_max(0.0, (t - f64::from(times[i])) / span))
+            clamp01(remap(t, f64::from(times[i]), f64::from(times[j])))
         } else {
             0.0
         };
@@ -93,52 +69,34 @@ pub fn sample_tracks(
                 *slot = v(i * stride + at + c);
             }
         } else if cubic {
-            let w2 = w * w;
-            let w3 = w2 * w;
-            let a = 2.0 * w3 - 3.0 * w2 + 1.0;
-            let b = w3 - 2.0 * w2 + w;
-            let c1 = -2.0 * w3 + 3.0 * w2;
-            let d = w3 - w2;
+            let basis = hermite_basis(w);
             for (c, slot) in o.iter_mut().enumerate() {
-                *slot = a * v(i * stride + size + c)
-                    + b * span * v(i * stride + 2 * size + c)
-                    + c1 * v(j * stride + size + c)
-                    + d * span * v(j * stride + c);
+                *slot = hermite(
+                    basis,
+                    span,
+                    [
+                        v(i * stride + size + c),
+                        v(i * stride + 2 * size + c),
+                        v(j * stride + size + c),
+                        v(j * stride + c),
+                    ],
+                );
             }
         } else if quaternion {
             let arc = &mut arcs[k * ARC_VALUES..k * ARC_VALUES + ARC_VALUES];
             let (a, b) = (i * size, j * size);
             if arc[0] != i as f64 {
-                // `slerpArc`.
-                let mut cos =
-                    v(a) * v(b) + v(a + 1) * v(b + 1) + v(a + 2) * v(b + 2) + v(a + 3) * v(b + 3);
-                let sign = if cos < 0.0 { -1.0 } else { 1.0 };
-                cos *= sign;
-                let angle = crate::acos::acos(js_min(1.0, cos));
-                arc[1] = sign;
-                arc[2] = angle;
-                arc[3] = crate::trig::sin(angle);
+                let key = |at: usize| [v(at), v(at + 1), v(at + 2), v(at + 3)];
+                arc[1..].copy_from_slice(&slerp_arc(key(a), key(b)));
             }
             arc[0] = i as f64;
-            // `slerpOnArc`.
-            let (sign, angle, sin) = (arc[1], arc[2], arc[3]);
-            let line = sin < 1e-6;
-            let wa = if line {
-                1.0 - w
-            } else {
-                crate::trig::sin((1.0 - w) * angle) / sin
-            };
-            let wb = if line {
-                w * sign
-            } else {
-                (crate::trig::sin(w * angle) / sin) * sign
-            };
+            let [wa, wb] = slerp_weights(w, [arc[1], arc[2], arc[3]]);
             for (c, slot) in o.iter_mut().enumerate() {
                 *slot = v(a + c) * wa + v(b + c) * wb;
             }
         } else {
             for (c, slot) in o.iter_mut().enumerate() {
-                *slot = v(i * size + c) * (1.0 - w) + v(j * size + c) * w;
+                *slot = mix(v(i * size + c), v(j * size + c), w);
             }
         }
         if quaternion {

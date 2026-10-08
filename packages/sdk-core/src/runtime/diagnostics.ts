@@ -39,11 +39,8 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
-  wireframe: {
-    available: true,
-    reason: 'Filled unique color per submitted triangle, not GL_LINES wireframe',
-  },
-  clusters: { available: true, reason: 'Stable primitive/page ID, exact-cluster backend only' },
+  wireframe: { available: true, reason: 'A filled unique colour per submitted triangle' },
+  clusters: { available: true, reason: 'Stable primitive/page ID' },
   lod: {
     available: true,
     reason: 'Level-0 clusters vs coarser DAG reductions actually selected this frame',
@@ -54,8 +51,7 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
   },
   materials: {
     available: true,
-    reason:
-      'One colour per material class, the class pass that resolved the pixel; WebGPU visibility path only',
+    reason: 'One colour per material class, the class pass that resolved the pixel',
   },
   visibility: {
     available: true,

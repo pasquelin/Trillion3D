@@ -8,7 +8,10 @@ import assert from 'node:assert/strict'
 import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
-import { RECT_LIGHT_WGSL, RECT_SHADING_WGSL } from './rectLightWgsl.ts'
+import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
+import { TAU } from '../../../../math/src/constants.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type V = number[]
 type View = { a: V; b: V; c: V; d: V; window: number }
@@ -17,8 +20,8 @@ const shader = shaderRun<{
   polygonFormFactor: (a: V, b: V, c: V, d: V, up: V) => V
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
 }>(
-  `${RECT_LIGHT_WGSL}${RECT_SHADING_WGSL}`,
-  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner'],
+  wgslModule(RECT_SHADING_WGSL),
+  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal'],
   {
     ...F32_SCOPE,
     rangeWindow: () => 1,
@@ -48,13 +51,12 @@ function clipped(polygon: V[], up: V) {
       s = Math.hypot(...c)
     if (s > 0) sum += (dot(c, up) / s) * Math.atan2(s, dot(a, kept[(i + 1) % kept.length]))
   })
-  return Math.abs(sum) / (2 * Math.PI)
+  return Math.abs(sum) / TAU
 }
 
-let seed = 831
-const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296
+const random = lcgRandom(831)
 const sphere = () => {
-  const [z, t] = [2 * random() - 1, 2 * Math.PI * random()]
+  const [z, t] = [2 * random() - 1, TAU * random()]
   return [Math.sqrt(1 - z * z) * Math.cos(t), Math.sqrt(1 - z * z) * Math.sin(t), z]
 }
 

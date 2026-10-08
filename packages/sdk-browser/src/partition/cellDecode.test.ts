@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../host/prepared/nodes.ts'
-import { configurePageDecoders, patientTask, releasePageDecoders } from '../page/decode/host.ts'
+import { configurePageWorkers, patientTask, releasePageWorkers } from '../page/work/host.ts'
 import {
   NodeDomWorker,
   withNodeWorkerShim,
-} from '../../../../bench/oracles/browser/pageDecodeNodeWorker.ts'
+} from '../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
 import { cellRows, decodeCellFile } from './cellDecode.ts'
 
 const nodes = [
@@ -29,10 +29,10 @@ test('a cell file is read into each node its ranks and the local matrix a host n
   assert.throws(() => decodeCellFile(stale), { code: 'INVALID_SCENE_TABLES' })
 })
 
-test('a cell file is parsed in a worker of the decode pool, never on the main thread', () =>
+test('a cell file is parsed in a worker of the page worker pool, never on the main thread', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
-    releasePageDecoders()
-    configurePageDecoders(1)
+    releasePageWorkers()
+    configurePageWorkers(1)
     const parse = JSON.parse
     let parsed = 0
     JSON.parse = (...args: Parameters<typeof parse>) => {
@@ -44,7 +44,7 @@ test('a cell file is parsed in a worker of the decode pool, never on the main th
       answer = await patientTask('cells', new TextEncoder().encode(text))
     } finally {
       JSON.parse = parse
-      releasePageDecoders()
+      releasePageWorkers()
     }
     assert.equal(parsed, 0, 'the main thread parsed the cell')
     assert.ok(answer.ok && answer.cells, JSON.stringify(answer))
@@ -54,14 +54,14 @@ test('a cell file is parsed in a worker of the decode pool, never on the main th
 
 test('a cell file the worker refuses answers with its code and names its file', () =>
   withNodeWorkerShim(NodeDomWorker, async () => {
-    releasePageDecoders()
-    configurePageDecoders(1)
+    releasePageWorkers()
+    configurePageWorkers(1)
     const stale = new TextEncoder().encode(JSON.stringify({ version: 1, nodes }))
     let answer
     try {
       answer = await patientTask('cells', stale, 'https://cache.test/key/scene-cell-3.json')
     } finally {
-      releasePageDecoders()
+      releasePageWorkers()
     }
     assert.ok(!answer.ok, 'refused')
     assert.equal(answer.refusal, 'INVALID_SCENE_TABLES')

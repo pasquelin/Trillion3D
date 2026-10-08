@@ -1,5 +1,7 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
+import type { ClusterCut } from '../../page/selection/math.ts'
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import {
   NODE_MIN,
   NODE_FIRST_CHILD,
@@ -23,7 +25,7 @@ import {
  * therefore only drop a too-fine subtree, and walks down to pages a too-coarse
  * subtree the cut will take nothing from. The floor — the smallest own error of
  * the subtree, with the sphere that encloses those it summarises — is the other
- * half, which the CPU cut already sets (`../../page/cut/node.ts`). `cullingBounds`
+ * half, which the oracle sets too (`oracle/nodeVerdict.fixture.ts`). `cullingBounds`
  * derives it from the pages at prepare: nothing from the compiler, nothing from
  * the page format.
  *
@@ -33,9 +35,6 @@ import {
  * writes zero; the kernel's host keeps it (`readiness.ts`), and descent never drops an
  * open subtree on its floor.
  */
-/** Largest f32: the shader cannot write an infinite constant, and its floor reads
- *  this value where the CPU bound returns infinity. Both reject the same subtree. */
-const INF32 = 3.4e38
 
 type Culling = NonNullable<DagRoot['culling']>
 
@@ -44,7 +43,7 @@ type Culling = NonNullable<DagRoot['culling']>
  *  not the data — so the reduction is done once per array and recovered by identity. */
 export function cullingBoundsFor(
   culling: Culling,
-  pages: DagRoot['pages'],
+  pages: readonly ClusterCut[],
   cache: Map<Float64Array, Float64Array>,
 ) {
   if (culling.bounds) return culling.bounds
@@ -59,7 +58,7 @@ export function cullingBoundsFor(
 /**
  * Copies a primitive's nodes into the GPU array and returns, per cluster, the leaf
  * node that owns it. `owner` is filled in place; a cluster no leaf stores stays at
- * `SELECTION_NONE`, as for the CPU cut, and is never selected.
+ * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected.
  */
 export function packCullingNodes(
   nodes: Float32Array,
@@ -92,7 +91,9 @@ export function packCullingNodes(
     nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
     nodeInts[dst + NODE_WORLD] = world
     const floor = bounds[at + OWN_FLOOR]
-    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32
+    // The shader cannot write an infinite constant: its floor reads `FINITE_SENTINEL` (its `INF`)
+    // where the CPU bound returns infinity, and both reject the same subtree.
+    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : FINITE_SENTINEL
     nodeInts[dst + NODE_OPEN] = 0
     nodeInts[dst + NODE_PAD] = 0
     nodeInts[dst + NODE_PAD + 1] = 0

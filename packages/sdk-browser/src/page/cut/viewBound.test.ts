@@ -1,17 +1,16 @@
-// Bounded by the view, not by the world: the cut's host tables on every backend
-// weigh the same for a world and for the same world sixteen times larger, seen from the same view
-// with the same pool. The view sees the first placement, which the pool holds whole; every other
-// placement lies behind the camera, with nothing resident.
+// Bounded by the view, not by the world (#483 rule 6, #486): the cut's host tables weigh the same
+// for a world and for the same world sixteen times larger, seen from the same view with the same
+// pool. The view sees the first placement, which the pool holds whole; every other placement lies
+// behind the camera, with nothing resident.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { placements, stripCamera } from './cutRuleBackends.fixture.ts'
-import { selectVisiblePages } from './cut.ts'
-import { createHeldResidency } from './held.ts'
+import { selectVisiblePages } from './cut.fixture.ts'
+import { createHeldResidency } from './held.fixture.ts'
 import { createGroupClosure } from './groupClosure.ts'
 import { packDagSelection } from '../../gpu/dag/pack.ts'
 import { uploadResidency } from '../../gpu/dag/readiness.fixture.ts'
-import { createAutonomousRequests } from '../../backend/autonomous/requests.ts'
 import { createCutDelta } from '../../webgpu/cut/delta.ts'
 import { createCutPending } from '../../webgpu/cut/pending.ts'
 import { createWebgpuPageTracking } from '../../webgpu/row/pageTracking.ts'
@@ -40,12 +39,12 @@ function world(copies: number) {
   }
 }
 
-/** The host tables of every backend, after the same frame of the same view. */
+/** The cut's host tables, after the same frame of the same view. */
 function tables(copies: number) {
   const { roots, placement, packed, rank, inView } = world(copies)
   const held = createHeldResidency({ isResident: inView }, placement)
   held.track(roots)
-  // The CPU cut — the WebGPU CPU path and the WebGL2 image — with the pool holding the view.
+  // The CPU cut with the pool holding the view.
   const cut = selectVisiblePages(roots, stripCamera(dag), {
     pixelError: 0.1,
     viewport: [1280, 720],
@@ -74,7 +73,15 @@ function tables(copies: number) {
   })
   sets.applyCut(closure.delta)
   sets.applyDrawn(drawnDelta)
-  createRequestAdmission(sets, tracking, closure).held(1 << 20)
+  createRequestAdmission(
+    sets,
+    tracking,
+    closure,
+    (id) => packed[id],
+  )(1 << 20, {
+    cuts: [{ uniforms: {}, result: { pageIds: cut.wantedPacked.slice(0, cut.wanted.length) } }],
+    first: null,
+  })
   const pending = createCutPending(
     packed,
     closure.delta,
@@ -84,9 +91,6 @@ function tables(copies: number) {
   )
   pending.apply()
   assert.ok(pending.count > 0, 'the view awaits its pages')
-  // WebGL2: the requests closed over their groups.
-  const requests = createAutonomousRequests(roots, () => 0)
-  requests.of(cut.wantedPacked, [])
   return {
     'CPU cut readiness (page/cut/held.ts)': cpuReadiness,
     'GPU readiness and upload (gpu/dag/readiness.ts)': gpuReadiness,
@@ -94,7 +98,6 @@ function tables(copies: number) {
     'cut differences (webgpu/cut/delta.ts)': cutDelta.hostBytes + drawnDelta.hostBytes,
     'residency and tracking sets (webgpu/residency/sets.ts)': sets.hostBytes,
     'pending set and its named records (webgpu/cut/pending.ts)': pending.hostBytes,
-    'WebGL2 group closure (backend/autonomous/requests.ts)': requests.hostBytes,
   }
 }
 

@@ -21,7 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, buffer } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -48,7 +48,7 @@
           const x = (i / CELLS - 0.5) * SIZE, z = (j / CELLS - 0.5) * SIZE;
           positions.set([x, height(x, z), z], (i * row + j) * 3);
         }
-      const heightAt = (i, j) => positions[(Math.min(CELLS, Math.max(0, i)) * row + Math.min(CELLS, Math.max(0, j))) * 3 + 1];
+      const heightAt = (i, j) => positions[(math.clamp(i, 0, CELLS) * row + math.clamp(j, 0, CELLS)) * 3 + 1];
       const sample = (i, j) => {
         const at = (i * row + j) * 3;
         const nx = (heightAt(i - 1, j) - heightAt(i + 1, j)) / (2 * STEP), nz = (heightAt(i, j - 1) - heightAt(i, j + 1)) / (2 * STEP);

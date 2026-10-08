@@ -14,7 +14,7 @@ test('the physics of the CDN bundle is its worker, its modules and the chunk tha
     { path: 'physicsWorker.js', text: '' },
   ]
   const files = [...chunks.map(({ path }) => path), 'joltPhysics.wasm', 'joltPhysicsThreads.wasm']
-  assert.deepEqual(physicsFiles([...files, 'pageCodec.wasm'], chunks).sort(), [
+  assert.deepEqual(physicsFiles([...files, 'kernels.wasm'], chunks).sort(), [
     'joltPhysics.wasm',
     'joltPhysicsThreads.wasm',
     'physicsWorker.js',

@@ -1,6 +1,7 @@
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts'
 import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts'
+import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS
@@ -30,6 +31,14 @@ export function shadeLayout(device: GPUDevice) {
       { binding: b.pageTable, visibility: fragment, buffer: readOnly },
       // The rows' frames the resolve reads (`../../visibility/shader/shadeCacheWgsl.ts`).
       { binding: b.shadeCache, visibility: fragment, buffer: readOnly },
+      // The anisotropic and clear-coat records — a texture, no storage buffer of the eight —, and
+      // the lobes target (`physicalWgsl.ts`).
+      { binding: b.physical, visibility: fragment, texture: { sampleType: 'uint' } },
+      {
+        binding: b.lobes,
+        visibility: fragment,
+        storageTexture: { access: 'write-only', format: PHYSICAL_LOBES_FORMAT },
+      },
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
       {

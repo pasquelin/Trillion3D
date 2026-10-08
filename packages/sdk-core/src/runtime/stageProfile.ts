@@ -26,15 +26,14 @@ export interface StageProfileEntry {
   counts?: Readonly<Record<string, number>>
 }
 
-/** How the GPU is timed: WebGPU timestamps, or the WebGL2 timer query. */
-export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2'
+/** How the GPU is timed: WebGPU timestamps. */
+export type GpuTimingMethod = 'timestamp-query'
 
 /**
  * The full profile, over a sliding span of frames. `gpuImageMs` is the GPU envelope of the
  * frame: from the start of its first pass to the end of its last. Per-stage durations
  * do NOT add into it — a device that overlaps two passes counts them twice in
- * a sum, never in the envelope. It is also the only measurement of a WebGL2 engine, which cannot
- * split a frame into passes.
+ * a sum, never in the envelope.
  */
 export interface StageProfile {
   /** Format version. */
@@ -66,7 +65,6 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   physics: 'Physics and particles',
   animations: 'Animations and transforms',
   lights: 'Lighting: preparing lists and shadows',
-  hierarchyCut: 'Hierarchy cut',
   cutAdoption: 'Cut adoption',
   selection: 'Selection and visibility',
   transparents: 'Transparents',
@@ -87,7 +85,6 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   lighting: 'Lighting (resolve)',
   antialiasing: 'Temporal antialiasing',
   present: 'Present',
-  frame: 'Whole frame',
 })
 
 /** The name a person reads for a frame step. */

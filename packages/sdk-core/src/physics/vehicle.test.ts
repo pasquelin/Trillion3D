@@ -9,6 +9,7 @@ import { vehicle, Vehicle, type VehicleKind } from './vehicle.ts'
 import { MAX_GEARS, TORQUE_POINTS } from './vehicleLayout.ts'
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts'
 import { BIKE, FOUR, HULL, rig } from './vehicle.fixture.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 test('each kind refuses what it cannot be made of', () => {
   const { body, wheels } = rig(FOUR)
@@ -74,7 +75,7 @@ test('the suspension must travel past the sag its ride frequency asks', () => {
   assert.throws(make({ suspensionFrequency: 0 }), /suspensionTravel/)
   assert.doesNotThrow(make({ suspensionFrequency: 0.8, suspensionTravel: 0.45 }))
   // At 1 / 2π Hz the sag is g itself: a travel of exactly g rests on the stops.
-  const frequency = 1 / (2 * Math.PI)
+  const frequency = 1 / TAU
   const g = GRAVITY_PRESETS.earth
   assert.throws(make({ suspensionFrequency: frequency, suspensionTravel: g }), /sag/)
   assert.doesNotThrow(make({ suspensionFrequency: frequency, suspensionTravel: g * 1.001 }))

@@ -1,3 +1,5 @@
+import { cross2 } from '../../../../math/src/vector/vector.ts'
+
 type P = readonly [number, number]
 
 /** Twice the signed area: positive for a counter-clockwise outline. */
@@ -7,7 +9,7 @@ export const signedArea = (ring: readonly P[]) =>
     return sum + x * ny - nx * y
   }, 0)
 
-const orient = (a: P, b: P, c: P) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+const orient = (a: P, b: P, c: P) => cross2(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1])
 const same = (a: P, b: P) => a[0] === b[0] && a[1] === b[1]
 
 /** True when segments `ab` and `cd` cross at a point inside both. */

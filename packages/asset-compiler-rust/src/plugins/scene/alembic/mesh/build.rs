@@ -7,9 +7,9 @@ use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
 use crate::plugins::scene::{cancel, ngon::Ngon};
-use crate::shared_math::extend_aabb_f32;
 use crate::{CompilerError, Result};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
+use trillion3d_math::aabb::extend_aabb_f32;
 
 /// A part under construction, with the table of corners already emitted.
 #[derive(Default)]

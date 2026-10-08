@@ -24,7 +24,7 @@ const view = {
 const reads = (fields: typeof view) =>
   shaderRun<Reads>(
     SHADING_HISTORY_WGSL,
-    ['shadingConfidence', 'shadingStill', 'shadingLuma', 'shadingLinear'],
+    ['shadingConfidence', 'shadingStill', 'shadingLuma', 'shadingLinear', 'perspectiveDivide'],
     { ...taaBuiltins, view: fields },
   )
 const { shadingConfidence, shadingStill, shadingLuma, shadingLinear } = reads(view)

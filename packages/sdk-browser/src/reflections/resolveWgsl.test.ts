@@ -10,6 +10,7 @@ import {
 } from './resolveWgsl.ts'
 import { historyConfidence } from './historyFrame.ts'
 import { fixture } from './resolveWgsl.fixture.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 test('the shipped resolve combines weighted radiance and preserves zero-weight samples', () => {
   const f = fixture()
@@ -139,9 +140,9 @@ test('a changed source keeps its history at the change cap, never restarts from 
   f.view.params[1] = REFLECTION_CHANGE_KEPT
   const share = 1 / (REFLECTION_CHANGE_KEPT + 1)
   assert.deepEqual(f.resolve(), [
-    10 + (2 - 10) * share,
-    20 + (4 - 20) * share,
-    30 + (6 - 30) * share,
+    lerp(10, 2, share),
+    lerp(20, 4, share),
+    lerp(30, 6, share),
     REFLECTION_CHANGE_KEPT + 1,
   ])
 })

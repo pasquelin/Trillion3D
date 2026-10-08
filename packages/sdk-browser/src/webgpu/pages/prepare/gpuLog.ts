@@ -10,6 +10,7 @@
  * compiles with it.
  * Nothing is timed for it: without the flag it reads nothing and writes nothing.
  */
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { addressFlag } from '../../../host/addressFlag.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
 import { vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts'
@@ -64,8 +65,8 @@ export function createGpuLog(device: GPUDevice) {
     const [width, height] = rt.gpu.targetSize,
       [displayWidth, displayHeight] = rt.gpu.displaySize,
       side = VSM_PROJECTION_GROUP_SIZE,
-      x = Math.ceil(width / side),
-      y = Math.ceil(height / side)
+      x = ceilDiv(width, side),
+      y = ceilDiv(height, side)
     console.log(
       `[T3D-GPU] frame ${sample.frame} gpu ${ms(sample.submittedMs)} ms` +
         cpu +

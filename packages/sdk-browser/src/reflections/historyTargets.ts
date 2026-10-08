@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 /** Dedicated rough-reflection history. The RGB mean and bounded confidence have
  * the HDR image's precision, the root mean square of its samples' brightest channel binary16
  * (`resolveWgsl.ts`); previous receiver metadata preserves its input formats.
@@ -7,13 +8,12 @@
 const REFLECTION_HISTORY_BYTES_PER_PIXEL = 28
 /** The trace's record of a half-resolution texel's pixel: its identifier and depth (`sampleWgsl.ts`). */
 const REFLECTION_OWNER_BYTES = 8
-const halfOf = (size: number) => Math.ceil(size / 2)
 
 /** Bytes of a rough history of `width × height`: its targets, and the trace's records, one a
  *  half-resolution texel. */
 export const reflectionHistoryBytes = (width: number, height: number) =>
   width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL +
-  halfOf(width) * halfOf(height) * REFLECTION_OWNER_BYTES
+  ceilDiv(width, 2) * ceilDiv(height, 2) * REFLECTION_OWNER_BYTES
 
 export type ReflectionMetadata = {
   depth: GPUTexture
@@ -45,6 +45,19 @@ export function reflectionTargets(device: GPUDevice, width: number, height: numb
   }
 }
 
+/** A history's moment targets at a resolve: the one it reads, the one it writes. */
+export type ReflectionMoment = { held: GPUTextureView; output: GPUTextureView }
+
+/** The trace's records of its half-resolution texels' pixels: the trace writes them, the resolve
+ *  reads them (`sampleWgsl.ts`, `resolveWgsl.ts`). */
+const ownersTexture = (device: GPUDevice, width: number, height: number) =>
+  device.createTexture({
+    label: 'Trillion3D reflection trace owners',
+    size: { width: ceilDiv(width, 2), height: ceilDiv(height, 2) },
+    format: 'rg32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+  })
+
 export function createReflectionHistoryTargets(
   device: GPUDevice,
   width: number,
@@ -56,13 +69,7 @@ export function createReflectionHistoryTargets(
     const images = [target('history A', 'rgba16float'), target('history B', 'rgba16float')]
     const moments = [target('moment A', 'r16float'), target('moment B', 'r16float')]
     const normal = target('previous normal and roughness', 'rgba16float', true)
-    // The trace writes them, the resolve reads them (`sampleWgsl.ts`, `resolveWgsl.ts`).
-    const owners = device.createTexture({
-      label: 'Trillion3D reflection trace owners',
-      size: { width: halfOf(width), height: halfOf(height) },
-      format: 'rg32uint',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
-    })
+    const owners = ownersTexture(device, width, height)
     textures.push(owners)
     let read = 0
     let disposed = false
@@ -83,11 +90,7 @@ export function createReflectionHistoryTargets(
       resolve(
         encoder: GPUCommandEncoder,
         current: ReflectionMetadata,
-        draw: (
-          history: GPUTextureView,
-          output: GPUTextureView,
-          moment: { held: GPUTextureView; output: GPUTextureView },
-        ) => void,
+        draw: (history: GPUTextureView, output: GPUTextureView, moment: ReflectionMoment) => void,
       ) {
         live()
         const write = 1 - read

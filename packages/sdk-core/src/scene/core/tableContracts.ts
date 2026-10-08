@@ -20,8 +20,9 @@ import {
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json'
 /** Version of the product as a whole; each table it carries is versioned in turn. 5 names the
- *  manifest pages the node table needs (`meshPages`), 6 carries the skins and the clips. */
-const SCENE_TABLES_VERSION = 6
+ *  manifest pages the node table needs (`meshPages`, #751), 6 carries the skins and the clips
+ *  (#357), 7 lays out the one published document (`document`), not a map of them (#1483). */
+const SCENE_TABLES_VERSION = 7
 /** The version of the node table this runtime reads: every node but those a cell places, with its
  *  local pose, whether it is visible and the skin it bends its mesh by. */
 const NODE_TABLE_VERSION = 5
@@ -117,7 +118,7 @@ export interface PreparedSceneTables {
   /** The cells that place the other nodes, read by distance; `null` when the scene has none. */
   partition: TablePartition | null
   /** The slots of the manifest's mesh pages the meshes of `nodes` lie in: what a runtime that
-   *  holds the manifest by the view reads at open, the cells naming the rest. */
+   *  holds the manifest by the view reads at open, the cells naming the rest (#751). */
   meshPages: readonly string[]
   /** The lights the nodes hang. */
   lights: TableLight[]
@@ -131,8 +132,8 @@ export interface PreparedSceneTables {
   materials: TableMaterial[]
   /** The textures. */
   textures: TableTexture[]
-  /** The geometry layout of each published scene file, by its name. */
-  documents: Readonly<Record<string, TableDocument>>
+  /** The geometry layout of the published scene file (`source.gltf`). */
+  document: TableDocument
 }
 
 /** The tables as `scene-tables.json` carries them: of the partition, only its root
@@ -175,13 +176,10 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
     'textures',
   ] as const
   const missing = tabled.filter((field) => !Array.isArray(tables[field]))
-  if (missing.length || !tables.scene || !tables.documents || typeof tables.documents !== 'object')
+  const laidOut = !!tables.document && typeof tables.document === 'object'
+  if (missing.length || !tables.scene || !laidOut)
     throw new EngineError('INVALID_SCENE_TABLES', 'scene tables miss a table', {
-      missing: [
-        ...missing,
-        ...(tables.scene ? [] : ['scene']),
-        ...(tables.documents ? [] : ['documents']),
-      ],
+      missing: [...missing, ...(tables.scene ? [] : ['scene']), ...(laidOut ? [] : ['document'])],
     })
   tables.partition = assertTablePartition(tables.partition)
   return tables

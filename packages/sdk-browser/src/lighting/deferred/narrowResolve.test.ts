@@ -1,19 +1,19 @@
-// The narrow resolve: a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
+// The narrow resolve (#849): a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
 // array is that long, and never a wider scene by it; its cells' lists are in the pool as a wide
-// scene's, walked by the same loop. A scene with no shadow slot by the program with no
-// shadow code.
+// scene's (#1369), walked by the same loop. A scene with no shadow slot by the program with no
+// shadow code (#1249).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
-import { contractLightingShader } from './shaders.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 
 test("the narrow resolve bounds its light array, the rest of its program the wide one's", () => {
   for (const bounce of [false, true]) {
-    const narrow = contractLightingShader(bounce, true),
-      wide = contractLightingShader(bounce, false)
+    const narrow = contractLightingShader(bounce, { narrow: true, lobeless: true }),
+      wide = contractLightingShader(bounce)
     assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`))
     assert.match(wide, /items:array<DirectLight>/)
     // That both give the same sum, bit for bit, runs on the GPU:
@@ -39,10 +39,10 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
   lighting.dispose()
 })
 
-test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is', async () => {
-  const unshadowed = contractLightingShader(false, false, false)
+test('a scene with no shadow slot is lit with no shadow code, a shadowed one never is (#1249)', async () => {
+  const unshadowed = contractLightingShader(false, { unshadowed: true, lobeless: true })
   assert.doesNotMatch(unshadowed, /shade=shadowFactor\(|shadowTransmission;/, 'no shadow read')
-  assert.match(contractLightingShader(false, false), /let shade=shadowFactor\(/)
+  assert.match(contractLightingShader(false), /let shade=shadowFactor\(/)
   const { device } = fakeDevice()
   const lighting = await createDeferredLighting(device)
   const { labels, draw } = recorder(lighting)

@@ -2,18 +2,18 @@
 // — measure the same: the same glTF scene loaded by Three, contract lights placed in Three
 // (sun as `DirectionalLight` with ONE shadow map covering the model, point lights as
 // `PointLight` with their shadow cube), ACES and sRGB like the engine, and the same
-// measurement loop. Served to the page (mount `/runner/`), it imports only `three` from
-// `/vendor/three/` — never from the engine.
+// measurement loop, on Three's WebGPU renderer (`witness/threeRenderer.ts`). Served to the page
+// (mount `/runner/`), it imports only `three` from `/vendor/three/` — never from the engine.
 //
-// What it measures: the CPU time of `render`, the wall time of a synchronised frame
-// (`render` then a pixel read, which waits for the GPU — `gl.finish` waits for nothing in
-// Chrome; one duration, never a sum), the rAF interval in a profile loop, the calls and
-// triangles of `renderer.info`, the geometry and texture bytes it holds, preparation
-// and the network, and its capture for the pixel delta. No per-pass GPU time: WebGL does
-// not expose it in Chrome, and the reading says so with `null`.
-import * as THREE from 'three'
+// What it measures: the CPU time of `render`, the GPU time of each frame from Three's timestamp
+// queries (the sum of its passes, resolved without the frame loop waiting; Three gives no split
+// per pass, so `gpuPassSamples` stays empty), the rAF interval in a profile loop, the draws and
+// triangles of `renderer.info`, the geometry and texture bytes it holds, preparation and the
+// network, and its capture for the pixel delta.
+import * as THREE from 'three/webgpu'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { lamp, octets } from './threeBareScene.ts'
+import { createWitnessRenderer, gpuFrameTimes, readWitnessImage } from './threeRenderer.ts'
 import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
@@ -58,21 +58,12 @@ export async function mesurerThree(
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
   const lost: string[] = (globalThis.gpuIncidents = [])
-  canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false)
   performance.setResourceTimingBufferSize(1_000_000)
   const resourcesBefore = performance.getEntriesByType('resource').length
   const preparationStart = performance.now()
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: false,
-    preserveDrawingBuffer: true,
-    powerPreference: 'high-performance',
-  })
-  renderer.setPixelRatio(1)
-  renderer.setSize(options.width, options.height, false)
-  renderer.outputColorSpace = THREE.SRGBColorSpace
+  const { width, height } = options
+  const renderer = await createWitnessRenderer(canvas, { width, height, timestamps: true, lost })
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1
   renderer.setClearColor(0x2a303c, 1)
   const shadows = options.lights?.some((l) => l.castsShadow !== false) === true
   renderer.shadowMap.enabled = shadows
@@ -103,7 +94,6 @@ export async function mesurerThree(
   await renderer.compileAsync(scene, camera)
   renderer.render(scene, camera)
   const preparationMs = performance.now() - preparationStart
-  const gl = renderer.getContext()
   const moving = options.moving
   const moveLight = (frame: number) => {
     if (moving) lamps.get(moving.id)?.position.fromArray(movableLampPosition(moving, frame))
@@ -111,10 +101,10 @@ export async function mesurerThree(
   let current = options.pose
   const poseAt = (frame: number) =>
     (current = options.poses ? options.poses[frame % options.poses.length] : options.pose)
-  const unPixel = new Uint8Array(4)
-  const attendre = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, unPixel)
+  const gpu = gpuFrameTimes(renderer)
   for (let i = 0; i < options.warmup; i++) renderer.render(scene, camera)
-  attendre()
+  await renderer.waitForGPU()
+  await gpu.drain()
   const cpuFrameMs: number[] = []
   const rafIntervalMs: number[] = []
   let previousRaf: number | null = null
@@ -127,21 +117,22 @@ export async function mesurerThree(
     const t = performance.now()
     renderer.render(scene, camera)
     cpuFrameMs.push(performance.now() - t)
+    gpu.sample()
   }
+  await gpu.drain()
   poser(current)
-  renderer.render(scene, camera)
+  // The capture, bottom-to-top rows as `explorer.capture()` returns them: the bench server flips
+  // them when encoding the PNG, and compares the buffers as-is. Its frame is the one the counters
+  // describe: the library resets them only in its own animation loop.
+  renderer.info.reset()
+  const rgba = await readWitnessImage(renderer, scene, camera)
   const info = renderer.info
   const memoire = octets(scene)
-  // The capture, bottom-to-top rows as WebGL reads them and as `explorer.capture()`
-  // returns them: the bench server flips them when encoding the PNG, and compares the buffers as-is.
-  const w = canvas.width,
-    h = canvas.height
-  const rgba = new Uint8Array(w * h * 4)
-  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, rgba)
+  const { width: w, height: h } = canvas
   const response = await posterCapture(options.captureFile, rgba, w, h)
   const network = networkFrom(resourcesBefore)
   const metrics = {
-    drawCalls: info.render.calls,
+    drawCalls: info.render.drawCalls,
     drawnTriangles: info.render.triangles,
     selectedTriangles: null,
     uncoveredTriangles: null,
@@ -149,7 +140,7 @@ export async function mesurerThree(
     textureResidentBytes: memoire.textures,
     texturePoolBytes: null,
     geometries: memoire.geometries,
-    programs: info.programs?.length ?? null,
+    programs: null,
     lightsActive: lamps.size,
     frameHeld: false,
     // Triangles of the scene as Three read it, each geometry counted once: the
@@ -162,8 +153,7 @@ export async function mesurerThree(
   canvas.remove()
   return {
     cpuFrameMs,
-    cpuSelectMs: [],
-    gpuFrameMs: [],
+    gpuFrameMs: gpu.gpuFrameMs,
     syncFrameMs: [],
     rafIntervalMs,
     importedLights: null,

@@ -1,4 +1,4 @@
-// The catalogue has one home, shared by both backends: `page/selection/catalogue.ts`.
+// The catalogue has one home (#1233, #1234): `page/selection/catalogue.ts`.
 export {
   createPackedPages,
   createPageCatalogue,

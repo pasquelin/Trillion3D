@@ -99,7 +99,7 @@ function hierarchyByLevels(pages: ReturnType<typeof page>[]) {
 }
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
- *  host library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
+ *  witness library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
  *  Without `byLevels` they carry `flatHierarchy`, what packing gives a primitive without a
  *  manifest — the CPU cut, which does not synthesise one, reads it from here too. */
 export function sceneRoots(

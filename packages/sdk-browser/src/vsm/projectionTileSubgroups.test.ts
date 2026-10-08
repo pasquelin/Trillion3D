@@ -36,7 +36,7 @@ function groupWords(code: string, pixels: Pixel[], size: number) {
   }
   const { vsmTileBound } = shaderRun<{ vsmTileBound: Bound }>(
     code,
-    ['vsmTileBound', 'vsmOrderedKey'],
+    ['vsmTileBound', 'vsmOrderedKey', 'isFiniteWord'],
     {
       ...SCOPE,
       ...words,

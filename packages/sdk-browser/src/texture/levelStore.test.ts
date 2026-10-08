@@ -9,8 +9,8 @@ import { createPageStreamerWith } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
-const MiB = 1024 * 1024
 const BASE = 'https://host/cache/full/clusters.json'
 const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 }
 /** Bytes of a `side`² block level file: a server that ignores Range sends it whole. */
@@ -95,7 +95,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
     onDiagnostic: ({ phase }) => heard.push(phase),
   })
   streamer.retain(urls)
-  await streamer.request(urls)
+  await streamer.request(urls, { signal: streamer.signal })
   const { evictions, admissionBlocked } = streamer.stats()
   assert.deepEqual([urls.every(streamer.has), evictions, admissionBlocked], [true, 0, 0])
   assert.deepEqual([levels.bytes, cache.keptBytes], [0, proxy], 'the levels yield, the proxy stays')
@@ -113,15 +113,14 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
 // applied at once, the least recently read leaving first.
 test('the texture levels cap follows world.budget.cpu live', async () => {
   const pools = worldPools()
-  const handle = worldBudget(pools, { explorer: null }, { last: null }, () => 'webgpu', {
-    ...DEFAULT_PHYSICS_BUDGET,
-  })
+  const physics = { ...DEFAULT_PHYSICS_BUDGET }
+  const handle = worldBudget(pools, { explorer: null }, { last: null }, physics)
   const { levels, ask } = session(pools.pageCache)
   await ask(0)
   await ask(1)
   assert.equal(levels.bytes, 2 * fileBytes(1024))
-  handle.cpu = 2 * MiB
-  const cap = (3 * 2 * MiB) / 4
+  handle.cpu = 2 * MIB
+  const cap = (3 * 2 * MIB) / 4
   assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap])
   assert.equal(levels.bytes, fileBytes(1024), 'the level read first left')
   assert.ok(levels.get(request(1), [1024, 1024], 0, 0), 'the one read last stays')

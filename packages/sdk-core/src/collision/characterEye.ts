@@ -1,5 +1,7 @@
 import { RUN_CADENCE, type CharacterSettings } from './characterSettings.ts'
-import { hypot2 } from '../math/primitives/hypot.ts'
+import { length2 } from '../../../math/src/vector/vector.ts'
+import { decayFactor } from '../../../math/src/scalar/reals.ts'
+import { PI, TAU } from '../../../math/src/constants.ts'
 
 /**
  * WHERE THE EYE RIDES ON A CHARACTER'S BODY: a height to add to `eyeHeight`, drawn after the
@@ -39,14 +41,14 @@ export function createCharacterEye(
     offset(delta: number, velocity: ArrayLike<number>, grounded: boolean) {
       const pace =
         settings.walkSpeed > 0
-          ? Math.min(1, hypot2(velocity[0], velocity[2]) / settings.walkSpeed)
+          ? Math.min(1, length2(velocity[0], velocity[2]) / settings.walkSpeed)
           : 0
-      if (grounded) stride = (stride + Math.PI * RUN_CADENCE * pace * delta) % (2 * Math.PI)
+      if (grounded) stride = (stride + PI * RUN_CADENCE * pace * delta) % TAU
       if (settings.landingDip <= 0) dip = sinking = 0
       else if (dip !== 0 || sinking !== 0) {
         const rate = 1 / settings.landingDip,
           k = (sinking + rate * dip) * delta,
-          decay = Math.exp(-rate * delta)
+          decay = decayFactor(rate, delta)
         ;[dip, sinking] = [(dip + k) * decay, (sinking - rate * k) * decay]
         // Under a hundredth of a millimetre, and slower than that per second: settled.
         if (Math.abs(dip) < 1e-5 && Math.abs(sinking) < 1e-5) dip = sinking = 0

@@ -1,3 +1,4 @@
+import { nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { GuideSet } from './guideSet.ts'
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
@@ -79,7 +80,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       instances?.destroy()
       instances = device.createBuffer({
         label: GUIDE_PASS,
-        size: Math.max(STRIDE, 2 ** Math.ceil(Math.log2(bytes))),
+        size: Math.max(STRIDE, nextPow2(bytes)),
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
       })
     }

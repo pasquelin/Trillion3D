@@ -22,7 +22,6 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
   assert.equal(gpuPassBlockOf('vsm.pass'), 'other')
-  assert.equal(gpuPassBlockOf('Trillion3D opaque fallback'), 'other')
   assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other')
 })
 

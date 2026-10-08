@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { frontCamera } from '../../backend/pagesBackendScenes.fixture.ts'
+import { frontCamera } from '../../engine/pagesEngineScenes.fixture.ts'
 import { CLUSTER_PAGE_MAGIC } from '../../cluster/format.ts'
 import {
   disposePagedQuad,
@@ -10,7 +10,7 @@ import {
   FIRST,
   SECOND,
 } from './pagedQuad.fixture.ts'
-import type { BackendDiagnostic } from '../../backend/types.ts'
+import type { EngineDiagnostic } from '../../engine/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { describePageSlots, pageAddress } from '../row/pageSlots.ts'
 
@@ -32,7 +32,7 @@ const lopsided = () =>
     },
   ])
 
-const geometryPages = (events: BackendDiagnostic[]) =>
+const geometryPages = (events: EngineDiagnostic[]) =>
   events.find((event) => event.phase === 'geometry-pages')!
 
 // A pool slot is as wide as the widest page in BYTES; a draw is as long as the widest cluster in
@@ -40,7 +40,7 @@ const geometryPages = (events: BackendDiagnostic[]) =>
 // slot would cut the tail triangles of exactly the clusters the format compresses best.
 test('the draw ceiling is the catalogue largest corner count, not the slot width', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = lopsided()
   const { backend } = pagedQuadBackend(fixture, events)
   try {
@@ -90,14 +90,14 @@ test('a page whose header is forged is refused instead of poured into the pool',
 // held on the CPU.
 test('a paged cluster is admitted and drawn without its index page', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = pagedQuad([{ corners: FIRST }, { corners: SECOND }])
   // No index array, and no reader that could go and get one: only the page reader answers.
   const { gpu, backend } = pagedQuadBackend({ ...fixture, indices: new Map() }, events)
   try {
     await backend.prepare()
     backend.render(frontCamera())
-    await backend.flush?.()
+    await backend.flush()
     assert.equal(geometryPages(events).context.fromGeometryPage, 2)
     assert.deepEqual(backend.pendingUrls?.(), [], 'nothing is awaited any more')
     const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')!
@@ -118,7 +118,7 @@ test('a paged cluster is admitted and drawn without its index page', async () =>
 // for the two would have made one of them draw the other's triangle.
 test('two clusters sharing an index page each keep their own page and draw', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   // The same corner list twice, so the two index pages hold the same bytes; the second cluster
   // carries a texture coordinate, so the two quantized pages do not.
   const fixture = pagedQuad([
@@ -131,7 +131,7 @@ test('two clusters sharing an index page each keep their own page and draw', asy
   try {
     await backend.prepare()
     backend.render(frontCamera())
-    await backend.flush?.()
+    await backend.flush()
     assert.equal(geometryPages(events).context.fromGeometryPage, 2, 'both draw from their page')
     assert.equal(backend.metrics().submittedTriangles, 2, 'both clusters are drawn')
     const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')!

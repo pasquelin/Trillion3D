@@ -5,6 +5,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { drawBlendPass } from './draw.ts'
 import { blendLightResources } from './lighting.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from './order.ts'
 import { createWebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -55,14 +56,13 @@ function joue(items: ReturnType<typeof item>[]) {
     viewBuffer: {} as GPUBuffer,
   })
   blendState.blendGpu.push(...(items as unknown as (typeof blendState.blendGpu)[number][]))
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   // Frame ranking sets the frustum verdict and slices the plan into runs: it is what decides how
   // many draws the pass encodes. All items are at the same place, so source order breaks them.
   orderBlendPasses(blendState, [0, 0, 0])
   const rt = {
     vis: {
-      visEnabled: true,
       blendPipelines: Object.assign([TEXTURED, FRONT, BACK], {
         lit() {
           return this
@@ -86,13 +86,12 @@ function joue(items: ReturnType<typeof item>[]) {
       volumeBuffer: {},
       backdrop: { colorView: {}, depthView: {}, active: false },
       cache: { buffer: {} },
-      uniformBuffer: {},
       zeroUv: {},
       deferred: {
         placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
       },
     },
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
     blendState,

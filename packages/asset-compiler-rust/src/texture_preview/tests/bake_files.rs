@@ -21,7 +21,7 @@ fn stage(dir: &Path) -> (Vec<TexturePreview>, Value) {
 
 // Behavior 9: 256 px image read by both atlases decoded once, yielding two
 // entries, one per atlas; each writes levels above tail — 256 and 128 px, i.e.
-// `first_level` files — under `textures/v6/<sha>/<atlas>-<k>.png`, sidecar tail starts
+// `first_level` files — under `textures/v7/<sha>/<atlas>-<k>.png`, sidecar tail starts
 // at 64 px. PNG is lossless: re-read, gives exact level bytes. Beside each PNG,
 // the same level in the cooked family's blocks when the gate keeps the chain
 // — a smooth ramp passes —, one byte per texel; and the tail in blocks too.
@@ -78,7 +78,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
                 "the tail remains in the sidecar, not as a file"
             );
         }
-        assert_eq!(expected.layouts, [Some(Layout::Rgba), None]);
+        assert_eq!(expected.layouts, [Some(Layout::Rgba), None, None]);
         assert_eq!(expected.blocks[0].len(), preview_block_bytes(256, 256));
         assert!(expected.blocks[1].is_empty());
     }

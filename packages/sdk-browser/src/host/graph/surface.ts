@@ -2,9 +2,8 @@
  * THE SURFACES OF THE ENGINE'S OWN GRAPH: a surface of one of the families a scene or a
  * world declares.
  *
- * The shapes are those the engine reads (`../resources.ts`, `../shadedMaterial.ts`,
- * `../../scene/physicalMaterialGate.ts`): every field the import, the admission gate and the
- * surface record read is present, at its default value when a scene leaves it
+ * The shapes are those the engine reads (`../resources.ts`, `../shadedMaterial.ts`): every field
+ * the import and the surface record read is present, at its default value when a scene leaves it
  * unsaid, so a field is never read as missing where a default exists. The constants
  * are the engine's named ones (`../surfaceConstants.ts`); the colours and vectors the core's.
  */
@@ -76,7 +75,7 @@ export class GraphSurface extends Releasable {
   declare visible: boolean
   /** Which faces, as the host's constant. */
   declare side: number
-  /** The host draws a double-sided transparent surface in one pass instead of back then front. */
+  /** The engine draws a double-sided transparent surface in one pass instead of back then front. */
   declare forceSinglePass: boolean
   /** Whether vertex colours tint it. */
   declare vertexColors: boolean
@@ -90,12 +89,6 @@ export class GraphSurface extends Releasable {
   declare depthFunc: number
   /** Whether it writes colour. */
   declare colorWrite: boolean
-  /** Whether depth is offset. */
-  declare polygonOffset: boolean
-  /** Slope part of the offset. */
-  declare polygonOffsetFactor: number
-  /** Constant part of the offset. */
-  declare polygonOffsetUnits: number
   /** Whether it blends. */
   declare transparent: boolean
   /** How opaque it is. */

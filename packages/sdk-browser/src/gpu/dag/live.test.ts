@@ -7,10 +7,11 @@ import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { witnessEncoder, cutResources, ETAGES, LIVE, CAND } from './encode.fixture.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
   const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(true))
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
   const byKernel = new Map(dispatches.map((l) => [l.kernel, l]))
   // Live clusters: the previous verdict, spoken on them alone.
   for (const kernel of ['dagMask', 'dagDrawScatter']) {
@@ -24,8 +25,8 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(dispatches.slice(2, 5), [
     { kernel: 'dagRootLevel', groups: 1 },
-    { kernel: 'dagLevel1', groups: Math.ceil(ETAGES[1] / 64) },
-    { kernel: 'dagLevel2', groups: Math.ceil(ETAGES[2] / 64) },
+    { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], 64) },
+    { kernel: 'dagLevel2', groups: ceilDiv(ETAGES[2], 64) },
   ])
   const ordre = dispatches.map((l) => l.kernel)
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'))
@@ -46,7 +47,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
 
 test('wait between launches depends only on depth, not on cluster count', () => {
   const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(true))
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
   // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
   // request sort and the eviction queue: the cut rule decides each cluster once, in the mask, with
   // no round per primitive before it.
@@ -59,25 +60,12 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   assert.equal(dispatches[1].groups, 1)
   // Sixteen times more clusters, as many launches: depth is what counts them.
   const large = witnessEncoder()
-  encodeDagKernels(large.encoder as unknown as GPUCommandEncoder, cutResources(true, 3, 65536))
+  encodeDagKernels(large.encoder as unknown as GPUCommandEncoder, cutResources(3, 65536))
   assert.equal(large.dispatches.length, dispatches.length)
   // One more level, one more launch.
   const profond = witnessEncoder()
-  encodeDagKernels(profond.encoder as unknown as GPUCommandEncoder, cutResources(true, 4))
+  encodeDagKernels(profond.encoder as unknown as GPUCommandEncoder, cutResources(4))
   assert.equal(profond.dispatches.length, dispatches.length + 1)
-})
-
-test('without a resident cut, the mask follows the list and nothing is compacted', () => {
-  const { encoder, dispatches } = witnessEncoder()
-  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources(false))
-  const kernels = dispatches.map((l) => l.kernel)
-  assert.ok(!kernels.includes('dagDrawPrefix') && !kernels.includes('dagDrawScatter'))
-  const masque = dispatches.find((l) => l.kernel === 'dagMask')
-  assert.equal(masque?.groups, 'indirect')
-  assert.equal(masque?.list, LIVE)
-  // Descent itself is encoded in both cases: it does not depend on residency.
-  assert.ok(kernels.includes('dagRootLevel') && kernels.includes('dagLevel1'))
-  assert.ok(kernels.includes('dagLevel2'))
 })
 
 test('list kernels read their cluster from the list, not from their thread id', () => {

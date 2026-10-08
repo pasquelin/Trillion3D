@@ -1,11 +1,10 @@
-import type { RenderBackend } from '../backend/types.ts'
+import type { Engine } from '../engine/types.ts'
 import type { createPageStreamer } from './pageStreamer.ts'
 
-/** Pin the pages of either page backend through its request-rank difference. */
+/** Pins the pages the engine's view reads through its request-rank difference. */
 export function retainVisiblePages(
-  backend: RenderBackend,
+  backend: Engine,
   streamer: ReturnType<typeof createPageStreamer>,
 ) {
-  const ranks = backend.retainedRanks?.()
-  if (ranks) streamer.retainRanks(ranks)
+  streamer.retainRanks(backend.retainedRanks())
 }

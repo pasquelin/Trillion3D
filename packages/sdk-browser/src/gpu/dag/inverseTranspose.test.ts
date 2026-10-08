@@ -10,9 +10,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { SINGULAR_DETERMINANT_WGSL } from '../../../../sdk-core/src/index.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../math/inverseTransposeBefore.fixture.ts'
+import { SINGULAR_DETERMINANT } from '../../../../math/src/matrix/singular.ts'
+import { SINGULAR_DETERMINANT as SINGULAR_DETERMINANT_DECL } from '../../../../math/src/wgsl/constants.ts'
+import { isFiniteScale } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import {
+  INVERSE_TRANSPOSE_BEFORE,
+  INVERSE_TRANSPOSE_SHIPPED,
+} from '../shader/inverseTransposeBefore.fixture.ts'
 import {
   angleBetween,
   inverseTransposeShipped,
@@ -94,23 +98,21 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   const corps = DAG_SELECTION_SHADER.split('fn invTranspose3Prep')[1].split('\n}')[0]
   assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'absolute threshold on the raw determinant')
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente')
-  assert.match(corps, /finite&&abs\(det\)>1e-20/, 'garde relative absente')
-  // And this number is not written in the shader: it comes from the constant shared with
-  // the CPU (`packages/sdk-core/src/math/matrix/singular.ts`), rendered as text. A threshold changed on one side only is
-  // impossible.
+  // And this number is not written in the shader: it is the declaration of the constant shared
+  // with the CPU (`packages/math/src/matrix/singular.ts`), its f32 written once. A threshold
+  // changed on one side only is impossible.
+  assert.match(corps, /finite&&abs\(det\)>SINGULAR_DETERMINANT\)/, 'shared threshold')
+  assert.ok(DAG_SELECTION_SHADER.includes(SINGULAR_DETERMINANT_DECL.text), 'threshold declared')
+  const literal = /=([^;]+);$/.exec(SINGULAR_DETERMINANT_DECL.text)![1]
   assert.equal(
-    SINGULAR_DETERMINANT_WGSL,
-    '1e-20',
-    'the rendered threshold is no longer the shader’s',
+    Math.fround(Number(literal)),
+    Math.fround(SINGULAR_DETERMINANT),
+    'the declared threshold is no longer the CPU’s 1e-20',
   )
+  assert.match(corps, /let finite=isFiniteScale\(t\);/, 'null, infinite or NaN sum not rejected')
   assert.match(
-    corps,
-    new RegExp(`finite&&abs\\(det\\)>${SINGULAR_DETERMINANT_WGSL}`),
-    'shared threshold',
-  )
-  assert.match(
-    corps,
-    /let finite=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
+    isFiniteScale.text,
+    /return \(t>0\.0\)&&isFiniteWord\(bitcast<u32>\(t\)\);/,
     'null, infinite or NaN sum not rejected',
   )
   assert.match(
@@ -125,7 +127,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   )
 })
 
-// The pre-defect-6 form lives against the shipped kernel (`../../math/inverseTransposeWgsl.ts`), so
+// The pre-defect-6 form lives against the shipped kernel (`packages/math/src/wgsl/inverseTranspose.ts`), so
 // the reproduction bench substitutes it instead of rebuilding it with a `String.replace`
 // on a verbatim copy — a copy that stopped matching as soon as the kernel changed,
 // unseen. A reproduction that does not reproduce reassures wrongly: this test holds
@@ -136,18 +138,23 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
 // engine draws (656 before the lot, 0 after) from those it does not.
 test('the defect-6 reproduction form still carries the absolute threshold, and it alone', () => {
   const prep = (text: string) => text.split('fn invTranspose3Prep')[1].split('\n}')[0]
-  assert.match(prep(INVERSE_TRANSPOSE_BEFORE_WGSL), /abs\(det\)<1e-20/, 'absolute threshold')
-  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_BEFORE_WGSL), /let a=m\[0\]\/t/, 'normalised')
-  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_WGSL), /abs\(det\)<1e-20/, 'absolute threshold gone')
+  assert.match(prep(INVERSE_TRANSPOSE_BEFORE.prep), /abs\(det\)<1e-20/, 'absolute threshold')
+  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_BEFORE.prep), /let a=m\[0\]\/t/, 'normalised')
+  assert.doesNotMatch(
+    prep(INVERSE_TRANSPOSE_SHIPPED.prep),
+    /abs\(det\)<1e-20/,
+    'absolute threshold gone',
+  )
   // The two forms differ in only TWO places, and both are needed: the prepare, and the
   // singular-matrix fallback. The defect was returning the LOCAL vector — that is what
   // the previous form must keep doing, or the reproduction would return the fixed normal
   // in the middle of the defect. Everything else is the same text, hence substituting
-  // the whole block.
+  // each function whole.
   const fallback = (text: string) =>
     text.split('let carried=p.adj*v;')[1].split(';')[0].replace('\n return select(', '')
-  assert.equal(fallback(INVERSE_TRANSPOSE_BEFORE_WGSL), 'v,p.scale*carried,p.regular)')
-  assert.equal(fallback(INVERSE_TRANSPOSE_WGSL), 'carried,p.scale*carried,p.regular)')
-  const suite = (text: string) => text.slice(text.indexOf('fn inverseTranspose3'))
-  assert.equal(suite(INVERSE_TRANSPOSE_BEFORE_WGSL), suite(INVERSE_TRANSPOSE_WGSL))
+  assert.equal(fallback(INVERSE_TRANSPOSE_BEFORE.apply), 'v,p.scale*carried,p.regular)')
+  assert.equal(fallback(INVERSE_TRANSPOSE_SHIPPED.apply), 'carried,p.scale*carried,p.regular)')
+  const head = (text: string) => text.slice(0, text.indexOf('{') + 1)
+  assert.equal(head(INVERSE_TRANSPOSE_BEFORE.prep), head(INVERSE_TRANSPOSE_SHIPPED.prep))
+  assert.equal(head(INVERSE_TRANSPOSE_BEFORE.apply), head(INVERSE_TRANSPOSE_SHIPPED.apply))
 })

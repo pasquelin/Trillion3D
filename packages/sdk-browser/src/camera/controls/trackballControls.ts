@@ -1,10 +1,11 @@
+import { TAU } from '../../../../math/src/constants.ts'
 import { createPivotControls, trackPivotGestures } from './pivot.ts'
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**
@@ -44,7 +45,7 @@ export function createTrackballCameraControls(
   }
   const rotate = (dx: number, dy: number) => {
     core.sample()
-    const speed = (2 * Math.PI * api.rotateSpeed) / core.height()
+    const speed = (TAU * api.rotateSpeed) / core.height()
     if (api.turntable) {
       axis.set([0, 1, 0])
       spin(-dx * speed)

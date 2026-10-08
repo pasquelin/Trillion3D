@@ -2,8 +2,9 @@ import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
 import { Object3D } from '../object/object3d.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
-import { listen, unlisten } from '../math/observed.ts'
+import { listen, unlisten } from '../observed.ts'
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 
 /** What a page may pass to a light member. */
 export interface LightParameters {
@@ -114,7 +115,7 @@ export class Light extends Object3D {
       intensity: p.intensity ?? 1,
       distance: p.distance ?? 0,
       decay: p.decay ?? 2,
-      angle: p.angle ?? Math.PI / 3,
+      angle: p.angle ?? 60 * DEG2RAD,
       penumbra: p.penumbra ?? 0,
       width: p.width ?? 10,
       height: p.height ?? 10,

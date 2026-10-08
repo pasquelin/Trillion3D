@@ -17,6 +17,7 @@ import { FLAG_HAS_COLOR } from '../../visibility/types.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** `vertColor(id)` of the shader, on the floats of a bound UV buffer. */
 function vertColor(uvs: Float32Array, id: number) {
@@ -38,7 +39,7 @@ const triangle = (colour?: number[], itemSize = 3, uv = true) =>
   triangleGeometry(colour, itemSize, uv).attributes as HostAttributes
 
 test('the shader finds the colour tail from the buffer length, as the test mirror does', () => {
-  assert.match(VERTEX_COLOR_WGSL, /let i=arrayLength\(&uvs\)\/6u\*2u\+id\*4u;/)
+  assert.match(wgslSource(VERTEX_COLOR_WGSL), /let i=arrayLength\(&uvs\)\/6u\*2u\+id\*4u;/)
 })
 
 test('the source geometry of a scene carries its vertex colours at the tail of its UVs', () => {
@@ -103,5 +104,8 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
     `if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}`,
   )
   assert.ok(fetch > 0 && multiply > fetch)
-  assert.ok(BLEND_SHADER.includes(VERTEX_COLOR_WGSL))
+  // The colour it multiplies is `vertColor` (`VERTEX_COLOR_WGSL`), its whole body, declared once
+  // in the module.
+  assert.ok(BLEND_SHADER.includes(VERTEX_COLOR_WGSL.text))
+  assert.equal(BLEND_SHADER.split('fn vertColor(').length, 2)
 })

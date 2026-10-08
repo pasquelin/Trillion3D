@@ -2,10 +2,10 @@
 // is the later of the two, and a manifest entry yields the switch input only when it is drawable.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { near } from '../math/near.fixture.ts'
+import { PI } from '../../../math/src/constants.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 import { bakedMesh } from './bakedMesh.fixture.ts'
 import {
-  IMPOSTOR_PI,
   drawsImpostor,
   impostorSwitchDepth,
   impostorSwitchOf,
@@ -18,7 +18,7 @@ const FOCAL = 1117
 /** Pixels across the object's disc, and pixels it covers, at depth `z`. */
 const across = (radius: number, z: number) => (2 * radius * FOCAL) / z
 const covered = (radius: number, coverage: number, z: number) =>
-  coverage * IMPOSTOR_PI * ((radius * FOCAL) / z) ** 2
+  coverage * PI * ((radius * FOCAL) / z) ** 2
 
 const SHARPNESS_BOUND = { objectRadius: 2, rootTriangles: 1e6, coverage: 0.5, frameSide: 64 }
 const TRIANGLE_BOUND = { objectRadius: 2, rootTriangles: 10, coverage: 0.5, frameSide: 4096 }

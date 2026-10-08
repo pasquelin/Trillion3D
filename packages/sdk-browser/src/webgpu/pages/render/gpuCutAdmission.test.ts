@@ -4,12 +4,15 @@ import { admitGpuCut } from './gpuCutAdmission.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createWebgpuBudgetState } from '../../residency/budgetState.ts'
 
-/** A runtime reduced to what admission reads: the pool, the sample's threshold, the counts. */
+/** A runtime reduced to what admission reads: the pool, a readback in hand, the host's threshold
+ *  (the frame's uniforms, which the readback was cut under), the counts. */
 function mount(slots: number) {
-  const state = { samplePixelError: 0, requested: 0, kept: 0 }
+  const state = { requested: 0, kept: 0 }
+  const selectionUniforms = { pixelError: 0 }
   const run = {
     ...createWebgpuBudgetState(),
-    gpuSelection: { peek: () => ({ uniforms: { pixelError: state.samplePixelError } }) },
+    gpuSelection: { peek: () => ({ uniforms: selectionUniforms }) },
+    selectionUniforms,
   }
   const rt = {
     run,
@@ -26,9 +29,9 @@ function mount(slots: number) {
       },
     },
   } as unknown as WebgpuPagesRuntime
-  /** One frame: the sample at `sampled` asked for `requested` pages, and holds `kept`. */
+  /** One frame: the sample cut at `sampled` asked for `requested` pages, and holds `kept`. */
   const frame = (sampled: number, requested: number, kept = requested) => {
-    state.samplePixelError = sampled
+    selectionUniforms.pixelError = sampled
     state.requested = requested
     state.kept = kept
     admitGpuCut(rt)

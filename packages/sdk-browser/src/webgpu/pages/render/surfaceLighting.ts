@@ -31,7 +31,6 @@ export function encodeSurfaceLighting(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
-  uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
     clear = clearValueOf(run.clearColor)
@@ -43,7 +42,7 @@ export function encodeSurfaceLighting(
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs.
-  const blendRuns = prepareBlend(rt, device, encoder, true)
+  const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
   gpu.deferred.bind(
     gpu.surfaces,
@@ -71,7 +70,7 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection)
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
-  encodeBlend(rt, device, encoder, uniformBase, true, blendRuns)
+  encodeBlend(rt, device, encoder, true, blendRuns)
   drawParticles(rt, encoder, directTiles())
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)

@@ -2,6 +2,7 @@ import type { HostAttribute, HostAttributes } from '../../host/resources.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts'
 import { createFloatAtlas, writeFloatAtlas, type FloatAtlas } from '../core/floatAtlas.ts'
+import { atlasTexels, uv1TailAt } from '../core/uv1Tail.ts'
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -60,8 +61,9 @@ export function ensureBlendUvBuffer(
 }
 
 /** Normal and tangent of a transparent geometry, seven floats a vertex in the same order as
- *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`): the pass reads every
- *  normal from an atlas, the float pool's or this one. */
+ *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`, #1410): the pass reads every
+ *  normal from an atlas, the float pool's or this one. Its second UV set, where it has one, rides at
+ *  the atlas's tail (`../core/uv1Tail.ts`), which a lobed program reads (`vertexWgsl.ts`). */
 export function ensureBlendNormalAtlas(
   device: GPUDevice,
   attributes: HostAttributes,
@@ -69,11 +71,16 @@ export function ensureBlendNormalAtlas(
 ) {
   if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes)
   const normal = attributes.normal,
-    tangent = attributes.tangent
+    tangent = attributes.tangent,
+    uv1 = attributes.uv1
   let atlas: FloatAtlas | undefined
-  if (normal) {
-    const data = new Float32Array(normal.count * 7)
-    for (let i = 0; i < normal.count; i++) {
+  if (normal || uv1) {
+    const count = normal?.count ?? 0,
+      pairs = uv1?.count ?? 0
+    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', count * 7 + pairs * 2)
+    // One array in the atlas's order, the normals at its head, the second set at its tail.
+    const data = new Float32Array(atlasTexels(atlas))
+    for (let i = 0; normal && i < count; i++) {
       data[i * 7] = normal.getX(i)
       data[i * 7 + 1] = normal.getY(i)
       data[i * 7 + 2] = normal.getZ(i)
@@ -84,7 +91,11 @@ export function ensureBlendNormalAtlas(
         data[i * 7 + 6] = tangent.getW(i)
       }
     }
-    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length)
+    for (let i = 0; uv1 && i < pairs; i++) {
+      const at = uv1TailAt(atlas, i, 1)
+      data[at] = uv1.getX(i)
+      data[at + 1] = uv1.getY(i)
+    }
     writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length)
     gpu.vertexBytes += atlas.bytes
   }

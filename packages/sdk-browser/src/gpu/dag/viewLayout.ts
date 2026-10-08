@@ -1,3 +1,5 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+
 /**
  * One view's uniform block, described once.
  *
@@ -22,7 +24,7 @@ type Field = {
   readonly align: number
 }
 
-/** The block, in order. `as const` is what makes `FieldName` a union of the twenty names rather
+/** The block, in order. `as const` is what makes `FieldName` a union of the field names rather
  *  than `string`: annotated `readonly Field[]`, the literal types widen and a typo in `viewWord`
  *  would compile and throw mid-frame, which is the drift this module exists to prevent. */
 const VIEW_FIELDS = [
@@ -34,7 +36,6 @@ const VIEW_FIELDS = [
   { name: 'clusterCount', type: 'u32', words: 1, align: 1 },
   { name: 'nodeCount', type: 'u32', words: 1, align: 1 },
   { name: 'worldCount', type: 'u32', words: 1, align: 1 },
-  { name: 'residentCut', type: 'u32', words: 1, align: 1 },
   { name: 'cameraWorld', type: 'vec3f', words: 3, align: 4 },
   { name: 'cameraStretch', type: 'f32', words: 1, align: 1 },
   { name: 'listCap', type: 'u32', words: 1, align: 1 },
@@ -43,14 +44,15 @@ const VIEW_FIELDS = [
   { name: 'viewCapacity', type: 'u32', words: 1, align: 1 },
   { name: 'queueCap', type: 'u32', words: 1, align: 1 },
   { name: 'ahead', type: 'u32', words: 1, align: 1 },
+  { name: 'admitByLevel', type: 'u32', words: 1, align: 1 },
+  { name: 'swapRegions', type: 'u32', words: 1, align: 1 },
   { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },
 ] as const satisfies readonly Field[]
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
-const firstWord = (field: Field, after: number): number =>
-  Math.ceil(after / field.align) * field.align
+const firstWord = (field: Field, after: number): number => alignUp(after, field.align)
 
 /** The word each field starts at, in declaration order. */
 const VIEW_WORD: Readonly<Record<string, number>> = Object.freeze(

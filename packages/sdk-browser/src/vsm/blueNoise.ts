@@ -1,3 +1,9 @@
+import { GOLDEN_FRACTION, PLASTIC_STEP_X, PLASTIC_STEP_Y } from '../../../math/src/constants.ts'
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
+import { floorLog2 } from '../../../math/src/scalar/integers.ts'
+import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { fract } from '../../../math/src/scalar/reals.ts'
+import { unorm8 } from '../../../math/src/color/color.ts'
 /**
  * Spatio-temporal blue noise for the projection: one noise value and a pair per pixel and frame,
  * the frames' slices stacked down one texture, a pixel's texel at (x mod 64, 64·(frame mod 64) +
@@ -17,33 +23,16 @@
  * rank maps in script low.
  */
 
-export const VSM_BLUE_NOISE_SIZE = 64
-export const VSM_BLUE_NOISE_SLICES = 64
+const VSM_BLUE_NOISE_SIZE = 64
+const VSM_BLUE_NOISE_SLICES = 64
 
-const GOLDEN = 0.6180339887498949
-/** The step of the additive 2D sequence, (1/p, 1/p²), p the plastic number: its points spread
- *  evenly over the unit square. The pair's slices walk it, and so do the rays' noise offsets
- *  (`vsmAdditive2d`, `traceWgsl.ts`). */
-export const VSM_PLASTIC_STEP = [0.7548776662466927, 0.5698402909980532] as const
-const [R2X, R2Y] = VSM_PLASTIC_STEP
-
-/** A small deterministic generator of uniform numbers in [0, 1) from a 32-bit seed. */
-function prng(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
+const GOLDEN = GOLDEN_FRACTION
 
 /** The rank map of an n×n torus (n a power of two), values (rank + 0.5)/n² in (0, 1). */
 function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
   const N = n * n,
     mask = n - 1,
-    shift = Math.log2(n),
+    shift = floorLog2(n),
     R = Math.min(n >> 1, Math.ceil(4 * sigma)),
     side = 2 * R + 1
   const kernel = new Float64Array(side * side)
@@ -125,7 +114,7 @@ function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
   }
 
   // Initial binary pattern: 10% random minority pixels, relaxed until stable.
-  const random = prng(seed)
+  const random = mulberry32(seed)
   const pattern = new Uint8Array(N),
     energy = new Float64Array(N)
   const ones = Math.max(1, Math.floor(N / 10))
@@ -181,14 +170,14 @@ function vsmBlueNoiseTexels(): Uint8Array {
   const a = vsmVoidAndCluster(n, 0x5eed0001),
     b = vsmVoidAndCluster(n, 0x5eed0002),
     c = vsmVoidAndCluster(n, 0x5eed0003)
-  const q = (v: number) => Math.round((v - Math.floor(v)) * 255)
+  const q = (v: number) => unorm8(fract(v))
   const out = new Uint8Array(n * n * slices * 4)
   for (let t = 0; t < slices; t++)
     for (let i = 0; i < n * n; i++) {
       const o = (t * n * n + i) * 4
       out[o] = q(a[i] + t * GOLDEN)
-      out[o + 1] = q(b[i] + t * R2X)
-      out[o + 2] = q(c[i] + t * R2Y)
+      out[o + 1] = q(b[i] + t * PLASTIC_STEP_X)
+      out[o + 2] = q(c[i] + t * PLASTIC_STEP_Y)
       out[o + 3] = 255
     }
   return (cachedTexels = out)
@@ -217,18 +206,37 @@ export function createVsmBlueNoiseTexture(device: GPUDevice): GPUTexture {
   return t
 }
 
+/** The tile the rays' noise repeats over: the blue noise's size and slices. */
+export const VSM_NOISE_TILE = wgslConst(
+  'VSM_NOISE_TILE',
+  [],
+  `const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);`,
+)
+
 /**
- * The noise value and pair reads over
+ * The noise value read over
  * `vsmBlueNoise` declared at (`group`, `binding`).
  */
-export const vsmBlueNoiseWgsl = (group: number, binding: number) => /* wgsl */ `
+export const vsmBlueNoiseWgsl = (group: number, binding: number) =>
+  wgslBlock(
+    `vsmBlueNoiseWgsl(${group}, ${binding})`,
+    [VSM_NOISE_TILE],
+    `
 @group(${group}) @binding(${binding}) var vsmBlueNoise:texture_2d<f32>;
-const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);
 const VSM_NOISE_WRAP=vec3u(${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SLICES - 1}u);
 fn vsmNoiseTexel(pixelAt:vec2u,frameIndex:u32)->vec4f{
  let w=vec3u(pixelAt,frameIndex)&VSM_NOISE_WRAP;
  return textureLoad(vsmBlueNoise,vec2u(w.x,w.z*VSM_NOISE_TILE.y+w.y),0);
 }
 fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,frameIndex).r;}
-fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}
-`
+`,
+  )
+
+/** The rays' random pair at a pixel and frame (`vsmNoiseTwo`, the traces' noise provider), over
+ *  the same texture. */
+export const vsmBlueNoiseTwo = (group: number, binding: number) =>
+  wgslFn(
+    'vsmNoiseTwo',
+    [vsmBlueNoiseWgsl(group, binding)],
+    'fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}',
+  )

@@ -5,6 +5,7 @@ import { writeLightFields, LIGHT_FIELD } from './fields.ts'
 import { sameSceneLight } from './equal.ts'
 import { cloneSceneLight } from './clone.ts'
 import type { SceneLight } from './contracts.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const source: SceneLight = {
   id: 'disk',
@@ -23,7 +24,7 @@ test('directional source angle is validated, copied and packed in radians', () =
   assert.equal(packed[LIGHT_FIELD.angularRadius], Math.fround(0.01))
   assert.equal(sameSceneLight(source, light), false)
   assert.equal(validateSceneLight({ ...source, angularRadius: 0 }).angularRadius, 0)
-  for (const angle of [-1, NaN, Infinity, Math.PI / 2])
+  for (const angle of [-1, NaN, Infinity, HALF_PI])
     assert.throws(() => validateSceneLight({ ...source, angularRadius: angle }), /angularRadius/)
   assert.throws(
     () =>

@@ -15,17 +15,25 @@ import {
   vsmMovingBias,
 } from './constants.ts'
 import { vsmShadowUvMatrix, vsmShadowUvNormalMatrix } from './projectionData.ts'
-import { cross } from '../../../sdk-core/src/math/primitives/vectorTuple.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { cross } from '../../../math/src/vector/vectorTuple.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
   VSM_FACE_MATRIX,
-  vsmNormalizeOrZero,
-  vsmTransformPoint,
+  VSM_MIN_DIRECTION_SQ,
   vsmWorldToLightRotation,
   type VsmCameraInput,
   type VsmViewport,
 } from './clipmap.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
+import { DEG2RAD, QUARTER_PI } from '../../../math/src/constants.ts'
+import { focalScale } from '../../../math/src/projection/camera.ts'
+import { forwardPerspectiveProjection } from '../../../math/src/projection/forwardZ.ts'
+import {
+  normalizeVector3OrZero,
+  transformAffinePoint,
+  transformPointRow,
+} from '../../../math/src/vector/vector.ts'
 
 /** The nearest depth a local light's casters take: 0.1 cm. */
 const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
@@ -84,44 +92,15 @@ export interface VsmLocalLightSetup {
 
 /** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
  *  map's scale, is 0.019 there and falls to 0 at 90°, where the map's texels stretch without bound. */
-const MAX_SPOT_HALF_ANGLE = (88.9 * Math.PI) / 180
+const MAX_SPOT_HALF_ANGLE = 88.9 * DEG2RAD
 /** Declared: the least gap of the outer cone over the inner one, 0.001 rad. */
 const SPOT_CONE_GAP = 0.001
 
 /** The outer half angle of a spot's map, radians: at least the inner one (itself within [0, the
  *  widest]) plus the gap, at most the widest plus the gap; rounded once, to an f32. */
 function clampedOuterConeAngle(innerRad: number, outerRad: number) {
-  const inner = Math.min(Math.max(innerRad, 0), MAX_SPOT_HALF_ANGLE)
-  return f32(
-    Math.min(Math.max(outerRad, inner + SPOT_CONE_GAP), MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP),
-  )
-}
-
-/** The shadow projection matrix of the nearest and farthest caster depths, its w the view depth. */
-function shadowProjectionMatrix(out: Float64Array, minZ: number, maxZ: number) {
-  out.fill(0)
-  out[0] = 1
-  out[5] = 1
-  out[10] = -minZ / (maxZ - minZ)
-  out[11] = 1
-  out[14] = (maxZ * minZ) / (maxZ - minZ)
-  return out
-}
-
-/** The square reversed-Z perspective matrix of a half field of view and a depth range (near, far). */
-function reversedZPerspectiveMatrix(
-  out: Float64Array,
-  halfFov: number,
-  minZ: number,
-  maxZ: number,
-) {
-  out.fill(0)
-  const t = Math.tan(halfFov)
-  out[0] = out[5] = 1 / t
-  out[10] = minZ === maxZ ? 0 : minZ / (minZ - maxZ)
-  out[11] = 1
-  out[14] = minZ === maxZ ? minZ : (-maxZ * minZ) / (minZ - maxZ)
-  return out
+  const inner = clamp(innerRad, 0, MAX_SPOT_HALF_ANGLE)
+  return f32(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
 }
 
 /** The cube face directions and up vectors. */
@@ -147,8 +126,10 @@ const UP_VECTORS: [number, number, number][] = [
  * same six for every point light (`POINT_FACE_VIEWS`).
  */
 function pointFaceView(face: number) {
-  const z = vsmNormalizeOrZero(CUBE_DIRECTIONS[face])
-  const x = vsmNormalizeOrZero(cross(UP_VECTORS[face], z))
+  const z: [number, number, number] = [0, 0, 0],
+    x: [number, number, number] = [0, 0, 0]
+  normalizeVector3OrZero(z, CUBE_DIRECTIONS[face], VSM_MIN_DIRECTION_SQ)
+  normalizeVector3OrZero(x, cross(UP_VECTORS[face], z), VSM_MIN_DIRECTION_SQ)
   const y = cross(z, x)
   const m = new Float64Array(16)
   for (let r = 0; r < 3; r++) {
@@ -172,7 +153,7 @@ function coarsestMipNeeded(
 ) {
   const v = view.view
   // The light's depth is along +Z of its view; the engine's camera looks down −Z.
-  const depth = -(v[2] * lightOrigin[0] + v[6] * lightOrigin[1] + v[10] * lightOrigin[2] + v[14])
+  const depth = -transformPointRow(v, 2, lightOrigin[0], lightOrigin[1], lightOrigin[2])
   const worldRadius = f32(
     f32(Math.max(0, f32(depth) - lightRange)) * view.clipToSizeScale + view.clipToSizeBias,
   )
@@ -220,7 +201,7 @@ export function addVsmLocalLightShadow(
 
   // Light rotation (the world-to-light rotation, no translation): a spot's X axis is its direction; a
   // point light's faces are world-aligned and its rotation is the identity.
-  if (isSpot) vsmNormalizeOrZero(light.direction ?? X_AXIS, direction)
+  if (isSpot) normalizeVector3OrZero(direction, light.direction ?? X_AXIS, VSM_MIN_DIRECTION_SQ)
   else {
     direction[0] = 1
     direction[1] = direction[2] = 0
@@ -231,10 +212,10 @@ export function addVsmLocalLightShadow(
   // of one projection (`POINT_FACE_VIEWS`).
   let outerCone = 0
   if (isSpot) {
-    outerCone = clampedOuterConeAngle(light.innerConeAngle ?? 0, light.coneAngle ?? Math.PI / 4)
+    outerCone = clampedOuterConeAngle(light.innerConeAngle ?? 0, light.coneAngle ?? QUARTER_PI)
     const cosOuter = f32(Math.cos(outerCone)),
       sinOuter = f32(Math.sin(outerCone)),
-      invTanOuter = f32(1 / Math.tan(outerCone))
+      invTanOuter = f32(focalScale(outerCone))
     // The bounding sphere of the cone, relative to the light: past a half angle of 45° (cos² = 1/2)
     // the sphere through the cap's rim, its centre on the axis at the rim's foot; below, the
     // sphere through the light and the rim.
@@ -247,21 +228,25 @@ export function addVsmLocalLightShadow(
       sphereOffset = sphereRadius
     }
     multiplyMatrix4(spotView, VSM_FACE_MATRIX, worldToLight)
-    const c = vsmTransformPoint(
+    const c = transformAffinePoint(
+      spotCentre,
       spotView,
       direction[0] * sphereOffset,
       direction[1] * sphereOffset,
       direction[2] * sphereOffset,
-      spotCentre,
     )
     let depthFar = f32(c[2] + sphereRadius)
     const depthNear = f32(Math.max(depthFar - sphereRadius * 2, VSM_LOCAL_MIN_LIGHT_W))
     depthFar = f32(Math.min(depthFar, radius))
-    // The outer scale (no border at 16384²) · the shadow projection matrix.
-    shadowProjectionMatrix(viewToClip, depthNear, depthFar)
-    viewToClip[0] = invTanOuter
-    viewToClip[5] = invTanOuter
-  } else reversedZPerspectiveMatrix(viewToClip, f32(Math.PI / 4), VSM_LOCAL_NEAR_PLANE, radius)
+    // The outer scale (no border at 16384²), between the nearest and farthest caster depths.
+    forwardPerspectiveProjection(viewToClip, invTanOuter, depthNear, depthFar)
+  } else
+    forwardPerspectiveProjection(
+      viewToClip,
+      focalScale(f32(QUARTER_PI)),
+      VSM_LOCAL_NEAR_PLANE,
+      radius,
+    )
   const projectionScale = viewToClip[0]
 
   // The finest mip level any view needs, conservatively.

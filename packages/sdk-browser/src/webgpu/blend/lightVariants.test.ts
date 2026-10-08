@@ -2,15 +2,11 @@
 // frame is lit by a program that holds each code path its lights need — the shadow read where a
 // light holds a shadow slot, the rectangle's term where one is a rectangle —, the one its key names
 // once compiled, never compiled during a frame; prepare compiles the first frame's and its twin with
-// every code path.
+// every code path but the lobes it has not, which a lobed frame compiles then.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  createForwardVariants,
-  FULL_CONTRACT,
-  leavesOut,
-  type ContractKey,
-} from '../../lighting/deferred/contractVariants.ts'
+import { createForwardVariants } from '../../lighting/deferred/forwardVariants.ts'
+import { FULL_CONTRACT, isTwin, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
 import { mountDevice } from '../water/pass.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
@@ -30,6 +26,7 @@ const KEYS: ContractKey[] = [false, true].flatMap((rectless) =>
     rectless,
     sunless,
     localless,
+    lobeless: false,
   })),
 )
 /** The key the tests name: a rectless scene with shadow code. */
@@ -51,18 +48,19 @@ async function keyed(first: ContractKey, refuse?: (key: ContractKey) => boolean)
     said: unknown[] = []
   const key = { ...first, narrow: true }
   const lit = { precompile: true, key, onFailure: (error: unknown) => said.push(error) }
-  const programOf = await createForwardVariants(async (key) => {
+  const programs = await createForwardVariants(async (key) => {
     built.push(key)
     if (refuse?.(key)) throw new Error('REFUSED')
     return key
   }, lit)
+  const programOf = (key: ContractKey) => programs.pick(key, !key.lobeless)
   return { programOf, built, said }
 }
 
 test('prepare compiles the first frame’s program and its twin; a frame takes one that serves it', async () => {
   for (const first of KEYS) {
     const { programOf, built } = await keyed(first)
-    assert.deepEqual(built, leavesOut(first) ? [first, FULL_CONTRACT] : [first])
+    assert.deepEqual(built, isTwin(first) ? [first] : [first, FULL_CONTRACT])
     assert.deepEqual(programOf(first), first, 'the first frame is lit by its own program')
     for (const key of KEYS) {
       const lent = programOf(key)
@@ -72,6 +70,18 @@ test('prepare compiles the first frame’s program and its twin; a frame takes o
     }
     assert.equal(built.length, KEYS.length, 'each key compiled once')
   }
+})
+
+test('a lobeless first frame compiles no lobe code; a lobed frame compiles its own then', async () => {
+  const lobeless = { ...RECTLESS, lobeless: true }
+  const { programOf, built } = await keyed(lobeless)
+  const twin = { ...FULL_CONTRACT, lobeless: true }
+  assert.deepEqual(built, [lobeless, twin])
+  // Lent the lobeless twin while its own compiles: never a frame without a program.
+  assert.deepEqual(programOf(RECTLESS), twin)
+  await settled()
+  assert.deepEqual(programOf(RECTLESS), RECTLESS)
+  assert.deepEqual(built, [lobeless, twin, RECTLESS, FULL_CONTRACT])
 })
 
 test('a refused variant is said and lent the twin; a refused twin is the pass’s refusal', async () => {
@@ -106,25 +116,34 @@ test('the blends draw with the program of the frame’s key, its water composite
     true,
     undefined,
     false,
-    { lit: { precompile: true, key: first } },
+    {
+      lit: { precompile: true, key: first },
+      waterLit: { precompile: true, key: { ...first, lobeless: true } },
+    },
   )
   const composites = mount.renderPipelines
     .filter((pipeline) => pipeline.fragment!.entryPoint === 'composeWater')
     .map((pipeline) => (pipeline.fragment!.module as GPUShaderModule).label)
-  assert.deepEqual(composites, ['WATER_COMPOSITE_UNSHADOWED_RECTLESS', 'WATER_COMPOSITE'])
-  // The surface stage lights nothing: the module with every code path alone carries it.
+  // No transmissive surface carries a lobe: the composite's first program has no lobe code.
+  assert.deepEqual(composites, [
+    'WATER_COMPOSITE_UNSHADOWED_RECTLESS_LOBELESS',
+    'WATER_COMPOSITE_LOBELESS',
+  ])
+  // The surface stage lights nothing: the twin's module alone carries it.
   const surfaces = mount.renderPipelines.filter(
     ({ fragment }) => fragment!.entryPoint === 'fsWater',
   )
   assert.ok(surfaces.every(({ fragment }) => fragment!.module.label === 'BLEND'))
   for (const key of [first, ...KEYS]) {
-    blendPipelines.lit(key)
+    blendPipelines.lit(key, true)
     await settled()
-    const loop = loopOf(blendPipelines.lit(key).at(0) as unknown as GPURenderPipelineDescriptor)
+    const loop = loopOf(
+      blendPipelines.lit(key, true).at(0) as unknown as GPURenderPipelineDescriptor,
+    )
     assert.equal(loop.includes('isRect(light)'), !key.rectless, JSON.stringify(key))
     assert.equal(loop.includes('shadowFactor('), !key.unshadowed, JSON.stringify(key))
     // The shadow reads hold the branch of each kind the key keeps (`ShadowKinds`).
-    const read = functionsOf(code(blendPipelines.lit(key).at(0)), ['vsmShadowFiltered'])
+    const read = functionsOf(code(blendPipelines.lit(key, true).at(0)), ['vsmShadowFiltered'])
     assert.equal(read.includes('vsmHandleFromIdDirectional('), !key.sunless, JSON.stringify(key))
     assert.equal(read.includes('vsmCubeFace('), !key.localless, JSON.stringify(key))
   }

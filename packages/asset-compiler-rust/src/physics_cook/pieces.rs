@@ -7,11 +7,14 @@ use super::hull::cooked_shape;
 use super::mass::solid_mass;
 use super::refused;
 use super::voronoi::{cells, face_planes, welded};
-use crate::shared_math::{dot, extend_aabb, length, point, splitmix_unit, sub, GOLDEN};
 use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
+use trillion3d_math::aabb::{diagonal, extend_aabb};
+use trillion3d_math::random::splitmix_draw as draw;
+use trillion3d_math::vec3::{dot, length, point, sub};
+use trillion3d_math::vecn::weighted_mean;
 
 /// Most pieces a breakable body is cut into.
 pub(super) const PIECES: usize = 12;
@@ -34,12 +37,6 @@ pub(super) fn declared_breakable(node: &Value) -> Result<Option<f64>> {
     }
 }
 
-/// The next number in [0, 1) of the SplitMix64 sequence at `state`.
-fn draw(state: &mut u64) -> f64 {
-    *state = state.wrapping_add(GOLDEN);
-    splitmix_unit(*state)
-}
-
 /// The pieces of mesh `mesh`'s welded `triangles` over `pos`, seeded by `seed` and weighed at
 /// `scale`: `physics.json` shapes, each `cooked` with its `mass`.
 pub(super) fn pieces(
@@ -56,7 +53,7 @@ pub(super) fn pieces(
     for &p in &corners {
         extend_aabb(&mut low, &mut high, p);
     }
-    let eps = length(sub(high, low)) * 1e-6;
+    let eps = diagonal(low, high) * 1e-6;
     let planes = face_planes((pos, triangles), &corners, eps);
     let (mut state, mut seeds) = (seed, Vec::new());
     // A seed is a random mean of four corners: inside a convex mesh, whatever its shape.
@@ -66,8 +63,7 @@ pub(super) fn pieces(
             let at = draw(&mut state) * corners.len() as f64;
             (w, corners[at as usize])
         });
-        let total: f64 = picks.iter().map(|(w, _)| w).sum();
-        let seed = [0, 1, 2].map(|k| picks.iter().map(|(w, p)| w * p[k]).sum::<f64>() / total);
+        let seed = weighted_mean(picks.map(|(_, p)| p), picks.map(|(w, _)| w));
         let inside = planes.iter().all(|&(n, c)| dot(n, seed) - c < -eps);
         if inside && seeds.iter().all(|s| length(sub(*s, seed)) > eps) {
             seeds.push(seed);

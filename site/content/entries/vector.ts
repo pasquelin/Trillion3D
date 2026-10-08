@@ -21,7 +21,7 @@ export const VECTORS: EntryNote[] = [
   {
     id: 'normalizeVector3',
     replaces: 'Vector3.normalize',
-    proof: 'packages/sdk-core/src/math/primitives/vector.test.ts',
+    proof: 'bench/witnesses/three/parity/core/math/primitives/vector.test.ts',
   },
   {
     id: 'scaleVector3',
@@ -50,7 +50,7 @@ export const COLORS: EntryNote[] = [
       'bench Color.convertSRGBToLinear (×1.0) — declared exception: the reference multiplies by rounded constants, the engine writes the curve; gap ≤ 1e-11 per channel, invisible at 8 bits',
   },
   {
-    id: 'hslToLinearRgb',
+    id: 'hslToRgb',
     replaces: 'Color.setHSL',
     proof: 'bench Color.setHSL (×1.3)',
   },

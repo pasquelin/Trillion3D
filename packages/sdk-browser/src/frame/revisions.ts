@@ -33,7 +33,7 @@ export const bumpResources = (revisions: FrameRevisions) => {
  *
  * `stable` is true only after two consecutive frames whose revisions AND signature are identical.
  * That is the only honest way to cover states that converge from frame to frame without any write
- * announcing them — occluder history, the temporal pyramid, occlusion verdicts reread with a lag.
+ * announcing them — occluder history, occlusion verdicts reread with a lag.
  * Two frames that produced exactly the same work would produce an identical third; one alone
  * proves nothing.
  *

@@ -5,7 +5,9 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import { copyElements, sameElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { GuideEntry } from './guidePack.ts'
 
 /** Segments of one colour and width, two ends of three numbers each; a point is a segment whose
@@ -44,8 +46,7 @@ export function objectPieces(object: Object3D, width: number, size: number): Gui
     const ends = new Float64Array(pairs.length * 3)
     pairs.forEach((v, k) => {
       const [x, y, z] = pointAt(position, v, point)
-      for (let c = 0; c < 3; c++)
-        ends[k * 3 + c] = local[c] * x + local[4 + c] * y + local[8 + c] * z + local[12 + c]
+      transformAffinePoint(ends, local, x, y, z, k * 3)
     })
     const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as Material
     pieces.push({
@@ -67,7 +68,7 @@ export interface FollowedEntry extends GuideEntry {
 /** Puts `entry` at `next`; false when it stood there already, so a held frame stays. */
 export function placeGuide(entry: GuideEntry, next: ArrayLike<number>) {
   if (sameElements(entry.matrix, next)) return false
-  copyElements(entry.matrix, next)
+  copyMatrix4(entry.matrix, next)
   return true
 }
 

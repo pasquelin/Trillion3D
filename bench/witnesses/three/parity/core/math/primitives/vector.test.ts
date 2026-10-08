@@ -13,7 +13,7 @@ import {
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../../../../../../packages/sdk-core/src/math/primitives/vector.ts'
+} from '../../../../../../../packages/math/src/vector/vector.ts'
 
 const close = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
 
@@ -35,6 +35,13 @@ function bitEqualVec3(out: ArrayLike<number>, v: THREE.Vector3, label: string) {
   assert.ok(Object.is(out[0], v.x), `${label}, x: ${out[0]} != ${v.x}`)
   assert.ok(Object.is(out[1], v.y), `${label}, y: ${out[1]} != ${v.y}`)
   assert.ok(Object.is(out[2], v.z), `${label}, z: ${out[2]} != ${v.z}`)
+}
+
+/** `bitEqualVec3`, but where the witness's plain sum of squares overflowed — its normalise gives
+ *  zeros — the engine's, by the length rule's range, is a unit vector. */
+function normalisedLike(out: ArrayLike<number>, v: THREE.Vector3, label: string) {
+  const unit = Math.abs(Math.hypot(out[0], out[1], out[2]) - 1) < 4e-16
+  if (!(v.x === 0 && v.y === 0 && v.z === 0 && unit)) bitEqualVec3(out, v, label)
 }
 
 test('dotVector3: dot product of the first three components only', () => {
@@ -100,7 +107,7 @@ test('normalizeVector3: against v.normalize(), including NaN, ±0 and infinities
     const out = Float64Array.from(v)
     normalizeVector3(out)
     const ref = new THREE.Vector3(...v).normalize()
-    bitEqualVec3(out, ref, `normalize(${v})`)
+    normalisedLike(out, ref, `normalize(${v})`)
   }
 })
 
@@ -182,6 +189,6 @@ test('transformDirectionVector3: against v.transformDirection(m), zero vector in
       transformDirectionVector3(out, m, v[0], v[1], v[2])
       const mat4 = new THREE.Matrix4().fromArray(m)
       const ref = new THREE.Vector3(...v).transformDirection(mat4)
-      bitEqualVec3(out, ref, `transformDirection(${m}, ${v})`)
+      normalisedLike(out, ref, `transformDirection(${m}, ${v})`)
     }
 })

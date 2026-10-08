@@ -819,8 +819,6 @@
       "shadow-pages-off": "关闭阴影分页",
       "shadow-budget-0-25": "阴影时间预算:0.25 毫秒",
       "budget-3000": "几何体预算:3000 页",
-      "webgl": "WebGL 渲染器",
-      "webgl2": "WebGL 2 渲染器",
       "moving-light": "移动光源",
       "visible": "可见的浏览器窗口"
     },
@@ -926,7 +924,7 @@
     "resolution": "分辨率与误差阈值",
     "lights": "光源、阴影与间接光照",
     "execution": "静止画面、抗锯齿与运行选项",
-    "memory": "内存、实例与其他渲染器"
+    "memory": "内存、实例与其他运行"
   },
   "evidence": {
     "computeDrawing": "计算着色器绘制",
@@ -1110,8 +1108,8 @@
     },
     "measurement-entry": {
       "title": "测量专用入口",
-      "description": "对照实现、被强制指定的后端或内部会话,唯一能通过名字访问到的地方——公开发布的 `trillion3d` 入口永远不会暴露它们。",
-      "html": "<p>一个页面导入 <code>trillion3d</code> 时,永远看不到后端、对照实现或内部会话:<code>createWorld</code> 会用根据机器选出的某一种渲染器进行绘制,如果被强制指定的渲染器缺失,就会指名拒绝。而基准测试、证明和对比视图仍然需要能指名一个对照实现——原生 Three.js、<code>THREE.LOD</code>、内部的 <code>openMeasuredWorld</code> 会话——这正是独立的测量入口 <code>packages/sdk-browser/src/measurement/measurement.ts</code> 唯一的职责。</p>\n<p>它重新导出了公开入口的一切,再加上宿主永远不需要的东西:<code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界对自己打开的内部会话)、各个后端工厂(<code>referenceBackend</code>、<code>exactPagesBackend</code>、<code>threeLodBackend</code>、<code>webgpuPagesBackend</code>、<code>autonomousPagesBackend</code>),以及像 <code>replicateInstances</code> 这样的测量专用辅助函数。这些内容都不会出现在公开发布的世界里,也不会被任何应用导入。</p>"
+      "description": "对照实现或内部会话,仍能通过名字访问到的地方——公开发布的 `trillion3d` 入口永远不会暴露它们。",
+      "html": "<p>一个页面导入 <code>trillion3d</code> 时,永远看不到对照实现或内部会话:<code>createWorld</code> 用 WebGPU 绘制,如果机器不提供 WebGPU,就会指名拒绝。而基准测试和证明仍然需要能指名一个对照实现——原生 Three.js、<code>THREE.LOD</code>、内部的 <code>openMeasuredWorld</code> 会话——这正是独立的测量入口 <code>packages/sdk-browser/src/measurement/measurement.ts</code> 唯一的职责。</p>\n<p>它会重新导出公开入口导出的全部内容,外加宿主永远用不到的东西:<code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界对自身打开的内部会话)、页面工厂 <code>webgpuPagesEngine</code>,以及 <code>replicateInstances</code> 这类仅用于测量的辅助函数。这些都不会进入已发布的世界,也没有任何应用会导入它们。</p>"
     },
     "createWorldJob": {
       "title": "把世界的加载当作一个可取消的任务",
@@ -1160,11 +1158,11 @@
       "description": "一帧画面绘制的是什么。可用性反映的是真实的渲染管线输出,而不是合成的叠加层:`DIAGNOSTICS` 会针对每种模式,说明当前渲染器能否生成它,以及不能的原因。",
       "values": [
         "根据 glTF 材质渲染出的、带光照的图像。",
-        "为每个提交的三角形填充一种独有颜色——既不是 GL_LINES,也不是 `MeshBasicMaterial.wireframe`。",
-        "稳定的图元/页面 ID,每个簇一种颜色;WebGL2 和 WebGPU 都支持。",
+        "为每个提交的三角形填充一种独有颜色。",
+        "稳定的图元/页面 ID,每个簇一种颜色。",
         "0 级簇与本帧实际选中的更粗糙 DAG 简化结果的对比。",
         "按裁切使用的方式,把每个簇的误差投影到簇的包围球上。",
-        "按材质类别显示一种颜色:即解析该像素的材质分类通道。仅限 WebGPU 可见性路径。",
+        "按材质类别显示一种颜色:即解析该像素的材质分类通道。",
         "被选中的可见页面;被剔除的层级节点只计数,不绘制。",
         "已挂载的索引页面;缺失的页面不会被绘制。这不是物理显存。",
         "不可用:纹理 mip 常驻情况未被检测。",
@@ -1212,7 +1210,7 @@
     },
     "GpuTimingMethod": {
       "description": "阶段性能剖析中的 GPU 耗时是如何获取的。每个通道的耗时只能说明“在哪里”,而不是“耗时多少”:在基于图块的 GPU 上,各通道会互相重叠,一个通道会把相邻通道的工作也算进自己的耗时里。整帧总时长是 `gpuImageMs`,即整体耗时——各阶段的耗时并不会累加成它。",
-      "values": ["原生 WebGPU 时间戳查询。", "针对该路径的 WebGL2 扩展。"]
+      "values": ["原生 WebGPU 时间戳查询。"]
     },
     "ColumnKind": {
       "description": "二进制清单(manifest)中每一列的存储方式。`COLUMN_KIND` 把每个列名映射到它的种类,让读取者知道该用哪种视图去解析那些附属字节。",
@@ -1241,7 +1239,7 @@
       "description": "把任意一个尚未完成的操作包装进引擎的任务契约里:一份快照(`JobStatus`、进度、结果、错误)、订阅机制,以及一个会释放任务所持有内容的中止操作。这个操作本身必须支持通过它自己的持有者(RAF、读回等)来中止。"
     },
     "detectCapabilities": {
-      "description": "在创建世界之前,探测这台机器实际支持什么:`{ tier, renderer, adapter, extensions, reason }`。原因始终会给出,因此不支持的能力是被报告出来的,而不是被假定的。世界读取的公开封装是 `capability.detect()`——同一次探测的一个更简单的形式,`{ webgpu, webgl2, ... }`。WebGL2 的探测结果会被缓存。"
+      "description": "在创建世界之前,这台机器的 WebGPU 实际提供了什么:`{ tier, adapter, extensions, reason }`。有 GPU 时间戳查询时 tier 为 `full`,没有时为 `degraded`,没有适配器时为 `unavailable`。原因总会给出,所以不受支持的能力会被报告,而不是被假定。世界读取的公开封装是 `capability.detect()`——对同一次探测的更简单形式:`{ webgpu, tier, features, reason }`。"
     },
     "perspectiveProjection": {
       "description": "垂直 `fov`(角度)、比例 `aspect`、近平面 `near`、缩放 `zoom` 决定的摄像机透视投影。**反转深度、无限远平面**:`near` 投影为 1,无穷远投影为 0。这里没有远平面参与计算,自然也就没有除以它的运算——这正是深度精度的来源。"
@@ -1301,7 +1299,7 @@
       "description": "`out = transpose(inverse(m 的 3×3 子块))`,用列优先的九个数字计算得到:这个矩阵用来搬运经过 `m` 变换后的表面法线,也包括切变和非均匀缩放的情况。逆矩阵采用参考实现的做法(包括伴随矩阵和乘法顺序),然后不经过任何浮点运算直接转置。**在奇异矩阵的情况下,会直接写入未做除法的伴随矩阵**,而不是参考实现所用的零矩阵:一个奇异的姿态并不会抹掉表面,而是把它压扁到一个平面上,伴随矩阵作用在局部法线上得到的结果,正是变换后两条边的叉积本身(包括符号)——之后所有使用者都会对它做归一化。只有当缩放为零、无穷大或 NaN 时,才会单独处理,写成九个零。"
     },
     "linearPartScale": {
-      "description": "以 WGSL 内核形式呈现的、引擎唯一的奇异性规则。缩放值是线性部分九项绝对值之和,而行列式是对**先除以这个缩放值再相乘**的各列求出的,绝不是对原始行列式除以缩放值的三次方——`t³` 在超过 1e103 时会溢出,在小于 1e-103 时会归零,而这恰好是这条规则需要判断的范围。`adjugateFactor` 对正则矩阵(与参考实现的比特一致)返回 `1 / determinant`,对奇异矩阵(伴随矩阵原样保留)返回 `1`,当缩放值不是有限的正数时返回 `null`,这时必须把伴随矩阵本身替换成零。`SINGULAR_DETERMINANT_WGSL` 使用的是和着色器完全相同的阈值:同一个数字,两种语言。"
+      "description": "以 WGSL 内核形式呈现的、引擎唯一的奇异性规则。缩放值是线性部分九项绝对值之和,而行列式是对**先除以这个缩放值再相乘**的各列求出的,绝不是对原始行列式除以缩放值的三次方——`t³` 在超过 1e103 时会溢出,在小于 1e-103 时会归零,而这恰好是这条规则需要判断的范围。`adjugateFactor` 对正则矩阵(与参考实现的比特一致)返回 `1 / determinant`,对奇异矩阵(伴随矩阵原样保留)返回 `1`,当缩放值不是有限的正数时返回 `null`,这时必须把伴随矩阵本身替换成零。"
     },
     "basisMatrix4": {
       "description": "列 `u`、`v`、`n`,然后是原点,最后一行是 `(0, 0, 0, 1)`;以及放在 `center` 处的一个统一缩放值 `s`。两者都把宿主库原本需要两次调用才能完成的事,变成了一次写入。"
@@ -1333,8 +1331,8 @@
     "srgbToLinear": {
       "description": "精确的 sRGB 曲线——小于 0.04045 时是 `c / 12.92`,大于时是 `((c + 0.055) / 1.055)^2.4`——以及它的反函数。负值会在取指数之前被截断为零。"
     },
-    "hslToLinearRgb": {
-      "description": "把色相、饱和度和明度转换成三个写入 `out[o..o+2]` 的线性分量。逐项复现参考实现的 `setHSL`:色相做循环处理,饱和度和明度截断到 `[0, 1]`,饱和度为零时返回灰色,然后应用分段的渐变曲线。这里不会应用任何传递曲线——因为参考实现的工作空间本身已经是线性的。"
+    "hslToRgb": {
+      "description": "把色相、饱和度和明度转换成三个写入 `out[o..o+2]` 的 RGB 分量。逐项复现参考实现的 `setHSL`:色相做循环处理,饱和度和明度截断到 `[0, 1]`,饱和度为零时返回灰色,然后应用分段的渐变曲线。RGB 以给出 HSL 时的同一编码输出:不应用任何传递曲线。"
     },
     "boxUnion": {
       "description": "一个包围盒是从 `o` 处开始平铺存储的六个数字:三个下界,三个上界。空的包围盒下界是 `+Infinity`,上界是 `-Infinity`。出现 NaN 边界并不会使包围盒变成空的。扩展和合并操作都以边界作为参数传入,因此每次调用都不会创建临时对象。"
@@ -1355,7 +1353,7 @@
       "description": "包围盒相对视锥体的判定:前者在某个平面把全部八个顶点都留在背面时返回 true。后者分两次遍历返回三种状态——0 表示在外部,1 表示跨界,2 表示完全在内部——第一次只做剔除判断,第二次读取最靠后的顶点来区分“跨界”和“完全在内部”。如果某个子树完全在内部,就能省去对它下面所有包围盒的测试。"
     },
     "boxConeRejects": {
-      "description": "从世界空间中的某一点看过去,用法线圆锥剔除一个局部包围盒:包围盒会被替换成它的外接球,圆锥轴由归一化后的法线矩阵搬运而来,判定依据是被截断的点积、圆锥角度,以及球体因透视产生的张角。当一个变换的各列在 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,这个变换就被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会剔除任何东西;测试无法接受的参数同样不会被剔除。带 `_WGSL` 后缀的变体和着色器文本使用的是同一批常量,这样 CPU 端的镜像实现和 GPU 通道就不会产生偏差。"
+      "description": "从世界空间中的某一点看过去,用法线圆锥剔除一个局部包围盒:包围盒会被替换成它的外接球,圆锥轴由归一化后的法线矩阵搬运而来,判定依据是被截断的点积、圆锥角度,以及球体因透视产生的张角。当一个变换的各列在 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,这个变换就被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会剔除任何东西;测试无法接受的参数同样不会被剔除。"
     },
     "createTransformTree": {
       "description": "引擎的变换层级结构,采用面向数据的方式:一个节点就是指向多个平铺数组的一个索引——父节点、标志位、位置、四元数 `(x, y, z, w)`、缩放、局部矩阵、世界矩阵。`localViews[i]` 和 `worldViews[i]` 是只在数组扩容时创建、更新时绝不重新创建的十六数字视图:GPU 会读取整个缓冲区,而某个内核只会读取一个节点的视图。一个新创建的节点等价于参考实现里的一个全新对象:位置为零、旋转为单位四元数、缩放为 1、矩阵为单位矩阵、自动更新开启。每次扩容都会替换掉所有数组,所以调用者在新增节点之后需要重新读取 `tree.world` 或 `tree.worldViews`。"
@@ -1382,25 +1380,25 @@
       "description": "被 `n` 个矩阵变换的 `n` 个包围盒:`out[i] = boxTransform(boxes[i], mats[i])`。`out` 和 `boxes` 每个元素占六个数字,`mats` 是十六数字的子视图。"
     },
     "hierarchyUpdateBatch": {
-      "description": "一次遍历更新整个层级结构:`n` 个节点按父节点先于子节点排序,每个节点先合成自己的局部矩阵,再与父节点的世界矩阵相乘——这和 `packages/sdk-core/src/math/transform-tree/update.ts` 里的遍历完全一致,是在平铺缓冲区上执行的同样两个公式、同样的顺序。`parents[i]` **必须**指向一个已经更新过的节点,也就是严格小于 `i`;其他任何值(包括 `HIERARCHY_ROOT` 这个哨兵值)都会让该节点成为根节点,其世界矩阵就等于局部矩阵。这条规则在两条路径上完全一致:无论输入多么刁钻,都不可能让两者产生分歧。`local` 是一个所有元素共用的临时矩阵。"
+      "description": "一次遍历更新整个层级结构:`n` 个节点按父节点先于子节点排序,每个节点先合成自己的局部矩阵,再与父节点的世界矩阵相乘——这和 `packages/sdk-core/src/world/transform-tree/update.ts` 里的遍历完全一致,是在平铺缓冲区上执行的同样两个公式、同样的顺序。`parents[i]` **必须**指向一个已经更新过的节点,也就是严格小于 `i`;其他任何值(包括 `HIERARCHY_ROOT` 这个哨兵值)都会让该节点成为根节点,其世界矩阵就等于局部矩阵。这条规则在两条路径上完全一致:无论输入多么刁钻,都不可能让两者产生分歧。`local` 是一个所有元素共用的临时矩阵。"
     },
     "createPathGovernor": {
       "description": "针对每个具名运算,决定在 JS 和 WebAssembly 之间如何裁定:每元素耗费纳秒数的滑动中位数、只有在连续五次执行都保持领先之后才会切换的规则,以及每五十次执行里有一次会重新跑一遍另一条路径来刷新它的中位数。样本数不足五个时不会做出任何决定——否则单个数值就会被当成中位数。`metrics()` 会按运算分别公开 `path`、`jsNsPerElement`、`wasmNsPerElement`、切换次数,以及测量所依赖的时钟分辨率。"
     },
     "frustumKeepsBoxBatch": {
-      "description": "把由六个数字(最小值、最大值)组成的 `n` 个包围盒,与视锥体的二十四个浮点数进行比较:当包围盒与视锥体相交或完全在其内部时,`kept[i]` 为 1,并返回被保留的数量——这是 `frustumExcludesBox` 的取反,和参考实现所使用的极性一致。球体版本的批处理会为每个包围盒写入 `SPHERE_VALUES` 个数字(中心坐标,以及到顶点的半径),方式和 `sphereFromBounds` 一样。这两个循环都在 `packages/sdk-core/src/math/batch/culling.ts` 里。"
+      "description": "把由六个数字(最小值、最大值)组成的 `n` 个包围盒,与视锥体的二十四个浮点数进行比较:当包围盒与视锥体相交或完全在其内部时,`kept[i]` 为 1,并返回被保留的数量——这是 `frustumExcludesBox` 的取反,和参考实现所使用的极性一致。球体版本的批处理会为每个包围盒写入 `SPHERE_VALUES` 个数字(中心坐标,以及到顶点的半径),方式和 `sphereFromBounds` 一样。这两个循环都在 `packages/math/src/batch/culling.ts` 里。"
     },
     "boxUnionBatch": {
       "description": "用 `n` 个包围盒扩展 `into`,或者先用各自的矩阵变换这 `n` 个包围盒再扩展——两种方式都只需一次遍历、一个临时包围盒,不做任何分配。两者都重复调用 `boxUnion`,后者会在此之前先调用 `boxTransform`:一次调用就能得到整个场景的世界包围范围。"
     },
     "invertMatrix4Batch": {
-      "description": "`n` 个逆矩阵、由 `NORMAL_MATRIX_VALUES` 个数字组成的 `n` 个法线矩阵、`n` 次 `T · R · S` 合成,以及 `n` 次分解。行列式为零的矩阵会被反转为单位矩阵,并在 `singular[i]` 中标记出来——批处理过程中绝不会中途抛出异常。`composeMatrix4Batch` 要么整体接收平铺数组,要么整体接收子视图,并在循环开始前确定好格式。这四个循环都在 `packages/sdk-core/src/math/batch/transforms.ts` 里。"
+      "description": "`n` 个逆矩阵、由 `NORMAL_MATRIX_VALUES` 个数字组成的 `n` 个法线矩阵、`n` 次 `T · R · S` 合成,以及 `n` 次分解。行列式为零的矩阵会被反转为单位矩阵,并在 `singular[i]` 中标记出来——批处理过程中绝不会中途抛出异常。`composeMatrix4Batch` 要么整体接收平铺数组,要么整体接收子视图,并在循环开始前确定好格式。这四个循环都在 `packages/math/src/batch/transforms.ts` 里。"
     },
     "transformPointsBatch": {
       "description": "用一个仿射矩阵变换 `n` 个由三个数字组成的点,或者为每个点使用各自的矩阵;用左上 3×3 矩阵变换 `n` 个方向后再做归一化,平移量会被忽略。它们分别重复调用了 `transformAffinePoint` 和 `transformDirectionVector3`。"
     },
     "srgbToLinearBatch": {
-      "description": "每个元素处理一个通道,使用 `packages/sdk-core/src/math/primitives/color.ts` 里的精确曲线:参考实现乘的是经过舍入的常量,这个差距(在 8 位精度下不可见)已经在与它对决的基准测试中被一次性界定清楚。"
+      "description": "每个元素处理一个通道,使用 `packages/math/src/color/color.ts` 里的精确曲线:参考实现乘的是经过舍入的常量,这个差距(在 8 位精度下不可见)已经在与它对决的基准测试中被一次性界定清楚。"
     },
     "scene-editor": {
       "title": "用编辑器搭建场景",
@@ -1621,11 +1619,10 @@
       "an angle at or above π/2 never rejects": "大于等于 π/2 的角度永远不会剔除",
       "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root) 之后",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "可用 —— 已挂载的索引页面;缺失的页面不会被绘制;这不是物理显存",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "可用 —— 为每个提交的三角形填充独有颜色,不是 GL_LINES 线框",
+      "available — A filled unique colour per submitted triangle": "可用 —— 为每个提交的三角形填充独有颜色",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "可用 —— 0 级簇与本帧实际选中的更粗糙 DAG 简化结果的对比",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "可用 —— 按裁切使用的方式,把每个簇的屏幕误差投影到簇的包围球上",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "可用 —— 被选中的可见页面;被剔除的层级节点只计数,不绘制",
-      "available — Stable primitive/page ID, exact-cluster backend only": "可用 —— 稳定的图元/页面 ID,仅限精确簇后端",
       "available — glTF materials": "可用 —— glTF 材质",
       "unavailable — No fragment counter": "不可用 —— 没有片元计数器",
       "unavailable — Texture mip residency not instrumented": "不可用 —— 纹理 mip 常驻情况未被检测",

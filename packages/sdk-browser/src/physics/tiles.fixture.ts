@@ -10,6 +10,7 @@ import {
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts'
 import { createPhysicsPoses } from './poses.ts'
+import { SharedShapes } from './sharedShapes.ts'
 import { createTileStreamer } from './tiles.ts'
 import { JOLT_COMMIT } from '../../../sdk-core/src/physics/joltCommit.ts'
 
@@ -34,9 +35,53 @@ export const declared = (
     ...more,
   }) as CookedBody
 
+/** The cooked objects of a session over `writer` and `bodies` (`SharedShapes`), failures thrown. */
+export const sharedShapes = (
+  writer: CommandWriter,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+) =>
+  new SharedShapes({
+    writer,
+    ledger: bodies.ledger,
+    failed: (error) => {
+      throw error
+    },
+  })
+
 /** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate)
+
+/** A streamer's updates at `eye` within `range`, each one's reads landed, until one neither adds
+ *  a body nor asks a file: the bodies each added. */
+export async function settle(
+  streamer: {
+    tiles: { update(eye: ArrayLike<number>, range: number): void }
+    bodies: ReturnType<typeof createPhysicsBodies>
+    fetched: string[]
+  },
+  eye: number[],
+  range: number,
+) {
+  const { tiles, bodies, fetched } = streamer,
+    added: number[] = []
+  for (let round = 0; round < 100; round++) {
+    const [held, asked] = [bodies.count.bodies, fetched.length]
+    tiles.update(eye, range)
+    await landed()
+    added.push(bodies.count.bodies - held)
+    if (bodies.count.bodies === held && fetched.length === asked) return added
+  }
+  throw new Error('the tiles never settle')
+}
+
+/** A cooked hull of `bytes` at `url`, as a declared body's shape names it. */
+export const hull = (url = 'hull.bin', bytes = 1) => ({
+  type: 'cooked',
+  url,
+  sha256: 'h'.repeat(64),
+  bytes,
+})
 
 /** A two-triangle tile at `x` along its collider. */
 export const tile = (x = 0) => ({
@@ -57,13 +102,19 @@ export const cooked = (colliders: object[], instances: object[], softBodies: obj
 export const modelFiles = (file: object, bytes: Uint8Array) => (url: string) =>
   new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes.slice())
 
-/** Answers every fetch from now on with `modelFiles`; the names of the files fetched. */
-export function stubFetch(file: object, bytes: Uint8Array) {
+/** Answers every fetch from now on with what `answer` gives for its file's name, else with
+ *  `modelFiles`; the names of the files fetched. */
+export function stubFetch(
+  file: object,
+  bytes: Uint8Array,
+  answer: (name: string) => object | undefined = () => undefined,
+) {
   const fetched: string[] = []
   const serve = modelFiles(file, bytes)
   globalThis.fetch = (async (url: string) => {
-    fetched.push(url.split('/').pop()!)
-    return serve(url)
+    const name = url.split('/').pop()!
+    fetched.push(name)
+    return answer(name) ?? serve(url)
   }) as typeof fetch
   return fetched
 }

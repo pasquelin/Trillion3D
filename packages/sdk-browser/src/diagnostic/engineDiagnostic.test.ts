@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lazyDiagnostic } from './engineDiagnostic.ts'
-import type { BackendDiagnostic } from '../backend/types.ts'
+import type { EngineDiagnostic } from '../engine/types.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 
@@ -22,7 +22,7 @@ test('with no listener there is no emitter: a call builds neither its detail nor
 })
 
 test('with a listener each event builds its detail once, and a throwing listener is its own', () => {
-  const heard: BackendDiagnostic[] = []
+  const heard: EngineDiagnostic[] = []
   let built = 0
   const emit = lazyDiagnostic((diagnostic) => {
     heard.push(diagnostic)
@@ -37,12 +37,12 @@ test('a streamer with no listener reads, hits and evicts; one with a listener he
   const urls = ['a.bin', 'b.bin']
   const { pages } = await servedPages(urls)
   const phases: string[] = []
-  for (const onDiagnostic of [undefined, (d: BackendDiagnostic) => void phases.push(d.phase)]) {
+  for (const onDiagnostic of [undefined, (d: EngineDiagnostic) => void phases.push(d.phase)]) {
     const streamer = createPageStreamer(pages, 'http://diag/', { maxPages: 1, onDiagnostic })
     // One read after the other: `b` lands last, so it is the one kept and read again as a hit.
-    await streamer.request(['a.bin'])
-    await streamer.request(['b.bin'])
-    await streamer.request(['b.bin'])
+    await streamer.request(['a.bin'], { signal: streamer.signal })
+    await streamer.request(['b.bin'], { signal: streamer.signal })
+    await streamer.request(['b.bin'], { signal: streamer.signal })
     assert.equal(streamer.stats().evictions, 1)
     streamer.dispose()
   }

@@ -59,12 +59,7 @@ function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
     small = { maxBufferSize: 2 * homeBytes, maxStorageBufferBindingSize: 2 * homeBytes }
   const uniquePages = Math.max(1, new Set(records.map(pageAddress)).size)
   const poolOn = (limits: typeof DEVICE) =>
-    sessionGeometryPool(
-      { pageBytes, uniquePages, homeBytes, rootPages, limits },
-      undefined,
-      undefined,
-      true,
-    ).pool
+    sessionGeometryPool({ pageBytes, uniquePages, homeBytes, rootPages, limits }, undefined).pool
   assert.ok(rootPages * pageBytes > small.maxBufferSize, 'the root cover in slots passes it')
   const held = poolOn(small)
   assert.ok(held.slots >= rootPages && held.allocatedBytes === homeBytes, `${held.allocatedBytes}`)

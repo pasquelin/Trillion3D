@@ -107,7 +107,7 @@
         tile.wrap = wrap[values.wrap];
         tile.repeat.set(values.tilesAcross, values.tilesAcross);
         tile.offset.set(values.slideAcross, values.slideUp);
-        tile.rotation = (values.turn * Math.PI) / 180;
+        tile.rotation = math.degToRad(values.turn);
       };
       let placed = null;
       const ui = controls({

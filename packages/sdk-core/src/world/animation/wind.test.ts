@@ -5,6 +5,13 @@ import { Object3D } from '../object/object3d.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'
 import type { Track } from './clip.ts'
+import { halton } from '../../../../math/src/sequence/halton.ts'
+import {
+  axisAngleQuaternion,
+  multiplyQuaternion,
+  rotateByQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
 
 /** Each key of a quaternion track. */
 const keys = (track: Track) =>
@@ -92,4 +99,60 @@ test('an explicit zero amplitude preserves every rest key and no bone makes no t
   const clip = windClip([bone], { angle: 0 })
   for (const key of keys(clip.tracks[0])) assert.ok(lean(key, bone.quaternion) < 1e-6)
   assert.deepEqual(windClip([]).tracks, [])
+})
+
+/** The keys `windClip` wrote before the length rule, `Math.hypot` and a division making the axis
+ *  across the wind: the oracle of the sweep below. */
+function oracle(bones: Object3D[], [dx, dz]: [number, number], angle: number, period: number) {
+  const reach = Math.hypot(dx, dz) || 1,
+    across = [dz / reach, 0, -dx / reach],
+    times = Array.from({ length: 25 }, (_, k) => (k / 24) * period),
+    turn = new Float64Array(4),
+    posed = new Float64Array(4)
+  return bones.map((bone, i) => {
+    const depth = (i + 1) / bones.length,
+      rest = [bone.quaternion.x, bone.quaternion.y, bone.quaternion.z, bone.quaternion.w],
+      parent = bone.parent?.getWorldQuaternion(),
+      local = new Float64Array(3)
+    const unturned = parent ? [-parent.x, -parent.y, -parent.z, parent.w] : [0, 0, 0, 1]
+    rotateByQuaternion(local, unturned, across[0], across[1], across[2])
+    const values = times.flatMap((time) => {
+      const phase = (TAU * time) / period - depth * HALF_PI
+      axisAngleQuaternion(turn, local, angle * depth * (0.6 + 0.4 * Math.sin(phase)))
+      return Array.from(multiplyQuaternion(posed, turn, rest))
+    })
+    return new Float32Array(values)
+  })
+}
+
+test('the wind axis under the length rule writes the same f32 keys over directions and bones', () => {
+  const edges: [number, number][] = [
+    [0, 0],
+    [1, 0],
+    [-0, 1],
+    [3, 4],
+    [1e-3, -0],
+    [-7, 1e5],
+  ]
+  const sweep = Array.from({ length: 4096 }, (_, k): [number, number] => {
+    const turn = TAU * halton(k + 1, 2),
+      size = 10 ** (6 * halton(k + 1, 3) - 3)
+    return [size * Math.cos(turn), size * Math.sin(turn)]
+  })
+  for (const [k, direction] of [...edges, ...sweep].entries()) {
+    const parent = new Object3D(),
+      trunk = new Object3D(),
+      branch = new Object3D()
+    parent.add(trunk.add(branch))
+    parent.rotation.set(TAU * halton(k + 1, 5), TAU * halton(k + 1, 7), 0.3)
+    trunk.rotation.set(0.1, TAU * halton(k + 1, 11), 0)
+    const angle = 0.05 + halton(k + 1, 13),
+      clip = windClip([trunk, branch], { direction, angle, frequency: 0.5 })
+    const was = oracle([trunk, branch], direction, angle, 2)
+    clip.tracks.forEach((track, b) =>
+      track.values.forEach((value, c) =>
+        assert.ok(Object.is(value, was[b][c]), `${direction} bone ${b} value ${c}`),
+      ),
+    )
+  }
 })

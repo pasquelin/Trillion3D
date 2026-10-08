@@ -3,7 +3,9 @@
 // — a rotation and a uniform or non-uniform scale —, an object sphere whose view centre reaches the
 // field's edges, an error ε, and the worst pair (sphere point, displacement of at most ε) found by
 // sampling then climbing, per family of displacement.
-import { maxStretch } from '../math/projectionOracles.ts'
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
+import { TAU } from '../../../math/src/constants.ts'
+import { lcgImulRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 type Vec3 = number[]
 type Mat3 = number[][]
@@ -27,8 +29,7 @@ export interface DisplacementCase {
 
 /** A seeded draw: a 32-bit linear congruential sequence, uniform, and uniform on a log scale. */
 export function draws(seed: number) {
-  let state = seed >>> 0
-  const chance = () => (state = (Math.imul(state, 1103515245) + 12345) >>> 0) / 2 ** 32
+  const chance = lcgImulRandom(seed)
   return {
     chance,
     between: (a: number, b: number) => a + (b - a) * chance(),
@@ -39,7 +40,7 @@ type Draws = ReturnType<typeof draws>
 
 const unit = ({ between }: Draws): Vec3 => {
   const z = between(-1, 1),
-    a = between(0, 2 * Math.PI),
+    a = between(0, TAU),
     r = Math.sqrt(1 - z * z)
   return [r * Math.cos(a), r * Math.sin(a), z]
 }

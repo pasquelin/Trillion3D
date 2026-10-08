@@ -3,7 +3,6 @@
  * and the only thing the scene the engine draws is built from — no glTF is parsed at runtime
  * (`../world/scene/scene.ts`).
  */
-import { EngineError } from '../../../sdk-core/src/index.ts'
 import {
   SCENE_TABLES_FILE,
   assertSceneTables,
@@ -34,23 +33,14 @@ export async function loadPreparedSceneTables(
   return { tables: { ...file, partition }, bytes: body.byteLength }
 }
 
-/** The geometry layout of the document a session draws — `source.gltf`, or the autonomous scene —
- *  or a named refusal: a cache that lays out another document cannot be drawn half way. */
-function tableDocument(tables: PreparedSceneTables, sceneFile: string) {
-  const document = tables.documents[sceneFile]
-  if (!document)
-    throw new EngineError('PREPARED_SCENE_MISMATCH', `the scene tables lay out no ${sceneFile}`, {
-      sceneFile,
-      documents: Object.keys(tables.documents),
-    })
-  return document
-}
+/** The published document a session draws: the one the cache's pages were cut from. */
+export const SCENE_FILE = 'source.gltf'
 
 /** The document a session draws, its address, and the binary it reads — `null` when it lays out
  *  no view: the one place the scene build and a load's plan both find that binary. */
-export function sceneDocument(tables: PreparedSceneTables, sceneFile: string, base: string) {
-  const document = tableDocument(tables, sceneFile)
-  const documentUrl = new URL(sceneFile, base).href
+export function sceneDocument(tables: PreparedSceneTables, base: string) {
+  const document = tables.document
+  const documentUrl = new URL(SCENE_FILE, base).href
   const bufferUrl = document.views.length ? new URL(document.buffer, documentUrl).href : null
   return { document, documentUrl, bufferUrl }
 }

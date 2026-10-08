@@ -2,9 +2,9 @@
 // timestamps, and says how long its fixed work took. `machine.ts` turns the times into rates.
 import type { BenchGpu } from './device.ts'
 import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from './machineWgsl.ts'
+import { MIB } from '../../packages/math/src/constants.ts'
 import { readBack } from './readBack.ts'
 
-const MIB = 1 << 20
 /** A buffer a kernel streams: 128 MiB, the storage binding every device grants. */
 export const STREAM_BYTES = 128 * MIB
 /** A texture a kernel streams: 4096 × 4096 of `rgba16float`, 128 MiB. */

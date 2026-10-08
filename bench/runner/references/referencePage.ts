@@ -16,7 +16,7 @@ export type ReferenceViewResult =
   | { error: string }
   | { supersampling: number; approximations: readonly string[]; settleFrames: number }
 
-type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.BackendFactory | undefined>
+type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
 
 export async function referenceView(options: MeasureViewOptions): Promise<ReferenceViewResult> {
   const sdk = (await import(options.sdkUrl)) as SdkNamespace
@@ -33,7 +33,7 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
   const lost: string[] = (globalThis.gpuIncidents = [])
   const explorer = await sdk.openMeasuredWorld(canvas, {
     onDiagnostic: measure.collecteDiagnostics(lost).onDiagnostic,
-    ...explorerPage.explorerOptions(options, factory, null),
+    ...explorerPage.explorerOptions(options, factory),
     reference: true,
   })
   const reference = explorer.reference,

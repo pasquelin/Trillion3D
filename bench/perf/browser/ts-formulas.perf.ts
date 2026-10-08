@@ -2,11 +2,11 @@
 import {
   DEFAULT_PIXEL_RATIO,
   devicePixels,
-} from '../../../packages/sdk-browser/src/backend/common.ts'
+} from '../../../packages/sdk-browser/src/engine/common.ts'
 import { frustumExcludesBox } from '../../../packages/sdk-core/src/index.ts'
 import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts'
+import { signedArea } from '../../oracles/browser/cpu-image/projection.ts'
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import { modelFloor } from '../../runner/trajectory/poses.ts'
 import { measure, parElement, stress, rapport } from '../../core/index.ts'
@@ -29,7 +29,7 @@ type Triangle = (typeof triangles)[number]
 
 const resPlanes = await measure({
   name: 'box outside the six planes',
-  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+  fichier: 'packages/math/src/geometry/frustum/box.ts',
   cas: single('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calculation: parElement((c: (typeof casPlans)[number]) =>
     frustumExcludesBox(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),
@@ -43,7 +43,7 @@ const resPlanes = await measure({
 
 const resArea = await measure({
   name: 'signed screen-triangle area',
-  fichier: 'packages/sdk-browser/src/visibility/projection.ts',
+  fichier: 'bench/oracles/browser/cpu-image/projection.ts',
   cas: single('3 000 hostile triangles', triangles, triangles.length),
   calculation: parElement((t: Triangle) => signedArea(t.a, t.b, t.c)),
   expected: (list) => list.map((t) => referenceSignedArea(t.a, t.b, t.c)),
@@ -61,7 +61,7 @@ const resRow = await measure({
 
 const resPixels = await measure({
   name: 'device pixels from logical size',
-  fichier: 'packages/sdk-browser/src/backend/common.ts',
+  fichier: 'packages/sdk-browser/src/engine/common.ts',
   cas: single('2 000 sizes and ratios', tailles, tailles.length),
   calculation: parElement((t: (typeof tailles)[number]) => devicePixels(t.logical, t.ratio)),
   expected: (list) =>

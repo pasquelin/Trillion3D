@@ -78,7 +78,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
         seen[slot] = revision
         const { pages } = atlas
         const was = slotSampled(pages, slot)
-        if (!pages.setSampling(slot, texture, source.kind !== 'host')) continue
+        if (!pages.setSampling(slot, texture)) continue
         result |= HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED)
         moved?.add(slot)
       }

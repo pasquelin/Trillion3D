@@ -1,4 +1,4 @@
-// Shared-formula batch: nanosecondsToMs, factored out of 4 copies (WebGPU and WebGL2 timers).
+// Shared-formula batch: nanosecondsToMs, factored out of the GPU timers' copies.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { nanosecondsToMs } from './types.ts'

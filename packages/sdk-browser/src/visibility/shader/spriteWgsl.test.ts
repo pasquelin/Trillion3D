@@ -1,9 +1,8 @@
-// A sprite is a picture that always faces the camera. The real
-// text of both shaders and its CPU twin turn its quad toward the image, and every raster that
-// draws a sprite reads that one text.
+// #364: a sprite is a picture that always faces the camera. The real shader text and its CPU twin
+// turn its quad toward the image, and every raster that draws a sprite reads that one text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SPRITE_GLSL, SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
+import { SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -16,6 +15,8 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { MaterialParameters } from '../../../../sdk-core/src/world/material/material.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The engine camera at `eye`, looking at the origin: 55° of field on a square image. */
 function camera(eye: number[]) {
@@ -41,7 +42,7 @@ function place(at: number[], turn: number, scale: number[]) {
   return m.elements
 }
 
-const RUNS = { wgsl: runShaderText(SPRITE_WGSL), glsl: runShaderText(SPRITE_GLSL) }
+const run = runShaderText(wgslSource(SPRITE_WGSL))
 const CASES = [
   { eye: [0, 0, 6], at: [0.4, -0.2, 1], turn: 0, scale: [1, 1, 1], rotation: 0, attenuate: true },
   { eye: [7, 2, 0], at: [0, 1, 0], turn: 1.1, scale: [3, 1.5, 1], rotation: 0.7, attenuate: true },
@@ -55,25 +56,24 @@ const CASES = [
   },
 ]
 
-// The WGSL text, the GLSL text and the CPU twin are one formula: the same corner, in every case.
-for (const [language, run] of Object.entries(RUNS))
-  test(`${language}: the shader text turns a corner where the CPU twin does`, () => {
-    for (const c of CASES) {
-      const toClip = camera(c.eye).viewProjection,
-        world = place(c.at, c.turn, c.scale)
-      const sprite = { rotation: c.rotation, sizeAttenuation: c.attenuate }
-      for (const [x, y] of [
-        [0.5, 0.5],
-        [-0.5, 0.25],
-        [0, 0],
-      ]) {
-        const cpu = spriteAt(new Float64Array(4), toClip, world, x, y, sprite)
-        const words = [c.rotation, c.attenuate ? 1 : -1]
-        const text = run(columns(toClip), columns(world), [x, y], words)
-        for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - text[i]) < 1e-9, `${x},${y} ${i}`)
-      }
+// The WGSL text and the CPU twin are one formula: the same corner, in every case.
+test('the shader text turns a corner where the CPU twin does', () => {
+  for (const c of CASES) {
+    const toClip = camera(c.eye).viewProjection,
+      world = place(c.at, c.turn, c.scale)
+    const sprite = { rotation: c.rotation, sizeAttenuation: c.attenuate }
+    for (const [x, y] of [
+      [0.5, 0.5],
+      [-0.5, 0.25],
+      [0, 0],
+    ]) {
+      const cpu = spriteAt(new Float64Array(4), toClip, world, x, y, sprite)
+      const words = [c.rotation, c.attenuate ? 1 : -1]
+      const text = run(columns(toClip), columns(world), [x, y], words)
+      for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - text[i]) < 1e-9, `${x},${y} ${i}`)
     }
-  })
+  }
+})
 
 // The corner lies in the image plane at its origin's depth, as far from it on screen as the
 // projection of its view-space origin plus the corner offset puts it, whatever the sprite's turn.
@@ -131,7 +131,7 @@ function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   return ids.filter((id) => id !== 0).length
 }
 
-// One sprite seen from the front, the side and behind covers the same pixel
+// The issue's fixture: one sprite seen from the front, the side and behind covers the same pixel
 // count, within 1 %; a sprite whose object is turned too, since its turn is not read.
 test('one sprite seen from the front, the side and behind covers the same pixels', () => {
   const front = covered([0, 0, 5])
@@ -140,12 +140,12 @@ test('one sprite seen from the front, the side and behind covers the same pixels
     [[5, 0, 0], 0],
     [[0, 0, -5], 0],
     [[0, 5, 0.001], 0],
-    [[0, 0, 5], Math.PI / 2],
+    [[0, 0, 5], HALF_PI],
   ] as const) {
     const seen = covered([...eye], turn)
     assert.ok(Math.abs(seen - front) <= front * 0.01, `${eye} turned ${turn}: ${seen} ≠ ${front}`)
   }
   // A quarter turn of the picture changes nothing to a square's coverage; half its scale does.
-  const turned = covered([5, 0, 0], 0, { rotation: Math.PI / 2 })
+  const turned = covered([5, 0, 0], 0, { rotation: HALF_PI })
   assert.ok(Math.abs(turned - front) <= front * 0.01)
 })

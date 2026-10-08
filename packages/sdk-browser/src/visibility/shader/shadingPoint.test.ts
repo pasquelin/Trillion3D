@@ -1,14 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { cross, subtract } from '../../../../sdk-core/src/math/primitives/vectorTuple.ts'
+import { cross, subtract } from '../../../../math/src/vector/vectorTuple.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { random as seeded } from '../../page/cut/cutRuleChecks.fixture.ts'
 
 type V = number[]
 const { shadingPointOffset } = shaderRun<{
   shadingPointOffset: (...vectors: V[]) => V
-}>(SHADING_POINT_WGSL, ['shadingPointOffset'], {})
+}>(SHADING_POINT_WGSL, ['shadingPointOffset', 'faceNormal'], {})
 const dot = (a: V, b: V) => a.reduce((v, x, i) => v + x * b[i], 0)
 const unit = (a: V) => a.map((x) => x / Math.hypot(...a))
 

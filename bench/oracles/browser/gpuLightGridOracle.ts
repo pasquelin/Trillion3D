@@ -18,7 +18,6 @@ export type TileView = {
   depthRows: ArrayLike<number>
 }
 export type Plane = { n: Vec3; w: number }
-export type Box = { lo: Vec3; hi: Vec3 }
 /** The grid's cell side in pixels, its slices, and its slices per doubling of the view depth. */
 export type Grid = { cell: number; slices: number; perOctave: number }
 export const GRID: Grid = {
@@ -91,11 +90,6 @@ export function cellColumn(view: TileView, cell: [number, number], grid = GRID) 
 
 const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
   f(dot(plane.n, centre) + plane.w) < -radius
-
-export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
-  const clamped = map((a) => Math.max(f(box.lo[a] - centre[a]), f(centre[a] - box.hi[a]), 0))
-  return dot(clamped, clamped) <= f(radius * radius)
-}
 
 /** `sphereInColumn`: not wholly behind any of the column's planes. */
 export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) =>

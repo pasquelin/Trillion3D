@@ -1,6 +1,8 @@
 import { closestSegmentTriangle, triangleNormal } from './closest.ts'
 import { gatherTrianglesInBox, overlapsTriangle } from './triangleQuery.ts'
 import type { TriangleTree } from './triangleTree.ts'
+import { boxEmpty, boxExpandByPoint, boxGrow } from '../../../math/src/geometry/box.ts'
+import { dotVector3, normalizeVector3, scaleVector3 } from '../../../math/src/vector/vector.ts'
 
 /**
  * AN UPRIGHT CAPSULE against a triangle tree: the narrow phase of the character body. The
@@ -50,12 +52,19 @@ const segment = new Float64Array(6),
     point: closest.subarray(3),
     depth: 0,
   },
-  min = new Float64Array(3),
-  max = new Float64Array(3)
+  box = new Float64Array(6),
+  min = box.subarray(0, 3),
+  max = box.subarray(3)
 
 /** The triangles of the last box a capsule gathered on a tree, grown by two radii past its pass's
- *  box, and that box. */
-type Gathered = { list: Int32Array; count: number; min: Float64Array; max: Float64Array }
+ *  box, and that box, its bounds also seen as `min` and `max`. */
+type Gathered = {
+  list: Int32Array
+  count: number
+  box: Float64Array
+  min: Float64Array
+  max: Float64Array
+}
 
 /** Per tree and capsule, what it gathered last: the following passes of a step (and of the next
  *  frames, while the capsule stays inside) filter it instead of walking the tree again, and two
@@ -80,23 +89,26 @@ function placeSegment(capsule: Capsule) {
 export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsulePush) {
   const { radius } = capsule
   placeSegment(capsule)
-  for (let k = 0; k < 3; k++) {
-    min[k] = Math.min(segment[k], segment[3 + k]) - 2 * radius
-    max[k] = Math.max(segment[k], segment[3 + k]) + 2 * radius
-  }
+  boxEmpty(box, 0)
+  boxExpandByPoint(box, 0, segment[0], segment[1], segment[2])
+  boxExpandByPoint(box, 0, segment[3], segment[4], segment[5])
+  boxGrow(box, 0, box, 0, 2 * radius)
   let onTree = gathered.get(tree)
   if (!onTree) gathered.set(tree, (onTree = new WeakMap()))
   let near = onTree.get(capsule)
-  if (!near)
+  if (!near) {
+    const bounds = new Float64Array(6)
     onTree.set(
       capsule,
       (near = {
         list: new Int32Array(64),
         count: 0,
-        min: new Float64Array(3),
-        max: new Float64Array(3),
+        box: bounds,
+        min: bounds.subarray(0, 3),
+        max: bounds.subarray(3),
       }),
     )
+  }
   // Inside the gathered box (NaN never is), the list filtered by the box test is the tree's visit
   // of `[min, max]`, same triangles in the same order.
   if (!(
@@ -107,10 +119,7 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
     max[1] <= near.max[1] &&
     max[2] <= near.max[2]
   )) {
-    for (let k = 0; k < 3; k++) {
-      near.min[k] = min[k] - 2 * radius
-      near.max[k] = max[k] + 2 * radius
-    }
+    boxGrow(near.box, 0, box, 0, 2 * radius)
     near.count = gatherTrianglesInBox(tree, near.min, near.max, near)
   }
   let touched = false
@@ -132,21 +141,22 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
 }
 
 /** The segment passes near the triangle: it leaves along the line between the two closest
- *  points, by what is missing to the radius. */
+ *  points — made unit as the length rule normalises, times `1 / distance` —, by what is missing
+ *  to the radius. */
 function separate(distance: number, radius: number) {
-  for (let k = 0; k < 3; k++) normal[k] = (closest[k] - closest[3 + k]) / distance
+  const inverse = 1 / distance
+  for (let k = 0; k < 3; k++) normal[k] = (closest[k] - closest[3 + k]) * inverse
   return radius - distance
 }
 
-/** The triangle's unit normal into `contact.surface`, turned to the capsule's side. */
+/** The triangle's unit normal into `contact.surface`, turned to the capsule's side: the normal
+ *  times `±1 / length`, `length` the root of the squares `triangleNormal` sums in `length3`'s
+ *  order. A NaN length makes all three NaN, as a corrupt triangle must read. */
 function faceOf(tree: TriangleTree, at: number) {
   const face = contact.surface,
     length = Math.sqrt(triangleNormal(face, tree.triangles, at))
   if (length === 0) face.set(normal)
-  else {
-    const side = face[0] * normal[0] + face[1] * normal[1] + face[2] * normal[2] < 0 ? -1 : 1
-    for (let k = 0; k < 3; k++) face[k] *= side / length
-  }
+  else scaleVector3(face, (dotVector3(face, normal) < 0 ? -1 : 1) / length)
 }
 
 /**
@@ -155,9 +165,8 @@ function faceOf(tree: TriangleTree, at: number) {
  */
 function pierced(tree: TriangleTree, at: number, radius: number) {
   const v = tree.triangles
-  const length = Math.sqrt(triangleNormal(normal, v, at))
-  if (length === 0) return 0
-  for (let k = 0; k < 3; k++) normal[k] /= length
+  if (triangleNormal(normal, v, at) === 0) return 0
+  normalizeVector3(normal)
   const side = (s: number) =>
     (segment[s] - v[at]) * normal[0] +
     (segment[s + 1] - v[at + 1]) * normal[1] +

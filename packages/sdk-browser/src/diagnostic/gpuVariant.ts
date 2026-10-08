@@ -1,5 +1,6 @@
-import type { DiagnosticDetail } from '../backend/types.ts'
+import type { DiagnosticDetail } from '../engine/types.ts'
 import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 export type DiagnosticGpuVariant = (typeof DIAGNOSTIC_GPU_VARIANTS)[number]
 
@@ -17,9 +18,13 @@ export function resolveDiagnosticGpuVariant(
 
 /** The two diagnostic fragment stages, added to the blend module for these variants
  *  only: without a variant, production compiles exactly the previous module. */
-export const DIAGNOSTIC_BLEND_WGSL = `
+export const DIAGNOSTIC_BLEND_WGSL = wgslBlock(
+  'DIAGNOSTIC_BLEND_WGSL',
+  [],
+  `
 @fragment fn fsPlat()->BlendOut{return BlendOut(vec4f(0.5,0.5,0.5,0.5),0u,vec4f(0.0,0.0,0.0,0.5),vec4f(1.0),vec4f(0.0));}
-@fragment fn fsJete()->BlendOut{discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(1.0),vec4f(0.0));}`
+@fragment fn fsJete()->BlendOut{discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(1.0),vec4f(0.0));}`,
+)
 
 /** Fragment stage and write mask of a variant, for the blend pass. */
 export function blendVariantPipeline(variant: DiagnosticGpuVariant | undefined) {

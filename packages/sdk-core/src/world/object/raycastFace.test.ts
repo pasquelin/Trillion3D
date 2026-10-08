@@ -9,6 +9,7 @@ import { Ray } from '../math/volumes.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Box3 } from '../math/box3.ts'
 import { Object3D } from './object3d.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** A node whose own bounds are the box given: the ray hits it on a face, never on a triangle. */
 class Shell extends Object3D {
@@ -61,9 +62,7 @@ test('every face of three boxes names the face the six gaps name', () => {
         start[axe] = bord + signe * 3
         const direction = [0, 0, 0]
         direction[axe] = -signe
-        const entree = start.map((v, k) =>
-          Math.min(box.max.elements[k], Math.max(box.min.elements[k], v)),
-        )
+        const entree = start.map((v, k) => clamp(v, box.min.elements[k], box.max.elements[k]))
         const expected = expectedFace(box, new Vector3(...(entree as [number, number, number])))
         const [touch] = raycast(
           new Shell(box),

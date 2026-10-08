@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, selectVisiblePages, type PageRec } from '../selection/selection.ts'
+import { collectClusterPages, type PageRec } from '../selection/selection.ts'
+import { createSelectionResult, selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from './held.ts'
-import { createSelectionResult } from './state.ts'
+import { createHeldResidency } from './held.fixture.ts'
 
 const ASK = {
   pixelError: 0,
@@ -62,7 +62,7 @@ for (const [name, cam] of [
     assert.deepEqual(hierarchical.wanted, flat.wanted, 'same requested clusters')
   })
 
-test('a node accepted as a block only shows clusters under the threshold (monotonicity)', () => {
+test('the hierarchical cut only shows clusters under the threshold (monotonicity)', () => {
   const fixture = hierarchicalFixture()
   const roots = rootsOf(fixture)
   for (const pixelError of [0, 0.01, 0.02, 0.1, 0.2, 1]) {
@@ -71,7 +71,7 @@ test('a node accepted as a block only shows clusters under the threshold (monoto
       if (cluster.lodError !== undefined)
         assert.ok(
           cluster.lodError <= pixelError,
-          `${cluster.url}: error ${cluster.lodError} accepted above threshold ${pixelError}`,
+          `${cluster.url}: error ${cluster.lodError} shown above threshold ${pixelError}`,
         )
   }
   fixture.geometry.dispose()

@@ -32,11 +32,10 @@ function runtimeOver(
 }
 
 // Synchronous-triangles lot: `drawnTriangles` is copied as-is from `run.drawnTriangles`, without
-// the `pending` guard (`gpuFrameActive && !gpuMetricsReady`) that hides `submittedTriangles` — it
+// the `pending` guard (`!gpuMetricsReady`) that hides `submittedTriangles` — it
 // never waited for a GPU readback, so never `null` for lack of time where a cut exists.
 test('metricsOf publishes drawnTriangles from run.drawnTriangles, even when submittedTriangles is still pending', () => {
   const run = createWebgpuRunState()
-  run.gpuFrameActive = true
   run.gpuMetricsReady = false // An image still in flight: submittedTriangles must be null.
   run.drawnTriangles = 4321
   const rt = runtimeOver(run)

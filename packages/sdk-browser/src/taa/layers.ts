@@ -38,7 +38,7 @@ const PARTS = {
 } satisfies Record<string, Part>
 
 /** The text of `part` for both layers in a `filtered` resolve; nothing in the others. */
-export const layerWgsl = (filtered: boolean, part: keyof typeof PARTS) =>
+export const layerText = (filtered: boolean, part: keyof typeof PARTS) =>
   filtered ? LAYERS.map(([n, now, past]) => (PARTS[part] as Part)(n, now, past)).join('') : ''
 
 /** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
@@ -49,7 +49,7 @@ export const layerWgsl = (filtered: boolean, part: keyof typeof PARTS) =>
 export const taaOut = (asIs: boolean, filtered: boolean, mixed = false, still = false) => {
   const mix = (now: string, kept: string) => (mixed ? `(${now}*wc+${kept}*wh)/(wc+wh)` : now)
   const held = still ? stillWeightOut('count') : '0.0'
-  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},${held},historyCount/16.0),geometry,moire${layerWgsl(filtered, mixed ? 'mixed' : 'out')})`
+  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},${held},historyCount/16.0),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
 }
 
 /**

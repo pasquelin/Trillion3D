@@ -6,6 +6,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../host/graph/kinds.ts'
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts'
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -42,121 +43,154 @@ const sameKeys = (last: SceneLight, next: SceneLight) => {
  * whether it moved a light. Until that walk, a pose write asks the moved subtree itself.
  */
 export function createWorldLights(scene: Object3D) {
-  const stored = new Map<Light, { id: string; record: SceneLight }>()
-  const bounds = new Box3()
-  /** Every light of the scene and every node above one, as the last walk found them. */
-  const holders = new Set<Object3D>()
-  /** Each holder's held children, in its order. */
-  const below = new Map<Object3D, Object3D[]>()
-  /** A sync's scratch, kept so it allocates none: the lights it shows, in the scene's order, and
-   *  what they give from every direction — handed to the store, which copies it. */
-  const shown = new Set<Light>(),
-    sh = emptyIrradiance()
-  let next = 1,
-    boundsStale = true,
-    indexed = false,
-    held = 0,
-    surrounding = false
-  const reach = (at: Vector3) => {
-    if (boundsStale) bounds.setFromObject(scene)
-    boundsStale = false
-    const { min, max } = bounds
-    const dx = Math.max(Math.abs(min.x - at.x), Math.abs(max.x - at.x)),
-      dy = Math.max(Math.abs(min.y - at.y), Math.abs(max.y - at.y)),
-      dz = Math.max(Math.abs(min.z - at.z), Math.abs(max.z - at.z))
-    const far = Math.sqrt(dx * dx + dy * dy + dz * dz)
-    return Number.isFinite(far) && far > 0 ? far : 1
+  const state: LightsState = {
+    scene,
+    stored: new Map(),
+    bounds: new Box3(),
+    holders: new Set(),
+    below: new Map(),
+    shown: new Set(),
+    sh: emptyIrradiance(),
+    next: 1,
+    boundsStale: true,
+    indexed: false,
+    held: 0,
+    surrounding: false,
   }
-  /** Whether `node` holds a light; if so it is kept, and its held children listed in order. */
-  const index = (node: Object3D): boolean => {
-    let holds = isLightNode(node)
-    for (const child of node.children) {
-      if (!index(child)) continue
-      holds = true
-      const list = below.get(node)
-      if (list) list.push(child)
-      else below.set(node, [child])
-    }
-    if (holds) holders.add(node)
-    return holds
-  }
-  /** The lights under `node`, in order: each counted, a shown one kept with what it gives from
-   *  every direction. A light lights while it and every node above it are visible, as a mesh is
-   *  drawn; a hidden one is still held, so showing it again relights. */
-  const visit = (node: Object3D, lit: boolean) => {
-    for (const child of below.get(node) ?? NONE) {
-      const showing = lit && child.visible
-      if (isLightNode(child)) {
-        held++
-        if (showing) shown.add(child)
-        if (showing && addLightIrradiance(child, sh)) surrounding = true
-      }
-      visit(child, showing)
-    }
-  }
-  const drop = (api: LightApi, light: Light, id: string) => {
-    api.removeLight(id)
-    stored.delete(light)
-  }
+  const reachOf = (at: Vector3) => reach(state, at)
   return {
     /** The session changed: its store starts empty. */
     reset() {
-      stored.clear()
-      boundsStale = true
+      state.stored.clear()
+      state.boundsStale = true
     },
     /** Something that may hold content moved or changed: the extent is measured again. */
     boundsMoved() {
-      boundsStale = true
+      state.boundsStale = true
     },
     /** A parent's children changed: the holders are let go — the next sync walks the scene for
      *  its lights — and the extent is measured again. */
     structure() {
-      if (indexed) {
-        holders.clear()
-        below.clear()
-        indexed = false
+      if (state.indexed) {
+        state.holders.clear()
+        state.below.clear()
+        state.indexed = false
       }
-      boundsStale = true
+      state.boundsStale = true
     },
     /** How many lights the scene held at the last sync. */
     get held() {
-      return held
+      return state.held
     },
     /** True when moving `node` moves a light. */
-    holds: (node: Object3D) => (indexed ? holders.has(node) : lightsUnder(node)),
-    /** Writes the lamps into the store and returns what every other light gives from every
-     *  direction — ambient, sky over ground, probe — as the environment's irradiance, or
-     *  undefined when none gives any. The coefficients are the next sync's to write again. */
-    sync(api: LightApi): number[] | undefined {
-      if (!indexed) {
-        index(scene)
-        indexed = true
-      }
-      shown.clear()
-      sh.fill(0)
-      surrounding = false
-      held = 0
-      visit(scene, scene.visible)
-      for (const [light, { id }] of stored) if (!shown.has(light)) drop(api, light, id)
-      for (const light of shown) {
-        const last = stored.get(light)
-        const id = last?.id ?? `world-light-${next++}`
-        const record = lampRecord(light, id, reach)
-        if (!record) {
-          if (last) drop(api, light, id)
-          continue
-        }
-        if (last && sameSceneLight(last.record, record)) continue
-        // A lamp keeping its members is written in its slot; one gaining or losing one is
-        // written anew, so no member of its former record survives.
-        if (last && sameKeys(last.record, record)) api.setLight(id, record)
-        else {
-          if (last) api.removeLight(id)
-          api.addLight(record)
-        }
-        stored.set(light, { id, record })
-      }
-      return surrounding ? sh : undefined
-    },
+    holds: (node: Object3D) => (state.indexed ? state.holders.has(node) : lightsUnder(node)),
+    sync: (api: LightApi) => sync(state, api, reachOf),
   }
+}
+
+/** What a world's lights hold between syncs (`createWorldLights`). */
+type LightsState = {
+  scene: Object3D
+  stored: Map<Light, { id: string; record: SceneLight }>
+  bounds: Box3
+  /** Every light of the scene and every node above one, as the last walk found them. */
+  holders: Set<Object3D>
+  /** Each holder's held children, in its order. */
+  below: Map<Object3D, Object3D[]>
+  /** A sync's scratch, kept so it allocates none: the lights it shows, in the scene's order, and
+   *  what they give from every direction — handed to the store, which copies it. */
+  shown: Set<Light>
+  sh: number[]
+  next: number
+  boundsStale: boolean
+  indexed: boolean
+  held: number
+  surrounding: boolean
+}
+
+/** How far a lamp the page left unbounded reaches from `at`: the farthest corner of the scene. */
+function reach(state: LightsState, at: Vector3) {
+  const { bounds } = state
+  if (state.boundsStale) bounds.setFromObject(state.scene)
+  state.boundsStale = false
+  const { min, max } = bounds
+  const dx = Math.max(Math.abs(min.x - at.x), Math.abs(max.x - at.x)),
+    dy = Math.max(Math.abs(min.y - at.y), Math.abs(max.y - at.y)),
+    dz = Math.max(Math.abs(min.z - at.z), Math.abs(max.z - at.z))
+  const far = length3(dx, dy, dz)
+  return Number.isFinite(far) && far > 0 ? far : 1
+}
+
+/** Whether `node` holds a light; if so it is kept, and its held children listed in order. */
+function index(state: LightsState, node: Object3D): boolean {
+  let holds = isLightNode(node)
+  for (const child of node.children) {
+    if (!index(state, child)) continue
+    holds = true
+    const list = state.below.get(node)
+    if (list) list.push(child)
+    else state.below.set(node, [child])
+  }
+  if (holds) state.holders.add(node)
+  return holds
+}
+
+/** The lights under `node`, in order: each counted, a shown one kept with what it gives from
+ *  every direction. A light lights while it and every node above it are visible, as a mesh is
+ *  drawn; a hidden one is still held, so showing it again relights. */
+function visit(state: LightsState, node: Object3D, lit: boolean) {
+  for (const child of state.below.get(node) ?? NONE) {
+    const showing = lit && child.visible
+    if (isLightNode(child)) {
+      state.held++
+      if (showing) state.shown.add(child)
+      if (showing && addLightIrradiance(child, state.sh)) state.surrounding = true
+    }
+    visit(state, child, showing)
+  }
+}
+
+function drop(state: LightsState, api: LightApi, light: Light, id: string) {
+  api.removeLight(id)
+  state.stored.delete(light)
+}
+
+/** Writes the lamps into the store and returns what every other light gives from every
+ *  direction — ambient, sky over ground, probe — as the environment's irradiance, or
+ *  undefined when none gives any. The coefficients are the next sync's to write again. */
+function sync(
+  state: LightsState,
+  api: LightApi,
+  reachOf: (at: Vector3) => number,
+): number[] | undefined {
+  const { scene, stored, shown, sh } = state
+  if (!state.indexed) {
+    index(state, scene)
+    state.indexed = true
+  }
+  shown.clear()
+  sh.fill(0)
+  state.surrounding = false
+  state.held = 0
+  visit(state, scene, scene.visible)
+  for (const [light, { id }] of stored) if (!shown.has(light)) drop(state, api, light, id)
+  for (const light of shown) {
+    const last = stored.get(light)
+    const id = last?.id ?? `world-light-${state.next++}`
+    const record = lampRecord(light, id, reachOf)
+    if (!record) {
+      if (last) drop(state, api, light, id)
+      continue
+    }
+    if (last && sameSceneLight(last.record, record)) continue
+    // A lamp keeping its members is written in its slot; one gaining or losing one is
+    // written anew, so no member of its former record survives.
+    if (last && sameKeys(last.record, record)) api.setLight(id, record)
+    else {
+      if (last) api.removeLight(id)
+      api.addLight(record)
+    }
+    stored.set(light, { id, record })
+  }
+  return state.surrounding ? sh : undefined
 }

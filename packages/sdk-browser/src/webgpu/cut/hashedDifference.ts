@@ -3,8 +3,8 @@ import { mapRawRanks, type HeldList } from './heldList.ts'
 
 /**
  * The difference of a list named by its ids alone: every id through the marks, then every id held
- * before. It is the CPU cut's — its lists carry no rank of the list before, so membership is all
- * it can read — and the first GPU list's, which no snapshot before it names
+ * before. It is a view drawn aside's — its readbacks carry no rank of the list before, so
+ * membership is all it can read — and the first readback's, which no snapshot before it names
  * (`./claimedDifference.ts` reads the ranks the next ones claim).
  *
  * A new epoch marks the next list: an id read back at it is a repeat, one read back at the epoch

@@ -1,9 +1,11 @@
 import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../math/src/wgsl/constants.ts'
 
-/** Bytes of one bloom uniform slot, and the stride between slots: dynamic offsets align on 256. */
+/** Bytes of one bloom uniform slot; slots lie the device's `uniformStride` apart, the alignment
+ *  of their dynamic offsets. */
 export const BLOOM_UNIFORM_BYTES = 32
-export const BLOOM_UNIFORM_STRIDE = 256
 
 /** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
 export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
@@ -23,7 +25,11 @@ export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
  * by at most 2 · 2^-bits times the largest step between neighbouring texels the taps read. The
  * derivation, its proof and that bound are `bloomTent.test.ts`'s.
  */
-export const bloomLevelWgsl = (group: number) => `
+export const bloomLevelWgsl = (group: number) =>
+  wgslBlock(
+    `bloomLevelWgsl(${group})`,
+    [],
+    `
 struct Bloom{outTexel:vec2f,inTexel:vec2f,radius:f32,keep:f32,glow:f32,unused:f32,}
 @group(${group}) @binding(0) var level:texture_2d<f32>;
 @group(${group}) @binding(1) var linearClamp:sampler;
@@ -40,7 +46,8 @@ return (fetchLevel(a)*(wa.x*wa.y)+fetchLevel(vec2f(b.x,a.y))*(wb.x*wa.y)
 +fetchLevel(vec2f(a.x,b.y))*(wa.x*wb.y)+fetchLevel(b)*(wb.x*wb.y))*0.0625;
 }
 fn tent(uv:vec2f)->vec4f{if(bloom.radius!=1.0){return tent9(uv);}return tent4(uv);}
-fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`
+fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`,
+  )
 
 /**
  * The last blend as the composition reads it, group 1 beside the composition's own: the
@@ -52,9 +59,12 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
  * and a NaN stays a NaN. Those edges hold on IEEE arithmetic, as the target's own store did: WGSL
  * lets a compiler assume no infinity nor NaN, and then neither path is defined.
  */
-export const BLOOM_COMPOSE_WGSL = `${bloomLevelWgsl(1)}
-fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(65520.0);
-return select(v*3.4e38,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-65504.0),vec4f(65504.0))),held);}`
+export const BLOOM_COMPOSE_WGSL = wgslBlock(
+  'BLOOM_COMPOSE_WGSL',
+  [bloomLevelWgsl(1), FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW],
+  `fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(HALF_OVERFLOW);
+return select(v*FINITE_SENTINEL,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-HALF_MAX),vec4f(HALF_MAX))),held);}`,
+)
 
 /** The layout of a level's group, one per device: the bloom's passes and the composition that
  *  blends its last level in bind the same groups. */

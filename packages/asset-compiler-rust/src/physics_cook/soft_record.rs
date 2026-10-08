@@ -6,7 +6,8 @@
 use super::SOFT_VERTEX_WORDS as W;
 use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
-use crate::shared_math::{cross, length, sub};
+use trillion3d_math::triangle::triangle_area;
+use trillion3d_math::vec3::{length, sub};
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
 /// `SOFT_LINEAR_DENSITY`).
@@ -143,7 +144,7 @@ fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64
     }
     for t in indices.as_chunks::<3>().0 {
         let [a, b, c] = t.map(|corner| corner as usize);
-        let area = length(cross(d(vertices, a, b), d(vertices, a, c))) / 2.0;
+        let area = triangle_area(at(vertices, a), at(vertices, b), at(vertices, c));
         whole += share(vertices, &[a, b, c], area);
     }
     // Also refuses a NaN whole, as the page does.

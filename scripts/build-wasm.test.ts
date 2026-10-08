@@ -1,4 +1,4 @@
-// `verifieJeuInstructions` rejects any module that does not carry `simd128`, or that carries a
+// `checkInstructionSet` rejects any module that does not carry `simd128`, or that carries a
 // "relaxed" feature — the only WebAssembly instruction family with non-guaranteed rounding, which would break
 // bit-for-bit equality of `packages/page-codec-wasm/src/math.rs` kernels. Each case is a minimal dummy
 // WebAssembly module (header + custom `target_features` section), without going through
@@ -8,43 +8,43 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { verifieJeuInstructions } from './build-wasm.ts'
+import { checkInstructionSet } from './build-wasm.ts'
 
 /** An unsigned integer in LEB128, as required by WebAssembly binary format lengths. */
 function leb128(n: number): number[] {
-  const octets: number[] = []
+  const bytes: number[] = []
   do {
-    let octet = n & 0x7f
+    let byte = n & 0x7f
     n >>>= 7
-    if (n) octet |= 0x80
-    octets.push(octet)
+    if (n) byte |= 0x80
+    bytes.push(byte)
   } while (n)
-  return octets
+  return bytes
 }
 
 /**
  * A minimal valid WebAssembly module — header only — carrying a single custom section
- * `target_features` whose content is the given text: exactly what `verifieJeuInstructions` reads,
+ * `target_features` whose content is the given text: exactly what `checkInstructionSet` reads,
  * without depending on a real capability encoding.
  */
-function moduleFactice(texteCapacites: string): Buffer {
-  const entete = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]
-  const nom = Buffer.from('target_features', 'utf8')
-  const charge = Buffer.from(texteCapacites, 'latin1')
-  const corps = [...leb128(nom.length), ...nom, ...charge]
-  return Buffer.from([...entete, 0x00, ...leb128(corps.length), ...corps])
+function fakeModule(features: string): Buffer {
+  const header = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]
+  const name = Buffer.from('target_features', 'utf8')
+  const payload = Buffer.from(features, 'latin1')
+  const body = [...leb128(name.length), ...name, ...payload]
+  return Buffer.from([...header, 0x00, ...leb128(body.length), ...body])
 }
 
-function fichierFactice(dir: string, texteCapacites: string): string {
-  const chemin = join(dir, 'factice.wasm')
-  writeFileSync(chemin, moduleFactice(texteCapacites))
-  return chemin
+function fakeFile(dir: string, features: string): string {
+  const path = join(dir, 'fake.wasm')
+  writeFileSync(path, fakeModule(features))
+  return path
 }
 
 test('a module with simd128 and without relaxed feature is accepted', () => {
   const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'))
   try {
-    assert.doesNotThrow(() => verifieJeuInstructions(fichierFactice(dir, '+simd128')))
+    assert.doesNotThrow(() => checkInstructionSet(fakeFile(dir, '+simd128')))
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -53,10 +53,7 @@ test('a module with simd128 and without relaxed feature is accepted', () => {
 test('a module without simd128 is rejected', () => {
   const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'))
   try {
-    assert.throws(
-      () => verifieJeuInstructions(fichierFactice(dir, '+multivalue')),
-      /simd128 missing/,
-    )
+    assert.throws(() => checkInstructionSet(fakeFile(dir, '+multivalue')), /simd128 missing/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -66,7 +63,7 @@ test('a module carrying relaxed-simd is rejected even with simd128', () => {
   const dir = mkdtempSync(join(tmpdir(), 'trillion3d-build-wasm-'))
   try {
     assert.throws(
-      () => verifieJeuInstructions(fichierFactice(dir, '+simd128+relaxed-simd')),
+      () => checkInstructionSet(fakeFile(dir, '+simd128+relaxed-simd')),
       /"relaxed" capability present/,
     )
   } finally {
@@ -77,5 +74,5 @@ test('a module carrying relaxed-simd is rejected even with simd128', () => {
 test('importing the script does not run compilation', () => {
   // If `main()` ran on import, this test would fail long before reaching here: `cargo`
   // is not guaranteed to be installed on the machine running `pnpm test`.
-  assert.equal(typeof verifieJeuInstructions, 'function')
+  assert.equal(typeof checkInstructionSet, 'function')
 })

@@ -47,7 +47,7 @@ test('a core over its gzip budget fails the gate and says by how much it weighs'
   try {
     const { bytes, fits, line } = coreSize(dist)
     assert.ok(fits)
-    assert.match(line, /; webgpu, webgl2, physics, particles, transmission, deformation, effects, /)
+    assert.match(line, /; webgpu, physics, particles, transmission, deformation, effects, /)
     const over = coreSize(dist, bytes - 1)
     assert.equal(over.fits, false)
     assert.match(over.line, new RegExp(`${bytes} bytes gzip in 4 files, OVER its budget`))
@@ -57,15 +57,15 @@ test('a core over its gzip budget fails the gate and says by how much it weighs'
 })
 
 test('each family module is a chunk of its own: one the core holds fails the gate by name', () => {
-  // WebGL2 imported statically, and WebGPU folded in: no chunk of its own.
-  const [webgpu, webgl2] = familyChunks
+  // Physics imported statically, and WebGPU folded in: no chunk of its own.
+  const [webgpu, physics] = familyChunks
   const rest = Object.entries(files).filter(([name]) => name !== webgpu)
-  const entry = `import"./${webgl2}";${files['trillion3d.module.js']}`
+  const entry = `import"./${physics}";${files['trillion3d.module.js']}`
   const dist = bundle({ ...Object.fromEntries(rest), 'trillion3d.module.js': entry })
   try {
     const { fits, line } = coreSize(dist)
     assert.equal(fits, false)
-    assert.match(line, /holds webgpu \(webgpuCode\), webgl2 \(webglCode\), to be loaded/)
+    assert.match(line, /holds webgpu \(webgpuCode\), physics \(session\), to be loaded/)
   } finally {
     rmSync(dist, { recursive: true, force: true })
   }
@@ -83,7 +83,7 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
           ...sources,
         },
         'trillion3d-chunk-A.js': { 'sdk-core/src/math/vec.js': 400 },
-        [familyChunks[0]]: { 'sdk-browser/src/measurement/comparison.js': 700 },
+        [familyChunks[0]]: { 'sdk-browser/src/measurement/measurementCode.js': 700 },
       }),
     })
   const clean = held({})
@@ -101,10 +101,8 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     rmSync(clean, { recursive: true, force: true })
   }
   for (const source of [
-    'sdk-browser/src/measurement/comparison.js',
-    'sdk-browser/src/host/scene/graphDiagnostic.js',
+    'sdk-browser/src/measurement/measurementCode.js',
     'sdk-browser/src/webgpu/pages/pages.js',
-    'sdk-browser/src/backend/autonomous/pages.js',
     'sdk-browser/src/gpu/shadow/atlas.js',
     'sdk-browser/src/webgpu/shadow/pageRequests.js',
     'sdk-browser/src/webgpu/shadow/allocWgsl.js',

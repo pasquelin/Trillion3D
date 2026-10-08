@@ -9,9 +9,15 @@
  * outputs (corner offsets, page offsets) are unitless.
  *
  * MATRICES. The matrices are the engine's: column-major, column-vector (`m[column·4 + row]`).
- * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `vsmTransformPoint` applies one to a point.
+ * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `transformAffinePoint` applies one to a point.
  */
-import { copyMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { forwardOrthographicProjection } from '../../../math/src/projection/forwardZ.ts'
+import {
+  length2,
+  normalizeVector3OrZero,
+  transformAffinePoint,
+} from '../../../math/src/vector/vector.ts'
 import {
   VSM_SUN_COARSE_FROM,
   VSM_SUN_FINEST_LEVEL,
@@ -45,40 +51,8 @@ const f32 = Math.fround
 
 // ---- Matrix helpers -------------------------------------------------------------------------------
 
-/** `M` applied to the point (x, y, z) (w = 1, no divide). */
-export function vsmTransformPoint(
-  m: ArrayLike<number>,
-  x: number,
-  y: number,
-  z: number,
-  out = new Float64Array(3),
-) {
-  for (let j = 0; j < 3; j++) out[j] = x * m[j] + y * m[4 + j] + z * m[8 + j] + m[12 + j]
-  return out
-}
-const transposed = new Float64Array(16)
-/** The transpose of `m`, into `out` (`m` may be `out`). */
-function transposeInto(out: Float64Array, m: ArrayLike<number>) {
-  copyMatrix4(transposed, m)
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) out[r * 4 + c] = transposed[c * 4 + r]
-  return out
-}
-/** The normalised vector (a tiny vector gives zero), into `out`. */
-export function vsmNormalizeOrZero(
-  v: ArrayLike<number>,
-  out: [number, number, number] = [0, 0, 0],
-): [number, number, number] {
-  const sq = v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
-  if (sq < 1e-8) out[0] = out[1] = out[2] = 0
-  else {
-    // At sq = 1, s = 1 and v · s = v: an early return gives the same values.
-    const s = 1 / Math.sqrt(sq)
-    out[0] = v[0] * s
-    out[1] = v[1] * s
-    out[2] = v[2] * s
-  }
-  return out
-}
+/** The squared length below which a light direction counts as none: it normalises to zero. */
+export const VSM_MIN_DIRECTION_SQ = 1e-8
 /**
  * The world-to-light rotation of the unit direction `d`: the one that takes `d` to +X, without
  * roll. Its rows are the light's axes in the world: `d`; the horizontal axis (−d.y, d.x, 0)/h,
@@ -91,7 +65,7 @@ export function vsmWorldToLightRotation(out: Float64Array, d: ArrayLike<number>)
   const x = d[0],
     y = d[1],
     z = d[2]
-  const h = Math.sqrt(x * x + y * y)
+  const h = length2(x, y)
   // (cx, cy): the direction's horizontal part made unit, (1, 0) for a vertical `d`.
   let cx = 1,
     cy = 0
@@ -115,22 +89,6 @@ export function vsmWorldToLightRotation(out: Float64Array, d: ArrayLike<number>)
 }
 /** The face matrix: light +X becomes view +Z. */
 export const VSM_FACE_MATRIX = new Float64Array([0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 1])
-/** The reversed-Z orthographic matrix of (width, height, zScale, zOffset). */
-function vsmReversedZOrthoMatrix(
-  out: Float64Array,
-  width: number,
-  height: number,
-  zScale: number,
-  zOffset: number,
-) {
-  out.fill(0)
-  out[0] = width !== 0 ? 1 / width : 1
-  out[5] = height !== 0 ? 1 / height : 1
-  out[10] = -zScale
-  out[14] = 1 - zOffset * zScale
-  out[15] = 1
-  return out
-}
 
 // ---- Inputs ------------------------------------------------------------------------------------
 
@@ -284,10 +242,10 @@ export function createVsmClipmap(
   movingShare: number,
 ): VsmClipmap {
   const config = GLOBAL_CONFIG
-  const lightDirection = vsmNormalizeOrZero(light.direction, direction)
+  const lightDirection = normalizeVector3OrZero(direction, light.direction, VSM_MIN_DIRECTION_SQ)
   vsmWorldToLightRotation(worldToLightRotation, lightDirection)
   multiplyMatrix4(worldToLightView, VSM_FACE_MATRIX, worldToLightRotation)
-  transposeInto(viewToWorldRotation, worldToLightView)
+  transposeMatrix4(viewToWorldRotation, worldToLightView)
 
   // Perspective or not, from the camera's own kind rather than M[3][3] < 1.
   const p = camera.projection
@@ -342,7 +300,7 @@ export function createVsmClipmap(
   clipmap.firstLevel = firstLevel
   clipmap.levelBias = levelBias
 
-  vsmTransformPoint(worldToLightView, ox, oy, oz, lastLevelSnap)
+  transformAffinePoint(lastLevelSnap, worldToLightView, ox, oy, oz)
   {
     const lastLevelRadius = Math.trunc(vsmClipmapLevelRadiusCm(lastLevel)) // int
     const ux = Math.floor(lastLevelSnap[0] / lastLevelRadius + 0.5),
@@ -352,7 +310,7 @@ export function createVsmClipmap(
   }
 
   const depthSpanRatio = VSM_SUN_DEPTH_SPAN
-  vsmTransformPoint(worldToLightView, ox, oy, oz, eyeInLight)
+  transformAffinePoint(eyeInLight, worldToLightView, ox, oy, oz)
   const levels = clipmap.levels
   levels.length = Math.min(levels.length, levelCount)
 
@@ -370,7 +328,7 @@ export function createVsmClipmap(
     const cornerQuarters = level.cornerQuarters
     cornerQuarters[0] = -Math.trunc(csx) + LEVEL_SPAN_RADII / 2
     cornerQuarters[1] = Math.trunc(csy) + LEVEL_SPAN_RADII / 2
-    vsmTransformPoint(viewToWorldRotation, snappedX, snappedY, eyeInLight[2], swc)
+    transformAffinePoint(swc, viewToWorldRotation, snappedX, snappedY, eyeInLight[2])
 
     // The corner offset relative to the origin snapped at the last level, in whole snap steps.
     const levelX = Math.trunc(-snappedX),
@@ -393,8 +351,8 @@ export function createVsmClipmap(
     // The matrix in centimetres (cm) and its metre twin (same clip values from metres).
     const zScale = 0.5 / depthRadius
     const zOffset = depthRadius + eyeDepthShift
-    vsmReversedZOrthoMatrix(cm, halfWidthCm, halfWidthCm, zScale, zOffset)
-    const viewToClip = vsmReversedZOrthoMatrix(
+    forwardOrthographicProjection(cm, halfWidthCm, halfWidthCm, zScale, zOffset)
+    const viewToClip = forwardOrthographicProjection(
       level.viewToClip,
       halfWidthCm * VSM_UNIT_PER_CM,
       halfWidthCm * VSM_UNIT_PER_CM,

@@ -1,14 +1,13 @@
-// What a world hands the engine for a sprite — its surface, its bounds, its row — so that
+// #364: what a world hands the engine for a sprite — its surface, its bounds, its row — so that
 // every raster turns it to the camera and every culling test keeps it whichever way it turns.
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { HostMesh, HostAttributes } from '../../host/resources.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
-import { clusterMaterialReason } from '../../host/surfaceGate.ts'
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { importHostSurface } from '../../host/surfaceImport.ts'
 import { hostSide } from '../../scene/materialSide.ts'
 import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
@@ -22,7 +21,6 @@ import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { drawPasses } from '../../cluster/batchMesh.ts'
 import { blendSceneOf } from '../../webgpu/blend/plan.fixture.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
@@ -33,12 +31,6 @@ test('a sprite surface carries its turn and size rule, both sides, and a repaint
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false })
   const surface = hostSurface(picture, false, new Map(), 'sprite')
   assert.equal(surface.side, hostSide('double'), 'a quad turned to the camera has no back')
-  const drawn = drawnTriangles(object.sprite().geometry, 'sprite')!
-  const attributes = {
-    position: new BufferAttribute(drawn.positions, 3),
-    normal: new BufferAttribute(drawn.normals, 3),
-  } as unknown as HostAttributes
-  assert.equal(clusterMaterialReason(surface, attributes), undefined, 'the engine paths draw it')
   assert.deepEqual(importHostSurface(surface)?.sprite, { rotation: 0.4, sizeAttenuation: false })
   picture.rotation = 1.2
   picture.sizeAttenuation = true
@@ -103,9 +95,9 @@ test("a sprite's host mesh wears the sprite surface and is bounded by its radius
   assert.deepEqual([...boundingSphere!.center.toArray(), boundingSphere!.radius], [0, 0, 0, r])
 })
 
-// A transparent sprite drawn back then front would take two entries of the transparent plan,
-// whose per-frame ranking grows with the square of their count.
-test('a transparent sprite is drawn in one pass: one plan entry, with no cull, and one WebGL2 pass', () => {
+// #364 (measure ko): a transparent sprite drawn back then front took two entries of the
+// transparent plan, whose per-frame ranking grows with the square of their count.
+test('a transparent sprite is drawn in one pass: one plan entry, with no cull', () => {
   const mesh = spriteMesh()
   const blendState = blendSceneOf(
     [0, 1, 2].map(
@@ -119,7 +111,6 @@ test('a transparent sprite is drawn in one pass: one plan entry, with no cull, a
     ),
   )
   assert.deepEqual([...blendState.seeds[0]].map(planCull), [0, 0, 0])
-  assert.deepEqual(drawPasses(mesh.material), [undefined])
 })
 
 test("a sprite's row keeps its position and axis lengths, never its turn", () => {
@@ -163,7 +154,7 @@ test("a tall sprite's row and page cube hold its quad under any camera and any r
   ]
   const corner = new Float64Array(4)
   for (const view of views)
-    for (const rotation of [0, 0.7, Math.PI / 2])
+    for (const rotation of [0, 0.7, HALF_PI])
       for (let i = 0; i < drawn.positions.length; i += 3) {
         spriteAt(corner, view, row, drawn.positions[i], drawn.positions[i + 1], {
           rotation,

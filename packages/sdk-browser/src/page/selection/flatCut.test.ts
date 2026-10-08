@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts'
+import { collectClusterPages, rootCoverage } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { assertOneRepresentationPerGroup } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 test('a flat cluster cut selects exactly one level per chain and covers the surface once', () => {
   const fixture = dagFixture()

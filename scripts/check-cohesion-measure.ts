@@ -6,27 +6,10 @@
 // module of one hundred-line function both pass it, and only one of them is hard to change.
 //
 // What it deliberately does not measure is the number of declarations a module holds. The tree
-// decomposes by responsibility at a fine grain and on purpose — `backend/autonomous/` alone is a
-// dozen modules of one or two names each, read by `pages.ts` and `pool.ts` — and that is an
-// architecture, not a fragmentation. A gate on it would condemn the house style.
+// decomposes by responsibility at a fine grain and on purpose — `host/prepared/` alone is a dozen
+// modules, one step of the scene build each, read by `build.ts` — and that is an architecture, not
+// a fragmentation. A gate on it would condemn the house style.
 import ts from 'typescript'
-
-/** Each package is its own namespace. */
-const UNITS = [
-  'packages/sdk-core/src',
-  'packages/sdk-browser/src',
-  'packages/sdk-node/src',
-  'packages/page-codec/src',
-] as const
-
-const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/
-
-/** Whether `file` is a test, a fixture or a GPU proof. */
-export const isTestModule = (file: string) => TEST.test(file)
-
-/** The unit a maintained file belongs to, or null when it belongs to none: the gate reads the
- *  packages and leaves the scripts, the site and the bench to the gates that own them. */
-export const unitOf = (file: string) => UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
 
 export interface Fn {
   name: string

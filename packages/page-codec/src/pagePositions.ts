@@ -5,9 +5,9 @@
  */
 import { bitsFor } from './pageGrids.ts'
 import type { PageCell } from './pageAttributes.ts'
+import { bitWords } from '../../math/src/scalar/integers.ts'
 
 /** Words a stream of `count` fields of `bits` bits occupies. */
-const streamWords = (count: number, bits: number) => Math.ceil((count * bits) / 32)
 
 /**
  * The positions the page stores — the distinct ones in first-use order, or one per vertex — and,
@@ -18,9 +18,9 @@ export function storedPositions(unique: readonly PageCell[], bits: readonly numb
     unique.map(({ p }) => p),
     (p) => p.join(),
   )
-  const words = (count: number) => bits.reduce((sum, b) => sum + streamWords(count, b), 0),
+  const words = (count: number) => bits.reduce((sum, b) => sum + bitWords(count * b), 0),
     linkBits = bitsFor(table.length - 1)
-  return words(table.length) + streamWords(unique.length, linkBits) < words(unique.length)
+  return words(table.length) + bitWords(unique.length * linkBits) < words(unique.length)
     ? { stored: table, links, linkBits }
     : { stored: unique.map(({ p }) => p), links: null, linkBits: 0 }
 }

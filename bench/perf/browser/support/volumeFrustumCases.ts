@@ -1,6 +1,6 @@
-// Equivalence cases of the view frustum and cone: planes, box test, local-space planes
+// Equivalence cases of batch M2, view frustum and cone: planes, box test, local-space planes
 // and cone reject of `sdk-core` against Three.js, on the hostile inputs of `scenesVolumes.ts`.
-// The three-state test is also opposed to the host `boxClip` in its own plane order:
+// The three-state test is also opposed to the old `boxClip` in the previous plane order:
 // reordering the planes changes no verdict. Only the "identical" column decides, bit-exact.
 import {
   boxConeRejects,
@@ -48,20 +48,20 @@ const locaux = (views: { vp: number[] }[], worlds: number[][], pas: number): Loc
   )
 
 /** Equivalence lines of the frustum and the cone, without timer options. */
-// The Three oracle of these three computations follows another depth convention than
-// reversed Z with an infinite far plane: it does not describe the same output. Their
-// correctness is held by `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `bench/witnesses/three/parity/core/math/frustum/box.test.ts`, and the bench
-// line publishes it.
-const Z_INVERSE =
-  'Three oracle from before reversed Z — correctness in bench/witnesses/three/parity/core/math/frustum/frustum.test.ts'
+// These three computations are timed only: Three's planes are not the engine's reversed-depth
+// planes, so their correctness is held by the bit-exact witnesses
+// `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `.../frustum/box.test.ts`,
+// and the bench line names them.
+const TIME_ONLY =
+  'time only — correctness in bench/witnesses/three/parity/core/math/frustum/frustum.test.ts'
 
 export const casTronc: CasVolume[] = [
   casVolume({
     calculation: 'normalized frustum planes of a view-projection',
-    motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    motif: TIME_ONLY,
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
-      'vues WebGL, WebGPU et hostiles',
+      'views, and hostile ones',
       projectionViews,
       'cameras in the hierarchy',
       hierarchicalViews,
@@ -71,10 +71,10 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'raw planes of a clip matrix',
-    motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    motif: TIME_ONLY,
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
-      'vues WebGL, WebGPU et hostiles',
+      'views, and hostile ones',
       projectionViews,
       'cameras in the hierarchy',
       hierarchicalViews,
@@ -88,8 +88,8 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'box outside the frustum',
-    motif: Z_INVERSE,
-    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+    motif: TIME_ONLY,
+    fichier: 'packages/math/src/geometry/frustum/box.ts',
     cas: two(
       'boxes per view, near plane crossed',
       viewBoxes,
@@ -103,7 +103,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'box against the frustum in three states',
-    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+    fichier: 'packages/math/src/geometry/frustum/box.ts',
     cas: two(
       'boxes per view, raw and normalized planes',
       viewBoxes,
@@ -131,7 +131,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'frustum planes in local space',
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
       'plans × placements hostiles',
       locaux(projectionViews, matrices, 11),
@@ -149,7 +149,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'rejection of a box by its normal cone',
-    fichier: 'packages/sdk-core/src/math/primitives/cone.ts',
+    fichier: 'packages/math/src/geometry/cone.ts',
     cas: two(
       'cones, conformal placements, eye in the sphere',
       casCones,

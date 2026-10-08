@@ -1,17 +1,17 @@
 import type { HostMesh } from '../host/resources.ts'
 import { hostMeshCopy } from '../host/scene/graphObjects.ts'
 import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
-import type { MultiplyLot } from '../math/batchRuntime.ts'
+import type { MultiplyLot } from '../page/decode/batch/batchRuntime.ts'
 import { ENGINE_OWNED } from '../host/scene/watch.ts'
 import { hostWorldBounds } from '../host/world/bounds.ts'
 import { meshes as objects } from './meshes.ts'
 import { resolveHostSubtree } from '../host/world/matrices.ts'
-import { copyElements } from '../math/matrixElements.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * Three owned buffers of replication: group pose, placed pose of copy,
- * and their product. Core reads and writes only `Float64Array` (`packages/sdk-core/src/math/matrix/matrix4.ts`); the matrices
+ * and their product. Core reads and writes only `Float64Array` (`packages/math/src/matrix/matrix4.ts`); the matrices
  * a host node carries are plain arrays, copied on input and output.
  */
 const groupWorld = new Float64Array(16),
@@ -44,7 +44,7 @@ export function replicateInstances(
   const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null
   const copies: HostMesh[] = []
   // Group world pose does not change between copies: copied once.
-  copyElements(groupWorld, group.matrixWorld.elements)
+  copyMatrix4(groupWorld, group.matrixWorld.elements)
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)
       for (const mesh of meshes) {
@@ -53,10 +53,10 @@ export function replicateInstances(
         // What traverses graph looking for host write skips it entirely.
         copy.userData[ENGINE_OWNED] = true
         copy.matrixAutoUpdate = false
-        copyElements(placed, mesh.matrixWorld.elements)
+        copyMatrix4(placed, mesh.matrixWorld.elements)
         placed[12] += (x - (columns - 1) / 2) * sizeX
         placed[14] += (z - (rows - 1) / 2) * sizeZ
-        copyElements(copy.matrix.elements, placed)
+        copyMatrix4(copy.matrix.elements, placed)
         // Group and its copies belong to engine: world matrix of copy is product
         // of group matrix by its placed matrix, same one reference calculated by traversing
         // entire group. Core writes it term by term without second pass.
@@ -65,7 +65,7 @@ export function replicateInstances(
           enLot.a.set(groupWorld, at)
           enLot.b.set(placed, at)
           copies.push(copy)
-        } else copyElements(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed))
+        } else copyMatrix4(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed))
         const association = associations.get(mesh)
         if (association) associations.set(copy, association)
         group.add(copy)

@@ -6,11 +6,12 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { Clip } from '../../../../sdk-core/src/world/animation/clip.ts'
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts'
 import { loadImportedLights } from '../../lighting/importedLights.ts'
-import { plannedFiles, SCENE_FILE } from './modelFiles.ts'
+import { plannedFiles } from './modelFiles.ts'
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts'
 import { loadClusterManifest } from '../../scene/manifestLoad.ts'
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
+import type { PageCache } from '../../streaming/pageCache.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
@@ -27,7 +28,8 @@ export type ModelRecord = {
   metadata: ClusterManifest
   /** The scene graph built from the cache's scene tables. */
   scene: ExplorerScene
-  /** Where its images were read: `cache` left the baked ones to the levels the session reads. */
+  /** Where its images were read: `cache` left the baked ones to the levels the session reads,
+   *  `host` read them all (`loadModel`). */
   textureSource: 'host' | 'cache'
 }
 
@@ -122,10 +124,10 @@ export class LoadedModel extends Object3D {
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
- * WebGPU world's first model does; any other path samples the images themselves. `lazy` holds the
- * manifest by the view, as a WebGL2 world does, whose session mounts it in place. `onProgress`
- * hears `bytes` against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the
- * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
+ * world's first model does; a later one reads them all, its baked levels not served by the
+ * session's base (`worldLoader.ts`). `onProgress` hears `bytes` against the files it reads
+ * (`plannedFiles`) as each chunk lands (`byteMeter`), the manifest read, the scene tables read,
+ * then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
@@ -133,8 +135,9 @@ export async function loadModel(
     scope?: AssetScope
     signal?: AbortSignal
     textureSource: 'host' | 'cache'
-    lazy?: boolean
     onProgress?: (event: JobProgress) => void
+    /** The world's page cache: its one reader of each binary serves the model's world roots. */
+    pageCache?: PageCache
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options
@@ -145,8 +148,8 @@ export async function loadModel(
     : unmetered
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
-  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter, options.lazy)
-  const { metadata, metadataUrl, base, declared, pages } = loaded,
+  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter)
+  const { metadata, metadataUrl, base, declared } = loaded,
     scope = metadata.scope
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` })
   const [scene, imported] = await Promise.all([
@@ -155,15 +158,13 @@ export async function loadModel(
         manifestUrl,
         textureSource,
         meter,
-        pages,
+        pageCache: options.pageCache,
         onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,
-      SCENE_FILE,
       base,
       scope,
-      false,
       signal,
       () => {},
       () => {},
@@ -175,7 +176,6 @@ export async function loadModel(
     loadImportedLights(base, signal, meter),
   ])
   meter.settle()
-  loaded.settle()
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,

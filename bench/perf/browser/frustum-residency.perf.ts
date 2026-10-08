@@ -1,13 +1,11 @@
-// Absolute selection measurement: frustum clip and autonomous residency. No oracle here: these
-// two computations have no prior implementation to confront; their correctness is held by
-// `bench/witnesses/three/parity/core/math/frustum/box.test.ts` and `packages/sdk-browser/src/backend/autonomous/residency.test.ts`. Each line says so rather than staying silent.
-import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts'
+// Absolute selection measurement: frustum clip and the pending pages of a cut. No oracle here:
+// these two computations have no prior implementation to confront; their correctness is held by
+// `bench/witnesses/three/parity/core/math/frustum/box.test.ts` and
+// `packages/sdk-browser/src/page/selection/streamingBundles.test.ts`. Each line says so rather than
+// staying silent.
 import * as THREE from 'three'
 import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts'
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
-import { createAutonomousResidency } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts'
-import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts'
-import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts'
 import { measure, rapport, stress } from '../../core/index.ts'
 import { boxes, camera, type SceneBox } from './support/scenes.ts'
 import { pageRecFixture } from './support/pageRecFixture.ts'
@@ -52,7 +50,7 @@ const clipper = (plat: Float64Array) => {
 // ── Measure frustumClipBox ────────────────────────────────────────────
 const clipResult = await measure({
   name: 'frustumClipBox',
-  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+  fichier: 'packages/math/src/geometry/frustum/box.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
     { name: 'no boxes', input: empty, size: 0 },
@@ -62,7 +60,7 @@ const clipResult = await measure({
   options: { tours: 200, budgetMs: 1000 },
 })
 
-// ── Residency measurement ────────────────────────────────────────────
+// ── Pending pages measurement ────────────────────────────────────────
 const hostPage = (
   url: string,
   streamUrl: string | undefined,
@@ -79,30 +77,7 @@ function host(count: number) {
         i % 3 ? undefined : new Uint32Array(3),
       ),
     )
-  const obtained = createAutonomousResidency({
-    bootstrapUrls: new Set(pages.slice(0, Math.min(200, count)).map((r) => r.url)),
-    modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
-    views: [
-      {
-        shown: pages.slice(0, Math.floor(count * 0.4)),
-        // What the image asks for holds one record per page (`requests.ts`).
-        requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
-      },
-    ],
-    geometryStore: createAutonomousGeometry({
-      scene: new Scene(),
-      roots: [],
-      allPages: [],
-      bootstrap: [],
-      views: { live: { shown: [], shownPacked: [] }, lists: () => [] },
-      byUrl: new Map(),
-      descriptors: new Map(),
-      draws: createPageDraws(),
-      colorMaterials: new Map(),
-      modifiedPages: new Set(),
-    }),
-  })
-  return { pages, obtained, vers: [] as string[] }
+  return { pages, vers: [] as string[] }
 }
 const largeHost = host(15000),
   emptyHost = host(0)
@@ -114,15 +89,9 @@ const residenceResult = await measure({
     { name: '15k pages', input: largeHost, size: 15000 },
     { name: 'no pages', input: emptyHost, size: 0 },
   ],
-  calculation: (h) => {
-    const delta = h.obtained.retainedRanks()
-    return {
-      pending: [...h.obtained.pendingUrls()],
-      retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
-      wait: collectPendingUrls(h.pages, h.vers).slice(),
-    }
-  },
-  motif: 'time only — correctness in packages/sdk-browser/src/backend/autonomous/residency.test.ts',
+  calculation: (h) => collectPendingUrls(h.pages, h.vers).slice(),
+  motif:
+    'time only — correctness in packages/sdk-browser/src/page/selection/streamingBundles.test.ts',
   options: { tours: 60, budgetMs: 1000 },
 })
 

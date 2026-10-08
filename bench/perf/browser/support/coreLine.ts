@@ -5,7 +5,7 @@ import { decomposeMatrix4 } from '../../../../packages/sdk-core/src/index.ts'
 import {
   SINGULAR_DETERMINANT,
   normalizedLinearDeterminant,
-} from '../../../../packages/sdk-core/src/math/matrix/singular.ts'
+} from '../../../../packages/math/src/matrix/singular.ts'
 import { compare } from '../../../core/index.ts'
 import type { Measurement } from '../../../core/index.ts'
 
@@ -53,12 +53,12 @@ const column3 = (e: ArrayLike<number>, k: number) => new THREE.Vector3(e[k], e[k
  * `Matrix3.getNormalMatrix` yields the NULL matrix as soon as the 3×3 is singular — and NaNs as
  * soon as its raw determinant overflows: a primitive flattened on a plane would lose every
  * normal, while its faces keep an area and an orientation. The engine yields the ADJOINT in
- * that case (`packages/sdk-core/src/math/matrix/matrix3.ts`), that is the cross product of the transformed
+ * that case (`packages/math/src/matrix/matrix3.ts`), that is the cross product of the transformed
  * edges, which shading then normalizes, and nine zeros when the scale is neither finite nor
  * strictly positive. VALUES stay those of the host library where the engine promises parity —
  * `getNormalMatrix` on a regular matrix — and elsewhere those of the host `crossVectors`,
  * which share no line with the foundation. Only the BRANCH comes from the engine's unique
- * rule (`packages/sdk-core/src/math/matrix/singular.ts`): an oracle that judged singularity differently from the judged
+ * rule (`packages/math/src/matrix/singular.ts`): an oracle that judged singularity differently from the judged
  * code would not compare the same cases.
  */
 export function referenceNormal(matrice: THREE.Matrix4): Float64Array {

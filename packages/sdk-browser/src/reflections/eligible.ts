@@ -1,5 +1,6 @@
 import type { PageSurface } from '../page/surface.ts'
-import { MIRROR_TRANSITION_END, SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
+import { MIRROR_TRANSITION_END } from '../lighting/shaderConstants.ts'
+import { SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
 
 /** Every lit physical surface has a specular lobe, including a fully rough dielectric. */
 const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) === 0
@@ -9,17 +10,8 @@ const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) =
 const reflectsUnder = (limit: number) => (surface: PageSurface) =>
   reflects(surface) && (!!surface.roughnessMap || surface.roughness < limit)
 
-/** A screen-traced receiver: under the maximum roughness. */
+/** A screen-traced receiver: under the maximum roughness (#1341). */
 export const screenReflects = reflectsUnder(SCREEN_REFLECTION_CUTOFF)
 
-/** A WebGL2 screen-traced receiver: its base lobe, or a clear coat's own lobe, which the WebGL2
- *  program reflects apart on the coat's roughness (`mirrorLighting` on `coatNormal`). */
-export const coatedScreenReflects = (surface: PageSurface) =>
-  screenReflects(surface) ||
-  (reflects(surface) &&
-    (surface.clearcoat ?? 0) > 0 &&
-    (!!surface.clearcoatRoughnessMap ||
-      (surface.clearcoatRoughness ?? 0) < SCREEN_REFLECTION_CUTOFF))
-
-/** A mirror receiver: the surfaces the reduced-resolution resolve precomputes. */
-export const mirrorRange = reflectsUnder(Number(MIRROR_TRANSITION_END))
+/** A mirror receiver: the surfaces the reduced-resolution resolve precomputes (#1292). */
+export const mirrorRange = reflectsUnder(MIRROR_TRANSITION_END)

@@ -5,10 +5,11 @@ import type { PageSurface } from '../../../page/surface.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
+import { FAR_VALUE } from '../../../../../math/src/constants.ts'
 import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts'
 
-const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
-  EVERYWHERE_MAX = [1e30, 1e30, 1e30]
+const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
+  EVERYWHERE_MAX = [FAR_VALUE, FAR_VALUE, FAR_VALUE]
 const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** The rows whose shadow reads their colour map's alpha: a cutout's, and a blended caster's. */
 const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER

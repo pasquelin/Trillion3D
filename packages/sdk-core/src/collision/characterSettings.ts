@@ -1,4 +1,5 @@
 import { PHYSICS_MATERIALS } from '../physics/options.ts'
+import { QUARTER_PI } from '../../../math/src/constants.ts'
 
 /**
  * THE BODY A CHARACTER STARTS WITH: an adult human, every number read from that human or
@@ -144,7 +145,7 @@ export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   capsuleHeight: STATURE,
   eyeHeight: 0.936 * STATURE,
   stepHeight: 0.285 * STATURE,
-  maxSlope: Math.atan(1),
+  maxSlope: QUARTER_PI,
   responseTime: 0.12,
   stopTime: 0.12,
   coyoteTime: 0.1,

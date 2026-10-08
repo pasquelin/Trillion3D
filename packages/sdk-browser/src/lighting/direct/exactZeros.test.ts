@@ -1,10 +1,10 @@
-// Two terms a light's loop skips where the full sum adds an exact zero, which leaves every sum as
-// it is: a thin transmission on a surface that has none (`declaredLightWgsl`, the full `0 · x`, a
-// zero of either sign), and the standard lobes of a light the surface faces away from
-// (`standardLighting`, N·L = 0: finite D, Vis and F times direct = light.w · 0). The shipped loop runs
-// in f32 (`shaderRun`, `shaderRunF32.fixture.ts`) against the full text — the same text with the
-// skip undone —, in the four programs (shadow code or not, rectangle code or not) and the three
-// surface models, on random lamp sets around a random normal (half of them behind it), with no thin
+// Two terms a light's loop skips where develop added an exact zero, which leaves every sum as it
+// is: a thin transmission on a surface that has none (`declaredLightWgsl`, develop's `0 · x`, a zero
+// of either sign), and the standard lobes of a light the surface faces away from
+// (`surfaceLight`, N·L = 0: finite D, Vis and F times direct = light.w · 0). The shipped loop runs
+// in f32 (`shaderRun`, `shaderRunF32.fixture.ts`) against develop's — the same text with the skip
+// undone —, in the four programs (shadow code or not, rectangle code or not) and the three surface
+// models, on random lamp sets around a random normal (half of them behind it), with no thin
 // transmission, a signed-zero one and a real one lit from behind: the sums are the same numbers,
 // bit for bit, each skip alone and both.
 import test from 'node:test'
@@ -16,12 +16,14 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
   /var transmitted=vec3f\(0\.0\);\n if\(any\(thinSubsurface!=vec3f\(0\.0\)\)\)\{transmitted=(thinSubsurface\*thinTransmission\([^;]*\));\}/
 const EARLY = /\n if\(NdotL==0\.0\)\{return vec3f\(0\.0\);\}/
-/** The full text: the thin skip, the early zero, or both undone. */
+/** Develop's text: the thin skip, the early zero, or both undone. */
 const UNDO = {
   thin: (text: string) => text.replace(GUARDED, 'let transmitted=$1;'),
   facing: (text: string) => text.replace(EARLY, ''),
@@ -37,17 +39,21 @@ const NAMES = [
   'isRect',
   'modelLight',
   'thinTransmission',
+  'lambertAlbedoMul',
   // Every function of the standard lobe's text.
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 
 test('the skipped thin transmission and back-facing lobes keep every sum, bit for bit, in f32', () => {
   const r = random(1564),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (const shadowed of [false, true])
     for (const rects of [false, true]) {
-      const shipped = `${directLightingWgsl(false, shadowed, rects)}${STANDARD_LIGHTING_WGSL}`
+      const shipped = wgslModule(
+        directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true }),
+        STANDARD_LIGHTING_WGSL,
+      )
       assert.match(shipped, GUARDED)
       assert.match(shipped, EARLY)
       const K = wgslConstants(shipped)

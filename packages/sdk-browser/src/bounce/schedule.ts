@@ -4,6 +4,7 @@ import {
   type BounceCascades,
   type BounceOccupancy,
 } from '../../../sdk-core/src/index.ts'
+import { wrap } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Probe scheduler: who works this frame, and how far.
@@ -38,7 +39,7 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     for (let axis = 0; axis < 3; axis++) {
       const wrapped = rank % side
       rank = (rank - wrapped) / side
-      cell[axis] = base[axis] + ((((wrapped - base[axis]) % side) + side) % side)
+      cell[axis] = base[axis] + wrap(wrapped - base[axis], side)
     }
     return occupancy.occupied(level, cell[0], cell[1], cell[2])
   }

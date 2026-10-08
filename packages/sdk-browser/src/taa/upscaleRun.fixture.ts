@@ -13,6 +13,7 @@ import {
   textureGatherOf,
 } from './taaBuiltins.fixture.ts'
 import { pixelResolves } from './pixelRun.fixture.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 const IDENTITY = new Mat([...IDENTITY_MATRIX4])
 
@@ -172,7 +173,7 @@ export function upscaleRun(
     before: (x, y) => void ((reads.length = 0), (owner.blurred = blurredAt(x, y))),
     after: (out) => ({ ...(out as Omit<Resolved, 'reads' | 'fetches'>), reads: reads.slice() }),
   })
-  /** The blurred luma of display pixel `(x, y)`'s 3×3, in the measurement curve (`BLUR_TAP_WGSL`,
+  /** The blurred luma of display pixel `(x, y)`'s 3×3, in the measurement curve (`BLUR_TAP`,
    *  `shadingLuma`, exposure one): its own history's, by default. */
   const blurredAt = (x: number, y: number) => {
     const base = native
@@ -181,9 +182,7 @@ export function upscaleRun(
     let blur = 0
     for (let dy = -1; dy <= 1; dy++)
       for (let dx = -1; dx <= 1; dx++) {
-        const at = [base[0] + dx, base[1] + dy].map((v, i) =>
-          Math.min(Math.max(v, 0), [w, h][i] - 1),
-        )
+        const at = [base[0] + dx, base[1] + dy].map((v, i) => clamp(v, 0, [w, h][i] - 1))
         const [r, g, b] = frame.color(at[0], at[1])
         blur += (0.25 * r + 0.5 * g + 0.25 * b) * (2 - Math.abs(dx)) * (2 - Math.abs(dy))
       }

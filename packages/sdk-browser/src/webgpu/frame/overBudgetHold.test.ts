@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { createCutPending } from '../cut/pending.ts'
 import { admitGpuCut } from '../pages/render/gpuCutAdmission.ts'
 import { scene } from '../residency/sets.fixture.ts'
-import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask, unsettledReasons } from './hold.ts'
+import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
+import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -18,7 +19,11 @@ function overBudgetEngine(slots: number) {
   const rt = settledRt()
   Object.assign(rt, { setup: { slots } })
   Object.assign(rt.services, { residencySets: world.sets, cutPending })
-  Object.assign(rt.run, { gpuSelection: { peek: () => ({ uniforms: { pixelError: 1 } }) } })
+  // The event names the host's threshold, the frame's uniforms (`run.selectionUniforms`).
+  Object.assign(rt.run, {
+    gpuSelection: { peek: () => ({ uniforms: { pixelError: 1 } }) },
+    selectionUniforms: { pixelError: 1 },
+  })
   const cut = world.packed.map((_, id) => id)
   const image = () => {
     world.delta.apply(cut)

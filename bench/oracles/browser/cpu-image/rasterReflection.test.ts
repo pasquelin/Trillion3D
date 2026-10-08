@@ -1,6 +1,6 @@
 // Defect 10: under a negative-determinant transform, the CPU visbuffer rasterizer kept the
 // face that every other path drops — WebGPU pipelines via the `frontFace` that `windingCw`
-// inverts, Three in WebGL via `frontFaceCW = determinant() < 0`, its own shading
+// inverts, the witness library via `frontFaceCW = determinant() < 0`, its own shading
 // (`visibilityLighting`) via the sign of `face`. It therefore drew exactly the faces that
 // cone rejection drops, which was read as a cone defect.
 //

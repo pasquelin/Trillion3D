@@ -6,6 +6,7 @@ import { waveHeight } from './surface.ts'
 import { Waves } from './waves.ts'
 import { WaterSurface } from './waterSurface.ts'
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 test('steepness is normalised so that Σ Qᵢ·Aᵢ·kᵢ stays at most 1', () => {
   assert.ok(Math.abs(new Waves(OCEAN).steepness - 1) < 1e-12, 'eight waves at 0.9 scaled to 1')
@@ -83,8 +84,7 @@ test('every displacement of a rest rectangle lies in its displacement box, a poi
   waves.setTime(41.3)
   const box = new Float64Array(6),
     o = new Float64Array(3)
-  let seed = 422
-  const next = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32
+  const next = lcgRandom(422)
   let widest = 0
   for (let trial = 0; trial < 300; trial++) {
     const x0 = next() * 400 - 200,

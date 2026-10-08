@@ -5,6 +5,7 @@
  * the object's projected disc, and it keeps its world size (attenuation on) rather than its screen
  * size, as a distant stand-in must.
  */
+import { copyMatrix4, IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { core } from './borrowed.ts'
 import type { VisMaterial } from '../visibility/types.ts'
 
@@ -12,8 +13,7 @@ const CARD_SPRITE: NonNullable<VisMaterial['sprite']> = { rotation: 0, sizeAtten
 /** The corner signs in call order, scaled by `radius`: `(-R,-R)`, `(+R,-R)`, `(+R,+R)`, `(-R,+R)`. */
 const CARD_SIDES = [-1, -1, 1, -1, 1, 1, -1, 1]
 // The card is drawn per frame: the placement and the corner it reads stay, no allocation per call.
-const cardPlace = new Float64Array(16)
-cardPlace[0] = cardPlace[5] = cardPlace[10] = cardPlace[15] = 1
+const cardPlace = copyMatrix4(new Float64Array(16), IDENTITY_MATRIX4)
 const cardCorner = new Float64Array(4)
 
 /**

@@ -12,7 +12,7 @@
 //!   column payloads, each starting on an 8-byte boundary
 use crate::texture_preview::{
     preview_block_bytes, preview_first_level, preview_level_count, preview_pixel_bytes,
-    TexturePreview,
+    TexturePreview, FAMILIES,
 };
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
@@ -41,8 +41,9 @@ use tests::split;
 /// reader of version 7 would install a bundle before the bundles holding its parents. Version 9
 /// adds each page's normal cone (`trillion3d_page_codec::normal_cone`), a column a reader of version 8 lacks.
 /// Version 10 holds one manifest page's columns (`compiler_manifest_pages.rs`), the head's the
-/// previews alone.
-pub const MANIFEST_BINARY_VERSION: u32 = 10;
+/// previews alone. Version 11 adds the ETC2 family: its block column after ASTC's, and its layout
+/// word in each preview entry.
+pub const MANIFEST_BINARY_VERSION: u32 = 11;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -72,16 +73,16 @@ const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 /// The tails block-compressed, one column per family in `BlockFormat::ALL` order.
-const TEXTURE_PREVIEW_BLOCKS: [usize; 2] = [24, 25];
-const BUNDLE_DEPENDENCY_COUNT: usize = 26;
-const BUNDLE_DEPENDENCY: usize = 27;
-const PAGE_CONE: usize = 28;
-const COLUMNS: usize = 29;
+const TEXTURE_PREVIEW_BLOCKS: [usize; FAMILIES] = [24, 25, 26];
+const BUNDLE_DEPENDENCY_COUNT: usize = 27;
+const BUNDLE_DEPENDENCY: usize = 28;
+const PAGE_CONE: usize = 29;
+const COLUMNS: usize = 30;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
 /// pixels, the atlas it serves, the count of levels baked as files, and the
 /// layout word of each family — 0 when the chain stays lossless there.
-const PREVIEW_WORDS: usize = 14;
+const PREVIEW_WORDS: usize = PREVIEW_LAYOUTS + FAMILIES;
 /// Ranks, in an entry, of the words the level reader and the proof come back for.
 const PREVIEW_FIRST_LEVEL: usize = 6;
 const PREVIEW_KIND: usize = 10;
@@ -167,14 +168,15 @@ pub fn columns(
     // JSON, without which a reader would not know how many bytes a column must be before
     // reading it.
     let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
-    let [bc7_bytes, astc_bytes] = TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
+    let [bc7_bytes, astc_bytes, etc2_bytes] =
+        TEXTURE_PREVIEW_BLOCKS.map(|column| columns[column].bytes.len());
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
-    let mut offset = (header_bytes + 7) & !7;
+    let mut offset = header_bytes.next_multiple_of(8);
     for index in 0..COLUMNS {
         offsets[index] =
             u32::try_from(offset).map_err(|_| bad("Manifest binary exceeds four gigabytes"))?;
-        offset = (offset + columns[index].bytes.len() + 7) & !7;
+        offset = (offset + columns[index].bytes.len()).next_multiple_of(8);
     }
     let mut bytes = vec![0u8; offset];
     bytes[0..4].copy_from_slice(&MANIFEST_BINARY_MAGIC.to_le_bytes());
@@ -191,6 +193,7 @@ pub fn columns(
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"sha256":"","bytes":bytes.len(),
   "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len(),
-  "texturePreviewBytes":preview_bytes,"texturePreviewBc7Bytes":bc7_bytes,"texturePreviewAstcBytes":astc_bytes}));
+  "texturePreviewBytes":preview_bytes,"texturePreviewBc7Bytes":bc7_bytes,"texturePreviewAstcBytes":astc_bytes,
+  "texturePreviewEtc2Bytes":etc2_bytes}));
     Ok((Value::Object(slim), bytes))
 }

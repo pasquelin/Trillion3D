@@ -111,3 +111,7 @@ pub fn collapse(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
     emit(nodes, 0, &mut bounds, &mut children);
     (bounds, children)
 }
+
+#[cfg(test)]
+#[path = "wide_tests.rs"]
+pub(crate) mod tests;

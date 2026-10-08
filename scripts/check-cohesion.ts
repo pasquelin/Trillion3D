@@ -16,9 +16,9 @@
 // a gate on that would condemn the style rather than a defect.
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { sourceFilesOf } from './repository-files.ts'
+import { isTestModule, sourceFilesOf, unitOf } from './repository-files.ts'
 import { gitPathsSync } from './git-paths.ts'
-import { functionsOf, isTestModule, unitOf, type Fn } from './check-cohesion-measure.ts'
+import { functionsOf, type Fn } from './check-cohesion-measure.ts'
 
 /** A function of a module this branch touches stays inside this many lines. The tree's own longest
  *  is 189 (`streaming/queue.ts`, `createStreamingQueue`), and 405 of its 4 637 functions are already

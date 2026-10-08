@@ -1,11 +1,41 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
+import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
+import {
+  bitLength,
+  byteOf,
+  ceilDiv,
+  lowBits,
+  pow2FromExponent,
+} from '../../../math/src/wgsl/integer.ts'
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
   MORPH_WORDS,
-  OCT_SCALE,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
 } from './format.ts'
+import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
+
+/**
+ * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
+ * texture deltas along them. A raster passes the triangle's own edges and deltas, a fragment
+ * stage the screen derivatives of position and texture coordinate — the same frame either way,
+ * the one every lighting pass of the engine bends its normal map with. `T` follows `u`, `B`
+ * follows `v`, both orthogonal to `N`, the longer of the two unit; a triangle with no texture
+ * area yields zero vectors, not NaN.
+ */
+export const COTANGENT_FRAME_WGSL = wgslBlock(
+  'COTANGENT_FRAME_WGSL',
+  [DIVISOR_FLOOR],
+  `struct CotangentFrame{T:vec3f,B:vec3f,}
+fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{
+ let p=cross(e2,N);let q=cross(N,e1);
+ let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
+ let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),DIVISOR_FLOOR));
+ return CotangentFrame(T*scale,B*scale);
+}`,
+)
 
 /**
  * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
@@ -13,61 +43,40 @@ import {
  * — a field never spans more than two words, and a triangle is its block's record, read once, and
  * three fields. The arithmetic is the format's, operation for
  * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
- * is the 32-bit float the shared Rust codec and `../page/decode/geometryPage.ts` decode; a normal, which goes
+ * is the 32-bit float the shared Rust codec and `../page/codec/geometryPage.ts` decode; a normal, which goes
  * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
  *
  * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
  * to `pageWords:array<u32>`.
  */
-const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
- vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,prefixBits:u32,recordBits:u32,
- positionCount:u32,linkBits:u32,
- posBits:vec3u,posStep:f32,posMin:vec3f,
- uvBits:vec2u,uvStep:f32,uvMin:vec2f,uv1Bits:vec2u,uv1Step:f32,uv1Min:vec2f,
- colorBits:vec4u,colorStep:f32,colorMin:vec4f,
- quantizationError:f32,
- // Word offset of each stream from the page's first word: block table, corners, x, y, z, links, normal, u, v, u1, v1, r, g, b, a.
- blocks:u32,corners:u32,pos:vec3u,links:u32,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
- // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
- // count and the word their streams are counted from, each target's record after the header.
- skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
-}`
-
-/**
- * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
- * texture deltas along them. A raster passes the triangle's own edges and deltas, a fragment
- * stage the screen derivatives of position and texture coordinate — the same frame either way,
- * the one every lighting pass of the engine bends its normal map with (`../webgl/cluster/shaders.ts`
- * spells the same routine in GLSL). `T` follows `u`, `B` follows `v`, both orthogonal to `N`,
- * the longer of the two unit; a triangle with no texture area yields zero vectors, not NaN.
- */
-export const COTANGENT_FRAME_WGSL = `struct CotangentFrame{T:vec3f,B:vec3f,}
-fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{
- let p=cross(e2,N);let q=cross(N,e1);
- let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
- let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
- return CotangentFrame(T*scale,B*scale);
-}`
-
 export function clusterDecodeWgsl(buffer: string) {
-  return `${CLUSTER_HEADER_WGSL}
-fn clusterPow2(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}
-fn clusterBitsFor(range:u32)->u32{return 32u-countLeadingZeros(range);}
-// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
+  return wgslBlock(
+    `clusterDecodeWgsl(${buffer})`,
+    [
+      octDecodeScalar,
+      OCT_BYTE_STEP,
+      CLUSTER_HEADER_WGSL,
+      bitLength,
+      byteOf,
+      ceilDiv,
+      pow2FromExponent,
+      lowBits,
+    ],
+    `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  let shift=at&31u;let index=base+(at>>5u);
  var value=${buffer}[index]>>shift;
  if(shift+bits>32u){value|=${buffer}[index+1u]<<(32u-shift);}
- return value&((1u<<bits)-1u);
+ return value&lowBits(bits);
 }
 // A record word: six bits per width from bit 0, the exponent as a signed byte on top.
 fn clusterWidths(word:u32)->vec4u{return vec4u(word&63u,(word>>6u)&63u,(word>>12u)&63u,(word>>18u)&63u);}
-fn clusterStep(word:u32)->f32{return clusterPow2(i32(word)>>24u);}
+fn clusterStep(word:u32)->f32{return pow2FromExponent(i32(word)>>24u);}
 // The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
 fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  let start=*at;
- if(present){*at+=(count*bits+31u)/32u;}
+ if(present){*at+=ceilDiv(count*bits,32u);}
  return start;
 }
 // The header's corners and positions: what a raster reads of a row that draws no surface
@@ -78,15 +87,15 @@ fn clusterPointHeader(base:u32)->ClusterHeader{
  h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
  let p=${buffer}[base+5u];h.posBits=clusterWidths(p).xyz;h.posStep=clusterStep(p);
  h.posMin=vec3f(bitcast<f32>(${buffer}[base+6u]),bitcast<f32>(${buffer}[base+7u]),bitcast<f32>(${buffer}[base+8u]));
- h.indexBits=clusterBitsFor(h.vertexCount-1u);
+ h.indexBits=bitLength(h.vertexCount-1u);
  let cornerBits=${buffer}[base+21u];
- h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
+ h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
- h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
+ h.positionCount=${buffer}[base+22u];h.linkBits=bitLength(h.positionCount-1u);
  // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
  let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
  let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
- h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
+ h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
  h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
  h.links=at;
@@ -122,7 +131,7 @@ fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  var value=hi>>(at&31u);
  if(at<32u){value=lo>>at;if(at+bits>32u){value|=hi<<(32u-at);}}
- return value&((1u<<bits)-1u);
+ return value&lowBits(bits);
 }
 // The record of triangle \`tri\`'s block, from the two words it starts in: the block's base, its
 // width, and the bit of the corner stream its first corner lies at. Only a prefix that leaves
@@ -164,21 +173,15 @@ fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
 // Two octahedral bytes back to a unit vector.
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let q=clusterField(base+h.normal,vertex*16u,16u);
- var x=f32(q&255u)*${OCT_SCALE}-1.0;var y=f32((q>>8u)&255u)*${OCT_SCALE}-1.0;
- let z=1.0-abs(x)-abs(y);
- if(z<0.0){
-  let fx=(1.0-abs(y))*select(-1.0,1.0,x>=0.0);let fy=(1.0-abs(x))*select(-1.0,1.0,y>=0.0);
-  x=fx;y=fy;
- }
- return normalize(vec3f(x,y,z));
+ return octDecodeScalar(vec2f(f32(byteOf(q,0u))*OCT_BYTE_STEP-1.0,f32(byteOf(q,1u))*OCT_BYTE_STEP-1.0));
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
- let w=(h.vertexCount*h.skinBits+31u)/32u;
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
  return h.skinBase+clusterField(base+h.skin+influence*w,vertex*h.skinBits,h.skinBits);
 }
 fn clusterWeight(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->f32{
- let w=(h.vertexCount*h.skinBits+31u)/32u;
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
  return bitcast<f32>(${buffer}[base+h.skin+h.influences*w+influence*h.vertexCount+vertex]);
 }
 // Morph target \`t\`'s position displacement (\`normal\` false) or normal displacement of a vertex:
@@ -193,5 +196,6 @@ fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
   clusterGrid(base,h.color.y,vertex,h.colorBits.y,h.colorMin.y,h.colorStep),
   clusterGrid(base,h.color.z,vertex,h.colorBits.z,h.colorMin.z,h.colorStep),
   clusterGrid(base,h.color.w,vertex,h.colorBits.w,h.colorMin.w,h.colorStep));
-}`
+}`,
+  )
 }

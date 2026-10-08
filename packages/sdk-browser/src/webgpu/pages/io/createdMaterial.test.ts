@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -18,7 +18,7 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
   const fixture = quadScene(),
     { device, buffers } = mockGpu()
   edit(fixture)
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -27,12 +27,11 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
   const api = createExplorerMaterialApi({
     check: () => {},
     ...fixture,
-    backends: [backend],
-    active: () => backend,
+    engine: backend,
   })
   const rows = async () => {
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     backend.render(camera())
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4)

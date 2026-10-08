@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { scene } from './materialApi.fixture.ts'
 
 test('each of the six class changes lands in every surface, and the engines move its drawables', async () => {
-  // An engine that sorts by surface at every draw refuses none (WebGL2's display graph).
-  const { api, floor, refreshes } = await scene(true, () => undefined)
+  // An engine that sorts by surface at every draw refuses none.
+  const { api, floor, refreshes } = await scene(() => undefined)
   // From opaque: to masked, blended, opaque, blended, masked, opaque — each transition once.
   const walk = ['mask', 'blend', 'opaque', 'blend', 'mask', 'opaque'] as const
   for (const alphaMode of walk) {
@@ -78,7 +78,7 @@ test('a cutoff moved on a masked material reaches the engines as an alpha change
 })
 
 test('an unknown alpha mode is refused by name, nothing written', async () => {
-  const { api, floor, refreshes } = await scene(true, () => undefined)
+  const { api, floor, refreshes } = await scene(() => undefined)
   const version = floor[0].version
   assert.throws(
     () => api.setMaterial('0', { alphaMode: 'MASK' as never }),

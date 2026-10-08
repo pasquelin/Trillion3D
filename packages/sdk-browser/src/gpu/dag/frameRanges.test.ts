@@ -15,11 +15,12 @@ import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
 import { cameraFrameRanges } from './cameraRanges.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
-  assert.equal(ranges.length, Math.ceil(1_000_000 / Math.floor((64 << 20) / 384)))
+  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / 384)))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
@@ -36,7 +37,7 @@ async function split(per: number) {
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
   const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(per) }
   const fake = fakeDevice({ limits: { ...limits, minUniformBufferOffsetAlignment: 256 } })
-  const resources = await createDagResources(fake.device, dag, false)
+  const resources = await createDagResources(fake.device, dag)
   assert.ok(resources)
   return { fake, resources }
 }
@@ -62,7 +63,7 @@ test('each range is its own buffer and bind group, and the stages know the split
   const constants = (cut: typeof resources | undefined) =>
     (cut?.preparePipeline as unknown as GPUProgrammableStage).constants
   assert.deepEqual(constants(resources), { SPLIT: 1 })
-  const whole = await createDagResources(fakeDevice().device, resources.packed, false)
+  const whole = await createDagResources(fakeDevice().device, resources.packed)
   assert.equal(whole?.ranges.length, 1)
   assert.equal(constants(whole), undefined, 'one range: the stages of before')
 })
@@ -91,9 +92,7 @@ test("the host's rows and words land in their range, at their row there", async 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
   const ranges = [100, 30].map((count, r) => ({ count, bindGroup: `r${r}` }))
   const { encoder, dispatches, boundGroups } = witnessEncoder()
-  const cut = { ...cutResources(false, 5), ranges } as unknown as Parameters<
-    typeof encodeDagKernels
-  >[1]
+  const cut = { ...cutResources(5), ranges } as unknown as Parameters<typeof encodeDagKernels>[1]
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks')

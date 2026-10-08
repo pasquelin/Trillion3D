@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
@@ -94,7 +94,6 @@ test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', a
         {
           world,
           pages,
-          cones: false,
           culling: node && { ...node, bounds: cullingBounds(node, pages) },
         },
       ],

@@ -25,14 +25,19 @@ import {
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
 import type { VsmLayout } from './layout.ts'
+import { focalScale } from '../../../math/src/projection/camera.ts'
 import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * The fields some shader reads, nothing else, by role: the frame's words, the pool's, the tables',
  * the marking's and the traces', then the tables' mip offsets. The struct is the layout:
  * `writeVsmUniforms` writes its words in its order.
  */
-export const VSM_UNIFORMS_WGSL = /* wgsl */ `
+export const VSM_UNIFORMS_WGSL = wgslBlock(
+  'VSM_UNIFORMS_WGSL',
+  [],
+  `
 struct VsmUniforms{
  frameStamp:u32,
  fullMapCount:u32,
@@ -72,7 +77,8 @@ struct VsmUniforms{
 }
 fn vsmMarkMipOffset(mip:u32)->u32{return vsm.markMipOffset[mip>>2u][mip&3u];}
 fn vsmCoverMipOffset(mip:u32)->u32{return vsm.coverMipOffset[mip>>2u][mip&3u];}
-`
+`,
+)
 
 /** Per-frame values of the block; the rest comes from the constants and the layout. */
 export interface VsmFrameUniforms {
@@ -123,7 +129,7 @@ export function writeVsmUniforms(
   f[20] = VSM_SCREEN_RAY_SHARE
   f[21] = frame.viewTanHalfFovY ?? 0
   u[22] = VSM_TRACE_VOTE_AFTER
-  f[23] = 1 / Math.tan(VSM_TRACE_CONE_LIMIT)
+  f[23] = focalScale(VSM_TRACE_CONE_LIMIT)
   i[24] = VSM_TRACE_RAYS_SUN
   i[25] = VSM_TRACE_STEPS_SUN
   f[26] = VSM_TRACE_SLOPE_CAP_SUN

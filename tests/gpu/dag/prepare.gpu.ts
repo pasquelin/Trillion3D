@@ -50,7 +50,7 @@ const READS: Array<[string, string]> = [
     `fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{
  if(unculledOf(w)){return false;}
  let m=transpose(worldPose(w));let skip=select(6u,FAR_PLANE,farless());
- for(var i=0u;i<6u;i++){if(i!=skip&&outsidePlane(grownPlane(m*views[AHEAD_VIEW].planes[i]),bmin,bmax)){return true;}}
+ for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(grownPlane(m*views[AHEAD_VIEW].planes[i]),bmin,bmax)){return true;}}
  return false;
 }`,
   ],
@@ -126,6 +126,7 @@ test('the prepared values change no request, drawn page, counter or total', asyn
   const sorted = (reading: (typeof shipped.readings)[number]) => ({
     ...reading,
     requests: reading.requests.toSorted((a, b) => a - b),
+    priorities: reading.priorities.toSorted((a, b) => a - b),
   })
   const rows = cases.map(({ name }, k) => {
     const [a, b] = [shipped.readings[k], computed.readings[k]]

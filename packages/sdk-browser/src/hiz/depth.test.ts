@@ -6,13 +6,14 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { visibilityDepth } from './visibilityDepth.fixture.ts'
-import { buildHizPyramid } from './depth.ts'
+import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
 import { cameraAt, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { packVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 test('no page and a zero viewport both stay pure background', () => {
   const depth = visibilityDepth(
@@ -135,8 +136,8 @@ test('every pyramid texel is the farthest (the minimum) of the block it covers, 
     assert.equal(pyramid.heights[pyramid.count - 1], 1)
     for (let i = 0; i < w * h; i++) assert.equal(pyramid.data[i], depth[i], 'level 0 is the input')
     for (let level = 1; level < pyramid.count; level++) {
-      assert.equal(pyramid.widths[level], Math.ceil(pyramid.widths[level - 1] / 2))
-      assert.equal(pyramid.heights[level], Math.ceil(pyramid.heights[level - 1] / 2))
+      assert.equal(pyramid.widths[level], ceilDiv(pyramid.widths[level - 1], 2))
+      assert.equal(pyramid.heights[level], ceilDiv(pyramid.heights[level - 1], 2))
       for (let y = 0; y < pyramid.heights[level]; y++)
         for (let x = 0; x < pyramid.widths[level]; x++) {
           let expected = Infinity

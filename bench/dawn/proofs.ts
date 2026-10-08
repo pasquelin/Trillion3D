@@ -1,8 +1,8 @@
 // The GPU proofs on the bench: every `*.gpu.ts` under `tests/gpu/`, one by one, on Dawn in Node
 // (`tests/gpu/kit/onDawn.ts`) under the machine's bench lock — never beside a measurement. With
-// `--chrome`, every `*.chrome.ts`: what Dawn does not have — the WebGL2 backend, the witness
-// library's WebGL renderer — proved in the system Chrome (`tests/gpu/kit/onChrome.ts`), the
-// run on request, never at a merge. Paths are resolved from the repository root, never from
+// `--chrome`, every `*.chrome.ts`: what Dawn does not have — a browser's own surface, the witness
+// library's renderer — proved in the system Chrome (`tests/gpu/kit/onChrome.ts`), the recette's
+// run alone, never a merge's. Paths are resolved from the repository root, never from
 // the current directory: the command gives the same result wherever it is launched from.
 //
 //   node bench/dawn/proofs.ts [file…]
@@ -55,11 +55,11 @@ export const EXCLUDED = new Map<string, [string, string]>([
   ],
   [
     'lighting/narrow-resolve',
-    [REGRESSION, 'the rectless program is not bit-equal to the full one (1 to 3 ulp)'],
+    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 to 3 ulp)'],
   ],
   [
     'lighting/sampled-resolve',
-    [REGRESSION, 'the rectless program is not bit-equal to the full one (1 ulp)'],
+    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 ulp)'],
   ],
   [
     'reflections/screen-mirror',

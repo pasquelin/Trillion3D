@@ -11,6 +11,7 @@ import {
   prefixScan,
   prefixSerial,
 } from '../../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
+import { lcgFloatWord } from '../../../../../math/src/sequence/seeded.fixture.ts'
 
 const prefixKernel = () => {
   const start = DAG_SELECTION_SHADER.indexOf('fn dagDrawPrefix')
@@ -20,7 +21,7 @@ const prefixKernel = () => {
 }
 
 test('the drawable-page prefix scans the block totals with the shared lane scan', () => {
-  assert.equal(DAG_SELECTION_SHADER.split(LANE_SCAN_WGSL).length, 2, 'the lane scan, once')
+  assert.equal(DAG_SELECTION_SHADER.split(LANE_SCAN_WGSL.text).length, 2, 'the lane scan, once')
   const kernel = prefixKernel()
   assert.match(kernel, /laneRun\(lane,count\)/, 'each lane owns a run of blocks')
   assert.match(kernel, /laneScan\(lane,total\)-total/, 'an exclusive prefix per run')
@@ -28,8 +29,8 @@ test('the drawable-page prefix scans the block totals with the shared lane scan'
 })
 
 test('one slot of blocks: the lane runs and scan give the serial offsets and total', () => {
-  let seed = 981
-  const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number
+  const word = lcgFloatWord(981)
+  const rand = (bound: number) => word() % bound
   for (const blocks of [0, 1, 63, 64, 65, 200, 4097]) {
     const counts = Uint32Array.from({ length: blocks }, () => rand(65))
     const serial = prefixSerial(false, new Uint32Array([1]), counts, blocks, 1)

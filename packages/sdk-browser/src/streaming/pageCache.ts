@@ -1,10 +1,12 @@
+import { MIB } from '../../../math/src/constants.ts'
 import { evictOldest } from './evictOldest.ts'
+import { rangedReader } from '../cluster/ranged.ts'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
-export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024
+export const DEFAULT_CACHED_BYTES = 256 * MIB
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its
@@ -44,6 +46,18 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   const release = (cancel: boolean) => {
     if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'))
     slot = undefined
+  }
+  /** The one reader of each file read by ranges (`rangedReader`), for every load and session that
+   *  reads through this cache: a server that ignores the Range answers a file whole once. */
+  const readers = new Map<string, ReturnType<typeof rangedReader>>()
+  /** The bytes of the files those readers keep whole; a reader that holds nothing and waits on
+   *  nothing — its download stopped with its last asker — is let go. */
+  const readerBytes = () => {
+    let held = 0
+    for (const [url, read] of readers)
+      if (read.idle()) readers.delete(url)
+      else held += read.held()
+    return held
   }
   let bytes = 0,
     total = cpuBytes,
@@ -92,10 +106,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Bytes the texture levels may take beside the kept file and `held` bytes of pages the
      *  session keeps or reads; negative when those do not fit. */
-    levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - cache.keptBytes - held,
-    /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
+    levelRoom: (held: number) =>
+      total - (holder?.reserved() ?? 0) - cache.keptBytes - readerBytes() - held,
+    /** Bytes held beside the pages: the kept file's, the files its readers keep whole and the
+     *  decoded texture levels'. */
     get besideBytes() {
-      return cache.keptBytes + levels.bytes
+      return cache.keptBytes + readerBytes() + levels.bytes
     },
     /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
@@ -111,15 +127,14 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       if (sha256) fingerprints.set(array, sha256)
     },
     drop,
-    /** Drops every page held as other bytes than the file `catalog` names at its url: another
+    /** Drops every page held as other bytes than the file `admitted` names at its url: another
      *  fingerprint or another size, or bytes never verified against one. A name alone is not a
      *  file: another scene, another base or the same folder cooked again may reuse it at the same
      *  size. The same fingerprint is the same bytes, verified at read, under any base. */
-    dropForeign(catalog: ReadonlyMap<string, { bytes: number; sha256: string }>) {
-      for (const [url, held] of pages) {
-        const page = catalog.get(url)
-        if (page && (fingerprints.get(held) !== page.sha256 || held.byteLength !== page.bytes))
-          drop(url)
+    dropForeign(admitted: Iterable<{ url: string; bytes: number; sha256: string }>) {
+      for (const { url, bytes, sha256 } of admitted) {
+        const held = pages.get(url)
+        if (held && (fingerprints.get(held) !== sha256 || held.byteLength !== bytes)) drop(url)
       }
     },
     /**
@@ -182,9 +197,16 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Whether `session` is the one reading through the cache, whose holds `order` keeps. */
     holds: (session: Holder) => holder === session,
+    /** The one reader of the file at `url` by ranges, made on its first read. */
+    reader(url: string) {
+      let read = readers.get(url)
+      if (!read) readers.set(url, (read = rangedReader(url)))
+      return read
+    },
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear()
+      readers.clear()
       order.clear()
       release(true)
       levels.close()

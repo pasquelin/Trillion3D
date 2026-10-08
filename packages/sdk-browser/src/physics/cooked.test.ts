@@ -15,7 +15,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { castDown, startModule } from './module.fixture.ts'
 import { physicsRaycast } from './raycast.ts'
 import type { PhysicsSession } from './session/session.ts'
-import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts'
+import { cooked, place, settle, streamedModel, tile } from './tiles.fixture.ts'
 import { body } from './records.fixture.ts'
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
@@ -42,6 +42,29 @@ test('a tile cooked natively is restored in the module, collides, and answers a 
   assert.equal(castDown(jolt, 3)[0], 0xffffffff, 'past the ramp, nothing')
 })
 
+test('a tile restored once keeps its handle across steps: the bodies built on it then and later all collide', async () => {
+  const jolt = await startModule()
+  const writer = new CommandWriter()
+  const ramp = 7
+  writer.restore(ramp, new Uint8Array(await golden()))
+  /** Body `id` on the ramp's shape, `10 id` metres along x. */
+  const on = (id: number) =>
+    writer.add({
+      ...{ ...body(id, 0, 0, 1), position: [id * 10, 0, 0] },
+      ...{ shape: SHAPE.cooked, size: [1, 1, 1], indices: [ramp] },
+    })
+  on(0)
+  on(1)
+  jolt.step(writer.take(), 0)
+  on(2)
+  writer.release(ramp)
+  jolt.step(writer.take(), 0)
+  assert.deepEqual(
+    [1, 11, 21].map((x) => castDown(jolt, x)[0]),
+    [0, 1, 2],
+  )
+})
+
 /** A model whose `physics.json` is `file`, streamed in around the origin within `memoryBytes`:
  *  its streamer, the bodies it added, the errors raised and the files fetched. */
 async function streamed(file: object, memoryBytes = DEFAULT_PHYSICS_BUDGET.memoryBytes) {
@@ -57,8 +80,7 @@ async function streamed(file: object, memoryBytes = DEFAULT_PHYSICS_BUDGET.memor
     added.push({ ...record, position: Array.from(record.position) }),
     add(record)
   )
-  tiles.update([0, 0, 0], 1000)
-  await landed()
+  await settle({ tiles, bodies, fetched }, [0, 0, 0], 1000)
   const hit = new Uint32Array(HIT_WORDS)
   const session = { cast: async () => hit, objectOf: tiles.modelOf, materialOf: tiles.materialOf }
   return {
@@ -92,13 +114,11 @@ test('tiles past the collision share wait, never refused: the nearest in, the fa
   assert.equal(found?.distance, 2)
   await assert.rejects(physicsRaycast(null, down, { exact: true }, 8), { code: 'PHYSICS_OFF' })
   // The eye at the far end: the tile left behind leaves for the one that waited.
-  tiles.update([22, 0, 0], 1000)
-  await landed()
+  await settle({ tiles, bodies, fetched }, [22, 0, 0], 1000)
   assert.deepEqual(fetched.slice(1).sort(), ['t0.bin', 't10.bin', 't20.bin'])
   assert.deepEqual([bodies.count.collisionBytes, errors], [4, []])
   // Back at the origin, the tile asked again is the one that left: the farthest.
-  tiles.update([0, 0, 0], 1000)
-  await landed()
+  await settle({ tiles, bodies, fetched }, [0, 0, 0], 1000)
   assert.deepEqual(fetched.slice(4), ['t0.bin'])
 })
 

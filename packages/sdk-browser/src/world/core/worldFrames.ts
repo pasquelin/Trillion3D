@@ -1,7 +1,7 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts'
-import { lendAnimationSampler } from '../../math/batchAnimation.ts'
+import { lendAnimationSampler } from '../../animation/batchAnimation.ts'
 import { frameStart } from '../../frame/scheduling.ts'
 import { createFrameGrid } from './worldFrameGrid.ts'
 
@@ -45,7 +45,7 @@ function named(m: FrameMetrics): WorldFrameMetrics {
 
 /**
  * What a page reads before the world's first frame: a host-led loop asks for the metrics right
- * after `render()`, which draws nothing until the renderer is ready. No frame ran, so nothing was
+ * after `render()`, which draws nothing until the engine is ready. No frame ran, so nothing was
  * spent, loaded or drawn: the counts that a frame measures are `null`, the totals are zero.
  */
 export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
@@ -114,43 +114,28 @@ function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
 export function createWorldFrames() {
   // The mixers sample through the WebAssembly sampler once the module is there.
   void lendAnimationSampler()
-  const hooks = new Set<(frame: FrameInfo) => void>(),
-    early = new Set<(frame: BeforeFrameInfo) => void>()
   // The world's time is its frames' (`frameStart`), on the display's grid while it holds one.
-  const grid = createFrameGrid(),
-    start = frameStart()
-  let frame = 0,
-    last: WorldFrameMetrics | null = null
-  const pace = boundedDelta()
-  const info: FrameInfo = { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN }
-  const ahead: BeforeFrameInfo = { delta: 0, time: 0 }
-  /** Whether no step was taken yet, whether one was since the last frame drawn, and the seconds
-   *  integrated since then: what that frame's hooks are told, whatever the steps were. */
-  const steps = { first: true, taken: false, since: 0 }
-  // The controllers integrate from one step to the next, so each frame's render time is lived.
-  const advance = () => {
-    grid.frame(frameStart())
-    const seconds = pace.read(grid.delta, steps.first)
-    if (pace.paused) grid.restart()
-    steps.first = false
-    steps.taken = true
-    steps.since += seconds
-    return seconds
+  const state: FramesState = {
+    hooks: new Set(),
+    early: new Set(),
+    grid: createFrameGrid(),
+    start: frameStart(),
+    frame: 0,
+    last: null,
+    pace: boundedDelta(),
+    info: { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN },
+    ahead: { delta: 0, time: 0 },
+    steps: { first: true, taken: false, since: 0 },
   }
-  /** A frame is about to be drawn, `seconds` after the last: the early hooks run. */
-  const prepare = (seconds: number) => {
-    ahead.delta = seconds
-    ahead.time = (grid.time - start) / 1000
-    for (const hook of early) hook(ahead)
-  }
+  const { hooks, early } = state
   return {
     get last() {
-      return last
+      return state.last
     },
     /** Seconds since the last step ahead of a frame, on the display's grid while it holds one
      *  (`worldFrameGrid.ts`), bounded after a pause: what a controller integrates; the step is
      *  taken now. A display frame stepped again advances nothing. */
-    advance,
+    advance: () => advance(state),
     /**
      * Adds a function to run after every drawn frame.
      * @param hook - The function to run; it gets the frame's time and metrics.
@@ -163,41 +148,86 @@ export function createWorldFrames() {
      * @returns A function that stops the hook.
      */
     before: (hook: (frame: BeforeFrameInfo) => void) => member(early, hook),
-    /**
-     * The work ahead of a frame, whoever leads it, in this order: the physics' time is set to the
-     * frame's, the controller steps the camera unless the page took the step or leads the frame
-     * (`null`) — a character it moves is drawn at that time —, the scene's clips advance, the
-     * physics draws its bodies and is owed the same seconds, the early hooks run. What they move
-     * is written to the renderer after them, so it is drawn in this frame.
-     * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
-     */
-    step(controls: Stepped | null, scene: Object3D, physics: Physics | null = null) {
-      const seconds = advance()
-      physics?.time(seconds)
-      if (controls?.autoUpdate) controls.update(seconds)
-      const playing = advanceMixers(scene, seconds)
-      const moving = physics?.frame() ?? false
-      prepare(seconds)
-      return playing || moving
-    },
-    /** A frame was drawn: its hooks are told the seconds the steps since the last one
-     *  integrated — a frame drawn without a step takes one now — and the display's refresh the
-     *  frame measured places the next on the grid. */
-    dispatch(metrics: FrameMetrics) {
-      if (!steps.taken) advance()
-      info.delta = steps.since
-      pace.drawn(info.delta)
-      steps.taken = false
-      steps.since = 0
-      info.time = (grid.time - start) / 1000
-      info.frame = frame++
-      info.metrics = last = named(metrics)
-      grid.refreshed(metrics.displayRefreshMs)
-      for (const hook of hooks) hook(info)
-    },
+    step: (controls: Stepped | null, scene: Object3D, physics: Physics | null = null) =>
+      step(state, controls, scene, physics),
+    dispatch: (metrics: FrameMetrics) => dispatch(state, metrics),
     clear() {
       hooks.clear()
       early.clear()
     },
   }
+}
+
+/** What a world's frames hold between two (`createWorldFrames`). */
+type FramesState = {
+  hooks: Set<(frame: FrameInfo) => void>
+  early: Set<(frame: BeforeFrameInfo) => void>
+  grid: ReturnType<typeof createFrameGrid>
+  start: number
+  frame: number
+  last: WorldFrameMetrics | null
+  pace: ReturnType<typeof boundedDelta>
+  info: FrameInfo
+  ahead: BeforeFrameInfo
+  /** Whether no step was taken yet, whether one was since the last frame drawn, and the seconds
+   *  integrated since then: what that frame's hooks are told, whatever the steps were. */
+  steps: { first: boolean; taken: boolean; since: number }
+}
+
+/** The controllers integrate from one step to the next, so each frame's render time is lived. */
+function advance({ grid, pace, steps }: FramesState) {
+  grid.frame(frameStart())
+  const seconds = pace.read(grid.delta, steps.first)
+  if (pace.paused) grid.restart()
+  steps.first = false
+  steps.taken = true
+  steps.since += seconds
+  return seconds
+}
+
+/** A frame is about to be drawn, `seconds` after the last: the early hooks run. */
+function prepare({ ahead, grid, start, early }: FramesState, seconds: number) {
+  ahead.delta = seconds
+  ahead.time = (grid.time - start) / 1000
+  for (const hook of early) hook(ahead)
+}
+
+/**
+ * The work ahead of a frame, whoever leads it, in this order: the physics' time is set to the
+ * frame's, the controller steps the camera unless the page took the step or leads the frame
+ * (`null`) — a character it moves is drawn at that time —, the scene's clips advance, the
+ * physics draws its bodies and is owed the same seconds, the early hooks run. What they move
+ * is written to the engine after them, so it is drawn in this frame.
+ * @returns Whether a clip still plays or a body still moves, and asks for the next frame.
+ */
+function step(
+  state: FramesState,
+  controls: Stepped | null,
+  scene: Object3D,
+  physics: Physics | null,
+) {
+  const seconds = advance(state)
+  physics?.time(seconds)
+  if (controls?.autoUpdate) controls.update(seconds)
+  const playing = advanceMixers(scene, seconds)
+  const moving = physics?.frame() ?? false
+  prepare(state, seconds)
+  return playing || moving
+}
+
+/** A frame was drawn: its hooks are told the seconds the steps since the last one
+ *  integrated — a frame drawn without a step takes one now — and the display's refresh the
+ *  frame measured places the next on the grid. */
+function dispatch(state: FramesState, metrics: FrameMetrics) {
+  const { info, steps, pace, grid } = state
+  if (!steps.taken) advance(state)
+  info.delta = steps.since
+  pace.drawn(info.delta)
+  steps.taken = false
+  steps.since = 0
+  info.time = (grid.time - state.start) / 1000
+  info.frame = state.frame++
+  info.metrics = state.last = named(metrics)
+  grid.refreshed(metrics.displayRefreshMs)
+  for (const hook of state.hooks) hook(info)
 }

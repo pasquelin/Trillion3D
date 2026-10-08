@@ -1,11 +1,6 @@
 import { deviceMade, grantPending, startGrant, validated } from '../../../gpu/core/errorScope.ts'
 import { ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
-import { dropGpuHiz } from '../io/drops.ts'
 import { throwIfStopped } from '../io/lost.ts'
-import {
-  createWebgpuCoplanarLayerPipelines,
-  createWebgpuVisibilityRasterPipelines,
-} from '../../visibility/pipelines.ts'
 import { makeTargets, releaseTargets, targetsFit } from './targets.ts'
 import { makeVsmMask } from '../render/vsm/vsmPlan.ts'
 import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
@@ -133,7 +128,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     held ||= !aside.granted
     dropAside(rt)
   }
-  // The view's Hi-Z pyramid fits too, at the render size, or Hi-Z is absent.
+  // The view's Hi-Z pyramid fits too, at the render size.
   if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) {
     return refreshTargetGrant(rt, size, (error) =>
       refuseTargets(rt, { ...size, requestedBytes: gpu.targetBytes }, 'budget', error),
@@ -150,10 +145,13 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
     return pending.done
   const view = rt.views.active,
     granted = () => void (viewGpu(rt, view).targetGrant = undefined)
-  // The view's targets are in place, its pyramid is not: it alone is asked.
+  // The view's targets are in place, its pyramid is not: it alone is asked, refused as they are.
   if (fit) {
-    const done = grantHiz(rt, device, renderWidth, renderHeight, view).then(granted)
-    gpu.targetGrant = startGrant(done, { ...size })
+    const asked = { ...size, requestedBytes: gpu.targetBytes }
+    const done = grantHiz(rt, device, asked, view).then(
+      (made) => void (made ? granted() : !stopped(rt) && stepDownAfterRefusal(rt, asked, view)),
+    )
+    gpu.targetGrant = startGrant(done, asked)
     return gpu.targetGrant.done
   }
   diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
@@ -202,17 +200,16 @@ export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevic
   throw new Error('WEBGPU_FRAME_TARGETS_REFUSED')
 }
 
-/** Admit and allocate this view's targets. Device refusal releases the attempt; a Hi-Z
- * refusal retries through the existing fallback, never by losing the device. */
+/** Admit and allocate this view's targets, its Hi-Z pyramid among them (#1483): a refusal
+ *  releases the attempt, never the device. */
 async function grantTargets(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   asked: Asked,
   view: WebgpuView,
 ) {
-  const { vis, diag } = rt,
-    hiz = !!vis.gpuHiz
-  await poolFundingPending(rt) // One funding moves the pools at a time.
+  const { diag } = rt
+  await poolFundingPending(rt) // One funding moves the pools at a time (#1362).
   await onView(rt, view, () => fundFrameTargets(rt, asked, asked.requestedBytes))
   // Made, and released when refused, on the view that asked; tentatively
   // (`GpuDeviceLedger.tentative`): targets past the budget's limit are refused without refusing
@@ -224,14 +221,7 @@ async function grantTargets(
         return { allocation: made.allocation, destroy: () => onView(rt, view, made.destroy) }
       }),
     )
-  let made = await deviceMade(device, make)
-  // A session stopped meanwhile asks nothing again, and keeps its Hi-Z.
-  if (!made && !stopped(rt) && vis.gpuHiz) {
-    hizRefused(rt, 'The device refused the frame targets', asked.requestedBytes)
-    // Without the pyramid, the targets hold its bytes no more.
-    asked.requestedBytes = frameTargetAllocation(rt, asked, frameExtraBytes(rt, asked))
-    made = await deviceMade(device, make)
-  }
+  const made = await deviceMade(device, make)
   if (stopped(rt) || !made) {
     made?.destroy()
     if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-out-of-memory')
@@ -239,8 +229,6 @@ async function grantTargets(
   }
   // The shadows' mask is a frame target: made with them, in the room funded for it.
   onView(rt, view, () => makeVsmMask(rt, device))
-  // Without Hi-Z the visibility pass writes one target fewer: its pipelines follow, frame held.
-  if (hiz && !vis.gpuHiz && vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule)
   const { allocation } = made
   diag.traceDiagnostic(
     'targets-transition',
@@ -252,58 +240,15 @@ async function grantTargets(
   return true
 }
 
-/** `view`'s own Hi-Z pyramid at its size, under the device's out-of-memory check; refused, Hi-Z
- *  leaves — its absence changes no image — and the raster pipelines follow. */
-async function grantHiz(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  width: number,
-  height: number,
-  view: WebgpuView,
-) {
-  const { vis } = rt,
-    hiz = vis.gpuHiz!
+/** `view`'s own Hi-Z pyramid at its size, under the device's out-of-memory check: false when
+ *  refused, as frame targets are (`stepDownAfterRefusal`). */
+async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, asked: Asked, view: WebgpuView) {
+  const hiz = rt.vis.gpuHiz!,
+    { renderWidth: width, renderHeight: height } = asked
   // A resize that throws is refused like one the device declines: the grant never stays settled.
   const size = () => ledgerTentative(device, () => hiz.resize(device, width, height)) || undefined
   const fits = await validated(device, size, 'out-of-memory').catch(() => undefined)
-  if (!fits && !stopped(rt) && vis.gpuHiz) {
-    hizRefused(rt, 'The device refused the Hi-Z pyramid')
-    if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule)
-  }
+  if (!fits && !stopped(rt)) refuseTargets(rt, asked, 'gpu-out-of-memory')
   onView(rt, view, () => drawnViewChanged(rt))
-}
-
-/** Hi-Z refused by the device leaves, said: its absence changes no image. */
-function hizRefused(rt: WebgpuPagesRuntime, message: string, requestedBytes?: number) {
-  rt.diag.engineDiagnostic('gpu-out-of-memory', message, {
-    kind: 'warning',
-    pool: 'frame-targets',
-    requestedBytes,
-    dropped: 'hi-z',
-  })
-  dropGpuHiz(rt)
-}
-
-/** The visibility raster pipelines, those of the coplanar layers included, made without Hi-Z. */
-async function rasterWithoutHiz(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  module: GPUShaderModule,
-) {
-  const { vis } = rt,
-    layout = vis.visBindGroupLayout!,
-    variant = rt.context?.diagnosticGpuVariant
-  Object.assign(
-    vis,
-    await createWebgpuVisibilityRasterPipelines(device, module, layout, false, variant),
-  )
-  if (vis.drawLayerSlots > 1)
-    vis.visLayerPipelines = await createWebgpuCoplanarLayerPipelines(
-      device,
-      module,
-      layout,
-      false,
-      vis.drawLayerSlots,
-      variant,
-    )
+  return !!fits
 }

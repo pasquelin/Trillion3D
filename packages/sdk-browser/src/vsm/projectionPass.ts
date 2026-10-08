@@ -10,9 +10,17 @@
  * reverse-Z in both. Shifted = world + originShift (default −camera position), the
  * same split double the projection data carries.
  */
-import { writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { hasSubgroups } from '../gpu/core/subgroups.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import {
+  copyMatrix4,
+  multiplyMatrix4,
+  negateColumnMatrix4,
+  negateRowMatrix4,
+} from '../../../math/src/matrix/matrix4.ts'
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
+import { QUARTER_PI } from '../../../math/src/constants.ts'
 import {
   preparedComputePipeline,
   preparedPipelines,
@@ -48,6 +56,7 @@ import {
   type VsmResources,
 } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {
@@ -116,11 +125,7 @@ export interface VsmProjectionLight {
 /** Whether the projection votes by subgroup (`voteWgsl`): exact at any subgroup size, the workgroup
  *  counter taking over in a group where a half spans several subgroups — always, where the adapter
  *  says its subgroups are under 32 lanes, which the plain variant counts at less cost. */
-export function vsmProjectionCanUseSubgroups(device: GPUDevice) {
-  const max = (device as { adapterInfo?: { subgroupMaxSize?: number } }).adapterInfo
-    ?.subgroupMaxSize
-  return device.features.has('subgroups') && !(max !== undefined && max > 0 && max < 32)
-}
+export const vsmProjectionCanUseSubgroups = (device: GPUDevice) => hasSubgroups(device, 32)
 
 const KIND: Record<VsmProjectionLightType, number> = {
   directional: VSM_LIGHT_KIND_DIRECTIONAL,
@@ -137,6 +142,8 @@ const scratch = {
   clipToShifted: new Float64Array(16),
   viewInverse: new Float64Array(16),
   shift: new Float64Array(3),
+  /** The shift negated: the point `T(originShift)` takes to the world origin. */
+  origin: new Float64Array(3),
 }
 
 /** The words of a view uniform's staging image, as floats, unsigned and signed integers. */
@@ -153,39 +160,42 @@ const ORIGIN = [0, 0, 0] as const
 const HEADER_WORDS = 104,
   LIGHT_WORDS = 12
 
-/** Writes `VsmProjectionView` for these inputs and ≤ 64 lights into its staging words: its header
- *  and the lights' records, the shader reading no record past its light count; returns the bytes
- *  written. */
-function writeVsmProjectionView(
-  { f, u, i }: ViewWords,
-  inputs: Pick<
-    VsmProjectionInputs,
-    'width' | 'height' | 'bufferWidth' | 'bufferHeight' | 'camera' | 'frameIndex'
-  >,
-  lights: readonly VsmProjectionLight[],
-) {
-  const count = Math.min(lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS),
-    words = HEADER_WORDS + LIGHT_WORDS * count
-  f.fill(0, 0, words)
-  const { camera, width, height } = inputs
+/** What the view's header is written from (`VsmProjectionInputs`). */
+type ViewInputs = Pick<
+  VsmProjectionInputs,
+  'width' | 'height' | 'bufferWidth' | 'bufferHeight' | 'camera' | 'frameIndex'
+>
+
+/** The view's matrices into `scratch`: its inverse — the eye its translation (words 12-14) —, the
+ *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
+function viewMatrices(camera: ViewInputs['camera']) {
   const s = scratch
-  for (let k = 0; k < 16; k++) s.view[k] = camera.view[k]
+  copyMatrix4(s.view, camera.view)
   invertMatrix4(s.viewInverse, s.view)
   // The eye: the inverse view's translation (words 12-14).
   const eye = s.viewInverse,
     shift = s.shift
-  for (let k = 0; k < 3; k++) shift[k] = camera.originShift ? camera.originShift[k] : -eye[12 + k]
-  // shiftedToView = flipZ · view · T(originShift).
-  s.shiftedToView.set(s.view)
-  for (let r = 0; r < 3; r++)
-    s.shiftedToView[12 + r] =
-      s.view[12 + r] - (s.view[r] * shift[0] + s.view[4 + r] * shift[1] + s.view[8 + r] * shift[2])
-  for (let k = 2; k < 16; k += 4) s.shiftedToView[k] = -s.shiftedToView[k]
-  // viewToClip = projection · flipZ.
-  for (let k = 0; k < 16; k++) s.viewToClip[k] = camera.projection[k]
-  for (let k = 8; k < 12; k++) s.viewToClip[k] = -s.viewToClip[k]
+  for (let k = 0; k < 3; k++) {
+    shift[k] = camera.originShift ? camera.originShift[k] : -eye[12 + k]
+    s.origin[k] = -shift[k]
+  }
+  // shiftedToView = flipZ · view · T(originShift): the view at the render origin −shift, its z row
+  // negated.
+  matrixAtRenderOrigin(s.shiftedToView, s.view, s.origin)
+  negateRowMatrix4(s.shiftedToView, s.shiftedToView, 2)
+  // viewToClip = projection · flipZ: its z column negated.
+  negateColumnMatrix4(s.viewToClip, camera.projection, 2)
   multiplyMatrix4(s.shiftedToClip, s.viewToClip, s.shiftedToView)
   invertMatrix4(s.clipToShifted, s.shiftedToClip)
+}
+
+/** The view's header from the matrices of `scratch` (`viewMatrices`), its light `count` included,
+ *  the screen's words after it (`writeScreenWords`). */
+function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
+  const { f, u } = view,
+    s = scratch,
+    eye = s.viewInverse,
+    shift = s.shift
   f.set(s.shiftedToClip, 0)
   f.set(s.shiftedToView, 16)
   f.set(s.viewToClip, 32)
@@ -194,11 +204,10 @@ function writeVsmProjectionView(
   writeSplitDouble(f, 65, 69, shift[1])
   writeSplitDouble(f, 66, 70, shift[2])
   u[67] = inputs.frameIndex >>> 0
-  const v2c = s.viewToClip
-  // A matrix test M[3][3] < 1 would tell it from the exact matrix; the engine knows its camera's kind, which a
-  // projection rebuilt through the view's inverse (`vsmEncode.ts` rasterProjection) or scaled
-  // (an orthographic box's zoom scales M[3][3] with it) no longer tells by its value.
-  const perspective = camera.perspective
+  // The camera's kind as the engine knows it, never a matrix test M[3][3] < 1: the projection's
+  // jitter (`taaRenderProjection`) leaves rows 2 and 3 as they are, but the same projection
+  // scaled as a homogeneous matrix (×0.25: M[3][3] = 0.25 for an orthographic one) would fail it.
+  const perspective = inputs.camera.perspective
   u[71] = perspective ? 0 : 1
   f[72] = eye[12] + shift[0]
   f[73] = eye[13] + shift[1]
@@ -208,7 +217,17 @@ function writeVsmProjectionView(
   f[76] = s.shiftedToView[2]
   f[77] = s.shiftedToView[6]
   f[78] = s.shiftedToView[10]
-  vsmWriteDepthFromDeviceZ(f, 80, v2c, perspective)
+  vsmWriteDepthFromDeviceZ(f, 80, s.viewToClip, perspective)
+  writeScreenWords(view, inputs, s.viewToClip, perspective)
+}
+
+/** The header's screen words (84-103) from view-to-clip `v2c`. */
+function writeScreenWords(
+  { f, i }: ViewWords,
+  { width, height, bufferWidth, bufferHeight }: ViewInputs,
+  v2c: Float64Array,
+  perspective: boolean,
+) {
   // The screen ray length multiplier (words 84-87, zero but where set) and the tangent and inverse
   // tangent of the half field of view (88-91: clip-to-view [0][0], [1][1], view-to-clip [0][0],
   // [1][1]); an orthographic view's are 1.
@@ -224,8 +243,8 @@ function writeVsmProjectionView(
   f[95] = 1 / height
   // The screen position scale and bias: NDC to the UV of the buffer the
   // view rect [0, size) sits in, as the screen ray samples the scene depth.
-  const bw = inputs.bufferWidth ?? width,
-    bh = inputs.bufferHeight ?? height
+  const bw = bufferWidth ?? width,
+    bh = bufferHeight ?? height
   f[96] = width / bw / 2
   f[97] = -height / bh / 2
   f[98] = height / 2 / bh
@@ -233,34 +252,56 @@ function writeVsmProjectionView(
   // The projection rect: from (0, 0) (words 100-101, zero), its size.
   i[102] = width
   i[103] = height
-  for (let k = 0; k < count; k++) {
-    const light = lights[k],
-      o = HEADER_WORDS + k * LIGHT_WORDS
-    const d = light.direction
-    const p = light.position ?? ORIGIN
-    f[o] = p[0] + shift[0]
-    f[o + 1] = p[1] + shift[1]
-    f[o + 2] = p[2] + shift[2]
-    f[o + 3] = light.radius && light.radius > 0 ? 1 / light.radius : 0
-    // The record's direction points towards the light.
-    f[o + 4] = -d[0]
-    f[o + 5] = -d[1]
-    f[o + 6] = -d[2]
-    f[o + 7] = light.sourceRadius ?? 0
-    if (light.type === 'spot') {
-      // The spot cone: inner clamped below outer, the angles = (cos outer, 1/(cos inner − cos outer)).
-      const outer = light.outerConeAngle ?? Math.PI / 4
-      const inner = Math.min(Math.max(light.innerConeAngle ?? 0, 0), outer - 0.001)
-      const cosOuter = Math.cos(outer)
-      f[o + 8] = cosOuter
-      f[o + 9] = 1 / (Math.cos(inner) - cosOuter)
-    } else {
-      f[o + 8] = -2
-      f[o + 9] = 1
-    }
-    i[o + 10] = light.mapId | 0
-    u[o + 11] = KIND[light.type]
+}
+
+/** One light's record at word `o`, its position shifted by `shift`. */
+function writeLightRecord(
+  { f, u, i }: ViewWords,
+  o: number,
+  light: VsmProjectionLight,
+  shift: Float64Array,
+) {
+  const d = light.direction
+  const p = light.position ?? ORIGIN
+  f[o] = p[0] + shift[0]
+  f[o + 1] = p[1] + shift[1]
+  f[o + 2] = p[2] + shift[2]
+  f[o + 3] = light.radius && light.radius > 0 ? 1 / light.radius : 0
+  // The record's direction points towards the light.
+  f[o + 4] = -d[0]
+  f[o + 5] = -d[1]
+  f[o + 6] = -d[2]
+  f[o + 7] = light.sourceRadius ?? 0
+  if (light.type === 'spot') {
+    // The spot cone: inner clamped below outer, the angles = (cos outer, 1/(cos inner − cos outer)).
+    const outer = light.outerConeAngle ?? QUARTER_PI
+    const inner = clamp(light.innerConeAngle ?? 0, 0, outer - 0.001)
+    const cosOuter = Math.cos(outer)
+    f[o + 8] = cosOuter
+    f[o + 9] = 1 / (Math.cos(inner) - cosOuter)
+  } else {
+    f[o + 8] = -2
+    f[o + 9] = 1
   }
+  i[o + 10] = light.mapId | 0
+  u[o + 11] = KIND[light.type]
+}
+
+/** Writes `VsmProjectionView` for these inputs and ≤ 64 lights into its staging words: its header
+ *  and the lights' records, the shader reading no record past its light count; returns the bytes
+ *  written. */
+function writeVsmProjectionView(
+  view: ViewWords,
+  inputs: ViewInputs,
+  lights: readonly VsmProjectionLight[],
+) {
+  const count = Math.min(lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS),
+    words = HEADER_WORDS + LIGHT_WORDS * count
+  view.f.fill(0, 0, words)
+  viewMatrices(inputs.camera)
+  writeViewHeader(view, inputs, count)
+  for (let k = 0; k < count; k++)
+    writeLightRecord(view, HEADER_WORDS + k * LIGHT_WORDS, lights[k], scratch.shift)
   return 4 * words
 }
 
@@ -386,19 +427,11 @@ const projectionDescriptor = (
   },
 })
 
-/** The projection's module, layouts and bind groups for these variants. */
-function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
-  let made = pipelines.get(device)
-  if (!made) pipelines.set(device, (made = new Map()))
-  const key = `${subgroups}|${receiver}|${layout.poolPartsPerSlice}|${layout.poolPartTexelShift}|${layout.poolTexelsXY[0]}`
-  let p = made.get(key)
-  if (p) return p
-  const vsmLayout = device.createBindGroupLayout({
-    label: 'vsm.projection.vsm',
-    entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
-  })
+/** The layout of the pass group: the view uniform, the scene's depth, normals and flags, the blue
+ *  noise, and the mask and its tiles the pass writes. */
+function projectionPassLayout(device: GPUDevice) {
   const B = VSM_PROJECTION_BINDING
-  const passLayout = device.createBindGroupLayout({
+  return device.createBindGroupLayout({
     label: 'vsm.projection.pass',
     entries: [
       { binding: B.view, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
@@ -434,6 +467,20 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
       },
     ],
   })
+}
+
+/** The projection's module, layouts and bind groups for these variants. */
+function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
+  let made = pipelines.get(device)
+  if (!made) pipelines.set(device, (made = new Map()))
+  const key = `${subgroups}|${receiver}|${layout.poolPartsPerSlice}|${layout.poolPartTexelShift}|${layout.poolTexelsXY[0]}`
+  let p = made.get(key)
+  if (p) return p
+  const vsmLayout = device.createBindGroupLayout({
+    label: 'vsm.projection.vsm',
+    entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
+  })
+  const passLayout = projectionPassLayout(device)
   const module = device.createShaderModule({
     label: `vsm.projection${subgroups ? '.subgroups' : ''}`,
     code: vsmProjectionWgsl(layout, { subgroups, receiver }),
@@ -514,6 +561,65 @@ function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
   return variant.ready ? variant.get() : twin
 }
 
+/** The pass group of `state` over the frame's inputs: made again only when the layout or one of
+ *  the views it binds changes. */
+function passGroupFor(
+  device: GPUDevice,
+  state: ProjectionState,
+  p: Pipelines,
+  inputs: VsmProjectionInputs,
+) {
+  const { mask, maskTiles } = inputs
+  let passGroup = state.group
+  if (
+    !passGroup ||
+    passGroup.layout !== p.passLayout ||
+    passGroup.depth !== inputs.depth ||
+    passGroup.normalRough !== inputs.normalRough ||
+    passGroup.flags !== inputs.flags ||
+    passGroup.mask !== mask ||
+    passGroup.maskTiles !== maskTiles
+  ) {
+    const B = VSM_PROJECTION_BINDING
+    state.group = passGroup = {
+      group: device.createBindGroup({
+        label: 'vsm.projection.pass',
+        layout: p.passLayout,
+        entries: [
+          { binding: B.view, resource: { buffer: state.uniform! } },
+          { binding: B.sceneDepth, resource: inputs.depth },
+          { binding: B.normalRough, resource: inputs.normalRough },
+          { binding: B.flags, resource: inputs.flags },
+          { binding: B.blueNoise, resource: state.blueNoiseView! },
+          { binding: B.shadowMask, resource: mask },
+          { binding: B.shadowMaskTiles, resource: maskTiles },
+        ],
+      }),
+      layout: p.passLayout,
+      depth: inputs.depth,
+      normalRough: inputs.normalRough,
+      flags: inputs.flags,
+      mask,
+      maskTiles,
+    }
+  }
+  return passGroup
+}
+
+/** The receiver group of `p` over `receiver`, made once a view. */
+function receiverGroupFor(p: Pipelines, layout: GPUBindGroupLayout, receiver: GPUTextureView) {
+  let group = p.receiverGroups.get(receiver)
+  if (!group) {
+    group = p.device.createBindGroup({
+      label: 'vsm.projection.receiver',
+      layout,
+      entries: [{ binding: 0, resource: receiver }],
+    })
+    p.receiverGroups.set(receiver, group)
+  }
+  return group
+}
+
 /**
  * Projects up to 64 lights in one dispatch into the engine's mask (`inputs.mask`, r32uint, a layer
  * per four lights): lane k % 4 of layer k / 4 is the shadow factor of `lights[k]` as its trace
@@ -535,61 +641,20 @@ export function encodeVirtualShadowProjection(
   const subgroups = inputs.subgroups ?? vsmProjectionCanUseSubgroups(device)
   const p = pipelinesFor(device, res.layout, subgroups, !!inputs.receiver)
 
-  const uniform = state.uniform!
   const bytes = writeVsmProjectionView(state.words, inputs, lights)
-  device.queue.writeBuffer(uniform, 0, state.staging, 0, bytes)
+  device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
 
   const vsmGroup = vsmPerFrameSet(p.vsmGroups, res, tablesGroup, p)
-  const { mask, maskTiles } = inputs
-  let passGroup = state.group
-  if (
-    !passGroup ||
-    passGroup.layout !== p.passLayout ||
-    passGroup.depth !== inputs.depth ||
-    passGroup.normalRough !== inputs.normalRough ||
-    passGroup.flags !== inputs.flags ||
-    passGroup.mask !== mask ||
-    passGroup.maskTiles !== maskTiles
-  ) {
-    const B = VSM_PROJECTION_BINDING
-    state.group = passGroup = {
-      group: device.createBindGroup({
-        label: 'vsm.projection.pass',
-        layout: p.passLayout,
-        entries: [
-          { binding: B.view, resource: { buffer: uniform } },
-          { binding: B.sceneDepth, resource: inputs.depth },
-          { binding: B.normalRough, resource: inputs.normalRough },
-          { binding: B.flags, resource: inputs.flags },
-          { binding: B.blueNoise, resource: state.blueNoiseView! },
-          { binding: B.shadowMask, resource: mask },
-          { binding: B.shadowMaskTiles, resource: maskTiles },
-        ],
-      }),
-      layout: p.passLayout,
-      depth: inputs.depth,
-      normalRough: inputs.normalRough,
-      flags: inputs.flags,
-      mask,
-      maskTiles,
-    }
-  }
+  const passGroup = passGroupFor(device, state, p, inputs)
   const pass = encoder.beginComputePass({ label: 'vsm.projection' })
   pass.setPipeline(pipelineFor(p, lights))
   pass.setBindGroup(0, vsmGroup)
   pass.setBindGroup(1, passGroup.group)
-  if (p.receiverLayout && inputs.receiver) {
-    let receiverGroup = p.receiverGroups.get(inputs.receiver)
-    if (!receiverGroup) {
-      receiverGroup = device.createBindGroup({
-        label: 'vsm.projection.receiver',
-        layout: p.receiverLayout,
-        entries: [{ binding: 0, resource: inputs.receiver }],
-      })
-      p.receiverGroups.set(inputs.receiver, receiverGroup)
-    }
-    pass.setBindGroup(VSM_PROJECTION_RECEIVER_GROUP, receiverGroup)
-  }
+  if (p.receiverLayout && inputs.receiver)
+    pass.setBindGroup(
+      VSM_PROJECTION_RECEIVER_GROUP,
+      receiverGroupFor(p, p.receiverLayout, inputs.receiver),
+    )
   pass.dispatchWorkgroups(...vsmProjectionTiles(width, height))
   pass.end()
 }

@@ -34,10 +34,10 @@ async function drawnShadows(refuse = false) {
   }
   const view = camera()
   backend.render(view)
-  await backend.flush?.()
+  await backend.flush()
   backend.setTransform!('caster', along(0.1))
   backend.render(view)
-  await backend.flush?.()
+  await backend.flush()
   return { backend, gpu, said, lit }
 }
 

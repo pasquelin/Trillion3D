@@ -7,27 +7,21 @@ import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src
 import { VIEWPORT } from './sharedSceneProof.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'
-import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts'
-
-/** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
- *  returns still carries it (`packages/sdk-browser/src/webgpu/pages/pages.ts`). Read here through a local
- *  extension of the public type rather than widening it in the engine. */
-interface BackendWithCpuFrameEnd extends RenderBackend {
-  cpuFrameEnd?(): void
-}
+import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
  *  rereads its pixels and public counters. The frame bound is closed as a host does: that is what
  *  publishes the per-stage counters. */
 export async function image(
-  backend: RenderBackend,
+  backend: Engine,
   camera: G.Camera,
-): Promise<{ pixels: Uint8Array; metrics: ReturnType<RenderBackend['metrics']> }> {
+): Promise<{ pixels: Uint8Array; metrics: ReturnType<Engine['metrics']> }> {
   await animationFrame()
   backend.render(camera)
-  ;(backend as BackendWithCpuFrameEnd).cpuFrameEnd?.()
-  await backend.flush!()
-  return { pixels: backend.capture!(), metrics: backend.metrics() }
+  backend.cpuFrameEnd()
+  await backend.flush()
+  return { pixels: await backend.capture(), metrics: backend.metrics() }
 }
 
 /**
@@ -38,20 +32,24 @@ export async function image(
  */
 export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
 
-/** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
+/** Renders until the image is held; returns the last RENDERED image, the held one, and the count
+ *  rendered before it. `onFrame` sees every image, the held one included, before the hold ends the
+ *  wait. */
 export async function untilHeld(
-  backend: RenderBackend,
+  backend: Engine,
   camera: G.Camera,
-): Promise<{ rendered: number[] | undefined; held: number[] | null; rendues: number }> {
+  onFrame?: (frame: Awaited<ReturnType<typeof image>>) => void,
+): Promise<{ rendered: number[] | undefined; held: number[] | null; count: number }> {
   let rendered: number[] | undefined,
-    rendues = 0
+    count = 0
   for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metrics } = await image(backend, camera)
-    if (metrics.frameHeld) return { rendered, held: Array.from(pixels), rendues }
-    rendered = Array.from(pixels)
-    rendues++
+    const frame = await image(backend, camera)
+    onFrame?.(frame)
+    if (frame.metrics.frameHeld) return { rendered, held: Array.from(frame.pixels), count }
+    rendered = Array.from(frame.pixels)
+    count++
   }
-  return { rendered, held: null, rendues }
+  return { rendered, held: null, count }
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */
@@ -100,8 +98,8 @@ export function colorAt(
   [w, h]: readonly [number, number] = VIEWPORT,
 ) {
   project(point.set(x, y, z), camera)
-  const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
-    py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
+  const px = clamp(Math.round(((point.x + 1) / 2) * (w - 1)), 0, w - 1),
+    py = clamp(Math.round(((point.y + 1) / 2) * (h - 1)), 0, h - 1),
     i = (py * w + px) * 4
   return [pixels[i], pixels[i + 1], pixels[i + 2]]
 }

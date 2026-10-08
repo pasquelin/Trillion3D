@@ -1,9 +1,9 @@
 /**
- * THE IMAGE'S IMPOSTOR CARDS, one plan for both GPU paths: `planImpostors` over the
- * cut's roots at the engine's focal length, planned again in place, then each card the image draws
- * written as one record, grouped by mesh into runs that share an atlas. WebGPU binds a run's atlas
- * as a bind group (`webgpu/impostor/`), WebGL2 as three textures (`webgl/impostor/`): `G` is that
- * binding, and `atlasOf` answers it once the mesh's atlas is resident — asking it otherwise.
+ * THE IMAGE'S IMPOSTOR CARDS (#1335, #1336): `planImpostors` over the cut's roots at the engine's
+ * focal length, planned again in place, then each card the image draws written as one record,
+ * grouped by mesh into runs that share an atlas. A run's atlas is bound as a bind group
+ * (`webgpu/impostor/`): `G` is that binding, and `atlasOf` answers it once the mesh's atlas is
+ * resident — asking it otherwise.
  */
 import {
   frustumExcludesBox,
@@ -17,8 +17,7 @@ import {
   type ImpostorPlan,
   type ImpostorSection,
 } from '../../../sdk-core/src/index.ts'
-import { transformAffinePoint } from '../../../sdk-core/src/math/primitives/vector.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { impostorCardCorners } from './card.ts'
 import { core } from './borrowed.ts'
 import type { EngineCamera } from '../camera/world.ts'
@@ -63,8 +62,7 @@ export type ImpostorCards<G> = ReturnType<typeof createImpostorCards<G>>
 /** Told of each root whose card bit moved: the GPU cut's copy of the mark follows it. */
 export type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
 
-const pixelScale = [0, 0],
-  pivot = new Float64Array(3),
+const pivot = new Float64Array(3),
   corners = new Float64Array(12),
   inverse = new Float64Array(16),
   shape: [number, number, number, number] = [0, 0, 0, 0],
@@ -95,7 +93,7 @@ const composed = new Float64Array(16)
 
 /**
  * Writes into the first `count` records of `out` each card's `toDraw · world`, composed in double
- * and rounded once to single: `toDraw` is the draw's view-projection (WebGPU) or view (WebGL2). Its
+ * and rounded once to single: `toDraw` is the draw's view-projection. Its
  * shader then carries the card's surface point by that one matrix. Composed per pixel in single
  * instead, the two matrices' large translations cancel after rounding: at 1e5 m from the origin the
  * card's depth was off by up to ~6.5e3 ULP, where the composed matrix keeps it within 2 ULP of the
@@ -154,8 +152,7 @@ export function planImpostorCards<G>(
   atlasOf: (mesh: number, maps: ImpostorMaps) => G | undefined,
   moved?: CardMoved,
 ) {
-  core.pixelScaleOf(cam.projection, viewport, pixelScale)
-  const focal = Math.max(pixelScale[0], pixelScale[1])
+  const focal = core.focalPixels(cam.projection, viewport?.[0], viewport?.[1])
   const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan))
   plan.cards.sort(byMesh)
   state.count = state.runCount = 0
@@ -188,7 +185,7 @@ export function planImpostorCards<G>(
     last = card.world
     impostorCardCorners(corners, cam.viewProjection, pivot, R)
     // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
-    const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2])
+    const distance = length3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2])
     shape[0] = entry.objectRadius ?? entry.radius
     shape[1] = entry.frames
     shape[2] = entry.hemi ? 1 : 0

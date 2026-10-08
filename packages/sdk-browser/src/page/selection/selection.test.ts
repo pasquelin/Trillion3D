@@ -1,12 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts'
+import { collectClusterPages, rootCoverage } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { kernelUniforms } from '../../gpu/dag/selectionHelpers.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts'
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
@@ -73,10 +74,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
     fixture.indices,
     fixture.associations,
   )
-  // Whoever sets a cone declares its root, exactly like `prepareCones`: the cut trusts the
-  // root's declaration and reads `cone` only on those that announce one.
   allPages[0].cone = { axis: [0, 0, -1], angle: 0 }
-  roots[0].cones = true
   const cam = camera(),
     packed = packDagSelection(roots)
   const cpu = selectVisiblePages(roots, engineCamera(cam), {})
@@ -106,7 +104,7 @@ test('clustered blend classification remains explicit if material transparency w
   fixture.material.dispose()
 })
 
-test('transparent source materials on legacy exact pages still use the forward pass', () => {
+test('a transparent material on `exact-clusters` pages is collected as transparent', () => {
   const fixture = blendFixture()
   fixture.metadata.primitives[0].pass = 'exact-clusters'
   const collected = collectClusterPages(

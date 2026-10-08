@@ -24,7 +24,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts'
-import { IDENTITY_WORLD } from '../page/cut/state.ts'
+import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import type { worldRootPages } from './worldPageServe.ts'
 
 /** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump.

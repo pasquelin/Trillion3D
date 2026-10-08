@@ -14,8 +14,10 @@ import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRang
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first range's behind the
  *  camera, the second's before it, its outer columns past the frustum's sides. Small, so its tables
@@ -54,7 +56,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
   const { packed, uniforms } = sceneView(8, 2, poses)
-  const lying = reporting(device, framesBytes(Math.ceil(packed.worldCount / 2)))
+  const lying = reporting(device, framesBytes(ceilDiv(packed.worldCount, 2)))
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported
@@ -62,11 +64,12 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const resources = await createDagResources(
       target,
       packed,
-      false,
       null,
       selectionListCap(packed.pageCount),
     )
     if (!resources) return undefined
+    // Every page resident: the cut draws every page it wants.
+    residentAll(resources)
     const readback = device.createBuffer({
       size: resources.readbackBytes,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
@@ -74,14 +77,19 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const cuts = []
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
-      writeDagUniforms(block, packed, { ...uniforms, pixelError }, false, resources.listCap)
+      writeDagUniforms(block, packed, { ...uniforms, pixelError }, resources.listCap)
       device.queue.writeBuffer(resources.uniforms, 0, block)
       const encoder = device.createCommandEncoder()
       encodeDagKernels(encoder, resources)
       encoder.copyBufferToBuffer(resources.output, 0, readback, 0, resources.readbackBytes)
       device.queue.submit([encoder.finish()])
       await readback.mapAsync(GPUMapMode.READ)
-      const result = parseDagOutput(readback.getMappedRange(), 0, resources.readbackBytes, 0)
+      const result = parseDagOutput(
+        readback.getMappedRange(),
+        0,
+        resources.readbackBytes,
+        resources.outputBytes / 4,
+      )
       readback.unmap()
       if (!result) throw new Error('unreadable output')
       cuts.push({

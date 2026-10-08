@@ -21,7 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light, texture } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math, texture } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       // The normal map of a brick wall: courses of bricks, every second one offset by half a brick,
@@ -41,7 +41,7 @@
             const dx = (height(u + step, v) - height(u - step, v)) * 4, dy = (height(u, v + step) - height(u, v - step)) * 4;
             const length = Math.hypot(dx, dy, 1);
             [0.5 - dx / length / 2, 0.5 - dy / length / 2, 0.5 + 1 / length / 2, 1].forEach((value, channel) => {
-              pixels[(py * size + px) * 4 + channel] = Math.round(Math.min(1, Math.max(0, value)) * 255);
+              pixels[(py * size + px) * 4 + channel] = Math.round(math.clamp(value, 0, 1) * 255);
             });
           }
         return texture.data(pixels, size, size, 'rgba');

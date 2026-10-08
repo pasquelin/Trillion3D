@@ -1,6 +1,12 @@
 // One segment of a track between two keys, as `sample` draws it: the most its value moves per
 // second, which bounds how far a pose kept since lags the true one (`trackMotion.ts`).
 import type { Track } from './clip.ts'
+import {
+  distanceSqQuaternion,
+  lengthQuaternion,
+  slerpArc,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** What `segmentSpeed` gives a segment at whose end the value itself leaps. */
 export const LEAPS = -1
@@ -26,10 +32,12 @@ export function segmentSpeed(tr: Track, i: number, span: number, width: number) 
     return normalised(from, to, span, bend, speed)
   }
   if (tr.kind === 'quaternion') return arcSpeed(values, i, span)
-  let speed = 0
-  for (let c = 0; c < width; c++)
-    speed = Math.hypot(speed, (values[(i + 1) * width + c] - values[i * width + c]) / span)
-  return speed
+  let squares = 0
+  for (let c = 0; c < width; c++) {
+    const rise = (values[(i + 1) * width + c] - values[i * width + c]) / span
+    squares += rise * rise
+  }
+  return Math.sqrt(squares)
 }
 
 /** The slerp from key `i` to `i + 1`, as `slerpArc` takes it (the shorter way round). Between unit
@@ -39,18 +47,17 @@ export function segmentSpeed(tr: Track, i: number, span: number, width: number) 
  *  `|p'| ≤ ω |b − a| / sin φ + ω φ max(|a|, |b|)`; nearly one key, the line from `a` to `b`. */
 function arcSpeed(values: ArrayLike<number>, i: number, span: number) {
   for (let c = 0; c < 4; c++) [from[c], to[c]] = [values[i * 4 + c], values[i * 4 + 4 + c]]
-  const lengthA = Math.hypot(...from),
-    lengthB = Math.hypot(...to)
-  let cos = from[0] * to[0] + from[1] * to[1] + from[2] * to[2] + from[3] * to[3]
-  const sign = cos < 0 ? -1 : 1
-  cos = Math.min(1, cos * sign)
-  const angle = Math.acos(cos),
-    sin = Math.sin(angle),
+  const lengthA = lengthQuaternion(from),
+    lengthB = lengthQuaternion(to)
+  slerpArc(arc, 0, from, 0, to, 0)
+  const sign = arc[0],
+    angle = arc[1],
+    sin = arc[2],
     omega = angle / span
   if (Math.abs(lengthA - 1) < 1e-6 && Math.abs(lengthB - 1) < 1e-6 && sin >= 1e-6) return omega
-  let chord = 0
-  for (let c = 0; c < 4; c++) chord += (sign * to[c] - from[c]) ** 2
+  // `to` on `from`'s side first: the chord is then the squared gap of the two held keys.
   for (let c = 0; c < 4; c++) to[c] *= sign
+  const chord = distanceSqQuaternion(to, from)
   if (sin < 1e-6) return normalised(from, to, span, 0, Math.sqrt(chord) / span)
   const longest = Math.max(lengthA, lengthB)
   return normalised(
@@ -62,7 +69,8 @@ function arcSpeed(values: ArrayLike<number>, i: number, span: number) {
   )
 }
 const from = new Float64Array(4),
-  to = new Float64Array(4)
+  to = new Float64Array(4),
+  arc = new Float64Array(3)
 
 /** glTF's cubic spline from key `i` (value `p₀`, out-tangent `m₀`) to `i + 1` (`p₁`, in-tangent
  *  `m₁`): `c''` is linear in `t`, largest at an end (`bend`); `c'` is the quadratic Bézier of `m₀`,
@@ -98,15 +106,12 @@ function cubicLine(v: ArrayLike<number>, i: number, span: number, width: number)
  * the origin less the most `p` leaves its chord, `bend · span² / 8`. Unbounded when `m` reaches 0.
  */
 function normalised(a: Float64Array, b: Float64Array, span: number, bend: number, speed: number) {
-  let chord = 0,
-    along = 0
-  for (let c = 0; c < 4; c++) {
-    chord += (b[c] - a[c]) ** 2
-    along -= a[c] * (b[c] - a[c])
-  }
-  const lambda = chord > 0 ? Math.min(1, Math.max(0, along / chord)) : 0
+  const chord = distanceSqQuaternion(a, b)
+  let along = 0
+  for (let c = 0; c < 4; c++) along -= a[c] * (b[c] - a[c])
+  const lambda = chord > 0 ? saturate(along / chord) : 0
   let near = 0
   for (let c = 0; c < 4; c++) near += (a[c] + lambda * (b[c] - a[c])) ** 2
   const least = Math.sqrt(near) - (bend * span * span) / 8
-  return least > 0 && Math.hypot(...a) > 0 && Math.hypot(...b) > 0 ? speed / least : Infinity
+  return least > 0 && lengthQuaternion(a) > 0 && lengthQuaternion(b) > 0 ? speed / least : Infinity
 }

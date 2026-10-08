@@ -137,6 +137,7 @@ test('assertManifestBinary accepts this version and refuses every other one', ()
     texturePreviewBytes: 0,
     texturePreviewBc7Bytes: 0,
     texturePreviewAstcBytes: 0,
+    texturePreviewEtc2Bytes: 0,
   }
   assert.doesNotThrow(() => assertManifestBinary(descriptor))
   for (const version of [0, 1, 2, 3, 999])

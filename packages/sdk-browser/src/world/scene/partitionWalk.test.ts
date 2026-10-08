@@ -1,9 +1,10 @@
 // A walk over a partitioned world, as a session runs it: the rows are sized at open for
 // the first camera's view, the pages on its way and the cells it reaches read, and the frames then
 // follow the camera through the index on an engine that grows no buffer.
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -23,7 +24,7 @@ const CUBE = Math.hypot(8, 1, 8)
 const ladder = {
   cube: CUBE,
   rows: (_: number, total: number, rung: number) =>
-    Math.min(total, 4 * Math.ceil((Math.ceil((1.5 * CUBE * 2 ** (rung / 2)) / 10) + 1) ** 2 / 2)),
+    Math.min(total, 4 * ceilDiv((ceilDiv(1.5 * CUBE * 2 ** (rung / 2), 10) + 1) ** 2, 2)),
 }
 
 /** A grid of `side`² cells ten metres wide, each placing four nodes of one of two meshes. */
@@ -53,7 +54,7 @@ function grid(side: number) {
   const port = {
     readBytes: async (url: string) => bodies.get(url)!,
     getBytes: (url: string) => bodies.get(url),
-    loading: () => false,
+    failed: () => false,
     request: async () => {},
     admit() {},
     forget() {},
@@ -82,7 +83,13 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     partitions: [partitioned],
     streamer: port,
     camera,
-    active: () => ({}) as RenderBackend,
+    // Every engine is handed the rows; this one refuses to grow any in place.
+    engine: {
+      worldCut: () => undefined,
+      updatePlacements() {},
+      growPlacements() {},
+      growsInPlace: () => false,
+    } as unknown as Engine,
     budget,
   })!
   for (let step = 0; step <= 46; step++) {

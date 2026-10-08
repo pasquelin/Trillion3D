@@ -19,6 +19,7 @@ use crate::compiler_validate::{item, required_index, values};
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::aabb::longest_side;
 
 pub mod assign;
 pub mod groups;
@@ -94,7 +95,7 @@ pub struct CoplanarResult {
 /// million of its longest side, so the same surface always hashes to the same plane whatever
 /// instance carried it, and two floors a millimetre apart stay two floors.
 ///
-/// Not `shared_math::extend_aabb` loop: each axis bound read and kept
+/// Not `trillion3d_math::aabb::extend_aabb` loop: each axis bound read and kept
 /// separately, readable page without `min` still carrying `max`.
 pub fn offset_quantum(primitives: &[Value]) -> f64 {
     let mut low = [f64::INFINITY; 3];
@@ -116,7 +117,7 @@ pub fn offset_quantum(primitives: &[Value]) -> f64 {
             }
         }
     }
-    let extent = (0..3).fold(0.0f64, |best, axis| best.max(high[axis] - low[axis]));
+    let extent = longest_side(low, high);
     if extent.is_finite() && extent > 0.0 {
         (extent * 1e-6).clamp(1e-9, 1e-2)
     } else {

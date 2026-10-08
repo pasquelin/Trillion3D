@@ -1,4 +1,5 @@
 import type { HostAttributes } from '../../host/resources.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Vertex colours of the geometry the WebGPU passes read as floats — a transparent primitive, a
@@ -36,7 +37,11 @@ export function writeVertexColors(
 
 /** Colour of source vertex `id`, read in the tail of the `uvs` buffer the host declares.
  *  Called only where the row or the item says its geometry has colours, hence a tail. */
-export const VERTEX_COLOR_WGSL = `fn vertColor(id:u32)->vec4f{
+export const VERTEX_COLOR_WGSL = wgslBlock(
+  'VERTEX_COLOR_WGSL',
+  [],
+  `fn vertColor(id:u32)->vec4f{
  let i=arrayLength(&uvs)/${UV_FLOATS + COLOR_FLOATS}u*${UV_FLOATS}u+id*${COLOR_FLOATS}u;
  return vec4f(uvs[i],uvs[i+1u],uvs[i+2u],uvs[i+3u]);
-}`
+}`,
+)

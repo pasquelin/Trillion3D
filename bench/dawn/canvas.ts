@@ -76,16 +76,8 @@ export class FakeCanvas extends FakeElement {
   }
   getContext(kind: string) {
     if (!this.#contexts.has(kind)) {
-      // The engine's WebGL2 floor is only probed (`../../packages/sdk-browser/src/backend/autonomous/capabilities.ts`): one that grants
-      // no extension. A 2D context draws nothing; a `webgpu` one draws into a GPU texture.
-      const made =
-        kind === 'webgpu'
-          ? new TextureContext(this)
-          : kind === 'webgl2'
-            ? { getSupportedExtensions: () => [], getExtension: () => null }
-            : kind === '2d'
-              ? noDrawing()
-              : null
+      // A 2D context draws nothing; a `webgpu` one draws into a GPU texture.
+      const made = kind === 'webgpu' ? new TextureContext(this) : kind === '2d' ? noDrawing() : null
       this.#contexts.set(kind, made)
     }
     return this.#contexts.get(kind)

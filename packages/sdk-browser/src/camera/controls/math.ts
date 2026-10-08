@@ -1,5 +1,10 @@
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
-import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { wrap } from '../../../../math/src/scalar/reals.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
+import {
+  rotateByQuaternion,
+  yawPitchQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
  * vector, no allocation beyond the buffers the caller owns. `math.test.ts`
@@ -18,17 +23,7 @@ import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camer
  * down -Z, the identity, which is what makes this the turntable orientation.
  */
 export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>) {
-  const halfAzimuth = spherical[1] / 2,
-    halfPolar = (spherical[2] - Math.PI / 2) / 2
-  const sy = Math.sin(halfAzimuth),
-    cy = Math.cos(halfAzimuth),
-    sx = Math.sin(halfPolar),
-    cx = Math.cos(halfPolar)
-  out[0] = cy * sx
-  out[1] = sy * cx
-  out[2] = -sy * sx
-  out[3] = cy * cx
-  return out
+  return yawPitchQuaternion(out, spherical[1], spherical[2] - HALF_PI)
 }
 
 /**
@@ -39,11 +34,11 @@ export function orbitOrientation(out: Float64Array, spherical: ArrayLike<number>
  * measured around the circle.
  */
 export function clampAzimuth(theta: number, min: number, max: number) {
-  const turn = 2 * Math.PI,
+  const turn = TAU,
     arc = max - min
   if (!Number.isFinite(arc) || arc >= turn) return theta
-  const span = ((arc % turn) + turn) % turn,
-    past = (((theta - min) % turn) + turn) % turn
+  const span = wrap(arc, turn),
+    past = wrap(theta - min, turn)
   if (past <= span) return theta
   return past - span < turn - past ? max : min
 }

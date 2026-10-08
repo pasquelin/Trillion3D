@@ -7,6 +7,7 @@ import { MATERIAL_CLASS_KEYS, MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_SHADER } from '../buffer.ts'
 import { DIAGNOSTIC_SHADE_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test("a class's reject keeps exactly the pixels the material depth's equal test kept", () => {
   // The removed pass, mirrored in u32 and f32: each pixel's class plus one over 16384 as a depth,
@@ -25,14 +26,14 @@ test("a class's reject keeps exactly the pixels the material depth's equal test 
   for (const key of [0, 5, 8191, MATERIAL_CLASS_KEYS - 2]) {
     const scope = { uni: { pageCount }, pages, SINGLE_CLASS: false, CLASS_KEY: key }
     const { classAdmits } = shaderRun<{ classAdmits: (id: number) => boolean }>(
-      MATERIAL_CLASS_WGSL,
+      wgslSource(MATERIAL_CLASS_WGSL),
       ['classAdmits'],
       scope,
     )
     for (const id of ids) assert.equal(classAdmits(id), depthKept(id, key), `key ${key}, id ${id}`)
     // The image's only class: every pixel of a page, whatever the page says its class is.
     const single = shaderRun<{ classAdmits: (id: number) => boolean }>(
-      MATERIAL_CLASS_WGSL,
+      wgslSource(MATERIAL_CLASS_WGSL),
       ['classAdmits'],
       { ...scope, SINGLE_CLASS: true },
     )
@@ -44,8 +45,8 @@ test("a class's reject keeps exactly the pixels the material depth's equal test 
 test('every resolve stage rejects with the class test before any write', () => {
   for (const [source, name] of [
     [SHADE_SHADER, 'shade_fs'],
-    [DIAGNOSTIC_SHADE_WGSL, 'shade_plat_fs'],
-    [DIAGNOSTIC_SHADE_WGSL, 'shade_ids_fs'],
+    [wgslSource(DIAGNOSTIC_SHADE_WGSL), 'shade_plat_fs'],
+    [wgslSource(DIAGNOSTIC_SHADE_WGSL), 'shade_ids_fs'],
   ]) {
     const body = source.slice(source.indexOf(`fn ${name}(`))
     const reject = body.indexOf('if(!classAdmits(')

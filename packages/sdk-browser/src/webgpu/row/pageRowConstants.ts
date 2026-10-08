@@ -6,7 +6,8 @@ type MaterialRow = { version: number; mat: PageSurface }
 
 /**
  * What writing a page row would recompute every time though it depends only on the compiled
- * catalogue: the material fields — a new object and four arrays per write — and the cluster hash — a code-point array per write.
+ * catalogue: the material fields — a new object and four arrays per write — and the cluster hash —
+ * a code-point array per write.
  *
  * Twelve placements of the same scene share their materials and clusters: one memo per surface
  * record and one per cluster id is enough to compute them once and for all, however many pages

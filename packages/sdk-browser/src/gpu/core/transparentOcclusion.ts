@@ -3,6 +3,8 @@ import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
+import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../dispatch/grid.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -31,92 +33,41 @@ export async function createTransparentOcclusion(
   sources: TransparentOcclusionSources,
 ) {
   if (typeof device.createComputePipeline !== 'function' || entryCount < 1) return undefined
-  const corners = device.createBuffer({
-    label: 'Trillion3D transparent occlusion corners v1',
-    size: entryCount * CORNER_VALUES * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  const unculledBits = new Uint32Array(Math.ceil(entryCount / 32)),
-    unculled = device.createBuffer({
-      label: 'Trillion3D transparent occlusion never culled v1',
-      size: unculledBits.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+  const { corners, unculledBits, unculled } = occlusionBuffers(device, entryCount)
   const destroy = () => {
     corners.destroy()
     unculled.destroy()
   }
-  let disposed = false
   try {
-    const layout = bounceLayout(device, [
-      'read-only-storage',
-      'read-only-storage',
-      'storage',
-      'uniform',
-      'read-only-storage',
-    ])
-    const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) })
-    if (await shaderFailed(module)) {
+    const made = await occlusionPipeline(device, entryCount)
+    if (!made) {
       destroy()
       return undefined
     }
-    const pipeline = await buildComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'testTransparentClusters' },
-    })
-    // The pyramid changes identity on every target resize: the bind group follows it, and a
-    // frame without a pyramid encodes nothing rather than reading a dead buffer.
-    let bound: GPUBuffer | undefined, bindGroup: GPUBindGroup | undefined
-    const bindTo = (pyramid: GPUBuffer) => {
-      bound = pyramid
-      bindGroup = bounceGroup(device, layout, [
-        corners,
-        pyramid,
-        sources.occluded,
-        sources.uniforms,
-        unculled,
-      ])
+    const o: Occlusion = {
+      ...{ device, entryCount, sources, corners, unculled, ...made },
+      ...{ bound: undefined, bindGroup: undefined, disposed: false },
+      // A thread an entry.
+      groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
     }
-    const groups = Math.max(1, Math.ceil(entryCount / PARTITION_WORKGROUP))
-    const cornerBytes = CORNER_VALUES * 4
     return {
       /** World corners of entries `[from, to]`, on the only interval the table changed. */
-      uploadCorners(packed: Float32Array, from: number, to: number) {
-        if (disposed || to < from) return
-        device.queue.writeBuffer(
-          corners,
-          from * cornerBytes,
-          packed.buffer as ArrayBuffer,
-          packed.byteOffset + from * cornerBytes,
-          (to - from + 1) * cornerBytes,
-        )
-      },
+      uploadCorners: (packed: Float32Array, from: number, to: number) =>
+        uploadCorners(o, packed, from, to),
       /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
        *  whole by `uploadUnculled`. */
       unculledBits,
       uploadUnculled() {
-        if (!disposed) device.queue.writeBuffer(unculled, 0, unculledBits)
+        if (!o.disposed) device.queue.writeBuffer(unculled, 0, unculledBits)
       },
       /**
        * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
        * walk: the buffer goes back to zero, and the compact keeps all its entries.
        */
-      encode(encoder: GPUCommandEncoder, pyramidFresh: boolean) {
-        if (disposed) return
-        const pyramid = pyramidFresh ? sources.pyramid() : undefined
-        if (!pyramid) {
-          encoder.clearBuffer(sources.occluded, 0, entryCount * 4)
-          return
-        }
-        if (pyramid !== bound || !bindGroup) bindTo(pyramid)
-        const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' })
-        pass.setPipeline(pipeline)
-        pass.setBindGroup(0, bindGroup!)
-        pass.dispatchWorkgroups(groups)
-        pass.end()
-      },
+      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean) =>
+        encodeOcclusion(o, encoder, pyramidFresh),
       dispose() {
-        disposed = true
+        o.disposed = true
         destroy()
       },
     }
@@ -128,4 +79,90 @@ export async function createTransparentOcclusion(
     }
     return undefined
   }
+}
+
+type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
+  device: GPUDevice
+  entryCount: number
+  sources: TransparentOcclusionSources
+  corners: GPUBuffer
+  unculled: GPUBuffer
+  /** The pyramid changes identity on every target resize: the bind group follows it, and a
+   *  frame without a pyramid encodes nothing rather than reading a dead buffer. */
+  bound: GPUBuffer | undefined
+  bindGroup: GPUBindGroup | undefined
+  disposed: boolean
+  groups: number
+}
+
+/** The world corners of each entry, and one bit per entry never culled. */
+function occlusionBuffers(device: GPUDevice, entryCount: number) {
+  const corners = device.createBuffer({
+    label: 'Trillion3D transparent occlusion corners v1',
+    size: entryCount * CORNER_VALUES * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  const unculledBits = new Uint32Array(bitWords(entryCount)),
+    unculled = device.createBuffer({
+      label: 'Trillion3D transparent occlusion never culled v1',
+      size: unculledBits.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+  return { corners, unculledBits, unculled }
+}
+
+/** The test's layout and pipeline; undefined when its module fails. */
+async function occlusionPipeline(device: GPUDevice, entryCount: number) {
+  const layout = bounceLayout(device, [
+    'read-only-storage',
+    'read-only-storage',
+    'storage',
+    'uniform',
+    'read-only-storage',
+  ])
+  const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) })
+  if (await shaderFailed(module)) return undefined
+  const pipeline = await buildComputePipeline(device, {
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    compute: { module, entryPoint: 'testTransparentClusters' },
+  })
+  return { layout, pipeline }
+}
+
+const CORNER_BYTES = CORNER_VALUES * 4
+
+function uploadCorners(o: Occlusion, packed: Float32Array, from: number, to: number) {
+  if (o.disposed || to < from) return
+  o.device.queue.writeBuffer(
+    o.corners,
+    from * CORNER_BYTES,
+    packed.buffer as ArrayBuffer,
+    packed.byteOffset + from * CORNER_BYTES,
+    (to - from + 1) * CORNER_BYTES,
+  )
+}
+
+function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh: boolean) {
+  if (o.disposed) return
+  const { sources } = o
+  const pyramid = pyramidFresh ? sources.pyramid() : undefined
+  if (!pyramid) {
+    encoder.clearBuffer(sources.occluded, 0, o.entryCount * 4)
+    return
+  }
+  if (pyramid !== o.bound || !o.bindGroup) {
+    o.bound = pyramid
+    o.bindGroup = bounceGroup(o.device, o.layout, [
+      o.corners,
+      pyramid,
+      sources.occluded,
+      sources.uniforms,
+      o.unculled,
+    ])
+  }
+  const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' })
+  pass.setPipeline(o.pipeline)
+  pass.setBindGroup(0, o.bindGroup)
+  dispatchRows(pass, o.groups)
+  pass.end()
 }

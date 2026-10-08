@@ -1,13 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPartitionCells, type PartitionCells } from '../../partition/cells.ts'
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
-import { createCellPages, withHoldings } from '../../partition/cellPages.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
@@ -17,21 +16,21 @@ import { createPartitionFrame } from './partitionFrame.ts'
 type Io = Parameters<PartitionCells['frame']>[2]
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 const budget = { admits: () => true, spend() {} }
+/** An engine stand-in whose cut packs no world DAG. */
+const packsNoWorld = () => ({ worldCut: () => undefined }) as unknown as Engine
 
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = []
-  const cells = withHoldings(
-    { meshes: new Map(), manifest: createCellPages(undefined, () => []) },
-    {
-      frame(eye: number[], reach: number, io: Io) {
-        seen.push({ eye: [...eye], reach, io })
-        io.request(['near.json'], false)
-        io.request(['ahead.json'], true)
-      },
-      decodes: () => [],
-    } as unknown as PartitionCells,
-  )
+  const cells = {
+    frame(eye: number[], reach: number, io: Io) {
+      seen.push({ eye: [...eye], reach, io })
+      io.request(['near.json'], false)
+      io.request(['ahead.json'], true)
+    },
+    decodes: () => [],
+    reads: () => [],
+  } as unknown as PartitionCells
   return { cells, seen }
 }
 
@@ -39,10 +38,10 @@ function recording() {
 function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
   const asked: [readonly string[], number][] = []
   const port = {
-    request: async (urls: readonly string[], options: { priority: number }) =>
-      void asked.push([urls, options.priority]),
+    readBytes: async (url: string, _signal: AbortSignal, priority: number) =>
+      void asked.push([[url], priority]),
     getBytes: (url: string) => files.get(url.split('/').at(-1)!),
-    loading: () => false,
+    failed: () => false,
     admit() {},
     forget() {},
   } as unknown as ReturnType<typeof createPageStreamer>
@@ -54,7 +53,7 @@ test('no partition, no step before the frame', () => {
     partitions: [],
     streamer: streamer().port,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    active: () => ({}) as RenderBackend,
+    engine: packsNoWorld(),
     budget,
   })
   assert.equal(frame, null)
@@ -69,7 +68,7 @@ test('a frame reads the cells within the far plane of its camera, visible first 
     partitions: [cells],
     streamer: port,
     camera,
-    active: () => ({}) as RenderBackend,
+    engine: packsNoWorld(),
     budget,
   })!()
   assert.deepEqual(seen[0].eye, [3, 4, 5])
@@ -87,7 +86,7 @@ test('a cut that packs the world DAG lends the plan its lens, on the frustum dia
   const uniforms = createSelectionUniforms(),
     worldCut = () => uniforms
   const frame = { partitions: [cells], streamer: streamer().port, camera, budget }
-  createPartitionFrame({ ...frame, active: () => ({ worldCut }) as unknown as RenderBackend })!()
+  createPartitionFrame({ ...frame, engine: { worldCut } as unknown as Engine })!()
   assert.deepEqual(seen[0].io.lens, { ...uniforms, slope: lensSlope(camera) })
   const diagonal = Math.tan(Math.PI / 6) * Math.hypot(1, 16 / 9)
   assert.ok(Math.abs(lensSlope(camera) - diagonal) < 1e-12, 'the half diagonal of the field')
@@ -111,12 +110,12 @@ async function asks(
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
   })
   const { port, asked } = streamer(files)
-  const active = () => ({}) as RenderBackend
+  const engine = packsNoWorld()
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer: port,
     camera,
-    active,
+    engine,
     budget,
   })!
   for (let step = 0; step < 4; step++) {
@@ -156,14 +155,14 @@ test('a view past the rows sized at open asks the owner to open the session agai
     partitions: [cells],
     streamer: streamer().port,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    active: () => ({}) as RenderBackend,
+    engine: packsNoWorld(),
     budget,
     renew,
   })!()
   assert.equal(seen[0].io.outgrown, renew)
 })
 
-test('a page the decode pool refuses keeps its code and names its file', async () => {
+test('a page the page worker pool refuses keeps its code and names its file', async () => {
   // A page of another version, decoded off the main thread: refused as the tables would be, by
   // `UNSUPPORTED_SCENE_TABLES`, and by its address.
   const parents = [[null, [0, 0, 0, 1, 1, 1]] as const]
@@ -179,12 +178,12 @@ test('a page the decode pool refuses keeps its code and names its file', async (
     meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
   })
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
-  const active = () => ({}) as RenderBackend
+  const engine = packsNoWorld()
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer: streamer(files).port,
     camera,
-    active,
+    engine,
     budget,
   })!
   frame()

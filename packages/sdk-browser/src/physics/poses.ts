@@ -6,7 +6,7 @@ import {
   PHYSICS_STEP,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts'
-import { slerpArc } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { dotQuaternion, slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Bodied } from './bodies.ts'
 import type { NodeMove } from './cookedBodies.ts'
@@ -67,11 +67,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
   const unchanged = (index: number, floats: Float32Array, at: number) => {
     const p = index * 3,
       q = index * 4
-    const dot =
-      quaternion[q] * floats[at + 4] +
-      quaternion[q + 1] * floats[at + 5] +
-      quaternion[q + 2] * floats[at + 6] +
-      quaternion[q + 3] * floats[at + 7]
+    const dot = dotQuaternion(quaternion, floats, q, at + 4)
     return (
       position[p] === floats[at + 1] &&
       position[p + 1] === floats[at + 2] &&

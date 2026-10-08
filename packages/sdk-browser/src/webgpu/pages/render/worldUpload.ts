@@ -23,13 +23,16 @@ const fullyRebased = new WeakMap<Float32Array, { scene: number; translations: Fl
  * an image that nothing touched would find them all identical. The engine index is therefore only
  * recomputed at a scene-revision change, and a node that `setWebgpuTransform` just moved has
  * already recomputed it — and rewritten its own rows (`movedRoot.ts`). Only a host write, whose
- * moved roots nobody named, walks it here, and then rewrites every row, whichever cut draws the
- * image: the GPU cut and the CPU fallback read the same table. Returns whether the poses moved.
+ * moved roots nobody named, walks it here, and then rewrites every row the GPU cut reads. Returns
+ * whether the poses moved.
  */
 export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds)
+  // The deformation's staleness noted before this refresh (`pending`, read by the hold) compared
+  // the worlds the host has since rewritten: the frame's `update` reads them again.
+  if (hostWalked) rt.vis.deformation?.frame.forget()
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
   // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
   // roots covered are drawn again, static casters included unless every root that flipped was

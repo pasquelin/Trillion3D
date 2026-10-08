@@ -9,7 +9,7 @@
  *   bound the tree derives, with no bound at all and with the built tree's bound; then once the
  *   owners stop, on the still path.
  */
-import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts'
+import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import {
   floorProxy,
   mixedProxy,
@@ -20,6 +20,7 @@ import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/p
 import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
 import { createTraceRig } from './movingProxyTrace.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 
 /** The device the scenarios run on: a proof without one has nothing to say. */
 async function openDevice() {
@@ -122,8 +123,8 @@ function carried(triangles: Float32Array) {
 /** Level rays through the lifted owners, then slanted rays down onto floor triangles. */
 function largeRays() {
   const rays: number[] = []
-  const level = Math.hypot(1, 0.05),
-    slant = Math.hypot(0.3, 0.2, 1)
+  const level = length2(1, 0.05),
+    slant = length3(0.3, 0.2, 1)
   for (let row = 0; row < 256; row++)
     rays.push(-1, row * 0.5 + 0.05, 3, 0, 1 / level, 0.05 / level, 0, 0)
   // Each aimed at a point of a floor triangle, (0.2, 0.1) into its cell where its face rises to

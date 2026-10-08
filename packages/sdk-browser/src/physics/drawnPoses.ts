@@ -4,7 +4,12 @@
  * commits them. Each turn is normalised by the engine's one quaternion normalisation
  * (`normalizeQuaternionAt`); the arithmetic is the drawn image's, so none of it may be reordered.
  */
-import { normalizeQuaternionAt, slerpOnArc } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
+import {
+  normalizeQuaternionAt,
+  slerpOnArc,
+  turnByAngularVelocity,
+} from '../../../math/src/quaternion/quaternion.ts'
 
 /** The `count` slots listed in `list` on their newest states (`target`) exactly. */
 export function landAll(
@@ -42,9 +47,9 @@ export function interpolateAll(
       o = index * 7,
       p = index * 3,
       q = index * 4
-    position[p] = from[o] + (to[o] - from[o]) * alpha
-    position[p + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * alpha
-    position[p + 2] = from[o + 2] + (to[o + 2] - from[o + 2]) * alpha
+    position[p] = lerp(from[o], to[o], alpha)
+    position[p + 1] = lerp(from[o + 1], to[o + 1], alpha)
+    position[p + 2] = lerp(from[o + 2], to[o + 2], alpha)
     slerpOnArc(quaternion, q, from, o + 3, to, o + 3, alpha, arcs, index * 3)
     normalizeQuaternionAt(
       quaternion,
@@ -77,17 +82,6 @@ export function extrapolateAll(
       q = index * 4
     for (let k = 0; k < 3; k++) position[p + k] = target[o + k] + velocity[v + k] * ahead
     // The turn at angular velocity ω over `ahead`: q += ½ (ω, 0) ⊗ q · ahead.
-    const wx = velocity[v + 3],
-      wy = velocity[v + 4],
-      wz = velocity[v + 5]
-    const tx = target[o + 3],
-      ty = target[o + 4],
-      tz = target[o + 5],
-      tw = target[o + 6]
-    const x = tx + h * (wx * tw + wy * tz - wz * ty),
-      y = ty + h * (wy * tw + wz * tx - wx * tz),
-      z = tz + h * (wz * tw + wx * ty - wy * tx),
-      w = tw - h * (wx * tx + wy * ty + wz * tz)
-    normalizeQuaternionAt(quaternion, q, x, y, z, w)
+    turnByAngularVelocity(quaternion, q, target, o + 3, velocity, v + 3, h)
   }
 }

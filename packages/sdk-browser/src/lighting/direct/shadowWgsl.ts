@@ -12,27 +12,25 @@ import {
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
-  VSM_PROJECTION_SAMPLE_WGSL,
+  vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
-import {
-  VSM_TRACE_RESULT_WGSL,
-  VSM_TRACE_COMMON_WGSL,
-  VSM_TRACE_DIRECTIONAL_WGSL,
-  VSM_TRACE_LIGHT_WGSL,
-  VSM_TRACE_LOCAL_WGSL,
-  vsmTraceWgsl,
-} from '../../vsm/traceWgsl.ts'
-import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts'
+import { VSM_TRACE_RESULT_WGSL, VSM_TRACE_LIGHT_WGSL, vsmTraceWgsl } from '../../vsm/traceWgsl.ts'
+import { VSM_NOISE_TILE } from '../../vsm/blueNoise.ts'
 import { PCF_TAPS } from './pcfTaps.ts'
-import {
-  VSM_MASK_TABLE_BINDING,
-  VSM_MASK_TILES_BINDING,
-  vsmMaskTableReadWgsl,
-} from '../../vsm/projectionMaskTable.ts'
+import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
-import { interleavedGradientWgsl } from '../../math/interleavedGradientWgsl.ts'
-import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts'
+import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
+import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
+import { wgslBlock, wgslConst, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { byteOf, pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
+import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
+import {
+  ALL_SHADOW_KINDS,
+  byShadowKind,
+  shadowKindsLabel,
+  type ShadowKinds,
+} from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmShadowFactor`): the page
  *  table, the projection data, the uniforms and the pool's dynamic slice (one part). */
@@ -50,22 +48,35 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   uniforms: 10,
   pool: 19,
 }
+/** The bindings as a block name reads them, in their declared order. */
+export const vsmBindingsLabel = (b: VsmConsumerBindings) =>
+  `${b.pageTable}, ${b.projectionData}, ${b.uniforms}, ${b.pool}`
 
-/** A consumer's read of the pool's dynamic slice, at `binding`. */
-const vsmPoolReadWgsl = (binding: number) => `
-@group(0) @binding(${binding}) var<storage,read> vsmPool0:array<u32>;
-${vsmPoolTexelIndexWgsl('vsmPoolTexelIndex', 'vsm.poolRowShift')}
-fn vsmPoolLoad(t:vec2u,slice:u32)->u32{
+/** A consumer's read of the pool's dynamic slice, at `binding`: its `vsmPoolLoad`, which the
+ *  projection sample calls (`vsmProjectionSampleWgsl`). */
+const vsmPoolRead = (binding: number) =>
+  wgslFn(
+    'vsmPoolLoad',
+    [
+      wgslBlock(
+        `vsmPool0(${binding})`,
+        [],
+        `@group(0) @binding(${binding}) var<storage,read> vsmPool0:array<u32>;`,
+      ),
+      vsmPoolTexelIndexWgsl('vsmPoolTexelIndex', 'vsm.poolRowShift'),
+    ],
+    `fn vsmPoolLoad(t:vec2u,slice:u32)->u32{
  let i=vsmPoolTexelIndex(t);
  if(i>=arrayLength(&vsmPool0)){return 0u;}
  return vsmPool0[i];
-}`
+}`,
+  )
 
 /** The opaque resolve binds no pool: its opaque shadow is the mask's, and its transmission read
  *  takes a sample's page, never its depth (`vsmTransmissionRead`), so a depth reads 0 there, which
  *  no read takes. Its stage holds the eight storage buffers WebGPU guarantees
  *  (`deferredLayoutEntries`). */
-const RESOLVE_POOL_WGSL = `fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}`
+const RESOLVE_POOL = wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}')
 
 /**
  * The plain (untraced) lookup of a virtual shadow map — what forward shading and translucency read
@@ -76,25 +87,28 @@ const RESOLVE_POOL_WGSL = `fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}`
  */
 const vsmConsumerWgsl = (
   b: VsmConsumerBindings,
-  transmissionBinding: number,
-  pool: boolean,
-  kinds: ShadowKinds,
-) => `
-${VSM_CONSTANTS_WGSL}
-${VSM_UNIFORMS_WGSL}
-${VSM_HANDLE_WGSL}
-${VSM_STRUCTS_WGSL}
-${VSM_PAGE_ADDRESS_WGSL}
-${VSM_PROJECTION_DATA_WGSL}
+  { transmission, pool, kinds }: { transmission: number; pool: boolean; kinds: ShadowKinds },
+) =>
+  wgslBlock(
+    `vsmConsumerWgsl(${vsmBindingsLabel(b)}, ${transmission}, ${pool}, ${shadowKindsLabel(kinds)})`,
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_UNIFORMS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_STRUCTS_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      vsmProjectionSampleWgsl(pool ? vsmPoolRead(b.pool) : RESOLVE_POOL),
+      vsmTransmissionReadWgsl(transmission),
+      perspectiveDivide,
+    ],
+    `
 @group(0) @binding(${b.uniforms}) var<uniform> vsm:VsmUniforms;
 @group(0) @binding(${b.pageTable}) var<storage,read> vsmPageTable:array<u32>;
 fn vsmPageTableLoad(i:u32)->u32{return vsmPageTable[i];}
 @group(0) @binding(${b.projectionData}) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
-${pool ? vsmPoolReadWgsl(b.pool) : RESOLVE_POOL_WGSL}
-${VSM_PAGE_LOOKUP_WGSL}
-${VSM_PROJECTION_DATA_READ_WGSL}
-${VSM_PROJECTION_SAMPLE_WGSL}
-${vsmTransmissionReadWgsl(transmissionBinding)}
 /** The optimal slope bias's terms: the receiver plane's depth slope per texel of the
  *  sample's level (xy), the bias cap (z) and the level's scale to \`requested\` (w). */
 fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4f{
@@ -105,6 +119,13 @@ fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4
 }
 /** The optimal slope bias for a texel \`offset\` texels from the receiver's position. */
 fn vsmConsumerSlopeBiasAt(slope:vec4f,offset:vec2f)->f32{return min(2.0*max(0.0,dot(slope.xy,offset)),slope.z)*slope.w;}
+/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias, which grows with
+ *  the distance and the pixel's angular size. */
+fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
+ let distanceToCamera=length(P-shadowCamera);
+ let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
+ return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+}
 fn vsmConsumerSlopeBias(slope:vec4f,sm:VsmMapRead)->f32{
  return vsmConsumerSlopeBiasAt(slope,vec2f(sm.mapTexelXY)+0.5-sm.mapTexelPos);
 }
@@ -113,9 +134,7 @@ fn vsmConsumerSlopeBias(slope:vec4f,sm:VsmMapRead)->f32{
 fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
@@ -138,14 +157,15 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!sm.valid){return 1.0;}
  let slope=vsmConsumerSlope(h,sm,fromMap,N);
  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);
  return select(1.0,0.0,sm.depth-vsmConsumerSlopeBias(slope,sm)>uvz.z);`,
  )}
-}`
+}`,
+  )
 
 /**
  * Mode 1 of a blended surface's and the water's read (`vsmShadowRead`): sixteen taps a texel apart
@@ -160,7 +180,11 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  * once, wherever a texel lets the opaque light through (`vsmShadowFiltered`). The normal and slope
  * biases are the point read's.
  */
-const filteredReadWgsl = (kinds: ShadowKinds) => `
+const filteredReadWgsl = (kinds: ShadowKinds) =>
+  wgslBlock(
+    `filteredReadWgsl(${shadowKindsLabel(kinds)})`,
+    [perspectiveDivide, pow2FromExponent],
+    `
 const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.length}>(${PCF_TAPS.map(([x, y]) => `vec2f(${x},${y})`).join(',')});
 /** A page of the filtered read's level, translated once for the block texels in it: none (\`kind\`
  *  0), that level's own (1), or the coarser page its entry points to (2), whose texel holding a
@@ -180,7 +204,7 @@ fn vsmFilterPage(requested:VsmHandle,sm:VsmMapRead,page:vec2u,clipmap:bool)->Vsm
  if(!e.anyLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
  if(!clipmap){
   // A lamp's coarser mip has its depth's scale; the finer entry holds that mip's page.
-  return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/f32(1u<<e.coarserLevels),vec2f(0.0),1.0,0.0);
+  return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/pow2FromExponent(i32(e.coarserLevels)),vec2f(0.0),1.0,0.0);
  }
  let own=i32(sm.handle.id)-i32(requested.id);
  if(e.thisLevelMapped){
@@ -291,9 +315,7 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
 fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
@@ -316,25 +338,47 @@ fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!sm.valid){return 1.0;}
  let lit=vsmFilterTaps(h,sm,uvz.z,vsmConsumerSlope(h,sm,fromMap,N),false);
  if(lit>0.0){shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);}
  return lit;`,
  )}
-}`
+}`,
+  )
 
 /** The traced read's ray, the sun's or the local light's (`byShadowKind`'s branches, here a block). */
-const TRACED_SUN_WGSL = `  let source=VsmProjectionLight(vec3f(0.0),0.0,-light.directionCone.xyz,sin(light.shape.x),vec2f(-2.0,1.0),i32(id),0u);
+const TRACED_SUN = `  let source=VsmProjectionLight(vec3f(0.0),0.0,-light.directionCone.xyz,sin(light.shape.x),vec2f(-2.0,1.0),i32(id),0u);
   traced=vsmTraceSun(i32(id),source,pixel,fromEye,start,noise,N,true,true);`
-const TRACED_LOCAL_WGSL = `  let spot=abs(light.params.x-KIND_SPOT)<0.5;
+const TRACED_LOCAL = `  let spot=abs(light.params.x-KIND_SPOT)<0.5;
   let source=VsmProjectionLight(light.positionRange.xyz-shadowCamera,0.0,-light.directionCone.xyz,light.shape.x,vec2f(select(-2.0,light.directionCone.w,spot),1.0),i32(id),0u);
   traced=vsmTraceLocal(i32(id),source,pixel,depth,fromEye,start,noise,N,true,true);`
-const tracedKindWgsl = (kinds: ShadowKinds) =>
+const tracedKindStatement = (kinds: ShadowKinds) =>
   kinds.sun && kinds.local
-    ? `if(isSun(light)){\n${TRACED_SUN_WGSL}\n }else{\n${TRACED_LOCAL_WGSL}\n }`
-    : `{\n${kinds.sun ? TRACED_SUN_WGSL : TRACED_LOCAL_WGSL}\n }`
+    ? `if(isSun(light)){\n${TRACED_SUN}\n }else{\n${TRACED_LOCAL}\n }`
+    : `{\n${kinds.sun ? TRACED_SUN : TRACED_LOCAL}\n }`
+
+/** The per-frame shift of the pixel noise, per frame of the noise tile (declared, not derived). */
+const VSM_NOISE_FRAME_SHIFT = wgslConst(
+  'VSM_NOISE_FRAME_SHIFT',
+  [],
+  'const VSM_NOISE_FRAME_SHIFT=vec2f(32.665,11.815);',
+)
+
+/** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile:
+ *  the traces' noise provider (\`vsmNoiseTwo\`) in a stage with no blue-noise binding. Declared,
+ *  without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel noise
+ *  (32.665, 11.815) and the shifts that set the pair's second value (47, 17) and the dither's noise
+ *  (13, 71) apart from the first; moving any moves this read's noise pattern. */
+const PIXEL_NOISE_TWO = wgslFn(
+  'vsmNoiseTwo',
+  [interleavedGradient, VSM_NOISE_TILE, VSM_NOISE_FRAME_SHIFT],
+  `fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
+ let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT;
+ return vec2f(interleavedGradient(p),interleavedGradient(p+vec2f(47.0,17.0)));
+}`,
+)
 
 /**
  * Mode 2 of the same read: the opaque projection's rays (`vsmTraceWgsl`, every ray traced: a
@@ -347,32 +391,25 @@ const tracedKindWgsl = (kinds: ShadowKinds) =>
  * blue-noise texture, which the blend stage has no binding for. The translucent casters'
  * transmission is the point read's, as the opaque resolve takes it beside its traced mask.
  */
-const tracedReadWgsl = (kinds: ShadowKinds) => `
-${VSM_TRACE_LIGHT_WGSL}
+const tracedReadWgsl = (b: VsmConsumerBindings, kinds: ShadowKinds) =>
+  wgslBlock(
+    `tracedReadWgsl(${vsmBindingsLabel(b)}, ${shadowKindsLabel(kinds)})`,
+    [
+      interleavedGradient,
+      VSM_NOISE_TILE,
+      VSM_NOISE_FRAME_SHIFT,
+      VSM_TRACE_LIGHT_WGSL,
+      VSM_TRACE_RESULT_WGSL,
+      vsmTraceWgsl(false, vsmPoolRead(b.pool), PIXEL_NOISE_TWO),
+      DIVISOR_FLOOR,
+    ],
+    `
 /** The view fields the traces read (\`vsmView\`), filled from the pixel by \`vsmShadowTraced\`. */
 struct VsmPixelView{shiftedToView:mat4x4f,viewToClip:mat4x4f,originShiftHigh:vec3f,frameIndex:u32,originShiftLow:vec3f,viewPixels:vec4f,}
 var<private> vsmView:VsmPixelView;
-/** Interleaved gradient noise at a pixel position, in [0, 1): the fraction of a linear form of the
- *  pixel, folded again by a large factor, so that neighbouring pixels take well-spread values. */
-fn vsmPixelNoise(p:vec2f)->f32{return ${interleavedGradientWgsl('p')};}
-/** The tile the rays' noise repeats over: the blue noise's size and slices. */
-const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);
-/** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile.
- *  Declared, without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel
- *  noise (32.665, 11.815) and the shifts that set the pair's second value (47, 17) and the dither's
- *  noise (13, 71) apart from the first; moving any moves this read's noise pattern. */
-fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
- let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*vec2f(32.665,11.815);
- return vec2f(vsmPixelNoise(p),vsmPixelNoise(p+vec2f(47.0,17.0)));
-}
-${VSM_TRACE_COMMON_WGSL}
-${VSM_TRACE_DIRECTIONAL_WGSL}
-${VSM_TRACE_LOCAL_WGSL}
-${VSM_TRACE_RESULT_WGSL}
-${vsmTraceWgsl(false)}
 fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
- let angular=max(shadowAngularPixel,1e-20);
+ let angular=max(shadowAngularPixel,DIVISOR_FLOOR);
  let depth=shadowFootprint/angular;
  let frame=vsm.frameStamp;
  vsmView.shiftedToView=mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
@@ -382,18 +419,19 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  vsmView.originShiftHigh=-shadowCamera;vsmView.originShiftLow=vec3f(0.0);
  vsmView.frameIndex=frame;
  let pixel=vec2u(shadowPixel);
- let noise=vsmPixelNoise(shadowPixel+f32(frame&7u)*vec2f(32.665,11.815));
+ let noise=interleavedGradient(shadowPixel+f32(frame&7u)*VSM_NOISE_FRAME_SHIFT);
  let fromEye=P-shadowCamera;
  let start=vsm.screenRayShare*vsm.viewTanHalfFovY*depth;
  var traced:VsmTraceResult;
- ${tracedKindWgsl(kinds)}
+ ${tracedKindStatement(kinds)}
  var shade=traced.shadowFactor;
  // A penumbra's shade (strictly between 0 and 1: k of R rays) moves by up to half the finest step a
  // shade takes, one ray of the most a light traces (\`VSM_MASK_MAX_RAYS\`).
- if(shade>0.0&&shade<1.0){shade=saturate(shade+(vsmPixelNoise(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*vec2f(32.665,11.815))-0.5)/${VSM_MASK_MAX_RAYS}.0);}
+ if(shade>0.0&&shade<1.0){shade=saturate(shade+(interleavedGradient(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT)-0.5)/${VSM_MASK_MAX_RAYS}.0);}
  if(shade>0.0){_=vsmShadowFactor(id,isSun(light),P,Nin);}
  return shade;
-}`
+}`,
+  )
 
 /**
  * The read of a blended surface and of the water (`vsmShadowRead`), on the word
@@ -404,9 +442,11 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  * compiled into every blend and water program, their code alone slowed the full-screen water by 0.3 ms with the word at 0
  * (a-world-of-blocks, 3456 × 2234). Needs the consumer read (`vsmConsumerWgsl`) and the light code.
  */
-const vsmTranslucentReadWgsl = (traced: boolean, kinds: ShadowKinds) => `${filteredReadWgsl(kinds)}
-${traced ? tracedReadWgsl(kinds) : ''}
-fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
+const vsmTranslucentReadWgsl = (b: VsmConsumerBindings, traced: boolean, kinds: ShadowKinds) =>
+  wgslBlock(
+    `vsmTranslucentReadWgsl(${vsmBindingsLabel(b)}, ${traced}, ${shadowKindsLabel(kinds)})`,
+    [filteredReadWgsl(kinds), ...(traced ? [tracedReadWgsl(b, kinds)] : [])],
+    `fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
  let mode=vsm.translucentShadowFilter;
  if(mode==0u){return vsmShadowFactor(id,isSun(light),P,N);}${
    traced
@@ -415,7 +455,11 @@ fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
      : ''
  }
  return vsmShadowFiltered(id,isSun(light),P,N);
-}`
+}`,
+  )
+
+/** Whether a blend or water program compiles the traced read in: the setting at 2. */
+const tracedBySetting = () => LIGHT_SETTINGS.translucentShadowFilter === 2
 
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
@@ -437,25 +481,39 @@ fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
  * (`VSM_TRANSMISSION_RESOLVE_BINDING`), null in a blend or water pass; `maskBinding` the resolve's
  * mask array, and in the other passes, which declare no mask, their transmission. The names the
  * passes write (footprint, receiver offset and plane, view) are kept, so their bodies need no change.
+ * The block lists what it calls, the maths library's declarations included.
  */
 export const directShadowWgsl = (
-  resolveTransmission: number | null,
   maskBinding: number,
-  vsmBindings: VsmConsumerBindings = CONTRACT_VSM_BINDINGS,
-  traced = LIGHT_SETTINGS.translucentShadowFilter === 2,
-  kinds: ShadowKinds = ALL_SHADOW_KINDS,
-) => `
+  {
+    resolveTransmission = null,
+    vsm = CONTRACT_VSM_BINDINGS,
+    traced = tracedBySetting(),
+    kinds = ALL_SHADOW_KINDS,
+  }: DirectShadowOptions = {},
+) =>
+  wgslBlock(
+    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${traced}, ${shadowKindsLabel(kinds)})`,
+    [
+      SHADOW_VIEW_WGSL,
+      vsmConsumerWgsl(vsm, {
+        transmission: resolveTransmission ?? maskBinding,
+        pool: resolveTransmission === null,
+        kinds,
+      }),
+      resolveTransmission === null
+        ? vsmTranslucentReadWgsl(vsm, traced, kinds)
+        : vsmMaskWgsl(maskBinding, kinds),
+    ],
+    `
 var<private> shadowFootprint:f32=0.0;
 var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 var<private> shadowReceiverPlane:vec3f=vec3f(0.0);
 var<private> shadowTransmission:vec3f=vec3f(1.0);
-${SHADOW_VIEW_WGSL}
 fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
  if(dot(g,g)==0.0){return n;}
  return select(g,-g,dot(g,n)<0.0);
 }
-${vsmConsumerWgsl(vsmBindings, resolveTransmission ?? maskBinding, resolveTransmission === null, kinds)}
-${resolveTransmission === null ? vsmTranslucentReadWgsl(traced, kinds) : vsmMaskWgsl(maskBinding, kinds)}
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
  shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}
@@ -469,12 +527,26 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
  if(mask>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
  return mask;`
  }
-}`
+}`,
+  )
 
-const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) => `
+/** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
+ *  binding of the translucent casters' transmission (none in a blend or water pass), the virtual
+ *  shadow maps' bindings, whether the traced read is compiled in, and the light kinds read. */
+export type DirectShadowOptions = {
+  resolveTransmission?: number | null
+  vsm?: VsmConsumerBindings
+  traced?: boolean
+  kinds?: ShadowKinds
+}
+
+const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) =>
+  wgslBlock(
+    `vsmMaskWgsl(${binding}, ${shadowKindsLabel(kinds)})`,
+    [VSM_MASK_TABLE_READ_WGSL, perspectiveDivide, byteOf],
+    `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
-${vsmMaskTableReadWgsl(VSM_MASK_TABLE_BINDING)}
 /** The resolve's pixel: the mask is read there; (−1, −1) in a pass that reads no mask. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
 /** The layer last loaded at \`vsmMaskPixel\` and its word: every light of a layer shares one load
@@ -504,9 +576,7 @@ fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory)
 fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,Nin:vec3f){
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
@@ -528,7 +598,7 @@ fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,Nin:vec3f){
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!vsmTransmissionPaned(sm)){return;}
  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);`,
@@ -547,5 +617,6 @@ fn vsmMaskFactor(channel:u32)->f32{
   vsmMaskWord=textureLoad(vsmShadowMask,vsmMaskPixel,layer,0).r;
   vsmMaskLayer=layer;
  }
- return vsmMaskDecode((vsmMaskWord>>(8u*(channel%4u)))&255u);
-}`
+ return vsmMaskDecode(byteOf(vsmMaskWord,channel%4u));
+}`,
+  )

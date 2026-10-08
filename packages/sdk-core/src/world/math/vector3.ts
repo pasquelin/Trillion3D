@@ -3,19 +3,23 @@ import {
   addVector3,
   applyMatrix3Vector3,
   crossVector3,
+  distanceSqVector3,
+  distanceVector3,
   dotVector3,
+  length3,
   lengthSqVector3,
   normalizeVector3,
   scaleVector3,
   subVector3,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../math/primitives/vector.ts'
-import { rotateByQuaternion } from '../../math/matrix/quaternion.ts'
-import { fromSpherical } from './spherical.ts'
-import { ObservedComponents } from './observed.ts'
+} from '../../../../math/src/vector/vector.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { fromSpherical } from '../../../../math/src/vector/spherical.ts'
+import { ObservedComponents } from '../observed.ts'
 import type { Matrix4, Matrix3 } from './matrix4.ts'
 import type { XYZLike as XYZ, XYZWLike as Q } from './likes.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 const a = new Float64Array(3),
   b = new Float64Array(3),
@@ -31,7 +35,7 @@ const load = (into: Float64Array, v: XYZ) => {
 
 /**
  * A point or a direction in three dimensions, chainable. The numbers live in `elements`, which
- * the core functions of `math/primitives/vector.ts` read and write; every write tells the owner.
+ * the core functions of `packages/math/src/vector/vector.ts` read and write; every write tells the owner.
  */
 export class Vector3 extends ObservedComponents {
   /** Always `true`: tells a 3D vector apart. */ readonly isVector3 = true as const
@@ -62,7 +66,7 @@ export class Vector3 extends ObservedComponents {
     return new Vector3(this.x, this.y, this.z)
   }
   /** Adds another vector. */ add(v: XYZ) {
-    return this.set(this.x + v.x, this.y + v.y, this.z + v.z)
+    return this.written(addVector3(a, this.elements, load(b, v)))
   }
   /** Adds `s` to x, y and z. */ addScalar(s: number) {
     return this.set(this.x + s, this.y + s, this.z + s)
@@ -74,7 +78,7 @@ export class Vector3 extends ObservedComponents {
     return this.written(addScaledVector3(load(a, this), load(b, v), s))
   }
   /** Takes another vector away. */ sub(v: XYZ) {
-    return this.addScaledVector(v, -1)
+    return this.written(subVector3(a, this.elements, load(b, v)))
   }
   /** Becomes `u − v`: `u` copied first, then `v` taken from what was written. */
   subVectors(u: XYZ, v: XYZ) {
@@ -110,8 +114,8 @@ export class Vector3 extends ObservedComponents {
   /** The length, squared: quicker to get. */ lengthSq() {
     return lengthSqVector3(this.elements)
   }
-  /** How long the arrow is. */ length() {
-    return Math.sqrt(this.lengthSq())
+  /** How long the arrow is (`length3`). */ length() {
+    return length3(this.x, this.y, this.z)
   }
   /** Keeps the direction, sets the length. */ setLength(length: number) {
     return this.normalize().multiplyScalar(length)
@@ -122,18 +126,16 @@ export class Vector3 extends ObservedComponents {
     return this.written(a)
   }
   /** The distance to a point, squared. */ distanceToSquared(v: XYZ) {
-    load(a, this)
-    addScaledVector3(a, load(b, v), -1)
-    return lengthSqVector3(a)
+    return distanceSqVector3(this.elements, load(b, v))
   }
   /** The distance to a point. */ distanceTo(v: XYZ) {
-    return Math.sqrt(this.distanceToSquared(v))
+    return distanceVector3(this.elements, load(b, v))
   }
   /** Moves `t` of the way to `v`. */ lerp(v: XYZ, t: number) {
     return this.lerpVectors(this, v, t)
   }
   /** Becomes the point `t` of the way from `u` to `v`. */ lerpVectors(u: XYZ, v: XYZ, t: number) {
-    return this.set(u.x + (v.x - u.x) * t, u.y + (v.y - u.y) * t, u.z + (v.z - u.z) * t)
+    return this.set(lerp(u.x, v.x, t), lerp(u.y, v.y, t), lerp(u.z, v.z, t))
   }
   /** Whether two vectors hold the same numbers. */ equals(v: XYZ) {
     return this.x === v.x && this.y === v.y && this.z === v.z

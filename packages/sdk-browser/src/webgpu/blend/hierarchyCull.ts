@@ -5,6 +5,10 @@ import { includeWaterItem } from '../water/bounds.ts'
 import type { createWebgpuBlendState } from './state.ts'
 type BlendState = ReturnType<typeof createWebgpuBlendState>
 
+/** Did the frustum keep this item? One bit per item, written by the frame's ranking. */
+export const itemKept = (keep: Uint32Array, item: number) =>
+  (keep[item >>> 5] & (1 << (item & 31))) !== 0
+
 /** Counts of the frame, module scratch so the walk allocates nothing. */
 const tally = { rejected: 0, water: 0 }
 

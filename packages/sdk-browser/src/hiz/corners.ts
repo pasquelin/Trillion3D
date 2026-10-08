@@ -1,6 +1,7 @@
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
+import { transformPointRow } from '../../../math/src/vector/vector.ts'
 import type { HizPage } from './types.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 
 export const HIZ_BOUNDS_VALUES = 6
 
@@ -42,21 +43,21 @@ export function projectCornersInto(
       x = corners[at],
       y = corners[at + 1],
       z = corners[at + 2]
-    const viewZ = v[2] * x + v[6] * y + v[10] * z + v[14]
-    const vd = affine ? 1 : v[3] * x + v[7] * y + v[11] * z + v[15]
+    const viewZ = transformPointRow(v, 2, x, y, z)
+    const vd = affine ? 1 : transformPointRow(v, 3, x, y, z)
     if (-(vd === 1 ? viewZ : viewZ * (1 / vd)) <= near) {
       // The result of a box that clips the near plane reads no corner: nothing to project.
       clipsNear = true
       break
     }
-    const cw = mirrored ? -viewZ : e[3] * x + e[7] * y + e[11] * z + e[15]
+    const cw = mirrored ? -viewZ : transformPointRow(e, 3, x, y, z)
     if (cw <= 0 || !Number.isFinite(cw)) {
       clipsNear = true
       break
     }
-    const ndcX = (e[0] * x + e[4] * y + e[8] * z + e[12]) / cw,
-      ndcY = (e[1] * x + e[5] * y + e[9] * z + e[13]) / cw,
-      ndcZ = (e[2] * x + e[6] * y + e[10] * z + e[14]) / cw
+    const ndcX = transformPointRow(e, 0, x, y, z) / cw,
+      ndcY = transformPointRow(e, 1, x, y, z) / cw,
+      ndcZ = transformPointRow(e, 2, x, y, z) / cw
     if (ndcX < lowX) lowX = ndcX
     if (ndcX > highX) highX = ndcX
     if (ndcY < lowY) lowY = ndcY
@@ -84,38 +85,6 @@ export function projectCornersInto(
   into[base + 4] = nearestZ
   into[base + 5] = 0
 }
-const cornerScratch = new Float64Array(BOX_CORNER_VALUES)
-/**
- * Conservative screen AABB of one box into `into` at `base`. min/max are inclusive integer samples
- * (fillIds last pixel is ceil(max)). Near-plane crossings never reject. The caller passes the view
- * and view-projection elements, so a batch builds them once instead of once per box; the arithmetic
- * is `boxCornersInto` (sdk-core) for both, so the flat and object forms agree bit for bit.
- */
-export function projectBoxInto(
-  min: readonly number[],
-  max: readonly number[],
-  world: MatrixElements,
-  viewElements: ArrayLike<number>,
-  viewProjElements: ArrayLike<number>,
-  near: number,
-  width: number,
-  height: number,
-  into: Float64Array,
-  base: number,
-) {
-  boxCornersInto(cornerScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2], world.elements)
-  projectCornersInto(
-    cornerScratch,
-    0,
-    viewElements,
-    viewProjElements,
-    near,
-    width,
-    height,
-    into,
-    base,
-  )
-}
 /** The box `page`'s row is bounded by this frame: a dynamic page's where its vertices are
  *  (`moved`), else its own, which grows by `rowGrowth`. */
 export const rowBox = (page: HizPage) => page.moved ?? page
@@ -127,7 +96,8 @@ export const rowGrowth = (page: HizPage, reach = 0) => (page.moved ? 0 : reach)
  * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
  * derived from its local bounds and the `world` of its root on every read, as the GPU partition receives
  * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
- * —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit. A
+ * —, and the arithmetic is `projectBoxInto`'s (`projection.fixture.ts`), so the doubles are the
+ * same bit for bit. A
  * dynamic page's box is where its vertices are this frame (`moved`); another grows by its
  * root's `reach` on every side, the farthest a deformation moved a vertex from where its page is
  * bounded, as every cut and sphere grows it: an occlusion test of the rest box would reject a page

@@ -93,8 +93,8 @@ function filter(from: Image, ow: number, oh: number, taps: readonly BloomTap[], 
 
 /**
  * The CPU oracle of the whole bloom, on one channel, with the given taps: down the levels, back up
- * adding each level into the one above, then the blend (`bloomBlend`) — the order the WGSL and
- * GLSL programs draw in.
+ * adding each level into the one above, then the blend (`bloomBlend`) — the order the programs
+ * draw in.
  */
 export function cpuBloom(
   image: Image,

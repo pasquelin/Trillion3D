@@ -2,7 +2,9 @@
 //! oracle traces the source scene with it (`oracle`), and the impostor bake the level-0 mesh
 //! (`impostor`), through a hit filter that lets a ray through a cut texel.
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
-use crate::shared_math::{cross, dot, sub, unit_where};
+use trillion3d_math::aabb::ray_aabb;
+use trillion3d_math::triangle::{ray_triangle, triangle_cross};
+use trillion3d_math::vec3::unit_or_itself;
 
 /// Triangles and their tree, with one word a triangle in the same order: the oracle's packed
 /// linear albedo (the source scene in world space, re-read without cuts, simplification or
@@ -14,11 +16,6 @@ pub struct World {
     pub node_links: Vec<u32>,
 }
 
-/// `a` at unit length, or `a` itself when its length is not positive. The oracle's own guard: a
-/// NaN or infinite length still divides, as the oracle always has.
-pub fn normalise(a: [f64; 3]) -> [f64; 3] {
-    unit_where(a, |norm| norm > 0.0 || norm.is_nan()).unwrap_or(a)
-}
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
     let base = triangle * PROXY_TRIANGLE_FLOATS + corner * 3;
     [
@@ -29,9 +26,10 @@ pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
 }
 pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
     let a = vertex(world, triangle, 0);
-    normalise(cross(
-        sub(vertex(world, triangle, 1), a),
-        sub(vertex(world, triangle, 2), a),
+    unit_or_itself(triangle_cross(
+        a,
+        vertex(world, triangle, 1),
+        vertex(world, triangle, 2),
     ))
 }
 /// Hit point and facing normal. Source has no reliable winding order:
@@ -49,8 +47,8 @@ pub fn surface_at(
         origin[2] + ray[2] * hit.distance,
     ];
     let facing = normal_of(world, hit.triangle);
-    let normal = if dot(facing, ray) > 0.0 {
-        crate::shared_math::scale(facing, -1.0)
+    let normal = if trillion3d_math::vec3::dot(facing, ray) > 0.0 {
+        trillion3d_math::vec3::scale(facing, -1.0)
     } else {
         facing
     };
@@ -65,17 +63,16 @@ pub struct Hit {
     pub barycentric: [f64; 2],
 }
 
+/// Whether the ray crosses node `node`'s box before `limit`: `ray_aabb` on its six stored bounds.
 fn slab(world: &World, node: usize, origin: [f64; 3], inverse: [f64; 3], limit: f64) -> bool {
-    let base = node * 6;
-    let mut entry = 0.0f64;
-    let mut exit = limit;
-    for axis in 0..3 {
-        let low = (world.node_bounds[base + axis] as f64 - origin[axis]) * inverse[axis];
-        let high = (world.node_bounds[base + 3 + axis] as f64 - origin[axis]) * inverse[axis];
-        entry = entry.max(low.min(high));
-        exit = exit.min(low.max(high));
-    }
-    entry <= exit
+    let bound = |k: usize| world.node_bounds[node * 6 + k] as f64;
+    ray_aabb(
+        [bound(0), bound(1), bound(2)],
+        [bound(3), bound(4), bound(5)],
+        origin,
+        inverse,
+        limit,
+    )
 }
 
 /// Ray-triangle test by barycentric coordinates, double-sided: a wall has no front or back for light.
@@ -86,31 +83,8 @@ fn triangle_hit(
     ray: [f64; 3],
     limit: f64,
 ) -> (f64, [f64; 2]) {
-    let miss = (limit, [0.0; 2]);
-    let a = vertex(world, triangle, 0);
-    let edge0 = sub(vertex(world, triangle, 1), a);
-    let edge1 = sub(vertex(world, triangle, 2), a);
-    let perpendicular = cross(ray, edge1);
-    let determinant = dot(edge0, perpendicular);
-    if determinant.abs() < 1e-12 {
-        return miss;
-    }
-    let inverse = 1.0 / determinant;
-    let offset = sub(origin, a);
-    let u = dot(offset, perpendicular) * inverse;
-    if !(0.0..=1.0).contains(&u) {
-        return miss;
-    }
-    let across = cross(offset, edge0);
-    let v = dot(ray, across) * inverse;
-    if v < 0.0 || u + v > 1.0 {
-        return miss;
-    }
-    let distance = dot(edge1, across) * inverse;
-    if distance <= 1e-4 || distance >= limit {
-        return miss;
-    }
-    (distance, [u, v])
+    let corners = [0, 1, 2].map(|corner| vertex(world, triangle, corner));
+    ray_triangle(origin, ray, corners, (1e-4, limit)).unwrap_or((limit, [0.0; 2]))
 }
 
 /// Closest hit triangle, or none. Traversal has no step bound here: the oracle

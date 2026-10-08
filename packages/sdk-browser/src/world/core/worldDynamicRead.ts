@@ -2,7 +2,7 @@ import { readList, type DrawnTriangles } from '../../../../sdk-core/src/world/ge
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Primitive } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { computeNormals } from '../../../../sdk-core/src/world/geometry/normals.ts'
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import type { HeldBox } from '../page/runtimePrimitive.ts'
 import { LISTS } from './worldDynamicRanges.ts'
 

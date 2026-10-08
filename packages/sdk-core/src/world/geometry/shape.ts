@@ -2,7 +2,8 @@ import { GeometryBuilder, fromArrays } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
 import { signedArea, triangulate } from './triangulate.ts'
 import type { Shape } from '../math/curves.ts'
-import { hypot2 } from '../../math/primitives/hypot.ts'
+import { cross2, normalizeVector2 } from '../../../../math/src/vector/vector.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 type P = [number, number]
 
@@ -65,16 +66,15 @@ function offsetRing(ring: P[], by: number): P[] {
   return ring.map((p, i) => {
     const a = ring[(i + ring.length - 1) % ring.length],
       b = ring[(i + 1) % ring.length]
-    const e1 = norm([p[0] - a[0], p[1] - a[1]]),
-      e2 = norm([b[0] - p[0], b[1] - p[1]])
-    const n = norm([e1[1] + e2[1], -(e1[0] + e2[0])])
-    const miter = Math.max(0.25, n[0] * e1[1] - n[1] * e1[0])
+    const e1: P = [p[0] - a[0], p[1] - a[1]],
+      e2: P = [b[0] - p[0], b[1] - p[1]]
+    normalizeVector2(e1)
+    normalizeVector2(e2)
+    const n: P = [e1[1] + e2[1], -(e1[0] + e2[0])]
+    normalizeVector2(n)
+    const miter = Math.max(0.25, cross2(n[0], n[1], e1[0], e1[1]))
     return [p[0] + (n[0] * by) / miter, p[1] + (n[1] * by) / miter]
   })
-}
-const norm = ([x, y]: P): P => {
-  const l = hypot2(x, y) || 1
-  return [x / l, y / l]
 }
 
 /**
@@ -93,12 +93,12 @@ export function extrude(outline: Shape, options: ExtrudeOptions = {}) {
     segments = bevel ? Math.max(1, options.bevelSegments ?? 3) : 0
   const layers: [number, number][] = []
   for (let s = 0; s <= segments; s++) {
-    const a = ((s / Math.max(1, segments)) * Math.PI) / 2
+    const a = (s / Math.max(1, segments)) * HALF_PI
     if (bevel) layers.push([-thickness * Math.cos(a), size * Math.sin(a)])
   }
   for (let s = bevel ? 1 : 0; s <= steps; s++) layers.push([(depth * s) / steps, size])
   for (let s = segments - 1; bevel && s >= 0; s--) {
-    const a = ((s / segments) * Math.PI) / 2
+    const a = (s / segments) * HALF_PI
     layers.push([depth + thickness * Math.cos(a), size * Math.sin(a)])
   }
   const { outline: ring, holes } = rings(outline, options.curveSegments ?? 12)

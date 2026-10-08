@@ -1,5 +1,5 @@
 /**
- * The physically based bloom, one definition for the WGSL and GLSL programs: the image is
+ * The physically based bloom, one definition for its programs: the image is
  * filtered down a chain of half-size levels, then back up, each level adding the one below it.
  * Every filter is normalised and taken with bilinear taps, so each level carries the mean
  * radiance of the image, and the chain's sum divided by its level count is the image's energy,
@@ -7,7 +7,7 @@
  * proportion to its radiance.
  */
 
-import { shaderFloat } from '../lighting/shaderConstants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
@@ -34,10 +34,9 @@ export const BLOOM_DOWN_TAPS: readonly BloomTap[] = [
   [1, -1, 0.125],
 ]
 
-/** The 3×3 tent upsample, offsets in texels of the level read, scaled
- *  by the bloom's `radius`. The WebGPU programs read it in four bilinear taps at radius 1, the same
- *  kernel (`tent4`, `bloomLevel.ts`, proved against this table in `bloomTent.test.ts`); the WebGL
- *  program reads the nine. */
+/** The 3×3 tent upsample, offsets in texels of the level read, scaled by the bloom's `radius`. The
+ *  programs read it in four bilinear taps at radius 1, the same kernel (`tent4`, `bloomLevel.ts`,
+ *  proved against this table in `bloomTent.test.ts`). */
 export const BLOOM_UP_TAPS: readonly BloomTap[] = [
   [-1, 1, 1 / 16],
   [0, 1, 2 / 16],
@@ -91,9 +90,6 @@ export function bloomTapText(
   vec2: string,
 ) {
   return taps
-    .map(
-      ([x, y, w]) =>
-        `c+=${sample(`${vec2}(${shaderFloat(x)},${shaderFloat(y)})`)}*${shaderFloat(w)};`,
-    )
+    .map(([x, y, w]) => `c+=${sample(`${vec2}(${wgslF32(x)},${wgslF32(y)})`)}*${wgslF32(w)};`)
     .join('\n')
 }

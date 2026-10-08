@@ -41,7 +41,11 @@ import {
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
-import { ceilDiv, type VsmLayout } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
+import type { VsmLayout } from './layout.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -120,7 +124,7 @@ export function vsmInvalidationPhaseFromShadowBoxes(
   for (let b = 0; b < source.count; b++) {
     const { min, max, moving } = source.read(b)
     const finite = writeBox(boxes, b * BOX_WORDS, min, max, moving),
-      radius = Math.hypot(lastBox[3], lastBox[4], lastBox[5])
+      radius = length3(lastBox[3], lastBox[4], lastBox[5])
     for (const entry of entries) {
       if (moving && entry.useCover) continue
       if (finite && !entry.affectsBounds(lastBox, radius)) continue
@@ -224,7 +228,7 @@ let items = new Uint32Array(64)
 let image = new ArrayBuffer(VSM_INVALIDATION_INSTANCE_BYTES * 16)
 let imageF = new Float32Array(image),
   imageU = new Uint32Array(image)
-/** The params' words; the fourth pads the struct, 0. */
+/** The params' words: the item count, the threads; the last two pad the struct, 0. */
 const paramsImage = new Uint32Array(4)
 const INSTANCE_WORDS = VSM_INVALIDATION_INSTANCE_BYTES / 4
 // The ranges of one phase, by their first instance: the index in the range lists of the last range
@@ -283,11 +287,8 @@ function packBox(boxes: Float64Array, b: number, slot: number) {
   imageF.fill(0, o, o + INSTANCE_WORDS)
   for (let c = 0; c < 3; c++) {
     // Column c = basis vector c; w = the translation's high f32.
-    const t = boxes[at + c],
-      high = Math.fround(t)
     imageF[o + c * 5] = 1
-    imageF[o + c * 4 + 3] = high
-    imageF[o + 12 + c] = t - high
+    writeSplitDouble(imageF, o + c * 4 + 3, o + 12 + c, boxes[at + c])
     imageF[o + 20 + c] = boxes[at + 3 + c]
   }
   imageU[o + 19] = VSM_BOX_CASTS | (boxes[at + 6] ? VSM_BOX_MOVING : 0)
@@ -336,14 +337,10 @@ function dispatchPhase(
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined
-  const groups = ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE),
-    groupsX = Math.min(groups, 65535),
-    groupsY = ceilDiv(groups, groupsX)
   device.queue.writeBuffer(instanceBuffer, 0, imageU, 0, instanceBytes / 4)
   device.queue.writeBuffer(itemBuffer, 0, items, 0, itemCount * 4)
   paramsImage[0] = itemCount
   paramsImage[1] = threads
-  paramsImage[2] = groupsX
   device.queue.writeBuffer(slot.params, 0, paramsImage)
 
   const p = pipe(device, res)
@@ -358,7 +355,7 @@ function dispatchPhase(
       itemBuffer,
     ])),
   )
-  pass.dispatchWorkgroups(groupsX, groupsY)
+  dispatchRows(pass, ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE))
   pass.end()
 }
 

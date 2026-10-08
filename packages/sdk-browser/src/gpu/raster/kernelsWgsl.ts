@@ -4,7 +4,6 @@ import {
   CNT_HUGE,
   CNT_LARGE,
   DISPATCH_BASE,
-  DISPATCH_SPAN,
   FINE_PER_GROUP,
   FINE_SIDE,
   LIST_HEADER,
@@ -17,14 +16,14 @@ import {
 } from './contract.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
-import { wgslFloat } from '../partition/margins.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
 const entryPoints = () =>
   RASTER_CLASSES.flatMap((klass, index) =>
     [0, 1, 2].map(
       (mode) =>
-        `@compute @workgroup_size(${TILE},${TILE}) fn ${rasterEntry(klass, mode)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_id) l:vec3u){${['fineGroup', 'coarseGroup', 'largeGroup', 'hugeGroup'][index]}(g,l,${mode}u);}`,
+        `@compute @workgroup_size(${TILE},${TILE}) fn ${rasterEntry(klass, mode)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_id) l:vec3u,@builtin(num_workgroups) n:vec3u){${['fineGroup', 'coarseGroup', 'largeGroup', 'hugeGroup'][index]}(g,l,n,${mode}u);}`,
     ),
   ).join('\n')
 
@@ -48,10 +47,10 @@ const entryPoints = () =>
 export const rasterKernels = (capacity: number) => `
 const LIST_S:u32=LIST+${LIST_HEADER}u;
 const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
-@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
- let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
+@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
+ let offset=flatIndex(gid,n,64u);let pixels=pixelCount();if(offset>=pixels){return;}
  // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
- atomicStore(&work[offset],bitcast<u32>(${wgslFloat(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
+ atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
 }
 /** Verdict of a row, the contract's VERDICT_*; a row without a Hi-Z slot is an occluder. */
 fn rowVerdict(page:PageInfo)->u32{
@@ -70,22 +69,20 @@ fn triOf(entry:u32,mode:u32)->Tri{
  if(!modeKeeps(mode,rowVerdict(page))){return t;}
  return setupTriangle(row,entry&0xffu,pageTransform(page),pageWinding(page));
 }
-// One dispatch dimension caps at 65 535 groups, well below the page count a replicated scene
-// reaches: the page row spreads over y and z, bounded by the live-row count.
-fn pageRow(group:vec3u)->u32{return group.y+group.z*${DISPATCH_SPAN}u;}
 // The 64 threads of a binning group share the same page: thread zero computes for them the two
 // quantities that belong only to the page, and the other 63 reread them instead of remaking them.
 var<workgroup> rowVp:mat4x4f;
 var<workgroup> rowDet:f32;
 // One thread per triangle of the drawable rows. Survivors are binned in their class list, whose
 // order the frame cannot see: the passes resolve their pixels by a minimum.
-@compute @workgroup_size(64) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){
- let row=pageRow(group);
+// A group a page row, in rows along x and y; z: the row's triangles, 64 a group.
+@compute @workgroup_size(64) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(num_workgroups) n:vec3u){
+ let row=flatIndex(group,n,1u);
  let live=row<uni.pageCount;
  if(live&&lane.x==0u){let page=pages[row];rowVp=pageTransform(page);rowDet=pageWinding(page);}
  workgroupBarrier();
  if(!live){return;}
- let triangle=group.x*64u+lane.x;
+ let triangle=group.z*64u+lane.x;
  let t=setupTriangle(row,triangle,rowVp,rowDet);
  if(t.ok==0u){return;}
  let entry=(row<<8u)|(triangle&0xffu);
@@ -97,30 +94,25 @@ var<workgroup> rowDet:f32;
  else if(klass==2u){atomicStore(&work[LIST_L+atomicAdd(&work[LIST+${CNT_LARGE}u],1u)],entry);}
  else{
   atomicStore(&work[LIST_L+${capacity}u-1u-atomicAdd(&work[LIST+${CNT_HUGE}u],1u)],entry);
-  // The frame's tallest box gives the y dimension of the huge-class dispatch: one group per
-  // eight-row tile, and those that overshoot their triangle's box leave at once.
+  // The frame's tallest box gives the z dimension of the huge-class dispatch, its triangles in
+  // rows along x and y: one group per eight-row tile, and those that overshoot their triangle's
+  // box leave at once.
   atomicMax(&work[LIST+${TILE_ROWS}u],tileRows(t));
  }
 }
-/** The two dimensions of a list dispatch: x caps, y takes the overflow. */
-fn spread(slot:u32,groups:u32){
- let base=LIST+${DISPATCH_BASE}u+slot*3u;
- atomicStore(&work[base],min(groups,${DISPATCH_SPAN}u));
- atomicStore(&work[base+1u],(groups+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
- atomicStore(&work[base+2u],1u);
+/** A list dispatch of \`groups\` in rows, and \`z\` up z. */
+fn spread(slot:u32,groups:u32,z:u32){
+ let base=LIST+${DISPATCH_BASE}u+slot*3u;let grid=groupGrid(groups);
+ atomicStore(&work[base],grid.x);atomicStore(&work[base+1u],grid.y);atomicStore(&work[base+2u],z);
 }
 /** Each count becomes its dispatch, without any going through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let fine=(atomicLoad(&work[LIST+${CNT_FINE}u])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
- spread(0u,fine);
- spread(1u,atomicLoad(&work[LIST+${CNT_COARSE}u]));
- spread(2u,atomicLoad(&work[LIST+${CNT_LARGE}u]));
- let huge=atomicLoad(&work[LIST+${CNT_HUGE}u]);
- atomicStore(&work[LIST+${DISPATCH_BASE + 9}u],min(huge,${DISPATCH_SPAN}u));
- atomicStore(&work[LIST+${DISPATCH_BASE + 10}u],max(1u,atomicLoad(&work[LIST+${TILE_ROWS}u])));
- atomicStore(&work[LIST+${DISPATCH_BASE + 11}u],(huge+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
+ let fine=ceilDiv(atomicLoad(&work[LIST+${CNT_FINE}u]),${FINE_PER_GROUP}u);
+ spread(0u,fine,1u);
+ spread(1u,atomicLoad(&work[LIST+${CNT_COARSE}u]),1u);
+ spread(2u,atomicLoad(&work[LIST+${CNT_LARGE}u]),1u);
+ spread(3u,atomicLoad(&work[LIST+${CNT_HUGE}u]),max(1u,atomicLoad(&work[LIST+${TILE_ROWS}u])));
 }
-fn listAt(group:vec3u)->u32{return group.x+group.y*${DISPATCH_SPAN}u;}
 // A group past its class count reads nothing useful, but it does read: its rank is clamped on
 // the list so that read stays in the buffer. Its triangle is dropped just after.
 fn held(i:u32)->u32{return min(i,${capacity - 1}u);}
@@ -129,10 +121,10 @@ fn held(i:u32)->u32{return min(i,${capacity - 1}u);}
 // pixels each. A triangle is prepared once for the threads that share it, which then reread what
 // a per-thread prepare would have produced.
 var<workgroup> shared_tri:array<Tri,${FINE_PER_GROUP}u>;
-fn fineGroup(group:vec3u,lane:vec3u,mode:u32){
+fn fineGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let index=lane.y*${TILE}u+lane.x;
  let slot=index/${FINE_SIDE * FINE_SIDE}u;
- let i=listAt(group)*${FINE_PER_GROUP}u+slot;
+ let i=flatIndex(group,n,1u)*${FINE_PER_GROUP}u+slot;
  if(index%${FINE_SIDE * FINE_SIDE}u==0u){
   var t:Tri;t.ok=0u;
   if(i<atomicLoad(&work[LIST+${CNT_FINE}u])){t=triOf(atomicLoad(&work[LIST_S+i]),mode);}
@@ -154,8 +146,8 @@ fn oneTri(entry:u32,valid:bool,lane:vec3u,mode:u32)->Tri{
  workgroupBarrier();
  return shared_tri[0];
 }
-fn coarseGroup(group:vec3u,lane:vec3u,mode:u32){
- let i=listAt(group);
+fn coarseGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
+ let i=flatIndex(group,n,1u);
  let live=i<atomicLoad(&work[LIST+${CNT_COARSE}u]);
  let t=oneTri(select(0u,atomicLoad(&work[LIST_S+${capacity}u-1u-held(i)]),live),live,lane,mode);
  if(t.ok==0u){return;}
@@ -165,8 +157,8 @@ fn coarseGroup(group:vec3u,lane:vec3u,mode:u32){
 fn tilePixel(t:Tri,lane:vec3u,tx:u32,ty:u32)->vec2i{
  return vec2i(t.lo)+vec2i(i32(tx*${TILE}u+lane.x),i32(ty*${TILE}u+lane.y));
 }
-fn largeGroup(group:vec3u,lane:vec3u,mode:u32){
- let i=listAt(group);
+fn largeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
+ let i=flatIndex(group,n,1u);
  let live=i<atomicLoad(&work[LIST+${CNT_LARGE}u]);
  let t=oneTri(select(0u,atomicLoad(&work[LIST_L+held(i)]),live),live,lane,mode);
  if(t.ok==0u){return;}
@@ -178,15 +170,15 @@ fn largeGroup(group:vec3u,lane:vec3u,mode:u32){
  }
 }
 // The huge class no longer loops over its tile rows: each is one more group, taken on the
-// dispatch y dimension. A group whose row overshoots its triangle's box leaves.
-fn hugeGroup(group:vec3u,lane:vec3u,mode:u32){
- let i=group.x+group.z*${DISPATCH_SPAN}u;
+// dispatch z dimension. A group whose row overshoots its triangle's box leaves.
+fn hugeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
+ let i=flatIndex(group,n,1u);
  let live=i<atomicLoad(&work[LIST+${CNT_HUGE}u]);
  let t=oneTri(select(0u,atomicLoad(&work[LIST_L+${capacity}u-1u-held(i)]),live),live,lane,mode);
- if(t.ok==0u||group.y>=tileRows(t)){return;}
+ if(t.ok==0u||group.z>=tileRows(t)){return;}
  let cols=tileCols(t);
  for(var tx=0u;tx<cols;tx=tx+1u){
-  rasterPixel(t,tilePixel(t,lane,tx,group.y),mode==2u);
+  rasterPixel(t,tilePixel(t,lane,tx,group.z),mode==2u);
  }
 }
 ${entryPoints()}

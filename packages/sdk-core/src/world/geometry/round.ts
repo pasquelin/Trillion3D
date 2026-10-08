@@ -1,10 +1,16 @@
-import { addScaledVector3, copyScaledVector3, dotVector3 } from '../../math/primitives/vector.ts'
-import { subtract as sub, cross } from '../../math/primitives/vectorTuple.ts'
+import {
+  addScaledVector3,
+  copyScaledVector3,
+  dotVector3,
+  signedAngleVector3,
+} from '../../../../math/src/vector/vector.ts'
+import { subtract as sub, cross } from '../../../../math/src/vector/vectorTuple.ts'
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
+import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
+import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 type V3 = [number, number, number]
-const TAU = Math.PI * 2
 
 /**
  * A ring of radius `radius` around the `z` axis, its tube `tube` thick, swept over `arc`.
@@ -27,7 +33,7 @@ export function torus(
     const a = u * arc,
       t = v * TAU
     const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)]
-    const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0]
+    const c = circlePoint<V3>([0, 0, 0], radius, a)
     return { p: addScaledVector3(c, n, tube), n, uv: [u, v] }
   })
   return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc])
@@ -126,13 +132,16 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
   const profile: [number, number][] = []
   const caps = (capSegments = pieces(capSegments, 1))
   radialSegments = pieces(radialSegments, 1)
+  const p = [0, 0]
   for (let i = 0; i <= caps; i++) {
-    const a = -Math.PI / 2 + (i / caps) * (Math.PI / 2)
-    profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)])
+    const a = -HALF_PI + (i / caps) * HALF_PI
+    circlePoint(p, radius, a)
+    profile.push([p[0], -length / 2 + p[1]])
   }
   for (let i = 0; i <= caps; i++) {
-    const a = (i / caps) * (Math.PI / 2)
-    profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)])
+    const a = (i / caps) * HALF_PI
+    circlePoint(p, radius, a)
+    profile.push([p[0], length / 2 + p[1]])
   }
   return withRecipe(lathe(profile, radialSegments), 'capsule', [
     radius,
@@ -174,7 +183,7 @@ function sweep(
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
   const [first, last] = [normals[0], normals[count]]
-  const turn = closed ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last)) : 0
+  const turn = closed ? signedAngleVector3(first, last, t0) : 0
   const b = new GeometryBuilder()
   b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),

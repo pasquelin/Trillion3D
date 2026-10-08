@@ -17,12 +17,12 @@
   },
   "rule": "A container changes nothing about the scene it wraps. The test first compares the compilation from the archive with that of the same glTF outside the archive, cache key included; booby-trapped archives are refused by their code and never half extracted.",
   "scene": {
-    "formatVersion": 9,
-    "manifestBinaryVersion": 10,
+    "formatVersion": 11,
+    "manifestBinaryVersion": 11,
     "primitives": 2,
     "selectedNodes": 1,
     "selectedTriangles": 8,
-    "sidecarSha256": "855e5ebed1c5a18dd81e9f592f803b9564016233b4193e4c11ba383d73cd4e6a",
+    "sidecarSha256": "f04829d34203a244618adc1aec42e736310d8c90670947d337c19b547007f2b3",
     "sourceTriangles": 8,
     "totalNodes": 1
   },

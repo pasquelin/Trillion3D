@@ -1,3 +1,6 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { unorm8 } from '../../../math/src/wgsl/color.ts'
 /** The most images a moving pixel's history holds. */
 export const HISTORY_SAMPLES_MAX = 16
 /** The fewest it keeps after a full shading rejection: the current image and one. */
@@ -83,7 +86,10 @@ export const flickerParallax = (width: number) => 1 / (PARALLAX_LIMIT * (width /
  * of blurred lumas, the blurred luma history for the blurred history, the colour history's luma
  * for the pixel's flicker history; events are counted per pixel.
  */
-export const SHADING_HISTORY_WGSL = `
+export const SHADING_HISTORY_WGSL = wgslBlock(
+  'SHADING_HISTORY_WGSL',
+  [perspectiveDivide, unorm8],
+  `
 fn shadingLuma(y:f32)->f32{
  let c=max(y,0.0)*view.tsr.x;let g=c/(c+${CURVE_OFFSET});
  return g*g;
@@ -121,7 +127,7 @@ fn shadingPack(moire:ShadingMoire)->u32{
 }
 fn shadingRead(at:vec2i,gradient:f32)->vec4f{
  let stored=textureLoad(shadingHistory,at,0).r;
- return vec4f(unpack2x16float(stored&0xffffu).x,gradient*${255 / 127}-1.0,f32(stored>>24u)/255.0,f32((stored>>16u)&255u)/255.0);
+ return vec4f(unpack2x16float(stored&0xffffu).x,gradient*${255 / 127}-1.0,unorm8(stored,3u),unorm8(stored,2u));
 }
 fn shadingConfidence(error:f32,range:f32,flicker:f32,count:f32)->f32{
  let limit=max(range,${LUMA_TO_CHANNEL}.0*flicker)+${2 * DISPLAY_STEP};
@@ -133,17 +139,18 @@ fn shadingStill(here:vec4f,before:vec4f,animated:bool)->f32{
  if(animated){return 0.0;}
  var moving=0.0;
  if(here.w>0.0&&before.w>0.0){
-  let shift=length(before.xyz/before.w-here.xyz/here.w);
+  let shift=length(perspectiveDivide(before)-perspectiveDivide(here));
   moving=saturate(shift*here.w/view.moire.z-1.0);
  }
  let seen=view.prevViewProj*here;
  let turned=seen+view.parallax*here.w;
  if(seen.w>0.0&&turned.w>0.0){
-  let parallax=0.5*length((turned.xy/turned.w-seen.xy/seen.w)*view.viewport.xy);
+  let parallax=0.5*length((perspectiveDivide(turned).xy-perspectiveDivide(seen).xy)*view.viewport.xy);
   moving=max(moving,saturate(parallax*view.moire.y-0.5));
  }
  return 1.0-moving;
-}`
+}`,
+)
 
 /** The gradient in the share target's eight bits: `g · 127/255 + 127/255`, so zero is
  *  kept exactly and a step is 1/127. */

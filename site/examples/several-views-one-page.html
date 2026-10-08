@@ -172,7 +172,7 @@
           pose();
           world.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
-            lens.zoom = Math.max(0.6, Math.min(8, lens.zoom * Math.exp(-event.deltaY * 0.0015)));
+            lens.zoom = math.clamp(lens.zoom * Math.exp(-event.deltaY * 0.0015), 0.6, 8);
           }, { passive: false });
           let held = null;
           world.canvas.addEventListener('pointerdown', (event) => (held = [event.clientX, event.clientY, ...pan]));
@@ -217,7 +217,7 @@
         windSpeed: [0, 2, 0.6, 0.05],
       }, (values) => {
         state.explode = values.explode;
-        state.wind = (values.windFrom * Math.PI) / 180;
+        state.wind = math.degToRad(values.windFrom);
         state.speed = values.windSpeed;
         rpm?.(turnsAMinute());
         for (const world of worlds) world.invalidate();

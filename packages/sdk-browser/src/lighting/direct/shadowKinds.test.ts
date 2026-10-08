@@ -8,8 +8,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
-import { contractLightingShader } from '../deferred/shaders.ts'
 import { ALL_SHADOW_KINDS, byShadowKind, shadowKindsOf } from './shadowKinds.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 const SUN = { sun: true, local: false },
   LOCAL = { sun: false, local: true }
@@ -20,7 +21,7 @@ const READS = [
   { name: 'vsmShadowFiltered', request: null, traced: false },
 ]
 const text = (request: number | null, traced: boolean, kinds = ALL_SHADOW_KINDS) =>
-  directShadowWgsl(request, 25, undefined, traced, kinds)
+  wgslModule(directShadowWgsl(25, { resolveTransmission: request, traced, kinds }))
 /** The read's text before its branches, its sun's, its local light's. */
 const parts = (source: string, name: string) => {
   const body = functionsOf(source, [name])
@@ -66,7 +67,11 @@ test('the kinds a key names; a key that cuts none keeps both', () => {
 
 test('the resolve is compiled with the kinds its key names', () => {
   const resolve = (kinds = ALL_SHADOW_KINDS) =>
-    contractLightingShader(false, false, true, true, kinds)
+    contractLightingShader(false, {
+      sunless: !kinds.sun,
+      localless: !kinds.local,
+      lobeless: true,
+    })
   const clipmap = /vsmHandleFromIdDirectional\(id\)/,
     cube = /i32\(vsmCubeFace\(/
   assert.match(resolve(), clipmap)

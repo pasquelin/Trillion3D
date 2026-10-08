@@ -13,6 +13,7 @@
     "outDir": "dist"
   },
   "include": [
+    "packages/math/**/*.ts",
     "packages/sdk-core/**/*.ts",
     "packages/sdk-browser/**/*.ts",
     "packages/sdk-node/**/*.mts",

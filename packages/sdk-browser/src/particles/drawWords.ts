@@ -1,4 +1,6 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/math/index.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { usedSlots } from './poolStates.ts'
 
@@ -6,10 +8,6 @@ import { usedSlots } from './poolStates.ts'
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
  *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw. */
 export const DRAW_FLOATS = 48
-
-/** A disc's two triangles, corner by corner, in both shading languages (`vec2` infers in WGSL). */
-export const DISC_CORNERS =
-  'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)'
 
 /** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
  *  adds light and leaves the coverage. */
@@ -46,8 +44,7 @@ export function drawOrder(pools: readonly ParticlePool[], eye: Vec, into: Partic
   into.length = 0
   for (const pool of pools) {
     if (!pool.moving || !usedSlots(pool)) continue
-    const o = pool.origin,
-      key = (o[0] - eye[0]) ** 2 + (o[1] - eye[1]) ** 2 + (o[2] - eye[2]) ** 2
+    const key = distanceSqVector3(pool.origin, eye)
     let at = into.length
     for (; at > 0 && keys[at - 1] < key; at--) {
       into[at] = into[at - 1]

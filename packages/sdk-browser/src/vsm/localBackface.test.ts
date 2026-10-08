@@ -13,6 +13,7 @@ import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, 2 ** 27)
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
@@ -30,7 +31,7 @@ const before = (d: V3, n: V3, r: number) => {
   const len = Math.hypot(...d)
   const u = d.map((x) => f(x / len))
   const rangeSq = f(u[0] * u[0] + u[1] * u[1] + u[2] * u[2])
-  const emitterSin = Math.sqrt(Math.min(Math.max(f(r * r) / (rangeSq + 1), 0), 1))
+  const emitterSin = Math.sqrt(saturate(f(r * r) / (rangeSq + 1)))
   return n[0] * u[0] + n[1] * u[1] + n[2] * u[2] < -emitterSin
 }
 

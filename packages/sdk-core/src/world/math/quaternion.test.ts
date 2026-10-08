@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { Quaternion } from './quaternion.ts'
 import { Vector3 } from './vector3.ts'
 import { Matrix4 } from './matrix4.ts'
-import { listen } from './observed.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { listen } from '../observed.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7)
 
@@ -40,7 +41,7 @@ test('quaternion storage, inverse, normalization and shortest arcs preserve phys
   const halfTurn = new Quaternion().setFromAxisAngle({ x: 0, y: 0, z: 3 }, Math.PI)
   const halfway = new Quaternion().slerp(halfTurn, 0.5)
   close(new Vector3(1, 0, 0).applyQuaternion(halfway).toArray(), [0, 1, 0])
-  assert.ok(Math.abs(new Quaternion().angleTo(halfway) - Math.PI / 2) < 1e-10)
+  assert.ok(Math.abs(new Quaternion().angleTo(halfway) - HALF_PI) < 1e-10)
   close(
     halfway
       .clone()

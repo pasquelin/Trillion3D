@@ -44,7 +44,7 @@ const pages: object[] = [],
   reads = { uv: 0 }
 const run = shaderRun<Run>(
   VIS_SHADER,
-  ['vis_vs', 'vis_hiz_vs', 'hardwareIdle', 'maskKeep', 'lineDash'],
+  ['vis_vs', 'vis_hiz_vs', 'hardwareIdle', 'maskKeep', 'lineDash', 'floorMod'],
   {
     pages,
     hizFlags: [],

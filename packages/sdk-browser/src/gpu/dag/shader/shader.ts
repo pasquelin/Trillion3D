@@ -1,11 +1,15 @@
 import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
-import { DAG_BINDINGS_WGSL } from './bindings.ts'
+import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
+import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts'
+import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { isNanWord } from '../../../../../math/src/wgsl/integer.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
 import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts'
+import { DAG_SWAP_WGSL } from './swapWgsl.ts'
 import { DAG_REQUEST_WGSL } from '../requestWgsl.ts'
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
@@ -13,7 +17,7 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
-import { DAG_GRID_WGSL } from './gridWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
@@ -24,7 +28,13 @@ import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
 import { FRAME_VEC4 } from '../types.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
-export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
+/** The selection kernel over the tables `access` reads (`DAG_ACCESS_WGSL`, or a split's,
+ *  `splitWgsl.ts`): the accessors are a declaration the program lists, never text replaced.
+ *  The `DAG_*_WGSL` fragments are this program's parts, which it lists all (`docs/MATHS.md`,
+ *  "The WGSL library"). */
+export const dagSelectionWgsl = (access: WgslDecl = DAG_ACCESS_WGSL) =>
+  wgslProgram(
+    `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
@@ -35,18 +45,14 @@ ${VIEW_UNIFORM_STRUCT}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,ahead:atomic<u32>,aheadPlaced:u32,pages:array<u32>,}
 // The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
 struct FrameRange{first:u32,count:u32,}
-${DAG_BINDINGS_WGSL}
-/** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
- *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
-const INF:f32=3.4e38;
 /** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum.
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same corners, same sum.
  *  An infinite far plane is not tested (\`farless\`): it rejects no box. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  let skip=select(6u,FAR_PLANE,farless());
- for(var i=0u;i<6u;i++){if(i!=skip&&outsidePlane(frames[base+i],bmin,bmax)){return true;}}
+ for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(frames[base+i],bmin,bmax)){return true;}}
  return false;
 }
 /** Rank of the far plane among the six (\`frustum.ts\`: right, left, bottom, top, far, near). */
@@ -54,23 +60,18 @@ const FAR_PLANE:u32=4u;
 /** True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
-fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
+fn farless()->bool{return isNanWord(bitcast<u32>(views[vi].planes[FAR_PLANE].x));}
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
 fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
-/** A plane moved out by the primitive's deformation reach along every axis: a box clears it
- *  only if the box grown by that reach would — the CPU cut's \`growPlanes\`. */
+/** A plane moved out by the primitive's deformation reach along every axis (#357): a box clears it
+ *  only if the box grown by that reach would — the oracle's \`growPlanes\`. */
 fn grownPlane(p:vec4f)->vec4f{return vec4f(p.xyz,p.w+deformReach*(abs(p.x)+abs(p.y)+abs(p.z)));}
 /** How far the current primitive's GPU deformation moves a vertex this frame, in its units
  *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
 var<private> deformReach:f32;
 /** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`markReach\`). */
 fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
-/** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
-fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
- let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
- return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
-}
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 fn visible(r:u32,w:u32,cluster:Cluster)->bool{
@@ -85,7 +86,7 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
  *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let head=rangeFirst()==0u;let i=flatIndex(id.x,id.y,n.x);
+ let head=rangeFirst()==0u;let i=flatIndex(id,n,64u);
  if(head&&i==0u){
   atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
@@ -112,7 +113,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
- let s=flatIndex(id.x,id.y,n.x);
+ let s=flatIndex(id,n,64u);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
@@ -121,14 +122,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusterAt(r).flags;
   var draw=false;
-  // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
-  // cut without residency holds every cluster and every finer group.
+  // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives.
   let word=flagAt(coneCache(i));
   if((word&CONE_REJECTED)==0u){
-   let all=views[0u].residentCut==0u;
    // The rule on the two comparisons \`dagWanted\` made this frame, on the same projections — no
    // matrix product, no projection, no sphere read again.
-   draw=drawsCompared(all||isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,all||childResident(i));
+   draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
   noteImage(r,clusterFlags,draw);
   let drawn=select(0u,1u,draw);
@@ -138,18 +137,34 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  }}
  verseTotaux(lid);
 }
-${DAG_CONE_WGSL}
-${DAG_PRIMITIVE_WGSL}
-${DAG_WORLD_POSE_WGSL}
-${DAG_ERROR_WGSL}
-${CUT_RULE_WGSL}
-${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_WANTED_WGSL}
-${DAG_LIVE_WGSL}
-${DAG_LEVEL_WGSL}
-${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
-${DAG_FLOOR_WGSL}
-${DAG_GRID_WGSL}
-${DAG_VIEWS_WGSL}
-${DAG_RECORD_WGSL}
-${DAG_AHEAD_WGSL}`
+`,
+    [
+      access,
+      DAG_BINDINGS_WGSL,
+      DAG_CONE_WGSL,
+      DAG_PRIMITIVE_WGSL,
+      DAG_WORLD_POSE_WGSL,
+      DAG_ERROR_WGSL,
+      CUT_RULE_WGSL,
+      DAG_COMPACT_WGSL,
+      DAG_TOTALS_WGSL,
+      DAG_REQUEST_WGSL,
+      DAG_READING_WGSL,
+      DAG_DIFFERENCE_WGSL,
+      DAG_SWAP_WGSL,
+      DAG_WANTED_WGSL,
+      DAG_LIVE_WGSL,
+      DAG_LEVEL_WGSL,
+      DAG_LAST_USE_WGSL,
+      DAG_EVICT_WGSL,
+      DAG_FLOOR_WGSL,
+      FLAT_INDEX_WGSL,
+      DAG_VIEWS_WGSL,
+      DAG_RECORD_WGSL,
+      DAG_AHEAD_WGSL,
+      boxBehindPlane,
+      isNanWord,
+    ],
+  )
+
+export const DAG_SELECTION_SHADER = dagSelectionWgsl()

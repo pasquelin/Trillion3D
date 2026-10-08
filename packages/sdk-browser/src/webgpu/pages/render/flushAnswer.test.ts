@@ -1,7 +1,7 @@
 // A frame that first casts a shadow is held until the device grants the shadow pool. A
 // drain after it (`flush`, and so `awaitPages`) waits for that answer and draws the pose: without
 // it, a scene whose pages were all resident at prepare left `awaitPages` with no frame drawn and
-// no cut adopted, and the next frame, captured alone, was blank (test:gpu `default-backend`).
+// no cut adopted, and the next frame, captured alone, was blank (test:gpu `world/default-world`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout } from 'node:timers/promises'
@@ -12,7 +12,7 @@ import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, disposeQuadRun, quadBackend, quadScene } from '../testScenes.fixture.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
+import type { Engine } from '../../../engine/types.ts'
 
 test('a drain waits for the shadow pool the device still answers for, then draws and adopts the cut', async () => {
   installGpuGlobals()
@@ -37,7 +37,7 @@ test('a drain waits for the shadow pool the device still answers for, then draws
     sceneLights,
   })
   await backend.prepare()
-  const pages = () => (backend as WebgpuPagesBackend).selectedPageIds().sort()
+  const pages = () => (backend as Engine).selectedPageIds().sort()
   backend.render(camera())
   assert.deepEqual(pages(), [], 'the first frame is held on the pool: no cut')
   assert.ok(backend.flush, 'the WebGPU pages backend drains')

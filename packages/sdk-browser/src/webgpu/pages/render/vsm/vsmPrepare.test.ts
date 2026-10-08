@@ -17,7 +17,7 @@ const nameOf = (descriptor: { label?: string }) => (descriptor.label ?? '').spli
 
 test('the first lit frame creates no shadow pipeline at once: prepare compiled them off the thread', async () => {
   installGpuGlobals()
-  const gpu = mockGpu({ limits: SHADOW_LIMITS, compute: true })
+  const gpu = mockGpu({ limits: SHADOW_LIMITS })
   const sceneLights = createSceneLightStore()
   sceneLights.add(SUN)
   const { fixture, backend } = quadBackend(gpu.device, { sceneLights })
@@ -38,7 +38,7 @@ test('the first lit frame creates no shadow pipeline at once: prepare compiled t
     assert.ok(prepared.includes('vsm.render.raster') && prepared.includes('vsm.projection'))
     made.sync.length = made.async.length = 0
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     assert.ok(backend.metrics().shadowVsmLights, 'the frame shadowed its sun')
     assert.deepEqual(shadow(made.sync), [], 'the frame creates none at once')
     assert.deepEqual(shadow(made.async), ['vsm.projection'], 'its kind variant, off the thread')

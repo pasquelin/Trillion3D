@@ -11,7 +11,7 @@ import { awayCamera, drawnQuad } from './drawnQuad.fixture.ts'
 import { flushWebgpuPages } from './render/flush.ts'
 import { renderWebgpuPages } from './render/render.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
-import type { WebgpuPagesBackend } from './runtime.ts'
+import type { Engine } from '../../engine/types.ts'
 import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 import { families } from '../../host/families.ts'
 
@@ -28,13 +28,13 @@ test('drawing another view every frame never resets the main view’s hold, nor 
   scene.material.transparent = true
   scene.material.opacity = 0.5
   const { backend, textures } = await flushedGpuScene(scene)
-  const side = await (backend as WebgpuPagesBackend).addView(RECT)
+  const side = await (backend as Engine).addView(RECT)
   /** One host frame: the main view, then the side one; whether the main view was held. */
   const frame = async () => {
     backend.render(camera())
     const held = backend.metrics().frameHeld
     side.render(awayCamera())
-    await backend.flush!()
+    await backend.flush()
     return held
   }
   let frames = 0
@@ -47,7 +47,7 @@ test('drawing another view every frame never resets the main view’s hold, nor 
 })
 
 test('a target grant lands on the view that asked for it, whichever is drawn', async () => {
-  const { rt } = await drawnQuad(false)
+  const { rt } = await drawnQuad()
   const side = await addWebgpuView(rt, RECT)
   renderWebgpuView(rt, side, awayCamera())
   assert.equal(rt.views.active, rt.views.main, 'the main view is drawn again at once')
@@ -61,7 +61,7 @@ test('a target grant lands on the view that asked for it, whichever is drawn', a
 })
 
 test('a persistent view accumulates its own history, the main view’s left as it was', async () => {
-  const { rt } = await drawnQuad(true)
+  const { rt } = await drawnQuad()
   const main = rt.gpu.temporal!,
     frame = { ...main.frame }
   const side = await addWebgpuView(rt, RECT)
@@ -79,11 +79,12 @@ test('a persistent view accumulates its own history, the main view’s left as i
 
 test('a persistent view is no capture: it draws the effect chain, with its own targets', async () => {
   const effects = new EffectChain().add(effect.bloom())
-  const { rt } = await drawnQuad(true, { effects })
+  const { rt } = await drawnQuad({ effects })
   const chain = rt.gpu.effects
   assert.ok(chain, 'the main view draws the chain')
   const side = await addWebgpuView(rt, RECT)
-  for (let i = 0; i < 2; i++) {
+  // Its first image makes its region of the cut's readout (`gpu/dag/swap.ts`), then it cuts.
+  for (let i = 0; i < 3; i++) {
     renderWebgpuView(rt, side, camera())
     await flushWebgpuPages(rt)
   }

@@ -44,7 +44,7 @@ function sameTouches(was: Run, is: Run, first: number, argsOf: (d: Draw) => unkn
 }
 
 test("the flag mask test and the overlap of a page rect are the invalidation's, bit for bit", () => {
-  const names = ['vsmTouchesMappedPage', 'vsmMarksMatch', 'vsmLevelHoldingRect']
+  const names = ['vsmTouchesMappedPage', 'vsmMarksMatch', 'vsmLevelHoldingRect', 'floorLog2']
   const was = run(INVALIDATION_BEFORE, names),
     is = run(INVALIDATION, [...names, 'vsmRectMarks'])
   sameTouches(was, is, 0, (d) => {
@@ -57,7 +57,7 @@ test("the flag mask test and the overlap of a page rect are the invalidation's, 
 
 test("the overlap of a pixel rect with valid pages is the render cull's, receiver cover and all", () => {
   const names = ['vsmTouchesMappedPage', 'vsmMaskRectHits', 'vsmBitRun']
-  const shared = ['vsmMarksMatch', 'vsmLevelHoldingRect']
+  const shared = ['vsmMarksMatch', 'vsmLevelHoldingRect', 'floorLog2']
   const was = run(RENDER_BEFORE, [...names, ...shared]),
     is = run(RENDER, [...names, ...shared, 'vsmRectMarks'])
   sameTouches(was, is, 10 ** 5, (d) => [
@@ -100,4 +100,13 @@ test("the allocated rect, the radius and the detail geometry are each module's o
     assert.equal(detail, was.vsmIsFineCaster(cached, false, r), `case ${k}`)
     assert.equal(detail, render.vsmIsFineCaster(cached, r))
   }
+})
+
+test('the level offset of a span is its exact base-2 logarithm, as the device log2 rounded it', () => {
+  // `vsmLevelHoldingRect` once truncated `log2(f32(spanTexels))`, now takes `floorLog2`: the same
+  // integer for every span an f32 holds exactly, the shipped 2 among them, in the log2 the runs
+  // above emulate.
+  for (let span = 1; span <= 2 ** 24; span++)
+    if (Math.trunc(Math.log2(Math.fround(span))) !== 31 - Math.clz32(span)) assert.fail(`${span}`)
+  assert.ok(INVALIDATION.includes('let mipOffset=i32(floorLog2(u32(spanTexels)))-1;'))
 })

@@ -1,4 +1,5 @@
 import type { Engine, Families, Look, Mesh, Shape, Vec3 } from './engineTypes.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 
 type Paint = Omit<Parameters<(typeof Engine)['material']['meshStandard']>[0] & object, 'color'>
 /** The primitives a body's drawn part collides as. */
@@ -36,7 +37,7 @@ export function vehicleParts({
     const tread = part(body, geometry.cylinder(radius, radius, width, 28), tyre, at, [
       0,
       0,
-      Math.PI / 2,
+      HALF_PI,
     ])
     part(tread, geometry.cylinder(radius * 0.62, radius * 0.62, width * 1.04, 20), hub, [0, 0, 0])
     part(tread, geometry.box(radius * 1.5, width * 1.08, radius * 0.18), tyre, [0, 0, 0])

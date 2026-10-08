@@ -25,4 +25,7 @@ export const CLASS_FEATURE = {
   HAS_SAMPLING: 2048,
   /** The base colour is multiplied by the vertex colour (`FLAG_HAS_COLOR`). */
   HAS_VERTEX_COLOR: 4096,
+  /** The physical material's anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`):
+   *  only this class reads their record and maps (`physicalWgsl.ts`). */
+  HAS_PHYSICAL: 8192,
 } as const

@@ -1,3 +1,4 @@
+import { wrap } from '../../../../math/src/scalar/reals.ts'
 // What a clip is: the data a mixer plays, the slot a track's samples are written into, and where
 // a clip stands at a time. It imports nothing — `sample.ts`, `wind.ts` and `mixerHold.ts` read
 // from here, and none of them needs the module that plays a clip.
@@ -47,7 +48,7 @@ export function trackWidth(tr: Track) {
 export function clipTimeOf(clip: Clip, loop: 'once' | 'repeat' | 'pingpong', time: number) {
   const d = clip.duration || 1
   if (loop === 'once') return Math.min(time, d)
-  if (loop === 'repeat') return ((time % d) + d) % d
-  const phase = ((time % (2 * d)) + 2 * d) % (2 * d)
+  if (loop === 'repeat') return wrap(time, d)
+  const phase = wrap(time, 2 * d)
   return phase > d ? 2 * d - phase : phase
 }

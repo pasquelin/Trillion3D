@@ -819,8 +819,6 @@
       "shadow-pages-off": "Sayfalı gölgeler devre dışı",
       "shadow-budget-0-25": "Gölge zaman bütçesi: 0,25 ms",
       "budget-3000": "Geometri bütçesi: 3000 sayfa",
-      "webgl": "WebGL render motoru",
-      "webgl2": "WebGL 2 render motoru",
       "moving-light": "Hareketli ışık",
       "visible": "Görünür tarayıcı penceresi"
     },
@@ -926,7 +924,7 @@
     "resolution": "Çözünürlük ve hata eşiği",
     "lights": "Işıklar, gölgeler ve yansıma",
     "execution": "Sabit kare, kenar yumuşatma ve çalıştırma seçenekleri",
-    "memory": "Bellek, örnekler ve diğer render motorları"
+    "memory": "Bellek, örnekler ve diğer çalıştırmalar"
   },
   "evidence": {
     "computeDrawing": "Compute ile çizim",
@@ -1110,8 +1108,8 @@
     },
     "measurement-entry": {
       "title": "Ölçüm giriş noktası",
-      "description": "Bir tanığın, zorlanmış bir backend'in ya da dahili bir oturumun hâlâ adlandırılabildiği yer — asla yayımlanmış `trillion3d` girişi üzerinden değil.",
-      "html": "<p>Bir sayfa <code>trillion3d</code>'yi içe aktarır ve hiçbir zaman bir backend, bir tanık ya da dahili bir oturum görmez: <code>createWorld</code>, makineden seçilen ya da zorlanmış ve mevcut olmadığında adıyla reddedilen tek bir render motoruyla çizer. Bench, kanıtlar ve karşılaştırma görünümlerinin yine de bir tanık adlandırması gerekir — saf Three.js, <code>THREE.LOD</code>, dahili <code>openMeasuredWorld</code> oturumu — ve bu, ayrı ölçüm giriş noktasının, <code>packages/sdk-browser/src/measurement/measurement.ts</code>'in tek işidir.</p>\n<p>Yayımlanan girişin yaptığı her şeyi, artı bir host'un hiçbir zaman ihtiyaç duymadığı şeyleri yeniden dışa aktarır: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (bir dünyanın kendi üzerinde açtığı dahili oturum), backend fabrikaları (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>) ve <code>replicateInstances</code> gibi yalnızca ölçüme özgü yardımcılar. Bunların hiçbiri yayımlanmış bir dünyaya ulaşmaz, ve hiçbiri bir uygulama tarafından içe aktarılmaz.</p>"
+      "description": "Bir tanığın ya da dahili bir oturumun hâlâ adlandırılabildiği yer — asla yayımlanmış `trillion3d` girişi üzerinden değil.",
+      "html": "<p>Bir sayfa <code>trillion3d</code>'yi içe aktarır ve hiçbir zaman bir tanık ya da dahili bir oturum görmez: <code>createWorld</code> WebGPU ile çizer, makine hiçbirini sağlamıyorsa adıyla reddedilir. Bench ve kanıtların yine de bir tanık adlandırması gerekir — saf Three.js, <code>THREE.LOD</code>, dahili <code>openMeasuredWorld</code> oturumu — ve bu, ayrı ölçüm giriş noktasının, <code>packages/sdk-browser/src/measurement/measurement.ts</code>'in tek işidir.</p>\n<p>Yayımlanmış girişin dışa aktardığı her şeyi yeniden dışa aktarır, ayrıca bir host'un hiç ihtiyaç duymadığı şeyleri de: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (bir dünyanın kendi üzerinde açtığı dahili oturum), sayfa fabrikası <code>webgpuPagesEngine</code> ve <code>replicateInstances</code> gibi yalnızca ölçüme ait yardımcılar. Bunların hiçbiri yayımlanmış bir dünyaya ulaşmaz ve hiçbiri bir uygulama tarafından içe aktarılmaz.</p>"
     },
     "createWorldJob": {
       "title": "İptal edilebilir bir görev olarak dünya yükleme",
@@ -1160,11 +1158,11 @@
       "description": "Bir karenin çizdiği şey. Kullanılabilirlik, gerçek pipeline çıktılarını betimler, asla sentetik katmanları değil: `DIAGNOSTICS`, her mod için, etkin render motorunun onu üretip üretemeyeceğini ve neden üretemediğini bildirir.",
       "values": [
         "glTF malzemelerinden gelen aydınlatılmış görsel.",
-        "Gönderilen her üçgen için tek düz bir renk — GL_LINES değil, `MeshBasicMaterial.wireframe` değil.",
-        "Kararlı primitif/sayfa kimliği, cluster başına bir renk; hem WebGL2 hem WebGPU.",
+        "Gönderilen her üçgen için tek düz bir renk.",
+        "Kararlı primitif/sayfa kimliği, cluster başına bir renk.",
         "Seviye 0 cluster'lar, bu karede gerçekten seçilen daha kaba DAG indirgemelerine karşı.",
         "Kesitin kullandığı şekliyle, cluster küresi üzerinden izdüşürülen cluster başına hata.",
-        "Malzeme sınıfı başına bir renk: pikseli çözen sınıf geçişi. Yalnızca WebGPU görünürlük yolunda.",
+        "Malzeme sınıfı başına bir renk: pikseli çözen sınıf geçişi.",
         "Seçilen görünür sayfalar; reddedilen hiyerarşi düğümleri sayılır, çizilmez.",
         "Bağlı indeks sayfaları; eksik sayfalar çizilmez. Fiziksel VRAM değildir.",
         "Kullanılamaz: doku mip yerleşikliği enstrümante edilmemiştir.",
@@ -1215,7 +1213,7 @@
     },
     "GpuTimingMethod": {
       "description": "Bir aşama profilinin GPU sürelerinin nasıl alındığı. Geçiş başına bir süre nerede olduğunu söyler, asla ne kadar olduğunu değil: tile-based bir GPU'da geçişler çakışır ve bir geçiş komşularını içine alır. Kare toplamı `gpuImageMs`'tir, zarf — aşama süreleri bunun içine toplanmaz.",
-      "values": ["Yerel WebGPU zaman damgası sorguları.", "O yol için WebGL2 uzantısı."]
+      "values": ["Yerel WebGPU zaman damgası sorguları."]
     },
     "ColumnKind": {
       "description": "İkili manifestin bir sütununun depolanması. `COLUMN_KIND`, her sütun adını kendi türüne eşler, böylece bir okuyucu yardımcı baytlar üzerinde hangi görünümü alacağını bilir.",
@@ -1244,7 +1242,7 @@
       "description": "Bekleyen herhangi bir işlemi motorun görev sözleşmesine sarar: bir anlık görüntü (`JobStatus`, ilerleme, sonuç, hata), abonelik, ve görevin sahip olduğunu serbest bırakan bir iptal. İşlemin kendi sahibi üzerinden (RAF, geri okuma, …) iptali desteklemesi gerekir."
     },
     "detectCapabilities": {
-      "description": "Bir dünya oluşturulmadan önce bu makinenin gerçekte desteklediği şey: `{ tier, renderer, adapter, extensions, reason }`. Neden her zaman verilir, böylece desteklenmeyen bir özellik varsayılmak yerine bildirilir. Bir dünyanın okuduğu herkese açık sarmalayıcı `capability.detect()`'tir — `{ webgpu, webgl2, ... }`, aynı sondaj için daha basit bir biçim. WebGL2 sondajı önbelleğe alınır."
+      "description": "Bir dünya oluşturulmadan önce bu makinenin WebGPU'sunun gerçekte neyi sağladığı: `{ tier, adapter, extensions, reason }`. Katman, GPU zaman damgası sorgularıyla `full`, onlarsız `degraded`, adaptör yoksa `unavailable` olur. Gerekçe her zaman verilir; böylece desteklenmeyen bir yetenek varsayılmak yerine bildirilir. Bir dünyanın okuduğu genel sarmalayıcı `capability.detect()`'tir — `{ webgpu, tier, features, reason }`, aynı yoklama için daha basit bir biçim."
     },
     "perspectiveProjection": {
       "description": "Derece cinsinden dikey `fov`, `aspect` oranı, `near` yakın düzlemi, `zoom` yakınlaştırması olan bir kameranın perspektif izdüşümü. **Ters çevrilmiş derinlik, sonsuz uzak düzlem**: `near` 1'e izdüşürülür, sonsuz ise 0'a. Buraya hiçbir uzak düzlem girmez, dolayısıyla ona bölme de yoktur — derinlik hassasiyetini sağlayan da budur."
@@ -1304,7 +1302,7 @@
       "description": "Column-major sırada dokuz sayı üzerinde `out = transpose(inverse(m'nin 3×3 bloğu))`: kesme ve düzgün olmayan ölçek dahil, `m` tarafından dönüştürülen bir yüzeyin normallerini taşıyan matris. Ters, kofaktörler ve çarpım sırası dahil referansınkidir, sonra hiçbir kayan nokta işlemi olmadan devrik alınır. **Tekil bir matriste, referansın sıfır matrisi değil, bölünmemiş adjoint'i yazar**: tekil bir poz bir yüzeyi silmez, onu bir düzlem üzerine düzleştirir, ve yerel bir normale uygulanan adjoint, işaret dahil, dönüştürülmüş kenarların vektörel çarpımı*dır* — sonra her tüketici normalize eder. Yalnızca sıfır, sonsuz ya da NaN bir ölçek, dokuz sıfır olarak ayrı yazılır."
     },
     "linearPartScale": {
-      "description": "Motorun tek tekillik kuralı, WGSL çekirdeğinin biçiminde. Ölçek, doğrusal kısmın dokuz teriminin mutlak değerlerinin toplamıdır; determinant, ham determinantın küpüne bölünerek değil, çarpımdan **önce bu ölçeğe bölünmüş** sütunlar üzerinden hesaplanır — `t³`, kuralın tam olarak karar vermesi gereken yerde, 1e103'ün üstünde taşar ve 1e-103'ün altında kaybolur. `adjugateFactor` sonra düzgün bir matris için `1 / determinant` (referans bitleri), tekil biri için `1` (adjoint olduğu gibi), ve ölçek sonlu ve kesinlikle pozitif olmadığında, adjoint'in kendisinin sıfırla değiştirilmesi gereken `null` döndürür. `SINGULAR_DETERMINANT_WGSL`, shader'ın yazdığı aynı eşiktir: bir sayı, iki dil."
+      "description": "Motorun tek tekillik kuralı, WGSL çekirdeğinin biçiminde. Ölçek, doğrusal kısmın dokuz teriminin mutlak değerlerinin toplamıdır; determinant, ham determinantın küpüne bölünerek değil, çarpımdan **önce bu ölçeğe bölünmüş** sütunlar üzerinden hesaplanır — `t³`, kuralın tam olarak karar vermesi gereken yerde, 1e103'ün üstünde taşar ve 1e-103'ün altında kaybolur. `adjugateFactor` sonra düzgün bir matris için `1 / determinant` (referans bitleri), tekil biri için `1` (adjoint olduğu gibi), ve ölçek sonlu ve kesinlikle pozitif olmadığında, adjoint'in kendisinin sıfırla değiştirilmesi gereken `null` döndürür."
     },
     "basisMatrix4": {
       "description": "`u`, `v`, `n` sütunları, sonra başlangıç noktası, son satır `(0, 0, 0, 1)`; ve `center`'a yerleştirilmiş düzgün bir ölçek `s`. İkisi de host kütüphanesinin iki çağrılık bir dizisini tek bir yazımla değiştirir."
@@ -1336,8 +1334,8 @@
     "srgbToLinear": {
       "description": "Tam sRGB eğrisi — 0.04045'in altında `c / 12.92`, üstünde `((c + 0.055) / 1.055)^2.4` — ve tersi, negatifler üsse yükseltmeden önce sıfıra sabitlenmiş olarak."
     },
-    "hslToLinearRgb": {
-      "description": "Ton, doygunluk ve parlaklığın `out[o..o+2]`'ye yazılan üç doğrusal bileşene dönüştürülmesi. Referansın `setHSL`'i terim terim: sarmalanmış ton, `[0, 1]`'e sabitlenmiş doygunluk ve parlaklık, gri olarak döndürülen sıfır doygunluk, sonra parçalı rampa. Hiçbir aktarım eğrisi uygulanmaz — referansın çalışma alanı zaten doğrusaldır."
+    "hslToRgb": {
+      "description": "Ton, doygunluk ve parlaklığın `out[o..o+2]`'ye yazılan üç RGB bileşenine dönüştürülmesi. Referansın `setHSL`'i terim terim: sarmalanmış ton, `[0, 1]`'e sabitlenmiş doygunluk ve parlaklık, gri olarak döndürülen sıfır doygunluk, sonra parçalı rampa. RGB, HSL hangi kodlamada verildiyse o kodlamada çıkar: hiçbir aktarım eğrisi uygulanmaz."
     },
     "boxUnion": {
       "description": "Bir kutu, `o`'dan itibaren doğrusal olarak saklanan altı sayıdır: üç alt sınır, üç üst sınır. Boş bir kutunun alt sınırları `+Infinity`'de, üst sınırları `-Infinity`'dedir; bir NaN sınır kutuyu boş yapmaz. Genişletme ve birleştirme, sınırları parametre olarak alır, bu yüzden çağrı başına hiçbir geçici nesne oluşturulmaz."
@@ -1358,7 +1356,7 @@
       "description": "Kutu frustum'a karşı: birincisi, bir düzlem sekiz köşenin tümünü arkasında bıraktığında doğrudur. İkincisi üç durum döndürür — 0 dışarıda, 1 üzerinde, 2 tamamen içeride — iki geçişte, birincisi yalnızca eler, ikincisi \"üzerinde\"yi \"içeride\"den ayırmak için en geride kalan köşeyi okur. Tamamen içeride olan bir alt ağaç, altındaki her kutu için bir testten tasarruf sağlar."
     },
     "boxConeRejects": {
-      "description": "Bir dünya noktasından görüldüğünde, yerel bir kutunun normal konisi tarafından elenmesi: kutu küresiyle değiştirilir, koni ekseni normal matris tarafından taşınır ve normalize edilir, karar, sınırlanmış nokta çarpımından, koni açısından ve kürenin perspektif açılımından çıkarılır. Sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde ortogonal olduğunda bir dönüşüm konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez, ve testin reddettiği bir parametre de elemez. `_WGSL` varyantları shader metnindekiyle aynı sabitlerdir, böylece CPU aynası ve GPU geçişi asla ayrışmaz."
+      "description": "Bir dünya noktasından görüldüğünde, yerel bir kutunun normal konisi tarafından elenmesi: kutu küresiyle değiştirilir, koni ekseni normal matris tarafından taşınır ve normalize edilir, karar, sınırlanmış nokta çarpımından, koni açısından ve kürenin perspektif açılımından çıkarılır. Sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde ortogonal olduğunda bir dönüşüm konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez, ve testin reddettiği bir parametre de elemez."
     },
     "createTransformTree": {
       "description": "Motorun veri odaklı dönüşüm hiyerarşisi: bir düğüm, doğrusal dizilerdeki bir indekstir — ebeveyn, bayraklar, pozisyon, kuaterniyon `(x, y, z, w)`, ölçek, yerel matris, dünya matrisi. `localViews[i]` ve `worldViews[i]`, büyümede oluşturulan ve asla bir güncelleme sırasında oluşturulmayan on altı sayılık görünümlerdir: GPU tüm tamponu okur, bir çekirdek bir düğümün görünümünü okur. Yeni bir düğüm, referansın yeni nesnesidir: sıfır pozisyon, birim döndürme, ölçek 1, birim matrisler, otomatik güncelleme. Bir büyüme her diziyi değiştirir, bu yüzden bir çağıran, bir ekleme sonrasında `tree.world` ya da `tree.worldViews`'i yeniden okur."
@@ -1385,25 +1383,25 @@
       "description": "`n` matrisle dönüştürülen `n` kutu: `out[i] = boxTransform(boxes[i], mats[i])`. `out` ve `boxes` eleman başına altı sayı taşır, `mats` on altılık bir alt görünüm."
     },
     "hierarchyUpdateBatch": {
-      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/math/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
+      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/world/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
     },
     "createPathGovernor": {
       "description": "Adlandırılmış her işlem için JS ile WebAssembly arasında karar veren şey: eleman başına nanosaniyenin hareketli medyanları, yalnızca o üstünlükte beş ardışık çalıştırmadan sonra bir geçiş, ve medyanını güncellemek için diğer yolu tekrarlayan ellide bir çalıştırma. Beşten az örnekte hiçbir şeye karar verilmez — tek bir değer medyanı oluştururdu. `metrics()`, her işlem için `path`, `jsNsPerElement`, `wasmNsPerElement`, geçiş sayısını ve ölçümün dayandığı saat çözünürlüğünü yayımlar."
     },
     "frustumKeepsBoxBatch": {
-      "description": "Bir frustum'un yirmi dört float'ına karşı altı sayılık (önce min sonra max) `n` kutu: `kept[i]`, kutu kesiştiğinde ya da tamamen içindeyken 1'dir, ve korunan sayı döndürülür — `frustumExcludesBox`'ın tersi, referansın yanıt verdiği kutupluluk. Küre yığını, `sphereFromBounds`'ın yaptığı gibi, kutu başına `SPHERE_VALUES` sayı, merkez sonra köşeye kadar yarıçap yazar. İki döngü de `packages/sdk-core/src/math/batch/culling.ts`'de yaşar."
+      "description": "Bir frustum'un yirmi dört float'ına karşı altı sayılık (önce min sonra max) `n` kutu: `kept[i]`, kutu kesiştiğinde ya da tamamen içindeyken 1'dir, ve korunan sayı döndürülür — `frustumExcludesBox`'ın tersi, referansın yanıt verdiği kutupluluk. Küre yığını, `sphereFromBounds`'ın yaptığı gibi, kutu başına `SPHERE_VALUES` sayı, merkez sonra köşeye kadar yarıçap yazar. İki döngü de `packages/math/src/batch/culling.ts`'de yaşar."
     },
     "boxUnionBatch": {
       "description": "`n` kutuyla, ya da önce her biri kendi matrisiyle dönüştürülmüş `n` kutuyla genişletilen `into` — bir geçiş, bir taslak kutu, hiçbir tahsis yok. İkisi de `boxUnion`'ı tekrarlar, ikincisi öncesinde `boxTransform` ile: tek bir çağrıda tüm bir sahnenin dünya sınırları."
     },
     "invertMatrix4Batch": {
-      "description": "`n` ters, `NORMAL_MATRIX_VALUES` sayılık `n` normal matris, `n` `T · R · S` birleşimi, `n` ayrıştırma. Sıfır determinantlı bir matris birim matrise ters çevrilir ve `singular[i]`'de işaretlenir — bir yığının ortasında asla bir hata fırlatılmaz. `composeMatrix4Batch`, her şeyi ya doğrusal ya da alt görünümler olarak alır, ve döngüden önce biçime karar verir. Dört döngü de `packages/sdk-core/src/math/batch/transforms.ts`'de yaşar."
+      "description": "`n` ters, `NORMAL_MATRIX_VALUES` sayılık `n` normal matris, `n` `T · R · S` birleşimi, `n` ayrıştırma. Sıfır determinantlı bir matris birim matrise ters çevrilir ve `singular[i]`'de işaretlenir — bir yığının ortasında asla bir hata fırlatılmaz. `composeMatrix4Batch`, her şeyi ya doğrusal ya da alt görünümler olarak alır, ve döngüden önce biçime karar verir. Dört döngü de `packages/math/src/batch/transforms.ts`'de yaşar."
     },
     "transformPointsBatch": {
       "description": "Tek bir afin matrisle, ya da nokta başına bir matrisle üç sayılık `n` nokta; üst 3×3 ile ve sonra normalize edilmiş, öteleme yok sayılmış `n` yön. Bunlar `transformAffinePoint` ve `transformDirectionVector3`'ü tekrarlar."
     },
     "srgbToLinearBatch": {
-      "description": "Eleman başına bir kanal, `packages/sdk-core/src/math/primitives/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
+      "description": "Eleman başına bir kanal, `packages/math/src/color/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
     },
     "scene-editor": {
       "title": "Düzenleyiciyle bir sahne kurmak",
@@ -1624,11 +1622,10 @@
       "an angle at or above π/2 never rejects": "π/2'ye eşit ya da büyük bir açı asla elemez",
       "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root)'tan sonra",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "kullanılabilir — bağlı indeks sayfaları; eksik sayfalar çizilmez; fiziksel VRAM değildir",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "kullanılabilir — gönderilen her üçgen için dolu benzersiz renk, GL_LINES wireframe değil",
+      "available — A filled unique colour per submitted triangle": "kullanılabilir — gönderilen her üçgen için dolu benzersiz renk",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "kullanılabilir — seviye 0 cluster'lar, bu karede gerçekten seçilen daha kaba DAG indirgemelerine karşı",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "kullanılabilir — kesitin kullandığı şekliyle, cluster küresi üzerinden izdüşürülen cluster başına ekran hatası",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "kullanılabilir — seçilen görünür sayfalar; reddedilen hiyerarşi düğümleri sayılır, çizilmez",
-      "available — Stable primitive/page ID, exact-cluster backend only": "kullanılabilir — kararlı primitif/sayfa ID'si, yalnızca tam cluster backend'i",
       "available — glTF materials": "kullanılabilir — glTF malzemeleri",
       "unavailable — No fragment counter": "kullanılamaz — fragman sayacı yok",
       "unavailable — Texture mip residency not instrumented": "kullanılamaz — doku mip yerleşikliği enstrümante edilmemiş",

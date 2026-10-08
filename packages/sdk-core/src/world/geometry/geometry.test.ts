@@ -9,6 +9,7 @@ import {
   InterleavedBuffer,
   InterleavedBufferAttribute,
 } from '../buffer/attribute.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const box = (g: Geometry) => [...g.boundingBox!.min.toArray(), ...g.boundingBox!.max.toArray()]
 
@@ -138,7 +139,7 @@ test('a world geometry turns a normalised normal it owns as stored, a host one a
     const g = owned(owner)
       .setAttribute('position', triangle())
       .setAttribute('normal', normalised(new Int8Array([127, 0, 0, 0, 0, 127, 0, 0, 127]), 3))
-    return Array.from(g.rotateZ(Math.PI / 2).attributes.normal.array)
+    return Array.from(g.rotateZ(HALF_PI).attributes.normal.array)
   }
   // (127, 0, 0) turned is the unit (0, 1, 0): written as it is into a world list, normalised
   // into a host one.
@@ -149,7 +150,7 @@ test('a world geometry turns a normalised normal it owns as stored, a host one a
   new Geometry()
     .setAttribute('position', triangle())
     .setAttribute('normal', new InterleavedBufferAttribute(pack, 3, 0, true))
-    .rotateZ(Math.PI / 2)
+    .rotateZ(HALF_PI)
   assert.deepEqual(Array.from(pack.array), [0, 127, 0, 0, 0, 127, 0, 0, 127])
 })
 

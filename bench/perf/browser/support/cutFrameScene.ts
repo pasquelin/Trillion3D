@@ -7,7 +7,7 @@ import {
   DAG,
   MANIFEST_IDENTITY,
   clusterSphere,
-} from '../../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts'
+} from '../../../../packages/sdk-browser/src/engine/pagesEngine.fixture.ts'
 import type { ClusterManifest } from '../../../../packages/sdk-core/src/index.ts'
 
 const CELL = 4,

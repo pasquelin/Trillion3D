@@ -35,14 +35,16 @@ function previewTail(
   )
 }
 /** One progressive level pyramid: the lossless RGBA8 tail, and the same tail in each block
- *  family's blocks — RGBA in the BC family, two channels in ASTC — as the sidecar carries them. */
+ *  family's blocks — RGBA in the BC family, two channels in ASTC and ETC2 — as the sidecar
+ *  carries them. */
 export function previewLevels(width: number, height: number, seed: number) {
   return {
     levels: previewTail(width, height, seed, (w, h) => w * h * 4),
-    layouts: { bc7: 'rgba', astc: 'two-channel' } as const,
+    layouts: { bc7: 'rgba', astc: 'two-channel', etc2: 'two-channel' } as const,
     blocks: {
       bc7: previewTail(width, height, seed + 1, levelBlockBytes),
       astc: previewTail(width, height, seed + 2, levelBlockBytes),
+      etc2: previewTail(width, height, seed + 3, levelBlockBytes),
     },
   }
 }
@@ -133,7 +135,6 @@ export function manifest(): ClusterManifest {
     selectedTriangles: 8,
     selectedNodes: 2,
     totalNodes: 2,
-    autonomousScene: null,
     texturePreviews: [
       {
         texture: 0,

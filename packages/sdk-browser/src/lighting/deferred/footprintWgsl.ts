@@ -1,10 +1,14 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
+import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
+
 /**
  * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
  * point it holds there, and its footprint, the world distance to its right neighbour at that
  * depth. The one reading of them the resolve (`surfaceWgsl.ts`) and the per-pixel demand
  * (`../../vsm/markingWgsl.ts`) share, so the level a pixel reads is the level it asked
  * for, and the same every jitter phase: the virtual shadow maps pick a receiver's level from
- * where it lies, never from the sample the jitter drew. Requires `depth`, `view` and `worldAt`
+ * where it lies, never from the sample the jitter drew. Requires `depth` and `view`; lists `worldAt`
  * (`WORLD_AT_WGSL`).
  *
  * The jitter moves the image by `view.jitter.xy` pixels (`shadowJitterWords`): the pixel's
@@ -19,10 +23,13 @@
  * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint is the jittered
  * sample's, to the bit.
  */
-export const PIXEL_FOOTPRINT_WGSL = `
+export const PIXEL_FOOTPRINT_WGSL = wgslBlock(
+  'PIXEL_FOOTPRINT_WGSL',
+  [WORLD_AT_WGSL, clampToExtent],
+  `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */
 fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{
- return textureLoad(depth,clamp(coord+axis*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
+ return textureLoad(depth,clampToExtent(coord+axis*k,vec2i(view.viewport.xy)),0);
 }
 /** The slope of the surface at \`coord\` (depth \`z\`) along \`axis\`, from a side whose two pixels
  *  continue it, the straighter of two; none when neither does. */
@@ -46,4 +53,5 @@ fn pixelFootprint(coord:vec2i,pixel:vec2f,z:f32,P:vec3f)->f32{
  let centre=pixel+view.jitter.xy;let held=unjitteredDepth(coord,z);
  let at=worldAt(centre,held);
  return length(worldAt(centre+vec2f(1.0,0.0),held)-at);
-}`
+}`,
+)

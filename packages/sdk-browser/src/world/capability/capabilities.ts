@@ -1,62 +1,74 @@
-/** WebGL mode never reads or calls navigator.gpu and never binds the host canvas. */
-let cachedWebgl:
-  | {
-      tier: 'baseline'
-      renderer: 'webgl2' | null
-      extensions: string[]
-      reason: string
-      adapter: null
-    }
-  | undefined
-/** Checks what this machine can draw with, and says why when it cannot. */
+import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
+
+/** What this machine's WebGPU grants, read before any session opens. */
+export type GpuCapabilities = {
+  /** `'full'` with GPU timestamps, `'degraded'` without them, `'unavailable'` with no adapter. */
+  tier: 'full' | 'degraded' | 'unavailable'
+  /** The optional features the adapter offers. */
+  extensions: string[]
+  /** One sentence saying what was granted, or why nothing was. */
+  reason: string
+  /** The adapter a device is asked of; `null` when none was granted or a device was handed in. */
+  adapter: GPUAdapter | null
+}
+
+/** The refusal of a machine that grants no WebGPU: the engine draws with nothing else. */
+export const webgpuUnavailable = (reason: string) =>
+  new EngineError(
+    'WEBGPU_UNAVAILABLE',
+    `Trillion3D draws with WebGPU only, and this browser grants none: ${reason}. ` +
+      'Open the page in a browser with WebGPU enabled.',
+  )
+
+/** The capabilities of a machine that grants nothing, and why. */
+const unavailable = (reason: string): GpuCapabilities => ({
+  tier: 'unavailable',
+  extensions: [],
+  reason,
+  adapter: null,
+})
+
+/** Why `gpu`'s shader language cannot compile the engine's programs: the required WGSL language
+ *  features it lacks (`WEBGPU_REQUIRED_WGSL_FEATURES`), or `undefined` when it has them all. */
+export function wgslRefusal(gpu: GPU): string | undefined {
+  const offered = gpu.wgslLanguageFeatures
+  const missing = WEBGPU_REQUIRED_WGSL_FEATURES.filter((name) => !offered?.has(name))
+  return missing.length ? `its WGSL lacks ${missing.join(', ')}` : undefined
+}
+
+/** The WebGPU entry point of `environment`: the one handed in, else `navigator.gpu` where a
+ *  navigator exists. */
+export const gpuOf = (environment: { gpu?: GPU }) =>
+  environment.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu)
+
+/** The tier a set of granted features reaches. */
+const tierOf = (features: { has(name: string): boolean }) =>
+  features.has('timestamp-query') ? ('full' as const) : ('degraded' as const)
+
+/** Checks what this machine's WebGPU grants, and says why when it grants nothing. `gpu` stands
+ *  for `navigator.gpu`. */
 export async function detectCapabilities(
-  mode: 'webgl' | 'webgpu',
-  _canvas: HTMLCanvasElement,
-  environment: { gpu?: GPU; createWebglCanvas?: () => HTMLCanvasElement } = {},
-) {
-  if (mode === 'webgl') {
-    if (!environment.createWebglCanvas && cachedWebgl) return cachedWebgl
-    const probe =
-      environment.createWebglCanvas?.() ??
-      (typeof document === 'undefined' ? undefined : document.createElement('canvas'))
-    const gl = probe?.getContext('webgl2', {
-      antialias: false,
-      alpha: false,
-      preserveDrawingBuffer: false,
-    })
-    const extensions = gl?.getSupportedExtensions() ?? []
-    gl?.getExtension('WEBGL_lose_context')?.loseContext()
-    const result = {
-      tier: 'baseline' as const,
-      renderer: gl ? ('webgl2' as const) : null,
-      extensions,
-      reason: gl ? 'Engine WebGL2 path available' : 'WebGL2 unavailable',
-      adapter: null,
-    }
-    if (!environment.createWebglCanvas) cachedWebgl = result
-    return result
-  }
-  const gpu = environment.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu)
-  if (!gpu)
-    return {
-      tier: 'baseline' as const,
-      renderer: null,
-      extensions: [],
-      reason: 'WebGPU unavailable; create a separate WebGL canvas',
-      adapter: null,
-    }
+  environment: { gpu?: GPU } = {},
+): Promise<GpuCapabilities> {
+  const gpu = gpuOf(environment)
+  if (!gpu) return unavailable('the browser exposes no navigator.gpu')
+  const refusal = wgslRefusal(gpu)
+  if (refusal) return unavailable(refusal)
   const adapter = await gpu.requestAdapter()
+  if (!adapter) return unavailable('no WebGPU adapter')
   return {
-    tier: adapter
-      ? adapter.features.has('timestamp-query')
-        ? ('full' as const)
-        : ('degraded' as const)
-      : ('baseline' as const),
-    renderer: adapter ? 'webgpu' : null,
-    extensions: adapter ? [...adapter.features] : [],
-    reason: adapter
-      ? 'WebGPU adapter available; backend-specific capabilities still require checking'
-      : 'No WebGPU adapter; use baseline',
+    tier: tierOf(adapter.features),
+    extensions: [...adapter.features],
+    reason: 'WebGPU adapter available',
     adapter,
   }
 }
+
+/** The capabilities of a device the host handed in: no adapter is asked for. */
+export const deviceCapabilities = (device: GPUDevice): GpuCapabilities => ({
+  tier: tierOf(device.features),
+  extensions: [...device.features],
+  reason: 'WebGPU device handed in by the host',
+  adapter: null,
+})

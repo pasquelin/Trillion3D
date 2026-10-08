@@ -7,13 +7,13 @@ const wait = () => new Promise((wake) => setTimeout(wake, 20))
 test('an opening that never settles is named on the console with the step it waits in', async (t) => {
   const warned = t.mock.method(console, 'warn', () => {})
   const stuck = watchOpening('models/avenue/manifest.json', 5)
-  stuck.note('backend-preparation-start', 'Backend preparation started')
+  stuck.note('engine-preparation-start', 'Engine preparation started')
   watchOpening('models/avenue/manifest.json', 5).done()
   await wait()
   assert.equal(warned.mock.callCount(), 1)
   assert.match(
     String(warned.mock.calls[0].arguments[0]),
-    /avenue\/manifest\.json.*not opened.*backend-preparation-start/,
+    /avenue\/manifest\.json.*not opened.*engine-preparation-start/,
   )
 })
 

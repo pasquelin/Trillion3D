@@ -5,7 +5,7 @@ import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
  * engine does not hold them. The list IS the contract: the type `metrics()` returns derives from
  * it, so a measurement added here is copied without a second list having to be written by hand.
  */
-export const BACKEND_METRIC_KEYS = [
+export const ENGINE_METRIC_KEYS = [
   'rafIntervalMs',
   'displayRefreshMs',
   'renderWidth',
@@ -25,16 +25,11 @@ export const BACKEND_METRIC_KEYS = [
   'hizCountedFrame',
   'lodLevel',
   'frameHeld',
-  'autonomousClusterDrawsTotal',
-  'autonomousCopyDraws',
-  'transmissionBackdropBytes',
   'submittedTriangles',
   'transparentMeshes',
   'transparentFrustumRejected',
   'transparentDrawCalls',
   'transparentSubmittedTriangles',
-  'cpuSelectMs',
-  'gpuSelectionFallback',
   'cpuSelectNodesTested',
   'cpuSubmitMs',
   'gpuPassMs',
@@ -104,25 +99,19 @@ export const BACKEND_METRIC_KEYS = [
   'gpuLightingMs',
 ] as const
 
-/** Measurements the host composes itself, from the engine and its own counters. */
-type ComposedMetric =
-  | 'clusters'
-  | 'selectedTriangles'
-  | 'residentPages'
-  | 'geometryAllocationBytes'
-  | 'cacheEvictions'
-  | 'totalSubmittedTriangles'
+/** Measurements the engine publishes of every frame beside the host's own counters: `null`
+ *  while unmeasured, never absent. */
+type HeldMetric = 'clusters' | 'selectedTriangles' | 'residentPages' | 'geometryAllocationBytes'
 
-/** What an engine publishes of its frame: the measurements copied as-is, and those the
- *  host composes. */
-export type BackendMetrics = Partial<
-  Pick<FrameMetrics, (typeof BACKEND_METRIC_KEYS)[number] | ComposedMetric>
->
-/** Draw counters a WebGL2 engine adds to its metrics. */
-export type BackendDrawCounters = {
-  drawCalls?: number
-  batchRebuilds?: number
-  batchIndexBytesUpdated?: number
-  pageRangeWrites?: number
-  subDraws?: number
+/** Measurements the host composes when the engine leaves them out: from its stream, or from
+ *  their parts. */
+type ComposedMetric = 'cacheEvictions' | 'totalSubmittedTriangles'
+
+/** What an engine publishes of its frame: the measurements copied as-is, those it always holds,
+ *  and those the host composes. */
+export type EngineMetrics = Pick<FrameMetrics, HeldMetric> &
+  Partial<Pick<FrameMetrics, (typeof ENGINE_METRIC_KEYS)[number] | ComposedMetric>>
+/** Draw counters an engine adds to its metrics. */
+export type EngineDrawCounters = {
+  drawCalls: number
 }

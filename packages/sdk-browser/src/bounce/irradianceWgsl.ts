@@ -1,5 +1,10 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /** The same centroid lighting for resident cache cells and displaced owner hits. */
-export const SURFACE_IRRADIANCE_WGSL = `
+export const SURFACE_IRRADIANCE_WGSL = wgslBlock(
+  'SURFACE_IRRADIANCE_WGSL',
+  [],
+  `
 /**
  * Irradiance of the declared lights at a texel point. Shadows are traced against the proxy,
  * which keeps a closed door closed for bounce as for the direct term. Every shadow-casting light
@@ -29,4 +34,5 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  }
  return total;
 }
-`
+`,
+)

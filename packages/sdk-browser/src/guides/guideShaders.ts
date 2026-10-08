@@ -1,13 +1,15 @@
-import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
-import { GUIDE_CORNER_WGSL, GUIDE_CORNER_GLSL } from './guideCorner.ts'
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
+import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 
 /**
- * The guide program, in WGSL and in GLSL, one rule for both: every instance is a segment `a → b`
- * (a point is a segment of zero length) drawn as a quad `width` CSS pixels wide on the screen —
- * `width × pixelRatio` of the image's pixels, as every line of the engine counts it — capped half
- * a width past each end, so a dot is a square of that side. Its corners are the engine's line
+ * The guide program: every instance is a segment `a → b` (a point is a segment of zero length)
+ * drawn as a quad `width` CSS pixels wide on the screen — `width × pixelRatio` of the image's
+ * pixels, as every line of the engine counts it — capped half a width past each end, so a dot is a
+ * square of that side. Its corners are the engine's line
  * corners (`lineClip`, `../visibility/shader/lineWgsl.ts`): a corner behind the near plane slides
- * onto it along the segment, in each engine's depth convention. Depth is the ends', interpolated:
+ * onto it along the segment, in the engine's reversed depth. Depth is the ends', interpolated:
  * the scene in front hides a guide, and the guide writes no depth of its own.
  */
 
@@ -30,13 +32,7 @@ export function writeGuideView(
   jitter: ArrayLike<number> = [0, 0],
   scene: ArrayLike<number> = [width, height],
 ) {
-  for (let i = 0; i < 12; i++) into[i] = viewProjection[i]
-  for (let r = 0; r < 4; r++)
-    into[12 + r] =
-      viewProjection[r] * anchor[0] +
-      viewProjection[4 + r] * anchor[1] +
-      viewProjection[8 + r] * anchor[2] +
-      viewProjection[12 + r]
+  matrixAtRenderOrigin(into, viewProjection, anchor)
   into.set([width, height, jitter[0], jitter[1]], 16)
   into[20] = pixelRatio
   into[22] = scene[0]
@@ -44,12 +40,11 @@ export function writeGuideView(
   return into
 }
 
-export const GUIDE_WGSL = /* wgsl */ `
+export const GUIDE_WGSL = wgslProgram(
+  `
 struct View { matrix: mat4x4f, viewport: vec4f, pixelRatio: f32, scene: vec2f };
 @group(0) @binding(0) var<uniform> view: View;
 struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
-${LINE_CLIP_WGSL}
-${GUIDE_CORNER_WGSL}
 @vertex fn vertexMain(@builtin(vertex_index) k: u32, @location(0) a: vec3f, @location(1) b: vec3f,
     @location(2) color: vec4f, @location(3) width: f32) -> Out {
   var corners = array<vec2f, 6>(vec2f(0.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0),
@@ -62,7 +57,7 @@ ${GUIDE_CORNER_WGSL}
 }
 @group(0) @binding(1) var sceneDepth: texture_depth_2d;
 fn sceneAt(p: vec2i) -> f32 {
-  return textureLoad(sceneDepth, clamp(p, vec2i(0), vec2i(view.scene) - 1), 0);
+  return textureLoad(sceneDepth, clampToExtent(p, vec2i(view.scene)), 0);
 }
 fn slopeAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
   return min(abs(sceneAt(p + axis) - centre), abs(centre - sceneAt(p - axis)));
@@ -81,29 +76,6 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   if (in.position.z < scene - jitterSlack(p, scene)) { discard; }
   return in.color;
 }
-`
-
-export const GUIDE_GLSL_VERTEX = /* glsl */ `#version 300 es
-uniform mat4 matrix;
-uniform vec4 viewport;
-uniform float pixelRatio;
-layout(location = 0) in vec3 a;
-layout(location = 1) in vec3 b;
-layout(location = 2) in vec4 color;
-layout(location = 3) in float width;
-out vec4 tint;
-const vec2 CORNERS[6] = vec2[6](vec2(0.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
-  vec2(0.0, -1.0), vec2(1.0, 1.0), vec2(0.0, 1.0));
-${LINE_CLIP_GLSL}
-${GUIDE_CORNER_GLSL}
-void main() {
-  tint = color;
-  gl_Position = guideCorner(matrix * vec4(a, 1.0), matrix * vec4(b, 1.0), CORNERS[gl_VertexID % 6],
-    width, viewport.xy, pixelRatio);
-}`
-
-export const GUIDE_GLSL_FRAGMENT = /* glsl */ `#version 300 es
-precision mediump float;
-in vec4 tint;
-out vec4 colour;
-void main() { colour = tint; }`
+`,
+  [GUIDE_CORNER_WGSL, clampToExtent],
+)

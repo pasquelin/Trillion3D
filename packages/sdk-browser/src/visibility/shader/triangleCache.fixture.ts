@@ -31,7 +31,7 @@ export function cacheRun(width: number, height: number, none = false) {
   }
   const decode = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
-    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep clusterPow2 clusterBitsFor clusterStream clusterPosition clusterGrid clusterUv clusterNormal'.split(
+    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar byteOf'.split(
       ' ',
     ),
     {
@@ -61,12 +61,19 @@ export function cacheRun(width: number, height: number, none = false) {
       'decodeTriangle',
       'transformedNormals',
       'framebuffer',
+      'clipToFramebuffer',
+      'perspectiveDivide',
       'invTranspose3Apply',
-      'uniteOuZero',
+      'unitOrZero',
       'pageSprite',
       'spriteAt',
       'composeRowFrame',
       'invTranspose3Prep',
+      'absoluteSum3',
+      'isFiniteScale',
+      'isFiniteWord',
+      'worldMatrix3',
+      'windingKept',
     ],
     {
       ...F32_SCOPE,
@@ -114,16 +121,18 @@ export function cacheRun(width: number, height: number, none = false) {
       'flatIndex',
       'cachedTriangles',
       'openSlice',
-      'gridX',
-      'gridY',
+      'groupGrid',
       'storeWord',
       'storeVec3',
       'storeRowFrame',
+      'bitWord',
+      'bitMask',
+      'ceilDiv',
     ],
     scope,
   )
   const reads = shaderRun<Record<string, Fn>>(
-    SHADE_TRIS_SHADER + shadeCacheReadWgsl(0),
+    SHADE_TRIS_SHADER + shadeCacheReadWgsl(0).text,
     [
       'shade_tris',
       'flatIndex',
@@ -137,6 +146,9 @@ export function cacheRun(width: number, height: number, none = false) {
       'cacheVec3',
       'cacheVec4',
       'pixelTriangle',
+      'bitWord',
+      'bitMask',
+      'byteOf',
     ],
     scope,
   )

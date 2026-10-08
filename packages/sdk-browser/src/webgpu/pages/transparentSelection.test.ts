@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
@@ -17,7 +17,7 @@ test('a host diagnostic exception cannot break GPU initialization or rendering',
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     backend.render(camera())
     assert.equal(backend.metrics().submittedTriangles, 2)
   } finally {
@@ -54,7 +54,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
     if (item.rotate) mesh.rotation.y = 0.5
     mesh.frustumCulled = !item.unculled
     fixture.source.updateMatrixWorld(true)
-    const backend = webgpuPagesBackend({
+    const backend = webgpuPagesEngine({
       ...fixture,
       gpuDevice: device,
       maxResidentPages: 2,
@@ -62,6 +62,10 @@ test('transparent frustum selection preserves intersections, transformed bounds 
     })
     try {
       await backend.prepare()
+      // The image's counts are the GPU cut's, read back: the image after its readback.
+      backend.render(camera())
+      await backend.flush()
+      draws.length = 0
       backend.render(camera())
       const metrics = backend.metrics()
       // The scene carries its item and the cut writes the instance count of each draw; an item
@@ -93,7 +97,7 @@ test('transparent selection follows each camera without retaining an old rejecte
     { device, draws } = mockGpu()
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -108,18 +112,24 @@ test('transparent selection follows each camera without retaining an old rejecte
   try {
     await backend.prepare()
     const cam = camera()
-    draws.length = 0
-    backend.render(cam)
+    // Each view's image after its cut's readback: the counts are the GPU's.
+    const image = async () => {
+      backend.render(cam)
+      await backend.flush()
+      draws.length = 0
+      backend.render(cam)
+    }
+    await image()
     assert.equal(backend.metrics().submittedTriangles, 2)
     assert.equal(dessines(), 2)
     cam.lookAt(100, 0, 5)
     cam.updateMatrixWorld()
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentFrustumRejected, 1, 'the frustum rejects')
     assert.equal(dessines(), 0, 'the turned-away camera draws nothing')
     cam.lookAt(0, 0, 0)
     cam.updateMatrixWorld()
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentFrustumRejected, 0, 'no leftover reject list')
     assert.equal(dessines(), 2, 'the item comes back having lost nothing')
   } finally {

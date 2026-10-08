@@ -87,7 +87,12 @@ export function setupVisibility(
     device.createRenderPipeline({
       layout: pipelineLayout,
       vertex: { module, entryPoint },
-      fragment: { module, entryPoint: 'vis_fs', targets: [{ format: 'r32uint' }] },
+      // The engine's one visibility stage: the identifier, and the pyramid's level 0 beside it.
+      fragment: {
+        module,
+        entryPoint: 'vis_hiz_fs',
+        targets: [{ format: 'r32uint' }, { format: 'r32float' }],
+      },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
     }),
   )
@@ -122,8 +127,14 @@ export function setupVisibility(
     format: 'r32uint',
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   })
-  const views = Array.from({ length: slots + 1 }, (_, slot) =>
-    target.createView({ dimension: '2d', baseArrayLayer: slot, arrayLayerCount: 1 }),
-  )
-  return { pipelines, groups, target, views }
+  const levels = device.createTexture({
+    size: [WIDTH, HEIGHT, slots + 1],
+    format: 'r32float',
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  })
+  const layer = (texture: GPUTexture) =>
+    Array.from({ length: slots + 1 }, (_, slot) =>
+      texture.createView({ dimension: '2d', baseArrayLayer: slot, arrayLayerCount: 1 }),
+    )
+  return { pipelines, groups, target, views: layer(target), levelViews: layer(levels) }
 }

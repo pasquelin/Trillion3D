@@ -50,7 +50,7 @@ impl Dna {
         for _ in 0..types.len() {
             lengths.push(u16::from_le_bytes(word(bytes, &mut at)?) as usize);
         }
-        at = (at + 3) & !3;
+        at = at.next_multiple_of(4);
         tag(bytes, &mut at, b"STRC")?;
         // A structure weighs at least its type and its field count: the count is bounded by what
         // the block still carries, and nothing is reserved before that is trusted.

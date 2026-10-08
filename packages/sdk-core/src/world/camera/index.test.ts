@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { camera } from './index.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { Vector3 } from '../math/vector3.ts'
 
-// The OpenGL cube map face table (OpenGL 4.6, §8.13): per major axis, the axes texture s and t
-// run along. A face drawn into a y-up image has s to its right and t up.
+// The cube map face table a WebGPU cube texture is sampled by: per major axis, the axes texture s
+// and t run along. A face drawn into a y-up image has s to its right and t up.
 const FACES: [number[], number[], number[]][] = [
   [
     [1, 0, 0],
@@ -39,7 +39,7 @@ const FACES: [number[], number[], number[]][] = [
   ],
 ]
 
-test('a cube rig lays its six eyes out as the OpenGL cube map faces, and sees as they do', () => {
+test('a cube rig lays its six eyes out as the cube map faces, and sees as they do', () => {
   const rig = camera.cube({ near: 2, far: 50 })
   rig.children.forEach((face, i) => {
     const eye = face as ReturnType<typeof camera.perspective>
@@ -55,13 +55,13 @@ test('a cube rig lays its six eyes out as the OpenGL cube map faces, and sees as
     near(off(0, 1), t, `face ${i} up`, 1e-9)
     assert.deepEqual(eye.projectionMatrix.elements, rig.projectionMatrix.elements)
     assert.equal(eye.projection, rig.projection)
-    // A quarter turn either way of the axis, and the near and far planes at the clip bounds.
+    // A quarter turn either way of the axis; the near plane at depth 1, reversed: near / distance.
     near(
       new Vector3(2, 2, -2).applyMatrix4(eye.projectionMatrix).toArray(),
-      [1, 1, -1],
+      [1, 1, 1],
       'near corner',
     )
-    near(new Vector3(0, 0, -50).applyMatrix4(eye.projectionMatrix).toArray(), [0, 0, 1], 'far')
+    near(new Vector3(0, 0, -50).applyMatrix4(eye.projectionMatrix).toArray(), [0, 0, 0.04], 'far')
   })
 })
 

@@ -3,8 +3,9 @@
 import { countBlendDraws } from '../blend/draw.ts'
 import { beginWaterBounds } from './bounds.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { directLightResources } from '../pages/prepare/lightResources.ts'
+import { lobesHeld } from '../pages/prepare/lobesTarget.ts'
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
 function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
@@ -54,7 +55,9 @@ function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
  * the frame, and the transmission slice draws as one more blend. So too when no composition
  * `composes` the image after it: the water word borrows the display colour (`surfaceWgsl.ts`),
  * which only that composition writes over. `key`, the frame's lights' key (`directLightResources`,
- * resolved here when not given), picks the composite's program (`frame.ts`).
+ * resolved here when not given), picks the composite's program (`frame.ts`). A transmissive surface
+ * that carries a lobe draws through the lobed stage (`lobedStage.ts`) once it compiled — the frames
+ * held until then (`askLobedPrograms`) — and the lobes target is full-size (`wantsPhysicalLobes`).
  */
 export function encodeWaterPass(
   rt: WebgpuPagesRuntime,
@@ -77,7 +80,10 @@ export function encodeWaterPass(
   )
     return false
   const lit = key ?? directLightResources(rt)
-  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces, lit), true)
+  // The lobed stage once compiled (`lobedStage.ts`), into a full-size lobes target; else the plain.
+  const lobed = blendState.waterLobed && lobesHeld(rt) ? water.lobed.get() : undefined
+  const surfaces = lobed ?? water.surfaces
+  countBlendDraws(rt, water.frame.encode(rt, encoder, surfaces, lit, !!lobed), true)
   run.gpuDrawCalls++
   return true
 }

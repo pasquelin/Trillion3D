@@ -3,10 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { createHizCounts, type HizCounts } from './counts.ts'
+import {
+  countUnoccluded,
+  createHizCounts,
+  filterUnoccluded,
+  type HizCounts,
+} from './unoccluded.fixture.ts'
 import type { HizPage } from './types.ts'
-import { buildHizPyramid } from './depth.ts'
-import { countUnoccluded, filterUnoccluded } from './unoccluded.ts'
+import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
 import { cameraAt, occluderPyramid, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
@@ -171,10 +175,7 @@ test('a bias keeps what the wall hides by less than the bias, and the counts add
   // A box a hair behind the wall: hidden with no bias, kept once the bias exceeds the gap.
   const page = box([-0.5, -0.5, -0.01], [0.5, 0.5, -0.01], 0, 4)
   assert.equal(filterUnoccluded([page], identityRoots(), pyramid, cam, size).length, 0)
-  assert.equal(
-    filterUnoccluded([page], identityRoots(), pyramid, cam, size, undefined, 0.5).length,
-    1,
-  )
+  assert.equal(filterUnoccluded([page], identityRoots(), pyramid, cam, size, 0.5).length, 1)
   const rand = seededRandom(3)
   const pages = Array.from({ length: 80 }, (_, i) => randomBox(rand, i))
   const counts = createHizCounts()

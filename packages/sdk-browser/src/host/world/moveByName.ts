@@ -7,14 +7,15 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import { assertFiniteTransform } from './matrices.ts'
-import { copyElements, sameElements } from '../../math/matrixElements.ts'
+import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
- * A MOVE BY NAME, whichever engine draws: the node a name finds, and its local pose set so
- * that its world is the one requested. WebGPU's move (`webgpu/pages/render/transform.ts`), WebGL2's
- * (`placement/autonomousPlacements.ts`) and a world's (`world/core/worldRuntime.ts`) pose alike.
+ * A MOVE BY NAME (#972): the node a name finds, and its local pose set so that its world is the
+ * one requested. The engine's move (`webgpu/pages/render/transform.ts`) and a world's
+ * (`world/core/worldSceneMethods.ts`) pose through this one implementation.
  */
 
 const local = new Float64Array(16),
@@ -22,12 +23,6 @@ const local = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
   trsScale = new Float64Array(3)
-
-/** True when `world`, rounded to single precision, is `matrix`. */
-function standsAt(world: Float64Array, matrix: Float32Array) {
-  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false
-  return true
-}
 
 /** The node of `source` a move by name poses at `matrix`, by the name index (`nameIndex.ts`);
  *  a pose that is not sixteen floats, or a name no node bears, is refused by its code. */
@@ -51,8 +46,7 @@ export function namedNode(source: Object3D, nodeName: string, matrix: Float32Arr
 /**
  * Sets the local pose of `node` so that its world is `matrix`: brought back into the parent's
  * space, then set as-is as the local matrix, so that a host update finds it identical.
- * False when that moves nothing. WebGL2's move by name poses the same way
- * (`placement/autonomousPlacements.ts`).
+ * False when that moves nothing.
  */
 export function poseNode(node: Object3D, matrix: Float32Array) {
   // A non-finite pose is refused here, before any inversion: further on it would become a NaN
@@ -70,8 +64,8 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
     above = parent ? parent.worldMatrix : null
   // The world the node already stands at, to the precision the request carries: moving it there
   // moves nothing — a node's first write included, which the local comparison below cannot judge.
-  if (standsAt(current, matrix)) return false
-  copyElements(local, matrix)
+  if (sameMatrixFloat32(matrix, current)) return false
+  copyMatrix4(local, matrix)
   if (parent && above) {
     // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen
     // zeros and the node would silently leave for the origin. The determinant is the only test
@@ -105,12 +99,12 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   node.position.set(trs[0], trs[1], trs[2])
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3])
   node.scale.set(trsScale[0], trsScale[1], trsScale[2])
-  copyElements(node.matrix.elements, local)
+  copyMatrix4(node.matrix.elements, local)
   node.matrixAutoUpdate = false
   return true
 }
 
-/** A move by name (WebGL2's, a world's): the node posed, or null when the move moves nothing. */
+/** A world's move by name: the node posed, or null when the move moves nothing. */
 export function poseNamed(source: Object3D, nodeName: string, matrix: Float32Array) {
   const node = namedNode(source, nodeName, matrix)
   return poseNode(node, matrix) ? node : null

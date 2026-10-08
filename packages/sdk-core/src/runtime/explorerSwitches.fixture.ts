@@ -7,6 +7,5 @@ export const EXPLORER_SWITCH_NAMES = Object.keys({
   lodAdaptive: 0,
   bounce: 0,
   importedLights: 0,
-  autonomousGeometry: 0,
   stageProfile: 0,
 } satisfies Record<ExplorerSwitch, 0>) as ExplorerSwitch[]

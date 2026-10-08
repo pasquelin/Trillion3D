@@ -7,6 +7,8 @@
  * threads proposal (shared memory, one instance per thread, globals per instance) and emscripten's
  * documented thread model (a thread block per thread, set with `_emscripten_thread_init`).
  */
+import { clamp } from '../../../math/src/scalar/reals.ts'
+import { MIB } from '../../../math/src/constants.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { startModuleWorker } from '../host/besideModule.ts'
 
@@ -44,7 +46,7 @@ export interface JoltThreadStart {
 export type SpawnJoltThread = (start: JoltThreadStart) => void
 
 /** Stack of every thread the module starts (the module's jobs recurse through the collision queries). */
-const THREAD_STACK_BYTES = 1024 * 1024
+const THREAD_STACK_BYTES = MIB
 
 /** The imports of either module; the threaded one adds its thread hooks. */
 export function joltImports(
@@ -189,5 +191,5 @@ export async function runJoltThread(start: JoltThreadStart, loaded = () => {}) {
 export function stepThreads(wanted: number) {
   const cores = navigator.hardwareConcurrency
   if (!globalThis.crossOriginIsolated || !Number.isInteger(cores) || cores < 2) return 1
-  return Math.max(1, Math.min(Math.floor(wanted), cores - 1))
+  return clamp(Math.floor(wanted), 1, cores - 1)
 }

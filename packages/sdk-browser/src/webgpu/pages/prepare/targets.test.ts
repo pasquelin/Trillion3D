@@ -1,3 +1,4 @@
+import { MIB } from '../../../../../math/src/constants.ts'
 import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import { runtime } from './targets.fixture.ts'
 import test from 'node:test'
@@ -43,7 +44,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80)
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
   }
-  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling')
+  assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
   assert.deepEqual(resized, [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
@@ -142,11 +143,11 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       targetSize: [32, 32],
       allocatedSize: [32, 32],
       displaySize: [32, 32],
-      surfaces: { hasSubsurface: false },
+      surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
       reflection: { active: false },
       targetGrant: undefined,
     },
-    vis: {},
+    vis: { visTexture: {} },
     scale: createScaleControl(undefined),
   } as unknown as WebgpuPagesRuntime
   // A bare device: any creation or error scope would throw.
@@ -165,13 +166,13 @@ test('a frame drawn below the display costs its render targets and the display c
   Object.assign(rt.gpu, {
     hdrTexture: {},
     displayTexture: {},
-    surfaces: { hasSubsurface: false },
+    surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
     feedbackTexture: {},
     reflection: { active: false },
     allocatedSize: [32, 16],
     displaySize: [64, 32],
   })
-  Object.assign(rt, { feedbackAB: undefined, vis: {} })
+  Object.assign(rt, { feedbackAB: undefined, vis: { visTexture: {} } })
   assert.equal(targetsFit(rt, scaled), true)
   assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade')
 })

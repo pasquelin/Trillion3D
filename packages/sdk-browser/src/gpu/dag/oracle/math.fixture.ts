@@ -1,7 +1,7 @@
 import { copyMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.ts'
 import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts'
 import { viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts'
-import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.ts'
+import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.fixture.ts'
 import type { DagViewUniforms, PackedDag } from '../types.ts'
 
 /**

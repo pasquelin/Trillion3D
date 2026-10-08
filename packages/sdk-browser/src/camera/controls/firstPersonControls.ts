@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { axisOf, trackKeys, type KeyAxis } from './input.ts'
 import { controlPose } from './pose.ts'
@@ -46,7 +47,7 @@ export function createFirstPersonCameraControls(
       const dt = delta > 0 ? delta : 0
       pose.readPosition(position)
       angles[1] = head.turn(orientation)
-      angles[2] = Math.PI / 2
+      angles[2] = HALF_PI
       const step = api.movementSpeed * dt
       moveLocal(
         position,

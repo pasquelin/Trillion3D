@@ -17,7 +17,7 @@ const options: Omit<TilePoolOptions, 'layers'> = {
   format: 'rgba8unorm',
   texelBytes: 4,
 }
-const empty = { levels: [], blocks: { bc7: [], astc: [] } }
+const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
 const atlasOptions = { kind: 'color' as const, encoding: poolEncoding(undefined) }
 /** Layers of the lossless lane alone: what a session without a block family opens. */
 const lossless = (layers: number) => ({ lossless: layers, rgba: 0, 'two-channel': 0 })

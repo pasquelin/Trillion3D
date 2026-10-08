@@ -14,6 +14,7 @@ import {
 import { Mesh } from '../../../../../../../packages/sdk-core/src/world/object/mesh.ts'
 import { InstancedMesh } from '../../../../../../../packages/sdk-core/src/world/object/instancedMesh.ts'
 import { Camera } from '../../../../../../../packages/sdk-core/src/world/camera/camera.ts'
+import { perspectiveProjection } from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { GraphSurface } from '../../../../../../../packages/sdk-browser/src/host/graph/surface.ts'
@@ -46,7 +47,11 @@ test('a posed chain resolves to the independent world matrices, aim and decompos
   a.updateMatrixWorld(true)
   ta.updateMatrixWorld(true)
   assert.deepEqual([...c.matrixWorld.elements], tc.matrixWorld.elements)
-  assert.deepEqual([...c.projectionMatrix.elements], tc.projectionMatrix.elements)
+  // The camera's projection is the engine's own, reversed depth: not the host's.
+  assert.deepEqual(
+    [...c.projectionMatrix.elements],
+    [...perspectiveProjection(new Float64Array(16), 47, 1.6, 0.1, 1)],
+  )
   assert.deepEqual([c.rotation.x, c.rotation.y, c.rotation.z], tc.rotation.toArray().slice(0, 3))
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(3, -1, 2),

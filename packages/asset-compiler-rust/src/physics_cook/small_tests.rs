@@ -3,7 +3,7 @@
 use super::stage::gathered;
 use super::tests::{cluster, golden_tile, RAMP, RAMP_TRIANGLES};
 use super::*;
-use crate::shared_math::{cross, dot, sub};
+use trillion3d_math::vec3::{cross, dot, sub};
 
 /// The same ramp 2^-12 as large, under half a millimetre: Jolt drops both its triangles, so it is
 /// cooked scaled up inside a `ScaledShape`. The module's tests restore it under an instance
@@ -15,7 +15,11 @@ const SMALL_GOLDEN: &str = "../../tests/fixtures/physics/small-ramp-tile.bin";
 // ones the runtime restores.
 #[test]
 fn a_small_tile_cooks_to_the_same_golden_bytes() {
-    let cooked = golden_tile(&RAMP.map(|v| v / 4096.0), SMALL_GOLDEN);
+    let small = RAMP.map(|v| v / 4096.0);
+    let cooked = golden_tile(
+        || mesh_shape(&small, &RAMP_TRIANGLES).unwrap(),
+        SMALL_GOLDEN,
+    );
     // Its 2^-11 box would need 2^22 to reach 2^11; 2^19 is the most Jolt takes: the ramp × 2^7.
     let whole = mesh_shape(&RAMP.map(|v| v * 128.0), &RAMP_TRIANGLES).unwrap();
     let body = &whole[whole.len() / 2..];

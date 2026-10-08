@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rankByDepth } from './depthRank.ts'
+import { rankByDepth } from './depthRank.fixture.ts'
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
+import { lcgMaskedRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer)
@@ -66,8 +67,7 @@ test('the depth rank of the split is the stable sort', () => {
 })
 
 test('the depth rank holds on large cuts, on rare keys as on dense keys', () => {
-  let seed = 20260916
-  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+  const rand = lcgMaskedRandom(20260916)
   for (const distinct of [1, 2, 7, 1000, 0]) {
     const count = 4000
     const depths: (number | null)[] = []

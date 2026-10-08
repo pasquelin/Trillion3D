@@ -3,6 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { type Tri, CELL, CELLS, f32, geometry, random } from './transmissionSheets.fixture.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 test('a point’s cell lists every triangle it lies in: small, large, thin, corners far off the page', () => {
   const rnd = random(3)
@@ -11,7 +12,7 @@ test('a point’s cell lists every triangle it lies in: small, large, thin, corn
     const size = 10 ** (rnd() * 3.5 - 0.5)
     const thin = rnd() < 0.3 ? 0.005 : 1
     const centre = [rnd() * 200 - 36, rnd() * 200 - 36]
-    const angle = rnd() * 2 * Math.PI
+    const angle = rnd() * TAU
     const u = [Math.cos(angle), Math.sin(angle)],
       v = [-u[1] * thin, u[0] * thin]
     const tri = [0, 1, 2].map(() => {

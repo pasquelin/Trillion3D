@@ -1,15 +1,17 @@
-// The `inverseTranspose3` kernel of `inverseTransposeWgsl.ts`, replayed in f32 on the CPU: the same
-// order of operations, the same rounding on every product and sum (`Math.fround`), the same guards.
-// This is the MODEL — what the shader must compute, not what it computes. What ties it to the text
-// the GPU runs is `tests/gpu/math/normal-transform.gpu.ts`, which compares, case by case, this model
-// with the shipped shader's output on Dawn; without it the model would be a second implementation,
-// free to drift in silence.
+// The `inverseTranspose3` kernel of `packages/math/src/wgsl/inverseTranspose.ts`, replayed in f32
+// on the CPU: the same order of operations, the same rounding on every product and sum
+// (`Math.fround`), the same guards. This is the MODEL — what the shader must compute, not what it
+// computes. What ties it to the text the GPU runs is `tests/gpu/math/normal-transform.gpu.ts`,
+// which compares, case by case, this model with the shipped shader's output on Dawn; without it the
+// model would be a second implementation, free to drift in silence.
 //
 // Written here rather than in a test: `normalTransform.test.ts` (lighting),
 // `packages/sdk-browser/src/gpu/dag/inverseTranspose.test.ts` (selection) and the GPU proof all read
 // the same arithmetic, instead of each holding a copy.
-import { SINGULAR_DETERMINANT } from '../../../packages/sdk-core/src/math/matrix/singular.ts'
+import { SINGULAR_DETERMINANT } from '../../../packages/math/src/matrix/singular.ts'
 import type { Vec3, Mat3 } from '../kit/vecTypes.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
+import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 
 export const f = Math.fround
 const cross = (a: Vec3, b: Vec3): Vec3 => [
@@ -19,11 +21,9 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
 ]
 const dot = (a: Vec3, b: Vec3): number => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]))
 const divide = (a: Vec3, t: number): Vec3 => [f(a[0] / t), f(a[1] / t), f(a[2] / t)]
-const magnitude = (a: Vec3): number => Math.hypot(a[0], a[1], a[2])
+const magnitude = (a: Vec3): number => length3(a[0], a[1], a[2])
 export const unit = (a: Vec3): Vec3 => divide(a, magnitude(a))
 
-/** Degrees per radian: the criterion is judged in degrees wherever it is read. */
-export const DEG = 180 / Math.PI
 /** The dropout: beyond it, a rendered normal is not the rotated surface's. */
 export const DROPOUT_DEG = 1e-3
 
@@ -56,7 +56,7 @@ const direction = (v: Vec3): boolean =>
 export function angleBetween(a: Vec3, b: Vec3): number {
   if (!direction(a) || !direction(b)) return NaN
   const c = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
-  return Math.atan2(Math.hypot(c[0], c[1], c[2]), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
+  return Math.atan2(length3(c[0], c[1], c[2]), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
 }
 
 /**
@@ -67,7 +67,7 @@ export function angleBetween(a: Vec3, b: Vec3): number {
  */
 export function normalVerdict(rendered: Vec3, expected: Vec3, dropoutDeg: number) {
   const norm = direction(rendered) ? magnitude(rendered) : NaN
-  const gapDeg = angleBetween(rendered, expected) * DEG
+  const gapDeg = angleBetween(rendered, expected) * RAD2DEG
   const reason = !direction(rendered)
     ? `rendered normal has no direction: [${rendered}]`
     : !direction(expected)
@@ -103,10 +103,10 @@ export function inverseTransposeBefore(m: Mat3, v: Vec3): Vec3 {
 
 /**
  * The shipped kernel, in f32: the 3×3 divided by the sum of its absolute values before the
- * determinant, then the singular convention of `inverseTransposeWgsl.ts`. A zero, infinite or NaN
- * sum: the kernel zeroes the adjugate, so the product is the zero vector. A normalised determinant
- * under the threshold with a non-zero adjugate: the adjugate ALONE, without the `1/(det·t)` that
- * would be ±∞ — the cross product of the transformed edges, to 1/t².
+ * determinant, then the singular convention of `packages/math/src/wgsl/inverseTranspose.ts`. A
+ * zero, infinite or NaN sum: the kernel zeroes the adjugate, so the product is the zero vector. A
+ * normalised determinant under the threshold with a non-zero adjugate: the adjugate ALONE, without
+ * the `1/(det·t)` that would be ±∞ — the cross product of the transformed edges, to 1/t².
  */
 export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
   const t = m.reduce((s, column) => f(s + column.reduce((k, x) => f(k + Math.abs(x)), 0)), 0)
@@ -118,7 +118,7 @@ export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
   return divide(adjugate, f(det * t))
 }
 
-/** The kernel's `uniteOuZero`: `normalize(v)`, but zero for a zero or non-finite vector. */
+/** The kernel's `unitOrZero`: `normalize(v)`, but zero for a zero or non-finite vector. */
 const unitOrZero = (a: Vec3): Vec3 => (dot(a, a) > 0 ? unit(a) : [0, 0, 0])
 
 /** The lighting shader's `xformNormal(world, n)`: the world 3×3's inverse-transpose applied to the

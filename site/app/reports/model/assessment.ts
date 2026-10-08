@@ -27,7 +27,6 @@ const ENGINE_TONES: Record<string, EngineTone> = {
   'three-nu': 'primary',
   'three-lod': 'secondary',
   'webgpu-page-raster': 'accent',
-  'exact-cluster-pages': 'info',
 }
 export function engineTone(engine: string) {
   return ENGINE_TONES[engine] ?? 'neutral'

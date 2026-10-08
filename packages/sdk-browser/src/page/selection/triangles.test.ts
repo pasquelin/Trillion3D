@@ -3,10 +3,11 @@
 // when a fallback shortens `shown` then fills it again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts'
+import { collectClusterPages, type PageRec } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 /** The sum a sweep after the cut computes: left to right, without reassociation. */
 function sum(pages: readonly PageRec[]) {

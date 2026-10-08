@@ -1,6 +1,6 @@
 // The material fixtures of the witness comparison, one per feature the engine claims: base
 // colour, its map — repeated and turned, nearest, anisotropic —, alpha MASK at its cutoff, BLEND,
-// emissive, metal-roughness, normal map, double-sided and glass. Each fixture is a square facing
+// emissive, metal-roughness, normal map and double-sided. Each fixture is a square facing
 // the camera — turned to a grazing angle for anisotropy —, its material, where it is read and how
 // far the two images may differ there — and why.
 //
@@ -8,8 +8,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import * as img from './materialImages.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
-import { hostSurface } from '../../../packages/sdk-browser/src/world/core/worldSurface.ts'
-import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 
 /** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
 const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' }
@@ -67,8 +66,8 @@ const BLEND = (): G.SurfaceParameters => ({
  * `back` turns the square away from the camera; `behind` puts an opaque square of that colour
  * behind it, and no hole — the engine shows the background where the witness does not —; `points`
  * are read on both images, and the largest channel gap at each must fall within `difference`, for
- * the `reason` given; `pair` names the two renderers read, the witness and WebGPU unless it says
- * otherwise. Every fixture must publish a held frame.
+ * the `reason` given, between the witness and the WebGPU engine. Every fixture must publish a
+ * held frame.
  */
 export const fixtures: Fixture[] = [
   unlit('base colour', () => ({ color: 0x993322 })),
@@ -92,7 +91,7 @@ export const fixtures: Fixture[] = [
   ),
   // The engine composes a blend surface over the display background in display space, as the
   // witness does: the two agree to the level. With no opaque row there is no occluder history to
-  // establish, and the still image is held like any other.
+  // establish, and the still image is held like any other (#198).
   unlit('blend over the background', BLEND),
   // Between two drawn surfaces the engine blends in linear radiance and encodes at composition
   // (`docs/ENGINE.md` § Proofs); the witness blends the encoded output.
@@ -104,7 +103,7 @@ export const fixtures: Fixture[] = [
     difference: [44, 46],
     reason: 'linear blend before the display encode, display-space blend in the witness',
   }),
-  // The four-colour map repeated four times each way and turned 30°, mixed under
+  // #360: the four-colour map repeated four times each way and turned 30°, mixed under
   // magnification. A read at the raw UV shows the four quadrants once, upright.
   unlit(
     'map repeated and turned',
@@ -113,7 +112,7 @@ export const fixtures: Fixture[] = [
       map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT
       map.magFilter = G.HOST_FILTER_LINEAR
       map.repeat.set(4, 4)
-      map.rotation = Math.PI / 6
+      map.rotation = 30 * DEG2RAD
       return { map }
     },
     {
@@ -122,28 +121,28 @@ export const fixtures: Fixture[] = [
       reason: 'a mixed read between two texels, and the period seam the engine mixes by hand',
     },
   ),
-  // At the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
+  // #361: at the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
   // the 8×8 checker: nearest reads one texel, black or white, the mixed read a grey.
   unlit('nearest checker magnified', () => ({ map: img.checkerMap() }), { points: QUADRANTS }),
-  // Stripes on a square turned 75° away, a footprint four times longer along V: anisotropy
+  // #361: stripes on a square turned 75° away, a footprint four times longer along V: anisotropy
   // 1 greys them out at the level of V, 16 keeps the level of U. Hardware and shader footprints
   // differ, so the proof is the contrast each engine gains (`ANISOTROPY_GAIN`, the runner).
   ...[1, 16].map((anisotropy) =>
     unlit(`grazing stripes, anisotropy ${anisotropy}`, () => ({ map: img.stripeMap(anisotropy) }), {
-      tilt: (-75 * Math.PI) / 180,
+      tilt: -75 * DEG2RAD,
       points: GRAZING_ROW,
       difference: [0, 255],
       reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
-      // 16× is judged against the ground truth, 1× only reported beside it.
+      // #443: 16× is judged against the ground truth, 1× only reported beside it.
       truth: anisotropy === 16 ? 0 : null,
     }),
   ),
-  // The camera raster alone cuts, on the colour read's alpha as the witness does (`maskKeep`); a
-  // second cut in the resolve leaves holes, 51 at 80°, 33 at 84° on one machine. At 88° (past the 16:1
-  // grant, clamped by each sampler its own way) leaf edges are judged by holes.
+  // Review of #389: the camera raster alone cuts, on the colour read's alpha as the witness does
+  // (`maskKeep`); a second cut in the resolve left holes, 51 at 80°, 33 at 84° on Apple M3. At 88°
+  // (past the 16:1 grant, clamped by each sampler its own way) leaf edges are judged by holes.
   ...[80, 84, 88].map((degrees) =>
     unlit(`foliage at a grazing angle of ${degrees}°, anisotropy 16`, img.foliage, {
-      tilt: (-degrees * Math.PI) / 180,
+      tilt: -degrees * DEG2RAD,
       behind: 0x6a3d9a,
       points: GRAZING_ROW,
       difference: [0, degrees < 88 ? 2 : 255],
@@ -168,23 +167,4 @@ export const fixtures: Fixture[] = [
     () => ({ color: 0x808080, roughness: 0.8, normalMap: img.texture(img.TILTED_NORMAL) }),
     { tangents: true },
   ),
-  // Glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
-  // takes on either renderer) over an opaque square under the sun, read on WebGL2 against
-  // WebGPU. Both draw it with the engine's one lighting model, transmitted over a frozen
-  // linear backdrop: the same value, so the same window as any value two engines
-  // quantise.
-  {
-    name: 'world glass over an opaque surface',
-    material: () =>
-      hostSurface(
-        material.meshPhysical({ roughness: 0, transmission: 1, ior: 1.5, thickness: 0.5 }),
-        false,
-        new Map(),
-      ),
-    lit: true,
-    points: INSIDE,
-    behind: 0x2244aa,
-    pair: ['webgpu', 'webgl2'],
-    ...QUANTISATION,
-  },
 ]

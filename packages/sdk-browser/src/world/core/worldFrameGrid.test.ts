@@ -5,13 +5,14 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
+import { lcgImulWord } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 const P120 = 1000 / 120,
   P60 = 1000 / 60
 
-let seed = 7
+const word = lcgImulWord(7)
 /** A number in [-1, 1), the same sequence at every run. */
-const noise = () => ((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0), seed / 2 ** 31 - 1)
+const noise = () => word() / 2 ** 31 - 1
 
 /** A world's frames on a mocked clock: `frame(at, refresh)` steps the frame at `at` ms, draws it
  *  with the scale control's `refresh` (null: none known), and returns the seconds stepped. */

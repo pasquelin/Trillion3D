@@ -1,15 +1,17 @@
-import { unit } from '../../../sdk-core/src/math/primitives/vectorTuple.ts'
+import { wrap } from '../../../math/src/scalar/reals.ts'
+import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts'
-import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import {
   addScaledVector3,
+  distanceVector3,
   dotVector3,
   subVector3,
-} from '../../../sdk-core/src/math/primitives/vector.ts'
+} from '../../../math/src/vector/vector.ts'
 import { readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf } from './bodyFrame.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { PI } from '../../../math/src/constants.ts'
 
 type Vec = [number, number, number]
 const turned = new Float64Array(3)
@@ -18,7 +20,7 @@ const turn = (q: ArrayLike<number>, v: Vec): Vec => {
   rotateByQuaternion(turned, q, v[0], v[1], v[2])
   return [turned[0], turned[1], turned[2]]
 }
-const between = (p: Vec, q: Vec) => hypot3(q[0] - p[0], q[1] - p[1], q[2] - p[2])
+const between = (p: Vec, q: Vec) => distanceVector3(q, p)
 /** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
 const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x])
 /** `near` squared to the unit `axis`, or any square to it when the two are nearly one. */
@@ -76,7 +78,7 @@ function trackIn(node: Object3D | null, path: readonly Vec3Input[], loop: boolea
   let normal: Vec = [0, 1, 0]
   return points.flatMap((point, i) => {
     const [before, after] = loop
-      ? [(i + n - 1) % n, (i + 1) % n]
+      ? [wrap(i - 1, n), (i + 1) % n]
       : [Math.max(i - 1, 0), Math.min(i + 1, n - 1)]
     const span = loop ? 2 : after - before
     const p = points[before],
@@ -92,7 +94,7 @@ function extraOf(joint: Joint): number[] {
   const o = joint.options
   switch (joint.kind) {
     case 'swingTwist':
-      return [o.limits?.swing ?? Math.PI]
+      return [o.limits?.swing ?? PI]
     case 'sixDof':
       return SIX_DOF_AXES.flatMap((axis) => {
         const limits = o.axes?.[axis]

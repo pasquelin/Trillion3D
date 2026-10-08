@@ -4,6 +4,7 @@
 // by the bench runner before the proofs run.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { openGalleryScene } from '../kit/renderHarness.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
@@ -42,7 +43,7 @@ test(
           height: 620,
           pixelRatio: 2,
           folder: 'tests/fixtures/scenes/mountain-terrain',
-          texturePoolBytes: 64 * 1024 * 1024,
+          texturePoolBytes: 64 * MIB,
           position: [10.5, 8.2, 12.5],
           target: [0, 1.1, 0],
         })
@@ -51,7 +52,7 @@ test(
           return {
             metrics,
             size: [world.canvas.width, world.canvas.height],
-            ...readLandscape(new Uint8Array(world.capture())),
+            ...readLandscape(new Uint8Array(await world.capture())),
           }
         } finally {
           world.dispose()

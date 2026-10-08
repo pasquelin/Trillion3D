@@ -1,6 +1,7 @@
-import { copyMatrix4, determinantMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4Typed } from '../../math/matrix/matrix4Typed.ts'
+import { copyMatrix4, determinantMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4Typed } from '../../../../math/src/matrix/matrix4Typed.ts'
+import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 
 const bindBasis = new Float64Array(16),
   worldBasis = new Float64Array(16),
@@ -12,13 +13,8 @@ function planeBasis(out: Float64Array, matrix: ArrayLike<number>, a: number, b: 
     out[row] = matrix[a * 4 + row]
     out[row + 4] = matrix[b * 4 + row]
   }
-  const x = out[1] * out[6] - out[2] * out[5]
-  const y = out[2] * out[4] - out[0] * out[6]
-  const z = out[0] * out[5] - out[1] * out[4]
-  const length = Math.hypot(x, y, z)
-  out[8] = length ? x / length : 0
-  out[9] = length ? y / length : 0
-  out[10] = length ? z / length : 0
+  crossVector3(out, out, out, 8, 0, 4)
+  normalizeVector3(out, 8)
 }
 
 /** Delta on an existing proxy surface, including a plane cooked with a flattened local axis. */

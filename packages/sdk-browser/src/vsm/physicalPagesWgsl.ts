@@ -26,37 +26,37 @@ import {
   VSM_COUNT_STATIC_KEPT,
   VSM_PAGE_KEEP_FRAMES,
 } from './constants.ts'
-import {
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_COVER_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
-import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
 import type { VsmLayout } from './layout.ts'
+import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** Bind group indices of every page management kernel. */
 export const VSM_PM_GROUP_RESOURCES = 0
 export const VSM_PM_GROUP_PARAMS = 1
 export const VSM_PM_GROUP_PER_PAGE = 2
-/** Byte size of `VsmPmParams`; slots are 256 bytes apart. */
+/** Byte size of `VsmPmParams`; its slots lie the device's `uniformStride` apart. */
 export const VSM_PM_PARAMS_BYTES = 8
 
 /**
  * Loose parameters of the physical page kernels (update, address remap, ...): the next-map entries
  * this frame holds, and whether last frame's pages are kept (offsets 0 and 4).
  */
-const VSM_PM_PARAMS_WGSL = /* wgsl */ `
+const VSM_PM_PARAMS_WGSL = wgslBlock(
+  'VSM_PM_PARAMS_WGSL',
+  [],
+  `
 struct VsmPmParams{
  nextMapCount:u32,
  hasPrevFrame:u32,
 }
 @group(${VSM_PM_GROUP_PARAMS}) @binding(0) var<uniform> vsmPm:VsmPmParams;
-`
+`,
+)
 
 interface VsmPmKernelOptions {
   /** Compile the statistics counters into the kernels (needs `res.stats` bound; one more storage buffer). */
@@ -74,36 +74,29 @@ export interface VsmPmKernel {
 }
 
 /**
- * Assembles a module: shared VSM WGSL, group-0 bindings of `specs`, params, optional projection-data
- * reader, optional per-page setup, optional stats, then `body`.
+ * Assembles a module: the group-0 bindings of `specs`, params, optional per-page setup, optional
+ * stats, then `body`, which lists the declarations its text uses.
  */
 export function vsmPmModule(
   layout: VsmLayout,
   specs: VsmBindingSpec[],
-  body: string,
-  options: { perPage?: boolean; stats?: boolean; coverGather?: boolean } = {},
+  body: WgslDecl,
+  options: { perPage?: boolean; stats?: boolean } = {},
 ) {
-  const hasProjection = specs.some((s) => s.resource === 'projectionData')
   const statsSpec = specs.find((s) => s.resource === 'stats')
-  return [
-    VSM_CONSTANTS_WGSL,
-    VSM_UNIFORMS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-    vsmBindingsWgsl(VSM_PM_GROUP_RESOURCES, specs, layout),
-    VSM_PM_PARAMS_WGSL,
-    hasProjection ? VSM_PROJECTION_DATA_READ_WGSL : '',
-    options.perPage ? vsmPerPageDispatchWgsl(VSM_PM_GROUP_PER_PAGE) : '',
-    options.coverGather ? VSM_COVER_GATHER_WGSL : '',
+  return wgslProgram(
     options.stats !== undefined
       ? statsSpec
         ? 'fn vsmCount(i:u32){atomicAdd(&vsmStats[i],1u);}'
         : 'fn vsmCount(i:u32){}'
       : '',
-    body,
-  ].join('\n')
+    [
+      vsmBindingsWgsl(VSM_PM_GROUP_RESOURCES, specs, layout),
+      VSM_PM_PARAMS_WGSL,
+      ...(options.perPage ? [vsmPerPageDispatchWgsl(VSM_PM_GROUP_PER_PAGE)] : []),
+      body,
+    ],
+  )
 }
 
 /** Appends the stats binding at `binding` when enabled. */
@@ -115,16 +108,23 @@ function withStats(
   return stats ? [...specs, { resource: 'stats', binding, access: 'atomic' }] : specs
 }
 
-const STAT_WGSL = /* wgsl */ `
+const STAT_WGSL = wgslBlock(
+  'STAT_WGSL',
+  [],
+  `
 const VSM_COUNT_WANTED:u32=${VSM_COUNT_WANTED}u;
 const VSM_COUNT_STATIC_KEPT:u32=${VSM_COUNT_STATIC_KEPT}u;
 const VSM_COUNT_DYNAMIC_KEPT:u32=${VSM_COUNT_DYNAMIC_KEPT}u;
 const VSM_COUNT_CLEARED:u32=${VSM_COUNT_CLEARED}u;
 const VSM_COUNT_GRANTED:u32=${VSM_COUNT_GRANTED}u;
-`
+`,
+)
 
 /** List access over an atomic `vsmPoolLists` binding. */
-const LISTS_WGSL = /* wgsl */ `
+const LISTS_WGSL = wgslBlock(
+  'LISTS_WGSL',
+  [],
+  `
 fn pmListStart(list:u32)->u32{return list*(vsm.poolPages+1u);}
 fn pmListItem(list:u32,index:u32)->i32{return atomicLoad(&vsmPoolLists[pmListStart(list)+index]);}
 fn pmSetListItem(list:u32,index:u32,value:i32){atomicStore(&vsmPoolLists[pmListStart(list)+index],value);}
@@ -168,7 +168,8 @@ fn pmPop(list:u32)->i32{
  if(offset<0i){return -1i;}
  return atomicLoad(&vsmPoolLists[start+u32(offset)]);
 }
-`
+`,
+)
 
 /** Moves last frame's pool pages to this frame's map ids and page addresses, before the marking pass;
  *  without a previous frame (`vsmPm.hasPrevFrame`) every page is emptied. */
@@ -179,7 +180,10 @@ function carryPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'nextMaps', binding: 2 },
     { resource: 'pageRequests', binding: 3, prev: true },
   ]
-  const body = /* wgsl */ `
+  const body = wgslBlock(
+    'carryPages',
+    [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL],
+    `
 @compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
  if(index.x>=vsm.poolPages){return;}
@@ -220,7 +224,8 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
   vsmPoolPageInfo[poolIndex].flags=0u;
  }
 }
-`
+`,
+  )
   return {
     label: 'CarryPages',
     entryPoint: 'vsmCarryPages',
@@ -247,9 +252,17 @@ function sortPool(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     o.stats,
     8,
   )
-  const body = /* wgsl */ `
-${STAT_WGSL}
-${LISTS_WGSL}
+  const body = wgslBlock(
+    'sortPool',
+    [
+      STAT_WGSL,
+      LISTS_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+    ],
+    `
 /** Frames a page unrequested since stays kept (\`VSM_PAGE_KEEP_FRAMES\`). */
 const PM_PAGE_KEEP_FRAMES:i32=${VSM_PAGE_KEEP_FRAMES}i;
 @compute @workgroup_size(VSM_GROUP_WIDTH)
@@ -340,7 +353,8 @@ fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
  // The age order keeps its ranks; a page that left it reads -1.
  pmSetListItem(VSM_PAGES_BY_AGE,byAgeIndex,select(i32(poolIndex),-1i,leftList));
 }
-`
+`,
+  )
   return {
     label: 'SortPool',
     entryPoint: 'vsmSortPool',
@@ -357,8 +371,10 @@ function packFreePages(layout: VsmLayout): VsmPmKernel {
     { resource: 'uniforms', binding: 0 },
     { resource: 'poolLists', binding: 1, access: 'atomic' },
   ]
-  const body = /* wgsl */ `
-${LISTS_WGSL}
+  const body = wgslBlock(
+    'packFreePages',
+    [LISTS_WGSL, VSM_CONSTANTS_WGSL],
+    `
 var<workgroup> pmScan:array<i32,PM_PACK_THREADS>;
 @compute @workgroup_size(PM_PACK_THREADS)
 fn vsmPackFreePages(@builtin(local_invocation_index) groupIndex:u32){
@@ -392,7 +408,8 @@ fn vsmPackFreePages(@builtin(local_invocation_index) groupIndex:u32){
  // The compacted list's count is every lane's \`totalCount\`: the empty pages go after it.
  pmAppendList(VSM_PAGES_EMPTY,VSM_PAGES_FREE,totalCount,groupIndex);
 }
-`
+`,
+  )
   return {
     label: 'PackFreePages',
     entryPoint: 'vsmPackFreePages',
@@ -417,9 +434,18 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     o.stats,
     7,
   )
-  const body = /* wgsl */ `
-${STAT_WGSL}
-${LISTS_WGSL}
+  const body = wgslBlock(
+    'grantPages',
+    [
+      STAT_WGSL,
+      LISTS_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PER_PAGE_DISPATCH_WGSL,
+    ],
+    `
 fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:vec2u){
  let entryIndex=vsmTableIndex(entryAt.tableXY);
  let flagsIndex=vsmPageMarkIndex(entryAt.tableXY,0u);
@@ -460,8 +486,8 @@ fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:ve
  vsmPoolPageInfo[poolSlot].pageAddress=pageAddress;
 }
 @compute @workgroup_size(${VSM_PER_PAGE_GROUP_XY},${VSM_PER_PAGE_GROUP_XY})
-fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u){
- let setup=vsmMapWalkOf(dispatchThreadId);
+fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
+ let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
  if(!setup.valid){return;}
  for(var mipLevel=setup.firstMip;mipLevel<setup.endMip;mipLevel++){
   let loopEnd=vsmPagesAcross(mipLevel);
@@ -473,7 +499,8 @@ fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u){
   }
  }
 }
-`
+`,
+  )
   return {
     label: 'GrantPages',
     entryPoint: 'vsmGrantPages',
@@ -495,8 +522,10 @@ function listClears(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     o.stats,
     4,
   )
-  const body = /* wgsl */ `
-${STAT_WGSL}
+  const body = wgslBlock(
+    'listClears',
+    [STAT_WGSL, VSM_CONSTANTS_WGSL],
+    `
 /** Emits one page slot per call (16 tile groups each). */
 fn pmListClear(poolIndex:u32){
  let slot=atomicAdd(&vsmClearArgs[1],1u);
@@ -533,7 +562,8 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
   vsmPoolPageInfo[poolIndex].flags=pageInfo.flags|clearedFlags;
  }
 }
-`
+`,
+  )
   return {
     label: 'ListClears',
     entryPoint: 'vsmListClears',
@@ -544,7 +574,10 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
 }
 
 /** Tile setup of the 16-tiles-per-page kernels (16x16 threads, 32x32 texels per tile). */
-const TILE_WGSL = /* wgsl */ `
+const TILE_WGSL = wgslBlock(
+  'TILE_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL],
+  `
 const PM_TILE_LANES:u32=16u;
 const PM_LOG2_TILE:u32=5u;
 const PM_LOG2_TILES_ACROSS:u32=VSM_LOG2_PAGE-PM_LOG2_TILE;
@@ -570,7 +603,8 @@ fn pmTileOf(groupIndex:u32,listedPage:u32)->PmTile{
  return r;
 }
 fn pmTileOffset(s:PmTile)->vec2u{return (s.poolPage<<vec2u(VSM_LOG2_PAGE))+s.tileOrigin;}
-`
+`,
+)
 
 /** Clears or initialises the listed pages, one tile per group. */
 function clearPages(layout: VsmLayout): VsmPmKernel {
@@ -580,8 +614,10 @@ function clearPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'pagesToClear', binding: 2 },
     { resource: 'pagePool', binding: 3, access: 'read_write' },
   ]
-  const body = /* wgsl */ `
-${TILE_WGSL}
+  const body = wgslBlock(
+    'clearPages',
+    [TILE_WGSL, VSM_CONSTANTS_WGSL],
+    `
 @compute @workgroup_size(16,16)
 fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workgroup_id) wid:vec3u){
  let groupIndex=pmGroupIndex(wid);
@@ -599,7 +635,8 @@ fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
   for(var k=0u;k<4u;k++){vsmPoolStore(firstTexel+o[k],slice,0u);}
  }
 }
-`
+`,
+  )
   return {
     label: 'ClearPages',
     entryPoint: 'vsmClearPages',
@@ -616,8 +653,10 @@ function poolFeedback(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolLists', binding: 1, access: 'atomic' },
     { resource: 'feedback', binding: 2, access: 'read_write' },
   ]
-  const body = /* wgsl */ `
-${LISTS_WGSL}
+  const body = wgslBlock(
+    'poolFeedback',
+    [LISTS_WGSL, VSM_CONSTANTS_WGSL],
+    `
 @compute @workgroup_size(PM_PACK_THREADS)
 fn vsmPoolFeedback(@builtin(local_invocation_index) lane:u32){
  if(lane==0u){
@@ -634,7 +673,8 @@ fn vsmPoolFeedback(@builtin(local_invocation_index) lane:u32){
  let requested=pmListCount(VSM_PAGES_REQUESTED);
  pmAppendList(VSM_PAGES_FREE,VSM_PAGES_REQUESTED,requested,lane);
 }
-`
+`,
+  )
   return {
     label: 'PoolFeedback',
     entryPoint: 'vsmPoolFeedback',
@@ -666,7 +706,10 @@ function foldRasterMarks(layout: VsmLayout): VsmPmKernel {
     { resource: 'mergeArgs', binding: 6, access: 'atomic' },
     { resource: 'pagesToMerge', binding: 7, access: 'read_write' },
   ]
-  const body = /* wgsl */ `
+  const body = wgslBlock(
+    'foldRasterMarks',
+    [VSM_CONSTANTS_WGSL],
+    `
 // Folds this frame's dirty flags into the page's metadata; the frame clears them before its raster
 // (\`vsmEncode.ts\`).
 fn pmFoldMarks(poolIndex:u32)->u32{
@@ -712,7 +755,8 @@ fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
   vsmPagesToMergeStore(slot,id.x);
  }
 }
-`
+`,
+  )
   return {
     label: 'FoldRasterMarks',
     entryPoint: 'vsmFoldRasterMarks',
@@ -735,8 +779,10 @@ function tileDepthsBuild(layout: VsmLayout): VsmPmKernel {
     { resource: 'tileDepths', binding: 2, access: 'read_write' },
     { resource: 'pagePool', binding: 3 },
   ]
-  const body = /* wgsl */ `
-${TILE_WGSL}
+  const body = wgslBlock(
+    'tileDepthsBuild',
+    [TILE_WGSL, VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL],
+    `
 var<workgroup> pmTileDepth:array<atomic<u32>,16>;
 /** A pool word as a bound of the depth a sample reads from it: the word, but 0 for one whose float
  *  is negative or NaN (above +inf's bits), which no sample's test can be failed by. */
@@ -759,7 +805,8 @@ fn vsmTileDepthsBuild(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(
   vsmTileDepthsStore(vsmTileDepthIndex(texel),atomicLoad(&pmTileDepth[lane]));
  }
 }
-`
+`,
+  )
   return {
     label: 'TileDepthsBuild',
     entryPoint: 'vsmTileDepthsBuild',
@@ -776,8 +823,10 @@ function mergeStatic(layout: VsmLayout): VsmPmKernel {
     { resource: 'pagesToMerge', binding: 1 },
     { resource: 'pagePool', binding: 2, access: 'read_write' },
   ]
-  const body = /* wgsl */ `
-${TILE_WGSL}
+  const body = wgslBlock(
+    'mergeStatic',
+    [TILE_WGSL],
+    `
 fn pmMergeTexel(p:vec2u){
  vsmPoolStore(p,0u,max(vsmPoolLoad(p,0u),vsmPoolLoad(p,vsm.staticSlice)));
 }
@@ -792,7 +841,8 @@ fn vsmMergeStatic(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(work
  pmMergeTexel(firstTexel+vec2u(0u,1u));
  pmMergeTexel(firstTexel+vec2u(1u,1u));
 }
-`
+`,
+  )
   return {
     label: 'MergeStatic',
     entryPoint: 'vsmMergeStatic',

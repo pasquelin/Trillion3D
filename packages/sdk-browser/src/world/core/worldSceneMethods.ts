@@ -8,8 +8,8 @@ import { createWorldRaycast } from './worldRaycast.ts'
  * A world's moves by name, and the methods it exposes over the nodes of its scene.
  *
  * `namedMove` is the one move path a world built in code takes: the node the scene's own name
- * index finds, posed from its host chain exactly as WebGPU's and WebGL2's moves by name pose
- * theirs, and its row marked for the next frame — the runtime hands it to the session
+ * index finds, posed from its host chain exactly as the engine's move by name poses its own
+ * (`host/world/moveByName.ts`), and its row marked for the next frame — the runtime hands it to the session
  * (`ExplorerSource.moveNamed`) and offers it to the page (`worldSceneMethods`). `worldSceneMethods`
  * groups the two world members that reach a scene node the page holds no handle to: picking it
  * (`world.raycast`) and moving it by its name (`world.setTransform`).
@@ -51,8 +51,8 @@ export function worldSceneMethods(
      * Moves the node `nodeName` so that its world pose is `matrix`: a node the page does not keep
      * a handle to is reached by its name (`object.name`), looked up on the scene. The pose is a
      * world pose — the engine brings it back into the node's parent space — so a name under a
-     * moved parent still lands where asked. The same route WebGPU and WebGL2 take for a page's
-     * move by name, not a second one. The next frame draws it; a request that changes nothing
+     * moved parent still lands where asked. The same route the engine takes for a page's move by
+     * name, not a second one. The next frame draws it; a request that changes nothing
      * asks no frame.
      * @param nodeName - The `name` of the node to move.
      * @param matrix - Its world pose, sixteen floats in column-major order.

@@ -1,18 +1,23 @@
-import { copyMatrix4, determinantMatrix4, multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { composeMatrix4 } from '../../math/matrix/matrix4Compose.ts'
-import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { axisAngleQuaternion } from '../../math/matrix/quaternion.ts'
+import {
+  copyMatrix4,
+  determinantMatrix4,
+  IDENTITY_MATRIX4,
+  multiplyMatrix4,
+  transposeMatrix4,
+} from '../../../../math/src/matrix/matrix4.ts'
+import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { length3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts'
-import { hypot3 } from '../../math/primitives/hypot.ts'
 
 const t = new Float64Array(3),
   r = new Float64Array(4),
   s = new Float64Array(3),
   scratch = new Float64Array(16)
 const ORIGIN = [0, 0, 0],
-  UNIT = [1, 1, 1],
-  IDENTITY = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  UNIT = [1, 1, 1]
 
 /** The 3×3 matrix, beside this one since the scene layer first read both from here. */
 export { Matrix3 } from './matrix3.ts'
@@ -48,7 +53,7 @@ export class Matrix4 {
     return this;
   }
   /** Resets to the matrix that changes nothing. */ identity() {
-    this.elements.set(IDENTITY)
+    this.elements.set(IDENTITY_MATRIX4)
     return this
   }
   /** Takes the numbers of another matrix. */ copy(m: { elements: ArrayLike<number> }) {
@@ -107,25 +112,7 @@ export class Matrix4 {
     return determinantMatrix4(this.elements)
   }
   /** Swaps rows and columns. */ transpose() {
-    const e = this.elements
-    let v = e[1]
-    e[1] = e[4]
-    e[4] = v
-    v = e[2]
-    e[2] = e[8]
-    e[8] = v
-    v = e[3]
-    e[3] = e[12]
-    e[12] = v
-    v = e[6]
-    e[6] = e[9]
-    e[9] = v
-    v = e[7]
-    e[7] = e[13]
-    e[13] = v
-    v = e[11]
-    e[11] = e[14]
-    e[14] = v
+    transposeMatrix4(this.elements, this.elements)
     return this
   }
   /** Becomes a move by `(x, y, z)`. */ makeTranslation(x: number, y: number, z: number) {
@@ -144,10 +131,10 @@ export class Matrix4 {
   }
   /** The rotation about `axis`, made unit first (`axisAngleQuaternion`). */
   makeRotationAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    const n = hypot3(axis.x, axis.y, axis.z) || 1
-    t[0] = axis.x / n
-    t[1] = axis.y / n
-    t[2] = axis.z / n
+    t[0] = axis.x
+    t[1] = axis.y
+    t[2] = axis.z
+    normalizeVector3(t)
     composeMatrix4(this.elements, ORIGIN, axisAngleQuaternion(r, t, angle), UNIT)
     return this
   }
@@ -166,14 +153,13 @@ export class Matrix4 {
     this.elements[14] = z
     return this
   }
-  /** The biggest stretch along any axis. */ getMaxScaleOnAxis() {
+  /** The biggest stretch along any axis: the longest of the three columns (`length3`). */
+  getMaxScaleOnAxis() {
     const e = this.elements
-    return Math.sqrt(
-      Math.max(
-        e[0] * e[0] + e[1] * e[1] + e[2] * e[2],
-        e[4] * e[4] + e[5] * e[5] + e[6] * e[6],
-        e[8] * e[8] + e[9] * e[9] + e[10] * e[10],
-      ),
+    return Math.max(
+      length3(e[0], e[1], e[2]),
+      length3(e[4], e[5], e[6]),
+      length3(e[8], e[9], e[10]),
     )
   }
   /** Whether two matrices hold the same numbers. */ equals(m: { elements: ArrayLike<number> }) {

@@ -10,6 +10,7 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The statements that would write the offset in the resolve, in their order; a discarded or
  *  empty pixel stored nothing, which the readers never read. */
@@ -33,10 +34,10 @@ const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
  if(page.lineWidth>0.0){c0=pageLine(c0);c1=pageLine(c1);c2=pageLine(c2);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let p=vec2f(pos.x,pos.y);
- let area=edge(s1.xy,s2.xy,s0.xy);
+ let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var bary=vec3f(0.333,0.333,0.334);
  if(area!=0.0){
-  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
+  let bw=affineBarycentric(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
   let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
   let p0w=a0*iw0;let p1w=a1*iw1;let p2w=a2*iw2;let sum=p0w+p1w+p2w;
   bary=select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);
@@ -46,9 +47,9 @@ const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
  let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
  let invT=invTranspose3Prep(world3);
- var n0=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
- var n1=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
- var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
+ var n0=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
+ var n1=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
+ var n2=unitOrZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
  if(HAS_VERTEX_NORMAL){
   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
   let lit=select(1.0,face,DOUBLE_SIDED);
@@ -136,17 +137,22 @@ const scope = {
     [0, 1, 2].map((r) => t.scale * (t.adj[0][r] * v[0] + t.adj[1][r] * v[1] + t.adj[2][r] * v[2])),
 }
 // The shipped text the readers insert, which carries the shared routines both sides call.
-const SHIPPED = receiverOffsetWgsl(0)
+const SHIPPED = wgslModule(receiverOffsetWgsl(0))
 const HELPERS = [
   'framebuffer',
-  'edge',
-  'baryWeights',
+  'clipToFramebuffer',
+  'perspectiveDivide',
+  'edgeFunction',
+  'affineBarycentric',
   'pixelBary',
-  'perspectiveBary',
+  'perspectiveBarycentric',
+  'faceNormal',
   'vertexNormals',
   'transformedNormals',
-  'uniteOuZero',
+  'unitOrZero',
   'shadingPointOffset',
+  'worldMatrix3',
+  'windingKept',
 ]
 const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,

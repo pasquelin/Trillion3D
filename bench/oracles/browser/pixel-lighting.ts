@@ -3,7 +3,7 @@
 // and reallocated every pixel, and channels go through temporary arrays.
 import * as THREE from 'three'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
-import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from './cpu-image/projection.ts'
 import { attr2, sampleLinear, sampleMap } from './cpu-image/math.ts'
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts'
 

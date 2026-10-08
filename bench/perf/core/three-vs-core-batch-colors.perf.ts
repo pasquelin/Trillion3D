@@ -1,6 +1,6 @@
 // Colour batches compare the same N RGB colours, i.e. 3N scalar channels, in both directions.
 import * as THREE from 'three'
-import { linearToSrgbBatch, srgbToLinearBatch } from '../../../packages/sdk-core/src/math/index.ts'
+import { linearToSrgbBatch, srgbToLinearBatch } from '../../../packages/math/src/index.ts'
 import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import {
@@ -31,7 +31,7 @@ const lines: Measurement[] = []
 lines.push(
   await duel({
     name: 'Color.convertSRGBToLinear batch',
-    fichier: 'packages/sdk-core/src/math/batch/color.ts',
+    fichier: 'packages/math/src/batch/color.ts',
     three: () => {
       for (let i = 0; i < N; i++) outputColors[i].copy(colors[i]).convertSRGBToLinear()
     },
@@ -51,7 +51,7 @@ lines.push(
 lines.push(
   await duel({
     name: 'Color.convertLinearToSRGB batch',
-    fichier: 'packages/sdk-core/src/math/batch/color.ts',
+    fichier: 'packages/math/src/batch/color.ts',
     three: () => {
       for (let i = 0; i < N; i++) outputColors[i].copy(colors[i]).convertLinearToSRGB()
     },

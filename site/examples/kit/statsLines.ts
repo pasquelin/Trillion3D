@@ -4,6 +4,7 @@ import { ms } from './statUnit.ts'
 import type { Cadence } from './cadence.ts'
 import type { StatsCorner } from './statsLayout.ts'
 import { language } from './words.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 
 /** What the stats corner reads of a frame: the engine's own counters, `null` when not measured.
  *  Any other counter the frame publishes rides along under its own name (`shadowLines`). */
@@ -51,8 +52,8 @@ export interface StatsSample extends FrameCounters {
   /** Frames a second over the last second; `null` before the first rate and while `held`. */
   fps: number | null
   held: boolean
-  /** True before the first sample, from a held image until the next device sample, without
-   *  `timestamp-query`, or on WebGL2: `gpuFrameMs` is the last one measured. */
+  /** True before the first sample, from a held image until the next device sample, or without
+   *  `timestamp-query`: `gpuFrameMs` is the last one measured. */
   gpuFrameLast?: boolean
   sceneTriangles: number | null
   /** The CPU side of the half second: the frame's median and each stage (`statUnit.ts`). */
@@ -64,7 +65,7 @@ export interface StatsSample extends FrameCounters {
 /** A counter as the corner prints it: rounded, grouped in the page's language. */
 const count = (value: number) => Math.round(value).toLocaleString(language())
 /** Bytes as the corner prints them: in MiB, one decimal. */
-const mib = (bytes: number) => `${(bytes / 2 ** 20).toFixed(1)} MiB`
+const mib = (bytes: number) => `${(bytes / MIB).toFixed(1)} MiB`
 
 /** The GPU memory the engine publishes, all then by kind, under the corner's English label. */
 const MEMORY = [

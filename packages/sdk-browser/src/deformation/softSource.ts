@@ -1,5 +1,5 @@
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { Model } from '../physics/tilePlace.ts'
@@ -52,7 +52,7 @@ export function receiveSoftSource(source: SoftSource, positions: Float32Array) {
   for (let i = 0; i < positions.length; i += 3)
     reach = Math.max(
       reach,
-      hypot3(
+      length3(
         positions[i] - source.rest[i],
         positions[i + 1] - source.rest[i + 1],
         positions[i + 2] - source.rest[i + 2],

@@ -27,8 +27,11 @@ import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts'
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
+import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 type Light = { centre: Vec3; radius: number }
 const CELL = LIGHT_SETTINGS.tileSize
@@ -58,11 +61,11 @@ function checkPixel(view: TileView, px: number, py: number, z: number, lights: L
 test("random views: every light that reaches a pixel is in its cell's list", () => {
   for (let seed = 1; seed <= 400; seed++) {
     const r = random(seed),
-      u = (lo: number, hi: number) => lo + (hi - lo) * r()
+      u = (lo: number, hi: number) => lerp(lo, hi, r())
     const [width, height] = [Math.round(u(320, 3456)), Math.round(u(240, 2234))]
     const far = seed % 4 === 0 ? 150_000 : 5000
     const eye: Vec3 = [u(-far, far), u(1.7, 2000), u(-far, far)]
-    const pitch = seed % 3 === 0 ? -Math.PI / 2 : u(-Math.PI / 2, Math.PI / 6)
+    const pitch = seed % 3 === 0 ? -HALF_PI : u(-HALF_PI, Math.PI / 6)
     const view = camera(eye, u(-Math.PI, Math.PI), pitch, u(30, 100), width, height)
     for (let pixel = 0; pixel < 8; pixel++) {
       const [px, py] = [Math.floor(u(0, width)), Math.floor(u(0, height))]
@@ -104,17 +107,17 @@ test('edge cases: a lamp touching one pixel, a cell every lamp reaches, near and
 })
 
 test("the pass runs the oracle's constants and the resolve its slice", () => {
-  const W = wgslConstants(GRID_BOUNDS_WGSL)
+  const W = wgslConstants(wgslModule(GRID_BOUNDS_WGSL))
   assert.equal(W.NEWTON_STEPS, NEWTON_STEPS)
   assert.deepEqual([W.RUN_FRONT, W.RUN_BACK].map(Math.fround), RUN_MARGIN)
-  assert.ok(GRID_BOUNDS_WGSL.includes('let r=radius*1.001;'))
+  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=radius*1.001;'))
   const { gridSlice: shipped } = shaderFunctions<{ gridSlice: (z: number) => number }>(
     DIRECT_LIGHTING_WGSL,
     ['gridSlice'],
     {
       ...wgslConstants(DIRECT_LIGHTING_WGSL),
       log2: Math.log2,
-      clamp: (x: number, lo: number, hi: number) => Math.min(Math.max(x, lo), hi),
+      clamp,
     },
   )
   for (const z of [1, 0.999, 0.5, 0.1, 1e-3, 1e-6, 0])

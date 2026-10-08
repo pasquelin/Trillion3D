@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
@@ -22,7 +23,7 @@ async function restingGaps(axles: [number, number]) {
   const wheels = placed.map(([x, y, z]) => {
     const wheel = new Mesh(cylinder(RADIUS, RADIUS, 0.25), new Material('meshStandard'))
     wheel.position.set(x, y, z)
-    wheel.rotation.z = Math.PI / 2
+    wheel.rotation.z = HALF_PI
     body.add(wheel)
     return wheel
   })

@@ -1,9 +1,9 @@
 import type { ComposeState } from '../../placement/gpuCompose.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { TAA_CAPABILITIES } from '../../taa/capability.ts'
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts'
-import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts'
+import type { EngineCapabilities, EngineContext } from '../../engine/types.ts'
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts'
 import { createWebgpuDiagnostics } from './io/diagnostics.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
@@ -17,19 +17,16 @@ import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts'
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts'
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
-import type { PresentRect } from '../../gpu/core/presentAt.ts'
-import type { EngineCamera, HostCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/world.ts'
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
   type WebgpuTimingState,
 } from './state/timing.ts'
-import type { HostCpuProfile } from '../../host/cpuProfile.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
-import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts'
+import type { FeedbackAbState } from './diagnostic/feedbackAb.ts'
 import type { VisPage } from '../../visibility/types.ts'
 import type { PageLocations } from '../../page/selection/placements.ts'
-import { type SpatialFeedback } from './diagnostic/spatialCounts.ts'
 
 export type RasterView = {
   pages: VisPage[]
@@ -40,43 +37,14 @@ export type RasterView = {
   clearColor: number
 }
 
-export type WebgpuPagesBackend = RenderBackend &
-  HostCpuProfile & {
-    flush(): Promise<void>
-    setFeedbackTargetAb(target: boolean): Promise<void>
-    feedbackAbResidency(): Promise<ResidencyIdentity>
-    captureFeedbackAb(): Promise<Uint8Array>
-    feedbackAbSpatial(): Promise<SpatialFeedback>
-    /** What the CPU raster oracles read of the last image (`io/hostApi.ts`). */
-    rasterView(): RasterView
-    selectedPageIds(): string[]
-    /** The drawn clusters as `mesh/primitive/page`: unique where two clusters share one index
-     *  page, whose URL `selectedPageIds` returns for both. */
-    selectedClusterIds(): string[]
-    /** Internal: a texture taken by the atlas after open (`io/appendTexture.ts`); its slot. */
-    appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>
-    /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
-    addView(
-      rect: PresentRect,
-    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>
-  }
-
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
 export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>
 
-export const UNTEXTURED_MATERIALS = 'Untextured source color; double-sided when the material is'
-export const VIS_FEATURES = [
-  'visibility buffer',
-  'textured PBR maps',
-  'occlusion culling',
-  'temporal occlusion culling',
-]
-
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
- *  part of it. `setup` and `layout` change only as placements grow in place
- *  (`../../placement/webgpuGrowth.ts`); the other groups do as they draw. */
+ *  part of it. `setup` and `layout` change only as the tables grow (`prepare/growTables.ts`); the
+ *  other groups do as they draw. */
 export interface WebgpuPagesRuntime {
-  context: BackendContext
+  context: EngineContext
   /** Opt-in, same-session frame-target measurement; absent from production sessions. */
   feedbackAB?: FeedbackAbState
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
@@ -98,7 +66,7 @@ export interface WebgpuPagesRuntime {
   timing: WebgpuTimingState
   /** The render scale the page asked, its controller, and the scale of the image drawn. */
   scale: ScaleControl
-  capabilities: BackendCapabilities
+  capabilities: EngineCapabilities
   blendState: ReturnType<typeof createWebgpuBlendState>
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
    *  built once, so an image hands over no new closure. */
@@ -109,7 +77,7 @@ export interface WebgpuPagesRuntime {
   compose?: ComposeState
 }
 
-export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
+export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary'
   const closer = new AbortController()
   const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal
@@ -130,28 +98,18 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const run = createWebgpuRunState(context.clearColor)
   const blendState = createWebgpuBlendState()
   const lights = createWebgpuLightState(context.sceneLights)
-  const capabilities: BackendCapabilities = {
-    renderer: 'WebGPU page raster',
-    materials: UNTEXTURED_MATERIALS,
-    hierarchy: true,
-    gpuDriven: false,
-    simplification: false,
-    eviction: true,
+  // What is withheld until served: a capability leaves the list as it is granted (`grantCapability`).
+  const capabilities: EngineCapabilities = {
     unsupported: [
-      'material extensions, skinning and morph targets in WebGPU',
+      'material extensions',
       'per-texture transforms, UV channels and sampler modes',
       'environment maps and light probes',
       'contract scene lights with shadow atlas',
-      'indirect draw',
-      'occlusion culling',
-      'temporal occlusion culling',
       'small-triangle compute raster',
       'physical VRAM instrumentation',
       BOUNCE_CAPABILITY,
       ...TAA_CAPABILITIES,
       'sun shadows beyond the last clipmap level',
-      'textured PBR maps',
-      'visibility buffer',
       'direct WebGPU present',
     ],
   }

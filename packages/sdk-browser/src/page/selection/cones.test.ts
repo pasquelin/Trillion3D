@@ -1,65 +1,49 @@
-// A root declares its cones once and for all, and the cut trusts
-// that declaration instead of reading `cone` on each kept cluster. The declaration is therefore
-// a contract, and these three tests hold both ends — who writes it, who reads it.
+// The cone a page is culled by is computed once, at collection (`collectRecords.ts`): the one the
+// compiler cooked on a front-only surface, an open one on a surface seen from its back. No root
+// declares its cones any more: the cut reads `cone` on every page it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts'
+import { collectClusterPages } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
-import type { ClusterRoot } from './types.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
+import { OPEN_CONE, type NormalCone } from '../cone/cone.ts'
 
-/** A fixture whose nearest page carries a cone that looks opposite the camera: honoured, it
- *  rejects it; ignored, it stays. The material is single-sided, without which cone reject has
- *  nothing to say. */
-function fixtureWithCone() {
-  const fixture = blendFixture(G.basicSurface({ side: G.FRONT_SIDE }))
-  const collected = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
+/** A cone that looks opposite the camera: honoured, it rejects its page; open, the page stays. */
+const COOKED: NormalCone = { axis: [0, 0, -1], angle: 0 }
+
+/** What `read` finds of the fixture wearing `material`, its nearest page cooked with `COOKED`. */
+function collectedWith<T>(
+  material: G.GraphSurface,
+  read: (collected: ReturnType<typeof collectClusterPages>) => T,
+) {
+  const fixture = blendFixture(material)
+  ;(fixture.metadata.primitives[0].pages[0] as { cone?: NormalCone }).cone = COOKED
+  const found = read(
+    collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
   )
-  collected.allPages[0].cone = { axis: [0, 0, -1], angle: 0 }
-  return { fixture, ...collected }
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+  return found
 }
 
-function urls(roots: ReadonlyArray<ClusterRoot<PageRec>>) {
-  return selectVisiblePages(roots, engineCamera(camera()), {}).shown.map((page) => page.url)
-}
-
-test('collection declares a root without a cone, which is true of all its pages', () => {
-  const fixture = blendFixture()
-  const { roots, allPages } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
+const cones = (material: G.GraphSurface) =>
+  collectedWith(material, ({ allPages }) => allPages.map((page) => page.cone))
+const shown = (material: G.GraphSurface) =>
+  collectedWith(material, ({ roots }) =>
+    selectVisiblePages(roots, engineCamera(camera()), {}).shown.map((page) => page.url),
   )
-  assert.ok(roots.length > 0)
-  for (const root of roots) assert.equal(root.cones, false)
-  for (const page of allPages) assert.equal(page.cone, undefined)
-  fixture.geometry.dispose()
-  fixture.material.dispose()
+
+test('collection keeps the cooked cone of a front-only surface and opens it on its back', () => {
+  const [near, far] = cones(G.basicSurface({ side: G.FRONT_SIDE }))
+  assert.equal(near, COOKED)
+  assert.equal(far, undefined, 'a page cooked with no cone keeps none')
+  for (const side of [G.DOUBLE_SIDE, G.BACK_SIDE])
+    assert.equal(cones(G.basicSurface({ side }))[0], OPEN_CONE)
 })
 
-test('a root that declares it carries cones rejects by its cone, as before this batch', () => {
-  const { fixture, roots } = fixtureWithCone()
-  // `true` and silence say the same thing: test each page. The second is what a root
-  // without the flag answers, and it is the same answer that must come back.
-  roots[0].cones = true
-  const declare = urls(roots)
-  roots[0].cones = undefined
-  assert.deepEqual(urls(roots), declare)
-  assert.ok(!declare.includes('near'))
-  fixture.geometry.dispose()
-  fixture.material.dispose()
-})
-
-test('a root that declares it has no cone no longer reads `cone`: the cluster is kept', () => {
-  const { fixture, roots } = fixtureWithCone()
-  roots[0].cones = false
-  assert.ok(urls(roots).includes('near'))
-  fixture.geometry.dispose()
-  fixture.material.dispose()
+test('the cut rejects a page by the cone collection gave it, no root declaring it', () => {
+  assert.ok(!shown(G.basicSurface({ side: G.FRONT_SIDE })).includes('near'))
+  assert.ok(shown(G.basicSurface({ side: G.DOUBLE_SIDE })).includes('near'))
 })

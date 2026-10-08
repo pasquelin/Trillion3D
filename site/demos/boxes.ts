@@ -1,10 +1,12 @@
 /** Box and sphere demos: the arithmetic every cluster bound goes through. */
 import {
   BOX_VALUES,
+  axisAngleQuaternion,
   boxConeRejects,
   boxTransform,
   boxUnion,
   composeMatrix4,
+  RAD2DEG,
   sphereFromBounds,
 } from './engine.ts'
 import { formatNumber, slider, valueView, verdictView } from './kit.ts'
@@ -41,11 +43,10 @@ export const BOX_DEMOS: Record<string, DemoDef> = {
     ],
     run(state) {
       const m = new Float64Array(16)
-      const half = state.turn * 0.5
       composeMatrix4(
         m,
         [1, 0, 0],
-        [0, Math.sin(half), 0, Math.cos(half)],
+        axisAngleQuaternion(new Float64Array(4), [0, 1, 0], state.turn),
         [state.scale, state.scale, state.scale],
       )
       const box = new Float64Array([-1, -1, -1, 1, 1, 1])
@@ -93,7 +94,7 @@ export const BOX_DEMOS: Record<string, DemoDef> = {
         ),
         valueView('what the test read', [
           ['cone axis', axis.map(formatNumber).join(', ')],
-          ['half-angle', `${formatNumber((state.angle * 180) / Math.PI)}°`],
+          ['half-angle', `${formatNumber(state.angle * RAD2DEG)}°`],
           ['viewer', `0, 0, ${formatNumber(state.distance)}`],
           ['note', 'an angle at or above π/2 never rejects'],
         ]),

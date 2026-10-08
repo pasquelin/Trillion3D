@@ -1,4 +1,5 @@
 import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * Triangle totals of a frame, held BY THE GPU.
@@ -23,7 +24,10 @@ import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
  * from two global adds per cluster to two per group, sixty-four times fewer contests, for exactly
  * the same numbers.
  */
-export const DAG_TOTALS_WGSL = `var<workgroup> totauxGroupe:array<atomic<u32>,2>;
+export const DAG_TOTALS_WGSL = wgslBlock(
+  'DAG_TOTALS_WGSL',
+  [],
+  `var<workgroup> totauxGroupe:array<atomic<u32>,2>;
 fn ouvreTotaux(lid:u32){
  if(lid<2u){atomicStore(&totauxGroupe[lid],0u);}
  workgroupBarrier();
@@ -46,4 +50,5 @@ fn verseTotaux(lid:u32){
 fn resetTotaux(){
  atomicStore(&out.selectedTriangles,0u);atomicStore(&out.transparentTriangles,0u);
 }
-`
+`,
+)

@@ -146,7 +146,8 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
   const unlit = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size)
   const lit = shadeVisibility(ids, litPages, identityRoots(), engineCamera(cam), size)
   assert.ok(compareImages(unlit, lit).maxChannelError > 0)
-  assert.match(DIRECT_LIGHTING_SHADER, /alpha2\s*\/\s*\(3\.14159265/)
+  assert.match(DIRECT_LIGHTING_SHADER, /alpha2\s*\/\s*\(PI\*/)
+  assert.match(DIRECT_LIGHTING_SHADER, /const PI:f32=3\.14159274;/)
   assert.match(DIRECT_LIGHTING_SHADER, /let Vis=0\.5\/\(gV\+gL\+1e-7\)/)
 
   geometry.dispose()

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Vector3 } from './vector3.ts'
 import { Quaternion } from './quaternion.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
   within(actual, Array.from(expected), 'matrix', 1e-10)
@@ -63,14 +64,14 @@ test('multiplication order changes the position and cardinal rotations orient ea
     [8, 21, 40],
   )
   const fixtures = [
-    [new Matrix4().makeRotationX(Math.PI / 2), [0, 1, 0], [0, 0, 1]],
-    [new Matrix4().makeRotationY(Math.PI / 2), [0, 0, 1], [1, 0, 0]],
-    [new Matrix4().makeRotationZ(Math.PI / 2), [1, 0, 0], [0, 1, 0]],
+    [new Matrix4().makeRotationX(HALF_PI), [0, 1, 0], [0, 0, 1]],
+    [new Matrix4().makeRotationY(HALF_PI), [0, 0, 1], [1, 0, 0]],
+    [new Matrix4().makeRotationZ(HALF_PI), [1, 0, 0], [0, 1, 0]],
   ] as const
   for (const [matrix, point, expected] of fixtures)
     close(new Vector3(...point).applyMatrix4(matrix).toArray(), expected)
   close(
-    new Matrix4().makeRotationAxis({ x: 0, y: 0, z: 7 }, Math.PI / 2).elements,
+    new Matrix4().makeRotationAxis({ x: 0, y: 0, z: 7 }, HALF_PI).elements,
     fixtures[2][0].elements,
   )
   close(

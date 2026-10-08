@@ -1,151 +1,65 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { camera, type CameraParameters } from './index.ts'
+import {
+  drawnView,
+  orthographicProjection,
+  perspectiveProjection,
+} from '../../../../math/src/projection/camera.ts'
 
-/**
- * Cameras pinned across the valid optics (`referenceProjection.ts`), each with the 16 doubles of
- * its reference projection in `elements` order, column by column, written to 17 significant digits
- * so that each reads back as the same double: the numbers this matrix held before it was derived
- * from the view volume. `Object.is` holds them bit for bit, and −0 apart from 0.
- */
-type Pinned = [CameraParameters, number[]][]
-
-// prettier-ignore
-const PERSPECTIVE: Pinned = [
-  [{},
-    [2.1445069205095586, 0, 0, 0, 0, 2.1445069205095586, 0, 0, 0, 0, -1.00010000500025, -1,
-     0, 0, -0.20001000050002499, 0]],
-  [{ fov: 47, aspect: 1.6, near: 0.1, far: 2000 },
-    [1.4374015920226604, 0, 0, 0, 0, 2.2998425472362567, 0, 0, 0, 0, -1.00010000500025, -1,
-     0, 0, -0.20001000050002499, 0]],
-  [{ fov: 47, aspect: 1.6, near: 0.3, far: 900, zoom: 1.5 },
-    [2.1561023880339909, 0, 0, 0, 0, 3.4497638208543853, 0, 0, 0, 0, -1.0006668889629875, -1,
-     0, 0, -0.60020006668889625, 0]],
-  [{ fov: 30, aspect: 1.6, near: 0.3, far: 900, zoom: 1.5 },
-    [3.4987976320958225, 0, 0, 0, 0, 5.5980762113533169, 0, 0, 0, 0, -1.0006668889629875, -1,
-     0, 0, -0.60020006668889625, 0]],
-  [{ fov: 90, aspect: 1, near: 2, far: 50 },
-    [1.0000000000000002, 0, 0, 0, 0, 1.0000000000000002, 0, 0, 0, 0, -1.0833333333333333, -1,
-     0, 0, -4.166666666666667, 0]],
-  [{ fov: 75, aspect: 16 / 9, near: 0.01, far: 1e5 },
-    [0.73306427222317827, 0, 0, 0, 0, 1.3032253728412058, 0, 0, 0, 0, -1.0000002000000199, -1,
-     0, 0, -0.020000002000000201, 0]],
-  [{ fov: 60, aspect: 0.5625, near: 0.5, far: 500, zoom: 0.8 },
-    [2.4633611485424036, 0, 0, 0, 0, 1.3856406460551018, 0, 0, 0, 0, -1.002002002002002, -1,
-     0, 0, -1.0010010010010011, 0]],
-  [{ fov: 1e-3, aspect: 2.35, near: 1, far: 1e9 },
-    [48762.365541810956, 0, 0, 0, 0, 114591.55902325574, 0, 0, 0, 0, -1.0000000019999999, -1,
-     0, 0, -2.0000000020000002, 0]],
-  [{ fov: 179.5, aspect: 1.25, near: 0.001, far: 10 },
-    [0.0034906806565612627, 0, 0, 0, 0, 0.0043633508207015781, 0, 0, 0, 0, -1.000200020002, -1,
-     0, 0, -0.0020002000200020002, 0]],
-  [{ fov: 35.7, aspect: 4 / 3, near: 0.07, far: 0.0700001 },
-    [2.3289917125312676, 0, 0, 0, 0, 3.1053222833750236, 0, 0, 0, 0, -1400001.0001540314, -1,
-     0, 0, -98000.140010782197, 0]],
-  [{ fov: 120, aspect: 3.2, near: 1e-6, far: 1e12 },
-    [0.1804219591217581, 0, 0, 0, 0, 0.57735026918962595, 0, 0, 0, 0, -1, -1,
-     0, 0, -1.9999999999999999e-6, 0]],
-  [{ fov: 22.5, aspect: 1.85, near: 12.5, far: 37.5, zoom: 3.3 },
-    [8.9676866616298909, 0, 0, 0, 0, 16.590220324015299, 0, 0, 0, 0, -2, -1, 0, 0, -37.5, 0]],
-  [{ fov: 45, aspect: 0.1, near: 0.25, far: 1000, zoom: 20 },
-    [482.84271247461902, 0, 0, 0, 0, 48.284271247461902, 0, 0, 0, 0, -1.0005001250312577, -1,
-     0, 0, -0.50012503125781449, 0]],
-  [{ fov: 89.99, aspect: 10, near: 100, far: 1e7, zoom: 0.05 },
-    [0.0050008727407892146, 0, 0, 0, 0, 0.050008727407892146, 0, 0, 0, 0, -1.0000200002000019, -1,
-     0, 0, -200.0020000200002, 0]],
-  [{ fov: 50, aspect: 1.333, near: 1e-4, far: 1e-2, zoom: 7.25 },
-    [11.663672298345313, 0, 0, 0, 0, 15.547675173694302, 0, 0, 0, 0, -1.0202020202020201, -1,
-     0, 0, -0.00020202020202020205, 0]],
-  [{ fov: 10.123456789, aspect: 0.75, near: 3.14159, far: 2718.28, zoom: 1.0001 },
-    [15.054767759114172, 0, 0, 0, 0, 11.29107581933563, 0, 0, 0, 0, -1.0023141288034743, -1,
-     0, 0, -6.2904500439077058, 0]],
-  [{ fov: 170, aspect: 1, near: 0.2, far: 0.20000000000000004 },
-    [0.087488663525923965, 0, 0, 0, 0, 0.087488663525923965, 0, 0, 0, 0, -14411518807585588, -1,
-     0, 0, -2882303761517118, 0]],
-  [{ fov: 65, aspect: 2, near: 1e-30, far: 1e30, zoom: 1e-3 },
-    [0.00078484278855874511, 0, 0, 0, 0, 0.0015696855771174902, 0, 0, 0, 0, -1, -1,
-     0, 0, -1.9999999999999998e-30, 0]],
-  [{ fov: 5, aspect: 21 / 9, near: 7, far: 7000, zoom: 12 },
-    [117.79079424907475, 0, 0, 0, 0, 274.84518658117446, 0, 0, 0, 0, -1.002002002002002, -1,
-     0, 0, -14.014014014014014, 0]],
-  [{ fov: 100, aspect: 0.4, near: 0.15, far: 150.15, zoom: 0.333 },
-    [0.6985504429550855, 0, 0, 0, 0, 0.27942017718203421, 0, 0, 0, 0, -1.002, -1,
-     0, 0, -0.30030000000000001, 0]],
+/** Optics across the valid range (`referenceProjection.ts`): positive finite aspect, zoom, fov in
+ *  (0, 180) and 0 < near < far, the box centred or off its axis, flipped, fitted or not. */
+const PERSPECTIVE: CameraParameters[] = [
+  {},
+  { fov: 47, aspect: 1.6, near: 0.3, far: 900, zoom: 1.5 },
+  { fov: 90, aspect: 1, near: 2, far: 50 },
+  { fov: 1e-3, aspect: 2.35, near: 1, far: 1e9 },
+  { fov: 179.5, aspect: 1.25, near: 0.001, far: 10 },
+  { fov: 65, aspect: 2, near: 1e-30, far: 1e30, zoom: 1e-3 },
+  { fov: 100, aspect: 0.4, near: 0.15, far: 150.15, zoom: 0.333 },
+]
+const ORTHOGRAPHIC: CameraParameters[] = [
+  {},
+  { left: -3, right: 5, top: 2, bottom: -1, near: 0.1, far: 40 },
+  { top: 7.5, bottom: -7.5, near: 0.5, far: 300, zoom: 2.5, aspect: 1.6, fitAspect: true },
+  { left: 0, right: 1920, top: 0, bottom: 1080, near: 0.1, far: 100 },
+  { left: -1e-3, right: 1e-3, top: 1e-3, bottom: -1e-3, near: 1e-5, far: 1e5, zoom: 1e3 },
 ]
 
-// The box centred or off its axis, flipped (y down), fitted to the picture's aspect or not.
-// prettier-ignore
-const ORTHOGRAPHIC: Pinned = [
-  [{},
-    [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -0.001000050002500125, 0, -0, -0, -1.00010000500025, 1]],
-  [{ left: -3, right: 5, top: 2, bottom: -1, near: 0.1, far: 40 },
-    [0.25, 0, 0, 0, 0, 0.66666666666666663, 0, 0, 0, 0, -0.050125313283208024, 0,
-     -0.25, -0.33333333333333331, -1.0050125313283209, 1]],
-  [{ left: -10, right: 10, top: 7.5, bottom: -7.5, near: 0.5, far: 300, zoom: 2.5 },
-    [0.25, 0, 0, 0, 0, 0.33333333333333331, 0, 0, 0, 0, -0.0066777963272120202, 0,
-     -0, -0, -1.003338898163606, 1]],
-  [{ top: 7.5, bottom: -7.5, near: 0.5, far: 300, zoom: 2.5, aspect: 1.6, fitAspect: true },
-    [0.20833333333333331, 0, 0, 0, 0, 0.33333333333333331, 0, 0, 0, 0, -0.0066777963272120202, 0,
-     -0, -0, -1.003338898163606, 1]],
-  [{ left: 12.25, right: 31.75, top: -4.5, bottom: -19.125, near: 1, far: 1000 },
-    [0.10256410256410256, 0, 0, 0, 0, 0.13675213675213677, 0, 0, 0, 0, -0.002002002002002002, 0,
-     -2.2564102564102564, 1.6153846153846156, -1.002002002002002, 1]],
-  [{ left: -1e-3, right: 3e-3, top: 2e-3, bottom: -5e-4, near: 0.01, far: 0.02, zoom: 0.7 },
-    [349.99999999999994, 0, 0, 0, 0, 560, 0, 0, 0, 0, -200, 0,
-     -0.34999999999999998, -0.4200000000000001, -3, 1]],
-  [{ left: -1e4, right: 2.5e4, top: 1e4, bottom: -3e3, near: 10, far: 1e6, zoom: 0.01 },
-    [5.7142857142857139e-7, 0, 0, 0, 0, 1.5384615384615385e-6, 0, 0,
-     0, 0, -2.0000200002000019e-6, 0,
-     -0.0042857142857142851, -0.0053846153846153844, -1.0000200002000019, 1]],
-  [{ left: 3, right: 9, top: 11, bottom: 2, near: 0.2, far: 64, aspect: 2.39, fitAspect: true },
-    [0.092980009298000904, 0, 0, 0, 0, 0.22222222222222221, 0, 0, 0, 0, -0.031347962382445145, 0,
-     -0.55788005578800548, -1.4444444444444444, -1.0062695924764893, 1]],
-  [{ near: 0.05, far: 50.05, zoom: 13.37 },
-    [13.369999999999999, 0, 0, 0, 0, 13.369999999999999, 0, 0, 0, 0, -0.040000000000000001, 0,
-     -0, -0, -1.002, 1]],
-  [{ left: -640, right: 640, top: 360, bottom: -360, near: 1, far: 2 },
-    [0.0015625000000000001, 0, 0, 0, 0, 0.0027777777777777779, 0, 0, 0, 0, -2, 0, -0, -0, -3, 1]],
-  [{ left: 0, right: 1920, top: 0, bottom: 1080, near: 0.1, far: 100 },
-    [0.0010416666666666667, 0, 0, 0, 0, -0.0018518518518518519, 0, 0, 0, 0, -0.02002002002002002, 0,
-     -1, 1, -1.002002002002002, 1]],
-  [{ left: -2.2, right: 1.1, top: 0.9, bottom: -3.3, zoom: 4, aspect: 0.5, fitAspect: true },
-    [3.8095238095238102, 0, 0, 0, 0, 1.9047619047619042, 0, 0, 0, 0, -0.001000050002500125, 0,
-     2.0952380952380958, 2.2857142857142851, -1.00010000500025, 1]],
-  [{ left: -1e-3, right: 1e-3, top: 1e-3, bottom: -1e-3, near: 1e-5, far: 1e5, zoom: 1e3 },
-    [1000000, 0, 0, 0, 0, 1000000, 0, 0, 0, 0, -2.0000000002000002e-5, 0,
-     -0, -0, -1.0000000002000002, 1]],
-  [{ left: 100.1, right: 100.3, top: 50.7, bottom: 50.2, near: 0.001, far: 0.0010000000000000002 },
-    [10.000000000000568, 0, 0, 0, 0, 4, 0, 0, 0, 0, -9.2233720368547758e18, 0,
-     -1002.0000000000568, -201.80000000000001, -9223372036854776, 1]],
-  [{ aspect: 16 / 9, fitAspect: true },
-    [0.5625, 0, 0, 0, 0, 1, 0, 0, 0, 0, -0.001000050002500125, 0, -0, -0, -1.00010000500025, 1]],
-  [{ left: -7.7, right: 3.3, top: 4.4, bottom: -1.1, near: 0.3, far: 30.3, zoom: 0.45, aspect: 3 },
-    [0.081818181818181818, 0, 0, 0, 0, 0.16363636363636364, 0, 0, 0, 0, -0.066666666666666666, 0,
-     0.17999999999999994, -0.27000000000000007, -1.02, 1]],
-]
+/** The engine's own projection of the same optics, composed apart. */
+function engineProjection(eye: ReturnType<typeof camera.perspective>) {
+  const out = new Float64Array(16)
+  if (eye.projection === 'perspective')
+    return perspectiveProjection(out, eye.fov, eye.aspect, eye.near, eye.zoom)
+  const [x, y, w, h] = drawnView(eye, eye.aspect, eye.zoom)
+  return orthographicProjection(out, x - w, x + w, y - h, y + h, eye.near, eye.far)
+}
 
-/** The entries of `elements` that are not the very doubles `expected` lists, −0 written out. */
-const show = (x: number) => (Object.is(x, -0) ? '-0' : `${x}`)
-const differing = (elements: ArrayLike<number>, expected: number[]) =>
-  expected.flatMap((value, i) =>
-    Object.is(elements[i], value) ? [] : [`[${i}] ${show(elements[i])}, not ${show(value)}`],
-  )
+/** Clip depth over clip w of the view point `(0, 0, z)`. */
+const depthAt = (m: ArrayLike<number>, z: number) => (m[10] * z + m[14]) / (m[11] * z + m[15])
 
-for (const [projection, pinned] of [
+for (const [projection, all] of [
   ['perspective', PERSPECTIVE],
   ['orthographic', ORTHOGRAPHIC],
 ] as const)
-  test(`a pinned ${projection} camera composes the very doubles, fresh or rewritten in place`, () => {
-    for (const [optics, expected] of pinned) {
+  test(`a ${projection} camera composes the engine's projection, fresh or rewritten in place`, () => {
+    for (const optics of all) {
       const fresh = camera[projection](optics)
       // The same optics written after a first read recompose the matrix read, in place.
       const written = camera[projection]()
       const matrix = written.projectionMatrix
       Object.assign(written, optics)
       assert.equal(written.projectionMatrix, matrix)
-      for (const eye of [fresh, written]) {
-        const wrong = differing(eye.projectionMatrix.elements, expected)
-        assert.deepEqual(wrong, [], JSON.stringify(optics))
-      }
+      for (const eye of [fresh, written])
+        assert.deepEqual([...eye.projectionMatrix.elements], [...engineProjection(eye)])
     }
   })
+
+test('the depth is reversed onto [0, 1]: 1 on the near plane, 0 at the far end', () => {
+  const lens = camera.perspective({ near: 0.5, far: 80 }).projectionMatrix.elements
+  assert.ok(Math.abs(depthAt(lens, -0.5) - 1) < 1e-12, 'the near plane')
+  assert.ok(depthAt(lens, -1e12) < 1e-12 && depthAt(lens, -1e12) > 0, 'infinity, never reached')
+  const box = camera.orthographic({ near: 0.5, far: 80 }).projectionMatrix.elements
+  assert.ok(Math.abs(depthAt(box, -0.5) - 1) < 1e-12, 'the near plane')
+  assert.ok(Math.abs(depthAt(box, -80)) < 1e-12, 'the far plane')
+})

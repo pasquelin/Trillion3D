@@ -73,7 +73,7 @@ export function world(
   return { cells, links, root, core, bytes, node, files }
 }
 
-/** Reads a cell file into its rows on this thread, by the decode pool's own task. */
+/** Reads a cell file into its rows on this thread, by the page worker pool's own task. */
 export const decodeHere = async (bytes: Uint8Array, url?: string) =>
   cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer, url))
 
@@ -138,7 +138,7 @@ export function io(bytes: (url: string) => Uint8Array) {
     bytes: (url) => (page(url) || held.has(url) ? bytes(url) : undefined),
     decode: decodeHere,
     decodePage: async (read, url) => readCellPage(read, url),
-    loading: () => false,
+    failed: () => false,
     request: (urls) => void asked.push(...urls),
     admit: (pages) => void admitted.push(...pages),
     forget: (urls) => void forgotten.push(...urls),

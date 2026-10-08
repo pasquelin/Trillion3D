@@ -1,35 +1,100 @@
-import { mathBatchMetrics } from '../../math/batchState.ts'
+import { mathBatchMetrics } from '../../page/decode/batch/batchState.ts'
 import { pageIntegrationStats } from '../../page/integration/host.ts'
-import { pageDecodeStats } from '../../page/decode/host.ts'
+import { pageWorkStats } from '../../page/work/host.ts'
 import { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
-import { BACKEND_METRIC_KEYS } from '../../diagnostic/metricKeys.ts'
+import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import { ENGINE_METRIC_KEYS, type EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 
 type State = () => {
   loaded: number
   pageBytesRead: number
   streamingError: string | null
-  /** Bytes of the effect chain's targets on the host context (`../render/compose.ts`). */
-  effectBytes: number
-  /** The size the host's composer drew the image at (`../render/renderScale.ts`), `null` where
-   *  it draws none. */
-  renderSize: readonly [number, number] | null
-  /** The last image the host's WebGL2 timer read (`../render/draw.ts`). */
-  gpu: { frameMs: number | null; passes: FrameMetrics['gpuPassMs'] }
 }
 
 /** Copies an engine measurement into the host sample: `null` when that engine does not hold it. */
-function publishMetric<K extends (typeof BACKEND_METRIC_KEYS)[number]>(
+function publishMetric<K extends (typeof ENGINE_METRIC_KEYS)[number]>(
   into: FrameMetrics,
-  from: FrameMetrics,
+  from: EngineMetrics,
   key: K,
 ) {
   into[key] = (from[key] ?? null) as FrameMetrics[K]
 }
 
+/** The host sample before any frame: every measurement `null` — not held —, none zero but the
+ *  frame time and the counts the open carries in. */
+const UNMEASURED: FrameMetrics = {
+  rafIntervalMs: null,
+  displayRefreshMs: null,
+  cpuFrameMs: 0,
+  cpuSelectNodesTested: null,
+  cpuSubmitMs: null,
+  drawCalls: null,
+  triangles: null,
+  clusters: null,
+  selectedTriangles: null,
+  residentPages: null,
+  geometryAllocationBytes: null,
+  vramBytes: null,
+  pageLoads: 0,
+  pageBytesRead: 0,
+  pagesDetached: null,
+  cacheEvictions: null,
+  hizCountedFrame: null,
+  hizTestedClusters: null,
+  hizRejectedClusters: null,
+  hizOversizedClusters: null,
+  hizTestedTriangles: null,
+  hizRejectedTriangles: null,
+  hizOversizedTriangles: null,
+  gpuPassMs: null,
+  gpuFrameMs: null,
+  gpuHostGapMs: null,
+  gpuIdleMs: null, // device idle between two images (#1451)
+  gpuDeviceLost: null,
+  uncoveredTriangles: null,
+  drawnTriangles: null,
+  lightsActive: null,
+  lightsSampled: null,
+  shadowVsmLights: null,
+  shadowVsmMaps: null,
+  shadowVsmPagesRequested: null,
+  shadowVsmPagesAllocated: null,
+  shadowVsmPagesCached: null,
+  shadowVsmPagesRendered: null,
+  shadowVsmFreePages: null,
+  shadowVsmLodBias: null,
+  shadowVsmProjectionPasses: null,
+  shadowVsmInvalidationMs: null,
+  shadowVsmMarkingMs: null,
+  shadowVsmPageManagementMs: null,
+  shadowVsmRenderMs: null,
+  shadowVsmProjectionMs: null,
+  shadowVsmTransmissionMs: null,
+  shadowPoolBytes: null,
+  shadowResolutionBias: null,
+  tileLightPoolReserved: null,
+  tileLightPoolCapacity: null,
+  tileLightPoolOverflowed: null,
+  tileLightPoolGrowths: null,
+  gpuLightListsMs: null,
+  gpuShadowsMs: null,
+  gpuShadowCullMs: null,
+  gpuShadowRasterMs: null,
+  gpuLightingMs: null,
+  texturePoolBytes: null,
+  texturePoolFormat: null,
+  textureResidentBytes: null,
+  textureBytesLastFrame: null,
+  pagesChecked: null,
+  pageCheckMs: null,
+  mathBatch: null,
+}
+
+/** The host sample of `engine`'s frames: `fillMetrics` copies the last frame's into it. */
 export function createExplorerMetrics(
+  engine: Engine,
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
   streamer: ReturnType<typeof createPageStreamer>,
@@ -37,132 +102,42 @@ export function createExplorerMetrics(
   pageBytesRead: number,
   state: State,
 ) {
-  const metricsScratch: FrameMetrics = {
-    rafIntervalMs: null,
-    displayRefreshMs: null,
-    cpuFrameMs: 0,
-    cpuSelectMs: null,
-    cpuSelectNodesTested: null,
-    cpuSubmitMs: null,
-    drawCalls: null,
-    triangles: null,
-    clusters: null,
-    selectedTriangles: null,
-    residentPages: null,
-    geometryAllocationBytes: null,
-    vramBytes: null,
-    pageLoads: loaded,
-    pageBytesRead,
-    pagesDetached: null,
-    cacheEvictions: null,
-    hizCountedFrame: null,
-    hizTestedClusters: null,
-    hizRejectedClusters: null,
-    hizOversizedClusters: null,
-    hizTestedTriangles: null,
-    hizRejectedTriangles: null,
-    hizOversizedTriangles: null,
-    gpuPassMs: null,
-    gpuFrameMs: null,
-    gpuHostGapMs: null,
-    gpuIdleMs: null, // device idle between two images
-    gpuDeviceLost: null,
-    uncoveredTriangles: null,
-    drawnTriangles: null,
-    lightsActive: null,
-    lightsSampled: null,
-    shadowVsmLights: null,
-    shadowVsmMaps: null,
-    shadowVsmPagesRequested: null,
-    shadowVsmPagesAllocated: null,
-    shadowVsmPagesCached: null,
-    shadowVsmPagesRendered: null,
-    shadowVsmFreePages: null,
-    shadowVsmLodBias: null,
-    shadowVsmProjectionPasses: null,
-    shadowVsmInvalidationMs: null,
-    shadowVsmMarkingMs: null,
-    shadowVsmPageManagementMs: null,
-    shadowVsmRenderMs: null,
-    shadowVsmProjectionMs: null,
-    shadowVsmTransmissionMs: null,
-    shadowPoolBytes: null,
-    shadowResolutionBias: null,
-    tileLightPoolReserved: null,
-    tileLightPoolCapacity: null,
-    tileLightPoolOverflowed: null,
-    tileLightPoolGrowths: null,
-    gpuLightListsMs: null,
-    gpuShadowsMs: null,
-    gpuShadowCullMs: null,
-    gpuShadowRasterMs: null,
-    gpuLightingMs: null,
-    texturePoolBytes: null,
-    texturePoolFormat: null,
-    textureResidentBytes: null,
-    textureBytesLastFrame: null,
-    pagesDecodedOffThread: null,
-    pagesDecodedWasm: null,
-    pageDecodeMs: null,
-    mathBatch: null,
-  }
+  const metricsScratch: FrameMetrics = { ...UNMEASURED, pageLoads: loaded, pageBytesRead }
   const profiler = new EngineProfiler()
   profiler.setMetadata(metadata)
   if (options.logInterval && options.logInterval > 0) profiler.startAutoLog(options.logInterval)
-  const fillMetrics = (backend: RenderBackend) => {
-    const { loaded, pageBytesRead, streamingError, effectBytes, gpu, renderSize } = state()
-    const backendMetrics = backend.metrics() as FrameMetrics
+  const fillMetrics = () => {
+    const { loaded, pageBytesRead, streamingError } = state()
+    const published = engine.metrics()
     const stream = streamer.stats()
     // Every measurement the engine publishes as-is, in contract order: `null` means "not
     // held by this engine", never "zero". The held-frame flag is part of that — without this
     // copy, `explorer.render()` published `null` while the engine had in fact held the frame.
-    for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key)
-    // The display's cadence of an engine whose scale the host ticks (WebGL2, `../render/draw.ts`):
-    // the same clock WebGPU publishes from inside (`../../webgpu/pages/io/metrics.ts`).
-    const scale = backend.renderScaleControl
-    if (scale) {
-      metricsScratch.rafIntervalMs = scale.frameIntervalMs
-      metricsScratch.displayRefreshMs = scale.refreshMs
-    }
-    // An engine the host composes (WebGL2): the size the composer drew its image at.
-    if (metricsScratch.renderWidth === null && renderSize) {
-      metricsScratch.renderWidth = renderSize[0]
-      metricsScratch.renderHeight = renderSize[1]
-    }
-    // An engine that times no pass of its own: the image the host's WebGL2 timer read.
-    if (metricsScratch.gpuPassMs === null && gpu.passes) {
-      metricsScratch.gpuPassMs = gpu.passes
-      metricsScratch.gpuFrameMs = gpu.frameMs
-    }
-    // The chain the host composes holds targets of its own: they count with the frame's.
-    if (effectBytes)
-      metricsScratch.gpuFrameTargetBytes = (metricsScratch.gpuFrameTargetBytes ?? 0) + effectBytes
+    for (const key of ENGINE_METRIC_KEYS) publishMetric(metricsScratch, published, key)
     metricsScratch.streamingError = streamingError
-    metricsScratch.clusters = backendMetrics.clusters
-    metricsScratch.selectedTriangles = backendMetrics.selectedTriangles
-    metricsScratch.residentPages = backendMetrics.residentPages
-    metricsScratch.geometryAllocationBytes = backendMetrics.geometryAllocationBytes
-    metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions
+    metricsScratch.clusters = published.clusters
+    metricsScratch.selectedTriangles = published.selectedTriangles
+    metricsScratch.residentPages = published.residentPages
+    metricsScratch.geometryAllocationBytes = published.geometryAllocationBytes
+    metricsScratch.cacheEvictions = published.cacheEvictions ?? stream.evictions
     // A composed total exists only if each of its parts is counted: an engine that does not
     // count its transparent pass leaves the total at `null`, otherwise the opaque pass alone
     // would pass for the exact count of the frame.
     metricsScratch.totalSubmittedTriangles =
-      backendMetrics.totalSubmittedTriangles ??
-      (backendMetrics.submittedTriangles == null ||
-      backendMetrics.transparentSubmittedTriangles == null
+      published.totalSubmittedTriangles ??
+      (published.submittedTriangles == null || published.transparentSubmittedTriangles == null
         ? null
-        : backendMetrics.submittedTriangles + backendMetrics.transparentSubmittedTriangles)
+        : published.submittedTriangles + published.transparentSubmittedTriangles)
     metricsScratch.pageLoads = stream.loaded || loaded
     metricsScratch.pageBytesRead = stream.bytesRead || pageBytesRead
     metricsScratch.pagesRequested = stream.requested
     metricsScratch.pagesLoading = stream.loading
     metricsScratch.cacheHits = stream.hits
     metricsScratch.cacheMisses = stream.misses
-    metricsScratch.drawCalls = backendMetrics.drawCalls ?? null
-    const decode = pageDecodeStats()
-    metricsScratch.pagesDecodedOffThread = decode.offThread
-    metricsScratch.pagesDecodedWasm = decode.wasm
-    metricsScratch.pageDecodeMs = decode.decodeMs
+    metricsScratch.drawCalls = published.drawCalls
+    const work = pageWorkStats()
+    metricsScratch.pagesChecked = work.checked
+    metricsScratch.pageCheckMs = work.checkMs
     metricsScratch.mathBatch = mathBatchMetrics()
     const integration = pageIntegrationStats()
     metricsScratch.pagesPlannedOffThread = integration.offThread

@@ -2,7 +2,7 @@
 // bounds the engine gives them.
 import * as G from '../host/graph/graph.fixture.ts'
 import type { HizPage } from './types.ts'
-import { splitOccludersInto } from './split.ts'
+import { splitOccludersInto } from './split.fixture.ts'
 import { cameraAt, projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'

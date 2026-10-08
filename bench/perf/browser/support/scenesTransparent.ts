@@ -5,6 +5,7 @@
 import * as THREE from 'three'
 import { GraphSurface } from '../../../../packages/sdk-browser/src/host/graph/surface.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
+import { uniformStride } from '../../../../packages/sdk-browser/src/residency/pools.ts'
 import {
   createWebgpuBlendState,
   type BlendGpuItem,
@@ -149,7 +150,7 @@ export function benchSide(side: THREE.Side) {
       k % 2 ? CLUSTERS : (k >> 1) * CLUSTERS,
     ),
   } as BlendState['table']
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   return {
     blendState,
@@ -175,6 +176,4 @@ export function pose(state: BenchSide, image: Frame) {
   state.blendState.blendPlanes.set(image.planes)
   state.scene.itemCounts = image.counts
   state.scene.instances = image.instances
-  state.blendState.cpuItemCounts = image.counts
-  state.blendState.cpuInstances = image.instances
 }

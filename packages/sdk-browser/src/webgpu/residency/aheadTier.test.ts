@@ -5,9 +5,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
-import { createLowerMerge, createLowerTier } from './lowerTier.ts'
+import { createLowerPass, createLowerTier } from './lowerTier.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, lowerPassOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
 function banc(slots: number, visible: string[], ahead: string[]) {
@@ -64,19 +64,20 @@ test('the tier ahead holds tables for its last report only', () => {
 
 test('the jobs between two reports read one merged list, remade only after a report', () => {
   const b = banc(8, [], ['a0', 'a1', 'a2'])
-  const merge = createLowerMerge(b.tracking.keyOf)
+  // The ensurer's lower pass reads its merged list: the tiers it is given, through the keys.
+  const lower = createLowerPass(lowerPassOptions(b.tracking, b.cache, () => [b.tier]))
   b.offerAhead(2)
-  const first = merge([b.tier])
+  const first = lower.list()
   assert.deepEqual(
     first.map((page) => page.url),
     ['a0', 'a1'],
   )
   const copy = [...first]
-  assert.equal(merge([b.tier]), first, 'no report since: the same list, not rebuilt')
+  assert.equal(lower.list(), first, 'no report since: the same list, not rebuilt')
   assert.deepEqual(first, copy)
   b.offerAhead(3)
   assert.deepEqual(
-    merge([b.tier]).map((page) => page.url),
+    lower.list().map((page) => page.url),
     ['a0', 'a1', 'a2'],
     'a report remakes it',
   )
@@ -93,6 +94,7 @@ test('after a stop, the pending set drains to full detail', async () => {
     getFrame: () => 0,
     updatePins() {},
     closure: {} as never,
+    recordOf: () => undefined,
     ensureResident: b.ensure,
     markLost() {},
     traceEnabled: false,
@@ -102,14 +104,14 @@ test('after a stop, the pending set drains to full detail', async () => {
   // Moving: one page on screen, six ahead, all admitted.
   b.offerAhead(6)
   b.want(b.camera.slice(0, 1))
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   await queue.pending
   assert.equal(b.cache.resident.size, 7)
   // Stopped: the readback asks for nothing ahead, and the full-detail cut for both pages.
   const moving = b.order.length
   b.offerAhead(0)
   b.want(b.camera)
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   await queue.pending
   assert.equal(queue.busy, false, 'nothing left queued')
   for (const page of b.camera) assert.ok(b.cache.pins.has(page.url), `${page.url} resident`)

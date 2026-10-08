@@ -27,8 +27,7 @@ const CPU_STAGES = [
 
 /**
  * Each CPU stage of the engine's step window, in the order of `CPU_STAGES`: the sum of its steps'
- * medians, a stage none of whose steps ran left out. `null` from an engine with no step window
- * (WebGL2).
+ * medians, a stage none of whose steps ran left out. `null` from an engine with no step window.
  */
 function cpuStages(engine: CpuSteps | null): [string, number][] | null {
   if (!engine) return null

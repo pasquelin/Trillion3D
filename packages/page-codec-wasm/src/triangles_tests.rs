@@ -4,6 +4,8 @@
 
 use super::*;
 use crate::bits::stream_words;
+use trillion3d_math::random::xorshift32 as xorshift;
+use trillion3d_math::GOLDEN_32;
 
 /// The words of the block table then of the corner stream that code `indices`, and their code.
 fn coded(indices: &[u32], vertex_count: usize) -> (CornerCode, Vec<u32>) {
@@ -16,12 +18,6 @@ fn coded(indices: &[u32], vertex_count: usize) -> (CornerCode, Vec<u32>) {
 
 fn bytes(words: &[u32]) -> Vec<u8> {
     words.iter().flat_map(|w| w.to_le_bytes()).collect()
-}
-fn xorshift(state: &mut u32) -> u32 {
-    *state ^= *state << 13;
-    *state ^= *state >> 17;
-    *state ^= *state << 5;
-    *state
 }
 
 /// `indices` coded then decoded against a page of `vertex_count` vertices.
@@ -55,7 +51,7 @@ fn page(state: &mut u32, corners: usize) -> Vec<u32> {
 
 #[test]
 fn ten_thousand_random_pages_decode_to_the_same_corners() {
-    let mut state = 0x9E37_79B9;
+    let mut state = GOLDEN_32;
     for _ in 0..10_000 {
         let corners = 3 + 3 * (xorshift(&mut state) as usize % 300);
         let indices = page(&mut state, corners);

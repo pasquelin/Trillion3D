@@ -19,6 +19,7 @@
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { Stretch } from './boxes.ts'
 import { KEEP } from './plan.ts'
+import { SQRT3 } from '../../../math/src/constants.ts'
 
 /** The rounding a recomposed world matrix carries, far above a double's and far below any scale a
  *  page sets: a parent turned and moved back asks no wider rung. */
@@ -33,10 +34,7 @@ export function heldSide(reach: number, cube: number, stretch: ReadonlyMap<numbe
   for (const [least, most] of stretch.values()) {
     const low = least * (1 - SLACK),
       high = most * (1 + SLACK)
-    side = Math.max(
-      side,
-      low > 0 ? (2 * (keep + Math.sqrt(3) * high * (cube / 2))) / low : Infinity,
-    )
+    side = Math.max(side, low > 0 ? (2 * (keep + SQRT3 * high * (cube / 2))) / low : Infinity)
   }
   return side
 }

@@ -8,6 +8,7 @@ export {
   emptyIrradiance,
   SCENE_ENVIRONMENT_FLOATS,
   TONE_MAPPING_RANK,
+  validateSceneEnvironment,
 } from '../../sdk-core/src/scene/core/environment.ts'
 export type {
   SceneEnvironment,
@@ -58,10 +59,10 @@ export {
   DEPTH_LAYER_BIAS_UNITS,
   depthLayerUnits,
   MAX_DEPTH_LAYER,
+  TRANSPARENT_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts'
 export {
   drawsImpostor,
-  IMPOSTOR_PI,
   impostorRadius,
   impostorSwitchDepth,
   impostorSwitchOf,

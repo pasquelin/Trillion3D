@@ -1,0 +1,33 @@
+import { FLOAT32_MAX } from '../constants.ts'
+
+/**
+ * A WGSL float literal naming the single-precision value nearest `value`, the one the processor
+ * holds after `Math.fround`, so the shader and TypeScript read the same number to the bit. It is
+ * written with the nine significant digits that name one `f32` and no other: a double printed with
+ * more digits is not safer, one printed at twelve fell just under the midpoint of two neighbours
+ * and parsed one ulp away. Two cases keep the exact value instead: the greatest `f32`, whose nine
+ * digits round past it and make a device refuse the module (it reads a literal against the finite
+ * range before rounding), and `-0`, whose sign nine digits drop. A number with no `f32` (NaN, an
+ * infinity, a magnitude past the greatest) is refused: WGSL has no literal for it.
+ */
+export function wgslF32(value: number) {
+  const single = Math.fround(value)
+  if (!Number.isFinite(single)) throw new RangeError(`no f32 literal for ${value}`)
+  if (Object.is(single, -0)) return '-0.00000000'
+  let text = single.toPrecision(9)
+  if (Math.abs(Number(text)) > FLOAT32_MAX) text = String(single)
+  return text.includes('.') || text.includes('e') ? text : `${text}.0`
+}
+
+/** `m`, a 3×3 matrix of nine numbers column after column, as a WGSL `mat3x3f`: one `vec3f` a
+ *  column, each entry its `f32` literal (`wgslF32`). */
+export const wgslMatrix3 = (m: readonly number[]) =>
+  `mat3x3f(${[0, 3, 6]
+    .map(
+      (at) =>
+        `vec3f(${m
+          .slice(at, at + 3)
+          .map(wgslF32)
+          .join(',')})`,
+    )
+    .join(',')})`

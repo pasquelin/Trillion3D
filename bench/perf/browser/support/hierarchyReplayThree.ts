@@ -12,15 +12,11 @@
 import * as THREE from 'three'
 import type { CameraSpec, HierarchyOp } from './hierarchyScenarios.ts'
 
-const systeme = (webgpu: boolean) =>
-  webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem
-
 /**
- * Three's projection carried into the engine convention: REVERSED depth, INFINITE far plane
- * (`depthConvention.ts`). Only the depth row changes — `m10 = 0`, `m14 = near`, that is
- * `ndc = near / distance` — and it is the same whichever clip convention is declared:
- * `makePerspective` only varies those two terms. Everything else stays the Three witness
- * bit-exact: field of view, aspect, zoom and the perspective column.
+ * Three's `[0, 1]` projection carried into the engine convention: REVERSED depth, INFINITE far
+ * plane (`depthConvention.ts`). Only the depth row changes — `m10 = 0`, `m14 = near`, that is
+ * `ndc = near / distance`. Everything else stays the Three witness bit-exact: field of view,
+ * aspect, zoom and the perspective column.
  */
 function engineProjection(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
   out.copy(camera.projectionMatrix)
@@ -51,7 +47,7 @@ const CAMERA_KEYS = ['fov', 'aspect', 'near', 'far', 'zoom'] as const
 
 function regleCameraThree(camera: THREE.PerspectiveCamera, spec: CameraSpec) {
   for (const key of CAMERA_KEYS) if (key in spec) camera[key] = spec[key]
-  camera.coordinateSystem = systeme(spec.webgpu)
+  camera.coordinateSystem = THREE.WebGPUCoordinateSystem
   camera.updateProjectionMatrix()
 }
 

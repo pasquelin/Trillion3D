@@ -1,7 +1,7 @@
 /**
  * The Hi-Z references the tests and the pyramid bench hold the engine to: a nested-array pyramid,
- * its footprint read, the flat pyramid's footprint read and the occlusion verdict. The engine
- * builds `pyramidFlat.ts`'s pyramid and decides with `sdk-browser/src/hiz/hides.ts`.
+ * its footprint read, the flat pyramid's footprint read and the occlusion verdict. The CPU oracle
+ * builds `pyramidFlat.ts`'s pyramid and decides with `bench/oracles/browser/hizHides.ts`.
  */
 import { HIZ_NOTHING, type HizFlat } from './pyramidFlat.ts'
 

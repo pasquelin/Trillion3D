@@ -1,17 +1,19 @@
-//! Block compression of a baked level, at cook time: the BC family for the
-//! desktop graphics cards, ASTC 4 × 4 for the mobile ones, one byte per texel
-//! either way against four for RGBA8. Both are lossy, and a lossy texel is a
-//! visible one: every chain is read back through an independent decoder and
-//! measured against its source (`quality.rs`), and a chain under the bar stays
-//! lossless. What the sidecar and the level files carry is what the gate kept.
+//! Block compression of a baked level, at cook time, in the three families a
+//! WebGPU adapter may sample: BC for the desktop graphics cards, ASTC 4 × 4 and
+//! ETC2 for the mobile ones, one byte per texel in each against four for RGBA8.
+//! All are lossy, and a lossy texel is a visible one: every chain is read back
+//! through an independent decoder and measured against its source
+//! (`quality.rs`), and a chain under the bar stays lossless. What the sidecar
+//! and the level files carry is what the gate kept.
 //!
 //! A family writes two layouts: RGBA (BC7 mode 6, ASTC colour endpoint mode
-//! 12) for colour and smooth data maps, and TWO CHANNELS (BC5, ASTC luminance
-//! and alpha on two weight planes) for a normal map, whose X and Y vary in
-//! directions of their own that one RGBA segment cannot hold; the shader
-//! rebuilds Z. A level is cut into 4 × 4 blocks, row-major, sixteen bytes each;
-//! a side that is not a multiple of four is padded by repeating its edge, and
-//! the padded blocks are part of the level's bytes — WebGPU copies whole blocks.
+//! 12, ETC2 RGBA8) for colour and smooth data maps, and TWO CHANNELS (BC5, ASTC
+//! luminance and alpha on two weight planes, EAC RG11) for a normal map, whose
+//! X and Y vary in directions of their own that one RGBA segment cannot hold;
+//! the shader rebuilds Z. A level is cut into 4 × 4 blocks, row-major, sixteen
+//! bytes each; a side that is not a multiple of four is padded by repeating its
+//! edge, and the padded blocks are part of the level's bytes — WebGPU copies
+//! whole blocks.
 use rayon::prelude::*;
 
 mod astc;
@@ -20,31 +22,40 @@ mod bc5;
 mod bc7;
 mod channel;
 pub mod decode;
+mod eac;
+mod etc2;
+mod etc2_planar;
 mod fit;
 mod ise;
 pub mod quality;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_etc2;
+#[cfg(test)]
 mod tests_two_channel;
 
 /// Bytes of one compressed block, in every format.
 pub const BLOCK_BYTES: usize = 16;
 
-/// The two families a cook can write, in the order the sidecar columns carry
-/// them. A family is named by its RGBA codec — `bc7`, `astc` — on the command
-/// line, in the manifest and in the engine's choice.
+/// The families a cook can write, in the order the sidecar columns carry
+/// them. A family is named by its RGBA codec — `bc7`, `astc`, `etc2` — on the
+/// command line, in the manifest and in the engine's choice.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BlockFormat {
     Bc7,
     Astc,
+    Etc2,
 }
+/// How many families there are: the block columns, layout words and tails of an entry.
+pub const FAMILIES: usize = BlockFormat::ALL.len();
 impl BlockFormat {
-    pub const ALL: [BlockFormat; 2] = [BlockFormat::Bc7, BlockFormat::Astc];
+    pub const ALL: [BlockFormat; 3] = [BlockFormat::Bc7, BlockFormat::Astc, BlockFormat::Etc2];
     pub fn name(self) -> &'static str {
         match self {
             Self::Bc7 => "bc7",
             Self::Astc => "astc",
+            Self::Etc2 => "etc2",
         }
     }
     pub fn named(name: &str) -> Option<Self> {
@@ -63,6 +74,8 @@ impl BlockFormat {
             (Self::Bc7, Layout::TwoChannel) => "bc5",
             (Self::Astc, Layout::Rgba) => "astc",
             (Self::Astc, Layout::TwoChannel) => "astc-la",
+            (Self::Etc2, Layout::Rgba) => "etc2",
+            (Self::Etc2, Layout::TwoChannel) => "eac-rg",
         }
     }
 }
@@ -134,6 +147,14 @@ pub fn encode_level(
             (BlockFormat::Astc, Layout::Rgba) => astc::encode(texels, fit::segment(texels)),
             (BlockFormat::Bc7, Layout::TwoChannel) => bc5::encode(texels),
             (BlockFormat::Astc, Layout::TwoChannel) => astc_la::encode(texels),
+            (BlockFormat::Etc2, Layout::Rgba) => etc2::encode(texels),
+            (BlockFormat::Etc2, Layout::TwoChannel) => {
+                let [x, y] = [0, 1].map(|channel| eac::encode(texels, channel));
+                let mut block = [0u8; 16];
+                block[..8].copy_from_slice(&x);
+                block[8..].copy_from_slice(&y);
+                block
+            }
         }
     };
     let row = |by: usize, out: &mut [u8]| {

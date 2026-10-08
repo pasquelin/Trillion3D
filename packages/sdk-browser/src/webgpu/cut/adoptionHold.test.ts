@@ -67,7 +67,7 @@ test('a shown list already held does not remake the drawable list, and yields th
   assert.deepEqual(b.shown, contenu, 'the list stayed that of the shown list')
 })
 
-test('a new shown list remakes the list, and invalidation forgets the one that was held', () => {
+test('a new shown list remakes the list, and the one held before comes back whole', () => {
   const b = banc([0, 1, 2, 3, 4])
   assert.equal(b.adopter.adopt(), true)
   const attendu = [...b.shown]
@@ -80,16 +80,10 @@ test('a new shown list remakes the list, and invalidation forgets the one that w
   assert.deepEqual(b.drawn, b.shown)
   assert.equal(b.adopter.metrics.drawnTriangles, 4 + 2)
 
-  // After a CPU cut, the arrays no longer come from the shown list: it must be forgotten.
+  // The first readback again: its whole list is remade, not the difference alone.
   b.montre(b.cut)
   assert.equal(b.adopter.adopt(), true)
   assert.deepEqual(b.shown, attendu)
-  // Forgetting the shown list does not drop the difference: whoever wrote these lists published
-  // it through it. Only the shown-list identity falls, so the displayed list is remade in full.
-  b.adopter.forgetReadback()
-  b.shown.length = 0
-  assert.equal(b.adopter.adopt(), true)
-  assert.deepEqual(b.shown, attendu, 'the forgotten shown list is reread in full')
 })
 
 test('a NEW shown list that republishes the same ids rewrites nothing', () => {
@@ -125,5 +119,29 @@ test('a drawable sequence that would repeat an id displays it only once', () => 
   assert.deepEqual(
     b.shown.map((page) => page.url),
     ['p0', 'p1'],
+  )
+})
+
+// #1483: a list the device could not grow is read by its head, while the frame's mask draws the
+// whole cut: a page past the head has not left it, so a truncated readout enters pages, never
+// makes one exit.
+test('a truncated readout names its head and keeps every page held past it', () => {
+  const b = banc([0, 1, 2, 3, 4])
+  assert.equal(b.adopter.adopt(), true)
+  const head = readback([4, 0], b.cut.uniforms)
+  b.montre({ ...head, result: { ...head.result, truncated: true } })
+  assert.equal(b.adopter.adopt(), true)
+  assert.deepEqual(
+    b.shown.map((page) => page.url),
+    ['p4', 'p0', 'p1', 'p2', 'p3'],
+    'the head first, then what was held past it, in its order',
+  )
+  assert.equal(b.delta.exitedCount, 0, 'no page left the asked cut')
+  // A whole readout after it is a difference as any other.
+  b.montre(readback([4, 0], b.cut.uniforms))
+  assert.equal(b.adopter.adopt(), true)
+  assert.deepEqual(
+    b.shown.map((page) => page.url),
+    ['p4', 'p0'],
   )
 })

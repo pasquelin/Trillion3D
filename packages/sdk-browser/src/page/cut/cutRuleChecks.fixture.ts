@@ -1,16 +1,17 @@
 /**
  * The invariants the cut rule's tests check on one frame of a synthetic DAG (`cutRule.fixture.ts`),
  * whatever backend drew it (`cutRuleBackends.fixture.ts`): every leaf covered exactly once, by the
- * cluster the cut wants or its nearest ancestor the rule's residency holds.
+ * cluster the cut wants or its nearest ancestor the rule's residency holds (#483 rule 1).
  */
 import assert from 'node:assert/strict'
 import { coverFault, type RuleDag } from './cutRule.fixture.ts'
 import type { CutBackend } from './cutRuleBackends.fixture.ts'
 import { createCutReadiness } from './readiness.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-/** The cut drawn at full residency on `ruleDag(256)` with the view-bounded tables, on every
- *  backend alike: its size and the FNV-1a hash of its sorted page list, per
- *  threshold. */
+/** The cut `develop` drew at full residency on `ruleDag(256)` before the view-bounded tables
+ *  (b114cd29b): its size and the FNV-1a hash of its sorted page list, per
+ *  threshold (#483 rule 2). */
 export const DEVELOP_FULL_CUT: Record<number, string> = {
   0.05: '93:35de1ee8',
   0.1: '56:7db7dfa7',
@@ -18,11 +19,8 @@ export const DEVELOP_FULL_CUT: Record<number, string> = {
   1: '14:701c5fb6',
 }
 
-/** A reproducible sequence in [0, 1). */
-export function random(seed: number) {
-  let s = seed >>> 0
-  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32
-}
+/** A reproducible sequence in [0, 1): the lcg32 sequence of the maths package. */
+export const random = lcgRandom
 
 export function ruleChecks(dag: RuleDag) {
   const isRoot = (page: number) => dag.pages[page].group === null

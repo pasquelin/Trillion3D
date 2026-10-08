@@ -112,7 +112,7 @@ fn bounds(positions: &[f32]) -> ([f32; 3], [f32; 3]) {
     let mut min = [f32::MAX; 3];
     let mut max = [f32::MIN; 3];
     for vertex in positions.as_chunks::<3>().0 {
-        crate::shared_math::extend_aabb_f32(&mut min, &mut max, *vertex);
+        trillion3d_math::aabb::extend_aabb_f32(&mut min, &mut max, *vertex);
     }
     (min, max)
 }

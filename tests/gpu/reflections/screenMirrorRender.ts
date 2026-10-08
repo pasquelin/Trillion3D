@@ -1,8 +1,8 @@
 // The screen mirror proof's renderer: the real WebGPU engine on a mirror scene, a dim sun, bounce
 // optional, and the held image it reads — rendered until held, then once more to prove it stable.
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
-import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts'
+import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
+import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { release as releaseScene } from '../kit/sharedSceneProof.ts'
 import { image, PLAFOND, difference } from '../kit/sceneImageProof.ts'
 import { mirrorProxy } from './mirrorProxy.ts'
@@ -30,7 +30,7 @@ export async function mirrorRenderer(
   })
   const { scene, camera } = rig
   let bounceReady = false
-  const context: BackendContext = {
+  const context: EngineContext = {
     source: scene.source,
     metadata: scene.metadata,
     indices: scene.indices,
@@ -48,7 +48,7 @@ export async function mirrorRenderer(
         bounceReady = Number(event.context.proxyTriangles) > 0 && event.context.unavailable === null
     },
   }
-  const backend = webgpuPagesBackend({ ...context, gpuDevice: device, gpuCanvas: canvas })
+  const backend = webgpuPagesEngine({ ...context, gpuDevice: device, gpuCanvas: canvas })
   await backend.prepare()
   const frame = async () => {
     const result = await image(backend, camera)

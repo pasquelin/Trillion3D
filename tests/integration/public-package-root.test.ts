@@ -24,7 +24,7 @@ function diagnostics(file: string, options: ts.CompilerOptions): string[] {
 test('package metadata exposes one environment-aware root', async () => {
   const packageJson = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'))
   assert.equal(packageJson.name, 'trillion3d')
-  assert.equal(packageJson.version, '0.2.0')
+  assert.equal(packageJson.version, '1.0.0')
   assert.equal(packageJson.private, true)
   assert.equal(packageJson.bin['trillion3d-compile'], './dist/sdk-node/src/cli/cli.mjs')
   assert.deepEqual(Object.keys(packageJson.exports), ['.', './module', './package.json'])

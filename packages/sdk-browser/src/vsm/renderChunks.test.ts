@@ -17,37 +17,16 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_COUNTS_HEAD,
-  VSM_RENDER_PARAMS_SLOT,
 } from './renderCullWgsl.ts'
+import { uniformStride } from '../residency/pools.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { DEFAULT_GROUP_WIDTH } from '../gpu/dispatch/grid.ts'
 
-/** The argument kernels, in JavaScript, over `params`, `counts` and `args`. */
-function argumentKernels(scope: {
-  params: Record<string, number>
-  counts: Uint32Array
-  args: Uint32Array
-}) {
-  type Kernel = () => void
-  return shaderRun<
-    Record<'vsmRenderArgsCull' | 'vsmRenderArgsExpand' | 'vsmRenderArgsDraw', Kernel>
-  >(
-    VSM_RENDER_ARGS_WGSL,
-    ['vsmRenderChunkCounter', 'vsmRenderArgsAt', 'vsmRenderWrapped', 'vsmRenderArgsCull'].concat([
-      'vsmRenderArgsExpand',
-      'vsmRenderArgsDraw',
-    ]),
-    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), ...scope },
-  )
-}
-
-test('200 000 rows resident, 100 chosen: past the first chunk, no group, no instance', () => {
-  const fake = fakeDevice({
-    limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
-  })
-  const { device } = fake
+/** The raster of 200 000 rows under 17 sun views on `device`, encoded into `encoder`: its stats. */
+function encodeRows(device: GPUDevice, encoder: GPUCommandEncoder) {
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const { encoder, calls } = recordingEncoder()
-  const rows = device.createBuffer({ size: 16, usage: 0 })
-  const stats = encodeVsmRender(
+  const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
+  return encodeVsmRender(
     encoder,
     res,
     { device, lights: [{ kind: 'directional', firstId: 8192, count: 17, shouldRender: true }] },
@@ -63,9 +42,40 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
       },
     },
   )!
+}
+
+/** The argument kernels, in JavaScript, over `params`, `counts` and `args`. */
+function argumentKernels(scope: {
+  params: Record<string, number>
+  counts: Uint32Array
+  args: Uint32Array
+}) {
+  type Kernel = () => void
+  return shaderRun<
+    Record<'vsmRenderArgsCull' | 'vsmRenderArgsExpand' | 'vsmRenderArgsDraw', Kernel>
+  >(
+    VSM_RENDER_ARGS_WGSL,
+    [
+      'vsmRenderChunkCounter',
+      'vsmRenderArgsAt',
+      'groupGrid',
+      'ceilDiv',
+      'vsmRenderArgsCull',
+    ].concat(['vsmRenderArgsExpand', 'vsmRenderArgsDraw']),
+    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: DEFAULT_GROUP_WIDTH, ...scope },
+  )
+}
+
+test('200 000 rows resident, 100 chosen: past the first chunk, no group, no instance', () => {
+  const fake = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
+  })
+  const { device } = fake
+  const { encoder, calls } = recordingEncoder()
+  const stats = encodeRows(device, encoder)
   // The CPU knows no bound of the chosen rows below the row count: 8192 rows a chunk (2^21 pairs
   // over 256 pages), the chunks 200 000 rows need.
-  assert.deepEqual([stats.chunkRows, stats.chunks], [8192, Math.ceil(200_000 / 8192)])
+  assert.deepEqual([stats.chunkRows, stats.chunks], [8192, ceilDiv(200_000, 8192)])
 
   // What the GPU would read: the parameter slots as the writes left them, the counters of 100
   // candidates.
@@ -75,7 +85,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     slots.buffer,
     fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
   )
-  const slot = (c: number) => slots.subarray((c * VSM_RENDER_PARAMS_SLOT) / 4)
+  const slot = (c: number) => slots.subarray((c * uniformStride(device.limits)) / 4)
   const params = {
     chunk: 0,
     chunkRows: 0,
@@ -132,4 +142,44 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   assert.deepEqual(work.get(0), [34, 1, 12, 1, 120])
   for (let c = 1; c < stats.chunks; c++)
     assert.deepEqual(work.get(c), [0, 1, 0, 1, 0], `chunk ${c}`)
+})
+
+test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apart', () => {
+  const fake = fakeDevice({
+    limits: {
+      maxStorageBufferBindingSize: 1 << 27,
+      maxBufferSize: 1 << 27,
+      minUniformBufferOffsetAlignment: 512,
+    },
+  })
+  // Every group set with a dynamic offset: the chunks' parameters, the candidates' at 0.
+  const offsets = new Set<number>()
+  const pass = new Proxy(
+    {},
+    {
+      get: (_, name) =>
+        name === 'setBindGroup'
+          ? (_group: number, _set: unknown, dynamic?: readonly number[]) =>
+              void (dynamic?.length && offsets.add(dynamic[0]))
+          : () => undefined,
+    },
+  )
+  const encoder = new Proxy(
+    {},
+    { get: (_, name) => (String(name).startsWith('begin') ? () => pass : () => undefined) },
+  ) as GPUCommandEncoder
+  const { chunks } = encodeRows(fake.device, encoder)
+  const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
+  assert.ok(paramsBuffer.size >= chunks * 512)
+  const slots = new Uint32Array(paramsBuffer.size / 4)
+  replayWrites(
+    slots.buffer,
+    fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
+  )
+  // Chunk c's index at word 25 of its slot, 128 words a slot; its groups bound at c × 512.
+  for (let c = 0; c < chunks; c++) assert.equal(slots[c * 128 + 25], c, `chunk ${c}`)
+  assert.deepEqual(
+    [...offsets].sort((a, b) => a - b),
+    Array.from({ length: chunks }, (_, c) => c * 512),
+  )
 })

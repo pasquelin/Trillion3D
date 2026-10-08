@@ -1,7 +1,8 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts'
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 import { stubPage } from '../../world/render/frameQueue.fixture.ts'
@@ -61,7 +62,7 @@ test('a task starts no page past the published share', async () => {
     assert.equal(cache.resident.size, 12, 'every page admitted')
     assert.ok(tasks.length > 1, `across several tasks (${tasks.join(' ')})`)
     // A page starts only within the share: the share's worth, and the one begun at its edge.
-    for (const count of tasks) assert.ok(count <= Math.ceil(STREAMING_FRAME_MS / cost), `${count}`)
+    for (const count of tasks) assert.ok(count <= ceilDiv(STREAMING_FRAME_MS, cost), `${count}`)
   } finally {
     mock.restoreAll()
   }
@@ -121,17 +122,18 @@ test('a camera cut queued during a long caster load is served before the tier en
       getFrame: () => 0,
       updatePins() {},
       closure: {} as never,
+      recordOf: () => undefined,
       ensureResident: tierEnsurer(tracking, cache, () => casters),
       markLost() {},
       traceEnabled: false,
       traceDiagnostic: () => {},
       diagnosticFailure: () => {},
     })
-    queue.queueCutResidency()
+    queue.queueCuts({ cuts: [], first: null })
     // The camera moves while the tier loads: its cut queues a page behind the running job.
     setImmediate(() => {
       tracking.wanted.add(tracking.keyOf(camera), camera)
-      queue.queueCutResidency()
+      queue.queueCuts({ cuts: [], first: null })
     })
     await queue.pending
     assert.ok(

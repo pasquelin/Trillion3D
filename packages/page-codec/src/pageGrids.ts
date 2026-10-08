@@ -1,19 +1,23 @@
+import { clamp } from '../../math/src/scalar/reals.ts'
+import { floorLog2 } from '../../math/src/scalar/integers.ts'
+import { length3Float32 } from '../../math/src/vector/lengthFloat32.ts'
+import { OCT_BYTE_STEP } from '../../math/src/constants.ts'
 /**
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
  */
-const MAX_BITS = 24
+/** The format's field bounds, written once for the encoder and the readers (`sdk-browser`
+ *  `geometryPageHeader.ts`): the bits of a page field — a component's cells span less than
+ *  2^MAX_BITS, and a field read at any bit offset spans two words at most —, and the largest
+ *  magnitude of a grid exponent, whose step stays a normal 32-bit float. */
+export const MAX_BITS = 24,
+  MAX_EXPONENT = 64
 /** Corners per block of eight triangles, and the bits of a block's width. */
 const BLOCK_CORNERS = 24,
   WIDTH_BITS = 5
 
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
-export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range))
-
-/** The finest grid exponent, never below `finest`, on which a `span` of values fits the field: at
- *  most 2^23 steps, which rounding at both ends keeps under the 2^24 a page holds. */
-export const gridExponentFor = (span: number, finest: number) =>
-  span > 0 ? Math.max(finest, Math.ceil(Math.log2(span)) - (MAX_BITS - 1)) : finest
+export const bitsFor = (range: number) => (range <= 0 ? 0 : floorLog2(range) + 1)
 
 /** One attribute's cells on its grid: the bits and float minimum per component, the exponent
  *  that set the grid step, and the cells themselves (n components per vertex, row-major). */
@@ -55,28 +59,24 @@ export function quantize(values: ArrayLike<number>, n: number, exponent: number)
   return { min, exponent, bits, cells }
 }
 
-/** A displacement as the 32-bit float the header carries, rounded up so nothing exceeds it. */
-export function ceil32(value: number): number {
-  const float = new Float32Array([value])
-  if (float[0] < value) new Uint32Array(float.buffer)[0]++
-  return float[0]
-}
+const f = Math.fround
 
-const f = Math.fround,
-  OCT_STEP = f(2 / 255)
+/** A grid value back to its float, `min + q * step` in 32-bit steps, the product exact and the sum
+ *  rounded once: the one every reader decodes with (`dequant`, `bits/quant.rs`). */
+export const dequant = (min: number, q: number, step: number) => f(min + f(q * step))
 
 /** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
  *  32-bit steps: the one decoder the reader and the encoder below share. */
 export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
-  let x = f(f((q & 255) * OCT_STEP) - 1),
-    y = f(f(((q >>> 8) & 255) * OCT_STEP) - 1)
+  let x = f(f((q & 255) * OCT_BYTE_STEP) - 1),
+    y = f(f(((q >>> 8) & 255) * OCT_BYTE_STEP) - 1)
   const z = f(f(1 - Math.abs(x)) - Math.abs(y))
   if (z < 0) {
     const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1))
     y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1))
     x = fx
   }
-  const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))))
+  const length = length3Float32(x, y, z)
   out[at] = f(x / length)
   out[at + 1] = f(y / length)
   out[at + 2] = f(z / length)
@@ -102,10 +102,10 @@ export function octEncode(x: number, y: number, z: number): number {
     py = f(f(1 - Math.abs(px)) * (py >= 0 ? 1 : -1))
     px = fx
   }
-  const cell = (v: number) => Math.min(254, Math.max(0, Math.floor(f(f(v + 1) * 127.5))))
+  const cell = (v: number) => clamp(Math.floor(f(f(v + 1) * 127.5)), 0, 254)
   const bx = cell(px),
     by = cell(py),
-    length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),
+    length = length3Float32(x, y, z),
     ux = f(x / length),
     uy = f(y / length),
     uz = f(z / length)

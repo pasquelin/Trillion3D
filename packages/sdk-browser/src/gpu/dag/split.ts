@@ -3,6 +3,7 @@ import { CLUSTER_WORDS } from './layout.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import type { DagPartTable } from './shader/bindings.ts'
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -53,7 +54,7 @@ export function dagSplit(
 ): DagSplit {
   const cap = storageBufferCap(limits),
     table = (name: keyof typeof ELEMENT_BYTES) =>
-      splitTable(Math.ceil(sizes[name] / ELEMENT_BYTES[name]), ELEMENT_BYTES[name], cap)
+      splitTable(ceilDiv(sizes[name], ELEMENT_BYTES[name]), ELEMENT_BYTES[name], cap)
   const queueCap = Math.max(packed.nodeCount, Math.max(1, packed.worldCount))
   return {
     clusters: table('clusters'),

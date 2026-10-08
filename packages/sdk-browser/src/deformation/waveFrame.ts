@@ -1,8 +1,8 @@
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import type { Deformed } from './frame.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { WAVE_FLOATS } from './layout.ts'
-import { sameElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { leastStretchOf } from '../partition/boxes.ts'
 
 const inverse = new Float64Array(16)

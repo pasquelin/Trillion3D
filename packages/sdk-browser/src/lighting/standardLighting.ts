@@ -1,4 +1,8 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts'
+import { PI } from '../../../math/src/wgsl/constants.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { f0Of, fresnelSchlick, lambertAlbedo, ndotvFloor } from '../../../math/src/wgsl/lighting.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
 /**
  * The engine's one GGX normal distribution, for \`alpha2\` = roughness⁴, of a
@@ -10,51 +14,86 @@ import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts'
  * in a sharp highlight), 9 % off at worst. The cross product keeps the sine whole
  * (\`standardLighting.test.ts\`).
  */
-const GGX_DISTRIBUTION_WGSL = `
+export const GGX_DISTRIBUTION_WGSL = wgslBlock(
+  'GGX_DISTRIBUTION_WGSL',
+  [PI],
+  `
 fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  let q=sine2+cosine*cosine*alpha2;
- return alpha2/(3.14159265*q*q);
-}`
+ return alpha2/(PI*q*q);
+}`,
+)
 
 /** Shared opaque/forward lighting of one punctual light: the standard material's GGX lobe and its
  *  Lambert diffuse. The environment's irradiance is added apart (\`environmentLighting\`). Carries
- *  \`ggxDistribution\` for every program that shades with it. */
-export const STANDARD_LIGHTING_WGSL = `${GGX_DISTRIBUTION_WGSL}
+ *  \`ggxDistribution\` for every program that shades with it. \`DIELECTRIC_F0\` is a dielectric's
+ *  reflectance at normal incidence, \`fresnelSchlick\` the engine's one Fresnel term: the standard
+ *  lobe's, the anisotropic lobe's and the coat's, its fifth power two products of the square (no
+ *  \`exp2\`/\`log2\` of a \`pow\`): the bytes \`pow\` displayed, over a sweep of lit pixels
+ *  (\`standardLighting.test.ts\`); \`fresnelScalar\` one lane of it, the same operations.
+ *
+ *  What a pixel's lights share of its surface — its reflectance, its diffuse albedo, α², 1 − α²,
+ *  N·V and the view's half of the visibility — is taken once a pixel (\`lobeSurface\`), before its
+ *  light loop (\`sliceLighting\`), never once a light: the very operations in the very order, so
+ *  every light's term keeps its bits. \`surfaceLight\` is one light on such a surface,
+ *  \`standardLighting\` the same on a surface given whole. \`standardLobe\` is the light's term
+ *  past its direction \`L\`, the half-vector \`H\` and \`NdotL\` above zero: what a clear coat
+ *  (\`direct/lobesWgsl.ts\`) runs on its own normal with the base's \`L\` and \`H\`. */
+export const STANDARD_LIGHTING_WGSL = wgslBlock(
+  'STANDARD_LIGHTING_WGSL',
+  [fresnelSchlick, f0Of, lambertAlbedo, ndotvFloor, GGX_DISTRIBUTION_WGSL],
+  `struct LobeSurface{f0:vec3f,diffuse:vec3f,alpha2:f32,rest:f32,NdotV:f32,viewG:f32,}
+fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
+ var s:LobeSurface;
+ let alpha=rough*rough;
+ s.alpha2=alpha*alpha;
+ s.rest=1.0-s.alpha2;
+ s.NdotV=ndotvFloor(N,V);
+ s.viewG=sqrt(s.NdotV*s.NdotV*s.rest+s.alpha2);
+ s.f0=f0Of(rgb,metal);
+ s.diffuse=lambertAlbedo(rgb,metal);
+ return s;
+}
 fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
+ return surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,light);
+}
+fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
  let L=normalize(light.xyz);
  let NdotL=max(dot(N,L),0.0);
  // Facing away, both lobes are finite numbers times direct = light.w·0: a zero, which the light's
  // sum keeps as it is. Returned before the half-vector, the distribution and Fresnel are paid.
  if(NdotL==0.0){return vec3f(0.0);}
- let NdotV=max(dot(N,V),1e-4);
- let direct=light.w*NdotL;
- let H=normalize(L+V);
+ return standardLobe(s,N,V,normalize(L+V),NdotL,light.w);
+}
+fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
+ let direct=energy*NdotL;
  let NdotH=max(dot(N,H),0.0);
  let VdotH=max(dot(V,H),0.0);
- let alpha=rough*rough;let alpha2=alpha*alpha;
  // A half-vector behind the normal (a view below the surface) is clamped to its rim, sine 1.
  let NxH=cross(N,H);
- let D=ggxDistribution(alpha2,NdotH,select(dot(NxH,NxH),1.0,NdotH==0.0));
- let gV=NdotL*sqrt(NdotV*NdotV*(1.0-alpha2)+alpha2);
- let gL=NdotV*sqrt(NdotL*NdotL*(1.0-alpha2)+alpha2);
+ let D=ggxDistribution(s.alpha2,NdotH,select(dot(NxH,NxH),1.0,NdotH==0.0));
+ let gV=NdotL*s.viewG;
+ let gL=s.NdotV*sqrt(NdotL*NdotL*s.rest+s.alpha2);
  let Vis=0.5/(gV+gL+1e-7);
- let f0=mix(vec3f(0.04),rgb,metal);
- let F=f0+(vec3f(1.0)-f0)*pow(clamp(1.0-VdotH,0.0,1.0),5.0);
- let diffuse=rgb*(1.0-metal)/3.14159265;
- return diffuse*direct+D*Vis*F*direct;
-}`
+ let F=fresnelSchlick(s.f0,VdotH);
+ return s.diffuse*direct+D*Vis*F*direct;
+}`,
+)
 
 /**
  * WORLD normal of a local normal under a world pose: the inverse-transpose of the 3×3 when
  * it is regular, the transformed face normal when the pose flattens the primitive onto a
  * plane, the zero vector when it collapses it onto a line or a point — the whole convention is
- * written in `../math/inverseTransposeWgsl.ts`. `uniteOuZero` rather than `normalize`: `normalize` of the
+ * written in `packages/math/src/wgsl/inverseTranspose.ts`. `unitOrZero` rather than `normalize`: `normalize` of the
  * zero vector yields NaN, and a shading NaN spreads through screen derivatives to neighbouring
- * pixels. On a non-zero vector, `uniteOuZero` returns `normalize(v)`: the regular case does not
+ * pixels. On a non-zero vector, `unitOrZero` returns `normalize(v)`: the regular case does not
  * move by a bit.
  */
-export const NORMAL_TRANSFORM_WGSL = `
-${INVERSE_TRANSPOSE_WGSL}
+export const NORMAL_TRANSFORM_WGSL = wgslBlock(
+  'NORMAL_TRANSFORM_WGSL',
+  [worldMatrix3, inverseTranspose3, unitOrZero],
+  `
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return uniteOuZero(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
-}`
+ return unitOrZero(inverseTranspose3(worldMatrix3(world),n));
+}`,
+)

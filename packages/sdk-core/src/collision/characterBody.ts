@@ -3,8 +3,9 @@ import type { CapsuleContact } from './capsule.ts'
 import type { CharacterEvents, CharacterInput, CharacterSettings } from './characterSettings.ts'
 import type { CharacterCollision } from './characterCollision.ts'
 import { createDrive, driveTick, type DriveStep } from './characterDrive.ts'
-import { hypot2 } from '../math/primitives/hypot.ts'
+import { length2 } from '../../../math/src/vector/vector.ts'
 import { MAX_CHARACTER_DELTA } from './characterDelta.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 
 /**
  * A CHARACTER BODY: a capsule with a velocity, integrated on a fixed tick against a collision
@@ -99,7 +100,7 @@ export function createCharacterBody(settings: CharacterSettings) {
   const stepUp = (dx: number, dz: number) => {
     kept.set(capsule.feet)
     kept.set(velocity, 3)
-    const length = hypot2(dx, dz)
+    const length = length2(dx, dz)
     if (length === 0) return
     const reach = Math.max(1, settings.capsuleRadius / length)
     // A micrometre of rise is the arithmetic's, not a step.
@@ -176,13 +177,13 @@ export function createCharacterBody(settings: CharacterSettings) {
     advance(delta: number, input: CharacterInput, events: CharacterEvents = {}) {
       shape()
       // `carry` is the present less the last tick's time, in (-tick, 0] between calls.
-      carry += Math.min(Math.max(0, delta), MAX_CHARACTER_DELTA)
+      carry += clamp(delta, 0, MAX_CHARACTER_DELTA)
       for (; carry > 0; carry -= CHARACTER_TICK) {
         previous.set(capsule.feet)
         tick(CHARACTER_TICK, input, events)
       }
       const t = 1 + carry / CHARACTER_TICK
-      for (let k = 0; k < 3; k++) drawn[k] = previous[k] + (capsule.feet[k] - previous[k]) * t
+      for (let k = 0; k < 3; k++) drawn[k] = lerp(previous[k], capsule.feet[k], t)
       return drawn
     },
   }

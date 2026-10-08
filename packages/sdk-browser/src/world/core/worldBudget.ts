@@ -1,8 +1,8 @@
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
 import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
-import type { WorldRenderer } from '../capability/worldReady.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts'
 import {
   DEFAULT_BUDGET_CANVAS,
@@ -106,7 +106,6 @@ export function worldBudget(
   pools: Pools,
   session: { readonly explorer: MeasuredWorld | null },
   frames: { readonly last: FrameMetrics | null },
-  renderer: () => WorldRenderer | null,
   physics: PhysicsBudget,
 ) {
   let pending = false
@@ -122,13 +121,13 @@ export function worldBudget(
     })
   }
   // What the last frame published, `null` or `undefined` when it held no such pool.
-  const held = (key: string) => (frames.last as Record<string, number | null> | null)?.[key]
+  const held = (key: 'geometryPoolBytes' | 'texturePoolBytes') => frames.last?.[key]
   const split = () => splitOf(pools)
   /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
     const { shadowPool, bounceProbes, effectTargets, frameTargets = 0, ...shares } = split()
     const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets - frameTargets
-    return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])))
+    return clamp(left - (pools[other] ?? shares[other]), 1, ceiling)
   }
   /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
   const redraw = (gpu: number, canvas = pools.canvas) => {
@@ -204,11 +203,9 @@ export function worldBudget(
       pools.geometryPool = Math.min(bytes, room('texturePool', DEFAULT_GEOMETRY_POOL_BUDGET))
       rebalance()
     },
-    /** Bytes of GPU memory kept for texture pages, `null` on an engine without a texture pool
-     *  (WebGL2); set it to change the envelope, within what `gpu` leaves beside the shadows, the
-     *  bounce probes and the geometry pool. */
-    get texturePool(): number | null {
-      if (renderer() === 'webgl2') return null
+    /** Bytes of GPU memory kept for texture pages; set it to change the envelope, within what
+     *  `gpu` leaves beside the shadows, the bounce probes and the geometry pool. */
+    get texturePool(): number {
       return held('texturePoolBytes') ?? pools.texturePool ?? split().texturePool
     },
     set texturePool(bytes: number) {

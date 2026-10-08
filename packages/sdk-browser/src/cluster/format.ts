@@ -1,9 +1,10 @@
 /**
  * The `WGP3` quantized cluster page as every reader must know it (`docs/FORMAT.md`): the shared
  * Rust codec (`packages/page-codec-wasm/src/bits.rs`) is the source of these numbers, the
- * JavaScript decoder (`../page/decode/geometryPage.ts`) and the WGSL routines (`decodeWgsl.ts`) repeat
+ * JavaScript decoder (`../page/codec/geometryPage.ts`) and the WGSL routines (`decodeWgsl.ts`) repeat
  * them here so the three decode the same bytes to the same floats. The format version itself is
- * the manifest's (`GEOMETRY_PAGE_FORMAT_VERSION`, `sdk-core`).
+ * the manifest's (`GEOMETRY_PAGE_FORMAT_VERSION`, `sdk-core`), and the field bounds `MAX_BITS`
+ * and `MAX_EXPONENT` the encoder's (`page-codec/src/pageGrids.ts`).
  */
 export const CLUSTER_PAGE_MAGIC = 0x33504757,
   CLUSTER_HEADER_WORDS = 25
@@ -38,9 +39,3 @@ export const TRIANGLE_BLOCK = 8,
 /** Corners per full block: a block's bits are `BLOCK_CORNERS × width`, so a prefix of widths
  *  locates it. */
 export const BLOCK_CORNERS = 3 * TRIANGLE_BLOCK
-/** Widest field: read at any bit offset, it spans two words at most. */
-export const MAX_BITS = 24
-/** Largest magnitude of a grid exponent: the step stays a normal 32-bit float. */
-export const MAX_EXPONENT = 64
-/** `2 / 255` as the nearest 32-bit float: an octahedral byte to `[-1, 1]`. */
-export const OCT_SCALE = Math.fround(2 / 255)

@@ -47,7 +47,9 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
   const previews: TexturePreview[] = new Array(count)
   let previous = -1,
     consumed = 0
-  const blocksAt = { bc7: 0, astc: 0 } as Record<format.TextureBlockFormat, number>
+  const blocksAt = Object.fromEntries(
+    format.PREVIEW_BLOCK_FORMATS.map((name) => [name, 0]),
+  ) as Record<format.TextureBlockFormat, number>
   for (let entry = 0; entry < count; entry++) {
     const base = entry * format.PREVIEW_WORDS
     const texture = previewWords[base + format.PREVIEW_TEXTURE]

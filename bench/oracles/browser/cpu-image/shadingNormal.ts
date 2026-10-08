@@ -10,11 +10,11 @@ import {
   scaleVector3,
   transformDirectionVector3,
 } from '../../../../packages/sdk-core/src/index.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from './projection.ts'
 import { attr2, sampleLinear } from './math.ts'
 import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { frameNormalScaleY } from '../../../../packages/sdk-browser/src/visibility/frameNormal.ts'
-import { hypot3 } from '../../../../packages/sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../packages/math/src/float/hypot.ts'
 
 const normalScratch = new Float64Array(9)
 const frameNormals = [new Float64Array(3), new Float64Array(3), new Float64Array(3)]

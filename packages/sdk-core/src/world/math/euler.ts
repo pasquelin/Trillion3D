@@ -1,18 +1,11 @@
-import { composeMatrix4At } from '../../math/matrix/matrix4Compose.ts'
-import { Observed } from './observed.ts'
-import { clampNumber } from './spherical.ts'
+import { composeMatrix4At } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { eulerFromRotationMatrix } from '../../../../math/src/matrix/euler.ts'
+import { Observed } from '../observed.ts'
 import type { XYZWLike as Q } from './likes.ts'
 
-/**
- * Beyond this the middle angle is at its pole and the outer two share one degree of freedom.
- * Declared: the sine of the pitch past which the rotation matrix is treated as gimbal-locked;
- * 0.9999999 leaves about 4e-4 rad of pitch to the pole, far above float64 rounding, so a matrix
- * just under it still resolves its outer angles; a lower value locks earlier and loses their
- * precision.
- */
-const POLE = 0.9999999
 const rotation = new Float64Array(16),
   turn = new Float64Array(4),
+  angles = new Float64Array(3),
   ORIGIN = [0, 0, 0],
   UNIT = [1, 1, 1]
 
@@ -106,64 +99,11 @@ export class Euler extends Observed {
     composeMatrix4At(rotation, 0, ORIGIN, 0, turn, 0, UNIT, 0)
     return this.fromElements(rotation, order, quiet)
   }
-  /** The angles of the rotation in the upper 3×3 of the column-major `e`, read in place. */
+  /** The angles of the rotation in the upper 3×3 of the column-major `e`, read in place
+   *  (`eulerFromRotationMatrix`). */
   private fromElements(e: ArrayLike<number>, order: string, quiet: boolean) {
-    const m11 = e[0],
-      m12 = e[4],
-      m13 = e[8],
-      m21 = e[1],
-      m22 = e[5],
-      m23 = e[9],
-      m31 = e[2],
-      m32 = e[6],
-      m33 = e[10]
-    let x = 0,
-      y = 0,
-      z = 0
-    switch (order) {
-      case 'YXZ':
-        x = Math.asin(-clampNumber(m23, -1, 1))
-        if (Math.abs(m23) < POLE) {
-          y = Math.atan2(m13, m33)
-          z = Math.atan2(m21, m22)
-        } else y = Math.atan2(-m31, m11)
-        break
-      case 'ZXY':
-        x = Math.asin(clampNumber(m32, -1, 1))
-        if (Math.abs(m32) < POLE) {
-          y = Math.atan2(-m31, m33)
-          z = Math.atan2(-m12, m22)
-        } else z = Math.atan2(m21, m11)
-        break
-      case 'ZYX':
-        y = Math.asin(-clampNumber(m31, -1, 1))
-        if (Math.abs(m31) < POLE) {
-          x = Math.atan2(m32, m33)
-          z = Math.atan2(m21, m11)
-        } else z = Math.atan2(-m12, m22)
-        break
-      case 'YZX':
-        z = Math.asin(clampNumber(m21, -1, 1))
-        if (Math.abs(m21) < POLE) {
-          x = Math.atan2(-m23, m22)
-          y = Math.atan2(-m31, m11)
-        } else y = Math.atan2(m13, m33)
-        break
-      case 'XZY':
-        z = Math.asin(-clampNumber(m12, -1, 1))
-        if (Math.abs(m12) < POLE) {
-          x = Math.atan2(m32, m22)
-          y = Math.atan2(m13, m11)
-        } else x = Math.atan2(-m23, m33)
-        break
-      default:
-        y = Math.asin(clampNumber(m13, -1, 1))
-        if (Math.abs(m13) < POLE) {
-          x = Math.atan2(-m23, m33)
-          z = Math.atan2(-m12, m11)
-        } else x = Math.atan2(m32, m22)
-    }
-    return this.set(x, y, z, order, quiet)
+    eulerFromRotationMatrix(angles, e, order)
+    return this.set(angles[0], angles[1], angles[2], order, quiet)
   }
   /** The three angles and the order, as a list. */
   toArray(): [number, number, number, string] {

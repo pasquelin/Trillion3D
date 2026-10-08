@@ -2,7 +2,7 @@
 // commands each row can make: the shipped cull (`vsmRenderCullWgsl`, run by `shaderRun`) on the
 // projection data's clip matrix — the orthographic box, the screen rect — then the pages of the rect;
 // for a local light's maps, its range first, the perspective box, and every mip's rect.
-import { ceilFloat32, writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { ceilFloat32, writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -16,6 +16,7 @@ import { createVsmResources } from './resources.ts'
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
 
 import { seeded } from './planFrames.fixture.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 export { seeded }
 export const PAGES = 2048
@@ -104,9 +105,15 @@ const cull = shaderRun<{
   vsmRectPixels: (view: number[], cull: Cull) => number[]
 }>(
   // The perspective box's corner list, `array<vec4f,8>(…)`, as a JavaScript array.
-  vsmRenderCullWgsl(res.layout).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
+  wgslSource(vsmRenderCullWgsl(res.layout)).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
   [
-    ...['vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective', 'vsmRectPixels'],
+    ...[
+      'vsmShiftedBoxOrtho',
+      'vsmShiftedBoxPerspective',
+      'vsmRectPixels',
+      'perspectiveDivide',
+      'transformPoint',
+    ],
     // The cull of the box in clip space they hand it to (`boxCullWgsl.ts`).
     ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
   ],

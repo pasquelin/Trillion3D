@@ -14,14 +14,12 @@ import { packClusterSpheres } from '../../webgpu/shadow/spheres.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../../webgpu/shadow/rowBuffers.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
 import { createPageMotion } from './pageMotion.ts'
-import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { PageRec } from '../../page/selection/types.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The same pseudo-random numbers in [0, 1) every run. */
-function randomOf(seed: number) {
-  let s = seed >>> 0
-  return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 2 ** 32
-}
+const randomOf = lcgRandom
 
 /** A sheet of 48 × 32 cells, its pages as a held blended surface is cut. */
 async function sheet() {

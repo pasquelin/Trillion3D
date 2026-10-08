@@ -1,4 +1,4 @@
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 
 /** Perspective framing from a bounding-sphere radius. `near` scales with the asset; there is no absolute centimetre floor. */
 export function framingFromBounds(radius: number, aspect: number) {
@@ -7,7 +7,7 @@ export function framingFromBounds(radius: number, aspect: number) {
   const near = radius / 10000,
     far = radius * 20,
     scale = (radius * 1.9) / Math.min(1, aspect),
-    len = hypot3(0.85, 0.65, 1)
+    len = length3(0.85, 0.65, 1)
   return {
     near,
     far,

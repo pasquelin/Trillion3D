@@ -365,8 +365,6 @@
       "shadow-pages-off": "Halaman bayangan dimatikan",
       "shadow-budget-0-25": "Anggaran waktu bayangan: 0,25 ms",
       "budget-3000": "Anggaran geometri: 3000 halaman",
-      "webgl": "Perender WebGL",
-      "webgl2": "Perender WebGL 2",
       "moving-light": "Cahaya bergerak",
       "visible": "Jendela peramban terlihat"
     },
@@ -472,7 +470,7 @@
     "resolution": "Resolusi dan ambang galat",
     "lights": "Cahaya, bayangan dan pantulan",
     "execution": "Bingkai diam, antialiasing dan opsi eksekusi",
-    "memory": "Memori, instance dan perender lain"
+    "memory": "Memori, instance dan run lainnya"
   },
   "evidence": {
     "computeDrawing": "Gambar lewat compute",
@@ -656,8 +654,8 @@
     },
     "measurement-entry": {
       "title": "Titik masuk pengukuran",
-      "description": "Tempat satu-satunya sebuah saksi, backend paksaan atau sesi internal masih bisa disebut namanya — tidak pernah lewat titik masuk `trillion3d` yang diterbitkan.",
-      "html": "<p>Sebuah halaman meng-import <code>trillion3d</code> dan tidak pernah melihat sebuah backend, saksi atau sesi internal: <code>createWorld</code> menggambar dengan satu perender, dipilih dari mesinnya atau ditolak dengan menyebut namanya bila dipaksa dan tidak ada. Bench, bukti dan tampilan perbandingan masih perlu menyebut nama sebuah saksi — Three.js polos, <code>THREE.LOD</code>, sesi internal <code>openMeasuredWorld</code> — dan itulah satu-satunya tugas titik masuk pengukuran yang terpisah, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Ia meng-ekspor ulang semua yang diekspor titik masuk yang diterbitkan, ditambah apa yang tidak pernah dibutuhkan sebuah host: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (sesi internal yang dibuka sebuah dunia pada dirinya sendiri), pabrik backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), dan pembantu khusus pengukuran seperti <code>replicateInstances</code>. Tidak satu pun sampai ke dunia yang diterbitkan, dan tidak satu pun di-import oleh sebuah aplikasi.</p>"
+      "description": "Tempat sebuah saksi atau sesi internal masih bisa disebut namanya — tidak pernah lewat titik masuk `trillion3d` yang diterbitkan.",
+      "html": "<p>Sebuah halaman meng-import <code>trillion3d</code> dan tidak pernah melihat saksi atau sesi internal: <code>createWorld</code> menggambar dengan WebGPU, atau ditolak dengan menyebut namanya bila mesin tidak menyediakannya. Bench dan bukti masih perlu menyebut nama sebuah saksi — Three.js polos, <code>THREE.LOD</code>, sesi internal <code>openMeasuredWorld</code> — dan itulah satu-satunya tugas titik masuk pengukuran yang terpisah, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Titik masuk ini mengekspor ulang semua yang diekspor titik masuk yang diterbitkan, ditambah apa yang tidak pernah dibutuhkan sebuah host: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (sesi internal yang dibuka sebuah dunia pada dirinya sendiri), pabrik halaman <code>webgpuPagesEngine</code>, dan pembantu khusus pengukuran seperti <code>replicateInstances</code>. Tidak satu pun sampai ke dunia yang diterbitkan, dan tidak satu pun di-import oleh aplikasi.</p>"
     },
     "createWorldJob": {
       "title": "Pemuatan dunia sebagai pekerjaan yang bisa dibatalkan",
@@ -706,11 +704,11 @@
       "description": "Apa yang digambar sebuah bingkai. Ketersediaannya menjelaskan keluaran pipeline sungguhan, tidak pernah overlay buatan: `DIAGNOSTICS` memberikan, untuk tiap mode, apakah perender yang aktif bisa menghasilkannya dan kenapa tidak.",
       "values": [
         "Gambar berpencahayaan, dari material glTF.",
-        "Warna unik penuh untuk tiap segitiga yang dikirim — bukan GL_LINES, bukan `MeshBasicMaterial.wireframe`.",
-        "Identitas primitif/halaman yang stabil, satu warna per cluster; berlaku di WebGL2 maupun WebGPU.",
+        "Warna unik penuh untuk tiap segitiga yang dikirim.",
+        "Identitas primitif/halaman yang stabil, satu warna per cluster.",
         "Cluster level 0 dibandingkan reduksi DAG yang lebih kasar yang benar-benar terpilih bingkai ini.",
         "Galat per-cluster yang diproyeksikan lewat bola cluster, seperti dipakai potongannya.",
-        "Satu warna per kelas material: tahap kelas yang menyelesaikan piksel itu. Hanya lewat jalur visibility WebGPU.",
+        "Satu warna per kelas material: tahap kelas yang menyelesaikan piksel itu.",
         "Halaman terlihat yang terpilih; node hierarki yang ditolak dihitung, tidak digambar.",
         "Halaman indeks yang terpasang; halaman yang hilang tidak digambar. Bukan VRAM fisik.",
         "Tidak tersedia: residensi mip tekstur tidak diinstrumentasi.",
@@ -761,7 +759,7 @@
     },
     "GpuTimingMethod": {
       "description": "Bagaimana durasi GPU sebuah profil tahap diambil. Durasi per-tahap menunjukkan di mana, tidak pernah seberapa banyak: pada GPU berbasis ubin tahap-tahap saling tumpang tindih dan sebuah tahap menyerap tahap tetangganya. Total bingkainya adalah `gpuImageMs`, selangnya — durasi tahap tidak dijumlahkan ke dalamnya.",
-      "values": ["Kueri stempel waktu WebGPU asli.", "Ekstensi WebGL2, untuk jalur itu."]
+      "values": ["Kueri stempel waktu WebGPU asli."]
     },
     "ColumnKind": {
       "description": "Penyimpanan satu kolom manifest biner. `COLUMN_KIND` memetakan tiap nama kolom ke jenisnya, jadi sebuah pembaca tahu tampilan mana yang dipakai atas byte sidecar-nya.",
@@ -790,7 +788,7 @@
       "description": "Membungkus operasi apa pun yang tertunda dalam kontrak pekerjaan mesin: sebuah snapshot (`JobStatus`, progres, hasil, galat), langganan, dan sebuah pembatalan yang membuang apa yang dimiliki pekerjaan itu. Operasinya harus mendukung pembatalan lewat pemiliknya (RAF, readback, …)."
     },
     "detectCapabilities": {
-      "description": "Apa yang sungguh didukung mesin ini, sebelum sebuah dunia dibuat: `{ tier, renderer, adapter, extensions, reason }`. Alasannya selalu diberikan, jadi sebuah kemampuan yang tidak didukung dilaporkan, bukan diasumsikan. Pembungkus publik yang dibaca sebuah dunia adalah `capability.detect()` — `{ webgpu, webgl2, ... }`, bentuk yang lebih sederhana untuk pemeriksaan yang sama. Pemeriksaan WebGL2 disimpan dalam cache."
+      "description": "Apa yang sebenarnya diberikan WebGPU mesin ini, sebelum sebuah dunia dibuat: `{ tier, adapter, extensions, reason }`. Tier-nya `full` dengan kueri stempel waktu GPU, `degraded` tanpa kueri itu, dan `unavailable` tanpa adapter. Alasannya selalu diberikan, sehingga kemampuan yang tidak didukung dilaporkan, bukan diasumsikan. Pembungkus publik yang dibaca sebuah dunia adalah `capability.detect()` — `{ webgpu, tier, features, reason }`, bentuk yang lebih sederhana untuk pemeriksaan yang sama."
     },
     "perspectiveProjection": {
       "description": "Proyeksi perspektif sebuah kamera dengan `fov` vertikal dalam derajat, rasio `aspect`, bidang dekat `near`, zoom `zoom`. **Kedalaman terbalik, bidang jauh tak berhingga**: `near` diproyeksikan ke 1, tak berhingga ke 0. Tidak ada bidang jauh yang masuk di sini, karena itu tidak ada pembagian dengannya — dan itulah yang membeli presisi kedalaman."
@@ -850,7 +848,7 @@
       "description": "`out = transpose(inverse(blok 3×3 dari m))` pada sembilan angka, column-major: matriks yang membawa normal sebuah permukaan yang ditransformasi oleh `m`, termasuk shear dan skala tidak seragam. Inversnya adalah inverse acuannya, termasuk kofaktor dan urutan hasil kali, lalu ditranspos tanpa operasi titik kambang apa pun. **Pada matriks singular ia menulis adjugate-nya, tidak dibagi**, bukan matriks nol acuannya: sebuah pose singular tidak menghapus sebuah permukaan, ia meratakannya ke sebuah bidang, dan adjugate yang diterapkan ke sebuah normal lokal *adalah* hasil kali silang tepi-tepi yang ditransformasi, termasuk tandanya — tiap konsumen lalu menormalisasi. Hanya skala nol, tak berhingga atau NaN yang ditulis terpisah, sebagai sembilan nol."
     },
     "linearPartScale": {
-      "description": "Satu-satunya aturan singularitas mesin, dalam bentuk kernel WGSL. Skalanya adalah jumlah nilai absolut sembilan suku bagian linearnya; determinannya diambil pada kolom-kolom **dibagi dengan skala itu sebelum hasil kali**, tidak pernah pada determinan mentah dibagi pangkat tiganya — `t³` meluap lewat 1e103 dan lenyap di bawah 1e-103, tepat di mana aturan itu harus memutuskan. `adjugateFactor` lalu mengembalikan `1 / determinant` untuk matriks reguler (bit acuannya), `1` untuk yang singular (adjugate apa adanya), dan `null` saat skalanya tidak terhingga dan tidak positif tegas, di mana adjugate-nya sendiri harus diganti nol. `SINGULAR_DETERMINANT_WGSL` adalah ambang batas yang sama seperti ditulis shader-nya: satu angka, dua bahasa."
+      "description": "Satu-satunya aturan singularitas mesin, dalam bentuk kernel WGSL. Skalanya adalah jumlah nilai absolut sembilan suku bagian linearnya; determinannya diambil pada kolom-kolom **dibagi dengan skala itu sebelum hasil kali**, tidak pernah pada determinan mentah dibagi pangkat tiganya — `t³` meluap lewat 1e103 dan lenyap di bawah 1e-103, tepat di mana aturan itu harus memutuskan. `adjugateFactor` lalu mengembalikan `1 / determinant` untuk matriks reguler (bit acuannya), `1` untuk yang singular (adjugate apa adanya), dan `null` saat skalanya tidak terhingga dan tidak positif tegas, di mana adjugate-nya sendiri harus diganti nol."
     },
     "basisMatrix4": {
       "description": "Kolom `u`, `v`, `n` lalu titik asalnya, baris terakhir `(0, 0, 0, 1)`; dan sebuah skala seragam `s` diletakkan di `center`. Keduanya menggantikan rangkaian dua panggilan pustaka host dengan satu penulisan."
@@ -882,8 +880,8 @@
     "srgbToLinear": {
       "description": "Kurva sRGB yang pasti — `c / 12,92` di bawah 0,04045, `((c + 0,055) / 1,055)^2,4` di atasnya — dan kebalikannya, nilai negatif dijepit ke nol sebelum pangkatnya."
     },
-    "hslToLinearRgb": {
-      "description": "Hue, saturation dan lightness menjadi tiga komponen linear ditulis di `out[o..o+2]`. `setHSL` acuannya suku demi suku: hue yang dibungkus, saturation dan lightness dijepit ke `[0, 1]`, saturation nol dikembalikan sebagai abu-abu, lalu ramp bertahapnya. Tidak ada kurva transfer yang diterapkan — ruang kerja acuannya sudah linear."
+    "hslToRgb": {
+      "description": "Hue, saturation dan lightness menjadi tiga komponen RGB ditulis di `out[o..o+2]`. `setHSL` acuannya suku demi suku: hue yang dibungkus, saturation dan lightness dijepit ke `[0, 1]`, saturation nol dikembalikan sebagai abu-abu, lalu ramp bertahapnya. RGB keluar dalam pengodean yang sama dengan HSL yang diberikan: tidak ada kurva transfer yang diterapkan."
     },
     "boxUnion": {
       "description": "Sebuah kotak adalah enam angka disimpan datar mulai dari `o`: tiga batas bawah, tiga batas atas. Sebuah kotak kosong punya batas bawahnya di `+Infinity` dan batas atasnya di `-Infinity`; sebuah batas NaN tidak membuat sebuah kotak jadi kosong. Memperluas dan menyatukan mengambil batasnya sebagai parameter, jadi tidak ada objek sementara yang dibuat per panggilan."
@@ -904,7 +902,7 @@
       "description": "Kotak terhadap frustum: yang pertama benar saat sebuah bidang meninggalkan kedelapan sudutnya di belakang. Yang kedua mengembalikan tiga keadaan — 0 di luar, 1 mengangkang, 2 sepenuhnya di dalam — dalam dua tahap, yang pertama hanya menolak, yang kedua membaca sudut paling belakang untuk membedakan \"mengangkang\" dari \"di dalam\". Sebuah subtree yang sepenuhnya di dalam menghemat sebuah uji pada tiap kotak di bawahnya."
     },
     "boxConeRejects": {
-      "description": "Penolakan sebuah kotak lokal oleh kerucut normalnya, dilihat dari sebuah titik dunia: kotaknya digantikan bolanya, sumbu kerucutnya dibawa matriks normal dan dinormalisasi, keputusannya diambil pada hasil kali titik yang dijepit, sudut kerucut dan sebaran perspektif bolanya. Sebuah transform bersifat conformal saat kolom-kolomnya sepanjang yang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak, dan sebuah parameter yang ditolak ujinya juga tidak menolak. Varian `_WGSL`-nya adalah konstanta yang sama dengan teks shader-nya, jadi cerminan CPU dan tahap GPU-nya tidak bisa berbeda."
+      "description": "Penolakan sebuah kotak lokal oleh kerucut normalnya, dilihat dari sebuah titik dunia: kotaknya digantikan bolanya, sumbu kerucutnya dibawa matriks normal dan dinormalisasi, keputusannya diambil pada hasil kali titik yang dijepit, sudut kerucut dan sebaran perspektif bolanya. Sebuah transform bersifat conformal saat kolom-kolomnya sepanjang yang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak, dan sebuah parameter yang ditolak ujinya juga tidak menolak."
     },
     "createTransformTree": {
       "description": "Hierarki transform mesin, berbasis data: sebuah node adalah sebuah indeks ke dalam larik-larik datar — parent, flags, position, quaternion `(x, y, z, w)`, scale, matriks lokal, matriks dunia. `localViews[i]` dan `worldViews[i]` adalah view enam belas angka dibuat saat pertumbuhan dan tidak pernah saat pembaruan: GPU membaca seluruh buffernya, sebuah kernel membaca view sebuah node. Sebuah node baru adalah objek baru acuannya: posisi nol, rotasi identitas, skala 1, matriks identitas, pembaruan otomatis. Sebuah pertumbuhan menggantikan tiap larik, jadi seorang pemanggil membaca ulang `tree.world` atau `tree.worldViews` setelah sebuah penambahan."
@@ -931,25 +929,25 @@
       "description": "`n` kotak ditransformasi oleh `n` matriks: `out[i] = boxTransform(boxes[i], mats[i])`. `out` dan `boxes` membawa enam angka per elemen, `mats` sebuah sub-view enam belas angka."
     },
     "hierarchyUpdateBatch": {
-      "description": "Sebuah hierarki penuh diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya — penjelajahan `packages/sdk-core/src/math/transform-tree/update.ts`, kedua rumus yang sama dalam urutan yang sama, pada buffer datar. `parents[i]` **harus** menunjuk sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua jalur: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda. `local` adalah satu matriks sementara, dipakai ulang tiap elemen."
+      "description": "Sebuah hierarki penuh diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya — penjelajahan `packages/sdk-core/src/world/transform-tree/update.ts`, kedua rumus yang sama dalam urutan yang sama, pada buffer datar. `parents[i]` **harus** menunjuk sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua jalur: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda. `local` adalah satu matriks sementara, dipakai ulang tiap elemen."
     },
     "createPathGovernor": {
       "description": "Apa yang memutuskan antara JS dan WebAssembly, per operasi bernama: median bergerak nanodetik per elemen, sebuah perpindahan hanya setelah lima eksekusi berturut-turut dengan keunggulan itu, dan satu dari lima puluh eksekusi memutar ulang jalur yang lain untuk menyegarkan mediannya. Di bawah lima sampel tidak ada yang diputuskan — satu nilai saja akan membuat mediannya. `metrics()` menerbitkan, untuk tiap operasi, `path`, `jsNsPerElement`, `wasmNsPerElement`, jumlah perpindahannya, dan resolusi jam yang jadi dasar pengukurannya."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` kotak enam angka (min lalu max) terhadap dua puluh empat float sebuah frustum: `kept[i]` adalah 1 saat kotaknya berpotongan atau berada di dalam, dan jumlah yang disimpan dikembalikan — `frustumExcludesBox` dibalik, polaritas yang dijawab acuannya. Batch bolanya menulis `SPHERE_VALUES` angka per kotak, pusat lalu radius ke sudutnya, seperti dilakukan `sphereFromBounds`. Kedua loop-nya ada di `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` kotak enam angka (min lalu max) terhadap dua puluh empat float sebuah frustum: `kept[i]` adalah 1 saat kotaknya berpotongan atau berada di dalam, dan jumlah yang disimpan dikembalikan — `frustumExcludesBox` dibalik, polaritas yang dijawab acuannya. Batch bolanya menulis `SPHERE_VALUES` angka per kotak, pusat lalu radius ke sudutnya, seperti dilakukan `sphereFromBounds`. Kedua loop-nya ada di `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` diperbesar oleh `n` kotak, atau oleh `n` kotak yang masing-masing ditransformasi dulu oleh matriksnya sendiri — satu tahap, satu kotak sementara, tanpa alokasi. Keduanya mengulang `boxUnion`, yang kedua ditambah `boxTransform` sebelumnya: batas dunia seluruh adegan dalam satu panggilan."
     },
     "invertMatrix4Batch": {
-      "description": "`n` invers, `n` matriks normal berjumlah `NORMAL_MATRIX_VALUES` angka, `n` penyusunan `T · R · S`, `n` penguraian. Sebuah matriks dengan determinan nol diinvers menjadi identitas dan ditandai di `singular[i]` — tidak pernah melempar galat di tengah sebuah batch. `composeMatrix4Batch` menerima semuanya datar atau semuanya sebagai sub-view, dan menetapkan bentuknya sebelum loop-nya. Keempat loop-nya ada di `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` invers, `n` matriks normal berjumlah `NORMAL_MATRIX_VALUES` angka, `n` penyusunan `T · R · S`, `n` penguraian. Sebuah matriks dengan determinan nol diinvers menjadi identitas dan ditandai di `singular[i]` — tidak pernah melempar galat di tengah sebuah batch. `composeMatrix4Batch` menerima semuanya datar atau semuanya sebagai sub-view, dan menetapkan bentuknya sebelum loop-nya. Keempat loop-nya ada di `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` titik tiga angka oleh satu matriks afin, atau satu matriks per titik; `n` arah oleh blok 3×3 atas lalu dinormalisasi, translasi diabaikan. Keduanya mengulang `transformAffinePoint` dan `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Satu kanal per elemen, kurva pasti dari `packages/sdk-core/src/math/primitives/color.ts`: acuannya mengalikan dengan konstanta yang dibulatkan, dan celahnya — tak terlihat pada 8 bit — dibatasi sekali, dalam bench yang mengadunya."
+      "description": "Satu kanal per elemen, kurva pasti dari `packages/math/src/color/color.ts`: acuannya mengalikan dengan konstanta yang dibulatkan, dan celahnya — tak terlihat pada 8 bit — dibatasi sekali, dalam bench yang mengadunya."
     },
     "scene-editor": {
       "title": "Membangun scene dengan editor",
@@ -1170,11 +1168,10 @@
       "an angle at or above π/2 never rejects": "sebuah sudut sebesar atau lebih dari π/2 tidak pernah menolak",
       "after updateNodeMatrixWorld(tree, root)": "setelah updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "tersedia — Halaman indeks terpasang; halaman yang hilang tidak digambar; bukan VRAM fisik",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "tersedia — Warna unik penuh per segitiga yang dikirim, bukan kerangka kawat GL_LINES",
+      "available — A filled unique colour per submitted triangle": "tersedia — Warna unik penuh per segitiga yang dikirim",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "tersedia — Cluster level-0 dibanding reduksi DAG lebih kasar yang benar-benar terpilih bingkai ini",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "tersedia — Galat layar per-cluster diproyeksikan lewat bola cluster, seperti dipakai potongannya",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "tersedia — Halaman terlihat terpilih; node hierarki yang ditolak dihitung, tidak digambar",
-      "available — Stable primitive/page ID, exact-cluster backend only": "tersedia — ID primitif/halaman yang stabil, hanya backend cluster pasti",
       "available — glTF materials": "tersedia — material glTF",
       "unavailable — No fragment counter": "tidak tersedia — tidak ada penghitung fragmen",
       "unavailable — Texture mip residency not instrumented": "tidak tersedia — residensi mip tekstur tidak diinstrumentasi",

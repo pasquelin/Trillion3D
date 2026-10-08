@@ -11,18 +11,9 @@
 //! Maya writes each of these vectors as a block — `.t` — or component by component — `.tx` —,
 //! often both in the same file: both writings are read, the component winning.
 use super::*;
-use crate::compiler_world::{axis_rotation, multiply, scaling, translation, Mat4, IDENTITY};
-
-/// The six Euler rotation application orders that `rotateOrder` numbers, each giving the axes
-/// **in the order they apply to the point**.
-const ORDERS: [[usize; 3]; 6] = [
-    [0, 1, 2],
-    [1, 2, 0],
-    [2, 0, 1],
-    [0, 2, 1],
-    [1, 0, 2],
-    [2, 1, 0],
-];
+use crate::compiler_world::{axis_rotation, scaling, translation, Mat4, IDENTITY};
+use trillion3d_math::euler::{euler_matrix_from_zero, ORDERS_BY_CYCLE};
+use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// Suffixes of the components of an axis vector, `.tx` for `.t`.
 const AXES: [&str; 3] = ["x", "y", "z"];
@@ -44,7 +35,12 @@ pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> 
         )),
         translation(rotate_pivot),
         rotation(node, ["r", "rotate"], order(node), degrees_per_unit),
-        rotation(node, ["ra", "rotateAxis"], ORDERS[0], degrees_per_unit),
+        rotation(
+            node,
+            ["ra", "rotateAxis"],
+            ORDERS_BY_CYCLE[0],
+            degrees_per_unit,
+        ),
         translation(rotate_pivot.map(std::ops::Neg::neg)),
         translation(triple(node, ["spt", "scalePivotTranslate"], AXES, [0.0; 3])),
         translation(scale_pivot),
@@ -52,7 +48,7 @@ pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> 
         scaling(triple(node, ["s", "scale"], AXES, [1.0; 3])),
         translation(scale_pivot.map(std::ops::Neg::neg)),
     ] {
-        out = multiply(&out, &step);
+        out = multiply_matrix4_from_zero(&out, &step);
     }
     if !out.iter().all(|value| value.is_finite()) {
         report.add(report::TRANSFORM_INVALID);
@@ -71,23 +67,18 @@ pub(super) fn inherits(node: &Node) -> bool {
 fn order(node: &Node) -> [usize; 3] {
     node.attr(&["ro", "rotateOrder"])
         .and_then(Attr::scalar)
-        .and_then(|rank| ORDERS.get(rank as usize))
+        .and_then(|rank| ORDERS_BY_CYCLE.get(rank as usize))
         .copied()
-        .unwrap_or(ORDERS[0])
+        .unwrap_or(ORDERS_BY_CYCLE[0])
 }
 
 /// An Euler rotation of the node, composed in the given order. Axes apply to the point from
 /// first to last, so the matrix composes the last first.
 fn rotation(node: &Node, names: [&str; 2], order: [usize; 3], degrees_per_unit: f64) -> Mat4 {
     let angles = triple(node, names, AXES, [0.0; 3]);
-    let mut out = IDENTITY;
-    for axis in order.into_iter().rev() {
-        out = multiply(
-            &out,
-            &axis_rotation(axis, (angles[axis] * degrees_per_unit).to_radians()),
-        );
-    }
-    out
+    euler_matrix_from_zero(order, |axis| {
+        axis_rotation(axis, (angles[axis] * degrees_per_unit).to_radians())
+    })
 }
 
 /// Matrix of a Maya shear `(XY, XZ, YZ)`: axis `Y` leans toward `X`, axis `Z` toward `X` and

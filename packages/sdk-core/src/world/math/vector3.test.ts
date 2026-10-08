@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { Vector3, readVec3 } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Quaternion } from './quaternion.ts'
-import { listen } from './observed.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { listen } from '../observed.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const near = (actual: number[], expected: number[]) => within(actual, expected, 'vector', 1e-10)
 
@@ -83,7 +84,7 @@ test('point, direction and rotation transforms have distinct physical meanings',
   const turn = new Quaternion(0, 0, Math.SQRT1_2, Math.SQRT1_2)
   near(new Vector3(1, 0, 0).applyQuaternion(turn).toArray(), [0, 1, 0])
   near(
-    new Vector3().setFromSpherical({ radius: 2, phi: Math.PI / 2, theta: Math.PI / 2 }).toArray(),
+    new Vector3().setFromSpherical({ radius: 2, phi: HALF_PI, theta: HALF_PI }).toArray(),
     [2, 0, 0],
   )
 })

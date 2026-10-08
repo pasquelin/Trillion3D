@@ -10,6 +10,8 @@
 //! solve. The axis does not depend on the codec: it is found once per block and
 //! handed to both.
 
+use trillion3d_math::vecn::{add, dot, length, scale, squared_length, sub};
+
 /// One texel per entry, in reading order, channels R, G, B, A as bytes.
 pub type Texels = [[f32; 4]; 16];
 
@@ -44,19 +46,6 @@ pub fn block_texels(rgba: &[u8], width: u32, height: u32, bx: u32, by: u32) -> T
     texels
 }
 
-fn add(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    std::array::from_fn(|i| a[i] + b[i])
-}
-fn sub(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    std::array::from_fn(|i| a[i] - b[i])
-}
-fn scale(a: [f32; 4], s: f32) -> [f32; 4] {
-    std::array::from_fn(|i| a[i] * s)
-}
-fn dot(a: [f32; 4], b: [f32; 4]) -> f32 {
-    a.iter().zip(b).map(|(x, y)| x * y).sum()
-}
-
 /// Principal axis of the texels around `mean`: eight power iterations on their
 /// covariance, enough for a 4 × 4 matrix whose first eigenvalue dominates — and
 /// when none does, the block is nearly constant and any axis serves it. The
@@ -75,7 +64,7 @@ fn principal_axis(texels: &Texels, mean: [f32; 4]) -> [f32; 4] {
                 *cell += d[row] * d[column];
             }
         }
-        let spread = dot(d, d);
+        let spread = squared_length(d);
         if spread > farthest {
             farthest = spread;
             axis = d;
@@ -83,7 +72,7 @@ fn principal_axis(texels: &Texels, mean: [f32; 4]) -> [f32; 4] {
     }
     for _ in 0..8 {
         let next: [f32; 4] = std::array::from_fn(|row| dot(covariance[row], axis));
-        let length = dot(next, next).sqrt();
+        let length = length(next);
         if length < 1e-6 {
             break;
         }

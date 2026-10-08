@@ -9,7 +9,7 @@ import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { runtime } from './targets.fixture.ts'
 import { frameTargetAllocation } from './targetAllocation.ts'
 import { wantsEmissiveAo } from './emissiveAoLayer.ts'
@@ -19,12 +19,12 @@ const count = (list: string[], item: string) => list.filter((at) => at === item)
 
 async function opened(emits: boolean) {
   installGpuGlobals()
-  const gpu = mockGpu({ compute: true })
+  const gpu = mockGpu()
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
   if (emits) (material.emissive as G.Color).setRGB(0.5, 0.25, 0)
   ;(fixture.source.children[0] as G.HostMesh).material = material
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -34,7 +34,7 @@ async function opened(emits: boolean) {
   // The images it takes for the frame targets to settle (made aside, then in place).
   for (let image = 0; image < 3; image++) {
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
   }
   return { gpu, fixture, backend, material }
 }
@@ -102,7 +102,7 @@ test('a surface made to emit after open brings the layer before the image that d
     // The census heard the surface: the image is held while the classes that write the layer
     // compile, off the frame — none is drawn without it, none compiled by the frame.
     assert.equal(resolves().length, drawn, 'held, the previous image shown')
-    await backend.flush?.()
+    await backend.flush()
     const seen = surfacesOf(gpu)
     assert.equal(seen.slot, 'rgba16float', 'the first image drawn writes the emission')
     assert.equal(count(seen.layers, '32×32'), count(before, '32×32') + 1, 'the drawn view grew one')

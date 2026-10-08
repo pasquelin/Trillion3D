@@ -1,5 +1,6 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { hypot3 } from '../math/primitives/hypot.ts'
+import { boxDiagonal } from '../../../math/src/geometry/box.ts'
+import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -75,9 +76,10 @@ function spacingsOf(bounds: readonly number[]): number[] {
   // The finest spacing is also the one that, doubled at each step, allows the last level
   // to cover the extent: all spacings are power-of-two multiples of the finest, and the
   // occupancy map of a level is the exact reduction of the previous level's map.
-  const finest = Math.max(
-    Math.min(cascadeSpacingMetres, Math.min(...sizes) / cascadeLayersAcross),
+  const finest = clampLowWins(
+    Math.min(...sizes) / cascadeLayersAcross,
     extent / (useful * 2 ** (cascadeLevels - 1)),
+    cascadeSpacingMetres,
   )
   const spacings: number[] = []
   for (let level = 0; level < cascadeLevels; level++) {
@@ -125,17 +127,10 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     reserveCount: probesPerLevel * BOUNCE_SETTINGS.cascadeLevels,
     invalidLevels: 0,
     levels,
-    reach:
-      hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
-      BOUNCE_SETTINGS.rayReachFraction,
+    reach: boxDiagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction,
     replan(nextBounds) {
       const planned = spacingsOf(nextBounds)
-      const reach =
-        hypot3(
-          nextBounds[3] - nextBounds[0],
-          nextBounds[4] - nextBounds[1],
-          nextBounds[5] - nextBounds[2],
-        ) * BOUNCE_SETTINGS.rayReachFraction
+      const reach = boxDiagonal(nextBounds) * BOUNCE_SETTINGS.rayReachFraction
       cascades.invalidLevels = 0
       for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i
       for (let i = 0; i < planned.length; i++) {

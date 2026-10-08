@@ -16,6 +16,8 @@ import {
 } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
 const SLOT_WORDS = 13
@@ -36,14 +38,12 @@ export interface ClusterPage {
   indexCount: number
 }
 
-export const CLUSTER_DECODING_SHADER = `${PAGE_INFO_STRUCT_WGSL}
-@group(0) @binding(0) var<storage, read> indices:array<u32>;
+export const CLUSTER_DECODING_SHADER = wgslProgram(
+  `@group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read_write> out:array<u32>;
 @group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
 @group(0) @binding(3) var<storage, read> positions:array<f32>;
 @group(0) @binding(4) var<storage, read> uvs:array<f32>;
-${PAGE_GEOMETRY_WGSL}
-${COTANGENT_FRAME_WGSL}
 fn clusterUv1(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
  return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),
   clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
@@ -70,7 +70,9 @@ fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
   put(base+3u,frame.T.x);put(base+4u,frame.T.y);put(base+5u,frame.T.z);
   put(base+6u,frame.B.x);put(base+7u,frame.B.y);put(base+8u,frame.B.z);
  }
-}`
+}`,
+  [PAGE_INFO_STRUCT_WGSL, COTANGENT_FRAME_WGSL, PAGE_GEOMETRY_WGSL],
+)
 
 /** One pipeline, every page decoded in turn, each page's output words read back. */
 async function decodePages(pages: ClusterPage[]) {
@@ -125,7 +127,7 @@ async function decodePages(pages: ClusterPage[]) {
     const pass = encoder.beginComputePass()
     pass.setBindGroup(0, group)
     pass.setPipeline(pipeline)
-    pass.dispatchWorkgroups(Math.ceil(Math.max(vertexCount, indexCount / 3) / 64))
+    pass.dispatchWorkgroups(ceilDiv(Math.max(vertexCount, indexCount / 3), 64))
     pass.end()
     encoder.copyBufferToBuffer(output, 0, target, 0, outputBytes)
     device.queue.submit([encoder.finish()])

@@ -103,11 +103,11 @@ mod tests {
         assert!(include_str!("../build.rs").contains("cargo:rerun-if-changed=src\""));
     }
 
-    // Behaviour: the page codec is linked into the compiler: its sources are hashed as the
-    // compiler's own, so a codec edit moves the key. So does the cargo configuration, whose
+    // Behaviour: the page codec and the maths are linked into the compiler: their sources are
+    // hashed as the compiler's own, so a codec or maths edit moves the key. So does the cargo configuration, whose
     // C++ flags change what the simplifier simplifies to. Read from the list the build hashed.
     #[test]
-    fn the_build_hashes_the_page_codec_and_the_cpp_flags() {
+    fn the_build_hashes_its_path_dependencies_and_the_cpp_flags() {
         let inputs: Vec<&str> =
             include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
                 .lines()
@@ -115,11 +115,34 @@ mod tests {
         for input in [
             "../page-codec-wasm/src/lib.rs",
             "../page-codec-wasm/Cargo.toml",
+            "../math/rust/src/lib.rs",
+            "../math/rust/Cargo.toml",
             "../../.cargo/config.toml",
         ] {
             assert!(inputs.contains(&input), "{input} is not hashed");
         }
         assert!(inputs.contains(&"src/compiler_identity.rs"));
+    }
+
+    // Behaviour: test code is never in the binary, so it never moves the key: the golden harness,
+    // the golden and unit tests, and a `#[cfg(test)]` module are left out, in every crate.
+    #[test]
+    fn the_build_leaves_test_code_out_of_the_hash() {
+        let inputs: Vec<&str> =
+            include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
+                .lines()
+                .collect();
+        for input in [
+            "../math/rust/src/golden.rs",
+            "../math/rust/src/golden/value.rs",
+            "../math/rust/src/golden_tests.rs",
+            "../page-codec-wasm/src/golden_tests/grid.rs",
+            "src/tests/golden.rs",
+            "src/geometry_page_quant/screen/mod.rs",
+        ] {
+            assert!(!inputs.contains(&input), "{input} is hashed");
+        }
+        assert!(!inputs.iter().any(|input| input.contains("_tests")));
     }
 
     // Behaviour: the runtime reads the error model the compiler writes. A mismatch would make

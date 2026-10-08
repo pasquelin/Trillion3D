@@ -9,7 +9,7 @@ import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/enco
 import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { median } from '../../../scripts/median.ts'
+import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 
@@ -47,11 +47,11 @@ async function measure(
   { packed, uniforms }: ReturnType<typeof sceneView>,
   { frames, rounds, thresholds }: Omit<Sweep, 'sizes' | 'levels'>,
 ) {
-  const cut = await createDagResources(device, packed, true)
+  const cut = await createDagResources(device, packed)
   if (!cut) return undefined
   const block = new Float32Array(DAG_VIEW_WORDS)
   const setThreshold = (pixelError: number) => {
-    writeDagUniforms(block, packed, { ...uniforms, pixelError }, true, cut.listCap)
+    writeDagUniforms(block, packed, { ...uniforms, pixelError }, cut.listCap)
     device.queue.writeBuffer(cut.uniforms, 0, block)
   }
   // The readout before the cap: the header and a rank per page, for each of its two lists.
@@ -108,7 +108,7 @@ async function measure(
     worstBytes,
     variants: variants.map(({ name }, v) => ({
       name,
-      ms: Number(median(times[v]).toFixed(4)),
+      ms: Number((quantileFloorOf(times[v], 0.5) as number).toFixed(4)),
       // The rounds' spread: a gap inside it is no gap.
       spread: Number((Math.max(...times[v]) - Math.min(...times[v])).toFixed(4)),
     })),

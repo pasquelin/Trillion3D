@@ -28,8 +28,8 @@ import {
 import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionWgsl.ts'
 import { SHADOW_POOL_BYTES } from '../residency/shadowBudgetBytes.ts'
 import { vsmLayout, vsmResourceBytes, type VsmResourceOptions } from './layout.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
-const MiB = 1024 * 1024
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */
 const LEVELS = 17
 const SHARED = ['pageTable', 'receiverCover', 'staleRects'] as const
@@ -43,7 +43,7 @@ const DOUBLED = [
 ] as const
 
 /** A recording device whose storage bindings hold `binding` bytes. */
-const deviceFor = (binding = 128 * MiB) =>
+const deviceFor = (binding = 128 * MIB) =>
   fakeDevice({ limits: { maxStorageBufferBindingSize: binding } })
 
 const CASES: [string, VsmResourceOptions, number?][] = [
@@ -52,7 +52,7 @@ const CASES: [string, VsmResourceOptions, number?][] = [
   ['one sun, the mask its own levels', { fullMapCapacity: 127, sunMapCapacity: 18 }],
   ['three suns', { fullMapCapacity: 127, sunMapCapacity: 3 * LEVELS + 1 }],
   ['127 maps, every one directional', { fullMapCapacity: 127 }],
-  ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MiB],
+  ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MIB],
   ['a 4096-page pool', { fullMapCapacity: 127, poolPages: 4096 }],
   ['local masks, no cache slice', { fullMapCapacity: 63, coverMode: 'local', cacheEnabled: false }],
 ]
@@ -64,7 +64,7 @@ for (const [name, options, binding] of CASES)
     const made = fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0)
     assert.equal(res.bytes, made, 'res.bytes is what the device was asked for')
     assert.equal(vsmResourceBytes(res.layout), made)
-    assert.equal(vsmResourceBytes(vsmLayout(options, binding ?? 128 * MiB)), made)
+    assert.equal(vsmResourceBytes(vsmLayout(options, binding ?? 128 * MIB)), made)
   })
 
 test('the page table, receiver covers and uncached rects are one buffer for both frames', () => {
@@ -94,7 +94,7 @@ test('the page table, receiver covers and uncached rects are one buffer for both
   const { layout } = sun
   const saved = SHARED.reduce((sum, member) => sum + sun.frames[0][member].size, 0)
   assert.equal(saved, layout.pageTableWords * 4 + layout.coverWords * 4 + layout.pageRectCount * 16)
-  assert.ok(Math.abs(saved - 32 * MiB) < 1024, `${saved}`)
+  assert.ok(Math.abs(saved - 32 * MIB) < 1024, `${saved}`)
 })
 
 test('destroy frees every buffer once, the shared ones included', () => {
@@ -126,7 +126,7 @@ test("a swap exchanges the doubled members and keeps the shared ones; prev binds
 })
 
 test("no pass binds a shared member as last frame's: such a spec is refused at its shader", () => {
-  const layout = vsmLayout({ fullMapCapacity: 127 }, 128 * MiB)
+  const layout = vsmLayout({ fullMapCapacity: 127 }, 128 * MIB)
   for (const resource of SHARED)
     assert.throws(
       () => vsmBindingsWgsl(0, [{ resource, binding: 0, prev: true }], layout),
@@ -177,5 +177,5 @@ test('the projection buffer is a 288-byte record a slot, and the shadows hold 40
     vsmResourceBytes(res.layout),
     fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0),
   )
-  assert.equal(SHADOW_POOL_BYTES / MiB, 404)
+  assert.equal(SHADOW_POOL_BYTES / MIB, 404)
 })

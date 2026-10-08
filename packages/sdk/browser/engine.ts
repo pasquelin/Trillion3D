@@ -5,14 +5,16 @@ export type {
   LaneCounts,
   TextureCompression,
 } from '../../sdk-browser/src/texture/blockFormats.ts'
-export type { BackendDiagnostic, DiagnosticDetail } from '../../sdk-browser/src/diagnostic/types.ts'
 export type {
   BatchRead,
   HostRetentionDelta,
   PageStreamerOptions,
   StreamPage,
 } from '../../sdk-browser/src/streaming/types.ts'
-export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts'
+export type {
+  BoxTransformLot,
+  MultiplyLot,
+} from '../../sdk-browser/src/page/decode/batch/batchRuntime.ts'
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts'
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
@@ -26,7 +28,6 @@ export type {
   CharacterCollision,
   TriangleCollision,
 } from '../../sdk-core/src/collision/characterCollision.ts'
-export type { ComparisonLayout } from '../../sdk-browser/src/measurement/comparison.ts'
 export { ObjectPhysics } from '../../sdk-core/src/physics/objectPhysics.ts'
 export type {
   ContactEvent,
@@ -41,8 +42,9 @@ export type {
   DiagnosticObserver,
 } from '../../sdk-browser/src/diagnostic/channel.ts'
 export { createGpuPageCache, httpPageSource } from '../../sdk-browser/src/gpu/page/pages.ts'
+export type { GpuPageCacheOptions } from '../../sdk-browser/src/gpu/page/pages.ts'
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts'
-export type { DecodedGeometryPage } from '../../sdk-browser/src/page/decode/geometryPage.ts'
+export type { DecodedGeometryPage } from '../../sdk-browser/src/page/codec/geometryPage.ts'
 export {
   DEFAULT_PHYSICS_BUDGET,
   GRAVITY_PRESETS,
@@ -60,10 +62,10 @@ export type {
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
+export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts'
-export type { FramePass } from '../../sdk-browser/src/webgl/core/frameTimer.ts'
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts'
 export type {
   GeometryPool,
@@ -98,9 +100,6 @@ export type {
   HostAttributes,
   HostBox,
   HostColour,
-  HostDiagnosticFactory,
-  HostDiagnosticGeometry,
-  HostDiagnosticMaterial,
   HostDisposable,
   HostMaterial,
   HostMaterials,
@@ -109,10 +108,7 @@ export type {
   HostScene,
   HostTexture,
 } from '../../sdk-browser/src/host/resources.ts'
-export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.ts'
-export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts'
-export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts'
-export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts'
+export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/host/matrixElements.ts'
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts'
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts'
 export type {
@@ -124,10 +120,12 @@ export type {
 } from '../../sdk-core/src/physics/jointOptions.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts'
+export type { PagePinTier } from '../../sdk-browser/src/gpu/page/load.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts'
+export type { PathRun } from '../../sdk-browser/src/camera/path.ts'
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts'
-export type { PlacementGrowth } from '../../sdk-browser/src/placement/backendSceneUpdates.ts'
+export type { PlacementGrowth } from '../../sdk-browser/src/placement/engineSceneUpdates.ts'
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
@@ -179,4 +177,6 @@ export type {
   EngineCamera,
   OrthographicBox,
 } from '../../sdk-browser/src/camera/engineCamera.ts'
+export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.ts'
+export type { HostCamera } from '../../sdk-browser/src/camera/world.ts'
 export { materialSide, sideOf } from '../../sdk-browser/src/scene/materialSide.ts'

@@ -32,7 +32,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { matrixWindingCw } from '../../../../../../../packages/sdk-core/src/math/matrix/orientation.ts'
+import { matrixWindingCw } from '../../../../../../../packages/math/src/matrix/orientation.ts'
 
 /** Deterministic sequence: same sweep on every run, on this machine and elsewhere. */
 function sequence(seed: number) {

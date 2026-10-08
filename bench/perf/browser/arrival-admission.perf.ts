@@ -1,9 +1,9 @@
 // transfer admission and draining arrivals.
 import {
-  findAdmissible,
-  insereTravail,
+  createJobHeap,
+  takeAdmissible,
 } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
-import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
@@ -16,32 +16,36 @@ import {
  *  ceiling, like the oracle it is compared with, so the two deliver alike on any machine. */
 const frame = createFrameBudget(Infinity)
 
-/** The fields `insereTravail`/`findAdmissible` read: a lighter shape than the engine's `Job`. */
+/** The fields the queue's heap and `takeAdmissible` read: a lighter shape than the engine's `Job`. */
 interface AdmissionJob {
   url: string
   priority: number
   order: number
   consumers: number
+  bytes: number
+  slot: number
 }
 
 const ACTIVE_LIMIT = 6,
-  TRANSFER_BUDGET = 2 * 1024 * 1024
+  TRANSFER_BUDGET = 2 * MIB
 /**
- * The engine's admission, as `streaming/queue.ts`'s pump runs it: the queue is already in order —
- * each job went in by `insereTravail` —, so no sort; the first admissible job leaves by `splice`.
- * The pump itself needs a live transfer context; this is its loop, on the engine's functions.
+ * The engine's admission, as `streaming/queueTransfer.ts`'s pump runs it: each job queued in the
+ * heap as it arrives, the first admissible taken out. The pump itself needs a live transfer
+ * context; this is its loop, on the engine's functions.
  */
-function engineAdmission(queue: AdmissionJob[], bytesOf: (url: string) => number | undefined) {
+function engineAdmission(jobs: readonly AdmissionJob[]) {
+  const heap = createJobHeap<AdmissionJob>()
+  for (const job of jobs) heap.push(job)
   const admitted: string[] = []
   let active = 0,
     activeBytes = 0
-  while (active < ACTIVE_LIMIT && queue.length) {
-    const at = findAdmissible(queue, active, activeBytes, bytesOf, TRANSFER_BUDGET)
-    if (at < 0) break
-    const job = queue.splice(at, 1)[0]
+  for (
+    let job;
+    active < ACTIVE_LIMIT && (job = takeAdmissible(heap, active, activeBytes, TRANSFER_BUDGET));
+  ) {
     if (job.consumers === 0) continue
     active++
-    activeBytes += bytesOf(job.url) ?? 0
+    activeBytes += job.bytes
     admitted.push(job.url)
   }
   return admitted
@@ -53,21 +57,12 @@ const jobs: AdmissionJob[] = []
 for (let i = 0; i < 5000; i++) {
   const url = `page-${i % 4200}.bin`
   catalogue.set(url, Math.floor(random() * 400 * 1024))
-  jobs.push({ url, priority: (i * 7) % 5, order: i, consumers: i % 97 ? 1 : 0 })
+  jobs.push({ url, priority: (i * 7) % 5, order: i, consumers: i % 97 ? 1 : 0, bytes: 0, slot: -1 })
 }
+for (const job of jobs) job.bytes = catalogue.get(job.url)!
 const bytesOf = (url: string) => catalogue.get(url)
-/** The same jobs in the order the engine keeps them: each inserted at its slot as it arrives. */
-const inOrder: AdmissionJob[] = []
-for (const job of jobs) insereTravail(inOrder as unknown as Job[], job as unknown as Job)
-/** The queue an admission consumes, refilled in place before each call: no array allocated. */
-const consumed: AdmissionJob[] = []
-const refill = (from: readonly AdmissionJob[]) => {
-  consumed.length = 0
-  for (let i = 0; i < from.length; i++) consumed.push(from[i])
-  return consumed
-}
-const admissions = { full: { inOrder, arrival: jobs }, empty: { inOrder: [], arrival: [] } }
-type Admission = (typeof admissions)['full']
+const admissions = { full: jobs, empty: [] as AdmissionJob[] }
+type Admission = AdmissionJob[]
 
 /** What `createArrivalQueue`/`referenceArrivalQueue` both build: `queue`/`drain` on the same shape. */
 interface QueueFactory {
@@ -86,7 +81,7 @@ function arrivals(factory: (byteBudget: number, countBudget: number) => QueueFac
     targets.push({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     })
-  const queue = factory(64 * 1024 * 1024, 4096)
+  const queue = factory(64 * MIB, 4096)
   const bytes = new Uint32Array(16)
   for (let i = 0; i < 5000; i++) queue.queue(targets[i % 8], `page-${i % 900}.bin`, bytes)
   let drained = 0
@@ -101,15 +96,15 @@ const resAdmission = await measure({
   name: 'admission streaming',
   fichier: [
     'packages/sdk-browser/src/streaming/queueOrder.ts',
-    'packages/sdk-browser/src/streaming/queue.ts',
+    'packages/sdk-browser/src/streaming/queueTransfer.ts',
   ],
   cas: [
-    { name: '5 000 ordered jobs', input: admissions.full, size: 5000 },
-    { name: 'no jobs', input: admissions.empty as Admission, size: 0 },
+    { name: '5 000 jobs', input: admissions.full, size: 5000 },
+    { name: 'no jobs', input: admissions.empty, size: 0 },
   ],
   // The oracle sorts its own copy of the queue in arrival order, as the code did.
-  calculation: ({ inOrder: queue }: Admission) => engineAdmission(refill(queue), bytesOf),
-  expected: ({ arrival }: Admission) => referenceAdmission(arrival.slice(), bytesOf),
+  calculation: (arrival: Admission) => engineAdmission(arrival),
+  expected: (arrival: Admission) => referenceAdmission(arrival.slice(), bytesOf),
   options: { tours: 100, budgetMs: 1500 },
 })
 

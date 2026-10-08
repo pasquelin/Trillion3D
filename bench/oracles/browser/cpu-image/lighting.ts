@@ -1,11 +1,11 @@
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from './projection.ts'
 import { backgroundRgb, sampleLinear, sampleMap } from './math.ts'
 import { shadingNormal } from './shadingNormal.ts'
 import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
 import { ROUGHNESS_FLOOR } from '../../../../packages/sdk-browser/src/lighting/shaderConstants.ts'
-import { hypot3 } from '../../../../packages/sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../packages/math/src/float/hypot.ts'
 
 /** The roughness floor every shading path clamps to, read here as a number. */
 const FLOOR = Number(ROUGHNESS_FLOOR)

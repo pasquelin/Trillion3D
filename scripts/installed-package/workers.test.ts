@@ -1,15 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  PAGE_DECODE_PROTOCOL,
-  PAGE_INTEGRATION_PROTOCOL,
-} from '../../packages/sdk-core/src/index.ts'
+import { PAGE_INTEGRATION_PROTOCOL } from '../../packages/sdk-core/src/index.ts'
+import { PAGE_TASK_PROTOCOL } from '../../packages/sdk-core/src/page/taskContracts.ts'
 import { installedWorkerRequests, runInstalledWorkers } from './workers.ts'
 
 test('the installed-package proof speaks the workers’ current protocols', () => {
-  const { decode, integration } = installedWorkerRequests()
-  assert.equal(decode.protocol, PAGE_DECODE_PROTOCOL)
-  assert.equal(decode.op, 'decode')
+  const { page, integration } = installedWorkerRequests()
+  assert.equal(page.protocol, PAGE_TASK_PROTOCOL)
+  assert.equal(page.op, 'cells')
   assert.equal(integration.protocol, PAGE_INTEGRATION_PROTOCOL)
 })
 

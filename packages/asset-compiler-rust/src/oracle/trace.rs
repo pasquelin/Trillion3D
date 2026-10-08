@@ -1,7 +1,7 @@
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
 use crate::proxy::tracer::{trace, World};
-use crate::shared_math::{dot, scale, sub};
 use rayon::prelude::*;
+use trillion3d_math::vec3::{dot, length, scale, sub};
 
 /// Irradiance of declared lights at a point: same physical attenuation and cones
 /// as the shader, with ray-traced shadows on source triangles instead of shadow maps.
@@ -17,7 +17,7 @@ pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3
             (scale(light.direction, -1.0), 1.0, f64::INFINITY)
         } else {
             let away = sub(light.position, point);
-            let distance = dot(away, away).sqrt();
+            let distance = length(away);
             if distance >= light.range {
                 continue;
             }
@@ -62,7 +62,7 @@ pub fn scene_reach(world: &World) -> f64 {
         return 1.0;
     }
     let side = |axis: usize| (bounds[3 + axis] - bounds[axis]) as f64;
-    (side(0) * side(0) + side(1) * side(1) + side(2) * side(2)).sqrt()
+    length([side(0), side(1), side(2)])
 }
 
 /// Returns the indirect irradiance image, one line per task. Each pixel has its own seed, so

@@ -3,7 +3,6 @@
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { renderGpuCut } from '../pages/render/gpuCut.ts'
-import { createHeldResidency } from '../../page/cut/held.ts'
 import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts'
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts'
@@ -19,7 +18,7 @@ const VIEWPORT: [number, number] = [512, 512]
  * selection and simulated residency services. The page does not yet have its bytes; `arrive()`
  * gives them to it, as a CPU transfer decode would.
  */
-export function banc(panne?: 'debordement' | 'envoi') {
+export function banc(panne?: 'envoi') {
   // The kernel reads the engine camera only: posed at z = 5, looking down the axis.
   const camera = createEngineCamera()
   camera.world.set(IDENTITY_MATRIX4)
@@ -88,12 +87,14 @@ export function banc(panne?: 'debordement' | 'envoi') {
   const rows = {
     // Already set: `ensurePageTable` has no device to ask on this bench.
     pageTableFloats: new Float32Array(4),
-    candidateOverflow: panne === 'debordement' ? 1 : 0,
+    rowsDenied: 0,
+    packedCount: 0,
     candidateCount: 1,
     residentFlags,
     residencyChanges: undefined,
     clearResidencyChanges: () => {},
   }
+  const mainView = {}
   const rt = {
     run: {
       gpuSelection: selection,
@@ -101,14 +102,17 @@ export function banc(panne?: 'debordement' | 'envoi') {
       motion: {}, // a still camera: no view ahead
       ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
+      lost: false,
+      frameHeld: false,
       desired,
       gate: { resourcesChanged: () => {}, revisions: { view: 0 } },
       frame: 0,
       imageRevision: 1,
       clearColor: 0,
     },
-    gpu: { device: fakeDevice().device, cache: {}, selectionFallback: false },
-    capabilities: { gpuDriven: true, unsupported: [] },
+    gpu: { device: fakeDevice().device, cache: {} },
+    capabilities: { unsupported: [] },
+    views: { main: mainView, active: mainView },
     diag: {
       traceEnabled: true,
       // Only the waiting record counts (`traceGpuCutWaiting`): another trace is no wait.
@@ -132,19 +136,20 @@ export function banc(panne?: 'debordement' | 'envoi') {
           return desired.length
         },
       },
-      residency: {
-        queueGpuCutResidency: () => {
-          comptes.queue++
-        },
+      residency: { short: () => false },
+      queueCutResidency: () => {
+        comptes.queue++
       },
       followEvictions: () => {},
+      followCut: () => {},
+      blendCasters: { asked: 0, used: 0 },
       syncRows: () => {
         comptes.sync++
         // Residency follows the bytes: a decoded page becomes resident for selection.
         residentFlags[0] = page.array ? 1 : 0
       },
       adoptGpuCut: () => adopter.adopt(),
-      heldResidency: createHeldResidency(),
+      adoptViewCut: () => adopter.adopt(),
     },
   } as unknown as WebgpuPagesRuntime
   return {

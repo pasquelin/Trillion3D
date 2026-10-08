@@ -9,16 +9,20 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
+import { PAGE_GEOMETRY_WGSL as PAGE_GEOMETRY } from './pageGeometryWgsl.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { randomPage } from '../../page/decode/randomPages.fixture.ts'
+import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
 import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
-let seed = 831
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+/** The page geometry as a program holds it, its decode included. */
+const PAGE_GEOMETRY_WGSL = wgslModule(PAGE_GEOMETRY)
+
+const random = lcgFloatRandom(831)
 const floats = (n: number, at: (i: number) => number) =>
   Float32Array.from({ length: n }, (_, i) => at(i))
 
@@ -73,7 +77,9 @@ function pool() {
 const NAMES = [
   ...'pageHeader pageHeaderFor deformWholeCopy pageCorner pageRestPosition vertPos'.split(' '),
   ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterStep'.split(' '),
-  ...'clusterPow2 clusterBitsFor clusterIndex clusterBlock clusterWindow clusterField'.split(' '),
+  ...'pow2FromExponent bitLength ceilDiv clusterIndex clusterBlock clusterWindow clusterField'.split(
+    ' ',
+  ),
   ...'clusterPosition clusterGrid'.split(' '),
 ]
 const flat = (v: unknown): number[] =>

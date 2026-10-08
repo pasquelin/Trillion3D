@@ -7,7 +7,8 @@ import {
 } from '../../../sdk-core/src/collision/characterSettings.ts'
 import type { CharacterReport } from './characterDriver.ts'
 import type { TickRecords, ToPhysics } from './protocol.ts'
-import { createTwoSteps, eachRecord, lerpInto } from './twoSteps.ts'
+import { createTwoSteps, eachRecord } from './twoSteps.ts'
+import { lerpArray } from '../../../math/src/scalar/reals.ts'
 
 /** The session's end of the character (`PhysicsSession.character`). */
 export interface CharacterPort {
@@ -123,7 +124,7 @@ export function createPhysicsCharacter(
       for (; jumps > 0; jumps--) events.onJump?.()
       if (landed >= 0) events.onLand?.(landed)
       landed = -1
-      lerpInto(drawn, from, to, port.at())
+      lerpArray(drawn, from, to, port.at())
       return drawn
     },
     dispose() {

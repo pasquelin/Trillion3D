@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
@@ -23,8 +24,9 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
     maxTransferBytes: 12,
   })
   try {
-    const detail = streamer.request(['a.bin', 'b.bin'], { priority: 2 })
-    const urgent = streamer.read('c.bin')
+    const detail = streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal, priority: 2 })
+    await eventually(() => started.length === 1) // the queue pumps once the task's reads are queued
+    const urgent = streamer.read('c.bin', streamer.signal)
     assert.deepEqual(started, ['a.bin'])
     assert.equal(streamer.stats().transferInFlightBytes, 12)
     release()
@@ -60,7 +62,7 @@ test('cancelling obsolete detail leaves a shared page request alive', async () =
   const obsolete = new AbortController()
   try {
     const old = streamer.request(['shared.bin'], { signal: obsolete.signal })
-    const current = streamer.read('shared.bin')
+    const current = streamer.read('shared.bin', streamer.signal)
     obsolete.abort()
     release()
     await assert.rejects(old, { name: 'AbortError' })
@@ -97,9 +99,12 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
     },
   )
   try {
-    await Promise.all([streamer.read('a.bin'), streamer.read('a.bin')])
+    await Promise.all([
+      streamer.read('a.bin', streamer.signal),
+      streamer.read('a.bin', streamer.signal),
+    ])
     streamer.retain([])
-    await streamer.request(['b.bin'])
+    await streamer.request(['b.bin'], { signal: streamer.signal })
     streamer.retain(['b.bin'])
     assert.ok(events.includes('page-catalogue'))
     assert.ok(events.includes('page-request-coalesced'))

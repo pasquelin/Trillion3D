@@ -4,9 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../sdk-core/src/world/effect/index.ts'
-import { createWebglEffects } from '../webgl/effects/webglEffects.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
-import { createTestContext } from '../webgl/core/testContext.fixture.ts'
 import { effectChainBytesAt } from '../effects/targets.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts'
 import {
@@ -17,17 +15,14 @@ import {
 } from './memoryBudget.ts'
 import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 const [width, height] = [3840, 2160]
-const MiB = 1024 * 1024
 const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 })]
 
-test('the default reserve is the target rule on a 3840 × 2160 canvas, the most either chain holds', async () => {
+test('the default reserve is the target rule on a 3840 × 2160 canvas, the most a chain holds', async () => {
   assert.deepEqual(DEFAULT_BUDGET_CANVAS, { width, height })
   assert.equal(EFFECT_TARGET_BYTES, effectChainBytesAt(width, height))
-  const webgl = createWebglEffects(createTestContext().gl)
-  webgl.begin(chain, width, height)
-  assert.equal(webgl.bytes, EFFECT_TARGET_BYTES, 'scene target, two pass targets, bloom levels')
   const gpu = fakeDevice()
   const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   const input = {} as GPUTextureView,
@@ -37,14 +32,14 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   webgpu.encode(encoder, chain, input, width, height)
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height)
-  assert.ok(webgpu.bytes > 0 && webgpu.bytes < EFFECT_TARGET_BYTES, `${webgpu.bytes}`)
+  assert.equal(webgpu.bytes, EFFECT_TARGET_BYTES, 'two pass targets, bloom levels')
 })
 
 test('the default GPU total grows by exactly that reserve, and each pool keeps 512 MiB', () => {
-  const before = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + 1024 * MiB
+  const before = SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + 1024 * MIB
   assert.equal(DEFAULT_GPU_BUDGET - before, effectChainBytesAt(width, height))
-  assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MiB)
-  assert.equal(DEFAULT_TEXTURE_POOL_BUDGET, 512 * MiB)
+  assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB)
+  assert.equal(DEFAULT_TEXTURE_POOL_BUDGET, 512 * MIB)
 })
 
 test('a larger declared canvas reserves more, and a canvas past it is the excess', () => {

@@ -4,6 +4,7 @@ import { CommandWriter } from './commands.ts'
 import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, SHAPE, VIEW_WORDS } from './layout.ts'
 import { body, read } from './commands.fixture.ts'
 import { RESTORE_WORDS } from './wire.fixture.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 /** Each ADD field's word, as `commands.cpp` reads it (`w + n`). */
 const ADD_AT = { position: 6, quaternion: 9, size: 13, matter: 16, damping: 21, counts: 23 }
@@ -121,7 +122,7 @@ test('RESTORE carries its handle and byte count, then the bytes padded with zero
     writer.restore(17, Uint8Array.from(bytes))
     const { words } = read(writer.take())
     assert.deepEqual([...words.subarray(0, RESTORE_WORDS)], [OP.restore, 17, bytes.length])
-    const padded = Math.ceil(bytes.length / 4) * 4
+    const padded = alignUp(bytes.length, 4)
     assert.equal(words.length, RESTORE_WORDS + padded / 4)
     const payload = [...new Uint8Array(words.buffer, RESTORE_WORDS * 4, padded)]
     assert.deepEqual(payload, [...bytes, ...new Array(padded - bytes.length).fill(0)])

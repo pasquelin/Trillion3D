@@ -23,7 +23,6 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['clusterCount', 44],
     ['nodeCount', 45],
     ['worldCount', 46],
-    ['residentCut', 47],
     // `cameraWorld` is a vec3: three words, but it waits for word 48 rather than starting at 47.
     ['cameraWorld', 48],
     ['cameraStretch', 51],
@@ -33,6 +32,10 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['viewCapacity', 55],
     ['queueCap', 56],
     ['ahead', 57],
+    // The admission word takes the gap before the next vec4: no word behind it moves.
+    ['admitByLevel', 58],
+    // The swap's two regions, one word, in the last gap (`shader/swapWgsl.ts`).
+    ['swapRegions', 59],
     ['lightOriginHigh', 60],
     ['lightOriginLow', 64],
     ['lightPlanes', 68],
@@ -55,9 +58,9 @@ test('the struct the kernels bind is the one the table describes, in order', () 
   assert.equal(
     VIEW_UNIFORM_STRUCT,
     'struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,' +
-      'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,' +
+      'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,cameraWorld:vec3f,' +
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
-      'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,' +
+      'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.
@@ -89,7 +92,7 @@ test('the host writes each field at the word the kernels read, values unchanged'
     ahead: undefined,
     light: undefined,
   } as never
-  writeDagUniforms(target, packed, uniforms, true, 64)
+  writeDagUniforms(target, packed, uniforms, 64)
 
   assert.equal(target[viewWord('pixelScale')], 2)
   assert.equal(target[viewWord('pixelScale') + 1], 3)
@@ -103,7 +106,6 @@ test('the host writes each field at the word the kernels read, values unchanged'
   assert.equal(ints[viewWord('clusterCount')], 11)
   assert.equal(ints[viewWord('nodeCount')], 22)
   assert.equal(ints[viewWord('worldCount')], 33)
-  assert.equal(ints[viewWord('residentCut')], 1)
   assert.equal(ints[viewWord('listCap')], 64)
   // A camera sends no light, so the light-only words stay at zero, as the struct's zero value.
   assert.equal(ints[viewWord('ahead')], 0)
@@ -127,13 +129,7 @@ test('a view ahead fills block one and raises the word that says it is there', (
     ...base,
     ahead: { planes: new Float32Array(24).fill(9), view: new Float32Array(16).fill(9) },
   } as never
-  writeDagUniforms(
-    target,
-    { pageCount: 1, nodeCount: 1, worldCount: 1 } as never,
-    uniforms,
-    false,
-    8,
-  )
+  writeDagUniforms(target, { pageCount: 1, nodeCount: 1, worldCount: 1 } as never, uniforms, 8)
   const at = AHEAD * VIEW_BLOCK_WORDS
   assert.equal(target[at], 9, 'block one repeats the ahead block’s planes')
   assert.equal(target[at + viewWord('view')], 9)

@@ -1,6 +1,5 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../../sdk-core/src/index.ts'
-import type { BackendFactory } from '../../backend/types.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 
 /** CSS owns layout; drawing-buffer attributes must never resize the observed layout. */
@@ -27,24 +26,5 @@ export function interactiveOptions(canvas: HTMLCanvasElement, options: MeasuredW
   if (!explorerSwitch(options, 'interactive')) return options
   if (!canvas.ownerDocument.defaultView)
     throw new EngineError('CANVAS_WINDOW_UNAVAILABLE', 'Interactive rendering requires a window')
-  // No backend is forced here: `chooseBackends` reads the machine and takes the engine path
-  // it allows, so an interactive host without WebGPU falls back instead of failing.
   return { ...options, ...interactiveSize(canvas, options) }
-}
-
-/** The WebGPU page raster presents its own surface when it is the session's only engine. A host
- *  that named it explicitly and got no device is refused by name: an explicit backend list never
- *  silently changes capabilities. A host that named nothing is served the fallback instead. */
-export function directWebgpu(
-  options: MeasuredWorldOptions,
-  factories: BackendFactory[],
-  device: GPUDevice | undefined,
-) {
-  const requested = factories.length === 1 && factories[0].renderer === 'webgpu'
-  if (explorerSwitch(options, 'interactive') && options.backends && requested && !device)
-    throw new EngineError(
-      'WEBGPU_UNAVAILABLE',
-      'Interactive startup requires WebGPU; choose an explicit backend for another capability set',
-    )
-  return !!device && requested
 }

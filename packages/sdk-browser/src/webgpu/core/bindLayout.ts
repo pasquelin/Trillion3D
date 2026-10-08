@@ -1,3 +1,4 @@
+import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
 import { POOL_LANES } from '../../texture/blockFormats.ts'
 
 /**
@@ -31,6 +32,13 @@ export const atlasLayoutEntries = (
 /** Bytes of the visibility-buffer uniform `Uniforms` (`../../visibility/shader/pageWgsl.ts`): its
  *  nine words after the matrix, rounded up to the struct's 16-byte alignment. */
 export const VIS_UNIFORM_BYTES = 112
+let visSlots: UniformSlots | undefined
+/** The visibility uniform's `count` slots on a device of `limits`: the layout the upload writes
+ *  every frame, kept while the count and the alignment hold (nothing allocated a frame). */
+export const visUniformLayout = (limits: Parameters<typeof uniformSlots>[0], count: number) =>
+  visSlots?.count === count && visSlots.stride === uniformStride(limits)
+    ? visSlots
+    : (visSlots = uniformSlots(limits, count, VIS_UNIFORM_BYTES / 4))
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,
@@ -60,6 +68,10 @@ export const SHADE_BINDINGS = {
   receiver: 18,
   /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
   shadeCache: 19,
+  /** The surfaces' anisotropic and clear-coat records (`../visibility/physicalTable.ts`). */
+  physical: 20,
+  /** The lobes target the resolve writes and the lighting reads (`../../scene/physicalLobes.ts`). */
+  lobes: 21,
 }
 
 export const BLEND_BINDINGS = {
@@ -100,6 +112,9 @@ export const BLEND_BINDINGS = {
   shadowTranslucentDepth: 27,
   /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
   surfaceCache: 28,
+  /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
+   *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
+  physical: 29,
 }
 
 /**

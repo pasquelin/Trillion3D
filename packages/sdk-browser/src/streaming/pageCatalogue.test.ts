@@ -3,19 +3,39 @@ import assert from 'node:assert/strict'
 import { createPageCache } from './pageCache.ts'
 import { createPageStreamer, createPageStreamerWith } from './pageStreamer.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { manifestTableBytes } from './manifestTables.ts'
 
 test('a mounted page joins the catalogue, is read and cached, then leaves it with its bytes', async () => {
   const { pages, fetched } = await servedPages(['open.bin', 'mounted.bin'])
   const streamer = createPageStreamer([pages[0]], 'http://site.test/')
   try {
-    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/, 'not opened with it')
+    await assert.rejects(
+      streamer.readBytes('mounted.bin', streamer.signal),
+      /Unknown page/,
+      'not opened with it',
+    )
     streamer.admit([pages[1]])
-    await streamer.readBytes('mounted.bin')
+    await streamer.readBytes('mounted.bin', streamer.signal)
     assert.ok(streamer.has('mounted.bin'), 'read like a page it opened with')
     streamer.forget(['mounted.bin'])
     assert.ok(!streamer.has('mounted.bin'), 'its bytes leave with it')
-    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/)
+    await assert.rejects(streamer.readBytes('mounted.bin', streamer.signal), /Unknown page/)
     assert.deepEqual(fetched, ['http://site.test/mounted.bin'])
+  } finally {
+    streamer.dispose()
+  }
+})
+
+test('the tables of pages admitted after the open are counted in the CPU bytes, and leave with them', async () => {
+  const { pages } = await servedPages(['open.bin', 'index-page.json'])
+  const streamer = createPageStreamer([pages[0]], 'http://site.test/')
+  try {
+    const before = streamer.stats().cpuBytes
+    streamer.admit([pages[1]])
+    streamer.admit([pages[1]]) // admitted again: counted once
+    assert.equal(streamer.stats().cpuBytes - before, manifestTableBytes([pages[1]]))
+    streamer.forget(['index-page.json'])
+    assert.equal(streamer.stats().cpuBytes, before)
   } finally {
     streamer.dispose()
   }
@@ -41,14 +61,14 @@ test('a page forgotten while it is read leaves with its bytes once the read sett
   const streamer = createPageStreamer([pages[0]], 'http://site.test/')
   try {
     streamer.admit([pages[1]])
-    const reading = streamer.readBytes('mounted.bin')
+    const reading = streamer.readBytes('mounted.bin', streamer.signal)
     streamer.forget(['mounted.bin'])
     assert.ok(streamer.loading('mounted.bin'), 'its read goes on')
     release()
     await reading
     await settled()
     assert.ok(!streamer.has('mounted.bin'), 'its bytes leave once it settles')
-    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/)
+    await assert.rejects(streamer.readBytes('mounted.bin', streamer.signal), /Unknown page/)
   } finally {
     streamer.dispose()
   }
@@ -59,14 +79,14 @@ test('a page forgotten then admitted again while it is read stays catalogued and
   const streamer = createPageStreamer([pages[0]], 'http://site.test/')
   try {
     streamer.admit([pages[1]])
-    const reading = streamer.readBytes('mounted.bin')
+    const reading = streamer.readBytes('mounted.bin', streamer.signal)
     streamer.forget(['mounted.bin'])
     streamer.admit([pages[1]])
     release()
     await reading
     await settled()
     assert.ok(streamer.has('mounted.bin'), 'the new admission keeps its bytes')
-    await streamer.readBytes('mounted.bin')
+    await streamer.readBytes('mounted.bin', streamer.signal)
     assert.deepEqual(fetched, ['http://site.test/mounted.bin'], 'read once')
   } finally {
     streamer.dispose()
@@ -77,7 +97,7 @@ test('a page forgotten while its read waits leaves once that read is dropped', a
   const { pages, release } = await heldPages(['open.bin', 'mounted.bin'])
   const streamer = createPageStreamer(pages, 'http://site.test/', { workerCount: 1 })
   try {
-    const first = streamer.readBytes('open.bin')
+    const first = streamer.readBytes('open.bin', streamer.signal)
     const waiting = new AbortController()
     const reading = streamer.readBytes('mounted.bin', waiting.signal)
     streamer.forget(['mounted.bin'])
@@ -86,7 +106,7 @@ test('a page forgotten while its read waits leaves once that read is dropped', a
     assert.ok(!streamer.loading('mounted.bin'), 'its read left the queue')
     release()
     await first
-    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/)
+    await assert.rejects(streamer.readBytes('mounted.bin', streamer.signal), /Unknown page/)
   } finally {
     streamer.dispose()
   }
@@ -96,13 +116,13 @@ test('a page forgotten while it is read stays in the kept cache the next session
   const { pages, release } = await heldPages(['open.bin', 'mounted.bin'])
   const cache = createPageCache()
   const first = createPageStreamerWith(pages, 'http://site.test/', { cache })
-  const reading = first.readBytes('mounted.bin').catch(() => undefined)
+  const reading = first.readBytes('mounted.bin', first.signal).catch(() => undefined)
   first.forget(['mounted.bin'])
   first.dispose()
   await servedPages(['open.bin', 'mounted.bin'])
   const next = createPageStreamerWith(pages, 'http://site.test/', { cache })
   try {
-    await next.readBytes('mounted.bin')
+    await next.readBytes('mounted.bin', next.signal)
     release()
     await reading
     await settled()

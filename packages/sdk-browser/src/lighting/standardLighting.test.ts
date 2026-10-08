@@ -7,12 +7,31 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
-import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { STANDARD_LIGHTING_WGSL as STANDARD_LIGHTING } from './standardLighting.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+
+/** The standard lobe as a program holds it, its library declarations included. */
+const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
 
 type V3 = number[]
 const { standardLighting } = shaderRun<{
   standardLighting: (rgb: V3, metal: number, rough: number, N: V3, V: V3, light: V3) => V3
-}>(STANDARD_LIGHTING_WGSL, ['standardLighting', 'ggxDistribution'], F32_SCOPE)
+}>(
+  STANDARD_LIGHTING_WGSL,
+  [
+    'standardLighting',
+    'lobeSurface',
+    'surfaceLight',
+    'standardLobe',
+    'ggxDistribution',
+    'fresnelSchlick',
+    'ndotvFloor',
+    'f0Of',
+    'lambertAlbedo',
+  ],
+  F32_SCOPE,
+)
 
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const unit = (a: V3) => a.map((x) => x / Math.hypot(...a))
@@ -33,7 +52,7 @@ function metalLobe(rough: number, N: V3, V: V3, L: V3) {
 }
 
 test('a sharp highlight is the GGX distribution, to f32, through its core', () => {
-  const rough = Number(ROUGHNESS_FLOOR)
+  const rough = ROUGHNESS_FLOOR
   const alpha = rough * rough
   const N = unit([0.3, 0.8, 0.52]).map(Math.fround)
   const T = unit([N[1], -N[0], 0])
@@ -57,4 +76,67 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
   // (~1e-7 rad) alone moves D by ~3e-5 at the floor.
   assert.ok(worst < 1e-4, `worst relative error ${worst}`)
   assert.ok(values.size > 4990, `${values.size} values over the core`)
+})
+
+/** The displayed byte of a linear value: clamped, sRGB-encoded, quantised to 8 bits. */
+const byte = (x: number) => {
+  const c = saturate(x)
+  return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055))
+}
+
+test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
+  const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(vec3f(1.0)-f0)*(x2*x2*x);'
+  assert.ok(STANDARD_LIGHTING_WGSL.includes(shipped))
+  const viaPow = shaderRun<{ standardLighting: typeof standardLighting }>(
+    STANDARD_LIGHTING_WGSL.replace(
+      shipped,
+      'return f0+(vec3f(1.0)-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);',
+    ),
+    [
+      'standardLighting',
+      'lobeSurface',
+      'surfaceLight',
+      'standardLobe',
+      'ggxDistribution',
+      'fresnelSchlick',
+      'ndotvFloor',
+      'f0Of',
+      'lambertAlbedo',
+    ],
+    F32_SCOPE,
+  ).standardLighting
+  const N = unit([0.3, 0.8, 0.52]).map(Math.fround)
+  const T = unit([N[1], -N[0], 0])
+  const B = [N[1] * T[2] - N[2] * T[1], N[2] * T[0] - N[0] * T[2], N[0] * T[1] - N[1] * T[0]]
+  const around = (theta: number, phi: number) =>
+    along(
+      N,
+      [0, 1, 2].map((k) => T[k] * Math.cos(phi) + B[k] * Math.sin(phi)),
+      theta,
+    ).map(Math.fround)
+  let pixels = 0,
+    worst = 0
+  // Grazing views and lights, where the fifth power weighs most, through every roughness, metal,
+  // albedo and the energies that span the displayed range.
+  for (const rough of [ROUGHNESS_FLOOR, 0.2, 0.45, 0.7, 1])
+    for (const metal of [0, 0.5, 1])
+      for (const rgb of [
+        [0.9, 0.6, 0.2],
+        [0.05, 0.3, 0.95],
+      ])
+        for (let v = 0; v < 6; v++)
+          for (let l = 0; l < 24; l++)
+            for (const energy of [0.25, 1, 3]) {
+              const V = around(0.05 + 0.29 * v, 0.4)
+              const L = around(0.06 * l + 0.02, 0.4 + 0.7 * l)
+              const got = standardLighting(rgb, metal, rough, N, V, [...L, energy])
+              const was = viaPow(rgb, metal, rough, N, V, [...L, energy])
+              for (let c = 0; c < 3; c++) {
+                assert.equal(byte(got[c]), byte(was[c]), `${rough} ${metal} ${v} ${l} ${energy}`)
+                if (was[c] > 1e-6) worst = Math.max(worst, Math.abs(got[c] / was[c] - 1))
+              }
+              pixels++
+            }
+  // Two f32 products against a correctly rounded power: a few units in the last place.
+  assert.ok(worst < 1e-6, `worst relative deviation ${worst} over ${pixels} pixels`)
 })

@@ -9,7 +9,7 @@ import type { encodeDagKernels } from './encode.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 
 /** `list`: the list whose armed record the dispatch reads, `-1` when no arming ran before it in
- *  its pass; `rows`: the rows of a flat dispatch past one row (`shader/gridWgsl.ts`). */
+ *  its pass; `rows`: the rows of a flat dispatch past one row (`../dispatch/grid.ts`). */
 type Dispatch = { kernel: string; groups: number | 'indirect'; list?: number; rows?: number }
 type Copie = { de: string; vers: string; enPasse: boolean }
 
@@ -78,9 +78,8 @@ export function witnessEncoder() {
  *  by name, and writing them here makes them searchable from it. */
 const step = (entryPoint: string) => ({ entryPoint })
 
-export function cutResources(residentCut: boolean, levelCount = 3, pageCount = 4096) {
+export function cutResources(levelCount = 3, pageCount = 4096) {
   return {
-    residentCut,
     pageCount,
     nodeCount: 64,
     worldCount: 2,

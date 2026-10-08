@@ -1,16 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { screenTraceShader } from './traceShader.ts'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { SCREEN_REFLECTION_WGSL } from './screenWgsl.ts'
-import { SCREEN_REFLECTION_GLSL } from './screenGlsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
-const source = functionText(screenTraceShader('wgsl'), 'reflectionExit')
-const clip = new Function(
-  'c',
-  'd',
-  'const min=Math.min;' + source.slice(source.indexOf('{') + 1).replace(/var (\w+):\w+/g, 'let $1'),
-) as (c: Record<string, number>, d: Record<string, number>) => number
+type Clip = { x: number; y: number; z: number; w: number }
+const { reflectionExit } = shaderRun<{ reflectionExit: (c: number[], d: number[]) => number }>(
+  SCREEN_REFLECTION_WGSL,
+  ['reflectionExit'],
+  {},
+)
+const clip = (c: Clip, d: Clip) => reflectionExit([c.x, c.y, c.z, c.w], [d.x, d.y, d.z, d.w])
 
 test('homogeneous clipping keeps near/far and viewport exits valid before perspective division', () => {
   for (const [c, d, exit] of [
@@ -31,9 +31,7 @@ test('homogeneous clipping keeps near/far and viewport exits valid before perspe
   assert.equal(clip({ x: 2, y: 0, z: 0.5, w: 1 }, { x: -1, y: 0, z: 0, w: 0 }), 0)
 })
 
-test('API projection adapters use opposite texture Y and normalize OpenGL clip depth', () => {
-  assert.match(SCREEN_REFLECTION_WGSL, /vec4f\(c.x,-c.y,c.z,c.w\)/)
-  assert.match(SCREEN_REFLECTION_GLSL, /c.z=\(c.z\+c.w\)\*0.5/)
-  assert.match(SCREEN_REFLECTION_WGSL, /reflectionClearDepth\(\)->f32\{return 0.0;/)
-  assert.match(SCREEN_REFLECTION_GLSL, /reflectionClearDepth\(\)\{return 1.0;/)
+test('the projection adapter flips texture Y and clears to the reversed depth zero', () => {
+  assert.match(wgslModule(SCREEN_REFLECTION_WGSL), /vec4f\(c.x,-c.y,c.z,c.w\)/)
+  assert.match(wgslModule(SCREEN_REFLECTION_WGSL), /\nconst REFLECTION_CLEAR_DEPTH:f32=0\.0;/)
 })

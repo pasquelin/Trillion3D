@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -14,7 +15,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies, type Bodied } from './bodies.ts'
-import { slerpArc } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import { interpolateAll } from './drawnPoses.ts'
 import { createPosePlacer } from './placer.ts'
 import { createPhysicsPoses } from './poses.ts'
@@ -49,10 +50,7 @@ test('a pose drawn by the batch leaves position, quaternion and angles coherent'
   poses.receive(poseRecord(0, [1, 2, 3, 0, half, 0, half]), 1, lone(crate), 0)
   poses.apply(lone(crate), ON_NEWEST, false)
   assert.deepEqual([crate.position.x, crate.position.y, crate.position.z], [1, 2, 3])
-  assert.ok(
-    Math.abs(crate.rotation.y - Math.PI / 2) < 1e-3,
-    `turned a quarter, ${crate.rotation.y}`,
-  )
+  assert.ok(Math.abs(crate.rotation.y - HALF_PI) < 1e-3, `turned a quarter, ${crate.rotation.y}`)
   crate.updateWorldMatrix(true, false)
   assert.ok(Math.abs(crate.matrixWorld.elements[13] - 2) < 1e-6, 'the tree holds the pose')
 })

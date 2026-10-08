@@ -27,27 +27,22 @@ test('the kernel as written passes', () => {
 })
 
 test('a rule that forgets the missing finer group opens holes', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes(CUT_RULE_WGSL), 'the kernel carries the rule')
+  assert.ok(DAG_SELECTION_SHADER.includes(CUT_RULE_WGSL.text), 'the kernel carries the rule')
   const forgets = edited('(ownWithin||!childResident)', 'ownWithin')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, forgets)), FAULT)
 })
 
 test('a call site reading its own group for the finer one is caught', () => {
-  const own = edited('all||childResident(i)', 'all||isResident(i)')
+  const own = edited(',childResident(i))', ',isResident(i))')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, own)), FAULT)
 })
 
 test('a residency read one word off the uploaded bits is caught', () => {
   const shifted = edited(
-    'coldAt(views[0u].clusterCount+(i>>5u))',
-    'coldAt(views[0u].clusterCount+(i>>5u)+1u)',
+    'coldAt(views[0u].clusterCount+bitWord(i))',
+    'coldAt(views[0u].clusterCount+bitWord(i)+1u)',
   )
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, shifted)), FAULT)
-})
-
-test('a call site that ignores the cut holding residency is caught', () => {
-  const unheld = edited('let all=views[0u].residentCut==0u;', 'let all=views[0u].residentCut!=0u;')
-  assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, unheld)), FAULT)
 })
 
 test('a call site reading the wrong comparison of the cone word is caught', () => {

@@ -19,6 +19,7 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
+import { MIB } from '../packages/math/src/constants.ts'
 import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
 import { compileFullCache } from './native-compiler.ts'
 import { COOKED_SCENES } from './site-caches.ts'
@@ -133,7 +134,7 @@ function compare(paths: string[], collidersMayDiffer: boolean): boolean {
   let equal = true
   for (const record of records) {
     const differing = differences(records[0], record, collidersMayDiffer)
-    const size = record.bytes === undefined ? '' : `, ${(record.bytes / 2 ** 20).toFixed(1)} MiB`
+    const size = record.bytes === undefined ? '' : `, ${(record.bytes / MIB).toFixed(1)} MiB`
     const digest = sha256(JSON.stringify(record.files))
     const files = Object.values(record.files).join(' ').split(' ').length
     console.log(`${record.compiler}: ${files} files, ${digest}${size}`)

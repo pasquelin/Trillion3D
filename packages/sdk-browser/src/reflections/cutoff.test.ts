@@ -7,7 +7,6 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { createScreenReflection, reflectionPlan } from './gpu.ts'
 import { withScreenReflections } from './screenWgsl.ts'
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts'
-import { coatedScreenReflects, screenReflects } from './eligible.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { contractLighting } from '../lighting/deferred/contractLighting.fixture.ts'
 import { REFLECTION_SOURCE_PASS } from './sourcePass.ts'
@@ -20,8 +19,9 @@ import {
   resolvedDisplay,
   sceneOf,
 } from './receivers.fixture.ts'
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_PROGRAM } from '../gpu/core/shaderTexts.fixture.ts'
 import { DEFERRED_LIGHTING_PASS } from '../stage/passLabels.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 test('a matte-only scene allocates no reflection target and runs no reflection pass', async () => {
   const h = await contractLighting()
@@ -59,9 +59,11 @@ test('a surface rougher than the cutoff takes the environment reflection, a poli
   assert.deepEqual(at(0), RAY, 'a mirror keeps its exact ray')
   assert.deepEqual(at(0.2), FILTERED, 'polished metal keeps its screen trace')
   assert.equal(calls.traced, 2)
-  assert.deepEqual(at((3 * CUTOFF) / 4), [4, 4, 4], 'the fade blends toward the environment')
+  // The fade at three quarters of the cutoff the shader reads (`wgslF32`).
+  const cutoff = Number(wgslF32(CUTOFF))
+  assert.deepEqual(at((3 * cutoff) / 4), [4, 4, 4], 'the fade blends toward the environment')
   calls.traced = 0
-  for (const rough of [CUTOFF, 0.8, 1]) assert.deepEqual(at(rough), ENVIRONMENT, `rough ${rough}`)
+  for (const rough of [cutoff, 0.8, 1]) assert.deepEqual(at(rough), ENVIRONMENT, `rough ${rough}`)
   assert.equal(calls.traced, 0, 'no trace past the cutoff')
   assert.deepEqual(resolvedDisplay({ enabled: 0 }).at(0.2), ENVIRONMENT, 'no pass, no trace')
 })
@@ -85,12 +87,23 @@ test('a missed or below-horizon sample returns the environment reflection, not b
     'heldReflection',
     'screenReflectionFade',
     'resolvedRadiance',
+    'mirrorRadiance',
+    'surfaceMirrorLighting',
+    'lobeMirror',
     'mirrorLighting',
+    // The maths library's, which the bands and the surface's mirror call.
+    'roughnessToAlpha2Chain',
+    'ndotvClamped',
+    'f0Of',
+    'splitSumTerm',
+    'clipToUvUnflipped',
+    'ndcToUvUnflipped',
+    'perspectiveDivide',
   ]
   const direct = shaderRun<{
     mirrorLighting: (...args: [number[], number, number, number[], number[], number[]]) => number[]
     reflectedRadiance: (P: number[], N: number[], R: number[], rough: number) => number[]
-  }>(withScreenReflections(DIRECT_LIGHTING_SHADER, true), names, {
+  }>(withScreenReflections(DIRECT_LIGHTING_PROGRAM, { history: true }), names, {
     ...BUILTINS,
     surfaceModel: 0,
     ltcLookup: () => [1, 0, 0, 0],
@@ -103,7 +116,7 @@ test('a missed or below-horizon sample returns the environment reflection, not b
   })
   // A white metal looking straight down onto an upward normal reflects the sky overhead.
   const metal = (rough: number) => direct.mirrorLighting([1, 1, 1], 1, rough, UP, UP, [0, 0, 0])
-  const mirror = metal(Number(ROUGHNESS_FLOOR))
+  const mirror = metal(ROUGHNESS_FLOOR)
   for (const x of mirror) assert.ok(Math.abs(x - OVERHEAD) < 1e-3, `a missed mirror ray: ${x}`)
   for (const rough of [0.2, (3 * CUTOFF) / 4, 0.8, 1]) {
     const [r, g, b] = metal(rough)
@@ -114,18 +127,14 @@ test('a missed or below-horizon sample returns the environment reflection, not b
     assert.deepEqual([g, b], [r, r])
   }
   // The bounce program before its first probe answers the same environment.
-  const bounce = shaderRun<typeof direct>(BOUNCE_LIGHTING_SHADER, names.slice(1, 4), {
-    ...BUILTINS,
-    bounce: { counts: [0, 0, 0, 0] },
-  })
+  const bounce = shaderRun<typeof direct>(
+    BOUNCE_LIGHTING_SHADER,
+    [...names.slice(1, 4), 'roughnessToAlpha2Chain'],
+    {
+      ...BUILTINS,
+      bounce: { counts: [0, 0, 0, 0] },
+    },
+  )
   const past = (program: typeof direct) => program.reflectedRadiance([0, 0, 0], UP, UP, 0.8)
   assert.deepEqual(past(bounce), past(direct))
-})
-
-test('a polished clear coat over a matte base keeps the WebGL2 screen trace', () => {
-  const coated = { ...physical(0.9), clearcoat: 1, clearcoatRoughness: 0.05 }
-  assert.equal(screenReflects(coated), false, 'the base lobe alone is matte')
-  assert.equal(coatedScreenReflects(coated), true, 'the coat lobe is traced')
-  assert.equal(coatedScreenReflects({ ...coated, clearcoatRoughness: CUTOFF }), false)
-  assert.equal(coatedScreenReflects({ ...coated, clearcoat: 0 }), false)
 })

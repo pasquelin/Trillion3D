@@ -60,7 +60,7 @@ pub(super) fn strings(bytes: &[u8], at: &mut usize, label: &[u8; 4]) -> Result<V
         out.push(String::from_utf8_lossy(&rest[..end]).into_owned());
         *at += end + 1;
     }
-    *at = (*at + 3) & !3;
+    *at = at.next_multiple_of(4);
     Ok(out)
 }
 

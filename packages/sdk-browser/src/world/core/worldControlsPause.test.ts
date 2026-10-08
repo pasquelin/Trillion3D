@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -50,7 +51,7 @@ test('`world.controls.enabled = false` pauses a jump mid-air, and `true` resumes
 
 test('`world.controls.autoRotate` turns an orbit on every frame and asks for the first', () => {
   const { camera, controls, redraws } = handle('orbit')
-  controls.autoRotate = Math.PI / 2
+  controls.autoRotate = HALF_PI
   assert.equal(redraws(), 1)
   controls.update(1)
   assert.deepEqual(

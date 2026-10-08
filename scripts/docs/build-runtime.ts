@@ -12,7 +12,8 @@ import { inlineModules } from './inline-modules.ts'
 const RUNTIME_ENTRIES = {
   engine: 'packages/sdk-browser/src/index.ts',
   // The examples' own panels and pieces, imported beside the engine; they bundle nothing of it,
-  // and a piece builds with the engine families the page hands it.
+  // and a piece builds with the engine families the page hands it. The few `packages/math`
+  // constants and helpers they read are a chunk the engine shares, loaded once.
   kit: 'site/examples/kit/index.ts',
 }
 
@@ -22,12 +23,12 @@ export async function buildRuntime(root: string, outdir: string) {
     absWorkingDir: root,
     metafile: true,
     entryPoints: {
-      pageDecodeWorker: 'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
+      pageWorker: 'packages/sdk-browser/src/page/work/pageWorker.ts',
       pageIntegrationWorker: 'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
       // The physics worker, spawned only by a world that turns physics on.
       physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
       // The animation worker, started only by a world whose clips play at a fixed step.
-      animationWorker: 'packages/sdk-browser/src/math/animationWorker.ts',
+      animationWorker: 'packages/sdk-browser/src/animation/animationWorker.ts',
       ...RUNTIME_ENTRIES,
     },
     outdir,
@@ -55,7 +56,7 @@ export async function buildRuntime(root: string, outdir: string) {
   if (folded.length)
     throw new Error(`the runtime folds in a rendering library:\n${folded.join('\n')}`)
   for (const wasm of [
-    'page/decode/pageCodec.wasm',
+    'wasm/kernels.wasm',
     'physics/joltPhysics.wasm',
     'physics/joltPhysicsThreads.wasm',
   ])

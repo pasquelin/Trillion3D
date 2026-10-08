@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { availableParallelism, totalmem } from 'node:os'
 import { join, resolve } from 'node:path'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { parseArgs } from '../harness/options.ts'
 import { ASSETS, sceneDerived } from './scene.ts'
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts'
@@ -33,7 +34,7 @@ const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs')
  * each job, so a cache carries the shape of the machine that cooked it.
  */
 export function machineBudget(parallelism = availableParallelism(), bytes = totalmem()) {
-  return { threads: Math.max(1, parallelism), ramMb: Math.max(1, Math.floor(bytes / 2 / 2 ** 20)) }
+  return { threads: Math.max(1, parallelism), ramMb: Math.max(1, Math.floor(bytes / 2 / MIB)) }
 }
 
 /**

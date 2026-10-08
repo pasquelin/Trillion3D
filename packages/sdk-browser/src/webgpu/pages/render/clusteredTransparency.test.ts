@@ -1,12 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
+import type { Engine } from '../../../engine/types.ts'
+import { settledImage } from '../settledImage.fixture.ts'
 
 test('clustered transparency submits only visible pages in one two-sided mesh draw', async () => {
   installGpuGlobals()
@@ -24,12 +25,12 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   primitive.pass = 'clustered-blend'
   primitive.pages[1].min = [99, -1, 0]
   primitive.pages[1].max = [101, 1, 0]
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
     backend.render(camera())
@@ -73,7 +74,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     const positions = new Float32Array(3000)
     positions.set(fixture.geometry.getAttribute('position')!.array)
     fixture.geometry.setAttribute('position', new G.BufferAttribute(positions, 3))
-    const backend = webgpuPagesBackend({
+    const backend = webgpuPagesEngine({
       ...fixture,
       gpuDevice: device,
       maxResidentPages: 2,
@@ -106,28 +107,35 @@ test('clustered transparency switches LOD with resident coverage and retains bot
   fixture.metadata.primitives[0].pages[2].count = 3
   fixture.metadata.primitives[0].pages[2].bytes = 12
   fixture.indices.set('2', new Uint32Array([0, 1, 2]))
-  const backend = streamingQuadBackend(fixture, device) as WebgpuPagesBackend
+  const backend = streamingQuadBackend(fixture, device) as Engine
+  /** One pose under the GPU cut, the engine's one cut (#1483): its readback lands one image later,
+   *  so the image is drawn, flushed — that readback adopted —, then drawn again and counted. */
+  const image = async () => {
+    backend.render(camera())
+    await backend.flush()
+    backend.render(camera())
+  }
   try {
     await backend.prepare()
-    backend.render(camera())
+    await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
       1,
       'coarse coverage drawn while detail is missing',
     )
-    backend.acceptPage!('0', fixture.indices.get('0')!)
-    backend.syncResident!()
-    await backend.flush()
-    backend.render(camera())
+    backend.acceptPage('0', fixture.indices.get('0')!)
+    backend.syncResident()
+    await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
       1,
       'partial detail cannot replace coverage',
     )
-    backend.acceptPage!('1', fixture.indices.get('1')!)
-    backend.syncResident!()
-    await backend.flush()
-    backend.render(camera())
+    backend.acceptPage('1', fixture.indices.get('1')!)
+    backend.syncResident()
+    // The detail enters the residency the image after its bytes, the cut on it read back the
+    // image after that: drawn and drained until the pose settles.
+    await settledImage(backend)
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2)
     assert.equal(
       backend.metrics().transparentDrawCalls,
@@ -154,12 +162,12 @@ test('a transparent switched to double-sided still expands all its instances', a
   fixture.material.side = G.FRONT_SIDE
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   const mesh = fixture.source.children[0] as G.HostMesh
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
     backend.render(camera())

@@ -21,12 +21,14 @@ import {
 /** The least draw context the first atlas brings for the frame's blended rows and views. */
 function transmissionFloor(
   rt: WebgpuPagesRuntime,
+  device: GPUDevice,
   res: VsmResources,
   lights: VsmRenderFrame['lights'],
 ) {
   const { views, viewMips } = vsmRenderViews(lights)
   const { blendFirst, casterSlots } = rt.layout.rows
   return vsmTransmissionFloorBytes(
+    device.limits,
     rt.services.blendCasters.used,
     Math.max(0, casterSlots - blendFirst),
     views.length,
@@ -62,7 +64,7 @@ function heldTransmission(
   const caps = held ? (held.wanted ?? held.caps) : vsmTransmissionFirstCaps(res.layout.poolPages)
   // A first transmission brings its chunk lists too, at their least (`vsmTransmissionFloorBytes`).
   const requestedBytes =
-    vsmTransmissionBytes(res.layout, caps) + (held ? 0 : transmissionFloor(rt, res, lights))
+    vsmTransmissionBytes(res.layout, caps) + (held ? 0 : transmissionFloor(rt, device, res, lights))
   const heldBytes = held?.bytes ?? 0
   const room = ledgerRoom(device)
   // The device's limits hold for its life: capacities they refuse are asked no more.

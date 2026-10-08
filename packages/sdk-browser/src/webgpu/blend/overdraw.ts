@@ -5,6 +5,26 @@ const QUERIES = 2,
 
 export type BlendOverdraw = ReturnType<typeof createBlendOverdraw>
 
+/** The last count that came back, over the pixels of its image. */
+type OverdrawCounts = {
+  blendedFragments: number
+  imagePixels: number
+  /** Mean coverage in thousandths: a counter is an integer, never a duration. */
+  meanOverdrawThousandths: number
+  readings: number
+}
+
+/** Reads the mapped resolve of an image of `pixels` into `counts`: the two passes' fragments. */
+function readCounts(read: GPUBuffer, counts: OverdrawCounts, pixels: number) {
+  const values = new BigUint64Array(read.getMappedRange())
+  const fragments = Number(values[0]) + Number(values[1])
+  read.unmap()
+  counts.blendedFragments = fragments
+  counts.imagePixels = pixels
+  counts.meanOverdrawThousandths = pixels ? Math.round((fragments / pixels) * 1000) : 0
+  counts.readings++
+}
+
 /**
  * Overdraw count of transparents, by occlusion query: how many samples the pass lets through
  * the depth test, i.e. the fragments actually blended. Relating that to the frame's pixels
@@ -28,10 +48,9 @@ export function createBlendOverdraw(device: GPUDevice) {
   })
   let pending = false,
     encoded = false
-  const counts = {
+  const counts: OverdrawCounts = {
     blendedFragments: 0,
     imagePixels: 0,
-    /** Mean coverage in thousandths: a counter is an integer, never a duration. */
     meanOverdrawThousandths: 0,
     readings: 0,
   }
@@ -58,15 +77,7 @@ export function createBlendOverdraw(device: GPUDevice) {
       pending = true
       read
         .mapAsync(GPUMapMode.READ)
-        .then(() => {
-          const values = new BigUint64Array(read.getMappedRange())
-          const fragments = Number(values[0]) + Number(values[1])
-          read.unmap()
-          counts.blendedFragments = fragments
-          counts.imagePixels = pixels
-          counts.meanOverdrawThousandths = pixels ? Math.round((fragments / pixels) * 1000) : 0
-          counts.readings++
-        })
+        .then(() => readCounts(read, counts, pixels))
         .catch(() => {
           /* A lost frame or a released device cancels the read: the last count stays. */
         })

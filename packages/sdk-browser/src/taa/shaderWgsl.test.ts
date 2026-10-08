@@ -10,19 +10,22 @@ import { YCOCG_WGSL } from './ycocgWgsl.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { REFLECTION_RESOLVE_WGSL } from '../reflections/resolveWgsl.ts'
 import { REFLECTION_SOURCE_WGSL } from '../reflections/sourceWgsl.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-const TAA_REPROJECT_WGSL = taaReprojectWgsl()
+const TAA_REPROJECT_WGSL = taaReprojectWgsl().text
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the temporal shader assembles each fragment once, on the shared page record', () => {
-  for (const fragment of [YCOCG_WGSL, TAA_REPROJECT_WGSL])
+  for (const fragment of [wgslSource(YCOCG_WGSL), TAA_REPROJECT_WGSL])
     assert.equal(occurrences(TAA_SHADER, fragment), 1)
   assert.match(TAA_SHADER, /@vertex fn fullscreen\(/)
   assert.match(TAA_SHADER, /@fragment fn resolve\(/)
   // The record carries placement at the word the row writes: that is how the pixel finds
   // its object's motion matrix.
-  const fields = PAGE_INFO_STRUCT_WGSL.replace(/^.*\{|,\}`?$/g, '').split(',')
+  const fields = wgslSource(PAGE_INFO_STRUCT_WGSL)
+    .replace(/^.*\{|,\}`?$/g, '')
+    .split(',')
   const words: string[] = []
   for (const field of fields) {
     const [name, type] = field.split(':')
@@ -54,7 +57,7 @@ test('shader bindings are those of the layout, and the uniform has the declared 
   )
   // No cosine per pixel: weights come from the uniform, neighbour by neighbour. Only a deformed
   // pixel's waves take one (`deformWgsl.ts`).
-  assert.doesNotMatch(TAA_SHADER.replace(TAA_DEFORM_WGSL, ''), /cos\(/)
+  assert.doesNotMatch(TAA_SHADER.replace(TAA_DEFORM_WGSL.text, ''), /cos\(/)
   assert.match(TAA_SHADER, /view\.weights\[k>>2u\]\[k&3u\]/)
 })
 
@@ -62,7 +65,10 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // Homogeneous position is built with the read depth as-is: at zero — reversed depth's
   // infinite far plane — the product by the inverse yields a point at infinity, and
   // reprojection follows it without ever dividing before the previous matrix.
-  assert.match(TAA_REPROJECT_WGSL, /view\.invViewProj\*vec4f\(ndc,depthValue,1\.0\)/)
+  assert.match(
+    TAA_REPROJECT_WGSL,
+    /transformHomogeneousPoint\(view\.invViewProj,vec3f\(ndc,depthValue\)\)/,
+  )
   // Neither record nor matrix is read until a placement has moved; the identifier is the one the
   // resolve read once for its tag.
   assert.match(

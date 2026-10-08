@@ -9,13 +9,11 @@
  * - Root more costly than the pixels it covers: `T ≥ c·π(R·f/z)²` ⇒ `z ≥ z_tri = R·f·√(cπ/T)`.
  *
  * The switch is `z_s = max(z_tex, z_tri)`; the impostor draws when `z ≥ z_s`. `f` is the engine's
- * one focal length in pixels (`pixelScaleOf` on the CPU, `focalPixels()` in WGSL); `T`, `c`, `R`
+ * one focal length in pixels (`focalPixels`, on the CPU as in WGSL); `T`, `c`, `R`
  * and `r_f` come only from the baked manifest.
  */
+import { PI } from '../../../math/src/constants.ts'
 import { impostorMeshBaked, type ImpostorMesh } from '../contracts/impostor.ts'
-
-/** π, one literal, so every reader of the switch rounds the same number. */
-export const IMPOSTOR_PI = 3.141592653589793
 
 /** `z_tex`: the depth from which a frame of `frameSide` texels is at most one texel per pixel. */
 export function impostorTexelDepth(radius: number, frameSide: number, focalPixels: number): number {
@@ -29,7 +27,7 @@ export function impostorTriangleDepth(
   coverage: number,
   focalPixels: number,
 ): number {
-  return radius * focalPixels * Math.sqrt((coverage * IMPOSTOR_PI) / rootTriangles)
+  return radius * focalPixels * Math.sqrt((coverage * PI) / rootTriangles)
 }
 
 /** `R`: the object-space radius at the largest world scale a placement of the mesh gives it. */

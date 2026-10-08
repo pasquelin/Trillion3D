@@ -1,4 +1,5 @@
 import type { Families, Look, Shape, Vec3 } from './engineTypes.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 
 type Node = ReturnType<Families<'object'>['object']['group']>
 
@@ -79,7 +80,7 @@ export function walkingRobot({
   const walkRound = (heading: number, radius: number) => {
     robot.position.set(Math.sin(heading) * radius, 0, Math.cos(heading) * radius)
     // All three angles at once: the engine may hand back an equivalent (π, y, π) form past ±90°.
-    robot.rotation.set(0, heading + Math.PI / 2, 0)
+    robot.rotation.set(0, heading + HALF_PI, 0)
   }
   return { robot, paint, actions, walkRound }
 }

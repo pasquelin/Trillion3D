@@ -15,8 +15,8 @@ const entry = (image: number, firstLevel: number, bakedLevels: number): TextureP
   firstLevel,
   bakedLevels,
   levels: [],
-  layouts: { bc7: 'lossless', astc: 'lossless' },
-  blocks: { bc7: [], astc: [] },
+  layouts: { bc7: 'lossless', astc: 'lossless', etc2: 'lossless' },
+  blocks: { bc7: [], astc: [], etc2: [] },
 })
 const manifest = (previews: TexturePreview[]): ClusterManifest =>
   ({ textures: { url: 'x' }, texturePreviews: previews }) as unknown as ClusterManifest

@@ -819,8 +819,6 @@
       "shadow-pages-off": "Schatten-Paging deaktiviert",
       "shadow-budget-0-25": "Zeitbudget für Schatten: 0,25 ms",
       "budget-3000": "Geometrie-Budget: 3000 Seiten",
-      "webgl": "WebGL-Renderer",
-      "webgl2": "WebGL-2-Renderer",
       "moving-light": "Bewegtes Licht",
       "visible": "Sichtbares Browserfenster"
     },
@@ -926,7 +924,7 @@
     "resolution": "Auflösung und Fehlerschwelle",
     "lights": "Lichter, Schatten und indirekte Beleuchtung",
     "execution": "Standbild, Kantenglättung und Ausführungsoptionen",
-    "memory": "Speicher, Instanzen und andere Renderer"
+    "memory": "Speicher, Instanzen und weitere Läufe"
   },
   "evidence": {
     "computeDrawing": "Compute-Zeichnung",
@@ -1110,8 +1108,8 @@
     },
     "measurement-entry": {
       "title": "Der Einstiegspunkt für Messungen",
-      "description": "Wo ein Vergleichswert, ein erzwungenes Backend oder eine interne Sitzung noch benennbar ist — niemals über den veröffentlichten `trillion3d`-Einstiegspunkt.",
-      "html": "<p>Eine Seite importiert <code>trillion3d</code> und sieht nie ein Backend, einen Vergleichswert oder eine interne Sitzung: <code>createWorld</code> zeichnet mit einem Renderer, der von der Maschine gewählt oder bei erzwungener, fehlender Wahl namentlich verweigert wird. Der Bench, die Beweise und die Vergleichsansichten müssen aber weiterhin einen Vergleichswert benennen können — reines Three.js, <code>THREE.LOD</code>, die interne <code>openMeasuredWorld</code>-Sitzung — und genau dafür gibt es den eigenen Mess-Einstiegspunkt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Er exportiert alles erneut, was der veröffentlichte Einstiegspunkt tut, plus das, was ein Host nie braucht: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (die interne Sitzung, die eine Welt an sich selbst öffnet), die Backend-Fabriken (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), und reine Mess-Hilfsfunktionen wie <code>replicateInstances</code>. Nichts davon erreicht eine veröffentlichte Welt, und nichts davon wird von einer Anwendung importiert.</p>"
+      "description": "Wo ein Vergleichswert oder eine interne Sitzung noch benennbar ist — niemals über den veröffentlichten `trillion3d`-Einstiegspunkt.",
+      "html": "<p>Eine Seite importiert <code>trillion3d</code> und sieht nie einen Vergleichswert oder eine interne Sitzung: <code>createWorld</code> zeichnet mit WebGPU oder wird namentlich verweigert, wenn die Maschine keines bietet. Der Bench und die Beweise müssen aber weiterhin einen Vergleichswert benennen können — reines Three.js, <code>THREE.LOD</code>, die interne <code>openMeasuredWorld</code>-Sitzung — und genau dafür gibt es den eigenen Mess-Einstiegspunkt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Er exportiert alles erneut, was der veröffentlichte Einstiegspunkt tut, plus das, was ein Host nie braucht: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (die interne Sitzung, die eine Welt an sich selbst öffnet), die Seiten-Fabrik <code>webgpuPagesEngine</code> und reine Mess-Hilfsfunktionen wie <code>replicateInstances</code>. Nichts davon erreicht eine veröffentlichte Welt, und nichts davon wird von einer Anwendung importiert.</p>"
     },
     "createWorldJob": {
       "title": "Ein Weltladen als abbrechbarer Auftrag",
@@ -1160,11 +1158,11 @@
       "description": "Was ein Bild zeichnet. Verfügbarkeit beschreibt echte Pipeline-Ausgaben, nie synthetische Überlagerungen: `DIAGNOSTICS` gibt pro Modus an, ob der aktive Renderer es erzeugen kann und warum nicht.",
       "values": [
         "Das beleuchtete Bild, aus den glTF-Materialien.",
-        "Eine gefüllte, eindeutige Farbe pro gezeichnetem Dreieck — kein GL_LINES, kein `MeshBasicMaterial.wireframe`.",
-        "Stabile Primitiv-/Seiten-Identität, eine Farbe pro Cluster; WebGL2 und WebGPU gleichermaßen.",
+        "Eine gefüllte, eindeutige Farbe pro gezeichnetem Dreieck.",
+        "Stabile Primitiv-/Seiten-Identität, eine Farbe pro Cluster.",
         "Level-0-Cluster gegen die gröberen DAG-Reduktionen, die in diesem Bild wirklich ausgewählt wurden.",
         "Der pro-Cluster-Fehler, projiziert durch die Cluster-Kugel, so wie der Schnitt ihn verwendet.",
-        "Eine Farbe pro Materialklasse: der Klassendurchgang, der das Pixel aufgelöst hat. Nur der WebGPU-Sichtbarkeitspfad.",
+        "Eine Farbe pro Materialklasse: der Klassendurchgang, der das Pixel aufgelöst hat.",
         "Ausgewählte sichtbare Seiten; abgelehnte Hierarchieknoten werden gezählt, nicht gezeichnet.",
         "Angehängte Indexseiten; fehlende Seiten werden nicht gezeichnet. Kein physischer VRAM.",
         "Nicht verfügbar: die Mip-Residenz von Texturen wird nicht erfasst.",
@@ -1215,7 +1213,7 @@
     },
     "GpuTimingMethod": {
       "description": "Wie die GPU-Dauern eines Phasenprofils erfasst wurden. Eine Dauer pro Durchgang sagt wo, nie wie viel: auf einer kachelbasierten GPU überlappen sich Durchgänge, und einer nimmt seine Nachbarn in sich auf. Die Bildsumme ist `gpuImageMs`, die Rahmenzeit — Phasendauern summieren sich nicht darauf.",
-      "values": ["Native WebGPU-Zeitstempelabfragen.", "Die WebGL2-Erweiterung, für diesen Pfad."]
+      "values": ["Native WebGPU-Zeitstempelabfragen."]
     },
     "ColumnKind": {
       "description": "Speicherung einer Spalte des binären Manifests. `COLUMN_KIND` ordnet jedem Spaltennamen seine Art zu, damit ein Leser weiß, welche Sicht er über die Begleitbytes nehmen muss.",
@@ -1244,7 +1242,7 @@
       "description": "Verpackt jede laufende Operation in den Auftragsvertrag der Engine: einen Schnappschuss (`JobStatus`, Fortschritt, Ergebnis, Fehler), ein Abonnement, und einen Abbruch, der freigibt, was der Auftrag besaß. Die Operation muss den Abbruch über ihren Besitzer unterstützen (RAF, Rücklesen, …)."
     },
     "detectCapabilities": {
-      "description": "Was diese Maschine tatsächlich unterstützt, bevor eine Welt erschaffen wird: `{ tier, renderer, adapter, extensions, reason }`. Der Grund wird immer angegeben, damit eine nicht unterstützte Fähigkeit gemeldet statt angenommen wird. Der öffentliche Wrapper, den eine Welt liest, ist `capability.detect()` — `{ webgpu, webgl2, ... }`, eine einfachere Form derselben Prüfung. Die WebGL2-Prüfung wird zwischengespeichert."
+      "description": "Was das WebGPU dieser Maschine tatsächlich gewährt, bevor eine Welt erschaffen wird: `{ tier, adapter, extensions, reason }`. Die Stufe ist `full` mit GPU-Zeitstempelabfragen, `degraded` ohne sie und `unavailable` ohne Adapter. Der Grund wird immer angegeben, damit eine nicht unterstützte Fähigkeit gemeldet statt angenommen wird. Der öffentliche Wrapper, den eine Welt liest, ist `capability.detect()` — `{ webgpu, tier, features, reason }`, eine einfachere Form derselben Prüfung."
     },
     "perspectiveProjection": {
       "description": "Perspektivprojektion einer Kamera mit vertikalem `fov` in Grad, Seitenverhältnis `aspect`, Nahebene `near`, Zoom `zoom`. **Umgekehrte Tiefe, unendliche Fernebene**: `near` projiziert auf 1, Unendlichkeit auf 0. Es gibt hier keine Fernebene, daher keine Division durch sie — genau das verschafft die Tiefenpräzision."
@@ -1304,7 +1302,7 @@
       "description": "`out = transpose(inverse(3×3-Block von m))` auf neun Zahlen, spaltenweise: die Matrix, die die Normalen einer von `m` transformierten Oberfläche trägt, Scherung und ungleichmäßige Skalierung eingeschlossen. Die Inverse ist die der Referenz, Kofaktoren und Produktreihenfolge eingeschlossen, dann ohne Gleitkommaoperation transponiert. **Bei einer singulären Matrix schreibt sie die Adjunkte, ungeteilt**, nicht die Nullmatrix der Referenz: eine singuläre Pose löscht eine Oberfläche nicht, sie flacht sie auf eine Ebene ab, und die auf eine lokale Normale angewendete Adjunkte *ist* das Kreuzprodukt der transformierten Kanten, Vorzeichen eingeschlossen — jeder Verbraucher normalisiert dann. Nur eine null, unendliche oder NaN-Skalierung wird gesondert geschrieben, als neun Nullen."
     },
     "linearPartScale": {
-      "description": "Die einzige Singularitätsregel der Engine, in Form des WGSL-Kernels. Die Skalierung ist die Summe der Beträge der neun Terme des linearen Teils; die Determinante wird auf den Spalten genommen, **geteilt durch diese Skalierung vor dem Produkt**, nie auf der rohen Determinante geteilt durch ihren Kubus — `t³` läuft jenseits von 1e103 über und verschwindet unter 1e-103, genau dort, wo die Regel entscheiden soll. `adjugateFactor` gibt dann `1 / determinant` für eine reguläre Matrix zurück (die Referenzbits), `1` für eine singuläre (die Adjunkte unverändert), und `null`, wenn die Skalierung nicht endlich und streng positiv ist, wo die Adjunkte selbst durch null ersetzt werden muss. `SINGULAR_DETERMINANT_WGSL` ist dieselbe Schwelle, wie der Shader sie schreibt: eine Zahl, zwei Sprachen."
+      "description": "Die einzige Singularitätsregel der Engine, in Form des WGSL-Kernels. Die Skalierung ist die Summe der Beträge der neun Terme des linearen Teils; die Determinante wird auf den Spalten genommen, **geteilt durch diese Skalierung vor dem Produkt**, nie auf der rohen Determinante geteilt durch ihren Kubus — `t³` läuft jenseits von 1e103 über und verschwindet unter 1e-103, genau dort, wo die Regel entscheiden soll. `adjugateFactor` gibt dann `1 / determinant` für eine reguläre Matrix zurück (die Referenzbits), `1` für eine singuläre (die Adjunkte unverändert), und `null`, wenn die Skalierung nicht endlich und streng positiv ist, wo die Adjunkte selbst durch null ersetzt werden muss."
     },
     "basisMatrix4": {
       "description": "Die Spalten `u`, `v`, `n`, dann der Ursprung, letzte Zeile `(0, 0, 0, 1)`; und eine einheitliche Skalierung `s`, platziert bei `center`. Beide ersetzen eine Zwei-Aufruf-Sequenz der Host-Bibliothek durch ein einziges Schreiben."
@@ -1336,8 +1334,8 @@
     "srgbToLinear": {
       "description": "Die exakte sRGB-Kurve — `c / 12,92` unter 0,04045, `((c + 0,055) / 1,055)^2,4` darüber — und ihre Umkehrung, negative Werte vor dem Exponenten auf null geklemmt."
     },
-    "hslToLinearRgb": {
-      "description": "Farbton, Sättigung und Helligkeit zu drei linearen Komponenten, geschrieben bei `out[o..o+2]`. Das `setHSL` der Referenz, Term für Term: gewickelter Farbton, Sättigung und Helligkeit auf `[0, 1]` geklemmt, Sättigung null als Grau zurückgegeben, dann die stückweise Rampe. Es wird keine Übertragungskurve angewendet — der Referenz-Arbeitsraum ist bereits linear."
+    "hslToRgb": {
+      "description": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben bei `out[o..o+2]`. Das `setHSL` der Referenz, Term für Term: gewickelter Farbton, Sättigung und Helligkeit auf `[0, 1]` geklemmt, Sättigung null als Grau zurückgegeben, dann die stückweise Rampe. Das RGB kommt in der Kodierung heraus, in der das HSL gegeben ist: Es wird keine Übertragungskurve angewendet."
     },
     "boxUnion": {
       "description": "Eine Box sind sechs flach ab `o` gespeicherte Zahlen: drei untere Grenzen, drei obere. Eine leere Box hat ihre unteren Grenzen bei `+Infinity` und ihre oberen bei `-Infinity`; eine NaN-Grenze macht eine Box nicht leer. Erweitern und Vereinigen nehmen die Grenzen als Parameter, sodass pro Aufruf kein temporäres Objekt gebaut wird."
@@ -1358,7 +1356,7 @@
       "description": "Die Box gegen den Sichtkegel: die erste ist wahr, wenn eine Ebene alle acht Ecken hinter sich lässt. Die zweite gibt drei Zustände zurück — 0 außerhalb, 1 überlappend, 2 vollständig innen — in zwei Durchgängen, der erste verwirft nur, der zweite liest die am weitesten hinten liegende Ecke, um „überlappend“ von „innen“ zu unterscheiden. Ein Teilbaum, der vollständig innen liegt, spart einen Test für jede Box darunter."
     },
     "boxConeRejects": {
-      "description": "Ablehnung einer lokalen Box durch ihren Normalenkegel, gesehen von einem Weltpunkt: die Box wird durch ihre Kugel ersetzt, die Kegelachse von der Normalenmatrix getragen und normalisiert, das Urteil auf dem geklemmten Skalarprodukt, dem Kegelwinkel und der perspektivischen Streuung der Kugel gefällt. Eine Transformation ist konform, wenn ihre Spalten innerhalb von `CONE_LENGTH_RATIO` dieselbe Länge haben und innerhalb von `CONE_ORTHO_EPS` orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab, und ein Parameter, den der Test ablehnt, lehnt auch nicht ab. Die `_WGSL`-Varianten sind dieselben Konstanten wie der Shader-Text, damit die CPU-Spiegelung und der GPU-Durchgang nicht auseinanderdriften können."
+      "description": "Ablehnung einer lokalen Box durch ihren Normalenkegel, gesehen von einem Weltpunkt: die Box wird durch ihre Kugel ersetzt, die Kegelachse von der Normalenmatrix getragen und normalisiert, das Urteil auf dem geklemmten Skalarprodukt, dem Kegelwinkel und der perspektivischen Streuung der Kugel gefällt. Eine Transformation ist konform, wenn ihre Spalten innerhalb von `CONE_LENGTH_RATIO` dieselbe Länge haben und innerhalb von `CONE_ORTHO_EPS` orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab, und ein Parameter, den der Test ablehnt, lehnt auch nicht ab."
     },
     "createTransformTree": {
       "description": "Die Transformationshierarchie der Engine, datenorientiert: ein Knoten ist ein Index in flache Arrays — Elternteil, Flags, Position, Quaternion `(x, y, z, w)`, Skalierung, lokale Matrix, Weltmatrix. `localViews[i]` und `worldViews[i]` sind Sichten aus sechzehn Zahlen, erstellt beim Wachstum und nie während eines Updates: die GPU liest den ganzen Puffer, ein Kernel liest die Sicht eines Knotens. Ein frischer Knoten ist das frische Objekt der Referenz: Position null, Identitätsrotation, Skalierung 1, Identitätsmatrizen, automatisches Update. Ein Wachstum ersetzt jedes Array, sodass ein Aufrufer `tree.world` oder `tree.worldViews` nach einem Hinzufügen erneut liest."
@@ -1385,25 +1383,25 @@
       "description": "`n` Boxen, transformiert von `n` Matrizen: `out[i] = boxTransform(boxes[i], mats[i])`. `out` und `boxes` tragen sechs Zahlen pro Element, `mats` eine Untersicht von sechzehn."
     },
     "hierarchyUpdateBatch": {
-      "description": "Eine ganze Hierarchie in einem Durchgang aktualisiert: `n` Knoten, geordnet Eltern vor Kindern, jeder setzt seine lokale Matrix zusammen und multipliziert sie dann mit der Weltmatrix seines Elternteils — die Traversierung von `packages/sdk-core/src/math/transform-tree/update.ts`, dieselben zwei Formeln in derselben Reihenfolge, auf flachen Puffern. `parents[i]` **muss** einen bereits aktualisierten Knoten indizieren, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Pfaden identisch: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen. `local` ist eine wiederverwendete Streumatrix für jedes Element."
+      "description": "Eine ganze Hierarchie in einem Durchgang aktualisiert: `n` Knoten, geordnet Eltern vor Kindern, jeder setzt seine lokale Matrix zusammen und multipliziert sie dann mit der Weltmatrix seines Elternteils — die Traversierung von `packages/sdk-core/src/world/transform-tree/update.ts`, dieselben zwei Formeln in derselben Reihenfolge, auf flachen Puffern. `parents[i]` **muss** einen bereits aktualisierten Knoten indizieren, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Pfaden identisch: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen. `local` ist eine wiederverwendete Streumatrix für jedes Element."
     },
     "createPathGovernor": {
       "description": "Was JS gegen WebAssembly entscheidet, pro benannter Operation: gleitende Mediane der Nanosekunden pro Element, ein Wechsel erst nach fünf aufeinanderfolgenden Ausführungen mit diesem Vorsprung, und eine von fünfzig Ausführungen, die den anderen Pfad wiederholt, um seinen Median aufzufrischen. Unter fünf Stichproben wird nichts entschieden — ein einzelner Wert würde den Median bilden. `metrics()` veröffentlicht pro Operation `path`, `jsNsPerElement`, `wasmNsPerElement`, die Wechselanzahl und die Uhrenauflösung, auf der die Messung beruht."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` Boxen aus sechs Zahlen (min, dann max) gegen die vierundzwanzig Fließkommazahlen eines Sichtkegels: `kept[i]` ist 1, wo die Box schneidet oder darin liegt, und die behaltene Anzahl wird zurückgegeben — `frustumExcludesBox` negiert, die Polarität, mit der die Referenz antwortet. Die Kugel-Batch schreibt `SPHERE_VALUES` Zahlen pro Box, Mittelpunkt dann Radius bis zur Ecke, wie es `sphereFromBounds` tut. Beide Schleifen leben in `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` Boxen aus sechs Zahlen (min, dann max) gegen die vierundzwanzig Fließkommazahlen eines Sichtkegels: `kept[i]` ist 1, wo die Box schneidet oder darin liegt, und die behaltene Anzahl wird zurückgegeben — `frustumExcludesBox` negiert, die Polarität, mit der die Referenz antwortet. Die Kugel-Batch schreibt `SPHERE_VALUES` Zahlen pro Box, Mittelpunkt dann Radius bis zur Ecke, wie es `sphereFromBounds` tut. Beide Schleifen leben in `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` erweitert um `n` Boxen, oder um `n` Boxen, jede zuerst von ihrer eigenen Matrix transformiert — ein Durchgang, eine Streubox, keine Zuweisung. Beide wiederholen `boxUnion`, die zweite `boxTransform` davor: die Weltgrenzen einer ganzen Szene in einem Aufruf."
     },
     "invertMatrix4Batch": {
-      "description": "`n` Inversen, `n` Normalenmatrizen aus `NORMAL_MATRIX_VALUES` Zahlen, `n` Zusammensetzungen `T · R · S`, `n` Zerlegungen. Eine Matrix mit Determinante null wird zur Identität invertiert und in `singular[i]` markiert — nie ein Wurf mitten in einem Batch. `composeMatrix4Batch` nimmt alles flach oder alles als Untersichten und legt die Form vor der Schleife fest. Die vier Schleifen leben in `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` Inversen, `n` Normalenmatrizen aus `NORMAL_MATRIX_VALUES` Zahlen, `n` Zusammensetzungen `T · R · S`, `n` Zerlegungen. Eine Matrix mit Determinante null wird zur Identität invertiert und in `singular[i]` markiert — nie ein Wurf mitten in einem Batch. `composeMatrix4Batch` nimmt alles flach oder alles als Untersichten und legt die Form vor der Schleife fest. Die vier Schleifen leben in `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` Punkte aus drei Zahlen mit einer affinen Matrix, oder eine Matrix pro Punkt; `n` Richtungen mit dem oberen 3×3-Block, dann normalisiert, Translation ignoriert. Sie wiederholen `transformAffinePoint` und `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Ein Kanal pro Element, die exakten Kurven von `packages/sdk-core/src/math/primitives/color.ts`: die Referenz multipliziert mit gerundeten Konstanten, und die Lücke — bei 8 Bit unsichtbar — wird einmal begrenzt, im Bench, der sie duelliert."
+      "description": "Ein Kanal pro Element, die exakten Kurven von `packages/math/src/color/color.ts`: die Referenz multipliziert mit gerundeten Konstanten, und die Lücke — bei 8 Bit unsichtbar — wird einmal begrenzt, im Bench, der sie duelliert."
     },
     "scene-editor": {
       "title": "Eine Szene mit dem Editor bauen",
@@ -1624,11 +1622,10 @@
       "an angle at or above π/2 never rejects": "ein Winkel bei oder über π/2 lehnt nie ab",
       "after updateNodeMatrixWorld(tree, root)": "nach updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "verfügbar — angehängte Indexseiten; fehlende Seiten werden nicht gezeichnet; kein physischer VRAM",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "verfügbar — gefüllte eindeutige Farbe pro eingereichtem Dreieck, kein GL_LINES-Drahtgitter",
+      "available — A filled unique colour per submitted triangle": "verfügbar — gefüllte eindeutige Farbe pro eingereichtem Dreieck",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "verfügbar — Level-0-Cluster gegen die in diesem Bild wirklich ausgewählten gröberen DAG-Reduktionen",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "verfügbar — Fehler pro Cluster, projiziert durch die Cluster-Kugel, so wie der Schnitt ihn verwendet",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "verfügbar — ausgewählte sichtbare Seiten; abgelehnte Hierarchieknoten werden gezählt, nicht gezeichnet",
-      "available — Stable primitive/page ID, exact-cluster backend only": "verfügbar — stabile Primitiv-/Seiten-ID, nur exaktes Cluster-Backend",
       "available — glTF materials": "verfügbar — glTF-Materialien",
       "unavailable — No fragment counter": "nicht verfügbar — kein Fragment-Zähler",
       "unavailable — Texture mip residency not instrumented": "nicht verfügbar — Mip-Residenz von Texturen nicht erfasst",

@@ -1,4 +1,5 @@
-import { clipWeight } from '../math/primitives/camera.ts'
+import { clipWeight } from '../../../math/src/projection/camera.ts'
+import { plainLength2 } from '../../../math/src/vector/vector.ts'
 import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts'
 
 /**
@@ -52,15 +53,18 @@ export function screenErrorBound(
   // EXPERIMENT switch (`screenErrorVariant.ts`), read here for the whole CPU selection.
   if (screenErrorVariant() !== 'certifiee')
     return referenceScreenError(error, stretch, depth, focal, near, perspective)
-  // Rust mirror (CPU cut walk): `projected_error_at` of `packages/page-codec-wasm/src/cut_error.rs`.
+  // Rust mirror, to the bits (`screenErrorBits.json`): `projected_error_at` of
+  // `packages/page-codec-wasm/src/cut_error.rs`.
   const reach = radius * stretch,
     shift = error * stretch
   const nearest = clipWeight(perspective, depth - reach),
     closest = nearest - perspective * shift,
     side = perspective * (lateral + reach)
-  // The near plane first: the hypotenuse root is taken only once it is cleared.
+  // The near plane first: the hypotenuse root is taken only once it is cleared. The plain root of
+  // Rust's `vec2::length`, not `length2`: past the plain sum's range `length2` takes `hypot2`,
+  // and the table's row at a 1e308 depth pins the plain sum's Infinity (docs/MATHS.md "Lengths").
   if (!(closest > perspective * near)) return Infinity
-  const slant = Math.sqrt(nearest * nearest + side * side)
+  const slant = plainLength2(nearest, side)
   if (!(slant >= nearest && slant < Infinity)) return Infinity
   return ((shift * focal) / nearest) * (slant / closest)
 }
@@ -85,7 +89,8 @@ export function clusterErrorPixels(
   if (clusterError === Infinity) return Infinity
   // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
   // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
-  const lateral = Math.sqrt(centreX * centreX + centreY * centreY)
+  // `vec2::length` of `cut_error.rs` too: the plain root, as the slant.
+  const lateral = plainLength2(centreX, centreY)
   return clusterErrorAtDepth(
     clusterError,
     stretch,
@@ -99,30 +104,13 @@ export function clusterErrorPixels(
 }
 
 /**
- * The frame's half of `clusterErrorAtDepth`'s guard: stretch, focal length, near plane and clip-w
- * weight, the four scalars every cluster of a root's cut shares. True when they pass.
- */
-export function frameParametersSound(
-  stretch: number,
-  focal: number,
-  near: number,
-  perspective = 1,
-) {
-  return (
-    Number.isFinite(stretch) &&
-    stretch >= 0 &&
-    Number.isFinite(focal) &&
-    focal > 0 &&
-    Number.isFinite(near) &&
-    near > 0 &&
-    perspective >= 0 &&
-    perspective <= 1
-  )
-}
-
-/**
  * The same projected error when the centre's distance to the view axis and its depth (−z of view)
- * are already known: a node that sets floor and ceiling on the same sphere shares its depth.
+ * are already known: a node that sets floor and ceiling on the same sphere shares its depth. A zero
+ * error yields 0 and an infinite one infinity before any check; every other parameter is then
+ * checked at once — error, stretch and radius finite and non-negative, focal length and near plane
+ * finite and positive, axis distance finite and non-negative, depth finite, clip-w weight in
+ * [0, 1] — before the projection. Rust mirror, one guard, same verdicts: `projected_error_at` of
+ * `packages/page-codec-wasm/src/cut_error.rs`.
  */
 export function clusterErrorAtDepth(
   clusterError: number,
@@ -136,45 +124,20 @@ export function clusterErrorAtDepth(
 ): number {
   if (clusterError === 0) return 0
   if (clusterError === Infinity) return Infinity
-  if (!frameParametersSound(stretch, focal, near, perspective))
-    throw new Error('Invalid cluster parameters')
-  return clusterErrorInFrame(
-    clusterError,
-    stretch,
-    lateral,
-    depth,
-    radius,
-    focal,
-    near,
-    perspective,
-  )
-}
-
-/**
- * `clusterErrorAtDepth` of a frame whose `frameParametersSound` already holds and of an error that
- * is neither 0 nor ∞, which the caller has returned as is (VIS-16): the CPU cut checks its four
- * scalars once per root, and each cluster only its own error, radius, axis distance and depth. The
- * frame's half of the guard can only fail where it was taken out, so the verdicts are those of
- * `clusterErrorAtDepth`, the same error on the same call. The Rust walk (`projected_error_at`,
- * `cut_error.rs`) keeps the whole guard per cluster: same verdicts.
- */
-export function clusterErrorInFrame(
-  clusterError: number,
-  stretch: number,
-  lateral: number,
-  depth: number,
-  radius: number,
-  focal: number,
-  near: number,
-  perspective: number,
-): number {
   if (
     !Number.isFinite(clusterError) ||
     clusterError < 0 ||
+    !Number.isFinite(stretch) ||
+    stretch < 0 ||
     !Number.isFinite(radius) ||
     radius < 0 ||
+    !Number.isFinite(focal) ||
+    focal <= 0 ||
+    !Number.isFinite(near) ||
+    near <= 0 ||
     !(lateral >= 0 && lateral < Infinity) ||
-    !Number.isFinite(depth)
+    !Number.isFinite(depth) ||
+    !(perspective >= 0 && perspective <= 1)
   ) {
     throw new Error('Invalid cluster parameters')
   }

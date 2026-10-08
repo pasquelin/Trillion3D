@@ -43,7 +43,7 @@ test('pages that outgrow the CPU total never evict the kept proxy: a device loss
   const pageCache = createPageCache(cpu + 2 * 12)
   const before = await openSession(metadata, pageCache, { maxPageTransferBytes: transfer })
   await before.context.readSceneProxy!()
-  for (const url of urls) await before.streamer.request([url])
+  for (const url of urls) await before.streamer.request([url], { signal: before.streamer.signal })
   assert.ok(before.streamer.stats().evictions >= 4, 'the pages churned through the total')
   assert.ok(before.streamer.stats().cpuBytes <= pageCache.cpuBytes)
   before.close()
@@ -164,7 +164,7 @@ test('a CPU total too small for the proxy beside the pages a frame keeps: the pr
     diagnostics: (diagnostic) => heard.push(diagnostic.phase),
   })
   session.streamer.retain(urls.slice(0, 4))
-  await session.streamer.request(urls)
+  await session.streamer.request(urls, { signal: session.streamer.signal })
   const lit = await session.context.readSceneProxy!()
   assert.equal(lit.triangles, 1, 'the bounce still gets its proxy')
   assert.equal(pageCache.keptBytes, 0, 'the proxy gave its bytes back')

@@ -1,19 +1,16 @@
-// The first image arrives lit. The lit program compiles during prepare, before any frame; a
-// scene with no transparent object compiles no blend program; prepare's pipelines compile together,
-// off the thread; the unlit view keeps what a surface emits.
+// #1362: the first image arrives lit. The lit program compiles during prepare, before any frame; a
+// scene with no transparent object compiles no blend program; the unlit view keeps what a surface
+// emits.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
-import { FULL_CONTRACT } from '../../lighting/deferred/contractVariants.ts'
-import { UNLIT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts'
+import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts'
-import { declaredBlendModes } from '../blend/stagePipelines.ts'
-import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts'
 import { litPrograms } from '../pages/prepare/contractLight.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { settledRt, surface, view } from './hold.fixture.ts'
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { BLEND_SHADER, UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 /** A fake device that names every render pipeline compiled off the thread, by its module. */
 function recordingDevice() {
@@ -95,32 +92,6 @@ test('a scene with no transparent object compiles no blend program', async () =>
   const blend = fakeDevice()
   await createWebgpuBlendPipelines(blend.device, [])
   assert.deepEqual(blend.renderPipelines, [], 'no forward material pipeline')
-  const fallback = fakeDevice()
-  const { pipelineBlend } = await createWebgpuPagesPipelines(fallback.device, 256)
-  await pipelineBlend.precompile(declaredBlendModes([]))
-  assert.equal(fallback.renderPipelines.length, 3, 'the three opaque culls alone')
-  const blended = fallback.renderPipelines.filter((made) =>
-    [...(made.fragment?.targets ?? [])].some((target) => target?.blend),
-  )
-  assert.deepEqual(blended, [])
-})
-
-test('prepare creates its pipelines together, off the thread, never one after another', async () => {
-  const { device } = fakeDevice()
-  let started = 0,
-    release!: () => void
-  const gate = new Promise<void>((done) => (release = done))
-  const compile = device.createRenderPipelineAsync.bind(device)
-  device.createRenderPipelineAsync = async (descriptor) => {
-    started++
-    await gate
-    return compile(descriptor)
-  }
-  const made = createWebgpuPagesPipelines(device, 256)
-  await new Promise((done) => setImmediate(done))
-  assert.equal(started, 3, 'all three compile before any has landed')
-  release()
-  assert.ok((await made).pipelineNone)
 })
 
 test('a pipeline the device refuses off the thread is a refusal, not a throw', async () => {

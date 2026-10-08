@@ -14,7 +14,7 @@ export function referenceWindingCw(e: NumberSink) {
   )
 }
 
-/** `packages/sdk-browser/src/visibility/projection.ts:5-34` from before: clip space written inline. */
+/** `./cpu-image/projection.ts` (`projectVisibilityVertex`) from before: clip space written inline. */
 const projectScratch = new THREE.Vector3()
 /** The three coordinates of a vertex, as a host geometry attribute yields them. */
 interface VertexReader {

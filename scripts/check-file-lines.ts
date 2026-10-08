@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { gitPaths as readGitPaths } from './git-paths.ts'
+import { isTestModule, unitOf } from './repository-files.ts'
 
 export const MAX_LINES = 200
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
@@ -20,19 +21,13 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
  * that stays under it is by the behaviour under test (`b237eb625`). The scripts keep it too — they
  * are read whole, one gate or one step each.
  */
-/** The maintained runtime modules `check:cohesion` reads instead. */
-const RUNTIME_SOURCE = /^packages\/(?:sdk-core|sdk-browser|sdk-node|page-codec)\/src\//
-const TEST_FILE = /\.(?:test|fixture|perf|gpu)\.m?ts$/
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,
  *  and `check:cohesion` reads it instead; a test, a fixture, a script, the site, the bench and the
  *  Rust crates all do — each is read whole, and a Rust function's length is not what makes it
  *  hard to change either, but no gate reads it yet, so the bound stays where it still holds. */
 export const keepsLineBound = (file: string): boolean =>
-  !RUNTIME_SOURCE.test(file) ||
-  TEST_FILE.test(file) ||
-  file.endsWith('/index.ts') ||
-  file.endsWith('/index.mts')
+  !unitOf(file) || isTestModule(file) || file.endsWith('/index.ts') || file.endsWith('/index.mts')
 
 /**
  * `-z` is an option, not a path. Placed after the `--` that opens the list of files, it is

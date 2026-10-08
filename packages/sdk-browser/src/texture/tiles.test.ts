@@ -5,7 +5,9 @@ import {
   entryLevel,
   packEntry,
   placeOf,
+  PLACE_AXIS_BITS,
   POOL_LAYER_SIDE,
+  POOL_MAX_LAYERS,
   tailOffset,
   TILE_BORDER,
   TILE_PITCH,
@@ -14,8 +16,10 @@ import {
   TILES_PER_LAYER,
 } from './tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { noTails } from './noTails.fixture.ts'
-import { entryPlace, placeIndex } from './tiles.fixture.ts'
+import { entryPlace, placeIndex, TILES_PER_ROW } from './tiles.fixture.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048)
@@ -48,16 +52,22 @@ test('tail levels sit side by side on block boundaries, the 1×1 block ending in
 })
 
 test('a pool slot has a unique rank, and the table entry keeps place and level', () => {
-  const place = { x: 29, y: 7, layer: 3 }
-  assert.deepEqual(placeOf(placeIndex(place)), place)
+  // A row's columns fit their field; a layer past 255 keeps its bits apart from the level's.
+  assert.ok(TILES_PER_ROW <= 1 << PLACE_AXIS_BITS)
+  for (const place of [
+    { x: 29, y: 7, layer: 3 },
+    { x: 29, y: 29, layer: 256 },
+    { x: 0, y: 29, layer: POOL_MAX_LAYERS - 1 },
+  ]) {
+    assert.deepEqual(placeOf(placeIndex(place)), place)
+    const word = packEntry(place, 15)
+    assert.equal(entryLevel(word), 15)
+    assert.deepEqual(entryPlace(word), place)
+    assert.ok(word > 0x7fffffff, 'the high bit says the entry is served')
+  }
   assert.equal(placeIndex({ x: 0, y: 0, layer: 1 }), TILES_PER_LAYER)
-  const word = packEntry(place, 9)
-  assert.equal(entryLevel(word), 9)
-  assert.deepEqual(entryPlace(word), place)
-  assert.ok(word > 0x7fffffff, 'the high bit says the entry is served')
 })
 
-const MiB = 1024 * 1024
 const lanes = (lossless: number, rgba: number, two = 0) => ({ lossless, rgba, 'two-channel': two })
 const rgba8 = () => 4
 const blocks = (lane: string) => (lane === 'lossless' ? 4 : 1)
@@ -71,8 +81,8 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
   const demand = { color: lanes(5000, 0), data: lanes(5000, 0) }
   const drawn = (bytes: number, device?: GPUDevice) =>
     texturePoolFor(bytes, device, demand, rgba8, noTails)
-  assert.deepEqual(drawn(512 * MiB), {
-    budgetBytes: 512 * MiB,
+  assert.deepEqual(drawn(512 * MIB), {
+    budgetBytes: 512 * MIB,
     layers: { color: lanes(4, 0), data: lanes(4, 0) },
     allocatedBytes: 8 * 67_108_864,
     clamp: null,
@@ -86,15 +96,15 @@ test('the pool budget yields whole layers per lane, and never refuses: it raises
   })
   assert.throws(() => drawn(0), /INVALID_TEXTURE_POOL_BUDGET/)
   const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 2 } })
-  assert.deepEqual(drawn(512 * MiB, device), {
-    budgetBytes: 512 * MiB,
+  assert.deepEqual(drawn(512 * MIB, device), {
+    budgetBytes: 512 * MIB,
     layers: { color: lanes(2, 0), data: lanes(2, 0) },
     allocatedBytes: 4 * 67_108_864,
     clamp: 'device-limit',
   })
   // A small scene: each lane capped at its tiles, the pool under the budget, by name.
   const small = texturePoolFor(
-    512 * MiB,
+    512 * MIB,
     undefined,
     { color: lanes(3, 0), data: lanes(0, 901) },
     blocks,
@@ -111,7 +121,7 @@ test('a budget under the tails of a lane is raised to the layers they take, by n
   const tails = { color: lanes(TILES_PER_LAYER + 1, 0), data: lanes(0, 0) }
   const pool = texturePoolFor(1, undefined, demand, rgba8, tails)
   assert.deepEqual([pool.layers.color, pool.clamp], [lanes(2, 0), 'minimum'])
-  assert.equal(texturePoolFor(512 * MiB, undefined, demand, rgba8, tails).layers.color.lossless, 4)
+  assert.equal(texturePoolFor(512 * MIB, undefined, demand, rgba8, tails).layers.color.lossless, 4)
   const { device } = fakeDevice({ limits: { maxTextureArrayLayers: 1 } })
   assert.throws(() => texturePoolFor(1, device, demand, rgba8, tails), /TEXTURE_POOL_DEVICE_LIMIT/)
 })
@@ -134,14 +144,14 @@ test('a lane whose tails fill whole layers keeps a layer to stream into at its f
 // tiles — and a lane served under its share leaves the rest to the lanes still short.
 test('block lanes draw four times the layers from the same bytes, and a capped lane gives the rest back', () => {
   const pool = texturePoolFor(
-    512 * MiB,
+    512 * MIB,
     undefined,
     { color: lanes(0, 40_000), data: lanes(0, 40_000) },
     blocks,
     noTails,
   )
   assert.deepEqual(pool, {
-    budgetBytes: 512 * MiB,
+    budgetBytes: 512 * MIB,
     layers: { color: lanes(0, 16), data: lanes(0, 16) },
     allocatedBytes: 32 * 16_777_216,
     clamp: null,
@@ -150,7 +160,7 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
   // instead of the 3.5 layers a pro-rata share would give it, and the 160 MiB left after each
   // block lane's own layer split evenly between the two — five more each.
   const mixed = texturePoolFor(
-    512 * MiB,
+    512 * MIB,
     undefined,
     { color: lanes(900, 40_000, 40_000), data: lanes(0, 0) },
     blocks,
@@ -158,4 +168,24 @@ test('block lanes draw four times the layers from the same bytes, and a capped l
   )
   assert.deepEqual(mixed.layers.color, lanes(1, 6, 6))
   assert.equal(mixed.clamp, null)
+})
+
+// Behaviour: a lane takes the layers the device grants, never more than a table entry addresses;
+// with no device named, the layers every WebGPU device grants.
+test('a lane pool takes the array layers the device grants, within what a place addresses', () => {
+  const demand = { color: lanes(0, 1e7), data: lanes(0, 0) }
+  const drawn = (maxTextureArrayLayers: number) =>
+    texturePoolFor(
+      2 ** 50,
+      fakeDevice({ limits: { maxTextureArrayLayers } }).device,
+      demand,
+      blocks,
+      noTails,
+    )
+  assert.deepEqual([drawn(2048).layers.color.rgba, drawn(2048).clamp], [2048, 'device-limit'])
+  assert.equal(drawn(8192).layers.color.rgba, POOL_MAX_LAYERS)
+  assert.equal(
+    texturePoolFor(2 ** 50, undefined, demand, blocks, noTails).layers.color.rgba,
+    textureLimits().layers,
+  )
 })

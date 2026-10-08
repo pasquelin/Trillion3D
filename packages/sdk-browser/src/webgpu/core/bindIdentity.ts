@@ -1,4 +1,5 @@
 import { entriesIdentity } from './entriesIdentity.ts'
+import { adoptEntries, sameEntries } from '../../gpu/core/sameEntries.ts'
 
 /** Resource snapshots for a family. Entry descriptors and snapshot arrays grow only at setup;
  *  stable images read the same descriptors without rebuilding entry arrays or bindings. */
@@ -10,8 +11,8 @@ export type WebgpuBindIdentity = {
   /** True when `next` differs from every identity held; the identity then holds `next`, in place
    *  of the one named longest ago. */
   moved(): boolean
-  /** Writes the family's layouts then every list of `entries` into `next`, and returns `moved()`. */
-  entriesMoved(layout: unknown, other?: unknown): boolean
+  /** Writes the family's layout then every list of `entries` into `next`, and returns `moved()`. */
+  entriesMoved(layout: unknown): boolean
   /** Where the identity `next` named at the last `moved()` is held, below `depth`: the family keeps
    *  the groups it made for it at that rank, and makes them again when `moved()` was true. */
   readonly slot: number
@@ -31,12 +32,6 @@ export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
     next: unknown[] = [],
     entries: GPUBindGroupEntry[][] = []
   let clock = 0
-  const holds = (at: number) => {
-    const words = held[at]
-    if (words.length !== next.length) return false
-    for (let i = 0; i < next.length; i++) if (words[i] !== next[i]) return false
-    return true
-  }
   const identity = {
     next,
     entries,
@@ -44,7 +39,7 @@ export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
     moved() {
       clock++
       for (let at = 0; at < held.length; at++)
-        if (holds(at)) {
+        if (sameEntries(held[at], next)) {
           identity.slot = at
           named[at] = clock
           return false
@@ -54,17 +49,14 @@ export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
         at = 0
         for (let k = 1; k < depth; k++) if (named[k] < named[at]) at = k
       }
-      const words = (held[at] ??= [])
-      words.length = next.length
-      for (let i = 0; i < next.length; i++) words[i] = next[i]
+      adoptEntries((held[at] ??= []), next)
       identity.slot = at
       named[at] = clock
       return true
     },
-    entriesMoved(layout: unknown, other?: unknown) {
+    entriesMoved(layout: unknown) {
       next[0] = layout
-      next[1] = other
-      let at = 2
+      let at = 1
       for (let i = 0; i < entries.length; i++) at = entriesIdentity(entries[i], next, at)
       next.length = at
       return identity.moved()

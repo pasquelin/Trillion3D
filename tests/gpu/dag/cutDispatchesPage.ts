@@ -12,7 +12,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cut-dispatches.ts'
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
-import { median } from '../../../scripts/median.ts'
+import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { countCommands, sceneView } from './cutScene.ts'
 
@@ -34,7 +34,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device } = gpu
   const { packed, uniforms } = sceneView(sweep.leaves, sweep.levels)
-  const shipped = await createDagResources(device, packed, true)
+  const shipped = await createDagResources(device, packed)
   if (!shipped) throw new Error('the shipped cut does not mount')
   const { module, compilation } = await gpu.compile(DAG_SELECTION_SHADER_BEFORE)
   if (compilation.length) throw new Error(`the frozen cut does not compile: ${compilation}`)
@@ -46,7 +46,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
     packed as unknown as Parameters<typeof resourcesBefore>[3],
   )
   const block = new Float32Array(DAG_VIEW_WORDS)
-  writeDagUniforms(block, packed, uniforms, true, shipped.listCap)
+  writeDagUniforms(block, packed, uniforms, shipped.listCap)
   device.queue.writeBuffer(shipped.uniforms, 0, block)
   device.queue.writeBuffer(before.uniforms, 0, block)
 
@@ -132,13 +132,20 @@ export async function measureDispatches(sweep: DispatchSweep) {
       totals.push((await batch(encode, sweep.frames)).total)
     bounds.push({
       width,
-      ms: Number(median(totals).toFixed(4)),
+      ms: Number((quantileFloorOf(totals, 0.5) as number).toFixed(4)),
       output: await read(shipped.output),
     })
   }
   const { court: adapter } = await gpu.fermer()
   const ms = (list: Timing[], field: keyof Timing) =>
-    Number(median(list.map((t) => t[field])).toFixed(4))
+    Number(
+      (
+        quantileFloorOf(
+          list.map((t) => t[field]),
+          0.5,
+        ) as number
+      ).toFixed(4),
+    )
   return {
     adapter,
     errors: gpu.errors,

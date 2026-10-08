@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from '../pages/pages.ts'
+import { webgpuPagesEngine } from '../pages/pages.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
@@ -12,7 +12,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
   const scene = quadScene()
   if (lineWidth !== undefined) scene.material.lineWidth = lineWidth
   const { device, buffers } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,

@@ -1,6 +1,8 @@
 //! Bit fields, the sequential reader, the step and the octahedral normals.
 
 use super::*;
+use trillion3d_math::octahedral::oct_decode;
+use trillion3d_math::GOLDEN_32;
 
 /// The reference `field`: two word reads, a shift and a mask per field.
 pub fn random_field(words: &[u32], at: usize, bits: u32) -> u32 {
@@ -30,7 +32,7 @@ fn a_field_crosses_a_word_boundary_and_a_zero_width_field_reads_zero() {
 
 #[test]
 fn the_sequential_reader_reads_each_field_where_the_random_reader_finds_it() {
-    let words: Vec<u32> = (1..=40u32).map(|i| i.wrapping_mul(0x9E37_79B9)).collect();
+    let words: Vec<u32> = (1..=40u32).map(|i| i.wrapping_mul(GOLDEN_32)).collect();
     for bits in 0..=MAX_BITS {
         for start in [0, 5, 31, 32] {
             let mut stream = BitReader::at(&words, start);

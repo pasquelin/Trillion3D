@@ -5,6 +5,12 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { PROXY_OWNER_WGSL } from './ownerWgsl.ts'
 import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import {
+  rayBoxEntry,
+  rayInverseDirection,
+  rayTriangleDistance,
+} from '../../../math/src/wgsl/geometry.ts'
 
 /**
  * Traversal of the resident proxy: a four-child BVH, ordered by distance, with early
@@ -21,45 +27,27 @@ import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
  * and stack depth — a wide node stacks three at most, and the tree is balanced by
  * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and never leaks.
  */
-export const BOUNCE_TRACE_WGSL = `
+export const BOUNCE_TRACE_WGSL = wgslBlock(
+  'BOUNCE_TRACE_WGSL',
+  [BOUNCE_NODE_WGSL, PROXY_OWNER_WGSL, rayInverseDirection, rayBoxEntry, rayTriangleDistance],
+  `
 const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
 const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
 const CHILDREN:u32=${PROXY_CHILDREN}u;
 const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
 struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
-${BOUNCE_NODE_WGSL}
-${PROXY_OWNER_WGSL}
-/** The ray–triangle intersection, two-sided: a wall has no front or back for light. */
-fn triangleHit(index:u32,owner:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
- let a=proxyOwnerVertex(index,0u,owner);
- let edge0=proxyOwnerVertex(index,1u,owner)-a;
- let edge1=proxyOwnerVertex(index,2u,owner)-a;
- let perpendicular=cross(direction,edge1);
- let determinant=dot(edge0,perpendicular);
- if(abs(determinant)<1e-12){return limit;}
- let inverse=1.0/determinant;
- let offset=origin-a;
- let u=dot(offset,perpendicular)*inverse;
- if(u<0.0||u>1.0){return limit;}
- let across=cross(offset,edge0);
- let v=dot(direction,across)*inverse;
- if(v<0.0||u+v>1.0){return limit;}
- let distance=dot(edge1,across)*inverse;
- if(distance<=1e-4||distance>=limit){return limit;}
- return distance;
-}
 /** The nearest triangle hit, or nothing. The direction is assumed normalized. */
 fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  var best=ProxyHit(limit,0u,0u,false);
  if(proxyNodeCount()==0u){return best;}
- let inverse=rayInverse(direction);
+ let inverse=rayInverseDirection(direction);
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
  let steps=proxySteps();
  for(var step=0u;step<steps;step++){
   let frame=nodeBox(node);
-  if(boxEntry(frame,origin,inverse,best.distance)>best.distance){
+  if(rayBoxEntry(frame.low,frame.high,origin,inverse,best.distance)>best.distance){
    if(depth==0u){break;}
    depth--;node=stack[depth];continue;
   }
@@ -68,7 +56,7 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
   for(var slot=0u;slot<CHILDREN;slot++){
    let child=proxyChild(node,slot,frame);
    if(!child.present){continue;}
-   let span=boxEntry(child.box,origin,inverse,best.distance);
+   let span=rayBoxEntry(child.box.low,child.box.high,origin,inverse,best.distance);
    if(span>best.distance){continue;}
    if(child.count>0u){
     for(var k=0u;k<LEAF_TRIANGLES;k++){
@@ -76,7 +64,7 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
      let index=child.offset+k;
      let owners=proxyOwners(index,child.owned);
      for(var owner=owners.x;owner<owners.y;owner++){
-      let distance=triangleHit(index,owner,origin,direction,best.distance);
+      let distance=rayTriangleDistance(origin,direction,proxyOwnerVertex(index,0u,owner),proxyOwnerVertex(index,1u,owner),proxyOwnerVertex(index,2u,owner),best.distance);
       if(distance<best.distance){best=ProxyHit(distance,index,owner,true);}
      }
     }
@@ -97,7 +85,7 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
 /** True as soon as a triangle cuts the segment: a shadow does not need the nearest. */
 fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
  if(proxyNodeCount()==0u){return false;}
- let inverse=rayInverse(direction);
+ let inverse=rayInverseDirection(direction);
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
@@ -106,18 +94,18 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
   let frame=nodeBox(node);
   var descend=false;
   var next=0u;
-  if(boxEntry(frame,origin,inverse,limit)<=limit){
+  if(rayBoxEntry(frame.low,frame.high,origin,inverse,limit)<=limit){
    for(var slot=0u;slot<CHILDREN;slot++){
     let child=proxyChild(node,slot,frame);
     if(!child.present){continue;}
-    if(boxEntry(child.box,origin,inverse,limit)>limit){continue;}
+    if(rayBoxEntry(child.box.low,child.box.high,origin,inverse,limit)>limit){continue;}
     if(child.count>0u){
      for(var k=0u;k<LEAF_TRIANGLES;k++){
       if(k>=child.count){break;}
       let index=child.offset+k;
       let owners=proxyOwners(index,child.owned);
       for(var owner=owners.x;owner<owners.y;owner++){
-       if(triangleHit(index,owner,origin,direction,limit)<limit){return true;}
+       if(rayTriangleDistance(origin,direction,proxyOwnerVertex(index,0u,owner),proxyOwnerVertex(index,1u,owner),proxyOwnerVertex(index,2u,owner),limit)<limit){return true;}
       }
      }
      continue;
@@ -131,4 +119,5 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
   depth--;node=stack[depth];
  }
  return false;
-}`
+}`,
+)

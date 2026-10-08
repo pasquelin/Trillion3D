@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts'
@@ -11,7 +12,7 @@ const CAR = VEHICLE_SPECS.car
 /** The car's wheel radius in the rig (`vehicles.fixture.ts`), m. */
 const RADIUS = 0.33
 /** The speed at which the engine's redline turns the wheels through `ratio`, m/s. */
-const redlineSpeed = (ratio: number) => (CAR.maxRPM / 60) * 2 * Math.PI * (RADIUS / ratio)
+const redlineSpeed = (ratio: number) => (CAR.maxRPM / 60) * TAU * (RADIUS / ratio)
 
 /** The steps a car of `options` takes to reach 10 m/s at full throttle. */
 async function until10(options: Partial<VehicleOptions>) {

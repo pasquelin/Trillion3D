@@ -23,6 +23,4 @@ test('the queue reaches the cache as addresses, reading only the listed records'
   cut = null // A residency change voided the cut: the order holds until the next readback.
   feed(selection)
   assert.equal(orders.length, 1, 'a voided cut keeps the order')
-  feed(null)
-  assert.deepEqual(orders.at(-1), undefined)
 })

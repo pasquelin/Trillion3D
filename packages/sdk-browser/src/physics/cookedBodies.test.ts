@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -15,10 +16,13 @@ import {
   cooked,
   declared,
   fixture,
+  hull as hullEntry,
   landed,
   modelStreamer,
   place,
   stubFetch,
+  settle,
+  sharedShapes,
   streamedModel,
   tile,
 } from './tiles.fixture.ts'
@@ -30,7 +34,7 @@ const hull = async () => new Uint8Array(await fixture('cube-hull.bin'))
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d]
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */
 const cube = (centre = [0.5, 0.5, 0.5]) => ({
-  ...{ type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 },
+  ...hullEntry(),
   mass: { mass: 1000, centerOfMass: centre, inertia: diagonal(1000 / 6) },
 })
 /** The ADD records among `words` — ADDs, RESTOREs and RELEASEs —: each one's words and floats. */
@@ -42,7 +46,7 @@ function adds(words: Uint32Array) {
     if (op === OP.add) {
       found.push({ w: words.subarray(at), f: f.subarray(at) })
       at += ADD_WORDS + words[at + 23] * 3 + words[at + 24]
-    } else at += op === OP.restore ? RESTORE_WORDS + Math.ceil(words[at + 2] / 4) : 2
+    } else at += op === OP.restore ? RESTORE_WORDS + ceilDiv(words[at + 2], 4) : 2
   }
   return found
 }
@@ -64,9 +68,9 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
   const collider = { tiles: [tile()], material: null }
   const file = { ...cooked([collider, collider], [place(0), place(1)]), bodies: [box] }
   const ramp = await fixture('ramp-tile.bin')
-  const { tiles, writer, bodies, errors } = await streamedModel(file, ramp)
-  tiles.update([0, 0, 0], 1000)
-  await landed()
+  const streamer = await streamedModel(file, ramp)
+  const { tiles, writer, bodies, errors } = streamer
+  await settle(streamer, [0, 0, 0], 1000)
   const words = writer.take()
   const [held, ground, ...more] = adds(words)
   assert.deepEqual([errors, more], [[], []])
@@ -87,8 +91,7 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`)
   assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body, where it is drawn')
   tiles.refused(held.w[1])
-  tiles.update([0, 0, 0], 1000)
-  await landed()
+  await settle(streamer, [0, 0, 0], 1000)
   const [back, ...others] = adds(writer.take())
   assert.deepEqual([back.w[4], back.f[6], others], [SHAPE.cooked, 0, []], 'refused, its tile back')
   assert.equal(bodies.count.bodies, 2, 'its slot given back, node 0’s tile ground again')
@@ -102,7 +105,13 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   const stiff = declared(2, [0, 0, 5], { inertiaDiagonal: [2e5, 2e5, 2e5] }, tipped.shape)
   const fetched = stubFetch(cooked([], []), bytes)
   const { model, writer, bodies } = modelStreamer({}, 1, [upright, tipped, stiff])
-  const rigid = createCookedBodies(writer, bodies, () => {}, assert.fail)
+  const rigid = createCookedBodies(
+    writer,
+    bodies,
+    sharedShapes(writer, bodies),
+    () => {},
+    assert.fail,
+  )
   rigid.open(model, [upright, tipped, stiff], new AbortController().signal)
   await landed()
   const words = writer.take()

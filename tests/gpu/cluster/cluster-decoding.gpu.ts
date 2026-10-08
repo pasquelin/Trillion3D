@@ -7,13 +7,14 @@
 // normal map with, against the same formula in JavaScript.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
 import type {
   PageAttribute,
   PageAttributes,
 } from '../../../packages/page-codec/src/pageAttributes.ts'
-import { ringMesh } from '../../../bench/perf/browser/support/pagesWasm.ts'
+import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.fixture.ts'
+import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
 /** A ring page of `triangles` at `exponent`, flat-shaded or not, with the JavaScript decode. */
@@ -51,17 +52,12 @@ function flatShaded(
   return { encoded, indices: corners }
 }
 
-const cross = (a: readonly number[], b: readonly number[]) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
 const minus = (a: readonly number[], b: readonly number[]) => a.map((v, i) => v - b[i])
 
 /** A triangle's frame as the shader computes it: `p·du1 + q·du2`, scaled by the longer unit. */
 function cotangentFrame(N: number[], e1: number[], e2: number[], duv1: number[], duv2: number[]) {
-  const p = cross(e2, N),
-    q = cross(N, e1)
+  const p = crossVector3([0, 0, 0], e2, N),
+    q = crossVector3([0, 0, 0], N, e1)
   const T = p.map((v, i) => v * duv1[0] + q[i] * duv2[0]),
     B = p.map((v, i) => v * duv1[1] + q[i] * duv2[1])
   const scale = 1 / Math.sqrt(Math.max(Math.hypot(...T) ** 2, Math.hypot(...B) ** 2, 1e-20))

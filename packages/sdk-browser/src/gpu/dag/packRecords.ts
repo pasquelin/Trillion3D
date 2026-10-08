@@ -55,6 +55,7 @@ function writeRecords(
       owner[i] === NONE,
       rec.level ?? 0,
       !!rec.transparent,
+      !!rec.rootChild,
     )
     const cone = leafCone(rec),
       base = i * COLD_WORDS,

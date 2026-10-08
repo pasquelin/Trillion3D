@@ -34,11 +34,6 @@ export function rootChildren(roots: readonly ClusterRoot<PageRec>[]): PageRec[] 
   return found
 }
 
-/** The order the minimum capacity admits in: the pages a root's group replaces first, then the
- *  coarsest level first. */
-export const floorFirst = (a: PageRec, b: PageRec) =>
-  Number(!!b.rootChild) - Number(!!a.rootChild) || (b.level ?? 0) - (a.level ?? 0)
-
 /** The level a page is ranked at when levels are counted (`requestAdmission.ts`): its own, raised
  *  past `top`, the catalogue's highest level, when the minimum capacity holds it. */
 export const admissionLevel = (rec: PageRec, top: number) =>

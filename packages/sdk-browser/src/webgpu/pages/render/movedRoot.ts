@@ -1,15 +1,13 @@
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
-import { invalidateTemporalPyramid } from '../io/drops.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 
 const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
-/** What a moved root rewrites: its rows, the memos its world feeds, the temporal pyramid. */
+/** What a moved root rewrites: its rows and the memos its world feeds. */
 export type MovedRootTarget = {
   layout: Pick<WebgpuPagesLayout, 'rows'>
-  run: Parameters<typeof invalidateTemporalPyramid>[0]
   blendState: {
     occlusionEpoch: number
     occlusionMoved?: { from: number; to: number }
@@ -19,19 +17,16 @@ export type MovedRootTarget = {
 
 /**
  * The world of one placement moved: only what reads it follows. Its resident rows get their world
- * matrix — the only words of a row a pose writes (`../../row/pageRow.ts`) — and are declared dirty,
+ * matrix — the only words of a row a pose writes (`../../row/pageRowWriter.ts`) — and are declared dirty,
  * so the table, the corners, the draw items and the shadow spheres travel for them alone, and the
  * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
- * scene keeps its own. Its windings are computed again. The temporal pyramid, one
- * image of the whole scene, no longer describes it. A transparent placement claims no visibility
+ * scene keeps its own. Its windings are computed again. A transparent placement claims no visibility
  * row: its caster rows move, and the transparent corners are sent again. Returns the rows rewritten.
  *
  * The table's age does not move: it rewrote every row, every corner and every transparent corner,
  * and dropped the whole scene's occlusion history, each image a model moved.
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
-  // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
-  if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run)
   root.windingEpoch = undefined
   return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements)
 }
@@ -65,7 +60,7 @@ function reboundCorners(
  * alone, and a blended root's transparent corners are sent again (`reboundCorners`). Without a
  * `world`, the pages are
  * bounded elsewhere and no pose moved — a dynamic page's vertices lie in another box
- * (`PageRec.moved`), or its root holds another reach —: the temporal pyramid and the windings keep.
+ * (`PageRec.moved`), or its root holds another reach —: the windings keep.
  * Returns the rows marked.
  */
 export function markRootRows(
@@ -86,7 +81,7 @@ export function markRootRows(
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
     const row = transparent ? rows.blendRowOf[index] : rows.rowOfPage[index]
     if (!floats || row < 0) continue
-    // A rank the CPU cut left behind may name another page since: only a row that is this page's.
+    // A row the cache gave back may name another page since: only a row that is this page's.
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
     if (world) floats.set(world, row * ROW_WORDS)
     rows.markRowWords(row)

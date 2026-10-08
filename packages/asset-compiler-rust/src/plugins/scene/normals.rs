@@ -13,6 +13,8 @@
 //! sphere. Those are the two defects this computation replaces.
 use super::cancel;
 use std::sync::atomic::AtomicBool;
+use trillion3d_math::triangle::newell_step;
+use trillion3d_math::vec3::normalize_finite_f32;
 
 mod weld;
 
@@ -82,12 +84,12 @@ fn corners_with(
     };
     for (face, plane) in planes.iter().enumerate() {
         check(face)?;
-        let flat = unit(*plane).unwrap_or_default();
+        let flat = normalize_finite_f32(*plane).unwrap_or_default();
         for corner in surface.span(face) {
             check(corner)?;
             let group = join.root(corner as u32);
             out.normals
-                .extend_from_slice(&unit(sums[group as usize]).unwrap_or(flat));
+                .extend_from_slice(&normalize_finite_f32(sums[group as usize]).unwrap_or(flat));
             out.groups.push(group);
         }
     }
@@ -110,9 +112,7 @@ impl Surface<'_> {
             check(corner)?;
             let here = self.point(corner);
             let there = self.point(first + (corner - first + 1) % length);
-            normal[0] += (here[1] - there[1]) * (here[2] + there[2]);
-            normal[1] += (here[2] - there[2]) * (here[0] + there[0]);
-            normal[2] += (here[0] - there[0]) * (here[1] + there[1]);
+            newell_step(&mut normal, here, there);
         }
         Some(normal)
     }
@@ -124,13 +124,4 @@ impl Surface<'_> {
             .get(at..at + 3)
             .map_or([0.0; 3], |found| [found[0], found[1], found[2]])
     }
-}
-
-/// Unit vector, when there is a finite, non-zero length to divide by. Single precision on
-/// purpose: the drivers write these normals and Blender's axes as they always have, and
-/// `shared_math`'s double precision unit vectors round differently.
-pub(super) fn unit(vector: [f32; 3]) -> Option<[f32; 3]> {
-    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
-    (length.is_finite() && length != 0.0)
-        .then(|| [vector[0] / length, vector[1] / length, vector[2] / length])
 }

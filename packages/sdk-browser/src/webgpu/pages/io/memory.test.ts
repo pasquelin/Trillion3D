@@ -1,3 +1,4 @@
+import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -26,7 +27,7 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
       [12, 2, 'root-cover'],
     )
     // More than the scene has pages: brought back to the scene, by name, nothing is evicted.
-    const grown = await backend.setMemoryBudgets!({ geometryPoolBytes: 1024 * 1024 * 1024 })
+    const grown = await backend.setMemoryBudgets!({ geometryPoolBytes: 1024 * MIB })
     assert.deepEqual([grown.geometryPool.clamp, grown.geometryPool.slots], ['scene', 2])
     assert.equal(grown.evictedPages, 0)
     // Under root coverage: raised to it, by name; roots never leave.
@@ -49,7 +50,7 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
   }
 })
 
-test('a setting above the session ceiling is brought back to the ceiling, and the cache resized once', async () => {
+test('a setting above the scene is brought back to its pages, and the cache resized once', async () => {
   const resized: number[] = [],
     unpinned: number[] = []
   let resources = 0
@@ -62,9 +63,8 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
       geometryPoolFor({
         budgetBytes,
         pageBytes: 8,
-        uniquePages: 100,
+        uniquePages: 4,
         rootPages: 1,
-        ceilingSlots: 4,
       }),
     tracking: {
       pageCatalogIds: new Map([['p', 7]]),
@@ -88,7 +88,7 @@ test('a setting above the session ceiling is brought back to the ceiling, and th
     diag: { engineDiagnostic() {} },
   }
   const report = await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 800 })
-  assert.deepEqual([report.geometryPool.clamp, report.geometryPool.slots], ['ceiling', 4])
+  assert.deepEqual([report.geometryPool.clamp, report.geometryPool.slots], ['scene', 4])
   assert.deepEqual(resized, [4])
   assert.deepEqual(unpinned, [7], 'the evicted page is unpinned on the trace side')
   assert.equal(report.evictedPages, 1)

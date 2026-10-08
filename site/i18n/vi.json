@@ -365,8 +365,6 @@
       "shadow-pages-off": "Tắt phân trang bóng đổ",
       "shadow-budget-0-25": "Ngân sách thời gian bóng đổ: 0,25 ms",
       "budget-3000": "Ngân sách hình học: 3000 trang",
-      "webgl": "Bộ kết xuất WebGL",
-      "webgl2": "Bộ kết xuất WebGL 2",
       "moving-light": "Nguồn sáng di chuyển",
       "visible": "Cửa sổ trình duyệt hiển thị"
     },
@@ -472,7 +470,7 @@
     "resolution": "Độ phân giải và ngưỡng sai số",
     "lights": "Ánh sáng, bóng đổ và ánh sáng dội lại",
     "execution": "Khung hình đứng yên, khử răng cưa và các tùy chọn thực thi",
-    "memory": "Bộ nhớ, các bản sao và các bộ kết xuất khác"
+    "memory": "Bộ nhớ, các bản sao và các lượt chạy khác"
   },
   "evidence": {
     "computeDrawing": "Vẽ bằng compute",
@@ -656,8 +654,8 @@
     },
     "measurement-entry": {
       "title": "Điểm vào dành cho đo lường",
-      "description": "Nơi duy nhất một mẫu đối chứng, một backend bị ép buộc hay một phiên nội bộ vẫn còn được gọi tên — không bao giờ qua điểm vào `trillion3d` đã công bố.",
-      "html": "<p>Một trang chỉ import <code>trillion3d</code> và không bao giờ thấy một backend, một mẫu đối chứng hay một phiên nội bộ nào: <code>createWorld</code> vẽ bằng một bộ kết xuất duy nhất, được chọn tùy theo máy hoặc bị từ chối và gọi đích danh nếu bị ép buộc mà lại không có. Bộ đo hiệu năng, các bằng chứng và các góc nhìn so sánh vẫn cần gọi tên một mẫu đối chứng — Three.js thuần túy, <code>THREE.LOD</code>, phiên nội bộ <code>openMeasuredWorld</code> — và đó là nhiệm vụ duy nhất của điểm vào đo lường riêng biệt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Nó xuất lại mọi thứ mà điểm vào đã công bố xuất ra, cộng thêm những gì một ứng dụng chủ không bao giờ cần: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (phiên nội bộ mà một thế giới tự mở trên chính nó), các xưởng tạo backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), và các hàm trợ giúp chỉ dùng cho đo lường như <code>replicateInstances</code>. Không có gì trong số đó tới được một thế giới đã công bố, và cũng không có gì được một ứng dụng import.</p>"
+      "description": "Nơi một mẫu đối chứng hay một phiên nội bộ vẫn còn được gọi tên — không bao giờ qua điểm vào `trillion3d` đã công bố.",
+      "html": "<p>Một trang import <code>trillion3d</code> và không bao giờ thấy một mẫu đối chứng hay một phiên nội bộ nào: <code>createWorld</code> vẽ bằng WebGPU, hoặc bị từ chối đích danh nếu máy không cấp WebGPU. Bộ đo hiệu năng và các bằng chứng vẫn cần gọi tên một mẫu đối chứng — Three.js thuần túy, <code>THREE.LOD</code>, phiên nội bộ <code>openMeasuredWorld</code> — và đó là nhiệm vụ duy nhất của điểm vào đo lường riêng biệt, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Nó xuất lại mọi thứ mà điểm vào đã công bố xuất ra, cộng thêm những gì một host không bao giờ cần: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (phiên nội bộ mà một thế giới mở trên chính nó), nhà máy trang <code>webgpuPagesEngine</code>, và các hàm hỗ trợ chỉ dành cho đo lường như <code>replicateInstances</code>. Không thứ nào đến được một thế giới đã công bố, và không ứng dụng nào import chúng.</p>"
     },
     "createWorldJob": {
       "title": "Tải một thế giới như một công việc có thể hủy",
@@ -706,11 +704,11 @@
       "description": "Những gì một khung hình vẽ ra. Tính khả dụng mô tả kết quả thật của đường ống xử lý, không bao giờ là lớp phủ giả lập: `DIAGNOSTICS` cho biết, với mỗi chế độ, liệu bộ kết xuất đang hoạt động có tạo ra được nó không và vì sao không.",
       "values": [
         "Hình ảnh có ánh sáng, từ vật liệu glTF.",
-        "Một màu đặc trưng cho mỗi tam giác được gửi đi — không phải GL_LINES, không phải `MeshBasicMaterial.wireframe`.",
-        "Định danh ổn định cho từng đối tượng nguyên thủy/trang, một màu cho mỗi cụm; cả trên WebGL2 lẫn WebGPU.",
+        "Một màu đặc trưng cho mỗi tam giác được gửi đi.",
+        "Định danh ổn định cho từng đối tượng nguyên thủy/trang, một màu cho mỗi cụm.",
         "Các cụm mức 0 so với các bản rút gọn DAG thô hơn thực sự được chọn ở khung hình này.",
         "Sai số của từng cụm được chiếu qua hình cầu bao của cụm, đúng như cách phép cắt sử dụng nó.",
-        "Một màu cho mỗi lớp vật liệu: chặng phân lớp đã xử lý điểm ảnh đó. Chỉ có trên đường xử lý khả kiến của WebGPU.",
+        "Một màu cho mỗi lớp vật liệu: chặng phân lớp đã xử lý điểm ảnh đó.",
         "Các trang khả kiến được chọn; các node phân cấp bị loại được đếm, không được vẽ.",
         "Các trang chỉ mục đã gắn kết; các trang bị thiếu không được vẽ. Không phải VRAM vật lý.",
         "Không khả dụng: sự lưu trú mip của kết cấu chưa được đo lường.",
@@ -761,7 +759,7 @@
     },
     "GpuTimingMethod": {
       "description": "Cách các khoảng thời gian GPU của một hồ sơ theo chặng được lấy. Thời lượng theo từng chặng cho biết ở đâu, không bao giờ là bao nhiêu: trên một GPU dựa trên ô, các chặng chồng lấn nhau và một chặng hấp thụ luôn chặng bên cạnh nó. Tổng khung hình là `gpuImageMs`, tức khoảng thời gian bao trùm — thời lượng từng chặng không cộng dồn vào đó.",
-      "values": ["Truy vấn dấu thời gian WebGPU gốc.", "Phần mở rộng WebGL2, cho đường xử lý đó."]
+      "values": ["Truy vấn dấu thời gian WebGPU gốc."]
     },
     "ColumnKind": {
       "description": "Cách lưu trữ một cột trong tệp kê khai nhị phân. `COLUMN_KIND` ánh xạ mỗi tên cột tới loại của nó, để một trình đọc biết cách nhìn nhận các byte đi kèm.",
@@ -790,7 +788,7 @@
       "description": "Bọc bất kỳ thao tác đang chờ nào vào hợp đồng công việc của bộ máy: một ảnh chụp trạng thái (`JobStatus`, tiến độ, kết quả, lỗi), khả năng theo dõi, và một lệnh hủy sẽ giải phóng những gì công việc đó đang giữ. Thao tác đó phải hỗ trợ việc hủy qua chủ sở hữu của nó (RAF, đọc lại dữ liệu, …)."
     },
     "detectCapabilities": {
-      "description": "Những gì máy này thực sự hỗ trợ, trước khi một thế giới được tạo ra: `{ tier, renderer, adapter, extensions, reason }`. Lý do luôn được đưa ra, để một khả năng không được hỗ trợ được báo cáo thay vì bị mặc định giả định. Lớp bọc công khai mà một thế giới đọc là `capability.detect()` — `{ webgpu, webgl2, ... }`, một dạng đơn giản hơn cho cùng một phép dò. Phép dò WebGL2 được lưu vào bộ nhớ đệm."
+      "description": "WebGPU của máy này thực sự cấp những gì, trước khi một thế giới được tạo: `{ tier, adapter, extensions, reason }`. Tier là `full` khi có truy vấn dấu thời gian GPU, `degraded` khi không có, và `unavailable` khi không có adapter. Lý do luôn được nêu, nên một khả năng không được hỗ trợ sẽ được báo cáo chứ không bị giả định. Lớp bọc công khai mà một thế giới đọc là `capability.detect()` — `{ webgpu, tier, features, reason }`, một dạng đơn giản hơn cho cùng một phép dò."
     },
     "perspectiveProjection": {
       "description": "Phép chiếu phối cảnh của một camera với `fov` theo chiều dọc tính bằng độ, tỉ lệ `aspect`, mặt phẳng gần `near`, độ phóng `zoom`. **Độ sâu đảo ngược, mặt phẳng xa vô hạn**: `near` chiếu tới 1, vô hạn chiếu tới 0. Không có mặt phẳng xa nào tham gia vào đây, do đó không có phép chia cho nó — và chính điều đó mang lại độ chính xác về độ sâu."
@@ -850,7 +848,7 @@
       "description": "`out = transpose(inverse(khối 3×3 của m))` trên chín con số, dạng column-major: ma trận mang theo các pháp tuyến của một bề mặt bị biến đổi bởi `m`, kể cả trường hợp xiên và tỉ lệ không đồng đều. Nghịch đảo đó là nghịch đảo của mốc tham chiếu, bao gồm cả phần bù đại số và thứ tự nhân, rồi được chuyển vị mà không có phép toán dấu phẩy động nào. **Trên một ma trận suy biến, nó ghi ra ma trận phụ hợp, không chia**, chứ không phải ma trận không của mốc tham chiếu: một tư thế suy biến không xóa bỏ một bề mặt, nó làm phẳng bề mặt đó xuống một mặt phẳng, và ma trận phụ hợp áp dụng lên một pháp tuyến cục bộ *chính là* tích có hướng của các cạnh đã biến đổi, kể cả dấu — mỗi bên tiêu thụ sau đó sẽ chuẩn hóa nó. Chỉ có tỉ lệ bằng không, vô hạn hoặc NaN mới được ghi riêng, dưới dạng chín số không."
     },
     "linearPartScale": {
-      "description": "Quy tắc suy biến duy nhất của bộ máy, dưới dạng nhân WGSL. Tỉ lệ là tổng các giá trị tuyệt đối của chín số hạng của phần tuyến tính; định thức được lấy trên các cột **đã chia cho tỉ lệ đó trước khi nhân**, không bao giờ trên định thức thô chia cho lập phương của nó — `t³` tràn số qua 1e103 và biến mất dưới 1e-103, đúng ngay nơi quy tắc đó phải quyết định. `adjugateFactor` sau đó trả về `1 / determinant` cho một ma trận thông thường (các bit của mốc tham chiếu), `1` cho một ma trận suy biến (ma trận phụ hợp giữ nguyên), và `null` khi tỉ lệ không hữu hạn và không dương thực sự, nơi mà chính ma trận phụ hợp phải được thay bằng không. `SINGULAR_DETERMINANT_WGSL` là cùng một ngưỡng như shader ghi ra: một con số, hai ngôn ngữ."
+      "description": "Quy tắc suy biến duy nhất của bộ máy, dưới dạng nhân WGSL. Tỉ lệ là tổng các giá trị tuyệt đối của chín số hạng của phần tuyến tính; định thức được lấy trên các cột **đã chia cho tỉ lệ đó trước khi nhân**, không bao giờ trên định thức thô chia cho lập phương của nó — `t³` tràn số qua 1e103 và biến mất dưới 1e-103, đúng ngay nơi quy tắc đó phải quyết định. `adjugateFactor` sau đó trả về `1 / determinant` cho một ma trận thông thường (các bit của mốc tham chiếu), `1` cho một ma trận suy biến (ma trận phụ hợp giữ nguyên), và `null` khi tỉ lệ không hữu hạn và không dương thực sự, nơi mà chính ma trận phụ hợp phải được thay bằng không."
     },
     "basisMatrix4": {
       "description": "Các cột `u`, `v`, `n` rồi tới gốc tọa độ, hàng cuối `(0, 0, 0, 1)`; và một tỉ lệ đồng đều `s` đặt tại `center`. Cả hai thay thế một chuỗi hai lệnh gọi của thư viện chủ bằng một lần ghi."
@@ -882,8 +880,8 @@
     "srgbToLinear": {
       "description": "Đường cong sRGB chính xác — `c / 12,92` dưới mức 0,04045, `((c + 0,055) / 1,055)^2,4` phía trên — và nghịch đảo của nó, các giá trị âm bị giới hạn về không trước khi lấy lũy thừa."
     },
-    "hslToLinearRgb": {
-      "description": "Sắc độ, độ bão hòa và độ sáng chuyển thành ba thành phần tuyến tính ghi tại `out[o..o+2]`. `setHSL` của mốc tham chiếu từng số hạng một: sắc độ được cuộn vòng, độ bão hòa và độ sáng bị giới hạn trong `[0, 1]`, độ bão hòa bằng không trả về màu xám, rồi tới đường dốc theo từng đoạn. Không có đường cong chuyển đổi nào được áp dụng — không gian làm việc của mốc tham chiếu đã là tuyến tính sẵn rồi."
+    "hslToRgb": {
+      "description": "Sắc độ, độ bão hòa và độ sáng chuyển thành ba thành phần RGB ghi tại `out[o..o+2]`. `setHSL` của mốc tham chiếu từng số hạng một: sắc độ được cuộn vòng, độ bão hòa và độ sáng bị giới hạn trong `[0, 1]`, độ bão hòa bằng không trả về màu xám, rồi tới đường dốc theo từng đoạn. RGB ra theo đúng mã hóa mà HSL được cho: không có đường cong chuyển đổi nào được áp dụng."
     },
     "boxUnion": {
       "description": "Một hộp là sáu con số lưu phẳng bắt đầu từ `o`: ba cận dưới, ba cận trên. Một hộp rỗng có các cận dưới ở `+Infinity` và các cận trên ở `-Infinity`; một cận NaN không làm cho một hộp trở thành rỗng. Việc mở rộng và hợp nhất nhận các cận đó làm tham số, nên không có đối tượng tạm thời nào được dựng cho mỗi lệnh gọi."
@@ -904,7 +902,7 @@
       "description": "Hộp đó so với khối nhìn: cái thứ nhất là đúng khi một mặt phẳng để cả tám góc lại phía sau. Cái thứ hai trả về ba trạng thái — 0 ở ngoài, 1 giao nhau, 2 hoàn toàn ở trong — qua hai bước, bước đầu chỉ loại bỏ, bước thứ hai đọc góc lùi xa nhất để phân biệt \"giao nhau\" với \"ở trong\". Một cây con hoàn toàn ở trong sẽ tiết kiệm được một phép kiểm tra cho mỗi hộp bên dưới nó."
     },
     "boxConeRejects": {
-      "description": "Việc loại bỏ một hộp cục bộ bởi hình nón pháp tuyến của nó, nhìn từ một điểm trong thế giới: hộp đó được thay bằng hình cầu của nó, trục hình nón được mang bởi ma trận pháp tuyến và chuẩn hóa, kết quả được lấy trên tích vô hướng đã giới hạn, góc của hình nón và độ trải phối cảnh của hình cầu. Một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ, và một tham số mà phép kiểm tra từ chối cũng không loại bỏ gì cả. Các biến thể `_WGSL` là cùng những hằng số như văn bản shader, nên bản sao trên CPU và chặng trên GPU không thể lệch nhau được."
+      "description": "Việc loại bỏ một hộp cục bộ bởi hình nón pháp tuyến của nó, nhìn từ một điểm trong thế giới: hộp đó được thay bằng hình cầu của nó, trục hình nón được mang bởi ma trận pháp tuyến và chuẩn hóa, kết quả được lấy trên tích vô hướng đã giới hạn, góc của hình nón và độ trải phối cảnh của hình cầu. Một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ, và một tham số mà phép kiểm tra từ chối cũng không loại bỏ gì cả."
     },
     "createTransformTree": {
       "description": "Cây phân cấp biến đổi của bộ máy, theo hướng dữ liệu: một node là một chỉ số vào các mảng phẳng — cha, cờ trạng thái, vị trí, quaternion `(x, y, z, w)`, tỉ lệ, ma trận cục bộ, ma trận thế giới. `localViews[i]` và `worldViews[i]` là các view mười sáu con số được tạo ra khi cây phát triển và không bao giờ trong lúc cập nhật: GPU đọc toàn bộ bộ đệm, một nhân đọc view của một node. Một node mới chính là đối tượng mới của mốc tham chiếu: vị trí không, góc xoay đơn vị, tỉ lệ 1, ma trận đơn vị, cập nhật tự động. Một lần phát triển thay thế mọi mảng, nên người gọi hàm phải đọc lại `tree.world` hoặc `tree.worldViews` sau một lần thêm vào."
@@ -931,25 +929,25 @@
       "description": "`n` hộp được biến đổi bởi `n` ma trận: `out[i] = boxTransform(boxes[i], mats[i])`. `out` và `boxes` mang sáu con số mỗi phần tử, `mats` là một sub-view mười sáu con số."
     },
     "hierarchyUpdateBatch": {
-      "description": "Toàn bộ một cây phân cấp được cập nhật trong một chặng duy nhất: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó — quá trình duyệt của `packages/sdk-core/src/math/transform-tree/update.ts`, cùng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng. `parents[i]` **bắt buộc** phải chỉ tới một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau trên cả hai con đường: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau. `local` là một ma trận nháp duy nhất, được dùng lại cho mỗi phần tử."
+      "description": "Toàn bộ một cây phân cấp được cập nhật trong một chặng duy nhất: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó — quá trình duyệt của `packages/sdk-core/src/world/transform-tree/update.ts`, cùng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng. `parents[i]` **bắt buộc** phải chỉ tới một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau trên cả hai con đường: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau. `local` là một ma trận nháp duy nhất, được dùng lại cho mỗi phần tử."
     },
     "createPathGovernor": {
       "description": "Cái quyết định giữa JS và WebAssembly, cho từng phép toán được đặt tên: các trung vị trượt của số nano giây trên mỗi phần tử, một lần chuyển đổi chỉ sau năm lần thực thi liên tiếp có độ chênh lệch đó, và một trong năm mươi lần thực thi sẽ chạy lại con đường kia để làm mới trung vị của nó. Dưới năm mẫu thì không có gì được quyết định cả — chỉ một giá trị duy nhất sẽ tạo thành trung vị. `metrics()` công bố, cho mỗi phép toán, `path`, `jsNsPerElement`, `wasmNsPerElement`, số lần chuyển đổi, và độ phân giải đồng hồ mà phép đo đó dựa vào."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` hộp gồm sáu con số (min rồi tới max) so với hai mươi bốn số thực của một khối nhìn: `kept[i]` bằng 1 khi hộp đó giao cắt hoặc nằm bên trong, và số lượng được giữ lại sẽ được trả về — `frustumExcludesBox` đảo ngược, đúng cực tính mà mốc tham chiếu trả lời. Lô hình cầu ghi ra `SPHERE_VALUES` con số mỗi hộp, tâm rồi tới bán kính tới góc, giống như `sphereFromBounds` làm. Cả hai vòng lặp đều nằm trong `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` hộp gồm sáu con số (min rồi tới max) so với hai mươi bốn số thực của một khối nhìn: `kept[i]` bằng 1 khi hộp đó giao cắt hoặc nằm bên trong, và số lượng được giữ lại sẽ được trả về — `frustumExcludesBox` đảo ngược, đúng cực tính mà mốc tham chiếu trả lời. Lô hình cầu ghi ra `SPHERE_VALUES` con số mỗi hộp, tâm rồi tới bán kính tới góc, giống như `sphereFromBounds` làm. Cả hai vòng lặp đều nằm trong `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` được mở rộng bởi `n` hộp, hoặc bởi `n` hộp mỗi cái được biến đổi trước bởi ma trận riêng của nó — một chặng, một hộp nháp, không cấp phát gì cả. Cả hai đều lặp lại `boxUnion`, cái thứ hai thêm `boxTransform` trước đó: các cận thế giới của cả một cảnh trong một lệnh gọi duy nhất."
     },
     "invertMatrix4Batch": {
-      "description": "`n` phép nghịch đảo, `n` ma trận pháp tuyến gồm `NORMAL_MATRIX_VALUES` con số, `n` phép dựng `T · R · S`, `n` phép phân rã. Một ma trận có định thức bằng không được nghịch đảo thành ma trận đơn vị và được đánh dấu trong `singular[i]` — không bao giờ gây lỗi giữa chừng một lô. `composeMatrix4Batch` nhận mọi thứ dạng phẳng hoặc mọi thứ dưới dạng sub-view, và xác định hình dạng trước vòng lặp. Cả bốn vòng lặp đều nằm trong `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` phép nghịch đảo, `n` ma trận pháp tuyến gồm `NORMAL_MATRIX_VALUES` con số, `n` phép dựng `T · R · S`, `n` phép phân rã. Một ma trận có định thức bằng không được nghịch đảo thành ma trận đơn vị và được đánh dấu trong `singular[i]` — không bao giờ gây lỗi giữa chừng một lô. `composeMatrix4Batch` nhận mọi thứ dạng phẳng hoặc mọi thứ dưới dạng sub-view, và xác định hình dạng trước vòng lặp. Cả bốn vòng lặp đều nằm trong `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` điểm gồm ba con số qua một ma trận affine duy nhất, hoặc một ma trận cho mỗi điểm; `n` hướng qua khối 3×3 phía trên rồi được chuẩn hóa, phần tịnh tiến bị bỏ qua. Chúng lặp lại `transformAffinePoint` và `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Một kênh cho mỗi phần tử, các đường cong chính xác của `packages/sdk-core/src/math/primitives/color.ts`: mốc tham chiếu nhân với các hằng số đã làm tròn, và khoảng chênh lệch đó — vô hình ở mức 8 bit — được giới hạn một lần, trong bộ đo hiệu năng đối chọi chúng với nhau."
+      "description": "Một kênh cho mỗi phần tử, các đường cong chính xác của `packages/math/src/color/color.ts`: mốc tham chiếu nhân với các hằng số đã làm tròn, và khoảng chênh lệch đó — vô hình ở mức 8 bit — được giới hạn một lần, trong bộ đo hiệu năng đối chọi chúng với nhau."
     },
     "scene-editor": {
       "title": "Dựng một cảnh bằng trình chỉnh sửa",
@@ -1170,11 +1168,10 @@
       "an angle at or above π/2 never rejects": "một góc bằng hoặc lớn hơn π/2 không bao giờ loại bỏ",
       "after updateNodeMatrixWorld(tree, root)": "sau updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "khả dụng — Các trang chỉ mục đã gắn kết; các trang bị thiếu không được vẽ; không phải VRAM vật lý",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "khả dụng — Một màu đặc trưng cho mỗi tam giác được gửi đi, không phải khung dây GL_LINES",
+      "available — A filled unique colour per submitted triangle": "khả dụng — Một màu đặc trưng cho mỗi tam giác được gửi đi",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "khả dụng — Các cụm mức 0 so với các bản rút gọn DAG thô hơn thực sự được chọn ở khung hình này",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "khả dụng — Sai số màn hình của từng cụm được chiếu qua hình cầu bao của cụm, đúng như cách phép cắt sử dụng nó",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "khả dụng — Các trang khả kiến được chọn; các node phân cấp bị loại được đếm, không được vẽ",
-      "available — Stable primitive/page ID, exact-cluster backend only": "khả dụng — Định danh nguyên thủy/trang ổn định, chỉ trên backend cụm chính xác",
       "available — glTF materials": "khả dụng — vật liệu glTF",
       "unavailable — No fragment counter": "không khả dụng — không có bộ đếm mảnh",
       "unavailable — Texture mip residency not instrumented": "không khả dụng — sự lưu trú mip của kết cấu chưa được đo lường",

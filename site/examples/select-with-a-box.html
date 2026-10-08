@@ -99,7 +99,7 @@
       function onScreen(point) {
         const { camera } = world, box = world.canvas.getBoundingClientRect();
         eye.copy(point).sub(camera.position).applyQuaternion(inverse.copy(camera.quaternion).invert());
-        const depth = -eye.z, half = Math.tan((camera.fov * Math.PI) / 360) * depth;
+        const depth = -eye.z, half = Math.tan(math.degToRad(camera.fov / 2)) * depth;
         if (depth <= camera.near) return null;
         return [box.left + (0.5 + eye.x / (2 * half * (box.width / box.height))) * box.width, box.top + (0.5 - eye.y / (2 * half)) * box.height];
       }
@@ -199,7 +199,7 @@
         if (intro >= 0) {
           intro += step;
           // A pause, a sweep of 1.6 s, then the pieces caught are selected.
-          const t = Math.min(1, Math.max(0, (intro - 0.8) / 1.6));
+          const t = math.clamp((intro - 0.8) / 1.6, 0, 1);
           if (t > 0) {
             drawMarquee(introRect(t));
             preview(introRect(t), 'replace', t === 1);

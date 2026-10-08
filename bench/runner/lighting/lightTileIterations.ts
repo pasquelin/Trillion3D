@@ -6,6 +6,7 @@
 //   node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150]
 import assert from 'node:assert/strict'
 import { parseArgs } from 'node:util'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import {
   camera,
   type Vec3,
@@ -13,7 +14,7 @@ import {
 import { buildCity, depthField } from './lightTileCity.ts'
 import { countGrid } from './lightGridCount.ts'
 
-const deg = (d: number) => (d * Math.PI) / 180
+const deg = (d: number) => d * DEG2RAD
 /** The audit's five views (`t03_tiles_sim.py`, `t03b_tiles_views.py`), 60° vertical field. Its
  *  yaw turns toward +x, the engine's toward −x: the sign is flipped. */
 const CITY_VIEWS: Record<string, { eye: Vec3; yaw: number; pitch: number }> = {

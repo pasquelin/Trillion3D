@@ -1,7 +1,7 @@
 import { Object3D, type SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import { listen, unlisten } from '../../../../sdk-core/src/world/math/observed.ts'
+import { listen, unlisten } from '../../../../sdk-core/src/world/observed.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -47,7 +47,7 @@ export class Scene extends Object3D {
   }
   private _background: Color | null = null
   /** Tells the world the background changed, chained on the colour to hear writes in place; a
-   *  link that is no world's (the WebGL2 draw lists') hears neither the background nor the fog. */
+   *  link that is no world's hears neither the background nor the fog. */
   private readonly recoloured = () => (this._link as Partial<WorldSceneLink> | null)?.background?.()
   /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
   environment: Texture | null = null
@@ -55,9 +55,9 @@ export class Scene extends Object3D {
   /** Tells the world the fog changed, chained on its colour to hear writes in place. */
   private readonly refogged = () => (this._link as Partial<WorldSceneLink> | null)?.fog?.()
 
-  /** Called by a renderer before it draws the scene; none by default. */
+  /** Called before the scene is drawn; none by default. */
   declare onBeforeRender?: () => void
-  /** Called by a renderer once it has drawn the scene; none by default. */
+  /** Called once the scene is drawn; none by default. */
   declare onAfterRender?: () => void
   // Written only when used, as `reading` is: a scene the engine builds holds neither.
   declare private readonly loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>
@@ -90,7 +90,7 @@ export class Scene extends Object3D {
     if (value) listen(value, this.recoloured)
     this.recoloured()
   }
-  /** Fog over every surface, opaque and transparent, on both renderers; `null`, the default,
+  /** Fog over every surface, opaque and transparent; `null`, the default,
    *  for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`,
    *  distances from the camera; `{ color, density }` thickens by `density` per unit of distance;
    *  add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out

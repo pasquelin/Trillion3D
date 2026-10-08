@@ -1,5 +1,6 @@
 import { cameraView, ease, glideCamera, opening } from './opening.ts'
 import type { CirclingWorld, Opening, View } from './opening.ts'
+import type { Families } from './engineTypes.ts'
 
 /** A named part of a tour: the camera flies `seconds` to its view, then holds it `hold` seconds. */
 interface Pose extends View {
@@ -20,7 +21,12 @@ interface Tour extends Opening {
  * viewer's first press or wheel on the canvas takes the controls, and the tour ends with its last
  * hold.
  */
-export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.inOut): Tour {
+export function tour(
+  engine: Families<'math'>,
+  world: CirclingWorld,
+  poses: readonly Pose[],
+  curve = ease.inOut,
+): Tour {
   let start: number[] = [],
     part: string | null = null
   const glide = opening(world, (time) => {
@@ -30,7 +36,7 @@ export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.
     for (const pose of poses) {
       const to = [...pose.position, ...pose.target]
       if (at < pose.seconds + pose.hold) {
-        glideCamera(world, from, to, curve(pose.seconds ? at / pose.seconds : 1))
+        glideCamera(engine, world, from, to, curve(pose.seconds ? at / pose.seconds : 1))
         part = pose.name
         return true
       }

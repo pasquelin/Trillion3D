@@ -8,7 +8,9 @@
  * maps' records of a table. The buffer then holds every word of the image it was given, the same
  * bytes a whole write would have left.
  */
-import { coalesceRanges, RESIDENCY_RULE } from '../webgpu/residency/ranges.ts'
+import { coalesceRanges, RESIDENCY_RULE, type RangeRule } from '../webgpu/residency/ranges.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
+import type { UniformSlots } from '../residency/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>()
 let changed = new Int32Array(64)
@@ -31,7 +33,7 @@ export function vsmWriteChangedCopy(source: GPUBuffer, target: GPUBuffer) {
 function heldWords(buffer: GPUBuffer, to: number) {
   let held = HELD.get(buffer)
   if (!held || held.length < to) {
-    const grown = new Uint32Array(Math.min(buffer.size / 4, Math.max(to, 2 * (held?.length ?? 0))))
+    const grown = new Uint32Array(clamp(2 * (held?.length ?? 0), to, buffer.size / 4))
     if (held) grown.set(held)
     HELD.set(buffer, (held = grown))
   }
@@ -53,14 +55,16 @@ function follow(held: Uint32Array, image: Uint32Array, k: number, count: number)
   return count + 1
 }
 
-/** The `count` words `changed` lists, in increasing order, up to `buffer` in coalesced ranges. */
+/** The `count` words `changed` lists, in increasing order, up to `buffer` in coalesced ranges —
+ *  or in one range from the first to the last under `ONE_WRITE`. */
 function send(
   device: GPUDevice,
   buffer: GPUBuffer,
   image: Uint32Array<ArrayBuffer>,
   count: number,
+  join: RangeRule = rule,
 ) {
-  const n = coalesceRanges(changed, count, ranges, rule)
+  const n = coalesceRanges(changed, count, ranges, join)
   for (let r = 0; r < n; r++) {
     const first = ranges[2 * r]
     device.queue.writeBuffer(buffer, first * 4, image, first, ranges[2 * r + 1] - first + 1)
@@ -80,6 +84,37 @@ export function vsmWriteChanged(
   let count = 0
   for (let k = from; k < to; k++) count = follow(held, image, k, count)
   send(device, buffer, image, count)
+}
+
+/** How the changed words of uniform slots go up: in the coalescer's ranges, or as `ONE_WRITE`. */
+export type VsmSlotWrites = 'ranges' | 'one'
+
+/** Every changed word in one write, from the first to the last: the words between hold their
+ *  value, so the buffer is the same; for slots a whole write once sent, never more writes. */
+const ONE_WRITE: RangeRule = { gap: Infinity, cap: 1, overflow: 'whole' }
+
+/** As `vsmWriteChanged`, over slots [`first`, `end`) of `slots`, each its `words` words, in an
+ *  image laid as the buffer (`strideWords` a slot): the padding up to the device's alignment, never
+ *  written, is never compared. In `'ranges'`, two slots share a write only where the coalescer
+ *  joins the gap between them (`coalesceRanges`) — at 256 bytes, the writes of a whole compare —;
+ *  in `'one'`, what changed goes up in a single write, as the whole slots once did. */
+export function vsmWriteChangedSlots(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  image: Uint32Array<ArrayBuffer>,
+  slots: Pick<UniformSlots, 'count' | 'words' | 'strideWords'>,
+  first = 0,
+  end = slots.count,
+  writes: VsmSlotWrites = 'ranges',
+) {
+  if (end <= first) return
+  const { words, strideWords } = slots
+  const held = heldWords(buffer, (end - 1) * strideWords + words)
+  let changes = 0
+  for (let s = first; s < end; s++)
+    for (let k = s * strideWords, last = k + words; k < last; k++)
+      changes = follow(held, image, k, changes)
+  send(device, buffer, image, changes, writes === 'one' ? ONE_WRITE : rule)
 }
 
 /** As `vsmWriteChanged`, over the records `records` lists alone — `count` record indices,

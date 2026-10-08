@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
-import { listen, unlisten } from './observed.ts'
+import { listen, unlisten } from '../observed.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('planar vector arithmetic preserves both coordinates and notifies its owners', () => {
   const value = new Vector2(3, 4)
@@ -59,7 +60,7 @@ test('spherical value objects use polar-from-up angles and reset the zero vector
   assert.equal(value.set(3, 0.4, 0.8), value)
   assert.deepEqual([value.radius, value.phi, value.theta], [3, 0.4, 0.8])
   value.setFromVector3({ x: -2, y: 0, z: 0 })
-  assert.deepEqual([value.radius, value.phi, value.theta], [2, Math.PI / 2, -Math.PI / 2])
+  assert.deepEqual([value.radius, value.phi, value.theta], [2, HALF_PI, -HALF_PI])
   value.setFromVector3({ x: 0, y: 0, z: 0 })
   assert.deepEqual([value.radius, value.phi, value.theta], [0, 0, 0])
 })

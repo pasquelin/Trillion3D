@@ -27,9 +27,11 @@ import {
   VSM_PRESSURE_FALL,
   VSM_FEEDBACK_POOL,
 } from './constants.ts'
-import { sameValues } from '../math/matrixElements.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createVsmReadbackRing, type VsmReadbackRing } from './readbackRing.ts'
+import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 
 /** Frames a light stays active after its last change: its mobility factor falls over them. */
 const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
@@ -246,10 +248,7 @@ export class VsmLightCache {
   /** Whether the light's range reaches a bounding sphere (metres). */
   affectsBounds(center: ArrayLike<number>, sphereRadius: number) {
     if (this.lightRange <= 0) return true
-    const dx = center[0] - this.lightOrigin[0],
-      dy = center[1] - this.lightOrigin[1],
-      dz = center[2] - this.lightOrigin[2]
-    return dx * dx + dy * dy + dz * dz <= (this.lightRange + sphereRadius) ** 2
+    return spheresOverlap(center, sphereRadius, this.lightOrigin, this.lightRange)
   }
 }
 
@@ -430,7 +429,7 @@ export class VsmCacheManager {
         m.mobilityFactor = 1
       } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
         m.mobilityFactor = Math.fround(
-          1 - Math.min(Math.max((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT, 0), 1),
+          1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
         )
       } else {
         m.active = false
@@ -463,18 +462,17 @@ export class VsmCacheManager {
       const currentAllocation = f(1 - f(freePages / this.poolPages))
       const allocationRatio = f(currentAllocation / f(maxPageAllocation))
       const targetBias = f(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
-      const lerp = (a: number, b: number, t: number) => f(a + (b - a) * t)
       if (
         currentAllocation <= f(maxPageAllocation) &&
         (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
       ) {
-        this.pressureBias = lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL)
+        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
       } else if (currentAllocation > f(maxPageAllocation)) {
         this.lastFrameOverBudget = frameStamp
-        this.pressureBias = lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE)
+        this.pressureBias = f(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
       }
     }
-    const bias = Math.min(Math.max(this.pressureBias, 0), biasCap)
+    const bias = clamp(this.pressureBias, 0, biasCap)
     // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
     this.pressureBias = bias < VSM_PRESSURE_BIAS_FLOOR ? 0 : bias
     return this.pressureBias

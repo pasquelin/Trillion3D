@@ -1,14 +1,14 @@
 // THE ENGINE DEPTH CONTRACT, checked end to end.
 //
-// The engine carries ONE convention, not the host camera's `[−1, 1]` or `[0, 1]`: the projection
-// is composed by the engine (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at
-// 1, infinity at 0 — and `depthConvention.ts` publishes what follows: pipeline comparison,
-// the clear value, the sense of "nearer".
+// The engine carries one convention: the projection is composed by the engine
+// (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at 1, infinity at 0 —
+// and `depthConvention.ts` publishes what follows: pipeline comparison, the clear value, the sense
+// of "nearer".
 //
-// What this file proves: the host clip convention enters no engine number; the
-// Hi-Z bound of a box and the depth of a visibility-raster vertex do come out in that
-// convention; and a very distant point keeps a depth distinct from its neighbour, where
-// a forward projection would crush them.
+// What this file proves: the host's `[0, 1]` clip convention enters no engine number — the
+// projection is the engine's own, bit for bit —; the depth of a visibility-raster vertex comes out
+// in the engine's convention; and a very distant point keeps a depth distinct from its neighbour,
+// where a standard-depth projection crushes them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
@@ -22,50 +22,35 @@ import {
   DEPTH_NEAR,
   depthNearer,
 } from '../../../../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import {
-  HIZ_BOUNDS_VALUES,
-  projectCornersInto,
-} from '../../../../../../packages/sdk-browser/src/hiz/corners.ts'
-import { projectVisibilityVertex } from '../../../../../../packages/sdk-browser/src/visibility/projection.ts'
-import { IDENTITY_ELEMENTS } from '../../../../../../packages/sdk-browser/src/math/matrixElements.ts'
-import { boxCornersInto } from '../../../../../../packages/sdk-core/src/index.ts'
+import { projectVisibilityVertex } from '../../../../../oracles/browser/cpu-image/projection.ts'
+import { IDENTITY_WORLD } from '../../../../../../packages/sdk-browser/src/host/matrixElements.ts'
+import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
 
 const WIDTH = 800,
   HEIGHT = 450,
   NEAR = 0.1
 
-/** A host perspective camera of fixed pose and optics, in a host clip convention. */
-function camera(coordinateSystem: THREE.CoordinateSystem) {
+/** A host perspective camera of fixed pose and optics, in WebGPU's clip convention, as the
+ *  engine reads it. */
+function camera() {
   const cam = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, NEAR, 1000)
   cam.position.set(2, 1, 8)
   cam.lookAt(0, 0, 0)
-  cam.coordinateSystem = coordinateSystem
+  cam.coordinateSystem = THREE.WebGPUCoordinateSystem
   cam.updateProjectionMatrix()
-  return readCameraWorld(createEngineCamera(), cam)
+  return { host: cam, engine: readCameraWorld(createEngineCamera(), cam) }
 }
 
-const webGL = camera(THREE.WebGLCoordinateSystem)
-const webGPU = camera(THREE.WebGPUCoordinateSystem)
+const { host, engine: view } = camera()
 
-/** A world box in front of both cameras, neither behind nor cutting the near plane. */
-const CORNERS = new Float64Array(24)
-boxCornersInto(CORNERS, 0, -1, -1, -1, 1, 1, 1, IDENTITY_ELEMENTS)
-
-/** Hi-Z bound of an engine camera for that box. */
-function hizBound(cam: ReturnType<typeof camera>) {
-  const into = new Float64Array(HIZ_BOUNDS_VALUES)
-  projectCornersInto(CORNERS, 0, cam.view, cam.viewProjection, cam.near, WIDTH, HEIGHT, into, 0)
-  assert.equal(into[5], 0, 'the box must be projected, not rejected')
-  return into
-}
-
-test('the host clip convention no longer enters any engine number', () => {
+test('the host clip convention enters no engine number', () => {
+  const own = perspectiveProjection(new Float64Array(16), 50, WIDTH / HEIGHT, NEAR, 1)
   for (let i = 0; i < 16; i++)
     assert.ok(
-      Object.is(webGL.projection[i], webGPU.projection[i]),
-      `projection[${i}] : ${webGL.projection[i]} au lieu de ${webGPU.projection[i]}`,
+      Object.is(view.projection[i], own[i]),
+      `projection[${i}]: ${view.projection[i]} instead of ${own[i]}`,
     )
-  assert.deepEqual([...hizBound(webGL)], [...hizBound(webGPU)], 'same Hi-Z bounds')
+  assert.notDeepEqual([...view.projection], host.projectionMatrix.elements, 'the host matrix')
 })
 
 test('engine depth is reversed: the near plane is 1, the far is 0', () => {
@@ -79,14 +64,7 @@ test('engine depth is reversed: the near plane is 1, the far is 0', () => {
 test('the depth of a projected vertex is the near plane over its eye distance', () => {
   // The origin, on the camera's optical axis: its eye distance is the camera's distance to it.
   const position = { getX: () => 0, getY: () => 0, getZ: () => 0 }
-  const p = projectVisibilityVertex(
-    { elements: IDENTITY_ELEMENTS },
-    position,
-    0,
-    webGL,
-    WIDTH,
-    HEIGHT,
-  )
+  const p = projectVisibilityVertex(IDENTITY_WORLD, position, 0, view, WIDTH, HEIGHT)
   assert.ok(p, 'the vertex must project')
   assert.ok(p!.z > 0 && p!.z < 1, `depth ${p!.z} outside the engine range`)
   const distance = Math.hypot(2, 1, 8)
@@ -96,14 +74,7 @@ test('the depth of a projected vertex is the near plane over its eye distance', 
 test('at 10⁶ units, two neighbouring vertices keep distinct depths in single precision', () => {
   const depthAt = (distance: number) => {
     const position = { getX: () => 0, getY: () => 0, getZ: () => 8 - distance }
-    const p = projectVisibilityVertex(
-      { elements: IDENTITY_ELEMENTS },
-      position,
-      0,
-      webGL,
-      WIDTH,
-      HEIGHT,
-    )
+    const p = projectVisibilityVertex(IDENTITY_WORLD, position, 0, view, WIDTH, HEIGHT)
     assert.ok(p, 'the distant vertex must project')
     return Math.fround(p!.z)
   }

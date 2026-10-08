@@ -102,7 +102,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     settled: () => Promise.all(pending.values()),
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
-      let bytes = effectTargetBytes(width, height, targets.length, false)
+      let bytes = effectTargetBytes(width, height, targets.length)
       for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0
       return bytes
     },

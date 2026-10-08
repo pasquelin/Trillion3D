@@ -5,8 +5,8 @@ use super::clusters::{normalized_bits, position_key, weld_by};
 use super::quality::{face_normal, unit_normal};
 use crate::geometry_page::{Attribute as Carried, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use crate::qem::Attribute;
-use crate::shared_math::dot;
 use crate::shared_math::WordMap;
+use trillion3d_math::vec3::dot;
 
 /// Normals are unit vectors: two opposite ones differ by 2, which this weight brings to the
 /// region's extent, the position scale the error is clamped to (`qem`).

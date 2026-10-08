@@ -1,6 +1,6 @@
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Cut } from './worldCuts.ts'
 import { markRewritten } from './rewrittenRanges.ts'
@@ -76,7 +76,7 @@ type Session = {
  *  they send the GPU, the session's count else the lists' own; `write` marks its host geometry and
  *  hands them, with the resource's `reach` and its pages' `boxes` (`pageMotion.ts`), to the
  *  session — false while none draws it, `refused` when it cannot take them; `renewed` says a
- *  session opened or roots mounted since. */
+ *  session opened since. */
 export const vertexUploads = (
   session: () => Session | null,
   geometryOf: (cut: Cut) => Geometry | undefined,
@@ -84,11 +84,7 @@ export const vertexUploads = (
 ) => {
   let told: object | null = null
   return {
-    /** The session holds roots that never heard the reach: ones mounted in place since. */
-    replay() {
-      told = null
-    },
-    /** True once for each session opened, or `replay` asked, since the last call: it holds roots
+    /** True once for each session opened since the last call: it holds roots
      *  that never heard the reach and boxes of the resources it was opened on, which their next
      *  `write` tells it. */
     renewed() {

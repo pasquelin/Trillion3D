@@ -18,8 +18,7 @@ import type {
   SlimPrimitive,
 } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 
-/** Splits a manifest into the small JSON a reader parses and the columns it maps. The returned
- *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */
+/** Splits a manifest into its JSON and mapped columns; the caller hashes the bytes for `sha256`. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
   descriptor: Pick<ManifestBinaryDescriptor, 'url' | 'pageUrl' | 'geometryUrl' | 'bundleUrl'>,
@@ -192,6 +191,7 @@ export function encodeManifestBinary(
         texturePreviewBytes: counts.previewBytes,
         texturePreviewBc7Bytes: counts.previewBlockBytes.bc7,
         texturePreviewAstcBytes: counts.previewBlockBytes.astc,
+        texturePreviewEtc2Bytes: counts.previewBlockBytes.etc2,
       },
       primitives,
     } as SlimClusterManifest,

@@ -9,13 +9,13 @@ import { createReflectionHistory, type ReflectionHistory } from './historyRuntim
 import type { ReflectionHistoryFrame } from './historyFrame.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { createReflectionSource, type ReflectionSource } from './source.ts'
-import { itemKept } from '../webgpu/blend/expandCpu.ts'
+import { itemKept } from '../webgpu/blend/hierarchyCull.ts'
 
 const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surface))
 const mirroring = (surface: PageSurface) => mirrorRange(refreshSurface(surface))
 const roughReflecting = (surface: PageSurface) => {
   const material = refreshSurface(surface)
-  return screenReflects(material) && material.roughness > Number(ROUGHNESS_FLOOR)
+  return screenReflects(material) && material.roughness > ROUGHNESS_FLOOR
 }
 
 /** Only opaque receivers own this history. Forward transparents cannot borrow
@@ -52,10 +52,10 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
  *  (`prepareBlend`) and before the bounds are built: a water surface the frustum kept, which the
  *  composite needs to be encoded at all (`drawsWater`, `../webgpu/water/pass.ts`, whose lighting
  *  the blends publish after the bounds, so a kept surface it then skips builds them for nothing);
- *  a mirror-range receiver among the view's rows (those the CPU cut draws, or those resident where
- *  the GPU selects); an impostor card drawn, whose baked roughness no surface here tells
- *  (`../webgpu/impostor/cardWgsl.ts`); a blended one the frustum kept. An image none of these, nor
- *  the rough trace or the cone, reads builds no bounds (`encode.ts`). */
+ *  a mirror-range receiver among the view's rows (those resident for the GPU cut); an impostor
+ *  card drawn, whose baked roughness no surface here tells (`../webgpu/impostor/cardWgsl.ts`); a
+ *  blended one the frustum kept. An image none of these, nor the rough trace or the cone, reads
+ *  builds no bounds (`encode.ts`). */
 function wantsMirrorWalk(rt: WebgpuPagesRuntime, inView = false) {
   const { blendState } = rt
   if ((inView ? blendState.transmissiveInView : blendState.transmissive) > 0) return true
@@ -86,6 +86,23 @@ export function reflectionPlan(rt: WebgpuPagesRuntime) {
 
 /** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
 export const REFLECTION_VIEW_BYTES = 80
+
+/** What a screen reflection is made of, fixed for its life: its source texture, the view the
+ *  lighting draws into and the one it samples, the depth, its view uniform, and the history, the
+ *  cone's pyramid and the reprojection it holds. */
+type ReflectionParts = {
+  device: GPUDevice
+  color: GPUTexture
+  view: GPUTextureView
+  source: GPUTextureView
+  depth: GPUTextureView
+  active: boolean
+  mirror: boolean
+  uniform: GPUBuffer
+  history?: ReflectionHistory
+  pyramid?: ReturnType<typeof createReflectionConePyramid>
+  reprojection?: ReflectionSource
+}
 
 export function createScreenReflection(
   device: GPUDevice,
@@ -123,78 +140,8 @@ export function createScreenReflection(
     // The history reads the last depth and identifiers the source keeps.
     if (reprojection && rough)
       history = createReflectionHistory(device, width, height, reprojection.previous)
-    const heldUniform = uniform
-    const packed = new Float32Array(REFLECTION_VIEW_BYTES / 4)
-    const packedBits = new Uint32Array(packed.buffer)
-    const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
-    const groupFor = () => {
-      const image = history?.image ?? view
-      let group = groups.get(image)
-      if (group) return group
-      group = device.createBindGroup({
-        layout: reflectionLayout(device),
-        entries: [
-          { binding: 0, resource: source },
-          { binding: 1, resource: depth },
-          { binding: 2, resource: { buffer: heldUniform } },
-          { binding: 3, resource: image },
-          { binding: 4, resource: pyramid?.view ?? view },
-        ],
-      })
-      groups.set(image, group)
-      return group
-    }
-    groupFor()
-    let walks = mirror
-    return {
-      active,
-      /** A pass may walk a mirror ray over the depth bounds (`reflectionPlan`). */
-      mirror,
-      /** One does this image (`mirrorWalksImage`), as `update` last heard it. */
-      get walks() {
-        return walks
-      },
-      view,
-      get group() {
-        return groupFor()
-      },
-      history,
-      pyramid,
-      /** The reprojection of the last image (`source.ts`): its bind group, none before an image
-       *  gave its inputs; the lighting's second target, the next image's source
-       *  (`sourceOutputWgsl.ts`); `keep`, after their readers, of this image's depth and ids. */
-      source: reprojection,
-      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
-       *  `frame`, what the history and the source read (`reflectionFrame.ts`); `walking`, whether a
-       *  mirror ray walks this image (`mirrorWalksImage`, which `frame.ts` asks only of a `mirror`). */
-      update(
-        matrix: ArrayLike<number>,
-        enabled: boolean,
-        drawn: readonly number[],
-        frame?: ReflectionHistoryFrame,
-        walking = mirror,
-      ) {
-        walks = walking
-        if (history && frame) history.prepare(frame, matrix, drawn)
-        reprojection?.update(matrix, drawn, frame)
-        packed.set(matrix)
-        packed[16] = active && enabled ? 1 : 0
-        packed[17] = drawn[0]
-        packed[18] = drawn[1]
-        // The rank alone sets the two low bits, the 2 × 2 phase (`reflectionPhase`): a source
-        // epoch that moves each image in step with the rank would otherwise hold one phase.
-        // Only a rough trace reads it: without a history, none.
-        packedBits[19] = history ? (((frame?.seed ?? 0) << 2) ^ history.rank) >>> 0 : 0
-        device.queue.writeBuffer(heldUniform, 0, packed)
-      },
-      dispose() {
-        color.destroy()
-        heldUniform.destroy()
-        history?.dispose()
-        pyramid?.dispose()
-        reprojection?.dispose()
-      },
-    }
+    const parts = { device, color, view, source, depth, active, mirror, uniform }
+    return screenReflection({ ...parts, history, pyramid, reprojection })
   } catch (error) {
     color.destroy()
     uniform?.destroy()
@@ -202,6 +149,96 @@ export function createScreenReflection(
     history?.dispose()
     pyramid?.dispose()
     throw error
+  }
+}
+
+/** The group the lighting's reflection reads: the source, the depth, the view uniform, the
+ *  history's image — or the source's own view without one — and the pyramid; one per image read. */
+function reflectionGroups({
+  device,
+  view,
+  source,
+  depth,
+  uniform,
+  history,
+  pyramid,
+}: ReflectionParts) {
+  const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
+  return () => {
+    const image = history?.image ?? view
+    let group = groups.get(image)
+    if (group) return group
+    group = device.createBindGroup({
+      layout: reflectionLayout(device),
+      entries: [
+        { binding: 0, resource: source },
+        { binding: 1, resource: depth },
+        { binding: 2, resource: { buffer: uniform } },
+        { binding: 3, resource: image },
+        { binding: 4, resource: pyramid?.view ?? view },
+      ],
+    })
+    groups.set(image, group)
+    return group
+  }
+}
+
+/** The screen reflection's calls (`createScreenReflection`) on what it is made of. */
+function screenReflection(parts: ReflectionParts) {
+  const { device, color, view, active, mirror, uniform, history, pyramid, reprojection } = parts
+  const packed = new Float32Array(REFLECTION_VIEW_BYTES / 4)
+  const packedBits = new Uint32Array(packed.buffer)
+  const groupFor = reflectionGroups(parts)
+  groupFor()
+  let walks = mirror
+  return {
+    active,
+    /** A pass may walk a mirror ray over the depth bounds (`reflectionPlan`). */
+    mirror,
+    /** One does this image (`mirrorWalksImage`), as `update` last heard it. */
+    get walks() {
+      return walks
+    },
+    view,
+    get group() {
+      return groupFor()
+    },
+    history,
+    pyramid,
+    /** The reprojection of the last image (`source.ts`): its bind group, none before an image
+     *  gave its inputs; the lighting's second target, the next image's source
+     *  (`sourceOutputWgsl.ts`); `keep`, after their readers, of this image's depth and ids. */
+    source: reprojection,
+    /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
+     *  `frame`, what the history and the source read (`reflectionFrame.ts`); `walking`, whether a
+     *  mirror ray walks this image (`mirrorWalksImage`, which `frame.ts` asks only of a `mirror`). */
+    update(
+      matrix: ArrayLike<number>,
+      enabled: boolean,
+      drawn: readonly number[],
+      frame?: ReflectionHistoryFrame,
+      walking = mirror,
+    ) {
+      walks = walking
+      if (history && frame) history.prepare(frame, matrix, drawn)
+      reprojection?.update(matrix, drawn, frame)
+      packed.set(matrix)
+      packed[16] = active && enabled ? 1 : 0
+      packed[17] = drawn[0]
+      packed[18] = drawn[1]
+      // The rank alone sets the two low bits, the 2 × 2 phase (`reflectionPhase`): a source
+      // epoch that moves each image in step with the rank would otherwise hold one phase.
+      // Only a rough trace reads it: without a history, none.
+      packedBits[19] = history ? (((frame?.seed ?? 0) << 2) ^ history.rank) >>> 0 : 0
+      device.queue.writeBuffer(uniform, 0, packed)
+    },
+    dispose() {
+      color.destroy()
+      uniform.destroy()
+      history?.dispose()
+      pyramid?.dispose()
+      reprojection?.dispose()
+    },
   }
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>

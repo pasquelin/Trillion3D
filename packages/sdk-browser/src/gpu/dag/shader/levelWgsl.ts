@@ -1,3 +1,6 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
+
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
  *
@@ -11,7 +14,7 @@
  * — a node's box contains its children's, and its error ceiling upper-bounds theirs.
  * A node outside the trunk, or whose ceiling falls under the threshold, can therefore
  * carry no kept child and no kept cluster: that is the invariant CPU descent
- * (`../../../page/cut/visit.ts`) already exploits.
+ * (`../../../page/cut/visit.fixture.ts`) already exploits.
  *
  * Descent is therefore by levels: pass 0 starts from the roots — one per primitive,
  * set by `dagPrepare` —, each following pass only reads nodes the previous kept, and
@@ -41,7 +44,7 @@
  * extend `work` behind those of the live list. A queue has no group count: nobody reads it
  * indirectly.
  *
- * The candidate list and the drawn log share a range: `dagClearDrawn` reads it as
+ * The candidate list and the drawn log share a range: `dagClearDrawn` (`swapWgsl.ts`) reads it as
  * a log at the very start of the frame, level passes then write it as candidates,
  * `dagWanted` rereads it, and `dagMask` only rewrites it as a log one pass later,
  * when nobody still reads the candidates.
@@ -51,7 +54,10 @@
  *  count that makes those three indices distinct. */
 export const LEVEL_QUEUES = 3
 
-export const DAG_LEVEL_WGSL = `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
+export const DAG_LEVEL_WGSL = wgslBlock(
+  'DAG_LEVEL_WGSL',
+  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL],
+  `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
 fn candCounter()->u32{return liveCounter()+6u;}
@@ -64,8 +70,8 @@ fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
 fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
- *  pulling it afterwards, in rows (\`gridWgsl.ts\`). What passes the list's capacity is dropped
- *  and said (\`dropWork\`). */
+ *  pulling it afterwards (\`openSlice\`). What passes the list's capacity is dropped and said
+ *  (\`dropWork\`). */
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
@@ -95,13 +101,6 @@ fn resetCounters(){
 }
 /** A list's dispatch argument, x and y, back to no group. */
 fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+1u],0u);}
-/** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag
- *  can be one. No other is visited, and none is walked in full. */
-@compute @workgroup_size(64)
-fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id.x,id.y,n.x);if(s>=atomicLoad(&work[drawnCounter()])){return;}
- setFlag(views[0u].queueCap+flagAt(candBase()+s),0u);
-}
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
  *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
@@ -140,11 +139,12 @@ fn descend(src:u32,node:CullNode){
 /** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
  *  (\`rangeSlot\`). Queue 0 reused deeper (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
 @compute @workgroup_size(64)
-fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,rangeSlot(flatIndex(id.x,id.y,n.x)));}
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,rangeSlot(flatIndex(id,n,64u)));}
 @compute @workgroup_size(64)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id.x,id.y,n.x));}
+fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,64u));}
 @compute @workgroup_size(64)
-fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id.x,id.y,n.x));}
+fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id,n,64u));}
 @compute @workgroup_size(64)
-fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id.x,id.y,n.x));}
-`
+fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id,n,64u));}
+`,
+)

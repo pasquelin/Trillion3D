@@ -25,11 +25,13 @@
  */
 import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
-import { unit as normalize } from '../packages/sdk-core/src/math/primitives/vectorTuple.ts'
+import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
 import { minimise } from './ltc-minimise.ts'
+import { hypot3 } from '../packages/math/src/float/hypot.ts'
+import { dotVector3 } from '../packages/math/src/vector/vector.ts'
+import { PI } from '../packages/math/src/constants.ts'
 
 type V3 = [number, number, number]
-const PI = Math.PI
 
 /** The engine's specular lobe times the cosine, Fresnel at 1: `standardLighting`'s D·Vis·NdotL. */
 function lobe(v: V3, l: V3, alpha: number) {
@@ -53,7 +55,7 @@ function sampleLobe(v: V3, alpha: number, u1: number, u2: number): [V3, number] 
     sinH = Math.sqrt(Math.max(0, 1 - cos2)),
     phi = 2 * PI * u2
   const h: V3 = [sinH * Math.cos(phi), sinH * Math.sin(phi), cosH]
-  const vh = v[0] * h[0] + v[1] * h[1] + v[2] * h[2]
+  const vh = dotVector3(v, h)
   const l: V3 = [2 * vh * h[0] - v[0], 2 * vh * h[1] - v[1], 2 * vh * h[2] - v[2]]
   return [l, lobeDensity(v, l, alpha)]
 }
@@ -61,7 +63,7 @@ function sampleLobe(v: V3, alpha: number, u1: number, u2: number): [V3, number] 
 /** Density of `sampleLobe` at the direction l. */
 function lobeDensity(v: V3, l: V3, alpha: number) {
   const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
-  const vh = Math.max(v[0] * h[0] + v[1] * h[1] + v[2] * h[2], 1e-7)
+  const vh = Math.max(dotVector3(v, h), 1e-7)
   const a2 = alpha * alpha,
     dd = h[2] * h[2] * (a2 - 1) + 1
   return ((a2 / (PI * dd * dd)) * Math.max(h[2], 0)) / (4 * vh)
@@ -92,7 +94,7 @@ const apply = (a: number[], v: V3): V3 => [
 /** Density of the transformed cosine at the unit direction w. */
 function ltcDensity(t: Ltc, w: V3) {
   const o = apply(t.inverse, w)
-  const l = Math.hypot(o[0], o[1], o[2])
+  const l = hypot3(o[0], o[1], o[2])
   if (!(o[2] > 0)) return 0
   return o[2] / l / PI / Math.abs(t.det) / (l * l * l)
 }
@@ -152,7 +154,7 @@ export function fitLtcTable(size: number, side: number) {
         const weight = pdf > 0 ? lobe(v, l, alpha) / pdf : 0
         const h = normalize([v[0] + l[0], v[1] + l[1], v[2] + l[2]])
         norm += weight
-        schlick += weight * (1 - Math.max(v[0] * h[0] + v[1] * h[1] + v[2] * h[2], 0)) ** 5
+        schlick += weight * (1 - Math.max(dotVector3(v, h), 0)) ** 5
         for (let k = 0; k < 3; k++) mean[k] += weight * l[k]
       }
       norm /= points.length

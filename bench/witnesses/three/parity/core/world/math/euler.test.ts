@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { Quaternion } from '../../../../../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { Euler } from '../../../../../../../packages/sdk-core/src/world/math/euler.ts'
 import { Matrix4 } from '../../../../../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { listen } from '../../../../../../../packages/sdk-core/src/world/math/observed.ts'
+import { listen } from '../../../../../../../packages/sdk-core/src/world/observed.ts'
 import * as THREE from 'three'
-import { near as within } from '../../../../../../../packages/sdk-core/src/math/near.fixture.ts'
+import { near as within } from '../../../../../../../packages/math/src/float/near.fixture.ts'
 
 const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7)
 

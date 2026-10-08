@@ -9,7 +9,9 @@
  * space: it only reaches the matrix the raster, shading and blend read, never the engine camera —
  * selection, its planes and its screen-error threshold see none of this jitter.
  */
-import { halton } from '../../../sdk-core/src/math/primitives/halton.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { halton } from '../../../math/src/sequence/halton.ts'
+import { clipWindowMatrix4 } from '../../../math/src/projection/clip.ts'
 
 /** The jitter positions of a frame drawn at the display's size, before the prime: eight. */
 const NATIVE_POSITIONS = 8
@@ -48,7 +50,7 @@ const TAA_STILL_DRAWS = 64
 /** Holding is legal only after the still average has converged and every phase has contributed
  *  as often as every other: a whole number of cycles, the first to hold `TAA_STILL_DRAWS` draws —
  *  66 at native size, six cycles of eleven; 74 at half, two of 37. */
-export const taaStillFrames = (phases: number) => Math.ceil(TAA_STILL_DRAWS / phases) * phases
+export const taaStillFrames = (phases: number) => alignUp(TAA_STILL_DRAWS, phases)
 
 /**
  * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
@@ -70,28 +72,18 @@ export function taaJitter(sample: number, out: Float64Array, phases = TAA_SAMPLE
 }
 
 /**
- * `out` = the view-projection shifted by `(jx, jy)` pixels: a translation added in clip space
- * — `x += 2·jx/width · w`, `y += 2·jy/height · w` —, so the first and second rows of the
- * column-major matrix receive the fourth multiplied by the offset. Zero jitter returns the
- * matrix identical, bit for bit.
+ * `out` = `matrix`, a view-projection or a projection, shifted by `(jx, jy)` pixels of a frame
+ * `width × height`: a translation added in clip space, `x += 2·jx/width · w`, `y += 2·jy/height · w`
+ * (`clipWindowMatrix4` at scale one), so the first and second rows of the column-major matrix
+ * receive the fourth multiplied by the offset. Zero jitter returns the matrix identical, bit for bit.
  */
 export function jitterViewProjection(
   out: Float64Array,
-  viewProjection: ArrayLike<number>,
+  matrix: ArrayLike<number>,
   jx: number,
   jy: number,
   width: number,
   height: number,
 ) {
-  const dx = (2 * jx) / width,
-    dy = (2 * jy) / height
-  for (let column = 0; column < 4; column++) {
-    const at = column * 4,
-      w = viewProjection[at + 3]
-    out[at] = viewProjection[at] + dx * w
-    out[at + 1] = viewProjection[at + 1] + dy * w
-    out[at + 2] = viewProjection[at + 2]
-    out[at + 3] = w
-  }
-  return out
+  return clipWindowMatrix4(out, matrix, 1, 1, (2 * jx) / width, (2 * jy) / height)
 }

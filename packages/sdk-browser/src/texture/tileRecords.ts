@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import {
   blocksAcross,
   PREVIEW_BLOCK_BYTES,
@@ -17,7 +18,7 @@ const span = (texels: number, t: number) =>
   blocksAcross(Math.min(texels, (t + 1) * TILE_SIZE + TILE_BORDER)) -
   Math.max(0, t * TILE_SIZE - TILE_BORDER) / PREVIEW_BLOCK_SIDE
 /** Blocks along one side of the records of tiles `0 … end - 1`; all of them by default. */
-function spans(texels: number, end = Math.ceil(texels / TILE_SIZE)) {
+function spans(texels: number, end = ceilDiv(texels, TILE_SIZE)) {
   let blocks = 0
   for (let t = 0; t < end; t++) blocks += span(texels, t)
   return blocks

@@ -8,6 +8,7 @@ import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVsmRender, vsmChunkRowsWithin } from './renderPass.ts'
 import { recordingRaster } from './recordingRaster.fixture.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 const BINDING = 1 << 27
 const sizes = (rows: number) => ({ pairs: rows * 4096, cmds: rows * 1024 })
@@ -35,8 +36,12 @@ test('the rows a chunk takes halve until their lists grow within the room', () =
   assert.equal(rows(4096 + 1024 - 1), 0, 'not one row')
   // A list already as large asks nothing; the one it replaces is freed first.
   r.box.limit = 1e12
-  const held = { pairs: r.fake.device.createBuffer({ size: 256 * 1024, usage: 0 }) }
-  const small = { pairs: r.fake.device.createBuffer({ size: 128 * 1024, usage: 0 }) }
+  const held = {
+    pairs: r.fake.device.createBuffer({ size: 256 * 1024, usage: GPUBufferUsage.STORAGE }),
+  }
+  const small = {
+    pairs: r.fake.device.createBuffer({ size: 128 * 1024, usage: GPUBufferUsage.STORAGE }),
+  }
   assert.equal(rows(64 * 1024, held), 64)
   assert.equal(rows(128 * 1024 + 64 * 1024, small), 64)
   assert.equal(rows(128 * 1024 + 64 * 1024 - 1, small), 32)
@@ -56,7 +61,7 @@ test('a raster whose lists the room cannot hold whole draws in smaller chunks, o
   const draw = raster(r, 1)
   assert.equal(draw(1)!.roomLimited, false, 'one row: its lists made')
   // 4096 rows ask chunks of every row (2^21 pairs over 256 pages): 16 MiB of pairs.
-  r.admit(4 * 1024 * 1024)
+  r.admit(4 * MIB)
   const limited = draw(4096)!
   assert.equal(limited.roomLimited, true)
   assert.ok(limited.chunkRows < 4096, `${limited.chunkRows} rows a chunk`)

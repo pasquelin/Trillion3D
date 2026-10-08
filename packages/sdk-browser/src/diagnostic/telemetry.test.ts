@@ -5,6 +5,7 @@ import { FrameProfile } from './frameProfile.ts'
 import { families } from '../host/families.ts'
 import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.ts'
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
   const profiler = new FrameProfile()
@@ -33,9 +34,9 @@ test('the frame report records frames and produces accurate statistics and bottl
     submittedTriangles: 25000,
     frustumRejected: 300,
     pageLoads: 150,
-    pageBytesRead: 1024 * 1024 * 5,
+    pageBytesRead: MIB * 5,
     geometryAllocationBytes: null,
-    vramBytes: 1024 * 1024 * 32,
+    vramBytes: MIB * 32,
     cacheHits: 140,
     cacheMisses: 10,
     pagesRequested: 150,
@@ -76,7 +77,7 @@ test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget'
     selectedTriangles: 10000,
     residentPages: 50,
     pageLoads: 50,
-    pageBytesRead: 1024 * 1024,
+    pageBytesRead: MIB,
     geometryAllocationBytes: null,
     vramBytes: null,
   }

@@ -7,21 +7,21 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
-import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts'
+import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
+import { blendShader } from './shader.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
 import { FACING_SHIFT } from './facing.ts'
 
 const DERIVATIVE = /\b(?:dpdx|dpdy|fwidth)(?:Fine|Coarse)?\(|\btextureSample(?:Bias|Compare)?\(/
 const COVERAGE = /if\(!blendKeeps\([^{]*\)\{discard;return /
-const STAGES = BLEND_SHADER + WATER_SURFACE_WGSL
+const STAGES = blendShader({}, { stage: waterSurfaceWgsl(true) })
 
 test('the blend and water stages take every derivative before their coverage test returns', () => {
   const taking = [...STAGES.matchAll(/fn (\w+)\(/g)]
     .map(([, name]) => name)
     .filter((name) => DERIVATIVE.test(functionsOf(STAGES, [name])))
   assert.deepEqual(taking, ['blendGrads', 'blendFragment'])
-  for (const stage of ['blendFragment', 'fsWater']) {
+  for (const stage of ['blendFragment', 'fsWater', 'fsWaterLobed']) {
     const body = functionsOf(STAGES, [stage]),
       coverage = body.search(COVERAGE)
     assert.ok(coverage > 0, `${stage} returns at its coverage test`)
@@ -44,7 +44,12 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'blendGeometricNormal',
     'facingDiscarded',
     'lineDash',
+    'floorMod',
     'blendShadowFootprint',
+    // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
+    'blendPhysicalBegin',
+    'blendLobes',
+    'lobeThrough',
   ]
   const zero = (v: number[]) => v.map(() => 0)
   const lit = () => (counts.lights++, [0.25, 0.25, 0.25])
@@ -56,7 +61,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     colorSample: () => (counts.color++, [0.5, 0.5, 0.5, alpha]),
     dataSample: () => (counts.data++, [1, 1, 1, 1]),
     blendRequest: () => 7,
-    uniteOuZero: (v: number[]) => v,
+    unitOrZero: (v: number[]) => v,
     declaredLighting: lit,
     bounceLighting: lit,
     environmentLighting: lit,
@@ -80,6 +85,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
       emissive: v[6],
       request: v[7],
       subsurface: v[8],
+      geometric: v[9],
     }),
     BlendOut: (color: number[], request: number) => ({ color, request }),
     uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], pixelScale: 0.01, eye: [0, 0, 5] },
@@ -87,8 +93,9 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     thinSubsurface: [0, 0, 0],
     shadowFootprint: 0,
   }
-  // `discard` demotes and goes on: counted, it runs as a helper would.
-  const text = BLEND_SHADER.replace(/\bdiscard;/g, 'discarded();')
+  // `discard` demotes and goes on: counted, it runs as a helper would. The program of a scene
+  // without lobes: a lobed one sets none on a fragment whose item names no record.
+  const text = blendShader({ lobeless: true }).replace(/\bdiscard;/g, 'discarded();')
   const run = shaderRun<{ blendFragment: (...a: unknown[]) => { color: number[] } }>(
     text,
     names,

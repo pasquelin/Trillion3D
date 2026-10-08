@@ -1,14 +1,14 @@
 // Still pose: the cut is a fixed point, and the walk that finds it must be counted once. A missing
 // page changes what the cut rule draws in its place, never the walk: two frames carrying exactly
-// the same cut report the same walk, or the held-frame gate never sees them as identical.
+// the same cut report the same walk, or a held image never sees them as identical.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts'
+import { collectClusterPages, type PageRec } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture } from './dag.fixture.ts'
-import { createWebglFrameGate } from '../../webgl/core/frameGate.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 /** DAG fixture, every page resident, tight view on the left half: right-hand clusters
  *  leave the frustum and get counted there. */
@@ -67,16 +67,4 @@ test("a missing page changes the cut drawn, not the walk's count", () => {
   const withFallback = tour()
   assert.notEqual(identifiants(withFallback.shown), ids, 'the ancestor was not drawn')
   assert.equal(withFallback.frustumRejected, rejections, 'the walk was counted differently')
-})
-
-test('the held-frame gate rests on the cut, not on the walk counter', () => {
-  const gate = createWebglFrameGate()
-  const a = [{ id: 3 }, { id: 7 }] as PageRec[]
-  const b = [{ id: 7 }, { id: 3 }] as PageRec[]
-  gate.keep(2, 100, a, 0, false)
-  gate.keep(2, 100, a, 0, false)
-  assert.equal(gate.held(), true, 'two frames of an identical cut must be held')
-  // Same page count and same triangles, but not the same pages nor the same order.
-  gate.keep(2, 100, b, 0, false)
-  assert.equal(gate.held(), false, 'a different cut must never be held')
 })

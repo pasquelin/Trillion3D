@@ -25,7 +25,7 @@ const batchesOf = (item: Item, shape: Shape) =>
 test('batchesOf is the transcribed text', () => {
   assert.match(
     functionsOf(drawShader(1), ['batchesOf']),
-    /clamp\(\(item\.triangles\*3u\+uni\.corners-1u\)\/uni\.corners,1u,uni\.perRow\)/,
+    /clamp\(ceilDiv\(item\.triangles\*3u,uni\.corners\),1u,uni\.perRow\)/,
   )
   // `scatterGroups` writes a row's batches one after the other, each its first triangle on top.
   assert.match(drawShader(1), /instances\[at\+b\]=page\|\(\(b\*stride\)<<24u\)/)

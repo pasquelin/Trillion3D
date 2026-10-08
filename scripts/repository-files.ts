@@ -5,6 +5,27 @@ import { localPaths } from './local-files.ts'
 
 const root = resolve(import.meta.dirname, '..')
 
+/** The TypeScript source folders of the packages, each its own namespace for the gates that read them. */
+export const SOURCE_UNITS = [
+  'packages/math/src',
+  'packages/sdk-core/src',
+  'packages/sdk-browser/src',
+  'packages/sdk-node/src',
+  'packages/page-codec/src',
+] as const
+
+/** The unit a maintained file belongs to, or null when it belongs to none: the gates read the
+ *  packages and leave the scripts, the site and the bench to the gates that own them. */
+export const unitOf = (file: string) =>
+  SOURCE_UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
+
+const TEST_TS = /\.(?:test|fixture|perf|gpu)\.m?ts$/
+const TEST_RS = /(?:^|\/)(?:tests?|\w+_tests?)(?:\.rs$|\/)/
+
+/** Whether `file` is a test module, a fixture or a GPU proof, which may keep its own small copies. */
+export const isTestModule = (file: string) =>
+  file.endsWith('.rs') ? TEST_RS.test(file) : TEST_TS.test(file)
+
 /** Shared tools inspect maintained files, never ignored personal files. */
 export function repositoryFiles(directory = root): string[] | null {
   if (!existsSync(resolve(directory, '.git'))) return null

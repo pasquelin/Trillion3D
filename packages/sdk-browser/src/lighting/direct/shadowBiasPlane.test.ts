@@ -4,9 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { declaredLightWgsl } from './lightLoopWgsl.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the shading biases along the receiver plane, handed to the read', () => {
   assert.ok(
-    declaredLightWgsl(true).includes('shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)'),
+    wgslSource(declaredLightWgsl()).includes(
+      'shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)',
+    ),
   )
 })

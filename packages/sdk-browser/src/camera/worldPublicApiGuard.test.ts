@@ -1,8 +1,8 @@
 // WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
 // The two APIs are `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
-// `rasterVisibility(pages, cam: EngineCamera, viewport)` (../visibility/raster.ts) — both read
-// `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera
+// `rasterVisibility(pages, cam: EngineCamera, viewport)` (bench/oracles/browser/cpu-image/raster.ts)
+// — both read `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera
 // (`G.GraphCamera`).
 //
 // THE CHOICE: these APIs take the ENGINE camera and reject a raw host camera

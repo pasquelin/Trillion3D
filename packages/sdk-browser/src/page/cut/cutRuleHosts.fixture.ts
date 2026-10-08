@@ -1,14 +1,11 @@
 /**
- * The backends of the cut rule's tests that hold residency on the host (`./held.ts`): the CPU cut
- * and the WebGL2 image's cut, over placements of the synthetic DAG. Each names to its pool's feed
- * the pages whose residency flipped, as the WebGPU rank journal and the WebGL2 page store do, and
- * counts the residency answers its cuts asked for.
+ * The backend of the cut rule's tests that holds residency on the host (`./held.fixture.ts`): the CPU cut,
+ * over placements of the synthetic DAG. It names to its pool's feed the pages whose residency
+ * flipped, as the WebGPU rank journal does, and counts the residency answers its cuts asked for.
  */
-import { selectVisiblePages } from './cut.ts'
-import type { SelectionResult } from './state.ts'
-import { createHeldResidency, type HeldResidency } from './held.ts'
+import { selectVisiblePages, type SelectionResult } from './cut.fixture.ts'
+import { createHeldResidency, type HeldResidency } from './held.fixture.ts'
 import { postPackedBases, type PlacementIndex } from '../selection/placements.ts'
-import { createImageCut } from '../../backend/autonomous/imageCut.ts'
 import { placements, stripCamera } from './cutRuleBackends.fixture.ts'
 import type { RuleDag } from './cutRule.fixture.ts'
 import type { ClusterRoot, PageRec } from '../selection/types.ts'
@@ -53,7 +50,7 @@ function hostBackend(
   return Object.assign(frame, { held, reads })
 }
 
-/** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path asks it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
+/** The CPU cut (`./cut.fixture.ts`) with the host answering for residency, as the host-side oracle asks it: the rule on `./held.fixture.ts`'s readiness, its descent pruned on the open counts. */
 export function cpuBackend(
   dag: RuleDag,
   threshold: number,
@@ -77,50 +74,4 @@ export function cpuBackend(
   const load = (_page: PageRec, packed: number, resident: boolean) => void (on[packed] = resident)
   const cut = () => selectVisiblePages(roots, cam, options)
   return hostBackend(roots, options.held, placement, load, cut, () => reads)
-}
-
-/** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`) over `roots`, under a pool
- *  that admits every request; `held` is what its page store moves. */
-export const webgl2Cut = (roots: ClusterRoot<PageRec>[], held = createHeldResidency()) =>
-  createImageCut({
-    roots,
-    view: {
-      viewport: [1280, 720],
-      shown: [],
-      shownPacked: [],
-      desired: [],
-      desiredPacked: [],
-      requested: [],
-    },
-    revision: () => 0,
-    pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
-    held,
-  })
-
-/** The WebGL2 image's cut of the DAG, each page resident when it holds its index array, as the
- *  WebGL2 page store loads and releases them. */
-export function webgl2Backend(dag: RuleDag, threshold: number, roots = placements(dag, 1)) {
-  const cam = stripCamera(dag),
-    placement = postPackedBases(roots),
-    held = createHeldResidency({}, placement),
-    cut = webgl2Cut(roots, held)
-  let reads = 0
-  for (const root of roots)
-    for (const page of root.pages) {
-      let array: Uint32Array | undefined
-      Object.defineProperty(page, 'array', {
-        get: () => (reads++, array),
-        set: (value?: Uint32Array) => void (array = value),
-      })
-    }
-  const load = (page: PageRec, _packed: number, resident: boolean) =>
-    void (page.array = resident ? new Uint32Array(3) : undefined)
-  return hostBackend(
-    roots,
-    held,
-    placement,
-    load,
-    () => cut(cam, threshold),
-    () => reads,
-  )
 }

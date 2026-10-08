@@ -1,3 +1,4 @@
+import { createPhysicalTable, type PhysicalTable } from '../../visibility/physicalTable.ts'
 import type { DeformationCompute } from '../../../deformation/compute.ts'
 import type * as DeformationCode from '../../../deformation/deformationCode.ts'
 import type { SessionDeformation } from '../../../deformation/session.ts'
@@ -12,6 +13,7 @@ import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { MAX_DRAW_SLOTS } from '../../../gpu/draw/draw.ts'
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts'
+import { RenderBundles } from '../../../gpu/core/renderBundles.ts'
 import { createPresentClasses } from '../../core/materialPasses.ts'
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts'
 import type { VertexPool } from '../../core/geometryPool.ts'
@@ -30,16 +32,13 @@ export interface WebgpuVisState {
   deformationCode?: typeof DeformationCode
   deformationCompute?: DeformationCompute
   wholeDeformation?: { table: GPUBuffer; count: number }
-  visEnabled: boolean
-  /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
+  /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRowWriter.ts`). */
   asIsShown: boolean
   visTexture: GPUTexture | undefined
   visView: GPUTextureView | undefined
   visPipelineBack: GPURenderPipeline | undefined
-  visPipelineBackCw: GPURenderPipeline | undefined
   visPipelineNone: GPURenderPipeline | undefined
   visPipelineFront: GPURenderPipeline | undefined
-  visPipelineFrontCw: GPURenderPipeline | undefined
   /** The resolve's pipeline of each class (`../../visibility/shadePipelines.ts`): the scene's
    *  classes at preparation, and any class a material changed into since, asked before the image
    *  that draws it. */
@@ -80,10 +79,6 @@ export interface WebgpuVisState {
   /** GPU partition of the image: projection, split and occlusion bounds per row. */
   gpuPartition: GpuPartition | undefined
   visBindGroupLayout: GPUBindGroupLayout | undefined
-  /** The visibility module, kept to make its raster pipelines again without Hi-Z. */
-  visModule: GPUShaderModule | undefined
-  visBindGroup: GPUBindGroup | undefined
-  visHizBindGroup: GPUBindGroup | undefined
   visUniform: GPUBuffer | undefined
   zeroFlags: GPUBuffer | undefined
   // The textured forward pipelines share the visibility path's atlases and fall with it.
@@ -97,9 +92,16 @@ export interface WebgpuVisState {
   // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
   // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
   visSlotGroups: Array<GPUBindGroup | undefined>
+  /** Moved each time the slot groups are voided: what the slot bundles are keyed by. */
+  visGroupsRevision: number
   rasterGroups: Array<unknown>
   /** What those groups, and the resolve's, currently name: a moved identity voids them. */
   visIdentity: WebgpuBindIdentity
+  /** The render bundles of the raster's slot draws, occluder half then tested half
+   *  (`../../visibility/drawer.ts`), and of the material surfaces (`../../core/materialPasses.ts`):
+   *  recorded again only when what decides their commands moved. */
+  visBundles: [RenderBundles, RenderBundles]
+  shadeBundles: RenderBundles
   shadeIdentity: WebgpuBindIdentity
   concatPos: GPUBuffer | undefined
   concatUv: GPUBuffer | undefined
@@ -119,19 +121,18 @@ export interface WebgpuVisState {
   deformation: SessionDeformation | undefined
   mapLayer: Map<Texture, number>
   dataLayer: Map<Texture, number>
+  /** The surfaces' anisotropic and clear-coat records the resolve reads (`physicalTable.ts`). */
+  physicalTable: PhysicalTable
 }
 
 export function createWebgpuVisState(): WebgpuVisState {
   return {
-    visEnabled: false,
     asIsShown: false,
     visTexture: undefined,
     visView: undefined,
     visPipelineBack: undefined,
-    visPipelineBackCw: undefined,
     visPipelineNone: undefined,
     visPipelineFront: undefined,
-    visPipelineFrontCw: undefined,
     shadeClasses: undefined,
     shadeCensus: undefined,
     presentClasses: createPresentClasses(),
@@ -149,9 +150,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     drawLayerSlots: 1,
     gpuPartition: undefined,
     visBindGroupLayout: undefined,
-    visModule: undefined,
-    visBindGroup: undefined,
-    visHizBindGroup: undefined,
     visUniform: undefined,
     zeroFlags: undefined,
     blendBindGroupLayout: undefined,
@@ -161,8 +159,12 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
+    visGroupsRevision: 0,
     rasterGroups: new Array(8).fill(undefined),
     visIdentity: createWebgpuBindIdentity(),
+    // Two keys each: a tested half compacted or not, a class set and the one it replaced.
+    visBundles: [new RenderBundles(2), new RenderBundles(2)],
+    shadeBundles: new RenderBundles(2),
     shadeIdentity: createWebgpuBindIdentity(),
     concatPos: undefined,
     concatUv: undefined,
@@ -178,5 +180,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     deformation: undefined,
     mapLayer: new Map(),
     dataLayer: new Map(),
+    physicalTable: createPhysicalTable(),
   }
 }

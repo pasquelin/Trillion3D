@@ -5,6 +5,7 @@ import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { FluidsPayload, FluidsScene } from './fluids.ts'
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { posterCapture } from '../harness/measurePage.ts'
 
 type Sdk = typeof SdkBrowser
@@ -48,7 +49,7 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
     geometry.plane(400, 400),
     material.meshPhysical({ color: '#1d6d8c', roughness: 0.05, transmission: 1, thickness: 2 }),
   )
-  sea.rotation.set(-Math.PI / 2, 0, 0)
+  sea.rotation.set(-HALF_PI, 0, 0)
   sea.position.set(27, scene.water.level, 27)
   world.scene.add(sea)
   const flame = material.meshBasic({ color: '#ff8a2a', transparent: true, blending: 'additive' })
@@ -82,23 +83,16 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
 const nextFrame = () => new Promise<number>((done) => requestAnimationFrame(done))
 
 /** Builds the scene, waits for every body to be simulated, then measures `frames` frames. */
-export async function measureFluids({
-  sdkUrl,
-  renderer,
-  settings,
-  captureFile,
-  scene,
-}: FluidsPayload) {
+export async function measureFluids({ sdkUrl, settings, captureFile, scene }: FluidsPayload) {
   const { width, height, warmup, frames, temporalAntialiasing } = settings
   const sdk = (await import(sdkUrl)) as Sdk
   const canvas = document.createElement('canvas')
   canvas.style.cssText = `display:block;width:${width}px;height:${height}px`
   document.body.append(canvas)
-  // A lost context is published where the bench rereads it (`withGpuIncidents`).
+  // GPU incidents are published where the bench rereads them (`withGpuIncidents`).
   const lost: string[] = (globalThis.gpuIncidents = [])
-  canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'))
   // The world leads its own loop, as every physics example does.
-  const world = sdk.createWorld(canvas, { renderer, physics: true, temporalAntialiasing })
+  const world = sdk.createWorld(canvas, { physics: true, temporalAntialiasing })
   try {
     await world.ready
     world.scene.background = sdk.math.color('#9cc3d9')

@@ -1,5 +1,9 @@
-import { multiplyQuaternion, normalizeQuaternion } from '../../math/matrix/quaternion.ts'
-import { POSITION_VALUES, QUATERNION_VALUES } from '../../math/batch/strides.ts'
+import {
+  dotQuaternion,
+  multiplyQuaternion,
+  normalizeQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { POSITION_VALUES, QUATERNION_VALUES } from '../../../../math/src/batch/strides.ts'
 
 /** The width of each pose value of a node, by its field: a scale has a position's. */
 const POSE_WIDTHS = {
@@ -81,9 +85,7 @@ export class Blend {
     }
     let sign = 1
     if (this.rotation) {
-      let dot = 0
-      for (let c = 0; c < 4; c++) dot += this.sum[c] * value[c]
-      sign = dot < 0 ? -1 : 1
+      sign = dotQuaternion(this.sum, value) < 0 ? -1 : 1
     }
     for (let c = 0; c < this.sum.length; c++) this.sum[c] += sign * weight * value[c]
     this.weight += weight

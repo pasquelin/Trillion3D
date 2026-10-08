@@ -1,4 +1,11 @@
-/** An unsigned vector as the shaders build one (`vec2u`, `uvec4`…), flattened: each word converted
+import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { WGSL_LIBRARY } from '../../../math/src/wgsl/library.fixture.ts'
+
+/** The function names of the WGSL library: small shared helpers a run takes on its own. */
+const LIBRARY_FUNCTIONS = new Set(
+  WGSL_LIBRARY.filter((decl) => decl.kind === 'fn').map((decl) => decl.name),
+)
+/** An unsigned vector as the shaders build one (`vec2u`, `vec4u`…), flattened: each word converted
  *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
 export const vec = (...parts: Array<number | Record<string, number>>) => {
   const words = parts.flatMap((part) =>
@@ -8,10 +15,11 @@ export const vec = (...parts: Array<number | Record<string, number>>) => {
 }
 
 /** The text of the functions `names` in a shipped shader: each from its header to its closing brace. */
-export function functionsOf(source: string, names: string[]) {
+export function functionsOf(input: WgslSource, names: string[]) {
+  const source = wgslSource(input)
   return names
     .map((name) => {
-      const header = new RegExp(`(?:fn |\\b(?:uint|float|bool|u?vec[234]) )${name}\\(`).exec(source)
+      const header = new RegExp(`fn ${name}\\(`).exec(source)
       if (!header) throw new Error(`no function ${name}`)
       let depth = 0,
         end = source.indexOf('{', header.index)
@@ -22,9 +30,28 @@ export function functionsOf(source: string, names: string[]) {
     .join('\n')
 }
 
+/** The text of the functions `names` and of every WGSL library function of `input` they call,
+ *  through each other, but those `bound` already defines: a test names the shader's own functions
+ *  it runs, never the library's helpers. */
+export function reachedFunctions(input: WgslSource, names: string[], bound: object) {
+  const source = wgslSource(input)
+  const declared = new Set(
+    [...source.matchAll(/\bfn (\w+)\(/g)]
+      .map((match) => match[1])
+      .filter((name) => LIBRARY_FUNCTIONS.has(name)),
+  )
+  const reached = [...new Set(names)]
+  for (let i = 0; i < reached.length; i++)
+    for (const [, called] of functionsOf(source, [reached[i]]).matchAll(/\b(\w+)\(/g))
+      if (declared.has(called) && !(called in bound) && !reached.includes(called))
+        reached.push(called)
+  return functionsOf(source, reached)
+}
+
 /** Every scalar `const` of a WGSL text whose value is a literal — `f32`, `u32` or `i32` —, by
  *  name: what the shader compiles, not a copy of it. */
-export function wgslConstants(source: string) {
+export function wgslConstants(input: WgslSource) {
+  const source = wgslSource(input)
   const found: Record<string, number> = {}
   for (const [, name, literal] of source.matchAll(/\bconst (\w+):(?:f32|u32|i32)=([^;]+);/g)) {
     // A hex digit `f` is no suffix: `0xff` is 255, not `0xf`.
@@ -35,26 +62,27 @@ export function wgslConstants(source: string) {
 }
 
 /**
- * The functions `names` of a shipped WGSL or GLSL text as JavaScript: types stripped, integer
- * conversions truncating, shifts unsigned, `binOf(t)` answered by `scope.binOf`. What the shader
+ * The functions `names` of a shipped WGSL text as JavaScript: types stripped, integer
+ * conversions truncating, shifts unsigned, `binOf(t)` answered by `scope.binOf`, the module's
+ * scalar constants as it declares them (`wgslConstants`). What the shader
  * runs is what the test runs: an edit of the text is what the test sees.
  */
-export function shaderFunctions<T>(source: string, names: string[], scope: object = {}): T {
-  // A parameter's name: first in WGSL (`a:u32`), last in GLSL (`uint a`).
-  const params = (list: string) =>
-    list.split(',').map((param) => param.trim().split(/[\s:]+/)[param.includes(':') ? 0 : 1])
+export function shaderFunctions<T>(input: WgslSource, names: string[], scope: object = {}): T {
+  const source = wgslSource(input)
+  // A parameter's name, before its type (`a:u32`).
+  const params = (list: string) => list.split(',').map((param) => param.trim().split(/[\s:]+/)[0])
   const header = (_: string, name: string, list: string) => `function ${name}(${params(list)}){`
   const js = functionsOf(source, names)
     .replace(/fn (\w+)\(([^)]*)\)->\w+\{/g, header)
-    .replace(/^(?:uint|float|uvec2|bool) (\w+)\(([^)]*)\)\{/gm, header)
-    .replace(/\b(?:let|var|int|uint|float|uvec2|uvec4|bool) (\w+)(?::\w+)?=/g, 'let $1=')
-    .replace(/\b(?:vec2u|vec4u|uvec2|uvec4)\(/g, 'vec(')
-    .replace(/\b(?:u32|uint)\(/g, 'Math.trunc(')
-    .replace(/\b(?:f32|float)\(/g, '(')
+    .replace(/\b(?:let|var) (\w+)(?::\w+)?=/g, 'let $1=')
+    .replace(/\b(?:vec2u|vec4u)\(/g, 'vec(')
+    .replace(/\bu32\(/g, 'Math.trunc(')
+    .replace(/\bf32\(/g, '(')
     .replace(/\b(min|max|round)\(/g, 'Math.$1(')
     .replace(/\b(0x[\da-f]+|\d+)u\b/g, '$1')
     .replace(/>>/g, '>>>')
   const select = (no: unknown, yes: unknown, when: boolean) => (when ? yes : no)
-  const all = { vec, select, ...scope }
+  // The module's scalar constants the functions read, as its text declares them.
+  const all = { vec, select, ...wgslConstants(source), ...scope }
   return new Function(...Object.keys(all), `${js};return {${names}};`)(...Object.values(all))
 }

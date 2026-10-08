@@ -8,16 +8,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { maxStretch } from '../../../packages/sdk-core/src/index.ts'
-import {
-  clusterPixels,
-  projectedClusterError,
-} from '../../../packages/sdk-browser/src/page/selection/math.ts'
-import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.ts'
+import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts'
+import { clusterPixels } from '../../../packages/sdk-browser/src/page/selection/frame.fixture.ts'
+import { drawsCluster } from '../../../packages/sdk-browser/src/page/cut/rule.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { lois, xorshift32 } from '../kit/randomDraw.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
+import { lois } from '../kit/randomDraw.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const CLUSTERS = 20000,
@@ -37,7 +36,7 @@ interface Cluster {
 }
 
 function sample() {
-  const { hasard: chance, between: between, log } = lois(xorshift32(0x2545f491))
+  const { hasard: chance, between: between, log } = lois(xorshiftRandom(0x2545f491))
   const camera = G.perspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000)
   camera.position.set(3, -2, 7)
   camera.lookAt(-4, 1, -20)

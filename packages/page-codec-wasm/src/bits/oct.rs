@@ -1,6 +1,7 @@
-//! A page's whole normal stream through `oct_decode`, four normals at a time on `simd128` lanes.
+//! A page's whole normal stream of octahedral bytes decoded, four normals at a time on `simd128`
+//! lanes, each lane running `trillion3d_math::octahedral::oct_decode`.
 
-use super::oct_decode;
+use trillion3d_math::octahedral::oct_decode;
 
 /// `oct_decode` of the first `out.len() / 3` 16-bit codes of `words` (two per word, the low half
 /// first, as `BitReader` reads them), three float words per normal.
@@ -21,7 +22,7 @@ pub(crate) fn oct_decode_stream(words: &[u32], out: &mut [u32]) {
 fn lanes(normals: &mut [[u32; 3]], code: &impl Fn(usize) -> u32) -> usize {
     use core::arch::wasm32::*;
     let (scale, one, minus, zero) = (
-        f32x4_splat(super::OCT_SCALE),
+        f32x4_splat(trillion3d_math::octahedral::OCT_SCALE),
         f32x4_splat(1.0),
         f32x4_splat(-1.0),
         f32x4_splat(0.0),

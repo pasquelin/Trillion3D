@@ -1,15 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { collectClusterPages, type PageRec } from './selection.ts'
 import {
-  collectClusterPages,
+  createSelectionResult,
   selectVisiblePages,
-  type PageRec,
   type SelectionResult,
-} from './selection.ts'
+} from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
-import { createSelectionResult } from '../cut/state.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 /** Two frames of one view agree on what they show, want and reject. */
 function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {

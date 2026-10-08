@@ -1,4 +1,4 @@
-// The diffuse alpha is multiplied by the vertex colour's before the alpha test,
+// #347: the diffuse alpha is multiplied by the vertex colour's before the alpha test,
 // so a masked surface that reads its vertex colours is cut at base map alpha × vertex alpha. The
 // rasters did read the base map alone.
 import test from 'node:test'
@@ -7,14 +7,18 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { VIS_SHADER } from './buffer.ts'
 import { camera, centerId, nearestQuadTexture, quadPages } from './buffer.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
-import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts'
+import { maskKeepWgsl } from './shader/pageWgsl.ts'
+import { maskAlphaWgsl } from '../webgpu/tile/wgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from './shader/pageGeometryWgsl.ts'
 import { rasterSource } from '../gpu/raster/shader.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts'
-import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+
+/** The cutout's own text, the camera's: its two variants differ only by the `maskAlpha` they list. */
+const MASK_KEEP = maskKeepWgsl(maskAlphaWgsl(false)).text
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
 function covered(options: {
@@ -48,18 +52,18 @@ test('the CPU raster cuts a masked surface at base map alpha times vertex alpha'
   assert.equal(covered({ vertexColors: false, map: false, alpha: 0.2 }), true)
 })
 
-// GlTF 2.0 cuts the base colour's alpha, the factor's times the map's, and WebGL2 did; the
-// WebGPU cutout read the map's alone.
-test('a masked surface is cut at its opacity times its map alpha, in both WebGPU tests', () => {
+// #748: glTF 2.0 cuts the base colour's alpha, the factor's times the map's; the cutout read the
+// map's alone.
+test('a masked surface is cut at its opacity times its map alpha, in both raster tests', () => {
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.4 }), false)
   assert.equal(covered({ vertexColors: true, map: false, alpha: 1, opacity: 0.4 }), false)
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.6 }), true)
   assert.equal(covered({ vertexColors: false, map: false, alpha: 1, opacity: 0.4 }), false)
-  assert.ok(MASK_KEEP_WGSL.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`))
+  assert.ok(MASK_KEEP.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`))
 })
 
 test('the cutout multiplies by the vertex alpha only on a row that reads its colours', () => {
-  const keep = MASK_KEEP_WGSL.replace(/\s+\/\/[^\n]*/g, '')
+  const keep = MASK_KEEP.replace(/\s+\/\/[^\n]*/g, '')
   assert.match(keep, /fn maskKeep\(page:PageInfo,uv:vec2f,vertexAlpha:f32,/)
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`))
   assert.ok(
@@ -73,30 +77,25 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
     read > 0 && multiply > read && multiply < keep.indexOf('return alpha>=page.baseColor.w;'),
   )
   assert.ok(
-    PAGE_GEOMETRY_WGSL.includes(
+    wgslModule(PAGE_GEOMETRY_WGSL).includes(
       `if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}`,
     ),
   )
 })
 
-test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shadows pass one', () => {
+test('both rasters hand the interpolated vertex alpha to the cutout; shadows pass one', () => {
   assert.ok(VIS_SHADER.includes('@location(2) tc:vec3f,}'), 'one interpolant with the UV')
   assert.equal(
     VIS_SHADER.split('if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}').length,
     3,
     'both vertex stages',
   )
-  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,in.tc.z,').length, 3)
+  // One camera fragment stage cuts: the visibility pass always writes its depth pyramid too (#1483).
+  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,in.tc.z,').length, 2)
   const small = rasterSource(4, 16)
   assert.ok(small.includes('ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));'))
   assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it')
   assert.ok(small.includes('if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}'))
   assert.ok(small.includes('uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,'))
   assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
-})
-
-test('WebGL2 cuts at the same product: vertex colour first, then the alpha test', () => {
-  assert.ok(
-    CLUSTER_FRAGMENT.includes('if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;'),
-  )
 })

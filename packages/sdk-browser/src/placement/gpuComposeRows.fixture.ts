@@ -1,9 +1,10 @@
 // A group of crystals placed as the instances page places them, the CPU's row write of each, and
 // the compose rows pass (`composeRow`, the shipped WGSL) over such a table, run in JavaScript.
+import { TAU } from '../../../math/src/constants.ts'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { updateTransformTree } from '../../../sdk-core/src/math/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/pass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
@@ -26,7 +27,7 @@ export function crystals() {
   const meshes = Array.from({ length: N }, () => {
     const mesh = object.mesh(shape),
       reach = next() ** 0.7,
-      angle = next() * Math.PI * 2
+      angle = next() * TAU
     mesh.position.set(
       Math.cos(angle) * (0.6 + reach * 6),
       (next() - 0.5) * 0.4,

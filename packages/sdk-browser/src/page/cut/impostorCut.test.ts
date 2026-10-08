@@ -1,17 +1,18 @@
-// A root the impostor plan switches carries the card bit of its mark
+// #1314 To-do 3, #1335: a root the impostor plan switches carries the card bit of its mark
 // (`CARD_ROOT`), so every camera cut drops its clusters in the same breath as the card
 // `planImpostors` yields for it, while its mark keeps no shadow bit: the object keeps its
-// mesh's shadow. A root without the bit — WebGL2, a cache with no impostors — is cut by the plain
-// rule.
+// mesh's shadow. A root without the bit — any pre-impostor cache — is cut as before. Fails
+// on develop: the card bit and its reading are new.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts'
-import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts'
+import { collectClusterPages } from '../selection/selection.ts'
+import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
-import { pixelScaleOf } from '../../streaming/priority.ts'
+import { focalPixels } from '../../../../math/src/projection/camera.ts'
 import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts'
-import { drawsCard } from './select.ts'
+import { drawsCard } from './select.fixture.ts'
 
 /** The engine camera of a host camera, as frame entry reads it (`readCameraWorld`). */
 const engineOf = (cam: ReturnType<typeof frontCamera>) => readCameraWorld(createEngineCamera(), cam)
@@ -70,18 +71,16 @@ function impostorRoots() {
   return { fixture, roots }
 }
 
-/** The focal length in pixels the engine's one `pixelScaleOf` reads off the camera's projection. */
-function focalPixels(cam: ReturnType<typeof frontCamera>) {
-  const scale = pixelScaleOf(engineOf(cam).projection, VIEWPORT, [0, 0])
-  return Math.max(scale[0], scale[1])
-}
+/** The focal length in pixels the engine's one `focalPixels` reads off the camera's projection. */
+const focalOf = (cam: ReturnType<typeof frontCamera>) =>
+  focalPixels(engineOf(cam).projection, VIEWPORT[0], VIEWPORT[1])
 
 /** A plan as a backend builds it: the engine camera's world-to-view and the pixel focal. */
 function planFor(
   cam: ReturnType<typeof frontCamera>,
   roots: ReturnType<typeof impostorRoots>['roots'],
 ) {
-  return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam))
+  return planImpostors(roots, section, engineOf(cam).view, focalOf(cam))
 }
 
 test('a switched root is left to its card by the camera cut, its shadow kept', () => {

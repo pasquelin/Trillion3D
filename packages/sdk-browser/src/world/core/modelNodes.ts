@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts'
+import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 
 /** A node that may carry a mesh's morph weights. */

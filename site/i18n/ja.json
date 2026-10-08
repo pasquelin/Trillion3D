@@ -819,8 +819,6 @@
       "shadow-pages-off": "シャドウページングを無効化",
       "shadow-budget-0-25": "影の時間予算: 0.25ms",
       "budget-3000": "ジオメトリ予算: 3000ページ",
-      "webgl": "WebGLレンダラー",
-      "webgl2": "WebGL2レンダラー",
       "moving-light": "動くライト",
       "visible": "表示されたブラウザウィンドウ"
     },
@@ -926,7 +924,7 @@
     "resolution": "解像度とエラーのしきい値",
     "lights": "ライト・影・間接光",
     "execution": "静止画・アンチエイリアシング・実行オプション",
-    "memory": "メモリ・インスタンス・その他のレンダラー"
+    "memory": "メモリ・インスタンス・その他の実行"
   },
   "evidence": {
     "computeDrawing": "コンピュート描画",
@@ -1110,8 +1108,8 @@
     },
     "measurement-entry": {
       "title": "計測用のエントリーポイント",
-      "description": "対照実装、強制されたバックエンド、内部セッションに、名前でアクセスできる場所。公開されている`trillion3d`のエントリーからは、決してアクセスできない。",
-      "html": "<p>ページが<code>trillion3d</code>をインポートするとき、バックエンドや対照実装、内部セッションが見えることはない。<code>createWorld</code>は、マシンに応じて選ばれた1つのレンダラーで描画し、強制されたレンダラーが使えない場合は名前を示して拒否する。ベンチ、証明、比較ビューでは、それでも対照実装に名前をつける必要がある。素のThree.js、<code>THREE.LOD</code>、内部の<code>openMeasuredWorld</code>セッションなどだ。それだけを担うのが、計測専用の別のエントリーポイント<code>packages/sdk-browser/src/measurement/measurement.ts</code>である。</p>\n<p>ここでは、公開エントリーが再エクスポートするものすべてに加えて、ホストが決して必要としないものも再エクスポートしている: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界が自分自身に対して開く内部セッション)、バックエンドのファクトリー(<code>referenceBackend</code>、<code>exactPagesBackend</code>、<code>threeLodBackend</code>、<code>webgpuPagesBackend</code>、<code>autonomousPagesBackend</code>)、そして<code>replicateInstances</code>のような計測専用のヘルパーだ。これらはどれも公開される世界には届かず、アプリケーションからインポートされることもない。</p>"
+      "description": "対照実装や内部セッションに、名前でアクセスできる場所。公開されている`trillion3d`のエントリーからは、決してアクセスできない。",
+      "html": "<p>ページが<code>trillion3d</code>をインポートするとき、対照実装や内部セッションが見えることはない。<code>createWorld</code>はWebGPUで描画し、マシンがWebGPUを提供しない場合は名前を示して拒否する。ベンチと証明では、それでも対照実装に名前をつける必要がある。素のThree.js、<code>THREE.LOD</code>、内部の<code>openMeasuredWorld</code>セッションなどだ。それだけを担うのが、計測専用の別のエントリーポイント<code>packages/sdk-browser/src/measurement/measurement.ts</code>である。</p>\n<p>ここでは、公開エントリーが再エクスポートするものすべてに加えて、ホストが決して必要としないものも再エクスポートしている: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界が自分自身に対して開く内部セッション)、ページのファクトリー<code>webgpuPagesEngine</code>、そして<code>replicateInstances</code>のような計測専用のヘルパーだ。これらはどれも公開される世界には届かず、アプリケーションからインポートされることもない。</p>"
     },
     "createWorldJob": {
       "title": "取り消せるジョブとしての世界の読み込み",
@@ -1160,11 +1158,11 @@
       "description": "1フレームが何を描くか。利用可否は実際のパイプライン出力を表し、合成的なオーバーレイではない: `DIAGNOSTICS`は、モードごとに、有効なレンダラーがそれを生成できるかどうかと、できない理由を示す。",
       "values": [
         "glTFのマテリアルによる、ライティング済みの画像。",
-        "送信された三角形ごとに単色で塗りつぶしたもの — GL_LINESでも`MeshBasicMaterial.wireframe`でもない。",
-        "安定したプリミティブ/ページのID。クラスターごとに1色。WebGL2とWebGPUの両方。",
+        "送信された三角形ごとに単色で塗りつぶしたもの。",
+        "安定したプリミティブ/ページのID。クラスターごとに1色。",
         "レベル0のクラスターと、このフレームで実際に選ばれたより粗いDAG簡略化との比較。",
         "クラスターごとの誤差を、カットが使うのと同じ形でクラスター球に投影したもの。",
-        "マテリアルのクラスごとに1色: そのピクセルを解決したクラスパス。WebGPUのビジビリティパスのみ。",
+        "マテリアルのクラスごとに1色: そのピクセルを解決したクラスパス。",
         "選択された可視ページ。棄却された階層ノードは数えられるが、描画されない。",
         "接続されたインデックスページ。欠けているページは描画されない。物理VRAMではない。",
         "利用不可: テクスチャのミップ常駐は計測されていない。",
@@ -1215,7 +1213,7 @@
     },
     "GpuTimingMethod": {
       "description": "ステージプロファイルのGPU時間がどう取得されたか。パスごとの時間は「どこで」を示すだけで、「どれだけ」ではない: タイルベースのGPUではパスが重なり合い、あるパスが隣接パスの作業を吸収してしまう。フレーム合計は`gpuImageMs`、つまり全体時間であり、各ステージの時間はそこに足し合わされるものではない。",
-      "values": ["ネイティブのWebGPUタイムスタンプクエリ。", "そのパス用のWebGL2拡張。"]
+      "values": ["ネイティブのWebGPUタイムスタンプクエリ。"]
     },
     "ColumnKind": {
       "description": "バイナリマニフェストの各列の保存形式。`COLUMN_KIND`は各列名をその種類に対応づけ、読み手がサイドカーのバイト列に対してどのビューを取るべきかがわかる。",
@@ -1244,7 +1242,7 @@
       "description": "保留中の処理をエンジンのジョブ契約でラップする: スナップショット(`JobStatus`、進捗、結果、エラー)、購読、そしてジョブが保持していたものを破棄する中止処理。その処理自体が、自分の持ち主(RAF、読み戻しなど)を通じた中止に対応している必要がある。"
     },
     "detectCapabilities": {
-      "description": "世界が作られる前に、このマシンが実際に何をサポートしているか: `{ tier, renderer, adapter, extensions, reason }`。理由は常に示されるので、サポートされていない機能は推測ではなく報告される。世界が読む公開ラッパーは`capability.detect()` — 同じ検査に対する`{ webgpu, webgl2, ... }`というより単純な形。WebGL2の検査結果はキャッシュされる。"
+      "description": "世界が作られる前に、このマシンのWebGPUが実際に何を提供するか: `{ tier, adapter, extensions, reason }`。tierは、GPUタイムスタンプクエリがあれば`full`、なければ`degraded`、アダプターがなければ`unavailable`。理由は常に示されるので、サポートされていない機能は推測ではなく報告される。世界が読む公開ラッパーは`capability.detect()` — 同じ検査に対する`{ webgpu, tier, features, reason }`というより単純な形。"
     },
     "perspectiveProjection": {
       "description": "垂直方向の`fov`(度)、比率`aspect`、近平面`near`、ズーム`zoom`を持つカメラの透視投影。**反転された深度、無限遠の遠平面**: `near`は1に、無限遠は0に投影される。ここには遠平面が入らず、それによる除算も存在しない — これが深度の精度を稼いでいる理由だ。"
@@ -1304,7 +1302,7 @@
       "description": "`out = transpose(inverse(mの3×3ブロック))`を、列優先の9個の数値で計算する: `m`で変換された表面の法線を運ぶ行列で、せん断や非一様スケールも含む。逆行列は参照実装のもの(余因子と積の順序を含む)で、その後、浮動小数点演算なしに転置される。**特異な行列では、割り算されていない余因子行列をそのまま書き込む**。参照実装のゼロ行列ではない: 特異な姿勢は表面を消し去るのではなく、平面につぶすのであり、局所法線に適用された余因子行列は、変換されたエッジの外積そのもの(符号を含む)になる — その後、すべての利用側が正規化する。ゼロ・無限・NaNのスケールのときだけ、9個のゼロとして別扱いされる。"
     },
     "linearPartScale": {
-      "description": "WGSLカーネルの形をした、エンジン唯一の特異性ルール。スケールは線形部分の9項の絶対値の和であり、行列式は**その積の前にスケールで割った**列に対して取られる。生の行列式をその3乗で割るのではない — `t³`は1e103を超えてオーバーフローし、1e-103未満で消えてしまう。まさにこのルールが判断すべき範囲でだ。`adjugateFactor`は、正則な行列(参照実装のビット)には`1 / determinant`を、特異な行列(余因子行列のまま)には`1`を、スケールが有限かつ厳密に正でない場合には`null`を返す。この場合は余因子行列自体をゼロで置き換える必要がある。`SINGULAR_DETERMINANT_WGSL`はシェーダーが書き込むのと同じしきい値だ: 1つの数値を、2つの言語で。"
+      "description": "WGSLカーネルの形をした、エンジン唯一の特異性ルール。スケールは線形部分の9項の絶対値の和であり、行列式は**その積の前にスケールで割った**列に対して取られる。生の行列式をその3乗で割るのではない — `t³`は1e103を超えてオーバーフローし、1e-103未満で消えてしまう。まさにこのルールが判断すべき範囲でだ。`adjugateFactor`は、正則な行列(参照実装のビット)には`1 / determinant`を、特異な行列(余因子行列のまま)には`1`を、スケールが有限かつ厳密に正でない場合には`null`を返す。この場合は余因子行列自体をゼロで置き換える必要がある。"
     },
     "basisMatrix4": {
       "description": "列`u`、`v`、`n`、そして原点、最後の行は`(0, 0, 0, 1)`。そして`center`に置かれる一様スケール`s`。どちらも、ホストライブラリの2回の呼び出しを1回の書き込みに置きかえる。"
@@ -1336,8 +1334,8 @@
     "srgbToLinear": {
       "description": "正確なsRGB曲線 — 0.04045未満では`c / 12.92`、それ以上では`((c + 0.055) / 1.055)^2.4` — とその逆。負の値は指数を取る前にゼロにクランプされる。"
     },
-    "hslToLinearRgb": {
-      "description": "色相、彩度、明度を、`out[o..o+2]`に書き込まれる3つの線形成分に変換する。参照実装の`setHSL`を項ごとに再現: 色相はラップされ、彩度と明度は`[0, 1]`にクランプされ、彩度ゼロはグレーとして返され、それから区分的なランプが適用される。伝達曲線は適用されない — 参照実装の作業空間はすでに線形だからだ。"
+    "hslToRgb": {
+      "description": "色相、彩度、明度を、`out[o..o+2]`に書き込まれる3つのRGB成分に変換する。参照実装の`setHSL`を項ごとに再現: 色相はラップされ、彩度と明度は`[0, 1]`にクランプされ、彩度ゼロはグレーとして返され、それから区分的なランプが適用される。RGBはHSLが与えられたのと同じエンコーディングで出力される: 伝達曲線は適用されない。"
     },
     "boxUnion": {
       "description": "ボックスは`o`から平坦に保存された6個の数値: 下限3つ、上限3つ。空のボックスは下限が`+Infinity`、上限が`-Infinity`。NaNの境界があってもボックスが空になるわけではない。拡張と統合は境界を引数として受け取るので、呼び出しごとに一時オブジェクトが作られることはない。"
@@ -1358,7 +1356,7 @@
       "description": "フラスタムに対するボックスの判定: 前者は、ある平面が8つの頂点すべてを裏側に残すときにtrueになる。後者は2回のパスで3つの状態(0=外側、1=またがる、2=完全に内側)を返す。1回目は棄却のみを行い、2回目は最も後方の頂点を読んで「またがる」と「内側」を区別する。あるサブツリーが完全に内側であれば、その下のすべてのボックスへのテストを省ける。"
     },
     "boxConeRejects": {
-      "description": "あるワールド上の点から見た法線円錐による局所ボックスの棄却: ボックスはその球で置きかえられ、円錐の軸は正規化された法線行列から運ばれ、判定はクランプされた内積、円錐の角度、そして球の遠近感による広がりに基づいて行われる。変換は、その列が`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。テストが受け付けないパラメータも棄却しない。`_WGSL`版はシェーダーのテキストと同じ定数なので、CPU側の鏡とGPUのパスがずれることはない。"
+      "description": "あるワールド上の点から見た法線円錐による局所ボックスの棄却: ボックスはその球で置きかえられ、円錐の軸は正規化された法線行列から運ばれ、判定はクランプされた内積、円錐の角度、そして球の遠近感による広がりに基づいて行われる。変換は、その列が`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。テストが受け付けないパラメータも棄却しない。"
     },
     "createTransformTree": {
       "description": "エンジンのトランスフォーム階層。データ指向で、ノードは平坦な配列へのインデックスだ: 親、フラグ、位置、クォータニオン`(x, y, z, w)`、スケール、ローカル行列、ワールド行列。`localViews[i]`と`worldViews[i]`は、成長時にのみ作られる16個の数値のビューで、更新時には作られない: GPUはバッファ全体を読み、カーネルは1つのノードのビューを読む。新しいノードは参照実装の新しいオブジェクトと同じ: 位置ゼロ、回転は単位元、スケール1、行列は単位行列、自動更新。成長のたびにすべての配列が置きかわるので、呼び出し元は追加の後に`tree.world`や`tree.worldViews`を読み直す必要がある。"
@@ -1385,25 +1383,25 @@
       "description": "`n`個の行列で変換された`n`個のボックス: `out[i] = boxTransform(boxes[i], mats[i])`。`out`と`boxes`は要素あたり6個の数値、`mats`は16個のサブビューを持つ。"
     },
     "hierarchyUpdateBatch": {
-      "description": "階層全体を一度のパスで更新する: `n`個のノードを親が子より先になるよう並べ、それぞれがローカル行列を合成してから親のワールド行列と掛け合わせる — これは`packages/sdk-core/src/math/transform-tree/update.ts`の走査と同じ、平坦なバッファ上での同じ2つの式・同じ順序だ。`parents[i]`は**必ず**すでに更新済みのノードを指さねばならず、つまり厳密に`i`より小さくなければならない; それ以外の値(`HIERARCHY_ROOT`の番人値を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの経路でも同一だ: どんな入力であっても、両者を食い違わせることはできない。`local`は1つの作業用行列で、すべての要素で使い回される。"
+      "description": "階層全体を一度のパスで更新する: `n`個のノードを親が子より先になるよう並べ、それぞれがローカル行列を合成してから親のワールド行列と掛け合わせる — これは`packages/sdk-core/src/world/transform-tree/update.ts`の走査と同じ、平坦なバッファ上での同じ2つの式・同じ順序だ。`parents[i]`は**必ず**すでに更新済みのノードを指さねばならず、つまり厳密に`i`より小さくなければならない; それ以外の値(`HIERARCHY_ROOT`の番人値を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの経路でも同一だ: どんな入力であっても、両者を食い違わせることはできない。`local`は1つの作業用行列で、すべての要素で使い回される。"
     },
     "createPathGovernor": {
       "description": "名前つきの演算ごとに、JSとWebAssemblyのどちらを裁定するか: 要素あたりのナノ秒の移動中央値、その優位が5回連続の実行の後にのみ切りかわるという規則、そして50回に1回、もう一方のパスを再実行して中央値を更新する。5サンプル未満では何も決まらない — 単一の値が中央値になってしまうからだ。`metrics()`は演算ごとに`path`、`jsNsPerElement`、`wasmNsPerElement`、切りかえの回数、そして計測の基礎になる時計の分解能を公開する。"
     },
     "frustumKeepsBoxBatch": {
-      "description": "6個の数値(最小値、最大値)からなる`n`個のボックスを、フラスタムの24個の浮動小数点数と比較する: `kept[i]`は、ボックスが交差するか内側にある場合に1になり、保持された件数が返される — `frustumExcludesBox`を反転したもので、参照実装が答える極性と同じだ。球のバッチは、ボックスごとに`SPHERE_VALUES`個の数値(中心、そして頂点までの半径)を、`sphereFromBounds`と同じように書き込む。どちらのループも`packages/sdk-core/src/math/batch/culling.ts`にある。"
+      "description": "6個の数値(最小値、最大値)からなる`n`個のボックスを、フラスタムの24個の浮動小数点数と比較する: `kept[i]`は、ボックスが交差するか内側にある場合に1になり、保持された件数が返される — `frustumExcludesBox`を反転したもので、参照実装が答える極性と同じだ。球のバッチは、ボックスごとに`SPHERE_VALUES`個の数値(中心、そして頂点までの半径)を、`sphereFromBounds`と同じように書き込む。どちらのループも`packages/math/src/batch/culling.ts`にある。"
     },
     "boxUnionBatch": {
       "description": "`into`を`n`個のボックスで拡張するか、あるいは`n`個のボックスをそれぞれ自分の行列で変換してから拡張する — どちらも1回のパス、1つの作業用ボックス、確保なしで行う。両方とも`boxUnion`を繰り返し、後者はその前に`boxTransform`を行う: シーン全体のワールド境界を1回の呼び出しで得られる。"
     },
     "invertMatrix4Batch": {
-      "description": "`n`個の逆行列、`NORMAL_MATRIX_VALUES`個の数値からなる`n`個の法線行列、`n`個の`T · R · S`合成、`n`個の分解。行列式がゼロの行列は単位行列に反転され、`singular[i]`にフラグが立つ — バッチの途中で例外が投げられることはない。`composeMatrix4Batch`は、すべてを平坦な配列として渡すか、すべてをサブビューとして渡すかのどちらかを取り、ループの前にその形式を確定する。この4つのループは`packages/sdk-core/src/math/batch/transforms.ts`にある。"
+      "description": "`n`個の逆行列、`NORMAL_MATRIX_VALUES`個の数値からなる`n`個の法線行列、`n`個の`T · R · S`合成、`n`個の分解。行列式がゼロの行列は単位行列に反転され、`singular[i]`にフラグが立つ — バッチの途中で例外が投げられることはない。`composeMatrix4Batch`は、すべてを平坦な配列として渡すか、すべてをサブビューとして渡すかのどちらかを取り、ループの前にその形式を確定する。この4つのループは`packages/math/src/batch/transforms.ts`にある。"
     },
     "transformPointsBatch": {
       "description": "3個の数値からなる`n`個の点を、1つのアフィン行列で、あるいは点ごとに1つの行列で変換する; `n`個の方向を上位3×3行列で変換してから正規化する。平行移動は無視される。これらは`transformAffinePoint`と`transformDirectionVector3`を繰り返したものだ。"
     },
     "srgbToLinearBatch": {
-      "description": "要素ごとに1チャンネル、`packages/sdk-core/src/math/primitives/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
+      "description": "要素ごとに1チャンネル、`packages/math/src/color/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
     },
     "scene-editor": {
       "title": "エディターでシーンを組み立てる",
@@ -1624,11 +1622,10 @@
       "an angle at or above π/2 never rejects": "π/2以上の角度は決して棄却しない",
       "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root)の後",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "利用可能 — 接続されたインデックスページ。欠けているページは描画されない。物理VRAMではない",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "利用可能 — 送信された三角形ごとに単色で塗りつぶし。GL_LINESのワイヤーフレームではない",
+      "available — A filled unique colour per submitted triangle": "利用可能 — 送信された三角形ごとに単色で塗りつぶし",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "利用可能 — レベル0のクラスターと、このフレームで実際に選ばれたより粗いDAG簡略化との比較",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "利用可能 — カットが使う形で、クラスター球に投影されたクラスターごとのスクリーン誤差",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "利用可能 — 選択された可視ページ。棄却された階層ノードは数えられるが描画されない",
-      "available — Stable primitive/page ID, exact-cluster backend only": "利用可能 — 安定したプリミティブ/ページID。厳密クラスターバックエンドのみ",
       "available — glTF materials": "利用可能 — glTFのマテリアル",
       "unavailable — No fragment counter": "利用不可 — フラグメントカウンターがない",
       "unavailable — Texture mip residency not instrumented": "利用不可 — テクスチャミップの常駐は計測されていない",

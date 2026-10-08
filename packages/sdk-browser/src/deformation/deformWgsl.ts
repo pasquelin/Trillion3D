@@ -2,6 +2,13 @@ import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.t
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts'
 import { DEFORM_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
+import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
+import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 
 /**
  * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
@@ -16,7 +23,17 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS }
  * The record lives in the float pool the passes already bind (`positions`), after its vertices:
  * no binding is added to any pass.
  */
-export const DEFORM_WGSL = `
+export const DEFORM_WGSL = wgslBlock(
+  'DEFORM_WGSL',
+  [
+    worldMatrix3,
+    transformPoint,
+    PAGE_INFO_STRUCT_WGSL,
+    CLUSTER_HEADER_WGSL,
+    clusterDecodeWgsl('indices'),
+    PAGE_POINTS_WGSL,
+  ],
+  `
 fn wholeVertex(page:PageInfo,vertex:u32)->u32{
  let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);
 }
@@ -132,8 +149,9 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let rest=pageRestPosition(page,h,vertex);
   let m=deformMatrix(a.world);
-  let world=(m*vec4f(rest,1.0)).xyz;
-  n=transpose(mat3x3f(m[0].xyz,m[1].xyz,m[2].xyz))*deformWaves(a.wave,a.waves,world,false,true);
+  let world=transformPoint(m,rest);
+  n=transpose(worldMatrix3(m))*deformWaves(a.wave,a.waves,world,false,true);
  }
  return normalize(n);
-}`
+}`,
+)

@@ -34,7 +34,7 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
         for vertex in 0..3 {
             let at = base + vertex * 3;
             let point = [triangles[at], triangles[at + 1], triangles[at + 2]];
-            crate::shared_math::extend_aabb_f32(&mut low, &mut high, point);
+            trillion3d_math::aabb::extend_aabb_f32(&mut low, &mut high, point);
         }
     }
     (low, high)
@@ -116,13 +116,11 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
     if triangles.is_empty() {
         return [0.0; 6];
     }
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
+    let mut out = trillion3d_math::aabb::EMPTY_FLAT;
     for vertex in triangles.as_chunks::<3>().0 {
-        let point = [vertex[0] as f64, vertex[1] as f64, vertex[2] as f64];
-        crate::shared_math::extend_aabb(&mut low, &mut high, point);
+        trillion3d_math::aabb::extend_flat(&mut out, vertex.map(f64::from));
     }
-    [low[0], low[1], low[2], high[0], high[1], high[2]]
+    out
 }
 
 /// Binary tree flattened into subtree skips: six bound numbers and three integers per

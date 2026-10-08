@@ -84,14 +84,3 @@ fn steps_and_splines_read_their_own_layout() {
     sample_tracks(&tracks, &data, &mut keys, &mut arcs, &mut out, 0.5);
     assert_eq!(out[0], 4.0);
 }
-
-#[test]
-fn the_normalisation_falls_back_to_the_scaled_length_out_of_range() {
-    let mut q = [1e300, 1e300, 0.0, 0.0];
-    normalize(&mut q);
-    assert_eq!(q[0], q[1]);
-    assert!((q[0] - core::f64::consts::FRAC_1_SQRT_2).abs() < 1e-15);
-    let mut zero = [0.0, -0.0, 0.0, 0.0];
-    normalize(&mut zero);
-    assert!(zero[1].is_sign_negative() && zero[0] == 0.0);
-}

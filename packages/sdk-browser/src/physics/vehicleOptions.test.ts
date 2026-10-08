@@ -1,3 +1,4 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts'
@@ -15,7 +16,7 @@ const WHEELBASE = 2.66
 /** The body's pitch, radians: its nose's rise. */
 function pitch(rig: Rig) {
   const [x, y, z, w] = rig.turn(rig.body)
-  return Math.asin(Math.max(-1, Math.min(1, 2 * (w * x - y * z))))
+  return Math.asin(clamp(2 * (w * x - y * z), -1, 1))
 }
 /** A wheel's turn about y from straight ahead, radians: its axle, (0, 1, 0) on the cylinder. */
 function steerOf(rig: Rig, wheel: number) {

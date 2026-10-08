@@ -1,3 +1,5 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
+
 /** Actual active allocations admitted by the existing global split. Shadow bytes
  * include static/transmission/request storage once, plus held batch buffers. Frame
  * targets include the other live views and the proposed replacement of this view.
@@ -49,11 +51,11 @@ export function admittedPools(
   if (available < required)
     throw new Error(`GPU_BUDGET_UNDER_MINIMUM: available=${available}, required=${required}`)
   const floors = Math.max(1, geometryMinimum) + Math.max(1, textureMinimum)
-  available = Math.min(available, Math.max(floors, available - reserve))
+  available = clamp(available - reserve, floors, available)
   const geometryMax = Math.max(geometryMinimum, geometryCeiling)
   const textureMax = Math.max(textureMinimum, textureCeiling)
-  let geometryPool = Math.min(geometryMax, Math.max(geometryMinimum, Math.floor(available / 2)))
-  let texturePool = Math.min(textureMax, Math.max(textureMinimum, available - geometryPool))
+  let geometryPool = clamp(Math.floor(available / 2), geometryMinimum, geometryMax)
+  let texturePool = clamp(available - geometryPool, textureMinimum, textureMax)
   geometryPool = Math.min(geometryMax, available - texturePool)
   texturePool = Math.min(textureMax, available - geometryPool)
   return { geometryPool, texturePool }

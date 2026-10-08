@@ -3,14 +3,14 @@
 import * as THREE from 'three'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
-import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { meshes as objects } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /** `pagesBounds`: one `find` per mesh, three objects per exact page. */
 export function referenceExactPagesBounds(
   source: Object3D,
-  associations: BackendContext['associations'],
+  associations: EngineContext['associations'],
   metadata: ClusterManifest,
   onMissing: (mesh: HostMesh) => void,
   into = new THREE.Box3(),

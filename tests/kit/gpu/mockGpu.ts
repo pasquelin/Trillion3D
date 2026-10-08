@@ -1,15 +1,15 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts'
-import { bytesOf } from './globals.ts'
+import { bytesOf, installGpuGlobals } from './globals.ts'
 import { mockBuffers, type MapFaults, type MockWrite } from './mockBuffers.ts'
 import { asWebgpuDevice, untag } from './fakeWebgpuDevice.ts'
+import { fakeBundleEncoder } from './fakeBundles.ts'
 
-/** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
- *  the failures it injects. `compute` gives the device compute pipelines without a DAG. */
+/** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on — the
+ *  one the session uploads when none is given (`mockDag.ts`) —, and the failures it injects. */
 export type MockGpuOptions = MapFaults & {
   limits?: Record<string, number>
   packed?: PackedDag
-  compute?: boolean
   rejectR32?: boolean
   failVisPass?: boolean
   failCompact?: boolean
@@ -17,22 +17,21 @@ export type MockGpuOptions = MapFaults & {
 }
 
 /**
- * The device that executes, in Node: command encoders record passes, draws and copies, compute
- * dispatches run on the CPU doubles of their kernels (`mockCompute.ts`), and `asWebgpuDevice`
- * gives it WebGPU's error scopes, uncaptured errors, loss and `this` checks. A whole pages
- * backend, or a compute module whose results a test reads back, runs on it. A test that only
- * records what one module creates uses `fakeDevice()` instead.
+ * The device that executes, in Node: encoders record passes, draws, bundles and copies, compute
+ * dispatches run on their kernels' CPU doubles (`mockCompute.ts`), `asWebgpuDevice` adds error
+ * scopes, loss, `this` checks and WebGPU's validation (`validation.ts`). A pages backend runs on
+ * it; `fakeDevice()` only records.
  */
 export function mockGpu({
   limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
   packed,
-  compute = false,
   rejectR32 = false,
   failVisPass = false,
   failCompact = false,
   failCompile = false,
   ...faults
 }: MockGpuOptions = {}) {
+  installGpuGlobals()
   const draws: MockDraw[] = [],
     writes: MockWrite[] = []
   // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
@@ -62,7 +61,8 @@ export function mockGpu({
   const computes: string[] = [],
     commands: string[] = [],
     imageCopies: unknown[] = []
-  const renderPipelines: GPURenderPipelineDescriptor[] = []
+  const renderPipelines: GPURenderPipelineDescriptor[] = [],
+    computePipelines: GPUComputePipelineDescriptor[] = []
   const layouts: Array<{ entries: Array<{ binding: number; buffer?: { type?: string } }> }> = []
   const members: Record<string, unknown> = {
     limits,
@@ -93,7 +93,7 @@ export function mockGpu({
         views,
         destroyed: false,
         destroy: () => void (tex.destroyed = true),
-        createView(desc?: { dimension?: string }) {
+        createView(desc?: GPUTextureViewDescriptor) {
           const view = { format, ...desc }
           views.push(view)
           return view
@@ -127,7 +127,14 @@ export function mockGpu({
         getBindGroupLayout: () => ({}),
       }
     },
+    createComputePipeline: (descriptor: GPUComputePipelineDescriptor) => {
+      computePipelines.push(descriptor)
+      const stage = descriptor.compute as GPUProgrammableStage & { entryPoint: string }
+      if (failCompact && stage.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT')
+      return stage
+    },
     createBindGroup: (desc: unknown) => desc,
+    createRenderBundleEncoder: fakeBundleEncoder,
     createCommandEncoder: createMockCommandEncoderFactory({
       draws,
       passes,
@@ -171,11 +178,6 @@ export function mockGpu({
       onSubmittedWorkDone: async () => {},
     },
   }
-  if (packed || compute)
-    members.createComputePipeline = ({ compute: stage }: { compute: { entryPoint: string } }) => {
-      if (failCompact && stage.entryPoint === 'scatterGroups') throw new Error('NO_COMPACT')
-      return stage
-    }
   return {
     ...asWebgpuDevice(members),
     draws,
@@ -192,5 +194,6 @@ export function mockGpu({
     destroyedMaps,
     textureWrites,
     renderPipelines,
+    computePipelines,
   }
 }

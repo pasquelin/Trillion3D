@@ -1,3 +1,4 @@
+import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -60,7 +61,7 @@ test('the threaded module steps on its pool, and a body asleep out of view says 
 })
 
 test('a memory budget below the module’s own memory is refused', async () => {
-  await assert.rejects(startModule({ memoryBytes: 1024 * 1024 }), { code: 'PHYSICS_BUDGET' })
+  await assert.rejects(startModule({ memoryBytes: MIB }), { code: 'PHYSICS_BUDGET' })
 })
 
 test('a body past the bodies budget is refused with PHYSICS_BUDGET', () => {
