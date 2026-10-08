@@ -96,6 +96,8 @@ export async function playScenario(options: BenchOptions, stem: string) {
       numbers,
       passes: passTimes(frames),
       benchPasses: bench,
+      /** The engine's own counters at the segment's last image. */
+      engine: { ...engine },
       doubts: timerDoubts({
         passes: bench,
         frame: numbers.gpuMs,

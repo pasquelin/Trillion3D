@@ -8,9 +8,9 @@ import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { compare, type Comparison } from './abStats.ts'
 import { runChild } from './child.ts'
+import { childArgs } from './childArgs.ts'
 import { LOCK_OWNER } from './lock.ts'
 import { stamp, type BenchOptions } from './options.ts'
-import { pageFile } from './page.ts'
 import type { BenchPlay } from './play.ts'
 import { engineRoot } from './engineRoot.ts'
 import { ms, percent, table } from './reportText.ts'
@@ -29,13 +29,7 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
       options.scenarioArg,
       '--engine',
       root,
-      ...(options.dirtyOk ? ['--dirty'] : []),
-      '--warm',
-      String(options.warm),
-      '--timeout',
-      String(options.timeoutS),
-      '--scale',
-      options.scale,
+      ...childArgs(process.argv.slice(2)),
       '--child-report',
       report,
     ],
@@ -73,7 +67,7 @@ export async function abTest(
   const out = measureOutput('bench-gpu')
   mkdirSync(out, { recursive: true })
   const [a, b] = sides.map((side) => engineRoot(side, options.dirtyOk).root)
-  const page = pageFile(options.name, options.engine.root)
+  const page = options.file
   const plays = { a: [] as BenchPlay[], b: [] as BenchPlay[] }
   for (let round = 0; round < rounds; round++) {
     // The order flips every round: neither side always runs first on a cold GPU.

@@ -22,6 +22,7 @@ export function hookAfter(
   }
 }
 
-/** Gives `use` what a creation call made, once it exists: a pipeline made async is a promise. */
+/** Gives `use` what a creation call made, once it exists: a pipeline made async is a promise. A
+ *  rejection is the engine's to handle, never an unhandled one of the bench's. */
 export const onMade = (made: unknown, use: (made: object) => void) =>
-  made instanceof Promise ? void made.then(use) : use(made as object)
+  made instanceof Promise ? void made.then(use, () => {}) : use(made as object)

@@ -6,15 +6,17 @@ import { pageFile } from './page.ts'
 import { PROFILES } from './profiles.ts'
 import { readScenario } from './scenario.ts'
 
-/** The run's page, scenario, machine profile, display, repeats and address switches. */
 /** `--ab A B` is two values: the second goes to `--ab-b`, so it is no page. */
 const abArgs = (args: string[]) => {
   const at = args.indexOf('--ab')
-  return at < 0
-    ? args
-    : [...args.slice(0, at), '--ab', args[at + 1], '--ab-b', args[at + 2], ...args.slice(at + 3)]
+  if (at < 0) return args
+  const [a, b] = [args[at + 1], args[at + 2]]
+  if (!a || !b || a.startsWith('--') || b.startsWith('--'))
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
+  return [...args.slice(0, at), '--ab', a, '--ab-b', b, ...args.slice(at + 3)]
 }
 
+/** The run's page, scenario, machine profile, display, repeats and address switches. */
 export function benchOptions(args = process.argv.slice(2)) {
   args = abArgs(args)
   const { positionals, values } = parseArgs({
@@ -43,6 +45,9 @@ export function benchOptions(args = process.argv.slice(2)) {
       'child-report': { type: 'string' },
     },
   })
+  const rounds = Number(values.rounds)
+  if (!Number.isInteger(rounds) || rounds < 2)
+    throw new Error(`BENCH_AB: --rounds ${values.rounds}: two rounds at least, a whole number`)
   const scenario = readScenario(values.scenario)
   const page = positionals[0] ?? scenario.page
   if (!page || positionals.length > 1)
@@ -76,7 +81,7 @@ export function benchOptions(args = process.argv.slice(2)) {
     dirtyOk: values.dirty,
     dissect: values.dissect,
     ab: values.ab && values['ab-b'] ? ([values.ab, values['ab-b']] as [string, string]) : undefined,
-    rounds: Math.max(2, Number(values.rounds)),
+    rounds,
     least: Number(values.least),
     scenarioArg: values.scenario,
     dissectSegment: values['dissect-segment'],

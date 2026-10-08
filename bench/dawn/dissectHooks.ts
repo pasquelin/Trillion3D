@@ -9,12 +9,13 @@ import { cutAt, cutsOf, hashOf } from './shaderCuts.ts'
 export type DissectSpec = { pass: string; hash: string; cut: string | null }
 
 /** The modules a pass ran, by pass label: each by hash, with its cut points. */
-export type DissectModules = Record<string, { hash: string; cuts: string[] }[]>
+export type DissectModules = Record<string, { hash: string; cuts: string[]; count: number }[]>
 
 /** A module's text, its hash and its cut points, read once when it is made. */
 const infos = new WeakMap<object, { hash: string; cuts: string[] }>()
 const pipelines = new WeakMap<object, object[]>()
-const seen = new Map<string, Map<string, string[]>>()
+/** By pass label, then module hash: its cut points and how many times a pass set a pipeline of it. */
+const seen = new Map<string, Map<string, { cuts: string[]; count: number }>>()
 let active: DissectSpec | null = null
 
 /** Changes the cut the next modules are made with: a proof runs every variant in one process. */
@@ -70,8 +71,10 @@ export function installDissect(
       for (const module of pipelines.get(pipeline as object) ?? []) {
         const info = infos.get(module)
         if (!info) continue
-        const modules = seen.get(label) ?? new Map<string, string[]>()
-        modules.set(info.hash, info.cuts)
+        const modules = seen.get(label) ?? new Map<string, { cuts: string[]; count: number }>()
+        const held = modules.get(info.hash) ?? { cuts: info.cuts, count: 0 }
+        held.count++
+        modules.set(info.hash, held)
         seen.set(label, modules)
       }
     })
@@ -81,6 +84,7 @@ export function installDissect(
 export function dissectModules(pass: string): DissectModules {
   const out: DissectModules = {}
   for (const [label, modules] of seen)
-    if (label.includes(pass)) out[label] = [...modules].map(([hash, cuts]) => ({ hash, cuts }))
+    if (label.includes(pass))
+      out[label] = [...modules].map(([hash, { cuts, count }]) => ({ hash, cuts, count }))
   return out
 }

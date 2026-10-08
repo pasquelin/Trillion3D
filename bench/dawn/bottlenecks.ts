@@ -64,6 +64,8 @@ function causeOf(
   counters: Record<string, unknown>,
 ): [Cause, string] {
   const work = pass.median
+  // A pass that took no time has nothing to gain, and a floor of zero is not most of zero.
+  if (work < 0.001) return ['unproven', 'under 1 µs measured: nothing to gain']
   const idle = IDLE_COUNTERS[pass.stage]
   if (idle && counters[idle[0]] === 0 && work > 0.02)
     return ['wasted work', `${inMs(work)} with ${idle[1]} (${idle[0]} = 0)`]
@@ -130,9 +132,11 @@ export function rankBottlenecks(
     .sort((a, b) => b.workMs - a.workMs)
 }
 
-/** The `count` biggest gains the ranking holds: by the most each could give, the waits counted at
- *  the idle they cost — the ms one removes by feeding the GPU, not by speeding the pass. */
+/** What a pass could give back, at most: its gain, or, for a wait, the idle it costs — the ms one
+ *  removes by feeding the GPU, not by speeding the pass. */
+export const gainOf = (b: Bottleneck) => (b.cause === 'wait' ? b.waitMs : b.gainMs)
+
+/** The `count` biggest gains the ranking holds. */
 export function topGains(ranking: readonly Bottleneck[], count = 5) {
-  const gain = (b: Bottleneck) => (b.cause === 'wait' ? b.waitMs : b.gainMs)
-  return [...ranking].sort((a, b) => gain(b) - gain(a)).slice(0, count)
+  return [...ranking].sort((a, b) => gainOf(b) - gainOf(a)).slice(0, count)
 }

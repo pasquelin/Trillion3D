@@ -28,16 +28,21 @@ export const emptyWork = (): PassWork => ({
   boundBytes: 0,
 })
 
-/** A texture's bytes whole (every level) and of its first level and layer, what an attachment stores. */
-type Texture = { bytes: number; stored: number }
+/** A texture: its bytes whole (every level), and what `viewed` needs to size a level of it. */
+type Texture = {
+  bytes: number
+  width: number
+  height: number
+  format: GPUTextureFormat
+  samples: number
+}
 const textures = new WeakMap<object, Texture>()
-const views = new WeakMap<object, object>()
+/** A view: its texture, and the bytes of the one level and layer it shows — what an attachment stores. */
+const views = new WeakMap<object, { owner: object; texture: Texture; stored: number }>()
 const bound = new WeakMap<object, Map<object, number>>()
 const codes = new WeakMap<object, string>()
 const sizes = new WeakMap<object, number>()
 /** The pipeline a compute pass last set, and what it bound, so a binding counts once. */
-/** What a lookup that finds nothing is given: no allocation on a miss. */
-const NONE = Object.freeze({})
 const passes = new WeakMap<object, { size: number; seen: Set<object> }>()
 
 /** The workgroup size of `entry` in WGSL `code`: its `@workgroup_size` product, 1 when none reads. */
@@ -49,29 +54,44 @@ function workgroupSize(code: string, entry: string | undefined) {
   return mine ? mine[1].split(',').reduce((p, v) => p * (Number(v.trim()) || 1), 1) : 1
 }
 
-/** The bytes a render pass descriptor stores in its attachments: each attachment's pixels. */
+/** The bytes a render pass descriptor stores in its attachments: each attachment's level, unless
+ *  it is discarded or (depth) read only. */
 export function attachmentBytes(descriptor: GPURenderPassDescriptor | undefined) {
   let total = 0
-  for (const a of descriptor?.colorAttachments ?? []) {
-    const t = a && textures.get(views.get(a.view) ?? NONE)
-    if (t && a.storeOp !== 'discard') total += t.stored
-  }
+  for (const a of descriptor?.colorAttachments ?? [])
+    if (a && a.storeOp !== 'discard') total += views.get(a.view)?.stored ?? 0
   const depth = descriptor?.depthStencilAttachment
-  const t = depth && textures.get(views.get(depth.view) ?? NONE)
-  if (t && depth.depthStoreOp !== 'discard') total += t.stored
+  if (depth && !depth.depthReadOnly && depth.depthStoreOp !== 'discard')
+    total += views.get(depth.view)?.stored ?? 0
   return total
 }
 
-/** A texture descriptor's sizes, by the engine's own byte counting (`textureBytesOf`). */
+/** A texture descriptor's sizes, bytes by the engine's own counting (`textureBytesOf`). */
 function describeTexture(d: GPUTextureDescriptor): Texture {
   const [width, height = 1] = Array.isArray(d.size)
     ? d.size
     : [(d.size as GPUExtent3DDict).width, (d.size as GPUExtent3DDict).height]
   return {
     bytes: textureBytesOf(d) ?? 0,
+    width,
+    height,
+    format: d.format,
+    samples: d.sampleCount ?? 1,
+  }
+}
+
+/** The level a view shows, one layer: its bytes. */
+function describeView(owner: object, texture: Texture, d: GPUTextureViewDescriptor | undefined) {
+  const level = d?.baseMipLevel ?? 0
+  return {
+    owner,
+    texture,
     stored:
-      textureBytesOf({ size: [width, height, 1], format: d.format, sampleCount: d.sampleCount }) ??
-      0,
+      textureBytesOf({
+        size: [Math.max(1, texture.width >> level), Math.max(1, texture.height >> level), 1],
+        format: texture.format,
+        sampleCount: texture.samples,
+      }) ?? 0,
   }
 }
 
@@ -85,11 +105,11 @@ export function installWorkHooks(
   after(device, 'createTexture', (_s, [d], made) =>
     textures.set(made as object, describeTexture(d as GPUTextureDescriptor)),
   )
-  after(
-    g.GPUTexture.prototype,
-    'createView',
-    (self, _a, made) => void views.set(made as object, self),
-  )
+  after(g.GPUTexture.prototype, 'createView', (self, [d], made) => {
+    const texture = textures.get(self)
+    if (texture)
+      views.set(made as object, describeView(self, texture, d as GPUTextureViewDescriptor))
+  })
   after(device, 'createShaderModule', (_s, [d], made) =>
     codes.set(made as object, (d as GPUShaderModuleDescriptor).code),
   )
@@ -107,8 +127,7 @@ export function installWorkHooks(
       if (r.buffer) resources.set(r.buffer, r.size ?? r.buffer.size - (r.offset ?? 0))
       else {
         const view = views.get(r)
-        const t = view && textures.get(view)
-        if (t) resources.set(view, t.bytes)
+        if (view) resources.set(view.owner, view.texture.bytes)
       }
     }
     bound.set(made as object, resources)

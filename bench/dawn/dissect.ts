@@ -3,10 +3,11 @@
 // (`shaderCuts.ts`); then one play per cut, each with its shader made stopped at that point in
 // memory, between two plays of the shader whole. The pass's time and the frame's, each cut against
 // the one before, are the steps. The repository is not touched.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
+import { childArgs } from './childArgs.ts'
 import type { DissectSpec } from './dissectHooks.ts'
 import { dissectText, stepsOf, type Variant } from './dissectReport.ts'
 import { LOCK_OWNER } from './lock.ts'
@@ -24,15 +25,12 @@ async function playVariant(
   const report = join(out, `${stamp()}-dissect-variant.json`)
   const args = [
     process.argv[1],
-    options.name,
+    options.file,
     '--scenario',
     scenario,
-    '--warm',
-    String(options.warm),
-    '--timeout',
-    String(options.timeoutS),
-    '--scale',
-    options.scale,
+    '--engine',
+    options.engine.root,
+    ...childArgs(process.argv.slice(2)),
     '--child-report',
     report,
   ]
@@ -50,7 +48,9 @@ async function playVariant(
     throw new Error(
       `BENCH_DISSECT: a play of ${spec.cut ?? 'the whole shader'} ended ${child.status}`,
     )
-  return JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
+  const play = JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
+  rmSync(report, { force: true })
+  return play
 }
 
 /** The variant numbers of a play: the dissect segment's frame and the pass's own medians. */
@@ -83,38 +83,44 @@ export async function dissect(options: BenchOptions, pass: string, segmentName?:
       segments: [{ ...segment, capture: false }],
     }),
   )
-  console.error(`dissect: listing the shaders of "${pass}"`)
-  const listing = await playVariant(options, scenario, { pass, hash: '', cut: null }, out)
-  const modules = Object.values(listing.dissect)
-    .flat()
-    .filter((m) => m.cuts.length)
-  if (!modules.length) {
-    const held = Object.entries(listing.dissect).flatMap(([label, ms]) =>
-      ms.map((m) => `${label} ${m.hash}`),
+  try {
+    console.error(`dissect: listing the shaders of "${pass}"`)
+    const listing = await playVariant(options, scenario, { pass, hash: '', cut: null }, out)
+    // The module the pass sets most is the one the segment runs; the others are variants it met less.
+    const modules = Object.values(listing.dissect)
+      .flat()
+      .filter((m) => m.cuts.length)
+      .sort((a, b) => b.count - a.count)
+    if (!modules.length) {
+      const held = Object.entries(listing.dissect).flatMap(([label, ms]) =>
+        ms.map((m) => `${label} ${m.hash}`),
+      )
+      throw new Error(
+        `BENCH_DISSECT: no shader of "${pass}" holds a "// @cut name keep: …" line (modules seen: ${held.join(', ') || 'none'})`,
+      )
+    }
+    const [{ hash, cuts }] = modules
+    const run = (cut: string | null) => playVariant(options, scenario, { pass, hash, cut }, out)
+    const variants: Variant[] = []
+    variants.push(numbersOf(await run(null), pass, null))
+    for (const cut of cuts) {
+      console.error(`dissect: cut ${cut}`)
+      variants.push(numbersOf(await run(cut), pass, cut))
+    }
+    variants.push(numbersOf(await run(null), pass, null))
+    const result = stepsOf(cuts, variants)
+    const stem = join(out, `${stamp()}-dissect-${pass.replace(/\W+/g, '-')}`)
+    writeFileSync(`${stem}.md`, dissectText(pass, segment.name, result, variants))
+    writeFileSync(
+      `${stem}.json`,
+      JSON.stringify(
+        { pass, segment: segment.name, module: hash, cuts, ...result, variants },
+        null,
+        1,
+      ),
     )
-    throw new Error(
-      `BENCH_DISSECT: no shader of "${pass}" holds a "// @cut name keep: …" line (modules seen: ${held.join(', ') || 'none'})`,
-    )
+    return { stem, text: dissectText(pass, segment.name, result, variants) }
+  } finally {
+    rmSync(scenario, { force: true })
   }
-  const [{ hash, cuts }] = modules
-  const run = (cut: string | null) => playVariant(options, scenario, { pass, hash, cut }, out)
-  const variants: Variant[] = []
-  variants.push(numbersOf(await run(null), pass, null))
-  for (const cut of cuts) {
-    console.error(`dissect: cut ${cut}`)
-    variants.push(numbersOf(await run(cut), pass, cut))
-  }
-  variants.push(numbersOf(await run(null), pass, null))
-  const result = stepsOf(cuts, variants)
-  const stem = join(out, `${stamp()}-dissect-${pass.replace(/\W+/g, '-')}`)
-  writeFileSync(`${stem}.md`, dissectText(pass, segment.name, result, variants))
-  writeFileSync(
-    `${stem}.json`,
-    JSON.stringify(
-      { pass, segment: segment.name, module: hash, cuts, ...result, variants },
-      null,
-      1,
-    ),
-  )
-  return { stem, text: dissectText(pass, segment.name, result, variants) }
 }

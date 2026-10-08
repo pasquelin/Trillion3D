@@ -91,3 +91,9 @@ test('a pass drawing nothing the engine counts is wasted work; the top gains put
   )
   assert.equal(topGains(ranking, 1)[0].name, 'waits')
 })
+
+test('a pass that took no time is never bound by anything', () => {
+  const [row] = rankBottlenecks([pass('nothing', 0)], machine, {}, new Map())
+  assert.equal(row.cause, 'unproven')
+  assert.match(row.evidence, /nothing to gain/)
+})

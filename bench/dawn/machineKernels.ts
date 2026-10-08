@@ -25,6 +25,8 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
   const stream = buffer(STREAM_BYTES),
     sink = buffer(STREAM_BYTES / 8),
     other = buffer(256)
+  /** One small buffer a dispatch of its own: dispatches that share none need no barrier. */
+  const apart = Array.from({ length: CHAIN }, () => buffer(256))
   const texture = (use: number) =>
     device.createTexture({ size: [TEXTURE_SIDE, TEXTURE_SIDE], format: 'rgba16float', usage: use })
   const sampled = texture(GPUTextureUsage.TEXTURE_BINDING)
@@ -91,6 +93,7 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     texWrite: bind(pTexWrite, stored.createView()),
     trivial: bind(pTrivial, { buffer: other }),
     chained: bind(pChained, { buffer: other }),
+    apart: apart.map((buffer) => bind(pChained, { buffer })),
   }
   const kernels = {
     /** 128 MiB read once, summed. */
@@ -118,15 +121,15 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
         pass.draw(3)
         pass.end()
       }),
-    /** `CHAIN` one-thread dispatches each reading what the last wrote, in one pass: a barrier each. */
+    /** `CHAIN` one-thread dispatches on one buffer, each reading what the last wrote: a barrier each. */
     dependent: () =>
       one((p) => {
         for (let i = 0; i < CHAIN; i++) dispatch(p, pChained, bindings.chained, 1)
       }),
-    /** `CHAIN` one-thread dispatches that touch nothing in common: no barrier between them. */
+    /** The same dispatches, each on a buffer of its own: nothing to wait for between them. */
     independent: () =>
       one((p) => {
-        for (let i = 0; i < CHAIN; i++) dispatch(p, pTrivial, bindings.trivial, 1)
+        for (let i = 0; i < CHAIN; i++) dispatch(p, pChained, bindings.apart[i], 1)
       }),
     /** `CHAIN` compute passes of one workgroup, from the first's begin to the last's end. */
     passes: () =>
@@ -150,7 +153,18 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
   return {
     kernels,
     destroy() {
-      for (const held of [set, resolved, read, stream, sink, other, sampled, stored, target])
+      for (const held of [
+        set,
+        resolved,
+        read,
+        stream,
+        sink,
+        other,
+        sampled,
+        stored,
+        target,
+        ...apart,
+      ])
         held.destroy()
     },
   }

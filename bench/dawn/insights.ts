@@ -3,7 +3,7 @@
 // file:line and the cause the numbers prove. Built from the merged report, the machine's limits
 // and the engine's own sources: no number here that was not measured or read.
 import type { Bottleneck } from './bottlenecks.ts'
-import { rankBottlenecks, topGains } from './bottlenecks.ts'
+import { gainOf, rankBottlenecks, topGains } from './bottlenecks.ts'
 import type { BenchReport } from './merge.ts'
 import type { PassSource } from './passSource.ts'
 import { mib, ms, table } from './reportText.ts'
@@ -16,34 +16,44 @@ export type Insights = {
 
 /** The ranking of every measured segment, and the run's top gains. */
 export function buildInsights(
-  report: Pick<BenchReport, 'machine' | 'segments' | 'engine'>,
+  report: Pick<BenchReport, 'machine' | 'segments'>,
   sources: ReadonlyMap<string, PassSource>,
 ): Insights {
-  const counters = report.engine as Record<string, unknown>
   const segments = report.segments
     .filter((segment) => segment.measured)
     .map((segment) => {
-      const ranking = rankBottlenecks(segment.benchPasses, report.machine, counters, sources)
+      // The counters of the segment's own last image: a pass is judged on what it drew.
+      const ranking = rankBottlenecks(
+        segment.benchPasses,
+        report.machine,
+        segment.engine as Record<string, unknown>,
+        sources,
+      )
       return { name: segment.name, ranking, top: topGains(ranking) }
     })
-  // A pass a segment lacks gave nothing there: every figure is a mean over all the segments.
-  const total = new Map<string, Bottleneck>()
+  // A pass a segment lacks gave nothing there: every figure is a mean over all the segments, and the
+  // row (its cause, its evidence) is the segment's where the pass gives most.
+  const total = new Map<
+    string,
+    { best: Bottleneck; gain: number; certain: number; work: number; wait: number }
+  >()
   for (const { ranking } of segments)
     for (const b of ranking) {
-      const gain = b.cause === 'wait' ? b.waitMs : b.gainMs
-      const held = total.get(b.name)
-      if (!held) total.set(b.name, { ...b, gainMs: gain })
-      else {
-        held.gainMs += gain
-        held.certainMs += b.certainMs
-        held.workMs += b.workMs
-      }
+      const held = total.get(b.name) ?? { best: b, gain: 0, certain: 0, work: 0, wait: 0 }
+      if (gainOf(b) > gainOf(held.best)) held.best = b
+      held.gain += gainOf(b)
+      held.certain += b.certainMs
+      held.work += b.workMs
+      held.wait += b.waitMs
+      total.set(b.name, held)
     }
-  const averaged = [...total.values()].map((b) => ({
-    ...b,
-    gainMs: b.gainMs / segments.length,
-    certainMs: b.certainMs / segments.length,
-    workMs: b.workMs / segments.length,
+  const n = segments.length
+  const averaged = [...total.values()].map(({ best, gain, certain, work, wait }) => ({
+    ...best,
+    gainMs: gain / n,
+    certainMs: certain / n,
+    workMs: work / n,
+    waitMs: wait / n,
   }))
   return { segments, top: averaged.sort((a, b) => b.gainMs - a.gainMs).slice(0, 5) }
 }
@@ -65,7 +75,7 @@ export function insightsText(insights: Insights, machine: BenchReport['machine']
       ['#', 'gain ms (certain)', 'pass', 'where', 'cause', 'evidence'],
       insights.top.map((b, i) => [
         i + 1,
-        `${ms(b.cause === 'wait' ? b.waitMs : b.gainMs)} (${ms(b.certainMs)})`,
+        `${ms(b.gainMs)} (${ms(b.certainMs)})`,
         b.name,
         where(b),
         b.cause,
