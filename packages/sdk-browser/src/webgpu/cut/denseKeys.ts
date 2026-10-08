@@ -67,3 +67,24 @@ export function createDenseKeySet(mirror?: unknown[]) {
     },
   }
 }
+
+/** Keys listed once each, handed out increasing (`takeSorted`): the moved placements, the tree
+ *  nodes a refit rewrote, the card records written. */
+export type SortedKeys = { listed: DenseKeySet; sorted: Int32Array }
+
+export const createSortedKeys = (): SortedKeys => ({
+  listed: createDenseKeySet(),
+  sorted: new Int32Array(8),
+})
+
+/** The keys listed since the last take, increasing, the list emptied: a view the next take
+ *  overwrites. */
+export function takeSorted(keys: SortedKeys) {
+  const { list, count } = keys.listed
+  keys.sorted = resized(keys.sorted, count)
+  const ranks = keys.sorted.subarray(0, count)
+  ranks.set(list.subarray(0, count))
+  ranks.sort()
+  keys.listed.clear()
+  return ranks
+}

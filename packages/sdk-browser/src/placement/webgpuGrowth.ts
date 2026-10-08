@@ -23,6 +23,7 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
+import { keepMovesFor } from './growthAnnounce.ts'
 import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
@@ -102,6 +103,8 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   if (cut?.appendRoots(growth.roots.slice(growth.appended))) {
     // A cut made beside it is for fewer roots: dropped when it lands, or now if it landed unadopted.
     growth.made++
+    // No cut made beside it will be adopted: the moves are its own.
+    rt.run.movedWorlds.since = undefined
     growth.appended = growth.roots.length
     if (growth.ready && !growth.ready.inPlace) growth.ready.cut.dispose()
     const roots = rt.layout.selectionRoots.length + growth.roots.length
@@ -133,6 +136,8 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
     moved = new Set<number>()
   growth.moved = moved
   rows.logTouched(moved)
+  // The poses named while it is made reach it at its swap (`replayMoves`).
+  keepMovesFor(rt)
   // The pool as it stands, in one write; what moves meanwhile follows at adoption (`swapCut`).
   const held = (page: number) => heldPage(rt, page)
   const capacity = grownCutCapacity(rt, roots)
@@ -142,7 +147,10 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
   if (made !== growth.made || rt.signal.aborted || rt.run.lost) return cut?.dispose()
   rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
-  if (!cut) return loseGpuSelection(rt, `grown cut refused: ${refused}`, error)
+  if (!cut) {
+    rt.run.movedWorlds.since = undefined
+    return loseGpuSelection(rt, `grown cut refused: ${refused}`, error)
+  }
   // The running cut that took roots in place stays the session's until this one replaces it.
   if (!growth.ready?.inPlace) growth.ready?.cut.dispose()
   growth.ready = { cut, roots: roots.length, moved }

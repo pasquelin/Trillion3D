@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { uploadRowLods } from './rowLods.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { moveRootRows } from '../pages/render/movedRoot.ts'
-import { createMovedWorlds } from '../pages/render/movedWorlds.ts'
+import { createSortedKeys } from '../cut/denseKeys.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -73,7 +73,7 @@ function scene() {
     },
     run: {
       noOccluderHistory: false,
-      movedWorlds: createMovedWorlds(),
+      movedWorlds: createSortedKeys(),
       gpuSelection: {
         isReady: (page: number) => ready[page] === 1,
         isChildReady: (page: number) => childReady[page] === 1,

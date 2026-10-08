@@ -27,7 +27,7 @@
  */
 import { rowCell } from '../../partition/rowCells.ts'
 import { boxGrow } from '../../../../math/src/geometry/box.ts'
-import { createMovedWorlds, takeMovedWorlds } from '../../webgpu/pages/render/movedWorlds.ts'
+import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
@@ -297,13 +297,13 @@ export function refitPlacementTree(
     }
     ;[touched, above] = [above, touched]
   }
-  return takeMovedWorlds(rewritten)
+  return takeSorted(rewritten)
 }
 
 /** The nodes a refit fits at one level and those above them, and the nodes it rewrote, kept from
  *  one refit to the next: what it returns is a view the next refit overwrites. */
 const refitSets = [new Set<number>(), new Set<number>()],
-  rewritten = createMovedWorlds()
+  rewritten = createSortedKeys()
 
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0

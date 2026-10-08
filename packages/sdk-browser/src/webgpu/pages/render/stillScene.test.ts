@@ -5,7 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
-import { createMovedWorlds, noteWorldMoved } from './movedWorlds.ts'
+import { noteWorldMoved } from './movedWorlds.ts'
+import { createSortedKeys } from '../../cut/denseKeys.ts'
 import { rootWorlds } from '../../../gpu/dag/pack.ts'
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts'
 import type { DagRoot } from '../../../gpu/dag/types.ts'
@@ -34,7 +35,7 @@ function image(count: number, next: () => number) {
     timing: { worldCounts: { rootsUploaded: 0 } },
     run: {
       gate: { updateWorlds: () => walks.shift() ?? false, revisions: { scene: 3 } },
-      movedWorlds: createMovedWorlds(),
+      movedWorlds: createSortedKeys(),
       worldUploadRevision: 2,
       gpuSelection: {
         updateWorlds(worlds: Float32Array) {

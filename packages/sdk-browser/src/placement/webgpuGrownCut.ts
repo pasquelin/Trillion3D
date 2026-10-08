@@ -17,7 +17,7 @@ import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage } from './webgpuGrowth.ts'
-import { announceGrowth } from './growthAnnounce.ts'
+import { announceGrowth, replayMoves } from './growthAnnounce.ts'
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -100,6 +100,8 @@ function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<n
     cut.parkWorld(rank, !!root.parked)
     cut.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
   })
+  // The poses named since the cut was packed — it holds them as they were then —: replayed.
+  replayMoves(rt, cut)
   cut.updateResidency(layout.rows.residentFlags)
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)

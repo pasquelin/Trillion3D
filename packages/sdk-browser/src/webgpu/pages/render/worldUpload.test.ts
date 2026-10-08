@@ -3,7 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
-import { createMovedWorlds, noteWorldMoved } from './movedWorlds.ts'
+import { noteWorldMoved } from './movedWorlds.ts'
+import { createSortedKeys } from '../../cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** An image entry after a scene change; `walked` says whether the host's write made it. */
@@ -27,7 +28,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
       gate: { updateWorlds: () => walked, revisions: { scene: 2 } },
       worldUploadRevision: 1,
       gpuSelection,
-      movedWorlds: createMovedWorlds(),
+      movedWorlds: createSortedKeys(),
       noOccluderHistory: false,
     },
   } as unknown as WebgpuPagesRuntime

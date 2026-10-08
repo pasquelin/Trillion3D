@@ -1,18 +1,45 @@
 import { noteWorldMoved } from '../webgpu/pages/render/movedWorlds.ts'
+import { createSortedKeys, takeSorted } from '../webgpu/cut/denseKeys.ts'
+import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /**
- * The roots a growth `added` behind rank `first`, announced to the next image: placed by rows,
- * their worlds are the rows' (`updateWebgpuPlacements` wrote them), named and sent alone, the
- * scene's shape kept — no host walk, O(roots added) —; one placed by a host node brings sources to
- * watch, and every world is walked again.
+ * The roots a growth `added` behind rank `first`, announced to the next image: placed by rows —
+ * every root a growth brings is —, their worlds are the rows' (`updateWebgpuPlacements` wrote
+ * them), named and sent alone, the scene's shape kept: no host walk, O(roots added).
  */
 export function announceGrowth(
   rt: Pick<WebgpuPagesRuntime, 'run'>,
-  added: readonly { placement?: unknown }[],
+  added: readonly unknown[],
   first: number,
 ) {
-  if (added.some((root) => !root.placement)) return rt.run.gate.sceneChanged()
   for (let k = 0; k < added.length; k++) noteWorldMoved(rt.run, first + k)
   rt.run.gate.engineMovedInPlace()
+}
+
+/** A cut is packed beside the running one from now on: every pose named — or a host walk — is
+ *  kept for it until its swap (`replayMoves`). */
+export function keepMovesFor(rt: Pick<WebgpuPagesRuntime, 'run'>) {
+  rt.run.movedWorlds.since = { ranks: createSortedKeys(), walked: false }
+}
+
+/**
+ * The poses that moved since `cut` was packed, given to it at its swap as park and mark are: the
+ * worlds the session sent since — those named, or every one after a host walk —, with their exact
+ * translations and stretch, and their tree groups fitted again. O(moves), never a walk of every
+ * world unless the host walked them.
+ */
+export function replayMoves(
+  rt: Pick<WebgpuPagesRuntime, 'run' | 'layout'>,
+  cut: Pick<GpuSelection, 'updateWorlds' | 'placementMoved'>,
+) {
+  const since = rt.run.movedWorlds.since,
+    worlds = rt.layout.worldUpdates
+  rt.run.movedWorlds.since = undefined
+  if (!since) return
+  if (since.walked) return void cut.updateWorlds(worlds)
+  const ranks = takeSorted(since.ranks)
+  if (!ranks.length) return
+  for (const rank of ranks) cut.placementMoved?.(rank)
+  cut.updateWorlds(worlds, ranks)
 }

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
 import { growthOf, startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
+import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /** A cut that counts what it took in place, and its releases; it takes nothing while growing. */
@@ -32,7 +33,7 @@ function session() {
   let rows = createPlacementRows(1)
   const root = { pages: [], placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
   const rt = {
-    run: { gpuSelection: cut },
+    run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
     layout: { selectionRoots: [root] },
   } as unknown as WebgpuPagesRuntime
   const grow = () => {

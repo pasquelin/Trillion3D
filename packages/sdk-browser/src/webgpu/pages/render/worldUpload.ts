@@ -2,7 +2,7 @@ import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
-import { takeMovedWorlds } from './movedWorlds.ts'
+import { takeSorted } from '../../cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -22,6 +22,8 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds)
+  // A cut made beside the running one takes every world at its swap (`replayMoves`).
+  if (hostWalked && run.movedWorlds.since) run.movedWorlds.since.walked = true
   // The deformation's staleness noted before this refresh (`pending`, read by the hold) compared
   // the worlds the host has since rewritten: the frame's `update` reads them again.
   if (hostWalked) rt.vis.deformation?.frame.forget()
@@ -44,7 +46,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   run.worldUploadRevision = run.gate.revisions.scene
   // The placements a call moved, each named beside its rows' write (`movedWorlds.ts`): their
   // worlds alone go up. A host walk named none: every one does.
-  const named = takeMovedWorlds(run.movedWorlds)
+  const named = takeSorted(run.movedWorlds)
   // The impostor cards follow the same moves: those named, or every root after a host walk.
   rt.gpu?.impostors?.worldsMoved(hostWalked ? undefined : named)
   if (!hostWalked) {

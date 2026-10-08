@@ -12,7 +12,7 @@ import type { GpuSelection } from '../core/selection.ts'
 import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
-import { createMovedWorlds, takeMovedWorlds } from '../../webgpu/pages/render/movedWorlds.ts'
+import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges. */
 function uploadNodes(device: GPUDevice, nodeParts: DagParts, packed: PackedDag, nodes: Int32Array) {
@@ -34,7 +34,7 @@ export function followPlacementTree(
   const all = Int32Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
   // What moved since the tree was last read, each placement once: refitted once, before the next
   // cut reads it.
-  const dirty = createMovedWorlds()
+  const dirty = createSortedKeys()
   // The tree was fitted as it was packed: the roots composed since are read at its first cut.
   let whole = !!composed
   if (composed) tree.composed = composed
@@ -42,7 +42,7 @@ export function followPlacementTree(
     if (whole) {
       fitPlacementTree(packed, tree)
       upload(all)
-    } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeMovedWorlds(dirty)))
+    } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeSorted(dirty)))
     whole = false
     dirty.listed.clear()
   }

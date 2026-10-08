@@ -4,19 +4,16 @@
  * Every path that moves a root's world rewrites its rows (`movedRoot.ts`, `moveRootRows`), and
  * names it there, beside that write: its rank is listed once, and the GPU cut's placement tree fits
  * its group again (`placementMoved`). The next image sends those worlds alone
- * (`worldUpload.ts`); a host walk, which names none, sends every one.
+ * (`worldUpload.ts`, `takeSorted`); a host walk, which names none, sends every one. While a cut is
+ * made beside the running one (`../../../placement/webgpuGrowth.ts`), every move is kept for it as
+ * well (`since`): its swap replays them.
  */
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import { resized } from '../../../../../math/src/sequence/resized.ts'
-import { createDenseKeySet, type DenseKeySet } from '../../cut/denseKeys.ts'
+import type { SortedKeys } from '../../cut/denseKeys.ts'
 
-/** The ranks listed since the last take, each once, and the increasing view a take hands out. */
-export type MovedWorlds = { listed: DenseKeySet; sorted: Int32Array }
-
-export const createMovedWorlds = (): MovedWorlds => ({
-  listed: createDenseKeySet(),
-  sorted: new Int32Array(8),
-})
+/** The ranks listed since the last take; `since`, while a cut is made beside the running one, the
+ *  ranks named since its pack and whether a host walk moved every world. */
+export type MovedWorlds = SortedKeys & { since?: { ranks: SortedKeys; walked: boolean } }
 
 /** Placement `rank`'s world was just written: listed once, and its tree group told. */
 export function noteWorldMoved(
@@ -25,16 +22,5 @@ export function noteWorldMoved(
 ) {
   run.gpuSelection?.placementMoved?.(rank)
   run.movedWorlds.listed.add(rank)
-}
-
-/** The ranks listed since the last call, increasing, the list emptied: a view the next take
- *  overwrites. */
-export function takeMovedWorlds(moved: MovedWorlds) {
-  const { list, count } = moved.listed
-  if (moved.sorted.length < count) moved.sorted = resized(moved.sorted, count)
-  const ranks = moved.sorted.subarray(0, count)
-  ranks.set(list.subarray(0, count))
-  ranks.sort()
-  moved.listed.clear()
-  return ranks
+  run.movedWorlds.since?.ranks.listed.add(rank)
 }

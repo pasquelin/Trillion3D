@@ -58,7 +58,7 @@ export function createCardSlots() {
     holes: 0,
     /** Slots written since the last upload, once each; every slot when `full` — after a pack, which
      *  moves them all. */
-    dirty: core.createMovedWorlds(),
+    dirty: core.createSortedKeys(),
     full: true,
     /** Records written: what a test counts. */
     writes: 0,
