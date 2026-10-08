@@ -97,7 +97,7 @@
         if (!settling) return;
         time += Math.min(delta, 0.1);
         const fall = ease.smooth((time - 1.2) / 3.5);
-        world.pixelError = OPENING + (ui.pixelError - OPENING) * fall;
+        world.pixelError = math.lerp(OPENING, ui.pixelError, fall);
         settling = fall < 1;
         world.invalidate();
       });

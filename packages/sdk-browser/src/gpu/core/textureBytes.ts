@@ -1,4 +1,4 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv, mipSize } from '../../../../math/src/scalar/integers.ts'
 
 /** Bytes per texel of the uncompressed formats the engine may allocate. */
 const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
@@ -66,9 +66,9 @@ export function textureBytesOf(
   const volume = descriptor.dimension === '3d'
   let bytes = 0
   for (let level = 0; level < levels; level++) {
-    const w = Math.max(1, width >> level),
-      h = Math.max(1, height >> level),
-      d = volume ? Math.max(1, depth >> level) : depth
+    const w = mipSize(width, level),
+      h = mipSize(height, level),
+      d = volume ? mipSize(depth, level) : depth
     bytes +=
       perTexel !== undefined ? w * h * d * perTexel : ceilDiv(w, 4) * ceilDiv(h, 4) * d * perBlock!
   }

@@ -225,7 +225,7 @@
           let peak = 0;
           if (live) for (let bin = band(k); bin <= Math.max(band(k), band(k + 1) - 1); bin++) peak = Math.max(peak, spectrum[bin] ?? 0);
           const level = live ? (peak / 255) ** 1.6 : 0.12 + 0.1 * Math.sin(time * 1.4 - k * 0.25);
-          bar.level += (level - bar.level) * Math.min(1, step * 18);
+          bar.level = math.lerp(bar.level, level, Math.min(1, step * 18));
           loud += bar.level;
           const t = ease.inOut(morph), x = math.lerp(bar.from[0], bar.to[0], t), z = math.lerp(bar.from[1], bar.to[1], t);
           bar.mesh.position.set(x, 0, z);

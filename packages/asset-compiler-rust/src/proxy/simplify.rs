@@ -36,7 +36,7 @@ fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
 
 /// Longest side of a triangle, in meters.
 fn longest_edge(t: &[f32]) -> f64 {
-    let point = |i: usize| [t[i * 3] as f64, t[i * 3 + 1] as f64, t[i * 3 + 2] as f64];
+    let point = |i: u32| trillion3d_math::vec3::point(t, i);
     let span = |a: [f64; 3], b: [f64; 3]| length(sub(a, b));
     let (a, b, c) = (point(0), point(1), point(2));
     span(a, b).max(span(b, c)).max(span(c, a))

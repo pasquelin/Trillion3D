@@ -5,7 +5,7 @@
 use crate::shared_math::WordMap;
 use trillion3d_math::aabb::{extend_aabb, longest_side};
 use trillion3d_math::triangle::closest_point;
-use trillion3d_math::vec3::{dot, sub};
+use trillion3d_math::vec3::{dot, point, sub};
 
 mod bounded;
 mod level0;
@@ -18,8 +18,7 @@ type P = [f64; 3];
 const RINGS: i64 = 16;
 
 fn at(pos: &[f32], index: u32) -> P {
-    let i = index as usize * 3;
-    [pos[i] as f64, pos[i + 1] as f64, pos[i + 2] as f64]
+    point(pos, index)
 }
 /// Squared distance from `p` to triangle `abc` (closest point, found by testing the vertex, edge and face Voronoi regions in turn).
 fn triangle_distance2(p: P, a: P, b: P, c: P) -> f64 {

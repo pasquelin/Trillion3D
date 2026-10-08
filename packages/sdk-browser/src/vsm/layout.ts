@@ -23,7 +23,14 @@ import {
   VSM_COVER_LOCAL,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { alignUp, ceilDiv, floorLog2, isPow2, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import {
+  alignUp,
+  ceilDiv,
+  floorLog2,
+  isPow2,
+  mipSize,
+  nextPow2,
+} from '../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { ShrunkPool } from '../residency/outOfMemory.ts'
 
@@ -92,7 +99,7 @@ function mipChain(width: number, height: number, mips: number) {
   let words = 0
   for (let m = 0; m < mips; m++) {
     offsets.push(words)
-    words += Math.max(1, width >>> m) * Math.max(1, height >>> m)
+    words += mipSize(width, m) * mipSize(height, m)
   }
   return { offsets, words }
 }

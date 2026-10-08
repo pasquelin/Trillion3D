@@ -168,7 +168,7 @@
         const step = Math.min(delta, 0.05);
         if (opening < 1) {
           opening = Math.min(1, opening + step / 3.5);
-          setHour(6.6 + (ui.hour - 6.6) * ease.inOut(opening));
+          setHour(math.lerp(6.6, ui.hour, ease.inOut(opening)));
         } else if (ui.timeLapse) setHour(hour + step * 1.2 > 17.4 ? 6.6 : hour + step * 1.2);
         if (ui.motion) {
           time += step;

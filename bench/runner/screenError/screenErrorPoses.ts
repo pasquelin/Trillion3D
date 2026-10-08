@@ -2,7 +2,7 @@
 // (the CMP scripts' `dagsim.py`, `cameras`), placed from the source's own box: three angles
 // at 1.2, 2, 5 and 20 radii around an object, and a terrain seen from the ground, the air and
 // afar. `bench` is the bench's four named views (`trajectory/poses.ts`, `VIEWS`), read off the engine's box.
-import { boxRadius } from '../../../packages/math/src/geometry/box.ts'
+import { boxCenter, boxRadius } from '../../../packages/math/src/geometry/box.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { TriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
 import { VIEWS, poseAt, type Bounds } from '../trajectory/poses.ts'
@@ -42,7 +42,9 @@ export function auditPoses(
 ): NamedPose[] {
   const lo = tree.bounds.subarray(0, 3),
     hi = tree.bounds.subarray(3, 6)
-  const c: Vec = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2]
+  const mid = new Float64Array(3)
+  boxCenter(mid, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2])
+  const c: Vec = [mid[0], mid[1], mid[2]]
   const radius = boxRadius(tree.bounds)
   const near = Math.max(radius / 10000, 0.01),
     far = set === 'terrain' ? Math.max(radius * 20, 4000) : radius * 40

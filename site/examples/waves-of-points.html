@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls, readout, language, seeded, opening, ease } from '../runtime/kit.js';
+      import { controls, readout, language, seeded, opening, ease, mix } from '../runtime/kit.js';
 
       const next = seeded(7);
 
@@ -38,7 +38,7 @@
       const hex = (rgb) => '#' + rgb.map((value) => Math.round(value).toString(16).padStart(2, '0')).join('');
       const inks = Array.from({ length: 12 }, (_, band) => {
         const at = (band / 11) * (STOPS.length - 1), low = Math.min(STOPS.length - 2, Math.floor(at)), share = at - low;
-        return material.points({ color: hex(STOPS[low].map((value, channel) => value + (STOPS[low + 1][channel] - value) * share)), size: 0.1 });
+        return material.points({ color: hex(mix({ math }, STOPS[low], STOPS[low + 1], share)), size: 0.1 });
       });
       const points = [];
       for (let row = 0; row < SIDE; row++)
@@ -133,7 +133,7 @@
       const from = [0, 24, 1], to = [9, 6.5, 12];
       opening(world, (glide) => {
         const e = ease.out(glide / 3.5);
-        world.camera.position.set(...from.map((value, axis) => value + (to[axis] - value) * e));
+        world.camera.position.set(...mix({ math }, from, to, e));
         return glide < 3.5;
       });
       let rise = 0, time = 0;

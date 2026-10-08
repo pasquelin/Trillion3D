@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { nextPow2, uniqueSortedInPlace } from './integers.ts'
+import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
 import { setBit, testBit } from './bits.fixture.ts'
 import { firstTrue, lastTrue } from './search.ts'
 
@@ -95,4 +95,13 @@ test('uniqueSortedInPlace: sorted, each value once in front, the array cut and t
   const words = Uint32Array.of(10, 9, 2 ** 32 - 1, 9)
   assert.equal(uniqueSortedInPlace(words), 3)
   assert.deepEqual([...words.subarray(0, 3)], [9, 10, 2 ** 32 - 1])
+})
+
+test('mipSize halves by integer division, one texel at least, as `Math.max(1, size >> level)`', () => {
+  for (const size of [1, 2, 3, 5, 255, 1000, 4096, 2 ** 30, 2 ** 31 - 1]) {
+    for (let level = 0; level < 32; level++) {
+      assert.equal(mipSize(size, level), Math.max(1, size >> level), `${size} >> ${level}`)
+    }
+  }
+  assert.equal(mipSize(1000, 40), 1)
 })

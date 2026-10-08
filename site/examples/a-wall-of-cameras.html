@@ -260,7 +260,7 @@
           const most = 1.2 * step;
           unit.yaw = wrap(unit.yaw + math.clamp(wrap(yaw - unit.yaw), -most, most));
           unit.pitch += math.clamp(pitch - unit.pitch, -most, most);
-          unit.fov += (fov - unit.fov) * (1 - Math.exp(-step * 2));
+          unit.fov = math.lerp(unit.fov, fov, 1 - Math.exp(-step * 2));
           const cx = state.car.x - at[0], cz = state.car.z - at[2], cy = 1 - at[1], look = [Math.sin(unit.yaw) * Math.cos(unit.pitch), Math.sin(unit.pitch), Math.cos(unit.yaw) * Math.cos(unit.pitch)];
           unit.seesCar = (look[0] * cx + look[1] * cy + look[2] * cz) / reach.set(cx, cy, cz).length() > Math.cos(math.degToRad(unit.fov / 2));
         });

@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_TEST_VALUES, hizTestRect } from '../../../../bench/oracles/browser/hizOcclusion.ts'
 import { HIZ_KERNEL_TEXELS } from './counts.ts'
-import { seededRandom } from '../../../../tests/fixtures/hiz.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 type Rect = [number, number, number, number]
 
@@ -49,7 +49,7 @@ test('a rectangle outside the viewport is rejected, one that clips at the edge i
 })
 
 test('a generated rectangle is read over its clipped part, at the finest mip that fits the kernel', () => {
-  const rand = seededRandom(23)
+  const rand = lcgRandom(23)
   let kept = 0
   for (let i = 0; i < 4000; i++) {
     const width = 1 + Math.floor(rand() * 600),

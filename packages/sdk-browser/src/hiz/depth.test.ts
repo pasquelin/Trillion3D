@@ -7,7 +7,8 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { visibilityDepth } from './visibilityDepth.fixture.ts'
 import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
-import { cameraAt, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts'
+import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
@@ -46,7 +47,7 @@ test('a degenerate (zero-area) triangle never wins a pixel', () => {
 })
 
 test('a covered pixel holds a depth strictly between far and near, and only covered pixels do', () => {
-  const rand = seededRandom(11)
+  const rand = lcgRandom(11)
   for (let round = 0; round < 12; round++) {
     const material = G.basicSurface()
     const half = 0.3 + rand() * 1.2,
@@ -117,7 +118,7 @@ test('a page whose index reaches past its triangle stays background, not a throw
 })
 
 test('every pyramid texel is the farthest (the minimum) of the block it covers, on any size', () => {
-  const rand = seededRandom(5)
+  const rand = lcgRandom(5)
   const sizes: [number, number][] = [
     [1, 1],
     [1, 9],

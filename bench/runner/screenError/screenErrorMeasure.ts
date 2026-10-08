@@ -4,7 +4,8 @@
 // (`screenErrorBound`, radius zero); the camera, its frustum and its focal length are the
 // engine's (`lookAtNode`, `updateCameraFrame`, `focalPixels`), and the nearest-surface queries
 // run on the engine's triangle tree.
-import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
+import { length2, length3, transformAffinePoint } from '../../../packages/math/src/vector/vector.ts'
+import { frustumContainsPoint } from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import {
   createCameraFrame,
@@ -80,10 +81,8 @@ const q = new Float64Array(3)
 /** Writes `p`'s view coordinates into `q`; false when `p` lies outside the frustum. */
 function inView(view: View, p: Float64Array) {
   const { planes, view: m } = view.frame
-  for (let i = 0; i < 24; i += 4)
-    if (planes[i] * p[0] + planes[i + 1] * p[1] + planes[i + 2] * p[2] + planes[i + 3] < 0)
-      return false
-  for (let r = 0; r < 3; r++) q[r] = m[r] * p[0] + m[r + 4] * p[1] + m[r + 8] * p[2] + m[r + 12]
+  if (!frustumContainsPoint(planes, p[0], p[1], p[2])) return false
+  transformAffinePoint(q, m, p[0], p[1], p[2])
   return true
 }
 /** Pixels a displacement `distance` at the point last read by `inView` moves on screen. */
