@@ -7,8 +7,8 @@ import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
   refreshStretchAt,
   refreshWorldStretch,
+  changedWorlds,
   worldChangedAt,
-  worldsChanged,
   writePrimitiveWords,
 } from './worlds.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
@@ -23,7 +23,7 @@ import type { createWorldResidencyMirror } from './worldMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
 import { keyBase } from './layout.ts'
-import { writeParts } from './split.ts'
+import { writeParts, writeRanges } from './split.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -54,15 +54,19 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   if (named) return updateNamedWorlds(run, next, named)
   const originChanged = frames.writeWorldOrigins() > 0
   // `packed.worlds` is what this selection last received, and only this method writes it:
-  // the worlds the next send is compared with, without a second copy of them beside it.
-  if (!worldsChanged(packed.worlds, next)) {
+  // the worlds the next send is compared with, without a second copy of them beside it. The rows
+  // whose read words moved go up, they alone: a translation goes up through the origins.
+  movedScratch = resized(movedScratch, packed.worldCount)
+  const moved = changedWorlds(packed.worlds, next, movedScratch)
+  if (!moved) {
+    packed.worlds.set(next)
     if (originChanged) state.worldRevision++
     return originChanged
   }
   // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
   const stretched = refreshWorldStretch(packed.worlds, next, packed, frameData)
   packed.worlds.set(next)
-  frames.writeWorlds(next)
+  frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
   if (stretched) frames.writeRows()
   // Cuts in hand and in flight keep their revision and still name what to stream (#358).
   state.worldRevision++
@@ -80,21 +84,26 @@ const rewritten = new Int32Array(1)
  * received and those that moved sent, each run to its range, with their exact translations and,
  * where the linear part moved, their stretch: a frame's CPU and upload follow what moved, never
  * the placements' count. Each cut reads a translation at its own eye from the exact one
- * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone.
+ * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone. The ranks
+ * the packing holds are kept once, here: every step below reads them alone.
  */
-function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, named: Int32Array) {
+function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, all: Int32Array) {
   const { packed, frames, frameData } = resources
+  let held = all.length
+  while (held && all[held - 1] >= packed.worldSources.length) held--
+  const named = held === all.length ? all : all.subarray(0, held)
   const origins = frames.writeWorldOrigins(named)
   let moved = 0,
     stretched = 0
   for (const w of named) {
-    if (w >= packed.worldCount || !worldChangedAt(packed.worlds, next, w)) continue
-    if (refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
+    const changed = worldChangedAt(packed.worlds, next, w)
+    if (changed && refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
       if (stretched === stretchedScratch.length)
         stretchedScratch = resized(stretchedScratch, stretched + 1)
       stretchedScratch[stretched++] = w
     }
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
+    if (!changed) continue
     if (moved === movedScratch.length) movedScratch = resized(movedScratch, moved + 1)
     movedScratch[moved++] = w
   }
@@ -109,7 +118,7 @@ function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, nam
  *  world and its exact translation written again whatever the caches held. */
 export function rewritePlacement({ resources, state }: DagRun, w: number) {
   const { packed, frames } = resources
-  if (w >= packed.worldCount) return
+  if (w >= packed.worldSources.length) return
   frames.forgetOrigin(w)
   rewritten[0] = w
   frames.writeWorldOrigins(rewritten)
@@ -200,8 +209,8 @@ export async function flushRuntime({ resources, state }: DagRun, selection: GpuS
 }
 
 /** What `appendDagRoots` wrote, sent: the appended nodes, their pages' placement words and content
- *  keys, their primitives' frame rows, every world and origin, and the placement tree's nodes and
- *  member words they joined. Nothing else of the tables moved. */
+ *  keys, their primitives' frame rows, worlds and origins, and the placement tree's nodes and member
+ *  words they joined. Nothing else of the tables moved. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
     cones = packed.pageCones,
@@ -217,10 +226,15 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
-  for (const n of added.tree.nodes) send(nodeParts, packed.nodes, n * nodeBytes, nodeBytes)
+  // The tree nodes joined, in the run writer's ranges.
+  const nodes = Int32Array.from(added.tree.nodes)
+  const nodeSource = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
+  writeRanges(device, nodeParts, nodes, nodes.length, nodeSource)
   if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)
   for (let w = w0; w < w1; w++) writePrimitiveWords(frameData, packed, w)
   frames.writeRows(w0, w1)
-  frames.writeWorlds(packed.worlds)
-  frames.writeWorldOrigins()
+  // The appended placements' worlds and exact translations, they alone.
+  const appended = Int32Array.from({ length: w1 - w0 }, (_, k) => w0 + k)
+  frames.writeNamedWorlds(packed.worlds, appended, appended.length)
+  frames.writeWorldOrigins(appended)
 }

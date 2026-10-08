@@ -39,7 +39,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly)
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
-  rt.timing.worldCounts.rootsRebased = 0
+  rt.timing.worldCounts.rootsUploaded = 0
   if (!worldsMoved) return false
   run.worldUploadRevision = run.gate.revisions.scene
   // The placements a call moved, each named beside its rows' write (`movedWorlds.ts`): their
@@ -49,20 +49,20 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   rt.gpu?.impostors?.worldsMoved(hostWalked ? undefined : named)
   if (!hostWalked) {
     rootWorldsAt(worldUpdates, selectionRoots, named)
-    rt.timing.worldCounts.rootsRebased = named.length
+    rt.timing.worldCounts.rootsUploaded = named.length
     if (named.length) run.gpuSelection?.updateWorlds(worldUpdates, named)
     return true
   }
-  rt.timing.worldCounts.rootsRebased = selectionRoots.length
-  // A host write that moved no pose — a light dimmed — keeps the table: the worlds it sends are
-  // the ones the cut holds, bit for bit, whatever the eye.
-  const posesMoved = rootWorldsMoved(worldUpdates, selectionRoots)
+  rt.timing.worldCounts.rootsUploaded = selectionRoots.length
+  // A host write that moved no pose — a light dimmed — keeps the table. The GPU cut compares the
+  // worlds it holds with those sent, and says so (`updateWorlds`); without one, the host scans.
+  const selection = run.gpuSelection,
+    scanned = !selection && rootWorldsMoved(worldUpdates, selectionRoots)
   rootWorlds(worldUpdates, selectionRoots)
-  const posted = run.gpuSelection?.updateWorlds(worldUpdates)
+  const posesMoved = selection ? selection.updateWorlds(worldUpdates) : scanned
   // A host write names no root: every row's world matrix, the only shared input to a row the
-  // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
-  // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.
-  if (posted !== false && posesMoved) {
+  // scene can still change after `prepare()`, is written again.
+  if (posesMoved) {
     rows.tableEpoch++
     invalidateOccluderHistory(run)
   }
@@ -75,5 +75,5 @@ function rootWorldsAt(
   roots: WebgpuPagesRuntime['layout']['selectionRoots'],
   ranks: Int32Array,
 ) {
-  for (const rank of ranks) if (roots[rank]) worlds.set(roots[rank].world.elements, rank * 16)
+  for (const rank of ranks) worlds.set(roots[rank].world.elements, rank * 16)
 }

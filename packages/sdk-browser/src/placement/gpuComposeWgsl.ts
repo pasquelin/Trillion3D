@@ -87,13 +87,12 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  for(var k=0u;k<16u;k++){
   let value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
-  worlds[i*16u+k]=world[k];
-  // The exact translation behind the range's matrices, which each cut reads at its own eye
-  // (\`../gpu/dag/shader/worldPoseWgsl.ts\`).
+  // The translation is the exact one behind the range's matrices, which each cut reads at its own
+  // eye (\`../gpu/dag/shader/worldPoseWgsl.ts\`): words 12 to 14 of the row are no cut's.
   if(k>=12u&&k<15u){
    let at=params.count*16u+i*8u+2u*(k-12u);
    worlds[at]=value.x;worlds[at+1u]=value.y;
-  }
+  }else{worlds[i*16u+k]=world[k];}
  }
  let mode=motionMode.mode;
  if(params.motion==0u||mode==${MOTION_SKIP}u){return;}

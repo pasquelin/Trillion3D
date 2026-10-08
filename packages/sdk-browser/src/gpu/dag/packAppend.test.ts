@@ -103,8 +103,9 @@ test('the GPU cut over the roots appended in place selects what a cut over every
   assert.equal(appended.pageCount, held, 'the pages its roots hold')
   assert.equal(appended.appendRoots(roots.slice(2)), true)
   assert.equal(appended.pageCount, whole.live!.pages)
-  // The same worlds, one placement each, as the session sends them every image.
-  assert.equal(appended.updateWorlds(whole.worlds.slice()), true)
+  // The same worlds, one placement each, as the session sends them every image: the append sent
+  // them already, nothing moves.
+  assert.equal(appended.updateWorlds(whole.worlds.slice()), false)
   const results = []
   for (const selection of [reference, appended]) {
     selection.dispatch(uniforms)

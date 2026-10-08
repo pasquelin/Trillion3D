@@ -9,7 +9,7 @@ import {
   primitiveFrameWords,
   primitiveWordAt,
   refreshWorldStretch,
-  worldsChanged,
+  changedWorlds,
 } from './worlds.ts'
 
 const WORLDS = 4
@@ -72,12 +72,17 @@ test('a single resized primitive is the only one recomputed, to the float', () =
   assert.equal(frameData[(2 * FRAME_VEC4 + 6) * 4], reference(next)[2])
 })
 
-test('worldsChanged is false on identical buffers and true on one moved translation', () => {
+test('changedWorlds lists the rows whose read words moved; a translation alone moves none', () => {
   const previous = scene(),
-    next = Float32Array.from(previous)
-  assert.equal(worldsChanged(previous, next), false)
+    next = Float32Array.from(previous),
+    into = new Int32Array(previous.length / 16)
+  assert.equal(changedWorlds(previous, next, into), 0)
   next[2 * 16 + 14] += 1
-  assert.equal(worldsChanged(previous, next), true)
+  assert.equal(changedWorlds(previous, next, into), 0, 'the origins carry the translation')
+  next[2 * 16 + 5] *= 2
+  next[0 * 16 + 15] = 2
+  assert.equal(changedWorlds(previous, next, into), 2)
+  assert.deepEqual([...into.subarray(0, 2)], [0, 2])
 })
 
 test('the frame words carry each primitive stretch, root and record shift, as the kernel reads them', () => {

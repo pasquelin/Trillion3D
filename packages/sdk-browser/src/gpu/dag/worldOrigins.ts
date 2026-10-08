@@ -66,7 +66,7 @@ export function createWorldOrigins(
         length = all ? sources.length : named.length
       for (let k = 0; k < length; k++) {
         const row = all ? k : named[k]
-        if (row >= sources.length || !take(row)) continue
+        if (!take(row)) continue
         if (count === changed.length) changed = resized(changed, count + 1)
         changed[count++] = row
       }

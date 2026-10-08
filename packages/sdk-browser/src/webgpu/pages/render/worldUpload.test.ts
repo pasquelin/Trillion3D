@@ -20,7 +20,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
       worldUpdates: new Float32Array(16),
       rows: { tableEpoch: 1 },
     },
-    timing: { worldCounts: { rootsRebased: 0 } },
+    timing: { worldCounts: { rootsUploaded: 0 } },
     blendState: { blendGpu: [] },
     lights: { mobility: { moves: () => false } },
     run: {
@@ -55,12 +55,21 @@ test('a host pose rewrites every row, with or without a GPU selection, and only 
 for (const kind of ['GPU selection', 'no selection'] as const)
   test(`a host write while the eye moves keeps the table unless a pose moved — ${kind}`, () => {
     const world = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1])
-    const rt = image(true, kind === 'GPU selection' ? { updateWorlds: () => true } : undefined)
+    // The cut answers whether the worlds it holds moved, as `updateWorlds` does.
+    const held = new Float32Array(16).fill(NaN)
+    const cut = {
+      updateWorlds: (worlds: Float32Array) => {
+        const moved = worlds.some((value, k) => value !== held[k])
+        held.set(worlds)
+        return moved
+      },
+    }
+    const rt = image(true, kind === 'GPU selection' ? (cut as never) : undefined)
     Object.assign(rt.layout, { selectionRoots: [{ world: { elements: world }, pages: [] }] })
     const { revisions } = rt.run.gate,
       rows = rt.layout.rows
     uploadWorlds(rt)
-    assert.equal(rows.tableEpoch, 2, 'the first rebase has nothing to compare with')
+    assert.equal(rows.tableEpoch, 2, 'the first upload has nothing to compare with')
     revisions.scene++
     uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 2, 'a light written as the eye moves: the rows stand')

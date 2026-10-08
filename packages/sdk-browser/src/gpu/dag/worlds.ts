@@ -1,6 +1,6 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
-import { sameElements, sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
+import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
  *  stretch, then the root (`+ 1`), the record shift (`+ 2`) and the never-culled mark (`+ 3`), as
@@ -47,18 +47,22 @@ export function refreshStretchAt(
   return true
 }
 
-/** Whether primitive `w`'s sixteen floats differ between `previous` and `next`. */
-export const worldChangedAt = (previous: Float32Array, next: Float32Array, w: number) =>
-  !sameElements(previous, next, w * 16, w * 16)
+/** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
+ *  and word 15. Words 12 to 14 are no cut's — each makes the translation from the exact one at its
+ *  eye (`shader/worldPoseWgsl.ts`), which goes up through the origins (`worldOrigins.ts`). */
+export const worldChangedAt = (previous: Float32Array, next: Float32Array, w: number) => {
+  const at = w * 16
+  return !sameLinearPart(previous, next, at, at) || previous[at + 15] !== next[at + 15]
+}
 
-/**
- * True where `next` differs from `previous` at any index: the scan `updateWorlds` runs before it
- * touches a buffer, so an image whose roots stand still uploads nothing. On a moving camera every
- * translation differs and the scan stops at the first root.
- */
-export function worldsChanged(previous: Float32Array, next: Float32Array) {
-  for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true
-  return false
+/** The primitives of `next` whose read words differ from `previous`' (`worldChangedAt`), increasing,
+ *  into `into`; their count. The scan `updateWorlds` runs before it touches a buffer, so an image
+ *  whose roots stand still — or only moved — uploads no world. */
+export function changedWorlds(previous: Float32Array, next: Float32Array, into: Int32Array) {
+  let count = 0
+  for (let w = 0; w < next.length / 16; w++)
+    if (worldChangedAt(previous, next, w)) into[count++] = w
+  return count
 }
 
 /**

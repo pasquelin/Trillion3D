@@ -31,7 +31,7 @@ function image(count: number, next: () => number) {
     blendState: { blendGpu: [] },
     lights: { mobility: { moves: () => false } },
     layout: { selectionRoots, worldUpdates: new Float32Array(count * 16), rows: { tableEpoch: 1 } },
-    timing: { worldCounts: { rootsRebased: 0 } },
+    timing: { worldCounts: { rootsUploaded: 0 } },
     run: {
       gate: { updateWorlds: () => walks.shift() ?? false, revisions: { scene: 3 } },
       movedWorlds: createMovedWorlds(),
