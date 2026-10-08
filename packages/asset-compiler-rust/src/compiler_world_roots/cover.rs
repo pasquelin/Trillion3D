@@ -74,16 +74,13 @@ impl RootCover {
     }
 }
 
-/// `attribute` on the vertices `remap` keeps, in its order.
+/// `attribute` on the vertices `remap` keeps, in its order (`qem::push_vertex`, which refuses a
+/// vertex the attribute lacks).
 pub(super) fn compact_attribute(attribute: &Attribute, remap: &[u32]) -> Attribute {
     let width = attribute.width;
     let mut values = Vec::with_capacity(remap.len() * width);
     for &source in remap {
-        let at = source as usize * width;
-        match attribute.values.get(at..at + width) {
-            Some(value) => values.extend_from_slice(value),
-            None => values.extend(std::iter::repeat_n(0.0, width)),
-        }
+        crate::qem::push_vertex(&mut values, &attribute.values, width, source);
     }
     Attribute {
         flag: attribute.flag,

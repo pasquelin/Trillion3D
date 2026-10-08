@@ -135,3 +135,16 @@ fn pruning_removes_a_small_part_locks_or_not() {
     assert!(small(&kept), "without pruning the locked part stays");
     assert!(!small(&pruned), "pruning removes it all the same");
 }
+
+#[test]
+#[should_panic]
+fn a_vertex_an_attribute_lacks_is_refused_never_zero_filled() {
+    // Normals for three of a region's four vertices: a cook defect, refused by the compaction.
+    let normals = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
+    let attribute = Attribute {
+        values: &normals,
+        width: 3,
+        weight: 1.0,
+    };
+    compact_attributes(&[attribute], &[0, 1, 2, 3]);
+}
