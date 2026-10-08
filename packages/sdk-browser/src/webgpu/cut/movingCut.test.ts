@@ -44,12 +44,12 @@ async function bench() {
 
 test('a model moved every frame has a cut adopted on every frame, counted and never held', async () => {
   const { dag, selection, adopter, frame, dispose } = await bench()
-  const moving = dag.worlds.slice()
+  let moving = dag.worlds.slice()
   const start = moving[12]
   for (let n = 0; n < FRAMES; n++) {
     // Steps of a quarter unit, exact in single precision, back and forth in view: every frame
-    // is a real move.
-    moving[12] = start + 0.25 * (1 + (n % 4))
+    // is a real move, of the root's pose as the host holds it.
+    moving = moveRoot(dag, 0, start + 0.25 * (1 + (n % 4)))
     const adopted = await frame(moving)
     if (n === 0) continue
     assert.equal(adopted, true, `frame ${n}: the last readback is adopted`)
