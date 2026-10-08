@@ -18,6 +18,7 @@ import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
 import { core } from './borrowed.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
+import { sameLinearPartFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 
 /** Floats of one card record. */
 export const CARD_FLOATS = 44
@@ -69,14 +70,6 @@ export type CardSlots = ReturnType<typeof createCardSlots>
 const inverse = new Float64Array(16),
   ORIGIN = [0, 0, 0] as const
 
-/** Whether slot `at`'s record holds `world`'s linear part, each number as a single holds it. */
-function sameLinear(out: Float32Array, at: number, world: ArrayLike<number>) {
-  for (let c = 0; c < 3; c++)
-    for (let k = 0; k < 3; k++)
-      if (out[at + 4 * c + k] !== Math.fround(world[4 * c + k])) return false
-  return true
-}
-
 /** Writes the record of a card of `entry` placed by `world` at world radius `radius` into slot
  *  `slot`; `moved`, the card's record already there, its world alone moved. */
 export function writeCardRecord(
@@ -93,7 +86,7 @@ export function writeCardRecord(
   slots.writes++
   markDirty(slots, slot)
   // A world moved without turning or scaling keeps its inverse and its shape.
-  if (moved && out[at + 43] === Math.fround(radius) && sameLinear(out, at, world)) return
+  if (moved && out[at + 43] === Math.fround(radius) && sameLinearPartFloat32(out, world, at)) return
   for (let c = 0; c < 3; c++) {
     for (let k = 0; k < 3; k++) out[at + 4 * c + k] = world[4 * c + k]
     out[at + 4 * c + 3] = 0

@@ -1,12 +1,6 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
-
-/**
- * Indices of the linear part of a column-major world matrix, and the only indices `maxStretch`
- * reads (`projectionOracles.ts`). Translation — indices 12 to 14 — is not among them, nor is the
- * last row.
- */
-const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+import { sameElements, sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
  *  stretch, then the root (`+ 1`), the record shift (`+ 2`) and the never-culled mark (`+ 3`), as
@@ -45,9 +39,8 @@ export function refreshStretchAt(
   w: number,
 ) {
   const base = w * 16
-  let k = 0
-  while (k < LINEAR.length && previous[base + LINEAR[k]] === next[base + LINEAR[k]]) k++
-  if (k === LINEAR.length) return false
+  // `maxStretch` reads the linear part alone (`projectionOracles.ts`).
+  if (sameLinearPart(previous, next, base, base)) return false
   const stretch = maxStretch(next.subarray(base, base + 16))
   packed.worldStretch[w] = stretch
   frameData[primitiveWordAt(w)] = stretch
@@ -55,10 +48,8 @@ export function refreshStretchAt(
 }
 
 /** Whether primitive `w`'s sixteen floats differ between `previous` and `next`. */
-export function worldChangedAt(previous: Float32Array, next: Float32Array, w: number) {
-  for (let j = w * 16; j < w * 16 + 16; j++) if (previous[j] !== next[j]) return true
-  return false
-}
+export const worldChangedAt = (previous: Float32Array, next: Float32Array, w: number) =>
+  !sameElements(previous, next, w * 16, w * 16)
 
 /**
  * True where `next` differs from `previous` at any index: the scan `updateWorlds` runs before it

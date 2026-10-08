@@ -6,6 +6,7 @@
  */
 import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
+import { LINEAR_PART, sameLinearPart } from '../../../math/src/matrix/matrixElements.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import {
   impostorMeshBaked,
@@ -84,7 +85,7 @@ export type SwitchTable = {
    *  may replace it. */
   held: (ImpostorRoot | undefined)[]
   entries: (BakedEntry | undefined)[]
-  /** The nine linear numbers of the world each radius was taken from. */
+  /** The linear part of the world each radius was taken from, at its own indices (`LINEAR_SPAN`). */
   linear: Float64Array
   radius: Float64Array
   texelDepth: Float64Array
@@ -93,7 +94,8 @@ export type SwitchTable = {
   depthFocal: Float64Array
 }
 const tables = new WeakMap<object, SwitchTable>()
-const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+/** Numbers a root's linear part takes in `linear`, at its matrix's own indices (`LINEAR_PART`). */
+const LINEAR_SPAN = 11
 
 /** `holder`'s table, made again for another root list or section; a new focal length retakes the
  *  depths it scales root by root, as each is read (`rootSwitch`). */
@@ -115,7 +117,7 @@ export function switchTable(
       held: new Array<ImpostorRoot | undefined>(n),
       entries: new Array<BakedEntry | undefined>(n),
       // NaN equals nothing: every root takes its numbers on the first frame.
-      linear: new Float64Array(n * LINEAR.length).fill(NaN),
+      linear: new Float64Array(n * LINEAR_SPAN).fill(NaN),
       radius: new Float64Array(n),
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
@@ -132,7 +134,7 @@ export function switchTable(
  *  nothing should it come back (`rootSwitch`). */
 function resize(table: SwitchTable, n: number) {
   table.held.length = table.entries.length = n
-  table.linear = resized(table.linear, n * LINEAR.length, NaN)
+  table.linear = resized(table.linear, n * LINEAR_SPAN, NaN)
   table.radius = resized(table.radius, n)
   table.texelDepth = resized(table.texelDepth, n)
   table.triangleDepth = resized(table.triangleDepth, n)
@@ -152,12 +154,6 @@ function depthsOf(table: SwitchTable, rank: number, entry: BakedEntry) {
   )
 }
 
-/** Whether the nine linear numbers held from `at` are the world's. */
-function sameLinear(held: Float64Array, at: number, world: ArrayLike<number>) {
-  for (let k = 0; k < LINEAR.length; k++) if (held[at + k] !== world[LINEAR[k]]) return false
-  return true
-}
-
 /**
  * The entry of the root at `rank` with its radius and depths, taken again only when the root or
  * the linear part of its world changed; `undefined` for a root no impostor may replace.
@@ -168,16 +164,16 @@ function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh
     const entry = byMesh.get(root.mesh)
     // A refused switch input does not depend on the placement: the entry alone decides.
     table.entries[rank] = entry && impostorSwitchOf(entry) ? entry : undefined
-    table.linear[rank * LINEAR.length] = NaN
+    table.linear[rank * LINEAR_SPAN] = NaN
   }
   const entry = table.entries[rank]
   if (!entry) return undefined
   const world = root.world.elements,
-    at = rank * LINEAR.length
-  if (!sameLinear(table.linear, at, world)) {
+    at = rank * LINEAR_SPAN
+  if (!sameLinearPart(table.linear, world, at)) {
     // Taken before the copy: a world `maxStretch` refuses throws again on the next frame, as it did.
     table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world))
-    for (let k = 0; k < LINEAR.length; k++) table.linear[at + k] = world[LINEAR[k]]
+    for (const k of LINEAR_PART) table.linear[at + k] = world[k]
     depthsOf(table, rank, entry)
   } else if (table.depthFocal[rank] !== table.focal) depthsOf(table, rank, entry)
   return entry
