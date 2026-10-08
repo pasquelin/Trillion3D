@@ -16,14 +16,13 @@
  * The scales follow the golden-ratio sequence, of low discrepancy: any run of cuts covers the band
  * evenly, its first cuts already spread over it.
  */
+import { GOLDEN_FRACTION } from '../../../../math/src/constants.ts'
+import { fract } from '../../../../math/src/scalar/reals.ts'
 
 /** The band's width, a fraction of the threshold: an octave, the world group above a cluster
  *  holding at least twice its error where the cook's reduction halves its triangles. A wider band
  *  fades over a longer distance and draws finer on average. */
 const WORLD_FADE = 0.5
 
-/** `(√5 − 1) / 2`: the step of the sequence. */
-const GOLDEN = (Math.sqrt(5) - 1) / 2
-
-/** The scale of the world DAG's threshold at cut `cut`. */
-export const worldFadeScale = (cut: number) => 1 - WORLD_FADE * ((cut * GOLDEN) % 1)
+/** The scale of the world DAG's threshold at cut `cut`: the sequence steps by `(√5 − 1) / 2`. */
+export const worldFadeScale = (cut: number) => 1 - WORLD_FADE * fract(cut * GOLDEN_FRACTION)
