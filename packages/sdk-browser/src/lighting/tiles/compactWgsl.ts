@@ -1,7 +1,7 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 
 /** Lanes of a column's workgroup: a batch of lights, one each. */
 export const GRID_LANES = 64
@@ -24,7 +24,7 @@ const SLICES = LIGHT_SETTINGS.gridSlices
  */
 export const GRID_COMPACT_WGSL = wgslBlock(
   'GRID_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, lowHalf, highHalf],
+  [LANE_SCAN_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
   `const LANES:u32=${GRID_LANES}u;
 const CACHE:u32=${GRID_CACHE}u;
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
@@ -69,13 +69,13 @@ fn entryOf(column:Column,index:u32)->vec2u{
  *  \`full\` for a run that holds them all. Its bit there follows its entry in \`chunk\`: it is set
  *  or cleared only when that changes, every lane marking every batch. */
 fn markEntry(lane:u32,entry:vec2u){
- let bit=1u<<(lane%32u);let word=lane/32u;
+ let bit=bitMask(lane);let word=bitWord(lane);
  let whole=entry.y==FULL_RUN;
  if(whole!=(chunk[lane].y==FULL_RUN)){
   if(whole){atomicOr(&full[word],bit);}else{atomicAnd(&full[word],~bit);}
  }
  chunk[lane]=entry;
- let first=entry.y&0xffffu;let last=entry.y>>16u;
+ let first=lowHalf(entry.y);let last=highHalf(entry.y);
  if(first>last){return;}
  atomicOr(&keptLanes[word],bit);
  if((entry.x&TILE_SHADOWED)!=0u){atomicOr(&slotted[word],bit);}
@@ -112,7 +112,7 @@ fn writeSlices(lane:u32){
 /** Lane \`lane\`'s entry, in order among the batch's kept ones, into the cache at \`cached\`. */
 fn cacheEntry(lane:u32,entry:vec2u){
  let kept=vec2u(atomicLoad(&keptLanes[0]),atomicLoad(&keptLanes[1]));
- let below=(1u<<(lane%32u))-1u;
+ let below=lowBits(lane%32u);
  let rank=select(countOneBits(kept.x&below),countOneBits(kept.x)+countOneBits(kept.y&below),lane>=32u);
  if(lowHalf(entry.y)<=highHalf(entry.y)){cache[cached+rank]=entry;}
 }

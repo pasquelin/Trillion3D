@@ -35,7 +35,7 @@
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
-import { rectCell } from '../../../math/src/wgsl/integer.ts'
+import { lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
@@ -198,7 +198,7 @@ fn vsmShiftedBoxInView(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x4f,is
 const OVERLAP_WGSL = /* wgsl */ `
 /** A mask of \`runWidth\` bits at \`runStart\`. */
 fn vsmBitRun(runWidth:u32,runStart:u32)->u32{
- return ((1u<<(runWidth&31u))-1u)<<(runStart&31u);
+ return lowBits(runWidth&31u)<<(runStart&31u);
 }
 /** Whether a rect of the 8x8 receiver cover intersects the 2x2 quadrant masks: x (-,+), y (+,+), z (+,-), w (-,-). */
 fn vsmMaskRectHits(mask2x2:vec4u,mn:vec2u,mx:vec2u)->bool{
@@ -362,6 +362,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_BOX_CULL_WGSL,
       FLOAT32_MAX,
       transformPoint,
+      lowBits,
     ],
   )
 

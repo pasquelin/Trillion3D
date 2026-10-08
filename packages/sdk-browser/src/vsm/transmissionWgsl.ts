@@ -46,7 +46,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
-import { ceilDiv, rectCell } from '../../../math/src/wgsl/integer.ts'
+import { byteOf, ceilDiv, highHalf, lowHalf, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -658,7 +658,7 @@ var<workgroup> wgCommand:array<u32,5>;
    if(tris[i].count<3u){continue;}
    let e=4u*frame.cmds+2u*(first+p);
    let v=list[e+1u];
-   let corner=f32(VSM_PAGE_TEXELS)*vec2f(f32(v&0xFFu),f32((v>>8u)&0xFFu));
+   let corner=f32(VSM_PAGE_TEXELS)*vec2f(f32(byteOf(v,0u)),f32(byteOf(v,1u)));
    let b=tris[i].box;
    if(b.z<corner.x-1.0||b.w<corner.y-1.0||b.x>=corner.x+${VSM_PAGE_TEXELS + 1}.0||b.y>=corner.y+${VSM_PAGE_TEXELS + 1}.0){continue;}
    var t=tris[i];
@@ -685,6 +685,7 @@ var<workgroup> wgCommand:array<u32,5>;
       FLOAT32_MAX,
       edgeFunction,
       faceNormal,
+      byteOf,
     ],
   )
 }
@@ -821,7 +822,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  }
  if(!textured){return;}
  let size=vsmTRecordWord(g,14u);
- let words=(size&0xFFFFu)*(size>>16u);
+ let words=lowHalf(size)*highHalf(size);
  let source=frame.regionPatches+vsmTRecordWord(g,18u);
  for(var j=0u;j<words;j+=4u){
   var w=vec4u(0u);
@@ -933,7 +934,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  textureStore(memory,vec2u(t%${VSM_TRANSMISSION_WIDTH}u,t/${VSM_TRANSMISSION_WIDTH}u),w);
 }
 `,
-    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDiv],
+    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDiv, lowHalf, highHalf],
   )
 
 // ---- Consumer read ------------------------------------------------------------------------------
@@ -957,7 +958,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
 export const vsmTransmissionReadWgsl = (binding: number) =>
   wgslBlock(
     `vsmTransmissionReadWgsl(${binding})`,
-    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3, VSM_PROJECTION_DATA_READ_WGSL],
+    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3, VSM_PROJECTION_DATA_READ_WGSL, lowHalf, highHalf],
     `
 @group(0) @binding(${binding}) var vsmTransmissionMemory:texture_2d_array<u32>;
 fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0,0);}
@@ -1016,8 +1017,8 @@ fn vsmTHitOf(b0:u32,v:u32,r:VsmTReceiver)->VsmTHit{
  if((q&${TEXTURED_BIT}u)!=0u){
   // A textured caster: the four patch texels around the point, bilinear.
   let d=vsmTLoad(vsmTMemBlock(rb,rv+3u));
-  let origin=vec2f(vec2i(vec2u(d.y&0xFFFFu,d.y>>16u))-vec2i(1));
-  let size=vec2u(d.z&0xFFFFu,d.z>>16u);
+  let origin=vec2f(vec2i(vec2u(lowHalf(d.y),highHalf(d.y)))-vec2i(1));
+  let size=vec2u(lowHalf(d.z),highHalf(d.z));
   let h=clamp(r.p-0.5-origin,vec2f(0.0),vec2f(size-vec2u(1u)));
   let i=vec2u(floor(h));let f=h-floor(h);
   let j=min(i+1u,size-vec2u(1u));
@@ -1041,7 +1042,7 @@ fn vsmTScanSlice(b0:u32,r:VsmTReceiver,after:vec2f,scan:VsmTScan)->VsmTScan{
  let cell=min(vec2u(r.p/${VSM_TRANSMISSION_CELL}.0),vec2u(${VSM_TRANSMISSION_CELLS - 1}u));
  let index=cell.y*${VSM_TRANSMISSION_CELLS}u+cell.x;
  let header=vsmTRead(b0,index>>2u)[index&3u];
- let first=header>>16u;let count=header&0xFFFFu;
+ let first=highHalf(header);let count=lowHalf(header);
  // Four entries a texel: each texel read once.
  var entries=vec4u(0u);
  for(var i=0u;i<count;i++){

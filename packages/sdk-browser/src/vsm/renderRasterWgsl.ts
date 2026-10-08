@@ -35,6 +35,7 @@
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
+import { byteOf } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
@@ -136,7 +137,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  // (W = 16384 >> mip), page-local NDC over the 128-pixel viewport.
  let mipLevel=(pair.y>>16u)&7u;
  let s=f32(VSM_LEVEL0_TEXELS>>mipLevel)/f32(VSM_PAGE_TEXELS/2u);
- let vPage=vec2f(f32(pair.z&0xFFu),f32((pair.z>>8u)&0xFFu));
+ let vPage=vec2f(f32(byteOf(pair.z,0u)),f32(byteOf(pair.z,1u)));
  out.position=vec4f(uvH.x*s-w*(2.0*vPage.x+1.0),w*(2.0*vPage.y+1.0)-uvH.y*s,z,w);
  // The fragment's cutout reads the UV of a masked row alone (\`maskKeep\`).
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageUv(page,h,id);}
@@ -166,5 +167,6 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
       matrixWindingCw,
       faceNormal,
       PAGE_GEOMETRY_WGSL,
+      byteOf,
     ],
   )

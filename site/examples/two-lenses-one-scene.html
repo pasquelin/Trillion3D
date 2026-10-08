@@ -188,7 +188,7 @@
           k = kAim ? Math.min(1, k + step / 1.8) : Math.max(0, k - step / 1.8);
           world.controls.maxDistance = 1e5;
           world.controls.minDistance = 0;
-          const fov = k === 1 ? fovRef : Math.exp(Math.log(fovRef) + (Math.log(NARROWEST) - Math.log(fovRef)) * ease.inOut(k));
+          const fov = k === 1 ? fovRef : Math.exp(math.lerp(Math.log(fovRef), Math.log(NARROWEST), ease.inOut(k)));
           const distance = half / Math.tan(radians(fov) / 2);
           eye.fov = fov;
           eye.near = Math.max(0.1, distance * 0.02);

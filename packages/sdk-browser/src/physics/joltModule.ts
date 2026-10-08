@@ -1,4 +1,5 @@
 import { MIB } from '../../../math/src/constants.ts'
+import { alignDown } from '../../../math/src/scalar/integers.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   BODY_INDEX,
@@ -123,7 +124,7 @@ export function startJolt(
   const poses = jolt.jolt_buffer(1, bodies * POSE_WORDS)
   const events = jolt.jolt_buffer(2, budget.contactEvents * EVENT_WORDS)
   if (!commands || !poses || !events) throw outOfMemory()
-  const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE
+  const maximum = alignDown(budget.memoryBytes, PAGE)
   return {
     /** The fixed step it was started at, s. */
     fixedStep: step,
