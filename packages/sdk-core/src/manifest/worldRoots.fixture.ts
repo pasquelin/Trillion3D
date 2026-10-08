@@ -1,4 +1,4 @@
-import type { WorldRootsCluster } from './worldRoots.ts'
+import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
 import { encodeWorldRoots, type WorldRootsSpec } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots } from './worldRootsTable.ts'
@@ -159,4 +159,16 @@ export function worldRootsDag() {
     outputs: [top],
   })
   return { clusters, groups, leaves }
+}
+
+/** The objects of `cell` as a load reads them, word by word (`first`, `size`, `objectNode`,
+ *  `objectPrimitive`, `objectDependencies`): the roots list is no reader's. */
+export function cellObjects(table: WorldRoots, cell: number) {
+  const { cells } = table,
+    first = cells.first(cell)
+  return Array.from({ length: cells.size(cell) }, (_, k) => ({
+    node: cells.objectNode(first + k),
+    primitive: cells.objectPrimitive(first + k),
+    dependencies: Array.from(cells.objectDependencies(first + k)),
+  }))
 }

@@ -116,11 +116,6 @@ function tableCells(
   if (next !== objectCount) refuse('cells and objects')
   for (let object = 0; object < objectCount; object++)
     if (!below(list(objectsAt + object * OBJECT + 16), bundleCount)) refuse('object dependencies')
-  const objectAt = (object: number) => {
-    const at = objectsAt + object * OBJECT
-    const [roots, dependencies] = [list(at + 8), list(at + 16)].map((v) => Array.from(v))
-    return { node: word(at), primitive: word(at + 4), roots, dependencies }
-  }
   return {
     count: cellCount,
     first: (cell) => word(cellsAt + cell * CELL),
@@ -135,10 +130,6 @@ function tableCells(
     objectNode: (object) => word(objectsAt + object * OBJECT),
     objectPrimitive: (object) => word(objectsAt + object * OBJECT + 4),
     objectDependencies: (object) => list(objectsAt + object * OBJECT + 16),
-    objects(cell) {
-      const first = word(cellsAt + cell * CELL)
-      return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))
-    },
     cellOf(object) {
       // The last cell starting at or before `object`: an empty cell starts where the next does.
       return lastTrue(0, cellCount - 1, (mid) => word(cellsAt + mid * CELL) <= object)

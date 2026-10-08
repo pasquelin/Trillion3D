@@ -70,13 +70,15 @@ test('a lookup reads its node’s run in place, never the cell’s objects', () 
   }))
   spec.cells = [{ objects, nodes: objects.map((_, node) => node) }]
   const read = readWorldRoots(encodeWorldRoots(spec))
-  let listed = 0
-  read.cells.objects = () => (listed++, [])
+  // Every object word the lookups read, counted: a node's run alone, never the cell's.
+  let words = 0
+  const { objectNode } = read.cells
+  read.cells.objectNode = (object) => (words++, objectNode(object))
   const lookup = createWorldObjects(read, primitives)
   for (let node = 0; node < 2000; node++)
     assert.equal(
       lookup.objectOf(0, node, primitives[node % 3].mesh, primitives[node % 3].primitive),
       node,
     )
-  assert.equal(listed, 0, 'no list of the cell built')
+  assert.ok(words <= 2 * 2000 + 2000, `${words} words for 2000 lookups`)
 })

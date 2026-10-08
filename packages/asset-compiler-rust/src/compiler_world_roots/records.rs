@@ -114,7 +114,8 @@ pub(super) struct Page {
 }
 
 /// A placed object of a cell: its node, its primitive, the bundles of its own roots and every
-/// world bundle they need.
+/// world bundle they need. The roots' list is written and no reader reads it: it stays in the
+/// record until the next version of the format.
 pub(super) struct Object {
     pub node: usize,
     pub primitive: usize,

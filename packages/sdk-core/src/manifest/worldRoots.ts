@@ -66,11 +66,10 @@ export type WorldRoots = {
       lodError: number
     }
   }
-  /** The world cells: how many, the placed primitives one holds, read at their records, and the
-   *  cell holding object `object` — an object root's `origin`. */
+  /** The world cells: how many, the placed primitives one holds — each word read in place, no
+   *  record built —, and the cell holding object `object` — an object root's `origin`. */
   cells: {
     count: number
-    objects(cell: number): WorldRootsObject[]
     /** The rank of `cell`'s first object among the table's: its record says it. */
     first(cell: number): number
     /** The number of objects `cell` holds. */
