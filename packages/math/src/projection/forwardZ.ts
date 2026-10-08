@@ -19,12 +19,23 @@ export function forwardPerspectiveProjection<T extends NumberSink>(
   near: number,
   far: number,
 ) {
-  for (let i = 0; i < 16; i++) out[i] = 0
+  // All sixteen slots, in index order, zeros included: no zeroing pass written over again.
   out[0] = scale
+  out[1] = 0
+  out[2] = 0
+  out[3] = 0
+  out[4] = 0
   out[5] = scale
+  out[6] = 0
+  out[7] = 0
+  out[8] = 0
+  out[9] = 0
   out[10] = near === far ? 0 : near / (near - far)
   out[11] = 1
+  out[12] = 0
+  out[13] = 0
   out[14] = near === far ? near : (-far * near) / (near - far)
+  out[15] = 0
   return out
 }
 
@@ -41,10 +52,21 @@ export function forwardOrthographicProjection<T extends NumberSink>(
   depthScale: number,
   depthOffset: number,
 ) {
-  for (let i = 0; i < 16; i++) out[i] = 0
+  // All sixteen slots, in index order, zeros included: no zeroing pass written over again.
   out[0] = hw !== 0 ? 1 / hw : 1
+  out[1] = 0
+  out[2] = 0
+  out[3] = 0
+  out[4] = 0
   out[5] = hh !== 0 ? 1 / hh : 1
+  out[6] = 0
+  out[7] = 0
+  out[8] = 0
+  out[9] = 0
   out[10] = -depthScale
+  out[11] = 0
+  out[12] = 0
+  out[13] = 0
   out[14] = 1 - depthOffset * depthScale
   out[15] = 1
   return out

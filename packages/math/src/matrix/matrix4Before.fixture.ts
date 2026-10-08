@@ -1,5 +1,7 @@
-// `multiplyMatrix4` before it read `b` one column at a time, word for word but its name: the
-// oracle `matrix4Moves.test.ts` holds the shipped one to.
+// The matrix functions before their rewrites, word for word but their names (a call to a rewritten
+// one names its before-form): the oracles `matrix4Moves.test.ts` and `matrix4TypedMoves.test.ts`
+// hold the shipped ones to.
+import { multiplyMatrix4, type NumberSink } from './matrix4.ts'
 
 export function multiplyMatrix4Before(out: Float64Array, a: Float64Array, b: Float64Array) {
   const a11 = a[0],
@@ -51,4 +53,79 @@ export function multiplyMatrix4Before(out: Float64Array, a: Float64Array, b: Flo
   out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43
   out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44
   return out
+}
+
+export function linearPartDeterminantBefore(m: ArrayLike<number>) {
+  return (
+    m[0] * (m[5] * m[10] - m[6] * m[9]) -
+    m[1] * (m[4] * m[10] - m[6] * m[8]) +
+    m[2] * (m[4] * m[9] - m[5] * m[8])
+  )
+}
+
+export function copyMatrix4Before<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  outAt = 0,
+  mAt = 0,
+) {
+  for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i]
+  return out
+}
+
+export function negateColumnMatrix4Before<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  c: number,
+) {
+  copyMatrix4Before(out, m)
+  for (let r = 0; r < 4; r++) out[4 * c + r] = -m[4 * c + r]
+  return out
+}
+
+export function negateRowMatrix4Before<T extends NumberSink>(
+  out: T,
+  m: ArrayLike<number>,
+  r: number,
+) {
+  copyMatrix4Before(out, m)
+  for (let c = 0; c < 4; c++) out[4 * c + r] = -m[4 * c + r]
+  return out
+}
+
+export function transposeMatrix4Before<T extends NumberSink>(out: T, m: ArrayLike<number>) {
+  for (let r = 0; r < 4; r++) {
+    out[r * 5] = m[r * 5]
+    for (let c = r + 1; c < 4; c++) {
+      const upper = m[c * 4 + r],
+        lower = m[r * 4 + c]
+      out[c * 4 + r] = lower
+      out[r * 4 + c] = upper
+    }
+  }
+  return out
+}
+
+export function linearPartIdentityDistanceSqBefore(m: ArrayLike<number>, at = 0) {
+  let sum = 0
+  for (let column = 0; column < 3; column++) {
+    const x = m[at + column * 4],
+      y = m[at + column * 4 + 1],
+      z = m[at + column * 4 + 2]
+    sum += (x - +(column === 0)) ** 2 + (y - +(column === 1)) ** 2 + (z - +(column === 2)) ** 2
+  }
+  return sum
+}
+
+const leftOperand = new Float64Array(16),
+  rightOperand = new Float64Array(16),
+  product = new Float64Array(16)
+
+export function multiplyMatrix4TypedBefore<T extends NumberSink>(
+  out: T,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+) {
+  multiplyMatrix4(product, copyMatrix4Before(leftOperand, a), copyMatrix4Before(rightOperand, b))
+  return copyMatrix4Before(out, product)
 }

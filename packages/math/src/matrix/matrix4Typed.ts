@@ -18,6 +18,21 @@ export function multiplyMatrix4Typed<T extends NumberSink>(
   a: ArrayLike<number>,
   b: ArrayLike<number>,
 ) {
+  // Three `Float64Array`s go straight to `multiplyMatrix4`: the copies change no bit there. That
+  // body reads all of `a` before its first write, so `out` may overlap `a` in any way; it reads
+  // each column of `b` only before writing the same column of `out`, so an `out` sharing `b`'s
+  // memory (`out === b`, or a view of the same buffer starting a column later) would overwrite
+  // columns of `b` not yet read. Hence the guard on the buffer, not on the identity: such a pair
+  // takes the copies.
+  if (
+    out instanceof Float64Array &&
+    a instanceof Float64Array &&
+    b instanceof Float64Array &&
+    out.buffer !== b.buffer
+  ) {
+    multiplyMatrix4(out, a, b)
+    return out
+  }
   multiplyMatrix4(product, copyMatrix4(leftOperand, a), copyMatrix4(rightOperand, b))
   return copyMatrix4(out, product)
 }

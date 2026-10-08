@@ -21,35 +21,33 @@ import { length3 } from '../../vector/vector.ts'
 /** Float count for the six planes of a frustum. */
 export const FRUSTUM_PLANE_VALUES = 24
 
-/** Stores one plane at `at`, scaled to a unit normal when `unit` is set: one division by the
- *  normal's length, then four products. Everything is computed in double precision before the
- *  store, so a single-precision output rounds only once. The components travel as arguments, not
- *  through a module buffer: measured twice as fast, the compiler inlines the call and none are
- *  wrapped. */
-function storePlane(
+/** Stores the plane `a, b, c, d` at `at`, scaled to a unit normal: one division by the normal's
+ *  length, then four products. Everything is computed in double precision before the store, so a
+ *  single-precision output rounds only once. The components travel as arguments, not through a
+ *  module buffer: measured twice as fast, the compiler inlines the call and none are wrapped. */
+function storeUnitPlane(
   out: Float32Array | Float64Array,
   at: number,
   a: number,
   b: number,
   c: number,
   d: number,
-  unit: boolean,
 ) {
-  if (unit) {
-    const reciprocal = 1 / length3(a, b, c)
-    a *= reciprocal
-    b *= reciprocal
-    c *= reciprocal
-    d *= reciprocal
-  }
-  out[at] = a
-  out[at + 1] = b
-  out[at + 2] = c
-  out[at + 3] = d
+  const reciprocal = 1 / length3(a, b, c)
+  out[at] = a * reciprocal
+  out[at + 1] = b * reciprocal
+  out[at + 2] = c * reciprocal
+  out[at + 3] = d * reciprocal
 }
 
-function storeClipBounds(out: Float32Array | Float64Array, m: ArrayLike<number>, unit: boolean) {
+/**
+ * The six normalized planes of the frustum of a clip matrix — a view-projection, or a
+ * projection alone for planes in view space. Unit normals: `a*x + b*y + c*z + d` is
+ * a signed distance. A degenerate matrix yields NaN or infinite planes without throwing.
+ */
+export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
   // The rows of `m` that give clip x, y, z and w; the digit is the column: `m[4 · column + row]`.
+  // The sixteen are all read before the first store, so `out` may share memory with `m`.
   const x0 = m[0],
     x1 = m[4],
     x2 = m[8],
@@ -66,21 +64,14 @@ function storeClipBounds(out: Float32Array | Float64Array, m: ArrayLike<number>,
     w1 = m[7],
     w2 = m[11],
     w3 = m[15]
-  storePlane(out, 0, w0 - x0, w1 - x1, w2 - x2, w3 - x3, unit) // x <= w
-  storePlane(out, 4, w0 + x0, w1 + x1, w2 + x2, w3 + x3, unit) // -w <= x
-  storePlane(out, 8, w0 + y0, w1 + y1, w2 + y2, w3 + y3, unit) // -w <= y
-  storePlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3, unit) // y <= w
-  storePlane(out, 16, z0, z1, z2, z3, unit) // z >= 0, FAR
-  storePlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3, unit) // z <= w, NEAR
-}
-
-/**
- * The six normalized planes of the frustum of a clip matrix — a view-projection, or a
- * projection alone for planes in view space. Unit normals: `a*x + b*y + c*z + d` is
- * a signed distance. A degenerate matrix yields NaN or infinite planes without throwing.
- */
-export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
-  storeClipBounds(out, m, true)
+  storeUnitPlane(out, 0, w0 - x0, w1 - x1, w2 - x2, w3 - x3) // x <= w
+  storeUnitPlane(out, 4, w0 + x0, w1 + x1, w2 + x2, w3 + x3) // -w <= x
+  storeUnitPlane(out, 8, w0 + y0, w1 + y1, w2 + y2, w3 + y3) // -w <= y
+  storeUnitPlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3) // y <= w
+  // z >= 0, FAR. Under an infinite far plane the z row is (0, 0, 0, near): the reciprocal is
+  // 1 / 0 = ∞ and the plane 0 · ∞ = NaN and near · ∞, a plane no point fails.
+  storeUnitPlane(out, 16, z0, z1, z2, z3)
+  storeUnitPlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3) // z <= w, NEAR
 }
 
 /**
@@ -89,7 +80,50 @@ export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: Arr
  * the exact clip test, where normalizing would shift rounding.
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
-  storeClipBounds(out, m, false)
+  // The rows of `m`, as `frustumPlanesFromMatrix` reads them, all before the first store: a shared
+  // reader would hand them back through memory, not registers.
+  // jscpd:ignore-start
+  const x0 = m[0],
+    x1 = m[4],
+    x2 = m[8],
+    x3 = m[12]
+  const y0 = m[1],
+    y1 = m[5],
+    y2 = m[9],
+    y3 = m[13]
+  const z0 = m[2],
+    z1 = m[6],
+    z2 = m[10],
+    z3 = m[14]
+  const w0 = m[3],
+    w1 = m[7],
+    w2 = m[11],
+    w3 = m[15]
+  // jscpd:ignore-end
+  out[0] = w0 - x0 // x <= w
+  out[1] = w1 - x1
+  out[2] = w2 - x2
+  out[3] = w3 - x3
+  out[4] = w0 + x0 // -w <= x
+  out[5] = w1 + x1
+  out[6] = w2 + x2
+  out[7] = w3 + x3
+  out[8] = w0 + y0 // -w <= y
+  out[9] = w1 + y1
+  out[10] = w2 + y2
+  out[11] = w3 + y3
+  out[12] = w0 - y0 // y <= w
+  out[13] = w1 - y1
+  out[14] = w2 - y2
+  out[15] = w3 - y3
+  out[16] = z0 // z >= 0, FAR
+  out[17] = z1
+  out[18] = z2
+  out[19] = z3
+  out[20] = w0 - z0 // z <= w, NEAR
+  out[21] = w1 - z1
+  out[22] = w2 - z2
+  out[23] = w3 - z3
 }
 
 /**
@@ -110,7 +144,19 @@ export function frustumFarPlane(
   normalize: boolean,
 ) {
   if (!Number.isFinite(far)) return
-  storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize)
+  // The four read before the first store, so `out` may share memory with `view`.
+  const a = view[2],
+    b = view[6],
+    c = view[10],
+    d = view[14] + far
+  if (normalize) {
+    storeUnitPlane(out, at, a, b, c, d)
+    return
+  }
+  out[at] = a
+  out[at + 1] = b
+  out[at + 2] = c
+  out[at + 3] = d
 }
 
 /** The signed distance of `(x, y, z)` to the plane `a, b, c, d` stored at `p[at]` — a distance
