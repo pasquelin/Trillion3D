@@ -13,8 +13,8 @@ export type WatchVerdict = 0 | 'moved' | 'reshaped'
  *  its parent changed or it was destroyed, the watched set to be rebuilt. */
 export const SCAN_FLIPPED = 1,
   SCAN_POSED = 2,
-  SCAN_MOVED = 4,
   SCAN_RESHAPED = 8
+const SCAN_MOVED = 4
 
 /** The watch's verdict of a comparison's bits. */
 export const verdictOf = (found: number): WatchVerdict =>
