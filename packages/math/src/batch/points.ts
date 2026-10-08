@@ -1,4 +1,4 @@
-import { normalizeVector3, transformAffinePoint } from '../vector/vector.ts'
+import { transformAffinePoint, writeNormalizedVector3 } from '../vector/vector.ts'
 import { POSITION_VALUES } from './strides.ts'
 
 /**
@@ -67,7 +67,8 @@ export function transformDirectionsBatch(
   dirs: ArrayLike<number>,
   n: number,
 ): void {
-  // The unit's nine values of `m`, read once before the loop; `out` may be `dirs`.
+  // The unit's nine values of `m`, read once before the loop; `out` may be `dirs`: each element's
+  // three components are read before its three writes, normalised from locals.
   const m0 = m[0],
     m1 = m[1],
     m2 = m[2],
@@ -82,9 +83,12 @@ export function transformDirectionsBatch(
     const x = dirs[at],
       y = dirs[at + 1],
       z = dirs[at + 2]
-    out[at] = m0 * x + m4 * y + m8 * z
-    out[at + 1] = m1 * x + m5 * y + m9 * z
-    out[at + 2] = m2 * x + m6 * y + m10 * z
-    normalizeVector3(out, at)
+    writeNormalizedVector3(
+      out,
+      at,
+      m0 * x + m4 * y + m8 * z,
+      m1 * x + m5 * y + m9 * z,
+      m2 * x + m6 * y + m10 * z,
+    )
   }
 }

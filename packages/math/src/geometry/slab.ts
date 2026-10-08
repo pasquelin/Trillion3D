@@ -34,7 +34,11 @@ export function slabCut(
     }
     let a = (lower - o[k]) / d[k],
       b = (upper - o[k]) / d[k]
-    if (a > b) [a, b] = [b, a]
+    if (a > b) {
+      const t = a
+      a = b
+      b = t
+    }
     if (a > near) near = a
     if (b < far) far = b
     if (near > far) return false

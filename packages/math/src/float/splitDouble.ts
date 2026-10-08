@@ -19,14 +19,21 @@ const rounded = new Float32Array(1),
 
 /** Smallest float not below value, including subnormals; bounds must never round inward. */
 export function ceilFloat32(value: number) {
-  rounded[0] = value
-  if (rounded[0] < value) bits[0] += rounded[0] >= 0 ? 1 : -1
+  // `Math.fround` is the nearest float; only when it lies below does the float buffer step it one
+  // ulp up (away from zero for a positive, toward zero for a negative).
+  const nearest = Math.fround(value)
+  if (!(nearest < value)) return nearest
+  rounded[0] = nearest
+  bits[0] += nearest >= 0 ? 1 : -1
   return rounded[0]
 }
 
 /** Greatest float not above value, including subnormals and negative zero: `ceilFloat32` mirrored. */
 export function floorFloat32(value: number) {
-  rounded[0] = value
-  if (rounded[0] > value) bits[0] += rounded[0] > 0 ? -1 : 1
+  // `ceilFloat32`'s form mirrored: the nearest float, stepped one ulp down only when it lies above.
+  const nearest = Math.fround(value)
+  if (!(nearest > value)) return nearest
+  rounded[0] = nearest
+  bits[0] += nearest > 0 ? -1 : 1
   return rounded[0]
 }

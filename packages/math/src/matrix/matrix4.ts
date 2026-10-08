@@ -144,11 +144,17 @@ export function determinantMatrix4(m: ArrayLike<number>) {
  * matrix, where neither rounding decides. The bench quantifies both.
  */
 export function linearPartDeterminant(m: ArrayLike<number>) {
-  return (
-    m[0] * (m[5] * m[10] - m[6] * m[9]) -
-    m[1] * (m[4] * m[10] - m[6] * m[8]) +
-    m[2] * (m[4] * m[9] - m[5] * m[8])
-  )
+  // Nine reads, each once, then the same expression in the same order.
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10]
+  return m0 * (m5 * m10 - m6 * m9) - m1 * (m4 * m10 - m6 * m8) + m2 * (m4 * m9 - m5 * m8)
 }
 
 /** Column-major identity, read and never written: the pose of a node or a root with no pose. */
@@ -167,7 +173,24 @@ export function copyMatrix4<T extends NumberSink>(
   outAt = 0,
   mAt = 0,
 ) {
-  for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i]
+  // The loop unrolled: each value read just before its own write, in ascending order, so a copy
+  // within one buffer at overlapping offsets yields what the loop did.
+  out[outAt] = m[mAt]
+  out[outAt + 1] = m[mAt + 1]
+  out[outAt + 2] = m[mAt + 2]
+  out[outAt + 3] = m[mAt + 3]
+  out[outAt + 4] = m[mAt + 4]
+  out[outAt + 5] = m[mAt + 5]
+  out[outAt + 6] = m[mAt + 6]
+  out[outAt + 7] = m[mAt + 7]
+  out[outAt + 8] = m[mAt + 8]
+  out[outAt + 9] = m[mAt + 9]
+  out[outAt + 10] = m[mAt + 10]
+  out[outAt + 11] = m[mAt + 11]
+  out[outAt + 12] = m[mAt + 12]
+  out[outAt + 13] = m[mAt + 13]
+  out[outAt + 14] = m[mAt + 14]
+  out[outAt + 15] = m[mAt + 15]
   return out
 }
 
@@ -175,31 +198,140 @@ export function copyMatrix4<T extends NumberSink>(
  *  as a view looking down +z made from one looking down −z. `out` may be `m`; negation is exact,
  *  so a float32 `out` holds the negated float32 of each number. */
 export function negateColumnMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, c: number) {
-  copyMatrix4(out, m)
-  for (let r = 0; r < 4; r++) out[4 * c + r] = -m[4 * c + r]
+  // One pass: the sixteen values read first, then each written once, negated if it lies in
+  // column `c`. Negation is exact, so the bits are those of the copy then negate it replaces.
+  // `c` is 0 to 3, and `out` is `m` or apart from it (a view half over `m` is no matrix).
+  // The sixteen reads `transposeMatrix4` also spells out: a shared reader would hand them back
+  // through memory, not registers.
+  // jscpd:ignore-start
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m3 = m[3],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m7 = m[7],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m11 = m[11],
+    m12 = m[12],
+    m13 = m[13],
+    m14 = m[14],
+    m15 = m[15]
+  // jscpd:ignore-end
+  const c0 = c === 0,
+    c1 = c === 1,
+    c2 = c === 2,
+    c3 = c === 3
+  out[0] = c0 ? -m0 : m0
+  out[1] = c0 ? -m1 : m1
+  out[2] = c0 ? -m2 : m2
+  out[3] = c0 ? -m3 : m3
+  out[4] = c1 ? -m4 : m4
+  out[5] = c1 ? -m5 : m5
+  out[6] = c1 ? -m6 : m6
+  out[7] = c1 ? -m7 : m7
+  out[8] = c2 ? -m8 : m8
+  out[9] = c2 ? -m9 : m9
+  out[10] = c2 ? -m10 : m10
+  out[11] = c2 ? -m11 : m11
+  out[12] = c3 ? -m12 : m12
+  out[13] = c3 ? -m13 : m13
+  out[14] = c3 ? -m14 : m14
+  out[15] = c3 ? -m15 : m15
   return out
 }
 
 /** `out = m` with row `r` negated, `diag(…, −1 at r, …) · m`: a flip of one output axis, its four
  *  entries one per column. `out` may be `m`; negation is exact. */
 export function negateRowMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, r: number) {
-  copyMatrix4(out, m)
-  for (let c = 0; c < 4; c++) out[4 * c + r] = -m[4 * c + r]
+  // One pass, as `negateColumnMatrix4`: each value written once, negated if it lies in row `r`.
+  // `r` is 0 to 3, and `out` is `m` or apart from it. One body for both negations, a bit mask per
+  // slot, measured 26 to 39 % slower.
+  // The sixteen reads, as in `transposeMatrix4`.
+  // jscpd:ignore-start
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m3 = m[3],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m7 = m[7],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m11 = m[11],
+    m12 = m[12],
+    m13 = m[13],
+    m14 = m[14],
+    m15 = m[15]
+  // jscpd:ignore-end
+  const r0 = r === 0,
+    r1 = r === 1,
+    r2 = r === 2,
+    r3 = r === 3
+  out[0] = r0 ? -m0 : m0
+  out[1] = r1 ? -m1 : m1
+  out[2] = r2 ? -m2 : m2
+  out[3] = r3 ? -m3 : m3
+  out[4] = r0 ? -m4 : m4
+  out[5] = r1 ? -m5 : m5
+  out[6] = r2 ? -m6 : m6
+  out[7] = r3 ? -m7 : m7
+  out[8] = r0 ? -m8 : m8
+  out[9] = r1 ? -m9 : m9
+  out[10] = r2 ? -m10 : m10
+  out[11] = r3 ? -m11 : m11
+  out[12] = r0 ? -m12 : m12
+  out[13] = r1 ? -m13 : m13
+  out[14] = r2 ? -m14 : m14
+  out[15] = r3 ? -m15 : m15
   return out
 }
 
 /** `out = mᵀ`: `out[c · 4 + r] = m[r · 4 + c]`. Each mirrored pair is read before it is written,
  *  so `out` may be `m`. */
 export function transposeMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>) {
-  for (let r = 0; r < 4; r++) {
-    out[r * 5] = m[r * 5]
-    for (let c = r + 1; c < 4; c++) {
-      const upper = m[c * 4 + r],
-        lower = m[r * 4 + c]
-      out[c * 4 + r] = lower
-      out[r * 4 + c] = upper
-    }
-  }
+  // The sixteen values read first, then sixteen writes at constant offsets; `out` is `m` or apart
+  // from it. The reads are spelled out as wherever the kernel holds a whole matrix in registers
+  // (`boxTransform` among them).
+  // jscpd:ignore-start
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m3 = m[3],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m7 = m[7],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m11 = m[11],
+    m12 = m[12],
+    m13 = m[13],
+    m14 = m[14],
+    m15 = m[15]
+  // jscpd:ignore-end
+  out[0] = m0
+  out[1] = m4
+  out[2] = m8
+  out[3] = m12
+  out[4] = m1
+  out[5] = m5
+  out[6] = m9
+  out[7] = m13
+  out[8] = m2
+  out[9] = m6
+  out[10] = m10
+  out[11] = m14
+  out[12] = m3
+  out[13] = m7
+  out[14] = m11
+  out[15] = m15
   return out
 }
 

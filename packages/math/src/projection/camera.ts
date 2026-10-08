@@ -124,11 +124,23 @@ export function perspectiveProjection<T extends NumberSink>(
   // near plane, falling towards 0 with distance and never reaching it.
   const hy = (near * perspectiveSlope(fov)) / zoom, // this rounding order is fixed, bit for bit
     hx = aspect * hy
-  for (let i = 0; i < 16; i++) out[i] = 0
+  // All sixteen slots, in index order, zeros included: no zeroing pass written over again.
   out[0] = near / hx
+  out[1] = 0
+  out[2] = 0
+  out[3] = 0
+  out[4] = 0
   out[5] = near / hy
+  out[6] = 0
+  out[7] = 0
+  out[8] = 0
+  out[9] = 0
+  out[10] = 0
   out[11] = -1
+  out[12] = 0
+  out[13] = 0
   out[14] = near
+  out[15] = 0
   return out
 }
 
@@ -153,10 +165,19 @@ export function orthographicProjection<T extends NumberSink>(
   const dx = right - left,
     dy = top - bottom,
     dz = far - near
-  for (let i = 0; i < 16; i++) out[i] = 0
+  // All sixteen slots, in index order, zeros included: no zeroing pass written over again.
   out[0] = 2 / dx
+  out[1] = 0
+  out[2] = 0
+  out[3] = 0
+  out[4] = 0
   out[5] = 2 / dy
+  out[6] = 0
+  out[7] = 0
+  out[8] = 0
+  out[9] = 0
   out[10] = 1 / dz
+  out[11] = 0
   // `+ 0` keeps a centred box's offsets at +0, never −0.
   out[12] = -(left + right) / dx + 0
   out[13] = -(bottom + top) / dy + 0

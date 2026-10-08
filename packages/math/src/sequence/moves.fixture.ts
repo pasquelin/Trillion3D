@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import type { NumberSink } from '../matrix/matrix4.ts'
 import { perspectiveProjection } from '../projection/camera.ts'
 import { edgeValues, haltonSpan } from './sweep.fixture.ts'
 
@@ -67,3 +68,18 @@ export function assertSameBits(old: ArrayLike<number>, now: ArrayLike<number>, l
   for (let k = 0; k < old.length; k++)
     if (!Object.is(old[k], now[k])) assert.fail(`${label}[${k}]: old ${old[k]}, new ${now[k]}`)
 }
+
+/** The sinks a `NumberSink` takes, each filled from `values`: doubles, floats, plain, integers. */
+export const SINKS: ((values: ArrayLike<number>) => NumberSink & ArrayLike<number>)[] = [
+  (values) => Float64Array.from(values),
+  (values) => Float32Array.from(values),
+  (values) => Array.from(values),
+  (values) => Int32Array.from(values),
+]
+
+/** `values` as sink kind `kind`, an index into `SINKS`: 0 `Float64Array`, 1 `Float32Array`, 2 a
+ *  plain array, 3 an `Int32Array`. */
+export const typed = (kind: number, values: ArrayLike<number>) => SINKS[kind](values)
+
+/** Eighteen sentinels: the two past a matrix's sixteen catch a stray write. */
+export const SENTINELS = new Float64Array(18).fill(7)
