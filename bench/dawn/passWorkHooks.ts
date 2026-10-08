@@ -14,6 +14,7 @@ import { describeTexture, describeView, textures, views, workgroupSize } from '.
 export type PassWork = {
   calls: number
   indirect: number
+  batches: number
   unsized: number
   groups: number
   invocations: number
@@ -24,6 +25,7 @@ export type PassWork = {
 export const emptyWork = (): PassWork => ({
   calls: 0,
   indirect: 0,
+  batches: 0,
   unsized: 0,
   groups: 0,
   invocations: 0,

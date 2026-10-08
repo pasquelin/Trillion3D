@@ -148,3 +148,13 @@ test('a counter never seen says nothing: a pass is wasted only when its counter 
     'wasted work',
   )
 })
+
+test('a pass of many batches pays the fixed cost of each', () => {
+  const [row] = rankBottlenecks(
+    [pass('batched', 1, { work: { batches: 40, calls: 40 } })],
+    machine,
+    {},
+    new Map(),
+  )
+  assert.ok(row.floorMs >= 40 * machine.passMs, `${row.floorMs}`)
+})

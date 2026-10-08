@@ -37,7 +37,8 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
     options.timeoutS * 1000,
   )
   try {
-    if (child.status !== 0) throw new Error(`BENCH_AB: a play of ${root} ended ${child.status}`)
+    if (child.status !== 0)
+      throw new Error(`BENCH_AB: a play of ${root} ended ${child.status ?? child.signal}`)
     return JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
   } finally {
     rmSync(report, { force: true })
@@ -79,18 +80,33 @@ export async function abTest(
   const [a, b] = sides.map((side) => engineRoot(side, options.dirtyOk).root)
   const page = options.file
   const plays = { a: [] as BenchPlay[], b: [] as BenchPlay[] }
-  for (let round = 0; round < rounds; round++) {
+  // A play that fails ends the rounds, not the verdict: the rounds both sides finished are kept.
+  let stopped = ''
+  rounds: for (let round = 0; round < rounds; round++) {
     // The order flips every round: neither side always runs first on a cold GPU.
     for (const side of round % 2 ? (['b', 'a'] as const) : (['a', 'b'] as const)) {
       console.error(`ab: round ${round + 1}/${rounds}, ${side.toUpperCase()}`)
-      plays[side].push(await play(options, page, side === 'a' ? a : b, out, `${side}${round + 1}`))
+      try {
+        plays[side].push(
+          await play(options, page, side === 'a' ? a : b, out, `${side}${round + 1}`),
+        )
+      } catch (error) {
+        stopped = `round ${round + 1} stopped: ${(error as Error).message}`
+        break rounds
+      }
     }
   }
+  const done = Math.min(plays.a.length, plays.b.length)
+  if (done < 2) throw new Error(`BENCH_AB: ${stopped || 'fewer than two rounds'}`)
+  plays.a.length = plays.b.length = done
   const results = compareRounds(plays.a, plays.b, least)
-  const text = abText(options, [a, b], results, rounds, least)
+  const text = abText(options, [a, b], results, done, least, stopped)
   const stem = join(out, `${stamp()}-ab-${options.name}`)
   writeFileSync(`${stem}.md`, text)
-  writeFileSync(`${stem}.json`, JSON.stringify({ sides: [a, b], rounds, least, results }, null, 1))
+  writeFileSync(
+    `${stem}.json`,
+    JSON.stringify({ sides: [a, b], rounds: done, stopped, least, results }, null, 1),
+  )
   return { stem, text, results }
 }
 
@@ -103,13 +119,14 @@ function abText(
   results: SegmentResult[],
   rounds: number,
   least: number,
+  stopped: string,
 ) {
   return [
     `# A/B — ${options.name}, scenario ${options.scenario.name}`,
     '',
     `A: ${sides[0]}`,
     `B: ${sides[1]}`,
-    '',
+    ...(stopped ? [`STOPPED EARLY — ${stopped}`, ''] : []),
     `${rounds} rounds, the two sides alternating; the difference B − A of each round (negative: B is faster), its mean and 95 % interval. A gain or a loss needs an interval holding no zero and a mean past ${ms(least, 3)} ms; else noise.`,
     '',
     table(

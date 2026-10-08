@@ -47,7 +47,10 @@ export function floorsOf(pass: Pick<BenchPass, 'encoded' | 'kind'>, machine: Mac
   const { encoded } = pass
   const launch = encoded.invocations / machine.threadsPerMs
   const stores = encoded.attachBytes / machine.attachmentGBs / 1e6
-  const fixed = machine.passMs + (pass.kind === 'compute' ? encoded.calls * machine.dispatchMs : 0)
+  // A pass of many batches (`vsm.raster *`) pays each batch's fixed cost.
+  const fixed =
+    machine.passMs * Math.max(1, encoded.batches) +
+    (pass.kind === 'compute' ? encoded.calls * machine.dispatchMs : 0)
   const floorMs = Math.max(fixed, launch, stores)
   const moved = encoded.boundBytes / Math.min(machine.readGBs, machine.textureReadGBs) / 1e6
   return { floorMs, floorMaxMs: Math.max(floorMs, moved + stores), launch, stores, moved }

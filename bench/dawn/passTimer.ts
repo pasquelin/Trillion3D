@@ -52,6 +52,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
         kind,
         at,
         ...emptyWork(),
+        batches: 1,
         ...attachments(kind, descriptor),
       })
       const timestampWrites = {

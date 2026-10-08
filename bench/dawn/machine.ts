@@ -4,7 +4,7 @@
 // could not beat on this GPU, whatever its shader.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { measureOutput } from '../core/paths.ts'
+import { RACINE } from '../core/paths.ts'
 import { spread } from './summary.ts'
 import type { BenchGpu } from './device.ts'
 import {
@@ -43,7 +43,7 @@ export type Machine = {
 
 /** The cache file of an adapter, off git (`.mesure/` is). */
 const fileOf = (adapter: string) =>
-  join(measureOutput('..', 'machine'), `${adapter.replace(/[^\w.-]+/g, '-')}.json`)
+  join(RACINE, '.mesure', 'machine', `${adapter.replace(/[^\w.-]+/g, '-')}.json`)
 
 /** The median of `runs` timings of `kernel` after two it throws away. */
 async function median(kernel: () => Promise<number>, runs = 7) {

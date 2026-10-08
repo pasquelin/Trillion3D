@@ -61,6 +61,10 @@ function numbersOf(play: BenchPlay, pass: string, cut: string | null): Variant {
   // The pass named, whole: its exact name, else the one pass whose label holds it — never several.
   const exact = segment.benchPasses.filter((p) => p.name === passKey(pass))
   const mine = exact.length ? exact : segment.benchPasses.filter((p) => p.label.includes(pass))
+  if (!mine.length)
+    throw new Error(
+      `BENCH_DISSECT: no timed pass of the segment is "${pass}" (its frames may be timed by the engine itself)`,
+    )
   if (new Set(mine.map((p) => p.name)).size > 1)
     throw new Error(
       `BENCH_DISSECT: "${pass}" names several passes (${mine.map((p) => p.name).join(', ')}): name one`,
@@ -87,7 +91,8 @@ export async function dissect(options: BenchOptions, pass: string, segmentName?:
     scenario,
     JSON.stringify({
       name: 'dissect',
-      page: options.name,
+      page: options.file,
+      warm: options.scenario.warm,
       segments: [{ ...segment, capture: false }],
     }),
   )

@@ -66,9 +66,10 @@ export function installDissect(
     })
   for (const kind of ['GPUComputePassEncoder', 'GPURenderPassEncoder'])
     hookAfter(g[kind].prototype, 'setPipeline', (self, [pipeline]) => {
+      if (!active) return
       const label = labelOf(self)
-      if (!active || !label || !label.includes(active.pass)) return
-      for (const module of pipelines.get(pipeline as object) ?? []) {
+      if (!label || !label.includes(active.pass)) return
+      for (const module of new Set(pipelines.get(pipeline as object))) {
         const info = infos.get(module)
         if (!info) continue
         const modules = seen.get(label) ?? new Map<string, { cuts: string[]; count: number }>()

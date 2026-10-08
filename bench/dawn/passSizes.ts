@@ -28,8 +28,8 @@ export function workgroupSize(
   const mine = found.find((f) => f[2] === entry) ?? found[0]
   if (!mine) return 0
   const side = (token: string) => {
-    const text = token.trim().replace(/u$/, '')
-    if (/^\d+$/.test(text)) return Number(text)
+    const text = token.trim()
+    if (/^\d+u?$/.test(text)) return Number(text.replace(/u$/, ''))
     if (typeof constants?.[text] === 'number') return constants[text]
     const named = new RegExp(
       `(?:const|override)\\s+${text}\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)u?\\s*;`,

@@ -78,7 +78,9 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
 
 /** The index of the median of `values`. */
 const middle = (values: readonly number[]) =>
-  values.map((value, i) => [value, i]).sort((a, b) => a[0] - b[0])[(values.length - 1) >> 1][1]
+  values
+    .map((value, i) => [Number.isFinite(value) ? value : Infinity, i])
+    .sort((a, b) => a[0] - b[0])[(values.length - 1) >> 1][1]
 
 /** The report of `plays` of one scenario: the first play's settings, every segment merged, the
  *  profiled play's CPU (the last, when one was profiled). */
