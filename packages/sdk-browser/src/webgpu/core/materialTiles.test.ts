@@ -52,7 +52,7 @@ test('a pixel is marked for the one class its page holds', () => {
 test("a tile's two triangles are its square, corners on whole pixels its neighbours share", () => {
   const { materialTileCorner } = shaderFunctions<{ materialTileCorner: Corner }>(
     wgslModule(MATERIAL_TILE_DRAW_WGSL),
-    ['materialTileCorner'],
+    ['materialTileCorner', 'bitAt'],
     wgslConstants(wgslModule(MATERIAL_TILE_DRAW_WGSL)),
   )
   const corners = [0, 1, 2, 3, 4, 5].map((i) => materialTileCorner(4, i, 3))

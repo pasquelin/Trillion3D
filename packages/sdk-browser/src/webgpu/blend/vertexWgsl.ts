@@ -9,6 +9,7 @@ import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { lowBits } from '../../../../math/src/wgsl/integer.ts'
 
 /** A lobed program's two UV sets of the vertex: the second where the item names a record and its
  *  geometry carries one — a fragment reads it only under a record (`blendPhysicalBegin`). */
@@ -62,6 +63,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       vsOutWgsl(layout.uv, layout.ids),
       TRIANGLE_PALETTE_WGSL,
       FACING_WGSL,
+      lowBits,
     ],
     blendVertexStage(layout),
   )
@@ -139,7 +141,7 @@ const blendVertexStage = ({
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
  let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
  let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
- let local=vertexIndex&((1u<<uni.vertexShift)-1u);
+ let local=vertexIndex&lowBits(uni.vertexShift);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
  out.ids=${ids}(it.mapIndex,flags|(u32(it.emissive.w)<<${surfaceModel.MODEL_SHIFT}u),it.emissiveIndex${word});

@@ -35,7 +35,7 @@
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
-import { lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
+import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
@@ -406,12 +406,12 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
  let cmd=cmds[index];
  let id=cmd.y&0xFFFFu;
  let mipLevel=(cmd.y>>16u)&7u;
- let staticLayer=((cmd.y>>19u)&1u)!=0u;
- let flattenBit=(cmd.y>>20u)&1u;
+ let staticLayer=bitIsSet(cmd.y,19u);
+ let flattenBit=bitAt(cmd.y,20u);
  let rect=vec4u(cmd.z&0x7Fu,(cmd.z>>7u)&0x7Fu,(cmd.z>>14u)&0x7Fu,(cmd.z>>21u)&0x7Fu);
  let corners=cmd.w&0xFFFFu;
  let markMask=(cmd.w>>16u)&0xFFu;
- let markBits=(cmd.w>>24u)&((1u<<VSM_DIRTY_SLICES)-1u);
+ let markBits=(cmd.w>>24u)&lowBits(VSM_DIRTY_SLICES);
  let h=vsmHandleFromId(id);
  let levelOffset=vsmTableLevelOrigin(h,mipLevel);
  let size=(rect.zw+vec2u(1u))-rect.xy;
@@ -450,6 +450,9 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
       VSM_RENDER_PARAMS_WGSL,
       FLAT_INDEX_WGSL,
       rectCell,
+      lowBits,
+      bitAt,
+      bitIsSet,
     ],
   )
 

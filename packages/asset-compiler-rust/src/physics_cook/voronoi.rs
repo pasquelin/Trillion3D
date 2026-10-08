@@ -6,7 +6,7 @@
 use crate::shared_math::unit;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use trillion3d_math::aabb::centre;
+use trillion3d_math::aabb::{centre, corner};
 use trillion3d_math::triangle::triangle_cross;
 use trillion3d_math::vec3::{dot, point, scale, sub, triple};
 use trillion3d_math::vecn::lerp;
@@ -108,9 +108,11 @@ const BOX: [usize; 24] = [
 
 /// The box from `low` to `high`, its faces wound outward.
 fn cuboid(low: Point, high: Point) -> Faces {
-    let corner = |c: usize| [0, 1, 2].map(|a| if c >> a & 1 == 1 { high[a] } else { low[a] });
     let faces = BOX.as_chunks::<4>().0;
-    faces.iter().map(|f| f.map(corner).to_vec()).collect()
+    faces
+        .iter()
+        .map(|f| f.map(|c| corner(low, high, c)).to_vec())
+        .collect()
 }
 
 /// `faces` as one closed mesh: positions welded by bits, each polygon a fan.

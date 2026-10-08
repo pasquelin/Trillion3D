@@ -1,7 +1,7 @@
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { highHalf, lowHalf } from '../../../math/src/wgsl/integer.ts'
+import { highHalf, lowBits, lowHalf } from '../../../math/src/wgsl/integer.ts'
 
 /**
  * Page table addressing and lookup: the page handle, the page access and the projection sampling.
@@ -39,7 +39,7 @@ fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 /** Page-address arithmetic and the buffer linearisation of the 2D tables. */
 export const VSM_PAGE_ADDRESS_WGSL = wgslBlock(
   'VSM_PAGE_ADDRESS_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL, lowHalf, highHalf],
+  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL, lowHalf, highHalf, lowBits],
   `
 fn vsmLog2PagesAtLevel(level:u32)->u32{return VSM_LOG2_LEVEL0_PAGES-level;}
 fn vsmPagesAtLevel(level:u32)->u32{return 1u<<vsmLog2PagesAtLevel(level);}
@@ -49,7 +49,7 @@ fn vsmMipTailOffset(mipLevel:u32)->vec2u{
  var r=vec2u(0u,0u);
  if(mipLevel>0u){
   r.y+=VSM_LEVEL0_PAGES;
-  let maxMask=(1u<<(VSM_MIPS-1u))-1u;
+  let maxMask=lowBits(VSM_MIPS-1u);
   let startBit=VSM_MIPS-mipLevel;
   r.x+=maxMask&(maxMask<<startBit);
  }

@@ -51,13 +51,13 @@ fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_T
  */
 export const MATERIAL_TILE_DRAW_WGSL = wgslBlock(
   'MATERIAL_TILE_DRAW_WGSL',
-  [pixelToNdc, CONSTANTS_WGSL],
+  [pixelToNdc, CONSTANTS_WGSL, bitAt],
   `@group(1) @binding(0) var<storage,read> classSlots:array<u32>;
 @group(1) @binding(1) var<storage,read> classTiles:array<u32>;
 /** Pixel corner \`i\` (0‥5, two triangles) of tile \`tile\` on a row of \`tilesX\`. */
 fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
- let x=(tile%tilesX+((0x32u>>i)&1u))*MATERIAL_TILE_SIZE;
- let y=(u32(tile/tilesX)+((0x2cu>>i)&1u))*MATERIAL_TILE_SIZE;
+ let x=(tile%tilesX+bitAt(0x32u,i))*MATERIAL_TILE_SIZE;
+ let y=(u32(tile/tilesX)+bitAt(0x2cu,i))*MATERIAL_TILE_SIZE;
  return vec2u(x,y);
 }
 @vertex fn shade_tile_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) n:u32)->@builtin(position) vec4f{

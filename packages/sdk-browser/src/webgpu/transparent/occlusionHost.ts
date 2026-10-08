@@ -4,6 +4,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { packPageCorners } from '../visibility/corners.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { rootOf } from '../../page/selection/placements.ts'
+import { setBit } from '../../../../math/src/scalar/bits.ts'
 
 type Table = NonNullable<WebgpuPagesRuntime['blendState']['table']>
 
@@ -90,6 +91,6 @@ function packEntries(rt: WebgpuPagesRuntime, table: Table, from: number, to: num
     }
     const root = rootOf(selectionRoots, placement.rootOfPacked[page])
     packPageCorners(packed, base, rec, root.world, root.reach)
-    if (neverCulled(rec.material)) bits[entry >> 5] |= 1 << (entry & 31)
+    if (neverCulled(rec.material)) setBit(bits, entry)
   }
 }
