@@ -63,4 +63,4 @@ const results = await measure({
   options: { tours: 500, budgetMs: 1500 },
 })
 
-rapport('mondes-racines', [results])
+rapport('root-worlds', [results])
