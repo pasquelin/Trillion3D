@@ -118,7 +118,11 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(pipeline.depthStencil?.depthCompare, 'greater-equal')
   assert.equal(pipeline.depthStencil?.depthWriteEnabled, false)
   assert.equal(surfaces.groups[1], state.runs[0].group, "the mesh's atlas group")
-  assert.deepEqual(surfaces.draws, [[6, 1, 0, 0]], 'one quad, one instance')
+  assert.deepEqual(
+    surfaces.draws,
+    [[4, 1, 0, 0]],
+    'one quad — a strip of four corners —, one instance',
+  )
   // The next image of the same view writes no record: the GPU turns the card to the camera.
   planWebgpuImpostors(rt, engineOf(200))
   drawImpostorVisibility(rt, gpu.device, open('primary'), true)

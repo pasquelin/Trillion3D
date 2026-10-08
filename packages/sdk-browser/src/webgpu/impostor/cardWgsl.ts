@@ -75,7 +75,8 @@ struct CardVary{
  @location(12) @interpolate(flat) n0:vec3f,@location(13) @interpolate(flat) n1:vec3f,@location(14) @interpolate(flat) n2:vec3f,
 }
 @vertex fn card_vs(@builtin(vertex_index) v:u32,@builtin(instance_index) i:u32)->CardVary{
- var order=array<u32,6>(0u,1u,2u,0u,2u,3u);
+ // A strip of four corners, two triangles — (1, 2, 0) and (2, 0, 3) —, the list's own.
+ var order=array<u32,4>(1u,2u,0u,3u);
  let c=cards[i];
  let origin=cardOrigin(c);let pivot=c.pivot.xyz;let radius=c.pivot.w;
  let centre=cardLinear(c)*pivot+origin;

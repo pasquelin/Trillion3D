@@ -61,7 +61,7 @@ function drawRuns(
   for (let r = 0; r < state.runCount; r++) {
     const run = state.runs[r]
     pass.setBindGroup(1, run.group)
-    pass.draw(6, run.count, 0, run.first)
+    pass.draw(4, run.count, 0, run.first)
   }
   rt.run.gpuDrawCalls += state.runCount
 }
