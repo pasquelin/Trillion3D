@@ -92,7 +92,7 @@ test('a millimetre physical move updates only its origin words, its exact double
   const last = fake.writes.at(-1)!
   assert.equal(last.offset, sources.length * 64)
   assert.equal(last.size, 32)
-  // The double, high word then low word, as the GPU holds it (`DOUBLE_WGSL`).
+  // The double, high word then low word, as the GPU holds it (`math/src/wgsl/double.ts`).
   const tail = new Uint32Array(data(frames.worldBuffers[0], fake.writes).buffer),
     at = sources.length * 16,
     held = new Float64Array(new Uint32Array([tail[at + 1], tail[at]]).buffer)[0]

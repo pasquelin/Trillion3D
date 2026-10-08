@@ -4,6 +4,9 @@ import * as barycentric from './barycentric.ts'
 import * as basis from './basis.ts'
 import * as color from './color.ts'
 import * as constants from './constants.ts'
+import * as double from './double.ts'
+import * as doubleWords from './doubleWords.ts'
+import * as f32 from './f32.ts'
 import * as geometry from './geometry.ts'
 import * as integer from './integer.ts'
 import * as inverseTranspose from './inverseTranspose.ts'
@@ -21,6 +24,9 @@ const MODULES = {
   basis,
   color,
   constants,
+  double,
+  doubleWords,
+  f32,
   geometry,
   integer,
   inverseTranspose,

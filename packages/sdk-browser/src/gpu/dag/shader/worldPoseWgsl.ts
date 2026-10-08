@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { TO_F32_WGSL } from '../../../placement/f32Wgsl.ts'
+import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
+import { dSub } from '../../../../../math/src/wgsl/double.ts'
 
 /**
  * A primitive's world pose at the cut's eye, and its frustum planes' first vec4 in `frames`, per
@@ -11,7 +12,7 @@ import { TO_F32_WGSL } from '../../../placement/f32Wgsl.ts'
  */
 export const DAG_WORLD_POSE_WGSL = wgslBlock(
   'DAG_WORLD_POSE_WGSL',
-  [TO_F32_WGSL],
+  [toF32, dSub],
   `
 /** One coordinate of a translation at the eye: the exact double \`t\` less the eye's \`e\`, as a
  *  single-precision word. */

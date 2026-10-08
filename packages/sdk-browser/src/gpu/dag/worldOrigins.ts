@@ -1,10 +1,10 @@
 import type { PackedDag } from './types.ts'
-import { packDoubles } from '../../placement/composedMotion.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { writeRanges, type RangeTarget } from './split.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
- *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
+ *  translation as three doubles, high word then low word, as the GPU holds a double (`math/src/wgsl/double.ts`),
  *  and two words of padding. Each cut reads its translations at its eye from them
  *  (`shader/worldPoseWgsl.ts`). */
 export const WORLD_ORIGIN_BYTES = 32

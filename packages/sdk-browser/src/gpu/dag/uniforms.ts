@@ -17,7 +17,7 @@ import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { packDoubles } from '../../placement/composedMotion.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every

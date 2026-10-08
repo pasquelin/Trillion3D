@@ -21,15 +21,18 @@ import { FRAME_VEC4 } from './types.ts'
 import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
-import { packDoubles } from '../../placement/composedMotion.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
+/** The double functions the pose's subtraction reaches: those of the compose passes but the
+ *  product's. */
+const SUBTRACTION = DOUBLE_HELPERS.filter((name) => name !== 'dMul' && name !== 'wideProduct')
 const run = shaderRun<{
   atEye(t: Pair, e: Pair): number
   translationAtEye(a: number[], b: number[], e0: number[], e1: number[]): number[]
-}>(DAG_WORLD_POSE_WGSL, [...DOUBLE_HELPERS, 'toF32', 'atEye', 'translationAtEye'], {
+}>(DAG_WORLD_POSE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {
   countLeadingZeros,
 })
 const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]

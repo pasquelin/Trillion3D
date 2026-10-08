@@ -1,12 +1,13 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
-import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
+import { dAdd, dDiv, dMul, dSub } from '../../../math/src/wgsl/double.ts'
+import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
+import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 /**
  * The temporal motion of a linked placement, on the GPU, word for word the CPU's
  * (`../taa/motion.ts`): `previous · current⁻¹` of the two single-precision worlds the rows hold,
  * widened to double, the inverse by `invertMatrix4`'s cofactors and the product by
  * `multiplyMatrix4`'s, every product, sum and the one reciprocal rounded once as the CPU rounds them
- * (`DOUBLE_WGSL`); its translation column becomes `M · (eye, 1)` in double, as
+ * (`math/src/wgsl/double.ts`); its translation column becomes `M · (eye, 1)` in double, as
  * `transformAffinePoint` writes it, then `− eye` and single precision, as `worldToRenderOrigin`
  * stores it.
  */
@@ -59,7 +60,7 @@ const PRODUCTS = ['yz', 'xz', 'xy'].flatMap((rows) =>
 /** `m⁻¹` as `invertMatrix4` computes it: the zero matrix for an exactly zero determinant. */
 const INVERSE_WGSL = wgslBlock(
   'INVERSE_WGSL',
-  [DOUBLE_WGSL],
+  [dIsZero, dMul, dDiv],
   `
 fn inverse4(m:array<vec2u,16>)->array<vec2u,16>{
 ${[0, 1, 2, 3].map((c) => ['x', 'y', 'z', 'w'].map((r, i) => `let ${r}${c}=m[${c * 4 + i}];`).join('')).join('\n')}
@@ -86,7 +87,7 @@ ${ENTRIES.map((entry, k) => `out[${k}]=dMul(${entry.length === 2 ? entry : sumTe
  */
 export const MOTION_WGSL = wgslBlock(
   'MOTION_WGSL',
-  [DOUBLE_WGSL, FROM_F32_WGSL, TO_F32_WGSL, INVERSE_WGSL],
+  [dAdd, dSub, dMul, fromF32, toF32, INVERSE_WGSL],
   `fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)->array<u32,16>{
  var held:array<vec2u,16>;
  var now:array<vec2u,16>;

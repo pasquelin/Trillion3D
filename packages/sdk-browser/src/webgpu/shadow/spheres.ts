@@ -8,7 +8,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { forEachDirtyRun } from '../row/dirty.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
-import { packDoubles } from '../../placement/composedMotion.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the

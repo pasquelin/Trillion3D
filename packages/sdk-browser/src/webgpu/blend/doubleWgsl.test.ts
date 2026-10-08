@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import { DOUBLE_WGSL } from './doubleWgsl.ts'
+import { dAdd, dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Pair = number[]
 type Run = {
@@ -27,9 +28,13 @@ const HELPERS = [
   'wideProduct',
   'dRound',
 ]
-const run = shaderRun<Run>(DOUBLE_WGSL, [...HELPERS, 'dAdd', 'dSub', 'dMul', 'dDiv'], {
-  countLeadingZeros: (x: number) => Math.clz32(x),
-})
+const run = shaderRun<Run>(
+  wgslModule(dAdd, dSub, dMul, dDiv),
+  [...HELPERS, 'dAdd', 'dSub', 'dMul', 'dDiv'],
+  {
+    countLeadingZeros: (x: number) => Math.clz32(x),
+  },
+)
 
 const cell = new Float64Array(1),
   bits = new Uint32Array(cell.buffer)

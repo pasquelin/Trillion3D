@@ -1,18 +1,17 @@
 /**
- * The two conversions between a double (`DOUBLE_WGSL`, two words) and a single-precision word,
+ * The two conversions between a double (`double.ts`, two words) and a single-precision word,
  * each the CPU's to the bit: the exact widening and the rounding a `Float32Array` store makes.
  */
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslFn } from './decl.ts'
+import { dExponent, dIsNan, dNan, dSignificand, wideShiftRight } from './doubleWords.ts'
 
 /** The double a single-precision word widens to, exactly: a subnormal becomes a normal double. The
  *  one widening of both compose passes (`gpuComposeWgsl.ts`): the motion's worlds
  *  (`gpuMotionWgsl.ts`), the rows pass's sphere centre. */
-export const FROM_F32_WGSL = wgslBlock(
-  'FROM_F32_WGSL',
-  [DOUBLE_WGSL],
-  `
-fn fromF32(w:u32)->vec2u{
+export const fromF32 = wgslFn(
+  'fromF32',
+  [dNan],
+  `fn fromF32(w:u32)->vec2u{
  let sign=w&0x80000000u;
  let e=(w>>23u)&0xffu;
  var m=w&0x7fffffu;
@@ -37,11 +36,10 @@ fn fromF32(w:u32)->vec2u{
  * 53-bit significand is shifted to the result's 24 bits (fewer below the normal range), two bits
  * kept below it — the half and a sticky one folding everything lower (`wideShiftRight`).
  */
-export const TO_F32_WGSL = wgslBlock(
-  'TO_F32_WGSL',
-  [DOUBLE_WGSL],
-  `
-fn toF32(a:vec2u)->u32{
+export const toF32 = wgslFn(
+  'toF32',
+  [dExponent, dIsNan, dSignificand, wideShiftRight],
+  `fn toF32(a:vec2u)->u32{
  let sign=(a.x>>31u)<<31u;
  let e=i32(dExponent(a));
  if(e==0x7ff){return select(sign|0x7f800000u,0x7fc00000u,dIsNan(a));}

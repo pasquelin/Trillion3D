@@ -11,7 +11,7 @@ import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { moveRoot } from './pack.fixture.ts'
-import { packDoubles } from '../../placement/composedMotion.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()

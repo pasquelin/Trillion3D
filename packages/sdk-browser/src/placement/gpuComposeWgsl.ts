@@ -1,6 +1,6 @@
 /**
  * The two passes that compose linked placements under their parent (`gpuCompose.ts`), in exact
- * double arithmetic (`DOUBLE_WGSL`): a world is the parent's world times the child's local matrix,
+ * double arithmetic (`math/src/wgsl/double.ts`): a world is the parent's world times the child's local matrix,
  * each of the sixteen numbers summed over the same four products in the same order as the
  * transform tree's `multiplyMatrix4`, every product and sum rounded once as the CPU rounds it. A
  * number then reaches single precision as `Float32Array` stores a double (`toF32`), so every word
@@ -11,10 +11,10 @@ import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
-import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
+import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
@@ -30,7 +30,7 @@ export const MATRIX_DOUBLES = 16
  *  an unsigned integer, and integer work a JavaScript run of the text reads as written. */
 const PRODUCT_WGSL = wgslBlock(
   'PRODUCT_WGSL',
-  [DOUBLE_WGSL],
+  [dAdd, dMul],
   `
 fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  let c=k>>2u;let r=k&3u;
@@ -41,7 +41,7 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 )
 
 /** What both passes call: the product, its rounding to single precision and the grid index. */
-const SHARED = [PRODUCT_WGSL, TO_F32_WGSL, FLAT_INDEX_WGSL]
+const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -111,7 +111,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, DOUBLE_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
+  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL],
 )
 
 /**
@@ -128,7 +128,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
-  [DOUBLE_WGSL, FROM_F32_WGSL, TO_F32_WGSL],
+  [dAdd, dSub, dMul, fromF32, toF32],
   `
 const SPHERE_GROWTH:f32=1.00000095367431640625;
 const CENTRE_ERROR:f32=5.684341886080802e-14;
