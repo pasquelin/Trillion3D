@@ -245,7 +245,7 @@ export const joinStart = (tree: PlacementTree) => ceilDiv(tree.count, TREE_SPAN)
 export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch: number[]) {
   const from = joinStart(tree)
   if (from + batch.length > tree.capacity) throw new Error('GPU_PLACEMENT_TREE_FULL')
-  const order = placementOrder(packed.worldSources!, batch),
+  const order = placementOrder(packed.worldSources, batch),
     nodeInts = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset)
   order.forEach((w, i) => {
     tree.order[from + i] = w
@@ -327,7 +327,7 @@ function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
     { nodes } = packed
   box.set(nodes.subarray(root + NODE_MIN, root + NODE_MIN + 3), 6)
   box.set(nodes.subarray(root + NODE_MAX, root + NODE_MAX + 3), 9)
-  boxTransform(box, 6, box, 6, packed.worldSources![w].world.elements)
+  boxTransform(box, 6, box, 6, packed.worldSources[w].world.elements)
   boxUnion(box, 0, box[6], box[7], box[8], box[9], box[10], box[11])
   return false
 }

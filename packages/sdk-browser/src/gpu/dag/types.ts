@@ -90,7 +90,7 @@ export type PackedDag = {
   pageCones: Float32Array
   worlds: Float32Array
   /** Live double-precision placements; light selection reads them before camera rebasing rounds. */
-  worldSources?: readonly Pick<DagRoot, 'world'>[]
+  worldSources: readonly Pick<DagRoot, 'world'>[]
   worldStretch: Float32Array
   /** Root node of each primitive, from which the level descent starts; `SELECTION_NONE` without. */
   rootNodes: Uint32Array

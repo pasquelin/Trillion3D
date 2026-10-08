@@ -10,11 +10,8 @@ import { grown } from '../../page/cut/sparseInts.ts'
 export const WORLD_ORIGIN_BYTES = 32
 
 /** Writes one placement's exact translation, three doubles, into `out` (words) from `at`. */
-const writeOrigin = (
-  out: Uint32Array,
-  at: number,
-  source: NonNullable<PackedDag['worldSources']>[number],
-) => packDoubles(out, at, source.world.elements, 12, 3)
+const writeOrigin = (out: Uint32Array, at: number, source: PackedDag['worldSources'][number]) =>
+  packDoubles(out, at, source.world.elements, 12, 3)
 
 export function createWorldOrigins(
   device: GPUDevice,
@@ -24,13 +21,13 @@ export function createWorldOrigins(
 ) {
   // Every placement the ranges hold: the live ones, and those a growth appends to `sources`.
   const slots = ranges.reduce((sum, { count }) => sum + count, 0),
-    words = new Uint32Array(Math.max(slots, sources?.length ?? 0) * 8),
+    words = new Uint32Array(Math.max(slots, sources.length) * 8),
     next = new Uint32Array(8),
     source = { data: words, sourceBase: 0, targetBase: 0, stride: 8 }
   let changed = new Int32Array(8)
   /** Placement `row`'s translation taken into `words`; whether it moved. */
   const take = (row: number) => {
-    writeOrigin(next, 0, sources![row])
+    writeOrigin(next, 0, sources[row])
     const at = row * 8
     let same = true
     for (let k = 0; k < 8 && same; k++) same = next[k] === words[at + k]
@@ -64,7 +61,6 @@ export function createWorldOrigins(
     /** Called only for physical pose changes, never for a camera rebase: every placement's, or
      *  only those of `named`, increasing — the placements a call moved. How many it sent. */
     write(named?: Int32Array) {
-      if (!sources) return 0
       let count = 0
       const all = named === undefined,
         length = all ? sources.length : named.length

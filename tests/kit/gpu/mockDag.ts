@@ -76,5 +76,7 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     rootCount: worldCount,
     pageUrlOf: () => undefined,
     cutLinks: [],
+    // The bindings hold the worlds, not the host's placements.
+    worldSources: [],
   }
 }

@@ -27,7 +27,7 @@ export function createCameraFrames(
   worldCount: number,
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   worlds: Float32Array,
-  sources?: PackedDag['worldSources'],
+  sources: PackedDag['worldSources'],
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
     slots = uniformSlots(device.limits, ranges.length, 2)
