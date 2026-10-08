@@ -1,13 +1,13 @@
 /**
  * The held cells' share of the root cover: the roots one cell alone needs, which its bundles carry
  * (`top.rs`), join the cut's cache cover while held (`../webgpu/pages/prepare/worldRoot.ts`); the
- * cache that keeps them sets the room it leaves them (`room`), and a cell is held far only within it
- * (`admits`).
+ * cache that keeps them gives the room it leaves them for its session's life (`bind`), and a cell
+ * is held far only within it (`admits`).
  */
 
 /**
  * The share over the bundles `bundlesOf` lists per cell, `has` saying which a cell holds already:
- * `room` — none, any cell may be held — and whether a cell may be held far within it, the roots
+ * the room the latest live session gave (`room`) — none, any cell may be held — and whether a cell may be held far within it, the roots
  * `rootsIn` counts in the bundles it needs that no cell holds yet. A cell refused is asked again
  * only once that room grows: whatever else the cells hold meanwhile moves the room and its roots
  * alike.
@@ -21,10 +21,23 @@ export function createCoverShare(
    *  A cell let go — released, or past the plan's reach — is forgotten (`forget`, `keep`). */
   const roots = new Map<number, Int32Array>(),
     refused = new Map<number, number>()
+  /** The rooms sessions gave, the latest last: one whose session ended stands no more. */
+  const rooms: { room: () => number; session: AbortSignal }[] = []
   const share = {
-    room: undefined as (() => number) | undefined,
+    /** `room` is what a session's cache leaves the held cells, while `session` lives: the latest
+     *  session's stands, an earlier one's again once it ends. */
+    bind(room: () => number, session: AbortSignal) {
+      if (session.aborted) return
+      for (let k = rooms.length - 1; k >= 0; k--) if (rooms[k].session.aborted) rooms.splice(k, 1)
+      rooms.push({ room, session })
+    },
+    /** The room the latest live session leaves, or none. */
+    room() {
+      while (rooms.length && rooms[rooms.length - 1].session.aborted) rooms.pop()
+      return rooms.length ? rooms[rooms.length - 1].room() : undefined
+    },
     admits(cell: number) {
-      const room = share.room?.()
+      const room = share.room()
       if (room === undefined) return true
       if (room <= (refused.get(cell) ?? -1)) return false
       const bundles = bundlesOf(cell)

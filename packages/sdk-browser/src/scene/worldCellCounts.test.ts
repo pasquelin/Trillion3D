@@ -17,7 +17,7 @@ test('a camera travelling across the cells keeps the counts of the cells it reac
   const bundles = createWorldBundles(readWorldRoots(encodeWorldRoots(spec)), 'world-roots.bin', [
     [],
   ])
-  bundles.cover.room = () => 1 << 20
+  bundles.cover.bind(() => 1 << 20, new AbortController().signal)
   // Each frame reaches ten cells ahead of the camera, which moves a cell a frame.
   for (let frame = 0; frame < 1990; frame++) {
     const reached = new Set(Array.from({ length: 10 }, (_, k) => frame + k))

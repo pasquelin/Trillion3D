@@ -124,13 +124,11 @@ export function coverHeldRoots(
   const unwatch = world.watch(cover)
   // The floor's pages past the session's cover: the pages its roots' groups replace.
   const children = rt.setup.floorPages - rt.setup.bootstrap.length
-  const own = () => Math.max(0, room() - children)
-  world.cover.room = own
+  // The room is this session's: it stands while the session lives, one started since keeps its own.
+  world.cover.bind(() => Math.max(0, room() - children), rt.signal)
   const end = () => {
     unwatch()
     for (const bundle of world.held()) cover(bundle, false)
-    // The room is this session's: a session that started since keeps its own.
-    if (world.cover.room === own) world.cover.room = undefined
   }
   rt.signal.addEventListener('abort', end, { once: true })
 }

@@ -50,7 +50,7 @@ test('a cell is held far while the roots its unheld bundles add fit the room', (
   const { cover } = bundles
   assert.ok(cover.admits(0), 'no room set: any cell')
   let room = 39
-  cover.room = () => room
+  cover.bind(() => room, stop.signal)
   assert.ok(!cover.admits(0), 'bundles 1 and 3 add 40')
   room = 40
   assert.ok(cover.admits(0), 'asked again once the room grew')
