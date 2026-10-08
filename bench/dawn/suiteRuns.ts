@@ -5,13 +5,13 @@ import { BENCH_SCENE } from './worldScenario.ts'
 /** The most scenes one suite plays. A test of more is a test of the wrong thing. */
 export const MAX_SCENES = 5
 
-/** The default suite: the generated scene flown by its scenario. */
+/** The default suite: the bench's one scene, flown by its scenario. */
 const DEFAULT_RUNS = [`${BENCH_SCENE}:world`]
 
-/** The runs a suite's list names (`page[:scenario],…`), or the default; throws past the cap. */
 /** The words that named the sets this suite no longer has. */
 const REMOVED = ['all', 'reference', 'priority']
 
+/** The runs a suite's list names (`page[:scenario],…`), or the default; throws past the cap. */
 export function suiteRuns(list?: string) {
   const runs = list ? list.split(',').filter(Boolean) : DEFAULT_RUNS
   const removed = runs.find((run) => REMOVED.includes(run))

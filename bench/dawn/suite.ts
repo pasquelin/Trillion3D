@@ -1,7 +1,7 @@
-// A series of bench runs under one lock, one page after the other, and the table of their first
-// measured segments. At most five scenes, ever (`suiteRuns.ts`).
+// A series of bench runs under one lock, one page after the other, and the table of their measured
+// segments, a row each. At most five scenes, ever (`suiteRuns.ts`); the first bad one ends the list.
 //   node bench/dawn/suite.ts [page[:scenario],…] [run options, as run.ts]
-// The default is the bench's own generated scene, which carries every cost the engine counts.
+// The default is the bench's one scene, which carries every cost the engine counts.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
@@ -32,7 +32,7 @@ for (const run of runs) {
   if (!report) {
     failed++
     rows.push([page, scenario, `FAILED (${child.status ?? child.signal})`, ...Array(8).fill('')])
-    continue
+    break
   }
   const merged = JSON.parse(readFileSync(`${report}.json`, 'utf8')) as BenchReport
   if (child.status !== 0) failed++
@@ -56,6 +56,8 @@ for (const run of runs) {
       sameImages(segment),
     ])
   }
+  // The first bad scene ends the list: its numbers are not the others' to wait for.
+  if (child.status !== 0) break
 }
 const head = [
   'page',

@@ -35,6 +35,8 @@ export const OPTIONS = {
 /** `--ab A B` is two values: the second goes to `--ab-b`, so it is no page. */
 const abArgs = (args: string[]) => {
   const at = args.indexOf('--ab')
+  if (args.some((arg) => arg.startsWith('--ab=')))
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
   if (at < 0) return args
   const [a, b] = [args[at + 1], args[at + 2]]
   if (!a || !b || a.startsWith('--') || b.startsWith('--'))
@@ -50,6 +52,8 @@ export function benchOptions(args = process.argv.slice(2)) {
     allowPositionals: true,
     options: OPTIONS,
   })
+  if (values.ab && !values['ab-b'])
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
   const rounds = Number(values.rounds)
   const least = Number(values.least)
   if (values.ab && values.dissect)
@@ -64,7 +68,8 @@ export function benchOptions(args = process.argv.slice(2)) {
     throw new Error(
       'usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file>] …',
     )
-  const engine = engineRoot(values.engine, values.dirty)
+  // An A/B or a dissect measures through its children, which refuse a dirty checkout themselves.
+  const engine = engineRoot(values.engine, values.dirty || Boolean(values.ab || values.dissect))
   const file = pageFile(page, engine.root)
   const profile = PROFILES[values.profile]
   if (!profile)

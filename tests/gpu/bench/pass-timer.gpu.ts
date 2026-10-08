@@ -27,7 +27,7 @@ async function timed(
   const adapter = (await navigator.gpu.requestAdapter())!
   const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
   const out = device.createBuffer({ size: 1 << 20, usage: GPUBufferUsage.STORAGE })
-  let encoder = device.createCommandEncoder()
+  const encoder = device.createCommandEncoder()
   const pass = (code: string, groups: number, label = code === SLOW ? 'slow' : 'light') => {
     const pipeline = device.createComputePipeline({
       layout: 'auto',
@@ -51,8 +51,6 @@ async function timed(
   return {
     frame,
     device,
-    flush: () => (encoder = device.createCommandEncoder()),
-    submit: () => device.queue.submit([encoder.finish()]),
   }
 }
 

@@ -57,8 +57,13 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
     /** The middle play's passes and commands: the play whose time is the median. */
     passes: mid.passes,
     benchPasses: mid.benchPasses,
-    /** The most each watched engine counter reached in the middle play's segment. */
-    counterMax: mid.numbers.counterMax,
+    /** The most each watched engine counter reached in any play's segment. */
+    counterMax: Object.fromEntries(
+      [...new Set(of.flatMap((s) => Object.keys(s.numbers.counterMax)))].map((key) => [
+        key,
+        Math.max(...of.map((s) => s.numbers.counterMax[key] ?? 0)),
+      ]),
+    ) as Record<string, number>,
     /** The middle play's frame time over all its frames: median, p95, dispersion. */
     frame: mid.numbers.gpuMs,
     /** The GPU idle between passes in the middle play's frame, ms. */

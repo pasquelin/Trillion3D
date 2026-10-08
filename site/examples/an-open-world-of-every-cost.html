@@ -20,93 +20,156 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
-      import { controls, seeded } from '../runtime/kit.js';
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js'
+      import { controls, seeded } from '../runtime/kit.js'
 
       // One world that carries every cost the engine counts at once, each part a switch: a wide
       // field of blocks (the frame costs what the view holds, not what the world holds), a dense
       // bed of pebbles under a low sun (the hardest sun shadows), see-through panes and a water
       // sheet (transparents), a ring of lamps (dynamic light). The same seeded sequence builds it
       // on every run, so two runs see the same world. It is the scene the GPU bench plays.
-      const FIELD = { span: 1200, side: 250 };
-      const BED = { count: 10000, half: 9 };
-      const world = createWorld('view', { controls: 'orbit' });
-      world.scene.background = math.color('#cfd8e6');
-      world.camera.far = FIELD.span * 2;
-      const next = seeded(11);
+      const FIELD = { span: 1200, side: 250 }
+      const BED = { count: 10000, half: 9 }
+      const world = createWorld('view', { controls: 'orbit' })
+      world.scene.background = math.color('#cfd8e6')
+      world.camera.far = FIELD.span * 2
+      const next = seeded(11)
 
       const ground = object.mesh(
         geometry.box(FIELD.span * 2, 0.2, FIELD.span * 2),
         material.meshStandard({ color: '#9aa27e', roughness: 0.95 }),
-      );
-      ground.position.y = -0.1;
-      ground.receiveShadow = true;
-      world.scene.add(ground);
+      )
+      ground.position.y = -0.1
+      ground.receiveShadow = true
+      world.scene.add(ground)
 
-      const blocks = object.group();
-      const block = geometry.box(1, 1, 1);
+      const blocks = object.group()
+      const block = geometry.box(1, 1, 1)
       const walls = Array.from({ length: 8 }, (_, k) =>
-        material.meshStandard({ color: math.color('#c8b9a4').lerp(math.color('#7f8fa6'), k / 7), roughness: 0.7 }),
-      );
-      const step = FIELD.span / FIELD.side;
+        material.meshStandard({
+          color: math.color('#c8b9a4').lerp(math.color('#7f8fa6'), k / 7),
+          roughness: 0.7,
+        }),
+      )
+      const step = FIELD.span / FIELD.side
+      // What no block stands on: the pebble bed and its lamps, the water, and the two corridors the
+      // camera crosses (the descent along the middle, the glide between the blocks), so no view
+      // starts inside a wall.
+      const clear = (x, z) => {
+        if (Math.abs(x) < BED.half + 6 && Math.abs(z) < BED.half + 6) return true
+        if (Math.abs(x - 30) < 34 && Math.abs(z + 40) < 24) return true
+        if (Math.abs(x) < 8 && z > 90) return true
+        const [ax, az, bx, bz] = [0, 60, 30, -20]
+        const t = Math.max(
+          0,
+          Math.min(
+            1,
+            ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2),
+          ),
+        )
+        return Math.hypot(x - (ax + t * (bx - ax)), z - (az + t * (bz - az))) < 10
+      }
       for (let i = 0; i < FIELD.side; i++)
         for (let j = 0; j < FIELD.side; j++) {
-          if (next() < 0.55) continue;
-          const tall = 2 + next() * next() * 30;
-          const mesh = object.mesh(block, walls[(i + j) % 8]);
-          mesh.scale.set(step * (0.4 + next() * 0.4), tall, step * (0.4 + next() * 0.4));
-          mesh.position.set((i - FIELD.side / 2) * step, tall / 2, (j - FIELD.side / 2) * step);
-          mesh.castShadow = mesh.receiveShadow = true;
-          blocks.add(mesh);
+          if (next() < 0.55 || clear((i - FIELD.side / 2) * step, (j - FIELD.side / 2) * step))
+            continue
+          const tall = 2 + next() * next() * 30
+          const mesh = object.mesh(block, walls[(i + j) % 8])
+          mesh.scale.set(step * (0.4 + next() * 0.4), tall, step * (0.4 + next() * 0.4))
+          mesh.position.set((i - FIELD.side / 2) * step, tall / 2, (j - FIELD.side / 2) * step)
+          mesh.castShadow = mesh.receiveShadow = true
+          blocks.add(mesh)
         }
 
-      const pebbles = object.group();
-      const pebble = geometry.sphere(0.08, 12, 12);
+      const pebbles = object.group()
+      const pebble = geometry.sphere(0.08, 12, 12)
       const stones = Array.from({ length: 6 }, (_, k) =>
-        material.meshStandard({ color: math.color('#f4efe4').lerp(math.color('#2f6f8f'), k / 5), roughness: 0.35 }),
-      );
+        material.meshStandard({
+          color: math.color('#f4efe4').lerp(math.color('#2f6f8f'), k / 5),
+          roughness: 0.35,
+        }),
+      )
       for (let k = 0; k < BED.count; k++) {
-        const mesh = object.mesh(pebble, stones[k % 6]);
-        mesh.position.set((next() - 0.5) * 2 * BED.half, 0.03, (next() - 0.5) * 2 * BED.half);
-        mesh.scale.set(0.7 + next(), 0.5 + next() * 0.4, 0.7 + next() * 0.8);
-        mesh.castShadow = mesh.receiveShadow = true;
-        pebbles.add(mesh);
+        const mesh = object.mesh(pebble, stones[k % 6])
+        mesh.position.set((next() - 0.5) * 2 * BED.half, 0.03, (next() - 0.5) * 2 * BED.half)
+        mesh.scale.set(0.7 + next(), 0.5 + next() * 0.4, 0.7 + next() * 0.8)
+        mesh.castShadow = mesh.receiveShadow = true
+        pebbles.add(mesh)
       }
 
-      const panes = object.group();
-      const glass = material.meshStandard({ color: '#9fd4ff', roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false, side: 'double' });
+      const panes = object.group()
+      const glass = material.meshStandard({
+        color: '#9fd4ff',
+        roughness: 0.05,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false,
+        side: 'double',
+      })
       for (let k = 0; k < 6; k++) {
-        const pane = object.mesh(geometry.plane(3, 2, 1, 1), glass);
-        pane.position.set(-6 + k * 2.4, 1.2, 3 - (k % 2) * 1.5);
-        pane.rotation.y = 0.3 * (k - 2.5);
-        panes.add(pane);
+        const pane = object.mesh(geometry.plane(3, 2, 1, 1), glass)
+        pane.position.set(-6 + k * 2.4, 1.2, 3 - (k % 2) * 1.5)
+        pane.rotation.y = 0.3 * (k - 2.5)
+        panes.add(pane)
       }
       const water = object.mesh(
         geometry.plane(60, 40, 112, 80),
-        material.meshStandard({ color: '#1d6d8c', roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8, depthWrite: false, side: 'double' }),
-      );
-      water.rotation.x = -Math.PI / 2;
-      water.position.set(30, 0.05, -40);
+        material.meshStandard({
+          color: '#1d6d8c',
+          roughness: 0.06,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.8,
+          depthWrite: false,
+          side: 'double',
+        }),
+      )
+      water.rotation.x = -Math.PI / 2
+      water.position.set(30, 0.05, -40)
 
-      const lamps = object.group();
+      const lamps = object.group()
       for (let k = 0; k < 8; k++) {
-        const turn = (k / 8) * Math.PI * 2;
-        lamps.add(light.point({ color: k % 2 ? '#ffb45e' : '#8ec5ff', intensity: 14, distance: 9, position: [Math.cos(turn) * 6, 1.4, Math.sin(turn) * 6] }));
+        const turn = (k / 8) * Math.PI * 2
+        lamps.add(
+          light.point({
+            color: k % 2 ? '#ffb45e' : '#8ec5ff',
+            intensity: 14,
+            distance: 9,
+            position: [Math.cos(turn) * 6, 1.4, Math.sin(turn) * 6],
+          }),
+        )
       }
 
-      const sun = light.directional({ intensity: 3.5, color: '#ffc58a', castShadow: true });
-      sun.position.set(-60, 28, 40);
-      world.scene.add(blocks, pebbles, panes, water, lamps, sun, light.hemisphere({ intensity: 1, color: '#9fb4ff', groundColor: '#8a7456' }));
+      const sun = light.directional({ intensity: 3.5, color: '#ffc58a', castShadow: true })
+      sun.position.set(-60, 28, 40)
+      world.scene.add(
+        blocks,
+        pebbles,
+        panes,
+        water,
+        lamps,
+        sun,
+        light.hemisphere({ intensity: 1, color: '#9fb4ff', groundColor: '#8a7456' }),
+      )
 
       // Three places to stand: high over the field, low among the blocks, and close to the pebbles.
       const PLACES = {
-        overview: [[0, 200, 760], [0, 0, 0]],
-        among: [[0, 6, 60], [0, 4, -60]],
-        pebbles: [[2.2, 0.9, 3.2], [-1, 0, -1]],
-      };
-      world.camera.position.set(...PLACES.overview[0]);
-      world.controls.target.set(...PLACES.overview[1]);
-      world.controls.maxDistance = FIELD.span * 2;
+        overview: [
+          [0, 200, 760],
+          [0, 0, 0],
+        ],
+        among: [
+          [0, 6, 60],
+          [0, 4, -60],
+        ],
+        pebbles: [
+          [2.2, 0.9, 3.2],
+          [-1, 0, -1],
+        ],
+      }
+      world.camera.position.set(...PLACES.overview[0])
+      world.controls.target.set(...PLACES.overview[1])
+      world.controls.maxDistance = FIELD.span * 2
 
       controls(
         {
@@ -121,21 +184,21 @@
         },
         (values, key) => {
           if (key === undefined || key === 'place') {
-            const [position, target] = PLACES[values.place];
-            world.camera.position.set(...position);
-            world.controls.target.set(...target);
+            const [position, target] = PLACES[values.place]
+            world.camera.position.set(...position)
+            world.controls.target.set(...target)
           }
-          blocks.visible = values.blocks;
-          pebbles.visible = values.pebbles;
-          panes.visible = values.panes;
-          water.visible = values.water;
-          lamps.visible = values.lamps;
-          sun.castShadow = values.sunShadows;
-          world.diagnostic.mode = values.view;
-          world.invalidate();
+          blocks.visible = values.blocks
+          pebbles.visible = values.pebbles
+          panes.visible = values.panes
+          water.visible = values.water
+          lamps.visible = values.lamps
+          sun.castShadow = values.sunShadows
+          world.diagnostic.mode = values.view
+          world.invalidate()
         },
         world,
-      );
+      )
     </script>
   </body>
 </html>

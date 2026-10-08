@@ -16,10 +16,10 @@ import {
   createKernels,
 } from './machineKernels.ts'
 
-/** What a machine can do, from timed kernels. Rates in GB/s (10⁹ bytes a second), costs in ms. */
 /** Changes when a kernel does: a machine file of another version is measured again. */
 const MACHINE_VERSION = 2
 
+/** What a machine can do, from timed kernels. Rates in GB/s (10⁹ bytes a second), costs in ms. */
 export type Machine = {
   version: number
   adapter: string
@@ -56,6 +56,9 @@ async function median(kernel: () => Promise<number>, runs = 7) {
 
 /** The rates and costs the timings of the kernels make. Pure: tested on injected timings. */
 export function machineFrom(adapter: string, ms: Record<string, number>, date: string): Machine {
+  // A driver that gave no timestamps gives equal or reversed ones: a rate of nothing, kept for good.
+  const bad = Object.entries(ms).find(([, time]) => !(Number.isFinite(time) && time > 0))
+  if (bad) throw new Error(`BENCH_MACHINE: the kernel ${bad[0]} timed ${bad[1]} ms`)
   const rate = (bytes: number, time: number) => bytes / time / 1e6
   return {
     version: MACHINE_VERSION,
@@ -101,8 +104,12 @@ export async function machineFor(
 ) {
   const file = fileOf(adapter)
   if (!recalibrate && existsSync(file)) {
-    const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
-    if (kept.version === MACHINE_VERSION) return kept
+    try {
+      const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
+      if (kept.version === MACHINE_VERSION) return kept
+    } catch {
+      // A file cut short when its writer was killed: measured again.
+    }
   }
   const machine = await measureMachine(gpu, device, adapter)
   if (!keep) return { ...machine, disturbed: true }

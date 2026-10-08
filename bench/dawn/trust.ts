@@ -22,11 +22,11 @@ export function timerDoubts(input: {
   for (const pass of passes) {
     if (pass.lost)
       doubts.push(
-        `timer lost: "${pass.name}" encoded work and had no timestamp in ${pass.lost} runs`,
+        `timer lost: "${pass.name}" encoded work and had no timestamp in ${pass.lost} frames`,
       )
     else if (pass.unknown)
       doubts.push(
-        `unknown: "${pass.name}" has only indirect work and no timestamp in ${pass.unknown} runs: no size, or a lost timer`,
+        `unknown: "${pass.name}" has only indirect work and no timestamp in ${pass.unknown} frames: no size, or a lost timer`,
       )
   }
   if (frame) {

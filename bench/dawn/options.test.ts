@@ -36,3 +36,8 @@ test('an A/B asks for its two checkouts and a whole number of rounds', () => {
   assert.deepEqual(options.ab, ['A', 'B'])
   assert.equal(options.rounds, 4)
 })
+
+test('an A/B or a dissect is no business of the invoking checkout’s dirt, and an `--ab=A` is refused', () => {
+  assert.throws(() => benchOptions(['an-open-world-of-every-cost', '--ab=A']), /usage/)
+  assert.doesNotThrow(() => benchOptions(['an-open-world-of-every-cost', '--ab', 'A', 'B']))
+})

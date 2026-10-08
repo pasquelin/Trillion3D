@@ -48,3 +48,19 @@ test('a machine reads its rates from the kernels’ times', () => {
     'never a negative barrier',
   )
 })
+
+test('a kernel that timed nothing is no machine', () => {
+  const ok = {
+    read: 1,
+    write: 1,
+    textureRead: 1,
+    textureWrite: 1,
+    attachment: 1,
+    threads: 1,
+    passes: 1,
+    independent: 1,
+    dependent: 2,
+  }
+  assert.throws(() => machineFrom('x', { ...ok, read: 0 }, ''), /BENCH_MACHINE.*read/)
+  assert.throws(() => machineFrom('x', { ...ok, threads: Number.NaN }, ''), /BENCH_MACHINE/)
+})

@@ -31,9 +31,9 @@ export function workgroupSize(
     const text = token.trim().replace(/u$/, '')
     if (/^\d+$/.test(text)) return Number(text)
     if (typeof constants?.[text] === 'number') return constants[text]
-    const named = new RegExp(`(?:const|override)\\s+${text}\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)`).exec(
-      code,
-    )
+    const named = new RegExp(
+      `(?:const|override)\\s+${text}\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)u?\\s*;`,
+    ).exec(code)
     return named ? Number(named[1]) : 0
   }
   return mine[1].split(',').reduce((product, token) => product * side(token), 1)
