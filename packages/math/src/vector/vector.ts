@@ -24,6 +24,23 @@ export function dotScalar3(ax: number, ay: number, az: number, bx: number, by: n
   return ax * bx + ay * by + az * bz
 }
 
+/** `out[at..at + 2] = (ax, ay, az) × (bx, by, bz)`: the one home of the cross product's terms and
+ *  order, for `crossVector3` and the callers that hold both vectors in locals. */
+export function writeCrossVector3(
+  out: NumberSink,
+  at: number,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+) {
+  out[at] = ay * bz - az * by
+  out[at + 1] = az * bx - ax * bz
+  out[at + 2] = ax * by - ay * bx
+}
+
 /**
  * `out[outAt..outAt + 2] = a × b`, operands read at `aAt` and `bAt`. The six components are read
  * before the first write, so `out` may be `a` or `b`.
@@ -42,9 +59,7 @@ export function crossVector3<T extends NumberSink>(
   const bx = b[bAt],
     by = b[bAt + 1],
     bz = b[bAt + 2]
-  out[outAt] = ay * bz - az * by
-  out[outAt + 1] = az * bx - ax * bz
-  out[outAt + 2] = ax * by - ay * bx
+  writeCrossVector3(out, outAt, ax, ay, az, bx, by, bz)
   return out
 }
 
@@ -192,16 +207,30 @@ const TINY_SCALE = 2 ** 1000
  *  so a zero vector stays zero; a vector shorter than 2^-1024 is first scaled exactly by 2^1000, so
  *  its inverse length does not overflow. */
 export function normalizeVector3(v: NumberSink, at = 0) {
-  let inverse = 1 / (length3(v[at], v[at + 1], v[at + 2]) || 1)
+  // The rule lives in `writeNormalizedVector3`; the vector is read once into it. The scaled copy of
+  // the tiny branch is exact, so holding it in locals rather than in `v` changes no bit.
+  writeNormalizedVector3(v, at, v[at], v[at + 1], v[at + 2])
+}
+
+/** `normalizeVector3`'s rule on three numbers, written to `out[at..at + 2]`: read once, written
+ *  once, so a caller holding a transformed vector in locals does not read it back. */
+export function writeNormalizedVector3(
+  out: NumberSink,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  let inverse = 1 / (length3(x, y, z) || 1)
   if (inverse === Infinity) {
-    v[at] *= TINY_SCALE
-    v[at + 1] *= TINY_SCALE
-    v[at + 2] *= TINY_SCALE
-    inverse = 1 / length3(v[at], v[at + 1], v[at + 2])
+    x *= TINY_SCALE
+    y *= TINY_SCALE
+    z *= TINY_SCALE
+    inverse = 1 / length3(x, y, z)
   }
-  v[at] *= inverse
-  v[at + 1] *= inverse
-  v[at + 2] *= inverse
+  out[at] = x * inverse
+  out[at + 1] = y * inverse
+  out[at + 2] = z * inverse
 }
 
 /**
@@ -392,10 +421,19 @@ export function transformDirectionVector3<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  out[outOffset] = m[0] * x + m[4] * y + m[8] * z
-  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z
-  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z
-  normalizeVector3(out, outOffset)
+  // Each product is stored as it is made, before the next row of `m` is read, so an `out` sharing
+  // memory with `m` reads the same entries. A double sink holds the products exactly: they are
+  // normalised from the locals, not read back. Any other sink (a `Float32Array`, an integer array)
+  // normalises what it rounded on writing. `out` holds the three components.
+  const px = m[0] * x + m[4] * y + m[8] * z
+  out[outOffset] = px
+  const py = m[1] * x + m[5] * y + m[9] * z
+  out[outOffset + 1] = py
+  const pz = m[2] * x + m[6] * y + m[10] * z
+  out[outOffset + 2] = pz
+  if (out instanceof Float64Array || Array.isArray(out))
+    writeNormalizedVector3(out, outOffset, px, py, pz)
+  else normalizeVector3(out, outOffset)
   return out
 }
 

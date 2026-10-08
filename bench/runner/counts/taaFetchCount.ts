@@ -10,6 +10,7 @@ import {
   upscaleRun,
   type UpscaleFrame,
 } from '../../../packages/sdk-browser/src/taa/upscaleRun.fixture.ts'
+import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 
 const DISPLAY = 16
 
@@ -35,7 +36,7 @@ export function countTaaFetches(
     moving,
     reactive: reactive ? () => 0 : undefined,
     // Every texel shows placement 0, identity 1 in the geometry history: identity 2 was another.
-    tags: () => [(uncovered ? 2 : 1) / 255, 0, 0, 1],
+    tags: () => [fromUnorm8(uncovered ? 2 : 1), 0, 0, 1],
   }
   const run = upscaleRun(frame, asIs, false, scale === 1)
   let fetches = 0

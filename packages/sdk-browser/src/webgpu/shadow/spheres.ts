@@ -115,10 +115,9 @@ function packLocalBoxes(rt: WebgpuPagesRuntime, out: Uint32Array, from: number, 
     const root = rootOf(selectionRoots, placement.rootOfPacked[rows.packedPageIndex[row]]),
       { min, max } = rowBox(rec),
       reach = rowGrowth(rec, root.reach)
-    for (let axis = 0; axis < 3; axis++) {
-      localScratch[axis] = (min[axis] + max[axis]) / 2
+    boxCenter(localScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2])
+    for (let axis = 0; axis < 3; axis++)
       localScratch[3 + axis] = (max[axis] - min[axis]) / 2 + reach
-    }
     packDoubles(out, base, localScratch)
   }
 }

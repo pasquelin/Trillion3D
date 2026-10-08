@@ -59,7 +59,7 @@ export function torusKnot(
   const at = (s: number): V3 => {
     const u = s * p * TAU,
       r = radius * (2 + Math.cos((q / p) * u)) * 0.5
-    return [r * Math.cos(u), r * Math.sin(u), radius * Math.sin((q / p) * u) * 0.5]
+    return circlePoint<V3>([0, 0, radius * Math.sin((q / p) * u) * 0.5], r, u)
   }
   ;[tubularSegments, radialSegments] = [pieces(tubularSegments, 2), pieces(radialSegments, 3)]
   const built = sweep(at, tubularSegments, radialSegments, () => tube, true)

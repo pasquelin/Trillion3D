@@ -1,8 +1,6 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { crossVector3, length3 } from '../vector/vector.ts'
+import { length3, writeCrossVector3 } from '../vector/vector.ts'
 
-/** The two edges from the first corner, `b − a` then `c − a`, reused within a call. */
-const EDGES = new Float64Array(6)
 /** The cross product `triangleArea` measures, reused within a call. */
 const CROSS = new Float64Array(3)
 
@@ -20,13 +18,21 @@ export function triangleCross<T extends NumberSink>(
   b: number,
   c: number,
 ) {
-  EDGES[0] = v[b] - v[a]
-  EDGES[1] = v[b + 1] - v[a + 1]
-  EDGES[2] = v[b + 2] - v[a + 2]
-  EDGES[3] = v[c] - v[a]
-  EDGES[4] = v[c + 1] - v[a + 1]
-  EDGES[5] = v[c + 2] - v[a + 2]
-  return crossVector3(out, EDGES, EDGES, o, 0, 3)
+  // The corners and both edges in locals, every corner read before the one write: `out` may be `v`.
+  const ax = v[a],
+    ay = v[a + 1],
+    az = v[a + 2]
+  writeCrossVector3(
+    out,
+    o,
+    v[b] - ax,
+    v[b + 1] - ay,
+    v[b + 2] - az,
+    v[c] - ax,
+    v[c + 1] - ay,
+    v[c + 2] - az,
+  )
+  return out
 }
 
 /** The triangle's area, `length3(triangleCross) / 2`, corners read as `triangleCross` reads them:

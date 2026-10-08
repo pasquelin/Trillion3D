@@ -84,3 +84,19 @@ test('frustumKeepsBoxBatch, sphereFromBoundsBatch: the unit formula in the loop 
       assertSameBits(oldIn, nowIn, `spheres in place ${i} kind ${kind}`)
     }
 })
+
+test('frustumKeepsBoxBatch: a plane whose verdict rests on the order of its sum, in every slot', () => {
+  // Left to right, `1 + 2^-53 + 2^-53 − (1 + 2^-52)` rounds to −2^-52 and the box is out; summed
+  // in another order it is 0 and the box kept. The other five planes keep everything.
+  const tie = [1, 1, 1, -(1 + 2 ** -52)],
+    box = Float64Array.of(-1, -1, -1, 1, 2 ** -53, 2 ** -53)
+  for (let slot = 0; slot < 6; slot++) {
+    const planes = new Float64Array(24)
+    for (let p = 0; p < 6; p++) planes.set(p === slot ? tie : [0, 0, 0, 1], 4 * p)
+    const oldKept = new Uint8Array(1),
+      nowKept = new Uint8Array(1)
+    assert.equal(frustumKeepsBoxBatchBefore(oldKept, planes, box, 1), 0, `slot ${slot} excludes`)
+    assert.equal(frustumKeepsBoxBatch(nowKept, planes, box, 1), 0, `slot ${slot}`)
+    assertSameBits(oldKept, nowKept, `kept slot ${slot}`)
+  }
+})

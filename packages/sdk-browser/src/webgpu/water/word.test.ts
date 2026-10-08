@@ -3,6 +3,7 @@
 // Every rank and opacity must read back as the word the stage packed — what the `r32uint` target
 // returned — through the GPU's float-to-unorm8 store and its unorm8-to-float load.
 import { saturate } from '../../../../math/src/scalar/reals.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
@@ -44,8 +45,9 @@ test('every rank and opacity reads back as the word the stage packed', () => {
     pack4x8unorm,
   })
   const words = [0, 1, WATER_MAX_ITEMS, 1 | (65535 << WATER_RANK_SHIFT), 0xffffffff, 0x80808080]
-  let seed = 926
-  const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0), seed)
+  // The generator's raw words: its unit draw times 2^32, exact.
+  const next = lcgRandom(926),
+    random = () => next() * 2 ** 32
   for (let i = 0; i < 20000; i++) words.push(random())
   for (let rank = 1; rank <= WATER_MAX_ITEMS; rank += 257)
     for (const opacity of [0, 1, 127, 128, 255, 256, 32767, 65534, 65535])

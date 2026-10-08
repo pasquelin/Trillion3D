@@ -13,7 +13,7 @@
 use super::bounds::{bounding_sphere, enclosing_sphere};
 use super::{DagCluster, DagGroup};
 use rayon::prelude::*;
-use trillion3d_math::aabb::aabb_of_boxes;
+use trillion3d_math::aabb::{aabb_of_boxes, centre};
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_math::vecn::lerp;
 use trillion3d_page_codec::min_ball::min_ball;
@@ -79,7 +79,7 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
             [0, 1, 2].map(|a| s[a] + s[3]),
         )
     }));
-    consider([0, 1, 2].map(|a| (lo[a] + hi[a]) * 0.5), &mut best);
+    consider(centre(lo, hi), &mut best);
     // Pull the centre toward the far point of the farthest ball, by 1/(k + 1) of the way at step k.
     let mut c = [best[0], best[1], best[2]];
     for k in 1..=WALK_STEPS {

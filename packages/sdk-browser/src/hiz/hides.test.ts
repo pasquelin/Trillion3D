@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { hizBuildFlat } from '../../../sdk-core/src/index.ts'
 import { hizFootprintFarFlat, hizOccluded } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { hizHides } from '../../../../bench/oracles/browser/hizHides.ts'
+import { xorshiftRandom } from '../../../math/src/sequence/random.ts'
 
 const reference = (
   pyramid: ReturnType<typeof hizBuildFlat>,
@@ -28,8 +29,7 @@ test('a footprint all +Infinity hides nothing, even when its coarse level is fin
 })
 
 test('the verdict equals hizOccluded over the farthest footprint depth on hostile pyramids', () => {
-  let s = 7
-  const next = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296)
+  const next = xorshiftRandom(7)
   const special = [Infinity, NaN, -Infinity, 0, -0, 0.45]
   for (const [width, height] of [
     [1, 1],

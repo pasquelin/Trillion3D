@@ -2,6 +2,26 @@ import { BOX_VALUES } from '../geometry/box.ts'
 import { length3 } from '../vector/vector.ts'
 import { SPHERE_VALUES } from './strides.ts'
 
+/** Whether the plane `a·x + b·y + c·z + d ≥ 0` leaves the box behind: its most forward corner,
+ *  picked per axis by the sign of the normal (`a > 0 ? max : min`, NaN picking min), lies below
+ *  it — `frustumExcludesBox`'s test of one plane, its products in their order. The batch repeats it
+ *  on purpose (docs/MATHS.md); `frustumExcludesBox` keeps it written in its loop, where this call
+ *  measured 3 % slower. */
+function planeExcludes(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0
+}
+
 /**
  * Tests `n` bounding boxes against the six frustum planes (24 floats), and writes what is KEPT:
  * `kept[i]` is 1 where the box intersects the frustum or sits inside it, 0 where it is excluded.
@@ -14,7 +34,33 @@ export function frustumKeepsBoxBatch(
   boxes: ArrayLike<number>,
   n: number,
 ): number {
-  // `frustumExcludesBox` written in the loop: the same products in the same order.
+  // The 24 plane values, read once before the loop; then `frustumExcludesBox` per box, its
+  // `planeExcludes` on each plane in slot order until one excludes: the same products in the same
+  // order. `kept` does not share memory with `planes`.
+  const a0 = planes[0],
+    b0 = planes[1],
+    c0 = planes[2],
+    d0 = planes[3],
+    a1 = planes[4],
+    b1 = planes[5],
+    c1 = planes[6],
+    d1 = planes[7],
+    a2 = planes[8],
+    b2 = planes[9],
+    c2 = planes[10],
+    d2 = planes[11],
+    a3 = planes[12],
+    b3 = planes[13],
+    c3 = planes[14],
+    d3 = planes[15],
+    a4 = planes[16],
+    b4 = planes[17],
+    c4 = planes[18],
+    d4 = planes[19],
+    a5 = planes[20],
+    b5 = planes[21],
+    c5 = planes[22],
+    d5 = planes[23]
   let count = 0
   for (let i = 0; i < n; i++) {
     const at = i * BOX_VALUES
@@ -24,20 +70,13 @@ export function frustumKeepsBoxBatch(
       maxX = boxes[at + 3],
       maxY = boxes[at + 4],
       maxZ = boxes[at + 5]
-    let excluded = false
-    for (let p = 0; p < 24; p += 4) {
-      const a = planes[p],
-        b = planes[p + 1],
-        c = planes[p + 2],
-        d = planes[p + 3]
-      if (
-        a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d <
-        0
-      ) {
-        excluded = true
-        break
-      }
-    }
+    const excluded =
+      planeExcludes(a0, b0, c0, d0, minX, minY, minZ, maxX, maxY, maxZ) ||
+      planeExcludes(a1, b1, c1, d1, minX, minY, minZ, maxX, maxY, maxZ) ||
+      planeExcludes(a2, b2, c2, d2, minX, minY, minZ, maxX, maxY, maxZ) ||
+      planeExcludes(a3, b3, c3, d3, minX, minY, minZ, maxX, maxY, maxZ) ||
+      planeExcludes(a4, b4, c4, d4, minX, minY, minZ, maxX, maxY, maxZ) ||
+      planeExcludes(a5, b5, c5, d5, minX, minY, minZ, maxX, maxY, maxZ)
     kept[i] = excluded ? 0 : 1
     if (!excluded) count++
   }

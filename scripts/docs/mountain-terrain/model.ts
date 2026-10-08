@@ -1,3 +1,5 @@
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
+
 const gaussian = (
   x: number,
   z: number,
@@ -37,6 +39,9 @@ export interface Terrain {
   indices: number[]
 }
 
+/** A triangle's three heights, module scratch: `mean` of them sorts its colour band. */
+const heights = new Float64Array(3)
+
 export function mountainTerrain(detail = 96): Terrain {
   const positions: number[] = [],
     bands: number[][] = [[], [], [], []]
@@ -57,7 +62,8 @@ export function mountainTerrain(detail = 96): Terrain {
         [a, b, c],
         [a, c, d],
       ]) {
-        const height = triangle.reduce((sum, index) => sum + positions[index * 3 + 1], 0) / 3
+        triangle.forEach((index, i) => (heights[i] = positions[index * 3 + 1]))
+        const height = mean(heights)
         bands[bandFor(height)].push(...triangle)
       }
     }

@@ -2,7 +2,13 @@
 // Node chooses the columns and the street among them; the page only asks the physics
 // (`street/streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
 import type { Page } from 'playwright'
-import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from '../trajectory/poses.ts'
+import {
+  STREET_REACH,
+  boundsCentre,
+  eyeHeight,
+  modelFloor,
+  type Bounds,
+} from '../trajectory/poses.ts'
 import { probeColumns } from './streetPage.ts'
 import { readBounds } from '../harness/page.ts'
 import { length2 } from '../../../packages/math/src/vector/vector.ts'
@@ -71,12 +77,13 @@ export function streetProbe(bounds: Bounds, urls: { sdkUrl: string; manifestUrl:
         z = at(min.z, max.z, j)
       columns.push([x, z, Math.min(x - min.x, max.x - x, z - min.z, max.z - z)])
     }
-  const height = max.y - min.y + 2 * eye
+  const height = max.y - min.y + 2 * eye,
+    middle = boundsCentre(bounds)
   return {
     ...urls,
     columns,
     headings: HEADINGS,
-    centre: [(min.x + max.x) / 2, (min.z + max.z) / 2],
+    centre: [middle[0], middle[2]],
     top: max.y + eye,
     floor: modelFloor(bounds),
     height,
@@ -94,8 +101,9 @@ export function streetProbe(bounds: Bounds, urls: { sdkUrl: string; manifestUrl:
  * then walks the box's own street (`boxStreet`).
  */
 export function pickStreet(probes: readonly ColumnProbe[], bounds: Bounds): Street | null {
-  const cx = (bounds.min.x + bounds.max.x) / 2,
-    cz = (bounds.min.z + bounds.max.z) / 2,
+  const centre = boundsCentre(bounds),
+    cx = centre[0],
+    cz = centre[2],
     floor = modelFloor(bounds) + eyeHeight(bounds)
   const off = (p: Street) => length2(p.x - cx, p.z - cz)
   const best = probes

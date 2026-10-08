@@ -3,7 +3,7 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
-import { linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
+import { fromUnorm8, linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
 import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
 import {
   setWindingEpoch,
@@ -126,7 +126,7 @@ export async function lignesConsommateursBrowser() {
         l.map((c, i) => [ancien.referenceSrgb8Linear(i % 256), ancien.referenceLinearToSrgb8(c)]),
       parElement((c: number, i) => {
         const sortie = encodages[i]
-        ;[sortie[0], sortie[1]] = [srgbToLinear((i % 256) / 255), linearToSrgb8(c)]
+        ;[sortie[0], sortie[1]] = [srgbToLinear(fromUnorm8(i % 256)), linearToSrgb8(c)]
         return sortie
       }),
     ),

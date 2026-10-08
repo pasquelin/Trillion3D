@@ -53,14 +53,25 @@ export function linearPartScale(m: ArrayLike<number>) {
  *  identity: column by column, the squares of its three terms less the identity's, the column's
  *  three summed left to right and then added to the total. */
 export function linearPartIdentityDistanceSq(m: ArrayLike<number>, at = 0) {
-  let sum = 0
-  for (let column = 0; column < 3; column++) {
-    const x = m[at + column * 4],
-      y = m[at + column * 4 + 1],
-      z = m[at + column * 4 + 2]
-    sum += (x - +(column === 0)) ** 2 + (y - +(column === 1)) ** 2 + (z - +(column === 2)) ** 2
-  }
-  return sum
+  // The loop unrolled. The total starts at the first column's sum, not at `0 +` it: a sum of
+  // squares is never −0, so the bits are the same. An off-diagonal term less the identity's zero
+  // is the term itself (`y − 0 = y`, −0 included), so it is squared as read.
+  const x0 = m[at],
+    y0 = m[at + 1],
+    z0 = m[at + 2]
+  const x1 = m[at + 4],
+    y1 = m[at + 5],
+    z1 = m[at + 6]
+  const x2 = m[at + 8],
+    y2 = m[at + 9],
+    z2 = m[at + 10]
+  return (
+    (x0 - 1) ** 2 +
+    y0 ** 2 +
+    z0 ** 2 +
+    (x1 ** 2 + (y1 - 1) ** 2 + z1 ** 2) +
+    (x2 ** 2 + y2 ** 2 + (z2 - 1) ** 2)
+  )
 }
 
 /**

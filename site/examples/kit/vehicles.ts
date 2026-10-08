@@ -1,6 +1,7 @@
 import type { Engine, Families, Mesh, Vec3 } from './engineTypes.ts'
 import { vehicleParts, type Hulled } from './vehicleParts.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
+import { decayFactor } from '../../../packages/math/src/scalar/reals.ts'
 
 type World = Pick<Engine.World, 'camera' | 'raycast'>
 
@@ -137,10 +138,10 @@ export function vehicles(
       .applyQuaternion(body.quaternion)
       .add(body.position)
     eye.y = Math.max(eye.y, body.position.y + 1)
-    world.camera.position.lerp(eye, 1 - Math.exp(-delta * 5))
+    world.camera.position.lerp(eye, 1 - decayFactor(5, delta))
     target.copy(body.position)
     target.y += built.aim
-    if (aimReady) aim.lerp(target, 1 - Math.exp(-delta * 5))
+    if (aimReady) aim.lerp(target, 1 - decayFactor(5, delta))
     else aim.copy(target)
     aimReady = true
     world.camera.lookAt(aim)

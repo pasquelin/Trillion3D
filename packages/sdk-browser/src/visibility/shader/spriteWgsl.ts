@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../types.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
+import { length3, transformPointRow } from '../../../../math/src/vector/vector.ts'
 import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
@@ -108,7 +108,7 @@ export function spriteAt(
   let ax = cornerX * length3(place[0], place[1], place[2]),
     ay = cornerY * length3(place[4], place[5], place[6])
   if (!sprite.sizeAttenuation) {
-    const w = toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15]
+    const w = transformPointRow(toClip, 3, place[12], place[13], place[14])
     ax *= w
     ay *= w
   }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::shared_math::bisect_centres;
-use trillion3d_math::aabb::aabb_of_boxes;
+use trillion3d_math::aabb::{aabb_of_boxes, centre};
 
 /// Node bounds: cluster box, sphere enclosing replacement spheres (`tight::ball_of_balls`),
 /// and max subtree replacement error. Single interval reading serves
@@ -35,16 +35,7 @@ pub fn build_culling_bvh(
         .iter()
         .map(|cluster| cluster_bounds(positions, &cluster.indices))
         .collect();
-    let centres: Vec<[f64; 3]> = boxes
-        .iter()
-        .map(|(min, max)| {
-            [
-                (min[0] + max[0]) * 0.5,
-                (min[1] + max[1]) * 0.5,
-                (min[2] + max[2]) * 0.5,
-            ]
-        })
-        .collect();
+    let centres: Vec<[f64; 3]> = boxes.iter().map(|(min, max)| centre(*min, *max)).collect();
     order.sort_unstable_by_key(|&id| (clusters[id].level, id));
     let mut level_ranges = Vec::new();
     let mut start = 0usize;

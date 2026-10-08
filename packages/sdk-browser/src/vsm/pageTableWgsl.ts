@@ -1,6 +1,7 @@
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { highHalf, lowHalf } from '../../../math/src/wgsl/integer.ts'
 
 /**
  * Page table addressing and lookup: the page handle, the page access and the projection sampling.
@@ -38,7 +39,7 @@ fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 /** Page-address arithmetic and the buffer linearisation of the 2D tables. */
 export const VSM_PAGE_ADDRESS_WGSL = wgslBlock(
   'VSM_PAGE_ADDRESS_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL, lowHalf, highHalf],
   `
 fn vsmLog2PagesAtLevel(level:u32)->u32{return VSM_LOG2_LEVEL0_PAGES-level;}
 fn vsmPagesAtLevel(level:u32)->u32{return 1u<<vsmLog2PagesAtLevel(level);}
@@ -71,7 +72,7 @@ fn vsmTableLevelOrigin(h:VsmHandle,mipLevel:u32)->VsmTableLevel{
 /** The texel address of one entry in the global 2D table. */
 struct VsmTableCell{tableXY:vec2u,}
 fn vsmTableCellPack(o:VsmTableCell)->u32{return (o.tableXY.x<<16u)|o.tableXY.y;}
-fn vsmTableCellUnpack(p:u32)->VsmTableCell{return VsmTableCell(vec2u(p>>16u,p&0xFFFFu));}
+fn vsmTableCellUnpack(p:u32)->VsmTableCell{return VsmTableCell(vec2u(highHalf(p),lowHalf(p)));}
 fn vsmTableEntryAt(levelOffset:VsmTableLevel,level:u32,pageAddress:vec2u)->VsmTableCell{
  var r=VsmTableCell(levelOffset.firstCell);
  if(!levelOffset.isSinglePage){r.tableXY+=pageAddress;}

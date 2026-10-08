@@ -1,6 +1,7 @@
 // The images of the material fixtures (`materialFixtures.ts`), drawn in the page on a canvas and
 // handed to both engines as the same host texture.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 
 /** How a map is read beyond its pixels: the host texture's fields, written over the canvas one. */
 type MapOptions = Partial<
@@ -51,7 +52,7 @@ export function texture(
     2,
     (ctx) =>
       texels.forEach(([r, g, b, a], i) => {
-        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
+        ctx.fillStyle = `rgba(${r},${g},${b},${fromUnorm8(a)})`
         ctx.fillRect(QUADRANT_AT[i][0], QUADRANT_AT[i][1], 1, 1)
       }),
     { colorSpace, ...NEAREST },

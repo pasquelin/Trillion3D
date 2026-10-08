@@ -664,7 +664,7 @@
           // The eye turns slowly to the idol; the mouse can still look around.
           const p = camera.position, to = [IDOL.x - p.x, IDOL.y - p.y, IDOL.z - p.z];
           const far = Math.hypot(...to), k = Math.min(1, dt * 1.2);
-          const [ax, ay, az] = look.map((value, axis) => value + (to[axis] / far - value) * k);
+          const [ax, ay, az] = look.map((value, axis) => math.lerp(value, to[axis] / far, k));
           camera.lookAt(p.x + ax, p.y + ay, p.z + az);
         }
         const shown = state === 'done' ? finished : started === null ? 0 : time - started;

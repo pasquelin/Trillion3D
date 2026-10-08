@@ -3,6 +3,7 @@ import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedra
 import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
 import {
   bitLength,
+  bitWord,
   byteOf,
   ceilDiv,
   lowBits,
@@ -61,11 +62,12 @@ export function clusterDecodeWgsl(buffer: string) {
       ceilDiv,
       pow2FromExponent,
       lowBits,
+      bitWord,
     ],
     `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
- let shift=at&31u;let index=base+(at>>5u);
+ let shift=at&31u;let index=base+bitWord(at);
  var value=${buffer}[index]>>shift;
  if(shift+bits>32u){value|=${buffer}[index+1u]<<(32u-shift);}
  return value&lowBits(bits);
@@ -137,7 +139,7 @@ fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
 // width, and the bit of the corner stream its first corner lies at. Only a prefix that leaves
 // the window — a record past 33 bits, a page far beyond a meshlet — reads a third word.
 fn clusterBlock(h:ClusterHeader,base:u32,tri:u32)->vec3u{
- let at=(tri/${TRIANGLE_BLOCK}u)*h.recordBits;let word=base+h.blocks+(at>>5u);let s=at&31u;
+ let at=(tri/${TRIANGLE_BLOCK}u)*h.recordBits;let word=base+h.blocks+bitWord(at);let s=at&31u;
  let lo=${buffer}[word];let hi=${buffer}[word+1u];
  let p=s+h.indexBits+${WIDTH_BITS}u;
  var prefix=clusterWindow(lo,hi,p,h.prefixBits);
