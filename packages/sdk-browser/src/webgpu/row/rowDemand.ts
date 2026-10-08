@@ -3,7 +3,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
-import { createCutDelta } from '../cut/delta.ts'
+import { createListDifference } from './listDifference.ts'
 import type { PageList } from '../pages/prepare/catalogue.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import type { IdDelta } from '../cut/delta.ts'
@@ -37,7 +37,7 @@ const STOP = () => true
  * full. One still waiting for its bytes stays marked and takes its row when they land.
  *
  * Nothing is closed over again per readback: each list — drawn, asked, asked ahead — reaches the
- * demand as its difference (`../cut/delta.ts`), and two counted closures follow the differences
+ * demand as its difference (`listDifference.ts`), and two counted closures follow the differences
  * alone: the closure of every list holds the rows in use (a group-mate outside the view keeps a
  * drawn page ready), the closure of the requests the instances wanted. What a difference brings is
  * listed in the readback's order, each group-mate behind the request it came in with. A page whose
@@ -64,7 +64,8 @@ export function createRowDemand(
   use: RowUse,
   /** Whether a packed instance draws from a visibility row once resident: opaque, with geometry. */
   drawsRow: (page: number) => boolean,
-  /** The packed instances the readbacks name. */
+  /** The packed instances the readbacks name: their count sizes the marks, and no record of
+   *  theirs is read. */
   packedPages: PageList,
   /** A new counted closure over the instances, per placement. */
   closure: () => InstanceClosure,
@@ -72,9 +73,9 @@ export function createRowDemand(
   const d: DemandState = {
     ...{ table, use, drawsRow },
     lists: {
-      drawn: createCutDelta(packedPages),
-      asked: createCutDelta(packedPages),
-      ahead: createCutDelta(packedPages),
+      drawn: createListDifference(),
+      asked: createListDifference(),
+      ahead: createListDifference(),
     },
     held: closure(),
     asking: closure(),
@@ -159,7 +160,7 @@ type DemandState = {
   use: RowUse
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
-  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createCutDelta>>
+  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createListDifference>>
   /** The closure of every list: the rows in use. */
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
