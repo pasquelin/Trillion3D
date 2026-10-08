@@ -30,7 +30,9 @@ export function benchOptions(args = process.argv.slice(2)) {
   const scenario = readScenario(values.scenario)
   const page = positionals[0] ?? scenario.page
   if (!page || positionals.length > 1)
-    throw new Error('usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|<file>] …')
+    throw new Error(
+      'usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file>] …',
+    )
   const engine = engineRoot(values.engine, values.dirty)
   const file = pageFile(page, engine.root)
   const profile = PROFILES[values.profile]

@@ -3,6 +3,7 @@
 // frame (`recorder.js`) — in named segments, each measured and optionally captured on its own.
 import { readFileSync } from 'node:fs'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
+import { WORLD_SCENARIO } from './benchScene.ts'
 import type { BenchBrowser } from './dom.ts'
 
 /** A point on the canvas as shares of its width and height, so a scenario plays at any size. */
@@ -48,6 +49,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { name: 'still', frames: 240, capture: true },
     ],
   },
+  world: WORLD_SCENARIO,
   still: { name: 'still', segments: [{ name: 'still', frames: 360, capture: true }] },
   drive: {
     name: 'drive',
