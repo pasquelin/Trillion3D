@@ -1,15 +1,11 @@
 // The host bytes a session reserves beside the streamer count every per-root table of the impostor
 // tier: the watch's, its switch table's, the cards' and their objects — measured as a field of roots
-// doubles, table by table and against what those tables hold a root. On generated fields of 1000 and 2000 roots.
+// doubles, table by table and against what those tables hold a root. On generated fields of 1000
+// and 2000 roots.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import '../../../impostor/lent.fixture.ts'
-import {
-  CARD_HOLDER_BYTES,
-  HOLDER_ENTRY_BYTES,
-  createImpostorCards,
-  planImpostorCards,
-} from '../../../impostor/cards.ts'
+import { createImpostorCards, planImpostorCards } from '../../../impostor/cards.ts'
 import {
   cardField,
   engineAt,
@@ -36,29 +32,26 @@ function bytesAt(count: number) {
     bounce: {},
     gpu: { impostors: cards },
   } as unknown as WebgpuPagesRuntime
-  return {
-    host: hostTableBytesOf(rt),
-    records: cards.slots.records.byteLength,
-    own: ownBytes(cards),
-  }
+  return { host: hostTableBytesOf(rt), records: cards.slots.records.byteLength, ...ownBytes(cards) }
 }
 
-/** The tier's tables read one by one, each by its own size: the watch's, the records and the slots
- *  to send, the card of each root and the roots moved, and each mesh's switched roots, its cards,
- *  their objects and their entries. */
+/** The tier's tables read one by one, each by its own size — the watch's, the records and the
+ *  slots to send, the card of each root and the roots moved, and each mesh's switched roots and
+ *  cards —, and the card objects the meshes hold, which the host bytes count a fixed size each. */
 function ownBytes(cards: ReturnType<typeof createImpostorCards>) {
-  let bytes =
-    cards.watch.hostBytes +
-    cards.slots.records.byteLength +
-    cards.slots.dirty.listed.byteLength +
-    cards.slots.dirty.sorted.byteLength +
-    8 * cards.holding.length +
-    cards.moves.byteLength
-  for (const { eligible, cards: held, holders } of cards.segments.values()) {
-    bytes += eligible.byteLength + 8 * held.length
-    bytes += holders.size * (CARD_HOLDER_BYTES + HOLDER_ENTRY_BYTES)
+  let tables =
+      cards.watch.hostBytes +
+      cards.slots.records.byteLength +
+      cards.slots.dirty.listed.byteLength +
+      cards.slots.dirty.sorted.byteLength +
+      8 * cards.holding.length +
+      cards.moves.byteLength,
+    holders = 0
+  for (const segment of cards.segments.values()) {
+    tables += segment.eligible.byteLength + 8 * segment.cards.length
+    holders += segment.holders.size
   }
-  return bytes
+  return { tables, holders }
 }
 
 test('every per-root table of the impostor tier counts in the host bytes', () => {
@@ -67,11 +60,11 @@ test('every per-root table of the impostor tier counts in the host bytes', () =>
   const grown = large.host - small.host,
     records = large.records - small.records
   assert.ok(records > 0, 'more cards, more records')
-  assert.equal(
-    grown,
-    large.own - small.own,
-    'the growth, table by table, cards and entries included',
-  )
+  // What the host bytes hold beyond the tables, a card object and its entry: the same a card.
+  const perCard = (at: typeof small) => (at.host - at.tables) / at.holders
+  assert.ok(small.holders > 0 && large.holders > small.holders)
+  assert.ok(perCard(small) > 0, 'a card object and its entry counted')
+  assert.equal(perCard(large), perCard(small), 'the growth, table by table, a card a fixed size')
   assert.ok(
     grown >= 1000 * PER_ROOT + records,
     `${(grown - records) / 1000} bytes a root beside the records, ${PER_ROOT} at least`,

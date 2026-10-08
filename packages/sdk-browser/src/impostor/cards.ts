@@ -92,7 +92,7 @@ export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks: ArrayLike
 /** Bytes of one card (`CardHolder`): an object of three fields, its header and its fields a word
  *  each; and of its entry in its mesh's card of each world, a key, a value and a link of the
  *  map's table and its bucket. */
-export const CARD_HOLDER_BYTES = 6 * 4,
+const CARD_HOLDER_BYTES = 6 * 4,
   HOLDER_ENTRY_BYTES = 4 * 4
 
 /** Bytes of the tier's host tables: the watch's (`hostBytes`), the card records and the slots to

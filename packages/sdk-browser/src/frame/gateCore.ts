@@ -48,7 +48,7 @@ type GateState = {
 /** What the world pass a scene revision owes read of the host's writes (`updateWorlds`): whether
  *  the scene changed shape — every root walked —, else the nodes shown, hidden or set to cast or
  *  not, whose roots alone follow. The poses written are the transform tree's listed nodes. */
-export type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
+type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
 
 /**
  * The engine's frame gate: the three revisions, the view origin, the reread of the graph
