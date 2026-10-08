@@ -134,6 +134,7 @@ function tableCells(
     },
     objectNode: (object) => word(objectsAt + object * OBJECT),
     objectPrimitive: (object) => word(objectsAt + object * OBJECT + 4),
+    objectDependencies: (object) => list(objectsAt + object * OBJECT + 16),
     objects(cell) {
       const first = word(cellsAt + cell * CELL)
       return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))

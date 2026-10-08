@@ -79,6 +79,8 @@ export type WorldRoots = {
      *  place, no record built. */
     objectNode(object: number): number
     objectPrimitive(object: number): number
+    /** Object `object`'s bundle dependencies, a view of the table's words. */
+    objectDependencies(object: number): Uint32Array
     /** The first object of node `node` of `cell` — its rank in the cell's file, the order the
      *  partition places it in —, counted from the cell's first; -1 for a node the cook continued
      *  nothing of. The cook writes it (`compiler_world_roots/cells.rs`). */
@@ -101,9 +103,14 @@ const refuse = refuseWorldRoots
 /** The bundles past the pinned top the roots of `cell`'s objects need, ascending: what the cell
  *  holds while it is placed. */
 export function cellDependencies(table: WorldRoots, cell: number): number[] {
-  const needed = new Set<number>()
-  for (const { dependencies } of cell < table.cells.count ? table.cells.objects(cell) : [])
-    for (const bundle of dependencies) if (bundle >= table.pinned) needed.add(bundle)
+  const needed = new Set<number>(),
+    { cells } = table
+  if (cell >= cells.count) return []
+  // Each object's list read in place: no record of the cell built.
+  const first = cells.first(cell)
+  for (let object = first; object < first + cells.size(cell); object++)
+    for (const bundle of cells.objectDependencies(object))
+      if (bundle >= table.pinned) needed.add(bundle)
   return [...needed].sort((a, b) => a - b)
 }
 
