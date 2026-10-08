@@ -36,26 +36,35 @@ for (const run of runs) {
   }
   const merged = JSON.parse(readFileSync(`${report}.json`, 'utf8')) as BenchReport
   if (child.status !== 0) failed++
-  const segment = merged.segments.find((s) => s.measured)!
-  const stages = segment.benchPasses
-    .slice(0, 3)
-    .map((pass) => `${pass.name} ${ms(pass.median)}`)
-    .join(', ')
-  rows.push([
-    child.status === 0 ? page : `${page} (${merged.errors.length} GPU errors)`,
-    scenario,
-    ms(segment.gpuMs?.median),
-    percent(segment.spread),
-    ms(segment.engineGpuMs?.median),
-    ms(segment.cpuMs?.median),
-    ms(segment.worstGpuMs),
-    ms(segment.worstCpuMs),
-    segment.hitchFrames.map((at) => at.length).join('·'),
-    stages,
-    sameImages(segment),
-  ])
+  // Every measured segment is a row: a regression in one of them is seen, whichever it is.
+  for (const segment of merged.segments.filter((s) => s.measured)) {
+    const stages = segment.benchPasses
+      .slice(0, 3)
+      .map((pass) => `${pass.name} ${ms(pass.median)}`)
+      .join(', ')
+    rows.push([
+      child.status === 0 ? page : `${page} (${merged.errors.length} GPU errors)`,
+      `${scenario} · ${segment.name}`,
+      ms(segment.gpuMs?.median),
+      percent(segment.spread),
+      ms(segment.engineGpuMs?.median),
+      ms(segment.cpuMs?.median),
+      ms(segment.worstGpuMs),
+      ms(segment.worstCpuMs),
+      segment.hitchFrames.map((at) => at.length).join('·'),
+      stages,
+      sameImages(segment),
+    ])
+  }
 }
-const head = ['page', 'scenario', 'GPU ms', 'plays spread', 'engine GPU ms', 'main thread ms']
+const head = [
+  'page',
+  'scenario · segment',
+  'GPU ms',
+  'plays spread',
+  'engine GPU ms',
+  'main thread ms',
+]
 head.push('worst GPU ms', 'worst main thread ms', 'hitches', 'top passes', 'images')
 const text = [`# GPU bench suite — ${new Date().toISOString()}`, '', table(head, rows), ''].join(
   '\n',

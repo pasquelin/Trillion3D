@@ -36,6 +36,7 @@ const frame = (gpuMs: number, sample: FrameRecord['sample'] = null): FrameRecord
   engineCpuMs: 1,
   engineGpuMs: gpuMs - 1,
   sample,
+  counters: {},
 })
 
 const sample = (frameNumber: number, passes: [string, number][]) => ({

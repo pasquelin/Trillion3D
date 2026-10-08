@@ -10,6 +10,13 @@ import { readBack } from './readBack.ts'
 /** Timestamps of one frame: two per pass. */
 const CAPACITY = 4096
 
+/** What a render pass stores in its attachments, and how many it cannot size (`attachmentBytes`). */
+function attachments(kind: TimedPass['kind'], descriptor: unknown) {
+  if (kind !== 'render') return { attachBytes: 0, unsized: 0 }
+  const [attachBytes, unsized] = attachmentBytes(descriptor as GPURenderPassDescriptor)
+  return { attachBytes, unsized }
+}
+
 /** The pass timer of one device; `quiet` runs the bench's own commands uncounted. */
 export function createPassTimer(quiet: <T>(work: () => T) => T) {
   let device: GPUDevice | null = null,
@@ -44,7 +51,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
         kind,
         at,
         ...emptyWork(),
-        attachBytes: kind === 'render' ? attachmentBytes(descriptor as GPURenderPassDescriptor) : 0,
+        ...attachments(kind, descriptor),
       })
       const timestampWrites = {
         querySet: set,

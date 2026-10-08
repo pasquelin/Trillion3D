@@ -9,6 +9,7 @@ import {
 } from '../../packages/sdk-browser/src/stage/mapping.ts'
 import { COUNTS, type Counts } from './device.ts'
 import type { FrameRecord } from './frames.ts'
+import { WATCHED } from './watched.ts'
 
 /** Plays agreeing within this relative spread of their medians make a stable segment. */
 export const STABLE_SPREAD = 0.03
@@ -148,6 +149,10 @@ export function roundNumbers(frames: readonly FrameRecord[]) {
     computeMs: spread(complete.map((frame) => kindMs(frame, 'compute'))),
     renderMs: spread(complete.map((frame) => kindMs(frame, 'render'))),
     idleMs: spread(complete.map((frame) => frame.gpu!.gapMs)),
+    /** The most each watched counter reached over the segment's images. */
+    counterMax: Object.fromEntries(
+      WATCHED.map((key) => [key, Math.max(...drawn.map((frame) => frame.counters[key] ?? 0), 0)]),
+    ) as Record<string, number>,
     cpuMs: spread(drawn.map((frame) => frame.cpuMs)),
     wallMs: spread(drawn.map((frame) => frame.wallMs)),
     loopMs: spread(drawn.map((frame) => frame.loopMs)),

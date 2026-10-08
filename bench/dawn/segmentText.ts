@@ -45,7 +45,13 @@ export function segmentDetail(segment: Segment) {
           percent(pass.share),
           ms(pass.waitMs, 3),
           ms(pass.spanMs, 3),
-          pass.lost ? `LOST ${pass.lost}` : pass.empty ? `empty ${pass.empty}` : 'ok',
+          pass.lost
+            ? `LOST ${pass.lost}`
+            : pass.unknown
+              ? `unknown ${pass.unknown}`
+              : pass.empty
+                ? `empty ${pass.empty}`
+                : 'ok',
         ]),
     ),
     '',

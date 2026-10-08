@@ -30,6 +30,8 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
       '--engine',
       root,
       ...childArgs(process.argv.slice(2)),
+      // A verdict reads times: no image is taken, none left behind.
+      '--no-capture',
       '--child-report',
       report,
     ],
@@ -64,6 +66,8 @@ export async function abTest(
   rounds: number,
   least: number,
 ) {
+  if (!options.scenario.segments.some((segment) => segment.measure !== false))
+    throw new Error(`BENCH_AB: the scenario ${options.scenario.name} measures no segment`)
   const out = measureOutput('bench-gpu')
   mkdirSync(out, { recursive: true })
   const [a, b] = sides.map((side) => engineRoot(side, options.dirtyOk).root)
@@ -77,7 +81,7 @@ export async function abTest(
     }
   }
   const results: (Comparison & { name: string })[] = compareRounds(plays.a, plays.b, least)
-  const text = abText(options, [a, b], results, least)
+  const text = abText(options, [a, b], results, rounds, least)
   const stem = join(out, `${stamp()}-ab-${options.name}`)
   writeFileSync(`${stem}.md`, text)
   writeFileSync(`${stem}.json`, JSON.stringify({ sides: [a, b], rounds, least, results }, null, 1))
@@ -91,6 +95,7 @@ function abText(
   options: BenchOptions,
   sides: [string, string],
   results: (Comparison & { name: string })[],
+  rounds: number,
   least: number,
 ) {
   return [
@@ -99,7 +104,7 @@ function abText(
     `A: ${sides[0]}`,
     `B: ${sides[1]}`,
     '',
-    `${results[0].rounds} rounds, the two sides alternating; the difference B − A of each round (negative: B is faster), its mean and 95 % interval. A gain or a loss needs an interval holding no zero and a mean past ${ms(least, 3)} ms; else noise.`,
+    `${rounds} rounds, the two sides alternating; the difference B − A of each round (negative: B is faster), its mean and 95 % interval. A gain or a loss needs an interval holding no zero and a mean past ${ms(least, 3)} ms; else noise.`,
     '',
     table(
       ['segment', 'A ms', 'B ms', 'B − A ms (mean)', '95 % interval ms', 'relative', 'verdict'],

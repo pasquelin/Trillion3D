@@ -32,3 +32,14 @@ test('a gain smaller than what matters is noise, and one round is no verdict', (
   assert.throws(() => compare([12], [11]), /BENCH_AB/)
   assert.throws(() => compare([12, 12], [11]), /BENCH_AB/)
 })
+
+test('a round with no time on a side is left out, and too few rounds left is no verdict', () => {
+  const a = times(12, 6, 3)
+  const b = times(11.4, 6, 4)
+  b[2] = Number.NaN
+  const c = compare(a, b)
+  assert.equal(c.rounds, 5)
+  assert.equal(c.verdict, 'gain')
+  assert.ok(Number.isFinite(c.lowMs) && Number.isFinite(c.highMs))
+  assert.throws(() => compare([12, 12, 12], [11, Number.NaN, Number.NaN]), /BENCH_AB/)
+})

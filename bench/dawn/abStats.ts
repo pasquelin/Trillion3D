@@ -29,7 +29,10 @@ export type Comparison = {
 export function compare(a: readonly number[], b: readonly number[], least = 0.05): Comparison {
   if (a.length !== b.length || a.length < 2)
     throw new Error('BENCH_AB: a verdict needs two paired rounds')
-  const diffs = b.map((v, i) => v - a[i])
+  // A round either side of which gave no time says nothing: it is left out, and the rest must stand.
+  const diffs = b.map((v, i) => v - a[i]).filter(Number.isFinite)
+  if (diffs.length < 2)
+    throw new Error('BENCH_AB: a verdict needs two rounds that gave a time on both sides')
   const d = spread(diffs)!
   const n = diffs.length
   const { mean } = d
@@ -45,7 +48,7 @@ export function compare(a: readonly number[], b: readonly number[], least = 0.05
     meanMs: mean,
     lowMs: low,
     highMs: high,
-    relative: d.median / aMs,
+    relative: mean / aMs,
     verdict,
   }
 }

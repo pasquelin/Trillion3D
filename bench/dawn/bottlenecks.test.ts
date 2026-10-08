@@ -73,7 +73,7 @@ test('the ranking sorts by work, names the cause the numbers prove, and bounds t
   assert.equal(by.few.cause, 'occupancy')
   assert.equal(by.mystery.cause, 'unproven')
   assert.equal(by.mystery.source?.file, 'a.ts')
-  assert.ok(by.mystery.certainMs <= by.mystery.gainMs)
+  assert.ok(by.mystery.unexplainedMs <= by.mystery.gainMs)
 })
 
 test('a pass drawing nothing the engine counts is wasted work; the top gains put a wait at its idle', () => {
@@ -97,4 +97,26 @@ test('a pass that took no time is never bound by anything', () => {
   const [row] = rankBottlenecks([pass('nothing', 0)], machine, {}, new Map())
   assert.equal(row.cause, 'unproven')
   assert.match(row.evidence, /nothing to gain/)
+})
+
+test('an encoding the bench cannot size rules nothing out and explains nothing', () => {
+  const [row] = rankBottlenecks(
+    [pass('driven', 3, { work: { unsized: 4, invocations: 0, groups: 0 } })],
+    machine,
+    {},
+    new Map(),
+  )
+  assert.equal(row.cause, 'unproven')
+  assert.match(row.evidence, /cannot size/)
+  assert.doesNotMatch(row.evidence, /ruled out:/)
+  assert.equal(row.unexplainedMs, 0)
+})
+
+test('a render pass pays no dispatch cost in its floor', () => {
+  const render = {
+    ...pass('draws', 1),
+    kind: 'render',
+    encoded: { ...emptyWork(), calls: 1000 },
+  } as BenchPass
+  assert.equal(rankBottlenecks([render], machine, {}, new Map())[0].floorMs, machine.passMs)
 })

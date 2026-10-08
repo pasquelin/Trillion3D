@@ -4,6 +4,7 @@
 import type { BenchPass } from './benchPasses.ts'
 import type { Machine } from './machine.ts'
 import type { PassSource } from './passSource.ts'
+import { IDLE_COUNTERS } from './watched.ts'
 
 /** The causes a pass's time can have. `unproven`: the numbers rule the others out but do not name
  *  one — `--dissect` cuts the shader to find it. */
@@ -11,7 +12,9 @@ export type Cause = 'wait' | 'bandwidth' | 'launch' | 'occupancy' | 'wasted work
 
 /** One pass of the ranking. Floors in ms: `floorMs` the least a pass of this encoded work needs
  *  (its attachments stored, its threads launched, its fixed cost); `floorMaxMs` if every byte it
- *  binds were moved. The gain is bounded: `gainMs` at most, `certainMs` at least. */
+ *  binds were moved. `gainMs` is the most the pass could give back (its work less its floor);
+ *  `unexplainedMs` the part of its time that neither moving every bound byte nor launching its threads
+ *  can explain — time that is compute or latency, which only the shader's own cost accounts for. */
 export type Bottleneck = {
   name: string
   stage: string
@@ -23,7 +26,7 @@ export type Bottleneck = {
   floorMs: number
   floorMaxMs: number
   gainMs: number
-  certainMs: number
+  unexplainedMs: number
   cause: Cause
   evidence: string
   source: PassSource | null
@@ -36,11 +39,6 @@ const WAIT_MIN_MS = 0.1
 const FEW_GROUPS = 64
 /** A floor this share of the time makes the pass bound by it. */
 const BOUND = 0.7
-/** The engine counters that say a pass has nothing to do: a pass of this stage, a counter at zero. */
-const IDLE_COUNTERS: Record<string, [key: string, what: string]> = {
-  transparents: ['transparentMeshes', 'no transparent mesh'],
-}
-
 const inMs = (value: number) => `${value.toFixed(2)} ms`
 
 /** The floor of a pass on `machine`: the larger of its fixed cost, its threads' launch and its
@@ -49,7 +47,7 @@ export function floorsOf(pass: Pick<BenchPass, 'encoded' | 'kind'>, machine: Mac
   const { encoded } = pass
   const launch = encoded.invocations / machine.threadsPerMs
   const stores = encoded.attachBytes / machine.attachmentGBs / 1e6
-  const fixed = machine.passMs + encoded.calls * machine.dispatchMs
+  const fixed = machine.passMs + (pass.kind === 'compute' ? encoded.calls * machine.dispatchMs : 0)
   const floorMs = Math.max(fixed, launch, stores)
   const moved = encoded.boundBytes / Math.min(machine.readGBs, machine.textureReadGBs) / 1e6
   return { floorMs, floorMaxMs: Math.max(floorMs, moved + stores), launch, stores, moved }
@@ -61,14 +59,14 @@ export function floorsOf(pass: Pick<BenchPass, 'encoded' | 'kind'>, machine: Mac
 function causeOf(
   pass: BenchPass,
   floors: ReturnType<typeof floorsOf>,
-  counters: Record<string, unknown>,
+  counters: Record<string, number | undefined>,
 ): [Cause, string] {
   const work = pass.median
   // A pass that took no time has nothing to gain, and a floor of zero is not most of zero.
   if (work < 0.001) return ['unproven', 'under 1 µs measured: nothing to gain']
   const idle = IDLE_COUNTERS[pass.stage]
   if (idle && counters[idle[0]] === 0 && work > 0.02)
-    return ['wasted work', `${inMs(work)} with ${idle[1]} (${idle[0]} = 0)`]
+    return ['wasted work', `${inMs(work)} with ${idle[1]} on every frame (${idle[0]} = 0)`]
   if (pass.waitMs >= WAIT_MIN_MS && pass.waitMs >= WAIT_SHARE * work)
     return ['wait', `the GPU idles ${inMs(pass.waitMs)} before it, ${inMs(work)} of work`]
   if (floors.stores >= BOUND * work)
@@ -85,6 +83,13 @@ function causeOf(
     return [
       'occupancy',
       `${pass.encoded.groups} workgroups cannot fill the GPU, ${inMs(work)} measured`,
+    ]
+  // An encoding the bench cannot size (indirect work, a bundle, an unread format) proves nothing of
+  // what it does not hold: no cause is ruled out.
+  if (pass.encoded.unsized > 0)
+    return [
+      'unproven',
+      `${pass.encoded.unsized} calls or bindings the bench cannot size (indirect, bundle or unread format): the floors are lower bounds, nothing is ruled out. Dissect the shader.`,
     ]
   const ruled = [
     floors.launch < 0.5 * work ? 'launch' : '',
@@ -105,7 +110,7 @@ function causeOf(
 export function rankBottlenecks(
   passes: readonly BenchPass[],
   machine: Machine,
-  counters: Record<string, unknown>,
+  counters: Record<string, number | undefined>,
   sources: ReadonlyMap<string, PassSource>,
 ): Bottleneck[] {
   return passes
@@ -123,7 +128,8 @@ export function rankBottlenecks(
         floorMs: floors.floorMs,
         floorMaxMs: floors.floorMaxMs,
         gainMs: Math.max(0, pass.median - floors.floorMs),
-        certainMs: Math.max(0, pass.median - floors.floorMaxMs),
+        // What cannot be said of an unsized encoding is nothing: its time is not explained either.
+        unexplainedMs: pass.encoded.unsized > 0 ? 0 : Math.max(0, pass.median - floors.floorMaxMs),
         cause,
         evidence,
         source: sources.get(pass.name) ?? null,

@@ -26,8 +26,8 @@ const pass = (name: string, median: number, waitMs = 0, stage = 'other') =>
     share: 0.1,
     encoded: { ...emptyWork(), calls: 1, groups: 1000, invocations: 1e5 },
   }) as BenchPass
-const segment = (name: string, benchPasses: BenchPass[], engine = {}) =>
-  ({ name, measured: true, benchPasses, engine }) as never
+const segment = (name: string, benchPasses: BenchPass[], counterMax = {}) =>
+  ({ name, measured: true, benchPasses, counterMax }) as never
 
 test('a run’s top gains are means over every segment, each row the segment where the pass gives most', () => {
   const { top, segments } = buildInsights(

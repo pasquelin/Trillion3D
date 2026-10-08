@@ -4,7 +4,7 @@
 // scenario, the engine, the plays' count and the report, which the parent names for each child.
 
 /** Options that take no value. */
-const FLAGS = new Set(['--dirty', '--cpu-profile', '--recalibrate'])
+const FLAGS = new Set(['--dirty', '--cpu-profile', '--recalibrate', '--no-capture'])
 /** Options, with their value, the parent decides for each child. */
 const PARENT = new Set([
   '--dissect',

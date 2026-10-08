@@ -26,7 +26,7 @@ export function buildInsights(
       const ranking = rankBottlenecks(
         segment.benchPasses,
         report.machine,
-        segment.engine as Record<string, unknown>,
+        segment.counterMax,
         sources,
       )
       return { name: segment.name, ranking, top: topGains(ranking) }
@@ -42,7 +42,7 @@ export function buildInsights(
       const held = total.get(b.name) ?? { best: b, gain: 0, certain: 0, work: 0, wait: 0 }
       if (gainOf(b) > gainOf(held.best)) held.best = b
       held.gain += gainOf(b)
-      held.certain += b.certainMs
+      held.certain += b.unexplainedMs
       held.work += b.workMs
       held.wait += b.waitMs
       total.set(b.name, held)
@@ -51,7 +51,7 @@ export function buildInsights(
   const averaged = [...total.values()].map(({ best, gain, certain, work, wait }) => ({
     ...best,
     gainMs: gain / n,
-    certainMs: certain / n,
+    unexplainedMs: certain / n,
     workMs: work / n,
     waitMs: wait / n,
   }))
@@ -69,13 +69,13 @@ export function insightsText(insights: Insights, machine: BenchReport['machine']
     '## The five biggest gains',
     '',
     `Machine: reads ${ms(machine.readGBs, 0)} GB/s, writes ${ms(machine.writeGBs, 0)}, stores an attachment ${ms(machine.attachmentGBs, 0)}; a pass costs ${ms(machine.passMs * 1000, 1)} µs, a barrier ${ms(machine.barrierMs * 1000, 1)} µs, ${ms(machine.threadsPerMs / 1e6, 0)} M threads launch a ms.`,
-    'Gain: ms the pass could save, at most (its work less its floor; a wait counts its idle) — and at least `certain`, if every byte it binds were moved.',
+    'Gain: ms the pass could save, at most (its work less its floor; a wait counts its idle) — and at least `unexplained`, if every byte it binds were moved.',
     '',
     table(
-      ['#', 'gain ms (certain)', 'pass', 'where', 'cause', 'evidence'],
+      ['#', 'gain ms at most (unexplained by bytes)', 'pass', 'where', 'cause', 'evidence'],
       insights.top.map((b, i) => [
         i + 1,
-        `${ms(b.gainMs)} (${ms(b.certainMs)})`,
+        `${ms(b.gainMs)} (${ms(b.unexplainedMs)})`,
         b.name,
         where(b),
         b.cause,

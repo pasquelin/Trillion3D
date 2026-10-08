@@ -42,3 +42,11 @@ test('an A/B’s two checkouts are no options of a child', () => {
     '40',
   ])
 })
+
+test('the flag that takes no image is carried without eating the next token', () => {
+  assert.deepEqual(childArgs(['page', '--no-capture', '--warm', '40']), [
+    '--no-capture',
+    '--warm',
+    '40',
+  ])
+})

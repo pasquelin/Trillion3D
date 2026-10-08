@@ -25,7 +25,10 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const address = pageAddress(options.file, options.engine.root, options.search)
   const browser = installBrowser(options.display, address, page.canvasIds, page.elementIds)
   // The profiled play times the CPU alone: it captures nothing, its encoding would be profiled.
-  const captures = !options.cpuProfile && scenario.segments.some((segment) => segment.capture)
+  const captures =
+    !options.cpuProfile &&
+    !options.noCapture &&
+    scenario.segments.some((segment) => segment.capture)
   for (const canvas of browser.canvases) canvas.readable = captures
   const errors: string[] = []
   const opened = performance.now()
@@ -96,8 +99,6 @@ export async function playScenario(options: BenchOptions, stem: string) {
       numbers,
       passes: passTimes(frames),
       benchPasses: bench,
-      /** The engine's own counters at the segment's last image. */
-      engine: { ...engine },
       doubts: timerDoubts({
         passes: bench,
         frame: numbers.gpuMs,
