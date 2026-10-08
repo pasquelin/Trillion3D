@@ -5,6 +5,7 @@ import { create, globals } from 'webgpu'
 import { writeBitmap } from './imageCopy.ts'
 import { guardMaps } from './mapGuard.ts'
 import { createPassTimer } from './passTimer.ts'
+import { installDissect, readSpec } from './dissectHooks.ts'
 import { installWorkHooks } from './passWorkHooks.ts'
 import { profiledAdapter } from './profiles.ts'
 
@@ -129,6 +130,7 @@ export function installGpu(profile: {
     }
   }
   installWorkHooks(g, timer.recordOf)
+  installDissect(g, readSpec(process.env.TRILLION3D_DISSECT), timer.labelOf)
   for (const copy of [
     'copyBufferToBuffer',
     'copyBufferToTexture',

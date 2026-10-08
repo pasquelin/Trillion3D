@@ -56,30 +56,36 @@ function shadersOf(text: string) {
     .filter((path) => /wgsl|shader/i.test(path))
 }
 
-/** The source of each pass name of `names`, found in `sources`; a name nothing holds is absent. */
-export function findPassSources(sources: readonly [string, string][], names: readonly string[]) {
-  const found = new Map<string, PassSource>()
-  for (const name of names) {
-    const stem = labelStem(name)
-    const literal = new RegExp(
-      `['"\`](?:Trillion3D )?${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:['"\`]| \\d|\\s?\\$\\{)`,
-    )
-    let best: PassSource | null = null
+const DEFINITION = /(?:const|let)\s+(\w+)\s*(?::[^=]+)?=\s*['"`]/
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Where one pass is encoded, among `sources`, or null. A line names the pass when it holds its
+ *  label as a literal (`label: 'vsm.afterRaster'`) or defines a constant with it; a label built from
+ *  parts (`${prefix}.cull`) is found by its last part in a label of the same folder. */
+function sourceOf(sources: readonly [string, string][], name: string): PassSource | null {
+  const stem = labelStem(name)
+  const literal = new RegExp(`['"\`](?:Trillion3D )?${escape(stem)}(?:['"\`]| \\d|\\s?\\$\\{)`)
+  const [head, ...rest] = stem.split('.')
+  const part = rest.length ? new RegExp(`label.*\\.${escape(rest.at(-1)!)}\\b`) : null
+  const named = (line: string, file: string, byPart: boolean) =>
+    byPart
+      ? part !== null && file.includes(`/${head}/`) && part.test(line)
+      : literal.test(line) && (/label/i.test(line) || DEFINITION.test(line))
+  let fallback: PassSource | null = null
+  for (const byPart of [false, true])
     for (const [file, text] of sources) {
       const lines = text.split('\n')
-      const at = lines.findIndex((line) => literal.test(line))
+      const at = lines.findIndex((line) => named(line, file, byPart))
       if (at < 0) continue
       // A constant (`const TAA_PASS = '…'`): the encoder is a file that begins a pass with it.
-      const constant = /(?:const|let)\s+(\w+)\s*=/.exec(lines[at])?.[1]
+      const constant = DEFINITION.exec(lines[at])?.[1]
       const users = constant
         ? sources.filter(([, other]) => other.includes(constant) && BEGINS.test(other))
         : []
       const [userFile, userText] = users[0] ?? [file, text]
       const userLines = userText.split('\n')
       const line = users[0]
-        ? userLines.findIndex(
-            (l) => l.includes(constant!) && !/^\s*import\b|(?:const|let)\s+\w+\s*=\s*['"`]/.test(l),
-          )
+        ? userLines.findIndex((l) => l.includes(constant!) && !/^\s*import\b|=\s*['"`]/.test(l))
         : at
       const here: PassSource = {
         file: userFile,
@@ -87,16 +93,19 @@ export function findPassSources(sources: readonly [string, string][], names: rea
         fn: functionAt(userLines, Math.max(0, line)),
         shaders: shadersOf(userText),
       }
-      // The one that begins a pass is the encoder; a mere mention is kept only as a fallback.
-      if (
-        BEGINS.test(userText) &&
-        (!best || !BEGINS.test(sources.find(([f]) => f === best!.file)?.[1] ?? ''))
-      )
-        best = here
-      else best ??= here
-      if (BEGINS.test(userText)) break
+      // The file that begins a pass is the encoder; a mere mention is only a fallback.
+      if (BEGINS.test(userText)) return here
+      fallback ??= here
     }
-    if (best) found.set(name, best)
+  return fallback
+}
+
+/** The source of each pass name of `names`, found in `sources`; a name nothing holds is absent. */
+export function findPassSources(sources: readonly [string, string][], names: readonly string[]) {
+  const found = new Map<string, PassSource>()
+  for (const name of names) {
+    const source = sourceOf(sources, name)
+    if (source) found.set(name, source)
   }
   return found
 }

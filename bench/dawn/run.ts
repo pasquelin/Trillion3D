@@ -3,7 +3,7 @@
 //   node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file.json>] [--repeat 3]
 //     [--switch trillion3dXOld=1]… [--scale 0.5|page] [--profile desktop|mobile]
 //     [--display 4112x2294@2] [--features-off subgroups,shader-f16] [--cpu-profile] [--warm 120]
-//     [--engine <checkout, e.g. .worktrees/831-serve>] [--dirty] [--recalibrate]
+//     [--engine <checkout, e.g. .worktrees/831-serve>] [--dirty] [--recalibrate] [--dissect <pass label> [--dissect-segment <name>]]
 // <page>: an example's name (`drive-a-car`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
 // machine (`lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
 import { LOCK_OWNER, takeBenchLock } from './lock.ts'
+import { dissect } from './dissect.ts'
 import { buildInsights } from './insights.ts'
 import { mergePlays } from './merge.ts'
 import { engineSources, findPassSources } from './passSource.ts'
@@ -35,6 +36,13 @@ if (options.childReport) {
   }, options.timeoutS * 1000).unref()
   const play = await playScenario(options, options.childReport.replace(/\.json$/, ''))
   writeFileSync(options.childReport, JSON.stringify(play))
+  process.exit(0)
+}
+
+if (options.dissect) {
+  const { stem, text } = await dissect(options, options.dissect, options.dissectSegment)
+  console.log(text)
+  console.log(`report: ${stem}.md`)
   process.exit(0)
 }
 

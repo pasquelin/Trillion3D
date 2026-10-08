@@ -22,6 +22,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
   const passes: ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[] = []
   /** The pass encoders being tallied, by the record of the pass they run. */
   const records = new WeakMap<object, PassWork>()
+  const labels = new WeakMap<object, string>()
   return {
     /** The descriptor a pass begins with: the engine's own, with the bench's timestamps added
      *  when it carries none — a copy, so a descriptor the engine keeps is never changed. */
@@ -56,10 +57,14 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     size: () => passes.length,
     /** The pass encoder just made for the descriptor `wrap` answered: its calls are tallied. */
     watch(pass: object, wrapped: boolean) {
-      if (wrapped) records.set(pass, passes[passes.length - 1])
+      if (!wrapped) return
+      records.set(pass, passes[passes.length - 1])
+      labels.set(pass, passes[passes.length - 1].label)
     },
     /** The work record of a pass this timer follows. */
     recordOf: (pass: object) => records.get(pass),
+    /** The label a followed pass was begun with. */
+    labelOf: (pass: object) => labels.get(pass),
     /** Opens a frame's window on `on`, the device the engine draws with. */
     open(on: GPUDevice) {
       if (device !== on)

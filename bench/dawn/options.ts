@@ -25,6 +25,8 @@ export function benchOptions(args = process.argv.slice(2)) {
       engine: { type: 'string' },
       dirty: { type: 'boolean', default: false },
       recalibrate: { type: 'boolean', default: false },
+      dissect: { type: 'string' },
+      'dissect-segment': { type: 'string' },
       'child-report': { type: 'string' },
     },
   })
@@ -58,6 +60,8 @@ export function benchOptions(args = process.argv.slice(2)) {
     switches: values.switch,
     search: values.switch.length ? `?${values.switch.join('&')}` : '',
     recalibrate: values.recalibrate,
+    dissect: values.dissect,
+    dissectSegment: values['dissect-segment'],
     childReport: values['child-report'],
   }
 }
