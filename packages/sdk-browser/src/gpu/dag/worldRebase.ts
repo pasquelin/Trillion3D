@@ -19,6 +19,7 @@ import { WORLD_REBASE_WGSL } from './worldRebaseWgsl.ts'
 import { packDoubles } from '../../placement/composedMotion.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { sameRenderOrigin } from '../../camera/renderOrigin.ts'
 
 type Ranges = GpuSelection['worldRanges']
 
@@ -108,13 +109,12 @@ export function rebaseWorldsOnGpu(
     rebased = written
     selection.worldsAt?.(held)
   }
-  const at = (eye: ArrayLike<number>) =>
-    eye[0] === held[0] && eye[1] === held[1] && eye[2] === held[2]
   const rebasing =
     (cut: Dispatch): Dispatch =>
     (uniforms, shared) => {
       const written = selection.worldsWritten
-      if (written === rebased && at(uniforms.cameraWorld)) return cut(uniforms, shared)
+      if (written === rebased && sameRenderOrigin(held, uniforms.cameraWorld))
+        return cut(uniforms, shared)
       // Held until the pass is queued: the eye of a shared buffer settles with it.
       const eye = Float64Array.from(uniforms.cameraWorld)
       selection.worldsAt?.()

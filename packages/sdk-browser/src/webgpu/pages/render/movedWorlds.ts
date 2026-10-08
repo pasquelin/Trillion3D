@@ -8,13 +8,14 @@
  */
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import { grown } from '../../../page/cut/sparseInts.ts'
+import { createDenseKeySet, type DenseKeySet } from '../../cut/denseKeys.ts'
 
-export type MovedWorlds = { ranks: Int32Array; count: number; listed: Uint8Array }
+/** The ranks listed since the last take, each once, and the increasing view a take hands out. */
+export type MovedWorlds = { listed: DenseKeySet; sorted: Int32Array }
 
 export const createMovedWorlds = (): MovedWorlds => ({
-  ranks: new Int32Array(8),
-  count: 0,
-  listed: new Uint8Array(8),
+  listed: createDenseKeySet(),
+  sorted: new Int32Array(8),
 })
 
 /** Placement `rank`'s world was just written: listed once, and its tree group told. */
@@ -23,20 +24,17 @@ export function noteWorldMoved(
   rank: number,
 ) {
   run.gpuSelection?.placementMoved?.(rank)
-  const moved = run.movedWorlds
-  if (rank >= moved.listed.length) moved.listed = grown(moved.listed, rank + 1, moved.listed.length)
-  if (moved.listed[rank]) return
-  moved.listed[rank] = 1
-  if (moved.count === moved.ranks.length)
-    moved.ranks = grown(moved.ranks, moved.count + 1, moved.count)
-  moved.ranks[moved.count++] = rank
+  run.movedWorlds.listed.add(rank)
 }
 
-/** The ranks listed since the last call, increasing, the list emptied: a view the next note
+/** The ranks listed since the last call, increasing, the list emptied: a view the next take
  *  overwrites. */
 export function takeMovedWorlds(moved: MovedWorlds) {
-  const ranks = moved.ranks.subarray(0, moved.count).sort()
-  for (const rank of ranks) moved.listed[rank] = 0
-  moved.count = 0
+  const { list, count } = moved.listed
+  if (moved.sorted.length < count) moved.sorted = grown(moved.sorted, count)
+  const ranks = moved.sorted.subarray(0, count)
+  ranks.set(list.subarray(0, count))
+  ranks.sort()
+  moved.listed.clear()
   return ranks
 }

@@ -4,7 +4,7 @@
 // request, and no scratch made per readback.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { closeAlone, closePairs } from './rowCache.fixture.ts'
+import { closeAlone, closePairs, packedOf } from './rowCache.fixture.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
@@ -12,7 +12,7 @@ import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 /** A demand over `pages` instances none of which holds a row. */
 function demandOf(pages: number, closure: () => InstanceClosure = closeAlone) {
   const table = { rowOfPage: new Int32Array(pages).fill(-1), residentFlags: new Uint32Array(pages) }
-  return createRowDemand(table, createRowUse(1), () => true, pages, closure)
+  return createRowDemand(table, createRowUse(1), () => true, packedOf(pages), closure)
 }
 
 const always = () => true,

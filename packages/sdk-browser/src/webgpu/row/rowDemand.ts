@@ -2,7 +2,8 @@ import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
-import { createListDifference } from './listDifference.ts'
+import { createCutDelta } from '../cut/delta.ts'
+import type { PageList } from '../pages/prepare/catalogue.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import type { IdDelta } from '../cut/delta.ts'
 
@@ -35,7 +36,7 @@ const STOP = () => true
  * full. One still waiting for its bytes stays marked and takes its row when they land.
  *
  * Nothing is closed over again per readback: each list — drawn, asked, asked ahead — reaches the
- * demand as its difference (`listDifference.ts`), and two counted closures follow the differences
+ * demand as its difference (`../cut/delta.ts`), and two counted closures follow the differences
  * alone: the closure of every list holds the rows in use (a group-mate outside the view keeps a
  * drawn page ready), the closure of the requests the instances wanted. What a difference brings is
  * listed in the readback's order, each group-mate behind the request it came in with. A page whose
@@ -62,37 +63,34 @@ export function createRowDemand(
   use: RowUse,
   /** Whether a packed instance draws from a visibility row once resident: opaque, with geometry. */
   drawsRow: (page: number) => boolean,
-  pageCount: number,
+  /** The packed instances the readbacks name. */
+  packedPages: PageList,
   /** A new counted closure over the instances, per placement. */
   closure: () => InstanceClosure,
 ) {
   const d: DemandState = {
     ...{ table, use, drawsRow },
     lists: {
-      drawn: createListDifference(),
-      asked: createListDifference(),
-      ahead: createListDifference(),
+      drawn: createCutDelta(packedPages),
+      asked: createCutDelta(packedPages),
+      ahead: createCutDelta(packedPages),
     },
     held: closure(),
     asking: closure(),
-    marks: new Uint8Array(Math.max(1, pageCount)),
-    listed: new Uint8Array(Math.max(1, pageCount)),
+    marks: new Uint8Array(Math.max(1, packedPages.length)),
+    listed: new Uint8Array(Math.max(1, packedPages.length)),
     list: new Int32Array(8),
     by: new Int32Array(8),
     waitingBy: createSparseInts(),
     ranks: createSparseInts(),
     scratch: { keys: new Float64Array(0), pages: new Int32Array(0), by: new Int32Array(0) },
     ...{ count: 0, next: 0, fresh: false, owed: false },
-    rows: new Int32Array(0),
-    flags: new Uint32Array(0),
   }
   return {
     /** The readback just adopted: its differences followed, its new demand behind the last. */
     follow: (cut: CutLists) => follow(d, cut),
     /** Pages whose bytes or slot moved (the row journal): a wanted page not ready asks again. */
     touched(pages: ArrayLike<number>, count: number) {
-      d.rows = d.table.rowOfPage
-      d.flags = d.table.residentFlags
       for (let i = 0; i < count; i++) {
         const page = pages[i]
         if (!d.asking.delta.has(page)) continue
@@ -143,9 +141,9 @@ export function createRowDemand(
         d.scratch.keys.byteLength +
         d.scratch.pages.byteLength +
         d.scratch.by.byteLength +
-        drawn.bytes +
-        asked.bytes +
-        ahead.bytes +
+        drawn.hostBytes +
+        asked.hostBytes +
+        ahead.hostBytes +
         d.held.hostBytes +
         d.asking.hostBytes
       )
@@ -158,7 +156,7 @@ type DemandState = {
   use: RowUse
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
-  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createListDifference>>
+  lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createCutDelta>>
   /** The closure of every list: the rows in use. */
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
@@ -181,16 +179,14 @@ type DemandState = {
   fresh: boolean
   /** The time budget stopped the last serve: the next image goes on. */
   owed: boolean
-  rows: Int32Array
-  flags: Uint32Array
 }
 
 /** `page`, wanted by the requests' closure: asked for unless the cut reads it resident — a row
  *  whose record is owed is asked as a missing one is —, behind the demand already listed, with the
  *  request `by` it came in with. */
 function want(d: DemandState, page: number, by = page) {
-  const row = d.rows[page] ?? -1
-  if ((row >= 0 && d.flags[page]) || !d.drawsRow(page)) return
+  const row = d.table.rowOfPage[page] ?? -1
+  if ((row >= 0 && d.table.residentFlags[page]) || !d.drawsRow(page)) return
   if (page >= d.marks.length) {
     d.marks = grown(d.marks, page + 1, d.marks.length)
     d.listed = grown(d.listed, page + 1, d.listed.length)
@@ -214,18 +210,18 @@ function followUse(d: DemandState, delta: IdDelta) {
   d.held.apply(delta)
   const { entered, exited, enteredCount, exitedCount } = d.held.delta
   for (let i = 0; i < enteredCount; i++) {
-    const row = d.rows[entered[i]] ?? -1
+    const row = d.table.rowOfPage[entered[i]] ?? -1
     if (row >= 0) d.use.hold(row)
   }
   for (let i = 0; i < exitedCount; i++) {
-    const row = d.rows[exited[i]] ?? -1
+    const row = d.table.rowOfPage[exited[i]] ?? -1
     if (row >= 0) d.use.release(row)
   }
 }
 
 /** Whether the readback just followed asks for `page` itself: a request, not a group-mate. */
 const isRequest = (d: DemandState, page: number) =>
-  d.lists.asked.delta.has(page) || d.lists.ahead.delta.has(page)
+  d.lists.asked.has(page) || d.lists.ahead.has(page)
 
 /** `delta` into the closure of the requests: what it brings wanted, in its order, each group-mate
  *  with the request before it — the first one after when none is —; what it lets go no longer. */
@@ -301,18 +297,16 @@ const NONE: readonly number[] = []
 function follow(d: DemandState, cut: CutLists) {
   // Entries the last serve left: what this readback asks is ranked with them.
   const behind = d.count > d.next
-  d.rows = d.table.rowOfPage
-  d.flags = d.table.residentFlags
   d.use.tick()
   const { drawn, asked, ahead } = d.lists
   drawn.apply(cut.drawablePageIds ?? NONE)
   asked.apply(cut.pageIds)
   ahead.apply(cut.aheadPageIds ?? NONE)
-  followUse(d, drawn.delta)
-  followUse(d, asked.delta)
-  followUse(d, ahead.delta)
-  followAsks(d, asked.delta)
-  followAsks(d, ahead.delta)
+  followUse(d, drawn)
+  followUse(d, asked)
+  followUse(d, ahead)
+  followAsks(d, asked)
+  followAsks(d, ahead)
   // The budget or a refusal stopped the last serve: what is pending is ranked again, and served
   // again, this readback perhaps letting rows go.
   if (behind) {

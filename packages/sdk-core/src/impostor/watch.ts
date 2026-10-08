@@ -29,6 +29,7 @@
  * every root once.
  */
 import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorRoot } from './plan.ts'
@@ -175,8 +176,7 @@ export function createImpostorWatch() {
         table: (s.table = switchTable(s.holder, roots, section, focal)),
         carded,
       }
-      const moved = !sameView(s.view, view)
-      s.view.set(view as ArrayLike<number>)
+      const moved = !keepNumbers(s.view, view)
       eyeOf(view, s.eye)
       for (let k = 0; k < 3; k++) s.forward[k] = view[4 * k + 2]
       if (s.every || (moved && !rigid(view))) return readEvery(s, reading)
@@ -210,11 +210,6 @@ function fit(s: State, n: number) {
   s.boundOf = boundOf
   s.home.length = n
   s.count = n
-}
-
-function sameView(held: Float64Array, view: ArrayLike<number>) {
-  for (let k = 0; k < 16; k++) if (held[k] !== view[k]) return false
-  return true
 }
 
 /** The eye of a rigid world-to-view matrix, column-major: `−Rᵀt`. */

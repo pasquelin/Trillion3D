@@ -69,13 +69,7 @@ test('a still camera closes nothing over; a moving one, its lists’ differences
       rowOfPage: new Int32Array(pages.length).fill(-1),
       residentFlags: new Uint32Array(pages.length),
     }
-    const demand = createRowDemand(
-      table,
-      createRowUse(pages.length),
-      () => true,
-      pages.length,
-      counted,
-    )
+    const demand = createRowDemand(table, createRowUse(pages.length), () => true, pages, counted)
     const centre = [span / 2, 0, -span / 2]
     let before = 0,
       after = 0

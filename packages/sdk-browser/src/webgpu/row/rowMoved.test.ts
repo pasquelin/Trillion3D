@@ -2,7 +2,7 @@
 // needs that it cannot read resident — no row, or a row whose record is owed — is asked for.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { closeAlone, range, rowCache } from './rowCache.fixture.ts'
+import { closeAlone, packedOf, range, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { ROW_OFFSET_WORD } from './pageRow.ts'
@@ -33,7 +33,7 @@ test('a full table whose pages move in the pool keeps them resident, rows at the
 
 test('the demand asks for a page whose row the cut reads not resident, as for one without', () => {
   const table = { rowOfPage: Int32Array.of(0, -1, -1), residentFlags: new Uint32Array(3) }
-  const demand = createRowDemand(table, createRowUse(1), () => true, 3, closeAlone)
+  const demand = createRowDemand(table, createRowUse(1), () => true, packedOf(3), closeAlone)
   // Page 0 holds row 0, its record owed; page 1 holds none; page 2 is not asked.
   demand.follow({ pageIds: [0, 1] })
   assert.deepEqual(range(3).map(demand.wanted), [true, true, false])

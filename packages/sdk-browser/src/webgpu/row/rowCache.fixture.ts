@@ -57,6 +57,10 @@ export function closePairs(): InstanceClosure {
   return alone
 }
 
+/** `count` packed instances, each a record of its own. */
+export const packedOf = (count: number) =>
+  Array.from({ length: count }, (_, id) => ({ id }) as unknown as PageRec)
+
 export function rowCache(instances: number, slots: number) {
   const pages = Array.from(
     { length: instances },

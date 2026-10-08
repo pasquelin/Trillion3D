@@ -58,7 +58,7 @@ export function createWebgpuRowSlots(
     use,
     free: { rows: new Int32Array(0), count: 0 },
     claims: createWebgpuRowClaims(pages),
-    demand: createRowDemand(rows, use, drawsRow, pages, closure),
+    demand: createRowDemand(rows, use, drawsRow, packedPages, closure),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,
     candidates: 0,

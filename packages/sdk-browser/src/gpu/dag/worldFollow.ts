@@ -17,6 +17,7 @@ import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
+import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
@@ -75,7 +76,10 @@ export function followWorldLinks(
     high = -1
   }
   /** The camera of the last cut — its view and its eye —, and the moves seen since the first. */
-  const held = new Float64Array(19).fill(NaN)
+  const held = {
+    view: new Float64Array(16).fill(NaN),
+    eye: new Float64Array(3).fill(NaN),
+  }
   let moves = 0
   selection.dispatch = (uniforms, shared) => {
     takeUp()
@@ -90,11 +94,7 @@ export function followWorldLinks(
 }
 
 /** Whether `uniforms`' camera — its view, its eye — is not the one `held`, which takes it. */
-function cameraMoved(held: Float64Array, { view, cameraWorld }: SelectionUniforms) {
-  let moved = false
-  for (let k = 0; k < 16; k++) moved = moved || held[k] !== view[k]
-  for (let a = 0; a < 3; a++) moved = moved || held[16 + a] !== cameraWorld[a]
-  held.set(view)
-  held.set(cameraWorld, 16)
-  return moved
+function cameraMoved(held: { view: Float64Array; eye: Float64Array }, uniforms: SelectionUniforms) {
+  const view = keepNumbers(held.view, uniforms.view)
+  return !(keepNumbers(held.eye, uniforms.cameraWorld) && view)
 }
