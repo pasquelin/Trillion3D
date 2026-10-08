@@ -100,7 +100,13 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   // than a whole cut packed for a growth that ends within a frame or two.
   if (cut?.growing) return
   growth.asked = false
-  if (cut?.appendRoots(growth.roots.slice(growth.appended))) {
+  const added = growth.roots.slice(growth.appended)
+  if (cut?.appendRoots(added)) {
+    // The worlds the host sends hold theirs at once, at their ranks: a host walk before they are
+    // adopted compares them as the cut holds them.
+    const base = rt.layout.selectionRoots.length + growth.appended
+    for (let k = 0; k < added.length; k++)
+      rt.layout.worldUpdates.set(added[k].world.elements, (base + k) * 16)
     // A cut made beside it is for fewer roots: dropped when it lands, or now if it landed unadopted.
     growth.made++
     // No cut made beside it will be adopted: the moves are its own.
