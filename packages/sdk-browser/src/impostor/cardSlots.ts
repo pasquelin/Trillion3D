@@ -60,8 +60,6 @@ export function createCardSlots() {
      *  moves them all. */
     dirty: core.createSortedKeys(),
     full: true,
-    /** Records written: what a test counts. */
-    writes: 0,
   }
 }
 
@@ -83,7 +81,6 @@ export function writeCardRecord(
   const out = slots.records,
     at = slot * CARD_FLOATS
   for (let k = 0; k < 3; k++) writeSplitDouble(out, at + 12 + k, at + 16 + k, world[12 + k])
-  slots.writes++
   markDirty(slots, slot)
   // A world moved without turning or scaling keeps its inverse and its shape.
   if (moved && out[at + 43] === Math.fround(radius) && sameLinearPartFloat32(out, world, at)) return

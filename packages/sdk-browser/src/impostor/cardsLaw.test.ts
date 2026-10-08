@@ -6,6 +6,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
+import { uploaded } from './cardSlots.ts'
+import { core } from './borrowed.ts'
 import { cardField as field, impostorSection, MESH } from './section.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
@@ -32,11 +34,16 @@ function lawOf(count: number) {
       moved: () => moved++,
       carded: () => (read++, true),
     })
+  // The records an image writes are those its upload sends: each slot written once, every card the
+  // segments hold after a pack (`full`).
+  const cards = () => [...state.segments.values()].reduce((sum, { count }) => sum + count, 0)
   const image = (k: number, turn = 0) => {
-    const writes = state.slots.writes
     moved = read = 0
     planImpostorCards(state, roots, swayAt(k, turn), VIEWPORT)
-    return { reads: read, writes: state.slots.writes - writes, moved }
+    const { slots } = state,
+      writes = slots.full ? cards() : core.takeSorted(slots.dirty).length
+    uploaded(slots)
+    return { reads: read, writes, moved }
   }
   // The atlas is resident from the first image: every far object takes its card at once.
   const first = image(0)
