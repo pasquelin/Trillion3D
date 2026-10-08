@@ -1,8 +1,9 @@
 // The frustum's rewrites against their before-forms (`frustumBefore.fixture.ts`). The point and
 // sphere tests unrolled over the six planes: on the planes of every matrix kind and on swept planes
-// with hostile values, for swept points and radii, every verdict is the loop's. The plane builders: on every matrix
-// kind and on a swept one, into `Float64Array` and `Float32Array`, with `out` sharing the memory
-// of `m` or of `view`, every value keeps its bits and nothing past the planes is written.
+// with hostile values, for swept points and radii, every verdict is the loop's. The plane builders:
+// on every matrix kind and on a swept one, into `Float64Array` and `Float32Array`, with `out`
+// sharing the memory of `m` or of `view`, every value keeps its bits and nothing past the planes is
+// written.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {

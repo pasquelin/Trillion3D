@@ -1,5 +1,5 @@
-// The projections before they wrote their sixteen slots one by one, word for word but their names:
-// the oracles `projectionMoves.test.ts` holds the shipped ones to.
+// The projections before they wrote their sixteen slots one by one, their code word for word but
+// their names: the oracles `projectionMoves.test.ts` holds the shipped ones to.
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { perspectiveSlope } from './camera.ts'
 

@@ -212,12 +212,8 @@ export function normalizeVector3(v: NumberSink, at = 0) {
   writeNormalizedVector3(v, at, v[at], v[at + 1], v[at + 2])
 }
 
-/**
- * `normalizeVector3`'s rule on three numbers, written to `out[at..at + 2]`: each multiplied by
- * `1 / (length3 || 1)`, so a zero vector stays zero; one shorter than 2^-1024 is first scaled
- * exactly by 2^1000, so its inverse length does not overflow. The numbers are read once and written
- * once: a caller holding a transformed vector in locals does not write it out to read it back.
- */
+/** `normalizeVector3`'s rule on three numbers, written to `out[at..at + 2]`: read once, written
+ *  once, so a caller holding a transformed vector in locals does not read it back. */
 export function writeNormalizedVector3(
   out: NumberSink,
   at: number,
@@ -425,22 +421,19 @@ export function transformDirectionVector3<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  // A double sink holds each product exactly, so the products stay in locals and are normalised
-  // there, read back from nowhere. The first two are still stored as they are made, before the
-  // next row of `m` is read: an `out` sharing memory with `m` reads the same entries as before.
-  // Any other sink (a `Float32Array`, an integer array) normalises what it rounded on writing.
-  if (out instanceof Float64Array || Array.isArray(out)) {
-    const px = m[0] * x + m[4] * y + m[8] * z
-    out[outOffset] = px
-    const py = m[1] * x + m[5] * y + m[9] * z
-    out[outOffset + 1] = py
-    writeNormalizedVector3(out, outOffset, px, py, m[2] * x + m[6] * y + m[10] * z)
-    return out
-  }
-  out[outOffset] = m[0] * x + m[4] * y + m[8] * z
-  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z
-  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z
-  normalizeVector3(out, outOffset)
+  // Each product is stored as it is made, before the next row of `m` is read, so an `out` sharing
+  // memory with `m` reads the same entries. A double sink holds the products exactly: they are
+  // normalised from the locals, not read back. Any other sink (a `Float32Array`, an integer array)
+  // normalises what it rounded on writing. `out` holds the three components.
+  const px = m[0] * x + m[4] * y + m[8] * z
+  out[outOffset] = px
+  const py = m[1] * x + m[5] * y + m[9] * z
+  out[outOffset + 1] = py
+  const pz = m[2] * x + m[6] * y + m[10] * z
+  out[outOffset + 2] = pz
+  if (out instanceof Float64Array || Array.isArray(out))
+    writeNormalizedVector3(out, outOffset, px, py, pz)
+  else normalizeVector3(out, outOffset)
   return out
 }
 

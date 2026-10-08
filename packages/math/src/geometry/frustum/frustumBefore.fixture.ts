@@ -1,5 +1,5 @@
-// The frustum's plane builders and tests before their rewrites, word for word but their names:
-// the oracles `frustumMoves.test.ts` holds the shipped ones to.
+// The frustum's plane builders and tests before their rewrites, their code word for word but their
+// names: the oracles `frustumMoves.test.ts` holds the shipped ones to.
 import { length3 } from '../../vector/vector.ts'
 
 function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z: number) {

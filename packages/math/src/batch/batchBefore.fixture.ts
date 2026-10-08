@@ -1,10 +1,11 @@
 // The batches before they wrote their unit function's formula in the loop, word for word but their
 // names: each a loop over the unit function, the oracles `batchMoves.test.ts` holds the shipped
-// ones to.
+// ones to. A unit function rewritten since is called by its own before-form.
 import { BOX_VALUES } from '../geometry/box.ts'
 import { frustumExcludesBox } from '../geometry/frustum/box.ts'
 import { sphereFromBounds } from '../geometry/sphere.ts'
-import { transformAffinePoint, transformDirectionVector3 } from '../vector/vector.ts'
+import { transformAffinePoint } from '../vector/vector.ts'
+import { transformDirectionVector3Before } from '../vector/vectorBefore.fixture.ts'
 import { POSITION_VALUES, SPHERE_VALUES } from './strides.ts'
 
 export function transformPointsBatchBefore(
@@ -27,7 +28,7 @@ export function transformDirectionsBatchBefore(
 ): void {
   for (let i = 0; i < n; i++) {
     const at = i * POSITION_VALUES
-    transformDirectionVector3(out, m, dirs[at], dirs[at + 1], dirs[at + 2], at)
+    transformDirectionVector3Before(out, m, dirs[at], dirs[at + 1], dirs[at + 2], at)
   }
 }
 

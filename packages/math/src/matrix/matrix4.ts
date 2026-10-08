@@ -200,6 +200,7 @@ export function copyMatrix4<T extends NumberSink>(
 export function negateColumnMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, c: number) {
   // One pass: the sixteen values read first, then each written once, negated if it lies in
   // column `c`. Negation is exact, so the bits are those of the copy then negate it replaces.
+  // `c` is 0 to 3, and `out` is `m` or apart from it (a view half over `m` is no matrix).
   // The sixteen reads `transposeMatrix4` also spells out: a shared reader would hand them back
   // through memory, not registers.
   // jscpd:ignore-start
@@ -247,6 +248,7 @@ export function negateColumnMatrix4<T extends NumberSink>(out: T, m: ArrayLike<n
  *  entries one per column. `out` may be `m`; negation is exact. */
 export function negateRowMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>, r: number) {
   // One pass, as `negateColumnMatrix4`: each value written once, negated if it lies in row `r`.
+  // `r` is 0 to 3, and `out` is `m` or apart from it.
   // The sixteen reads, as in `transposeMatrix4`.
   // jscpd:ignore-start
   const m0 = m[0],
@@ -292,8 +294,9 @@ export function negateRowMatrix4<T extends NumberSink>(out: T, m: ArrayLike<numb
 /** `out = mᵀ`: `out[c · 4 + r] = m[r · 4 + c]`. Each mirrored pair is read before it is written,
  *  so `out` may be `m`. */
 export function transposeMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>) {
-  // The sixteen values read first, then sixteen writes at constant offsets. The reads are spelled
-  // out as wherever the kernel holds a whole matrix in registers (`boxTransform` among them).
+  // The sixteen values read first, then sixteen writes at constant offsets; `out` is `m` or apart
+  // from it. The reads are spelled out as wherever the kernel holds a whole matrix in registers
+  // (`boxTransform` among them).
   // jscpd:ignore-start
   const m0 = m[0],
     m1 = m[1],

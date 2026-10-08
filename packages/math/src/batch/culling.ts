@@ -36,7 +36,7 @@ export function frustumKeepsBoxBatch(
 ): number {
   // The 24 plane values, read once before the loop; then `frustumExcludesBox` per box, its
   // `planeExcludes` on each plane in slot order until one excludes: the same products in the same
-  // order.
+  // order. `kept` does not share memory with `planes`.
   const a0 = planes[0],
     b0 = planes[1],
     c0 = planes[2],
