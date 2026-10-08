@@ -256,7 +256,7 @@ function unlinkHeld(rt: WebgpuPagesRuntime, state: ComposeState, slot: number, r
     if (kept.has(rank)) continue
     state.parentOf[rank] = NONE
     mobility.follow(rank, -1)
-    rt.run.gpuSelection?.composedPlacement?.(rank, false)
+    rt.run.gpuSelection?.composedPlacement(rank, false)
   }
   held.length = 0
   state.linksDirty = true
@@ -284,7 +284,7 @@ function linkRanks(
     if (was === NONE) seedMotion(rt, state, rank)
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
-    rt.run.gpuSelection?.composedPlacement?.(rank, true)
+    rt.run.gpuSelection?.composedPlacement(rank, true)
     packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
     linkBox(state, rank, roots[rank], links[k].local)
   }

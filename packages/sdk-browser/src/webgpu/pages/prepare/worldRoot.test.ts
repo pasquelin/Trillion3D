@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
-import { linkWorldObject, takeLandedPages, withWorldRoot } from './worldRoot.ts'
+import { linkWorldObject, linkWorldObjects, takeLandedPages, withWorldRoot } from './worldRoot.ts'
 import { placed, scene } from './worldRoot.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
@@ -43,7 +43,10 @@ test('a placed row is linked to the object its cell places there, a parked one t
     context,
     layout: { selectionRoots: [root] },
     run: {
-      gpuSelection: { placeObject: (rank: number, object: number) => links.push([rank, object]) },
+      gpuSelection: {
+        packsWorld: true,
+        placeObject: (rank: number, object: number) => links.push([rank, object]),
+      },
     },
   } as unknown as Parameters<typeof linkWorldObject>[0]
   const linked = () => (linkWorldObject(rt, 0), links.at(-1)![1])
@@ -108,4 +111,23 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
   inFlight = 1
   for (const tell of hold.drawn!.landed) tell(['d', 'e'])
   assert.deepEqual(loads, [['d', undefined]], 'one free slot, not two')
+})
+
+test('a cut that packs no world DAG reads no root for an object, at its adoption or a row moved', () => {
+  let reads = 0
+  const context = {
+    get worldRoots() {
+      reads++
+      return undefined
+    },
+    associations: new Map(),
+  } as never
+  const roots = Array.from(
+    { length: 1000 },
+    () => ({ pages: [{}], placement: {} }) as unknown as ClusterRoot<PageRec>,
+  )
+  const cut = { packsWorld: false, placeObject: () => {} } as never
+  linkWorldObjects(context, cut, roots)
+  linkWorldObject({ context, layout: { selectionRoots: roots }, run: { gpuSelection: cut } }, 7)
+  assert.equal(reads, 0, 'no root read')
 })

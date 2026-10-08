@@ -41,6 +41,7 @@ export function session() {
       },
     ],
     worldsMovedOnGpu: () => void revision++,
+    composedPlacement() {},
   }
   const rt = composeRuntime(roots, {
     frame: 0,

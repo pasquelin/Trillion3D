@@ -75,7 +75,7 @@ export function adoptCut(
   cut.linkMoved = linkMoved
   if (old)
     for (let rank = 0; rank < layout.selectionRoots.length; rank++)
-      if (!!old.worldStandsIn?.(rank) !== !!cut.worldStandsIn?.(rank)) linkMoved(rank)
+      if (old.worldStandsIn(rank) !== cut.worldStandsIn(rank)) linkMoved(rank)
   old?.dispose()
   run.gpuSelection = cut
 }

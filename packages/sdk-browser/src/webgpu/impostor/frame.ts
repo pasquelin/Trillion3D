@@ -27,7 +27,7 @@ function createWebgpuImpostors(
     // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`):
     // it takes no card, which would draw it twice; one the world does not hold — a host mesh, an
     // object outside its table — keeps its card, as the session's cut says now.
-    carded: (rank) => !rt.run.gpuSelection?.worldStandsIn?.(rank),
+    carded: (rank) => !rt.run.gpuSelection?.worldStandsIn(rank),
   })
   return Object.assign(cards, {
     pass,

@@ -140,12 +140,12 @@ test('a root its parent stops composing takes back the pose the host holds', asy
   const bytes = (range.buffer as unknown as { data: Uint8Array }).data
   const words = new Uint32Array(bytes.buffer, bytes.byteOffset, range.count * 24)
   packDoubles(words, range.count * 16, [1000, 0, 0])
-  selection.composedPlacement?.(0, true)
+  selection.composedPlacement(0, true)
   selection.worldsMovedOnGpu()
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 0, 'composed away')
   // Unlinked, the host's pose stands again though the host wrote nothing.
-  selection.composedPlacement?.(0, false)
+  selection.composedPlacement(0, false)
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4, 'back at the pose the host holds')
   selection.dispose()

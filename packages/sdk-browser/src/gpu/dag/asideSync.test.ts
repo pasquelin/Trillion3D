@@ -74,7 +74,7 @@ test('a view aside cut alone reads the links of a cell placed since', async () =
     manifest = ruleDag(8) as unknown as DagRoot
   const roots = [...Array.from({ length: 12 }, () => manifest), world as never]
   const { packed, resources, selection, side, held } = await asideOver(roots)
-  for (let o = 4; o < 8; o++) selection.placeObject!(o, o)
+  for (let o = 4; o < 8; o++) selection.placeObject(o, o)
   await side()
   const { links, linkBase } = packed.world!
   const cold = new Uint32Array(held(resources.coldParts.buffers[0]).buffer)

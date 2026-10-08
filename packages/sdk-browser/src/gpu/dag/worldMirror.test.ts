@@ -142,7 +142,7 @@ test('a placement that gives its object back turns it out before the next cut, n
   const selection = createDagRuntime(resources)
   // Cell 1's four objects placed and drawable: their world group is ready.
   for (let o = 4; o < 8; o++) {
-    selection.placeObject!(o, o)
+    selection.placeObject(o, o)
     cover(o, true)
   }
   selection.updateResidency(rows)
@@ -163,8 +163,8 @@ test('a placement that gives its object back turns it out before the next cut, n
   cut()
   assert.equal(cold().length - writes, 1, 'four links, one write')
   assert.equal(linkOf(5), pageBase + 5)
-  selection.placeObject!(5, -1)
-  selection.placeObject!(7, -1)
+  selection.placeObject(5, -1)
+  selection.placeObject(7, -1)
   assert.ok(selection.isReady(pageBase + 5), 'not before the cut')
   const moved = cold().length
   cut()
@@ -182,8 +182,8 @@ test('a placement that gives its object back turns it out before the next cut, n
   )
   // Two links within the run writer's gap go up in one write too (`split.ts`).
   const before = cold().length
-  selection.placeObject!(0, 0)
-  selection.placeObject!(11, 11)
+  selection.placeObject(0, 0)
+  selection.placeObject(11, 11)
   cut()
   const first = ((packed.world!.linkBase + 0) * 4) % resources.coldParts.bytes
   const joined = cold()

@@ -70,19 +70,21 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
 }
 
 /** Each placement of `roots` the new `cut` packs draws the object its row places now, as a row
- *  moved later tells it (`linkWorldObject`): a cut made at open, or for a growth. */
+ *  moved later tells it (`linkWorldObject`): a cut made at open, or for a growth. Nothing for a
+ *  cut that packs no world DAG: no root is read. */
 export function linkWorldObjects(
   context: EngineContext,
   cut: GpuSelection,
   roots: readonly ClusterRoot<PageRec>[],
 ) {
-  if (!cut.placeObject) return
+  if (!cut.packsWorld) return
   for (let rank = 0; rank < roots.length; rank++)
     cut.placeObject(rank, objectOfRoot(context, roots[rank]))
 }
 
 /** Placement `rank` of `rt`'s cut draws the object its row places now (`objectOfRoot`): told where
- *  its row's cell moved (`takeCellsMoved`) or the row was parked or taken (`flipWorld`). */
+ *  its row's cell moved (`takeCellsMoved`) or the row was parked or taken (`flipWorld`); nothing
+ *  when it packs no world DAG. */
 export function linkWorldObject(
   rt: {
     context: EngineContext
@@ -91,9 +93,9 @@ export function linkWorldObject(
   },
   rank: number,
 ) {
-  const placeObject = rt.run.gpuSelection?.placeObject,
+  const cut = rt.run.gpuSelection,
     root = rt.layout.selectionRoots[rank]
-  if (placeObject && root) placeObject(rank, objectOfRoot(rt.context, root))
+  if (cut?.packsWorld && root) cut.placeObject(rank, objectOfRoot(rt.context, root))
 }
 
 /**

@@ -53,7 +53,10 @@ async function bench() {
       frame: 0,
       gate: { resourcesChanged: () => landed++, cam: createEngineCamera() },
       gpuDrawCalls: 0,
-      gpuSelection: { markWorld: (rank: number, mark: number) => marked.push([rank, mark]) },
+      gpuSelection: {
+        markWorld: (rank: number, mark: number) => marked.push([rank, mark]),
+        worldStandsIn: () => false,
+      },
     },
   } as unknown as WebgpuPagesRuntime
   return { gpu, rt, roots, fixture, asked, marked, landed: () => landed }
