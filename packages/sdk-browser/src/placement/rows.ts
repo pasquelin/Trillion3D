@@ -34,6 +34,9 @@ export type PlacementRows = {
   /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
    *  among the cell's nodes; a column of its own, absent until a cell places one. */
   cells?: ({ cell: number; node: number } | undefined)[]
+  /** The rows whose cell moved since a backend last read them (`setRowCell`, `takeCellsMoved`):
+   *  what links each to the world object it draws. */
+  cellsMoved?: Set<number>
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -61,6 +64,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.live.set(before.live)
     rows.shadowless.set(before.shadowless)
     rows.cells = before.cells?.slice()
+    rows.cellsMoved = before.cellsMoved
   }
   return rows
 }
