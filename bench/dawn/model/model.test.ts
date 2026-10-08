@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { existsSync, readFileSync } from 'node:fs'
 import type { BenchReport } from '../merge.ts'
 import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
@@ -83,4 +84,25 @@ test('a measured frame ranks its passes by the milliseconds above their floor', 
   assert.ok(model.rows[0].aboveMs > model.rows[1].aboveMs)
   assert.deepEqual(model.unmodelled, [{ label: 'mystery', ms: 0.5 }])
   assert.match(modelText(model, f), /Not modelled: mystery 0\.500/)
+})
+
+test('every source a pass cites holds its symbol, and its formula the bytes its work counts', () => {
+  const root = new URL('../../../', import.meta.url)
+  const missing = PASSES.flatMap((p) =>
+    p.sources
+      .filter(({ path, symbol }) => {
+        const file = new URL(path, root)
+        if (!existsSync(file)) return true
+        const text = readFileSync(file, 'utf8')
+        return path.endsWith('.md')
+          ? !text.includes(`## ${symbol}`)
+          : !new RegExp(`\\b(?:const|function|let) ${symbol}\\b`).test(text)
+      })
+      .map(({ path, symbol }) => `${p.label}: ${path} ${symbol}`),
+  )
+  assert.deepEqual(missing, [])
+  // The selection's rows: the formula's bytes a row are those its work counts.
+  const dag = pass('DAG selection')
+  const perRow = dag.work({ ...frame, N: 1, R: 0 }).bytes!
+  assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
 })
