@@ -23,14 +23,10 @@ function cardView(rt: WebgpuPagesRuntime) {
   return viewWords
 }
 
-/** The card buffer the runs go to, as the one run writer's table (`writeRanges`), and the records
- *  they come from: kept from one image to the next. */
-const parts = { buffers: [] as GPUBuffer[], bytes: 0 },
-  source = { data: new Float32Array(0), sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
-
 /** The records written since the last image, increasing, each once (`takeMovedWorlds`), through
- *  the cut's one run writer; all of them into a buffer just made. */
-function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuffer) {
+ *  the cut's one run writer into `buffer`; all of them into a buffer just made. Nothing of the
+ *  buffer or the records outlives the call: a session disposed lets both go. */
+export function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuffer) {
   const slots = state.slots,
     records = slots.records
   if (slots.full || state.uploadedTo !== buffer) {
@@ -40,9 +36,8 @@ function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuf
   }
   const ranks = core.takeMovedWorlds(slots.dirty)
   if (!ranks.length) return uploaded(slots)
-  parts.buffers[0] = buffer
-  parts.bytes = buffer.size
-  source.data = records
+  const parts = { buffers: [buffer], bytes: buffer.size },
+    source = { data: records, sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
   core.writeRanges(device, parts, ranks, ranks.length, source)
   uploaded(slots)
 }
