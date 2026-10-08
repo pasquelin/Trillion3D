@@ -11,7 +11,7 @@
  *
  * The object roots are not pinned: they are pages like any other, held while the view holds
  * their placements, and installed after their dependencies — the world bundles past the top their
- * roots need (`cells[].objects[].dependencies`), a lone object's copy among them, which nothing
+ * roots need (`cellDependencies`), a lone object's copy among them, which nothing
  * above replaces and no other cell pays for. A cell the view places holds those bundles (`hold`,
  * `worldBundles.ts`), read through the queue of the session drawing it (`bind`); a scene not
  * partitioned is one cell, held from its load for its whole life. The session counts every byte

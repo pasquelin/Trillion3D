@@ -54,8 +54,6 @@ export interface ImpostorPlan {
   switched: Uint8Array
 }
 
-export { impostorBakedByMesh } from './switchTable.ts'
-
 /**
  * Plans the impostor tier for one view: every root whose mesh has a baked entry and whose switch
  * holds yields a card and is marked suppressed. `view` maps world to view space (column-major) and

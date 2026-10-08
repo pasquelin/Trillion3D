@@ -100,8 +100,8 @@ export function writeParts(
 }
 
 /** Where `writeRanges` sends a run that is not a split table: `size` bytes of `data` from
- *  `dataOffset`, at byte `offset` of the table the target lays out — the cut's worlds and their
- *  exact translations, one buffer per range of placements (`frameRanges.ts`). */
+ *  `dataOffset`, at byte `offset` of the table the target lays out — the cut's exact translations,
+ *  laid behind each range's worlds (`worldOrigins.ts`). */
 export type RangeTarget = (
   offset: number,
   data: ArrayBuffer,
@@ -148,8 +148,8 @@ function ruleFor(stride: number, count: number): RangeRule {
 /**
  * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
  * ranges (`ruleFor`, `coalesceRanges`), each sent as one write into `parts` — the residency bits
- * and node counts, the placement tree's nodes, the placements' links — or through `parts` when it is
- * a `RangeTarget` — the worlds a call named, the impostor cards.
+ * and node counts, the placement tree's nodes, the placements' links, the worlds a call named, the
+ * impostor cards — or through `parts` when it is a `RangeTarget`: the exact translations.
  */
 export function writeRanges(
   device: GPUDevice,
