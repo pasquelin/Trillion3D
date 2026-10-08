@@ -42,6 +42,8 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       yield* far
     },
   }
+  /** What the cover keeps: the cells the plan reaches or holds — made once. */
+  const kept = { has: (cell: number) => reached.has(cell) || held.has(cell) }
   /** `cell`'s far hold is let go, once placed or past the keep sphere; whether it had one. */
   const release = (cell: number) => far.delete(cell) && (holds.release(cell), true)
   /** The plan's reading of the super-roots from `eye` through the cut's `lens`, or none: no cut
@@ -82,7 +84,7 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       // What the cover counted of a cell past the plan's reach, and held by no plan, is forgotten.
       reached.clear()
       for (const cell of plan.far) reached.add(cell)
-      world?.cover?.keep({ has: (cell) => reached.has(cell) || held.has(cell) })
+      world?.cover?.keep(kept)
       // A cell whose roots the cache has no room for is not held far: the plan holds no more.
       for (const cell of plan.far) {
         if (world?.cover && !world.cover.admits(cell)) continue

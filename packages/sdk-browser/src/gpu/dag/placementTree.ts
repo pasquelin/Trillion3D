@@ -327,9 +327,11 @@ function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
   if (w === NONE || packed.rootNodes[w] === NONE) return false
   if (tree.composed(w) || opensTree(packed.mark[w])) return true
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
-    { nodes } = packed
-  box.set(nodes.subarray(root + NODE_MIN, root + NODE_MIN + 3), 6)
-  box.set(nodes.subarray(root + NODE_MAX, root + NODE_MAX + 3), 9)
+    nodes = packed.nodes
+  for (let a = 0; a < 3; a++) {
+    box[6 + a] = nodes[root + NODE_MIN + a]
+    box[9 + a] = nodes[root + NODE_MAX + a]
+  }
   boxTransform(box, 6, box, 6, packed.worldSources[w].world.elements)
   boxUnion(box, 0, box[6], box[7], box[8], box[9], box[10], box[11])
   return false
@@ -356,12 +358,14 @@ function unionNode(nodes: Float32Array, n: number) {
  */
 function writeBox(nodes: Float32Array, n: number, opened: boolean) {
   const at = n * DAG_NODE_FLOATS
-  if (opened) {
-    for (let a = 0; a < 3; a++) [nodes[at + NODE_MIN + a], nodes[at + NODE_MAX + a]] = [-OPEN, OPEN]
-    return
-  }
-  if (!(box[3] >= box[0] && box[4] >= box[1] && box[5] >= box[2])) {
-    for (let a = 0; a < 3; a++) [nodes[at + NODE_MIN + a], nodes[at + NODE_MAX + a]] = [OPEN, -OPEN]
+  // Open, bounds no plane rejects; empty, bounds every plane does.
+  const empty = !(box[3] >= box[0] && box[4] >= box[1] && box[5] >= box[2])
+  if (opened || empty) {
+    const low = opened ? -OPEN : OPEN
+    for (let a = 0; a < 3; a++) {
+      nodes[at + NODE_MIN + a] = low
+      nodes[at + NODE_MAX + a] = -low
+    }
     return
   }
   let reach = 0

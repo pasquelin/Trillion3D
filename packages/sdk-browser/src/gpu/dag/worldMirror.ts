@@ -152,6 +152,8 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
       return m.changed.count
     },
   } satisfies ResidencyChanges
+  /** What `update` hands back, one object a mirror. */
+  const updated = { flags: m.flags, changes: moved as ResidencyChanges }
   return {
     /** The residency the cut reads, every packed page: the rows', each object cluster's its own. */
     flags: m.flags,
@@ -173,7 +175,8 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
      */
     update(scene: Uint32Array, changes?: ResidencyChanges) {
       update(m, scene, changes)
-      return { flags: m.flags, changes: moved }
+      updated.flags = m.flags
+      return updated
     },
   }
 }
