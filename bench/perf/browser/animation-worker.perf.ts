@@ -70,9 +70,10 @@ async function round(side: Side) {
   updates[side].push(median(frames))
   cpus[side].push((cpu() - from) / (FRAMES - WARM))
 }
-const median = (values: number[]) => quantileOf(values, 0.5) as number
+const rank = (values: number[], q: number) => quantileOf(values, q) as number
+const median = (values: number[]) => rank(values, 0.5)
 const spread = (values: number[], digits = 0) =>
-  `${median(values).toFixed(digits)} [${(quantileOf(values, 0.25) as number).toFixed(digits)}–${(quantileOf(values, 0.75) as number).toFixed(digits)}]`
+  `${median(values).toFixed(digits)} [${rank(values, 0.25).toFixed(digits)}–${rank(values, 0.75).toFixed(digits)}]`
 const paired = (a: number[], b: number[]) => a.map((v, i) => v / b[i])
 
 const SIDES: Side[] = ['sync', 'ahead', 'three']

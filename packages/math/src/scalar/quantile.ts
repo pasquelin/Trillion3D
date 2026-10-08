@@ -1,3 +1,8 @@
+/** A copy of `values` sorted ascending; the list itself is left as is. */
+function ascending(values: ArrayLike<number>) {
+  return Array.from(values).sort((a, b) => a - b)
+}
+
 /**
  * The value at rank `q` (in (0, 1]) of a sorted, non-empty list, never interpolated: the nearest
  * rank, `sorted[ceil(q * length) - 1]`. The median of ten values is the fifth, the 95th percentile
@@ -25,23 +30,17 @@ export function quantileFloor(sorted: ArrayLike<number>, q: number): number | un
 
 /** `quantile` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
 export function quantileOf(values: ArrayLike<number>, q: number): number | undefined {
-  return quantile(
-    Array.from(values).sort((a, b) => a - b),
-    q,
-  )
+  return quantile(ascending(values), q)
 }
 
 /** `median` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
 export function medianOf(values: ArrayLike<number>) {
-  return median(Array.from(values).sort((a, b) => a - b))
+  return median(ascending(values))
 }
 
 /** `quantileFloor` of an unsorted list: a copy is sorted ascending first, the list itself is left as is. */
 export function quantileFloorOf(values: ArrayLike<number>, q: number): number | undefined {
-  return quantileFloor(
-    Array.from(values).sort((a, b) => a - b),
-    q,
-  )
+  return quantileFloor(ascending(values), q)
 }
 
 /** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the

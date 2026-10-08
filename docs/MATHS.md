@@ -188,7 +188,9 @@ or batch, follows these conventions:
   returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
-  as its only value and repeats the formula of its unit function, which stays the oracle.
+  as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
+  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
+  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:

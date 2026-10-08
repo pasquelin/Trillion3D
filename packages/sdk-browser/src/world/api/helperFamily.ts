@@ -26,10 +26,11 @@ function lines(points: number[], color: ColorInput) {
 /** The segments of a circle of `radius` in the plane `(u, v)`, in `sides` steps. */
 function circle(radius: number, sides: number, plane: 'xy' | 'xz' = 'xz') {
   const out: number[] = []
+  const point = [0, 0]
   for (let i = 0; i < sides; i++)
     for (const k of [i, i + 1]) {
       const a = (k / sides) * TAU
-      const [x, y] = circlePoint([0, 0], radius, a)
+      const [x, y] = circlePoint(point, radius, a)
       out.push(...(plane === 'xz' ? [x, 0, y] : [x, y, 0]))
     }
   return out
@@ -96,9 +97,10 @@ export const helper = markedFamily({
    *  @param color - Colour of the lines. */
   polarGrid(radius = 10, sectors = 16, rings = 8, color: ColorInput = 0x888888) {
     const out: number[] = []
+    const point = [0, 0]
     for (let s = 0; s < sectors; s++) {
       const a = (s / sectors) * TAU
-      const [x, z] = circlePoint([0, 0], radius, a)
+      const [x, z] = circlePoint(point, radius, a)
       out.push(0, 0, 0, x, 0, z)
     }
     for (let r = 1; r <= rings; r++) out.push(...circle((radius * r) / rings, 64))

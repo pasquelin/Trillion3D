@@ -18,10 +18,14 @@ const ceilLog2 = (v: number) => 32 - Math.clz32(v - 1)
 
 /** The least power of two not under `v`: 1 for every `v <= 1`, `2 ** ceilLog2(⌈v⌉)` exactly for any
  *  real `v` up to 2^32 — every caller sizes a buffer, a table or a count far below —, NaN for NaN;
- *  past 2^32 it throws rather than wrap. */
+ *  past 2^32 it throws rather than wrap. The power is a shift up to 2^30, the int32 range; 2^31 and
+ *  2^32 are written out. */
 export function nextPow2(v: number) {
   if (v <= 1) return 1
-  if (v <= 2 ** 32) return 2 ** ceilLog2(Math.ceil(v))
+  if (v <= 2 ** 32) {
+    const e = ceilLog2(Math.ceil(v))
+    return e <= 30 ? 1 << e : e === 31 ? 2 ** 31 : 2 ** 32
+  }
   if (v !== v) return NaN
   throw new RangeError(`nextPow2: ${v} is past 2^32`)
 }

@@ -132,14 +132,15 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
   const profile: [number, number][] = []
   const caps = (capSegments = pieces(capSegments, 1))
   radialSegments = pieces(radialSegments, 1)
+  const p = [0, 0]
   for (let i = 0; i <= caps; i++) {
     const a = -HALF_PI + (i / caps) * HALF_PI
-    const p = circlePoint([0, 0], radius, a)
+    circlePoint(p, radius, a)
     profile.push([p[0], -length / 2 + p[1]])
   }
   for (let i = 0; i <= caps; i++) {
     const a = (i / caps) * HALF_PI
-    const p = circlePoint([0, 0], radius, a)
+    circlePoint(p, radius, a)
     profile.push([p[0], length / 2 + p[1]])
   }
   return withRecipe(lathe(profile, radialSegments), 'capsule', [

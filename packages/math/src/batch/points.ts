@@ -1,4 +1,4 @@
-import { transformAffinePoint, transformDirectionVector3 } from '../vector/vector.ts'
+import { normalizeVector3, transformAffinePoint } from '../vector/vector.ts'
 import { POSITION_VALUES } from './strides.ts'
 
 /**
@@ -13,9 +13,27 @@ export function transformPointsBatch(
   points: ArrayLike<number>,
   n: number,
 ): void {
+  // The unit's twelve values of `m`, read once before the loop; `out` may be `points`.
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10],
+    m12 = m[12],
+    m13 = m[13],
+    m14 = m[14]
   for (let i = 0; i < n; i++) {
     const at = i * POSITION_VALUES
-    transformAffinePoint(out, m, points[at], points[at + 1], points[at + 2], at)
+    const x = points[at],
+      y = points[at + 1],
+      z = points[at + 2]
+    out[at] = m0 * x + m4 * y + m8 * z + m12
+    out[at + 1] = m1 * x + m5 * y + m9 * z + m13
+    out[at + 2] = m2 * x + m6 * y + m10 * z + m14
   }
 }
 
@@ -49,8 +67,24 @@ export function transformDirectionsBatch(
   dirs: ArrayLike<number>,
   n: number,
 ): void {
+  // The unit's nine values of `m`, read once before the loop; `out` may be `dirs`.
+  const m0 = m[0],
+    m1 = m[1],
+    m2 = m[2],
+    m4 = m[4],
+    m5 = m[5],
+    m6 = m[6],
+    m8 = m[8],
+    m9 = m[9],
+    m10 = m[10]
   for (let i = 0; i < n; i++) {
     const at = i * POSITION_VALUES
-    transformDirectionVector3(out, m, dirs[at], dirs[at + 1], dirs[at + 2], at)
+    const x = dirs[at],
+      y = dirs[at + 1],
+      z = dirs[at + 2]
+    out[at] = m0 * x + m4 * y + m8 * z
+    out[at + 1] = m1 * x + m5 * y + m9 * z
+    out[at + 2] = m2 * x + m6 * y + m10 * z
+    normalizeVector3(out, at)
   }
 }

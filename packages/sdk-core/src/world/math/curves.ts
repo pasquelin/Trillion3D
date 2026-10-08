@@ -203,9 +203,10 @@ export class Shape {
     const last = circlePoint([0, 0], radius, end)
     this.cursor = new Vector2(x + last[0], y + last[1])
     this.commands.push((segments, out) => {
+      const point = [0, 0]
       for (let i = 0; i <= segments; i++) {
         const a = start + (sweep * i) / segments
-        const point = circlePoint([0, 0], radius, a)
+        circlePoint(point, radius, a)
         out.push(new Vector2(x + point[0], y + point[1]))
       }
     })

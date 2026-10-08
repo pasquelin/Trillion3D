@@ -7,8 +7,8 @@ import { wideProduct } from '../../../math/src/wgsl/integer.ts'
  * rounds it, `scaled`, step 4, and `reducedAlpha`, what a reduced texel stores — the median alone
  * without a cutoff, byte for byte as before. The pick, step 3 over the level's histogram:
  * `pickKey`, the key of byte `t` given the level's texels at and past it (`above`), whose least
- * is the pick (`COVERAGE_CHOOSE_WGSL`); its products pass 32 bits, so `wideProduct` holds one as (high,
- * low) words, `apart` their distance, and `below` orders (error, distance to C, t) as the
+ * is the pick (`COVERAGE_CHOOSE_WGSL`); its products pass 32 bits, so `wideProduct` holds one as
+ * (high, low) words, `apart` their distance, and `below` orders (error, distance to C, t) as the
  * compiler's `min` does. The cut (#43): `filtered`, the byte of a texel's bilinear sample `s`
  * of the square of corner alphas `a`, and `cutBin`, the highest `t` whose scale lifts that sample
  * to `C` — the bin it is counted in, coverage measured on the filtered cut, not on the texels —,

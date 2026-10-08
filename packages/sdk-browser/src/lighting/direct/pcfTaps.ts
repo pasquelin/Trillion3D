@@ -15,10 +15,11 @@ import { circlePoint } from '../../../../math/src/vector/vector.ts'
  *  axis the two closest taps are 0.38 texel apart, from the diagonal 0.49. Each at f32, the
  *  shader's precision. */
 const taps: [number, number][] = []
+const point = [0, 0]
 for (let k = 0; k < 4; k++) {
   const radius = Math.SQRT2 * Math.sqrt((k + 0.5) / 4)
   const angle = QUARTER_PI + (k * GOLDEN_ANGLE) / 4
-  const [x, y] = circlePoint([0, 0], radius, angle)
+  const [x, y] = circlePoint(point, radius, angle)
   const past = Math.max(Math.abs(x), Math.abs(y), 1)
   let tap: [number, number] = [Math.fround(x / past), Math.fround(y / past)]
   for (let turn = 0; turn < 4; turn++) {

@@ -119,15 +119,22 @@ function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z
   return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
 }
 
-/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`; a NaN,
- *  comparing false, keeps the point. */
+/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`, the planes
+ *  in their slot order at constant offsets; a NaN, comparing false, keeps the point. */
 export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
-  for (let i = 0; i < 24; i += 4) if (planeDistance(planes, i, x, y, z) < 0) return false
-  return true
+  return !(
+    planeDistance(planes, 0, x, y, z) < 0 ||
+    planeDistance(planes, 4, x, y, z) < 0 ||
+    planeDistance(planes, 8, x, y, z) < 0 ||
+    planeDistance(planes, 12, x, y, z) < 0 ||
+    planeDistance(planes, 16, x, y, z) < 0 ||
+    planeDistance(planes, 20, x, y, z) < 0
+  )
 }
 
 /** True when the sphere of centre `(x, y, z)` and radius `reach` lies wholly behind one of the six
- *  unit `planes`: some `planeDistance` below `−reach`. A NaN, comparing false, keeps the sphere. */
+ *  unit `planes`: some `planeDistance` below `−reach`, the planes in their slot order at constant
+ *  offsets. A NaN, comparing false, keeps the sphere. */
 export function frustumExcludesSphere(
   planes: ArrayLike<number>,
   x: number,
@@ -135,6 +142,13 @@ export function frustumExcludesSphere(
   z: number,
   reach: number,
 ) {
-  for (let i = 0; i < 24; i += 4) if (planeDistance(planes, i, x, y, z) < -reach) return true
-  return false
+  const behind = -reach
+  return (
+    planeDistance(planes, 0, x, y, z) < behind ||
+    planeDistance(planes, 4, x, y, z) < behind ||
+    planeDistance(planes, 8, x, y, z) < behind ||
+    planeDistance(planes, 12, x, y, z) < behind ||
+    planeDistance(planes, 16, x, y, z) < behind ||
+    planeDistance(planes, 20, x, y, z) < behind
+  )
 }

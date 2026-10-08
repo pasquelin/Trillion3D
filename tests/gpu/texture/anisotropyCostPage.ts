@@ -7,7 +7,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { batisseur, engine, release } from '../kit/sharedSceneProof.ts'
-import { median } from '../../../scripts/median.ts'
+import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Half side of the floor, in scene units: the far edge reaches the horizon of the view. */
@@ -27,7 +27,7 @@ interface Reading {
   samples: number
 }
 
-const p50 = (values: number[]) => (values.length ? median(values) : null)
+const p50 = (values: number[]) => (values.length ? (quantileFloorOf(values, 0.5) as number) : null)
 
 /** A picture with detail at every texel — a seeded noise, so the reads cannot share a cache line
  *  — repeated, mipmapped and filtered trilinearly at `anisotropy`. */

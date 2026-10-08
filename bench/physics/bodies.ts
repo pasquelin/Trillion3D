@@ -104,11 +104,8 @@ function summary(label: string, { steps, phases }: Run) {
   const sorted = [...window].sort((a, b) => a - b)
   const average = mean(window)
   const asleep = steps.findIndex((r) => r.active === 0)
-  const [median, p95, worst] = [
-    quantileFloor(sorted, 0.5),
-    quantileFloor(sorted, 0.95),
-    sorted[sorted.length - 1],
-  ] as number[]
+  const rank = (q: number) => quantileFloor(sorted, q) as number
+  const [median, p95, worst] = [rank(0.5), rank(0.95), rank(1)]
   const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, median ${median.toFixed(2)}, mean ${average.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`
   const full = steps.filter((r) => r.full).length
   const note = full ? `, contact budgets exceeded in ${full} steps` : ''
