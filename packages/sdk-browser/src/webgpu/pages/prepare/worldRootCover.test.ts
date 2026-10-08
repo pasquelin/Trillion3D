@@ -1,5 +1,5 @@
 // The held cells' roots in the WebGPU cut's cover: each joins it while its cell holds it, until the
-// backend ends, within the room the session that set it leaves them. On the cook's world, served.
+// backend ends, within the least room the live sessions leave them. On the cook’s world, served.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { coverHeldRoots, withWorldRoot } from './worldRoot.ts'
@@ -41,7 +41,7 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
   assert.equal(told.length, 4, 'nothing followed past the end')
 })
 
-test('a session that ends leaves the room of one that started since: the room is its own', async (t) => {
+test('the room is the least the live sessions leave; one that ends leaves the others’', async (t) => {
   const { context, opaque, hold } = await scene(t, true)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
   const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
@@ -53,10 +53,12 @@ test('a session that ends leaves the room of one that started since: the room is
     }) as unknown as Parameters<typeof coverHeldRoots>[0]
   const first = new AbortController(),
     second = new AbortController()
-  coverHeldRoots(session(first), { holdCover: () => {} }, () => 58)
-  coverHeldRoots(session(second), { holdCover: () => {} }, () => 30)
+  coverHeldRoots(session(first), { holdCover: () => {} }, () => 30)
+  coverHeldRoots(session(second), { holdCover: () => {} }, () => 58)
+  // Both draw the held cells: each cache holds their roots, the smaller bounds them.
+  assert.equal(hold.cover.room(), 28, 'the earlier, smaller cache bounds the cover')
   first.abort()
-  assert.equal(hold.cover.room(), 28, "the second session's room stands")
+  assert.equal(hold.cover.room(), 56, "the second session's room stands")
   second.abort()
   assert.equal(hold.cover.room(), undefined)
 })
