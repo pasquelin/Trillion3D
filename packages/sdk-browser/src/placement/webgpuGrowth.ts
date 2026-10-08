@@ -23,7 +23,7 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createSessionCut } from '../webgpu/pages/prepare/cut.ts'
-import { keepMovesFor } from './growthAnnounce.ts'
+import { holdGrownWorlds, keepMovesFor } from './growthAnnounce.ts'
 import { loseGpuSelection } from '../webgpu/pages/io/drops.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
@@ -102,11 +102,12 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   growth.asked = false
   const added = growth.roots.slice(growth.appended)
   if (cut?.appendRoots(added)) {
-    // The worlds the host sends hold theirs at once, at their ranks: a host walk before they are
-    // adopted compares them as the cut holds them.
-    const base = rt.layout.selectionRoots.length + growth.appended
-    for (let k = 0; k < added.length; k++)
-      rt.layout.worldUpdates.set(added[k].world.elements, (base + k) * 16)
+    // The worlds the host sends hold theirs at once, at their ranks.
+    holdGrownWorlds(
+      rt.layout.worldUpdates,
+      added,
+      rt.layout.selectionRoots.length + growth.appended,
+    )
     // A cut made beside it is for fewer roots: dropped when it lands, or now if it landed unadopted.
     growth.made++
     // No cut made beside it will be adopted: the moves are its own.

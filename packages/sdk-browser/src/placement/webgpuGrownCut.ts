@@ -69,7 +69,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
   reserveBoxes(rt)
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
-  if (!ready.inPlace) swapCut(rt, ready.cut, ready.moved)
+  if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
   // The new rows as their owner wrote them meanwhile: parked or taken, posed, casting or not.
   for (const root of added)
     if (root.placement)
@@ -85,9 +85,15 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
 }
 
 /** `cut` replaces the running cut (`adoptCut`): it holds every root's park and mark word and the
- *  pool's residency; the views drawn aside cut on it anew. The pool was listed when the cut began: the pages it `moved` since are noted again,
- *  they alone. */
-function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<number>) {
+ *  pool's residency; the views drawn aside cut on it anew. The pool was listed when the cut began:
+ *  the pages it `moved` since are noted again, they alone. The roots `added` behind rank `first`
+ *  are those it packed beyond the running cut's. */
+function swapCut(
+  rt: WebgpuPagesRuntime,
+  { cut, moved }: { cut: GpuSelection; moved: ReadonlySet<number> },
+  added: readonly { readonly world: { readonly elements: ArrayLike<number> } }[],
+  first: number,
+) {
   const { run, layout } = rt
   adoptCut(rt, cut)
   // Every view's cut aside was on the old tables: each makes its own anew at its next image.
@@ -101,7 +107,7 @@ function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<n
     cut.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
   })
   // The poses named since the cut was packed — it holds them as they were then —: replayed.
-  replayMoves(rt, cut)
+  replayMoves(rt, cut, added, first)
   cut.updateResidency(layout.rows.residentFlags)
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)
