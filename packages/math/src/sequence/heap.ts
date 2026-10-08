@@ -25,11 +25,13 @@ function down<T>({ items, before, put }: Heap<T>, at: number) {
 }
 
 /**
- * THE ONE HEAP OF THE STREAMING LAYER: a binary min-heap of `T` in the order `before` gives, each
- * item's place told to `placed` as it moves, so an item that keeps its place is taken out, or
- * settles again once its key changed, in O(log n) wherever it stands. The queue's jobs
- * (`queueOrder.ts`), the cache's eviction order (`cacheEvictionOrder.ts`), the failed reads' waits
- * (`failures.ts`) and the places a search of the queue visits are all this heap.
+ * THE ONE HEAP: a binary min-heap of `T` in the order `before` gives, each item's place told to
+ * `placed` as it moves, so an item that keeps its place is taken out, or settles again once its key
+ * changed, in O(log n) wherever it stands. The streamer's jobs (`sdk-browser/src/streaming/
+ * queueOrder.ts`), the cache's eviction order (`cacheEvictionOrder.ts`), the failed reads' waits
+ * (`failures.ts`), the places a search of the queue visits, a tile pool's victims
+ * (`webgpu/tile/victimHeap.ts`) and the impostor roots waiting on the view (`sdk-core/src/impostor/
+ * watch.ts`) are all this heap.
  */
 export function createHeap<T>(
   before: (a: T, b: T) => boolean,
@@ -58,6 +60,14 @@ export function createHeap<T>(
     push(item: T) {
       items.push(item)
       up(heap, items.length - 1)
+    },
+    /** Adds `item` unordered: `order` then makes the heap of every item added, in O(n). */
+    add(item: T) {
+      items.push(item)
+    },
+    /** The items added since the last order, made a heap at once. */
+    order() {
+      for (let at = (items.length >> 1) - 1; at >= 0; at--) down(heap, at)
     },
     /** Takes out the item at `at`, the first by default: it, or `undefined` past the heap. */
     take(at = 0) {

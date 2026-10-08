@@ -107,12 +107,9 @@ export function switchTable(
   focal: number,
 ) {
   let table = tables.get(holder)
-  if (
-    !table ||
-    table.roots !== roots ||
-    table.section !== section ||
-    table.held.length !== roots.length
-  ) {
+  if (table && table.roots === roots && table.section === section)
+    if (table.held.length !== roots.length) resize(table, roots.length)
+  if (!table || table.roots !== roots || table.section !== section) {
     const n = roots.length
     table = {
       roots,
@@ -132,6 +129,23 @@ export function switchTable(
   }
   table.focal = focal
   return table
+}
+
+/** `table` at `n` roots, the numbers of those it held kept: a list grown in place reads only the
+ *  roots appended. Until a plan reads them, not every root holds a verdict. */
+function resize(table: SwitchTable, n: number) {
+  const keep = (from: Float64Array, per = 1, fill = 0) => {
+    const next = new Float64Array(n * per).fill(fill)
+    next.set(from.subarray(0, Math.min(next.length, from.length)))
+    return next
+  }
+  table.held.length = table.entries.length = n
+  table.linear = keep(table.linear, LINEAR.length, NaN)
+  table.radius = keep(table.radius)
+  table.texelDepth = keep(table.texelDepth)
+  table.triangleDepth = keep(table.triangleDepth)
+  table.depthFocal = keep(table.depthFocal, 1, NaN)
+  table.everyRead = false
 }
 
 /** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */

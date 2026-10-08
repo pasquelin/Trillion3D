@@ -135,9 +135,8 @@ export function planImpostorCards<G>(
   core.pixelScaleOf(cam.projection, viewport, pixelScale)
   const focal = Math.max(pixelScale[0], pixelScale[1]),
     image: Image<G> = { state, roots, moved }
-  // Another root list: its cards are its own, every root read and written again.
-  if (state.roots && state.roots !== roots)
-    Object.assign(state, createImpostorCards<G>(state.section))
+  // Another root list: the old one's cards dropped, their bits cleared, every root read again.
+  if (state.roots && state.roots !== roots) dropImpostorCards(state, state.roots, moved)
   state.roots = roots
   if (state.eligibleAt.length !== roots.length) fitRoots(state, roots.length)
   if (state.allMoved) state.watch.touchAll()
@@ -227,7 +226,10 @@ function delist<G>(image: Image<G>, rank: number) {
  *  world — two primitives of one placement are one card. */
 function takeCard<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
   const { state, roots } = image,
-    world = roots[rank].world.elements
+    world = roots[rank].world.elements,
+    radius = state.watch.radiusOf(rank)
+  // A radius the switch has not taken yet draws no card: the root keeps its clusters.
+  if (!(radius > 0)) return mark(roots, rank, false, image.moved)
   if (state.cardOf[rank]) return
   state.cardOf[rank] = world
   const held = segment.holders.get(world)
@@ -235,7 +237,7 @@ function takeCard<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
   const slot = slotAtEnd(state.slots, state.segments.values(), segment)
   segment.holders.set(world, { slot: segment.count, roots: 1 })
   segment.worlds[segment.count++] = world
-  writeCardRecord(state.slots, slot, world, segment.entry, state.watch.radiusOf(rank))
+  writeCardRecord(state.slots, slot, world, segment.entry, radius)
 }
 
 function giveCard<G>(image: Image<G>, segment: CardSegment<G>, rank: number) {
