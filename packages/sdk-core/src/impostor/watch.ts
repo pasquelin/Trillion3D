@@ -28,7 +28,7 @@
  * alone; a new root list, section, focal length or frustum shape, or a view no longer rigid, reads
  * every root once.
  */
-import { keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
+import { distanceVector3, keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -266,10 +266,8 @@ function letGo(s: State, anchor: Anchor) {
 /** The eye's travel and the forward axis's chord between two views, each an eye and an axis. */
 const gap = { travel: 0, chord: 0 }
 function apart(eye: Float64Array, forward: Float64Array, to: Anchor) {
-  const e = to.eye,
-    f = to.forward
-  gap.travel = length3(eye[0] - e[0], eye[1] - e[1], eye[2] - e[2])
-  gap.chord = length3(forward[0] - f[0], forward[1] - f[1], forward[2] - f[2])
+  gap.travel = distanceVector3(eye, to.eye)
+  gap.chord = distanceVector3(forward, to.forward)
   return gap
 }
 

@@ -140,8 +140,7 @@ const rule: RangeRule & { overflow: 'narrowest' } = {
  * never rewrite everything between the lowest and the highest.
  */
 function ruleFor(stride: number, count: number): RangeRule {
-  if (rule.steps.length < count)
-    rule.steps = resized(rule.steps, Math.max(count, rule.steps.length * 2))
+  rule.steps = resized(rule.steps, count)
   rule.gap = 1 + Math.floor(GAP_BYTES / (stride * 4))
   return rule
 }

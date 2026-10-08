@@ -65,7 +65,7 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
     if (box && !noteOwnMove(rt, movedList[j])) boxUnionBatch(before, box, 1)
   }
   const at = nodeCount * BOX_VALUES
-  if (at + BOX_VALUES > movedBoxes.length) movedBoxes = resized(movedBoxes, movedBoxes.length * 2)
+  movedBoxes = resized(movedBoxes, at + BOX_VALUES)
   movedBoxes.set(before, at)
   movedEnds[nodeCount++] = movedCount
 }
