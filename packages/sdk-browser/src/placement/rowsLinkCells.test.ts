@@ -53,6 +53,8 @@ test('a row both a root and the blend pass read is linked: a mesh opaque and tra
   Object.assign(rt.blendState, { blendGpu: [{ placement: { rows, index: 1 } }] })
   const linked: number[] = []
   rt.run.gpuSelection = { placeObject: (w: number) => void linked.push(w) } as never
+  // No world packed: the root is told it places no object, which is what is counted.
+  Object.assign(rt, { context: {} })
   setRowCell(rows, 1, { cell: 0, node: 1 })
   setRowCell(rows, 3, { cell: 0, node: 3 })
   updateWebgpuPlacements(rt, rows, 1, 1)
