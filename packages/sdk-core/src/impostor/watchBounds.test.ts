@@ -14,16 +14,20 @@ test('roots read every image under a still view hold one place each in the heaps
   const roots = field(600),
     watch = createImpostorWatch(),
     view = viewAt([0, 2, 0], 0)
-  watch.update(roots, section, view, FOCAL, COS)
-  const settled = watch.waiting
-  assert.ok(settled > 0 && settled <= roots.length)
+  // Each root read is asked once whether it may take a card: the reads counted there.
+  let reads = 0
+  const carded = () => (reads++, true)
+  watch.update(roots, section, view, FOCAL, COS, carded)
+  const settled = watch.hostBytes
+  assert.ok(reads > 0)
   // The engine moves every root each image, the camera still: each is read again.
   for (let image = 0; image < 200; image++) {
     roots.forEach((_, rank) => watch.touch(rank))
-    watch.update(roots, section, view, FOCAL, COS)
-    assert.equal(watch.reads, roots.length)
+    reads = 0
+    watch.update(roots, section, view, FOCAL, COS, carded)
+    assert.equal(reads, roots.length)
   }
-  assert.equal(watch.waiting, settled, 'one place a root, whatever the reads')
+  assert.equal(watch.hostBytes, settled, 'one place a root, whatever the reads')
 })
 
 test('a far root past the frustum’s widest direction whose sphere reaches the image keeps the plan’s verdict', () => {
@@ -60,9 +64,10 @@ test('a root appended to the list in place is read, its radius taken', () => {
     mesh: 1,
     world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -2000, 1] },
   })
-  watch.update(roots, section, view, FOCAL, COS)
+  let reads = 0
+  watch.update(roots, section, view, FOCAL, COS, () => (reads++, true))
   const rank = roots.length - 1
-  assert.equal(watch.reads, 1, 'the appended root alone')
+  assert.equal(reads, 1, 'the appended root alone')
   assert.equal(watch.switched[rank], 1)
   assert.equal(watch.radiusOf(rank), TREE.objectRadius)
   assert.equal(planImpostors(roots, section, view, FOCAL).switched[rank], 1)

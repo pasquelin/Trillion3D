@@ -100,7 +100,6 @@ function createState(makeHeap: HeapMaker) {
     bound: new Float64Array(0),
     boundOf: new Float64Array(0),
     every: true,
-    reads: 0,
     reading: {} as Reading,
   }
 }
@@ -136,10 +135,6 @@ export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
     get changedCount() {
       return s.changedCount
     },
-    /** Roots the last update read. */
-    get reads() {
-      return s.reads
-    },
     /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
     get hostBytes() {
       return (
@@ -153,10 +148,6 @@ export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
         s.boundOf.byteLength +
         8 * (s.home.length + waiting(s))
       )
-    },
-    /** Roots waiting in the heaps: never more than the roots. */
-    get waiting() {
-      return waiting(s)
     },
     /** Root `rank`'s world radius, as the switch took it. */
     radiusOf: (rank: number) => s.table!.radius[rank],
@@ -172,7 +163,7 @@ export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
       cos: number,
       carded?: (rank: number) => boolean,
     ) {
-      s.reads = s.changedCount = 0
+      s.changedCount = 0
       s.frame++
       if (roots !== s.roots || section !== s.section || focal !== s.focal || cos !== s.cos)
         s.every = true
@@ -381,7 +372,6 @@ function onBound(s: State, reading: Reading, rank: number, a: number, b: number)
 function read(s: State, reading: Reading, rank: number) {
   if (s.readAt[rank] === s.frame) return
   s.readAt[rank] = s.frame
-  s.reads++
   const { table } = reading,
     entry = readRoot(
       table,

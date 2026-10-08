@@ -29,18 +29,20 @@ test('the watch holds the plan’s verdict for every root in view, still, swayin
 function readsOf(count: number) {
   const roots = field(count),
     watch = createImpostorWatch()
-  watch.update(roots, section, swayAt(0), FOCAL, COS)
-  const first = watch.reads
-  let still = 0
-  for (let k = 0; k < 8; k++) {
-    watch.update(roots, section, swayAt(0), FOCAL, COS)
-    still += watch.reads + watch.changedCount
+  // Each root read is asked once whether it may take a card: the reads counted there.
+  let reads = 0
+  const update = (view: ReturnType<typeof swayAt>) => {
+    reads = 0
+    watch.update(roots, section, view, FOCAL, COS, () => (reads++, true))
+    return reads
   }
+  const first = update(swayAt(0))
+  let still = 0
+  for (let k = 0; k < 8; k++) still += update(swayAt(0)) + watch.changedCount
   let moving = 0,
     changed = 0
   for (let k = 1; k <= 120; k++) {
-    watch.update(roots, section, swayAt(k, k > 60 ? 0.01 : 0), FOCAL, COS)
-    moving += watch.reads
+    moving += update(swayAt(k, k > 60 ? 0.01 : 0))
     changed += watch.changedCount
   }
   return { first, still, moving: moving / 120, changed: changed / 120 }
