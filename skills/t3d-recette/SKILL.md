@@ -21,19 +21,21 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
 2. **Time** first, nothing else of the batch running, each `to measure` issue (labelled `measuring`
    meanwhile) on the **GPU bench**: the engine draws a site page in Node on this machine's GPU
    through Dawn (Chrome's WebGPU), no browser, playing a scenario identical frame for frame.
-   - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>
---engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
+   - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>` with
+     `--engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
      checkout. The other options are in `bench/dawn/run.ts`: `--profile desktop` (the default, the
      boss's screen) or `mobile` (a phone, the WebGPU baseline limits), `--scale page` for the page's
      own render scale, `--switch <flag>=1`, `--cpu-profile`.
-   - Several pages: `node bench/dawn/suite.ts priority|reference|all|<page[:scenario]>,…` (`priority`,
-     five pages, one per cost; `all` adds the held-out pages of `TRILLION3D_VALIDATION_DIR`).
+   - The bench's scene: `node bench/dawn/suite.ts` plays the one scene that carries every cost
+     (`an-open-world-of-every-cost:world`); a list `<page[:scenario]>,…` is five scenes at most, never
+     more, and a bad scene stops the list.
    - One bench at a time on the machine: a lock in `~/.trillion3d/gpu-bench.lock` refuses a second.
      Never run a build, a capture or `test:gpu` beside it.
    - The report (Markdown and JSON in `.mesure/out/bench-gpu/`) gives per segment the GPU frame
      median and spread (`stable` within 3 %), the CPU, the hitches, whether the plays drew the same
      images, the GPU by pass and kind (compute or drawing), the CPU by step and the engine's counters.
-   - A/B: the pages and scenarios the issue's Proof names, before then after, interleaved 5 times at
+   - A/B: `run.ts <page> --ab <before> <after>` (alternating, 95 % interval, gain / loss / noise);
+     the pages and scenarios the issue's Proof names, before then after, interleaved 5 times at
      least; read the frame total, never one pass (a pass absorbs its neighbours' work). Over
      16.7 ms GPU (under 60 fps) is a ko; over 8.3 ms (under 120 fps) is reported. A run that gives
      no number is dropped; cut scenes, never rounds below 5. A run unfinished at batch end is named
@@ -54,7 +56,7 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
    `🟠 high` otherwise, the cause first (promise, tests, paperwork or design). A defect or cost no
    issue covers gets a new one through `/t3d-writer`.
 6. A `to measure` release pull request (`develop` → `main`) gets CONTRIBUTING.md's full campaign
-   (`suite.ts all`, both profiles) on its head.
+   (`suite.ts`, both profiles) on its head.
 7. **Thumbnails**, after the images, on the after tree: each example the batch added or changed
    (`git diff --name-only <before> <after> -- 'site/examples/*.html'`), plus each
    `pnpm run check:thumbnails` lists, captured with `node scripts/docs/examples-thumbnails.ts <id>`

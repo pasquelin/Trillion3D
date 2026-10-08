@@ -1,6 +1,7 @@
 import type { Families, Vec3 } from './engineTypes.ts'
 import { mix } from './opening.ts'
 import { saturate } from '../../../packages/math/src/scalar/reals.ts'
+import { unorm8 } from '../../../packages/math/src/color/color.ts'
 
 /** The side of every painted picture, in pixels. */
 const SIZE = 256
@@ -30,7 +31,7 @@ export function leafTexture(engine: Families<'texture'>) {
       rib = across < 0.012 && along > 0.05 && along < 0.9
     const alpha = saturate((width - across) * 40 + 0.5)
     const rgba = [rib ? 0.3 : 0.36 - along * 0.1, rib ? 0.5 : 0.68, 0.16, alpha]
-    rgba.forEach((value, channel) => (data[offset + channel] = Math.round(value * 255)))
+    rgba.forEach((value, channel) => (data[offset + channel] = unorm8(value)))
   })
 }
 
@@ -93,9 +94,7 @@ export function matcapBall(
       room(reflected).map((value, k) => value * base[k] * 1.6),
       metal,
     ).map((value, k) => value + spot * shine + fresnel * rim[k])
-    colour.forEach(
-      (value, k) => (data[offset + k] = Math.round(clamp(value, 0, 1) ** (1 / 2.2) * 255)),
-    )
+    colour.forEach((value, k) => (data[offset + k] = unorm8(saturate(value) ** (1 / 2.2))))
     data[offset + 3] = 255
   })
 }

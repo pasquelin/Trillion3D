@@ -18,23 +18,54 @@ budgets, `null` for the unmeasured, CPU and GPU never added):
 
 ## The GPU bench on Dawn
 
-    node bench/dawn/run.ts <page> [--scenario orbit|drive|still|<file.json>] [--repeat 3]
-    node bench/dawn/suite.ts [priority|reference|all|<page[:scenario]>,…]
+    node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file.json>] [--repeat 3]
+    node bench/dawn/suite.ts [<page[:scenario]>,…]        # at most 5 scenes, never more
+    node bench/dawn/run.ts <page> --dissect <pass label> [--dissect-segment <name>]
+    node bench/dawn/run.ts <page> --ab <checkout A> <checkout B> [--rounds 6] [--least 0.05]
     pnpm run test:gpu                  # the GPU proofs on Dawn (bench/dawn/proofs.ts)
     pnpm run test:chrome               # the proofs Dawn cannot run, in Chrome
 
 `<page>` is an example's name (`drive-a-car`), a path, or a held-out validation page's prefix
 (`v06`) with `TRILLION3D_VALIDATION_DIR` set. Each run plays `--repeat` fresh processes; `--engine
-<checkout>` measures another clean checkout. `suite.ts` runs a page list under one lock: `priority`
-(five pages, one per cost the engine carries), `reference` (ten), `all` (those and the validation
-pages). Every option is listed in the header of `bench/dawn/run.ts` and `bench/dawn/suite.ts`;
+<checkout>` measures another clean checkout. **One scene carries the whole bench**: the example
+`an-open-world-of-every-cost`, played by the scenario `world` — an open world of blocks, a dense
+pebble bed under a low sun, transparents, lamps, TAA — every part a switch in the gallery, so it is
+seen and checked before it is measured. `suite.ts` runs that scene by default and a list of at most
+five (`MAX_SCENES`, `bench/dawn/suiteRuns.ts`): a longer list is refused, no option lifts it.
+Method: one scene first, then the five, never a full sweep; stop at the first bad scene.
 `--profile desktop|mobile` sets what the device grants (display, limits, features,
 `bench/dawn/profiles.ts`), never the GPU's speed.
 
 One bench at a time on the machine: `~/.trillion3d/gpu-bench.lock` refuses a second, the proofs
-included. The report, Markdown and JSON, lands in `.mesure/out/bench-gpu/`: per segment the GPU
-frame median and spread, the CPU, hitches, whether the plays drew the same images, the GPU by pass
-and kind, the CPU by step and the engine's counters. The proofs, their discovery rule and what is
+included. The report, Markdown and JSON, one file of each per run, lands in `.mesure/out/bench-gpu/`.
+It opens on **the five biggest gains**: the ms, the pass, its `file:line` and function, the cause the
+numbers prove (`wait`, `bandwidth`, `launch`, `occupancy`, `wasted work`, else `unproven`). Then,
+per segment:
+
+- the frame's GPU time on every frame: median, p95, min, max, the middle half and the deviation;
+- each pass's **work apart from its wait**: its begin and end timestamps, the idle before it, its
+  span; and **a doubt named** when a timer is lost (work encoded, no timestamp), a pass reads zero
+  with work, the passes do not add up to the frame, or the engine's own timer disagrees. A pass that
+  encoded nothing is a true zero (`empty`), never a lost timer: the driver writes no timestamp for it;
+- the ranking: each pass by its work, with what it encoded (workgroups, threads, vertices, bound and
+  stored MiB, read from the calls the engine makes), its **floor** (its stores at the attachment
+  rate, its threads at the launch rate, its fixed cost; and the ceiling were every bound byte
+  moved), its gain (at most, and at least) and its source;
+- the machine's limits, measured once per adapter and kept in `~/.trillion3d/machine/` beside the bench lock, shared
+  by every checkout (`--recalibrate` measures again, in the first play only; a machine measured
+  while the GPU is busy with others serves its run and is not kept): read, write, texture and attachment GB/s, threads a ms, the cost of a pass, a
+  dispatch and a barrier;
+- the CPU by step and function, the engine's counters, the hitches and the images. The bench's
+  own probes (the encoding read, the timers) cost the main thread about a millisecond a frame on
+  the bench scene (25.4 ms against 23.8–25.1 before them): read the main-thread figure as an
+  upper bound, the GPU's as exact.
+
+`--dissect <pass>` takes a pass's shader apart by itself: a shader holds `// @cut <name> keep:
+<statement>` lines (`bench/dawn/shaderCuts.ts`); the bench makes one variant per cut, in memory,
+stopped there, plays each on the frame, and tells the cost of each step between two plays of the
+shader whole (their drift is the noise floor). `--ab` plays two checkouts' engines on the bench's
+own page, alternating A B / B A for the rounds, and gives the mean difference with its 95 %
+interval and a verdict — gain, loss, or noise. The proofs, their discovery rule and what is
 excluded: [docs/TESTS.md](../../docs/TESTS.md#gpu-proofs-on-dawn).
 
 ## The Chrome harness

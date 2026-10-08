@@ -21,7 +21,8 @@ const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity:
 })
 
 test('one store a layer the tile holds a light of, under bounds the view gives: the votes stay in uniform flow', () => {
-  const entry = functionText(CODE, 'vsmProjection'),
+  // The bench's `// @cut` lines (`bench/dawn/shaderCuts.ts`) are comments for it, not code.
+  const entry = functionText(CODE, 'vsmProjection').replace(/^\s*\/\/ @cut.*$/gm, ''),
     tile = functionText(CODE, 'vsmProjectTile')
   // The mask's one store, a layer at a time; the tile word's one, by the group's first lane.
   assert.equal(tile.match(/textureStore\(/g)?.length, 1)

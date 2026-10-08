@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Seret untuk melihat sekeliling. Nyalakan atau matikan bagian dunia, atau pindah tempat.",
+    "controls": {
+      "place": "Tempat",
+      "blocks": "Balok",
+      "pebbles": "Kerikil",
+      "panes": "Kaca",
+      "water": "Air",
+      "lamps": "Lampu",
+      "sunShadows": "Bayangan matahari",
+      "view": "Tampilan"
+    },
+    "choices": {
+      "place": {
+        "overview": "pandangan umum",
+        "among": "di antara balok",
+        "pebbles": "dekat kerikil"
+      },
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Pasang atau lepas penampil. Setiap pemasangan memiliki satu dunia dan setiap pelepasan membuangnya.",
     "controls": {

@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "드래그해서 둘러보세요. 월드의 각 부분을 켜고 끄거나 장소를 바꿔 보세요.",
+    "controls": {
+      "place": "장소",
+      "blocks": "블록",
+      "pebbles": "조약돌",
+      "panes": "유리판",
+      "water": "물",
+      "lamps": "램프",
+      "sunShadows": "태양 그림자",
+      "view": "보기"
+    },
+    "choices": {
+      "place": {
+        "overview": "전경",
+        "among": "블록 사이",
+        "pebbles": "조약돌 옆"
+      },
+      "view": {
+        "beauty": "완성 화면",
+        "clusters": "클러스터"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "뷰어를 장착하거나 분리하세요. 장착할 때마다 월드 하나를 소유하고 분리하면 폐기합니다.",
     "controls": {

@@ -9,15 +9,14 @@
  * reader can reject an entry whose written numbers disagree with them.
  */
 import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts'
-import { ceilDiv, floorLog2 } from '../../../math/src/scalar/integers.ts'
+import { ceilDiv, floorLog2, mipSize } from '../../../math/src/scalar/integers.ts'
 
 /** Largest side a level carried by the sidecar may have. */
 export const PREVIEW_BASE = 64
 
 /** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {
-  const shift = Math.min(level, 31)
-  return [Math.max(1, width >>> shift), Math.max(1, height >>> shift)]
+  return [mipSize(width, level), mipSize(height, level)]
 }
 
 /** Finest level carried: the first of which neither side exceeds `PREVIEW_BASE`. */

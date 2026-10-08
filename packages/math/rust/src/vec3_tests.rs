@@ -28,3 +28,12 @@ fn the_single_precision_forms_round_in_f32() {
         .count();
     assert!(apart > 0);
 }
+
+#[test]
+fn a_checked_point_is_none_past_the_end() {
+    let xyz = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    assert_eq!(point(&xyz, 1), [4.0, 5.0, 6.0]);
+    assert_eq!(point_checked(&xyz, 1), Some([4.0, 5.0, 6.0]));
+    assert_eq!(point_checked(&xyz, 2), None);
+    assert_eq!(point_checked(&xyz[..5], 1), None);
+}

@@ -196,8 +196,8 @@
         const step = Math.min(delta, 0.05);
         time += step;
         const [, fallTo, gustTo] = WEATHER[ui.weather], settle = 1 - Math.exp(-step * 1.5);
-        pace += (fallTo - pace) * settle;
-        gusts += (gustTo - gusts) * settle;
+        pace = math.lerp(pace, fallTo, settle);
+        gusts = math.lerp(gusts, gustTo, settle);
         const push = ui.wind * gusts * (1 + 0.35 * Math.sin(time * 0.7));
         for (let k = 0; k < falling; k++) {
           const f = flakes[k];

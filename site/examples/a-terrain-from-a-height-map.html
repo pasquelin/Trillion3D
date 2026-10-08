@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, buffer } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, mix } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
 
@@ -60,7 +60,7 @@
       // itself, straight across each triangle, never on the triangles' staircase.
       const EDGES = [-Infinity, 0.45, 1.45, 2.7, Infinity];
       const cross = (p, q, level) => {
-        const t = (level - p[1]) / (q[1] - p[1]), point = p.map((value, axis) => value + (q[axis] - value) * t);
+        const t = (level - p[1]) / (q[1] - p[1]), point = mix({ math }, p, q, t);
         const length = Math.hypot(point[3], point[4], point[5]);
         return [point[0], level, point[2], point[3] / length, point[4] / length, point[5] / length];
       };

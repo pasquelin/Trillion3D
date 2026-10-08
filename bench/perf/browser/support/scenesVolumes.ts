@@ -6,6 +6,7 @@
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../core/index.ts'
 import { dansDe } from './scenesCore.ts'
+import { boxCenter } from '../../../../packages/math/src/geometry/box.ts'
 import { HALF_PI } from '../../../../packages/math/src/constants.ts'
 
 const alea = xorshiftRandom(52021)
@@ -123,17 +124,15 @@ export interface ConeCase {
 
 /** Cone rejections: conformal placement, cone, box, eye — sometimes in the sphere, sometimes hostile. */
 export const casCones: ConeCase[] = []
+const mid = new Float64Array(3)
 for (let i = 0; i < 1500; i++) {
   const u = i % 13 === 0 ? count() : alea() * 3 + 0.01
   const world = new THREE.Matrix4().fromArray(placement(u, u, i % 3 === 0 ? -u : u))
   const axe = [dans(1), dans(1), dans(1)]
   if (i % 17 === 0) axe[i % 3] = count()
   const box = boxes[i % boxes.length]
-  const centre = new THREE.Vector3(
-    (box[0] + box[3]) * 0.5,
-    (box[1] + box[4]) * 0.5,
-    (box[2] + box[5]) * 0.5,
-  ).applyMatrix4(world)
+  boxCenter(mid, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+  const centre = new THREE.Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world)
   const eye =
     i % 11 === 0
       ? [centre.x, centre.y, centre.z]

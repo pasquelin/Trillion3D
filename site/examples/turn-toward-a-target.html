@@ -160,7 +160,7 @@
         // The drone loops a figure of eight over the field, or chases the pointer.
         if (!ui.followPointer) aim.splice(0, 3, Math.sin(time * 0.23) * 24, 11 + Math.sin(time * 0.61) * 3, Math.sin(time * 0.46 + 1) * 15);
         const at = drone.position, follow = 1 - Math.exp(-step * 2.5);
-        at.set(at.x + (aim[0] - at.x) * follow, at.y + (aim[1] - at.y) * follow, at.z + (aim[2] - at.z) * follow);
+        at.set(math.lerp(at.x, aim[0], follow), math.lerp(at.y, aim[1], follow), math.lerp(at.z, aim[2], follow));
         drone.rotation.set(0, time * 2.2, 0);
 
         // Each dish turns toward the drone once it has woken, the nearest to the centre first.

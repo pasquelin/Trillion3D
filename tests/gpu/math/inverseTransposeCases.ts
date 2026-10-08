@@ -1,6 +1,7 @@
 // Defect 6's cases (`inverseTranspose3`, DAG selection kernel): geometry, camera, raw orientation
 // and CPU decision, shared by its proof, defect 10's (`pages/culled-face-reflection.gpu.ts`) and
 // the engine's own draw (`engineDraws.ts`).
+import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import {
@@ -78,9 +79,9 @@ export function buildCase({
   const { positions, indices, min, max } = localGeometry(worldSize / s)
   const world = worldPose({ s, kind, axis, angleDeg })
   if (mirrored) for (const k of [8, 9, 10]) world.elements[k] = -world.elements[k]
-  const centre = new G.Vector3((min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2)
-    .applyMatrix4(world)
-    .negate()
+  const mid = new Float64Array(3)
+  boxCenter(mid, 0, min[0], min[1], min[2], max[0], max[1], max[2])
+  const centre = new G.Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world).negate()
   world.setPosition(centre.x, centre.y, centre.z)
   const cone = triangleCone(positions, indices)
   return {

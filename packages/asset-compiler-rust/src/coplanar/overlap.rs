@@ -1,7 +1,7 @@
 use super::*;
 use trillion3d_math::aabb::{corners, extend_aabb};
 use trillion3d_math::vec2::{barycentric, double_area};
-use trillion3d_math::vec3::dot;
+use trillion3d_math::vec3::{dot, point_checked};
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
 /// surface and reused by every pair it is tested against.
@@ -96,14 +96,10 @@ pub fn footprint(
         (inputs.cancelled)()?;
         let mut corners = [[0.0f64; 3]; 3];
         for (slot, id) in triangle.iter().enumerate() {
-            let base = *id as usize * 3;
-            if base + 2 >= xyz.len() {
+            let Some(corner) = point_checked(&xyz, *id) else {
                 return Ok(None);
-            }
-            corners[slot] = trillion3d_math::matrix::transform_point(
-                world,
-                [xyz[base] as f64, xyz[base + 1] as f64, xyz[base + 2] as f64],
-            );
+            };
+            corners[slot] = trillion3d_math::matrix::transform_point(world, corner);
         }
         if !in_plane(&corners, surface, inputs.offset_quantum) {
             continue;

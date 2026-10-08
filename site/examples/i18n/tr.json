@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Etrafa bakmak için sürükle. Dünyanın bölümlerini aç ya da kapat, ya da yer değiştir.",
+    "controls": {
+      "place": "Yer",
+      "blocks": "Bloklar",
+      "pebbles": "Çakıllar",
+      "panes": "Camlar",
+      "water": "Su",
+      "lamps": "Lambalar",
+      "sunShadows": "Güneş gölgeleri",
+      "view": "Görünüm"
+    },
+    "choices": {
+      "place": {
+        "overview": "genel bakış",
+        "among": "blokların arasında",
+        "pebbles": "çakılların yanında"
+      },
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Görüntüleyiciyi bağlayın veya ayırın. Her bağlantı bir dünyaya sahip olur ve her ayırma onu yok eder.",
     "controls": {

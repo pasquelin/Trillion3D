@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Ziehen, um sich umzusehen. Teile der Welt ein- und ausschalten oder den Standort wechseln.",
+    "controls": {
+      "place": "Ort",
+      "blocks": "Blöcke",
+      "pebbles": "Kiesel",
+      "panes": "Glasscheiben",
+      "water": "Wasser",
+      "lamps": "Lampen",
+      "sunShadows": "Sonnenschatten",
+      "view": "Ansicht"
+    },
+    "choices": {
+      "place": {
+        "overview": "Überblick",
+        "among": "zwischen den Blöcken",
+        "pebbles": "bei den Kieseln"
+      },
+      "view": {
+        "beauty": "Bild",
+        "clusters": "Cluster"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Hänge den Viewer ein oder aus. Jede Einbindung besitzt genau eine Welt und jede Entfernung gibt sie frei.",
     "controls": {

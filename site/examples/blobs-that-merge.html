@@ -110,9 +110,9 @@
               for (const [a, b] of EDGES) {
                 if (v[a] > 0 === v[b] > 0) continue;
                 const t = v[a] / (v[a] - v[b]);
-                x += CORNERS[a][0] + (CORNERS[b][0] - CORNERS[a][0]) * t;
-                y += CORNERS[a][1] + (CORNERS[b][1] - CORNERS[a][1]) * t;
-                z += CORNERS[a][2] + (CORNERS[b][2] - CORNERS[a][2]) * t;
+                x += math.lerp(CORNERS[a][0], CORNERS[b][0], t);
+                y += math.lerp(CORNERS[a][1], CORNERS[b][1], t);
+                z += math.lerp(CORNERS[a][2], CORNERS[b][2], t);
                 crossings++;
               }
               const px = X0 + (i + x / crossings) * H, py = Y0 + (j + y / crossings) * H, pz = Z0 + (k + z / crossings) * H;
