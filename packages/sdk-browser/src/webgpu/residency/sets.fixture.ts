@@ -17,7 +17,7 @@ export const setsOver = (
   packed: readonly PageRec[],
 ) =>
   createWebgpuResidencySets({
-    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
+    ...{ tracking, bootstrapKey },
     packedPages: packed,
   })
 

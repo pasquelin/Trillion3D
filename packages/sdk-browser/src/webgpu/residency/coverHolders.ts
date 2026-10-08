@@ -1,26 +1,27 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import type { createKeyUnion } from '../cut/keyUnion.ts'
-import { pageAddress } from '../row/pageSlots.ts'
 
 type Union = ReturnType<typeof createKeyUnion>
 
 /**
  * THE ROOT COVER, COUNTED BY ITS HOLDERS. `holders` says per key how many hold it: the session its
  * roots from open, and each held cell the roots it alone needs. A page joins the cover with its
- * first holder — kept, out of what the cut asks the budget for (`requested.cover`), its address in
- * `urls` — and leaves it with its last. The session's pages are loaded at open
+ * first holder — kept, out of what the cut asks the budget for (`requested.cover`), counted in
+ * `covered` — and leaves it with its last. The session's pages are loaded at open
  * (`../frame/bootstrap.ts`); a page a later holder brings is `missing` until the pool holds it,
  * and the queue loads it before any other (`residentEnsurer.ts`).
  */
 export function createCoverHolders(options: {
   holders: Uint8Array
-  urls: Set<string>
   keyOf: (page: PageRec) => number
   requested: Union
   keep: Union
 }) {
-  const { holders, urls, keyOf, requested, keep } = options
+  const { holders, keyOf, requested, keep } = options
+  /** Keys with a holder: the pool slots the cover takes, a key an address. */
+  let covered = 0
+  for (let key = 0; key < holders.length; key++) if (holders[key]) covered++
   const missingPages: PageRec[] = []
   const lacking = createDenseKeySet(missingPages)
   /** `page` gains a holder: with its first, it joins the cover — kept, out of what the budget
@@ -28,7 +29,7 @@ export function createCoverHolders(options: {
   const join = (page: PageRec) => {
     const key = keyOf(page)
     if (holders[key]++ > 0) return false
-    urls.add(pageAddress(page))
+    covered++
     keep.retain(key, page)
     requested.cover(key, true, page)
     lacking.add(key, page)
@@ -38,7 +39,7 @@ export function createCoverHolders(options: {
   const leave = (page: PageRec) => {
     const key = keyOf(page)
     if (!holders[key] || --holders[key] > 0) return false
-    urls.delete(pageAddress(page))
+    covered--
     requested.cover(key, false, page)
     keep.release(key)
     lacking.remove(key)
@@ -62,6 +63,10 @@ export function createCoverHolders(options: {
         if (holds(missingPages[i])) lacking.remove(lacking.list[i])
         else out.push(missingPages[i])
       return out
+    },
+    /** The pool slots the cover takes now. */
+    get covered() {
+      return covered
     },
     get byteLength() {
       return lacking.byteLength

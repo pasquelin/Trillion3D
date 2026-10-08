@@ -23,7 +23,8 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
 export function createWebgpuPinUpdater(options: {
   tracking: Tracking
   sets: WebgpuResidencySets
-  bootstrapUrls: Set<string>
+  /** Holders per key of the root cover: a page it holds is pinned in the held tier. */
+  bootstrapKey: Uint8Array
   deferredDrops: Set<string>
   /** Clusters each request carries: a deferred drop names the request, not the cluster. */
   byUrl: Map<string, PageRec[]>
@@ -32,7 +33,7 @@ export function createWebgpuPinUpdater(options: {
   traceEnabled: boolean
   traceDiagnostic: Trace
 }) {
-  const { tracking, sets, bootstrapUrls, deferredDrops, byUrl } = options
+  const { tracking, sets, bootstrapKey, deferredDrops, byUrl } = options
   const { traceEnabled, traceDiagnostic } = options
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet()
@@ -105,7 +106,7 @@ export function createWebgpuPinUpdater(options: {
           continue
         }
         // A root-cover page evicted by a resize comes back in the held tier it had.
-        cache.pin(url, bootstrapUrls.has(url) ? 'held' : 'pinned')
+        cache.pin(url, bootstrapKey[key] > 0 ? 'held' : 'pinned')
         tracking.markPinned(key)
         if (traceEnabled) added.push(url)
       }
@@ -132,9 +133,17 @@ export function createWebgpuPinUpdater(options: {
       added: tracking.traceSet('pins.added', added),
       removed: tracking.traceSet('pins.removed', removed),
       pinned: tracking.traceKeys('pins', tracking.pinned),
-      bootstrap: tracking.traceSet('pins.bootstrap', [...bootstrapUrls]),
+      bootstrap: tracking.traceSet('pins.bootstrap', coverUrls(tracking, bootstrapKey)),
       wanted: tracking.traceKeys('pins.wanted', tracking.wanted),
       shown: tracking.traceRecs('pins.shown', shown),
     }))
   }
+}
+
+/** The addresses of the root cover's pages, read off its holders: what a trace names. */
+function coverUrls(tracking: Tracking, holders: Uint8Array) {
+  const urls: string[] = []
+  for (let key = 0; key < holders.length; key++)
+    if (holders[key]) urls.push(tracking.pageCatalog[key])
+  return urls
 }

@@ -40,7 +40,7 @@ function runtime(instances = [7]) {
         wanted: new Set(),
         unmarkPinned: () => {},
       },
-      bootstrapUrls: new Set<string>(),
+      bootstrapKey: new Uint8Array(64),
     },
   } as unknown as WebgpuPagesCore
   return { rt, rec, touched, resources: () => resources }

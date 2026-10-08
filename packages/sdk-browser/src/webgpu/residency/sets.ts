@@ -29,10 +29,8 @@ export function createWebgpuResidencySets(options: {
   /** Holders per key of the root cover, the session's set at open; `holdCover` moves the rest. */
   bootstrapKey: Uint8Array
   packedPages: PageList
-  /** The cover's pool addresses, following its holders. */
-  bootstrapUrls: Set<string>
 }) {
-  const { tracking, bootstrapKey, packedPages, bootstrapUrls } = options
+  const { tracking, bootstrapKey, packedPages } = options
   const { keyCount, keyOf, wanted, wantedPages } = tracking
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
@@ -71,8 +69,7 @@ export function createWebgpuResidencySets(options: {
   })
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key)
   const cover = createCoverHolders({
-    ...{ holders: bootstrapKey, urls: bootstrapUrls },
-    ...{ keyOf, requested, keep },
+    ...{ holders: bootstrapKey, keyOf, requested, keep },
   })
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
@@ -175,6 +172,10 @@ export function createWebgpuResidencySets(options: {
     /** `pages` gain a holder, `held`, or lose one (`coverHolders.ts`). */
     holdCover(pages: readonly PageRec[], held: boolean) {
       if (cover.hold(pages, held)) acceptedRevision++
+    },
+    /** The pool slots the root cover takes now (`coverHolders.ts`). */
+    get coverSlots() {
+      return cover.covered
     },
     coverMissing: cover.missing,
     /** Applies one difference of the drawable cut, which is what the image must not lose. */

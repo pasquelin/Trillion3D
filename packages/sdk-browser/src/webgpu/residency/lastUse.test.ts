@@ -35,7 +35,7 @@ function residency(slots: number, spare: string[]) {
   const pins = createWebgpuPinUpdater({
     tracking,
     sets,
-    bootstrapUrls: new Set(),
+    bootstrapKey: new Uint8Array(0),
     deferredDrops: new Set(),
     byUrl: new Map(),
     parentsOf,

@@ -80,7 +80,6 @@ export function createBootstrapFor(rt: WebgpuPagesCore, hasBytes: (rec: PageRec)
   const { run, gpu, diag, context } = rt
   return createWebgpuBootstrap({
     pages: rt.setup.bootstrap,
-    urls: rt.setup.bootstrapUrls,
     // The pool the device granted, read when said: prepare grants it after the services exist.
     getSlots: () => rt.setup.slots,
     tracking: rt.setup.tracking,
@@ -121,7 +120,7 @@ export function createResidencyFor(
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
-    bootstrapUrls: rt.setup.bootstrapUrls,
+    bootstrapKey: rt.setup.bootstrapKey,
     deferredDrops: run.deferredDrops,
     byUrl: rt.setup.byUrl,
     parentsOf,

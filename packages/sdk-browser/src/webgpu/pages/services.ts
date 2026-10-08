@@ -17,7 +17,7 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { gpu } = rt,
     { packedPages, placement } = rt.layout,
-    { tracking, bootstrapUrls, bootstrapKey, sourceBytes } = rt.setup
+    { tracking, bootstrapKey, sourceBytes } = rt.setup
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, placement, packedPages)
   const rowSync = createRowSyncFor(rt)
@@ -32,10 +32,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     tracking,
     bootstrapKey,
     packedPages,
-    bootstrapUrls,
   })
   const bootstrapState = createBootstrapFor(rt, hasBytes)
-  const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size)
+  const room = () => Math.max(0, rt.setup.slots - residencySets.coverSlots)
   // The lower tier: the pages ahead of the camera.
   const aheadTier = createLowerTier({ keyOf: tracking.keyOf, room, closeOver: closure.closeOver }),
     lowerTiers = [aheadTier]

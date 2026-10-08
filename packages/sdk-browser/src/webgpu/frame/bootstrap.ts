@@ -9,7 +9,6 @@ type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>
 type Tracking = ReturnType<typeof createWebgpuPageTracking>
 type BootstrapOptions = {
   pages: PageRec[]
-  urls: Set<string>
   getSlots: () => number
   tracking: Tracking
   signal?: AbortSignal
@@ -55,7 +54,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
 
 /** The cover read, uploaded and pinned, `onReady` told before the diagnostics say so. */
 async function loadCover(options: BootstrapOptions, onReady: () => void) {
-  const { pages, urls, getSlots, tracking, getFrame, engineDiagnostic, traceDiagnostic } = options
+  const { pages, getSlots, tracking, getFrame, engineDiagnostic, traceDiagnostic } = options
   const started = performance.now()
   engineDiagnostic('coverage-bootstrap-start', 'Loading the full emergency cover', {
     version: 1,
@@ -80,7 +79,7 @@ async function loadCover(options: BootstrapOptions, onReady: () => void) {
   traceDiagnostic('coverage-bootstrap-ready', 'Full cover available on the GPU', () => ({
     frame: getFrame(),
     pages: pages.length,
-    bootstrap: tracking.traceSet('bootstrap', [...urls]),
+    bootstrap: tracking.traceSet('bootstrap', pages.map(pageAddress)),
     slots: getSlots(),
     durationMs: performance.now() - started,
     loaded: tracking.traceRecs('bootstrap.loaded', pages),

@@ -58,16 +58,10 @@ test('a page the cut asks for leaves the queue while covered, and comes back onc
 test('the queue loads the pages a holder brought before its own, in the held tier', async () => {
   const pages = ['queued', 'held'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
-  const bootstrapKey = new Uint8Array(tracking.keyCount),
-    urls = new Set<string>()
-  const sets = createWebgpuResidencySets({
-    tracking,
-    bootstrapKey,
-    packedPages: pages,
-    bootstrapUrls: urls,
-  })
+  const bootstrapKey = new Uint8Array(tracking.keyCount)
+  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: pages })
   sets.holdCover([pages[1]], true)
-  assert.deepEqual([...urls], ['held'])
+  assert.equal(sets.coverSlots, 1, 'one slot taken by the cover')
   tracking.wanted.add(tracking.keyOf(pages[0]), pages[0])
   const cache = lruCache(1)
   const ensure = createWebgpuResidentEnsurer({

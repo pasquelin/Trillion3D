@@ -69,10 +69,10 @@ type SetupPages = ReturnType<typeof collectClusterPages>
 
 /** The setup's fields of the catalogue's tracking and root cover. */
 export function bootstrapFields(pages: ReturnType<typeof setupPages>) {
-  const { tracking, bootstrap, bootstrapUrls, bootstrapKey, floorPages } = pages
+  const { tracking, bootstrap, coverPages, bootstrapKey, floorPages } = pages
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(pages.allPages)
-  return { tracking, bootstrap, bootstrapUrls, bootstrapKey, floorPages, byUrl }
+  return { tracking, bootstrap, coverPages, bootstrapKey, floorPages, byUrl }
 }

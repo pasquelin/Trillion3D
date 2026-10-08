@@ -24,7 +24,6 @@ function tree(leaves: number, room: number) {
   const sets = createWebgpuResidencySets({
     tracking,
     bootstrapKey: new Uint8Array(tracking.keyCount),
-    bootstrapUrls: new Set(),
     packedPages: packed,
   })
   const cut = createCutDelta(packed, []),
@@ -44,7 +43,7 @@ function tree(leaves: number, room: number) {
   const pins = createWebgpuPinUpdater({
     tracking,
     sets,
-    bootstrapUrls: new Set(),
+    bootstrapKey: new Uint8Array(0),
     deferredDrops: new Set(),
     byUrl: new Map(),
     parentsOf,

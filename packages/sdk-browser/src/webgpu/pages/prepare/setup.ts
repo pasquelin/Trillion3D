@@ -90,7 +90,7 @@ function setupSlots(
   diag: WebgpuDiagnostics,
   pages: ReturnType<typeof setupPages>,
 ) {
-  const { allPages, roots, floorPages, bootstrapUrls } = pages
+  const { allPages, roots, floorPages, coverPages } = pages
   const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size)
   const {
     geometryUrls,
@@ -112,7 +112,7 @@ function setupSlots(
     homeBytes: homes?.bytes ?? null,
     drawCorners: maxCorners,
   })
-  diag.engineDiagnostic(...floorDiagnostic(bootstrapUrls.size, floorPages))
+  diag.engineDiagnostic(...floorDiagnostic(coverPages, floorPages))
   const sourceBytes = indexSourceBytes(allPages)
   // The engine's two fixed pools, in bytes: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
