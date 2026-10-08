@@ -55,6 +55,8 @@ async function playVariant(
 
 /** The variant numbers of a play: the dissect segment's frame and the pass's own medians. */
 function numbersOf(play: BenchPlay, pass: string, cut: string | null): Variant {
+  if (!Number.isFinite(play.segments[0].numbers.gpuMs?.median))
+    throw new Error(`BENCH_DISSECT: the play of ${cut ?? 'the whole shader'} timed no frame`)
   const [segment] = play.segments
   const mine = segment.benchPasses.filter((p) => p.name === passKey(pass) || p.label.includes(pass))
   return {

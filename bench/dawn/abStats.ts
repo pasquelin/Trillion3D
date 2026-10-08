@@ -29,22 +29,26 @@ export type Comparison = {
 export function compare(a: readonly number[], b: readonly number[], least = 0.05): Comparison {
   if (a.length !== b.length || a.length < 2)
     throw new Error('BENCH_AB: a verdict needs two paired rounds')
-  // A round either side of which gave no time says nothing: it is left out, and the rest must stand.
-  const diffs = b.map((v, i) => v - a[i]).filter(Number.isFinite)
-  if (diffs.length < 2)
+  // A round either side of which gave no time says nothing: it is left out of everything, and the
+  // rest must stand.
+  const pairs = a.flatMap((v, i) =>
+    Number.isFinite(v) && Number.isFinite(b[i]) ? [[v, b[i]]] : [],
+  )
+  if (pairs.length < 2)
     throw new Error('BENCH_AB: a verdict needs two rounds that gave a time on both sides')
-  const d = spread(diffs)!
+  const [kept, other] = [pairs.map((p) => p[0]), pairs.map((p) => p[1])]
+  const diffs = pairs.map(([x, y]) => y - x)
+  const { mean } = spread(diffs)!
   const n = diffs.length
-  const { mean } = d
   const sd = Math.sqrt(diffs.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1))
-  const half = (T95[n - 2] ?? 1.96) * (sd / Math.sqrt(n))
+  const half = (T95[n - 2] ?? 1.96 + 2.4 / (n - 1)) * (sd / Math.sqrt(n))
   const [low, high] = [mean - half, mean + half]
-  const aMs = spread(a)!.median
+  const aMs = spread(kept)!.median
   const verdict: Verdict = high < -least ? 'gain' : low > least ? 'loss' : 'noise'
   return {
     rounds: n,
     aMs,
-    bMs: spread(b)!.median,
+    bMs: spread(other)!.median,
     meanMs: mean,
     lowMs: low,
     highMs: high,

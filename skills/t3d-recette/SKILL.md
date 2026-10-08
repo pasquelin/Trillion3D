@@ -21,8 +21,8 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
 2. **Time** first, nothing else of the batch running, each `to measure` issue (labelled `measuring`
    meanwhile) on the **GPU bench**: the engine draws a site page in Node on this machine's GPU
    through Dawn (Chrome's WebGPU), no browser, playing a scenario identical frame for frame.
-   - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>
---engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
+   - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>` with
+     `--engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
      checkout. The other options are in `bench/dawn/run.ts`: `--profile desktop` (the default, the
      boss's screen) or `mobile` (a phone, the WebGPU baseline limits), `--scale page` for the page's
      own render scale, `--switch <flag>=1`, `--cpu-profile`.

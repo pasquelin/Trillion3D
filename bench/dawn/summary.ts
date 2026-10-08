@@ -151,7 +151,10 @@ export function roundNumbers(frames: readonly FrameRecord[]) {
     idleMs: spread(complete.map((frame) => frame.gpu!.gapMs)),
     /** The most each watched counter reached over the segment's images. */
     counterMax: Object.fromEntries(
-      WATCHED.map((key) => [key, Math.max(...drawn.map((frame) => frame.counters[key] ?? 0), 0)]),
+      WATCHED.flatMap((key) => {
+        const seen = drawn.flatMap((frame) => (key in frame.counters ? [frame.counters[key]] : []))
+        return seen.length ? [[key, Math.max(...seen)]] : []
+      }),
     ) as Record<string, number>,
     cpuMs: spread(drawn.map((frame) => frame.cpuMs)),
     wallMs: spread(drawn.map((frame) => frame.wallMs)),

@@ -120,3 +120,31 @@ test('a render pass pays no dispatch cost in its floor', () => {
   } as BenchPass
   assert.equal(rankBottlenecks([render], machine, {}, new Map())[0].floorMs, machine.passMs)
 })
+
+test('indirect work beside a few direct groups is no proof of occupancy', () => {
+  const [row] = rankBottlenecks(
+    [pass('culls', 2, { work: { groups: 4, invocations: 1024, indirect: 3, unsized: 3 } })],
+    machine,
+    {},
+    new Map(),
+  )
+  assert.notEqual(row.cause, 'occupancy')
+})
+
+test('a counter never seen says nothing: a pass is wasted only when its counter was zero', () => {
+  const transparents = {
+    ...pass('transparents', 0.4),
+    stage: 'transparents',
+    kind: 'render',
+  } as BenchPass
+  assert.notEqual(rankBottlenecks([transparents], machine, {}, new Map())[0].cause, 'wasted work')
+  assert.equal(
+    rankBottlenecks([transparents], machine, { transparentMeshes: 0 }, new Map())[0].cause,
+    'wasted work',
+  )
+  const water = { ...pass('water surface', 0.4), stage: 'transparents' } as BenchPass
+  assert.notEqual(
+    rankBottlenecks([water], machine, { transparentMeshes: 0 }, new Map())[0].cause,
+    'wasted work',
+  )
+})

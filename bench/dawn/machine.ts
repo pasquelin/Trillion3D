@@ -37,6 +37,8 @@ export type Machine = {
   dispatchMs: number
   /** What a dispatch costs more when it reads what the one before wrote: the barrier. */
   barrierMs: number
+  /** Measured while other programs kept the GPU busy: used for this run only, never kept. */
+  disturbed?: boolean
 }
 
 /** The cache file of an adapter, off git (`.mesure/` is). */
@@ -87,12 +89,15 @@ export async function measureMachine(gpu: BenchGpu, device: GPUDevice, adapter: 
 }
 
 /** The machine's limits: the file kept for this adapter, or measured now and kept — once a machine,
- *  `recalibrate` measuring again. */
+ *  `recalibrate` measuring again. Measured while the GPU is busy with others (`keep` false), the
+ *  limits are too low to be kept: they serve this run, marked `disturbed`, and the next measures
+ *  again. */
 export async function machineFor(
   gpu: BenchGpu,
   device: GPUDevice,
   adapter: string,
   recalibrate = false,
+  keep = true,
 ) {
   const file = fileOf(adapter)
   if (!recalibrate && existsSync(file)) {
@@ -100,6 +105,7 @@ export async function machineFor(
     if (kept.version === MACHINE_VERSION) return kept
   }
   const machine = await measureMachine(gpu, device, adapter)
+  if (!keep) return { ...machine, disturbed: true }
   mkdirSync(join(file, '..'), { recursive: true })
   writeFileSync(file, JSON.stringify(machine, null, 1))
   return machine

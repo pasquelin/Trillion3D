@@ -43,3 +43,10 @@ test('a round with no time on a side is left out, and too few rounds left is no 
   assert.ok(Number.isFinite(c.lowMs) && Number.isFinite(c.highMs))
   assert.throws(() => compare([12, 12, 12], [11, Number.NaN, Number.NaN]), /BENCH_AB/)
 })
+
+test('the medians a verdict prints are those of the rounds it kept', () => {
+  const c = compare([10, 10, 10, Number.NaN], [9, 9, 9, 1])
+  assert.equal(c.aMs, 10)
+  assert.equal(c.bMs, 9, 'the round where A gave no time is out of B’s median too')
+  assert.equal(c.rounds, 3)
+})

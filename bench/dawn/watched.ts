@@ -1,8 +1,8 @@
 // The engine counters that say a pass has nothing to do, read on every frame of a segment so a pass
-// is called wasted only when its counter is zero on all of them: a pass of this stage, a counter
-// that never rose above zero.
+// is called wasted only when its counter was seen and was zero on all of them.
 
-/** By stage: the counter's key and what a zero of it says. */
+/** By pass name: the counter's key and what a zero of it says. The counter must cover the pass: the
+ *  blend pass draws the blended meshes `transparentMeshes` counts, no more. */
 export const IDLE_COUNTERS: Record<string, [key: string, what: string]> = {
   transparents: ['transparentMeshes', 'no transparent mesh'],
 }

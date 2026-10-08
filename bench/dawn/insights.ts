@@ -35,12 +35,15 @@ export function buildInsights(
   // row (its cause, its evidence) is the segment's where the pass gives most.
   const total = new Map<
     string,
-    { best: Bottleneck; gain: number; certain: number; work: number; wait: number }
+    { best: Bottleneck; at: string; gain: number; certain: number; work: number; wait: number }
   >()
-  for (const { ranking } of segments)
+  for (const { name, ranking } of segments)
     for (const b of ranking) {
-      const held = total.get(b.name) ?? { best: b, gain: 0, certain: 0, work: 0, wait: 0 }
-      if (gainOf(b) > gainOf(held.best)) held.best = b
+      const held = total.get(b.name) ?? { best: b, at: name, gain: 0, certain: 0, work: 0, wait: 0 }
+      if (gainOf(b) > gainOf(held.best)) {
+        held.best = b
+        held.at = name
+      }
       held.gain += gainOf(b)
       held.certain += b.unexplainedMs
       held.work += b.workMs
@@ -48,8 +51,10 @@ export function buildInsights(
       total.set(b.name, held)
     }
   const n = segments.length
-  const averaged = [...total.values()].map(({ best, gain, certain, work, wait }) => ({
+  const averaged = [...total.values()].map(({ best, at, gain, certain, work, wait }) => ({
     ...best,
+    // Its cause and evidence are the segment's where the pass gives most; its figures the mean.
+    evidence: `[${at}] ${best.evidence}`,
     gainMs: gain / n,
     unexplainedMs: certain / n,
     workMs: work / n,
@@ -68,8 +73,8 @@ export function insightsText(insights: Insights, machine: BenchReport['machine']
   return [
     '## The five biggest gains',
     '',
-    `Machine: reads ${ms(machine.readGBs, 0)} GB/s, writes ${ms(machine.writeGBs, 0)}, stores an attachment ${ms(machine.attachmentGBs, 0)}; a pass costs ${ms(machine.passMs * 1000, 1)} µs, a barrier ${ms(machine.barrierMs * 1000, 1)} µs, ${ms(machine.threadsPerMs / 1e6, 0)} M threads launch a ms.`,
-    'Gain: ms the pass could save, at most (its work less its floor; a wait counts its idle) — and at least `unexplained`, if every byte it binds were moved.',
+    `${machine.disturbed ? 'Machine measured while the GPU was busy with other programs (used for this run, not kept): ' : ''}Machine: reads ${ms(machine.readGBs, 0)} GB/s, writes ${ms(machine.writeGBs, 0)}, stores an attachment ${ms(machine.attachmentGBs, 0)}; a pass costs ${ms(machine.passMs * 1000, 1)} µs, a barrier ${ms(machine.barrierMs * 1000, 1)} µs, ${ms(machine.threadsPerMs / 1e6, 0)} M threads launch a ms.`,
+    'Gain: the most the pass could give back, a mean over the segments (its work less its floor; a wait counts its idle). Unexplained: the part of its time that neither moving every byte it binds nor launching its threads can explain — compute or latency, for the shader to account for. Cause and evidence: the segment, in brackets, where the pass gives most.',
     '',
     table(
       ['#', 'gain ms at most (unexplained by bytes)', 'pass', 'where', 'cause', 'evidence'],

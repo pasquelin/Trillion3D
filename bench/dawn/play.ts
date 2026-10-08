@@ -63,7 +63,13 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const calibration = await createCalibration(gpu, device)
   await warmUp(rig, clock, options.timeoutS * 500, 8)
   await runFrames(rig, clock, options.warm)
-  const machine = await machineFor(gpu, device, gpu.held.adapter, options.recalibrate)
+  const machine = await machineFor(
+    gpu,
+    device,
+    gpu.held.adapter,
+    options.recalibrate,
+    !busyBefore?.busy,
+  )
   const readySeconds = (performance.now() - opened) / 1000
   let engine: Record<string, unknown> = {}
   world.onFrame(({ metrics }) => (engine = metrics as unknown as Record<string, unknown>))

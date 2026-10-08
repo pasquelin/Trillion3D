@@ -64,7 +64,7 @@ function causeOf(
   const work = pass.median
   // A pass that took no time has nothing to gain, and a floor of zero is not most of zero.
   if (work < 0.001) return ['unproven', 'under 1 µs measured: nothing to gain']
-  const idle = IDLE_COUNTERS[pass.stage]
+  const idle = IDLE_COUNTERS[pass.name]
   if (idle && counters[idle[0]] === 0 && work > 0.02)
     return ['wasted work', `${inMs(work)} with ${idle[1]} on every frame (${idle[0]} = 0)`]
   if (pass.waitMs >= WAIT_MIN_MS && pass.waitMs >= WAIT_SHARE * work)
@@ -79,17 +79,17 @@ function causeOf(
       'launch',
       `${pass.encoded.invocations.toExponential(2)} threads take ${inMs(floors.launch)} to launch, ${inMs(work)} measured`,
     ]
-  if (pass.kind === 'compute' && pass.encoded.groups > 0 && pass.encoded.groups < FEW_GROUPS)
-    return [
-      'occupancy',
-      `${pass.encoded.groups} workgroups cannot fill the GPU, ${inMs(work)} measured`,
-    ]
   // An encoding the bench cannot size (indirect work, a bundle, an unread format) proves nothing of
   // what it does not hold: no cause is ruled out.
   if (pass.encoded.unsized > 0)
     return [
       'unproven',
       `${pass.encoded.unsized} calls or bindings the bench cannot size (indirect, bundle or unread format): the floors are lower bounds, nothing is ruled out. Dissect the shader.`,
+    ]
+  if (pass.kind === 'compute' && pass.encoded.groups > 0 && pass.encoded.groups < FEW_GROUPS)
+    return [
+      'occupancy',
+      `${pass.encoded.groups} workgroups cannot fill the GPU, ${inMs(work)} measured`,
     ]
   const ruled = [
     floors.launch < 0.5 * work ? 'launch' : '',

@@ -19,8 +19,8 @@ import { ms, percent, table } from './reportText.ts'
 export const DEFAULT_ROUNDS = 6
 
 /** One play of `root`'s engine on `page`: its numbers. */
-async function play(options: BenchOptions, page: string, root: string, out: string) {
-  const report = join(out, `${stamp()}-ab-play.json`)
+async function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {
+  const report = join(out, `${stamp()}-ab-${tag}.json`)
   const child = await runChild(
     [
       process.argv[1],
@@ -39,10 +39,12 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
     false,
     options.timeoutS * 1000,
   )
-  if (child.status !== 0) throw new Error(`BENCH_AB: a play of ${root} ended ${child.status}`)
-  const result = JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
-  rmSync(report, { force: true })
-  return result
+  try {
+    if (child.status !== 0) throw new Error(`BENCH_AB: a play of ${root} ended ${child.status}`)
+    return JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
+  } finally {
+    rmSync(report, { force: true })
+  }
 }
 
 /** The segments' comparisons of the rounds `a` and `b` (plays of A and of B, in round order). */
@@ -77,7 +79,7 @@ export async function abTest(
     // The order flips every round: neither side always runs first on a cold GPU.
     for (const side of round % 2 ? (['b', 'a'] as const) : (['a', 'b'] as const)) {
       console.error(`ab: round ${round + 1}/${rounds}, ${side.toUpperCase()}`)
-      plays[side].push(await play(options, page, side === 'a' ? a : b, out))
+      plays[side].push(await play(options, page, side === 'a' ? a : b, out, `${side}${round + 1}`))
     }
   }
   const results: (Comparison & { name: string })[] = compareRounds(plays.a, plays.b, least)

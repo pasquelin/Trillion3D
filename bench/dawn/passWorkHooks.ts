@@ -51,7 +51,11 @@ const passes = new WeakMap<object, { size: number; seen: Set<object> }>()
 
 /** The workgroup size of `entry` in WGSL `code`: its `@workgroup_size` product, each side a number or
  *  a `const` / `override` the module gives a number; 0 when one cannot be read. */
-function workgroupSize(code: string, entry: string | undefined) {
+function workgroupSize(
+  code: string,
+  entry: string | undefined,
+  constants: Record<string, number | boolean> | undefined,
+) {
   const found = [
     ...code.matchAll(/@workgroup_size\(([^)]*)\)\s*(?:@\w+(?:\([^)]*\))?\s*)*fn\s+(\w+)/g),
   ]
@@ -60,6 +64,7 @@ function workgroupSize(code: string, entry: string | undefined) {
   const side = (token: string) => {
     const text = token.trim().replace(/u$/, '')
     if (/^\d+$/.test(text)) return Number(text)
+    if (typeof constants?.[text] === 'number') return constants[text]
     const named = new RegExp(`(?:const|override)\\s+${text}\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)`).exec(
       code,
     )
@@ -132,8 +137,8 @@ export function installWorkHooks(
     codes.set(made as object, (d as GPUShaderModuleDescriptor).code),
   )
   const pipeline = (_s: object, [d]: never[], made: unknown) => {
-    const { module, entryPoint } = (d as GPUComputePipelineDescriptor).compute
-    const size = workgroupSize(codes.get(module) ?? '', entryPoint)
+    const { module, entryPoint, constants } = (d as GPUComputePipelineDescriptor).compute
+    const size = workgroupSize(codes.get(module) ?? '', entryPoint, constants)
     onMade(made, (p) => sizes.set(p, size))
   }
   after(device, 'createComputePipeline', pipeline)
