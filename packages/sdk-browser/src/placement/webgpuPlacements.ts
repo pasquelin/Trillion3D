@@ -72,8 +72,12 @@ export function updateWebgpuPlacements(
       else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank))
     },
   )
-  // A row its cell placed or left draws that cell's object now, or none (`worldRoot.ts`).
+  // A row its cell placed or left draws that cell's object now, or none (`worldRoot.ts`). A row no
+  // root reads yet keeps its note for the growth that brings its root; one the blend pass draws,
+  // which no root ever reads, keeps none.
+  const blended = placedBy(rt.blendState.blendGpu, rows)
   takeCellsMoved(rows, (index) => {
+    if (blended) return true
     const rank = rootRankOfRow(layout.selectionRoots, rows, index)
     if (rank >= 0) linkWorldObject(rt, rank)
     return rank >= 0
@@ -81,7 +85,7 @@ export function updateWebgpuPlacements(
   forgetOwnMoves()
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
-  if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return
+  if (!moved && !blended) return
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
   run.gate.engineMovedInPlace()
