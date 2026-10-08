@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
 import { boxDiagonal } from '../../../math/src/geometry/box.ts'
 import { clampLowWins } from '../../../math/src/scalar/reals.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -162,7 +163,7 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
       for (const level of levels) {
         if (!level.moving) continue
         const base = movingBase(level.spacing, viewpoint)
-        if (base.some((value, axis) => value !== level.base[axis])) moved = true
+        if (!sameValues(base, level.base)) moved = true
         level.base = base
       }
       return moved

@@ -1,5 +1,6 @@
 import { PI, TAU } from '../../../../math/src/constants.ts'
 import { boxEquals } from '../../../../math/src/geometry/box.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
 import { controlPose, readVector, writeVector } from './pose.ts'
@@ -114,7 +115,7 @@ export function createOrbitCameraControls(
     for (let i = 0; i < 3; i++)
       if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false
     if (!boxEquals(bounds, 0, applied, 0)) return false
-    return pose.readOrientation(facing).every((value, i) => value === orientation[i])
+    return sameValues(pose.readOrientation(facing), orientation)
   }
   const apply = () => {
     readBounds()

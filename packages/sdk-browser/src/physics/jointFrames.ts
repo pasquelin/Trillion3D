@@ -1,7 +1,7 @@
 import { wrap } from '../../../math/src/scalar/reals.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts'
-import { rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
+import { conjugateQuaternion, rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import {
   addScaledVector3,
   distanceVector3,
@@ -39,7 +39,7 @@ export const sixDofAxis = (axis: SixDofAxis | undefined) => SIX_DOF_AXES.indexOf
 function frameIn(node: Object3D | null, point: Vec, axis: Vec, normal: Vec) {
   if (!node) return [...point, ...axis, ...normal]
   const { position: p, quaternion: q } = worldPoseOf(node)
-  const back = [-q[0], -q[1], -q[2], q[3]]
+  const back = conjugateQuaternion<number[]>([0, 0, 0, 0], q)
   const local = turn(back, subVector3<Vec>([0, 0, 0], point, p))
   return [...local, ...turn(back, axis), ...turn(back, normal)]
 }

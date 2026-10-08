@@ -6,6 +6,7 @@ import { orbitOrientation } from './math.ts'
 import { directionYawPitch, POLAR_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw
@@ -70,7 +71,7 @@ export function createHead(
   // an orientation that is not the one last written is read back into yaw and pitch.
   const sample = () => {
     pose.readOrientation(read)
-    if (read.every((value, i) => value === written[i])) return
+    if (sameValues(read, written)) return
     rotateByQuaternion(forward, read, 0, 0, -1)
     // The elevation of the forward axis, by its height over its horizontal length: blind to the
     // length a quaternion off unit length gives it, and as well conditioned at the poles as at the

@@ -70,15 +70,7 @@ fn a_group_and_its_replacement_cover_the_same_triangles_once() {
                         positions[i + 2] as f64,
                     ]
                 };
-                let (a, b, c) = (p(tri[0]), p(tri[1]), p(tri[2]));
-                let u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-                let v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-                let n = [
-                    u[1] * v[2] - u[2] * v[1],
-                    u[2] * v[0] - u[0] * v[2],
-                    u[0] * v[1] - u[1] * v[0],
-                ];
-                (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt() / 2.0
+                trillion3d_math::triangle::triangle_area(p(tri[0]), p(tri[1]), p(tri[2]))
             })
             .sum()
     };

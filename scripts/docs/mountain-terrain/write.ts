@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { Terrain } from './model.ts'
+import { boxFromPoints } from '../../../packages/math/src/geometry/box.ts'
 
 const COLORS = [
   [0.18, 0.25, 0.16, 1],
@@ -24,12 +25,10 @@ type Accessor = {
 export async function writeMountainTerrain(directory: string, geometry: Terrain) {
   const positions = new Float32Array(geometry.positions),
     groups = [...geometry.bands, geometry.river].map((values) => new Uint32Array(values)),
-    min = [Infinity, Infinity, Infinity],
-    max = [-Infinity, -Infinity, -Infinity]
-  positions.forEach((value, index) => {
-    min[index % 3] = Math.min(min[index % 3], value)
-    max[index % 3] = Math.max(max[index % 3], value)
-  })
+    box = new Float64Array(6)
+  boxFromPoints(box, 0, positions, 0, positions.length / 3)
+  const min = Array.from(box.subarray(0, 3)),
+    max = Array.from(box.subarray(3, 6))
   const bufferViews: BufferView[] = [
       { buffer: 0, byteOffset: 0, byteLength: positions.byteLength, target: 34962 },
     ],

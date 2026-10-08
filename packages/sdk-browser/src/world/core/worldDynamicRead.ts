@@ -2,7 +2,8 @@ import { readList, type DrawnTriangles } from '../../../../sdk-core/src/world/ge
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Primitive } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { computeNormals } from '../../../../sdk-core/src/world/geometry/normals.ts'
-import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxExpandByPoint, boxGrow } from '../../../../math/src/geometry/box.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { HeldBox } from '../page/runtimePrimitive.ts'
 import { LISTS } from './worldDynamicRanges.ts'
 
@@ -18,16 +19,14 @@ export function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], 
   for (let k = 0; before && k < 6; k += 3)
     boxExpandByPoint(box, 0, before[k], before[k + 1], before[k + 2])
   const pad = declared ? 0 : Math.max(box[3] - box[0], box[4] - box[1], box[5] - box[2], 1e-3) / 2
-  for (let a = 0; a < 6; a++) box[a] += a < 3 ? -pad : pad
+  boxGrow(box, 0, box, 0, pad)
   return box
 }
 
 /** Whether `next` draws the triangles `held` draws — the same corners, the same lists —, and
  *  within `box`: its vertices can then be written in place. */
 export function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
-  if (held.indices.length !== next.indices.length) return false
-  for (let i = 0; i < held.indices.length; i++)
-    if (held.indices[i] !== next.indices[i]) return false
+  if (!sameValues(held.indices, next.indices)) return false
   for (const [list] of LISTS) if (held[list]?.length !== next[list]?.length) return false
   return inBox(next.positions, box)
 }

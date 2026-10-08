@@ -1,4 +1,5 @@
 use super::*;
+use trillion3d_math::vec3::{length, sub};
 
 #[test]
 fn compile_indexes_unindexed_triangles() {
@@ -86,10 +87,8 @@ fn compile_dag_emits_a_flat_per_cluster_cut() {
                 assert!(parent >= lod, "parent error {parent} below LOD error {lod}");
                 let parent_sphere = page["parentSphere"].as_array().expect("parentSphere");
                 let centre = |v: &Vec<Value>, i: usize| v[i].as_f64().expect("coordinate");
-                let distance = ((centre(sphere, 0) - centre(parent_sphere, 0)).powi(2)
-                    + (centre(sphere, 1) - centre(parent_sphere, 1)).powi(2)
-                    + (centre(sphere, 2) - centre(parent_sphere, 2)).powi(2))
-                .sqrt();
+                let point = |v: &Vec<Value>| [0, 1, 2].map(|i| centre(v, i));
+                let distance = length(sub(point(sphere), point(parent_sphere)));
                 assert!(
                     distance + centre(sphere, 3) <= centre(parent_sphere, 3) + 1e-6,
                     "parent bounds must enclose the cluster bounds"
