@@ -6,6 +6,7 @@ import {
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { bitAt } from '../../../math/src/wgsl/integer.ts'
 
 /**
  * Probe cascades, as both the update pass and deferred resolve read them. One declaration:
@@ -102,7 +103,7 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
 const levelWalkWgsl = (head: string, empty: string, sums: string, add: string, result: string) =>
   wgslBlock(
     `levelWalk(${head})`,
-    [],
+    [bitAt],
     `fn ${head}{
  let spacing=bounce.levels[level].originSpacing.w;
  let base=vec3i(bounce.levels[level].base.xyz);
@@ -121,7 +122,7 @@ const levelWalkWgsl = (head: string, empty: string, sums: string, add: string, r
  let wrappedCorner=probeWrap(corner);
  let wrapAt=vec3u(bounce.counts.x);
  for(var index=0u;index<8u;index++){
-  let offset=vec3u(index&1u,(index>>1u)&1u,(index>>2u)&1u);
+  let offset=vec3u(bitAt(index,0u),bitAt(index,1u),bitAt(index,2u));
   let cell=corner+vec3i(offset);
   let next=wrappedCorner+offset;
   let probe=probeAddress(level,select(next,vec3u(0u),next>=wrapAt));

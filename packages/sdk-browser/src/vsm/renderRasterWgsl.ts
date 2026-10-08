@@ -35,7 +35,7 @@
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
-import { byteOf } from '../../../math/src/wgsl/integer.ts'
+import { bitAt, bitIsSet, byteOf } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
@@ -107,7 +107,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VsmRenderOut{
  let pair=vsmRenderPairs[instanceIndex];
  var out:VsmRenderOut;
- out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,(pair.y>>21u)&1u);out.fromEmitter=vec4f(0.0);
+ out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,bitAt(pair.y,21u));out.fromEmitter=vec4f(0.0);
  let page=pages[pair.x];
  out.masked=page.flags&${FLAG_MASK}u;
  if(vertexIndex>=page.indexCount){out.position=vsmRenderNan();return out;}
@@ -132,7 +132,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  // greatest depth an f32 holds below 1, 1 − 2^-24, the nearest the clip volume (z ≤ w, w = 1)
  // keeps strictly inside, so that no rounding of the clip test drops it. Every receiver of the
  // level lies at a depth of at most 1 behind it.
- if(((pair.y>>20u)&1u)!=0u&&z>w){z=${VSM_F32_BELOW_ONE};w=1.0;}
+ if(bitIsSet(pair.y,20u)&&z>w){z=${VSM_F32_BELOW_ONE};w=1.0;}
  // Clip scaled and biased onto the pair's page: virtual pixel x = u·W over the mip
  // (W = 16384 >> mip), page-local NDC over the 128-pixel viewport.
  let mipLevel=(pair.y>>16u)&7u;
@@ -168,5 +168,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
       faceNormal,
       PAGE_GEOMETRY_WGSL,
       byteOf,
+      bitAt,
+      bitIsSet,
     ],
   )

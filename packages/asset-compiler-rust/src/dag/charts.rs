@@ -6,6 +6,7 @@ use super::clusters::edge_key;
 use super::*;
 use crate::join::Join;
 use crate::qem::Attribute;
+use trillion3d_math::aabb::longest_side;
 use trillion3d_math::triangle::triangle_cross;
 use trillion3d_math::vec3::{length, point, sub};
 
@@ -40,7 +41,7 @@ pub(super) fn weighted<'a>(
     densities: &[f64],
 ) -> Vec<Attribute<'a>> {
     let (low, high) = cluster_bounds(input.positions, live);
-    let extent = (0..3).map(|a| high[a] - low[a]).fold(0.0, f64::max);
+    let extent = longest_side(low, high);
     let mut weighted = input.weighted.to_vec();
     let textures = weighted.iter_mut().filter(|a| a.width == 2);
     for (attribute, density) in textures.zip(densities) {

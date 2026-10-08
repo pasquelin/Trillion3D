@@ -1,13 +1,14 @@
 import { MIRROR_TRANSITION_END } from '../lighting/shaderConstantsWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { bitAt } from '../../../math/src/wgsl/integer.ts'
 
 /** Which pixel of its 2 × 2 block a half-resolution trace texel serves at `seed`: the four in
  *  turn, so four frames reach every pixel. The trace and the history resolve read the same one. */
 export const REFLECTION_PHASE_WGSL = wgslBlock(
   'REFLECTION_PHASE_WGSL',
-  [],
+  [bitAt],
   `
-fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(((seed+1u)>>1u)&1u),i32(seed&1u));}`,
+fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(bitAt(seed+1u,1u)),i32(bitAt(seed,0u)));}`,
 )
 
 /** The bounded ray: from its receiver lifted one pixel's footprint along the normal
