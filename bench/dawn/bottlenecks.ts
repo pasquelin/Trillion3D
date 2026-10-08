@@ -8,7 +8,7 @@ import { IDLE_COUNTERS } from './watched.ts'
 
 /** The causes a pass's time can have. `unproven`: the numbers rule the others out but do not name
  *  one — `--dissect` cuts the shader to find it. */
-export type Cause = 'wait' | 'bandwidth' | 'launch' | 'occupancy' | 'wasted work' | 'unproven'
+type Cause = 'wait' | 'bandwidth' | 'launch' | 'occupancy' | 'wasted work' | 'unproven'
 
 /** One pass of the ranking. Floors in ms: `floorMs` the least a pass of this encoded work needs
  *  (its attachments stored, its threads launched, its fixed cost); `floorMaxMs` if every byte it

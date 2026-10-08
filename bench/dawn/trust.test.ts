@@ -7,7 +7,16 @@ import { spread } from './summary.ts'
 import { timerDoubts } from './trust.ts'
 
 const pass = (name: string, median: number, extra: Partial<BenchPass> = {}) =>
-  ({ name, median, max: median, lost: 0, empty: 0, unknown: 0, ...extra }) as BenchPass
+  ({
+    name,
+    median,
+    mean: median,
+    max: median,
+    lost: 0,
+    empty: 0,
+    unknown: 0,
+    ...extra,
+  }) as BenchPass
 const frame = (...values: number[]) => spread(values)
 
 test('a coherent segment raises no doubt', () => {
@@ -41,7 +50,7 @@ test('passes whose sum is not the frame, or an engine timer that disagrees, are 
     frame: frame(6, 6, 6),
     engineFrame: frame(10),
   })
-  assert.ok(doubts.some((d) => /passes sum 4\.00/.test(d)))
+  assert.ok(doubts.some((d) => /passes sum 4\.00 ms on average/.test(d)))
   assert.ok(doubts.some((d) => /engine's 10\.00/.test(d)))
 })
 

@@ -5,11 +5,11 @@ import type { BenchPass } from './benchPasses.ts'
 import type { Spread } from './summary.ts'
 
 /** The most the passes' sum may differ from the frame's median, as a share of it. */
-export const SUM_TOLERANCE = 0.1
+const SUM_TOLERANCE = 0.1
 /** The most the bench's frame time may differ from the engine's own, as a share of it. */
-export const ENGINE_TOLERANCE = 0.25
+const ENGINE_TOLERANCE = 0.25
 /** The most the middle half of the frames may span, as a share of their median. */
-export const DISPERSION_LIMIT = 0.25
+const DISPERSION_LIMIT = 0.25
 
 /** The doubts a segment's numbers raise, each a sentence naming what and by how much. */
 export function timerDoubts(input: {
@@ -30,11 +30,12 @@ export function timerDoubts(input: {
       )
   }
   if (frame) {
-    const sum = passes.reduce((total, pass) => total + pass.median, 0)
-    const off = Math.abs(sum - frame.median) / frame.median
+    // Means add up where medians do not: the passes' own shares are the frame's, frame by frame.
+    const sum = passes.reduce((total, pass) => total + pass.mean, 0)
+    const off = Math.abs(sum - frame.mean) / frame.mean
     if (off > SUM_TOLERANCE)
       doubts.push(
-        `passes sum ${sum.toFixed(2)} ms, the frame ${frame.median.toFixed(2)} ms (${(off * 100).toFixed(0)} % apart)`,
+        `passes sum ${sum.toFixed(2)} ms on average, the frame ${frame.mean.toFixed(2)} ms (${(off * 100).toFixed(0)} % apart)`,
       )
     if (frame.iqr / frame.median > DISPERSION_LIMIT)
       doubts.push(

@@ -4,7 +4,8 @@
 // clock a busy main thread would stretch. A pass the engine times keeps its own timestamps: a frame
 // that holds one is marked, its total left out.
 import { readPasses, type FrameGpu, type TimedPass } from './passSpans.ts'
-import { attachmentBytes, emptyWork, type PassWork } from './passWorkHooks.ts'
+import { attachmentBytes } from './passSizes.ts'
+import { emptyWork, type PassWork } from './passWorkHooks.ts'
 import { readBack } from './readBack.ts'
 
 /** Timestamps of one frame: two per pass. */

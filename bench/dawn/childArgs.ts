@@ -2,9 +2,12 @@
 // features, switches, scale, warm-up, timeout, dirty — carried on, so the child measures what was
 // asked; without what makes the run a dissect or an A/B (those are the parent's), the page, the
 // scenario, the engine, the plays' count and the report, which the parent names for each child.
+import { OPTIONS } from './options.ts'
 
-/** Options that take no value. */
-const FLAGS = new Set(['--dirty', '--cpu-profile', '--recalibrate', '--no-capture'])
+/** Options that take no value, read from the run's own option table. */
+const FLAGS = new Set(
+  Object.entries(OPTIONS).flatMap(([name, { type }]) => (type === 'boolean' ? [`--${name}`] : [])),
+)
 /** Options, with their value, the parent decides for each child. */
 const PARENT = new Set([
   '--dissect',

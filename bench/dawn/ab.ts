@@ -15,9 +15,6 @@ import type { BenchPlay } from './play.ts'
 import { engineRoot } from './engineRoot.ts'
 import { ms, percent, table } from './reportText.ts'
 
-/** Rounds an A/B plays unless `--rounds` says; each is two plays. */
-export const DEFAULT_ROUNDS = 6
-
 /** One play of `root`'s engine on `page`: its numbers. */
 async function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {
   const report = join(out, `${stamp()}-ab-${tag}.json`)
@@ -47,17 +44,24 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
   }
 }
 
+/** A segment's comparison, or why it has none: a verdict lost on one segment is not the others'. */
+type SegmentResult = (Comparison & { name: string }) | { name: string; failed: string }
+
 /** The segments' comparisons of the rounds `a` and `b` (plays of A and of B, in round order). */
-export function compareRounds(a: readonly BenchPlay[], b: readonly BenchPlay[], least: number) {
+function compareRounds(a: readonly BenchPlay[], b: readonly BenchPlay[], least: number) {
   return a[0].segments
     .filter((segment) => segment.measured)
-    .map((segment) => {
+    .map((segment): SegmentResult => {
       const of = (plays: readonly BenchPlay[]) =>
         plays.map(
           (p) =>
-            p.segments.find((s) => s.name === segment.name)!.numbers.gpuMs?.median ?? Number.NaN,
+            p.segments.find((s) => s.name === segment.name)?.numbers.gpuMs?.median ?? Number.NaN,
         )
-      return { name: segment.name, ...compare(of(a), of(b), least) }
+      try {
+        return { name: segment.name, ...compare(of(a), of(b), least) }
+      } catch (error) {
+        return { name: segment.name, failed: (error as Error).message }
+      }
     })
 }
 
@@ -82,7 +86,7 @@ export async function abTest(
       plays[side].push(await play(options, page, side === 'a' ? a : b, out, `${side}${round + 1}`))
     }
   }
-  const results: (Comparison & { name: string })[] = compareRounds(plays.a, plays.b, least)
+  const results = compareRounds(plays.a, plays.b, least)
   const text = abText(options, [a, b], results, rounds, least)
   const stem = join(out, `${stamp()}-ab-${options.name}`)
   writeFileSync(`${stem}.md`, text)
@@ -96,7 +100,7 @@ const WORDS = { gain: 'REAL GAIN', loss: 'LOSS', noise: 'noise' } as const
 function abText(
   options: BenchOptions,
   sides: [string, string],
-  results: (Comparison & { name: string })[],
+  results: SegmentResult[],
   rounds: number,
   least: number,
 ) {
@@ -110,15 +114,19 @@ function abText(
     '',
     table(
       ['segment', 'A ms', 'B ms', 'B − A ms (mean)', '95 % interval ms', 'relative', 'verdict'],
-      results.map((r) => [
-        r.name,
-        ms(r.aMs),
-        ms(r.bMs),
-        ms(r.meanMs, 3),
-        `${ms(r.lowMs, 3)} … ${ms(r.highMs, 3)}`,
-        percent(r.relative),
-        WORDS[r.verdict],
-      ]),
+      results.map((r) =>
+        'failed' in r
+          ? [r.name, '—', '—', '—', '—', '—', `NO VERDICT: ${r.failed}`]
+          : [
+              r.name,
+              ms(r.aMs),
+              ms(r.bMs),
+              ms(r.meanMs, 3),
+              `${ms(r.lowMs, 3)} … ${ms(r.highMs, 3)}`,
+              percent(r.relative),
+              WORDS[r.verdict],
+            ],
+      ),
     ),
     '',
   ].join('\n')

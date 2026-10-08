@@ -8,7 +8,7 @@ const MIB = 1 << 20
 /** A buffer a kernel streams: 128 MiB, the storage binding every device grants. */
 export const STREAM_BYTES = 128 * MIB
 /** A texture a kernel streams: 4096 × 4096 of `rgba16float`, 128 MiB. */
-export const TEXTURE_SIDE = 4096
+const TEXTURE_SIDE = 4096
 export const TEXTURE_BYTES = TEXTURE_SIDE * TEXTURE_SIDE * 8
 /** Threads, workgroups and passes the overhead kernels run. */
 export const THREAD_GROUPS = 32768
@@ -169,4 +169,3 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     },
   }
 }
-export type Kernels = ReturnType<typeof createKernels>['kernels']

@@ -58,7 +58,13 @@ function numbersOf(play: BenchPlay, pass: string, cut: string | null): Variant {
   if (!Number.isFinite(play.segments[0].numbers.gpuMs?.median))
     throw new Error(`BENCH_DISSECT: the play of ${cut ?? 'the whole shader'} timed no frame`)
   const [segment] = play.segments
-  const mine = segment.benchPasses.filter((p) => p.name === passKey(pass) || p.label.includes(pass))
+  // The pass named, whole: its exact name, else the one pass whose label holds it — never several.
+  const exact = segment.benchPasses.filter((p) => p.name === passKey(pass))
+  const mine = exact.length ? exact : segment.benchPasses.filter((p) => p.label.includes(pass))
+  if (new Set(mine.map((p) => p.name)).size > 1)
+    throw new Error(
+      `BENCH_DISSECT: "${pass}" names several passes (${mine.map((p) => p.name).join(', ')}): name one`,
+    )
   return {
     cut,
     frameMs: segment.numbers.gpuMs?.median ?? Number.NaN,

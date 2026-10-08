@@ -6,7 +6,7 @@ import { ms, table } from './reportText.ts'
 /** One variant's numbers, medians over its frames: `cut` null is the shader whole. */
 export type Variant = { cut: string | null; frameMs: number; passMs: number; iqrMs: number }
 /** The cost of the code from one cut to the next. */
-export type Step = { from: string; to: string; frameMs: number; passMs: number; noise: boolean }
+type Step = { from: string; to: string; frameMs: number; passMs: number; noise: boolean }
 
 /** The steps of `cuts` (in shader order) from the variants measured: the whole shader first and
  *  last, then one variant a cut. The first cut's own time is the base — the launch, and what it keeps. */

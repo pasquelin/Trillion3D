@@ -12,6 +12,7 @@ test('a suite of the cap is played, one past it is refused', () => {
   assert.throws(() => suiteRuns(list(MAX_SCENES + 1)), /BENCH_SUITE/)
 })
 
-test('no word names a bigger set', () => {
-  for (const word of ['all', 'reference', 'priority']) assert.deepEqual(suiteRuns(word), [word])
+test('the words of the removed sets are refused, not run as page names', () => {
+  for (const word of ['all', 'reference', 'priority'])
+    assert.throws(() => suiteRuns(word), /BENCH_SUITE.*no longer/)
 })

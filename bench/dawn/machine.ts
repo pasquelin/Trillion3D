@@ -18,7 +18,7 @@ import {
 
 /** What a machine can do, from timed kernels. Rates in GB/s (10⁹ bytes a second), costs in ms. */
 /** Changes when a kernel does: a machine file of another version is measured again. */
-export const MACHINE_VERSION = 2
+const MACHINE_VERSION = 2
 
 export type Machine = {
   version: number

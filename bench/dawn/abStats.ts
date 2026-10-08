@@ -11,7 +11,7 @@ const T95 = [
   2.045, 2.042,
 ]
 
-export type Verdict = 'gain' | 'loss' | 'noise'
+type Verdict = 'gain' | 'loss' | 'noise'
 /** The mean difference B − A (ms, negative when B is faster), its 95 % interval, and the verdict. */
 export type Comparison = {
   rounds: number

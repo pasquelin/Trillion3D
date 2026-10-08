@@ -8,7 +8,7 @@ import { passKey, spread } from './summary.ts'
 
 /** The stage a bench-timed pass belongs to, by its label: the engine's table, `shadows` for a
  *  virtual shadow map pass, else `unlabelled` — a pass the engine names nowhere. */
-export const stageOfLabel = (label: string) =>
+const stageOfLabel = (label: string) =>
   PASSES[label]?.[0] ?? (label.startsWith('vsm.') ? 'shadows' : 'unlabelled')
 
 const WORK_KEYS = Object.keys(emptyWork()) as (keyof PassWork)[]

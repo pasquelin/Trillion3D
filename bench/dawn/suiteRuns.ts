@@ -9,8 +9,16 @@ export const MAX_SCENES = 5
 const DEFAULT_RUNS = [`${BENCH_SCENE}:world`]
 
 /** The runs a suite's list names (`page[:scenario],…`), or the default; throws past the cap. */
+/** The words that named the sets this suite no longer has. */
+const REMOVED = ['all', 'reference', 'priority']
+
 export function suiteRuns(list?: string) {
   const runs = list ? list.split(',').filter(Boolean) : DEFAULT_RUNS
+  const removed = runs.find((run) => REMOVED.includes(run))
+  if (removed)
+    throw new Error(
+      `BENCH_SUITE: "${removed}" named a set of pages the suite no longer plays: one scene by default, or a list of at most ${MAX_SCENES}`,
+    )
   if (runs.length > MAX_SCENES)
     throw new Error(`BENCH_SUITE: ${runs.length} scenes asked, at most ${MAX_SCENES} are played`)
   return runs
