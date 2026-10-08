@@ -171,18 +171,41 @@ function settleSlot(
   if (p !== undefined && (moved || relinked)) declareSlotMove(rt, state, slot, movingOnly)
 }
 
-/** The session's composition, made again for another root list: the roots it linked follow
- *  none any more. */
+/** The session's composition over its root list: a growth appends to it, its links kept; a list
+ *  shortened — another list — unlinks every root through the one unlink path (`unlinkHeld`)
+ *  before it is made again. */
 function composeState(rt: WebgpuPagesRuntime) {
-  const roots = rt.layout.selectionRoots
-  if (rt.compose && rt.compose.roots !== roots.length) {
-    const { parentOf } = rt.compose
-    for (let rank = 0; rank < rt.compose.roots; rank++)
-      if (parentOf[rank] !== NONE) rt.lights.mobility.follow(rank, -1)
-    rt.compose.gpu?.dispose()
+  const roots = rt.layout.selectionRoots.length,
+    state = rt.compose
+  if (state && roots > state.roots) growComposeState(rt, state, roots)
+  else if (state && roots < state.roots) {
+    for (let slot = 0; slot < state.ranksOf.length; slot++)
+      if (state.ranksOf[slot]?.length) unlinkHeld(rt, state, slot, [])
+    state.gpu?.dispose()
     rt.compose = undefined
   }
-  return (rt.compose ??= createComposeState(roots.length))
+  return (rt.compose ??= createComposeState(roots))
+}
+
+/** `state` over `roots` roots, those it held kept and linked. Its GPU tables are laid out for the
+ *  roots: made again at the next frame, the links sent whole, and each linked root's motion starts
+ *  again from the pose its last image held. */
+function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: number) {
+  const held = state.roots
+  state.parentOf = resized(state.parentOf, roots, NONE)
+  state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
+  state.rankBoxes = resized(state.rankBoxes, roots * BOX_VALUES)
+  state.roots = roots
+  state.gpu?.dispose()
+  state.gpu = undefined
+  state.linksDirty = true
+  const list = rt.layout.selectionRoots
+  for (let rank = 0; rank < held; rank++)
+    if (state.parentOf[rank] !== NONE)
+      state.seeds.set(
+        rank,
+        Float32Array.from(rt.gpu.temporal?.motion.poseOf(rank) ?? list[rank].world.elements),
+      )
 }
 
 /** The root rank of each link, or undefined when one names a row no root reads or a blended copy
@@ -386,8 +409,10 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // The roots pass names the motion buffer it binds, on the frames it runs.
   state.motionBound = undefined
   if (state.linksDirty) {
-    device.queue.writeBuffer(gpu.locals, 0, state.locals)
-    device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf)
+    // The tables are the capacity (`resized`): the roots' words alone go up.
+    const roots = Math.max(1, state.roots)
+    device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * MATRIX_DOUBLES * 2)
+    device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
     state.linksDirty = false
   }
   for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
