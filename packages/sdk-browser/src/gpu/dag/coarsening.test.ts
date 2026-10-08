@@ -1,7 +1,6 @@
 // The factor a view's threshold is cut under past the device's list: it rises on an overflow
-// alone; it tries the view's own threshold again once the view clearly changed, once its own ask
-// scaled would fit, or, still, after a wait each failed try doubles — whatever the law the cut
-// follows —; a grown list releases it.
+// alone; it tries the view's own threshold again once the view clearly changed or, after a wait
+// each failed try doubles — whatever the law the cut follows —; a grown list releases it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { coarsenAfter, coarsenTick, createCoarsening, type Coarsening } from './coarsening.ts'
@@ -118,11 +117,19 @@ test('a still view that still overflows tries at doubling waits, up to the longe
   assert.ok(c.factor > 1)
 })
 
-test('an ask at the factor that scales the own ask under the list tries it at once', () => {
+test('a narrow overflow whose coarse ask jitters tries its own threshold at the waits alone', () => {
   const c = createCoarsening()
-  coarsenAfter(c, 1.05 * CAP, CAP, true)
-  coarsenAfter(c, 0.5 * CAP, CAP, false)
-  // The law holds: a tenth less at the factor is a tenth less at its own threshold, 0.945.
-  assert.equal(coarsenAfter(c, 0.45 * CAP, CAP, false), true)
-  assert.equal(c.factor, 1)
+  coarsenAfter(c, 1.01 * CAP, CAP, true)
+  const coarse = (k: number) => 0.5 * CAP * (1 + 0.02 * Math.sin(k))
+  const tries: number[] = []
+  for (let k = 1; k <= 600; k++) {
+    // A view that moves a little: a readout at the factor each image, its ask within 2 %.
+    if (!coarsenTick(c)) {
+      coarsenAfter(c, coarse(k), CAP, false)
+      continue
+    }
+    tries.push(k)
+    assert.equal(coarsenAfter(c, 1.01 * CAP, CAP, true), true, 'its own cut still overflows')
+  }
+  assert.deepEqual(tries, [64, 64 + 128, 64 + 128 + 256])
 })

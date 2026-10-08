@@ -16,15 +16,14 @@ const FIRST_WAIT = 64,
 
 /**
  * What a view's factor follows: the factor its projected-error threshold is cut under; the list
- * it was set for; what the first cut that fitted under it asked (0: none yet); what its own
- * threshold last asked when it overflowed (`Infinity`: not counted); the images left before its
- * own threshold is tried again, and the wait it was given; whether the cut in flight is such a try.
+ * it was set for; what the first cut that fitted under it asked (0: none yet); the images left
+ * before its own threshold is tried again, and the wait it was given; whether the cut in flight is
+ * such a try.
  */
 export type Coarsening = {
   factor: number
   cap: number
   held: number
-  over: number
   wait: number
   period: number
   probing: boolean
@@ -35,7 +34,6 @@ export const createCoarsening = (): Coarsening => ({
   factor: 1,
   cap: 0,
   held: 0,
-  over: Infinity,
   wait: 0,
   period: FIRST_WAIT,
   probing: false,
@@ -55,10 +53,9 @@ function tryOwn(c: Coarsening, probing: boolean) {
  *
  * A cut at threshold τ keeps clusters of about τ² pixels, so its ranks follow D(f) = D(1)/f² under
  * τ·f: past, the factor rises to where the cut fills `COARSE_FILL` of the list — √2 at least,
- * `COARSEST` at most —, and an overflow of the view's own threshold keeps its exact ask (`over`).
- * Only an overflow raises it. The way down cannot trust the law — the levels are steps —, so the
- * view tries its own threshold again: at once when it clearly changed (`CHANGED`), or when its
- * own ask, scaled as its ask at the factor moved, would fit; and, still, after a wait
+ * `COARSEST` at most. Only an overflow raises it. The way down cannot trust the law — the levels
+ * are steps, and a narrow overflow would try at every jitter —, so the view tries its own
+ * threshold again at once when it clearly changed (`CHANGED`), and, else, after a wait
  * (`coarsenTick`) that each try which overflows doubles, from `FIRST_WAIT` to `LAST_WAIT` images.
  * A try that overflows is never adopted and raises the factor back: one cut more per wait at
  * most, and no image after image flips. A list grown since releases the factor. Below the
@@ -73,7 +70,6 @@ export function coarsenAfter(c: Coarsening, demand: number, cap: number, past: b
     return tryOwn(c, false) && f !== 1
   }
   if (past) {
-    c.over = f === 1 ? demand : Infinity
     c.period = c.probing ? Math.min(LAST_WAIT, 2 * c.period) : FIRST_WAIT
     Object.assign(c, { probing: false, held: 0, wait: c.period })
     c.factor = clamp(f * Math.sqrt(demand / (COARSE_FILL * cap)), f * Math.SQRT2, COARSEST)
@@ -88,11 +84,9 @@ export function coarsenAfter(c: Coarsening, demand: number, cap: number, past: b
     c.held = demand
     return false
   }
-  if (Math.abs(demand - c.held) > CHANGED * c.held) {
-    c.period = FIRST_WAIT
-    return tryOwn(c, false)
-  }
-  return (c.over * demand) / c.held <= cap && tryOwn(c, true)
+  if (Math.abs(demand - c.held) <= CHANGED * c.held) return false
+  c.period = FIRST_WAIT
+  return tryOwn(c, false)
 }
 
 /** One image of the view: true when its wait ran out and its next cut tries its own threshold —
