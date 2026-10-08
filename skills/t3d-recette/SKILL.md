@@ -42,7 +42,7 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
      in the issue's comment; the issue keeps `to measure`, loses `measuring`, and goes first next
      batch.
 3. **Image** next, on the after side: `pnpm run test:gpu` (the GPU proofs on Dawn) and
-   `pnpm run test:chrome` (the WebGL2 proofs, the system Chrome; `docs/TESTS.md`), one at a time
+   `pnpm run test:chrome` (the material proof, the system Chrome; `docs/TESTS.md`), one at a time
    under the same lock: a failure is an image ko. The plays of a run on a still scenario must draw
    identical images (A/A 0 px); a scene that does not proves nothing until frozen or replaced. Each
    pull request is proved in the class its `Image proof class:` line declares (CONTRIBUTING.md
