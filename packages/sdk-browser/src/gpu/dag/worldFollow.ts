@@ -101,8 +101,8 @@ export function followWorldLinks(
     handed = true
   }
   /** Each view's camera at its last cut — its view and its eye —, and the moves it saw since its
-   *  first. */
-  const cameras = new Map<number, ViewCamera>()
+   *  first: held while its view lives, a view made later never taking another's. */
+  const cameras = new WeakMap<object, ViewCamera>()
   // Before every cut on the tables, the main view's or one aside.
   selection.beforeCut((uniforms, view) => {
     takeUp()

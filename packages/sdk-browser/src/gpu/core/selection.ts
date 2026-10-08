@@ -12,9 +12,10 @@ import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 
-/** A step a cut takes on the tables before it encodes, under its uniforms, for its view — the
- *  main one or one aside (`../dag/swap.ts`) — (`GpuSelection.beforeCut`). */
-export type TableSync = (uniforms: SelectionUniforms, view: number) => void
+/** A step a cut takes on the tables before it encodes, under its uniforms, for its view — an
+ *  object the main view holds for the selection's life, or each view aside its own, never another
+ *  view's — (`GpuSelection.beforeCut`). */
+export type TableSync = (uniforms: SelectionUniforms, view: object) => void
 
 export const SELECTION_NONE = 0xffffffff,
   SELECTION_WORKGROUP = 64

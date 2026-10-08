@@ -7,7 +7,6 @@ import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { MAIN_VIEW } from './swap.ts'
 import { createSortedKeys } from '../../webgpu/cut/denseKeys.ts'
 import {
   appendRoots,
@@ -54,10 +53,12 @@ function selectionOver(run: DagRun): GpuSelection {
   // bind one buffer at one offset, whatever the split.
   const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
   const live = () => !state.disposed && !state.dead
+  /** The main view, as the steps before a cut know it (`TableSync`). */
+  const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
   // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), then
   // what each follower holds (`beforeCut`).
-  const syncTables = (uniforms: SelectionUniforms, view: number) => {
+  const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
     for (const step of run.beforeCut) step(uniforms, view)
@@ -101,7 +102,7 @@ function selectionOver(run: DagRun): GpuSelection {
     },
     beforeCut: (step) => void run.beforeCut.push(step),
     dispatch(next, shared) {
-      syncTables(next, MAIN_VIEW)
+      syncTables(next, mainView)
       return run.dispatch(next, shared)
     },
     peek: () => (state.dead ? null : state.last),

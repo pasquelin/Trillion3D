@@ -95,7 +95,7 @@ function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCom
   if (slots.disposed) return undefined
   // What moved since the last cut reaches the tables before this view reads them, as before the
   // main view's cut.
-  aside.syncTables(uniforms, view)
+  aside.syncTables(uniforms, aside)
   if (tablesHeld(resources, state)) return undefined
   const same = sameCut(swap, view, uniforms, state)
   // The mask in place is this very cut's: nothing to run — but its lists, neither read whole nor
