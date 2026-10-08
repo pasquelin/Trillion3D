@@ -2,7 +2,6 @@ import {
   SELECTION_NONE as NONE,
   type GpuSelection,
   type ResidencyChanges,
-  type TableSync,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
@@ -24,12 +23,14 @@ import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
 import { keyBase } from './layout.ts'
 import { writeParts } from './split.ts'
-import { uploadNodes } from './treeFollow.ts'
+import { uploadNodes, type TreeFollower } from './treeFollow.ts'
+import type { LinkFollower } from './worldFollow.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
- *  the residency upload, the pool list, the world mirror, and the main view's dispatch. */
+ *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the
+ *  main view's dispatch. */
 export type DagRun = ReturnType<typeof createDagDispatch> & {
   resources: DagResources
   state: DagRuntimeState
@@ -37,8 +38,10 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   uploadResidency: ReturnType<typeof createDagResidencyUpload>
   poolList: ReturnType<typeof createDagPoolList>
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
-  /** The followers' steps every cut takes before it encodes (`GpuSelection.beforeCut`). */
-  beforeCut: TableSync[]
+  /** The placement tree's follower (`treeFollow.ts`), none without a tree. */
+  tree: TreeFollower | undefined
+  /** The world links' follower (`worldFollow.ts`), none without a world DAG. */
+  links: LinkFollower | undefined
   /** The placements a send moved, each once, increasing (`posesMoved`). */
   moves: Int32Array
 }
@@ -90,7 +93,10 @@ function posesMoved(run: DagRun, moved: number, origins: Int32Array) {
     if (b <= a) j++
   }
   run.state.worldRevision++
-  return into.subarray(0, count)
+  const ranks = into.subarray(0, count)
+  // The tree follows the poses the send moved, a host walk's as a call's.
+  run.tree?.moved(ranks)
+  return ranks
 }
 
 /** The placements that moved among those of `named`, those whose stretch moved with them, and the
@@ -174,11 +180,13 @@ export function appendRoots(
 
 /** `GpuSelection.updateResidency`: the pool's residency, through the world mirror when one packs. */
 export function updateRuntimeResidency(
-  { resources, state, uploadResidency, mirror }: DagRun,
+  { resources, state, uploadResidency, mirror, links }: DagRun,
   next: Uint32Array,
   changes?: ResidencyChanges,
   moved?: (page: number) => void,
 ) {
+  // The links moved since reach the mirror before the rows it mirrors.
+  links?.residency(next)
   if (state.disposed || state.dead) return false
   if (mirror) ({ flags: next, changes } = mirror.update(next, changes))
   // The pages its roots hold, never more than its tables are laid out for.
@@ -190,23 +198,26 @@ export function updateRuntimeResidency(
 
 /** Primitive `w`'s root parked or put back. The cut in hand holds pages the new word no longer
  *  lets through, or lacks some it does: another cut from here. */
-export function parkRoot({ resources, state }: DagRun, w: number, parked: boolean) {
+export function parkRoot({ resources, state, tree }: DagRun, w: number, parked: boolean) {
   const { packed, frames } = resources
   const node = parked ? NONE : packed.rootBases[w]
   if (packed.rootNodes[w] === node) return
   packed.rootNodes[w] = node
   // The root travels behind the stretch in the frame buffer (`resources.ts`).
   frames.writeWord(w, 1, node)
+  tree?.touch(w)
   voidCuts(state)
 }
 
 /** Primitive `w`'s mark, as `parkRoot`. */
-export function writeMark({ resources, state }: DagRun, w: number, mark: number) {
+export function writeMark({ resources, state, tree }: DagRun, w: number, mark: number) {
   const { packed, frames } = resources
-  if (packed.mark[w] === mark) return
+  const before = packed.mark[w]
+  if (before === mark) return
   packed.mark[w] = mark
   // The mark travels behind the record shift (`primitiveFrameWords`).
   frames.writeWord(w, 3, mark)
+  tree?.marked(w, before)
   voidCuts(state)
 }
 

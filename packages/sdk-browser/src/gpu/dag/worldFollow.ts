@@ -11,7 +11,7 @@
  * cluster turns out the frame its placement leaves, so its group's super-roots stand in at once.
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).
  */
-import type { GpuSelection, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
+import type { ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
@@ -19,19 +19,25 @@ import { writeRanges, type DagParts } from './split.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { setBit } from '../../../../math/src/scalar/bits.ts'
 
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
 
-/** `selection`, its placements' links to the world DAG followed on `coldParts`; as it is without
- *  a world DAG. */
-export function followWorldLinks(
-  selection: GpuSelection,
+/** The follower of the placements' links to `packed`'s world DAG on `coldParts`; none without a
+ *  world DAG. A member of the run (`runtime.ts`): `place` moves a link, every cut takes the moves
+ *  up first (`sync`), and a residency the cut receives hands them to the mirror once
+ *  (`residency`). `hooks`: the cut's residency update, and the listener of a link moved. */
+export function createLinkFollower(
   resources: { device: GPUDevice; packed: PackedDag; coldParts: DagParts },
+  hooks: {
+    updateResidency: (rows: Uint32Array, changes: ResidencyChanges) => void
+    linkMoved: (world: number) => void
+  },
 ) {
   const { device, packed, coldParts } = resources,
     world = packed.world
-  if (!world) return selection
+  if (!world) return undefined
   const { links } = world
   /** The rows' flags the cut last received, and whether a link moved since. */
   let rows: Uint32Array | undefined,
@@ -46,7 +52,6 @@ export function followWorldLinks(
     listed = -1,
     /** The list was handed to the mirror since the last move: the cut's upload hands it no more. */
     handed = false
-  const { updateResidency } = selection
   /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`
    *  once for every move since — the one record of the moves, which the upload writes and the
    *  mirror reads —; their count. */
@@ -60,30 +65,6 @@ export function followWorldLinks(
           moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
         }
     return (listed = count)
-  }
-  selection.updateResidency = (next, changes, pages) => {
-    rows = next
-    pending = false
-    if (!handed) {
-      // Listed first: a list that grows is another array, the one the mirror must read.
-      const count = listMoved()
-      world.linksMoved?.(moved, count)
-      handed = true
-    }
-    return updateResidency(next, changes, pages)
-  }
-  selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
-  selection.placeObject = (w, object) => {
-    const c = world.linkOf(object)
-    if (w === world.root || links[w] === c) return
-    links[w] = c
-    selection.linkMoved?.(w)
-    dirty[w >>> 5] |= 1 << (w & 31)
-    listed = -1
-    handed = false
-    low = Math.min(low, w)
-    high = Math.max(high, w)
-    pending = true
   }
   const linkWords = { data: links, sourceBase: 0, targetBase: world.linkBase, stride: 1 }
   /** The links that moved since the last cut, taken up in the ranges their ranks coalesce into,
@@ -103,20 +84,51 @@ export function followWorldLinks(
   /** Each view's camera at its last cut — its view and its eye —, and the moves it saw since its
    *  first: held while its view lives, a view made later never taking another's. */
   const cameras = new WeakMap<object, ViewCamera>()
-  // Before every cut on the tables, the main view's or one aside.
-  selection.beforeCut((uniforms, view) => {
-    takeUp()
-    if (pending && rows) selection.updateResidency(rows, NO_ROWS)
-    // A camera that moved takes the next scale of the world's threshold, its transitions dithered
-    // in time; a still one keeps its own, whatever arrives meanwhile: no hand-over flickers. Each
-    // view counts its own camera's moves: two views cut in turn move neither.
-    let camera = cameras.get(view)
-    if (!camera) cameras.set(view, (camera = createViewCamera()))
-    if (cameraMoved(camera, uniforms)) camera.moves++
-    world.scale = worldFadeScale(camera.moves)
-  })
-  return selection
+  return {
+    /** The rows' flags `next` reach the cut: the links moved since are handed to the mirror
+     *  first, once. */
+    residency(next: Uint32Array) {
+      rows = next
+      pending = false
+      if (handed) return
+      // Listed first: a list that grows is another array, the one the mirror must read.
+      const count = listMoved()
+      world.linksMoved?.(moved, count)
+      handed = true
+    },
+    /** Whether placement `w` is linked to an object, whose super-roots stand in for it far away. */
+    standsIn: (w: number) => w < links.length && links[w] !== NONE,
+    /** Placement `w` places `object` now, or none (`-1`). */
+    place(w: number, object: number) {
+      const c = world.linkOf(object)
+      if (w === world.root || links[w] === c) return
+      links[w] = c
+      hooks.linkMoved(w)
+      setBit(dirty, w)
+      listed = -1
+      handed = false
+      low = Math.min(low, w)
+      high = Math.max(high, w)
+      pending = true
+    },
+    /** Before every cut on the tables, the main view's or one aside (`view`): the links taken up,
+     *  a move with no residency behind it handed over on the rows the cut last received, and the
+     *  view's scale of the world's threshold. */
+    sync(uniforms: SelectionUniforms, view: object) {
+      takeUp()
+      if (pending && rows) hooks.updateResidency(rows, NO_ROWS)
+      // A camera that moved takes the next scale of the world's threshold, its transitions dithered
+      // in time; a still one keeps its own, whatever arrives meanwhile: no hand-over flickers. Each
+      // view counts its own camera's moves: two views cut in turn move neither.
+      let camera = cameras.get(view)
+      if (!camera) cameras.set(view, (camera = createViewCamera()))
+      if (cameraMoved(camera, uniforms)) camera.moves++
+      world.scale = worldFadeScale(camera.moves)
+    },
+  }
 }
+
+export type LinkFollower = NonNullable<ReturnType<typeof createLinkFollower>>
 
 type ViewCamera = { view: Float64Array; eye: Float64Array; moves: number }
 const createViewCamera = (): ViewCamera => ({

@@ -7,6 +7,8 @@ import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
+import { createTreeFollower } from './treeFollow.ts'
+import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
   flushRuntime,
@@ -23,6 +25,8 @@ export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
   poolHeld?: (page: number) => boolean,
+  /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
+  composed?: (w: number) => boolean,
 ): GpuSelection {
   const { device, packed } = resources
   const state = createDagRuntimeState()
@@ -38,7 +42,9 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
-    beforeCut: [],
+    tree: createTreeFollower(resources, composed),
+    // Made with the face it tells (`selectionOver`).
+    links: undefined,
     moves: new Int32Array(8),
   }
   return selectionOver(run)
@@ -55,12 +61,13 @@ function selectionOver(run: DagRun): GpuSelection {
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
-  // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), then
-  // what each follower holds (`beforeCut`).
+  // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), the
+  // tree fits what moved again, the links that moved go up.
   const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
-    for (const step of run.beforeCut) step(uniforms, view)
+    run.tree?.sync()
+    run.links?.sync(uniforms, view)
   }
   const selection: GpuSelection = {
     get hostBytes() {
@@ -79,7 +86,12 @@ function selectionOver(run: DagRun): GpuSelection {
       return state.worldRevision
     },
     updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
-    composedPlacement: (w, composed) => !composed && live() && rewritePlacement(run, w),
+    composedPlacement(w, composed) {
+      if (!composed && live()) rewritePlacement(run, w)
+      run.tree?.touch(w)
+    },
+    placeObject: (w, object) => run.links?.place(w, object),
+    worldStandsIn: (w) => !!run.links?.standsIn(w),
     worldsMovedOnGpu() {
       if (live()) state.worldRevision++
     },
@@ -99,7 +111,6 @@ function selectionOver(run: DagRun): GpuSelection {
       // stays.
       if (live() && poolList.note(page, held)) recutMain(resources.swap, state)
     },
-    beforeCut: (step) => void run.beforeCut.push(step),
     dispatch(next, shared) {
       syncTables(next, mainView)
       return run.dispatch(next, shared)
@@ -116,5 +127,9 @@ function selectionOver(run: DagRun): GpuSelection {
       for (const buffer of buffers) buffer.destroy()
     },
   }
+  run.links = createLinkFollower(resources, {
+    updateResidency: (rows, changes) => void selection.updateResidency(rows, changes),
+    linkMoved: (w) => selection.linkMoved?.(w),
+  })
   return selection
 }

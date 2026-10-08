@@ -12,8 +12,6 @@ import { ruleDag, coverFault } from '../../page/cut/cutRule.fixture.ts'
 import { coverAt, worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { followWorldLinks } from './worldFollow.ts'
-import { stepsOnly } from './stepsOnly.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { oracleBackend, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 
@@ -140,9 +138,8 @@ test('a placement that gives its object back turns it out before the next cut, n
   const { packed, rows, pageBase, cover } = scene()
   const host = fakeDevice({ limits: SHADOW_LIMITS }),
     resources = (await createDagResources(host.device, packed))!
-  // The cut itself is the GPU's: here only what the follower hands it before encoding counts.
-  const runtime = stepsOnly(createDagRuntime(resources))
-  const selection = followWorldLinks(runtime, resources)
+  // The cut runs on no GPU here: what it hands the tables before encoding is what counts.
+  const selection = createDagRuntime(resources)
   // Cell 1's four objects placed and drawable: their world group is ready.
   for (let o = 4; o < 8; o++) {
     selection.placeObject!(o, o)
@@ -154,38 +151,44 @@ test('a placement that gives its object back turns it out before the next cut, n
   // descent's gate reads them.
   const cut = () =>
     selection.dispatch(cameraSelectionUniforms(stripCamera(scene().world), 0.1, [64, 64]))
-  const writes = host.writes.length
+  // The writes to the cold records, where the links lie: the cut's own writes aside.
+  const cold = () => host.writes.filter((x) => x.buffer === resources.coldParts.buffers[0])
+  const writes = cold().length
   const linkOf = (w: number) => {
     const at = ((packed.world!.linkBase + w) * 4) % resources.coldParts.bytes,
-      write = host.writes.findLast((x) => x.offset <= at && at < x.offset + written(x).byteLength)!
+      write = cold().findLast((x) => x.offset <= at && at < x.offset + written(x).byteLength)!
     const bytes = written(write)
     return new DataView(bytes.buffer, bytes.byteOffset + at - write.offset, 4).getUint32(0, true)
   }
   cut()
-  assert.equal(host.writes.length - writes, 1, 'four links, one write')
+  assert.equal(cold().length - writes, 1, 'four links, one write')
   assert.equal(linkOf(5), pageBase + 5)
   selection.placeObject!(5, -1)
   selection.placeObject!(7, -1)
   assert.ok(selection.isReady(pageBase + 5), 'not before the cut')
-  const moved = host.writes.length
+  const moved = cold().length
   cut()
   assert.ok(!selection.isReady(pageBase + 5), 'its group stands in from this cut on')
   assert.equal(linkOf(5), 0xffffffff)
   assert.equal(linkOf(7), 0xffffffff)
   // Two links a word apart go up in one write of the three words, not one each.
   const at = ((packed.world!.linkBase + 5) * 4) % resources.coldParts.bytes
-  const linked = host.writes.slice(moved).filter((write) => write.offset === at)
+  const linked = cold()
+    .slice(moved)
+    .filter((write) => write.offset === at)
   assert.deepEqual(
     linked.map((write) => written(write).byteLength),
     [12],
   )
   // Two links within the run writer's gap go up in one write too (`split.ts`).
-  const before = host.writes.length
+  const before = cold().length
   selection.placeObject!(0, 0)
   selection.placeObject!(11, 11)
   cut()
   const first = ((packed.world!.linkBase + 0) * 4) % resources.coldParts.bytes
-  const joined = host.writes.slice(before).filter((write) => write.offset === first)
+  const joined = cold()
+    .slice(before)
+    .filter((write) => write.offset === first)
   assert.deepEqual(
     joined.map((write) => written(write).byteLength),
     [48],

@@ -12,9 +12,9 @@ import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 
-/** A step a cut takes on the tables before it encodes, under its uniforms, for its view — an
+/** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
- *  view's — (`GpuSelection.beforeCut`). */
+ *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
 
 export const SELECTION_NONE = 0xffffffff,
@@ -107,7 +107,7 @@ export type GpuSelection = {
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
-  composedPlacement?(world: number, composed: boolean): void
+  composedPlacement(world: number, composed: boolean): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */
@@ -125,11 +125,11 @@ export type GpuSelection = {
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
   markWorld(world: number, mark: number): void
   /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
-   *  for it where its object's group suffices (`../dag/worldFollow.ts`); absent without a world. */
-  placeObject?(world: number, object: number): void
+   *  for it where its object's group suffices (`../dag/worldFollow.ts`); nothing without a world. */
+  placeObject(world: number, object: number): void
   /** Whether placement `world` is linked to an object of the world DAG, whose super-roots stand in
-   *  for it far away (`../dag/worldFollow.ts`); absent without a world. */
-  worldStandsIn?(world: number): boolean
+   *  for it far away (`../dag/worldFollow.ts`); never without a world. */
+  worldStandsIn(world: number): boolean
   /** Told of each placement whose link to the world DAG moved (`placeObject`). */
   linkMoved?: (world: number) => void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
@@ -139,10 +139,6 @@ export type GpuSelection = {
   isChildReady(page: number): boolean
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void
-  /** Registers `step`, which every cut on these tables runs before it encodes — the main view's
-   *  and each view aside's (`../dag/aside.ts`) —: what moved since the last cut written to the
-   *  tables it reads (`../dag/treeFollow.ts`, `../dag/worldFollow.ts`). */
-  beforeCut(step: TableSync): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(uniforms: SelectionUniforms, shared?: GPUCommandEncoder): SelectionSubmission | undefined

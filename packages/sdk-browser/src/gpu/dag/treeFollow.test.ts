@@ -1,17 +1,15 @@
-// The placement tree followed on a selection: whatever moved since it was last read is refitted
-// before the next cut reads it.
+// The placement tree's follower: whatever moved since it was last read is refitted before the next
+// cut reads it.
 // On a generated field of placements.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
-import { followPlacementTree } from './treeFollow.ts'
-import { stepsOnly } from './stepsOnly.fixture.ts'
-import type { GpuSelection } from '../core/selection.ts'
+import { createTreeFollower } from './treeFollow.ts'
 
-/** A field of `side`² placements under a followed tree, its selection a stand-in whose send says
- *  placement 70 moved — or those a call named —, the placements `composed` holds composed on the
- *  GPU; the bytes each write sends. */
+/** A field of `side`² placements under a followed tree, the placements `composed` holds composed
+ *  on the GPU; a stand-in of the cut's face over the follower, whose send says placement 70 moved
+ *  — or those a call named —; the bytes each write sends. */
 function followed(side = 40, composed?: ReadonlySet<number>) {
   const roots = placementField(side, 6),
     packed = packDagSelection(roots)
@@ -22,18 +20,21 @@ function followed(side = 40, composed?: ReadonlySet<number>) {
         void writes.push(size),
     },
   } as unknown as GPUDevice
-  const selection = stepsOnly({
-    updateWorlds: (_: Float32Array, named?: Int32Array) => named ?? Int32Array.of(70),
-    parkWorld: () => {},
-    markWorld: () => {},
-    worldsMovedOnGpu: () => {},
-  } as Partial<GpuSelection>)
   const nodeParts = { buffers: [{} as GPUBuffer], bytes: packed.nodes.byteLength }
-  followPlacementTree(
-    selection,
+  const tree = createTreeFollower(
     { device, packed, nodeParts },
-    composed && ((w) => composed.has(w)),
-  )
+    composed && ((w: number) => composed.has(w)),
+  )!
+  const selection = {
+    updateWorlds(_: Float32Array, named?: Int32Array) {
+      const moved = named ?? Int32Array.of(70)
+      tree.moved(moved)
+      return moved
+    },
+    composedPlacement: (w: number, _composed: boolean) => tree.touch(w),
+    worldsMovedOnGpu: () => {},
+    dispatch: (_: unknown) => tree.sync(),
+  }
   return { roots, packed, selection, writes }
 }
 
@@ -72,14 +73,14 @@ test('a root its parent composes on the GPU opens its group alone, until it is u
     groups = tree.levels.at(-1)!,
     groupOf = (w: number) => Math.floor(tree.slot[w] / 64)
   linked.add(70)
-  selection.composedPlacement!(70, true)
+  selection.composedPlacement(70, true)
   selection.worldsMovedOnGpu()
   selection.dispatch({} as never)
   const open = (g: number) => tree.nodeOpen[groups.base + g - tree.cellBase]
   for (let g = 0; g < groups.count; g++)
     assert.equal(open(g), g === groupOf(70) ? 1 : 0, `group ${g}`)
   linked.delete(70)
-  selection.composedPlacement!(70, false)
+  selection.composedPlacement(70, false)
   selection.dispatch({} as never)
   assert.equal(open(groupOf(70)), 0, 'unlinked, its group fits its box again')
 })

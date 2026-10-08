@@ -143,6 +143,16 @@ export function fakeDevice({
         size: number,
       ) => void copies.push({ from, fromOffset, to, toOffset, size }),
       clearBuffer() {},
+      // A compute pass that records nothing: a test reads what the queue was handed.
+      beginComputePass: () => ({
+        setPipeline() {},
+        setBindGroup() {},
+        dispatchWorkgroups() {},
+        dispatchWorkgroupsIndirect() {},
+        pushDebugGroup() {},
+        popDebugGroup() {},
+        end() {},
+      }),
       copyTextureToTexture: (
         from: GPUTexelCopyTextureInfo,
         to: GPUTexelCopyTextureInfo,

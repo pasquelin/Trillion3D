@@ -8,8 +8,6 @@ import assert from 'node:assert/strict'
 import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
-import { followPlacementTree } from './treeFollow.ts'
-import { followWorldLinks } from './worldFollow.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
@@ -24,10 +22,7 @@ async function asideOver(roots: DagRoot[]) {
   const packed = packDagSelection(roots),
     gpu = mockGpu({ packed })
   const resources = (await createDagResources(gpu.device, packed))!
-  const selection = followWorldLinks(
-    followPlacementTree(createDagRuntime(resources), resources),
-    resources,
-  )
+  const selection = createDagRuntime(resources)
   const aside = selection.aside()
   const uniforms = { ...createSelectionUniforms(), pixelError: 1 }
   selection.dispatch(uniforms)

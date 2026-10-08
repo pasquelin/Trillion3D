@@ -8,7 +8,6 @@
  * host holds: the group of a root composed so is open while it is, and no other
  * (`composedPlacement`).
  */
-import type { GpuSelection } from '../core/selection.ts'
 import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
@@ -26,16 +25,16 @@ export function uploadNodes(
   writeRanges(device, nodeParts, nodes, nodes.length, source)
 }
 
-/** `selection`, its tree followed on `nodeParts` from now on, the groups of the placements
- *  `composed` names open; as it is without a tree. */
-export function followPlacementTree(
-  selection: GpuSelection,
+/** The follower of `packed`'s tree on `nodeParts`, the groups of the placements `composed` names
+ *  open; none without a tree. A member of the run (`runtime.ts`): its operations tell it what
+ *  moved, and every cut fits the tree again first (`sync`). */
+export function createTreeFollower(
   resources: { device: GPUDevice; packed: PackedDag; nodeParts: DagParts },
   composed?: (w: number) => boolean,
 ) {
   const { device, packed, nodeParts } = resources,
     tree = packed.placementTree
-  if (!tree) return selection
+  if (!tree) return undefined
   const upload = (nodes: Int32Array) => uploadNodes(device, nodeParts, packed, nodes)
   const all = Int32Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
   // What moved since the tree was last read, each placement once: refitted once, before the next
@@ -44,38 +43,32 @@ export function followPlacementTree(
   // The tree was fitted as it was packed: the roots composed since are read at its first cut.
   let whole = !!composed
   if (composed) tree.composed = composed
-  // Before every cut on the tables, the main view's or one aside.
-  selection.beforeCut(() => {
-    if (whole) {
-      fitPlacementTree(packed, tree)
-      upload(all)
-    } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeSorted(dirty)))
-    whole = false
-    dirty.listed.clear()
-  })
-  const { parkWorld, markWorld, updateWorlds } = selection
-  selection.parkWorld = (w, parked) => {
-    parkWorld(w, parked)
-    dirty.listed.add(w)
-  }
-  selection.markWorld = (w, mark) => {
-    const opened = opensTree(packed.mark[w])
-    markWorld(w, mark)
-    if (opensTree(packed.mark[w]) !== opened) dirty.listed.add(w)
-  }
-  // A pose a send moved fits its group again, a host walk's as a call's: the placements it says.
-  selection.updateWorlds = (worlds, named) => {
-    const moved = updateWorlds(worlds, named)
-    for (const w of moved) dirty.listed.add(w)
-    return moved
-  }
-  // A root a parent composes on the GPU holds a pose the CPU does not: its group opens, and only
-  // its own, from its link to its unlink, as the compose state says (`composed`,
-  // `../../placement/gpuCompose.ts`).
-  const { composedPlacement } = selection
-  selection.composedPlacement = (w, linked) => {
-    composedPlacement?.(w, linked)
+  /** Placement `w`'s group fits again at the next cut: parked or taken back, posed by a send, or
+   *  composed on the GPU by a parent from now on or no longer — its group open while it is, and
+   *  no other (`composed`, `../../placement/gpuCompose.ts`). */
+  const touch = (w: number) => {
     if (w < tree.slot.length) dirty.listed.add(w)
   }
-  return selection
+  return {
+    touch,
+    /** Placement `w`'s mark moved from `before`: its group fits again where it opens or closes. */
+    marked(w: number, before: number) {
+      if (opensTree(packed.mark[w]) !== opensTree(before)) touch(w)
+    },
+    /** The poses a send moved (`updateWorlds`), a host walk's as a call's. */
+    moved(ranks: ArrayLike<number>) {
+      for (let k = 0; k < ranks.length; k++) touch(ranks[k])
+    },
+    /** Before every cut on the tables, the main view's or one aside: what moved fitted again. */
+    sync() {
+      if (whole) {
+        fitPlacementTree(packed, tree)
+        upload(all)
+      } else if (dirty.listed.count) upload(refitPlacementTree(packed, tree, takeSorted(dirty)))
+      whole = false
+      dirty.listed.clear()
+    },
+  }
 }
+
+export type TreeFollower = NonNullable<ReturnType<typeof createTreeFollower>>

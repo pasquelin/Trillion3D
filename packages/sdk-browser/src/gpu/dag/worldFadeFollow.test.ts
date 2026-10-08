@@ -6,8 +6,6 @@ import assert from 'node:assert/strict'
 import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
-import { followWorldLinks } from './worldFollow.ts'
-import { stepsOnly } from './stepsOnly.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
@@ -24,8 +22,7 @@ test('a still camera holds the world to one scale; a moved one takes the next', 
     fakeDevice({ limits: SHADOW_LIMITS }).device,
     packed,
   ))!
-  const runtime = stepsOnly(createDagRuntime(resources))
-  const selection = followWorldLinks(runtime, resources)
+  const selection = createDagRuntime(resources)
   const camera = stripCamera(world)
   const scales = (moves: number[]) =>
     moves.map((x) => {

@@ -15,8 +15,6 @@ import type { PackedDag } from './types.ts'
 import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
-import { followPlacementTree } from './treeFollow.ts'
-import { followWorldLinks } from './worldFollow.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
@@ -49,8 +47,5 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut creation failed')
     return undefined
   }
-  return followWorldLinks(
-    followPlacementTree(createDagRuntime(resources, options.poolHeld), resources, options.composed),
-    resources,
-  )
+  return createDagRuntime(resources, options.poolHeld, options.composed)
 }

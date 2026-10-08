@@ -4,9 +4,7 @@
 // 120 of them placed.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { followWorldLinks } from './worldFollow.ts'
-import { stepsOnly } from './stepsOnly.fixture.ts'
-import type { GpuSelection } from '../core/selection.ts'
+import { createLinkFollower } from './worldFollow.ts'
 import type { PackedDag } from './types.ts'
 
 test('every moved link reaches the mirror, past the list’s first room', () => {
@@ -19,19 +17,23 @@ test('every moved link reaches the mirror, past the list’s first room', () => 
     linksMoved: (placements: Int32Array, count: number) =>
       void told.push(Array.from(placements.subarray(0, count))),
   }
-  const selection = stepsOnly<Partial<GpuSelection>>({ updateResidency: () => true })
   const device = { queue: { writeBuffer: () => {} } } as unknown as GPUDevice
   const coldParts = { buffers: [{} as GPUBuffer], bytes: 4 * 300 }
   const packed = { world } as unknown as PackedDag
-  followWorldLinks(selection, { device, packed, coldParts })
+  const links = createLinkFollower(
+    { device, packed, coldParts },
+    { updateResidency: (rows) => links.residency(rows), linkMoved: () => {} },
+  )!
+  const view = {},
+    camera = { view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never
   const placed = Array.from({ length: 120 }, (_, k) => 2 * k + 7)
-  for (const w of placed) selection.placeObject!(w, w)
-  selection.updateResidency(new Uint32Array(1))
+  for (const w of placed) links.place(w, w)
+  links.residency(new Uint32Array(1))
   assert.deepEqual(told.at(-1), placed, 'at the residency')
-  selection.dispatch({ view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never)
+  links.sync(camera, view)
   assert.equal(told.length, 1, 'handed once: the cut that follows hands it no more')
   // Moves after the residency reach the mirror at the cut.
-  selection.placeObject!(8, 8)
-  selection.dispatch({ view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never)
+  links.place(8, 8)
+  links.sync(camera, view)
   assert.deepEqual(told.at(-1), [8], 'at the cut')
 })
