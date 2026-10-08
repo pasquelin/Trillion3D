@@ -7,7 +7,16 @@ import { PROFILES } from './profiles.ts'
 import { readScenario } from './scenario.ts'
 
 /** The run's page, scenario, machine profile, display, repeats and address switches. */
+/** `--ab A B` is two values: the second goes to `--ab-b`, so it is no page. */
+const abArgs = (args: string[]) => {
+  const at = args.indexOf('--ab')
+  return at < 0
+    ? args
+    : [...args.slice(0, at), '--ab', args[at + 1], '--ab-b', args[at + 2], ...args.slice(at + 3)]
+}
+
 export function benchOptions(args = process.argv.slice(2)) {
+  args = abArgs(args)
   const { positionals, values } = parseArgs({
     args,
     allowPositionals: true,
@@ -26,6 +35,10 @@ export function benchOptions(args = process.argv.slice(2)) {
       dirty: { type: 'boolean', default: false },
       recalibrate: { type: 'boolean', default: false },
       dissect: { type: 'string' },
+      ab: { type: 'string' },
+      'ab-b': { type: 'string' },
+      rounds: { type: 'string', default: '6' },
+      least: { type: 'string', default: '0.05' },
       'dissect-segment': { type: 'string' },
       'child-report': { type: 'string' },
     },
@@ -60,7 +73,12 @@ export function benchOptions(args = process.argv.slice(2)) {
     switches: values.switch,
     search: values.switch.length ? `?${values.switch.join('&')}` : '',
     recalibrate: values.recalibrate,
+    dirtyOk: values.dirty,
     dissect: values.dissect,
+    ab: values.ab && values['ab-b'] ? ([values.ab, values['ab-b']] as [string, string]) : undefined,
+    rounds: Math.max(2, Number(values.rounds)),
+    least: Number(values.least),
+    scenarioArg: values.scenario,
     dissectSegment: values['dissect-segment'],
     childReport: values['child-report'],
   }

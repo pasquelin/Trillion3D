@@ -23,7 +23,7 @@ export function stepsOf(cuts: readonly string[], variants: readonly Variant[]) {
   const noise = Math.max(drift, ...variants.map((v) => v.iqrMs / 4))
   const steps: Step[] = points.map(([to, v], i) => {
     const before = i ? points[i - 1][1] : { frameMs: 0, passMs: 0 }
-    const from = i ? points[i - 1][0] : 'launch'
+    const from = i ? points[i - 1][0] : 'start'
     const frameMs = v.frameMs - before.frameMs
     return {
       from,
