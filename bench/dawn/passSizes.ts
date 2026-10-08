@@ -31,6 +31,8 @@ export function workgroupSize(
     const text = token.trim()
     if (/^\d+u?$/.test(text)) return Number(text.replace(/u$/, ''))
     if (typeof constants?.[text] === 'number') return constants[text]
+    // Only a name is looked up: an expression (`min(8, 16)`) is not a number read.
+    if (!/^\w+$/.test(text)) return 0
     const named = new RegExp(
       `(?:const|override)\\s+${text}\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)u?\\s*;`,
     ).exec(code)

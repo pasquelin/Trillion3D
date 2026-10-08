@@ -4,6 +4,7 @@
 // checkout's own, relative to its root, never the machine's.
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { passKey } from './summary.ts'
 
 /** Where a pass is encoded: the checkout's file and line, its function, and its shader modules. */
 export type PassSource = { file: string; line: number; fn: string | null; shaders: string[] }
@@ -29,11 +30,7 @@ export function engineSources(root: string) {
 }
 
 /** A pass label without the batch number and the engine's prefix: the string its code holds. */
-export const labelStem = (name: string) =>
-  name
-    .replace(/ \*$/, '')
-    .replace(/ \d+$/, '')
-    .replace(/^Trillion3D /, '')
+export const labelStem = (name: string) => passKey(name).replace(/ \*$/, '')
 
 /** A source's lines, split once however many labels are looked for in it. */
 const split = new Map<string, string[]>()
@@ -82,6 +79,8 @@ function sourceOf(sources: readonly [string, string][], name: string): PassSourc
   let fallback: PassSource | null = null
   for (const byPart of [false, true])
     for (const [file, text] of sources) {
+      // A file that holds not even the label's stem (or its last part) names nothing: not split.
+      if (!text.includes(byPart ? (rest.at(-1) ?? stem) : stem)) continue
       const lines = linesOf(file, text)
       const at = lines.findIndex((line) => named(line, file, byPart))
       if (at < 0) continue

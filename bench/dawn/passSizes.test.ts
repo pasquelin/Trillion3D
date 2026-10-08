@@ -20,3 +20,8 @@ test('a workgroup size is read from numbers, constants and overrides, and 0 when
   )
   assert.equal(workgroupSize('fn nothing() {}', 'main', undefined), 0)
 })
+
+test('a workgroup size that is an expression is no number and breaks nothing', () => {
+  assert.equal(workgroupSize(fn('min(8, 16)'), 'main', undefined), 0)
+  assert.equal(workgroupSize(fn('(8'), 'main', undefined), 0)
+})

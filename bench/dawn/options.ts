@@ -1,6 +1,7 @@
 // What a bench run is asked, from its command line (`run.ts` lists the options).
 import { basename } from 'node:path'
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
+import { DEFAULT_LEAST_MS } from './abStats.ts'
 import { engineRoot } from './engineRoot.ts'
 import { pageFile } from './page.ts'
 import { PROFILES } from './profiles.ts'
@@ -27,7 +28,7 @@ export const OPTIONS = {
   ab: { type: 'string' },
   'ab-b': { type: 'string' },
   rounds: { type: 'string', default: '6' },
-  least: { type: 'string', default: '0.05' },
+  least: { type: 'string', default: String(DEFAULT_LEAST_MS) },
   'dissect-segment': { type: 'string' },
   'child-report': { type: 'string' },
 } satisfies ParseArgsOptionsConfig

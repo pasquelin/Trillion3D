@@ -3,24 +3,21 @@
 // engines round after round — A B, B A, A B… — so what the machine drifts by between rounds falls on
 // both. Each play is a fresh process; each round's difference is B − A; the verdict reads its
 // interval (`abStats.ts`), on the frame's GPU time of every measured segment.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { compare, type Comparison } from './abStats.ts'
-import { runChild } from './child.ts'
 import { childArgs } from './childArgs.ts'
-import { LOCK_OWNER } from './lock.ts'
 import { stamp, type BenchOptions } from './options.ts'
 import type { BenchPlay } from './play.ts'
+import { playChild } from './playChild.ts'
 import { engineRoot } from './engineRoot.ts'
 import { ms, percent, table } from './reportText.ts'
 
 /** One play of `root`'s engine on `page`: its numbers. */
-async function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {
-  const report = join(out, `${stamp()}-ab-${tag}.json`)
-  const child = await runChild(
+function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {
+  return playChild(
     [
-      process.argv[1],
       page,
       '--scenario',
       options.scenarioArg,
@@ -29,20 +26,12 @@ async function play(options: BenchOptions, page: string, root: string, out: stri
       ...childArgs(process.argv.slice(2)),
       // A verdict reads times: no image is taken, none left behind.
       '--no-capture',
-      '--child-report',
-      report,
     ],
-    { ...process.env, [LOCK_OWNER]: process.env[LOCK_OWNER] ?? String(process.pid) },
-    false,
-    options.timeoutS * 1000,
+    {},
+    join(out, `${stamp()}-ab-${tag}.json`),
+    `BENCH_AB: a play of ${root}`,
+    options.timeoutS,
   )
-  try {
-    if (child.status !== 0)
-      throw new Error(`BENCH_AB: a play of ${root} ended ${child.status ?? child.signal}`)
-    return JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
-  } finally {
-    rmSync(report, { force: true })
-  }
 }
 
 /** A segment's comparison, or why it has none: a verdict lost on one segment is not the others'. */
@@ -52,6 +41,12 @@ type SegmentResult = (Comparison & { name: string }) | { name: string; failed: s
 function compareRounds(a: readonly BenchPlay[], b: readonly BenchPlay[], least: number) {
   return a[0].segments
     .filter((segment) => segment.measured)
+    .filter((segment) =>
+      // A held image draws nothing to time: no round of either side has a number, no row.
+      [...a, ...b].some((p) =>
+        Number.isFinite(p.segments.find((s) => s.name === segment.name)?.numbers.gpuMs?.median),
+      ),
+    )
     .map((segment): SegmentResult => {
       const of = (plays: readonly BenchPlay[]) =>
         plays.map(

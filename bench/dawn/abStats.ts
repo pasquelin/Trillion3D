@@ -26,7 +26,14 @@ export type Comparison = {
 
 /** The comparison of the paired plays: `a[i]` and `b[i]` the frame times of round `i`, `least` ms the
  *  smallest difference that counts. Needs two rounds at least. */
-export function compare(a: readonly number[], b: readonly number[], least = 0.05): Comparison {
+/** The least difference, ms, an A/B calls a gain or a loss unless `--least` says. */
+export const DEFAULT_LEAST_MS = 0.05
+
+export function compare(
+  a: readonly number[],
+  b: readonly number[],
+  least = DEFAULT_LEAST_MS,
+): Comparison {
   if (a.length !== b.length || a.length < 2)
     throw new Error('BENCH_AB: a verdict needs two paired rounds')
   // A round either side of which gave no time says nothing: it is left out of everything, and the

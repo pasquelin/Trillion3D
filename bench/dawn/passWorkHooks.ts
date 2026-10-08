@@ -103,9 +103,8 @@ export function installWorkHooks(
         const work = lookup(self)
         const buffer = (name === 'setVertexBuffer' ? args[1] : args[0]) as GPUBuffer | null
         if (!work || !buffer) return
-        const [offset, size] = (
-          name === 'setVertexBuffer' ? [args[2], args[3]] : [args[2], args[3]]
-        ) as [number | undefined, number | undefined]
+        // Both calls give their byte offset and size after the buffer (and a slot or a format).
+        const [offset, size] = [args[2], args[3]] as [number | undefined, number | undefined]
         let state = passes.get(self)
         if (!state) passes.set(self, (state = { size: 0, seen: new Set() }))
         if (state.seen.has(buffer)) return

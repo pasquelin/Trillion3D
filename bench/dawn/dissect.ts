@@ -3,54 +3,33 @@
 // (`shaderCuts.ts`); then one play per cut, each with its shader made stopped at that point in
 // memory, between two plays of the shader whole. The pass's time and the frame's, each cut against
 // the one before, are the steps. The repository is not touched.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
-import { runChild } from './child.ts'
 import { childArgs } from './childArgs.ts'
 import type { DissectSpec } from './dissectHooks.ts'
 import { dissectText, stepsOf, type Variant } from './dissectReport.ts'
-import { LOCK_OWNER } from './lock.ts'
 import { stamp, type BenchOptions } from './options.ts'
 import type { BenchPlay } from './play.ts'
+import { playChild } from './playChild.ts'
 import { passKey } from './summary.ts'
 
 /** One play of the dissect scenario, with the shader as `spec` says: its numbers. */
-async function playVariant(
-  options: BenchOptions,
-  scenario: string,
-  spec: DissectSpec,
-  out: string,
-) {
-  const report = join(out, `${stamp()}-dissect-variant.json`)
-  const args = [
-    process.argv[1],
-    options.file,
-    '--scenario',
-    scenario,
-    '--engine',
-    options.engine.root,
-    ...childArgs(process.argv.slice(2)),
-    '--child-report',
-    report,
-  ]
-  const child = await runChild(
-    args,
-    {
-      ...process.env,
-      [LOCK_OWNER]: process.env[LOCK_OWNER] ?? String(process.pid),
-      TRILLION3D_DISSECT: JSON.stringify(spec),
-    },
-    false,
-    options.timeoutS * 1000,
+function playVariant(options: BenchOptions, scenario: string, spec: DissectSpec, out: string) {
+  return playChild(
+    [
+      options.file,
+      '--scenario',
+      scenario,
+      '--engine',
+      options.engine.root,
+      ...childArgs(process.argv.slice(2)),
+    ],
+    { TRILLION3D_DISSECT: JSON.stringify(spec) },
+    join(out, `${stamp()}-dissect-variant.json`),
+    `BENCH_DISSECT: a play of ${spec.cut ?? 'the whole shader'}`,
+    options.timeoutS,
   )
-  if (child.status !== 0)
-    throw new Error(
-      `BENCH_DISSECT: a play of ${spec.cut ?? 'the whole shader'} ended ${child.status}`,
-    )
-  const play = JSON.parse(readFileSync(report, 'utf8')) as BenchPlay
-  rmSync(report, { force: true })
-  return play
 }
 
 /** The variant numbers of a play: the dissect segment's frame and the pass's own medians. */
@@ -100,10 +79,15 @@ export async function dissect(options: BenchOptions, pass: string, segmentName?:
     console.error(`dissect: listing the shaders of "${pass}"`)
     const listing = await playVariant(options, scenario, { pass, hash: '', cut: null }, out)
     // The module the pass sets most is the one the segment runs; the others are variants it met less.
-    const modules = Object.values(listing.dissect)
-      .flat()
+    const byHash = new Map<string, { hash: string; cuts: string[]; count: number }>()
+    for (const m of Object.values(listing.dissect).flat()) {
+      const held = byHash.get(m.hash)
+      if (held) held.count += m.count
+      else byHash.set(m.hash, { ...m })
+    }
+    const modules = [...byHash.values()]
       .filter((m) => m.cuts.length)
-      .sort((a, b) => b.count - a.count)
+      .sort((x, y) => y.count - x.count)
     if (!modules.length) {
       const held = Object.entries(listing.dissect).flatMap(([label, ms]) =>
         ms.map((m) => `${label} ${m.hash}`),
