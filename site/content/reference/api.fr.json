@@ -7585,15 +7585,6 @@
       "dependencies": "Les paquets dont ses pages ont besoin, croissants, jusqu’au sommet du monde."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Une primitive placée d’une cellule du monde : les paquets du monde dont ses racines ont besoin, jusqu’au sommet.",
-    "members": {
-      "node": "Son nœud publié.",
-      "primitive": "Sa primitive dans le manifeste.",
-      "roots": "Les paquets des flux de cette primitive qui tiennent ses racines.",
-      "dependencies": "Chaque paquet du monde dont ces racines ont besoin, croissants, jusqu’au sommet."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Une page super-racine lue sur les octets de son paquet : une page de géométrie, ses sommets dans l’espace du monde avec les attributs que portent ses objets, décodée et dessinée comme toute page.",
     "members": {

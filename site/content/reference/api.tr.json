@@ -5094,15 +5094,6 @@
       "dependencies": "Sayfalarının gerektirdiği paketler, artan sırayla, dünyanın tepesine kadar."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Bir dünya hücresinin yerleştirilmiş ilkel öğesi: köklerinin gerektirdiği dünya paketleri, tepeye kadar.",
-    "members": {
-      "node": "Yayımlanmış düğümü.",
-      "primitive": "Manifestodaki ilkel öğesi.",
-      "roots": "Bu ilkel öğenin köklerini tutan akış paketleri.",
-      "dependencies": "Bu köklerin gerektirdiği her dünya paketi, artan sırayla, tepeye kadar."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: bir geometri sayfası; köşeleri dünya uzayında ve nesnelerinin taşıdığı özniteliklerle birlikte, her sayfa gibi çözülür ve çizilir.",
     "members": {

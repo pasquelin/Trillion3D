@@ -28,17 +28,6 @@ export type WorldRootsBundle = {
   /** The bundles its pages need, ascending, up to the world top. */
   dependencies: number[]
 }
-/** One placed primitive of a world cell: the world bundles its roots need, up to the top. */
-export type WorldRootsObject = {
-  /** Its published node. */
-  node: number
-  /** Its primitive in the manifest. */
-  primitive: number
-  /** The bundles of that primitive's streams holding its roots. */
-  roots: number[]
-  /** Every world bundle those roots need, ascending, up to the top. */
-  dependencies: number[]
-}
 /** `world-roots.table`: the world DAG the compiler continues above every object's roots — its
  *  bundles, pages and cells, the pinned top first —, its pages and cells read at their records. */
 export type WorldRoots = {

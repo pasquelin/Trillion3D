@@ -7585,15 +7585,6 @@
       "dependencies": "I pacchetti di cui hanno bisogno le sue pagine, in ordine crescente, fino alla cima del mondo."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Una primitiva posizionata di una cella del mondo: i pacchetti del mondo di cui hanno bisogno le sue radici, fino alla cima.",
-    "members": {
-      "node": "Il suo nodo pubblicato.",
-      "primitive": "La sua primitiva nel manifesto.",
-      "roots": "I pacchetti dei flussi di quella primitiva che tengono le sue radici.",
-      "dependencies": "Ogni pacchetto del mondo di cui hanno bisogno quelle radici, in ordine crescente, fino alla cima."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Una pagina super-radice letta sui byte del suo pacchetto: una pagina di geometria, i suoi vertici nello spazio del mondo con gli attributi che portano i suoi oggetti, decodificata e disegnata come qualsiasi pagina.",
     "members": {

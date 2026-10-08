@@ -7585,15 +7585,6 @@
       "dependencies": "Die Bündel, die seine Seiten brauchen, aufsteigend, bis zur Spitze der Welt."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Ein platziertes Primitiv einer Weltzelle: die Weltbündel, die seine Wurzeln brauchen, bis zur Spitze.",
-    "members": {
-      "node": "Sein veröffentlichter Knoten.",
-      "primitive": "Sein Primitiv im Manifest.",
-      "roots": "Die Bündel der Streams dieses Primitivs, die seine Wurzeln halten.",
-      "dependencies": "Jedes Weltbündel, das diese Wurzeln brauchen, aufsteigend, bis zur Spitze."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: eine Geometrieseite, ihre Eckpunkte im Weltraum mit den Attributen, die ihre Objekte tragen, dekodiert und gezeichnet wie jede Seite.",
     "members": {

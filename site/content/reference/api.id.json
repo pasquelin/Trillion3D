@@ -7586,15 +7586,6 @@
       "dependencies": "Bundel yang dibutuhkan halamannya, menaik, sampai puncak dunia."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Satu primitif tertempatkan dari sel dunia: bundel dunia yang dibutuhkan akarnya, sampai puncak.",
-    "members": {
-      "node": "Node terbitannya.",
-      "primitive": "Primitifnya di manifest.",
-      "roots": "Bundel aliran primitif itu yang memegang akarnya.",
-      "dependencies": "Setiap bundel dunia yang dibutuhkan akar itu, menaik, sampai puncak."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: sebuah halaman geometri, verteksnya di ruang dunia beserta atribut yang dibawa objeknya, didekode dan digambar seperti halaman mana pun.",
     "members": {

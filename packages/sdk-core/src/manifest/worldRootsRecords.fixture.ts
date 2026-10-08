@@ -5,7 +5,20 @@
  */
 import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
-import type { WorldRoots, WorldRootsCluster, WorldRootsObject } from './worldRoots.ts'
+import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
+
+/** One placed primitive of a world cell as the cook writes it: the world bundles its roots need,
+ *  up to the top. */
+type WorldRootsObject = {
+  /** Its published node. */
+  node: number
+  /** Its primitive in the manifest. */
+  primitive: number
+  /** The bundles of that primitive's streams holding its roots. */
+  roots: number[]
+  /** Every world bundle those roots need, ascending, up to the top. */
+  dependencies: number[]
+}
 
 /** A world-roots table stated plainly: its pages and cells as lists. */
 export type WorldRootsSpec = Omit<WorldRoots, 'pages' | 'cells'> & {

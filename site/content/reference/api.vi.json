@@ -7586,15 +7586,6 @@
       "dependencies": "Các gói mà trang của nó cần, tăng dần, lên tới đỉnh thế giới."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Một primitive đã đặt của một ô thế giới: các gói thế giới mà gốc của nó cần, lên tới đỉnh.",
-    "members": {
-      "node": "Nút đã công bố của nó.",
-      "primitive": "Primitive của nó trong manifest.",
-      "roots": "Các gói luồng của primitive đó chứa gốc của nó.",
-      "dependencies": "Mọi gói thế giới mà các gốc đó cần, tăng dần, lên tới đỉnh."
-    }
-  },
   "WorldRootsPage": {
     "summary": "Một trang siêu gốc đọc trên byte của gói nó: một trang hình học, các đỉnh của nó trong không gian thế giới cùng các thuộc tính mà đối tượng của nó mang, được giải mã và vẽ như mọi trang.",
     "members": {
