@@ -20,7 +20,7 @@ test('roots read every image under a still view hold one place each in the heaps
   const carded = () => (reads++, true)
   watch.update(roots, section, view, FOCAL, COS, carded)
   const settled = watch.hostBytes
-  assert.ok(reads > 0 && heaps.waiting() <= roots.length)
+  assert.ok(reads > 0 && heaps.oncePerRoot())
   // The engine moves every root each image, the camera still: each is read again.
   for (let image = 0; image < 200; image++) {
     roots.forEach((_, rank) => watch.touch(rank))
@@ -28,7 +28,7 @@ test('roots read every image under a still view hold one place each in the heaps
     watch.update(roots, section, view, FOCAL, COS, carded)
     assert.equal(reads, roots.length)
   }
-  assert.ok(heaps.waiting() <= roots.length, 'one place a root at most, whatever the reads')
+  assert.ok(heaps.oncePerRoot(), 'one place a root at most, whatever the reads')
   assert.equal(watch.hostBytes, settled, 'the watch at its size')
 })
 

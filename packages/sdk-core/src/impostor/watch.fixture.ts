@@ -61,15 +61,23 @@ export function swayAt(k: number, turn = 0) {
   return viewAt(eye, (Math.PI / 180) * Math.sin(k * 0.17) + turn * k)
 }
 
-/** The heaps a watch is handed (`createImpostorWatch`), each kept: the roots waiting in them, and
- *  the pushes made while `counting`. */
+/** The heaps a watch is handed (`createImpostorWatch`), each kept: whether a root waits in two
+ *  places, and the pushes made while `counting`. */
 export function keptHeaps() {
   const heaps = new Set<ReturnType<typeof createHeap<number>>>()
   const kept = {
     counting: true,
     pushes: 0,
-    /** Roots waiting in every heap made. */
-    waiting: () => [...heaps].reduce((sum, heap) => sum + heap.size, 0),
+    /** Whether each root waits in one place at most, across every heap made. */
+    oncePerRoot() {
+      const seen = new Set<number>()
+      for (const heap of heaps)
+        for (const rank of heap.items) {
+          if (seen.has(rank)) return false
+          seen.add(rank)
+        }
+      return true
+    },
     make: (
       before: (a: number, b: number) => boolean,
       placed: (rank: number, at: number) => void,

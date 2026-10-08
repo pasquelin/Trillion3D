@@ -21,5 +21,5 @@ test('a steady motion past sixteen anchors takes about one heap place a read', (
   assert.ok(reads > 0, 'the motion reads roots')
   // A read takes one place, and a root merged out of an old anchor one more: never a heap whole.
   assert.ok(heaps.pushes <= 2 * reads, `${heaps.pushes} places for ${reads} reads`)
-  assert.ok(heaps.waiting() <= roots.length, 'one place a root at most')
+  assert.ok(heaps.oncePerRoot(), 'one place a root at most')
 })
