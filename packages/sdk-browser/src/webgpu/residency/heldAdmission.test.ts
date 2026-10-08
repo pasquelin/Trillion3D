@@ -5,12 +5,10 @@ import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { keysOf, queueOf, readbackOf, rec, world } from './sets.fixture.ts'
+import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 /** A reproducible pseudo-random stream: the sweep below is the same on every run. */
-function stream(seed: number) {
-  let state = seed
-  return () => (state = (state * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
-}
+const stream = lcgMaskedRandom
 
 /** How many pages of each level the queue must hold: whole coarse levels, then what the room
  *  leaves of the level it straddles, nothing finer. A page counts at its coarsest placement. */

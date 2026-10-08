@@ -17,12 +17,12 @@ import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
 import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 /** The page geometry as a program holds it, its decode included. */
 const PAGE_GEOMETRY_WGSL = wgslModule(PAGE_GEOMETRY)
 
-let seed = 831
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+const random = lcgFloatRandom(831)
 const floats = (n: number, at: (i: number) => number) =>
   Float32Array.from({ length: n }, (_, i) => at(i))
 

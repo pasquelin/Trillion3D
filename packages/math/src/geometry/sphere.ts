@@ -1,5 +1,5 @@
 import { boundsDiagonal, boxCenter } from './box.ts'
-import { distanceSqVector3, plainLength3 } from '../vector/vector.ts'
+import { plainLength3 } from '../vector/vector.ts'
 
 /**
  * Bounding sphere of a box, written flat: centre `x, y, z` then radius, from `o`.
@@ -31,7 +31,8 @@ export function sphereFromBounds(
 }
 
 /** True when the sphere of radius `ar` centred at `a[aAt]` and the one of radius `br` at `b[bAt]`
- *  overlap or touch: the squared distance of the centres against the squared sum of the radii. */
+ *  overlap or touch: the squared distance of the centres, `distanceSqVector3`'s sum written in
+ *  place, against the squared sum of the radii. */
 export function spheresOverlap(
   a: ArrayLike<number>,
   ar: number,
@@ -40,8 +41,11 @@ export function spheresOverlap(
   aAt = 0,
   bAt = 0,
 ) {
-  const s = ar + br
-  return distanceSqVector3(a, b, aAt, bAt) <= s * s
+  const s = ar + br,
+    dx = a[aAt] - b[bAt],
+    dy = a[aAt + 1] - b[bAt + 1],
+    dz = a[aAt + 2] - b[bAt + 2]
+  return dx * dx + dy * dy + dz * dz <= s * s
 }
 
 /**

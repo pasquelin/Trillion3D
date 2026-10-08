@@ -89,3 +89,26 @@ export const isFiniteWord = wgslFn(
   [],
   'fn isFiniteWord(word:u32)->bool{return (word&0x7f800000u)!=0x7f800000u;}',
 )
+
+/** The 64-bit product of two words, through their 16-bit halves: no partial exceeds 32 bits. */
+export const wideProduct = wgslFn(
+  'wideProduct',
+  [],
+  `fn wideProduct(a:u32,b:u32)->vec2u{
+ let a0=a&0xffffu;
+ let a1=a>>16u;
+ let b0=b&0xffffu;
+ let b1=b>>16u;
+ let low=a0*b0;
+ let cross0=a0*b1;
+ let cross1=a1*b0;
+ let middle=(low>>16u)+(cross0&0xffffu)+(cross1&0xffffu);
+ return vec2u(a1*b1+(cross0>>16u)+(cross1>>16u)+(middle>>16u),(low&0xffffu)|((middle&0xffffu)<<16u));
+}`,
+)
+
+/** The low 16 bits of `word`: a pair of halves packed `low | high << 16`, its first. */
+export const lowHalf = wgslFn('lowHalf', [], 'fn lowHalf(word:u32)->u32{return word&0xffffu;}')
+
+/** The high 16 bits of `word`: a pair of halves packed `low | high << 16`, its second. */
+export const highHalf = wgslFn('highHalf', [], 'fn highHalf(word:u32)->u32{return word>>16u;}')

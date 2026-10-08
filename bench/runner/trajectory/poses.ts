@@ -1,6 +1,7 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
+import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { Street } from '../street/street.ts'
@@ -127,7 +128,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const a = place(POINTS[segment]),
     b = place(POINTS[segment + 1] ?? POINTS[0])
   return {
-    position: a.map((v, i) => v + (b[i] - v) * t) as [number, number, number],
+    position: a.map((v, i) => lerp(v, b[i], t)) as [number, number, number],
     target: [cx, ground + eye * 2, cz],
     fov: 55,
     near: Math.max(radius / 10000, 0.01),

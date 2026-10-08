@@ -10,6 +10,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 import { inChrome } from '../kit/onChrome.ts'
 import { ANISOTROPY_GAIN, fixtures } from './materialFixtures.ts'
 import { truthVerdict } from './groundTruth.ts'
@@ -65,9 +66,7 @@ test(
     const spread = (name: string, side: 'reference' | 'engine') => {
       const found = results.find((fixture) => fixture.name === name)
       assert.ok(found, `no fixture named ${name}`)
-      const means = found.samples.map(
-        (sample) => sample[side].reduce((sum, c) => sum + c, 0) / sample[side].length,
-      )
+      const means = found.samples.map((sample) => mean(sample[side]))
       return Math.max(...means) - Math.min(...means)
     }
     for (const side of ['reference', 'engine'] as const) {

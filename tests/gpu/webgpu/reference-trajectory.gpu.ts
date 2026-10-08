@@ -11,9 +11,10 @@ import { MEASURE_HEIGHT, MEASURE_WIDTH } from './measureResolution.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest, drawnPixels, settle } from '../world/proofWorld.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One reading per trajectory point: the first frame of each segment. */
-const POINTS = Math.ceil(PATH_POSES / FRAMES_PER_SEGMENT)
+const POINTS = ceilDiv(PATH_POSES, FRAMES_PER_SEGMENT)
 
 async function walkTheTrajectory() {
   const events: EngineDiagnostic[] = []

@@ -24,6 +24,7 @@ const RESOLVE_READ = [
   'vsmShadowFactor',
   'vsmConsumerSlope',
   'vsmConsumerSlopeBias',
+  'vsmReceiverFromEye',
   'vsmConsumerSlopeBiasAt',
   'testTransmission',
   'perspectiveDivide',

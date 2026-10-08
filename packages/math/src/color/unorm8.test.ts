@@ -1,8 +1,9 @@
 // color.ts unorm8 and fromUnorm8: a unit value to its byte and back, over every byte; the sRGB
-// byte on unorm8 is the old body bit for bit.
+// byte on unorm8 is the old body bit for bit; luminance is the weighted sum it replaces.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { fromUnorm8, linearToSrgb, linearToSrgb8, unorm8 } from './color.ts'
+import { luminance } from './luminance.fixture.ts'
 import { fract } from '../scalar/reals.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
@@ -24,5 +25,16 @@ test('unorm8 is the old sRGB byte and the blue-noise byte, bit for bit', () => {
     assert.equal(linearToSrgb8(c), Math.min(255, Math.max(0, Math.round(linearToSrgb(c) * 255))))
     const v = haltonSpan(i, 3, -4, 4)
     assert.equal(unorm8(fract(v)), Math.round((v - Math.floor(v)) * 255), `${i}`)
+  }
+})
+
+test('luminance: each primary its weight, and the inline weighted sum bit for bit', () => {
+  assert.deepEqual(
+    [luminance(1, 0, 0), luminance(0, 1, 0), luminance(0, 0, 1)],
+    [0.2126, 0.7152, 0.0722],
+  )
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const [r, g, b] = [2, 3, 5].map((base) => haltonSpan(i, base, 0, 255))
+    assert.ok(Object.is(luminance(r, g, b), 0.2126 * r + 0.7152 * g + 0.0722 * b), `${i}`)
   }
 })

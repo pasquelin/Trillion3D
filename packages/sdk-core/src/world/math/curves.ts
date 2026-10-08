@@ -4,6 +4,7 @@ import { splineSpan } from '../../../../math/src/scalar/hermite.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
+import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 /**
  * Whether an outline's last point `b` repeats its first `a`: their distance under 1e-12, measured
@@ -199,11 +200,14 @@ export class Shape {
     let sweep = end - start
     if (clockwise && sweep > 0) sweep -= TAU
     if (!clockwise && sweep < 0) sweep += TAU
-    this.cursor = new Vector2(x + radius * Math.cos(end), y + radius * Math.sin(end))
+    const last = circlePoint([0, 0], radius, end)
+    this.cursor = new Vector2(x + last[0], y + last[1])
     this.commands.push((segments, out) => {
+      const point = [0, 0]
       for (let i = 0; i <= segments; i++) {
         const a = start + (sweep * i) / segments
-        out.push(new Vector2(x + radius * Math.cos(a), y + radius * Math.sin(a)))
+        circlePoint(point, radius, a)
+        out.push(new Vector2(x + point[0], y + point[1]))
       }
     })
     return this

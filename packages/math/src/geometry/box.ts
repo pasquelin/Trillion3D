@@ -115,9 +115,9 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
 
 /**
  * The smallest box around `count` points read from `points` at `at`, one every `stride` numbers,
- * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point. `Math.min` and `Math.max` decide,
- * so a NaN coordinate makes its bounds NaN, `-0` sits below `+0`, and no point leaves the box
- * empty. `out` must not be `points`.
+ * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point, the six bounds held in locals
+ * and written once. `Math.min` and `Math.max` decide, so a NaN coordinate makes its bounds NaN,
+ * `-0` sits below `+0`, and no point leaves the box empty. `out` must not be `points`.
  */
 export function boxFromPoints(
   out: Float64Array,
@@ -127,12 +127,37 @@ export function boxFromPoints(
   count: number,
   stride = 3,
 ) {
-  boxEmpty(out, o)
-  for (let i = 0, p = at; i < count; i++, p += stride)
-    boxExpandByPoint(out, o, points[p], points[p + 1], points[p + 2])
+  // The six-bound fold `boxTransform` also runs over its corners, spelled out in each: shared, the
+  // bounds would live in memory instead of registers, the cost these locals remove.
+  // jscpd:ignore-start
+  let loX = Infinity,
+    loY = Infinity,
+    loZ = Infinity,
+    hiX = -Infinity,
+    hiY = -Infinity,
+    hiZ = -Infinity
+  for (let i = 0, p = at; i < count; i++, p += stride) {
+    const x = points[p],
+      y = points[p + 1],
+      z = points[p + 2]
+    loX = Math.min(loX, x)
+    loY = Math.min(loY, y)
+    loZ = Math.min(loZ, z)
+    hiX = Math.max(hiX, x)
+    hiY = Math.max(hiY, y)
+    hiZ = Math.max(hiZ, z)
+  }
+  out[o] = loX
+  out[o + 1] = loY
+  out[o + 2] = loZ
+  out[o + 3] = hiX
+  out[o + 4] = hiY
+  out[o + 5] = hiZ
+  // jscpd:ignore-end
 }
 
-/** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed). */
+/** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed):
+ *  each axis's lower then upper bound, axis by axis. */
 export function boxGrow(
   out: Float64Array,
   o: number,
@@ -140,10 +165,12 @@ export function boxGrow(
   bo: number,
   g: number,
 ) {
-  for (let c = 0; c < 3; c++) {
-    out[o + c] = box[bo + c] - g
-    out[o + c + 3] = box[bo + c + 3] + g
-  }
+  out[o] = box[bo] - g
+  out[o + 3] = box[bo + 3] + g
+  out[o + 1] = box[bo + 1] - g
+  out[o + 4] = box[bo + 4] + g
+  out[o + 2] = box[bo + 2] - g
+  out[o + 5] = box[bo + 5] + g
 }
 
 /** Union of the box with another given by its six bounds. */
@@ -163,6 +190,35 @@ export function boxUnion(
   out[o + 3] = Math.max(out[o + 3], maxX)
   out[o + 4] = Math.max(out[o + 4], maxY)
   out[o + 5] = Math.max(out[o + 5], maxZ)
+}
+
+/**
+ * Whether every corner of the box of bounds `min…max` has `w` exactly 1 under `m`: the last row
+ * of `m` is `0, 0, 0, 1` and every bound finite, so each product of the row is a zero and their sum
+ * plus 1 is 1. The divide by `w` is then skipped, and so is the product by `1 / w`, which leaves
+ * every value — NaN, signed zero and infinity — as it is.
+ */
+function unitW(
+  m: ArrayLike<number>,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return (
+    m[3] === 0 &&
+    m[7] === 0 &&
+    m[11] === 0 &&
+    m[15] === 1 &&
+    Number.isFinite(minX) &&
+    Number.isFinite(minY) &&
+    Number.isFinite(minZ) &&
+    Number.isFinite(maxX) &&
+    Number.isFinite(maxY) &&
+    Number.isFinite(maxZ)
+  )
 }
 
 /**
@@ -202,7 +258,7 @@ export function boxCornersInto(
  * Each corner is computed into locals and folded at once into the six bounds, with the
  * `Math.min`/`Math.max` of `boxExpandByPoint`, corners in the order of `boxCornersInto`, from an
  * empty box: the bits of the union of `boxCornersInto`'s corners, with no scratch buffer
- * (`box.test.ts`).
+ * (`box.test.ts`). Where `unitW` holds, the divide by `w` is skipped as there.
  */
 export function boxTransform(
   out: Float64Array,
@@ -248,14 +304,20 @@ export function boxTransform(
     hiX = -Infinity,
     hiY = -Infinity,
     hiZ = -Infinity
+  const affine = unitW(m, minX, minY, minZ, maxX, maxY, maxZ)
   for (let i = 0; i < 8; i++) {
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
       lz = i & 4 ? maxZ : minZ
-    const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15)
-    const x = (m0 * lx + m4 * ly + m8 * lz + m12) * mw,
-      y = (m1 * lx + m5 * ly + m9 * lz + m13) * mw,
-      z = (m2 * lx + m6 * ly + m10 * lz + m14) * mw
+    let x = m0 * lx + m4 * ly + m8 * lz + m12,
+      y = m1 * lx + m5 * ly + m9 * lz + m13,
+      z = m2 * lx + m6 * ly + m10 * lz + m14
+    if (!affine) {
+      const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15)
+      x *= mw
+      y *= mw
+      z *= mw
+    }
     loX = Math.min(loX, x)
     loY = Math.min(loY, y)
     loZ = Math.min(loZ, z)

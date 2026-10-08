@@ -23,6 +23,13 @@ fn mix_is_exact_at_both_ends_and_rounds_apart_from_lerp() {
 }
 
 #[test]
+fn half_diagonal_is_half_the_hypotenuse() {
+    assert_eq!(half_diagonal(3.0, 4.0), 2.5);
+    let (w, h) = (0.3f64, 1.7);
+    assert_eq!(half_diagonal(w, h).to_bits(), (w.hypot(h) / 2.0).to_bits());
+}
+
+#[test]
 fn remap_places_a_value_between_its_bounds_unclamped() {
     assert_eq!(remap(5.0f64, 0.0, 10.0), 0.5);
     assert_eq!(remap(15.0f64, 10.0, 20.0), 0.5);

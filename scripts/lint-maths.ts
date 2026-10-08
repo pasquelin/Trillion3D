@@ -61,6 +61,14 @@ export const MATHS_FORMS = [
     message: `\`Math.PI / n\` ${fraction}.`,
   },
   {
+    selector: `${PRODUCT}[right.type='Literal'] > UnaryExpression.left[operator='-'] > ${PI}`,
+    message: `\`-Math.PI / n\` ${fraction}.`,
+  },
+  {
+    selector: `BinaryExpression[operator='*'][left.type='BinaryExpression'][left.operator='*'][left.right.type='Literal'] > ${PI}.right`,
+    message: `\`x * n * Math.PI\` ${fraction}.`,
+  },
+  {
     selector: `${PRODUCT}[right.type='Literal'] > BinaryExpression.left[operator='*'] > ${PI}`,
     message: `\`x * Math.PI / n\` ${fraction}.`,
   },

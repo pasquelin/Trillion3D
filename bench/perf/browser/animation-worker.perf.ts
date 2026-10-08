@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
-import { quantile } from '../../../packages/math/src/scalar/quantile.ts'
+import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
 import { sampleAhead } from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
@@ -70,14 +70,10 @@ async function round(side: Side) {
   updates[side].push(median(frames))
   cpus[side].push((cpu() - from) / (FRAMES - WARM))
 }
-const median = (values: number[]) => quantileOf(values, 0.5)
-const quantileOf = (values: number[], q: number) =>
-  quantile(
-    [...values].sort((a, b) => a - b),
-    q,
-  ) as number
+const rank = (values: number[], q: number) => quantileOf(values, q) as number
+const median = (values: number[]) => rank(values, 0.5)
 const spread = (values: number[], digits = 0) =>
-  `${median(values).toFixed(digits)} [${quantileOf(values, 0.25).toFixed(digits)}–${quantileOf(values, 0.75).toFixed(digits)}]`
+  `${median(values).toFixed(digits)} [${rank(values, 0.25).toFixed(digits)}–${rank(values, 0.75).toFixed(digits)}]`
 const paired = (a: number[], b: number[]) => a.map((v, i) => v / b[i])
 
 const SIDES: Side[] = ['sync', 'ahead', 'three']

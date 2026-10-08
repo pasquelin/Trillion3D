@@ -4,6 +4,7 @@ import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
 import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 // The tested half is compacted (`restCount`, `restScan`, `restScatter`) rather than truncated
 // after its last survivor (`restMark`, `restApply`), which would still draw the rejected
@@ -132,8 +133,7 @@ const clone = (f: Frame): Frame => ({
 })
 
 test('compaction draws what truncation drew, in the same order, and no rejected instance', () => {
-  let seed = 923
-  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number
+  const rand = lcgRandom(923)
   let dropped = 0
   for (let trial = 0; trial < 500; trial++) {
     const f = frame(rand),

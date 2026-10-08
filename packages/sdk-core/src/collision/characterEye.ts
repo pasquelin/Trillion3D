@@ -1,5 +1,6 @@
 import { RUN_CADENCE, type CharacterSettings } from './characterSettings.ts'
 import { length2 } from '../../../math/src/vector/vector.ts'
+import { decayFactor } from '../../../math/src/scalar/reals.ts'
 import { PI, TAU } from '../../../math/src/constants.ts'
 
 /**
@@ -47,7 +48,7 @@ export function createCharacterEye(
       else if (dip !== 0 || sinking !== 0) {
         const rate = 1 / settings.landingDip,
           k = (sinking + rate * dip) * delta,
-          decay = Math.exp(-rate * delta)
+          decay = decayFactor(rate, delta)
         ;[dip, sinking] = [(dip + k) * decay, (sinking - rate * k) * decay]
         // Under a hundredth of a millimetre, and slower than that per second: settled.
         if (Math.abs(dip) < 1e-5 && Math.abs(sinking) < 1e-5) dip = sinking = 0

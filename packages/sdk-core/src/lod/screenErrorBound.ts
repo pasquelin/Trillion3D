@@ -1,4 +1,5 @@
 import { clipWeight } from '../../../math/src/projection/camera.ts'
+import { plainLength2 } from '../../../math/src/vector/vector.ts'
 import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts'
 
 /**
@@ -63,7 +64,7 @@ export function screenErrorBound(
   // Rust's `vec2::length`, not `length2`: past the plain sum's range `length2` takes `hypot2`,
   // and the table's row at a 1e308 depth pins the plain sum's Infinity (docs/MATHS.md "Lengths").
   if (!(closest > perspective * near)) return Infinity
-  const slant = Math.sqrt(nearest * nearest + side * side)
+  const slant = plainLength2(nearest, side)
   if (!(slant >= nearest && slant < Infinity)) return Infinity
   return ((shift * focal) / nearest) * (slant / closest)
 }
@@ -89,7 +90,7 @@ export function clusterErrorPixels(
   // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
   // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
   // `vec2::length` of `cut_error.rs` too: the plain root, as the slant.
-  const lateral = Math.sqrt(centreX * centreX + centreY * centreY)
+  const lateral = plainLength2(centreX, centreY)
   return clusterErrorAtDepth(
     clusterError,
     stretch,

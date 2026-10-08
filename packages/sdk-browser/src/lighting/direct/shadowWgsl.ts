@@ -22,7 +22,7 @@ import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/proj
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { byteOf, pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 import {
@@ -119,6 +119,13 @@ fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4
 }
 /** The optimal slope bias for a texel \`offset\` texels from the receiver's position. */
 fn vsmConsumerSlopeBiasAt(slope:vec4f,offset:vec2f)->f32{return min(2.0*max(0.0,dot(slope.xy,offset)),slope.z)*slope.w;}
+/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias, which grows with
+ *  the distance and the pixel's angular size. */
+fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
+ let distanceToCamera=length(P-shadowCamera);
+ let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
+ return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+}
 fn vsmConsumerSlopeBias(slope:vec4f,sm:VsmMapRead)->f32{
  return vsmConsumerSlopeBiasAt(slope,vec2f(sm.mapTexelXY)+0.5-sm.mapTexelPos);
 }
@@ -127,9 +134,7 @@ fn vsmConsumerSlopeBias(slope:vec4f,sm:VsmMapRead)->f32{
 fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
@@ -310,9 +315,7 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
 fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
@@ -356,6 +359,13 @@ const tracedKindStatement = (kinds: ShadowKinds) =>
     ? `if(isSun(light)){\n${TRACED_SUN}\n }else{\n${TRACED_LOCAL}\n }`
     : `{\n${kinds.sun ? TRACED_SUN : TRACED_LOCAL}\n }`
 
+/** The per-frame shift of the pixel noise, per frame of the noise tile (declared, not derived). */
+const VSM_NOISE_FRAME_SHIFT = wgslConst(
+  'VSM_NOISE_FRAME_SHIFT',
+  [],
+  'const VSM_NOISE_FRAME_SHIFT=vec2f(32.665,11.815);',
+)
+
 /** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile:
  *  the traces' noise provider (\`vsmNoiseTwo\`) in a stage with no blue-noise binding. Declared,
  *  without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel noise
@@ -363,9 +373,9 @@ const tracedKindStatement = (kinds: ShadowKinds) =>
  *  (13, 71) apart from the first; moving any moves this read's noise pattern. */
 const PIXEL_NOISE_TWO = wgslFn(
   'vsmNoiseTwo',
-  [interleavedGradient, VSM_NOISE_TILE],
+  [interleavedGradient, VSM_NOISE_TILE, VSM_NOISE_FRAME_SHIFT],
   `fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
- let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*vec2f(32.665,11.815);
+ let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT;
  return vec2f(interleavedGradient(p),interleavedGradient(p+vec2f(47.0,17.0)));
 }`,
 )
@@ -387,6 +397,7 @@ const tracedReadWgsl = (b: VsmConsumerBindings, kinds: ShadowKinds) =>
     [
       interleavedGradient,
       VSM_NOISE_TILE,
+      VSM_NOISE_FRAME_SHIFT,
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_RESULT_WGSL,
       vsmTraceWgsl(false, vsmPoolRead(b.pool), PIXEL_NOISE_TWO),
@@ -408,7 +419,7 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  vsmView.originShiftHigh=-shadowCamera;vsmView.originShiftLow=vec3f(0.0);
  vsmView.frameIndex=frame;
  let pixel=vec2u(shadowPixel);
- let noise=interleavedGradient(shadowPixel+f32(frame&7u)*vec2f(32.665,11.815));
+ let noise=interleavedGradient(shadowPixel+f32(frame&7u)*VSM_NOISE_FRAME_SHIFT);
  let fromEye=P-shadowCamera;
  let start=vsm.screenRayShare*vsm.viewTanHalfFovY*depth;
  var traced:VsmTraceResult;
@@ -416,7 +427,7 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  var shade=traced.shadowFactor;
  // A penumbra's shade (strictly between 0 and 1: k of R rays) moves by up to half the finest step a
  // shade takes, one ray of the most a light traces (\`VSM_MASK_MAX_RAYS\`).
- if(shade>0.0&&shade<1.0){shade=saturate(shade+(interleavedGradient(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*vec2f(32.665,11.815))-0.5)/${VSM_MASK_MAX_RAYS}.0);}
+ if(shade>0.0&&shade<1.0){shade=saturate(shade+(interleavedGradient(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT)-0.5)/${VSM_MASK_MAX_RAYS}.0);}
  if(shade>0.0){_=vsmShadowFactor(id,isSun(light),P,Nin);}
  return shade;
 }`,
@@ -565,9 +576,7 @@ fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory)
 fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,Nin:vec3f){
  let N=normalize(Nin);
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let fromEye=vsmReceiverFromEye(P,N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);

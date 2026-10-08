@@ -3,6 +3,7 @@ import { core } from '../../impostor/borrowed.ts'
 import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { transformPoint } from '../../../../math/src/wgsl/projection.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
@@ -60,11 +61,10 @@ struct CardVary{
  let frames=c.shape.y;let hemi=c.shape.z;
  let k=impView(eye,frames,hemi);
  let na=impFrameNormal(k.a,frames,hemi);let nb=impFrameNormal(k.b,frames,hemi);let nc=impFrameNormal(k.c,frames,hemi);
- // The normal matrix, transpose(inverse), by its rows read as columns.
- let m=c.inverse;
+ let m=c.inverse;let normalMatrix=transpose(worldMatrix3(m));
  return CardVary(view.viewProj*vec4f(p,1.0),transformPoint(m,p)-pivot,i,vec4f(eye,c.shape.x),
   vec4f(k.w,c.shape.w),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
-  na,nb,nc,vec3f(m[0].x,m[1].x,m[2].x),vec3f(m[0].y,m[1].y,m[2].y),vec3f(m[0].z,m[1].z,m[2].z));
+  na,nb,nc,normalMatrix[0],normalMatrix[1],normalMatrix[2]);
 }
 /** The card's surface at this pixel, and its depth: the blended surface point projected. A texel
  *  under the coverage cut is no surface: the pixel is discarded, in every stage alike. */
@@ -97,5 +97,5 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
 }`,
-    [IMPOSTOR_CARD_WGSL, tangentImpostor, transformPoint],
+    [IMPOSTOR_CARD_WGSL, tangentImpostor, transformPoint, worldMatrix3],
   )

@@ -18,6 +18,7 @@ import {
 import { TILE_POOL_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
 import { cellOrigin } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
 import { computeOnDawn } from '../kit/computeRun.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The atlas reads' place decode and pool tap, taken from the shipped text itself. */
 function poolLines() {
@@ -106,7 +107,7 @@ test('a place up to the last pool layer decodes on the GPU as packed, and its ta
     adapter,
     errors,
     values: read,
-  } = await computeOnDawn(proofWgsl(), words.length * 16, Math.ceil(words.length / 64), {
+  } = await computeOnDawn(proofWgsl(), words.length * 16, ceilDiv(words.length, 64), {
     setup: poolInputs(words, texels, writes),
     output: 2,
   })

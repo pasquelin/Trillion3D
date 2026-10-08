@@ -10,9 +10,10 @@
 export type NumberSink = { [index: number]: number }
 
 /**
- * `out = a · b`. The thirty-two inputs are read before the first write, so `out` may be
- * `a` or `b`. Each term is the sum of four products, with no initial zero: a sum started
- * at `0` would change the sign of a negative zero.
+ * `out = a · b`. The sixteen values of `a` are read before the first write, and each column of `b`
+ * before its column of `out` is written, which reads no other column of `b`: so `out` may be `a`
+ * or `b`. Each term is the sum of four products, with no initial zero: a sum started at `0` would
+ * change the sign of a negative zero.
  *
  * ONE BUFFER TYPE ONLY, `Float64Array`, ON INPUT AND OUTPUT. The forty-eight accesses of this
  * body are forty-eight indexed read and write sites, shared by ALL callers:
@@ -27,7 +28,8 @@ export type NumberSink = { [index: number]: number }
  * The sixteen write indices are constants. An output offset as a parameter would make them
  * computed, hence payable of an add and a bounds check each: measured at 6% of the whole
  * product. A caller that composes into a large buffer passes it a subview, or composes aside then
- * copies its sixteen numbers.
+ * copies its sixteen numbers. `b` is read one column at a time into four locals, and that column of
+ * `out` is written before the next is read.
  */
 export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Array) {
   const a11 = a[0],
@@ -46,38 +48,38 @@ export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Ar
     a42 = a[7],
     a43 = a[11],
     a44 = a[15]
-  const b11 = b[0],
-    b12 = b[4],
-    b13 = b[8],
-    b14 = b[12]
-  const b21 = b[1],
-    b22 = b[5],
-    b23 = b[9],
-    b24 = b[13]
-  const b31 = b[2],
-    b32 = b[6],
-    b33 = b[10],
-    b34 = b[14]
-  const b41 = b[3],
-    b42 = b[7],
-    b43 = b[11],
-    b44 = b[15]
-  out[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41
-  out[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42
-  out[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43
-  out[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44
-  out[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41
-  out[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42
-  out[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43
-  out[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44
-  out[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41
-  out[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42
-  out[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43
-  out[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44
-  out[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41
-  out[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42
-  out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43
-  out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44
+  let b0 = b[0],
+    b1 = b[1],
+    b2 = b[2],
+    b3 = b[3]
+  out[0] = a11 * b0 + a12 * b1 + a13 * b2 + a14 * b3
+  out[1] = a21 * b0 + a22 * b1 + a23 * b2 + a24 * b3
+  out[2] = a31 * b0 + a32 * b1 + a33 * b2 + a34 * b3
+  out[3] = a41 * b0 + a42 * b1 + a43 * b2 + a44 * b3
+  b0 = b[4]
+  b1 = b[5]
+  b2 = b[6]
+  b3 = b[7]
+  out[4] = a11 * b0 + a12 * b1 + a13 * b2 + a14 * b3
+  out[5] = a21 * b0 + a22 * b1 + a23 * b2 + a24 * b3
+  out[6] = a31 * b0 + a32 * b1 + a33 * b2 + a34 * b3
+  out[7] = a41 * b0 + a42 * b1 + a43 * b2 + a44 * b3
+  b0 = b[8]
+  b1 = b[9]
+  b2 = b[10]
+  b3 = b[11]
+  out[8] = a11 * b0 + a12 * b1 + a13 * b2 + a14 * b3
+  out[9] = a21 * b0 + a22 * b1 + a23 * b2 + a24 * b3
+  out[10] = a31 * b0 + a32 * b1 + a33 * b2 + a34 * b3
+  out[11] = a41 * b0 + a42 * b1 + a43 * b2 + a44 * b3
+  b0 = b[12]
+  b1 = b[13]
+  b2 = b[14]
+  b3 = b[15]
+  out[12] = a11 * b0 + a12 * b1 + a13 * b2 + a14 * b3
+  out[13] = a21 * b0 + a22 * b1 + a23 * b2 + a24 * b3
+  out[14] = a31 * b0 + a32 * b1 + a33 * b2 + a34 * b3
+  out[15] = a41 * b0 + a42 * b1 + a43 * b2 + a44 * b3
   return out
 }
 

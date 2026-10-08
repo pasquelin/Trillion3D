@@ -1,6 +1,7 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 
 /** Lanes of a column's workgroup: a batch of lights, one each. */
 export const GRID_LANES = 64
@@ -23,7 +24,7 @@ const SLICES = LIGHT_SETTINGS.gridSlices
  */
 export const GRID_COMPACT_WGSL = wgslBlock(
   'GRID_COMPACT_WGSL',
-  [LANE_SCAN_WGSL],
+  [LANE_SCAN_WGSL, lowHalf, highHalf],
   `const LANES:u32=${GRID_LANES}u;
 const CACHE:u32=${GRID_CACHE}u;
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
@@ -113,7 +114,7 @@ fn cacheEntry(lane:u32,entry:vec2u){
  let kept=vec2u(atomicLoad(&keptLanes[0]),atomicLoad(&keptLanes[1]));
  let below=(1u<<(lane%32u))-1u;
  let rank=select(countOneBits(kept.x&below),countOneBits(kept.x)+countOneBits(kept.y&below),lane>=32u);
- if((entry.y&0xffffu)<=(entry.y>>16u)){cache[cached+rank]=entry;}
+ if(lowHalf(entry.y)<=highHalf(entry.y)){cache[cached+rank]=entry;}
 }
 /** The room of the slices before lane \`lane\`'s run \`span\` (\`laneRun\`): the runs' totals,
  *  scanned over the lanes. Every lane calls it, from uniform control flow; \`laneSums[LANES-1]\`

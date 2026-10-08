@@ -15,6 +15,7 @@ import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import { VOLUME_LAW_WGSL, volumeAttenuation } from './volumeLaw.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const f = Math.fround,
   LOG2E = f(Math.LOG2E)
@@ -26,8 +27,7 @@ const ulp = (x: number) => {
   return word[0] - at
 }
 const error = (value: number, exact: number) => Math.abs(value - exact) / ulp(exact)
-let seed = 1563
-const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+const random = lcgRandom(1563)
 /** The best f32 `pow(x, y)` WGSL allows: exp2(y·log2 x), each correctly rounded. */
 const pow = (x: number, y: number) => f(2 ** f(y * f(Math.log2(x))))
 

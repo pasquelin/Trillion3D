@@ -5,6 +5,7 @@ import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { SlidingMedian } from './slidingWindow.ts'
 import { createPathGovernor } from './governor.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const WINDOW = 30
 const SPECIAL = [NaN, 0, -0, Infinity, -Infinity, Number.MAX_VALUE, -Number.MIN_VALUE, 1e-300]
@@ -19,9 +20,7 @@ function reference(values: number[]) {
 }
 
 /** A deterministic generator: the same inputs on every run. */
-function random(seed: number) {
-  return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32
-}
+const random = lcgRandom
 
 function sameMedian(sliding: SlidingMedian, values: number[], label: string) {
   const got = sliding.median(),

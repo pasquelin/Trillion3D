@@ -6,6 +6,7 @@ import {
   type CharacterSettings,
 } from './characterSettings.ts'
 import { length2 } from '../../../math/src/vector/vector.ts'
+import { decayFactor, decayRate } from '../../../math/src/scalar/reals.ts'
 import { gripOf } from './grip.ts'
 
 /**
@@ -99,8 +100,8 @@ export function driveTick(
     events.onJump?.()
   }
   if (driveAtRest(drive, input)) return false
-  const gather = -Math.log(RESPONSE_LEFT) / settings.responseTime,
-    brake = -Math.log(RESPONSE_LEFT) / settings.stopTime
+  const gather = decayRate(RESPONSE_LEFT, settings.responseTime),
+    brake = decayRate(RESPONSE_LEFT, settings.stopTime)
   const rate = drive.grounded
     ? wishing
       ? gather
@@ -135,7 +136,7 @@ function approach(
     gap = length2(gx, gz)
   const linear = gap > push / rate ? Math.min(h, (gap - push / rate) / push) : 0,
     middle = linear > 0 ? gap - push * linear : gap,
-    decay = Math.exp(-rate * (h - linear)),
+    decay = decayFactor(rate, h - linear),
     reach = rate > 0 ? (1 - decay) / rate : h - linear
   // The gap's integral over the tick, then the gap left, as fractions of the gap at its start.
   const along = gap > 0 ? (((gap + middle) / 2) * linear + middle * reach) / gap : 0,

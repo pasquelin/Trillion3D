@@ -45,6 +45,13 @@ export const fract = (x: number) => x - Math.floor(x)
  *  it takes one division and one product, and a negative `n` folds into `(n, 0]`. */
 export const floorMod = (x: number, n: number) => x - n * Math.floor(x / n)
 
+/** The rate that leaves the share `left` of a quantity after `time` of exponential decay,
+ *  `−ln(left) / time`: the inverse of `decayFactor`. */
+export const decayRate = (left: number, time: number) => -Math.log(left) / time
+
+/** The share of a quantity left after `dt` of exponential decay at `rate` per unit, `exp(−rate · dt)`. */
+export const decayFactor = (rate: number, dt: number) => Math.exp(-rate * dt)
+
 /** `out[i] = lerp(from[i], to[i], t)` over `out`'s length; `t === 1` copies `to` exactly — a lerp
  *  there can miss `to` by a rounding — so a blend run to its end lands on its target. */
 export function lerpArray(

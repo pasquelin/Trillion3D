@@ -1,5 +1,5 @@
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
-import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
+import { divideVector3, length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import { snap, type Vec3 } from './random.ts'
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts'
@@ -30,7 +30,7 @@ export function pairs(...lists: readonly (readonly number[])[]) {
 function normalized(vectors: number[]) {
   for (let v = 0; v < vectors.length; v += 3) {
     const length = length3(vectors[v], vectors[v + 1], vectors[v + 2]) + 1e-12
-    for (let k = 0; k < 3; k++) vectors[v + k] /= length
+    divideVector3(vectors, v, length)
   }
   return vectors
 }
@@ -42,7 +42,7 @@ export function snapped(mesh: Mesh): Mesh {
   for (let v = 0; v < normals.length; v += 3) {
     const [x, y, z] = normals.slice(v, v + 3),
       length = length3(x, y, z) || 1
-    for (let k = 0; k < 3; k++) normals[v + k] /= length
+    divideVector3(normals, v, length)
   }
   return { ...mesh, positions: mesh.positions.map(snap), normals, uvs: mesh.uvs.map(snap) }
 }

@@ -9,6 +9,7 @@ import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
 import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
+import { wrap } from '../../../packages/math/src/scalar/reals.ts'
 
 const SIZE = 24
 const CLEAR = 0x2a303c,
@@ -44,7 +45,7 @@ test('the square shows its texel, the clear colour lies around it, a silhouette 
   assert.equal(truth.edge[0], 0)
   const edges = truth.edge.filter(Boolean).length
   assert.ok(edges > 0 && edges < SIZE * 4, `${edges} edge pixels: one ring round the square`)
-  const turned = new Matrix4().makeRotationX((-75 * Math.PI) / 180)
+  const turned = new Matrix4().makeRotationX(-75 * DEG2RAD)
   const grazing = groundTruth(view([red, red], { square: { place: turned, half: 1 } }), 4)
   assert.deepEqual(rgb(grazing.rgba, CENTRE, CENTRE), [255, 0, 0])
   assert.deepEqual(rgb(grazing.rgba, CENTRE, 3), backgroundRgb(CLEAR), 'turned away: a thin band')
@@ -141,7 +142,7 @@ test('a perfect one-read sampler is the truth where the map is magnified', () =>
 // mean is a one-dimensional integral, the plane cast here in closed form from `cameraFace`.
 test('a slanted footprint is read on its tangent, as a sampler reads it', () => {
   const size = 96,
-    tilt = (-88 * Math.PI) / 180,
+    tilt = -88 * DEG2RAD,
     a = Math.tan((55 / 2) * DEG2RAD)
   const texels = Array.from({ length: 64 }, (_, i) => Array(4).fill(i % 2 ? 255 : 0)).flat()
   const truth = groundTruth({
@@ -154,7 +155,7 @@ test('a slanted footprint is read on its tangent, as a sampler reads it', () => 
   // the map's u, in texels, is (X + 1) 16. Its linear value runs 0 to 1 between texel centres.
   const hit = (y: number) => 3 / (1 + y * a * Math.tan(tilt))
   const u = (x: number, y: number) => (hit(y) * x * a + 1) * 16
-  const linear = (t: number) => 1 - Math.abs(((((t - 0.5) % 2) + 2) % 2) - 1)
+  const linear = (t: number) => 1 - Math.abs(wrap(t - 0.5, 2) - 1)
   let judged = 0
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {

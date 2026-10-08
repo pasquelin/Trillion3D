@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { TAU } from '../../../packages/math/src/constants.ts'
+import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
+import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 import { mix } from '../../../packages/math/src/scalar/reals.ts'
 import { randomStream, snap, type RandomStream } from './random.ts'
 import {
@@ -32,7 +34,7 @@ const soft = (image: Raster, sigma: number) => blur(shrink(image, 2), sigma)
 /** A relief map from a height drawing of 0 (groove) and up to 255 (face). */
 const relief = (height: Raster) => {
   const field = soft(height, 8)
-  field.data.forEach((value, index) => (field.data[index] = value / 255))
+  field.data.forEach((value, index) => (field.data[index] = fromUnorm8(value)))
   return normalMap(field, RELIEF)
 }
 
@@ -71,7 +73,7 @@ function tiles(random: RandomStream) {
           const [r, angle] = [k % 2 ? inner : outer, (k * TAU) / 16 + TAU / 16]
           return [snap(cx + r * Math.cos(angle)), snap(cy + r * Math.sin(angle))]
         }),
-        brightness = base.reduce((sum, value) => sum + value, 0) / 3
+        brightness = mean(base)
       fillPolygon(colour, star, glazes[brightness < 150 ? 2 : 0])
     }
   return { map: soft(colour, 2), relief: relief(height) }

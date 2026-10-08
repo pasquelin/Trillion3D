@@ -4,6 +4,7 @@
 // axes, 1,500 lit windows and 40 large lights. Synthetic: it stands for an aerial view over many
 // lights, never for a scene of the repository. `depthField` ray-casts it as the engine's depth
 // buffer holds it — reverse-Z, infinite far, 0 on the sky.
+import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { seeded } from '../../../site/examples/kit/random.ts'
 import {
   pixelRay,
@@ -42,7 +43,7 @@ const light = (centre: Vec3, radius: number): Light => ({
 
 export function buildCity(seed = 42): City {
   const r = seeded(seed),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   const blocks = emptyBlocks()
   for (let i = -HALF; i < HALF; i++)
     for (let j = -HALF; j < HALF; j++) {

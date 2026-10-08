@@ -10,7 +10,8 @@ import {
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
 } from '../../../packages/sdk-browser/src/host/surfaceConstants.ts'
-import { clamp } from '../../../packages/math/src/scalar/reals.ts'
+import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
+import { clamp, mix, wrap } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The three host wrap modes, by name. */
 const MODES: [string, number][] = [
@@ -30,10 +31,10 @@ export const ADDRESS_MODE = new Map<number, GPUAddressMode>([
 export const TOLERANCE = 0.5
 
 /** Texel index `i` brought back into the image by the wrap mode alone. */
-function wrapIndex(i: number, size: number, wrap: number) {
-  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return clamp(i, 0, size - 1)
-  const period = wrap === HOST_WRAP_REPEAT ? size : 2 * size
-  const j = ((i % period) + period) % period
+function wrapIndex(i: number, size: number, mode: number) {
+  if (mode === HOST_WRAP_CLAMP_TO_EDGE) return clamp(i, 0, size - 1)
+  const period = mode === HOST_WRAP_REPEAT ? size : 2 * size
+  const j = wrap(i, period)
   return j < size ? j : period - 1 - j
 }
 
@@ -56,11 +57,11 @@ export function linearTexels(t: number, size: number, wrap: number): [number, nu
 
 /** The byte the two blended texels yield on their axis: red = 20 + 40x, green = 20 + 40y. */
 const blendedByte = ([i0, i1, weight]: [number, number, number]) =>
-  (20 + 40 * i0) * (1 - weight) + (20 + 40 * i1) * weight
+  mix(20 + 40 * i0, 20 + 40 * i1, weight)
 
 /** The rule's exact colour on an axis, the two texels blended, in [0, 1]. */
 export const ruleColour = (t: number, size: number, wrap: number) =>
-  blendedByte(linearTexels(t, size, wrap)) / 255
+  fromUnorm8(blendedByte(linearTexels(t, size, wrap)))
 
 /**
  * A period seam: under repeat the two blended texels are not neighbours in the image, one is the

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closestSegmentTriangle } from './closest.ts'
 import { onSegment } from './segment.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 // The closed forms against a dense sampling of the segment and the triangle: the true distance is
 // never above the nearest sampled pair, and never further below it than the sampling step.
@@ -80,8 +81,8 @@ test('a segment and a triangle: the pair and the distance of the nearest points,
     ['segment on a vertex', [2, 0, 0, 2, 0, 1], TRIANGLE],
   ]
   for (const [label, segment, v] of cases) check(segment, v, label)
-  let seed = 3
-  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) * 4 - 2
+  const draw = lcgRandom(3)
+  const rand = () => draw() * 4 - 2
   for (let trial = 0; trial < 60; trial++) {
     const v = Array.from({ length: 9 }, rand)
     check(Array.from({ length: 6 }, rand), v, `random ${trial}`)

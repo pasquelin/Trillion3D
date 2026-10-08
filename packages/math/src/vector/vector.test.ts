@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  cross2,
   distanceSqVector3,
+  divideVector3,
   distanceVector3,
   dotScalar3,
   dotVector3,
@@ -9,6 +11,8 @@ import {
   length3,
   normalizeVector2,
   normalizeVector3,
+  circlePoint,
+  plainLength2,
   plainLength3,
   transformAffinePointRowMajor,
 } from './vector.ts'
@@ -32,6 +36,22 @@ test('length3 is the plain root of the squares summed left to right, not Math.hy
     z = 0.4516414701938629
   assert.equal(bitsOf(hypot3(x, y, z)), 0x3fe4b46054c7ac11n)
   assert.equal(bitsOf(length3(x, y, z)), 0x3fe4b46054c7ac12n)
+})
+
+test("plainLength2 is plainLength3 in the plane: the band's bits, Infinity and 0 outside it", () => {
+  assert.equal(
+    bitsOf(plainLength2(0.4471859335899353, -0.1211518868803978)),
+    bitsOf(length2(0.4471859335899353, -0.1211518868803978)),
+  )
+  assert.equal(plainLength2(3, 4), plainLength3(3, 4, 0))
+  assert.equal(plainLength2(1e155, 0), Infinity)
+  assert.equal(plainLength2(1e-170, 0), 0)
+})
+
+test('circlePoint writes radius·cos and radius·sin at the offset, leaving the rest', () => {
+  const out = [7, 0, 0, 7]
+  assert.equal(circlePoint(out, 2, 0.7, 1), out)
+  assert.deepEqual(out, [7, 2 * Math.cos(0.7), 2 * Math.sin(0.7), 7])
 })
 
 test("plainLength3 is the Rust twins' root: the band's bits, Infinity and 0 outside it", () => {
@@ -117,4 +137,19 @@ test('transformAffinePointRowMajor: a single-precision output rounds each row on
     const exact = row[0] * x + row[1] * y + row[2] * z + row[3]
     assert.ok(Object.is(out[r], Math.fround(exact)), `row ${r}`)
   }
+})
+
+test('cross2 is the z of the 3D cross product, ax·by − ay·bx', () => {
+  assert.equal(cross2(1, 0, 0, 1), 1)
+  assert.equal(cross2(0, 1, 1, 0), -1)
+  assert.equal(cross2(2, 3, 4, 6), 0)
+})
+
+test('divideVector3 divides each component at the offset, not multiplying by the inverse', () => {
+  const v = [9, 1, 2, 3]
+  assert.equal(divideVector3(v, 1, 3), v)
+  assert.deepEqual(v, [9, 1 / 3, 2 / 3, 1])
+  const w = [0.1, 0.7, 0.3]
+  divideVector3(w, 0, 3)
+  assert.ok(Object.is(w[1], 0.7 / 3))
 })

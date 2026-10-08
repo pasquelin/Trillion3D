@@ -2,6 +2,7 @@
 // them compile, and the gallery scene others open — both read from disk, as the bench reads them.
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { compileFullCache } from '../../../scripts/native-compiler.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type {
@@ -84,7 +85,7 @@ export async function openGalleryScene(scene: GalleryScene): Promise<MeasuredWor
     height: scene.height,
     pixelRatio: scene.pixelRatio,
     temporalAntialiasing: false,
-    geometryPoolBytes: 16 * 1024 * 1024,
+    geometryPoolBytes: 16 * MIB,
     texturePoolBytes: scene.texturePoolBytes,
   })
   await world.awaitPages()

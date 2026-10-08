@@ -25,7 +25,8 @@ rounded in float32 as the GPU computes it),
 spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
-`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest rank and the median), `sequence/`
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the median and the mean;
+`search.ts`, the binary searches; `hermite.ts`), `sequence/`
 (`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
 `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
 against), `batch/` and `wgsl/` (below); `index.ts` is the
@@ -74,9 +75,9 @@ The declared exceptions, each held to bits the rule would change:
   the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
   `scripts/docs/observatory/write.ts` (`hypot4`).
 - The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
-  `vec3.rs`): `plainLength3` (`vector/vector.ts`), `Math.sqrt` of the three squares summed left to
-  right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
-  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts`, held to `cut_error.rs`
+  `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
+  summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut_error.rs`
   by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
   `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
   past the band too (`sphereUnion.test.ts`).
@@ -89,7 +90,8 @@ The declared exceptions, each held to bits the rule would change:
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
   the rule's product differs from that quotient in the last bit on about two directions in three;
-  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits.
+  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits
+  (the doc generators' divides are `divideVector3`).
 
 ### The WGSL library
 
@@ -156,7 +158,8 @@ Three gates keep a formula in its one home; each runs in `check:changed` and in 
   inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
   `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
   `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a
-  number (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`, `perspectiveSlope`) and
+  number, negated or after another factor (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`,
+  `perspectiveSlope`) and
   `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
 - `check:helpers` reports a free function of any tree whose signature and body are those of a
   `packages/math` function, whatever its name and its parameters' names;
@@ -170,7 +173,7 @@ purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
 
 Some spellings are conventions, not formulas, and stay where they are written: a texel's centre
 (`+ 0.5`), an all-ones "none" word, a division guard whose floor belongs to its site (`max(x, 1e-6)`:
-one shared floor would move pixels), a point on a circle (`r cos a, r sin a`), a sign flip, and an
+one shared floor would move pixels), a sign flip, and an
 expression whose rounding differs from the shared function's (it keeps its form, as the Lengths
 section does for its own).
 
@@ -185,7 +188,9 @@ or batch, follows these conventions:
   returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
   `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
   nothing. `outAt`/`aAt` offsets let one large buffer hold many operands. A batch returns a count
-  as its only value and repeats the formula of its unit function, which stays the oracle.
+  as its only value and repeats the formula of its unit function, which stays the oracle. The clone check
+  (`check:duplicates`) skips `batch/` for that reason, and the before-forms a rewrite is proved
+  against (`*Before.fixture.ts`), which copy the code they replace on purpose.
 - **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:

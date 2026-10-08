@@ -11,7 +11,7 @@
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
-import { linearToSrgb8, srgbToLinear } from '../../../packages/math/src/color/color.ts'
+import { fromUnorm8, linearToSrgb8, srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.fixture.ts'
 
 /** Reads along the minified axis of a pixel: converged to within one level on the foliage. */
@@ -81,7 +81,7 @@ function onSquare({ camera }: TruthView, { place, half }: TruthSquare) {
 export function groundTruth(view: TruthView, samples = SAMPLES): Truth {
   const { size, map, square } = view
   const linear = Float32Array.from(map.data, (value, i) =>
-    map.srgb && i % 4 !== 3 ? srgbToLinear(value / 255) : value / 255,
+    map.srgb && i % 4 !== 3 ? srgbToLinear(fromUnorm8(value)) : fromUnorm8(value),
   )
   const front = onSquare(view, square),
     back = view.behind && onSquare(view, view.behind)

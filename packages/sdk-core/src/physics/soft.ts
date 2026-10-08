@@ -7,6 +7,7 @@ import type { PhysicsBodyOptions, PhysicsOption } from './options.ts'
 import { SOFT_VERTEX_WORDS } from './softLayout.ts'
 import { softSettings } from './softSettings.ts'
 import { SQRT3, TAU } from '../../../math/src/constants.ts'
+import { decayRate } from '../../../math/src/scalar/reals.ts'
 
 /** A soft body: a cloth (its triangles, open), a rope (its vertices, each joined to the next), or
  *  a volume (its closed triangles, held up by the gas inside). */
@@ -74,7 +75,7 @@ const SOFT_STEP_LOSS = 0.01
  * same share a second at any step. Its swing settles within seconds; it falls at most at `g / c`,
  * 16.3 m/s.
  */
-export const SOFT_DAMPING = -Math.log(1 - SOFT_STEP_LOSS) / PHYSICS_STEP
+export const SOFT_DAMPING = decayRate(1 - SOFT_STEP_LOSS, PHYSICS_STEP)
 
 /** Declared: a volume keeps within a tenth of its rest volume, or its pressure is refused. */
 const SOFT_MAX_SWELL = 0.1

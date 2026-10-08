@@ -57,7 +57,7 @@ pub(crate) type Cut = (f32, f32);
 /// Whether a masked material keeps a texel of alpha `alpha` under its `cut`:
 /// `alpha / 255 × factor >= cutoff` in `f32`.
 pub(crate) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
-    f32::from(alpha) / 255.0 * factor >= cutoff
+    trillion3d_math::scalar::byte_to_unit_f32(alpha) * factor >= cutoff
 }
 
 /// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1

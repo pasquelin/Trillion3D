@@ -1,5 +1,10 @@
 import { TAU } from '../../../packages/math/src/constants.ts'
-import { crossVector3, length3, lengthSqVector3 } from '../../../packages/math/src/vector/vector.ts'
+import {
+  crossVector3,
+  divideVector3,
+  length3,
+  lengthSqVector3,
+} from '../../../packages/math/src/vector/vector.ts'
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 
@@ -59,7 +64,7 @@ export function createWorkshop() {
       const n = crossVector3([0, 0, 0], du, dv)
       const length = length3(n[0], n[1], n[2])
       return length > 1e-6 * (lengthSqVector3(du) + lengthSqVector3(dv))
-        ? n.map((x) => x / length)
+        ? divideVector3(n, 0, length)
         : null
     }
     /** At a pole every column meets in one point and one tangent vanishes: the normal there is

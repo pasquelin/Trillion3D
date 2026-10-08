@@ -18,11 +18,11 @@ import {
 } from '../../../sdk-core/src/world/animation/mixer.ts'
 import type { Clip, Track } from '../../../sdk-core/src/world/animation/clip.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
+import { lcgImulRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../wasm/kernels.wasm')))
 
-let seed = 7
-const random = () => ((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0), seed / 4294967296)
+const random = lcgImulRandom(7)
 const unit = () => {
   const q = [random() - 0.5, random() - 0.5, random() - 0.5, random() - 0.5],
     length = Math.hypot(...q)
