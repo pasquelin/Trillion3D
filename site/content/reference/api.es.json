@@ -4637,7 +4637,7 @@
       "capacity": "Filas que caben antes de que crezca.",
       "sources": "Propietarios originales de las filas en espejo; sus fuentes de animación siguen vivas cuando se reutilizan las filas.",
       "sourceModels": "Mallas que comparten este recurso, incluidas las que esperan una fila de colocación.",
-      "cells": "Dónde se encuentra cada fila que colocó una partición (`../partition/rowCells.ts`): su celda, su rango entre los nodos de la celda y el rango de malla de cada nodo de esa celda; una columna propia, ausente hasta que una celda coloca una."
+      "cells": "Dónde se encuentra cada fila que colocó una partición (`../partition/rowCells.ts`): su celda, su rango entre los nodos de la celda; una columna propia, ausente hasta que una celda coloca una."
     }
   },
   "Plane": {

@@ -2934,7 +2934,7 @@
       "capacity": "Büyümeden önce sığan satırlar.",
       "sources": "Aynalanmış satırların özgün sahipleri; satırlar yeniden kullanılırken animasyon kaynakları canlı kalır.",
       "sourceModels": "Bu kaynağı paylaşan ağlar, bir yerleştirme satırını bekleyenler dahil.",
-      "cells": "Bir bölümün yerleştirdiği her satırın nerede durduğu (`../partition/rowCells.ts`): hücresi, hücrenin düğümleri arasındaki sırası ve o hücrenin her düğümünün ağ sırası; kendi sütunu, bir hücre bir satır yerleştirene kadar yoktur."
+      "cells": "Bir bölümün yerleştirdiği her satırın nerede durduğu (`../partition/rowCells.ts`): hücresi ve hücrenin düğümleri arasındaki sırası; kendi sütunu, bir hücre bir satır yerleştirene kadar yoktur."
     }
   },
   "Plane": {

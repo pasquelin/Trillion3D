@@ -4637,7 +4637,7 @@
       "capacity": "Zeilen, die Platz haben, bevor er wächst.",
       "sources": "Ursprüngliche Besitzer der gespiegelten Zeilen; ihre Animationsquellen bleiben lebendig, wenn Zeilen wiederverwendet werden.",
       "sourceModels": "Meshes, die diese Ressource teilen, einschließlich derer, die auf eine Platzierungszeile warten.",
-      "cells": "Wo jede Zeile liegt, die eine Partition platziert hat (`../partition/rowCells.ts`): ihre Zelle, ihr Rang unter den Knoten der Zelle und der Mesh-Rang jedes Knotens dieser Zelle; eine eigene Spalte, abwesend, bis eine Zelle eine platziert."
+      "cells": "Wo jede Zeile liegt, die eine Partition platziert hat (`../partition/rowCells.ts`): ihre Zelle, ihr Rang unter den Knoten der Zelle; eine eigene Spalte, abwesend, bis eine Zelle eine platziert."
     }
   },
   "Plane": {

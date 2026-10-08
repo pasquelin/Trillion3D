@@ -2514,7 +2514,7 @@
       "capacity": "Số hàng vừa được trước khi nó phải lớn lên.",
       "sources": "Chủ sở hữu ban đầu của các hàng được nhân bản; nguồn hoạt ảnh của chúng vẫn sống khi hàng được tái sử dụng.",
       "sourceModels": "Các mesh dùng chung tài nguyên này, kể cả những mesh đang chờ một hàng đặt vị trí.",
-      "cells": "Vị trí của mỗi hàng mà một phân vùng đã đặt (`../partition/rowCells.ts`): ô của nó, thứ hạng của nó trong các nút của ô, và thứ hạng lưới của từng nút của ô đó; một cột riêng, vắng mặt cho đến khi một ô đặt một hàng."
+      "cells": "Vị trí của mỗi hàng mà một phân vùng đã đặt (`../partition/rowCells.ts`): ô của nó và thứ hạng của nó trong các nút của ô; một cột riêng, vắng mặt cho đến khi một ô đặt một hàng."
     }
   },
   "Plane": {

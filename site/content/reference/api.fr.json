@@ -4645,7 +4645,7 @@
       "capacity": "Rangées qui tiennent avant qu’il grandisse.",
       "sources": "Propriétaires originaux des rangées en miroir ; leurs sources d’animation restent vivantes quand les rangées sont réutilisées.",
       "sourceModels": "Maillages qui partagent cette ressource, y compris ceux qui attendent une rangée de placement.",
-      "cells": "Où se trouve chaque rangée qu’une partition a placée (`../partition/rowCells.ts`) : sa cellule, son rang parmi les nœuds de la cellule, et le rang de maillage de chaque nœud de cette cellule ; une colonne à part, absente tant qu’une cellule n’en place pas."
+      "cells": "Où se trouve chaque rangée qu’une partition a placée (`../partition/rowCells.ts`) : sa cellule et son rang parmi les nœuds de la cellule ; une colonne à part, absente tant qu’une cellule n’en place pas."
     }
   },
   "Plane": {
