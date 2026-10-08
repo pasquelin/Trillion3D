@@ -3,7 +3,7 @@
 // a generated buffer of 300 rows, a hundred placed by cells.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createPlacementRows } from './rows.ts'
+import { createPlacementRows, growPlacementRows } from './rows.ts'
 import { setRowCell, takeCellsMoved } from '../partition/rowCells.ts'
 
 test('the rows whose cell moved are taken once; a row no root reads stays noted', () => {
@@ -14,12 +14,14 @@ test('the rows whose cell moved are taken once; a row no root reads stays noted'
   // Rows past 200 have no root yet: a growth brings them.
   takeCellsMoved(rows, (index) => (seen.push(index), index < 200))
   assert.deepEqual(seen, placed)
+  // The growth that brings their roots keeps their notes.
+  const grown = growPlacementRows(rows, 400)
   const again: number[] = []
-  takeCellsMoved(rows, (index) => (again.push(index), true))
+  takeCellsMoved(grown, (index) => (again.push(index), true))
   assert.deepEqual(
     again,
     placed.filter((index) => index >= 200),
     'those left noted alone',
   )
-  takeCellsMoved(rows, () => assert.fail('nothing moved since'))
+  takeCellsMoved(grown, () => assert.fail('nothing moved since'))
 })
