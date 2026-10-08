@@ -18,7 +18,6 @@ function createWebgpuImpostors(
   pass: ImpostorPass,
   section: ImpostorSection,
 ) {
-  // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
   const cards = createImpostorCards<GPUBindGroup>(section, {
     // The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`).
     atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),

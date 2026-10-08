@@ -58,7 +58,7 @@ export function createWorldOrigins(
       // No exact translation is a NaN: the cached words then match none.
       words.fill(0xffffffff, row * 8, row * 8 + 8)
     },
-    /** Called only for physical pose changes, never for a camera rebase: every placement's, or
+    /** Called only for physical pose changes, never for a camera move: every placement's, or
      *  only those of `named`, increasing — the placements a call moved. How many it sent. */
     write(named?: Int32Array) {
       let count = 0

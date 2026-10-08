@@ -26,7 +26,7 @@ const data = (buffer: GPUBuffer, writes: FakeWrite[]) => {
   return new Float32Array(bytes)
 }
 
-test('split world bindings retain camera matrix bytes and keep absolute origins across camera rebases', () => {
+test('split world bindings retain camera matrix bytes and keep absolute origins across camera moves', () => {
   const sources = roots(),
     next = new Float32Array(sources.length * 16)
   rootWorlds(next, sources)

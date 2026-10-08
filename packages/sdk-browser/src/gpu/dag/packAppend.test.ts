@@ -131,7 +131,7 @@ test('roots appended under a still eye are brought to it before the next cut', a
     const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed))!
     selection.dispatch(uniforms)
     await selection.flush()
-    // The eye has not moved: only the worlds the append wrote, absolute, ask the rebase.
+    // The eye has not moved: the cut reads the worlds the append wrote at it.
     if (append) assert.equal(selection.appendRoots(roots.slice(2)), true)
     selection.dispatch(uniforms)
     const pages = (await selection.flush())?.pageIds.slice().sort((a, b) => a - b)

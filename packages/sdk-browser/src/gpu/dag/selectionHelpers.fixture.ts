@@ -26,8 +26,8 @@ const helperCam = createEngineCamera()
 
 /**
  * The kernel uniforms AND the render frame where its world matrices are set: the two are
- * never built one without the other, no more here than in the engine, where frame entry
- * rebases the matrices on the eye before carrying them to the GPU. A setup that only set
+ * never built one without the other, no more here than in the engine, where each cut reads a
+ * translation at the eye of its uniforms (`shader/worldPoseWgsl.ts`). A setup that only set
  * the uniforms would leave absolute world matrices under a view with no translation: two
  * frames in the same formula, and a wrong cut with nothing to say so.
  */

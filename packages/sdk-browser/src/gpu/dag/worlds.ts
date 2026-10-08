@@ -11,9 +11,8 @@ export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
  * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
  * their count.
  *
- * The render frame follows the eye: at each camera step, all sixteen floats of each world matrix
- * are rewritten while only their translation changes. Stretch depends only on the nine linear
- * coefficients — `maxStretch` reads only those — so recomputing it for a moved origin would
+ * A pose that only moved keeps its linear part. Stretch depends only on the nine linear
+ * coefficients — `maxStretch` reads only those — so recomputing it for a moved translation would
  * yield the exact same float, then push the whole frame buffer again. Zero returned here means "no
  * stretch changed": the buffer has nothing to receive.
  */
