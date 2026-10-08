@@ -75,6 +75,9 @@ export type PlacementTree = {
   members: number
   composed: (w: number) => boolean
   nodeOpen: Uint8Array
+  /** Each placement's root box through its world as its last fit took it, six numbers a slot of
+   *  the worlds: a refit transforms the moved members' alone and joins the others' kept. */
+  boxes: Float64Array
 }
 
 /** Whether `members` member slots take a tree: not when one group would hold them all, a cell of
@@ -125,6 +128,7 @@ export function placementTreeShape(
     members: 0,
     composed: () => false,
     nodeOpen: new Uint8Array(nodes),
+    boxes: new Float64Array(capacity.worlds * 6),
   }
 }
 
@@ -263,6 +267,7 @@ export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch
 /** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
  *  list names. */
 export function fitPlacementTree(packed: TreeSource, tree: PlacementTree) {
+  for (let k = 0; k < tree.count; k++) takeBox(packed, tree, tree.order[k])
   for (let l = tree.levels.length - 1; l >= 0; l--)
     for (let j = 0; j < tree.levels[l].count; j++) fitNode(packed, tree, l, j)
 }
@@ -279,7 +284,10 @@ export function refitPlacementTree(
   let [touched, above] = refitSets
   touched.clear()
   for (const w of placements)
-    if (tree.slot[w] !== NONE) touched.add(Math.floor(tree.slot[w] / TREE_SPAN))
+    if (tree.slot[w] !== NONE) {
+      takeBox(packed, tree, w)
+      touched.add(Math.floor(tree.slot[w] / TREE_SPAN))
+    }
   for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
     above.clear()
     for (const j of touched) {
@@ -322,18 +330,26 @@ function fitNode(packed: TreeSource, tree: PlacementTree, l: number, j: number) 
   writeBox(packed.nodes, n, opened)
 }
 
-/** Member `w`'s root box through its world, joined to `box`; whether it opens its group. */
-function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (w === NONE || packed.rootNodes[w] === NONE) return false
-  if (tree.composed(w) || opensTree(packed.mark[w])) return true
+/** Member `w`'s root box through its world, kept in `tree.boxes`: taken when it moved, its group's
+ *  refit joining the kept one. A parked member, or one without a root, keeps none. */
+function takeBox(packed: TreeSource, tree: PlacementTree, w: number) {
+  if (w === NONE || packed.rootNodes[w] === NONE) return
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     nodes = packed.nodes
   for (let a = 0; a < 3; a++) {
     box[6 + a] = nodes[root + NODE_MIN + a]
     box[9 + a] = nodes[root + NODE_MAX + a]
   }
-  boxTransform(box, 6, box, 6, packed.worldSources[w].world.elements)
-  boxUnion(box, 0, box[6], box[7], box[8], box[9], box[10], box[11])
+  boxTransform(tree.boxes, w * 6, box, 6, packed.worldSources[w].world.elements)
+}
+
+/** Member `w`'s kept box (`takeBox`) joined to `box`; whether it opens its group. */
+function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
+  if (w === NONE || packed.rootNodes[w] === NONE) return false
+  if (tree.composed(w) || opensTree(packed.mark[w])) return true
+  const b = tree.boxes,
+    at = w * 6
+  boxUnion(box, 0, b[at], b[at + 1], b[at + 2], b[at + 3], b[at + 4], b[at + 5])
   return false
 }
 
