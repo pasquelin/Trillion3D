@@ -60,7 +60,7 @@ const PRODUCTS = ['yz', 'xz', 'xy'].flatMap((rows) =>
 /** `m⁻¹` as `invertMatrix4` computes it: the zero matrix for an exactly zero determinant. */
 const INVERSE_WGSL = wgslBlock(
   'INVERSE_WGSL',
-  [dIsZero, dMul, dDiv],
+  [dAdd, dSub, dIsZero, dMul, dDiv],
   `
 fn inverse4(m:array<vec2u,16>)->array<vec2u,16>{
 ${[0, 1, 2, 3].map((c) => ['x', 'y', 'z', 'w'].map((r, i) => `let ${r}${c}=m[${c * 4 + i}];`).join('')).join('\n')}
