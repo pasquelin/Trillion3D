@@ -33,7 +33,7 @@ test("a world page is read through the world's source, any other through the hos
   assert.deepEqual(reads, ['../../objects/page.bin'])
 })
 
-test('a placed row is linked to the object its cell places there, a parked one to none', async (t) => {
+test('a placed row is linked to the object its cell places there, once a cell; a parked one to none', async (t) => {
   const { context, opaque } = await scene(t)
   const rows = createPlacementRows(2),
     root = placed(opaque, rows) as unknown as ClusterRoot<PageRec>
@@ -46,13 +46,18 @@ test('a placed row is linked to the object its cell places there, a parked one t
       gpuSelection: { placeObject: (rank: number, object: number) => links.push([rank, object]) },
     },
   } as unknown as Parameters<typeof linkWorldObject>[0]
-  const linked = () => (linkWorldObject(rt, 0), links.at(-1)![1])
+  const linked = (parked = false) => (linkWorldObject(rt, 0, parked), links.at(-1)![1])
   assert.equal(linked(), -1, 'no cell placed it')
   // Cell 1's first node, of mesh 0: the cell's first object, the table's rank 1.
   setRowCell(rows, 0, { cell: 1, node: 0 })
   assert.equal(linked(), 1)
+  // A write that leaves the row in its cell links nothing again.
+  const told = links.length
+  linkWorldObject(rt, 0)
+  assert.equal(links.length, told, 'its cell stood: nothing linked')
+  // Parked, as `flipWorld` tells it.
   root.parked = true
-  assert.equal(linked(), -1, 'parked')
+  assert.equal(linked(true), -1, 'parked')
 })
 
 test('the layout keeps the world DAG among the opaque roots, wherever it sits', async (t) => {

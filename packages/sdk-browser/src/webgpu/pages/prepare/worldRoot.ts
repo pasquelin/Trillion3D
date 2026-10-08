@@ -69,6 +69,12 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
   return objects.objectOf(at.cell, at.node, association.meshes, primitive)
 }
 
+/** The cell record (`setRowCell`) each root's row stood at when the session's cut was last told
+ *  its object: a write that leaves its cell and its park links nothing again. */
+const linkedAt = new WeakMap<ClusterRoot<PageRec>, object | undefined>()
+const cellOfRoot = ({ placement }: ClusterRoot<PageRec>) =>
+  placement && rowCell(placement.rows, placement.index)
+
 /** Each placement of `roots` the new `cut` packs draws the object its row places now, as a row
  *  moved later tells it (`linkWorldObject`): a cut made at open, or for a growth. */
 export function linkWorldObjects(
@@ -77,11 +83,15 @@ export function linkWorldObjects(
   roots: readonly ClusterRoot<PageRec>[],
 ) {
   if (!cut.placeObject) return
-  for (let rank = 0; rank < roots.length; rank++)
+  for (let rank = 0; rank < roots.length; rank++) {
+    linkedAt.set(roots[rank], cellOfRoot(roots[rank]))
     cut.placeObject(rank, objectOfRoot(context, roots[rank]))
+  }
 }
 
-/** Placement `rank` of `rt`'s cut draws the object its row places now (`objectOfRoot`). */
+/** Placement `rank` of `rt`'s cut draws the object its row places now (`objectOfRoot`): asked
+ *  where a row's cell may have changed, it links only when it did, or when the row was parked or
+ *  taken (`parked`). */
 export function linkWorldObject(
   rt: {
     context: EngineContext
@@ -89,10 +99,15 @@ export function linkWorldObject(
     run: { gpuSelection?: GpuSelection }
   },
   rank: number,
+  parked = false,
 ) {
   const placeObject = rt.run.gpuSelection?.placeObject,
     root = rt.layout.selectionRoots[rank]
-  if (placeObject && root) placeObject(rank, objectOfRoot(rt.context, root))
+  if (!placeObject || !root) return
+  const at = cellOfRoot(root)
+  if (!parked && linkedAt.has(root) && linkedAt.get(root) === at) return
+  linkedAt.set(root, at)
+  placeObject(rank, objectOfRoot(rt.context, root))
 }
 
 /**

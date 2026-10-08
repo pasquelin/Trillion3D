@@ -18,6 +18,8 @@ export const flipWorld =
     rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0)
     // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them.
     rt.lights.mobility.touch(rank)
+    // A row parked or taken draws its object, or none, from now on (`worldRoot.ts`).
+    linkWorldObject(rt, rank, true)
   }
 
 /**
@@ -57,7 +59,8 @@ export function updateWebgpuPlacements(
     },
     (rank) => {
       moveRootRows(rt, layout.selectionRoots[rank], rank)
-      // The object its row draws now, which its world group stands in for (`worldRoot.ts`).
+      // The object its row draws now, which its world group stands in for (`worldRoot.ts`): linked
+      // again where its cell changed alone.
       linkWorldObject(rt, rank)
     },
     (min, max, movingOnly, rank, moveOnly, move) => {
