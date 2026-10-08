@@ -16,12 +16,19 @@ export const DAG_WORLD_POSE_WGSL = wgslBlock(
 /** One coordinate of a translation at the eye: the exact double \`t\` less the eye's \`e\`, as a
  *  single-precision word. */
 fn atEye(t:vec2u,e:vec2u)->u32{return toF32(dSub(t,e));}
+/** The three single-precision words of a translation at the eye, from its doubles' words \`a\`, \`b\`
+ *  and the eye's \`e0\`, \`e1\` — whole words, never a float move. */
+fn translationAtEye(a:vec4u,b:vec4u,e0:vec4u,e1:vec4u)->vec3u{
+ return vec3u(atEye(a.xy,e0.xy),atEye(a.zw,e0.zw),atEye(b.xy,e1.xy));
+}
+/** Primitive \`w\`'s world at the eye. \`worlds\` is read as words: the doubles behind the matrices
+ *  reach the subtraction bit for bit on a backend that flushes or canonicalises float moves; the
+ *  matrices are taken as floats, words 12 to 14 never read (the translation is made here). */
 fn worldPose(w:u32)->mat4x4f{
  let row=rowOf(w);let at=row*4u;let o=rangeCount()*4u+row*2u;
- let a=bitcast<vec4u>(worlds[o]);let b=bitcast<vec4u>(worlds[o+1u]);
- let e0=views[0u].eye[0];let e1=views[0u].eye[1];
- let t=vec3f(bitcast<f32>(atEye(a.xy,e0.xy)),bitcast<f32>(atEye(a.zw,e0.zw)),bitcast<f32>(atEye(b.xy,e1.xy)));
- return mat4x4f(worlds[at],worlds[at+1u],worlds[at+2u],vec4f(t,worlds[at+3u].w));
+ let t=bitcast<vec3f>(translationAtEye(worlds[o],worlds[o+1u],views[0u].eye[0],views[0u].eye[1]));
+ let c=bitcast<vec4f>(worlds[at+3u]);
+ return mat4x4f(bitcast<vec4f>(worlds[at]),bitcast<vec4f>(worlds[at+1u]),bitcast<vec4f>(worlds[at+2u]),vec4f(t,c.w));
 }
 fn planesOf(w:u32)->u32{return slotOf(w)*FRAME;}
 `,

@@ -12,7 +12,9 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  *   and for the view ahead — a 4x4 product each node of the descent and each page would redo;
  * - the normal matrix of the world's 3x3, prepared as `invTranspose3Prep` prepares it, and whether
  *   the 3x3 is conformal (`isConformal`), the two things the normal cone reads of the primitive;
- * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own.
+ * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own;
+ * - its world's translation at the eye (`worldPose`), the one subtraction of the eye a primitive
+ *   pays: the normal cone reads it for each of its pages (`preparedPose`).
  * Each camera expression keeps its operands and order.
  */
 export const DAG_PRIMITIVE_WGSL = wgslBlock(
@@ -20,7 +22,7 @@ export const DAG_PRIMITIVE_WGSL = wgslBlock(
   [InvT3, worldMatrix3, invTranspose3Prep],
   `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
 /** Offsets inside a primitive's values: the two \`view · world\`, the normal matrix, the planes ahead. */
-const CAMERA_E:u32=0u;const AHEAD_E:u32=4u;const NORMAL:u32=8u;const AHEAD_PLANES:u32=11u;
+const CAMERA_E:u32=0u;const AHEAD_E:u32=4u;const NORMAL:u32=8u;const AHEAD_PLANES:u32=11u;const AT_EYE:u32=17u;
 /** First vec4 of primitive \`w\`'s values, behind the range's row of slots. Camera cut only. */
 fn primitiveBase(w:u32)->u32{return rangeCount()*FRAME+rowOf(w)*PRIMITIVE;}
 fn putMatrix(at:u32,m:mat4x4f){frames[at]=m[0];frames[at+1u]=m[1];frames[at+2u]=m[2];frames[at+3u]=m[3];}
@@ -35,12 +37,19 @@ fn normalOf(w:u32)->InvT3{
  return InvT3(mat3x3f(a.xyz,b.xyz,c.xyz),a.w,b.w!=0.0);
 }
 fn conformalOf(w:u32)->bool{return frames[primitiveBase(w)+NORMAL+2u].w!=0.0;}
+/** Primitive \`w\`'s world at the eye as \`dagPrepare\` read it: the matrices' linear part, the
+ *  translation it prepared (\`AT_EYE\`), the same bits as \`worldPose\`. */
+fn preparedPose(w:u32)->mat4x4f{
+ let at=rowOf(w)*4u;
+ return mat4x4f(bitcast<vec4f>(worlds[at]),bitcast<vec4f>(worlds[at+1u]),bitcast<vec4f>(worlds[at+2u]),frames[primitiveBase(w)+AT_EYE]);
+}
 /** First of the view ahead's six planes in primitive \`w\`'s space. */
 fn aheadPlanes(w:u32)->u32{return primitiveBase(w)+AHEAD_PLANES;}
 /** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on the world and transposed world \`t\`
  *  it already read. A primitive no camera culls (\`open\`) takes six planes ahead no box leaves. */
 fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
  let at=primitiveBase(w);
+ frames[at+AT_EYE]=world[3];
  putMatrix(at+CAMERA_E,views[0u].view*world);
  let m=worldMatrix3(world);let n=invTranspose3Prep(m);
  frames[at+NORMAL]=vec4f(n.adj[0],n.scale);

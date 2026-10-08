@@ -37,9 +37,9 @@
  *    not by the world; a far cell places no object (`partition/farCells.ts`), so `V_covered` is
  *    bounded by the placed cells.
  * No term follows the placements rather than the view: a moving eye costs the CPU nothing, and each
- * placement a cut reads takes the eye off its exact translation as it reads it — `p` and `g` above
- * each hold one double subtraction an axis, 24 B read (`shader/worldPoseWgsl.ts`) —, never a pass
- * over the `N` placements.
+ * placement a cut prepares takes the eye off its exact translation once — `p` above holds one
+ * double subtraction an axis, 24 B read (`shader/worldPoseWgsl.ts`), its pages' cone tests reading
+ * the translation it prepared (`preparedPose`) —, never a pass over the `N` placements.
  */
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { DagCutLinks, DagRoot } from './types.ts'

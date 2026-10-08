@@ -31,6 +31,7 @@ test("each primitive's values fill its share, behind the row the host writes", (
     [c.AHEAD_E, 4],
     [c.NORMAL, 3],
     [c.AHEAD_PLANES, 6],
+    [c.AT_EYE, 1],
   ].sort((a, b) => a[0] - b[0])
   let at = 0
   for (const [offset, size] of parts) {

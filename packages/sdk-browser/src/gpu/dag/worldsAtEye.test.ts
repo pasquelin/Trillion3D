@@ -15,6 +15,7 @@ import {
   type Pair,
 } from '../../placement/composeDoubles.fixture.ts'
 import { DAG_WORLD_POSE_WGSL } from './shader/worldPoseWgsl.ts'
+import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { createCameraFrames } from './frameRanges.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
@@ -25,11 +26,12 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-const run = shaderRun<{ atEye(t: Pair, e: Pair): number }>(
-  DAG_WORLD_POSE_WGSL,
-  [...DOUBLE_HELPERS, 'toF32', 'atEye'],
-  { countLeadingZeros },
-)
+const run = shaderRun<{
+  atEye(t: Pair, e: Pair): number
+  translationAtEye(a: number[], b: number[], e0: number[], e1: number[]): number[]
+}>(DAG_WORLD_POSE_WGSL, [...DOUBLE_HELPERS, 'toF32', 'atEye', 'translationAtEye'], {
+  countLeadingZeros,
+})
 const f32Bits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
 
 test('a translation the kernel reads at the eye is the rebased one, bit for bit', () => {
@@ -43,6 +45,39 @@ test('a translation the kernel reads at the eye is the rebased one, bit for bit'
       if (Number.isNaN(t - e)) assert.equal(got, 0x7fc00000, `${t} − ${e}`)
       else assert.equal(got, f32Bits(t - e), `${t} − ${e}`)
     }
+})
+
+test('a translation is taken from whole words: a low word a float move would alter keeps its bits', () => {
+  const next = random(2)
+  // Low words that are a single's subnormal or NaN pattern: read as floats, a backend may flush or
+  // canonicalise them; read as words, the subtraction sees them whole.
+  const lows = [0x00000001, 0x007fffff, 0x7fc00001, 0xffc00000, 0x80000001]
+  const words = (x: number, low: number) => {
+    const pair_ = pair(x)
+    pair_[1] = low
+    return pair_
+  }
+  const value = ([high, low]: number[]) => new Float64Array(new Uint32Array([low, high]).buffer)[0]
+  for (let i = 0; i < 400; i++) {
+    const t = [0, 1, 2].map(() => words((next() - 0.5) * 2e6, lows[i % lows.length])),
+      e = [0, 1, 2].map(() => pair((next() - 0.5) * 2e6))
+    const got = run.translationAtEye(
+      [...t[0], ...t[1]],
+      [...t[2], 0, 0],
+      [...e[0], ...e[1]],
+      [...e[2], 0, 0],
+    )
+    for (let a = 0; a < 3; a++)
+      assert.equal(got[a] >>> 0, f32Bits(value(t[a]) - value(e[a])), `axis ${a}`)
+  }
+})
+
+test('the cone reads the translation its primitive prepared, the one worldPose makes', () => {
+  // One subtraction of the eye a primitive (`preparePrimitive`), none a page (`coneRejectsBox`).
+  assert.ok(DAG_SELECTION_SHADER.includes('frames[at+AT_EYE]=world[3];'))
+  const cone = DAG_SELECTION_SHADER.slice(DAG_SELECTION_SHADER.indexOf('fn coneRejectsBox'))
+  assert.ok(cone.slice(0, cone.indexOf('\n}')).includes('preparedPose(w)'))
+  assert.ok(!cone.slice(0, cone.indexOf('\n}')).includes('worldPose('))
 })
 
 test('the main view and a view aside, each at its own eye, run no pass over every placement', async () => {
