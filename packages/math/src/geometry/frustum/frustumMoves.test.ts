@@ -1,11 +1,10 @@
-// The frustum's rewrites against their before-forms (`frustumBefore.fixture.ts`). The point, sphere,
-// box and clip-box tests: on the planes of every matrix kind and on swept planes with hostile values, for
-// swept points, radii and boxes, every verdict is the loop's. The plane builders: on every matrix
+// The frustum's rewrites against their before-forms (`frustumBefore.fixture.ts`). The point and
+// sphere tests unrolled over the six planes: on the planes of every matrix kind and on swept planes
+// with hostile values, for swept points and radii, every verdict is the loop's. The plane builders: on every matrix
 // kind and on a swept one, into `Float64Array` and `Float32Array`, with `out` sharing the memory
 // of `m` or of `view`, every value keeps its bits and nothing past the planes is written.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { frustumClipBox, frustumExcludesBox } from './box.ts'
 import {
   clipPlanesFromMatrix,
   frustumContainsPoint,
@@ -15,9 +14,7 @@ import {
 } from './frustum.ts'
 import {
   clipPlanesFromMatrixBefore,
-  frustumClipBoxBefore,
   frustumContainsPointBefore,
-  frustumExcludesBoxBefore,
   frustumExcludesSphereBefore,
   frustumFarPlaneBefore,
   frustumPlanesFromMatrixBefore,
@@ -30,14 +27,11 @@ import {
   sweepMatrix,
 } from '../../sequence/moves.fixture.ts'
 
-test('frustumContainsPoint, frustumExcludesSphere, frustumExcludesBox: the same verdicts as the loops', () => {
+test('frustumContainsPoint, frustumExcludesSphere: the unrolled planes give the same verdicts', () => {
   const m = new Float64Array(16),
-    planes = new Float64Array(24),
-    edge = new Float64Array(24)
+    planes = new Float64Array(24)
   let kept = 0,
-    excluded = 0,
-    boxesIn = 0,
-    boxesOut = 0
+    excluded = 0
   for (let i = 1; i <= HALTON_SWEEP; i++)
     for (let kind = 0; kind <= MATRIX_KINDS; kind++) {
       if (kind < MATRIX_KINDS) frustumPlanesFromMatrix(planes, sweepMatrix(m, i, kind))
@@ -48,38 +42,6 @@ test('frustumContainsPoint, frustumExcludesSphere, frustumExcludesBox: the same 
         reach = sweepInput(i, 33, 3, -1, 2)
       const inside = frustumContainsPointBefore(planes, x, y, z),
         behind = frustumExcludesSphereBefore(planes, x, y, z, reach)
-      const box = [34, 35, 36, 37, 38, 39].map((slot) => sweepInput(i, slot, 2, -3, 3)) as Box,
-        outside = frustumExcludesBoxBefore(planes, ...box)
-      assert.equal(frustumExcludesBox(planes, ...box), outside, `box ${i} kind ${kind}`)
-      assert.equal(
-        frustumClipBox(planes, ...box),
-        frustumClipBoxBefore(planes, ...box),
-        `clip ${i}`,
-      )
-      // The planes moved through the box's most forward corner, `d` its sum in another order: the
-      // verdict then rests on the sum's last rounding.
-      for (let p = 0; p < 24; p += 4) {
-        const [a, b, c] = [planes[p], planes[p + 1], planes[p + 2]]
-        edge[p] = a
-        edge[p + 1] = b
-        edge[p + 2] = c
-        edge[p + 3] = -(
-          c * (c > 0 ? box[5] : box[2]) +
-          (b * (b > 0 ? box[4] : box[1]) + a * (a > 0 ? box[3] : box[0]))
-        )
-      }
-      assert.equal(
-        frustumExcludesBox(edge, ...box),
-        frustumExcludesBoxBefore(edge, ...box),
-        `box ${i} kind ${kind} on the edge`,
-      )
-      assert.equal(
-        frustumClipBox(edge, ...box),
-        frustumClipBoxBefore(edge, ...box),
-        `clip ${i} edge`,
-      )
-      if (outside) boxesOut++
-      else boxesIn++
       assert.equal(frustumContainsPoint(planes, x, y, z), inside, `point ${i} kind ${kind}`)
       assert.equal(
         frustumExcludesSphere(planes, x, y, z, reach),
@@ -90,10 +52,8 @@ test('frustumContainsPoint, frustumExcludesSphere, frustumExcludesBox: the same 
       if (behind) excluded++
     }
   assert.ok(kept > 0 && excluded > 0, `${kept} points kept, ${excluded} spheres excluded`)
-  assert.ok(boxesIn > 0 && boxesOut > 0, `${boxesIn} boxes kept, ${boxesOut} excluded`)
 })
 
-type Box = [number, number, number, number, number, number]
 type Planes = Float32Array | Float64Array
 type Build = (out: Planes, m: ArrayLike<number>) => void
 

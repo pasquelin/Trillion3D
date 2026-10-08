@@ -14,25 +14,6 @@
  * (`box.test.ts`).
  */
 
-/** Whether the plane `a·x + b·y + c·z + d ≥ 0` leaves the box behind: its most forward corner,
- *  picked per axis by the sign of the normal (`a > 0 ? max : min`, NaN picking min), lies below
- *  it. The one test of one plane, its products in their order, shared by `frustumExcludesBox`,
- *  `frustumClipBox` and the batch that writes it in its loop (`../../batch/culling.ts`). */
-export function planeExcludes(
-  a: number,
-  b: number,
-  c: number,
-  d: number,
-  minX: number,
-  minY: number,
-  minZ: number,
-  maxX: number,
-  maxY: number,
-  maxZ: number,
-) {
-  return a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0
-}
-
 /** True when the box is entirely outside the frustum: a plane leaves all its corners behind. */
 export function frustumExcludesBox(
   planes: Float64Array,
@@ -43,22 +24,14 @@ export function frustumExcludesBox(
   maxY: number,
   maxZ: number,
 ) {
-  for (let p = 0; p < 24; p += 4)
-    if (
-      planeExcludes(
-        planes[p],
-        planes[p + 1],
-        planes[p + 2],
-        planes[p + 3],
-        minX,
-        minY,
-        minZ,
-        maxX,
-        maxY,
-        maxZ,
-      )
-    )
+  for (let p = 0; p < 24; p += 4) {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2],
+      d = planes[p + 3]
+    if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
       return true
+  }
   return false
 }
 
@@ -79,22 +52,13 @@ export function frustumClipBox(
   maxZ: number,
 ) {
   if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0
-  // The most trailing corner is the most forward one of the box with its bounds swapped.
-  for (let p = 0; p < 24; p += 4)
-    if (
-      planeExcludes(
-        planes[p],
-        planes[p + 1],
-        planes[p + 2],
-        planes[p + 3],
-        maxX,
-        maxY,
-        maxZ,
-        minX,
-        minY,
-        minZ,
-      )
-    )
+  for (let p = 0; p < 24; p += 4) {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2],
+      d = planes[p + 3]
+    if (a * (a > 0 ? minX : maxX) + b * (b > 0 ? minY : maxY) + c * (c > 0 ? minZ : maxZ) + d < 0)
       return 1
+  }
   return 2
 }

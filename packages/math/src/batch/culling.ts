@@ -1,7 +1,26 @@
 import { BOX_VALUES } from '../geometry/box.ts'
-import { planeExcludes } from '../geometry/frustum/box.ts'
 import { length3 } from '../vector/vector.ts'
 import { SPHERE_VALUES } from './strides.ts'
+
+/** Whether the plane `a·x + b·y + c·z + d ≥ 0` leaves the box behind: its most forward corner,
+ *  picked per axis by the sign of the normal (`a > 0 ? max : min`, NaN picking min), lies below
+ *  it — `frustumExcludesBox`'s test of one plane, its products in their order. The batch repeats it
+ *  on purpose (docs/MATHS.md); `frustumExcludesBox` keeps it written in its loop, where this call
+ *  measured 3 % slower. */
+function planeExcludes(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0
+}
 
 /**
  * Tests `n` bounding boxes against the six frustum planes (24 floats), and writes what is KEPT:
