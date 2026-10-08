@@ -4,8 +4,8 @@
  * A row of an instance buffer whose mesh only follows its parent is linked once: the mesh's own
  * local matrix and the parent's slot. From then on a parent that moves sends one matrix; two
  * compute passes write, for every linked root, `parent · local` in exact double arithmetic
- * (`gpuComposeWgsl.ts`) into the cut's worlds, brought to the eye (`gpu/dag/frameRanges.ts`), and
- * the temporal motion, and into the world words of every page-table row of that root: the very
+ * (`gpuComposeWgsl.ts`) into the cut's worlds — the exact translation behind them, which each cut
+ * reads at its own eye (`gpu/dag/shader/worldPoseWgsl.ts`) —, and the temporal motion, and into the world words of every page-table row of that root: the very
  * single-precision words the CPU would have written. The frame hears a pose move as from any
  * engine write (`engineMovedInPlace`): every reader of the scene revision follows; the GPU cut,
  * which compares the CPU worlds it is sent, hears it from the roots pass (`worldsMovedOnGpu`) and
@@ -77,6 +77,12 @@ function createComposeState(roots: number) {
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
     /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
     rootParams: new Uint32Array(64),
+    /** What the roots pass's parameters were last written for. */
+    paramsHeld: {
+      ranges: undefined as GpuSelection['worldRanges'] | undefined,
+      roots: -1,
+      buffer: undefined as GPUBuffer | undefined,
+    },
     rowParams: new Uint32Array(4),
     /** Each linked root's local box through its local matrix: its box in its parent's frame. */
     rankBoxes: new Float64Array(Math.max(1, roots) * BOX_VALUES),
@@ -431,15 +437,18 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return gpu
 }
 
-/** The roots pass's parameters, 64 words a range of the cut's worlds: the roots, the range, whether
- *  motion is written, the eye. */
+/** The roots pass's parameters, 64 words a range of the cut's worlds: the roots and the range,
+ *  written when one of them or their buffer moved — a frame that composes under the same cut sends
+ *  none. Whether motion is written is the motion mode's (`decideComposedMotion`). */
 function writeRootParams(
   device: GPUDevice,
   state: ComposeState,
   gpu: NonNullable<ComposeState['gpu']>,
   ranges: GpuSelection['worldRanges'],
-  motion: boolean,
 ) {
+  const held = state.paramsHeld
+  if (held.ranges === ranges && held.roots === state.roots && held.buffer === gpu.uniforms[0])
+    return
   const words = 64 * ranges.length
   if (state.rootParams.length < words) state.rootParams = new Uint32Array(words)
   const params = state.rootParams
@@ -456,9 +465,11 @@ function writeRootParams(
     params[at] = state.roots
     params[at + 1] = ranges[r].first
     params[at + 2] = ranges[r].count
-    params[at + 3] = motion ? 1 : 0
   }
   device.queue.writeBuffer(gpu.uniforms[0], 0, params, 0, words)
+  held.ranges = ranges
+  held.roots = state.roots
+  held.buffer = gpu.uniforms[0]
 }
 
 /** The linked roots' cut worlds and motion, before the cut kernel reads them. */
@@ -482,7 +493,7 @@ export function encodeComposedRoots(
   state.motionMode[0] = MOTION_SKIP
   device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
   const ranges = selection.worldRanges
-  writeRootParams(device, state, gpu, ranges, !!motionBuffer)
+  writeRootParams(device, state, gpu, ranges)
   const pipeline = composeKernels(device).roots.get()
   const pass = encoder.beginComputePass({ label: 'Trillion3D compose roots' })
   pass.setPipeline(pipeline)

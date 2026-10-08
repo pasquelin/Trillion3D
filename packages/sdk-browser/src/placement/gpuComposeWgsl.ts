@@ -4,8 +4,8 @@
  * each of the sixteen numbers summed over the same four products in the same order as the
  * transform tree's `multiplyMatrix4`, every product and sum rounded once as the CPU rounds it. A
  * number then reaches single precision as `Float32Array` stores a double (`toF32`), so every word
- * the GPU writes is the CPU's, to the bit; a translation is brought to the eye first, by the double
- * subtraction `worldToRenderOrigin` does.
+ * the GPU writes is the CPU's, to the bit; a translation is kept exact, as two words a coordinate,
+ * for each cut to take its eye off (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
@@ -67,7 +67,7 @@ fn sameWord(a:u32,b:u32)->bool{
  * writes identity.
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,}
+  `struct Params{rootCount:u32,first:u32,count:u32,pad:u32,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -95,7 +95,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
   }else{worlds[i*16u+k]=world[k];}
  }
  let mode=motionMode.mode;
- if(params.motion==0u||mode==${MOTION_SKIP}u){return;}
+ if(mode==${MOTION_SKIP}u){return;}
  var held:array<u32,16>;
  var same=true;
  for(var k=0u;k<16u;k++){
