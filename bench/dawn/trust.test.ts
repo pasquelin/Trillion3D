@@ -99,24 +99,3 @@ test('a spread names the dispersion of frames, a slow outlier included', () => {
   const slow = spread([1, 1, 1, 9, 1, 1, 9, 1])!
   assert.ok(slow.iqr >= 0 && slow.std > 3 && slow.p95 === 9)
 })
-
-test('passes submitted out of encoding order are told in the order the GPU ran them', () => {
-  const ns = (ms: number) => BigInt(Math.round(ms * 1e6))
-  // b was encoded second and ran first: its 2 ms are its own, and a's wait is the 1 ms after b.
-  const stamps = [ns(13), ns(15), ns(10), ns(12)]
-  const frame = readPasses(
-    stamps,
-    ['a', 'b'].map((label, k) => ({
-      label,
-      kind: 'compute' as const,
-      at: 2 * k,
-      ...emptyWork(),
-      calls: 1,
-    })),
-    true,
-  )
-  const [a, b] = frame.passes
-  assert.ok(Math.abs(b.ms - 2) < 1e-9 && Math.abs(a.ms - 2) < 1e-9)
-  assert.ok(Math.abs(a.gapMs - 1) < 1e-9 && b.gapMs === 0)
-  assert.ok(Math.abs(frame.unionMs - 4) < 1e-9)
-})

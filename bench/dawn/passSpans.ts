@@ -50,46 +50,37 @@ export function unionOf(spans: readonly [number, number][]) {
 }
 
 /** The passes `stamps` (ns, two per pass, in encoding order) time. Pure: the same stamps give the
- *  same passes. Shares and waits are told in the order the GPU ran the passes — by begin time —
- *  whichever order they were encoded or submitted in; the passes come back in encoding order. */
+ *  same passes. A pass's own share is its span less what the passes before it in that order already
+ *  covered — the engine's own rule (`packages/sdk-browser/src/gpu/timing/sample.ts`), so the bench's
+ *  shares and the engine's agree: an overlapped GPU runs passes together, and the earlier one keeps
+ *  the time. */
 export function readPasses(
   stamps: ArrayLike<bigint>,
   passes: readonly ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[],
   complete: boolean,
 ): FrameGpu {
-  const times = passes.map(({ at }) => ({
-    begin: Number(stamps[at]) / 1e6,
-    end: Number(stamps[at + 1]) / 1e6,
-    stamped: stamps[at] > 0n && stamps[at + 1] >= stamps[at],
-  }))
-  const read: TimedPass[] = passes.map(({ label, kind, at: _at, ...work }, i) => {
-    const { begin, end } = times[i]
-    // A pass the driver skipped writes no timestamp: zero, or an end before its beginning.
-    const state = work.calls
-      ? ('lost' as const)
-      : work.indirect
-        ? ('unknown' as const)
-        : ('empty' as const)
-    return { label, kind, ms: 0, spanMs: end - begin, gapMs: 0, beginMs: Number.NaN, state, work }
-  })
-  const ran = times
-    .flatMap((t, i) => (t.stamped ? [i] : []))
-    .sort((a, b) => times[a].begin - times[b].begin)
-  const first = ran.length ? times[ran[0]].begin : 0
   const spans: [number, number][] = []
-  let covered = -Infinity
-  for (const i of ran) {
-    const { begin, end } = times[i]
-    const pass = read[i]
-    pass.gapMs = Number.isFinite(covered) ? Math.max(0, begin - covered) : 0
-    pass.ms = Math.max(0, end - Math.max(begin, covered))
-    pass.spanMs = end - begin
-    pass.beginMs = begin - first
-    pass.state = end - begin < EMPTY_MS ? 'empty' : 'ok'
+  let covered = -Infinity,
+    first = Infinity
+  const read = passes.map(({ label, kind, at, ...work }) => {
+    const { calls, indirect } = work
+    const begin = Number(stamps[at]) / 1e6,
+      end = Number(stamps[at + 1]) / 1e6
+    // A pass the driver skipped writes no timestamp: zero, or an end before its beginning.
+    if (!(stamps[at] > 0n && end >= begin)) {
+      const state = calls ? ('lost' as const) : indirect ? ('unknown' as const) : ('empty' as const)
+      return { label, kind, ms: 0, spanMs: 0, gapMs: 0, beginMs: Number.NaN, state, work }
+    }
+    first = Math.min(first, begin)
+    const gapMs = Number.isFinite(covered) ? Math.max(0, begin - covered) : 0
+    const ms = Math.max(0, end - Math.max(begin, covered))
     spans.push([begin, end])
     covered = Math.max(covered, end)
-  }
-  for (const pass of read) if (!(pass.beginMs >= 0)) pass.spanMs = 0
+    const state = end - begin < EMPTY_MS ? ('empty' as const) : ('ok' as const)
+    return { label, kind, ms, spanMs: end - begin, gapMs, beginMs: begin, state, work }
+  })
+  for (const pass of read)
+    pass.beginMs = Number.isNaN(pass.beginMs) ? pass.beginMs : pass.beginMs - first
   const unionMs = unionOf(spans)
   const windowMs = spans.length ? covered - first : 0
   return { passes: read, unionMs, gapMs: Math.max(0, windowMs - unionMs), windowMs, complete }
