@@ -7,7 +7,7 @@ import v8 from 'node:v8'
 import vm from 'node:vm'
 import '../../impostor/lent.fixture.ts'
 import { createCardSlots, CARD_FLOATS } from '../../impostor/cardSlots.ts'
-import { uploadRecords } from './encode.ts'
+import { uploadRecords } from './cardUpload.ts'
 import type { WebgpuImpostors } from './frame.ts'
 
 v8.setFlagsFromString('--expose-gc')

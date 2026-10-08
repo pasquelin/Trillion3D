@@ -17,7 +17,7 @@ import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage } from './webgpuGrowth.ts'
-import { noteWorldMoved } from '../webgpu/pages/render/movedWorlds.ts'
+import { announceGrowth } from './growthAnnounce.ts'
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -82,22 +82,6 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     )
   announceGrowth(rt, added, firstRank)
   return true
-}
-
-/**
- * The roots a growth `added` behind rank `first`, announced to the next image: placed by rows,
- * their worlds are the rows' (`updateWebgpuPlacements` wrote them), named and sent alone, the
- * scene's shape kept — no host walk, O(roots added) —; one placed by a host node brings sources to
- * watch, and every world is walked again.
- */
-export function announceGrowth(
-  rt: Pick<WebgpuPagesRuntime, 'run'>,
-  added: readonly { placement?: unknown }[],
-  first: number,
-) {
-  if (added.some((root) => !root.placement)) return rt.run.gate.sceneChanged()
-  for (let k = 0; k < added.length; k++) noteWorldMoved(rt.run, first + k)
-  rt.run.gate.engineMovedInPlace()
 }
 
 /** `cut` replaces the running cut (`adoptCut`): it holds every root's park and mark word and the

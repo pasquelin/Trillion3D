@@ -3,7 +3,7 @@
 // generated growths of 1 to 500 roots behind 10⁴.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { announceGrowth } from './webgpuGrownCut.ts'
+import { announceGrowth } from './growthAnnounce.ts'
 import { createMovedWorlds } from '../webgpu/pages/render/movedWorlds.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
