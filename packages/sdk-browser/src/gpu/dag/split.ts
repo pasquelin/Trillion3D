@@ -3,8 +3,9 @@ import { CLUSTER_WORDS } from './layout.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import type { DagPartTable } from './shader/bindings.ts'
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts'
-import { RESIDENCY_RULE, coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
+import { coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -117,34 +118,32 @@ export type RangeSource = {
   stride: number
 }
 
-/** Bytes a run may leave unchanged between two indices of a wide record and still be one write. */
-const WIDE_GAP_BYTES = 256
-/** Records of at least this many bytes are wide: a skipped one costs more than a write. */
-const WIDE_BYTES = 64
-/** Writes a wide upload makes at most; past it, the narrowest gaps join. */
-const WIDE_CAP = 1024
+/** Bytes a run may leave unchanged between two written records and still be one write. */
+const GAP_BYTES = 256
+/** Writes an upload makes at most; past it, the narrowest gaps join. */
+const CAP = 1024
 
 /** The runs a write joins its indices into: one scratch for every upload, grown to the widest. */
-const spans = new Int32Array(WIDE_CAP * 2)
-let steps = new Int32Array(64)
+const spans = new Int32Array(CAP * 2)
+/** The one rule every upload joins by, its gap set to the record's bytes. */
+const rule: RangeRule & { overflow: 'narrowest' } = {
+  gap: 0,
+  cap: CAP,
+  overflow: 'narrowest',
+  steps: new Int32Array(64),
+}
 
 /**
- * How the indices of records of `stride` words join into writes: narrow ones by the residency
- * flush's rule (`RESIDENCY_RULE`), indices 64 apart in one write and everything at once past 32;
- * wide ones — a world, a tree node, a card — by their bytes, a run spanning at most
- * `WIDE_GAP_BYTES` unchanged, up to `WIDE_CAP` writes, the narrowest gaps joined past it: scattered
- * moves never rewrite everything between the lowest and the highest.
+ * How the indices of records of `stride` words join into writes, by their bytes whatever the
+ * record — a link, an exact translation, a world, a tree node, a card —: a run spans at most
+ * `GAP_BYTES` unchanged, up to `CAP` writes, the narrowest gaps joined past it. Scattered moves
+ * never rewrite everything between the lowest and the highest.
  */
 function ruleFor(stride: number, count: number): RangeRule {
-  const bytes = stride * 4
-  if (bytes < WIDE_BYTES) return RESIDENCY_RULE
-  if (steps.length < count) steps = new Int32Array(Math.max(count, steps.length * 2))
-  return {
-    gap: 1 + Math.floor(WIDE_GAP_BYTES / bytes),
-    cap: WIDE_CAP,
-    overflow: 'narrowest',
-    steps,
-  }
+  if (rule.steps.length < count)
+    rule.steps = resized(rule.steps, Math.max(count, rule.steps.length * 2))
+  rule.gap = 1 + Math.floor(GAP_BYTES / (stride * 4))
+  return rule
 }
 
 /**

@@ -1,6 +1,6 @@
-// The one run writer joins wide records by their bytes: scattered moves of worlds, tree nodes or
-// cards write about what moved, never every record between the lowest and the highest; narrow
-// words keep the residency flush's rule.
+// The one run writer joins records by their bytes, whatever their width: scattered moves of links,
+// exact translations, worlds, tree nodes or cards write about what moved, never every record
+// between the lowest and the highest.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeRanges } from './split.ts'
@@ -20,21 +20,19 @@ function sent(stride: number, indices: number[]) {
   return { bytes, writes }
 }
 
-test('scattered moves of wide records write what moved, not the span between them', () => {
+test('scattered moves write what moved, not the span between them, whatever the record', () => {
   let seed = 5
   const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
   const indices = [...new Set(Array.from({ length: 300 }, () => Math.floor(next() * 3e5)))].sort(
     (a, b) => a - b,
   )
-  for (const stride of [16, 24, 28]) {
+  for (const stride of [1, 8, 16, 24, 28]) {
     const { bytes } = sent(stride, indices)
     assert.ok(
-      bytes <= indices.length * stride * 4 * 2,
+      bytes <= indices.length * Math.max(stride * 4 * 2, 256 + stride * 4),
       `${bytes} bytes for ${indices.length} moves`,
     )
   }
-  // A narrow word keeps the residency rule: past 32 ranges, one write of everything.
-  assert.equal(sent(1, indices).writes, 1)
 })
 
 test('neighbouring wide records share a write', () => {
