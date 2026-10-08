@@ -60,8 +60,6 @@ function mirrorState(packed: WorldPacked) {
 /** Writes `page`'s flag; whether it moved. */
 function write(m: Mirror, page: number, value: number) {
   if (m.flags[page] === value) return false
-  if (m.handed) m.changed.clear()
-  m.handed = false
   m.flags[page] = value
   m.changed.add(page)
   return true
@@ -175,7 +173,6 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
      */
     update(scene: Uint32Array, changes?: ResidencyChanges) {
       update(m, scene, changes)
-      updated.flags = m.flags
       return updated
     },
   }

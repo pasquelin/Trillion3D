@@ -106,8 +106,6 @@ export function switchTable(
   focal: number,
 ) {
   let table = tables.get(holder)
-  if (table && table.roots === roots && table.section === section)
-    if (table.held.length !== roots.length) resize(table, roots.length)
   if (!table || table.roots !== roots || table.section !== section) {
     const n = roots.length
     table = {
@@ -124,7 +122,7 @@ export function switchTable(
       depthFocal: new Float64Array(n).fill(NaN),
     }
     tables.set(holder, table)
-  }
+  } else if (table.held.length !== roots.length) resize(table, roots.length)
   table.focal = focal
   return table
 }
