@@ -34,8 +34,11 @@ const p50 = (values: number[]) => (values.length ? (quantileFloorOf(values, 0.5)
 function floorMap(anisotropy: number) {
   const texels = new Uint8Array(PICTURE * PICTURE * 4)
   const noise = lcgRandom(1)
-  for (let i = 0; i < texels.length; i++)
-    texels[i] = (i & 3) === 3 ? 255 : Math.floor(noise() * 256)
+  // One draw per byte, alpha included, so the colour bytes are the stream's as before.
+  for (let i = 0; i < texels.length; i++) {
+    const byte = Math.floor(noise() * 256)
+    texels[i] = (i & 3) === 3 ? 255 : byte
+  }
   const map = Object.assign(G.dataTexture(texels, PICTURE, PICTURE), {
     colorSpace: G.HOST_COLOUR_SPACE_SRGB,
     magFilter: G.HOST_FILTER_LINEAR,
