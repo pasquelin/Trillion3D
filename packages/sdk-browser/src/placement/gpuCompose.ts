@@ -78,11 +78,6 @@ function createComposeState(roots: number) {
     /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
     rootParams: new Uint32Array(64),
     /** What the roots pass's parameters were last written for. */
-    paramsHeld: {
-      ranges: undefined as GpuSelection['worldRanges'] | undefined,
-      roots: -1,
-      buffer: undefined as GPUBuffer | undefined,
-    },
     rowParams: new Uint32Array(4),
     /** Each linked root's local box through its local matrix: its box in its parent's frame. */
     rankBoxes: new Float64Array(Math.max(1, roots) * BOX_VALUES),
@@ -338,6 +333,8 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     motionMode,
     /** The roots pass's group of each range of the cut's worlds, and the rows pass's. */
     rootGroups: [] as HeldGroup[],
+    /** Words of the roots pass's parameters these tables hold, -1 before any write. */
+    paramsWritten: -1,
     rowsGroup: heldGroup(),
     dispose() {
       locals.destroy()
@@ -437,18 +434,33 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return gpu
 }
 
+/** Whether the words `params` holds — the last written to the GPU's tables, `written` of them — say
+ *  `ranges` and `roots`: numbers compared, nothing of a cut kept. */
+function paramsHold(
+  params: Uint32Array,
+  written: number,
+  ranges: GpuSelection['worldRanges'],
+  roots: number,
+) {
+  if (written !== 64 * ranges.length) return false
+  for (let r = 0; r < ranges.length; r++) {
+    const at = r * 64
+    if (params[at] !== roots || params[at + 1] !== ranges[r].first) return false
+    if (params[at + 2] !== ranges[r].count) return false
+  }
+  return true
+}
+
 /** The roots pass's parameters, 64 words a range of the cut's worlds: the roots and the range,
- *  written when one of them or their buffer moved — a frame that composes under the same cut sends
- *  none. Whether motion is written is the motion mode's (`decideComposedMotion`). */
+ *  written when one of them moved — a frame that composes under the same ranges sends none. Whether
+ *  motion is written is the motion mode's (`decideComposedMotion`). */
 function writeRootParams(
   device: GPUDevice,
   state: ComposeState,
   gpu: NonNullable<ComposeState['gpu']>,
   ranges: GpuSelection['worldRanges'],
 ) {
-  const held = state.paramsHeld
-  if (held.ranges === ranges && held.roots === state.roots && held.buffer === gpu.uniforms[0])
-    return
+  if (paramsHold(state.rootParams, gpu.paramsWritten, ranges, state.roots)) return
   const words = 64 * ranges.length
   if (state.rootParams.length < words) state.rootParams = new Uint32Array(words)
   const params = state.rootParams
@@ -467,9 +479,7 @@ function writeRootParams(
     params[at + 2] = ranges[r].count
   }
   device.queue.writeBuffer(gpu.uniforms[0], 0, params, 0, words)
-  held.ranges = ranges
-  held.roots = state.roots
-  held.buffer = gpu.uniforms[0]
+  gpu.paramsWritten = words
 }
 
 /** The linked roots' cut worlds and motion, before the cut kernel reads them. */
