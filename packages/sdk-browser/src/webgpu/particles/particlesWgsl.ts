@@ -5,7 +5,8 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentBillboard } from '../../../../math/src/wgsl/basis.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PARTICLE_WORKGROUP, stepFoldWgsl } from './stepFoldWgsl.ts'
-import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
+import { perspectiveDivide, pixelToNdc } from '../../../../math/src/wgsl/projection.ts'
+import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
@@ -137,7 +138,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   if (!(p.position.w < p.velocity.w)) { return o; }
   let toEye = normalize(draw.eye - p.position.xyz);
   let right = tangentBillboard(toEye);
-  o.corner = vec2f(f32(v & 1u), f32(v >> 1u)) * 2 - 1;
+  o.corner = unitToSigned2(vec2f(f32(v & 1u), f32(v >> 1u)));
   o.local = p.position.xyz + (right * o.corner.x + cross(toEye, right) * o.corner.y) * draw.size;
   o.at = draw.clip * vec4f(o.local, 1);
   o.life = 1 - p.position.w / p.velocity.w;
@@ -145,7 +146,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
 }
 fn particle(in: Out) -> vec4f {
   let size = draw.drawn;
-  let ndc = vec2f(in.at.x / size.x * 2 - 1, 1 - in.at.y / size.y * 2);
+  let ndc = pixelToNdc(in.at.xy, size);
   let scene = draw.unclip * vec4f(ndc, textureLoad(depth, vec2i(in.at.xy), 0), 1);
   let behind = distance(perspectiveDivide(scene), draw.eye) - distance(in.local, draw.eye);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > DIVISOR_FLOOR);
@@ -167,5 +168,7 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
     tangentBillboard,
     perspectiveDivide,
     DIVISOR_FLOOR,
+    pixelToNdc,
+    unitToSigned2,
   ],
 )

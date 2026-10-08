@@ -1,4 +1,4 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { alignDown, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { heldBuffers } from '../../gpu/core/heldBuffers.ts'
@@ -98,7 +98,7 @@ const SOURCE = `${LABEL} source`,
 function texelBandRows(width: number, height: number, bandBytes: number) {
   const row = width * 4,
     unit = 256 / gcd(row, 256)
-  return clamp(Math.floor(bandBytes / row / unit) * unit, unit, height)
+  return clamp(alignDown(bandBytes / row, unit), unit, height)
 }
 
 /** A turn's shape: the picture's size, the rows of a ring load, the loads, their uniform slots. */

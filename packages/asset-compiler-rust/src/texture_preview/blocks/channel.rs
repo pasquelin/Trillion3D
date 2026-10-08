@@ -5,6 +5,7 @@
 //! `fit.rs`, in one dimension: no covariance, no axis, since a channel's axis
 //! is the channel.
 use super::fit::{nearest_rung, Texels};
+use trillion3d_math::scalar::remap;
 
 /// Endpoints of `channel` on `ladder`, as bytes, and the rung of every texel on
 /// what those bytes decode to.
@@ -18,7 +19,7 @@ pub fn fit_channel(texels: &Texels, channel: usize, ladder: &[f32]) -> (u8, u8, 
         if (e1 - e0).abs() < 1e-6 {
             return [0; 16];
         }
-        values.map(|v| nearest_rung(ladder, (v - e0) / (e1 - e0)))
+        values.map(|v| nearest_rung(ladder, remap(v, e0, e1)))
     };
     for _ in 0..3 {
         let rung = assign(e0, e1);

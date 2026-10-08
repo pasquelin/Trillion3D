@@ -118,7 +118,7 @@
         const e = ease.inOut(time / flight.span), { from, to } = flight;
         const target = mix({ math }, from.target, to.target, e);
         const d = gaze.fromArray(mix({ math }, from.d, to.d, e)).normalize().toArray();
-        place(target, d, Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
+        place(target, d, Math.exp(math.lerp(Math.log(from.length), Math.log(to.length), e)));
         if (time < flight.span) return true;
         world.controls.minDistance = flight.nearest;
         if (flight.resume) drift.restart();
