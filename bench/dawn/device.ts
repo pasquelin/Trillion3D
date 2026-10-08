@@ -5,6 +5,7 @@ import { create, globals } from 'webgpu'
 import { writeBitmap } from './imageCopy.ts'
 import { guardMaps } from './mapGuard.ts'
 import { createPassTimer } from './passTimer.ts'
+import { hookAfter, type Proto } from './hook.ts'
 import { installDissect, readSpec } from './dissectHooks.ts'
 import { installWorkHooks } from './passWorkHooks.ts'
 import { profiledAdapter } from './profiles.ts'
@@ -29,16 +30,9 @@ export const COUNTS = [
 export type Counts = Record<(typeof COUNTS)[number], number>
 const zero = () => Object.fromEntries(COUNTS.map((key) => [key, 0])) as Counts
 
-type Proto = Record<string, (...args: unknown[]) => unknown>
 /** Counts every call of `name` on `proto` into `counts`, through `count`. */
 function counted(proto: Proto, name: string, count: (args: unknown[], self: unknown) => void) {
-  const original = proto[name]
-  if (!original) return
-  proto[name] = function (this: unknown, ...args: unknown[]) {
-    const made = original.apply(this, args)
-    count(args, this)
-    return made
-  }
+  hookAfter(proto, name, (self, args) => count(args as unknown[], self))
 }
 
 /** Opens Dawn and installs its WebGPU globals (`navigator.gpu`, `GPUBufferUsage`, …) on this
@@ -117,7 +111,7 @@ export function installGpu(profile: {
     ['beginRenderPass', 'render'],
     ['beginComputePass', 'compute'],
   ] as const) {
-    const begin = encoder[name]
+    const begin = encoder[name] as unknown as (this: GPUCommandEncoder, d?: unknown) => object
     encoder[name] = function (this: GPUCommandEncoder, ...args: unknown[]) {
       const descriptor = args[0] as GPURenderPassDescriptor | undefined
       if (quietNow) return begin.call(this, descriptor)
@@ -125,7 +119,7 @@ export function installGpu(profile: {
       if (descriptor?.timestampWrites) add('timedPasses')
       const before = timer.size()
       const pass = begin.call(this, timer.wrap(kind, descriptor, this.label))
-      timer.watch(pass as object, timer.size() > before)
+      timer.watch(pass, timer.size() > before)
       return pass
     }
   }

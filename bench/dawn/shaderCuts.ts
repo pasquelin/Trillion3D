@@ -6,6 +6,7 @@
 // compiler cannot prove dead, so what lies above survives — then returns. `-> value` after the
 // name returns that value from an entry that gives one. The repository is never changed: a variant
 // is made in memory, when the engine creates the module.
+import { createHash } from 'node:crypto'
 
 /** One cut point: its name, its line (0-based), what keeps the work above it alive, and the value
  *  the entry returns there. */
@@ -34,8 +35,4 @@ export function cutAt(code: string, name: string) {
 }
 
 /** A short stable hash of a shader's text: the same code, the same name, in any process. */
-export function hashOf(code: string) {
-  let h = 0x811c9dc5
-  for (let i = 0; i < code.length; i++) h = Math.imul(h ^ code.charCodeAt(i), 0x01000193)
-  return (h >>> 0).toString(16).padStart(8, '0')
-}
+export const hashOf = (code: string) => createHash('sha256').update(code).digest('hex').slice(0, 8)

@@ -4,7 +4,7 @@ import { createCalibration, CALIBRATION_BYTES } from './calibration.ts'
 import { captureCanvas } from './capture.ts'
 import { functionTimes, startCpuProfile } from './cpuProfile.ts'
 import { installGpu } from './device.ts'
-import { dissectModules, readSpec } from './dissectHooks.ts'
+import { dissectModules, dissectSpec } from './dissectHooks.ts'
 import { installBrowser } from './dom.ts'
 import { machineFor } from './machine.ts'
 import { createClock, runFrames, warmUp } from './frames.ts'
@@ -138,7 +138,7 @@ export async function playScenario(options: BenchOptions, stem: string) {
       gbPerSecond: (2 * CALIBRATION_BYTES) / calibrationMs.median / 1e6,
     },
     machine,
-    dissect: dissectModules(readSpec(process.env.TRILLION3D_DISSECT)?.pass ?? '\0'),
+    dissect: dissectModules(dissectSpec()?.pass ?? '\0'),
     segments,
     cpu,
     cpuSteps,

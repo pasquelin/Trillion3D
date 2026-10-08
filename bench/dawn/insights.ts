@@ -6,7 +6,7 @@ import type { Bottleneck } from './bottlenecks.ts'
 import { rankBottlenecks, topGains } from './bottlenecks.ts'
 import type { BenchReport } from './merge.ts'
 import type { PassSource } from './passSource.ts'
-import { ms, table } from './reportText.ts'
+import { mib, ms, table } from './reportText.ts'
 
 export type Insights = {
   segments: { name: string; ranking: Bottleneck[]; top: Bottleneck[] }[]
@@ -26,24 +26,24 @@ export function buildInsights(
       const ranking = rankBottlenecks(segment.benchPasses, report.machine, counters, sources)
       return { name: segment.name, ranking, top: topGains(ranking) }
     })
-  const mean = new Map<string, { sum: Bottleneck; n: number }>()
+  // A pass a segment lacks gave nothing there: every figure is a mean over all the segments.
+  const total = new Map<string, Bottleneck>()
   for (const { ranking } of segments)
     for (const b of ranking) {
       const gain = b.cause === 'wait' ? b.waitMs : b.gainMs
-      const held = mean.get(b.name)
-      if (!held) mean.set(b.name, { sum: { ...b, gainMs: gain, certainMs: b.certainMs }, n: 1 })
+      const held = total.get(b.name)
+      if (!held) total.set(b.name, { ...b, gainMs: gain })
       else {
-        held.sum.gainMs += gain
-        held.sum.certainMs += b.certainMs
-        held.sum.workMs += b.workMs
-        held.n++
+        held.gainMs += gain
+        held.certainMs += b.certainMs
+        held.workMs += b.workMs
       }
     }
-  const averaged = [...mean.values()].map(({ sum, n }) => ({
-    ...sum,
-    gainMs: sum.gainMs / segments.length,
-    certainMs: sum.certainMs / segments.length,
-    workMs: sum.workMs / n,
+  const averaged = [...total.values()].map((b) => ({
+    ...b,
+    gainMs: b.gainMs / segments.length,
+    certainMs: b.certainMs / segments.length,
+    workMs: b.workMs / segments.length,
   }))
   return { segments, top: averaged.sort((a, b) => b.gainMs - a.gainMs).slice(0, 5) }
 }
@@ -102,8 +102,8 @@ export function insightsText(insights: Insights, machine: BenchReport['machine']
             b.cause,
             b.encoded.groups || '—',
             b.encoded.invocations ? b.encoded.invocations.toExponential(1) : '—',
-            (b.encoded.boundBytes / 1048576).toFixed(0),
-            (b.encoded.attachBytes / 1048576).toFixed(0),
+            mib(b.encoded.boundBytes),
+            mib(b.encoded.attachBytes),
             where(b),
           ]),
       ),

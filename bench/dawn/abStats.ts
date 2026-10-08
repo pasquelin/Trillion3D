@@ -32,7 +32,7 @@ export function compare(a: readonly number[], b: readonly number[], least = 0.05
   const diffs = b.map((v, i) => v - a[i])
   const d = spread(diffs)!
   const n = diffs.length
-  const mean = diffs.reduce((s, v) => s + v, 0) / n
+  const { mean } = d
   const sd = Math.sqrt(diffs.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1))
   const half = (T95[n - 2] ?? 1.96) * (sd / Math.sqrt(n))
   const [low, high] = [mean - half, mean + half]

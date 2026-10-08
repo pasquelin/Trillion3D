@@ -41,7 +41,7 @@ const IDLE_COUNTERS: Record<string, [key: string, what: string]> = {
   transparents: ['transparentMeshes', 'no transparent mesh'],
 }
 
-const ms = (value: number) => `${value.toFixed(2)} ms`
+const inMs = (value: number) => `${value.toFixed(2)} ms`
 
 /** The floor of a pass on `machine`: the larger of its fixed cost, its threads' launch and its
  *  attachments' stores; and the one with every bound byte moved at the slowest read rate. */
@@ -66,23 +66,23 @@ function causeOf(
   const work = pass.median
   const idle = IDLE_COUNTERS[pass.stage]
   if (idle && counters[idle[0]] === 0 && work > 0.02)
-    return ['wasted work', `${ms(work)} with ${idle[1]} (${idle[0]} = 0)`]
+    return ['wasted work', `${inMs(work)} with ${idle[1]} (${idle[0]} = 0)`]
   if (pass.waitMs >= WAIT_MIN_MS && pass.waitMs >= WAIT_SHARE * work)
-    return ['wait', `the GPU idles ${ms(pass.waitMs)} before it, ${ms(work)} of work`]
+    return ['wait', `the GPU idles ${inMs(pass.waitMs)} before it, ${inMs(work)} of work`]
   if (floors.stores >= BOUND * work)
     return [
       'bandwidth',
-      `its attachments' ${(pass.encoded.attachBytes / 1048576).toFixed(0)} MiB take ${ms(floors.stores)} to store, ${ms(work)} measured`,
+      `its attachments' ${(pass.encoded.attachBytes / (1 << 20)).toFixed(0)} MiB take ${inMs(floors.stores)} to store, ${inMs(work)} measured`,
     ]
   if (floors.launch >= BOUND * work)
     return [
       'launch',
-      `${pass.encoded.invocations.toExponential(2)} threads take ${ms(floors.launch)} to launch, ${ms(work)} measured`,
+      `${pass.encoded.invocations.toExponential(2)} threads take ${inMs(floors.launch)} to launch, ${inMs(work)} measured`,
     ]
   if (pass.kind === 'compute' && pass.encoded.groups > 0 && pass.encoded.groups < FEW_GROUPS)
     return [
       'occupancy',
-      `${pass.encoded.groups} workgroups cannot fill the GPU, ${ms(work)} measured`,
+      `${pass.encoded.groups} workgroups cannot fill the GPU, ${inMs(work)} measured`,
     ]
   const ruled = [
     floors.launch < 0.5 * work ? 'launch' : '',
@@ -91,11 +91,11 @@ function causeOf(
   ].filter(Boolean)
   const possible =
     floors.moved >= 0.5 * work
-      ? ' bandwidth is possible (bound bytes alone would take ' + ms(floors.moved) + ').'
+      ? ' bandwidth is possible (bound bytes alone would take ' + inMs(floors.moved) + ').'
       : ''
   return [
     'unproven',
-    `floor ${ms(floors.floorMs)} to ${ms(floors.floorMaxMs)} against ${ms(work)}; ruled out: ${ruled.join(', ') || 'none'}.${possible} Dissect the shader.`,
+    `floor ${inMs(floors.floorMs)} to ${inMs(floors.floorMaxMs)} against ${inMs(work)}; ruled out: ${ruled.join(', ') || 'none'}.${possible} Dissect the shader.`,
   ]
 }
 

@@ -52,6 +52,7 @@ test('a spread reads the median, the 95th percentile and the extremes, ignoring 
     min: 1,
     max: 3,
     n: 3,
+    mean: 2,
     iqr: 1,
     std: Math.sqrt(2 / 3),
   })

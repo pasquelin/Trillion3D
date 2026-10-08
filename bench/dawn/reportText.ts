@@ -10,6 +10,8 @@ import type { Spread } from './summary.ts'
 export const ms = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(digits)
 const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s.max)})` : '—')
+/** Bytes as mebibytes, `digits` decimals. */
+export const mib = (bytes: number, digits = 0) => (bytes / 1048576).toFixed(digits)
 export const percent = (share: number | null) =>
   share === null ? '—' : `${(share * 100).toFixed(1)} %`
 export const table = (head: string[], rows: (string | number)[][]) =>
@@ -115,7 +117,7 @@ export function reportText(report: BenchReport, insights?: Insights) {
       .filter(([, value]) => typeof value === 'number' && value !== 0)
       .map(
         ([key, value]) =>
-          `${key} ${key.endsWith('Bytes') ? `${((value as number) / 1048576).toFixed(2)} MiB` : ms(value as number, 3)}`,
+          `${key} ${key.endsWith('Bytes') ? `${mib(value as number, 2)} MiB` : ms(value as number, 3)}`,
       )
       .join(' · '),
     '',

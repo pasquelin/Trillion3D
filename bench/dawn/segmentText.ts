@@ -1,6 +1,6 @@
 // A segment's detail in a bench report: its frame, its doubts, its passes, its hitches and commands.
 import type { BenchReport } from './merge.ts'
-import { ms, percent, table } from './reportText.ts'
+import { mib, ms, percent, table } from './reportText.ts'
 
 type Segment = BenchReport['segments'][number]
 
@@ -73,9 +73,9 @@ export function segmentDetail(segment: Segment) {
                 ms(h.cpuMs),
                 ms(h.gpuMs),
                 h.pipelinesMade,
-                `${h.buffersMade} (${(h.bufferBytesMade / 1048576).toFixed(2)} MiB)`,
+                `${h.buffersMade} (${mib(h.bufferBytesMade, 2)} MiB)`,
                 h.texturesMade,
-                `${(h.writtenBytes / 1048576).toFixed(2)} MiB`,
+                `${mib(h.writtenBytes, 2)} MiB`,
               ]),
           ),
           '',
@@ -84,7 +84,7 @@ export function segmentDetail(segment: Segment) {
     'Commands per frame: ' +
       Object.entries(counts)
         .map(([key, value]) =>
-          key.endsWith('Bytes') ? `${key} ${(value / 1048576).toFixed(3)} MiB` : `${key} ${value}`,
+          key.endsWith('Bytes') ? `${key} ${mib(value, 3)} MiB` : `${key} ${value}`,
         )
         .join(' · '),
     '',

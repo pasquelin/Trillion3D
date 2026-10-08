@@ -33,6 +33,7 @@ export function spread(values: readonly number[]) {
     p95,
     min,
     max: Math.max(...finite),
+    mean,
     n: finite.length,
     iqr: quantile(sorted, 0.75) - quantile(sorted, 0.25),
     std: Math.sqrt(finite.reduce((sum, v) => sum + (v - mean) ** 2, 0) / finite.length),

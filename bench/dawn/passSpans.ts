@@ -5,10 +5,10 @@
 
 import type { PassWork } from './passWorkHooks.ts'
 
-/** What a pass's timestamps say. `ok`: a span. `empty`: it ran in no time — it encoded no work
- *  (so the driver wrote no timestamp) or its stamps are valid and equal: a real zero. `unknown`: only indirect work, which
- *  may have been of no size — a zero or a lost timer, the GPU alone knows. `lost`: it encoded work
- *  and the driver wrote no timestamp — a timer lost, its pass's time unknown. */
+/** What a pass's timestamps say. `ok`: a span. `empty`: stamps of no length, or none and no work
+ *  encoded (the driver writes no timestamp for a pass that dispatched nothing): a real zero.
+ *  `unknown`: no stamps and only indirect work, which may have been of no size. `lost`: no stamps
+ *  and direct work encoded: a lost timer, its pass's time unknown. */
 export type PassState = 'ok' | 'empty' | 'unknown' | 'lost'
 /** One timed pass of a frame. `ms`: its own share of the frame's GPU time (the shares add up to
  *  the union). `spanMs`: its begin to its end. `gapMs`: the idle time between what ran before it and
