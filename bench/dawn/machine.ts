@@ -17,7 +17,11 @@ import {
 } from './machineKernels.ts'
 
 /** What a machine can do, from timed kernels. Rates in GB/s (10⁹ bytes a second), costs in ms. */
+/** Changes when a kernel does: a machine file of another version is measured again. */
+export const MACHINE_VERSION = 2
+
 export type Machine = {
+  version: number
   adapter: string
   date: string
   readGBs: number
@@ -52,6 +56,7 @@ async function median(kernel: () => Promise<number>, runs = 7) {
 export function machineFrom(adapter: string, ms: Record<string, number>, date: string): Machine {
   const rate = (bytes: number, time: number) => bytes / time / 1e6
   return {
+    version: MACHINE_VERSION,
     adapter,
     date,
     readGBs: rate(STREAM_BYTES, ms.read),
@@ -90,7 +95,10 @@ export async function machineFor(
   recalibrate = false,
 ) {
   const file = fileOf(adapter)
-  if (!recalibrate && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as Machine
+  if (!recalibrate && existsSync(file)) {
+    const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
+    if (kept.version === MACHINE_VERSION) return kept
+  }
   const machine = await measureMachine(gpu, device, adapter)
   mkdirSync(join(file, '..'), { recursive: true })
   writeFileSync(file, JSON.stringify(machine, null, 1))

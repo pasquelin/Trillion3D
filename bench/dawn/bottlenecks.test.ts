@@ -6,6 +6,7 @@ import type { Machine } from './machine.ts'
 import { emptyWork } from './passWorkHooks.ts'
 
 const machine: Machine = {
+  version: 2,
   adapter: 'test',
   date: '',
   readGBs: 400,
