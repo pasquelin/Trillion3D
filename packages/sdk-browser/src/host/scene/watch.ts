@@ -1,7 +1,17 @@
 import { aimOf, isLightNode } from '../graph/kinds.ts'
 import type { WriteRevision } from './hookCore.ts'
 import { hookHostNode, unhookHostNode } from './hooks.ts'
-import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts'
+import {
+  SCAN_FLIPPED,
+  SCAN_MOVED,
+  SCAN_POSED,
+  SCAN_RESHAPED,
+  adoptPose,
+  scan,
+  snapshot,
+  type NodeState,
+  type WatchVerdict,
+} from './scan.ts'
 import { nodeWrites, nodesWrittenSince } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -86,12 +96,12 @@ export function createHostSceneWatch() {
   const scanOnce = (state: NodeState) => {
     if (state.read === reads) return
     state.read = reads
-    const { visible, castShadow } = state
-    const read = scan(state)
-    if (state.visible !== visible || state.castShadow !== castShadow) flipped.push(state.node)
-    if (state.posed) written.add(state.node)
-    if (read === 'reshaped') verdict = read
-    else if (read && !verdict) verdict = read
+    const found = scan(state)
+    if (found & SCAN_RESHAPED) verdict = 'reshaped'
+    else if (found & SCAN_MOVED && !verdict) verdict = 'moved'
+    if (found & SCAN_RESHAPED) return
+    if (found & SCAN_FLIPPED) flipped.push(state.node)
+    if (found & SCAN_POSED) written.add(state.node)
   }
   const scanWritten = (slot: number) => {
     const state = states.get(slot)
@@ -160,6 +170,12 @@ export function createHostSceneWatch() {
       written.clear()
       spare = taken
       return taken
+    },
+    /** The engine posed `node` itself (`../../webgpu/pages/render/transform.ts`): what this watch
+     *  holds of it follows, so the engine's pose is not read back as the host's. */
+    adopt(node: Object3D) {
+      const state = states.get(node.index)
+      if (state?.node === node) adoptPose(state)
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
      *  is hooked before the first observation: no host write can be pending there. */

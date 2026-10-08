@@ -104,7 +104,7 @@ test('a write the engine made itself is settled with its revision, not announced
   gate.sceneChanged()
   gate.readScene(source, draws)
   const reparented = gate.revisions.scene
-  assert.ok(reparented <= before + 3, 'the reparent costs its announce and its one read')
+  assert.equal(reparented, before + 3, 'the reparent costs its announce and its one read')
   gate.readScene(source, draws)
   assert.equal(gate.revisions.scene, reparented, 'and none after')
 })

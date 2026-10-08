@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
-import { scan, snapshot, type WatchVerdict } from './scan.ts'
+import { scan, snapshot, verdictOf, type WatchVerdict } from './scan.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 
 function scene() {
@@ -69,10 +69,10 @@ for (const { name, node, write, verdict = 'moved' } of WRITES)
   test(`a write of ${name} is taken as ${verdict}, once`, () => {
     const s = scene()
     const state = snapshot(s[node])
-    assert.equal(scan(state), 0, 'nothing written since the snapshot')
+    assert.equal(verdictOf(scan(state)), 0, 'nothing written since the snapshot')
     write(s)
-    assert.equal(scan(state), verdict)
-    assert.equal(scan(state), 0, 'read again, the value is the one held')
+    assert.equal(verdictOf(scan(state)), verdict)
+    assert.equal(verdictOf(scan(state)), 0, 'read again, the value is the one held')
   })
 
 test('a matrix set by hand on a frozen node, pushed by a forced walk, is taken once', () => {
@@ -82,9 +82,9 @@ test('a matrix set by hand on a frozen node, pushed by a forced walk, is taken o
   mesh.matrix.makeTranslation(5, 0, 0)
   parent.updateMatrixWorld(true)
   assert.equal(mesh.matrixWorldNeedsUpdate, false, 'the forced walk never raised the flag')
-  assert.equal(scan(state), 'moved', 'the matrix is compared, not the flag')
+  assert.equal(verdictOf(scan(state)), 'moved', 'the matrix is compared, not the flag')
   parent.updateMatrixWorld(true)
-  assert.equal(scan(state), 0, 'the same matrix walked again moves nothing')
+  assert.equal(verdictOf(scan(state)), 0, 'the same matrix walked again moves nothing')
 })
 
 test('updateMatrix() each tick on a frozen node, pose unchanged, is nothing', () => {
@@ -94,10 +94,10 @@ test('updateMatrix() each tick on a frozen node, pose unchanged, is nothing', ()
   mesh.matrixAutoUpdate = false
   const state = snapshot(mesh)
   for (let tick = 0; tick < 5; tick++) mesh.updateMatrix()
-  assert.equal(scan(state), 0)
+  assert.equal(verdictOf(scan(state)), 0)
   mesh.position.x = 4
   mesh.updateMatrix()
-  assert.equal(scan(state), 'moved', 'a pose recomposed into a new matrix is seen')
+  assert.equal(verdictOf(scan(state)), 'moved', 'a pose recomposed into a new matrix is seen')
 })
 
 test("the reference's own walk over automatic nodes is nothing: a still scene stays still", () => {
@@ -106,7 +106,10 @@ test("the reference's own walk over automatic nodes is nothing: a still scene st
   const states = [parent, mesh, light].map(snapshot)
   for (let frame = 0; frame < 3; frame++) {
     parent.updateMatrixWorld(true)
-    assert.deepEqual(states.map(scan), [0, 0, 0])
+    assert.deepEqual(
+      states.map((state) => verdictOf(scan(state))),
+      [0, 0, 0],
+    )
   }
 })
 
@@ -117,10 +120,10 @@ test('a frozen matrix scanned frame after frame lists nothing; a write kept behi
     tree = G.Object3D._treeOf(node),
     state = snapshot(node)
   updateTransformTree(tree)
-  for (let frame = 0; frame < 3; frame++) assert.equal(scan(state), 0)
+  for (let frame = 0; frame < 3; frame++) assert.equal(verdictOf(scan(state)), 0)
   assert.equal(updateTransformTree(tree), 0, 'reads walk nothing')
   kept.elements[12] = 3
-  assert.equal(scan(state), 'moved')
+  assert.equal(verdictOf(scan(state)), 'moved')
   assert.equal(updateTransformTree(tree), 1, 'the change found is walked')
   assert.equal(node.matrixWorld.elements[12], 3)
 })

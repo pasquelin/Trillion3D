@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
-import { scan, snapshot } from './scan.ts'
+import { scan, snapshot, verdictOf } from './scan.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 const CHAMPS = ['parent', 'visible', 'castShadow', 'matrixAutoUpdate'] as const
@@ -59,7 +59,7 @@ function scanCounts(node: Object3D, write: () => void = () => {}) {
   const state = snapshot(node)
   write()
   for (const champ of CHAMPS) reads[champ] = 0
-  const verdict = scan(state)
+  const verdict = verdictOf(scan(state))
   return { verdict, reads: { ...reads } }
 }
 
