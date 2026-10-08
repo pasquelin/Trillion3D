@@ -17,10 +17,12 @@ pub struct World {
 }
 
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
-    trillion3d_math::vec3::point(
-        &world.triangles[triangle * PROXY_TRIANGLE_FLOATS..],
-        corner as u32,
-    )
+    let base = triangle * PROXY_TRIANGLE_FLOATS + corner * 3;
+    [
+        world.triangles[base] as f64,
+        world.triangles[base + 1] as f64,
+        world.triangles[base + 2] as f64,
+    ]
 }
 pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
     let a = vertex(world, triangle, 0);

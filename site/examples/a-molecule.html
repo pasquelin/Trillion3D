@@ -102,14 +102,13 @@
           const turn = (k * Math.PI * 2) / 10, y = (k - (PAIRS - 1) / 2) * 0.34;
           const one = [Math.cos(turn), y, Math.sin(turn)], two = [Math.cos(turn + 2.6), y, Math.sin(turn + 2.6)];
           const p1 = add(one, ORANGE), p2 = add(two, ORANGE), [c1, c2] = BASES[(k * 7) % 4];
-          const along = (from, to, share) => mix({ math }, from, to, share);
-          const b1 = add(along(one, two, 0.2), NITROGEN), b2 = add(along(one, two, 0.38), c1);
-          const b3 = add(along(one, two, 0.62), c2), b4 = add(along(one, two, 0.8), NITROGEN);
+          const b1 = add(mix({ math }, one, two, 0.2), NITROGEN), b2 = add(mix({ math }, one, two, 0.38), c1);
+          const b3 = add(mix({ math }, one, two, 0.62), c2), b4 = add(mix({ math }, one, two, 0.8), NITROGEN);
           bonds.push([p1, b1], [b1, b2], [b2, b3], [b3, b4], [b4, p2]);
           if (last) {
             // A sugar between two phosphates of a strand, a little further out.
             for (const [from, to] of [[last[0], p1], [last[1], p2]]) {
-              const middle = along(atoms[from].at, atoms[to].at, 0.5), out = 1.18 / Math.hypot(middle[0], middle[2]);
+              const middle = mix({ math }, atoms[from].at, atoms[to].at, 0.5), out = 1.18 / Math.hypot(middle[0], middle[2]);
               const sugar = add([middle[0] * out, middle[1], middle[2] * out], OXYGEN);
               bonds.push([from, sugar], [sugar, to]);
             }

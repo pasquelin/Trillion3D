@@ -17,9 +17,6 @@ type P = [f64; 3];
 /// Rings a query widens by before it reads every triangle instead.
 const RINGS: i64 = 16;
 
-fn at(pos: &[f32], index: u32) -> P {
-    point(pos, index)
-}
 /// Squared distance from `p` to triangle `abc` (closest point, found by testing the vertex, edge and face Voronoi regions in turn).
 fn triangle_distance2(p: P, a: P, b: P, c: P) -> f64 {
     let d = sub(p, closest_point(p, a, b, c));
@@ -38,7 +35,7 @@ impl<'a> Grid<'a> {
     fn new(pos: &'a [f32], triangles: &'a [u32]) -> Self {
         let (mut min, mut max) = ([f64::MAX; 3], [f64::MIN; 3]);
         for &i in triangles {
-            extend_aabb(&mut min, &mut max, at(pos, i));
+            extend_aabb(&mut min, &mut max, point(pos, i));
         }
         let extent = longest_side(min, max).max(1e-9);
         // About one triangle per cell along a surface: the cube root is wrong for a surface, the
@@ -56,7 +53,7 @@ impl<'a> Grid<'a> {
             let (lo, hi) = tri
                 .iter()
                 .fold(([i64::MAX; 3], [i64::MIN; 3]), |(lo, hi), &i| {
-                    let c = grid.key(at(pos, i));
+                    let c = grid.key(point(pos, i));
                     (
                         [0, 1, 2].map(|k| lo[k].min(c[k])),
                         [0, 1, 2].map(|k| hi[k].max(c[k])),
@@ -78,7 +75,7 @@ impl<'a> Grid<'a> {
             .0
             .iter()
             .map(|tri| {
-                let [a, b, c] = [0, 1, 2].map(|k| at(self.pos, tri[k]));
+                let [a, b, c] = [0, 1, 2].map(|k| point(self.pos, tri[k]));
                 triangle_distance2(p, a, b, c)
             })
             .fold(f64::MAX, f64::min)
@@ -113,7 +110,7 @@ impl<'a> Grid<'a> {
                         };
                         for &t in list {
                             let tri = &self.triangles[t as usize * 3..t as usize * 3 + 3];
-                            let [a, b, c] = [0, 1, 2].map(|k| at(self.pos, tri[k]));
+                            let [a, b, c] = [0, 1, 2].map(|k| point(self.pos, tri[k]));
                             best = best.min(triangle_distance2(p, a, b, c));
                             // A negative floor squares positive: it never stops a sample.
                             if floor >= 0.0 && best <= floor * floor {
