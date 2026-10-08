@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pageModules, readPage } from '../page.ts'
 import { lawWorld } from './world.ts'
@@ -11,8 +12,9 @@ import { scatter } from './scatter.ts'
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
 test('the runtime page builds the laws’ world module, every import it names mapped by the bench', () => {
-  const code = readPage(fileURLToPath(new URL('./world.html', import.meta.url))).scripts.join('\n')
-  const modules = pageModules(ROOT, 'engine')
+  const page = fileURLToPath(new URL('./world.html', import.meta.url))
+  const code = readPage(page).scripts.join('\n')
+  const modules = pageModules(ROOT, 'engine', page)
   const relative = [...code.matchAll(/from\s+['"](\.{1,2}\/[^'"]+)['"]/g)].map((found) => found[1])
   assert.deepEqual(
     relative.filter((path) => !(path in modules)),
@@ -31,4 +33,9 @@ test('the world holds the ground and one mesh a kind, at the scattered places', 
     ['ground', 'pebble', 'rock', 'tower'],
   )
   assert.deepEqual(placed, scatter(1001))
+})
+
+test('only the laws’ page reads the laws’ world: an example’s own `./world.js` is none of it', () => {
+  const example = join(ROOT, 'site', 'examples', 'an-example.html')
+  assert.equal(pageModules(ROOT, 'engine', example)['./world.js'], undefined)
 })
