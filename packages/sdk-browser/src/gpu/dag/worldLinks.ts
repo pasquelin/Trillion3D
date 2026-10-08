@@ -55,7 +55,9 @@ export type PackedWorld = {
   linkOf: (object: number) => number
   links: Uint32Array
   linkBase: number
-  moved: Set<number>
+  /** Told the placements whose link moved, increasing — the one list the cut's upload writes them
+   *  from (`worldFollow.ts`) —: the residency mirror reads them at its next update. */
+  linksMoved?: (placements: Int32Array, count: number) => void
   /** The scale of the world DAG's threshold this cut, its transitions dithered in time
    *  (`worldFade.ts`); 1, none. */
   scale: number
@@ -97,5 +99,5 @@ export function packWorldLinks(
     const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1
     return rank >= 0 ? base + rank : NONE
   }
-  return { root: world, origins, clusterOf, linkOf, links, linkBase, moved: new Set(), scale: 1 }
+  return { root: world, origins, clusterOf, linkOf, links, linkBase, scale: 1 }
 }

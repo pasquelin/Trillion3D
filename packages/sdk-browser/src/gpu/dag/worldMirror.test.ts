@@ -41,7 +41,7 @@ function scene() {
   const link = (w: number, object: number) => {
     const placed = packed.world!
     placed.links[w] = placed.linkOf(object)
-    placed.moved.add(w)
+    placed.linksMoved?.(Int32Array.of(w), 1)
   }
   return { world, packed, mirror, rows, pageBase, worldResidency, cover, link }
 }

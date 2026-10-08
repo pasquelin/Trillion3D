@@ -198,7 +198,6 @@ export async function openWorldRoots(
   const roots = worldRootsHold(table, top, { bundles, stream, objects })
   if (table.cells.count > 1 && dag) {
     await roots.stream()
-    roots.draws = true
     roots.drawnBytes = dag.bytes
   }
   // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
@@ -223,13 +222,12 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     table,
     /** The world pages' source (`worldPageServe.ts`) and their DAG in the engine's own `DagRoot`
      *  shape (`undefined` without its DAG file), opened once, on first use; a table out of its
-     *  rank refused here (`WORLD_CLUSTER_RANK`). `draws`: the cut packs and draws it (`drawn`), a
+     *  rank refused here (`WORLD_CLUSTER_RANK`). `drawn`: the cut packs and draws it, a
      *  partitioned world's, opened at load, the DAG's bytes `drawnBytes`. */
     stream: async () => (streamed = await stream.open()),
-    draws: false,
     drawnBytes: 0,
     get drawn() {
-      return roots.draws ? streamed : undefined
+      return roots.drawnBytes > 0 ? streamed : undefined
     },
     /** The manifest that opened it: an engine over that scene draws from it. */
     metadata: undefined as object | undefined,

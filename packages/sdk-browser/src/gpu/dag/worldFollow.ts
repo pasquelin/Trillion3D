@@ -42,10 +42,23 @@ export function followWorldLinks(
   /** The moved ranks, increasing, read off the bitmap; the write ranges over them. */
   let moved = new Int32Array(8)
   const { updateResidency, dispatch } = selection
-  selection.updateResidency = (next, changes, moved) => {
+  /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`:
+   *  the one record of the moves, which the upload writes and the mirror reads. */
+  const listMoved = () => {
+    let count = 0
+    if (high < 0) return 0
+    for (let word = low >>> 5; word <= high >>> 5; word++)
+      for (let bits = dirty[word]; bits; bits &= bits - 1) {
+        if (count === moved.length) moved = grown(moved, count + 1, count)
+        moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
+      }
+    return count
+  }
+  selection.updateResidency = (next, changes, pages) => {
     rows = next
     pending = false
-    return updateResidency(next, changes, moved)
+    world.linksMoved?.(moved, listMoved())
+    return updateResidency(next, changes, pages)
   }
   selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
   selection.placeObject = (w, object) => {
@@ -53,7 +66,6 @@ export function followWorldLinks(
     if (w === world.root || links[w] === c) return
     links[w] = c
     selection.linkMoved?.(w)
-    world.moved.add(w)
     dirty[w >>> 5] |= 1 << (w & 31)
     low = Math.min(low, w)
     high = Math.max(high, w)
@@ -64,13 +76,9 @@ export function followWorldLinks(
    *  the empty words of the bitmap skipped whole. */
   const takeUp = () => {
     if (high < 0) return
-    let count = 0
-    for (let word = low >>> 5; word <= high >>> 5; word++)
-      for (let bits = dirty[word]; bits; bits &= bits - 1) {
-        if (count === moved.length) moved = grown(moved, count + 1, count)
-        moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
-      }
+    const count = listMoved()
     writeRanges(device, coldParts, moved, count, linkWords)
+    world.linksMoved?.(moved, count)
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length
     high = -1

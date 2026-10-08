@@ -120,9 +120,6 @@ function update(m: Mirror, scene: Uint32Array, changes?: ResidencyChanges) {
     m.changed.clear()
     m.handed = false
   }
-  const { links, moved } = m.packed.world
-  for (const w of moved) link(m, w, linkedObject(m, links[w]))
-  moved.clear()
   if (changes) for (let i = 0; i < changes.count; i++) rowPage(m, scene, changes.pages[i])
   else for (let page = 0; page < m.packed.pageCount; page++) rowPage(m, scene, page)
   for (const object of m.dirty) {
@@ -137,11 +134,16 @@ function update(m: Mirror, scene: Uint32Array, changes?: ResidencyChanges) {
 
 /** The mirror of `packed`, whose `world` root (`packed.cutLinks`), wherever it sits, is the world DAG
  *  with `origins` per rank (`worldRootDag`): the placed object of an object cluster, -1 otherwise;
- *  each placement linked to an object (`packed.world.links`) draws it, a link that moves
- *  (`packed.world.moved`) read at the next `update`. */
+ *  each placement linked to an object (`packed.world.links`) draws it, a link that moves told by
+ *  the cut's upload (`linksMoved`) and mirrored at the next `update`. */
 export function createWorldResidencyMirror(packed: WorldPacked) {
   const m = mirrorState(packed)
-  packed.world.links.forEach((c, w) => link(m, w, linkedObject(m, c)))
+  const { links } = packed.world
+  links.forEach((c, w) => link(m, w, linkedObject(m, c)))
+  // A link that moves is read at once, its objects' clusters mirrored at the next update.
+  packed.world.linksMoved = (placements, count) => {
+    for (let i = 0; i < count; i++) link(m, placements[i], linkedObject(m, links[placements[i]]))
+  }
   const moved = {
     get pages() {
       return m.changed.list

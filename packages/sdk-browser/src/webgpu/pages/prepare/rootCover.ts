@@ -21,11 +21,7 @@ export function rootCoverOf(
     bootstrapUrls = new Set(bootstrap.map(pageAddress))
   const children = rootChildren(roots).filter(isPage).map(pageAddress),
     floorPages = new Set([...bootstrapUrls, ...children]).size
-  const bootstrapKeys = new Int32Array(bootstrap.length),
-    bootstrapKey = new Uint8Array(tracking.keyCount)
-  for (let i = 0; i < bootstrap.length; i++) {
-    bootstrapKeys[i] = tracking.keyOf(bootstrap[i])
-    bootstrapKey[bootstrapKeys[i]] = 1
-  }
-  return { bootstrap, bootstrapUrls, floorPages, bootstrapKeys, bootstrapKey }
+  const bootstrapKey = new Uint8Array(tracking.keyCount)
+  for (const page of bootstrap) bootstrapKey[tracking.keyOf(page)] = 1
+  return { bootstrap, bootstrapUrls, floorPages, bootstrapKey }
 }

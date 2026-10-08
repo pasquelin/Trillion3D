@@ -61,7 +61,7 @@ function cut(s: Lone, cell: Cell, threshold: number, covers: boolean[], held: bo
   const c = cell.placed ? s.link : NONE
   if (world.links[object] !== c) {
     world.links[object] = c
-    world.moved.add(object)
+    world.linksMoved?.(Int32Array.of(object), 1)
   }
   const { flags } = s.mirror.update(rows)
   const uniforms = cameraSelectionUniforms(s.cam, threshold, [1280, 720])
