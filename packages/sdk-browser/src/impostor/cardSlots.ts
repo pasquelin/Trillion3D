@@ -17,6 +17,7 @@ import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
 import { core } from './borrowed.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
 /** Floats of one card record. */
 export const CARD_FLOATS = 44
@@ -54,7 +55,8 @@ export function createCardSlots() {
     /** Records the segments span, those they left included. */
     used: 0,
     holes: 0,
-    /** Slots written since the last upload, once each; every slot when `full`. */
+    /** Slots written since the last upload, once each; every slot when `full` — after a pack, which
+     *  moves them all. */
     dirty: core.createDenseKeySet(),
     full: true,
     /** Records written: what a test counts. */
@@ -121,13 +123,10 @@ export function uploaded(slots: CardSlots) {
   slots.full = false
 }
 
-/** Room for `records` records, those held kept; the GPU copy is written again whole. */
+/** Room for `records` records, those held kept where they are: the GPU copy keeps them too (a
+ *  buffer too small for them is made again and written whole, `uploadedTo`). */
 function hold(slots: CardSlots, records: number) {
-  if (slots.records.length >= records * CARD_FLOATS) return
-  const next = new Float32Array(Math.max(records * CARD_FLOATS, slots.records.length * 2))
-  next.set(slots.records.subarray(0, slots.used * CARD_FLOATS))
-  slots.records = next
-  slots.full = true
+  slots.records = resized(slots.records, records * CARD_FLOATS)
 }
 
 /** A free slot at the end of `segment`, which grows to twice its room when full: in place when it
@@ -150,7 +149,8 @@ export function slotAtEnd<G>(
     slots.holes += segment.capacity
     segment.start = slots.used
     slots.used += room
-    slots.full = true
+    // Its records alone moved: they are written, nothing else.
+    for (let k = 0; k < segment.count; k++) markDirty(slots, segment.start + k)
   }
   segment.capacity = room
   if (slots.holes * 2 > slots.used && slots.holes > 64) pack(slots, segments)
