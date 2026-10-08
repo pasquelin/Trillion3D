@@ -38,7 +38,7 @@ import { lowBits, wideProduct } from './integer.ts'
  * normal result; a scale below one first shifts it into the subnormal range, so the value is
  * rounded once.
  */
-export const dRound = wgslFn(
+const dRound = wgslFn(
   'dRound',
   [wideAdd, wideShiftRight],
   `fn dRound(sign:u32,scale:i32,m:vec2u)->vec2u{
