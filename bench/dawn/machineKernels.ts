@@ -5,6 +5,7 @@ import { CHAINED, FILL, READ, TEXTURE_READ, TEXTURE_WRITE, TRIVIAL, WRITE } from
 import { MIB } from '../../packages/math/src/constants.ts'
 import { readBack } from './readBack.ts'
 import { createWorkKernels } from './machineWork.ts'
+import { machineParts } from './machineParts.ts'
 
 /** A buffer a kernel streams: 128 MiB, the storage binding every device grants. */
 export const STREAM_BYTES = 128 * MIB
@@ -28,47 +29,6 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     other = buffer(256)
   /** One small buffer a dispatch of its own: dispatches that share none need no barrier. */
   const apart = Array.from({ length: CHAIN }, () => buffer(256))
-  const texture = (use: number) =>
-    device.createTexture({ size: [TEXTURE_SIDE, TEXTURE_SIDE], format: 'rgba16float', usage: use })
-  const sampled = texture(GPUTextureUsage.TEXTURE_BINDING)
-  const stored = texture(GPUTextureUsage.STORAGE_BINDING)
-  const target = texture(GPUTextureUsage.RENDER_ATTACHMENT)
-  const compute = (code: string) =>
-    device.createComputePipeline({
-      layout: 'auto',
-      compute: { module: device.createShaderModule({ code }), entryPoint: 'main' },
-    })
-  const bind = (p: GPUComputePipeline, ...resources: GPUBindingResource[]) =>
-    device.createBindGroup({
-      layout: p.getBindGroupLayout(0),
-      entries: resources.map((resource, binding) => ({ binding, resource })),
-    })
-  const [pRead, pWrite, pTexRead, pTexWrite, pTrivial, pChained] = [
-    READ,
-    WRITE,
-    TEXTURE_READ,
-    TEXTURE_WRITE,
-    TRIVIAL,
-    CHAINED,
-  ].map(compute)
-  const module = device.createShaderModule({ code: FILL })
-  const pFill = device.createRenderPipeline({
-    layout: 'auto',
-    vertex: { module, entryPoint: 'vs' },
-    fragment: { module, entryPoint: 'fs', targets: [{ format: 'rgba16float' }] },
-  })
-  const threads = STREAM_BYTES / 16 / 8
-  const groups = threads / GROUP_THREADS
-  const dispatch = (
-    pass: GPUComputePassEncoder,
-    p: GPUComputePipeline,
-    g: GPUBindGroup,
-    n: number,
-  ) => {
-    pass.setPipeline(p)
-    pass.setBindGroup(0, g)
-    pass.dispatchWorkgroups(n)
-  }
   const stamps = { querySet: set, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 }
   /** Runs `encode` on a fresh encoder, timestamps resolved after it: the ms between the stamps. */
   const run = async (encode: (encoder: GPUCommandEncoder) => void) => {
@@ -80,6 +40,33 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     })
     const [begin, end] = new BigInt64Array(out)
     return Number(end - begin) / 1e6
+  }
+  const parts = machineParts(device, { run, stamps }),
+    { compute, bind, raster } = parts
+  const texture = (use: number) => parts.texture(TEXTURE_SIDE, 'rgba16float', use)
+  const sampled = texture(GPUTextureUsage.TEXTURE_BINDING)
+  const stored = texture(GPUTextureUsage.STORAGE_BINDING)
+  const target = texture(GPUTextureUsage.RENDER_ATTACHMENT)
+  const [pRead, pWrite, pTexRead, pTexWrite, pTrivial, pChained] = [
+    READ,
+    WRITE,
+    TEXTURE_READ,
+    TEXTURE_WRITE,
+    TRIVIAL,
+    CHAINED,
+  ].map(compute)
+  const pFill = raster(FILL, ['rgba16float'])
+  const threads = STREAM_BYTES / 16 / 8
+  const groups = threads / GROUP_THREADS
+  const dispatch = (
+    pass: GPUComputePassEncoder,
+    p: GPUComputePipeline,
+    g: GPUBindGroup,
+    n: number,
+  ) => {
+    pass.setPipeline(p)
+    pass.setBindGroup(0, g)
+    pass.dispatchWorkgroups(n)
   }
   const one = (encode: (pass: GPUComputePassEncoder) => void) =>
     run((encoder) => {
@@ -96,7 +83,7 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     chained: bind(pChained, { buffer: other }),
     apart: apart.map((buffer) => bind(pChained, { buffer })),
   }
-  const work = createWorkKernels(device, { run, one, stamps }, { fill: pFill, target })
+  const work = createWorkKernels(device, { parts, one }, { fill: pFill, target })
   const kernels = {
     ...work.kernels,
     /** 128 MiB read once, summed. */
@@ -107,23 +94,7 @@ export function createKernels(gpu: Pick<BenchGpu, 'quiet'>, device: GPUDevice) {
     /** `THREAD_GROUPS` workgroups of `GROUP_THREADS` threads that touch no memory. */
     threads: () => one((p) => dispatch(p, pTrivial, bindings.trivial, THREAD_GROUPS)),
     /** One full-target triangle: the attachment's pixels stored. */
-    attachment: () =>
-      run((encoder) => {
-        const pass = encoder.beginRenderPass({
-          timestampWrites: stamps,
-          colorAttachments: [
-            {
-              view: target.createView(),
-              loadOp: 'clear',
-              storeOp: 'store',
-              clearValue: [0, 0, 0, 0],
-            },
-          ],
-        })
-        pass.setPipeline(pFill)
-        pass.draw(3)
-        pass.end()
-      }),
+    attachment: () => parts.draw(pFill, [target], 3),
     /** `CHAIN` one-thread dispatches on one buffer, each reading what the last wrote: a barrier each. */
     dependent: () =>
       one((p) => {
