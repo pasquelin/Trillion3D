@@ -10,7 +10,8 @@ export type DissectSpec = { pass: string; hash: string; cut: string | null }
 /** The modules a pass ran, by pass label: each by hash, with its cut points. */
 export type DissectModules = Record<string, { hash: string; cuts: string[] }[]>
 
-const codes = new WeakMap<object, string>()
+/** A module's text, its hash and its cut points, read once when it is made. */
+const infos = new WeakMap<object, { hash: string; cuts: string[] }>()
 const pipelines = new WeakMap<object, object[]>()
 const seen = new Map<string, Map<string, string[]>>()
 let active: DissectSpec | null = null
@@ -41,7 +42,8 @@ export function installDissect(
       this,
       (cut === code ? descriptor : { ...descriptor, code: cut }) as never,
     )
-    codes.set(module as object, code)
+    if (active)
+      infos.set(module as object, { hash: hashOf(code), cuts: cutsOf(code).map((c) => c.name) })
     return module
   } as never
   const record = (_made: unknown, d: GPURenderPipelineDescriptor & GPUComputePipelineDescriptor) =>
@@ -66,7 +68,7 @@ export function installDissect(
     const original = proto.setPipeline
     proto.setPipeline = function (this: object, ...args: never[]) {
       const label = labelOf(this)
-      if (label && (!active || label.includes(active.pass)))
+      if (active && label && label.includes(active.pass))
         for (const module of pipelines.get(args[0] as object) ?? []) {
           const code = codes.get(module)
           if (!code) continue
