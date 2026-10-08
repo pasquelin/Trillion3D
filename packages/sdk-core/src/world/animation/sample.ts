@@ -6,7 +6,10 @@ import {
   slerpOnArc,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import type { Track, TrackBinding } from './clip.ts'
+import { hermiteBasis } from '../../../../math/src/scalar/hermite.ts'
 import { mix, saturate } from '../../../../math/src/scalar/reals.ts'
+
+const basis = new Float64Array(4)
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
  *  a straight line (quaternions on the arc), the earlier key held (`step`), or glTF's cubic
@@ -27,12 +30,11 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
   if (tr.interpolation === 'step' || w === 0) {
     for (let c = 0; c < size; c++) out[c] = values[i * stride + at + c]
   } else if (cubic) {
-    const w2 = w * w,
-      w3 = w2 * w
-    const a = 2 * w3 - 3 * w2 + 1,
-      b = w3 - 2 * w2 + w,
-      c1 = -2 * w3 + 3 * w2,
-      d = w3 - w2
+    hermiteBasis(basis, w)
+    const a = basis[0],
+      b = basis[1],
+      c1 = basis[2],
+      d = basis[3]
     for (let c = 0; c < size; c++)
       out[c] =
         a * values[i * stride + size + c] +

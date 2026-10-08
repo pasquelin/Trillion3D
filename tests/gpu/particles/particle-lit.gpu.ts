@@ -9,6 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from '../../../packages/sdk-browser/src/webgpu/particles/webgpuParticles.ts'
+import { saturate } from '../../../packages/math/src/scalar/reals.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -123,7 +124,7 @@ function coverage(x: number, y: number, depth: number) {
   const r2 = ndcX * ndcX + ndcY * ndcY,
     sceneZ = (depth - 0.5) * 20
   const behind = Math.sqrt(r2 + (sceneZ - EYE[2]) ** 2) - Math.sqrt(r2 + EYE[2] ** 2)
-  const soft = Math.min(1, Math.max(0, behind / SOFTNESS)),
+  const soft = saturate(behind / SOFTNESS),
     life = 1 - STEP / LIFETIME
   return Math.max(0, 1 - cx * cx - cy * cy) * soft * life * COLOR[3]
 }

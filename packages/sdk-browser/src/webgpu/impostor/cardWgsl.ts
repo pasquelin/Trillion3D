@@ -3,6 +3,7 @@ import { core } from '../../impostor/borrowed.ts'
 import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
+import { transformPoint } from '../../../../math/src/wgsl/projection.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
 export const CARD_VIEW_FLOATS = 20
@@ -55,13 +56,13 @@ struct CardVary{
  let c=cards[i];
  let p=c.corners[order[v]].xyz;
  let pivot=c.pivot.xyz;
- let eye=(c.inverse*vec4f(view.eye.xyz,1.0)).xyz-pivot;
+ let eye=transformPoint(c.inverse,view.eye.xyz)-pivot;
  let frames=c.shape.y;let hemi=c.shape.z;
  let k=impView(eye,frames,hemi);
  let na=impFrameNormal(k.a,frames,hemi);let nb=impFrameNormal(k.b,frames,hemi);let nc=impFrameNormal(k.c,frames,hemi);
  // The normal matrix, transpose(inverse), by its rows read as columns.
  let m=c.inverse;
- return CardVary(view.viewProj*vec4f(p,1.0),(m*vec4f(p,1.0)).xyz-pivot,i,vec4f(eye,c.shape.x),
+ return CardVary(view.viewProj*vec4f(p,1.0),transformPoint(m,p)-pivot,i,vec4f(eye,c.shape.x),
   vec4f(k.w,c.shape.w),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
   na,nb,nc,vec3f(m[0].x,m[1].x,m[2].x),vec3f(m[0].y,m[1].y,m[2].y),vec3f(m[0].z,m[1].z,m[2].z));
 }
@@ -96,5 +97,5 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
 }`,
-    [IMPOSTOR_CARD_WGSL, tangentImpostor],
+    [IMPOSTOR_CARD_WGSL, tangentImpostor, transformPoint],
   )

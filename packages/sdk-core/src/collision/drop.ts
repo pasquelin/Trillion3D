@@ -1,4 +1,4 @@
-import { insideTriangle, triangleNormal } from './closest.ts'
+import { heightAbove, insideTriangle, triangleNormal } from './closest.ts'
 import type { CapsuleContact } from './capsule.ts'
 import { dotScalar3, scaleVector3 } from '../../../math/src/vector/vector.ts'
 
@@ -42,10 +42,7 @@ export function dropSphere(
   if (area === 0) return Infinity
   scaleVector3(face, (face[1] < 0 ? -1 : 1) / area)
   if (face[1] > 0) {
-    const height =
-      (centre[0] - v[at]) * face[0] +
-      (centre[1] - v[at + 1]) * face[1] +
-      (centre[2] - v[at + 2]) * face[2]
+    const height = heightAbove(centre, 0, v, at, face)
     const distance = (height - radius) / face[1]
     const x = centre[0] - radius * face[0],
       y = centre[1] - distance - radius * face[1],

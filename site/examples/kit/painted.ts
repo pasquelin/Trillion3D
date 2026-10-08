@@ -58,13 +58,14 @@ export function matcapBall(
   // The key light every ball is lit by, high on the left, and the half-way vector of its highlight.
   const aimed = vector3(-0.5, 0.65, 0.58),
     aimedLength = aimed.length()
-  const KEY = [aimed.x / aimedLength, aimed.y / aimedLength, aimed.z / aimedLength]
-  const HALF = [KEY[0], KEY[1], KEY[2] + 1],
-    HALF_LENGTH = vector3(HALF[0], HALF[1], HALF[2]).length()
-  const edge = vector3()
+  const keyDir = vector3(aimed.x / aimedLength, aimed.y / aimedLength, aimed.z / aimedLength)
+  const halfDir = vector3(keyDir.x, keyDir.y, keyDir.z + 1),
+    HALF_LENGTH = halfDir.length()
+  const edge = vector3(),
+    probe = vector3()
   const room = (r: number[]) => {
     const up = r[1],
-      window = clamp((r[0] * KEY[0] + r[1] * KEY[1] + r[2] * KEY[2] - 0.8) * 6, 0, 1)
+      window = clamp((probe.set(r[0], r[1], r[2]).dot(keyDir) - 0.8) * 6, 0, 1)
     const sky =
       up > 0
         ? mix(engine, [0.55, 0.52, 0.5], [0.2, 0.2, 0.24], clamp(up * 1.6, 0, 1))
@@ -79,8 +80,9 @@ export function matcapBall(
     const reach = edge.set(x, y, 0).length()
     if (reach > 0.999) [x, y] = [(x / reach) * 0.999, (y / reach) * 0.999]
     const n = [x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y))]
-    const lit = clamp((n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2] + wrap) / (1 + wrap), 0, 1)
-    const toward = (n[0] * HALF[0] + n[1] * HALF[1] + n[2] * HALF[2]) / HALF_LENGTH
+    const normal = probe.set(n[0], n[1], n[2])
+    const lit = clamp((normal.dot(keyDir) + wrap) / (1 + wrap), 0, 1)
+    const toward = normal.dot(halfDir) / HALF_LENGTH
     const spot = clamp(toward, 0, 1) ** gloss
     const fresnel = (1 - n[2]) ** 3
     const reflected = [2 * n[2] * n[0], 2 * n[2] * n[1], 2 * n[2] * n[2] - 1]

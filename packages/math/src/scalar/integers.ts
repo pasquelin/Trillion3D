@@ -35,3 +35,16 @@ export const isPow2 = (v: number) => v > 0 && (v & (v - 1)) === 0
 /** The 32-bit words that hold `n` bits, `n` a non-negative integer: exact up to 2^53, so a count read
  *  from untrusted data never wraps as `(n + 31) >>> 5` would from 2^32 - 31; no count (NaN) holds none. */
 export const bitWords = (n: number) => Math.ceil(n / 32) || 0
+
+/** Sorts `values` ascending in place and moves each distinct value once to the front, returning
+ *  their count; a `number[]` is cut to them, a typed array keeps its tail. A `number[]` sorts by
+ *  `a - b`, a typed array by its own numeric order. */
+export function uniqueSortedInPlace(values: number[] | Int32Array | Uint32Array) {
+  if (Array.isArray(values)) values.sort((a, b) => a - b)
+  else values.sort()
+  let count = 0
+  for (let i = 0; i < values.length; i++)
+    if (i === 0 || values[i] !== values[i - 1]) values[count++] = values[i]
+  if (Array.isArray(values)) values.length = count
+  return count
+}

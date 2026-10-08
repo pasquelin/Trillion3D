@@ -4,7 +4,7 @@ use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
 use crate::shared_math::normalized_or;
 use rayon::prelude::*;
-use trillion3d_math::scalar::{mean as scalar_mean, unit_to_byte};
+use trillion3d_math::scalar::{byte_to_unit, mean as scalar_mean, unit_to_byte};
 use trillion3d_math::vec3::{add, scale};
 use trillion3d_math::vecn::mean as mean_of;
 
@@ -119,7 +119,7 @@ impl Atlas {
             .as_chunks::<4>()
             .0
             .iter()
-            .map(|t| f64::from(t[3]) / 255.0)
+            .map(|t| byte_to_unit(t[3]))
             .sum();
         let frames = (self.capture.frames * self.capture.frames) as f64;
         let disc = std::f64::consts::PI * (self.capture.side as f64 * 0.5).powi(2);

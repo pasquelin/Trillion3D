@@ -23,3 +23,10 @@ export function ceilFloat32(value: number) {
   if (rounded[0] < value) bits[0] += rounded[0] >= 0 ? 1 : -1
   return rounded[0]
 }
+
+/** Greatest float not above value, including subnormals and negative zero: `ceilFloat32` mirrored. */
+export function floorFloat32(value: number) {
+  rounded[0] = value
+  if (rounded[0] > value) bits[0] += rounded[0] > 0 ? -1 : 1
+  return rounded[0]
+}

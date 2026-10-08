@@ -1,4 +1,10 @@
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { WGSL_LIBRARY } from '../../../math/src/wgsl/library.fixture.ts'
+
+/** The function names of the WGSL library: small shared helpers a run takes on its own. */
+const LIBRARY_FUNCTIONS = new Set(
+  WGSL_LIBRARY.filter((decl) => decl.kind === 'fn').map((decl) => decl.name),
+)
 /** An unsigned vector as the shaders build one (`vec2u`, `vec4u`…), flattened: each word converted
  *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
 export const vec = (...parts: Array<number | Record<string, number>>) => {
@@ -22,6 +28,24 @@ export function functionsOf(input: WgslSource, names: string[]) {
       return source.slice(header.index, end + 1)
     })
     .join('\n')
+}
+
+/** The text of the functions `names` and of every WGSL library function of `input` they call,
+ *  through each other, but those `bound` already defines: a test names the shader's own functions
+ *  it runs, never the library's helpers. */
+export function reachedFunctions(input: WgslSource, names: string[], bound: object) {
+  const source = wgslSource(input)
+  const declared = new Set(
+    [...source.matchAll(/\bfn (\w+)\(/g)]
+      .map((match) => match[1])
+      .filter((name) => LIBRARY_FUNCTIONS.has(name)),
+  )
+  const reached = [...new Set(names)]
+  for (let i = 0; i < reached.length; i++)
+    for (const [, called] of functionsOf(source, [reached[i]]).matchAll(/\b(\w+)\(/g))
+      if (declared.has(called) && !(called in bound) && !reached.includes(called))
+        reached.push(called)
+  return functionsOf(source, reached)
 }
 
 /** Every scalar `const` of a WGSL text whose value is a literal — `f32`, `u32` or `i32` —, by

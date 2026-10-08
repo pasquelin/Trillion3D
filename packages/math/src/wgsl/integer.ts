@@ -40,6 +40,20 @@ export const bitWord = wgslFn('bitWord', [], 'fn bitWord(i:u32)->u32{return i>>5
 /** Bit `i`'s mask within its word, `1 << (i mod 32)`. */
 export const bitMask = wgslFn('bitMask', [], 'fn bitMask(i:u32)->u32{return 1u<<(i&31u);}')
 
+/** The `n` lowest bits set, `2^n - 1`, for `n` in [0, 31]; `n = 32` gives 0 (`1u << 32u` is `1u`). */
+export const lowBits = wgslFn('lowBits', [], 'fn lowBits(n:u32)->u32{return (1u<<n)-1u;}')
+
+/** The cell `i` of a rectangle `size` wide that starts at `rect.xy`, in row-major order: the row is
+ *  read from `(i + 0.5) / size.x` in `f32`. */
+export const rectCell = wgslFn(
+  'rectCell',
+  [],
+  `fn rectCell(rect:vec4u,size:vec2u,i:u32)->vec2u{
+ let y=u32(floor((f32(i)+0.5)/f32(size.x)));
+ return rect.xy+vec2u(i-size.x*y,y);
+}`,
+)
+
 /** Bit `i` of `word` (`i` taken modulo 32), 0 or 1. */
 export const bitAt = wgslFn(
   'bitAt',

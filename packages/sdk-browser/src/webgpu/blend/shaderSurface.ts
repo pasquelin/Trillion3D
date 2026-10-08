@@ -5,6 +5,7 @@ import { blendRequestWgsl } from './requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
 /** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
  *  (\`shadowFootprint\`). */
@@ -72,6 +73,7 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
     `blendSurfaceWgsl(${lobes})`,
     [
       unitOrZero,
+      unitToSigned3,
       COTANGENT_FRAME_WGSL,
       BLEND_SURFACE_NORMAL_WGSL,
       BLEND_SHADOW_FOOTPRINT_WGSL,
@@ -107,7 +109,7 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  if(in.maps.y!=0u){metal*=dataSample(in.maps.y,${uv},gradX,gradY,sampled).b;}
  if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,${uv},gradX,gradY,sampled).r-1.0);}
  if(in.maps.z!=0u){
-  let mapN=dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz*2.0-vec3f(1.0);
+  let mapN=unitToSigned3(dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz);
   // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
   // sign, as on the geometric normal above.
   let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);

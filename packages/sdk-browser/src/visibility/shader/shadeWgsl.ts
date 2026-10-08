@@ -8,6 +8,7 @@ import {
   wireframeEdge,
 } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
+import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
@@ -137,7 +138,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
   let coatBase=N;
   if(HAS_NORMAL_MAP){
-   let nrm=nrmSample.xyz*2.0-vec3f(1.0);
+   let nrm=unitToSigned3(nrmSample.xyz);
    let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScaleY,nrm.z);
    var T=vec3f(0.0);var B=vec3f(0.0);
    if(HAS_TANGENT){
@@ -195,6 +196,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       perspectiveBarycentric,
       wireframeEdge,
       faceNormal,
+      unitToSigned3,
       ...(diagnostic ? [diagnostic] : []),
     ],
   )

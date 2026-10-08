@@ -571,7 +571,7 @@
       function dress() {
         const { fx, fz } = gaze();
         const leap = motion.leap.map(({ x }) => x), air = motion.air.x;
-        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: Math.max(0, Math.min(1, -eased.dip * 25)) };
+        const pose = { move: eased.move, sprint: eased.sprint, phase, air, leap, brace: math.clamp(-eased.dip * 25, 0, 1) };
         for (const { side, top, low, root, fingers, thumb } of arms) {
           const h = handPose(side, pose, camera.fov, camera.aspect);
           aim(top, h.shoulder, h.elbow);

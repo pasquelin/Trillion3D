@@ -4,6 +4,7 @@ import { DEFORM_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
 import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
@@ -26,6 +27,7 @@ export const DEFORM_WGSL = wgslBlock(
   'DEFORM_WGSL',
   [
     worldMatrix3,
+    transformPoint,
     PAGE_INFO_STRUCT_WGSL,
     CLUSTER_HEADER_WGSL,
     clusterDecodeWgsl('indices'),
@@ -147,7 +149,7 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let rest=pageRestPosition(page,h,vertex);
   let m=deformMatrix(a.world);
-  let world=(m*vec4f(rest,1.0)).xyz;
+  let world=transformPoint(m,rest);
   n=transpose(worldMatrix3(m))*deformWaves(a.wave,a.waves,world,false,true);
  }
  return normalize(n);

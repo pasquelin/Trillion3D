@@ -46,7 +46,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
-import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
+import { ceilDiv, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -310,10 +310,6 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  if(build[VSM_T_STAMPS+key]!=frame.stamp){return VSM_T_NONE;}
  return key;
 }
-fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
- let y=u32(floor((f32(i)+0.5)/f32(size.x)));
- return rect.xy+vec2u(i-size.x*y,y);
-}
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
@@ -335,7 +331,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  // The pool slice the raster writes: the static slice for a static-cached instance.
  let slice=select(0u,vsm.staticSlice,((cmd.y>>19u)&1u)!=0u);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  if(vsmTPageKey(levelOffset,mip,vsmTRectPage(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
+  if(vsmTPageKey(levelOffset,mip,rectCell(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
  }
  workgroupBarrier();
  if(lane==0u){
@@ -347,7 +343,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  }
  let base=workgroupUniformLoad(&wgBase);
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
-  let vPage=vsmTRectPage(rect,size,i);
+  let vPage=rectCell(rect,size,i);
   let key=vsmTPageKey(levelOffset,mip,vPage,markMask,slice);
   if(key==VSM_T_NONE){continue;}
   let at=base+atomicAdd(&wgFound,1u);
@@ -365,6 +361,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       frameWgsl(layout),
+      rectCell,
     ],
   )
 

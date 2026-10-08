@@ -11,7 +11,7 @@ import { GOLDEN_U32 } from '../constants.ts'
 const WORD_RANGE = 4294967296
 
 /** One step of the 32-bit xorshift (13, 17, 5): the state moved, as an unsigned word. */
-export function xorshift32(state: number) {
+function xorshift32(state: number) {
   state = (state ^ (state << 13)) >>> 0
   state = (state ^ (state >>> 17)) >>> 0
   return (state ^ (state << 5)) >>> 0
@@ -19,13 +19,13 @@ export function xorshift32(state: number) {
 
 /** One step of the 32-bit linear congruential generator `x · 1664525 + 1013904223`, wrapping: the
  *  state moved, as an unsigned word. */
-export const lcg32 = (state: number) => (Math.imul(state, 1664525) + 1013904223) >>> 0
+const lcg32 = (state: number) => (Math.imul(state, 1664525) + 1013904223) >>> 0
 
 /** Mulberry32's state step, the odd increment `0x6d2b79f5`, wrapping. */
-export const mulberry32Step = (state: number) => (state + 0x6d2b79f5) >>> 0
+const mulberry32Step = (state: number) => (state + 0x6d2b79f5) >>> 0
 
 /** Mulberry32's output for a stepped state, a word mixed by two multiplications and three shifts. */
-export function mulberry32Mix(state: number) {
+function mulberry32Mix(state: number) {
   let value = Math.imul(state ^ (state >>> 15), state | 1)
   value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
   return (value ^ (value >>> 14)) >>> 0

@@ -45,7 +45,7 @@ import {
   SQRT2,
 } from '../../../math/src/wgsl/constants.ts'
 import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
-import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { perspectiveDivide, transformPoint } from '../../../math/src/wgsl/projection.ts'
 import {
   Frame3,
   frameAround,
@@ -271,6 +271,7 @@ const vsmTraceDirectionalWgsl = (pool: WgslDecl) =>
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       vsmMarchWgsl('vsmMarchSun', 'VsmSunRay', 'vsmSunRayStep'),
+      transformPoint,
     ],
     `
 /** The depth slope in UV of the surface (the shading normal stands in for the geometric one). */
@@ -314,7 +315,7 @@ struct VsmSunRay{
 fn vsmSunRayBegin(pd:VsmProjectionData,originInMap:vec3f,rayDir:vec3f,rayLength:f32,startOffset:f32,uvDepthSlope:vec2f,texelShift:vec2f,slopeCap:f32)->VsmSunRay{
  let rayStart=originInMap+rayDir*startOffset;
  let rayVector=rayDir*rayLength;
- var sunUvzStart=(pd.shiftedToMapUv*vec4f(rayStart,1.0)).xyz;
+ var sunUvzStart=transformPoint(pd.shiftedToMapUv,rayStart);
  let sunUvzStep=(pd.shiftedToMapUv*vec4f(rayVector,0.0)).xyz;
  var planeBias=vsmSunTexelPlaneBias(uvDepthSlope,texelShift);
  planeBias=max(0.0,planeBias-abs(startOffset*pd.lightViewToClip[2][2]));
@@ -597,6 +598,7 @@ export const vsmTraceWgsl = (waveVotes: boolean, pool: WgslDecl, noise: WgslDecl
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_COMMON_WGSL,
+      transformPoint,
       vsmTraceDirectionalWgsl(pool),
       vsmTraceLocalWgsl(pool),
       VSM_TRACE_RESULT_WGSL,
@@ -626,7 +628,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
  var spreadDither=0.0;
  if(traced){
   pd=vsmProjectionOf(levelMap);
-  let viewPosition=(vsmView.shiftedToView*vec4f(shiftedPosition,1.0)).xyz;
+  let viewPosition=transformPoint(vsmView.shiftedToView,shiftedPosition);
   let eyeDistance=length(viewPosition);
   let ditherHere=f32(settings.ditherTexels)*pd.ditherTexels;
   if(ditherHere>0.0){

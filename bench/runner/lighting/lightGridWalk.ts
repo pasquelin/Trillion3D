@@ -17,6 +17,7 @@ import {
   type Vec3,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import type { Light } from './lightTileCity.ts'
+import { distanceSqVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The pass's work: its columns and cells, a light against a column's planes, the runs solved
@@ -87,7 +88,7 @@ export function walkGrid(
 
 /** Whether a light's range holds a point: its term is not an exact zero there. */
 export const reaches = (p: Vec3, { centre: c, radius }: Light) =>
-  (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2 < radius ** 2
+  distanceSqVector3(p, c) < radius * radius
 
 /** The per-tile pass at `width` × `height` over `lights` lights: each tile
  *  of 16 pixels reads its 256 depths and tests every light against its two slices. */

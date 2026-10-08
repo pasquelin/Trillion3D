@@ -2,7 +2,7 @@
 // a triangle with.
 
 import { clampCompare } from '../../../math/src/scalar/reals.ts'
-import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
+import { distanceSqVector3, dotScalar3 } from '../../../math/src/vector/vector.ts'
 
 type Numbers = ArrayLike<number>
 
@@ -11,7 +11,7 @@ const unit = (value: number) => clampCompare(value, 0, 1)
 
 /** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
 const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, dz: number) =>
-  (first[3] - second[0]) * dx + (first[4] - second[1]) * dy + (first[5] - second[2]) * dz
+  dotScalar3(first[3] - second[0], first[4] - second[1], first[5] - second[2], dx, dy, dz)
 
 /**
  * The closest points of segments `(p, q)` and `(r, s)` — six numbers each, start then end —
@@ -31,11 +31,11 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
   const rx = first[0] - second[0],
     ry = first[1] - second[1],
     rz = first[2] - second[2]
-  const a = d1x * d1x + d1y * d1y + d1z * d1z,
-    e = d2x * d2x + d2y * d2y + d2z * d2z,
-    f = d2x * rx + d2y * ry + d2z * rz,
-    c = d1x * rx + d1y * ry + d1z * rz,
-    b = d1x * d2x + d1y * d2y + d1z * d2z
+  const a = dotScalar3(d1x, d1y, d1z, d1x, d1y, d1z),
+    e = dotScalar3(d2x, d2y, d2z, d2x, d2y, d2z),
+    f = dotScalar3(d2x, d2y, d2z, rx, ry, rz),
+    c = dotScalar3(d1x, d1y, d1z, rx, ry, rz),
+    b = dotScalar3(d1x, d1y, d1z, d2x, d2y, d2z)
   let s = 0,
     t = 0
   if (a === 0 && e === 0) s = t = 0

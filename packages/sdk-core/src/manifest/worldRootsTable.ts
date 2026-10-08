@@ -7,6 +7,7 @@
  * read whole. A file that breaks its contract is refused whole, `INVALID_CACHE`.
  */
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
+import { lastTrue } from '../../../math/src/scalar/search.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
 import {
   WORLD_ROOTS_BIN,
@@ -136,13 +137,7 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
       },
       cellOf(object) {
         // The last cell starting at or before `object`: an empty cell starts where the next does.
-        let [low, high] = [0, cellCount - 1]
-        while (low < high) {
-          const mid = (low + high + 1) >> 1
-          if (word(cellsAt + mid * CELL) <= object) low = mid
-          else high = mid - 1
-        }
-        return low
+        return lastTrue(0, cellCount - 1, (mid) => word(cellsAt + mid * CELL) <= object)
       },
     },
   }

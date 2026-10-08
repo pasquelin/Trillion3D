@@ -36,6 +36,25 @@ pub fn unit_to_byte_f32(value: f32) -> u8 {
     (value.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
+/// A byte on the unit interval, `b / 255`.
+#[inline]
+pub fn byte_to_unit(byte: u8) -> f64 {
+    f64::from(byte) / 255.0
+}
+
+/// `byte_to_unit` in single precision.
+#[inline]
+pub fn byte_to_unit_f32(byte: u8) -> f32 {
+    f32::from(byte) / 255.0
+}
+
+/// The slope `tan(fov / 2)` of a perspective camera's half field, `fov` in degrees: the half
+/// height of the image plane one unit ahead.
+#[inline]
+pub fn perspective_slope(fov_degrees: f64) -> f64 {
+    (fov_degrees.to_radians() * 0.5).tan()
+}
+
 /// The cubic Hermite basis at `w ∈ [0, 1]`, by `w² = w·w` and `w³ = w²·w`: the weights of the
 /// start value `2w³ − 3w² + 1`, of the start tangent `w³ − 2w² + w`, of the end value
 /// `−2w³ + 3w²` and of the end tangent `w³ − w²`.

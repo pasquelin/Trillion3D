@@ -50,6 +50,7 @@ import {
   bitWord,
   ceilDiv as ceilDivWgsl,
   isFiniteWord,
+  lowBits,
 } from '../../../math/src/wgsl/integer.ts'
 import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
@@ -441,8 +442,8 @@ fn vsmTileBound(valid:bool,p:vec3f,lane:u32){
 }
 /** The lights 0 to \`count\` − 1, 32 a word (\`count\` ≤ 64). */
 fn vsmLightsBelow(count:u32)->vec2u{
- let low=select(0xffffffffu,(1u<<count)-1u,count<32u);
- let high=select(select(0u,(1u<<(count-32u))-1u,count>32u),0xffffffffu,count>=64u);
+ let low=select(0xffffffffu,lowBits(count),count<32u);
+ let high=select(select(0u,lowBits(count-32u),count>32u),0xffffffffu,count>=64u);
  return vec2u(low,high);
 }
 /** Lane k's light k, once every lane joined the box: a candidate of the tile where it may reach it. */
@@ -643,6 +644,7 @@ export function vsmProjectionWgsl(
       bitMask,
       bitIsSet,
       isFiniteWord,
+      lowBits,
       FLOAT32_MIN_NORMAL,
       clampToExtent,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),

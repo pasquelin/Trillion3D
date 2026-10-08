@@ -1,10 +1,9 @@
-// reals.ts mix, smoothstep and wrapAngle: against exact rational values on dyadic inputs, where
+// reals.ts mix and smoothstep: against exact rational values on dyadic inputs, where
 // every operation is exact, and the forms the sites write, bit for bit.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { lerp, mix, smoothstep, wrapAngle } from './reals.ts'
-import { TAU } from '../constants.ts'
-import { edgeValues, haltonSpan } from '../sequence/sweep.fixture.ts'
+import { lerp, mix, smoothstep } from './reals.ts'
+import { haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('mix is a·(1 − t) + b·t, exact at both ends, another rounding than lerp', () => {
   // On multiples of 1/256 with small numerators every product and sum is exact: the rational blend.
@@ -41,26 +40,4 @@ test('smoothstep is 3t² − 2t³: exact on dyadic t, symmetric, flat at the end
   assert.equal(smoothstep(1), 1)
   assert.equal(smoothstep(0.5), 0.5)
   for (let i = 0; i <= 64; i++) assert.equal(smoothstep(1 - i / 64), 1 - smoothstep(i / 64))
-})
-
-test('wrapAngle: the nearest turn around 0, a half turn to −π', () => {
-  assert.equal(wrapAngle(0), 0)
-  assert.equal(wrapAngle(3), 3)
-  assert.equal(wrapAngle(4), 4 - TAU)
-  assert.equal(wrapAngle(-4), -4 + TAU)
-  assert.equal(wrapAngle(TAU), 0)
-  assert.equal(wrapAngle(Math.PI), -Math.PI)
-  assert.equal(wrapAngle(-Math.PI), -Math.PI)
-  for (const a of [
-    ...edgeValues(-40, 40),
-    ...Array.from({ length: 4000 }, (_, k) => haltonSpan(k, 2, -1e3, 1e3)),
-  ]) {
-    const w = wrapAngle(a)
-    assert.ok(w >= -Math.PI - 1e-12 && w <= Math.PI + 1e-12, `${a}`)
-    // A whole number of turns apart, to the rounding of one product and one difference.
-    const turns = (a - w) / TAU
-    assert.ok(Math.abs(turns - Math.round(turns)) < 1e-9, `${a}`)
-    // The pages' spelling, `angle − Math.PI · 2 · Math.round(angle / (Math.PI · 2))`, bit for bit.
-    assert.ok(Object.is(w, a - Math.PI * 2 * Math.round(a / (Math.PI * 2))), `${a}`)
-  }
 })

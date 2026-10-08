@@ -41,6 +41,7 @@ export default tseslint.config(
   },
   {
     files: ['site/app/**/*.{ts,tsx}'],
+    ignores: MATHS_ORACLES,
     rules: {
       // An effect returns its cleanup or nothing: an expression body returns whatever the
       // expression gives (`scrollTo` gives a promise), and React calls it at the next commit.
@@ -84,7 +85,7 @@ export default tseslint.config(
     // accessor in dictionary mode, a hash lookup per read (#26). The plan and the request reader
     // are read a few times a frame.
     files: ['packages/sdk-core/src/scene/light-shadow/*.ts'],
-    ignores: ['**/*.test.ts', '**/plan.ts', '**/requests.ts'],
+    ignores: ['**/plan.ts', '**/requests.ts', ...MATHS_ORACLES],
     rules: {
       'no-restricted-syntax': [
         'error',

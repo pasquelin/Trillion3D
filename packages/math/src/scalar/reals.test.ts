@@ -2,7 +2,7 @@
 // the expressions they replace bit for bit.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { floorMod, fract, lerp, lerpArray, wrap } from './reals.ts'
+import { floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
 import { median } from './quantile.ts'
 import { edgeValues, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
@@ -63,4 +63,17 @@ test('median: odd and even lengths, the old body bit for bit', () => {
   }
   // The edges of [−1, 1] are symmetric, both zeros in the middle: the median is +0.
   assert.equal(median(edgeValues(-1, 1).sort((a, b) => a - b)), 0)
+})
+
+test('snap: the nearest multiple of the step, the expression it replaces bit for bit', () => {
+  assert.equal(snap(13, 8), 16)
+  assert.equal(snap(12, 8), 16)
+  assert.equal(snap(-12, 8), -8)
+  assert.ok(Object.is(snap(-1, 8), -0))
+  assert.ok(Number.isNaN(snap(NaN, 8)) && Number.isNaN(snap(1, 0)))
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const value = haltonSpan(i, 2, -1e4, 1e4),
+      step = haltonSpan(i, 3, 1e-3, 90)
+    assert.ok(Object.is(snap(value, step), Math.round(value / step) * step), `${i}`)
+  }
 })

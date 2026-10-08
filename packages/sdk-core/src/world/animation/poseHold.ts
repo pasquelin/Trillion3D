@@ -7,6 +7,7 @@ import type { Object3D } from '../object/object3d.ts'
 import type { Clip, Track } from './clip.ts'
 import type { RigReach } from './rigLevers.ts'
 import { clipKeys, clipMotion, type TrackMotion } from './trackMotion.ts'
+import { lastTrue } from '../../../../math/src/scalar/search.ts'
 
 /** A clip playing into the pose, at its weight; `additive` adds it to the others. */
 export type HoldPlaying = {
@@ -234,12 +235,5 @@ function speedAt(tr: Track, motion: TrackMotion, t: number) {
 
 /** The last index of `times` (in order) at or before `t`; 0 before the first. */
 export function intervalOf(times: ArrayLike<number>, t: number) {
-  let low = 0,
-    high = times.length - 1
-  while (low < high) {
-    const mid = (low + high + 1) >> 1
-    if (times[mid] <= t) low = mid
-    else high = mid - 1
-  }
-  return low
+  return lastTrue(0, times.length - 1, (mid) => times[mid] <= t)
 }

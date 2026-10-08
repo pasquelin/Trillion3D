@@ -94,6 +94,13 @@ export const transformHomogeneousPoint = wgslFn(
   'fn transformHomogeneousPoint(m:mat4x4f,p:vec3f)->vec4f{return m*vec4f(p,1.0);}',
 )
 
+/** The image of the point `p` under `m`, its `xyz` taken as is (no division): an affine map's point. */
+export const transformPoint = wgslFn(
+  'transformPoint',
+  [],
+  'fn transformPoint(m:mat4x4f,p:vec3f)->vec3f{return (m*vec4f(p,1.0)).xyz;}',
+)
+
 export const unprojectPoint = wgslFn(
   'unprojectPoint',
   [transformHomogeneousPoint, perspectiveDivide],

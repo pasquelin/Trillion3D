@@ -1,6 +1,6 @@
 import { Vector2 } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
-import { splineSpan } from './splineSpan.ts'
+import { splineSpan } from '../../../../math/src/scalar/hermite.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'

@@ -110,7 +110,7 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
   for (const [file, text] of files) {
     const unit = UNITS.find((u) => file.startsWith(u + '/'))
     const reader =
-      !unit && file.endsWith('ts') && !isMathsOracle(file)
+      !unit && /\.(?:[cm]?ts|tsx)$/.test(file) && !isMathsOracle(file)
         ? MATH_READERS.find((tree) => file.startsWith(tree + '/'))
         : undefined
     const home = unit ?? reader

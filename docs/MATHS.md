@@ -168,6 +168,12 @@ reference, the test kit's references, the before-forms a rewrite is proved again
 modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
 purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
 
+Some spellings are conventions, not formulas, and stay where they are written: a texel's centre
+(`+ 0.5`), an all-ones "none" word, a division guard whose floor belongs to its site (`max(x, 1e-6)`:
+one shared floor would move pixels), a point on a circle (`r cos a, r sin a`), a sign flip, and an
+expression whose rounding differs from the shared function's (it keeps its form, as the Lengths
+section does for its own).
+
 ## Batch math for hosts
 
 A host moving ten thousand instances or culling ten thousand boxes would otherwise loop, one object

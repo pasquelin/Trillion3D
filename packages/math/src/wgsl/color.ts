@@ -3,8 +3,8 @@ import { wgslF32 } from './number.ts'
 import { byteOf } from './integer.ts'
 
 /**
- * Colours as the shaders read and write them: a byte or three bytes of a word as a unit value, a colour's
- * luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
+ * Colours as the shaders read and write them: a byte or three bytes of a word as a unit value, a
+ * colour's luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
  */
 
 /** The low three bytes of `packed`, red first, each over 255: divided, as written, never

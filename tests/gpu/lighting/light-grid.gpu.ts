@@ -10,7 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
-import { seeded } from '../kit/randomDraw.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   camera,
   pixelPoint,
@@ -24,7 +24,7 @@ import type { GridLamp } from './lightGridPage.ts'
 /** The view: cut cells on both axes. */
 const [width, height] = [333, 207]
 const view = camera([3, 40, -5], 0.8, -0.6, 70, width, height)
-const r = seeded(1369)
+const r = lcgRandom(1369)
 /** A point of the view: pixel (x, y) at a depth between 2 m and 400 m. */
 const pointAt = () => {
   const [x, y] = [Math.floor(r() * width), Math.floor(r() * height)]

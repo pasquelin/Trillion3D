@@ -69,10 +69,14 @@ export function buildCity(seed = 42): City {
   return { blocks, lights }
 }
 
+/** The entry and exit `slab` reuses. */
+const span = new Float64Array(2)
+
 /** The parameters where the ray `o + s·d` enters and leaves the box, by the engine's slab test
  *  (`slabCut`): entry past exit on a miss. */
 export function slab(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) {
-  const span = new Float64Array([-Infinity, Infinity])
+  span[0] = -Infinity
+  span[1] = Infinity
   return slabCut(span, lo, 0, hi, 0, o, d) ? [span[0], span[1]] : [Infinity, -Infinity]
 }
 

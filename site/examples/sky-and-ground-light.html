@@ -121,7 +121,7 @@
         for (const { mesh, x, y, z, bob, rest, phase, delay } of floaters) {
           const lift = ease.inOut((time - 0.3 - delay) / 1.6);
           const drift = ui.float ? Math.sin(time * 0.8 + phase) * bob : 0;
-          mesh.position.set(x, rest + (y - rest) * lift + drift * lift, z);
+          mesh.position.set(x, math.lerp(rest, y, lift) + drift * lift, z);
           mesh.rotation.set(0.3 * Math.sin(phase), time * 0.2 + phase, 0);
         }
         world.invalidate();

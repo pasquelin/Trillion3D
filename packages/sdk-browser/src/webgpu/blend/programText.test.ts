@@ -13,8 +13,8 @@ import { blendShader } from './shader.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
-const VERTEX = '6db0901bf054c3fdeb4a2a80f952978203de6e60b81b0cec8274ddc5ddc9cf73'
-const BLEND = '1fce9a2722ba739bad1283cea9bd945285560a0da249917637779ff98171ce3e'
+const VERTEX = 'fef0c3ed2445719f27e23852d2c7ae0ec4e8ee736abdd6b0f0717b29b74625a8'
+const BLEND = 'f0a1954981be52eee61366918f0447fb37163d108af27e875677def7cfc36515'
 const WATER = 'd09ff29f3a2b27b2588971c0cd62f048492139b6045ea6113c19ecdaf8f99080'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const

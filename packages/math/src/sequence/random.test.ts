@@ -2,15 +2,8 @@
 // cases (random_tests.rs), and the closures as the bench, the kit and the blue noise wrote them.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import {
-  lcg32,
-  lcgRandom,
-  mulberry32,
-  mulberry32Mix,
-  mulberry32Step,
-  xorshift32,
-  xorshiftRandom,
-} from './random.ts'
+import { lcgRandom, mulberry32, xorshiftRandom } from './random.ts'
+import { GOLDEN_U32 } from '../constants.ts'
 
 const W = 2n ** 32n
 const MASK = W - 1n
@@ -30,25 +23,24 @@ const mulberryBig = (s: bigint) => {
 }
 
 test('xorshift32 steps by 13, 17, 5 on the word, as the Rust crate does', () => {
-  let state = 0x2545f491,
-    big = 0x2545f491n
+  // A draw is the stepped word over 2³², exact: times 2³² it is the word.
+  const draw = xorshiftRandom(0x2545f491)
+  let big = 0x2545f491n
   for (let i = 0; i < 1000; i++) {
-    state = xorshift32(state)
     big = xorshiftBig(big)
-    assert.equal(state, Number(big), `${i}`)
+    assert.equal(draw() * 2 ** 32, Number(big), `${i}`)
   }
-  assert.equal(xorshift32(0), 0)
+  assert.equal(xorshiftRandom(0)(), xorshiftRandom(GOLDEN_U32)())
 })
 
 test('lcg32 is x·1664525 + 1013904223 modulo 2³²', () => {
-  assert.equal(lcg32(957), (957 * 1664525 + 1013904223) % 2 ** 32)
-  assert.equal(lcg32(0), 1013904223)
-  let state = 0xdeadbeef,
-    big = 0xdeadbeefn
+  assert.equal(lcgRandom(957)() * 2 ** 32, (957 * 1664525 + 1013904223) % 2 ** 32)
+  assert.equal(lcgRandom(0)() * 2 ** 32, 1013904223)
+  const draw = lcgRandom(0xdeadbeef)
+  let big = 0xdeadbeefn
   for (let i = 0; i < 1000; i++) {
-    state = lcg32(state)
     big = (big * 1664525n + 1013904223n) % W
-    assert.equal(state, Number(big), `${i}`)
+    assert.equal(draw() * 2 ** 32, Number(big), `${i}`)
   }
 })
 
@@ -57,8 +49,6 @@ test('mulberry32: the step and the mix, against BigInt words', () => {
   const draw = mulberry32(12345)
   for (let i = 0; i < 1000; i++) {
     s = (s + 0x6d2b79f5n) % W
-    assert.equal(mulberry32Step(Number((s - 0x6d2b79f5n + W) % W)), Number(s))
-    assert.equal(mulberry32Mix(Number(s)), Number(mulberryBig(s)), `${i}`)
     assert.equal(draw(), Number(mulberryBig(s)) / 2 ** 32, `${i}`)
   }
 })

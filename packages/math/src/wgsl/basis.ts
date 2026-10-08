@@ -7,7 +7,7 @@ import { wgslFn, wgslStruct } from './decl.ts'
  * a unit axis, branchless, and the moves into and out of it.
  */
 
-export const tangentAround = wgslFn(
+const tangentAround = wgslFn(
   'tangentAround',
   [],
   `fn tangentAround(v:vec3f)->vec3f{

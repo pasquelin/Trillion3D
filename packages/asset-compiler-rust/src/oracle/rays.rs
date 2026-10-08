@@ -4,6 +4,7 @@ use super::OracleJob;
 use crate::proxy::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
 use trillion3d_math::random::splitmix_unit;
+use trillion3d_math::scalar::perspective_slope;
 use trillion3d_math::vec3::{cross, sub, unit_or_itself};
 use trillion3d_math::{GOLDEN, GOLDEN_32};
 
@@ -106,7 +107,7 @@ fn camera_ray(job: &OracleJob, x: usize, y: usize) -> [f64; 3] {
     let forward = unit_or_itself(sub(camera.target, camera.position));
     let right = unit_or_itself(cross(forward, camera.up));
     let up = cross(right, forward);
-    let half = (camera.fov_degrees.to_radians() * 0.5).tan();
+    let half = perspective_slope(camera.fov_degrees);
     let aspect = job.width as f64 / job.height as f64;
     let sx = ((x as f64 + 0.5) / job.width as f64 * 2.0 - 1.0) * half * aspect;
     let sy = (1.0 - (y as f64 + 0.5) / job.height as f64 * 2.0) * half;

@@ -4,6 +4,7 @@ import type { CullingLinks } from '../../page/cut/links.ts'
 import type { DagCutLinks, PackedDag } from './types.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import { NODE_OPEN } from './nodeLayout.ts'
+import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
@@ -134,7 +135,9 @@ function settle(r: Readiness) {
     }
   }
   r.dirty.clear()
-  return { pages: sortedUnique(pages), nodes: sortedUnique(nodes) }
+  uniqueSortedInPlace(pages)
+  uniqueSortedInPlace(nodes)
+  return { pages, nodes }
 }
 
 function set(r: Readiness, page: number, value: boolean) {
@@ -155,13 +158,4 @@ function apply(r: Readiness, resident: ArrayLike<number>, changes: ResidencyChan
     for (let i = 0; i < changes.count; i++) set(r, changes.pages[i], !!resident[changes.pages[i]])
   else for (let page = 0; page < r.packed.pageCount; page++) set(r, page, !!resident[page])
   return settle(r)
-}
-
-function sortedUnique(values: number[]) {
-  values.sort((a, b) => a - b)
-  let count = 0
-  for (let i = 0; i < values.length; i++)
-    if (i === 0 || values[i] !== values[i - 1]) values[count++] = values[i]
-  values.length = count
-  return values
 }

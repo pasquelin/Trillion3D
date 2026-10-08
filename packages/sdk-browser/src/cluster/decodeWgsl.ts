@@ -1,7 +1,13 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
 import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
-import { bitLength, byteOf, ceilDiv, pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
+import {
+  bitLength,
+  byteOf,
+  ceilDiv,
+  lowBits,
+  pow2FromExponent,
+} from '../../../math/src/wgsl/integer.ts'
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
@@ -54,6 +60,7 @@ export function clusterDecodeWgsl(buffer: string) {
       byteOf,
       ceilDiv,
       pow2FromExponent,
+      lowBits,
     ],
     `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
@@ -61,7 +68,7 @@ fn clusterField(base:u32,at:u32,bits:u32)->u32{
  let shift=at&31u;let index=base+(at>>5u);
  var value=${buffer}[index]>>shift;
  if(shift+bits>32u){value|=${buffer}[index+1u]<<(32u-shift);}
- return value&((1u<<bits)-1u);
+ return value&lowBits(bits);
 }
 // A record word: six bits per width from bit 0, the exponent as a signed byte on top.
 fn clusterWidths(word:u32)->vec4u{return vec4u(word&63u,(word>>6u)&63u,(word>>12u)&63u,(word>>18u)&63u);}
@@ -124,7 +131,7 @@ fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  var value=hi>>(at&31u);
  if(at<32u){value=lo>>at;if(at+bits>32u){value|=hi<<(32u-at);}}
- return value&((1u<<bits)-1u);
+ return value&lowBits(bits);
 }
 // The record of triangle \`tri\`'s block, from the two words it starts in: the block's base, its
 // width, and the bit of the corner stream its first corner lies at. Only a prefix that leaves

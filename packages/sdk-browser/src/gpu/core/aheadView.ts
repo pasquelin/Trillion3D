@@ -10,6 +10,7 @@ import {
 import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
 import type { CameraMotion } from '../../camera/world.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { focalScale, halfAngleOfFocalScale } from '../../../../math/src/projection/camera.ts'
 
@@ -75,7 +76,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
   frustumPlanesFromMatrix(planes, clip)
   frustumFarPlane(planes, 16, view, cam.far, true)
   for (let i = 0; i < 6; i++) {
-    const toward = -(planes[i * 4] * dx + planes[i * 4 + 1] * dy + planes[i * 4 + 2] * dz)
+    const toward = -dotVector3Xyz(planes, dx, dy, dz, i * 4)
     if (toward > 0) planes[i * 4 + 3] += toward
   }
   out.planes.set(planes)

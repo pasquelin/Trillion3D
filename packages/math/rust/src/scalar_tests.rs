@@ -69,6 +69,26 @@ fn hermite_basis_sums_to_one_on_values_and_meets_both_ends() {
 }
 
 #[test]
+fn bytes_return_to_the_unit_interval_and_back() {
+    for b in 0..=255u8 {
+        assert_eq!(byte_to_unit(b).to_bits(), (b as f64 / 255.0).to_bits());
+        assert_eq!(byte_to_unit_f32(b).to_bits(), (b as f32 / 255.0).to_bits());
+        assert_eq!(unit_to_byte(byte_to_unit(b)), b);
+        assert_eq!(unit_to_byte_f32(byte_to_unit_f32(b)), b);
+    }
+}
+
+#[test]
+fn perspective_slope_is_the_tangent_of_the_half_field() {
+    assert!((perspective_slope(90.0) - 1.0).abs() < 1e-15);
+    let fov = 55.0f64;
+    assert_eq!(
+        perspective_slope(fov).to_bits(),
+        (fov.to_radians() * 0.5).tan().to_bits()
+    );
+}
+
+#[test]
 fn hermite_follows_values_and_tangents() {
     let basis = hermite_basis(0.5);
     assert_eq!(hermite(basis, 2.0, [1.0, 0.0, 3.0, 0.0]), 2.0);

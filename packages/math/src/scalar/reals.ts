@@ -1,7 +1,5 @@
 /** Real-number helpers of ranges and blends: each the plain expression; NaN propagates unless said. */
 
-import { TAU } from '../constants.ts'
-
 /** `x` held to `[lo, hi]`, `hi` when `lo > hi`, -0 at a 0 bound made +0. */
 export const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 
@@ -33,9 +31,8 @@ export const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t
  *  both. Not clamped: `smoothstep(saturate(t))` holds a `t` out of the interval. */
 export const smoothstep = (t: number) => t * t * (3 - 2 * t)
 
-/** The angle `a` brought to the turn around 0 nearest it, `a − TAU · Math.round(a / TAU)`, in
- *  `[-π, π]`: the shortest way round from 0. A half turn exactly rounds up, to `-π`. */
-export const wrapAngle = (a: number) => a - TAU * Math.round(a / TAU)
+/** `value` at the nearest multiple of `step`, a half step rounding up: `Math.round(value / step) * step`. */
+export const snap = (value: number, step: number) => Math.round(value / step) * step
 
 /** `x` wrapped into `[0, n[` by a floored modulo, `n > 0`: `((x % n) + n) % n`. */
 export const wrap = (x: number, n: number) => ((x % n) + n) % n

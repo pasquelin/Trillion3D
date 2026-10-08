@@ -165,7 +165,7 @@
         }
         if (hop.item) {
           const [x0, z0] = at(hop.from), [x1, z1] = at(hop.to), t = Math.max(0, hop.t);
-          hop.item.position.set(x0 + (x1 - x0) * t, Math.sin(t * Math.PI) * 0.9, z0 + (z1 - z0) * t);
+          hop.item.position.set(math.lerp(x0, x1, t), Math.sin(t * Math.PI) * 0.9, math.lerp(z0, z1, t));
           // Target and camera move together: the pan-zoom reads its pose back from both.
           if (following) {
             const target = world.controls.target;
