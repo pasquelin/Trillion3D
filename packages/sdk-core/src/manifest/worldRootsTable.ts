@@ -101,7 +101,7 @@ function tablePages({ view, word }: Opened, at: number, count: number): WorldRoo
  *  follow the last's, each node's first object is one of its cell's, and every object needs only
  *  bundles of the table. */
 function tableCells(
-  { word, list }: Opened,
+  { word, list, pool }: Opened,
   [cellsAt, objectsAt]: number[],
   [cellCount, objectCount, bundleCount]: number[],
 ): WorldRoots['cells'] {
@@ -124,10 +124,16 @@ function tableCells(
   return {
     count: cellCount,
     first: (cell) => word(cellsAt + cell * CELL),
+    size: (cell) => word(cellsAt + cell * CELL + 4),
     nodeObject(cell, node) {
-      const nodes = list(cellsAt + cell * CELL + 8)
-      return node < nodes.length && nodes[node] !== NONE ? nodes[node] : -1
+      // Read in place: a word of the pool, no view made (the lists were checked at open).
+      const at = cellsAt + cell * CELL
+      if (node >= word(at + 12)) return -1
+      const first = pool[word(at + 8) + node]
+      return first !== NONE ? first : -1
     },
+    objectNode: (object) => word(objectsAt + object * OBJECT),
+    objectPrimitive: (object) => word(objectsAt + object * OBJECT + 4),
     objects(cell) {
       const first = word(cellsAt + cell * CELL)
       return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))

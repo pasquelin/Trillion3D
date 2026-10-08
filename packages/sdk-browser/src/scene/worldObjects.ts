@@ -18,13 +18,16 @@ export function createWorldObjects(table: WorldRoots, primitives: readonly Primi
      *  -1 when the cook continued none. */
     objectOf(cell: number, node: number, mesh: number, primitive: number) {
       if (cell >= table.cells.count) return -1
-      const start = table.cells.nodeObject(cell, node)
+      const { cells } = table,
+        start = cells.nodeObject(cell, node)
       if (start < 0) return -1
-      const objects = table.cells.objects(cell)
-      for (let k = start; k < objects.length && objects[k].node === objects[start].node; k++) {
-        const placed = primitives[objects[k].primitive]
-        if (placed?.mesh === mesh && placed.primitive === primitive)
-          return table.cells.first(cell) + k
+      // The node's run, read in place: its objects' words alone, no list built.
+      const first = cells.first(cell),
+        end = first + cells.size(cell),
+        owner = cells.objectNode(first + start)
+      for (let k = first + start; k < end && cells.objectNode(k) === owner; k++) {
+        const placed = primitives[cells.objectPrimitive(k)]
+        if (placed?.mesh === mesh && placed.primitive === primitive) return k
       }
       return -1
     },

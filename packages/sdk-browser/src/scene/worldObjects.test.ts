@@ -58,3 +58,25 @@ test('a node the cook left outside the table shifts no node after it', () => {
   assert.equal(objects.objectOf(3, 1, 0, 0), 5, 'the second node draws its own objects')
   assert.equal(objects.objectOf(3, 1, 0, 1), 6)
 })
+
+test('a lookup reads its node’s run in place, never the cell’s objects', () => {
+  // One cell of 2000 nodes, a primitive each: a lookup costs its node's run, not the cell.
+  const { spec } = worldRootsFixture()
+  const objects = Array.from({ length: 2000 }, (_, node) => ({
+    node,
+    primitive: node % 3,
+    roots: [0],
+    dependencies: [0],
+  }))
+  spec.cells = [{ objects, nodes: objects.map((_, node) => node) }]
+  const read = readWorldRoots(encodeWorldRoots(spec))
+  let listed = 0
+  read.cells.objects = () => (listed++, [])
+  const lookup = createWorldObjects(read, primitives)
+  for (let node = 0; node < 2000; node++)
+    assert.equal(
+      lookup.objectOf(0, node, primitives[node % 3].mesh, primitives[node % 3].primitive),
+      node,
+    )
+  assert.equal(listed, 0, 'no list of the cell built')
+})
