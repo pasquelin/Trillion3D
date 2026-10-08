@@ -85,7 +85,7 @@ test('angles and quaternion follow each other, and a watch hears either face', (
   reference.rotation.set(0.3, -1.1, 2.4)
   const { x, y, z, w } = node.quaternion
   assert.deepEqual([x, y, z, w], reference.quaternion.toArray())
-  const revision = { revision: 0 }
+  const revision = { revision: 0, wrote() {} }
   hookHostNode(node, revision)
   node.position.x = 4
   node.rotation.y = 0.5

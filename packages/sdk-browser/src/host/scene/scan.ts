@@ -81,6 +81,8 @@ function scanLight(light: Light, held: Float64Array): boolean {
 /** Compares the node to its state and takes what moved: what the host's walk writes is
  *  read back as it stands, so a write of the value already held moves nothing. */
 export function scan(state: NodeState): WatchVerdict {
+  // A node destroyed leaves the watched set: it is to be rebuilt.
+  if (!state.node._alive) return 'reshaped'
   const node = state.node,
     // One read each, into a local: `parent` and `visible` are getters that check the node is
     // still alive, and this walk runs on every watched node once the write count moved.

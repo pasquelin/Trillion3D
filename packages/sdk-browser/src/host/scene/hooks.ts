@@ -43,7 +43,7 @@ export function hookHostNode(node: Object3D, revision: WriteRevision) {
     if (!known.revisions.includes(revision)) known.revisions.push(revision)
     return
   }
-  const hook: Hook = { revisions: [revision] }
+  const hook: Hook = { node, revisions: [revision] }
   hooks.set(node, hook)
   hookValue(hook, node.position)
   hookValue(hook, node.scale)

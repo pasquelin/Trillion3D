@@ -33,7 +33,7 @@ test('the guards pick the core meshes, never a node that only looks like one', (
 
 test('a pose write on a hooked core mesh is heard, as on any node of the graph', () => {
   for (const mesh of [G.mesh(), placed()]) {
-    const revision = { revision: 0 }
+    const revision = { revision: 0, wrote() {} }
     hookHostNode(mesh, revision)
     mesh.position.x = 2
     assert.equal(revision.revision, 1)

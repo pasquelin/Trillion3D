@@ -2,7 +2,7 @@ import { aimOf, isLightNode } from '../graph/kinds.ts'
 import type { WriteRevision } from './hookCore.ts'
 import { hookHostNode, unhookHostNode } from './hooks.ts'
 import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts'
-import { nodeWrites } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
+import { nodeWrites, nodesWrittenSince } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
@@ -11,7 +11,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  */
 export const ENGINE_OWNED = 'trillion3dEngineOwned'
 
-/** No node flipped. */
+/** No node flipped, none written. */
 const NONE_FLIPPED: readonly Object3D[] = []
 
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
@@ -25,10 +25,10 @@ function sourceOf(entry: unknown) {
 }
 
 /** The source node of an entry with its chain, and the bones that deform it with theirs: a bone's
- *  pose moves the drawn skin as the node's own does. */
+ *  pose moves the drawn skin as the node's own does. A node destroyed is watched no more. */
 function watchSource(entry: unknown, into: Set<Object3D>) {
   const node = sourceOf(entry)
-  if (!node) return
+  if (!node?._alive) return
   withAncestors(node, into)
   const bones = (node as { skeleton?: { bones: readonly Object3D[] } }).skeleton?.bones
   if (bones) for (const bone of bones) withAncestors(bone, into)
@@ -51,10 +51,11 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
  * revisions would show a stale scene. What announces a POSE is the write itself: the position,
  * scale and rotation of the watched nodes are hooked (`hooks.ts`), and a write of
  * another value increments this watch's revision at that instant. The rest — visibility, parent,
- * a matrix set by hand, a light's numbers and colours — are counted by the engine as they are
- * written (`nodeWrites`): while that count stands, nothing is read; once it moves, the watched
- * nodes are compared to what was last read (`scan.ts`), so a write of the value already held is
- * still nothing. Numbers written straight into an array or a colour the node handed out are
+ * a matrix set by hand, a light's numbers and colours — are noted by the engine with their node
+ * as they are written (`nodeWrites`): while that count stands, nothing is read; once it moves, the
+ * watched nodes written since are compared to what was last read (`scan.ts`), they alone, so a
+ * write of the value already held is still nothing. The nodes written, a pose or a field, are
+ * kept for the engine (`takeWritten`), which follows them and nothing else. Numbers written straight into an array or a colour the node handed out are
  * counted once announced: `matrixWorldNeedsUpdate = true`, a light's `needsUpdate = true`.
  *
  * What is watched is bounded twice. By SOURCE NODES first: a drawn entry names the node it
@@ -66,13 +67,43 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  const mark: WriteRevision = { revision: 1 }
+  // The nodes a hooked pose was written on, or a scan found moved, since they were last taken:
+  // what the engine follows of the host's writes, none other (`takeWritten`).
+  let written: Object3D[] = []
+  const writtenOnce = new Set<Object3D>()
+  const wrote = (node: Object3D) => {
+    if (writtenOnce.has(node)) return
+    writtenOnce.add(node)
+    written.push(node)
+  }
+  const mark: WriteRevision = { revision: 1, wrote }
   let watched: NodeState[] = [],
+    // The watched nodes by their slot in the page's tree, where the journal names them.
+    states = new Map<number, NodeState>(),
     seen = 0,
     // The nodes a scan found shown, hidden, set to cast or not, since they were last taken.
     flipped: Object3D[] = [],
     // The engine's write count the watched nodes were last read under.
-    writesRead = -1
+    writesRead = -1,
+    // The read a node was last scanned in: once a read whatever its writes.
+    reads = 0,
+    verdict: WatchVerdict = 0
+  const scanned = new WeakMap<NodeState, number>()
+  /** `state` compared with its node, once a read: a flip noted, a move noted as written. */
+  const scanOnce = (state: NodeState) => {
+    if (scanned.get(state) === reads) return
+    scanned.set(state, reads)
+    const { visible, castShadow } = state
+    const read = scan(state)
+    if (state.visible !== visible || state.castShadow !== castShadow) flipped.push(state.node)
+    else if (read) wrote(state.node)
+    if (read === 'reshaped') verdict = read
+    else if (read && !verdict) verdict = read
+  }
+  const scanWritten = (slot: number) => {
+    const state = states.get(slot)
+    if (state) scanOnce(state)
+  }
   return {
     /**
      * Sets the list of watched nodes: the source models of what the engine draws, the lights,
@@ -94,29 +125,26 @@ export function createHostSceneWatch() {
       if (!set.size) withAncestors(source, set)
       for (const state of watched) if (!set.has(state.node)) unhookHostNode(state.node, mark)
       watched = []
+      states = new Map()
       for (const node of set) {
         hookHostNode(node, mark)
-        watched.push(snapshot(node))
+        const state = snapshot(node)
+        watched.push(state)
+        states.set(node.index, state)
       }
       writesRead = nodeWrites()
     },
-    /** Takes what the host wrote since the previous read: one integer for the hooked poses, one
-     *  for the other fields, and the scan of those fields only when their count moved. The count
-     *  is read after the scan: a matrix the scan takes into the tree counts as a write of its own.
-     *  `reshaped` says the list is to be rebuilt. */
+    /** Takes what the host wrote since the previous read: one integer for the hooked poses, and
+     *  for the other fields the scan of the watched nodes written since (`nodesWrittenSince`) —
+     *  every watched node only once the journal no longer holds them all. The count is read after
+     *  the scan: a matrix the scan takes into the tree counts as a write of its own. `reshaped`
+     *  says the list is to be rebuilt. */
     take(): WatchVerdict {
-      let verdict: WatchVerdict = seen === mark.revision ? 0 : 'moved'
+      verdict = seen === mark.revision ? 0 : 'moved'
       seen = mark.revision
       if (nodeWrites() === writesRead) return verdict
-      for (let i = 0; i < watched.length; i++) {
-        const state = watched[i],
-          visible = state.visible,
-          castShadow = state.castShadow
-        const scanned = scan(state)
-        if (state.visible !== visible || state.castShadow !== castShadow) flipped.push(state.node)
-        if (scanned === 'reshaped') verdict = scanned
-        else if (scanned && !verdict) verdict = scanned
-      }
+      reads++
+      if (!nodesWrittenSince(writesRead, scanWritten)) for (const state of watched) scanOnce(state)
       writesRead = nodeWrites()
       return verdict
     },
@@ -126,6 +154,15 @@ export function createHostSceneWatch() {
       if (!flipped.length) return NONE_FLIPPED
       const taken = flipped
       flipped = []
+      return taken
+    },
+    /** The nodes a hooked pose was written on, or a scan found moved, since the last call: what
+     *  names the roots under them (`../../webgpu/pages/render/movedBatch.ts`). */
+    takeWritten(): readonly Object3D[] {
+      if (!written.length) return NONE_FLIPPED
+      const taken = written
+      written = []
+      writtenOnce.clear()
       return taken
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
@@ -140,6 +177,7 @@ export function createHostSceneWatch() {
     release() {
       for (const state of watched) unhookHostNode(state.node, mark)
       watched = []
+      states = new Map()
     },
   }
 }
