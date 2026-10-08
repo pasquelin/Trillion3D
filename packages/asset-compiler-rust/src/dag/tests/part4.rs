@@ -1,4 +1,5 @@
 use super::*;
+use trillion3d_math::vec3::{length, sub};
 
 #[test]
 fn the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree() {
@@ -69,7 +70,7 @@ fn the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree() {
             );
             let s = cluster.parent_sphere;
             let n = node.sphere;
-            let d = ((s[0] - n[0]).powi(2) + (s[1] - n[1]).powi(2) + (s[2] - n[2]).powi(2)).sqrt();
+            let d = length(sub([s[0], s[1], s[2]], [n[0], n[1], n[2]]));
             assert!(
                 d + s[3] <= n[3] + 1e-6,
                 "parent sphere outside the node sphere"
@@ -97,10 +98,10 @@ fn enclosing_sphere_contains_every_input() {
     ];
     let result = enclosing_sphere(&spheres);
     for sphere in spheres {
-        let d = ((sphere[0] - result[0]).powi(2)
-            + (sphere[1] - result[1]).powi(2)
-            + (sphere[2] - result[2]).powi(2))
-        .sqrt();
+        let d = length(sub(
+            [sphere[0], sphere[1], sphere[2]],
+            [result[0], result[1], result[2]],
+        ));
         assert!(d + sphere[3] <= result[3] + 1e-9);
     }
 }

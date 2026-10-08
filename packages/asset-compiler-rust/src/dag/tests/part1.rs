@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::HashMap;
+use trillion3d_math::vec3::{length, sub};
 
 #[test]
 fn level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once() {
@@ -81,10 +82,8 @@ fn errors_are_monotone_and_roots_are_terminal() {
         }
         // The parent bounds must enclose the cluster's own bounds, so the projected error is monotone too.
         if cluster.parent_error.is_finite() {
-            let d = ((cluster.sphere[0] - cluster.parent_sphere[0]).powi(2)
-                + (cluster.sphere[1] - cluster.parent_sphere[1]).powi(2)
-                + (cluster.sphere[2] - cluster.parent_sphere[2]).powi(2))
-            .sqrt();
+            let [s, p] = [cluster.sphere, cluster.parent_sphere];
+            let d = length(sub([s[0], s[1], s[2]], [p[0], p[1], p[2]]));
             assert!(
                 d + cluster.sphere[3] <= cluster.parent_sphere[3] + 1e-6,
                 "parent sphere must enclose the child sphere"
@@ -109,9 +108,7 @@ fn every_threshold_selects_exactly_one_cluster_per_ancestor_chain() {
         if !error.is_finite() {
             return f64::INFINITY;
         }
-        let distance =
-            (sphere[0] * sphere[0] + sphere[1] * sphere[1] + (sphere[2] - 4000.0).powi(2)).sqrt()
-                - sphere[3];
+        let distance = length([sphere[0], sphere[1], sphere[2] - 4000.0]) - sphere[3];
         if distance <= 1.0 {
             return f64::INFINITY;
         }

@@ -3,13 +3,13 @@
 // shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
 import { xorshiftRandom } from '../../../core/index.ts'
-import { copyMatrix4 } from '../../../../packages/math/src/matrix/matrix4.ts'
+import { copyMatrix4, IDENTITY_MATRIX4 } from '../../../../packages/math/src/matrix/matrix4.ts'
 import { TAU } from '../../../../packages/math/src/constants.ts'
 
 /** Measured batch sizes: from what a frame moves to what a whole scene carries. */
 export const TAILLES = [1_000, 10_000, 100_000]
 
-const identite = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+const identite = () => Array.from(IDENTITY_MATRIX4)
 const identityWith = (changements: [number, number][]) => {
   const m = identite()
   for (const [i, v] of changements) m[i] = v

@@ -1,4 +1,5 @@
 use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
+use trillion3d_math::scalar::mean_f32;
 
 /// A binary node being built: its bounds, and either a triangle range or its
 /// right child — left child is always next node.
@@ -43,7 +44,7 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
 /// Triangle centroid on an axis: what median sorts.
 fn centre(triangles: &[f32], slot: usize, axis: usize) -> f32 {
     let base = slot * PROXY_TRIANGLE_FLOATS;
-    (triangles[base + axis] + triangles[base + 3 + axis] + triangles[base + 6 + axis]) / 3.0
+    mean_f32([0, 3, 6].map(|corner| triangles[base + corner + axis]))
 }
 
 /// Builds tree by median on longest axis, leaf at `PROXY_LEAF_TRIANGLES`.

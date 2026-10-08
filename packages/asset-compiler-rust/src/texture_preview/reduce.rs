@@ -1,6 +1,7 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
-use trillion3d_math::scalar::{byte_to_unit_f32, unit_to_byte_f32};
+use trillion3d_math::scalar::{byte_to_unit_f32, mean_f32, unit_to_byte_f32};
+use trillion3d_math::vecn::weighted_mean;
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
@@ -142,19 +143,17 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             let at = |x: usize, y: usize| (y * width + x) * 4;
             let texels = [at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1)];
             let a: [f32; 4] = std::array::from_fn(|i| byte_to_unit_f32(previous[texels[i] + 3]));
-            let coverage = (matches!(kind, AtlasKind::Coverage(_)) && a.iter().any(|&w| w != a[0]))
-                .then(|| a.iter().sum::<f32>());
-            for channel in 0..3 {
-                let values = texels.map(|t| table[previous[t + channel] as usize]);
-                let mean = match coverage {
-                    Some(sum) => values.iter().zip(a).map(|(v, w)| v * w).sum::<f32>() / sum,
-                    None => values.iter().sum::<f32>() * 0.25,
-                };
-                out.push(encode(mean, kind));
-            }
+            let colours: [[f32; 3]; 4] = texels
+                .map(|t| std::array::from_fn(|channel| table[previous[t + channel] as usize]));
+            let means = if matches!(kind, AtlasKind::Coverage(_)) && a.iter().any(|&w| w != a[0]) {
+                weighted_mean(colours, a)
+            } else {
+                std::array::from_fn(|channel| mean_f32(colours.map(|colour| colour[channel])))
+            };
+            out.extend(means.map(|mean| encode(mean, kind)));
             let u = a[0].max(a[1]).min(a[2].max(a[3]));
             let v = a[0].min(a[1]).max(a[2].min(a[3]));
-            out.push(unit_to_byte_f32((u + v) * 0.5));
+            out.push(unit_to_byte_f32(mean_f32([u, v])));
         }
     }
     out

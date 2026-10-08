@@ -2,7 +2,7 @@
 //! Every accepted interval checks the emitted LINEAR/SLERP values against ufbx at three interior
 //! points. A source angular-sweep cap prevents whole turns aliasing to an unchanged quaternion.
 use super::*;
-use trillion3d_math::scalar::{lerp, mix};
+use trillion3d_math::scalar::{lerp, mean, mix};
 
 /// Component error at validation samples: metres for unit-scale translations, relative above
 /// one; scale/weight components and sign-invariant quaternion components use the same bound.
@@ -124,7 +124,7 @@ pub(super) fn sample(
         while let Some((end, depth)) = pending.pop() {
             check()?;
             let start = output.last().unwrap();
-            let middle = evaluate(scene, stack, nodes, (start.time + end.time) * 0.5)?;
+            let middle = evaluate(scene, stack, nodes, mean([start.time, end.time]))?;
             let mut worst = error(start, &end, &middle);
             for t in [0.25, 0.75] {
                 let point = evaluate(scene, stack, nodes, lerp(start.time, end.time, t))?;

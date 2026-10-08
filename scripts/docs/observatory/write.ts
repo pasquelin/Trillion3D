@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { createObservatory, observatoryMaterials, observatorySky } from './scene.ts'
 import { hypot4 } from '../../../packages/math/src/float/hypot.ts'
+import { boxFromPoints } from '../../../packages/math/src/geometry/box.ts'
 
 interface GltfBufferView {
   buffer: number
@@ -120,17 +121,13 @@ export async function writeObservatory(directory: string) {
     })
     gltf.buffers[0].byteLength += data.byteLength
     chunks.push(Buffer.from(data.buffer))
-    const bounds =
-      index || size !== 3
-        ? {}
-        : {
-            min: [0, 1, 2].map((axis) =>
-              values.reduce((a, x, i) => (i % 3 === axis ? Math.min(a, x) : a), Infinity),
-            ),
-            max: [0, 1, 2].map((axis) =>
-              values.reduce((a, x, i) => (i % 3 === axis ? Math.max(a, x) : a), -Infinity),
-            ),
-          }
+    const bounds: Pick<GltfAccessor, 'min' | 'max'> = {}
+    if (!index && size === 3) {
+      const box = new Float64Array(6)
+      boxFromPoints(box, 0, values, 0, values.length / 3)
+      bounds.min = Array.from(box.subarray(0, 3))
+      bounds.max = Array.from(box.subarray(3, 6))
+    }
     gltf.accessors.push({
       bufferView,
       componentType: index ? 5125 : 5126,

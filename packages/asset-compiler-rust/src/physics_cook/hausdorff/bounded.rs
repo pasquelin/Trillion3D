@@ -4,6 +4,7 @@
 use super::{Grid, P};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use trillion3d_math::scalar::mean;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::lerp;
 
@@ -68,7 +69,7 @@ fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
     }
     points.extend(triangles.iter().map(|tri| {
         let [a, b, c] = tri.map(|v| point(pos, v));
-        [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0)
+        [0, 1, 2].map(|k| mean([a[k], b[k], c[k]]))
     }));
     points
 }
@@ -114,7 +115,7 @@ mod tests {
     /// centroid.
     fn samples(pos: &[f32], tri: &[u32]) -> [P; 7] {
         let [a, b, c] = [0, 1, 2].map(|k| point(pos, tri[k]));
-        let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
+        let centroid = [0, 1, 2].map(|k| mean([a[k], b[k], c[k]]));
         let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
         [a, b, c, middles[0], middles[1], middles[2], centroid]
     }

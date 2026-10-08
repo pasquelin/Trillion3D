@@ -51,7 +51,7 @@ impl Accessor<'_> {
         }
         Ok(match self.component {
             5120 => (raw / 127.).max(-1.),
-            5121 => raw / 255.,
+            5121 => trillion3d_math::scalar::byte_to_unit(b[0]),
             5122 => (raw / 32767.).max(-1.),
             5123 => raw / 65535.,
             5125 => raw / 4294967295.,

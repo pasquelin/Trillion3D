@@ -6,6 +6,7 @@
 //! definition of the U polygon, and one way to measure what comes out of it.
 use super::*;
 use crate::tests::ngons::{cut_area, U_RING};
+use trillion3d_math::{scalar::mean, vec2::double_area};
 
 /// A planar ring, placed in the plane `z = 0`.
 pub(super) fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {
@@ -99,14 +100,14 @@ fn the_newell_sum_measures_the_polygon() {
 /// sense.
 fn signed(ring: &[[f64; 3]], face: [usize; 3]) -> f64 {
     let [a, b, c] = face.map(|rank| ring[rank]);
-    ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2.0
+    double_area([a[0], a[1]], [b[0], b[1]], [c[0], c[1]]) / 2.0
 }
 
 /// Does the centre of a triangle fall in the ring? A ray to the right counts the sides it
 /// crosses: an odd number says inside.
 fn inside(ring: &[[f64; 3]], face: [usize; 3]) -> bool {
     let point: Vec<f64> = (0..2)
-        .map(|axis| face.iter().map(|rank| ring[*rank][axis]).sum::<f64>() / 3.0)
+        .map(|axis| mean(face.iter().map(|rank| ring[*rank][axis])))
         .collect();
     let crossings = (0..ring.len())
         .filter(|rank| {
