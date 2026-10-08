@@ -2,6 +2,7 @@
 //! each a bumped plate lying down and a smaller one standing, two primitives of two materials,
 //! their root covers taken from their real DAG. The world is one tile (1 km), 2 × 2 tiles or 8 × 8
 //! tiles (8 km, 64 times the objects), one cell per tile.
+use super::decoded::decoded;
 use super::world::world_dag;
 use super::*;
 use crate::compiler_world::translation;
@@ -73,7 +74,8 @@ pub(super) fn cooked(instances: &[Instance], cells: usize, budget: usize) -> Res
 
 /// The largest page `cooked` wrote, and the bytes of its pinned top.
 pub(super) fn sizes(cooked: &Cooked) -> (usize, usize) {
-    let pages = cooked.table["pages"].as_array().expect("pages").iter();
+    let table = decoded(cooked);
+    let pages = table["pages"].as_array().expect("pages").iter();
     let largest = pages.filter_map(|page| page["bytes"].as_u64()).max();
     let top = cooked.report["pinnedTopBytes"].as_u64();
     (largest.unwrap_or(0) as usize, top.unwrap_or(0) as usize)
@@ -152,8 +154,9 @@ fn every_object_root_reaches_the_world_top_through_its_dependencies() {
     let covers = covers();
     let instances = world(&covers, 2);
     let cooked = cooked(&instances, 4, WORLD_TOP_BUDGET_BYTES).expect("cooked");
-    let pinned = cooked.table["pinned"].as_u64().expect("pinned");
-    let cells = cooked.table["cells"].as_array().expect("cells");
+    let table = decoded(&cooked);
+    let pinned = table["pinned"].as_u64().expect("pinned");
+    let cells = table["cells"].as_array().expect("cells");
     assert_eq!(cells.len(), 4);
     let mut objects = 0;
     for cell in cells {

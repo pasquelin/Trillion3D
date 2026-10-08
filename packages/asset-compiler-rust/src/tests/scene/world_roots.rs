@@ -22,7 +22,7 @@ fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     // The table's records (`compiler_world_roots/records.rs`): header words, then the bundles,
-    // pages, cells and objects at their fixed sizes.
+    // pages, cells (16 bytes: first object, count, each node's first in the pool) and objects.
     let table = fs::read(directory.join(WORLD_ROOTS_FILE)).expect("table");
     let word = |at: usize| u32::from_le_bytes(table[at..at + 4].try_into().expect("word")) as usize;
     assert_eq!(&table[..4], b"WRTB");
@@ -36,10 +36,10 @@ fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
     let (bundles, pages, world) = (word(20), word(24), word(28));
     assert_eq!(world, partition.len());
     let (cell_at, mut nodes) = (80 + bundles * 56 + pages * 24, Vec::new());
-    let object_at = cell_at + world * 8;
+    let object_at = cell_at + world * 16;
     for at in 0..world {
         let body = read_json(&directory.join(format!("scene-cell-{at}.json")));
-        let (first, count) = (word(cell_at + at * 8), word(cell_at + at * 8 + 4));
+        let (first, count) = (word(cell_at + at * 16), word(cell_at + at * 16 + 4));
         assert_eq!(count, body["nodes"].as_array().expect("nodes").len());
         nodes.extend((first..first + count).map(|object| word(object_at + object * 24) as u64));
     }

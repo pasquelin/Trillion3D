@@ -12,9 +12,10 @@
 //! with their cells, placed or far, `O(roots of the held cells)`, bounded by the plan's reach,
 //! never by the world.
 use super::cells::object_dependencies;
+use super::dag_records::encode_dag;
 use super::merge::WorldDag;
 use super::pages::encode_pages;
-use super::table::{clusters, group_list};
+use super::records::{digest, encode_table, Bundle, Page, Top};
 use super::top::{held_by, refuse_over_budget};
 use super::*;
 use crate::compiler_primitive_bundle::index_bytes;
@@ -22,8 +23,8 @@ use crate::dag::build_culling_bvh;
 use crate::geometry_page::Encoded;
 
 /// Packs `world`, checks that every page reaches the pinned top or a root its cell holds, refuses a
-/// top over `budget`, and returns the payload of the super-root bundles with the table that
-/// describes them.
+/// top over `budget`, and returns the payload of the super-root bundles with the table and the DAG
+/// records that describe them, written straight from the world (`records.rs`).
 pub(super) fn pack_world(
     world: &WorldDag,
     instances: &[Instance],
@@ -58,8 +59,8 @@ pub(super) fn pack_world(
         .unwrap_or(bundles.len());
     let (mut payload, mut records, mut pages, mut top) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    // Where each super-root's page lies in the binary, by world rank: what the `clusters` key
-    // names for a runtime that builds its `DagRoot` pages.
+    // Where each super-root's page lies in the binary, by world rank: what a cluster record names
+    // for a runtime that builds its `DagRoot` pages.
     let mut located: Vec<Option<(usize, usize)>> = vec![None; dag.len()];
     for (index, members) in bundles.iter().enumerate().take(written) {
         let start = payload.len();
@@ -71,30 +72,34 @@ pub(super) fn pack_world(
                 top.push((slot, page.bytes.len()));
             }
             located[slot] = Some((index, offset - start));
-            let parent = cluster
-                .parent_error
-                .is_finite()
-                .then_some(cluster.parent_error);
-            pages.push(
-                json!({"bundle":index,"offset":offset - start,"bytes":page.bytes.len(),
-                "level":cluster.level,"material":world.materials[slot],"lodError":cluster.lod_error,
-                "parentError":parent,"sphere":cluster.sphere,"parentSphere":cluster.parent_sphere}),
-            );
+            pages.push(Page {
+                bundle: index,
+                offset: offset - start,
+                level: cluster.level,
+                bytes: page.bytes.len(),
+                lod_error: cluster.lod_error,
+            });
         }
         let bytes = &payload[start..];
-        records.push(
-            json!({"offset":start,"bytes":bytes.len(),"sha256":hash(bytes),
-            "count":members.len(),"dependencies":closed[index]}),
-        );
+        records.push(Bundle {
+            offset: start,
+            bytes: bytes.len(),
+            count: members.len(),
+            dependencies: closed[index].clone(),
+            sha256: digest(bytes),
+        });
     }
     let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();
     refuse_over_budget(world, &top, (pinned_bytes, budget))?;
     let (objects, ranks, outside) =
         object_dependencies(world, instances, &bundle_of, &closed, cells)?;
-    let clusters = clusters((world, instances), (&located, &encoded), &ranks);
-    let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
-        "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects,
-        "clusters":clusters,"groups":group_list(&world.groups)});
+    let dag = encode_dag((world, instances), (&located, &encoded), &ranks)?;
+    let top_of = Top {
+        budget,
+        pinned,
+        pinned_bytes,
+    };
+    let table = encode_table(&top_of, (&records, &pages, &objects), &payload)?;
     // The objects the world build placed nothing for are told by node: they draw their own pages.
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,"cells":cells,
         "superRoots":pages.len(),"topPages":top.len(),"pinnedBundles":pinned,
@@ -103,6 +108,7 @@ pub(super) fn pack_world(
     Ok(Cooked {
         payload,
         table,
+        dag,
         report,
     })
 }

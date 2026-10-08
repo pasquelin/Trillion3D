@@ -60,13 +60,3 @@ pub(super) fn encode_pages(world: &WorldDag) -> Result<Vec<Option<Encoded>>> {
         })
         .collect()
 }
-
-/// What a page's geometry descriptor says of it, as a primitive page's `geometry` does
-/// (`compiler_page_object::geometry_record`), without its address: the world names it by its
-/// bundle and offset.
-pub(super) fn page_facts(page: &Encoded) -> Value {
-    let header = &page.header;
-    json!({"pageBytes":page.bytes.len(),"vertexCount":header.vertex_count,
-        "indexCount":header.index_count,"flags":header.flags,
-        "uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
-}

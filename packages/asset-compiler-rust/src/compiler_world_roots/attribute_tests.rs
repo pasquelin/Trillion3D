@@ -2,8 +2,8 @@
 //! normals and texture coordinates of its covers, mirrored faces turned to the front; a placed
 //! object is one cluster, one nothing groups given a parent of its own. On generated plates.
 use super::tests::{cooked, plate};
-use super::world::world_dag;
 use super::*;
+use super::{decoded::decoded, world::world_dag};
 use crate::dag::{build_dag_tallied, DagAttributes, Grown, DAG_CLUSTER_TRIANGLES};
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
@@ -87,10 +87,8 @@ fn a_super_root_page_is_a_geometry_page_wearing_its_objects_attributes() {
     let cover = textured(16, 12.0);
     let instances = field(&cover, 6);
     let cooked = cooked(&instances, 1, WORLD_TOP_BUDGET_BYTES).expect("cooked");
-    let (pages, bundles) = (
-        cooked.table["pages"].as_array().expect("pages"),
-        cooked.table["bundles"].as_array().expect("bundles"),
-    );
+    let table = decoded(&cooked);
+    let (pages, bundles) = (table["pages"].as_array().unwrap(), &table["bundles"]);
     assert!(pages.len() > 1, "the objects are continued");
     for page in pages {
         let bundle = &bundles[page["bundle"].as_u64().expect("bundle") as usize];

@@ -27,12 +27,13 @@ mod attribute_tests;
 mod cells;
 mod cover;
 mod dag_records;
+#[cfg(test)]
+mod decoded;
 mod merge;
 mod pack;
 mod pages;
 mod place;
 mod records;
-mod table;
 #[cfg(test)]
 mod table_tests;
 #[cfg(test)]
@@ -70,10 +71,12 @@ pub(crate) struct Instance<'a> {
     pub cover: &'a RootCover,
 }
 
-/// The super-root bundles end to end, the table that describes them, and the cook report.
+/// The super-root bundles end to end, the table and the DAG records that describe them
+/// (`records.rs`), and the cook report.
 pub(crate) struct Cooked {
     pub payload: Vec<u8>,
-    pub table: Value,
+    pub table: Vec<u8>,
+    pub dag: Vec<u8>,
     pub report: Value,
 }
 
@@ -132,13 +135,7 @@ pub(super) fn stage_world_roots(
         })
     })?;
     let bin = product(directory, WORLD_ROOTS_BIN, &cooked.payload)?;
-    let mut table = cooked.table;
-    table["payload"] = json!({"url":WORLD_ROOTS_BIN,"sha256":bin.sha256,"bytes":bin.bytes});
-    let written = product(directory, WORLD_ROOTS_FILE, &records::encode_table(&table)?)?;
-    let dag = product(
-        directory,
-        WORLD_ROOTS_DAG,
-        &dag_records::encode_dag(&table)?,
-    )?;
-    Ok((vec![bin, written, dag], cooked.report))
+    let table = product(directory, WORLD_ROOTS_FILE, &cooked.table)?;
+    let dag = product(directory, WORLD_ROOTS_DAG, &cooked.dag)?;
+    Ok((vec![bin, table, dag], cooked.report))
 }

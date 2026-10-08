@@ -3,6 +3,7 @@
 //! pinned top in bundles of that cell's held roots alone: its bundle is on its own objects' lists,
 //! so its cell holds it and no other cell pays for it.
 use super::merge::WorldDag;
+use super::records::{Cell, Object};
 use super::*;
 
 /// Per instance, every world bundle its world clusters need — the bundles of their parents and all
@@ -30,7 +31,7 @@ fn needs_of(
 
 /// The table's objects of each cell, each instance's rank among them, and the instances with a
 /// cover the world build placed no cluster for, which ship with their own pages alone.
-type Objects = (Vec<Value>, Vec<Option<usize>>, Vec<usize>);
+type Objects = (Vec<Cell>, Vec<Option<usize>>, Vec<usize>);
 
 /// Per cell, each placed object's primitive: the bundles holding its own roots, and every world
 /// bundle those roots need, up to the top or a root its cell holds (`verify_dependencies` checked
@@ -46,7 +47,8 @@ pub(super) fn object_dependencies(
     cells: usize,
 ) -> Result<Objects> {
     let needs = needs_of(world, bundle_of, closed, instances.len());
-    let (mut table, mut outside) = (vec![Vec::new(); cells], Vec::new());
+    let mut table: Vec<Vec<Object>> = (0..cells).map(|_| Vec::new()).collect();
+    let mut outside = Vec::new();
     // Per cell, each node's first object, by the node's rank in the cell: one a node the world
     // build placed nothing for, or whose mesh holds no cover, never has.
     let mut nodes: Vec<Vec<Option<usize>>> = vec![Vec::new(); cells];
@@ -77,8 +79,12 @@ pub(super) fn object_dependencies(
             firsts.resize(instance.slot + 1, None);
         }
         firsts[instance.slot].get_or_insert(table[instance.cell].len());
-        table[instance.cell].push(json!({"node":instance.node,"primitive":instance.primitive,
-            "roots":roots,"dependencies":needs}));
+        table[instance.cell].push(Object {
+            node: instance.node,
+            primitive: instance.primitive,
+            roots,
+            dependencies: needs,
+        });
     }
     // Each cell's first rank: its objects follow the cells before it.
     let mut first = vec![0; cells];
@@ -91,6 +97,6 @@ pub(super) fn object_dependencies(
     let table = table
         .into_iter()
         .zip(nodes)
-        .map(|(objects, nodes)| json!({"objects":objects,"nodes":nodes}));
+        .map(|(objects, nodes)| Cell { objects, nodes });
     Ok((table.collect(), ranks, outside))
 }

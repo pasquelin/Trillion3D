@@ -2,6 +2,7 @@
 //! held with its cell, never pinned; the tops several cells share pin, a top over the budget is
 //! refused, its cell named and its content said, and an object the world build placed nothing for
 //! ships with its own pages, told. On the synthetic world of `tests.rs`.
+use super::decoded::decoded;
 use super::pack::pack_world;
 use super::tests::{cooked, covers, sizes, world};
 use super::world::world_dag;
@@ -41,10 +42,11 @@ fn list<'a>(table: &'a Value, key: &str) -> &'a Vec<Value> {
 /// materials it pins and the copies.
 fn cooked_held(instances: &[Instance], cells: usize) -> (u64, BTreeSet<Option<u64>>, usize) {
     let cooked = cooked(instances, cells, WORLD_TOP_BUDGET_BYTES).expect("within the budget");
+    let table = decoded(&cooked);
     let world = world_dag(instances, &|| Ok(())).expect("world");
-    let pinned = cooked.table["pinned"].as_u64().expect("pinned") as usize;
-    let clusters = list(&cooked.table, "clusters");
-    let objects: Vec<&Value> = (list(&cooked.table, "cells").iter())
+    let pinned = table["pinned"].as_u64().expect("pinned") as usize;
+    let clusters = list(&table, "clusters");
+    let objects: Vec<&Value> = (list(&table, "cells").iter())
         .flat_map(|cell| list(cell, "objects"))
         .collect();
     let (mut holds, mut materials, mut copies) = (BTreeMap::new(), BTreeSet::new(), 0);
@@ -79,7 +81,7 @@ fn cooked_held(instances: &[Instance], cells: usize) -> (u64, BTreeSet<Option<u6
         cells_held.max(1),
         "one run of bundles per cell"
     );
-    let top = cooked.table["pinnedTopBytes"].as_u64().expect("top");
+    let top = table["pinnedTopBytes"].as_u64().expect("top");
     (top, materials, copies)
 }
 
@@ -127,9 +129,10 @@ fn an_object_the_world_build_placed_nothing_for_ships_its_own_pages_told() {
     // The world built without the last object, which it then packs among the placed ones.
     let world = world_dag(&instances[..instances.len() - 1], &|| Ok(())).expect("world");
     let cooked = pack_world(&world, &instances, 4, WORLD_TOP_BUDGET_BYTES).expect("cooked");
+    let table = decoded(&cooked);
     let last = instances.last().expect("an object");
     assert_eq!(cooked.report["outsideWorld"], json!([last.node]));
-    let objects = (list(&cooked.table, "cells").iter()).map(|cell| list(cell, "objects").len());
+    let objects = (list(&table, "cells").iter()).map(|cell| list(cell, "objects").len());
     assert_eq!(
         objects.sum::<usize>(),
         instances.len() - 1,
