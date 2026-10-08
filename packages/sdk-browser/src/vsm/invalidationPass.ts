@@ -41,6 +41,7 @@ import {
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
+import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
@@ -88,9 +89,9 @@ function writeBox(
   max: ArrayLike<number>,
   moving: boolean,
 ) {
+  boxCenter(lastBox, 0, min[0], min[1], min[2], max[0], max[1], max[2])
   let finite = true
   for (let a = 0; a < 3; a++) {
-    lastBox[a] = (min[a] + max[a]) * 0.5
     lastBox[3 + a] = (max[a] - min[a]) * 0.5
     finite &&= Number.isFinite(lastBox[a]) && Number.isFinite(lastBox[3 + a]) && lastBox[3 + a] >= 0
   }

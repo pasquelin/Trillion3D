@@ -1,6 +1,7 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
+import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { length2, length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
@@ -89,13 +90,21 @@ export function eyeHeight(bounds: Bounds) {
   return Math.max(Math.max(sx, sz) * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6)
 }
 
+/** The centre of `bounds`: `boxCenter` of its two corners. */
+export function boundsCentre({ min, max }: Bounds) {
+  const centre = new Float64Array(3)
+  boxCenter(centre, 0, min.x, min.y, min.z, max.x, max.y, max.z)
+  return centre
+}
+
 /** The street of a model none was read off (`street/street.ts`): its box centre on its floor, with the
  *  room its own footprint gives — half its narrower side, so every street point stays inside it. */
 export function boxStreet(bounds: Bounds) {
-  const { min, max } = bounds
+  const { min, max } = bounds,
+    centre = boundsCentre(bounds)
   return {
-    x: (min.x + max.x) / 2,
-    z: (min.z + max.z) / 2,
+    x: centre[0],
+    z: centre[2],
     ground: modelFloor(bounds),
     clearance: Math.min(max.x - min.x, max.z - min.z) / 2,
   }
@@ -107,8 +116,9 @@ export function boxStreet(bounds: Bounds) {
 export function poseAt(bounds: Bounds, index: number): CameraPose {
   const min = bounds.min,
     max = bounds.max
-  const cx = (min.x + max.x) / 2,
-    cz = (min.z + max.z) / 2
+  const centre = boundsCentre(bounds),
+    cx = centre[0],
+    cz = centre[2]
   const sx = max.x - min.x,
     sy = max.y - min.y,
     sz = max.z - min.z
