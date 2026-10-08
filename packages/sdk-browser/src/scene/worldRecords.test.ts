@@ -11,6 +11,7 @@ import { worldRootPages } from './worldPageServe.ts'
 import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
 import { meshSurface } from '../page/surface.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
+import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
@@ -85,6 +86,9 @@ test('a world root no mesh wears is no page: the cover and the floor take no slo
   assert.equal(root.pages[top].url, '', 'the pinned top no mesh wears')
   const cover = rootCoverOf([root], createWebgpuPageTracking(root.pages))
   assert.ok(cover.bootstrap.length > 0 || cover.floorPages > 0)
-  assert.ok(!cover.bootstrapUrls.has(''), 'no page read at an empty address')
+  assert.ok(
+    !cover.bootstrap.some((page) => pageAddress(page) === ''),
+    'no page read at an empty address',
+  )
   assert.equal(cover.bootstrap.indexOf(root.pages[top]), -1)
 })
