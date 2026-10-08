@@ -3,7 +3,8 @@
 //! by 0.25 m, flat shading by per-face vertex copies, outward winding.
 use super::meshes::{Mesh, V};
 use std::f64::consts::FRAC_PI_2;
-use trillion3d_math::vec3::{add, cross, dot, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{add, dot};
 
 const WIDTH: f64 = 24.0;
 const DEPTH: f64 = 16.0;
@@ -104,7 +105,7 @@ fn orient(mesh: &mut Mesh) {
         .0
         .iter()
         .map(|&[a, b, c]| {
-            let n = cross(sub(point(b), point(a)), sub(point(c), point(a)));
+            let n = triangle_cross(point(a), point(b), point(c));
             dot(n, stored(a)) < 0.0
         })
         .collect();

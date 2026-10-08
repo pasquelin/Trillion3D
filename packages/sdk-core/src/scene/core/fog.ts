@@ -15,6 +15,7 @@
  */
 import { EngineError } from '../../contracts/cache.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** Fog that starts at `near` and hides everything from `far` on, distances from the eye. */
 export interface SceneLinearFog {
@@ -100,5 +101,5 @@ export function sameSceneFog(a: SceneFog | undefined, b: SceneFog | undefined) {
   if (!a || !b) return false
   const lawA = lawOf(a),
     lawB = lawOf(b)
-  return lawA.every((value, i) => value === lawB[i]) && a.color.every((c, i) => c === b.color[i])
+  return sameValues(lawA, lawB) && sameValues(a.color, b.color)
 }

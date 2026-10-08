@@ -6,6 +6,7 @@
 //! measurement is therefore shared here, with the ring, so each
 //! driver proves itself on the same polygon and the same area.
 use super::*;
+use trillion3d_math::triangle::triangle_area;
 
 /// The U polygon: eight corners, area seven, a fan of eleven.
 pub(crate) const U_RING: [[f64; 2]; 8] = [
@@ -18,19 +19,6 @@ pub(crate) const U_RING: [[f64; 2]; 8] = [
     [1.0, 3.0],
     [0.0, 3.0],
 ];
-
-/// Area of a triangle, by half the length of the cross product of two of its sides.
-pub(crate) fn triangle_area(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> f64 {
-    let edge = |x: [f64; 3], y: [f64; 3]| [y[0] - x[0], y[1] - x[1], y[2] - x[2]];
-    let (u, v) = (edge(a, b), edge(a, c));
-    let square: f64 = (0..3)
-        .map(|axis| {
-            let (p, q) = ((axis + 1) % 3, (axis + 2) % 3);
-            (u[p] * v[q] - u[q] * v[p]).powi(2)
-        })
-        .sum();
-    square.sqrt() / 2.0
-}
 
 /// Rendered area of a mesh: the sum of the areas, taken in absolute value, of its
 /// triangles. A triangle that left the polygon adds its own instead of merging,

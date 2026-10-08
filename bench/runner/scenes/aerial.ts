@@ -18,6 +18,7 @@ import { parseArgs } from '../harness/options.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../site/examples/kit/random.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
+import { boxFromPoints } from '../../../packages/math/src/geometry/box.ts'
 import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
 import { groundHeight, groundTile, lathe, PROPS, type ShapeMesh } from './aerialModel.ts'
 
@@ -54,12 +55,10 @@ function meshTables(meshes: { name: string; material: number; shape: ShapeMesh }
   const accessor = (entry: Node) => accessors.push(entry) - 1
   const gltfMeshes = meshes.map(({ name, material, shape }) => {
     const count = shape.positions.length / 3,
-      min = [Infinity, Infinity, Infinity],
-      max = [-Infinity, -Infinity, -Infinity]
-    shape.positions.forEach((value, i) => {
-      min[i % 3] = Math.min(min[i % 3], value)
-      max[i % 3] = Math.max(max[i % 3], value)
-    })
+      box = new Float64Array(6)
+    boxFromPoints(box, 0, shape.positions, 0, count)
+    const min = Array.from(box.subarray(0, 3)),
+      max = Array.from(box.subarray(3, 6))
     const attributes = {
       POSITION: accessor({
         bufferView: view(shape.positions, 34962),

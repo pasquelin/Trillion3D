@@ -2,7 +2,7 @@ import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import type { Deformed } from './frame.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { WAVE_FLOATS } from './layout.ts'
-import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { sameElements, sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 import { leastStretchOf } from '../partition/boxes.ts'
 
 const inverse = new Float64Array(16)
@@ -34,12 +34,11 @@ export function wavesChanged(block: Float32Array, entry: Deformed, world: number
   const model = entry.mesh.waves?.waveModel
   if (!model || !entry.shape.waves) return false
   invertMatrix4(inverse, entry.world.elements)
-  for (let c = 0; c < 16; c++)
-    if (
-      block[world + c] !== Math.fround(entry.world.elements[c]) ||
-      block[world + 16 + c] !== Math.fround(inverse[c])
-    )
-      return true
+  if (
+    !sameMatrixFloat32(block, entry.world.elements, world) ||
+    !sameMatrixFloat32(block, inverse, world + 16)
+  )
+    return true
   for (let w = 0; w < entry.shape.waves; w++)
     for (let c = 0; c < 6; c++)
       if (block[wave + w * WAVE_FLOATS + c] !== Math.fround(value(model, w, c))) return true

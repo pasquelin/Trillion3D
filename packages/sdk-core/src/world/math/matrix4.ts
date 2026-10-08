@@ -6,6 +6,7 @@ import {
   transposeMatrix4,
 } from '../../../../math/src/matrix/matrix4.ts'
 import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
@@ -26,7 +27,7 @@ export { Matrix3 } from './matrix3.ts'
 export class Matrix4 {
   /** Always `true`: tells a 4×4 matrix apart. */ readonly isMatrix4 = true as const
   /** Sixteen numbers; a scene node rebinds them to its slot of the transform tree. */
-  elements: Float64Array = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  elements: Float64Array = new Float64Array(IDENTITY_MATRIX4)
 
   /** Row-major arguments, as a matrix is written on paper. */
   // prettier-ignore
@@ -163,6 +164,6 @@ export class Matrix4 {
     )
   }
   /** Whether two matrices hold the same numbers. */ equals(m: { elements: ArrayLike<number> }) {
-    return this.elements.every((value, i) => value === m.elements[i])
+    return sameElements(this.elements, m.elements)
   }
 }

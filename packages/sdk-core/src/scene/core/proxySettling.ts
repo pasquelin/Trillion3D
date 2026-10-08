@@ -1,6 +1,7 @@
 import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import type { SceneProxy } from '../../contracts/proxy.ts'
 import type { createProxyLeaves } from './proxyLeaves.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** Poses the owned leaves whose groups' owners agree, once motion has stopped. `data` holds the
  *  session's triangles, `canonical` the ones they are written from, `groupOf` each triangle's group. */
@@ -16,7 +17,7 @@ export function createProxySettling(
   const coincident = (group: number) => {
     const first = deltas[owners[groupOffsets[group] * 2]]
     for (let owner = groupOffsets[group] + 1; owner < groupOffsets[group + 1]; owner++)
-      for (let i = 0; i < 16; i++) if (deltas[owners[owner * 2]][i] !== first[i]) return false
+      if (!sameElements(deltas[owners[owner * 2]], first)) return false
     return true
   }
   /** A triangle at its owners' pose. The pose's f32 evaluation, rounded once, stays inside the

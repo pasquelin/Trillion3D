@@ -8,6 +8,7 @@ import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { materialEpoch } from '../pages/io/refreshMaterials.ts'
 import { uniformStride } from '../../residency/pools.ts'
+import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
@@ -173,9 +174,7 @@ function writeBlendPoses(
   for (let i = 0; i < items.length; i++) {
     const pose = items[i].matrix.elements,
       base = i * BLEND_ITEM_WORDS
-    let k = 0
-    while (k < 16 && packed[base + k] === Math.fround(pose[k])) k++
-    if (k === 16) continue
+    if (sameMatrixFloat32(packed, pose, base)) continue
     packed.set(pose, base)
     if (first < 0) first = i
     last = i

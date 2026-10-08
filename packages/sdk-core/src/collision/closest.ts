@@ -13,7 +13,7 @@
 
 import { closestBetweenSegments } from './segmentPair.ts'
 import { triangleCross } from '../../../math/src/geometry/triangle.ts'
-import { dotScalar3, lengthSqVector3 } from '../../../math/src/vector/vector.ts'
+import { dotScalar3, lengthSqVector3, writeCrossVector3 } from '../../../math/src/vector/vector.ts'
 
 type Numbers = ArrayLike<number>
 
@@ -21,7 +21,8 @@ const edge = new Float64Array(6),
   onPlane = new Float64Array(3),
   tail = new Float64Array(3),
   candidate = new Float64Array(6),
-  normal = new Float64Array(3)
+  normal = new Float64Array(3),
+  across = new Float64Array(3)
 
 /**
  * The projection of `p` on the plane of triangle `v[at..at+9]`, written to `out` with its squared
@@ -66,14 +67,8 @@ export function insideTriangle(
     const px = x - v[from],
       py = y - v[from + 1],
       pz = z - v[from + 2]
-    const turn = dotScalar3(
-      ey * pz - ez * py,
-      ez * px - ex * pz,
-      ex * py - ey * px,
-      n[0],
-      n[1],
-      n[2],
-    )
+    writeCrossVector3(across, 0, ex, ey, ez, px, py, pz)
+    const turn = dotScalar3(across[0], across[1], across[2], n[0], n[1], n[2])
     if (turn < 0) return false
   }
   return true
