@@ -45,7 +45,7 @@ function bySlot<E>(
  * taken by another, holds none of the old node's entries. `out` is never truncated: it keeps its
  * storage and grows only past its length.
  */
-export function appendUnderSlot<E>(
+export function appendUnder<E>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
   node: Object3D,
@@ -64,6 +64,6 @@ export function appendUnderSlot<E>(
   return count
 }
 
-/** `appendUnderSlot` over the selection roots. */
-export const appendRootsUnderSlot = (roots: Roots, node: Object3D, out: number[], at: number) =>
-  appendUnderSlot(roots, rootSource, node, out, at)
+/** `appendUnder` over the selection roots. */
+export const appendRootsUnder = (roots: Roots, node: Object3D, out: number[], at: number) =>
+  appendUnder(roots, rootSource, node, out, at)

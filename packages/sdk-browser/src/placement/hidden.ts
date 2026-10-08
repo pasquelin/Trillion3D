@@ -15,6 +15,10 @@ export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry
 export const rootSource = <T extends { sourceMesh?: Object3D }>(root: ClusterRoot<T>) =>
   root.pages[0]?.sourceMesh
 
+/** The node a see-through draw comes from. */
+export const blendSource = (item: { sourceMesh?: unknown }) =>
+  item.sourceMesh as Object3D | undefined
+
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
   for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false

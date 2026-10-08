@@ -1,11 +1,11 @@
 import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import { followHostVisibility } from '../../../placement/hidden.ts'
+import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { takeSorted } from '../../cut/denseKeys.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
-import { appendRootsUnderSlot, appendUnderSlot } from './movedNode.ts'
+import { appendRootsUnder, appendUnder } from './movedNode.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -96,7 +96,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
 }
 
 /** The roots and the see-through draws under the nodes `flipped`, read in the tree
- *  (`appendUnderSlot`) — one under two listed twice, its second read leaving it as the first —:
+ *  (`appendUnder`) — one under two listed twice, its second read leaving it as the first —:
  *  what a flip reads, none other. */
 function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
   const roots = rt.layout.selectionRoots,
@@ -104,8 +104,8 @@ function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
   let rootCount = 0,
     blendCount = 0
   for (const node of flipped) {
-    rootCount = appendRootsUnderSlot(roots, node, flippedRoots, rootCount)
-    blendCount = appendUnderSlot(blend, blendSource, node, flippedBlend, blendCount)
+    rootCount = appendRootsUnder(roots, node, flippedRoots, rootCount)
+    blendCount = appendUnder(blend, blendSource, node, flippedBlend, blendCount)
   }
   under.roots.count = rootCount
   under.seeThrough.count = blendCount
@@ -117,5 +117,3 @@ const under = {
   roots: { ranks: flippedRoots, count: 0 },
   seeThrough: { ranks: flippedBlend, count: 0 },
 }
-/** The source node of a see-through draw. */
-const blendSource = (item: { sourceMesh?: unknown }) => item.sourceMesh as Object3D | undefined

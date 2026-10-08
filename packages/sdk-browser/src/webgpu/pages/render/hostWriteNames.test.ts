@@ -11,7 +11,7 @@ import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../../../sdk-core/src/world/transform-tree/pass.ts'
 import { hostScene as scene } from './hostWrite.fixture.ts'
 import { setWebgpuTransform } from './transform.ts'
-import { appendRootsUnderSlot } from './movedNode.ts'
+import { appendRootsUnder } from './movedNode.ts'
 
 test('a pose written, then a pass of the page’s tree another reader ran: the root is named', () => {
   const { source, meshes, rt, sent, image } = scene(100)
@@ -42,13 +42,13 @@ test('a slot freed and taken by another node names nothing of the old node’s r
   const gone = meshes[4]
   // The roots' index is built before the node goes, as a session holds it.
   const named: number[] = []
-  assert.equal(appendRootsUnderSlot(roots, gone, named, 0), 1)
+  assert.equal(appendRootsUnder(roots, gone, named, 0), 1)
   assert.deepEqual(named, [4], 'its root')
   gone.destroy()
   const other = new G.Group()
   holder.add(other)
   assert.equal(other.index, gone.index, 'the slot taken again')
-  assert.equal(appendRootsUnderSlot(roots, other, [], 0), 0, 'none of the old root')
+  assert.equal(appendRootsUnder(roots, other, [], 0), 0, 'none of the old root')
 })
 
 test('a hide reads the see-through draws under the node alone, at 10² as at 10⁴', () => {

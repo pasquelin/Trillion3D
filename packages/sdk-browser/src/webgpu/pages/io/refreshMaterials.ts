@@ -77,7 +77,7 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     materialEpochs.set(rt, materialEpoch(rt) + 1)
     // The scene revision moved: the next image writes the transparent records again, once
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
-    rt.run.gate.sceneMoved()
+    rt.run.gate.movedInPlace()
   }
   const textures = rt.vis.textures
   if (!textures) return true

@@ -59,18 +59,21 @@ export function setWebgpuTransforms(
 /** The nodes the call moved, each once: what its pass notes (`moved`). */
 const posed = new Set<Object3D>()
 
-/** One node posed, noted once when the move moved it (`noteNode`). */
+/** One node posed, noted once when the move moved it (`noteNode`), and its pose taken by the
+ *  scene watch as the engine's (`adoptPose`): the next image reads no host write back. */
 function pose(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
-  if (!poseNode(node, matrix) || posed.has(node)) return
+  if (!poseNode(node, matrix)) return
+  rt.run.gate.adoptPose(node)
+  if (posed.has(node)) return
   posed.add(node)
   noteNode(rt, node)
 }
 
 /** The moves of one call taken: the nodes it moved noted as they moved, and those the host wrote
- *  before it in the same task (`takeHostMoves`) with them (`noteNode`), one pass of the transform tree — every matrix it
- *  holds, page records, selection roots, transparent copies, carries the new places, and the pass
- *  walks what the writes changed, nothing else —, then the moved roots' rows and boxes
- *  (`finishMoves`). */
+ *  before it in the same task (`takeHostMoves`) with them (`noteNode`), one pass of the transform
+ *  tree — every matrix it holds, page records, selection roots, transparent copies, carries the
+ *  new places, and the pass walks what the writes changed, nothing else —, then the moved roots'
+ *  rows and boxes (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
   try {
     // The watch heard the call's own writes too: the host's are the others.

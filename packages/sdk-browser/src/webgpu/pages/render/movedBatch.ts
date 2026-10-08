@@ -9,7 +9,7 @@ import {
 import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
-import { appendRootsUnderSlot } from './movedNode.ts'
+import { appendRootsUnder } from './movedNode.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
@@ -56,7 +56,7 @@ const LOT_SHARE = 8
 /**
  * The nodes `nodes` were written — an engine move's, the host's the scene watch heard —, before
  * the transform tree's pass takes them: the roots whose mesh lies in each one's subtree, walked
- * once in the tree (`appendRootsUnderSlot`), and their box before the move. The work follows the
+ * once in the tree (`appendRootsUnder`), and their box before the move. The work follows the
  * nodes written, never the scene's roots.
  */
 export function noteMoved(rt: WebgpuPagesRuntime, nodes: Iterable<Object3D>) {
@@ -67,7 +67,7 @@ export function noteMoved(rt: WebgpuPagesRuntime, nodes: Iterable<Object3D>) {
 export function noteNode(rt: WebgpuPagesRuntime, node: Object3D) {
   const from = movedCount,
     roots = rt.layout.selectionRoots
-  movedCount = appendRootsUnderSlot(roots, node, movedList, from)
+  movedCount = appendRootsUnder(roots, node, movedList, from)
   noteBefore(rt, from)
 }
 
@@ -117,7 +117,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     promotedRoots = new Uint8Array(roots.length)
     listedRoots = new Uint8Array(roots.length)
   }
-  // One node's ranks are already distinct (`appendRootsUnderSlot`); several nodes' may overlap.
+  // One node's ranks are already distinct (`appendRootsUnder`); several nodes' may overlap.
   let ranks = movedList,
     count = movedCount
   if (nodeCount > 1) {
@@ -150,7 +150,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
   // instead of being rebuilt from a walk of the source graph on the next image; the hierarchy
   // already carries this revision's matrices: the next image does not climb it.
   if (announce) {
-    run.gate.sceneMoved()
+    run.gate.movedInPlace()
     run.gate.noteWorldsUpdated()
   }
   let start = 0

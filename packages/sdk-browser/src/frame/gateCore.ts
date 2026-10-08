@@ -47,7 +47,8 @@ type GateState = {
 
 /** What the world pass a scene revision owes read of the host's writes (`updateWorlds`): whether
  *  every root is walked — the scene changed shape —, else the nodes shown, hidden or set to cast
- *  or not, and the nodes whose pose or matrix was written, whose roots alone follow. */
+ *  or not, whose roots alone follow; the nodes whose pose or matrix was written go to its
+ *  `moved`. */
 type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
 
 /**
@@ -78,7 +79,9 @@ export function createFrameGateCore(holdValues: number) {
       return core.pixelError
     },
     sceneChanged: () => sceneChanged(core),
-    sceneMoved: () => movedInPlace(core),
+    /** The scene moved and its shape did not: a pose the engine wrote, a light, the environment,
+     *  the lighting view or a material of its own store (`movedInPlace`). */
+    movedInPlace: () => movedInPlace(core),
     resourcesChanged: () => bumpResources(revisions),
     /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
@@ -94,13 +97,12 @@ export function createFrameGateCore(holdValues: number) {
     /** The nodes the host wrote, its poses or its matrices, which no world pass read yet: an
      *  engine move takes them with its own, its pass refreshing them (`movedBatch.ts`). */
     takeHostMoves: () => core.sceneWatch.takeWritten(),
-    /** A light, the environment or the lighting view changed through the engine's own store: the
-     *  scene moves, the watched list stands, no root walked. */
-    lightsChanged: () => movedInPlace(core),
-    engineWriting: () => engineWriting(core),
+    /** The engine posed `node` itself: the scene watch takes its pose as the engine's, never as a
+     *  host write read back. */
+    adoptPose: (node: Object3D) => core.sceneWatch.adopt(node),
     noteWorldsUpdated: () => noteWorldsUpdated(core),
-    /** The engine moved poses in place: the three steps above, `engineWriting` first so an
-     *  unread host pose write stays owed. */
+    /** The engine moved poses in place: `movedInPlace` and `noteWorldsUpdated`, `engineWriting`
+     *  first so an unread host pose write stays owed. */
     engineMovedInPlace() {
       engineWriting(core)
       movedInPlace(core)
