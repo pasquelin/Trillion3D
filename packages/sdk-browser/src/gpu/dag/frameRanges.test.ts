@@ -71,10 +71,10 @@ test('each range is its own buffer and bind group, and the stages know the split
 test("the host's rows and words land in their range, at their row there", async () => {
   const { fake, resources } = await split(20)
   const { frames, frameData } = resources
-  // range:first row+rows, a host row being 28 floats.
+  // range:first row+rows, a host row being 28 floats, 112 bytes.
   const at = (b: unknown) => frames.buffers.indexOf(b as GPUBuffer)
   const rows = fake.writes.filter((w) => at(w.buffer) >= 0)
-  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 28}+${w.size! / 28}`
+  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 112}+${w.size! / 112}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
   // The world matrices follow the same ranges, 64 bytes a primitive.
   const world = (w: (typeof rows)[number]) =>
