@@ -23,14 +23,13 @@ export function keepMovesFor(rt: Pick<WebgpuPagesRuntime, 'run'>) {
   rt.run.movedWorlds.since = { ranks: createSortedKeys(), walked: false }
 }
 
+/** Roots a growth added, as their worlds are read. */
+export type GrownRoots = readonly { readonly world: { readonly elements: ArrayLike<number> } }[]
+
 /** The worlds the host sends, `worlds`, holding those of the roots `added` behind rank `first`
  *  — the cut that takes them packed them so —: a send before their next pose compares them as the
  *  cut holds them, never as zeros. O(roots added). */
-export function holdGrownWorlds(
-  worlds: Float32Array,
-  added: readonly { readonly world: { readonly elements: ArrayLike<number> } }[],
-  first: number,
-) {
+export function holdGrownWorlds(worlds: Float32Array, added: GrownRoots, first: number) {
   for (let k = 0; k < added.length; k++) worlds.set(added[k].world.elements, (first + k) * 16)
 }
 
@@ -44,7 +43,7 @@ export function holdGrownWorlds(
 export function replayMoves(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'layout'>,
   cut: Pick<GpuSelection, 'updateWorlds'>,
-  added: Parameters<typeof holdGrownWorlds>[1],
+  added: GrownRoots,
   first: number,
 ) {
   const since = rt.run.movedWorlds.since,

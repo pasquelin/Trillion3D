@@ -17,7 +17,7 @@ import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage } from './webgpuGrowth.ts'
-import { announceGrowth, replayMoves } from './growthAnnounce.ts'
+import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -91,7 +91,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
 function swapCut(
   rt: WebgpuPagesRuntime,
   { cut, moved }: { cut: GpuSelection; moved: ReadonlySet<number> },
-  added: readonly { readonly world: { readonly elements: ArrayLike<number> } }[],
+  added: GrownRoots,
   first: number,
 ) {
   const { run, layout } = rt
