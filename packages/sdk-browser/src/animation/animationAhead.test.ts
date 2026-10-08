@@ -22,11 +22,11 @@ import {
 } from '../../../sdk-core/src/world/animation/mixer.ts'
 import type { Clip, Track } from '../../../sdk-core/src/world/animation/clip.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
+import { lcgImulRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../wasm/kernels.wasm')))
 
-let seed = 11
-const random = () => ((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0), seed / 4294967296)
+let random = lcgImulRandom(11)
 
 const BONES = 4,
   KEYS = 9,
@@ -83,7 +83,7 @@ function counted(worker: NodeDomWorker) {
 
 /** The scripted run: every written number of every frame; `settle` between frames. */
 async function play(settle: (frame: number) => Promise<void>) {
-  seed = 99
+  random = lcgImulRandom(99)
   const scene = new Object3D(),
     nodes: Object3D[] = [],
     actions: Action[][] = []

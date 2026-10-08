@@ -6,13 +6,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
 import { normalizeVector3OrZero, transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 const m = new Float64Array(16)
 const ULPS = 8 * 2 ** -52
 
 test('the rotation takes the direction to +X, orthonormal and level, to a few ulps', () => {
-  let seed = 3
-  const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+  const rnd = lcgRandom(3)
   for (let k = 0; k < 20000; k++) {
     const tiny = k % 4 === 0 ? 10 ** (-15 * rnd()) : 1
     const d = normalizeVector3OrZero(

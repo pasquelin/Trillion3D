@@ -1,4 +1,5 @@
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { usedSlots } from './poolStates.ts'
@@ -43,8 +44,7 @@ export function drawOrder(pools: readonly ParticlePool[], eye: Vec, into: Partic
   into.length = 0
   for (const pool of pools) {
     if (!pool.moving || !usedSlots(pool)) continue
-    const o = pool.origin,
-      key = (o[0] - eye[0]) ** 2 + (o[1] - eye[1]) ** 2 + (o[2] - eye[2]) ** 2
+    const key = distanceSqVector3(pool.origin, eye)
     let at = into.length
     for (; at > 0 && keys[at - 1] < key; at--) {
       into[at] = into[at - 1]

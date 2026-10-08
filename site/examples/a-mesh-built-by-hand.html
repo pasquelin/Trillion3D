@@ -40,8 +40,8 @@
         return triangles;
       }
 
-      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
       const operandA = math.vector3(), operandB = math.vector3();
+      const sub = (a, b) => operandA.fromArray(a).sub(operandB.fromArray(b)).toArray();
       const cross = (a, b) => operandA.fromArray(a).cross(operandB.fromArray(b)).toArray();
       const unit = (v) => operandA.fromArray(v).normalize().toArray();
 

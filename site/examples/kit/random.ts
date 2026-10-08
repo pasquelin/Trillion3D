@@ -11,6 +11,7 @@ import {
   lcgRandom,
   mulberry32 as mulberry32Sequence,
 } from '../../../packages/math/src/sequence/random.ts'
+import { fract } from '../../../packages/math/src/scalar/reals.ts'
 import type { Families } from './engineTypes.ts'
 
 /** A sequence of numbers in [0, 1) from a seed. */
@@ -27,8 +28,7 @@ export const mulberry32: (seed: number) => Random = mulberry32Sequence
 /** The temple's scatter: a value in [0, 1) for `index` and channel `k`, the fraction of a scaled
  *  sine. */
 export function sineHash(index: number, k: number): number {
-  const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453
-  return t - Math.floor(t)
+  return fract(Math.sin(index * 12.9898 + k * 78.233) * 43758.5453)
 }
 
 /**

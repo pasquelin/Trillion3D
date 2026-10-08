@@ -123,6 +123,7 @@ export const SUN_READ = [
   'vsmShadowRead',
   'vsmShadowFactor',
   'vsmShadowFiltered',
+  'vsmReceiverFromEye',
   'vsmShadowTraced',
   'interleavedGradient',
   'vsmConsumerSlope',

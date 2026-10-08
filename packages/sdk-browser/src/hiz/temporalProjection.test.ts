@@ -9,13 +9,10 @@ import { projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { locatedBy } from '../page/selection/placements.fixture.ts'
 import { projectBoxesFlat } from './projection.fixture.ts'
+import { lcgFloatRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
-  let seed = 12345
-  const rnd = () => {
-    seed = (seed * 1103515245 + 12345) >>> 0
-    return seed / 4294967296
-  }
+  const rnd = lcgFloatRandom(12345)
   const pages: (HizPage & { matrix: G.Matrix4 })[] = []
   for (let i = 0; i < 300; i++) {
     const centre = [rnd() * 20 - 10, rnd() * 20 - 10, -rnd() * 40],

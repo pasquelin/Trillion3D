@@ -1,6 +1,6 @@
 import { DOUBLE_WORDS_WGSL } from './doubleWordsWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { lowBits } from '../../../../math/src/wgsl/integer.ts'
+import { lowBits, wideProduct } from '../../../../math/src/wgsl/integer.ts'
 /**
  * DOUBLE-PRECISION ARITHMETIC ON THE GPU, IN INTEGERS.
  *
@@ -21,7 +21,7 @@ import { lowBits } from '../../../../math/src/wgsl/integer.ts'
  */
 export const DOUBLE_WGSL = wgslBlock(
   'DOUBLE_WGSL',
-  [DOUBLE_WORDS_WGSL, lowBits],
+  [DOUBLE_WORDS_WGSL, lowBits, wideProduct],
   `
 /**
  * The double nearest \`m·2^(scale−1078)\`, ties to even. \`m\` carries the significand and three bits

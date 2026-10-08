@@ -143,7 +143,7 @@
         const here = point(0, 0), pa = point(step, 0), pb = point(0, step);
         const u = pa.map((value, axis) => value - here[axis]), v = pb.map((value, axis) => value - here[axis]);
         const n = cross(u, v), length = direction.fromArray(n).length();
-        const slope = (Math.acos(Math.abs(n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / length) * 180) / Math.PI;
+        const slope = (Math.acos(Math.abs(operandA.fromArray(n).dot(operandB.fromArray(d))) / length) * 180) / Math.PI;
         return { d, r: direction.fromArray(here).length(), slope, size: 0.7 + next() * 0.7 };
       });
 

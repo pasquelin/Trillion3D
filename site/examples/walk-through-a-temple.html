@@ -544,7 +544,7 @@
 
       // What the frame reads back, eased so the body moves without jerks.
       const eased = { move: 0, fov: 75, tilt: 0, dip: 0, dipSpeed: 0, sprint: 0 };
-      const ease = (key, to, rate, dt) => (eased[key] += (to - eased[key]) * Math.min(1, dt * rate));
+      const ease = (key, to, rate, dt) => (eased[key] = math.lerp(eased[key], to, math.clamp(dt * rate, 0, 1)));
       // The jump's weight and pose ride on springs, so no state change pops the arms.
       const motion = { air: { x: 0, v: 0 }, leap: leapPose(-Infinity).map((x) => ({ x, v: 0 })) };
       let phase = 0, footfall = 0, time = 0;

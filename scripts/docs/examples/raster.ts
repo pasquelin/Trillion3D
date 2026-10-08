@@ -1,7 +1,7 @@
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { snap, type RandomStream } from './random.ts'
-import { clampLowWins, lerp, smoothstep } from '../../../packages/math/src/scalar/reals.ts'
+import { clampLowWins, lerp, smoothstep, wrap } from '../../../packages/math/src/scalar/reals.ts'
 
 /**
  * A small raster toolkit for the textures drawn in code: square float images of one or three
@@ -86,8 +86,8 @@ export function blur(image: Raster, sigma: number): Raster {
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++)
         weights.forEach((weight, i) => {
-          const sx = (x + dx * (i - radius) + size) % size,
-            sy = (y + dy * (i - radius) + size) % size
+          const sx = wrap(x + dx * (i - radius), size),
+            sy = wrap(y + dy * (i - radius), size)
           for (let k = 0; k < channels; k++)
             out.data[(y * size + x) * channels + k] +=
               (source.data[(sy * size + sx) * channels + k] * weight) / total
@@ -101,7 +101,7 @@ export function blur(image: Raster, sigma: number): Raster {
 export function normalMap(height: Raster, strength: number): Raster {
   const { size } = height,
     out = raster(size, [0, 0, 0]),
-    at = (x: number, y: number) => height.data[((y + size) % size) * size + ((x + size) % size)]
+    at = (x: number, y: number) => height.data[wrap(y, size) * size + wrap(x, size)]
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const dx = (at(x + 1, y) - at(x - 1, y)) * strength,

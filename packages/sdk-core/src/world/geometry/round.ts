@@ -8,6 +8,7 @@ import { subtract as sub, cross } from '../../../../math/src/vector/vectorTuple.
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
+import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 type V3 = [number, number, number]
 
@@ -32,7 +33,7 @@ export function torus(
     const a = u * arc,
       t = v * TAU
     const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)]
-    const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0]
+    const c = circlePoint<V3>([0, 0, 0], radius, a)
     return { p: addScaledVector3(c, n, tube), n, uv: [u, v] }
   })
   return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc])
@@ -133,11 +134,13 @@ export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments 
   radialSegments = pieces(radialSegments, 1)
   for (let i = 0; i <= caps; i++) {
     const a = -HALF_PI + (i / caps) * HALF_PI
-    profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)])
+    const p = circlePoint([0, 0], radius, a)
+    profile.push([p[0], -length / 2 + p[1]])
   }
   for (let i = 0; i <= caps; i++) {
     const a = (i / caps) * HALF_PI
-    profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)])
+    const p = circlePoint([0, 0], radius, a)
+    profile.push([p[0], length / 2 + p[1]])
   }
   return withRecipe(lathe(profile, radialSegments), 'capsule', [
     radius,

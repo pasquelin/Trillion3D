@@ -32,6 +32,7 @@ import {
   nearestTriangleOnRay,
 } from '../../../packages/sdk-core/src/collision/triangleQuery.ts'
 import { focalPixels } from '../../../packages/math/src/projection/camera.ts'
+import { quantileFloor } from '../../../packages/math/src/scalar/quantile.ts'
 
 /** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner
  *  points. Fixed, so two runs read the same points. */
@@ -116,8 +117,7 @@ function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
 /** Largest value and 99th percentile (not `summarize`: it refuses the infinite errors). */
 function summary(values: number[]) {
   const sorted = Float64Array.from(values).sort()
-  const at = (share: number) =>
-    sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))] ?? 0
+  const at = (share: number) => quantileFloor(sorted, share) ?? 0
   return { points: sorted.length, max: at(1), p99: at(0.99) }
 }
 

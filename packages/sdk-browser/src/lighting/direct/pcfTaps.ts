@@ -1,4 +1,5 @@
 import { GOLDEN_ANGLE, QUARTER_PI } from '../../../../math/src/constants.ts'
+import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 /** The PCF's taps, in texels around the read point: the filtered read of a blended surface and of
  *  the water (`shadowWgsl.ts`, `vsmFilterTaps`). Each lies within a texel of the read point on
@@ -17,7 +18,7 @@ const taps: [number, number][] = []
 for (let k = 0; k < 4; k++) {
   const radius = Math.SQRT2 * Math.sqrt((k + 0.5) / 4)
   const angle = QUARTER_PI + (k * GOLDEN_ANGLE) / 4
-  const [x, y] = [radius * Math.cos(angle), radius * Math.sin(angle)]
+  const [x, y] = circlePoint([0, 0], radius, angle)
   const past = Math.max(Math.abs(x), Math.abs(y), 1)
   let tap: [number, number] = [Math.fround(x / past), Math.fround(y / past)]
   for (let turn = 0; turn < 4; turn++) {

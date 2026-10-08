@@ -15,6 +15,7 @@ use super::{DagCluster, DagGroup};
 use rayon::prelude::*;
 use trillion3d_math::aabb::aabb_of_boxes;
 use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vecn::lerp;
 use trillion3d_page_codec::min_ball::min_ball;
 
 /// Iterations of the centre pull toward the farthest ball, with a shrinking step.
@@ -93,7 +94,7 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
         let reach = if l > 0.0 { far[3] / l } else { 0.0 };
         let target = [0, 1, 2].map(|a| far[a] + dir[a] * reach);
         let t = 1.0 / (k as f64 + 1.0);
-        c = [0, 1, 2].map(|a| c[a] + (target[a] - c[a]) * t);
+        c = lerp(c, target, t);
         consider(c, &mut best);
     }
     let magnitude = best[0]

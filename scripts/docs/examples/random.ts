@@ -1,4 +1,5 @@
 import { TAU } from '../../../packages/math/src/constants.ts'
+import { lerp, snap as snapTo } from '../../../packages/math/src/scalar/reals.ts'
 import { normalizeVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { mulberry32 } from '../../../site/examples/kit/random.ts'
 
@@ -12,7 +13,7 @@ export type Vec3 = readonly [number, number, number]
  * than anything the scene shows; what follows — products, sums, square roots — is exactly
  * rounded on every machine. Below 16 a single-precision float holds a grid value exactly.
  */
-export const snap = (value: number) => Math.round(value * 2 ** 20) / 2 ** 20
+export const snap = (value: number) => snapTo(value, 2 ** -20)
 
 /**
  * A seeded random stream for the scenes modelled in code: the same seed gives the same uniform
@@ -21,7 +22,7 @@ export const snap = (value: number) => Math.round(value * 2 ** 20) / 2 ** 20
  */
 export function randomStream(seed: number) {
   const next = mulberry32(seed)
-  const uniform = (low = 0, high = 1) => low + (high - low) * next()
+  const uniform = (low = 0, high = 1) => lerp(low, high, next())
   // Box–Muller; `1 - next()` never reaches zero, so the logarithm stays finite.
   const normal = () => Math.sqrt(-2 * Math.log(1 - next())) * Math.cos(TAU * next())
   const direction = (): Vec3 => {

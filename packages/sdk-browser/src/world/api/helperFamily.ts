@@ -14,6 +14,7 @@ import type { Plane } from '../../../../sdk-core/src/world/math/volumes.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { markedFamily, markFollowing } from '../core/helperMark.ts'
+import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 /** Line segments through `points` (two corners per segment), in one colour. */
 function lines(points: number[], color: ColorInput) {
@@ -28,7 +29,7 @@ function circle(radius: number, sides: number, plane: 'xy' | 'xz' = 'xz') {
   for (let i = 0; i < sides; i++)
     for (const k of [i, i + 1]) {
       const a = (k / sides) * TAU
-      const [x, y] = [Math.cos(a) * radius, Math.sin(a) * radius]
+      const [x, y] = circlePoint([0, 0], radius, a)
       out.push(...(plane === 'xz' ? [x, 0, y] : [x, y, 0]))
     }
   return out
@@ -97,7 +98,8 @@ export const helper = markedFamily({
     const out: number[] = []
     for (let s = 0; s < sectors; s++) {
       const a = (s / sectors) * TAU
-      out.push(0, 0, 0, Math.cos(a) * radius, 0, Math.sin(a) * radius)
+      const [x, z] = circlePoint([0, 0], radius, a)
+      out.push(0, 0, 0, x, 0, z)
     }
     for (let r = 1; r <= rings; r++) out.push(...circle((radius * r) / rings, 64))
     return lines(out, color)

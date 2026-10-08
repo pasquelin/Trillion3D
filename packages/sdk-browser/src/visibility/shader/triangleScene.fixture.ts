@@ -9,12 +9,12 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import { FLAG_CLUSTER_PAGE } from '../types.ts'
+import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 export type V = number[]
 export type Fn = (...args: unknown[]) => unknown
 export const f = Math.fround
-let seed = 11
-const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32
+const random = lcgFloatRandom(11)
 const floats = (n: number, at: (i: number) => number) =>
   Array.from({ length: n }, (_, i) => f(at(i)))
 

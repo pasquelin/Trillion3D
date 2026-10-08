@@ -26,10 +26,12 @@ const FORMS: Record<string, string> = {
   'matrix copy loop, braced':
     'export function f(o: number[], m: number[], at: number) {\n  for (let k = 0; k < 16; k++) {\n    o[at + k] = m[k]\n  }\n}\n',
   'π over n': 'export const f = Math.PI / 2\n',
+  'negated π over n': 'export const f = -Math.PI / 2\n',
   'π times n': 'export const f = Math.PI * 2\n',
   'n times π': 'export const f = 2 * Math.PI\n',
   'degrees to radians': 'export const f = (x: number) => (x * Math.PI) / 180\n',
   'turns to radians': 'export const f = (x: number) => x * Math.PI * 2\n',
+  'turns to radians, π last': 'export const f = (x: number) => x * 2 * Math.PI\n',
   'radians to degrees': 'export const f = (x: number) => (x * 180) / Math.PI\n',
   'power of two above': 'export const f = (v: number) => 2 ** Math.ceil(Math.log2(v))\n',
   'power of two above, by pow':
@@ -66,9 +68,10 @@ test('the same forms pass inside packages/math and in the declared oracles', asy
       assert.deepEqual(await findings(code, path), [], `${form} in ${path}`)
 })
 
-test('what the maths do not hold passes: π times a variable, a three-way bound, a loop of nine', async () => {
+test('what the maths do not hold passes: π times variables, a negated variable, a three-way bound, a loop of nine', async () => {
   const code = [
     'export const a = (x: number) => Math.sin(Math.PI * x)',
+    'export const e = (x: number, y: number) => x * y * Math.PI - -x / 2',
     'export const b = (x: number, y: number, z: number) => Math.max(1, Math.min(x, y, z))',
     'export const c = (a: number, b: number) => Math.floor(a / b)',
     'export function d(o: number[], m: number[]) {\n  for (let i = 0; i < 9; i++) o[i] = m[i]\n}',

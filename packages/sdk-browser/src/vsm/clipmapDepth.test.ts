@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 const f = Math.fround
 
@@ -53,8 +54,7 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
 })
 
 test('in f32, (raw − bias) / 2^-k is (raw − bias) · 2^k, and (raw − 0) / 1 is raw', () => {
-  let seed = 1563
-  const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+  const next = lcgRandom(1563)
   const word = new Float32Array(1),
     bits = new Uint32Array(word.buffer)
   const values = [0, -0, 1, 2 ** -24, 2 ** -126, 0.5]

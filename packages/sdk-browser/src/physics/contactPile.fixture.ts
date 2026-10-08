@@ -18,6 +18,7 @@ import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
 import { body, FLAT, id } from './records.fixture.ts'
+import { lcgImulRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 /** The pile's budget: its 42 bodies within 64, every step's enters within 256, in 64 MB. */
 export const PILE_BUDGET = { bodies: 64, contactEvents: 256, memoryBytes: 64 << 20 }
@@ -49,8 +50,7 @@ export function pile(
   scene: PileScene = {},
 ): PileStep[] {
   const { cloth = true, changes = true } = scene
-  let seed = 42
-  const next = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32
+  const next = lcgImulRandom(42)
   const writer = new CommandWriter()
   writer.gravity([0, -9.81, 0])
   writer.add({ ...body(id(0), 0, -1, 1), size: [30, 1, 30] })

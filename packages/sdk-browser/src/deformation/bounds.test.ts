@@ -10,10 +10,12 @@ import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
 import { createHeldResidency } from '../page/cut/held.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** A seeded generator, so a failure names the case it met. */
 function random(seed: number) {
-  return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1
+  const draw = lcgRandom(seed)
+  return () => draw() * 2 - 1
 }
 
 test('every vertex a palette carries lies within its rest box grown by the palette reach', () => {

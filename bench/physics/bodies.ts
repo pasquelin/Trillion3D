@@ -24,6 +24,7 @@ import {
   PHYSICS_MATERIALS,
   SHAPE,
 } from '../../packages/sdk-core/src/physics/index.ts'
+import { mean, quantileFloor } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'
 import { seeded } from '../../site/examples/kit/random.ts'
@@ -101,14 +102,14 @@ type Run = { steps: { ms: number; active: number; full?: number }[]; phases: Map
 function summary(label: string, { steps, phases }: Run) {
   const window = steps.slice(1, WINDOW).map((r) => r.ms)
   const sorted = [...window].sort((a, b) => a - b)
-  const mean = window.reduce((a, b) => a + b, 0) / window.length
+  const average = mean(window)
   const asleep = steps.findIndex((r) => r.active === 0)
   const [median, p95, worst] = [
-    sorted[sorted.length >> 1],
-    sorted[Math.floor(sorted.length * 0.95)],
+    quantileFloor(sorted, 0.5),
+    quantileFloor(sorted, 0.95),
     sorted[sorted.length - 1],
-  ]
-  const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, median ${median.toFixed(2)}, mean ${mean.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`
+  ] as number[]
+  const text = `${label}: first ${steps[0].ms.toFixed(1)} ms, median ${median.toFixed(2)}, mean ${average.toFixed(2)}, p95 ${p95.toFixed(2)}, worst ${worst.toFixed(2)} ms`
   const full = steps.filter((r) => r.full).length
   const note = full ? `, contact budgets exceeded in ${full} steps` : ''
   console.log(`${text}, all asleep at step ${asleep < 0 ? `> ${STEPS}` : asleep + 1}${note}`)

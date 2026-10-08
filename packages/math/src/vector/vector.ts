@@ -139,10 +139,35 @@ export function plainLength3(x: number, y: number, z: number) {
   return Math.sqrt(x * x + y * y + z * z)
 }
 
+/** The plain root `Math.sqrt(x·x + y·y)`, the two squares summed, without `length2`'s band: the
+ *  length of the Rust plane vectors (`length` of `packages/math/rust/src/vec2.rs`), the twin of
+ *  `plainLength3` (docs/MATHS.md "Lengths"). */
+export function plainLength2(x: number, y: number) {
+  return Math.sqrt(x * x + y * y)
+}
+
+/** Writes the point of angle `angle` on the circle of `radius` about the origin, `(radius·cos,
+ *  radius·sin)`, to `out[at]` and `out[at + 1]`, and returns `out`. */
+export function circlePoint<T extends { [index: number]: number }>(
+  out: T,
+  radius: number,
+  angle: number,
+  at = 0,
+) {
+  out[at] = radius * Math.cos(angle)
+  out[at + 1] = radius * Math.sin(angle)
+  return out
+}
+
 /** The length of `(x, y)`: the rule of `length3` in the plane, `hypot2` outside the band. */
 export function length2(x: number, y: number) {
   const s = x * x + y * y
   return s < NORMAL_SQUARES || s === Infinity ? hypot2(x, y) : Math.sqrt(s)
+}
+
+/** The z of the 3D cross product of `(ax, ay, 0)` and `(bx, by, 0)`: `ax·by − ay·bx`. */
+export function cross2(ax: number, ay: number, bx: number, by: number) {
+  return ax * by - ay * bx
 }
 
 /** The squared distance from the point at `b[bAt]` to the one at `a[aAt]`: the squares of
@@ -246,6 +271,16 @@ export function normalizeVector2(v: NumberSink, at = 0) {
   }
   v[at] *= inverse
   v[at + 1] *= inverse
+}
+
+/** Brings the vector at `at` to unit length by division, in place and returned: each component is
+ *  divided by `length`, which the caller measures. Not `normalizeVector3`'s product by the
+ *  reciprocal: for the documents whose published bits hold the quotient (docs/MATHS.md "Lengths"). */
+export function divideVector3<T extends NumberSink>(v: T, at: number, length: number) {
+  v[at] /= length
+  v[at + 1] /= length
+  v[at + 2] /= length
+  return v
 }
 
 /**

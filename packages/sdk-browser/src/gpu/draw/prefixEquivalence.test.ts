@@ -5,6 +5,7 @@ import {
   prefixScan,
   prefixSerial,
 } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
+import { lcgFloatWord } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 // The multi-lane scan shader.ts carries produces exactly the same totals
 // (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)). This
@@ -53,8 +54,8 @@ test('every slot full, more groups than slots (256 lamp-scale)', () => {
     groupCount = 40 // 256 items / 64 per group, rounded up
   const slotUsed = new Uint32Array(slots).fill(1)
   const groupCounts = new Uint32Array(groupCount * slots)
-  let seed = 1
-  const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) % 17) as number
+  const word = lcgFloatWord(1)
+  const rand = () => word() % 17
   for (let i = 0; i < groupCounts.length; i++) groupCounts[i] = rand()
   const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
   // Each slot's total must equal the sum of its column.
@@ -100,8 +101,8 @@ test('hand-computed explicit case: two used slots, two groups', () => {
 })
 
 test('on a thousand random inputs: sparse empty slots, fewer groups than lanes, long runs', () => {
-  let seed = 20260915
-  const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number
+  const word = lcgFloatWord(20260915)
+  const rand = (bound: number) => word() % bound
   for (let trial = 0; trial < 1000; trial++) {
     const slots = slotCount(1 + rand(4))
     const groupCount = 1 + (trial % 3 === 0 ? rand(400) : rand(64))

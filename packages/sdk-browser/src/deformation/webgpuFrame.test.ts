@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { markReach } from './halfFloat.ts'
 import { fromHalf } from '../../../math/src/float/half.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 /** The reach the GPU cut reads of `reach`: the half float `markReach` packs in the high bits. */
 const reachBits = (reach: number) => markReach(0, reach) >>> 16
@@ -9,10 +10,9 @@ const reachBits = (reach: number) => markReach(0, reach) >>> 16
 const halfValue = (bits: number) => (bits >= 0x7c00 ? Infinity : fromHalf(bits))
 
 test('the reach the GPU cut reads is the smallest half float at or above the CPU one', () => {
-  let seed = 357
+  const random = lcgRandom(357)
   for (let k = 0; k < 20000; k++) {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    const x = 2 ** ((seed / 2 ** 32) * 44 - 26)
+    const x = 2 ** (random() * 44 - 26)
     const bits = reachBits(x)
     assert.ok(halfValue(bits) >= x, `${x}`)
     assert.ok(halfValue(bits - 1) < x, `${x} is not the smallest`)

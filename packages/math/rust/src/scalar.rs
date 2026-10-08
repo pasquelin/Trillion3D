@@ -23,6 +23,12 @@ pub fn remap<T: Real>(value: T, low: T, high: T) -> T {
     (value - low) / (high - low)
 }
 
+/// Half the diagonal of a `width` by `height` rectangle, `hypot(width, height) / 2`.
+#[inline]
+pub fn half_diagonal(width: f64, height: f64) -> f64 {
+    width.hypot(height) / 2.0
+}
+
 /// A value of the unit interval on a byte: clamped to `[0, 1]`, times 255, rounded half away from
 /// zero; NaN gives `0`.
 #[inline]

@@ -184,7 +184,7 @@ export const COVERAGE_CHOOSE_WGSL = wgslProgram(
   workgroupBarrier();
   let above=fromHere(t,select(cover[here+t],0u,t==0u));
   let texels=vec2u(n0.x*n0.y,nk.x*nk.y);
-  keys[t]=select(pickKey(c,t,above,texels,wide(covered,texels.y)),vec4u(0xffffffffu,0xffffffffu,255u,c),t==0u);
+  keys[t]=select(pickKey(c,t,above,texels,wideProduct(covered,texels.y)),vec4u(0xffffffffu,0xffffffffu,255u,c),t==0u);
   for(var half=128u;half>0u;half>>=1u){
    workgroupBarrier();
    if(t<half&&below(keys[t+half],keys[t])){keys[t]=keys[t+half];}

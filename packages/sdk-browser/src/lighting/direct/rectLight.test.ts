@@ -11,6 +11,7 @@ import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type V = number[]
 type View = { a: V; b: V; c: V; d: V; window: number }
@@ -53,8 +54,7 @@ function clipped(polygon: V[], up: V) {
   return Math.abs(sum) / TAU
 }
 
-let seed = 831
-const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296
+const random = lcgRandom(831)
 const sphere = () => {
   const [z, t] = [2 * random() - 1, TAU * random()]
   return [Math.sqrt(1 - z * z) * Math.cos(t), Math.sqrt(1 - z * z) * Math.sin(t), z]

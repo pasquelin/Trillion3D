@@ -2,7 +2,7 @@
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
 use crate::shared_math::WordMap;
 use trillion3d_math::triangle::barycentric_weights;
-use trillion3d_math::vec2::{barycentric, double_area};
+use trillion3d_math::vec2::{barycentric, double_area, length as length2};
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_math::vecn::weighted_sum;
 
@@ -165,7 +165,7 @@ impl<'a> Lookup<'a> {
             0.0
         } else {
             let on = weighted_sum([a, b, c], weights);
-            length([at[0] - on[0], at[1] - on[1], 0.0])
+            length2([at[0] - on[0], at[1] - on[1]])
         };
         if miss > best.0 {
             return;

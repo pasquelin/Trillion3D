@@ -7,18 +7,9 @@ import { createHash } from 'node:crypto'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
+import { xorshiftRandom } from '../../../../math/src/sequence/random.ts'
 
 export type Mesh = { indices: number[]; attributes: PageAttributes; exponent: number }
-
-function xorshift(seed: number) {
-  let s = seed >>> 0 || 1
-  return () => {
-    s ^= s << 13
-    s ^= s >>> 17
-    s ^= s << 5
-    return (s >>> 0) / 2 ** 32
-  }
-}
 
 /** A `side × side` height field; `flat` gives each triangle its own vertices under its normal. */
 function field(rand: () => number, side: number, flat: boolean, uv: boolean, color: boolean) {
@@ -67,7 +58,7 @@ function field(rand: () => number, side: number, flat: boolean, uv: boolean, col
 
 /** Every case by name: random flat-shaded and smooth meshes, then the edges. */
 export function cases(): [string, Mesh][] {
-  const rand = xorshift(960),
+  const rand = xorshiftRandom(960),
     out: [string, Mesh][] = []
   const mesh = (m: ReturnType<typeof field>, exponent: number) => ({ ...m, exponent })
   for (let i = 0; i < 40; i++) {
@@ -94,7 +85,7 @@ export function cases(): [string, Mesh][] {
     ['65,535 vertices', 65535],
     ['65,538 vertices', 65538],
   ] as const) {
-    const m = field(xorshift(106), 106, true, true, true)
+    const m = field(xorshiftRandom(106), 106, true, true, true)
     out.push([name, { ...mesh(m, -10), indices: m.indices.slice(0, corners) }])
   }
   for (const [name, span] of [

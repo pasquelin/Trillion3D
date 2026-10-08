@@ -2,7 +2,7 @@ import { GeometryBuilder, fromArrays } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
 import { signedArea, triangulate } from './triangulate.ts'
 import type { Shape } from '../math/curves.ts'
-import { normalizeVector2 } from '../../../../math/src/vector/vector.ts'
+import { cross2, normalizeVector2 } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
 type P = [number, number]
@@ -72,7 +72,7 @@ function offsetRing(ring: P[], by: number): P[] {
     normalizeVector2(e2)
     const n: P = [e1[1] + e2[1], -(e1[0] + e2[0])]
     normalizeVector2(n)
-    const miter = Math.max(0.25, n[0] * e1[1] - n[1] * e1[0])
+    const miter = Math.max(0.25, cross2(n[0], n[1], e1[0], e1[1]))
     return [p[0] + (n[0] * by) / miter, p[1] + (n[1] * by) / miter]
   })
 }

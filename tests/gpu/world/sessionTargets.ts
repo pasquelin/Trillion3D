@@ -7,6 +7,7 @@ import type {
   MeasuredWorldOptions,
   MeasuredWorldTarget,
 } from '../../../bench/witnesses/measurement.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 import { settle } from './proofWorld.ts'
 import { measurementSdk, openEngineWorld } from '../kit/renderHarness.ts'
 
@@ -21,8 +22,8 @@ export async function sessionTargets(manifestUrl: string, viewer: HTMLCanvasElem
     height: 160,
     pixelRatio: 1,
     temporalAntialiasing: false,
-    geometryPoolBytes: 16 * 1024 * 1024,
-    texturePoolBytes: 128 * 1024 * 1024,
+    geometryPoolBytes: 16 * MIB,
+    texturePoolBytes: 128 * MIB,
   }
   const images: Uint8Array[] = [],
     triangles: [number | null | undefined, number | null | undefined][] = []

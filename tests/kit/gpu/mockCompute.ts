@@ -6,6 +6,7 @@ import { compactDrawnPages } from './globals.ts'
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
 import { floats, words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { testBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
@@ -60,7 +61,7 @@ export function simulateComputeDispatch(
     const itemInts = words(byBinding.get(0)!.data)
     const n = Math.min(count, slotCap)
     const restInts = words(byBinding.get(7)!.data)
-    const restAt = (i: number) => ((restInts[i >> 5] >> (i & 31)) & 1) as 0 | 1
+    const restAt = (i: number) => testBit(restInts, i) as 0 | 1
     const items: DrawItem[] = []
     for (let i = 0; i < n; i++)
       items.push({

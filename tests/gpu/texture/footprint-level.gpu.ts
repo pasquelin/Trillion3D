@@ -15,6 +15,7 @@ import {
 } from '../../../packages/sdk-browser/src/texture/sampling.ts'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import type { FootprintCase } from './footprintLevelPage.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 const SIZE = 256,
   LAST = 8
@@ -58,7 +59,7 @@ test('every texture reads the level of its footprint, a filter without mip inclu
       // shared among them, clamped to the chain, rounded by a `nearest` mip.
       const taps = Math.min(Math.ceil(Math.max(x, y) / Math.min(x, y) - 0.01), anisotropy)
       const raw = Math.log2(Math.max(x, y)) - Math.log2(taps)
-      let lod = Math.min(Math.max(raw, 0), LAST)
+      let lod = clamp(raw, 0, LAST)
       if (minFilter.endsWith('mip-nearest')) lod = Math.floor(lod + 0.5)
       const nearest = (raw <= 0 ? magFilter : minFilter).startsWith('nearest') ? 1 : 0
       cases.push({

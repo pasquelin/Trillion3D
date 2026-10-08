@@ -4,6 +4,8 @@
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU
 // globals.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { batisseur, engine, release } from '../kit/sharedSceneProof.ts'
 import { median } from '../../../scripts/median.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -31,11 +33,9 @@ const p50 = (values: number[]) => (values.length ? median(values) : null)
  *  — repeated, mipmapped and filtered trilinearly at `anisotropy`. */
 function floorMap(anisotropy: number) {
   const texels = new Uint8Array(PICTURE * PICTURE * 4)
-  let seed = 1
-  for (let i = 0; i < texels.length; i++) {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    texels[i] = (i & 3) === 3 ? 255 : seed >>> 24
-  }
+  const noise = lcgRandom(1)
+  for (let i = 0; i < texels.length; i++)
+    texels[i] = (i & 3) === 3 ? 255 : Math.floor(noise() * 256)
   const map = Object.assign(G.dataTexture(texels, PICTURE, PICTURE), {
     colorSpace: G.HOST_COLOUR_SPACE_SRGB,
     magFilter: G.HOST_FILTER_LINEAR,
@@ -61,7 +61,7 @@ async function measure(
     G.planeGeometry(2 * HALF, 2 * HALF),
     G.basicSurface({ map: floorMap(anisotropy) }),
   )
-  floor.rotation.x = -Math.PI / 2
+  floor.rotation.x = -HALF_PI
   builder.source.add(floor)
   builder.add(floor, 'exact-clusters', HALF)
   const scene = builder.fini()

@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
 import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from './hiz.ts'
+import { lcgFloatRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 /** A page and the world its root places it by. */
 type Placed = HizPage & { matrix: { elements: Float64Array } }
@@ -29,8 +30,8 @@ function keptTable(pages: Placed[]) {
 }
 
 test('derived world corners are the former kept doubles, bit for bit, across a move', () => {
-  let seed = 7
-  const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296) * 2 - 1
+  const draw = lcgFloatRandom(7)
+  const rnd = () => draw() * 2 - 1
   const pages: Placed[] = Array.from({ length: 64 }, () => {
     const low = [rnd() * 1e4, rnd() * 50, rnd() * 1e4]
     // A sheared, far-translated world with a small projective row: every term of the divide counts.

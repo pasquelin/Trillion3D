@@ -12,7 +12,7 @@ import { shaderFunctions, vec } from './shaderRule.fixture.ts'
 import { cutoffByte } from './cutoffByte.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-const NAMES = ['scaled', 'wide', 'pickKey', 'below', 'apart']
+const NAMES = ['scaled', 'wideProduct', 'pickKey', 'below', 'apart']
 
 const table = JSON.parse(
   readFileSync(
@@ -24,7 +24,7 @@ const table = JSON.parse(
 type Vec = ReturnType<typeof vec>
 type Rule = {
   scaled(a: number, c: number, t: number): number
-  wide(a: number, b: number): Vec
+  wideProduct(a: number, b: number): Vec
   pickKey(c: number, t: number, above: number, texels: Vec, goal: Vec): Vec
   below(a: Vec, b: Vec): boolean
 }
@@ -32,7 +32,7 @@ type Rule = {
 /** The pick of `t` over `histogram`: the least key of the bytes 255 to 1, the one the choose
  *  kernel's lanes reduce to (`COVERAGE_CHOOSE_WGSL`). */
 function pickOf(rule: Rule, histogram: number[], c: number, covered: number, texels: Vec) {
-  const goal = rule.wide(covered, texels.y)
+  const goal = rule.wideProduct(covered, texels.y)
   let above = 0,
     best: Vec | undefined
   for (let t = 255; t > 0; t--) {
@@ -71,7 +71,7 @@ test("the WGSL pick of t and scale are the compiler's, on its table", () => {
     [0xffffffff, 0xffffffff],
     [65536, 65535],
   ]) {
-    const { x, y } = rule.wide(a, b)
+    const { x, y } = rule.wideProduct(a, b)
     assert.equal((BigInt(x) << 32n) | BigInt(y), BigInt(a) * BigInt(b), `${a} × ${b}`)
   }
 })
