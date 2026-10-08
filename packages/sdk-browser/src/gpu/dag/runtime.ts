@@ -7,7 +7,6 @@ import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { createSortedKeys } from '../../webgpu/cut/denseKeys.ts'
 import {
   appendRoots,
   flushRuntime,
@@ -40,7 +39,7 @@ export function createDagRuntime(
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
     beforeCut: [],
-    moves: createSortedKeys(),
+    moves: new Int32Array(8),
   }
   return selectionOver(run)
 }

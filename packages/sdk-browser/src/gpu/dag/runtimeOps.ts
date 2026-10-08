@@ -25,7 +25,6 @@ import { appendDagRoots, type DagAppended } from './pack.ts'
 import { keyBase } from './layout.ts'
 import { writeParts } from './split.ts'
 import { uploadNodes } from './treeFollow.ts'
-import { takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -40,8 +39,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
   /** The followers' steps every cut takes before it encodes (`GpuSelection.beforeCut`). */
   beforeCut: TableSync[]
-  /** The placements a send moved, listed once each (`posesMoved`). */
-  moves: SortedKeys
+  /** The placements a send moved, each once, increasing (`posesMoved`). */
+  moves: Int32Array
 }
 
 /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
@@ -73,14 +72,25 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
 const NO_RANKS = new Int32Array(0)
 
 /** The placements whose pose moved: the `moved` first of `movedScratch` — their read words — and
- *  `origins` — their exact translation —, each once, increasing. One moved: the cuts in hand and
- *  in flight keep their revision and still name what to stream. */
-function posesMoved({ state, moves }: DagRun, moved: number, origins: Int32Array) {
-  if (!moved && !origins.length) return NO_RANKS
-  for (let i = 0; i < moved; i++) moves.listed.add(movedScratch[i])
-  for (const w of origins) moves.listed.add(w)
-  state.worldRevision++
-  return takeSorted(moves)
+ *  `origins` — their exact translation —, each increasing, joined in one pass into the run's list,
+ *  each once. One moved: the cuts in hand and in flight keep their revision and still name what
+ *  to stream. */
+function posesMoved(run: DagRun, moved: number, origins: Int32Array) {
+  const n = origins.length
+  if (!moved && !n) return NO_RANKS
+  const into = (run.moves = resized(run.moves, moved + n))
+  let i = 0,
+    j = 0,
+    count = 0
+  while (i < moved || j < n) {
+    const a = i < moved ? movedScratch[i] : Infinity,
+      b = j < n ? origins[j] : Infinity
+    into[count++] = Math.min(a, b)
+    if (a <= b) i++
+    if (b <= a) j++
+  }
+  run.state.worldRevision++
+  return into.subarray(0, count)
 }
 
 /** The placements that moved among those of `named`, those whose stretch moved with them, and the
