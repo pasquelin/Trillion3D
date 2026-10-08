@@ -2,6 +2,7 @@ import type { PackedDag } from './selection.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import type { MapFaults } from '../../../../../tests/kit/gpu/mockBuffers.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
+import { FRAME_VEC4 } from './types.ts'
 
 /**
  * The kit's device (`mockGpu`) running the DAG selection on the CPU double of its kernel, with
@@ -16,13 +17,14 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
     readbackCopies: () => gpu.copyUsages.filter((usage) => usage & GPUBufferUsage.MAP_READ).length,
     /** Mappings asked of a destroyed buffer: each one a validation error on the device. */
     destroyedMaps: gpu.destroyedMaps,
-    /** One-word writes, each as its word index in its buffer and the value written. */
-    words: () =>
+    /** Writes of one host row (`frameRanges.ts`, `flushWords`), each as its first word's index
+     *  in its buffer and its words. */
+    rows: () =>
       gpu.writes
-        .filter(({ bytes }) => bytes.byteLength === 4)
-        .map(({ offset, bytes }): [number, number] => [
+        .filter(({ bytes }) => bytes.byteLength === FRAME_VEC4 * 16)
+        .map(({ offset, bytes }): [number, Uint32Array] => [
           offset / 4,
-          new Uint32Array(bytes.buffer)[0],
+          new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4),
         ]),
   }
 }

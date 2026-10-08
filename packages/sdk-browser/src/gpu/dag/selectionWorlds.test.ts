@@ -30,23 +30,25 @@ test('a root mark written once per change reaches the frame word the cut reads',
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
-  const { device, words } = mockDagDevice(dag)
+  const { device, rows } = mockDagDevice(dag)
   const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
   await selection.flush()
   const at = primitiveWordAt(0) + 3
-  const earlier = words().length
+  const earlier = rows().length
   for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark)
-  assert.deepEqual(words().slice(earlier), [], 'nothing sent before the next cut (CPU-15)')
+  assert.deepEqual(rows().slice(earlier), [], 'nothing sent before the next cut')
   assert.equal(dag.mark[0], 0)
   assert.equal(selection.peek(), null, 'the cut in hand is void')
   selection.markWorld(0, SHADOWLESS_ROOT)
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
   assert.deepEqual(
-    words().slice(earlier),
-    [[at, SHADOWLESS_ROOT]],
-    'the last word, once, at the next cut',
+    rows()
+      .slice(earlier)
+      .map(([first, words]) => [first, words[at - first]]),
+    [[0, SHADOWLESS_ROOT]],
+    'the last word, once, in its row, at the next cut',
   )
   selection.dispose()
   fixture.geometry.dispose()

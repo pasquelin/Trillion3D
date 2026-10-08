@@ -85,7 +85,9 @@ test("the host's rows and words land in their range, at their row there", async 
   frames.flushWords()
   const word = fake.writes.at(-1)!
   assert.equal(word.buffer, frames.buffers[1])
-  assert.equal(word.offset, (primitiveWordAt(5) + 1) * 4)
+  assert.equal(word.offset, 5 * 28 * 4, 'its row, the sixth of its range')
+  const sent = written(word).slice()
+  assert.equal(new Uint32Array(sent.buffer)[primitiveWordAt(0) + 1], 7)
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
 })
 

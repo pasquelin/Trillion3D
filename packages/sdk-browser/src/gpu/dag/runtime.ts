@@ -53,7 +53,7 @@ function selectionOver(run: DagRun): GpuSelection {
   const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
   const live = () => !state.disposed && !state.dead
   // The one step every cut on these tables takes before it encodes, the main view's and each view
-  // aside's: the root and mark words parked or marked since go up as one interval (CPU-15), then
+  // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), then
   // what each follower holds (`beforeCut`).
   const syncTables = (uniforms: SelectionUniforms, view: number) => {
     if (!live()) return

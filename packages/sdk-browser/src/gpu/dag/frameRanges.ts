@@ -6,6 +6,7 @@ import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeRanges } from './split.ts'
+import { createSortedKeys, takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 /** Bytes of one primitive's world matrix in `worlds`. */
@@ -35,7 +36,7 @@ export function createCameraFrames(
     ...{ device, frameData, ranges, per: ranges[0].count },
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
-    pending: { from: Infinity, to: -1 },
+    pending: createSortedKeys(),
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -81,14 +82,12 @@ export function createCameraFrames(
      *  call moved, each run to its range (`writeRanges`). */
     writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
       writeNamed(f, worldBuffers, 16, next, named, count),
-    /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
-     *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
+    /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives the
+     *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
-    /**
-     * The words written since the last flush, one write per range the interval crosses: the host
-     * rows between them hold what their range already holds, or planes `dagPrepare` writes again
-     * before any kernel reads them (`shader/shader.ts`). Nothing when no word was written.
-     */
+    /** The rows a word was written in since the last flush, each run to its range by the cut's one
+     *  run writer (`writeRanges`): their planes are ones `dagPrepare` writes again before any
+     *  kernel reads them (`shader/shader.ts`). Nothing when no word was written. */
     flushWords: () => flushWords(f),
   }
   table.writeRows()
@@ -107,8 +106,8 @@ type Frames = {
   buffers: GPUBuffer[]
   worldBuffers: GPUBuffer[]
   bounds: GPUBuffer
-  /** Words written and not yet sent: one interval, in `frameInts` indices. */
-  pending: { from: number; to: number }
+  /** The primitives whose row holds a word not yet sent. */
+  pending: SortedKeys
 }
 
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
@@ -194,25 +193,14 @@ function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
 }
 
 function writeWord({ frameInts, pending }: Frames, w: number, slot: number, value: number) {
-  const at = primitiveWordAt(w) + slot
-  frameInts[at] = value
-  if (at < pending.from) pending.from = at
-  if (at > pending.to) pending.to = at
+  frameInts[primitiveWordAt(w) + slot] = value
+  pending.listed.add(w)
 }
 
-function flushWords({ device, ranges, buffers, frameInts, pending, per }: Frames) {
-  const { from, to } = pending
-  if (to < from) return
-  pending.from = Infinity
-  pending.to = -1
-  for (let r = Math.floor(from / ROW_FLOATS / per); r < ranges.length; r++) {
-    const start = ranges[r].first * ROW_FLOATS,
-      end = start + ranges[r].count * ROW_FLOATS - 1
-    if (start > to) break
-    const a = Math.max(from, start),
-      b = Math.min(to, end)
-    device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1)
-  }
+function flushWords(f: Frames) {
+  if (!f.pending.listed.count) return
+  const named = takeSorted(f.pending)
+  writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, named.length)
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
 /** A cut's group without its range's own buffers (`dagGroupEntries`). */
