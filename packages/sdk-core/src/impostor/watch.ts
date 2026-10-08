@@ -365,7 +365,9 @@ function onDistance(c: number, a: number, b: number, rho: number) {
 function onBound(s: State, reading: Reading, rank: number, a: number, b: number) {
   const world = s.roots![rank].world.elements,
     centre = reading.table.entries[rank]?.centre ?? [0, 0, 0]
-  const [x, y, z] = centre
+  const x = centre[0],
+    y = centre[1],
+    z = centre[2]
   const offset = length3(
     transformDirectionRow(world, 0, x, y, z),
     transformDirectionRow(world, 1, x, y, z),
