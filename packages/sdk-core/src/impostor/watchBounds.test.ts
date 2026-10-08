@@ -7,19 +7,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorRoot } from './plan.ts'
 import { createImpostorWatch } from './watch.ts'
-import { COS, FOCAL, PROJECTION, TREE, field, section, viewAt } from './watch.fixture.ts'
+import { COS, FOCAL, PROJECTION, TREE, field, keptHeaps, section, viewAt } from './watch.fixture.ts'
 import { impostorTexelDepth, impostorTriangleDepth } from './switch.ts'
 
 test('roots read every image under a still view hold one place each in the heaps', () => {
-  const roots = field(600),
-    watch = createImpostorWatch(),
+  const heaps = keptHeaps(),
+    roots = field(600),
+    watch = createImpostorWatch(heaps.make),
     view = viewAt([0, 2, 0], 0)
   // Each root read is asked once whether it may take a card: the reads counted there.
   let reads = 0
   const carded = () => (reads++, true)
   watch.update(roots, section, view, FOCAL, COS, carded)
   const settled = watch.hostBytes
-  assert.ok(reads > 0)
+  assert.ok(reads > 0 && heaps.waiting() <= roots.length)
   // The engine moves every root each image, the camera still: each is read again.
   for (let image = 0; image < 200; image++) {
     roots.forEach((_, rank) => watch.touch(rank))
@@ -27,7 +28,8 @@ test('roots read every image under a still view hold one place each in the heaps
     watch.update(roots, section, view, FOCAL, COS, carded)
     assert.equal(reads, roots.length)
   }
-  assert.equal(watch.hostBytes, settled, 'one place a root, whatever the reads')
+  assert.ok(heaps.waiting() <= roots.length, 'one place a root at most, whatever the reads')
+  assert.equal(watch.hostBytes, settled, 'the watch at its size')
 })
 
 test('a far root past the frustum’s widest direction whose sphere reaches the image keeps the plan’s verdict', () => {

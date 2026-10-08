@@ -4,32 +4,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createImpostorWatch } from './watch.ts'
-import { createHeap } from '../../../math/src/sequence/heap.ts'
-import { COS, FOCAL, field, section, viewAt } from './watch.fixture.ts'
+import { COS, FOCAL, field, keptHeaps, section, viewAt } from './watch.fixture.ts'
 
 test('a steady motion past sixteen anchors takes about one heap place a read', () => {
-  let reads = 0,
-    pushes = 0,
-    counting = false
+  let reads = 0
   // The watch's heaps, each push counted once the motion has settled; each root read is asked
   // once whether it may take a card.
-  const heaps = new Set<ReturnType<typeof createHeap<number>>>()
+  const heaps = keptHeaps()
   const roots = field(4000),
-    watch = createImpostorWatch((before, placed) => {
-      const heap = createHeap(before, placed),
-        push = heap.push
-      heap.push = (rank) => ((pushes += counting ? 1 : 0), push(rank))
-      heaps.add(heap)
-      return heap
-    })
-  const carded = () => ((reads += counting ? 1 : 0), true)
+    watch = createImpostorWatch(heaps.make)
+  const carded = () => ((reads += heaps.counting ? 1 : 0), true)
   for (let frame = 0; frame < 300; frame++) {
-    counting = frame >= 100
+    heaps.counting = frame >= 100
     watch.update(roots, section, viewAt([frame * 3, 2, 0], 0), FOCAL, COS, carded)
   }
   assert.ok(reads > 0, 'the motion reads roots')
   // A read takes one place, and a root merged out of an old anchor one more: never a heap whole.
-  assert.ok(pushes <= 2 * reads, `${pushes} places for ${reads} reads`)
-  const waiting = [...heaps].reduce((sum, heap) => sum + heap.size, 0)
-  assert.ok(waiting <= roots.length, 'one place a root at most')
+  assert.ok(heaps.pushes <= 2 * reads, `${heaps.pushes} places for ${reads} reads`)
+  assert.ok(heaps.waiting() <= roots.length, 'one place a root at most')
 })

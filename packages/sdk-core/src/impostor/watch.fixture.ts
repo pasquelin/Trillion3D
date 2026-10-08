@@ -2,6 +2,7 @@
 import type { ImpostorRoot } from './plan.ts'
 import { impostorViewCosine } from './watch.ts'
 import { bakedMesh } from './bakedMesh.fixture.ts'
+import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 
 export const FOCAL = 1117
@@ -58,4 +59,27 @@ export function inView(view: Float64Array, root: ImpostorRoot) {
 export function swayAt(k: number, turn = 0) {
   const eye = [Math.sin(k * 0.21), 2, 0.6 * Math.cos(k * 0.13)]
   return viewAt(eye, (Math.PI / 180) * Math.sin(k * 0.17) + turn * k)
+}
+
+/** The heaps a watch is handed (`createImpostorWatch`), each kept: the roots waiting in them, and
+ *  the pushes made while `counting`. */
+export function keptHeaps() {
+  const heaps = new Set<ReturnType<typeof createHeap<number>>>()
+  const kept = {
+    counting: true,
+    pushes: 0,
+    /** Roots waiting in every heap made. */
+    waiting: () => [...heaps].reduce((sum, heap) => sum + heap.size, 0),
+    make: (
+      before: (a: number, b: number) => boolean,
+      placed: (rank: number, at: number) => void,
+    ) => {
+      const heap = createHeap(before, placed),
+        push = heap.push
+      heap.push = (rank) => ((kept.pushes += kept.counting ? 1 : 0), push(rank))
+      heaps.add(heap)
+      return heap
+    },
+  }
+  return kept
 }
