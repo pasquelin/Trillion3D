@@ -137,6 +137,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
      *  only a cut that selected more raises them (`growTables.ts`, `followCutRows`). */
     viewRows,
     worldUpdates,
+    /** The placements a host walk's scan found moved, without a GPU cut (`rootWorldsMoved`). */
+    worldsScanned: new Int32Array(8),
     gpuWanted,
     /** The visibility rows, as the table stands: it grows in place (`growTables.ts`), so every
      *  reader of the table's size reads it here, at each use. */

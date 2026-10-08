@@ -53,7 +53,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     selection = run.gpuSelection,
     cards = rt.gpu?.impostors
   if (!hostWalked) {
-    rootWorldsAt(worldUpdates, selectionRoots, named)
+    rootWorlds(worldUpdates, selectionRoots, named)
     rt.timing.worldCounts.rootsUploaded = named.length
     const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
     cards?.worldsMoved(moved)
@@ -67,7 +67,10 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     rootWorlds(worldUpdates, selectionRoots)
     moved = selection.updateWorlds(worldUpdates)
   } else {
-    scanned = resized(scanned, selectionRoots.length)
+    const scanned = (rt.layout.worldsScanned = resized(
+      rt.layout.worldsScanned,
+      selectionRoots.length,
+    ))
     moved = rootWorldsMoved(worldUpdates, selectionRoots, scanned)
     rootWorlds(worldUpdates, selectionRoots)
   }
@@ -79,16 +82,4 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     invalidateOccluderHistory(run)
   }
   return true
-}
-
-/** The placements a host walk's scan found moved, without a GPU cut (`rootWorldsMoved`). */
-let scanned = new Int32Array(8)
-
-/** The worlds of the placements of `ranks` taken into `worlds` (`rootWorlds`), and no other. */
-function rootWorldsAt(
-  worlds: Float32Array,
-  roots: WebgpuPagesRuntime['layout']['selectionRoots'],
-  ranks: Int32Array,
-) {
-  for (const rank of ranks) worlds.set(roots[rank].world.elements, rank * 16)
 }

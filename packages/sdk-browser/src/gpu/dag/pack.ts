@@ -369,11 +369,19 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
   )
 }
 
-/** Each root's world as the cut's worlds hold it: its sixteen numbers in single precision, the
- *  translation kept exactly beside them (`worldOrigins.ts`), which each cut reads at its own eye
- *  (`shader/worldPoseWgsl.ts`). */
-export function rootWorlds(worlds: Float32Array, roots: readonly DagRoot[]) {
-  for (let w = 0; w < roots.length; w++) worlds.set(roots[w].world.elements, w * 16)
+/** Each root's world as the cut's worlds hold it — or those of `ranks` alone, the others left —:
+ *  its sixteen numbers in single precision, the translation kept exactly beside them
+ *  (`worldOrigins.ts`), which each cut reads at its own eye (`shader/worldPoseWgsl.ts`). */
+export function rootWorlds(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  ranks?: ArrayLike<number>,
+) {
+  const count = ranks ? ranks.length : roots.length
+  for (let k = 0; k < count; k++) {
+    const w = ranks ? ranks[k] : k
+    worlds.set(roots[w].world.elements, w * 16)
+  }
 }
 
 /**

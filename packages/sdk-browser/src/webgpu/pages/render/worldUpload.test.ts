@@ -19,6 +19,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
         { world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, 0, 0, 1] }, pages: [] },
       ],
       worldUpdates: new Float32Array(16),
+      worldsScanned: new Int32Array(1),
       rows: { tableEpoch: 1 },
     },
     timing: { worldCounts: { rootsUploaded: 0 } },
