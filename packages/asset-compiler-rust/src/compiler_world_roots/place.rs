@@ -9,9 +9,9 @@ use crate::compiler_world::cofactor_direction;
 use crate::dag::tight::ball_of_balls;
 use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 use crate::proxy::{place, world_scale};
-use crate::shared_math::{linear_columns, unit};
+use crate::shared_math::unit;
+use trillion3d_math::linear::determinant;
 use trillion3d_math::matrix::transform_point;
-use trillion3d_math::vec3::{cross, dot};
 
 /// The attributes a world vertex may carry, in the order a page writes them, at the width a world
 /// page stores each: the page format's own.
@@ -82,8 +82,7 @@ pub(super) fn gather(
     for &instance in members {
         let placed = &instances[instance];
         let base = (positions.len() / 3) as u32;
-        let [a0, a1, a2] = linear_columns(&placed.matrix);
-        let mirrored = dot(a0, cross(a1, a2)) < 0.0;
+        let mirrored = determinant(&placed.matrix) < 0.0;
         place(&placed.cover.positions, &placed.matrix, &mut positions);
         place_attributes(placed.cover, &placed.matrix, mirrored, &mut carried);
         let scale = world_scale(&placed.matrix);
