@@ -89,14 +89,23 @@ export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks: ArrayLike
   }
 }
 
+/** Bytes of one card (`CardHolder`): an object of three fields, its header and its fields a word
+ *  each; and of its entry in its mesh's card of each world, a key, a value and a link of the
+ *  map's table and its bucket. */
+export const CARD_HOLDER_BYTES = 6 * 4,
+  HOLDER_ENTRY_BYTES = 4 * 4
+
 /** Bytes of the tier's host tables: the watch's (`hostBytes`), the card records and the slots to
- *  send, the card each root holds and the roots that moved, and each mesh's roots switched and
- *  cards. */
+ *  send, the card each root holds and the roots that moved, and each mesh's roots switched, cards
+ *  and their objects and entries. */
 export function impostorCardsBytes<G>(state: ImpostorCards<G>) {
   const { slots } = state
   let segments = 0
   for (const segment of state.segments.values())
-    segments += segment.eligible.byteLength + 8 * segment.cards.length
+    segments +=
+      segment.eligible.byteLength +
+      8 * segment.cards.length +
+      segment.holders.size * (CARD_HOLDER_BYTES + HOLDER_ENTRY_BYTES)
   return (
     state.watch.hostBytes +
     slots.records.byteLength +
