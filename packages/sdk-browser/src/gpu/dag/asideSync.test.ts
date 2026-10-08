@@ -53,7 +53,6 @@ test('a view aside cut alone reads the tree refitted and the root word of a park
     next = packed.worlds.slice()
   ;(roots[399].world.elements as Float64Array)[12] += 1000
   next[399 * 16 + 12] += 1000
-  selection.placementMoved!(399)
   selection.updateWorlds(next, Int32Array.of(399))
   selection.parkWorld(5, true)
   await side()

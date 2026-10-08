@@ -15,7 +15,7 @@ import { packDoubles } from '../../placement/composedMotion.ts'
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()
-  assert.equal(selection.updateWorlds(moveRoot(dag, 0, 1000)), true)
+  assert.deepEqual([...selection.updateWorlds(moveRoot(dag, 0, 1000))], [0])
   // Still what to stream, cut under the pose before: no image is held on it (`adoption.ts`).
   assert.equal(selection.peek()?.result.pageIds.length, 4)
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)
@@ -65,7 +65,7 @@ test('worlds the GPU rewrote are cut again once announced, never under the last 
     range.count * 16,
     [1000, 0, 0],
   )
-  assert.equal(selection.updateWorlds(dag.worlds.slice()), false, 'no CPU world moved')
+  assert.equal(selection.updateWorlds(dag.worlds.slice()).length, 0, 'no CPU world moved')
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut')
   selection.worldsMovedOnGpu()

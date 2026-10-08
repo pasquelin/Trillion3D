@@ -22,7 +22,7 @@ test('an in-flight snapshot that a world change crosses is never drained as the 
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
   // describes the previous pose. It lands marked so: it still names what to stream, but the drain
   // never hands it back as the cut of the poses in place.
-  assert.equal(selection.updateWorlds(moveRoot(dag, 0, 1000)), true)
+  assert.deepEqual([...selection.updateWorlds(moveRoot(dag, 0, 1000))], [0])
   release()
   for (let turn = 0; turn < 16 && !selection.peek(); turn++)
     await new Promise((done) => setImmediate(done))

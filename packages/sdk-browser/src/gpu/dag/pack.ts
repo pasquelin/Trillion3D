@@ -377,15 +377,15 @@ export function rootWorlds(worlds: Float32Array, roots: readonly DagRoot[]) {
 }
 
 /**
- * Whether a root's world is no longer the one `worlds` holds (`rootWorlds`): the same
- * single-precision rounding, so a pose the host left alone compares bit for bit, whatever the eye.
- * Nothing is written.
+ * The roots whose world is no longer the one `worlds` holds (`rootWorlds`), increasing, listed in
+ * `into` — one entry a root at least —: the same single-precision rounding, so a pose the host
+ * left alone compares bit for bit, whatever the eye. Nothing is written.
  */
-export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[]) {
-  for (let w = 0; w < roots.length; w++) {
-    if (!sameMatrixFloat32(worlds, roots[w].world.elements, w * 16)) return true
-  }
-  return false
+export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[], into: Int32Array) {
+  let count = 0
+  for (let w = 0; w < roots.length; w++)
+    if (!sameMatrixFloat32(worlds, roots[w].world.elements, w * 16)) into[count++] = w
+  return into.subarray(0, count)
 }
 
 /**

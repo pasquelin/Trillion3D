@@ -40,7 +40,7 @@ function image(count: number, next: () => number) {
       gpuSelection: {
         updateWorlds(worlds: Float32Array) {
           sends.push(new Uint32Array(worlds.slice().buffer))
-          return control.reply()
+          return control.reply() ? Int32Array.of(0) : new Int32Array(0)
         },
       },
     },

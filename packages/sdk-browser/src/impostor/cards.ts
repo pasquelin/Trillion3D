@@ -66,10 +66,8 @@ export function createImpostorCards<G>(section: ImpostorSection, hooks: CardHook
     segments: new Map<number, CardSegment<G>>(),
     /** Per root: the card it holds. */
     holding: [] as (CardHolder | undefined)[],
-    /** Roots whose world moved since the last image (`worldsMoved`), each once; all of them when
-     *  `allMoved`. */
+    /** Roots whose world moved since the last image (`worldsMoved`), each once. */
     moves: core.createDenseKeySet(),
-    allMoved: false,
     /** The root list the cards were planned over; none before the first plan or after a drop. */
     roots: NO_ROOTS,
     /** This image's runs, `runs[0 .. runCount)`, and the cards they draw. */
@@ -83,9 +81,8 @@ export type ImpostorCards<G> = ReturnType<typeof createImpostorCards<G>>
 /** Told of each root whose card bit moved: the GPU cut's copy of the mark follows it. */
 type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
 
-/** The roots `ranks` moved, or every root: their switch read again and their cards written. */
-export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks?: ArrayLike<number>) {
-  if (!ranks) return void (state.allMoved = true)
+/** The roots `ranks` moved: their switch read again and their cards written. */
+export function impostorWorldsMoved<G>(state: ImpostorCards<G>, ranks: ArrayLike<number>) {
   for (let i = 0; i < ranks.length; i++) {
     state.moves.add(ranks[i])
     state.watch.touch(ranks[i])
@@ -133,7 +130,6 @@ export function planImpostorCards<G>(
   if (state.roots !== roots) dropImpostorCards(state)
   state.roots = roots
   if (state.holding.length < roots.length) state.holding.length = roots.length
-  if (state.allMoved) state.watch.touchAll()
   const { watch } = state,
     cos = impostorViewCosine(cam.projection)
   watch.update(roots, state.section, cam.view, focal, cos, state.hooks.carded)
@@ -262,13 +258,9 @@ function follow<G>(state: ImpostorCards<G>, rank: number) {
 
 /** The roots that moved since the last image (`impostorWorldsMoved`). */
 function followMoves<G>(state: ImpostorCards<G>) {
-  if (state.allMoved) for (let rank = 0; rank < state.roots.length; rank++) follow(state, rank)
-  else {
-    const { list, count } = state.moves
-    for (let i = 0; i < count; i++) follow(state, list[i])
-  }
+  const { list, count } = state.moves
+  for (let i = 0; i < count; i++) follow(state, list[i])
   state.moves.clear()
-  state.allMoved = false
 }
 
 /** Each mesh with a switched root whose box the view holds: its atlas asked, its cards taken as it

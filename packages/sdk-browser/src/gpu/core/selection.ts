@@ -98,13 +98,11 @@ export type GpuSelection = {
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
   readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
-   *  or, `named` given, those it lists, increasing, the placements a call moved, named first
-   *  (`placementMoved`): those alone are compared and sent. Advances `worldRevision` when one
-   *  moved. */
-  updateWorlds(worlds: Float32Array, named?: Int32Array): boolean
-  /** Placement `world`'s pose was just written by a call that names it (`moveRootRows`): its
-   *  tree group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
-  placementMoved?(world: number): void
+   *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
+   *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
+   *  translation —, increasing, a view the next call overwrites: what the placement tree and the
+   *  impostor cards follow (`../dag/treeFollow.ts`). Advances `worldRevision` when one moved. */
+  updateWorlds(worlds: Float32Array, named?: Int32Array): Int32Array
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */

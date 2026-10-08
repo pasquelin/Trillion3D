@@ -9,8 +9,9 @@ import { followPlacementTree } from './treeFollow.ts'
 import { stepsOnly } from './stepsOnly.fixture.ts'
 import type { GpuSelection } from '../core/selection.ts'
 
-/** A field of `side`² placements under a followed tree, its selection a stand-in, the placements
- *  `composed` holds composed on the GPU; the bytes each write sends. */
+/** A field of `side`² placements under a followed tree, its selection a stand-in whose send says
+ *  placement 70 moved — or those a call named —, the placements `composed` holds composed on the
+ *  GPU; the bytes each write sends. */
 function followed(side = 40, composed?: ReadonlySet<number>) {
   const roots = placementField(side, 6),
     packed = packDagSelection(roots)
@@ -22,7 +23,7 @@ function followed(side = 40, composed?: ReadonlySet<number>) {
     },
   } as unknown as GPUDevice
   const selection = stepsOnly({
-    updateWorlds: () => true,
+    updateWorlds: (_: Float32Array, named?: Int32Array) => named ?? Int32Array.of(70),
     parkWorld: () => {},
     markWorld: () => {},
     worldsMovedOnGpu: () => {},
@@ -45,24 +46,23 @@ test('a pose moved is read where it went by the next cut', () => {
   assert.ok(seen.includes(70), 'the cut reads the placement at its new pose')
 })
 
-test('a pose a call names refits its group and the nodes above it, never the whole tree', () => {
+test('a pose a send moves refits its group and the nodes above it, never the whole tree', () => {
   const { roots, packed, selection, writes } = followed(160)
   const sent = () => writes.reduce((sum, bytes) => sum + bytes, 0),
     nodeBytes = 24 * 4,
     tree = packed.placementTree!.levels.reduce((sum, { count }) => sum + count, 0)
   ;(roots[70].world.elements as Float64Array)[12] = 1000
-  selection.placementMoved!(70)
   selection.updateWorlds(packed.worlds, Int32Array.of(70))
   selection.dispatch({} as never)
   // A node per level of the tree, their runs joined: a sixth of its nodes at most.
   assert.ok(sent() <= (tree / 6) * nodeBytes, `${sent() / nodeBytes} of ${tree} nodes sent`)
   const seen = fieldCut(roots, fieldCamera([990, 2, 0], [1000, 0, -50]), true, packed).placements
   assert.ok(seen.includes(70))
-  // A host walk names none: every box is fitted again.
+  // A host walk names none: the poses its send moved refit their groups alone, never every box.
   const before = sent()
   selection.updateWorlds(packed.worlds)
   selection.dispatch({} as never)
-  assert.equal(sent() - before, tree * nodeBytes, 'every tree node')
+  assert.ok(sent() - before <= (tree / 6) * nodeBytes, 'the moved one’s group and the nodes above')
 })
 
 test('a root its parent composes on the GPU opens its group alone, until it is unlinked', () => {

@@ -61,7 +61,11 @@ test('split world bindings retain camera matrix bytes and keep absolute origins 
     frames.worldBuffers.forEach((buffer, r) =>
       assert.deepEqual(data(buffer, fake.writes).subarray(frames.ranges[r].count * 16), tails[r]),
     )
-    assert.equal(frames.writeWorldOrigins(), 0, 'unchanged physical poses upload no origin tail')
+    assert.equal(
+      frames.writeWorldOrigins().length,
+      0,
+      'unchanged physical poses upload no origin tail',
+    )
   }
 })
 
@@ -83,7 +87,7 @@ test('a millimetre physical move updates only its origin words, its exact double
   sources[0].world.elements[12] += 0.001
   rootWorlds(next, sources)
   assert.equal(next[12], original, 'single absolute float cannot carry this move')
-  assert.equal(frames.writeWorldOrigins(), 1)
+  assert.deepEqual([...frames.writeWorldOrigins()], [0])
   assert.equal(fake.writes.length - before, 1)
   const last = fake.writes.at(-1)!
   assert.equal(last.offset, sources.length * 64)

@@ -161,8 +161,6 @@ export function createImpostorWatch() {
     radiusOf: (rank: number) => s.table!.radius[rank],
     /** Root `rank` moved, or may take a card or not: read at the next update. */
     touch: (rank: number) => void s.touched.push(rank),
-    /** Every root read at the next update. */
-    touchAll: () => void (s.every = true),
     /** The verdicts at `view` (world to view, rigid), the focal length `focal` in pixels and the
      *  frustum cosine `cos` (`impostorViewCosine`); `carded` false keeps a root from its card. */
     update(

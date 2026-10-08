@@ -32,7 +32,7 @@ function createWebgpuImpostors(
   return Object.assign(cards, {
     pass,
     /** The roots `ranks` moved — every root when absent —: their switch and cards follow. */
-    worldsMoved: (ranks?: ArrayLike<number>) => impostorWorldsMoved(cards, ranks),
+    worldsMoved: (ranks: ArrayLike<number>) => impostorWorldsMoved(cards, ranks),
     /** A placement's link to the world DAG moved: whether it may take a card is read again (the
      *  session's cut tells it, `../pages/prepare/cut.ts`). */
     linkMoved: (rank: number) => cards.watch.touch(rank),

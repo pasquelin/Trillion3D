@@ -3,6 +3,7 @@ import { invalidateOccluderHistory } from '../io/drops.ts'
 import { followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { takeSorted } from '../../cut/denseKeys.ts'
+import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -45,31 +46,43 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   if (!worldsMoved) return false
   run.worldUploadRevision = run.gate.revisions.scene
   // The placements a call moved, each named beside its rows' write (`movedWorlds.ts`): their
-  // worlds alone go up. A host walk named none: every one does.
-  const named = takeSorted(run.movedWorlds)
-  // The impostor cards follow the same moves: those named, or every root after a host walk.
-  rt.gpu?.impostors?.worldsMoved(hostWalked ? undefined : named)
+  // worlds alone go up. A host walk named none: every one does. The GPU cut says which poses its
+  // send moved (`updateWorlds`) — without one, those named, or those a scan finds —, and the
+  // impostor cards follow those alone.
+  const named = takeSorted(run.movedWorlds),
+    selection = run.gpuSelection,
+    cards = rt.gpu?.impostors
   if (!hostWalked) {
     rootWorldsAt(worldUpdates, selectionRoots, named)
     rt.timing.worldCounts.rootsUploaded = named.length
-    if (named.length) run.gpuSelection?.updateWorlds(worldUpdates, named)
+    const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
+    cards?.worldsMoved(moved)
     return true
   }
   rt.timing.worldCounts.rootsUploaded = selectionRoots.length
   // A host write that moved no pose — a light dimmed — keeps the table. The GPU cut compares the
-  // worlds it holds with those sent, and says so (`updateWorlds`); without one, the host scans.
-  const selection = run.gpuSelection,
-    scanned = !selection && rootWorldsMoved(worldUpdates, selectionRoots)
-  rootWorlds(worldUpdates, selectionRoots)
-  const posesMoved = selection ? selection.updateWorlds(worldUpdates) : scanned
+  // worlds it holds with those sent, and says so; without one, the host scans.
+  let moved: Int32Array
+  if (selection) {
+    rootWorlds(worldUpdates, selectionRoots)
+    moved = selection.updateWorlds(worldUpdates)
+  } else {
+    scanned = resized(scanned, selectionRoots.length)
+    moved = rootWorldsMoved(worldUpdates, selectionRoots, scanned)
+    rootWorlds(worldUpdates, selectionRoots)
+  }
+  cards?.worldsMoved(moved)
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again.
-  if (posesMoved) {
+  if (moved.length) {
     rows.tableEpoch++
     invalidateOccluderHistory(run)
   }
   return true
 }
+
+/** The placements a host walk's scan found moved, without a GPU cut (`rootWorldsMoved`). */
+let scanned = new Int32Array(8)
 
 /** The worlds of the placements of `ranks` taken into `worlds` (`rootWorlds`), and no other. */
 function rootWorldsAt(

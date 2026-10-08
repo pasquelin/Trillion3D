@@ -54,8 +54,8 @@ export function createCameraFrames(
     buffers,
     worldBuffers,
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
-     *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); how many
-     *  moved. */
+     *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
+     *  moved (`createWorldOrigins`). */
     writeWorldOrigins: (named?: Int32Array) => origins.write(named),
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),

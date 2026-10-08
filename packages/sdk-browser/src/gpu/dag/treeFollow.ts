@@ -1,9 +1,9 @@
 /**
  * THE PLACEMENT TREE KEPT TO THE POSES IT BOUNDS: a selection's tree (`placementTree.ts`)
  * fitted again where a change lands, and only there, once before the next cut is encoded — a
- * placement parked or taken back, marked past what a box holds or posed by a call that names it
- * (`placementMoved`), refits its group and the nodes above; a host walk, which names no placement,
- * refits every box once, as the worlds it moves are sent whole. Each refit writes back
+ * placement parked or taken back, marked past what a box holds or whose pose a send moved
+ * (`updateWorlds`, a call's or a host walk's alike), refits its group and the nodes above. Each
+ * refit writes back
  * the tree nodes it changed, never the placements' own nodes, before the cut reads the tree again. A pose the GPU
  * composes (`../../placement/gpuCompose.ts`) is not one the host holds: the group of a root composed
  * so is open while it is, and no other (`composedPlacement`).
@@ -63,11 +63,10 @@ export function followPlacementTree(
     markWorld(w, mark)
     if (opensTree(packed.mark[w]) !== opened) dirty.listed.add(w)
   }
-  // A pose a call named fits its group again; a host walk, which names none, fits every box.
-  selection.placementMoved = (w) => void dirty.listed.add(w)
+  // A pose a send moved fits its group again, a host walk's as a call's: the placements it says.
   selection.updateWorlds = (worlds, named) => {
     const moved = updateWorlds(worlds, named)
-    if (moved && !named) whole = true
+    for (const w of moved) dirty.listed.add(w)
     return moved
   }
   // A root a parent composes on the GPU holds a pose the CPU does not: its group opens, and only

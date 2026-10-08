@@ -38,14 +38,16 @@ test('a pose left alone reads unmoved, one changed past single precision moved',
     const roots = rootsOf(randomWorlds(next, 1 + Math.floor(next() * 40)))
     const sent = new Float32Array(roots.length * 16)
     rootWorlds(sent, roots)
-    assert.equal(rootWorldsMoved(sent, roots), false, `round ${round}`)
-    const world = roots[Math.floor(next() * roots.length)].world.elements as Float64Array,
+    const into = new Int32Array(roots.length)
+    assert.deepEqual([...rootWorldsMoved(sent, roots, into)], [], `round ${round}`)
+    const rank = Math.floor(next() * roots.length),
+      world = roots[rank].world.elements as Float64Array,
       at = Math.floor(next() * 16)
     world[at] = world[at] * 2 + 1
     const fresh = new Float32Array(sent.length)
     rootWorlds(fresh, roots)
     const seen = fresh.some((value, i) => value !== sent[i])
-    assert.equal(rootWorldsMoved(sent, roots), seen, `element ${at}`)
+    assert.deepEqual([...rootWorldsMoved(sent, roots, into)], seen ? [rank] : [], `element ${at}`)
     if (seen) visible++
   }
   assert.ok(visible > 100, 'most changes reach single precision')
@@ -55,6 +57,7 @@ test('a NaN pose never reads unmoved; no root never moved', () => {
   const roots = rootsOf([Float64Array.from({ length: 16 }, (_, i) => (i === 13 ? NaN : i))])
   const sent = new Float32Array(16)
   rootWorlds(sent, roots)
-  assert.equal(rootWorldsMoved(sent, roots), true)
-  assert.equal(rootWorldsMoved(sent, []), false)
+  const into = new Int32Array(1)
+  assert.deepEqual([...rootWorldsMoved(sent, roots, into)], [0])
+  assert.deepEqual([...rootWorldsMoved(sent, [], into)], [])
 })

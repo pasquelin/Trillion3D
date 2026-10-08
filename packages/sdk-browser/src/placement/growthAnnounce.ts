@@ -26,12 +26,12 @@ export function keepMovesFor(rt: Pick<WebgpuPagesRuntime, 'run'>) {
 /**
  * The poses that moved since `cut` was packed, given to it at its swap as park and mark are: the
  * worlds the session sent since — those named, or every one after a host walk —, with their exact
- * translations and stretch, and their tree groups fitted again. O(moves), never a walk of every
- * world unless the host walked them.
+ * translations and stretch; its tree follows the poses its send moved. O(moves), never a walk of
+ * every world unless the host walked them.
  */
 export function replayMoves(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'layout'>,
-  cut: Pick<GpuSelection, 'updateWorlds' | 'placementMoved'>,
+  cut: Pick<GpuSelection, 'updateWorlds'>,
 ) {
   const since = rt.run.movedWorlds.since,
     worlds = rt.layout.worldUpdates
@@ -39,7 +39,5 @@ export function replayMoves(
   if (!since) return
   if (since.walked) return void cut.updateWorlds(worlds)
   const ranks = takeSorted(since.ranks)
-  if (!ranks.length) return
-  for (const rank of ranks) cut.placementMoved?.(rank)
-  cut.updateWorlds(worlds, ranks)
+  if (ranks.length) cut.updateWorlds(worlds, ranks)
 }

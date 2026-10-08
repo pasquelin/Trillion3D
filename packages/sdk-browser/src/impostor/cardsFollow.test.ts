@@ -22,7 +22,7 @@ test('a card is written from its root’s world as it is now, one remade elsewhe
   const elements = Float64Array.from(roots[0].world.elements)
   elements[12] = 2.5
   roots[0].world = { ...roots[0].world, elements } as (typeof roots)[0]['world']
-  impostorWorldsMoved(state)
+  impostorWorldsMoved(state, [0])
   planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.deepEqual(translation(state.slots.records), [2.5, 0, 0])
   fixture.geometry.dispose()

@@ -22,7 +22,7 @@ test('a host walk that turned one placement sends its world and its row alone', 
   // Placement 70 scaled twice along x: its stretch moves with it.
   next[70 * 16] *= 2
   const before = gpu.writes.length
-  assert.equal(selection.updateWorlds(next), true)
+  assert.deepEqual([...selection.updateWorlds(next)], [70], 'the one pose moved')
   const bytes = (label: string) =>
     gpu.writes
       .slice(before)

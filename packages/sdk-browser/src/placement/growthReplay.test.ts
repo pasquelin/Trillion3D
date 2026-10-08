@@ -1,5 +1,5 @@
 // A cut packed beside the running one is handed, at its swap, the poses named since its pack —
-// those alone, their tree groups fitted again —, or every world when the host walked them
+// those alone —, or every world when the host walked them
 // meanwhile; a growth in place leaves the running cut its own. On generated moves of 1 to 500
 // placements among 10⁴.
 import test from 'node:test'
@@ -15,13 +15,12 @@ const runtime = () => {
     run: { movedWorlds, gate: { engineMovedInPlace() {} } },
     layout: { worldUpdates: new Float32Array(10_000 * 16) },
   } as unknown as WebgpuPagesRuntime
-  const cut = { sent: [] as (number[] | 'all')[], refit: [] as number[] }
+  const cut = { sent: [] as (number[] | 'all')[] }
   const target = {
     updateWorlds: (_: Float32Array, named?: Int32Array) => (
       cut.sent.push(named ? [...named] : 'all'),
-      true
+      named ?? new Int32Array(0)
     ),
-    placementMoved: (w: number) => void cut.refit.push(w),
   }
   return { rt, cut, target }
 }
@@ -37,7 +36,6 @@ test('the poses named while a cut was made reach it at its swap, they alone', ()
     replayMoves(rt, target)
     const sorted = [...ranks].sort((a, b) => a - b)
     assert.deepEqual(cut.sent, [sorted], `${count} poses`)
-    assert.deepEqual(cut.refit, sorted, 'their groups fitted again')
     assert.equal(rt.run.movedWorlds.since, undefined, 'kept no more')
   }
 })

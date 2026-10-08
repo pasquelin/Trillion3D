@@ -20,7 +20,11 @@ test('a named pose sends its world and its translation alone, each where its ran
   ;(roots[70].world.elements as Float64Array)[12] += 1
   worlds.set(roots[70].world.elements, 70 * 16)
   const before = gpu.writes.length
-  assert.equal(selection.updateWorlds(worlds, Int32Array.of(3, 70)), true)
+  assert.deepEqual(
+    [...selection.updateWorlds(worlds, Int32Array.of(3, 70))],
+    [70],
+    'the one that moved',
+  )
   const sent = gpu.writes.slice(before).filter(({ label }) => label === 'Trillion3D DAG worlds')
   // Placement 3 was named and did not move: nothing of it goes up.
   assert.deepEqual(

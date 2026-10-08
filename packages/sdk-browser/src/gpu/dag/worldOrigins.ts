@@ -59,7 +59,8 @@ export function createWorldOrigins(
       words.fill(0xffffffff, row * 8, row * 8 + 8)
     },
     /** Called only for physical pose changes, never for a camera move: every placement's, or
-     *  only those of `named`, increasing — the placements a call moved. How many it sent. */
+     *  only those of `named`, increasing — the placements a call moved. Those it sent, increasing,
+     *  a view the next call overwrites. */
     write(named?: Int32Array) {
       let count = 0
       const all = named === undefined,
@@ -71,7 +72,7 @@ export function createWorldOrigins(
         changed[count++] = row
       }
       if (count) writeRanges(device, target, changed, count, source)
-      return count
+      return changed.subarray(0, count)
     },
   }
   return origins

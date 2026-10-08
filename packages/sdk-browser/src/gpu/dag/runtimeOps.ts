@@ -20,6 +20,7 @@ import { appendDagRoots, type DagAppended } from './pack.ts'
 import { keyBase } from './layout.ts'
 import { writeParts } from './split.ts'
 import { uploadNodes } from './treeFollow.ts'
+import { takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -34,6 +35,8 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
   /** The followers' steps every cut takes before it encodes (`GpuSelection.beforeCut`). */
   beforeCut: TableSync[]
+  /** The placements a send moved, listed once each (`posesMoved`). */
+  moves: SortedKeys
 }
 
 /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
@@ -43,14 +46,14 @@ function voidCuts(state: DagRuntimeState) {
 }
 
 /** `GpuSelection.updateWorlds`: the placements sent, compared with the last ones — every one, or
- *  those of `named` alone (`updateNamedWorlds`). */
+ *  those of `named` alone (`updateNamedWorlds`) —; those whose pose moved. */
 export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int32Array) {
   const { resources, state } = run,
     { packed, frames, frameData } = resources
-  if (state.disposed || state.dead) return false
+  if (state.disposed || state.dead) return NO_RANKS
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
   if (named) return updateNamedWorlds(run, next, named)
-  const originChanged = frames.writeWorldOrigins() > 0
+  const origins = frames.writeWorldOrigins()
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it. The rows
   // whose read words moved go up, they alone: a translation goes up through the origins.
@@ -58,10 +61,6 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   const live = packed.worldSources.length
   movedScratch = resized(movedScratch, live)
   const moved = changedWorlds(packed.worlds, next, movedScratch, live)
-  if (!moved) {
-    if (originChanged) state.worldRevision++
-    return originChanged
-  }
   // Stretch reads the linear part alone: refreshed over the moved, before their copy.
   let stretched = 0
   for (let i = 0; i < moved; i++) {
@@ -72,11 +71,23 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
     }
     packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
   }
-  frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
-  // Cuts in hand and in flight keep their revision and still name what to stream (#358).
+  return posesMoved(run, moved, origins)
+}
+
+/** No placement moved. */
+const NO_RANKS = new Int32Array(0)
+
+/** The placements whose pose moved: the `moved` first of `movedScratch` — their read words — and
+ *  `origins` — their exact translation —, each once, increasing. One moved: the cuts in hand and
+ *  in flight keep their revision and still name what to stream (#358). */
+function posesMoved({ state, moves }: DagRun, moved: number, origins: Int32Array) {
+  if (!moved && !origins.length) return NO_RANKS
+  for (let i = 0; i < moved; i++) moves.listed.add(movedScratch[i])
+  for (const w of origins) moves.listed.add(w)
   state.worldRevision++
-  return true
+  return takeSorted(moves)
 }
 
 /** The placements that moved among those of `named`, those whose stretch moved with them, and the
@@ -93,8 +104,8 @@ const rewritten = new Int32Array(1)
  * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone. The ranks
  * the packing holds are kept once, here: every step below reads them alone.
  */
-function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, all: Int32Array) {
-  const { packed, frames, frameData } = resources
+function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
+  const { packed, frames, frameData } = run.resources
   let held = all.length
   while (held && all[held - 1] >= packed.worldSources.length) held--
   const named = held === all.length ? all : all.subarray(0, held)
@@ -115,8 +126,7 @@ function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, all
   }
   if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
-  if (moved || origins) state.worldRevision++
-  return moved > 0 || origins > 0
+  return posesMoved(run, moved, origins)
 }
 
 /** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the
