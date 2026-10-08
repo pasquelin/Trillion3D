@@ -6,6 +6,7 @@
 use crate::shared_math::unit;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use trillion3d_math::aabb::centre;
 use trillion3d_math::triangle::triangle_cross;
 use trillion3d_math::vec3::{dot, point, scale, sub, triple};
 use trillion3d_math::vecn::lerp;
@@ -136,10 +137,7 @@ pub(super) fn welded(faces: &[Vec<Point>]) -> (Vec<f32>, Vec<u32>) {
 /// midpoint, so the two seeds' planes are each other's negation to the bit.
 fn bisector(own: Point, other: Point) -> Option<Plane> {
     let normal = unit(sub(other, own))?;
-    Some((
-        normal,
-        dot(normal, [0, 1, 2].map(|k| (own[k] + other[k]) / 2.0)),
-    ))
+    Some((normal, dot(normal, centre(own, other))))
 }
 
 /// The cell of each of `seeds` in the solid `planes` bound inside `bounds`, a corner within `eps`

@@ -3,6 +3,7 @@ import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts
 import { SceneGltf } from './gltf-scene.ts'
 import { empty, fromGeometry, merge, type Mesh } from './mesh.ts'
 import type { Vec3 } from './random.ts'
+import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
@@ -39,11 +40,14 @@ const block = (size: Vec3, at: Vec3, angle = 0): Mesh => ({
 })
 
 /** The closed box from `min` to `max`. */
-const slab = (min: Vec3, max: Vec3) =>
-  block(
+const slab = (min: Vec3, max: Vec3) => {
+  const centre = new Float64Array(3)
+  boxCenter(centre, 0, ...min, ...max)
+  return block(
     point((a) => max[a] - min[a]),
-    point((a) => (min[a] + max[a]) / 2),
+    point((a) => centre[a]),
   )
+}
 
 /** One corner of a quad, its position and its normal. */
 type Corner = readonly [Vec3, Vec3]

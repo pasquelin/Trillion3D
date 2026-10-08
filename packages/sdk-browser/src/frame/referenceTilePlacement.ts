@@ -1,4 +1,4 @@
-import { linearToSrgb8, srgbToLinear } from '../../../math/src/color/color.ts'
+import { fromUnorm8, linearToSrgb8, srgbToLinear } from '../../../math/src/color/color.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
 
 /** One tile of the reference: where its pixels land in the output, and how the camera's
@@ -13,7 +13,7 @@ export interface ReferenceTile extends ViewTile {
 }
 
 /** sRGB byte to linear light, once for the 256 values. */
-const LINEAR = Float32Array.from({ length: 256 }, (_, byte) => srgbToLinear(byte / 255))
+const LINEAR = Float32Array.from({ length: 256 }, (_, byte) => srgbToLinear(fromUnorm8(byte)))
 
 /**
  * The RGBA image `rgba` of `width` × `height`, box-filtered `factor` times per axis: each output

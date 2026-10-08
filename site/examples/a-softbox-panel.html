@@ -133,7 +133,7 @@
         if (opening < 1) opening = Math.min(1, opening + step / 3);
         if (ui.swing) sway += step;
         const side = 1.45 + 0.28 * Math.sin(sway * 0.35);
-        rig.rotation.set(0, side + (Math.PI - side) * (1 - ease.inOut(opening)), 0);
+        rig.rotation.set(0, math.lerp(side, Math.PI, 1 - ease.inOut(opening)), 0);
         table.rotation.set(0, time * 0.18, 0);
         world.invalidate();
       });
