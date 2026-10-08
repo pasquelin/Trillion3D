@@ -153,7 +153,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
             out.extend(means.map(|mean| encode(mean, kind)));
             let u = a[0].max(a[1]).min(a[2].max(a[3]));
             let v = a[0].min(a[1]).max(a[2].min(a[3]));
-            out.push(unit_to_byte_f32((u + v) * 0.5));
+            out.push(unit_to_byte_f32(mean_f32([u, v])));
         }
     }
     out
