@@ -46,7 +46,14 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
-import { byteOf, ceilDiv, highHalf, lowHalf, rectCell } from '../../../math/src/wgsl/integer.ts'
+import {
+  bitIsSet,
+  byteOf,
+  ceilDiv,
+  highHalf,
+  lowHalf,
+  rectCell,
+} from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -333,7 +340,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
  let levelOffset=vsmTableLevelOrigin(vsmHandleFromId(id),mip);
  let size=(rect.zw+vec2u(1u))-rect.xy;
  // The pool slice the raster writes: the static slice for a static-cached instance.
- let slice=select(0u,vsm.staticSlice,((cmd.y>>19u)&1u)!=0u);
+ let slice=select(0u,vsm.staticSlice,bitIsSet(cmd.y,19u));
  for(var i=lane;i<size.x*size.y;i+=${VSM_TRANSMISSION_COMMAND_GROUP}u){
   if(vsmTPageKey(levelOffset,mip,rectCell(rect,size,i),markMask,slice)!=VSM_T_NONE){atomicAdd(&wgFound,1u);}
  }
@@ -366,6 +373,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
       VSM_RENDER_PARAMS_WGSL,
       frameWgsl(layout),
       rectCell,
+      bitIsSet,
     ],
   )
 
@@ -576,7 +584,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
  let w=page.world;
  let M=raw.shiftedToMapUv;
  let isOrtho=raw.lightViewToClip[3][3]>=1.0;
- let flatten=((view>>20u)&1u)!=0u;
+ let flatten=bitIsSet(view,20u);
  let mapped=(page.flags&${FLAG_HAS_UV}u)!=0u;
  var world:array<vec3f,3>;var shifted:array<vec3f,3>;var corners:array<VsmTCorner,3>;
  for(var i=0u;i<3u;i++){
@@ -686,6 +694,7 @@ var<workgroup> wgCommand:array<u32,5>;
       edgeFunction,
       faceNormal,
       byteOf,
+      bitIsSet,
     ],
   )
 }

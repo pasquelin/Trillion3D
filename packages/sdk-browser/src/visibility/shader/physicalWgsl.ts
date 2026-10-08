@@ -13,6 +13,7 @@ import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
 import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { unitToSigned2, unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
+import { bitIsSet } from '../../../../math/src/wgsl/integer.ts'
 
 /** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
  *  read from its three texels: the very words the table holds. */
@@ -49,13 +50,21 @@ fn physicalAt(i:u32)->PhysicalInfo{
 export const physicalCoreWgsl = (sampled: string) =>
   wgslBlock(
     `physicalCoreWgsl(${sampled})`,
-    [ROUGHNESS_FLOOR, unitOrZero, tangentFallback, vectorRejection, unitToSigned2, unitToSigned3],
+    [
+      ROUGHNESS_FLOOR,
+      unitOrZero,
+      tangentFallback,
+      vectorRejection,
+      unitToSigned2,
+      unitToSigned3,
+      bitIsSet,
+    ],
     `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
 var<private> physicalCoord1:PhysicalCoord;
 /** Whether map \`i\` of the record reads the second UV set (\`PHYSICAL_MAP_FIELDS\` order). */
-fn physicalChannel(i:u32)->bool{return ((physicalRecord.channels>>i)&1u)!=0u;}
+fn physicalChannel(i:u32)->bool{return bitIsSet(physicalRecord.channels,i);}
 /** The UV set map \`i\` of the record reads. */
 fn physicalCoord(i:u32)->PhysicalCoord{
  if(physicalChannel(i)){return physicalCoord1;}

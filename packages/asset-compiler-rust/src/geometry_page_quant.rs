@@ -4,6 +4,7 @@
 //! every reader decodes with.
 
 use crate::{CompilerError, Result};
+use trillion3d_math::aabb::longest_side;
 /// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
 use trillion3d_page_codec::bits::grid::{primitive_grid_exponent, uv_grid_exponent};
 use trillion3d_page_codec::bits::{self, Quant, QuantRefusal};
@@ -23,9 +24,10 @@ pub fn primitive_exponent(
     tile_log2: i32,
 ) -> i32 {
     let bounds = crate::proxy::bvh::extent(pos);
-    let extent = (0..3)
-        .map(|axis| bounds[axis + 3] - bounds[axis])
-        .fold(0.0, f64::max);
+    let extent = longest_side(
+        [bounds[0], bounds[1], bounds[2]],
+        [bounds[3], bounds[4], bounds[5]],
+    );
     let finest = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
     primitive_grid_exponent(extent, finest, blended, tile_log2)
 }

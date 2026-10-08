@@ -1,7 +1,7 @@
 //! The boxes the partition is built from: each mesh's, as its primitives declare it with their
 //! positions, and each placed node's, that box under its world matrix.
 use super::*;
-use trillion3d_math::aabb::{extend_flat, EMPTY_FLAT};
+use trillion3d_math::aabb::{corner, extend_flat, EMPTY_FLAT};
 use trillion3d_math::matrix::transform_point;
 
 /// The box a primitive declares with its positions, or `None` when it declares none or morphs.
@@ -56,8 +56,12 @@ pub(super) fn mesh_boxes(g: &Value) -> Vec<Option<[f64; 6]>> {
 /// The world box of a local box under `world`: the eight corners transformed, then their union.
 pub(super) fn world_box(world: &Mat4, local: &[f64; 6]) -> [f64; 6] {
     let mut out = EMPTY_FLAT;
-    for corner in 0..8 {
-        let p = [0, 1, 2].map(|axis| local[axis + 3 * ((corner >> axis) & 1)]);
+    let (low, high) = (
+        [local[0], local[1], local[2]],
+        [local[3], local[4], local[5]],
+    );
+    for index in 0..8 {
+        let p = corner(low, high, index);
         extend_flat(&mut out, transform_point(world, p));
     }
     out
