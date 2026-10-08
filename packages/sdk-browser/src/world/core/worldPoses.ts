@@ -203,7 +203,7 @@ function writeSeat(state: PoseState, mesh: Mesh, seat: Seat, shown: boolean) {
 
 function writeTwin(node: Object3D, twin: PosedTwin, shown: boolean) {
   copyMatrix4(twin.matrix.elements, node.matrixWorld.elements)
-  twin.matrixAutoUpdate = false
+  if (twin.matrixAutoUpdate) twin.matrixAutoUpdate = false
   twin.visible = shown
 }
 
