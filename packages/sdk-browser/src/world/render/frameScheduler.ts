@@ -1,15 +1,16 @@
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 /** Frames the loop draws on its own, nothing arriving, before it pauses; an invalidate resets the
  *  count. */
 const SETTLE_LIMIT = 120
 
 /**
- * Frames whose feedback the loop awaits at once. Frame n+1 is encoded while the GPU still runs
- * frame n, so a frame costs max(CPU, GPU) rather than their sum, and a decision reads a feedback at
- * most this many frames old. Two: the CPU of one frame hides behind the GPU of the one before, a
- * third would hide nothing more and only age the input and every feedback by one frame; the rings
- * the feedback comes back through hold as many buffers (`DAG_READBACK_SLOTS`).
+ * Frames whose feedback the loop awaits at once: the readback slots the cut alternates between
+ * (`DAG_READBACK_SLOTS`), one number. Frame n+1 is encoded while the GPU still runs frame n, so a
+ * frame costs max(CPU, GPU) rather than their sum, and a decision reads a feedback at most this
+ * many frames old. Two: the CPU of one frame hides behind the GPU of the one before, a third would
+ * hide nothing more and only age the input and every feedback by one frame.
  */
-const FRAMES_IN_FLIGHT = 2
+const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
 
 /**
  * One coalesced frame, with asynchronous work waited outside the rendering callback.
