@@ -179,7 +179,8 @@ test('a root the packed world DAG stands in for draws no card; one it does not h
   // Root 0 linked to a world object, the others not: a host mesh outside the world's table.
   const selection = rt.run.gpuSelection as { worldStandsIn?: (w: number) => boolean }
   selection.worldStandsIn = (w) => w === 0
-  ;(selection as { linkMoved?: (w: number) => void }).linkMoved?.(0)
+  // The cut tells the tier the link moved (`adoptCut`).
+  rt.gpu.impostors!.linkMoved(0)
   planWebgpuImpostors(rt, engineOf(200))
   assert.equal(roots[0].mark ?? 0, 0, 'its clusters back, the world gating them')
   assert.ok(

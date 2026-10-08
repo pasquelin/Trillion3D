@@ -59,23 +59,23 @@ export async function createSessionCut(
  * `cut` becomes the session's, at open or for a growth: the one place a cut takes over what
  * followed the one it replaces. Each placement draws the object its row places now
  * (`linkWorldObjects`), the world DAG standing in for it where its group suffices (`worldRoot.ts`):
- * a row moved while the cut was being made included. The listener the links tell (`linkMoved`)
- * passes to it, told each placement whose standing differs between the two cuts. The old cut is
- * let go.
+ * a row moved while the cut was being made included. Its links tell the impostor tier
+ * (`linkMoved`), told too of each placement whose standing differs between the two cuts. The old
+ * cut is let go.
  */
 export function adoptCut(
-  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run'>,
+  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run' | 'gpu'>,
   cut: GpuSelection,
 ) {
   const { run, layout } = rt,
     old = run.gpuSelection
   linkWorldObjects(rt.context, cut, layout.selectionRoots)
-  const listener = old?.linkMoved
-  if (old && listener) {
-    cut.linkMoved = listener
+  // The one listener of the links: the impostor tier, whenever it is made (`../../impostor/frame.ts`).
+  const linkMoved = (rank: number) => rt.gpu?.impostors?.linkMoved(rank)
+  cut.linkMoved = linkMoved
+  if (old)
     for (let rank = 0; rank < layout.selectionRoots.length; rank++)
-      if (!!old.worldStandsIn?.(rank) !== !!cut.worldStandsIn?.(rank)) listener(rank)
-  }
+      if (!!old.worldStandsIn?.(rank) !== !!cut.worldStandsIn?.(rank)) linkMoved(rank)
   old?.dispose()
   run.gpuSelection = cut
 }

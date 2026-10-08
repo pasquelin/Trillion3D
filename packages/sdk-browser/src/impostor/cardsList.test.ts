@@ -13,12 +13,12 @@ const GROUP = { atlas: 1 }
 
 test('a new root list clears the card bits the old one set', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection)
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(roots[0].mark, CARD_ROOT, 'far away, the root is its card')
   // The same roots in a new list, the camera near: the root draws its clusters again.
   const again = [...roots]
-  planImpostorCards(state, again, engineAt(5), VIEWPORT, () => GROUP)
+  planImpostorCards(state, again, engineAt(5), VIEWPORT)
   assert.equal(again[0].mark ?? 0, 0, 'no card bit left without its card')
   assert.equal(state.count, 0)
   fixture.geometry.dispose()
@@ -26,14 +26,14 @@ test('a new root list clears the card bits the old one set', () => {
 
 test('a root appended to the list in place takes its card at its own radius', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection)
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(state.count, 1)
   // A second placement of the mesh beside the first, joined into the same list.
   const elements = Array.from(roots[0].world.elements)
   elements[12] = 0.5
   roots.push({ ...roots[0], mark: undefined, world: { elements } } as (typeof roots)[number])
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(roots[1].mark, CARD_ROOT)
   assert.equal(state.count, 2)
   const { records } = state.slots

@@ -37,20 +37,16 @@ const swayAt = (k: number, turn = 0) => {
 
 /** Per image of a field of `count`: roots read, records written and card bits moved. */
 function lawOf(count: number) {
-  const roots = field(count),
-    state = createImpostorCards<typeof GROUP>(impostorSection)
   let moved = 0
+  const roots = field(count),
+    state = createImpostorCards<typeof GROUP>(impostorSection, {
+      atlasOf: () => GROUP,
+      moved: () => moved++,
+    })
   const image = (k: number, turn = 0) => {
     const writes = state.slots.writes
     moved = 0
-    planImpostorCards(
-      state,
-      roots,
-      swayAt(k, turn),
-      VIEWPORT,
-      () => GROUP,
-      () => moved++,
-    )
+    planImpostorCards(state, roots, swayAt(k, turn), VIEWPORT)
     return { reads: state.watch.reads, writes: state.slots.writes - writes, moved }
   }
   // The atlas is resident from the first image: every far object takes its card at once.

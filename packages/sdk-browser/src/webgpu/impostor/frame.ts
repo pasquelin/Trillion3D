@@ -7,7 +7,6 @@ import {
   dropImpostorCards,
   impostorWorldsMoved,
   planImpostorCards,
-  type CardMoved,
 } from '../../impostor/cards.ts'
 import { createImpostorPass, type ImpostorPass } from './pass.ts'
 
@@ -20,29 +19,26 @@ function createWebgpuImpostors(
   section: ImpostorSection,
 ) {
   // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
-  const moved: CardMoved = (rank, root) =>
-    rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
-  const cards = createImpostorCards<GPUBindGroup>(section)
-  // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`): it
-  // takes no card, which would draw it twice; one the world does not hold — a host mesh, an object
-  // outside its table — keeps its card, as the session's cut says now.
-  const carded = (rank: number) => !rt.run.gpuSelection?.worldStandsIn?.(rank)
-  const linkMoved = (rank: number) => cards.watch.touch(rank)
-  // A link that moves reads the root again; a cut adopted later takes the listener over
-  // (`../pages/prepare/cut.ts`).
-  if (rt.run.gpuSelection) rt.run.gpuSelection.linkMoved = linkMoved
+  const cards = createImpostorCards<GPUBindGroup>(section, {
+    // The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`).
+    atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),
+    // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
+    moved: (rank, root) =>
+      rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0)),
+    // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`):
+    // it takes no card, which would draw it twice; one the world does not hold — a host mesh, an
+    // object outside its table — keeps its card, as the session's cut says now.
+    carded: (rank) => !rt.run.gpuSelection?.worldStandsIn?.(rank),
+  })
   return Object.assign(cards, {
     pass,
-    moved,
     /** The roots `ranks` moved — every root when absent —: their switch and cards follow. */
     worldsMoved: (ranks?: ArrayLike<number>) => impostorWorldsMoved(cards, ranks),
-    /** A placement's link to the world DAG moved: whether it may take a card is read again. */
-    linkMoved,
-    carded,
+    /** A placement's link to the world DAG moved: whether it may take a card is read again (the
+     *  session's cut tells it, `../pages/prepare/cut.ts`). */
+    linkMoved: (rank: number) => cards.watch.touch(rank),
     /** The card buffer the records were last written into whole. */
     uploadedTo: undefined as GPUBuffer | undefined,
-    /** The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`). */
-    atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),
   })
 }
 
@@ -78,7 +74,7 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const roots = rt.layout.selectionRoots,
     state = impostorsOf(rt)
   // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing.
-  if (!state) return dropImpostorCards(rt.gpu.impostors, roots, rt.gpu.impostors?.moved)
+  if (!state) return dropImpostorCards(rt.gpu.impostors)
   const viewport = rt.setup.viewport ?? rt.gpu.targetSize
-  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, state.carded)
+  planImpostorCards(state, roots, cam, viewport)
 }

@@ -15,22 +15,22 @@ const translation = (records: Float32Array) =>
 
 test('a card is written from its root’s world as it is now, one remade elsewhere included', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection)
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.equal(state.count, 1)
   // A growth poses the root again on a new buffer: another world object, another place.
   const elements = Float64Array.from(roots[0].world.elements)
   elements[12] = 2.5
   roots[0].world = { ...roots[0].world, elements } as (typeof roots)[0]['world']
   impostorWorldsMoved(state)
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.deepEqual(translation(state.slots.records), [2.5, 0, 0])
   fixture.geometry.dispose()
 })
 
 test('a mesh’s box is fitted again to its roots as one moves back', () => {
   const { fixture, roots } = impostorScene(),
-    state = createImpostorCards<typeof GROUP>(impostorSection)
+    state = createImpostorCards<typeof GROUP>(impostorSection, { atlasOf: () => GROUP })
   // A second placement of the mesh beside the first.
   const beside = Float64Array.from(roots[0].world.elements)
   beside[12] = -3
@@ -38,18 +38,18 @@ test('a mesh’s box is fitted again to its roots as one moves back', () => {
   roots[0].world = {
     elements: Float64Array.from(roots[0].world.elements),
   } as (typeof roots)[0]['world']
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   const box = () => Array.from(state.segments.get(MESH)!.box)
   const settled = box()
   const elements = roots[0].world.elements as Float64Array
   // Out to the side, then back where it stood.
   elements[12] = 40
   impostorWorldsMoved(state, [0])
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.ok(box()[3] > 40, 'the box holds it where it went')
   elements[12] = 0
   impostorWorldsMoved(state, [0])
-  planImpostorCards(state, roots, engineAt(200), VIEWPORT, () => GROUP)
+  planImpostorCards(state, roots, engineAt(200), VIEWPORT)
   assert.deepEqual(box(), settled, 'and no more than where it stands')
   fixture.geometry.dispose()
 })
