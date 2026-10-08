@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Arraste para olhar em volta. Ligue ou desligue partes do mundo, ou mude de lugar.",
+    "controls": {
+      "place": "Lugar",
+      "blocks": "Blocos",
+      "pebbles": "Seixos",
+      "panes": "Vidros",
+      "water": "Água",
+      "lamps": "Lâmpadas",
+      "sunShadows": "Sombras do sol",
+      "view": "Vista"
+    },
+    "choices": {
+      "place": {
+        "overview": "visão geral",
+        "among": "entre os blocos",
+        "pebbles": "junto aos seixos"
+      },
+      "view": {
+        "beauty": "imagem",
+        "clusters": "clusters"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
     "controls": {

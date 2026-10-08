@@ -7,7 +7,8 @@ import type { World } from '../../packages/sdk-browser/src/index.ts'
 import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts'
 import type { BenchGpu, Counts } from './device.ts'
 import type { BenchBrowser } from './dom.ts'
-import type { FrameGpu } from './passTimer.ts'
+import type { FrameGpu } from './passSpans.ts'
+import { watchedOf } from './watched.ts'
 import { settleWorkers } from './worker.ts'
 
 /** The display interval the bench's clock advances by, ms: a 120 Hz display. */
@@ -30,6 +31,8 @@ export type FrameRecord = {
   engineCpuMs: number | null
   engineGpuMs: number | null
   sample: GpuPassTimings | null
+  /** The watched engine counters at the frame's image (`watched.ts`). */
+  counters: Record<string, number>
 }
 
 /** The parts of a bench run the frames use. */
@@ -58,6 +61,7 @@ export async function runFrames(
     cpu: null as number | null,
     gpu: null as number | null,
     sample: null as GpuPassTimings | null,
+    counters: {} as Record<string, number>,
   }
   const off = rig.world.onFrame(({ metrics }) => {
     image.drew = true
@@ -65,6 +69,7 @@ export async function runFrames(
     image.cpu = metrics.cpuFrameMs ?? null
     image.gpu = metrics.gpuFrameMs ?? null
     image.sample = metrics.gpuPassMs ?? null
+    image.counters = watchedOf(metrics as unknown as Record<string, unknown>)
   })
   const device = rig.gpu.held.device!
   let open: { record: FrameRecord; start: number; elu: EventLoopUtilization } | null = null
@@ -97,6 +102,7 @@ export async function runFrames(
         engineCpuMs: null,
         engineGpuMs: null,
         sample: null,
+        counters: {},
       }
       rig.gpu.timer.open(device)
       const start = performance.now()
@@ -112,6 +118,7 @@ export async function runFrames(
       record.engineCpuMs = image.drew ? image.cpu : null
       record.engineGpuMs = image.gpu
       record.sample = image.sample
+      record.counters = image.drew ? image.counters : {}
       records.push(record)
       clock.time += REFRESH_MS
       clock.frame++

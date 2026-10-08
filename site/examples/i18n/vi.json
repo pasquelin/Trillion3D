@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Kéo để nhìn quanh. Bật hoặc tắt từng phần của thế giới, hoặc đổi chỗ đứng.",
+    "controls": {
+      "place": "Vị trí",
+      "blocks": "Khối",
+      "pebbles": "Sỏi",
+      "panes": "Kính",
+      "water": "Nước",
+      "lamps": "Đèn",
+      "sunShadows": "Bóng nắng",
+      "view": "Chế độ xem"
+    },
+    "choices": {
+      "place": {
+        "overview": "toàn cảnh",
+        "among": "giữa các khối",
+        "pebbles": "gần đám sỏi"
+      },
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "clusters": "cụm"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Gắn hoặc tháo trình xem. Mỗi lần gắn sở hữu một thế giới và mỗi lần tháo sẽ giải phóng nó.",
     "controls": {

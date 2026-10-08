@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "ドラッグして見回します。世界の各部分をオン・オフするか、場所を変えます。",
+    "controls": {
+      "place": "場所",
+      "blocks": "ブロック",
+      "pebbles": "小石",
+      "panes": "ガラス板",
+      "water": "水",
+      "lamps": "ランプ",
+      "sunShadows": "太陽の影",
+      "view": "表示"
+    },
+    "choices": {
+      "place": {
+        "overview": "全景",
+        "among": "ブロックの間",
+        "pebbles": "小石のそば"
+      },
+      "view": {
+        "beauty": "仕上がり",
+        "clusters": "クラスター"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "ビューアーを取り付けたり外したりします。各取り付けは1つのワールドを所有し、取り外すと破棄します。",
     "controls": {

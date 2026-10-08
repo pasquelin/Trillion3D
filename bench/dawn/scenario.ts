@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs'
 import { lerp } from '../../packages/math/src/scalar/reals.ts'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
+import { WORLD_SCENARIO } from './worldScenario.ts'
 import type { BenchBrowser } from './dom.ts'
 import { TAU } from '../../packages/math/src/constants.ts'
 
@@ -50,6 +51,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { name: 'still', frames: 240, capture: true },
     ],
   },
+  world: WORLD_SCENARIO,
   still: { name: 'still', segments: [{ name: 'still', frames: 360, capture: true }] },
   drive: {
     name: 'drive',
@@ -100,6 +102,8 @@ export function createPlayer(browser: BenchBrowser, world: World) {
   const pose = ({ position, target }: Pose) => {
     world.camera.position.set(...position)
     world.camera.lookAt(...target)
+    // An orbiting page turns round its controls' target: it follows the pose.
+    world.controls?.target.set(...target)
   }
   const replay = (event: RecordedEvent) => {
     if (event.type === 'keydown' || event.type === 'keyup') key(event.type, event.code!, event.key)

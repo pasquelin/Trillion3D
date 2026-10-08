@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { unionOf } from './passTimer.ts'
+import { unionOf } from './passSpans.ts'
 
 test('the union of pass spans counts an overlap once and a gap not at all', () => {
   assert.equal(unionOf([]), 0)

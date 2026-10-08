@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Arrastra para mirar alrededor. Enciende o apaga partes del mundo, o cambia de lugar.",
+    "controls": {
+      "place": "Lugar",
+      "blocks": "Bloques",
+      "pebbles": "Guijarros",
+      "panes": "Cristales",
+      "water": "Agua",
+      "lamps": "Lámparas",
+      "sunShadows": "Sombras del sol",
+      "view": "Vista"
+    },
+    "choices": {
+      "place": {
+        "overview": "vista general",
+        "among": "entre los bloques",
+        "pebbles": "junto a los guijarros"
+      },
+      "view": {
+        "beauty": "imagen",
+        "clusters": "clústeres"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Monta o desmonta el visor. Cada montaje posee un mundo y cada retirada lo libera.",
     "controls": {

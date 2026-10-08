@@ -4,13 +4,17 @@ import { createCalibration, CALIBRATION_BYTES } from './calibration.ts'
 import { captureCanvas } from './capture.ts'
 import { functionTimes, startCpuProfile } from './cpuProfile.ts'
 import { installGpu } from './device.ts'
+import { dissectModules, dissectSpec } from './dissectHooks.ts'
 import { installBrowser } from './dom.ts'
+import { machineFor } from './machine.ts'
 import { createClock, runFrames, warmUp } from './frames.ts'
 import { gpuBusy } from './gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
 import { pageAddress, readPage, runPage } from './page.ts'
 import { createPlayer } from './scenario.ts'
-import { benchPasses, countsPerFrame, passTimes, roundNumbers, spread } from './summary.ts'
+import { benchPasses } from './benchPasses.ts'
+import { timerDoubts } from './trust.ts'
+import { countsPerFrame, passTimes, roundNumbers, spread } from './summary.ts'
 
 /** Plays `options.scenario` once; `stem` names its images. Resolves to the play's numbers. */
 export async function playScenario(options: BenchOptions, stem: string) {
@@ -21,7 +25,10 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const address = pageAddress(options.file, options.engine.root, options.search)
   const browser = installBrowser(options.display, address, page.canvasIds, page.elementIds)
   // The profiled play times the CPU alone: it captures nothing, its encoding would be profiled.
-  const captures = !options.cpuProfile && scenario.segments.some((segment) => segment.capture)
+  const captures =
+    !options.cpuProfile &&
+    !options.noCapture &&
+    scenario.segments.some((segment) => segment.capture)
   for (const canvas of browser.canvases) canvas.readable = captures
   const errors: string[] = []
   const opened = performance.now()
@@ -56,6 +63,13 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const calibration = await createCalibration(gpu, device)
   await warmUp(rig, clock, options.timeoutS * 500, 8)
   await runFrames(rig, clock, options.warm)
+  const machine = await machineFor(
+    gpu,
+    device,
+    gpu.held.adapter,
+    options.recalibrate,
+    !busyBefore?.busy,
+  )
   const readySeconds = (performance.now() - opened) / 1000
   let engine: Record<string, unknown> = {}
   world.onFrame(({ metrics }) => (engine = metrics as unknown as Record<string, unknown>))
@@ -83,12 +97,19 @@ export async function playScenario(options: BenchOptions, stem: string) {
             `${stem}-${segment.name.replace(/\W+/g, '-')}.png`,
           )
         : null
+    const numbers = roundNumbers(frames)
+    const bench = benchPasses(frames)
     segments.push({
       name: segment.name,
       measured: segment.measure !== false,
-      numbers: roundNumbers(frames),
+      numbers,
       passes: passTimes(frames),
-      benchPasses: benchPasses(frames),
+      benchPasses: bench,
+      doubts: timerDoubts({
+        passes: bench,
+        frame: numbers.gpuMs,
+        engineFrame: numbers.engineFrameGpuMs,
+      }),
       counts: countsPerFrame(frames),
       image,
     })
@@ -125,6 +146,8 @@ export async function playScenario(options: BenchOptions, stem: string) {
       ...calibrationMs,
       gbPerSecond: (2 * CALIBRATION_BYTES) / calibrationMs.median / 1e6,
     },
+    machine,
+    dissect: dissectModules(dissectSpec()?.pass ?? '\0'),
     segments,
     cpu,
     cpuSteps,

@@ -3,26 +3,19 @@
 // — the union of its passes' spans, passes the GPU overlaps counted once — and never from a host
 // clock a busy main thread would stretch. A pass the engine times keeps its own timestamps: a frame
 // that holds one is marked, its total left out.
+import { readPasses, type FrameGpu, type TimedPass } from './passSpans.ts'
+import { attachmentBytes } from './passSizes.ts'
+import { emptyWork, type PassWork } from './passWorkHooks.ts'
 import { readBack } from './readBack.ts'
 
 /** Timestamps of one frame: two per pass. */
 const CAPACITY = 4096
 
-/** One timed pass of a frame: `ms` its own share of the frame's GPU time. */
-export type TimedPass = { label: string; kind: 'render' | 'compute'; ms: number }
-/** A frame's passes and their union, ms; `complete` false when the engine timed one of them. */
-export type FrameGpu = { passes: TimedPass[]; unionMs: number; complete: boolean }
-
-/** The union of `[begin, end]` spans, in their unit. */
-export function unionOf(spans: readonly [number, number][]) {
-  let total = 0,
-    reach = -Infinity
-  for (const [begin, end] of [...spans].sort((a, b) => a[0] - b[0])) {
-    if (end <= reach) continue
-    total += end - Math.max(begin, reach)
-    reach = end
-  }
-  return total
+/** What a render pass stores in its attachments, and how many it cannot size (`attachmentBytes`). */
+function attachments(kind: TimedPass['kind'], descriptor: unknown) {
+  if (kind !== 'render') return { attachBytes: 0, unsized: 0 }
+  const [attachBytes, unsized] = attachmentBytes(descriptor as GPURenderPassDescriptor)
+  return { attachBytes, unsized }
 }
 
 /** The pass timer of one device; `quiet` runs the bench's own commands uncounted. */
@@ -34,7 +27,10 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     open = false,
     slot = 0,
     engineTimed = false
-  const passes: { label: string; kind: TimedPass['kind']; at: number }[] = []
+  const passes: ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[] = []
+  /** The pass encoders being tallied, by the record of the pass they run. */
+  const records = new WeakMap<object, PassWork>()
+  const labels = new WeakMap<object, string>()
   return {
     /** The descriptor a pass begins with: the engine's own, with the bench's timestamps added
      *  when it carries none — a copy, so a descriptor the engine keeps is never changed. */
@@ -51,7 +47,14 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       if (slot + 2 > CAPACITY) return descriptor
       const at = slot
       slot += 2
-      passes.push({ label: descriptor?.label || encoderLabel || `(${kind} pass)`, kind, at })
+      passes.push({
+        label: descriptor?.label || encoderLabel || `(${kind} pass)`,
+        kind,
+        at,
+        ...emptyWork(),
+        batches: 1,
+        ...attachments(kind, descriptor),
+      })
       const timestampWrites = {
         querySet: set,
         beginningOfPassWriteIndex: at,
@@ -59,6 +62,18 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       }
       return { ...descriptor, timestampWrites } as D
     },
+    /** How many passes this window holds. */
+    size: () => passes.length,
+    /** The pass encoder just made for the descriptor `wrap` answered: its calls are tallied. */
+    watch(pass: object, wrapped: boolean) {
+      if (!wrapped) return
+      records.set(pass, passes[passes.length - 1])
+      labels.set(pass, passes[passes.length - 1].label)
+    },
+    /** The work record of a pass this timer follows. */
+    recordOf: (pass: object) => records.get(pass),
+    /** The label a followed pass was begun with. */
+    labelOf: (pass: object) => labels.get(pass),
     /** Opens a frame's window on `on`, the device the engine draws with. */
     open(on: GPUDevice) {
       if (device !== on)
@@ -83,7 +98,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     async close(): Promise<FrameGpu | null> {
       open = false
       if (!device || !set || !read || !resolved) return null
-      if (!slot) return { passes: [], unionMs: 0, complete: !engineTimed }
+      if (!slot) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
       const [s, r, from, count] = [set, read, resolved, slot]
       const stamps = new BigInt64Array(
         await readBack({ quiet }, device, r, count * 8, (encoder) => {
@@ -91,22 +106,7 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
           encoder.copyBufferToBuffer(from, 0, r, 0, count * 8)
         }),
       )
-      // A pass's own share: its span less what a pass submitted before it already covered — a
-      // tiled GPU runs passes overlapped, each span holding its neighbours' (the engine's own
-      // rule, `gpu/timing/sample.ts`). The shares add up to the union.
-      const spans: [number, number][] = []
-      let covered = -Infinity
-      const timed = passes.map(({ label, kind, at }) => {
-        const begin = Number(stamps[at]) / 1e6,
-          end = Number(stamps[at + 1]) / 1e6
-        // A pass the driver skipped writes no timestamp: zero, or an end before its beginning.
-        if (!(stamps[at] > 0n && end >= begin)) return { label, kind, ms: 0 }
-        spans.push([begin, end])
-        const own = Math.max(0, end - Math.max(begin, covered))
-        covered = Math.max(covered, end)
-        return { label, kind, ms: own }
-      })
-      return { passes: timed, unionMs: unionOf(spans), complete: !engineTimed }
+      return readPasses(stamps, passes, !engineTimed)
     },
   }
 }

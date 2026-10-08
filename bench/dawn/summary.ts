@@ -7,19 +7,38 @@ import {
   gpuPassStageOf,
   passOwnMs,
 } from '../../packages/sdk-browser/src/stage/mapping.ts'
-import { PASSES } from '../../packages/sdk-browser/src/stage/passTable.ts'
 import { COUNTS, type Counts } from './device.ts'
 import type { FrameRecord } from './frames.ts'
+import { WATCHED } from './watched.ts'
 
 /** Plays agreeing within this relative spread of their medians make a stable segment. */
 export const STABLE_SPREAD = 0.03
 
-/** Median, 95th percentile, lowest and highest of `values`, or `null` for none. */
+/** The `q` quantile of sorted `values`, linearly between its two neighbours. */
+const quantile = (sorted: readonly number[], q: number) => {
+  const at = (sorted.length - 1) * q
+  const low = Math.floor(at)
+  return sorted[low] + (sorted[Math.ceil(at)] - sorted[low]) * (at - low)
+}
+
+/** Median, 95th percentile, lowest and highest of `values`, and how dispersed they are: `iqr`, the
+ *  span of the middle half, and `std`; or `null` for none. */
 export function spread(values: readonly number[]) {
   const finite = values.filter(Number.isFinite)
   if (!finite.length) return null
   const { medianeMs: median, p95Ms: p95, minMs: min } = stats(finite)
-  return { median, p95, min, max: Math.max(...finite), n: finite.length }
+  const sorted = [...finite].sort((a, b) => a - b)
+  const mean = finite.reduce((sum, v) => sum + v, 0) / finite.length
+  return {
+    median,
+    p95,
+    min,
+    max: Math.max(...finite),
+    mean,
+    n: finite.length,
+    iqr: quantile(sorted, 0.75) - quantile(sorted, 0.25),
+    std: Math.sqrt(finite.reduce((sum, v) => sum + (v - mean) ** 2, 0) / finite.length),
+  }
 }
 export type Spread = NonNullable<ReturnType<typeof spread>>
 
@@ -89,36 +108,6 @@ export function countsPerFrame(frames: readonly FrameRecord[]) {
   ) as Counts
 }
 
-/** The stage a bench-timed pass belongs to, by its label: the engine's table, `shadows` for a
- *  virtual shadow map pass, else `unlabelled` — a pass the engine names nowhere. */
-const stageOfLabel = (label: string) =>
-  PASSES[label]?.[0] ?? (label.startsWith('vsm.') ? 'shadows' : 'unlabelled')
-
-/** Each pass's GPU time per frame on the bench's own timer, every pass of every frame the engine
- *  did not time itself, by label — a pass's batches as one (`passKey`), as the engine's timer
- *  reads them — and its share of the frame. */
-export function benchPasses(frames: readonly FrameRecord[]) {
-  const timed = frames.filter((frame) => frame.drawn && frame.gpu?.complete)
-  const byPass = new Map<string, number[]>()
-  const kinds = new Map<string, { kind: string; stage: string }>()
-  timed.forEach((frame, at) => {
-    for (const pass of frame.gpu!.passes) {
-      const name = passKey(pass.label)
-      if (!kinds.has(name)) kinds.set(name, { kind: pass.kind, stage: stageOfLabel(pass.label) })
-      const all = byPass.get(name) ?? Array<number>(timed.length).fill(0)
-      all[at] += pass.ms
-      byPass.set(name, all)
-    }
-  })
-  const frame = spread(timed.map((record) => record.gpu!.unionMs))?.median ?? 0
-  return [...byPass]
-    .map(([name, ms]) => {
-      const time = spread(ms)!
-      return { name, ...kinds.get(name)!, ...time, share: frame ? time.median / frame : 0 }
-    })
-    .sort((a, b) => b.median - a.median)
-}
-
 /** A frame's own GPU time in passes of `kind`. */
 const kindMs = (frame: FrameRecord, kind: 'compute' | 'render') =>
   frame.gpu!.passes.reduce((sum, pass) => sum + (pass.kind === kind ? pass.ms : 0), 0)
@@ -159,6 +148,14 @@ export function roundNumbers(frames: readonly FrameRecord[]) {
     /** The frame's GPU time split by the kind of pass: compute shaders, and drawing. */
     computeMs: spread(complete.map((frame) => kindMs(frame, 'compute'))),
     renderMs: spread(complete.map((frame) => kindMs(frame, 'render'))),
+    idleMs: spread(complete.map((frame) => frame.gpu!.gapMs)),
+    /** The most each watched counter reached over the segment's images. */
+    counterMax: Object.fromEntries(
+      WATCHED.flatMap((key) => {
+        const seen = drawn.flatMap((frame) => (key in frame.counters ? [frame.counters[key]] : []))
+        return seen.length ? [[key, Math.max(...seen)]] : []
+      }),
+    ) as Record<string, number>,
     cpuMs: spread(drawn.map((frame) => frame.cpuMs)),
     wallMs: spread(drawn.map((frame) => frame.wallMs)),
     loopMs: spread(drawn.map((frame) => frame.loopMs)),

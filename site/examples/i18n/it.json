@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "Trascina per guardarti intorno. Accendi o spegni parti del mondo, o cambia posto.",
+    "controls": {
+      "place": "Posto",
+      "blocks": "Blocchi",
+      "pebbles": "Ciottoli",
+      "panes": "Vetri",
+      "water": "Acqua",
+      "lamps": "Lampade",
+      "sunShadows": "Ombre del sole",
+      "view": "Vista"
+    },
+    "choices": {
+      "place": {
+        "overview": "panoramica",
+        "among": "tra i blocchi",
+        "pebbles": "vicino ai ciottoli"
+      },
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "Monta o smonta il visore. Ogni montaggio possiede un mondo e ogni rimozione lo elimina.",
     "controls": {

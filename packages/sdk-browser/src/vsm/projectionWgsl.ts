@@ -552,7 +552,9 @@ fn vsmProjectTile(pixel:VsmPixel,lights:vec2u,tileLights:vec2u,lightCount:u32,vo
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
 fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_index) groupIndex:u32${subgroups ? ',@builtin(subgroup_invocation_id) subgroupLane:u32' : ''}){
  vsmLaneInit(groupIndex);
+ // @cut launch
  let pixel=vsmPixelOf(groupId.xy,groupIndex);
+ // @cut decode keep: if(pixel.sceneDepth< -1.0e30){textureStore(vsmShadowMaskTiles,groupId.xy,vec4u(bitcast<u32>(pixel.shifted.x),0u,0u,0u));}
  let lightCount=select(vsmView.lightCount,1u,VSM_PROJECTION_ONE_LIGHT);
  // The lights that may reach the tile: the pass's one light; every light of a pass of suns alone,
  // which reach every lit point (a tile of none takes no light at its pixels either); else those
@@ -566,12 +568,14 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
   workgroupBarrier();
   candidates=vec2u(atomicLoad(&vsmTileCandidates[0]),atomicLoad(&vsmTileCandidates[1]));
  }
+ // @cut tileBounds keep: if(pixel.sceneDepth< -1.0e30){textureStore(vsmShadowMaskTiles,groupId.xy,vec4u(candidates.x^candidates.y,0u,0u,0u));}
  // The lights each pixel of the tile is in: a light no pixel of the tile is in is skipped by the
  // whole group, which writes what a pixel out of the light writes — background, off-screen and
  // out-of-range tiles trace nothing.
  let lights=vsmPixelLights(pixel,candidates);
  if(lights.x!=0u){atomicOr(&vsmTileLights[0],lights.x);}
  if(lights.y!=0u){atomicOr(&vsmTileLights[1],lights.y);}
+ // @cut participation keep: if(pixel.sceneDepth< -1.0e30){textureStore(vsmShadowMaskTiles,groupId.xy,vec4u(lights.x^lights.y,0u,0u,0u));}
  workgroupBarrier();
  if(groupIndex==0u){
   let tile=vec2u(atomicLoad(&vsmTileLights[0]),atomicLoad(&vsmTileLights[1]));
@@ -579,6 +583,7 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
   textureStore(vsmShadowMaskTiles,groupId.xy,vec4u(vsmTileLayers(tile),0u,0u,0u));
  }
  let tileRead=workgroupUniformLoad(&vsmTileRead);
+ // @cut tileSetup keep: if(pixel.sceneDepth< -1.0e30){textureStore(vsmShadowMaskTiles,groupId.xy,vec4u(tileRead.x^tileRead.y,0u,0u,0u));}
  // Whether the votes take the counter (\`voteWgsl\`): uniform, as their barriers need.
  vsmProjectTile(pixel,lights,tileRead.xy,lightCount,${subgroups ? 'tileRead.z!=0u' : 'true'});
 }

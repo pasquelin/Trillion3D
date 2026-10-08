@@ -11,8 +11,7 @@ import { measureOutput } from '../core/paths.ts'
 /** Where a held-out validation page lies: outside the repository, never tuned against. */
 const VALIDATION_DIR = process.env.TRILLION3D_VALIDATION_DIR ?? ''
 
-/** The page file a name means: a path, an example's name in `root`, or a validation page's
- *  prefix (`v06`). */
+/** The page file a name means: a path, an example's name in `root`, or a validation page's prefix (`v06`). */
 export function pageFile(name: string, root: string) {
   if (existsSync(name)) return resolve(name)
   const example = join(root, 'site', 'examples', `${name.replace(/\.html$/, '')}.html`)

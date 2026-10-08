@@ -2423,6 +2423,30 @@
       }
     }
   },
+  "an-open-world-of-every-cost": {
+    "banner": "اسحب للنظر حولك. شغّل أجزاء العالم أو أطفئها، أو غيّر المكان.",
+    "controls": {
+      "place": "المكان",
+      "blocks": "كتل",
+      "pebbles": "حصى",
+      "panes": "ألواح زجاج",
+      "water": "ماء",
+      "lamps": "مصابيح",
+      "sunShadows": "ظلال الشمس",
+      "view": "العرض"
+    },
+    "choices": {
+      "place": {
+        "overview": "نظرة عامة",
+        "among": "بين الكتل",
+        "pebbles": "قرب الحصى"
+      },
+      "view": {
+        "beauty": "الصورة النهائية",
+        "clusters": "العناقيد"
+      }
+    }
+  },
   "inside-a-component": {
     "banner": "ثبّت العارض أو أزله. كل تثبيت يملك عالماً واحداً، وكل إزالة تتخلّص منه.",
     "controls": {

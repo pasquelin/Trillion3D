@@ -4,11 +4,15 @@
 import { MIB } from '../../packages/math/src/constants.ts'
 import { REFRESH_MS } from './frames.ts'
 import type { BenchReport } from './merge.ts'
+import { insightsText, type Insights } from './insights.ts'
+import { segmentDetail } from './segmentText.ts'
 import type { Spread } from './summary.ts'
 
 export const ms = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(digits)
 const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s.max)})` : '—')
+/** Bytes as mebibytes, `digits` decimals. */
+export const mib = (bytes: number, digits = 0) => (bytes / MIB).toFixed(digits)
 export const percent = (share: number | null) =>
   share === null ? '—' : `${(share * 100).toFixed(1)} %`
 export const table = (head: string[], rows: (string | number)[][]) =>
@@ -32,73 +36,7 @@ export const sameImages = (segment: Segment) =>
       ? 'identical'
       : segment.sameImages.map((d) => (d ? `${d.pixels} px` : '?')).join(', ')
 
-/** One measured segment's GPU by pass on the bench's timer, the engine's own stages, and its
- *  commands per frame. */
-function segmentDetail(segment: Segment) {
-  const { passes, benchPasses, counts } = segment
-  return [
-    `### ${segment.name}`,
-    '',
-    `GPU by kind of pass: compute shaders ${ms(segment.computeMs?.median)} ms · drawing ${ms(segment.renderMs?.median)} ms.`,
-    '',
-    table(
-      ['pass (bench timer, every pass)', 'kind', 'stage', 'median ms', 'p95 ms', 'share'],
-      benchPasses
-        .filter((pass) => pass.median >= 0.01 || pass.p95 >= 0.05)
-        .slice(0, 30)
-        .map((pass) => [
-          pass.name,
-          pass.kind,
-          pass.stage,
-          ms(pass.median, 3),
-          ms(pass.p95, 3),
-          percent(pass.share),
-        ]),
-    ),
-    '',
-    `Engine timer by stage (${passes.samples} sampled images): ` +
-      passes.stages.map((stage) => `${stage.stage} ${ms(stage.median)}`).join(' · '),
-    '',
-    ...(segment.hitches.length
-      ? [
-          table(
-            [
-              'hitch (first play)',
-              'frame ms',
-              'CPU ms',
-              'GPU ms',
-              'pipelines made',
-              'buffers made',
-              'textures made',
-              'uploaded',
-            ],
-            segment.hitches
-              .slice(0, 12)
-              .map((h) => [
-                `frame ${h.frame}`,
-                ms(h.wallMs),
-                ms(h.cpuMs),
-                ms(h.gpuMs),
-                h.pipelinesMade,
-                `${h.buffersMade} (${(h.bufferBytesMade / MIB).toFixed(2)} MiB)`,
-                h.texturesMade,
-                `${(h.writtenBytes / MIB).toFixed(2)} MiB`,
-              ]),
-          ),
-          '',
-        ]
-      : []),
-    'Commands per frame: ' +
-      Object.entries(counts)
-        .map(([key, value]) =>
-          key.endsWith('Bytes') ? `${key} ${(value / MIB).toFixed(3)} MiB` : `${key} ${value}`,
-        )
-        .join(' · '),
-    '',
-  ]
-}
-
-export function reportText(report: BenchReport) {
+export function reportText(report: BenchReport, insights?: Insights) {
   const { bench } = report
   // A play the other programs kept the GPU busy around (`gpuBusy.ts`) is marked disturbed.
   const busy = report.gpuBusy
@@ -119,6 +57,7 @@ export function reportText(report: BenchReport) {
       `${report.plays} plays in fresh processes. GPU taken by other programs, before→after each play: ${busy}.`,
     `Calibration copy ${range(report.calibration)} ms (${ms(report.gbPerSecond?.median, 0)} GB/s); ready after ${range(report.readySeconds)} s.`,
     '',
+    ...(insights ? insightsText(insights, report.machine) : []),
     '## Segments',
     '',
     table(
@@ -179,7 +118,7 @@ export function reportText(report: BenchReport) {
       .filter(([, value]) => typeof value === 'number' && value !== 0)
       .map(
         ([key, value]) =>
-          `${key} ${key.endsWith('Bytes') ? `${((value as number) / MIB).toFixed(2)} MiB` : ms(value as number, 3)}`,
+          `${key} ${key.endsWith('Bytes') ? `${mib(value as number, 2)} MiB` : ms(value as number, 3)}`,
       )
       .join(' · '),
     '',

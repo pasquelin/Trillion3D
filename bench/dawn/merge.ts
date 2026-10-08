@@ -57,6 +57,19 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
     /** The middle play's passes and commands: the play whose time is the median. */
     passes: mid.passes,
     benchPasses: mid.benchPasses,
+    /** The most each watched engine counter reached in any play's segment. */
+    counterMax: Object.fromEntries(
+      [...new Set(of.flatMap((s) => Object.keys(s.numbers.counterMax)))].map((key) => [
+        key,
+        Math.max(...of.map((s) => s.numbers.counterMax[key] ?? 0)),
+      ]),
+    ) as Record<string, number>,
+    /** The middle play's frame time over all its frames: median, p95, dispersion. */
+    frame: mid.numbers.gpuMs,
+    /** The GPU idle between passes in the middle play's frame, ms. */
+    idleMs: mid.numbers.idleMs,
+    /** Every doubt any play raised, told once. */
+    doubts: [...new Set(of.flatMap((segment) => segment.doubts))],
     counts: mid.counts,
     images,
     sameImages,
@@ -65,7 +78,9 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
 
 /** The index of the median of `values`. */
 const middle = (values: readonly number[]) =>
-  values.map((value, i) => [value, i]).sort((a, b) => a[0] - b[0])[(values.length - 1) >> 1][1]
+  values
+    .map((value, i) => [Number.isFinite(value) ? value : Infinity, i])
+    .sort((a, b) => a[0] - b[0])[(values.length - 1) >> 1][1]
 
 /** The report of `plays` of one scenario: the first play's settings, every segment merged, the
  *  profiled play's CPU (the last, when one was profiled). */
@@ -79,6 +94,7 @@ export function mergePlays(plays: readonly BenchPlay[]) {
     readySeconds: spread(plays.map((play) => play.readySeconds)),
     calibration: spread(plays.map((play) => play.calibration.median)),
     gbPerSecond: spread(plays.map((play) => play.calibration.gbPerSecond)),
+    machine: first.machine,
     segments: first.segments.map((segment) => mergeSegment(plays, segment.name)),
     cpu: profiled?.cpu ?? null,
     cpuSteps: profiled?.cpuSteps ?? null,
