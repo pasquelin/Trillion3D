@@ -13,6 +13,9 @@ import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from '
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 
+/** The tree nodes an upload names, ascending, kept from one upload to the next. */
+let sorted = new Int32Array(64)
+
 /** Writes the tree nodes `nodes` names, ascending, in the cut's one run writer's ranges. */
 function uploadNodes(
   device: GPUDevice,
@@ -20,15 +23,19 @@ function uploadNodes(
   packed: PackedDag,
   nodes: readonly number[],
 ) {
-  const sorted = Int32Array.from(nodes)
+  if (sorted.length < nodes.length)
+    sorted = new Int32Array(Math.max(nodes.length, sorted.length * 2))
+  for (let i = 0; i < nodes.length; i++) sorted[i] = nodes[i]
   const source = { data: packed.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-  writeRanges(device, nodeParts, sorted, sorted.length, source)
+  writeRanges(device, nodeParts, sorted, nodes.length, source)
 }
 
-/** `selection`, its tree followed on `nodeParts` from now on; as it is without a tree. */
+/** `selection`, its tree followed on `nodeParts` from now on, the groups of the placements
+ *  `composed` names open; as it is without a tree. */
 export function followPlacementTree(
   selection: GpuSelection,
   resources: { device: GPUDevice; packed: PackedDag; nodeParts: DagParts },
+  composed?: (w: number) => boolean,
 ) {
   const { device, packed, nodeParts } = resources,
     tree = packed.placementTree
@@ -37,7 +44,9 @@ export function followPlacementTree(
   const all = Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
   // What moved since the tree was last read: refitted once, before the next cut reads it.
   const dirty = new Set<number>()
-  let whole = false
+  // The tree was fitted as it was packed: the roots composed since are read at its first cut.
+  let whole = !!composed
+  if (composed) tree.composed = composed
   const refit = () => {
     if (whole) {
       fitPlacementTree(packed, tree)
@@ -68,13 +77,12 @@ export function followPlacementTree(
     return moved
   }
   // A root a parent composes on the GPU holds a pose the CPU does not: its group opens, and only
-  // its own, from its link to its unlink (`../../placement/gpuCompose.ts`).
+  // its own, from its link to its unlink, as the compose state says (`composed`,
+  // `../../placement/gpuCompose.ts`).
   const { composedPlacement } = selection
-  selection.composedPlacement = (w, composed) => {
-    composedPlacement?.(w, composed)
-    if (w >= tree.open.length || tree.open[w] === (composed ? 1 : 0)) return
-    tree.open[w] = composed ? 1 : 0
-    dirty.add(w)
+  selection.composedPlacement = (w, linked) => {
+    composedPlacement?.(w, linked)
+    if (w < tree.slot.length) dirty.add(w)
   }
   return selection
 }

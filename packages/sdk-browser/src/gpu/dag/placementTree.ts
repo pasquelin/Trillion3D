@@ -57,9 +57,9 @@ type TreeLevel = { base: number; count: number }
  * `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
  * member `k` names (`NONE` past the `count` live members, up to `capacity`), `slot[w]` the member
  * placement `w` is (`NONE` for the world DAG), and the order lies in the cold table from word
- * `members` on — a member slot a growth left before its new groups names none. `open[w]`: the
- * group of `w` stays open whatever its mark (a pose the GPU composes); `nodeOpen[n]`: tree node
- * `cellBase + n` is open.
+ * `members` on — a member slot a growth left before its new groups names none. `composed(w)`: the
+ * group of `w` stays open whatever its mark (a pose the GPU composes, `treeFollow.ts`);
+ * `nodeOpen[n]`: tree node `cellBase + n` is open.
  */
 export type PlacementTree = {
   capacity: number
@@ -70,7 +70,7 @@ export type PlacementTree = {
   order: Uint32Array
   slot: Uint32Array
   members: number
-  open: Uint8Array
+  composed: (w: number) => boolean
   nodeOpen: Uint8Array
 }
 
@@ -120,7 +120,7 @@ export function placementTreeShape(
     ...{ capacity: capacity.members, count: members.length, cellBase, levels, order, slot },
     depth: levels.length,
     members: 0,
-    open: new Uint8Array(capacity.worlds),
+    composed: () => false,
     nodeOpen: new Uint8Array(nodes),
   }
 }
@@ -272,21 +272,25 @@ export function refitPlacementTree(
   tree: PlacementTree,
   placements: Iterable<number>,
 ) {
-  let touched = new Set<number>()
+  let [touched, above] = refitSets
+  touched.clear()
   for (const w of placements)
     if (tree.slot[w] !== NONE) touched.add(Math.floor(tree.slot[w] / TREE_SPAN))
   const rewritten: number[] = []
   for (let l = tree.levels.length - 1; l >= 0 && touched.size; l--) {
-    const above = new Set<number>()
+    above.clear()
     for (const j of touched) {
       fitNode(packed, tree, l, j)
       rewritten.push(tree.levels[l].base + j)
       above.add(Math.floor(j / TREE_SPAN))
     }
-    touched = above
+    ;[touched, above] = [above, touched]
   }
   return rewritten.sort((a, b) => a - b)
 }
+
+/** The nodes a refit fits at one level and those above them, kept from one refit to the next. */
+const refitSets = [new Set<number>(), new Set<number>()]
 
 /** Whether placement `w`'s box cannot hold its pose: never culled, or deformed by a reach. */
 export const opensTree = (mark: number) => (mark & SPRITE_UNCULLED) !== 0 || mark >>> 16 !== 0
@@ -316,7 +320,7 @@ function fitNode(packed: TreeSource, tree: PlacementTree, l: number, j: number) 
 /** Member `w`'s root box through its world, joined to `box`; whether it opens its group. */
 function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
   if (w === NONE || packed.rootNodes[w] === NONE) return false
-  if (tree.open[w] !== 0 || opensTree(packed.mark[w])) return true
+  if (tree.composed(w) || opensTree(packed.mark[w])) return true
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     { nodes } = packed
   box.set(nodes.subarray(root + NODE_MIN, root + NODE_MIN + 3), 6)

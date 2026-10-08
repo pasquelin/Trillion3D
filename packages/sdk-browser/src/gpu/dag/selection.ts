@@ -31,6 +31,8 @@ export async function createGpuDagSelection(
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
     /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
     poolHeld?: (page: number) => boolean
+    /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
+    composed?: (w: number) => boolean
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -49,7 +51,7 @@ export async function createGpuDagSelection(
     return undefined
   }
   const selection = followWorldLinks(
-    followPlacementTree(createDagRuntime(resources, options.poolHeld), resources),
+    followPlacementTree(createDagRuntime(resources, options.poolHeld), resources, options.composed),
     resources,
   )
   // The cut's worlds are brought to the eye on the GPU (`worldRebase.ts`): no cut without it.

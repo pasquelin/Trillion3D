@@ -81,6 +81,9 @@ function createState() {
     bucket: new Int32Array(0),
     slack: new Float64Array(0),
     anchors: [] as Anchor[],
+    /** Anchors and heaps let go, taken again before any is made: none made a frame. */
+    spareAnchors: [] as Anchor[],
+    spareHeaps: [] as Heap[],
     changed: new Int32Array(8),
     changedCount: 0,
     touched: [] as number[],
@@ -227,11 +230,27 @@ function rigid(view: ArrayLike<number>) {
   return true
 }
 
-const anchorAt = (s: State): Anchor => ({
-  eye: Float64Array.from(s.eye),
-  forward: Float64Array.from(s.forward),
-  heaps: new Map(),
-})
+/** An anchor at the view, a spare one if any. */
+function anchorAt(s: State): Anchor {
+  const anchor = s.spareAnchors.pop() ?? {
+    eye: new Float64Array(3),
+    forward: new Float64Array(3),
+    heaps: new Map(),
+  }
+  anchor.eye.set(s.eye)
+  anchor.forward.set(s.forward)
+  return anchor
+}
+
+/** `anchor` let go, its heaps emptied: each kept for the next made. */
+function letGo(s: State, anchor: Anchor) {
+  for (const heap of anchor.heaps.values()) {
+    heap.clear()
+    s.spareHeaps.push(heap)
+  }
+  anchor.heaps.clear()
+  s.spareAnchors.push(anchor)
+}
 
 /** The eye's travel and the forward axis's chord between two views, each an eye and an axis. */
 const gap = { travel: 0, chord: 0 }
@@ -251,7 +270,9 @@ const measure = (bucket: number, { travel, chord }: typeof gap) =>
 function readEvery(s: State, reading: Reading) {
   s.every = false
   s.touched.length = 0
-  s.anchors = [anchorAt(s)]
+  for (const anchor of s.anchors) letGo(s, anchor)
+  s.anchors.length = 0
+  s.anchors.push(anchorAt(s))
   s.home.fill(undefined)
   for (let rank = 0; rank < s.count; rank++) read(s, reading, rank)
 }
@@ -259,7 +280,9 @@ function readEvery(s: State, reading: Reading) {
 /** The roots whose slack the view spent since their anchor, read again. */
 function takeSpent(s: State, reading: Reading) {
   // The anchors before this update's reads: one they make stands at the view, nothing due there.
-  for (const anchor of s.anchors.slice()) {
+  const before = s.anchors.length
+  for (let a = 0; a < before; a++) {
+    const anchor = s.anchors[a]
     for (const [bucket, heap] of anchor.heaps) {
       const spent = measure(bucket, apart(s.eye, s.forward, anchor))
       while (heap.size && s.key[heap.items[0]] < spent) {
@@ -269,12 +292,19 @@ function takeSpent(s: State, reading: Reading) {
         if (s.readAt[rank] === s.frame) wait(s, rank, s.bucket[rank], s.slack[rank])
         else read(s, reading, rank)
       }
-      if (!heap.size) anchor.heaps.delete(bucket)
+      if (!heap.size) {
+        anchor.heaps.delete(bucket)
+        s.spareHeaps.push(heap)
+      }
     }
   }
   // An emptied anchor is no longer read; the newest stays, the one keys are taken from.
-  const newest = s.anchors[s.anchors.length - 1]
-  s.anchors = s.anchors.filter((anchor) => anchor.heaps.size || anchor === newest)
+  const { anchors } = s
+  let kept = 0
+  for (let a = 0; a < anchors.length; a++)
+    if (anchors[a].heaps.size || a === anchors.length - 1) anchors[kept++] = anchors[a]
+    else letGo(s, anchors[a])
+  anchors.length = kept
   while (s.anchors.length > ANCHORS) mergeNewest(s)
 }
 
@@ -396,10 +426,12 @@ function heapOf(s: State, anchor: Anchor, bucket: number) {
   if (!heap)
     anchor.heaps.set(
       bucket,
-      (heap = createHeap<number>(
-        (a, b) => s.key[a] < s.key[b],
-        (rank, at) => void (s.at[rank] = at),
-      )),
+      (heap =
+        s.spareHeaps.pop() ??
+        createHeap<number>(
+          (a, b) => s.key[a] < s.key[b],
+          (rank, at) => void (s.at[rank] = at),
+        )),
     )
   return heap
 }
@@ -432,7 +464,8 @@ function wait(s: State, rank: number, bucket: number, slack: number) {
 /** The anchor before the newest emptied into it, each key lowered by the measure between the two
  *  anchors: an entry leaves no later than it would have. */
 function mergeNewest(s: State) {
-  const [before, newest] = s.anchors.slice(-2),
+  const before = s.anchors[s.anchors.length - 2],
+    newest = s.anchors[s.anchors.length - 1],
     between = apart(newest.eye, newest.forward, before)
   for (const [bucket, heap] of before.heaps) {
     const into = heapOf(s, newest, bucket),
@@ -442,7 +475,7 @@ function mergeNewest(s: State) {
       s.home[rank] = into
       into.push(rank)
     }
-    heap.clear()
   }
+  letGo(s, before)
   s.anchors.splice(s.anchors.length - 2, 1)
 }

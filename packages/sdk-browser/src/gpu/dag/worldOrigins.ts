@@ -31,7 +31,9 @@ export function createWorldOrigins(
   const take = (row: number) => {
     writeOrigin(next, 0, sources![row])
     const at = row * 8
-    if (next.every((value, k) => value === words[at + k])) return false
+    let same = true
+    for (let k = 0; k < 8 && same; k++) same = next[k] === words[at + k]
+    if (same) return false
     words.set(next, at)
     return true
   }

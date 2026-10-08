@@ -8,9 +8,9 @@ import { packDagSelection } from './selection.ts'
 import { followPlacementTree } from './treeFollow.ts'
 import type { GpuSelection } from '../core/selection.ts'
 
-/** A field of `side`² placements under a followed tree, its selection a stand-in; the bytes each
- *  write sends. */
-function followed(side = 40) {
+/** A field of `side`² placements under a followed tree, its selection a stand-in, the placements
+ *  `composed` holds composed on the GPU; the bytes each write sends. */
+function followed(side = 40, composed?: ReadonlySet<number>) {
   const roots = placementField(side, 6),
     packed = packDagSelection(roots)
   const writes: number[] = []
@@ -28,7 +28,11 @@ function followed(side = 40) {
     worldsMovedOnGpu: () => {},
   } as unknown as GpuSelection
   const nodeParts = { buffers: [{} as GPUBuffer], bytes: packed.nodes.byteLength }
-  followPlacementTree(selection, { device, packed, nodeParts })
+  followPlacementTree(
+    selection,
+    { device, packed, nodeParts },
+    composed && ((w) => composed.has(w)),
+  )
   return { roots, packed, selection, writes }
 }
 
@@ -62,17 +66,28 @@ test('a pose a call names refits its group and the nodes above it, never the who
 })
 
 test('a root its parent composes on the GPU opens its group alone, until it is unlinked', () => {
-  const { packed, selection } = followed()
+  const linked = new Set<number>(),
+    { packed, selection } = followed(40, linked)
   const tree = packed.placementTree!,
     groups = tree.levels.at(-1)!,
     groupOf = (w: number) => Math.floor(tree.slot[w] / 64)
+  linked.add(70)
   selection.composedPlacement!(70, true)
   selection.worldsMovedOnGpu()
   selection.dispatch({} as never)
   const open = (g: number) => tree.nodeOpen[groups.base + g - tree.cellBase]
   for (let g = 0; g < groups.count; g++)
     assert.equal(open(g), g === groupOf(70) ? 1 : 0, `group ${g}`)
+  linked.delete(70)
   selection.composedPlacement!(70, false)
   selection.dispatch({} as never)
   assert.equal(open(groupOf(70)), 0, 'unlinked, its group fits its box again')
+})
+
+test('a root composed before its cut was followed opens its group at the first cut', () => {
+  const { packed, selection } = followed(40, new Set([70]))
+  const tree = packed.placementTree!,
+    groups = tree.levels.at(-1)!
+  selection.dispatch({} as never)
+  assert.equal(tree.nodeOpen[groups.base + Math.floor(tree.slot[70] / 64) - tree.cellBase], 1)
 })

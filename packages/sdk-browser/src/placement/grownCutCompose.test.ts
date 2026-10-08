@@ -1,11 +1,11 @@
-// A link a parent makes while a grown cut is being made reached the old cut alone: the new one,
-// swapped in, kept the child's tree group closed — a child its parent poses on the GPU, culled at
-// its last CPU pose. The swap replays the one compose state, as it replays parks and marks.
+// A link a parent makes while a grown cut is being made reaches the new one too: its tree reads
+// the one compose state (`composedRoot`) at its first cut, so the child its parent poses on the
+// GPU is never culled at its last CPU pose; nothing is replayed at the swap.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placedSession } from './webgpuGrowth.fixture.ts'
 import { growthOf } from './webgpuGrowth.ts'
-import { composeWebgpuPlacements } from './gpuCompose.ts'
+import { composedRoot, composeWebgpuPlacements } from './gpuCompose.ts'
 import { noBudget, settled } from '../partition/cells.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -26,10 +26,11 @@ test('a link made while the grown cut is made opens its group in that cut once s
     const link = { rows, index, local: IDENTITY }
     assert.ok(composeWebgpuPlacements(rt, {}, IDENTITY, [link], true))
     const told: number[] = []
-    ready.cut.composedPlacement = (w, composed) => void (composed && told.push(w))
+    ready.cut.composedPlacement = (w) => void told.push(w)
     await draw()
     assert.equal(rt.run.gpuSelection, ready.cut, 'swapped in')
-    assert.deepEqual(told, [rank], 'its group opens in the new cut')
+    assert.ok(composedRoot(rt, rank), 'the compose state its tree reads holds the link')
+    assert.deepEqual(told, [], 'nothing replayed at the swap')
   } finally {
     session.dispose()
   }

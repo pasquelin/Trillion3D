@@ -27,6 +27,14 @@ function cardView(rt: WebgpuPagesRuntime) {
 /** The slots written since the last image, increasing, and the runs the cut's one run writer
  *  joins them into (`writeRanges`). */
 let sorted = new Int32Array(16)
+/** Where those runs go and come from, kept from one image to the next. */
+const target = {
+  device: undefined as GPUDevice | undefined,
+  buffer: undefined as GPUBuffer | undefined,
+}
+const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+  target.device!.queue.writeBuffer(target.buffer!, offset, data, from, size)
+const source = { data: new Float32Array(0), sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
 
 /** The records written since the last image, through the cut's one run writer; all of them into a
  *  buffer just made. */
@@ -39,17 +47,15 @@ function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer: GPUBuf
     return uploaded(slots)
   }
   const { list, count } = slots.dirty
+  if (!count) return uploaded(slots)
   if (sorted.length < count) sorted = new Int32Array(Math.max(count, sorted.length * 2))
   sorted.set(list.subarray(0, count))
   sorted.subarray(0, count).sort()
-  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-    device.queue.writeBuffer(buffer, offset, data, from, size)
-  core.writeRanges(device, into, sorted, count, {
-    data: records,
-    sourceBase: 0,
-    targetBase: 0,
-    stride: CARD_FLOATS,
-  })
+  target.device = device
+  target.buffer = buffer
+  source.data = records
+  core.writeRanges(device, into, sorted, count, source)
+  target.device = target.buffer = undefined
   uploaded(slots)
 }
 

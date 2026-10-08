@@ -102,6 +102,8 @@ export function rebaseWorldsOnGpu(
   rebase: Awaited<ReturnType<typeof createWorldRebase>>,
 ) {
   const held = new Float64Array(3).fill(NaN)
+  // The eyes of passes in flight, kept for the next once they settle: none made a moving frame.
+  const spare: Float64Array[] = []
   let rebased = -1
   const { dispatch, dispose, aside } = selection
   const commit = (eye: ArrayLike<number>, written: number) => {
@@ -116,7 +118,9 @@ export function rebaseWorldsOnGpu(
       if (written === rebased && sameRenderOrigin(held, uniforms.cameraWorld))
         return cut(uniforms, shared)
       // Held until the pass is queued: the eye of a shared buffer settles with it.
-      const eye = Float64Array.from(uniforms.cameraWorld)
+      const eye = spare.pop() ?? new Float64Array(3),
+        at = uniforms.cameraWorld
+      for (let k = 0; k < 3; k++) eye[k] = at[k]
       selection.worldsAt?.()
       const encoder = shared ?? device.createCommandEncoder()
       rebase.encode(encoder, eye)
@@ -125,9 +129,13 @@ export function rebaseWorldsOnGpu(
         commit(eye, written)
       }
       const settle = cut(uniforms, shared)
-      if (!shared || !settle) return settle
+      if (!shared || !settle) {
+        spare.push(eye)
+        return settle
+      }
       return (submitted: boolean) => {
         if (submitted) commit(eye, written)
+        spare.push(eye)
         settle(submitted)
       }
     }

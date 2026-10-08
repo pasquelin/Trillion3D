@@ -44,6 +44,8 @@ export function createCoverHolders(options: {
     lacking.remove(key)
     return true
   }
+  /** What `missing` hands out when the pool lacks nothing: no list made a frame. */
+  const none: readonly PageRec[] = []
   return {
     /** `pages` gain a holder, `held`, or lose one; true when one joined or left the cover. */
     hold(pages: readonly PageRec[], held: boolean) {
@@ -52,8 +54,9 @@ export function createCoverHolders(options: {
       return moved
     },
     /** The pages a later holder brought into the cover that the pool lacks, as `holds` says:
-     *  those it holds leave the list. */
-    missing(holds: (page: PageRec) => boolean) {
+     *  those it holds leave the list. A list of its own, read across the awaits of a burst. */
+    missing(holds: (page: PageRec) => boolean): readonly PageRec[] {
+      if (lacking.count === 0) return none
       const out: PageRec[] = []
       for (let i = lacking.count - 1; i >= 0; i--)
         if (holds(missingPages[i])) lacking.remove(lacking.list[i])

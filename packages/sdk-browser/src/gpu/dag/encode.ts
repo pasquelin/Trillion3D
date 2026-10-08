@@ -78,8 +78,7 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.drawn)
   } else pass.setBindGroup(0, ranges[0].bindGroup)
   // The first range's dispatch also resets the block counts.
-  const roots = rootEntries(resources)
-  perRange(pass, ranges, preparePipeline, width, roots.prepare, blockCount)
+  perRange(pass, resources, preparePipeline, width, prepareEntries, blockCount)
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that.
   //
@@ -89,7 +88,7 @@ function encodeOnce(
   // roots that exist. A primitive whose caller supplies an empty hierarchy would make the two
   // diverge. Each range reads its own roots; a deeper level mixes them, so each range walks the
   // level's whole queue and keeps its own primitives' nodes.
-  perRange(pass, ranges, rootLevelPipeline, width, roots.level)
+  perRange(pass, resources, rootLevelPipeline, width, levelEntries)
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. Level 1 is dispatched flat on its stage's nodes,
   // an upper bound the layout knows and a small one: the placement tree's second level, or the
@@ -103,8 +102,7 @@ function encodeOnce(
       perRangeIndirect(pass, ranges, pipeline, dispatchArgs, DAG_ARGS.queues[level % 3])
       continue
     }
-    const bound = Math.min(levelSizes[level], resources.nodeCount)
-    perRange(pass, ranges, pipeline, width, () => bound)
+    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.nodeCount))
   }
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)
@@ -147,40 +145,46 @@ function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, ranges }: Dag
 }
 
 /**
- * The entries of queue 0 each range's dispatch writes (`prepare`) and reads (`level`): without a
+ * The entries of queue 0 range `r`'s `dagPrepare` writes (`levelEntries` those pass 0 reads): without a
  * placement tree, its own placements; with one, the head range the tree's top nodes, the world DAG's
  * range its root, and every range reads those few entries whole (`placementTreeWgsl.ts`).
  */
-function rootEntries({ packed, ranges }: DagView) {
+function prepareEntries({ packed, ranges }: DagView, r: number) {
   const tree = packed.placementTree,
     world = packed.world?.root ?? -1
-  if (!tree)
-    return { prepare: (r: number) => ranges[r].count, level: (r: number) => ranges[r].count }
-  const top = tree.levels[0].count,
-    holds = (r: number) => world >= ranges[r].first && world < ranges[r].first + ranges[r].count
-  return {
-    prepare: (r: number) => (r ? 0 : top) + (holds(r) ? 1 : 0),
-    level: () => top + (world >= 0 ? 1 : 0),
-  }
+  if (!tree) return ranges[r].count
+  const holds = world >= ranges[r].first && world < ranges[r].first + ranges[r].count
+  return (r ? 0 : tree.levels[0].count) + (holds ? 1 : 0)
+}
+
+/** The entries of queue 0 range `r`'s pass 0 reads (`prepareEntries`). */
+function levelEntries({ packed, ranges }: DagView, r: number) {
+  const tree = packed.placementTree
+  if (!tree) return ranges[r].count
+  return tree.levels[0].count + ((packed.world?.root ?? -1) >= 0 ? 1 : 0)
 }
 
 /**
  * The kernels that read a primitive's words run once per range of `frames`, each under its
- * range's bind group, on its range's primitives (`frameRanges.ts`): `threads(r)` on range `r`, at
+ * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, or `threads(view, r)` on range `r`, at
  * least `firstFloor` on the first, in rows of `width` workgroups. One range: the commands of before.
  */
 function perRange(
   pass: GPUComputePassEncoder,
-  ranges: DagView['ranges'],
+  view: DagView,
   pipeline: GPUComputePipeline,
   width: number,
-  threads: (r: number) => number,
+  threads: number | ((view: DagView, r: number) => number),
   firstFloor = 0,
 ) {
+  const { ranges } = view
   pass.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
-    const count = Math.max(threads(r), r ? 0 : firstFloor)
+    const count = Math.max(
+      typeof threads === 'number' ? threads : threads(view, r),
+      r ? 0 : firstFloor,
+    )
     dispatchRows(pass, workgroupCount(count, WORKGROUP), 1, width)
   }
 }
