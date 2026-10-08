@@ -1,4 +1,5 @@
 import type { ClusterRoot } from '../../../page/selection/types.ts'
+import { rootSource } from '../../../placement/hidden.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import {
@@ -38,8 +39,8 @@ function bySlot<E>(
 }
 
 /**
- * The entries of `entries` whose source node (`sourceOf`) lies in the subtree of the node at `slot`
- * of `tree`, read in the tree itself — each once, in the walk's order —, written into `out` from
+ * The entries of `entries` whose source node (`sourceOf`) lies in the subtree of `node`, read in
+ * its slot of the page's tree — each once, in the walk's order —, written into `out` from
  * `at` on; returns where they end. A slot freed since, or whose node was destroyed and its slot
  * taken by another, holds none of the old node's entries. `out` is never truncated: it keeps its
  * storage and grows only past its length.
@@ -47,11 +48,12 @@ function bySlot<E>(
 export function appendUnderSlot<E>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
-  tree: TransformTree,
-  slot: number,
+  node: Object3D,
   out: number[],
   at: number,
 ) {
+  const tree = Object3D._treeOf(node),
+    slot = node.index
   if (!(tree.flags[slot] & NODE_ALIVE)) return at
   const slots = bySlot(entries, sourceOf, tree)
   let count = at
@@ -62,14 +64,6 @@ export function appendUnderSlot<E>(
   return count
 }
 
-/** The source node of a root: its first page's mesh. */
-const rootSource = (root: ClusterRoot<PageRec>) => root.pages[0]?.sourceMesh as Object3D | undefined
-
 /** `appendUnderSlot` over the selection roots. */
-export const appendRootsUnderSlot = (
-  roots: Roots,
-  tree: TransformTree,
-  slot: number,
-  out: number[],
-  at: number,
-) => appendUnderSlot(roots, rootSource, tree, slot, out, at)
+export const appendRootsUnderSlot = (roots: Roots, node: Object3D, out: number[], at: number) =>
+  appendUnderSlot(roots, rootSource, node, out, at)

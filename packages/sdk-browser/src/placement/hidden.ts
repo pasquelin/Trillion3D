@@ -11,6 +11,10 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 /** True when `entry` is not drawn: its source node is hidden, or its row parked. */
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
+/** The node a root comes from: its first page's mesh. */
+export const rootSource = <T extends { sourceMesh?: Object3D }>(root: ClusterRoot<T>) =>
+  root.pages[0]?.sourceMesh
+
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
   for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false
@@ -87,7 +91,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   }
   followHidden(
     roots,
-    (root) => root.pages[0]?.sourceMesh,
+    rootSource,
     (root, rank) => {
       const parked = !!root.hidden || rowParked(root.placement)
       if (parked === !!root.parked) return
@@ -102,7 +106,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   for (let k = 0; k < count; k++) {
     const rank = ranks ? ranks[k] : k,
       root = roots[rank],
-      source = root.pages[0]?.sourceMesh
+      source = rootSource(root)
     if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue
     flipped(rank, root)
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)

@@ -48,11 +48,7 @@ type GateState = {
 /** What the world pass a scene revision owes read of the host's writes (`updateWorlds`): whether
  *  every root is walked — the scene changed shape —, else the nodes shown, hidden or set to cast
  *  or not, and the nodes whose pose or matrix was written, whose roots alone follow. */
-type HostWrite = {
-  reshaped: boolean
-  flipped: readonly Object3D[]
-  moved: readonly Object3D[]
-}
+type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
 
 /**
  * The engine's frame gate: the three revisions, the view origin, the reread of the graph
@@ -82,7 +78,7 @@ export function createFrameGateCore(holdValues: number) {
       return core.pixelError
     },
     sceneChanged: () => sceneChanged(core),
-    sceneMoved: () => sceneMoved(core),
+    sceneMoved: () => movedInPlace(core),
     resourcesChanged: () => bumpResources(revisions),
     /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
@@ -93,21 +89,21 @@ export function createFrameGateCore(holdValues: number) {
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),
-    updateWorlds: (worlds: HostWorldPlacements, moved?: (nodes: readonly Object3D[]) => void) =>
+    updateWorlds: (worlds: HostWorldPlacements, moved?: (nodes: Iterable<Object3D>) => void) =>
       updateWorlds(core, worlds, moved),
     /** The nodes the host wrote, its poses or its matrices, which no world pass read yet: an
      *  engine move takes them with its own, its pass refreshing them (`movedBatch.ts`). */
     takeHostMoves: () => core.sceneWatch.takeWritten(),
-    /** A light, the environment or the lighting view changed through the engine: the scene moves
-     *  and the watched list is read anew, no root walked. */
-    lightsChanged: () => lightsChanged(core),
+    /** A light, the environment or the lighting view changed through the engine's own store: the
+     *  scene moves, the watched list stands, no root walked. */
+    lightsChanged: () => movedInPlace(core),
     engineWriting: () => engineWriting(core),
     noteWorldsUpdated: () => noteWorldsUpdated(core),
     /** The engine moved poses in place: the three steps above, `engineWriting` first so an
      *  unread host pose write stays owed. */
     engineMovedInPlace() {
       engineWriting(core)
-      sceneMoved(core)
+      movedInPlace(core)
       noteWorldsUpdated(core)
     },
     /** Lets go of the source graph: its writes no longer reach this gate. */
@@ -130,7 +126,7 @@ function gateState(holdValues: number): GateState {
     pixelError: 0,
     hostPosesOwed: false,
     reshaped: true,
-    write: { reshaped: true, flipped: [], moved: [] },
+    write: { reshaped: true, flipped: [] },
   }
 }
 
@@ -152,34 +148,26 @@ const observe = (core: GateState, source: Object3D, drawn: FrameGateSources) =>
  *  wrote into the source graph on the way is announced by this revision: the watch does not
  *  announce it a second time, and the next `readScene` reads the list anew under it. */
 function sceneChanged(core: GateState) {
-  lightsChanged(core)
+  bumpScene(core.revisions)
+  core.sceneWatch.settle()
   core.reshaped = true
 }
 
-/** The scene moved and no root with it: a light, the environment. The watched list is read anew
- *  under the new revision (`readScene`). */
-function lightsChanged(core: GateState) {
-  bumpScene(core.revisions)
-  core.sceneWatch.settle()
-}
-
 /**
- * A POSE moved, and the shape of the scene did not: the engine wrote the local pose of a node
- * that was already drawn, added no instance, retargeted no light, reparented nothing. The
- * watched set therefore has exactly the same members, and this revision does not ask for it
- * to be read anew — which is a full walk of the source graph, and would be paid on every
- * image while a node is being moved.
+ * The scene moved and its shape did not: the engine wrote the local pose of a node already drawn,
+ * or a light, the environment, the lighting view of its own store. The watched set therefore has
+ * exactly the same members, and this revision does not ask for it to be read anew — which is a
+ * full walk of the source graph, and would be paid on every image while a node moves or a sun
+ * turns —, nor every root walked.
  */
-function sceneMoved(core: GateState) {
+function movedInPlace(core: GateState) {
   // Only a watched set UP TO DATE with the current scene is carried over. Before the first
   // image it does not exist yet; after a reshape already announced it no longer names the
-  // right nodes. Settling either would drop the rebuild `readScene` still owes: the node the
+  // right nodes. Keeping either would drop the rebuild `readScene` still owes: the node the
   // reshape brought in would never be hooked, and every host write on it lost for good.
-  const current = core.watchRevision === core.revisions.scene,
-    reshaped = core.reshaped
-  sceneChanged(core)
-  // A pose changes no shape: what the next world pass walks stands as it was.
-  core.reshaped = reshaped
+  const current = core.watchRevision === core.revisions.scene
+  bumpScene(core.revisions)
+  core.sceneWatch.settle()
   if (current) core.watchRevision = core.revisions.scene
 }
 
@@ -235,7 +223,7 @@ const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same
 function updateWorlds(
   core: GateState,
   worlds: HostWorldPlacements,
-  moved?: (nodes: readonly Object3D[]) => void,
+  moved?: (nodes: Iterable<Object3D>) => void,
 ) {
   if (core.worldsRevision === core.revisions.scene) return false
   core.worldsRevision = core.revisions.scene
@@ -243,20 +231,20 @@ function updateWorlds(
   const write = core.write
   write.reshaped = core.reshaped
   write.flipped = core.sceneWatch.takeFlipped()
-  write.moved = core.sceneWatch.takeWritten()
+  const nodes = core.sceneWatch.takeWritten()
   core.reshaped = false
-  if (!write.reshaped) moved?.(write.moved)
+  if (!write.reshaped) moved?.(nodes)
   worlds.refresh()
   return write
 }
 
 /**
- * To call before the engine writes a pose of its own, and before it announces the move: the
- * move settles the watch, so a host pose write still unread in the same task would be taken
- * as the engine's, and the roots it moved never named — their rows would keep the old world.
- * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next image its
- * whole rewrite of the rows, exactly as after a host write alone. One comparison of two
- * integers when the host wrote nothing, which is every image a model moves.
+ * To call before the engine moves poses in place of its own (`engineMovedInPlace`), and before it
+ * announces the move: the move settles the watch, and a host pose write still unread in the same
+ * task, kept by the watch (`takeWritten`), would be read by no world pass — its roots' rows would
+ * keep the old world. Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the
+ * next image its world pass, which names it. One comparison of two integers when the host wrote
+ * nothing, which is every image a model moves.
  */
 function engineWriting(core: GateState) {
   if (core.sceneWatch.pending()) core.hostPosesOwed = true

@@ -6,7 +6,7 @@ import { takeSorted } from '../../cut/denseKeys.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
 import { appendRootsUnderSlot, appendUnderSlot } from './movedNode.ts'
-import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -104,9 +104,8 @@ function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
   let rootCount = 0,
     blendCount = 0
   for (const node of flipped) {
-    const tree = Object3D._treeOf(node)
-    rootCount = appendRootsUnderSlot(roots, tree, node.index, flippedRoots, rootCount)
-    blendCount = appendUnderSlot(blend, blendSource, tree, node.index, flippedBlend, blendCount)
+    rootCount = appendRootsUnderSlot(roots, node, flippedRoots, rootCount)
+    blendCount = appendUnderSlot(blend, blendSource, node, flippedBlend, blendCount)
   }
   under.roots.count = rootCount
   under.seeThrough.count = blendCount

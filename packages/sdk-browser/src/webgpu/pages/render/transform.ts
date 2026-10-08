@@ -12,7 +12,6 @@ const request = new Float32Array(16)
  *  them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   const node = namedNode(rt.setup.source, nodeName, matrix)
-  rt.run.gate.engineWriting()
   try {
     pose(rt, node, matrix)
   } finally {
@@ -39,8 +38,6 @@ export function setWebgpuTransforms(
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
     })
-  // A host pose written in this same task stays owed to the next image's rewrite (`engineWriting`).
-  rt.run.gate.engineWriting()
   try {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k]
@@ -76,7 +73,16 @@ function pose(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
  *  (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
   try {
-    for (const node of rt.run.gate.takeHostMoves()) if (!posed.has(node)) noteNode(rt, node)
+    // The watch heard the call's own writes too: the host's are the others.
+    let host = false
+    for (const node of rt.run.gate.takeHostMoves())
+      if (!posed.has(node)) {
+        host = true
+        noteNode(rt, node)
+      }
+    // The deformation's staleness noted before this pass compared the worlds the host has since
+    // rewritten: its next update reads them again, as after a host write the image reads.
+    if (host) rt.vis.deformation?.frame.forget()
     rt.setup.worlds.refresh()
     finishMoves(rt)
   } finally {

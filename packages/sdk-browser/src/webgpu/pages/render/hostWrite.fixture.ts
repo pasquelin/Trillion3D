@@ -45,3 +45,30 @@ export function hostScene(count: number, blend = false) {
   image()
   return { source, holder, meshes, roots, worlds, rt, run, sent, parks, blendGpu, image }
 }
+
+/** Every read the scene watch's scan makes of a node's matrix mode on `meshes`, counted. */
+export function countScans(meshes: readonly object[]) {
+  let reads = 0
+  for (const mesh of meshes) {
+    let proto = Object.getPrototypeOf(mesh)
+    while (!Object.getOwnPropertyDescriptor(proto, 'matrixAutoUpdate'))
+      proto = Object.getPrototypeOf(proto)
+    const own = Object.getOwnPropertyDescriptor(proto, 'matrixAutoUpdate')!
+    Object.defineProperty(mesh, 'matrixAutoUpdate', {
+      get: () => (reads++, own.get!.call(mesh)),
+      set: (value: boolean) => own.set!.call(mesh, value),
+    })
+  }
+  return () => reads
+}
+
+/** `rt` ready for a light set through the engine (`refreshSceneLights`): its capture, its
+ *  diagnostics and its light store. */
+export function withLightStore(rt: object) {
+  const held = rt as { lights: object }
+  Object.assign(rt, {
+    capture: { capturedRevision: 0 },
+    diag: { engineDiagnostic() {} },
+    lights: { ...held.lights, store: { count: 1, lightingView: 0, unlit: false } },
+  })
+}

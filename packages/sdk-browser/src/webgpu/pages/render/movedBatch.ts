@@ -10,7 +10,7 @@ import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
 import { appendRootsUnderSlot } from './movedNode.ts'
-import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -59,7 +59,7 @@ const LOT_SHARE = 8
  * once in the tree (`appendRootsUnderSlot`), and their box before the move. The work follows the
  * nodes written, never the scene's roots.
  */
-export function noteMoved(rt: WebgpuPagesRuntime, nodes: readonly Object3D[]) {
+export function noteMoved(rt: WebgpuPagesRuntime, nodes: Iterable<Object3D>) {
   for (const node of nodes) noteNode(rt, node)
 }
 
@@ -67,7 +67,7 @@ export function noteMoved(rt: WebgpuPagesRuntime, nodes: readonly Object3D[]) {
 export function noteNode(rt: WebgpuPagesRuntime, node: Object3D) {
   const from = movedCount,
     roots = rt.layout.selectionRoots
-  movedCount = appendRootsUnderSlot(roots, Object3D._treeOf(node), node.index, movedList, from)
+  movedCount = appendRootsUnderSlot(roots, node, movedList, from)
   noteBefore(rt, from)
 }
 
