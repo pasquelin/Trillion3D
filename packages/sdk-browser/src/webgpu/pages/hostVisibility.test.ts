@@ -69,7 +69,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     touched: number[] = []
   const rt = {
     run: {
-      gate: { updateWorlds: () => true, revisions: { scene: 1 } },
+      gate: { updateWorlds: () => ({ reshaped: true, flipped: [] }), revisions: { scene: 1 } },
       gpuSelection: {
         parkWorld: (rank: number, parked: boolean) => parks.push([rank, parked]),
         markWorld: (_: number, mark: number) => marks.push(mark),

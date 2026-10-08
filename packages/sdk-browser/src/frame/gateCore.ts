@@ -38,7 +38,17 @@ type GateState = {
   /** A host write no world pass has read yet: announced by the scan, or unread when the engine
    *  wrote. */
   hostPosesOwed: boolean
+  /** The scene changed shape since the last world pass — the first image, a node added or
+   *  reparented, an engine edit that is not a pose —: the next one walks every root. */
+  reshaped: boolean
+  /** What the last world pass read, rewritten by the next. */
+  write: HostWrite
 }
+
+/** What the world pass a scene revision owes read of the host's writes (`updateWorlds`): whether
+ *  the scene changed shape — every root walked —, else the nodes shown, hidden or set to cast or
+ *  not, whose roots alone follow. The poses written are the transform tree's listed nodes. */
+export type HostWrite = { reshaped: boolean; flipped: readonly Object3D[] }
 
 /**
  * The engine's frame gate: the three revisions, the view origin, the reread of the graph
@@ -79,7 +89,8 @@ export function createFrameGateCore(holdValues: number) {
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),
-    updateWorlds: (worlds: HostWorldPlacements) => updateWorlds(core, worlds),
+    updateWorlds: (worlds: HostWorldPlacements, listed?: () => void) =>
+      updateWorlds(core, worlds, listed),
     engineWriting: () => engineWriting(core),
     noteWorldsUpdated: () => noteWorldsUpdated(core),
     /** The engine moved poses in place: the three steps above, `engineWriting` first so an
@@ -108,6 +119,8 @@ function gateState(holdValues: number): GateState {
     watchRevision: -1,
     pixelError: 0,
     hostPosesOwed: false,
+    reshaped: true,
+    write: { reshaped: true, flipped: [] },
   }
 }
 
@@ -131,6 +144,7 @@ const observe = (core: GateState, source: Object3D, drawn: FrameGateSources) =>
 function sceneChanged(core: GateState) {
   bumpScene(core.revisions)
   core.sceneWatch.settle()
+  core.reshaped = true
 }
 
 /**
@@ -145,8 +159,11 @@ function sceneMoved(core: GateState) {
   // image it does not exist yet; after a reshape already announced it no longer names the
   // right nodes. Settling either would drop the rebuild `readScene` still owes: the node the
   // reshape brought in would never be hooked, and every host write on it lost for good.
-  const current = core.watchRevision === core.revisions.scene
+  const current = core.watchRevision === core.revisions.scene,
+    reshaped = core.reshaped
   sceneChanged(core)
+  // A pose changes no shape: what the next world pass walks stands as it was.
+  core.reshaped = reshaped
   if (current) core.watchRevision = core.revisions.scene
 }
 
@@ -184,7 +201,10 @@ function readScene(core: GateState, source: Object3D, drawn: FrameGateSources) {
     core.hostPosesOwed = true
     // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
     // the host can write it again, so no write falls between the reshape and the rebuild.
-    if (verdict === 'reshaped') observe(core, source, drawn)
+    if (verdict === 'reshaped') {
+      core.reshaped = true
+      observe(core, source, drawn)
+    }
   }
   core.watchRevision = revisions.scene
 }
@@ -192,15 +212,21 @@ function readScene(core: GateState, source: Object3D, drawn: FrameGateSources) {
 const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same(revisions)
 
 /** Once per scene revision no engine move already took, brings the world matrices up to date
- *  (the transform tree's pass, which walks only what was written since the last) and returns
- *  true: a host write, whose moved nodes nobody named, is owed a whole rewrite of the rows. A
- *  frame nothing announced runs no pass: what is listed waits for the next. */
-function updateWorlds(core: GateState, worlds: HostWorldPlacements) {
+ *  (the transform tree's pass, which walks only what was written since the last) and returns what
+ *  the host wrote (`HostWrite`); `listed` first reads the nodes written, unless the scene changed
+ *  shape — every root is then walked. A frame nothing announced runs no pass: what is listed waits
+ *  for the next. */
+function updateWorlds(core: GateState, worlds: HostWorldPlacements, listed?: () => void) {
   if (core.worldsRevision === core.revisions.scene) return false
   core.worldsRevision = core.revisions.scene
   core.hostPosesOwed = false
+  const write = core.write
+  write.reshaped = core.reshaped
+  write.flipped = core.sceneWatch.takeFlipped()
+  core.reshaped = false
+  if (!write.reshaped) listed?.()
   worlds.refresh()
-  return true
+  return write
 }
 
 /**

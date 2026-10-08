@@ -34,7 +34,10 @@ function image(count: number, next: () => number) {
     layout: { selectionRoots, worldUpdates: new Float32Array(count * 16), rows: { tableEpoch: 1 } },
     timing: { worldCounts: { rootsUploaded: 0 } },
     run: {
-      gate: { updateWorlds: () => walks.shift() ?? false, revisions: { scene: 3 } },
+      gate: {
+        updateWorlds: () => (walks.shift() ?? false) && { reshaped: true, flipped: [] },
+        revisions: { scene: 3 },
+      },
       movedWorlds: createSortedKeys(),
       worldUploadRevision: 2,
       gpuSelection: {

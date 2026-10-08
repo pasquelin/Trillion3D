@@ -26,7 +26,10 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
     blendState: { blendGpu: [] },
     lights: { mobility: { moves: () => false } },
     run: {
-      gate: { updateWorlds: () => walked, revisions: { scene: 2 } },
+      gate: {
+        updateWorlds: () => walked && { reshaped: true, flipped: [] },
+        revisions: { scene: 2 },
+      },
       worldUploadRevision: 1,
       gpuSelection,
       movedWorlds: createSortedKeys(),

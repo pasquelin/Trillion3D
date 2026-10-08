@@ -9,11 +9,10 @@ import {
 import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
-import { appendRootsUnder } from './movedNode.ts'
+import { appendRootsUnderSlot } from './movedNode.ts'
 import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * What the nodes of one move call leave to do, done once for the call: the moved
@@ -53,12 +52,25 @@ let movedBoxes = new Float64Array(BOX_VALUES),
  *  the lot, which transforms every root: the same `boxTransform` yields the same bits. */
 const LOT_SHARE = 8
 
-/** `node` was just posed: the roots whose mesh lies in its subtree — walked once — and their box
- *  before the move. */
-export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
+/**
+ * Every node written since the last pass of the transform tree — an engine move's, a host write's
+ * —, before the pass takes it: the roots whose mesh lies in its subtree, walked once in the tree
+ * (`appendRootsUnderSlot`), and their box before the move. The work follows the nodes written,
+ * never the scene's roots.
+ */
+export function noteListed(rt: WebgpuPagesRuntime) {
   const roots = rt.layout.selectionRoots
-  const from = movedCount
-  movedCount = appendRootsUnder(roots, node, movedList, from)
+  rt.setup.worlds.listed((tree, slot) => {
+    const from = movedCount
+    movedCount = appendRootsUnderSlot(roots, tree, slot, movedList, from)
+    noteBefore(rt, from)
+  })
+}
+
+/** The roots a node moved, `movedList[from .. movedCount)`: their box before the move, kept for
+ *  the node's turn (`declareMove`). */
+function noteBefore(rt: WebgpuPagesRuntime, from: number) {
+  const roots = rt.layout.selectionRoots
   boxEmpty(before, 0)
   for (let j = from; j < movedCount; j++) {
     const box = roots[movedList[j]].worldBox
@@ -71,11 +83,12 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
 }
 
 /** The pass over the roots the noted nodes moved, then each node's motion box; nothing if none.
- *  The counts are reset even when the pass throws: a later call never inherits stale ranks. */
-export function finishMoves(rt: WebgpuPagesRuntime) {
+ *  The counts are reset even when the pass throws: a later call never inherits stale ranks.
+ *  `announce`: an engine move bumps the scene revision itself; a host write's already did. */
+export function finishMoves(rt: WebgpuPagesRuntime, announce = true) {
   if (!nodeCount) return
   try {
-    passMoves(rt)
+    passMoves(rt, announce)
   } finally {
     for (let k = 0; k < distinctCount; k++) listedRoots[distinct[k]] = 0
     forgetOwnMoves()
@@ -93,7 +106,7 @@ function declareMove(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (!boxIsEmpty(after, 0) && !still) changes.worldChanged(afterMin, afterMax, !promoted)
 }
 
-function passMoves(rt: WebgpuPagesRuntime) {
+function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
   const { lights, run, layout } = rt,
     roots = layout.selectionRoots
   if (promotedRoots.length < roots.length) {
@@ -130,10 +143,12 @@ function passMoves(rt: WebgpuPagesRuntime) {
   }
   // Origin of the scene change: these subtrees' world matrices have just been rewritten. Only
   // poses moved — no node entered or left the scene — so the watched set is left as it stands
-  // instead of being rebuilt from a walk of the source graph on the next image.
-  run.gate.sceneMoved()
-  // The hierarchy already carries this revision's matrices: the next image does not climb it.
-  run.gate.noteWorldsUpdated()
+  // instead of being rebuilt from a walk of the source graph on the next image; the hierarchy
+  // already carries this revision's matrices: the next image does not climb it.
+  if (announce) {
+    run.gate.sceneMoved()
+    run.gate.noteWorldsUpdated()
+  }
   let start = 0
   for (let k = 0; k < nodeCount; k++) {
     for (let v = 0, a = k * BOX_VALUES; v < BOX_VALUES; v++) before[v] = movedBoxes[a + v]

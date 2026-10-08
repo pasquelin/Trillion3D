@@ -11,6 +11,9 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  */
 export const ENGINE_OWNED = 'trillion3dEngineOwned'
 
+/** No node flipped. */
+const NONE_FLIPPED: readonly Object3D[] = []
+
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
  *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
 export type WatchedSources = ReadonlyArray<unknown>
@@ -66,6 +69,8 @@ export function createHostSceneWatch() {
   const mark: WriteRevision = { revision: 1 }
   let watched: NodeState[] = [],
     seen = 0,
+    // The nodes a scan found shown, hidden, set to cast or not, since they were last taken.
+    flipped: Object3D[] = [],
     // The engine's write count the watched nodes were last read under.
     writesRead = -1
   return {
@@ -104,12 +109,24 @@ export function createHostSceneWatch() {
       seen = mark.revision
       if (nodeWrites() === writesRead) return verdict
       for (let i = 0; i < watched.length; i++) {
-        const scanned = scan(watched[i])
+        const state = watched[i],
+          visible = state.visible,
+          castShadow = state.castShadow
+        const scanned = scan(state)
+        if (state.visible !== visible || state.castShadow !== castShadow) flipped.push(state.node)
         if (scanned === 'reshaped') verdict = scanned
         else if (scanned && !verdict) verdict = scanned
       }
       writesRead = nodeWrites()
       return verdict
+    },
+    /** The nodes the scans found shown, hidden, set to cast or not since the last call, each
+     *  where it was flipped: what their roots follow, none other (`followHostVisibility`). */
+    takeFlipped(): readonly Object3D[] {
+      if (!flipped.length) return NONE_FLIPPED
+      const taken = flipped
+      flipped = []
+      return taken
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
      *  is hooked before the first observation: no host write can be pending there. */
