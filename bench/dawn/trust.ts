@@ -10,8 +10,6 @@ export const SUM_TOLERANCE = 0.1
 export const ENGINE_TOLERANCE = 0.25
 /** The most the middle half of the frames may span, as a share of their median. */
 export const DISPERSION_LIMIT = 0.25
-/** A pass under this ms is a zero: the timer of a real pass reads more. */
-const ZERO_MS = 0.0005
 
 /** The doubts a segment's numbers raise, each a sentence naming what and by how much. */
 export function timerDoubts(input: {
@@ -30,8 +28,6 @@ export function timerDoubts(input: {
       doubts.push(
         `unknown: "${pass.name}" has only indirect work and no timestamp in ${pass.unknown} runs: no size, or a lost timer`,
       )
-    else if (pass.max < ZERO_MS && !pass.empty)
-      doubts.push(`zero: "${pass.name}" reads 0 ms with work encoded`)
   }
   if (frame) {
     const sum = passes.reduce((total, pass) => total + pass.median, 0)

@@ -5,8 +5,8 @@
 
 import type { PassWork } from './passWorkHooks.ts'
 
-/** What a pass's timestamps say. `ok`: a span. `empty`: it encoded no work (no dispatch or draw of
- *  any size), so the driver wrote no timestamp — a real zero. `unknown`: only indirect work, which
+/** What a pass's timestamps say. `ok`: a span. `empty`: it ran in no time — it encoded no work
+ *  (so the driver wrote no timestamp) or its stamps are valid and equal: a real zero. `unknown`: only indirect work, which
  *  may have been of no size — a zero or a lost timer, the GPU alone knows. `lost`: it encoded work
  *  and the driver wrote no timestamp — a timer lost, its pass's time unknown. */
 export type PassState = 'ok' | 'empty' | 'unknown' | 'lost'
@@ -73,8 +73,7 @@ export function readPasses(
     const ms = Math.max(0, end - Math.max(begin, covered))
     spans.push([begin, end])
     covered = Math.max(covered, end)
-    const state =
-      end - begin < EMPTY_MS && !calls && !indirect ? ('empty' as const) : ('ok' as const)
+    const state = end - begin < EMPTY_MS ? ('empty' as const) : ('ok' as const)
     return { label, kind, ms, spanMs: end - begin, gapMs, beginMs: begin, state, work }
   })
   for (const pass of read)

@@ -3,6 +3,7 @@
 // by function, the engine's counters, and what went wrong.
 import { REFRESH_MS } from './frames.ts'
 import type { BenchReport } from './merge.ts'
+import { insightsText, type Insights } from './insights.ts'
 import type { Spread } from './summary.ts'
 
 export const ms = (value: number | null | undefined, digits = 2) =>
@@ -118,7 +119,7 @@ function segmentDetail(segment: Segment) {
   ]
 }
 
-export function reportText(report: BenchReport) {
+export function reportText(report: BenchReport, insights?: Insights) {
   const { bench } = report
   // A play the other programs kept the GPU busy around (`gpuBusy.ts`) is marked disturbed.
   const busy = report.gpuBusy
@@ -139,6 +140,7 @@ export function reportText(report: BenchReport) {
       `${report.plays} plays in fresh processes. GPU taken by other programs, before→after each play: ${busy}.`,
     `Calibration copy ${range(report.calibration)} ms (${ms(report.gbPerSecond?.median, 0)} GB/s); ready after ${range(report.readySeconds)} s.`,
     '',
+    ...(insights ? insightsText(insights, report.machine) : []),
     '## Segments',
     '',
     table(

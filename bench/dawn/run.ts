@@ -7,12 +7,14 @@
 // <page>: an example's name (`drive-a-car`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
 // machine (`lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './child.ts'
 import { LOCK_OWNER, takeBenchLock } from './lock.ts'
+import { buildInsights } from './insights.ts'
 import { mergePlays } from './merge.ts'
+import { engineSources, findPassSources } from './passSource.ts'
 import { benchOptions, stamp } from './options.ts'
 import { playScenario, type BenchPlay } from './play.ts'
 import { reportText } from './reportText.ts'
@@ -59,8 +61,13 @@ for (let k = 0; k < options.repeat; k++) {
   plays.push(JSON.parse(readFileSync(report, 'utf8')) as BenchPlay)
 }
 const merged = mergePlays(plays)
-writeFileSync(`${stem}.json`, JSON.stringify(merged, null, 1))
-const text = reportText(merged)
+// Every pass's label read back to the engine's code: its file, line, function and shaders.
+const names = [...new Set(merged.segments.flatMap((s) => s.benchPasses.map((p) => p.name)))]
+const insights = buildInsights(merged, findPassSources(engineSources(options.engine.root), names))
+// One JSON and one Markdown a run: the plays' own files were its intermediates.
+writeFileSync(`${stem}.json`, JSON.stringify({ ...merged, insights }, null, 1))
+for (const play of plays.keys()) rmSync(`${stem}-play${play + 1}.json`, { force: true })
+const text = reportText(merged, insights)
 writeFileSync(`${stem}.md`, text)
 console.log(text)
 console.log(`report: ${stem}.md`)

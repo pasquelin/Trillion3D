@@ -18,13 +18,12 @@ test('a coherent segment raises no doubt', () => {
   assert.deepEqual(doubts, [])
 })
 
-test('a lost timer, an indirect pass and a zero are doubted; a pass that encoded nothing is not', () => {
+test('a lost timer and an indirect pass are doubted; a pass that ran in no time is not', () => {
   const doubts = timerDoubts({
     passes: [
       pass('lost', 0, { lost: 4 }),
       pass('empty', 0, { empty: 9 }),
       pass('indirect', 0, { unknown: 2 }),
-      pass('zero', 0),
       pass('work', 5),
     ],
     frame: frame(5, 5, 5),
@@ -32,8 +31,7 @@ test('a lost timer, an indirect pass and a zero are doubted; a pass that encoded
   })
   assert.match(doubts[0], /timer lost: "lost"/)
   assert.match(doubts[1], /unknown: "indirect"/)
-  assert.match(doubts[2], /zero: "zero"/)
-  assert.equal(doubts.length, 3, 'a pass that encoded nothing is a true zero, never a doubt')
+  assert.equal(doubts.length, 2, 'a pass that encoded nothing is a true zero, never a doubt')
 })
 
 test('passes whose sum is not the frame, or an engine timer that disagrees, are doubted', () => {
