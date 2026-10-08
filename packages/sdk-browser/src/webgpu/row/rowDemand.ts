@@ -104,8 +104,7 @@ export function createRowDemand(
       }
     },
     /** Whether the requests' closure holds `page` and the cut does not read it resident. */
-    wanted: (page: number) =>
-      d.marks[page] === 1 && !(d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page]),
+    wanted: (page: number) => d.marks[page] === 1 && !readsResident(d, page),
     /** Whether a readback's closure holds `page`: its row is in use. */
     holds: (page: number) => d.held.delta.has(page),
     /** The live demand is served again: the table grew or was rebuilt. */
@@ -193,12 +192,15 @@ type DemandState = {
   }
 }
 
+/** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
+const readsResident = (d: DemandState, page: number) =>
+  d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page] > 0
+
 /** `page`, wanted by the requests' closure: asked for unless the cut reads it resident — a row
  *  whose record is owed is asked as a missing one is —, behind the demand already listed, with the
  *  request `by` it came in with. */
 function want(d: DemandState, page: number, by = page) {
-  const row = d.table.rowOfPage[page] ?? -1
-  if ((row >= 0 && d.table.residentFlags[page]) || !d.drawsRow(page)) return
+  if (readsResident(d, page) || !d.drawsRow(page)) return
   if (page >= d.marks.length) {
     d.marks = resized(d.marks, page + 1)
     d.listed = resized(d.listed, page + 1)
@@ -257,17 +259,15 @@ function followAsks(d: DemandState, delta: IdDelta) {
 /** The entries from `next` that are live — wanted, the cut not reading them resident — moved to the
  *  head, the others unlisted; returns how many of them hold no row: the requests a refusal leaves. */
 function compact(d: DemandState) {
-  const { rowOfPage, residentFlags } = d.table
   let kept = 0,
     rowless = 0
   for (let i = d.next; i < d.count; i++) {
-    const page = d.list[i],
-      row = rowOfPage[page]
-    if (d.marks[page] !== 1 || (row >= 0 && residentFlags[page])) {
+    const page = d.list[i]
+    if (d.marks[page] !== 1 || readsResident(d, page)) {
       d.listed[page] = 0
       continue
     }
-    if (row < 0) rowless++
+    if (d.table.rowOfPage[page] < 0) rowless++
     d.by[kept] = d.by[i]
     d.list[kept++] = page
   }
@@ -342,7 +342,7 @@ function claimsAt(d: DemandState, page: number) {
   }
   if (d.serving.release(page)) return true
   d.listed[page] = 0
-  if (!(d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page])) d.waitingBy.set(page, by + 1)
+  if (!readsResident(d, page)) d.waitingBy.set(page, by + 1)
   return false
 }
 

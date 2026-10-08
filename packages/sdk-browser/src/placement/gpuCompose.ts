@@ -188,6 +188,14 @@ function composeState(rt: WebgpuPagesRuntime) {
   return (rt.compose ??= createComposeState(roots))
 }
 
+/** Root `rank`'s motion starts from the pose the CPU motion last accumulated it at — the one
+ *  `../taa/motion.ts` would compare its next world with —, its world without one. */
+function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: number) {
+  const world =
+    rt.gpu.temporal?.motion.poseOf(rank) ?? rt.layout.selectionRoots[rank].world.elements
+  state.seeds.set(rank, Float32Array.from(world))
+}
+
 /** `state` over `roots` roots, those it held kept and linked. Its GPU tables are laid out for the
  *  roots: made again at the next frame, the links sent whole, and each linked root's motion starts
  *  again from the pose its last image held. */
@@ -200,13 +208,8 @@ function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: nu
   state.gpu?.dispose()
   state.gpu = undefined
   state.linksDirty = true
-  const list = rt.layout.selectionRoots
   for (let rank = 0; rank < held; rank++)
-    if (state.parentOf[rank] !== NONE)
-      state.seeds.set(
-        rank,
-        Float32Array.from(rt.gpu.temporal?.motion.poseOf(rank) ?? list[rank].world.elements),
-      )
+    if (state.parentOf[rank] !== NONE) seedMotion(rt, state, rank)
 }
 
 /** The root rank of each link, or undefined when one names a row no root reads or a blended copy
@@ -277,13 +280,8 @@ function linkRanks(
     const rank = ranks[k],
       was = state.parentOf[rank]
     if (whole || was !== slot) held.push(rank)
-    // A root linked now starts its motion from the pose the CPU motion last accumulated it at, the
-    // one `../taa/motion.ts` would compare its next world with; a root linked already keeps its own.
-    if (was === NONE)
-      state.seeds.set(
-        rank,
-        Float32Array.from(rt.gpu.temporal?.motion.poseOf(rank) ?? roots[rank].world.elements),
-      )
+    // A root linked already keeps its own motion.
+    if (was === NONE) seedMotion(rt, state, rank)
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement?.(rank, true)
