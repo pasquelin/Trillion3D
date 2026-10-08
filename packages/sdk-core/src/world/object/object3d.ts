@@ -69,7 +69,7 @@ export class Object3D extends TransformNode {
   }
   set castShadow(value: boolean) {
     if (value === this._castShadow) return
-    noteNodeWrite()
+    noteNodeWrite(this)
     this._castShadow = value
     this._link?.shadow?.(this)
   }

@@ -52,7 +52,7 @@ export class SceneNode {
   set visible(value: boolean) {
     this.assertAlive()
     const visible = sceneNodeVisibility(value, false)
-    if (visible !== this.visibleState) noteNodeWrite()
+    if (visible !== this.visibleState) noteNodeWrite(this)
     this.visibleState = visible
   }
   /** Parent in the scene, or null while detached. */
