@@ -168,9 +168,8 @@ pub(crate) fn region_extent(positions: &[f32]) -> Result<f64> {
 }
 
 /// Vertex `source`'s `width` values of `values`, appended to `out`: the one compaction of an
-/// attribute. Every producer carries an attribute on every vertex (`build_dag_tallied`, the world's
-/// placed objects): a vertex missing from one is a cook defect, refused here by the index rather
-/// than drawn black or flat.
+/// attribute. Every producer carries an attribute on every vertex: a vertex missing from one is a
+/// cook defect, refused here by the index rather than drawn black or flat.
 pub(crate) fn push_vertex(out: &mut Vec<f32>, values: &[f32], width: usize, source: u32) {
     let at = source as usize * width;
     out.extend_from_slice(&values[at..at + width]);
