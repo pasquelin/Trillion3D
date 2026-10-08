@@ -14,9 +14,8 @@ import {
   orthographicProjectionBefore,
   perspectiveProjectionBefore,
 } from './projectionBefore.fixture.ts'
-import { SENTINELS, typed } from '../matrix/buffers.fixture.ts'
 import { HALTON_SWEEP } from '../sequence/sweep.fixture.ts'
-import { assertSameBits, sweepInput } from '../sequence/moves.fixture.ts'
+import { assertSameBits, SENTINELS, sweepInput, typed } from '../sequence/moves.fixture.ts'
 
 type Projection = (out: NumberSink, ...p: number[]) => NumberSink
 

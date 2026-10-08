@@ -7,9 +7,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { multiplyMatrix4TypedBefore } from './matrix4Before.fixture.ts'
 import { multiplyMatrix4Typed } from './matrix4Typed.ts'
-import { SENTINELS, typed } from './buffers.fixture.ts'
 import { HALTON_SWEEP } from '../sequence/sweep.fixture.ts'
-import { assertSameBits, MATRIX_KINDS, sweepMatrix } from '../sequence/moves.fixture.ts'
+import {
+  assertSameBits,
+  MATRIX_KINDS,
+  SENTINELS,
+  sweepMatrix,
+  typed,
+} from '../sequence/moves.fixture.ts'
 
 type Aliasing = 'none' | 'out = a' | 'out = b' | 'a = b' | 'out = a = b'
 const ALIASINGS: Aliasing[] = ['none', 'out = a', 'out = b', 'a = b', 'out = a = b']

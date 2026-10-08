@@ -11,17 +11,13 @@ import {
   transformDirectionVector3Before,
 } from './vectorBefore.fixture.ts'
 import { HALTON_SWEEP } from '../sequence/sweep.fixture.ts'
-import { assertSameBits, MATRIX_KINDS, sweepInput, sweepMatrix } from '../sequence/moves.fixture.ts'
-
-type Sink = Float64Array | Float32Array | Int32Array | number[]
-
-/** The sinks a `NumberSink` takes, each filled from `values`: doubles, floats, integers, plain. */
-const SINKS: ((values: ArrayLike<number>) => Sink)[] = [
-  (values) => Float64Array.from(values),
-  (values) => Float32Array.from(values),
-  (values) => Int32Array.from(values),
-  (values) => Array.from(values),
-]
+import {
+  assertSameBits,
+  MATRIX_KINDS,
+  SINKS,
+  sweepInput,
+  sweepMatrix,
+} from '../sequence/moves.fixture.ts'
 
 /** The scales a swept vector is laid at: as drawn, below 2^-1024 (the 2^1000 branch, subnormal
  *  components), and at the last subnormals, where most components round to zero. */
@@ -49,7 +45,7 @@ test('crossVector3: writeCrossVector3 keeps every bit, offsets and out as either
       assert.equal(crossVector3(now, a, b, outAt, aAt, bAt), now)
       assertSameBits(old, now, `cross ${i}`)
     }
-    for (const make of [SINKS[0], SINKS[3]]) {
+    for (const make of [SINKS[0], SINKS[2]]) {
       const oldA = make(a),
         nowA = make(a),
         oldB = make(b),
@@ -108,7 +104,7 @@ test('transformDirectionVector3: the product in locals on a double sink, every o
           assertSameBits(old, now, `direction ${i} kind ${kind} o ${o}`)
         }
       // `out` as the matrix itself, at every offset: the rows of `m` read after a write see it.
-      for (const make of [SINKS[0], SINKS[3]])
+      for (const make of [SINKS[0], SINKS[2]])
         for (let o = 0; o < 14; o++) {
           const old = make(m),
             now = make(m)

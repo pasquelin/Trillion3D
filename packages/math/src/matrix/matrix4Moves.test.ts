@@ -23,9 +23,14 @@ import {
   transposeMatrix4Before,
 } from './matrix4Before.fixture.ts'
 import { linearPartIdentityDistanceSq } from './singular.ts'
-import { SENTINELS, typed } from './buffers.fixture.ts'
 import { HALTON_SWEEP } from '../sequence/sweep.fixture.ts'
-import { assertSameBits, MATRIX_KINDS, sweepMatrix } from '../sequence/moves.fixture.ts'
+import {
+  assertSameBits,
+  MATRIX_KINDS,
+  SENTINELS,
+  sweepMatrix,
+  typed,
+} from '../sequence/moves.fixture.ts'
 
 test('multiplyMatrix4: the column-wise read keeps every bit, aliased or not', () => {
   const a = new Float64Array(16),

@@ -12,7 +12,7 @@ import {
   triangleCrossBefore,
 } from './triangleSlabBefore.fixture.ts'
 import { HALTON_SWEEP } from '../sequence/sweep.fixture.ts'
-import { assertSameBits, sweepInput } from '../sequence/moves.fixture.ts'
+import { assertSameBits, SINKS, sweepInput } from '../sequence/moves.fixture.ts'
 
 /** Case `i`'s `count` swept values from slot `at` on `[−50, 50)`, hostile values mixed in. */
 const swept = (i: number, at: number, count: number) =>
@@ -42,17 +42,14 @@ const TRIPLES = [
   [9, 0, 2],
 ]
 
-const SINKS: ((values: ArrayLike<number>) => Float64Array | Float32Array | number[])[] = [
-  (values) => Float64Array.from(values),
-  (values) => Float32Array.from(values),
-  (values) => Array.from(values),
-]
+/** The sinks of a geometry output: doubles, floats, plain. */
+const OUTPUTS = SINKS.slice(0, 3)
 
 test('triangleCross, triangleArea: the corners and edges in locals keep every bit', () => {
   for (let i = 1; i <= HALTON_SWEEP; i++) {
     const v = corners(i)
     for (const [a, b, c] of TRIPLES) {
-      for (const make of SINKS) {
+      for (const make of OUTPUTS) {
         const o = (i + a) % 4
         const old = make(new Float64Array(7).fill(7)),
           now = make(new Float64Array(7).fill(7))
