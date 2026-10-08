@@ -179,7 +179,7 @@ test('a placement that gives its object back turns it out before the next cut, n
     linked.map((write) => written(write).byteLength),
     [12],
   )
-  // Two links within the residency flush's gap go up in one write too (`RESIDENCY_RULE`).
+  // Two links within the run writer's gap go up in one write too (`split.ts`).
   const before = host.writes.length
   selection.placeObject!(0, 0)
   selection.placeObject!(11, 11)

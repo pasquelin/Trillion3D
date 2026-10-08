@@ -3,8 +3,8 @@
  *
  * A placement row that takes an object of the world DAG — a cell placed — or gives it back — a cell
  * left — tells the selection which (`placeObject`): the links that moved go up behind the cold
- * records before the next cut, the moved ranks joined into writes by the one rule the residency
- * flush writes by (`RESIDENCY_RULE`) — what is written follows the moves (`worldLinks.ts`) —, read
+ * records before the next cut, the moved ranks joined into writes by the cut's one run writer,
+ * by their bytes (`split.ts`) — what is written follows the moves (`worldLinks.ts`) —, read
  * by the descent's gate, and the residency mirror reads the move at the next residency it hands
  * the cut (`worldMirror.ts`). A move with no residency change behind it is handed
  * over before the next cut is encoded, on the rows' flags the cut last received: the object's
