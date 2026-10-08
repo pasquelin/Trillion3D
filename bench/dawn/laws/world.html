@@ -7,12 +7,22 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js'
+      import {
+        buffer,
+        createWorld,
+        geometry,
+        light,
+        material,
+        math,
+        object,
+      } from '../runtime/engine.js'
+      import { lawWorld } from './world.js'
 
       // The scale laws' scene (`bench/dawn/laws/`), generated, never an example. Its address says
       // what it holds:
       //   cache=<manifest URL>  a cooked scene (`cook.ts`): the open world of n objects, or the object
-      //   runtime=<n>           the same open world built in the page: n meshes, cut at run time
+      //   runtime=<n>           the same open world built in the page (`world.ts`): n meshes, cut at
+      //                         run time
       //   distance=<m>          the camera m metres from the object's centre, looking at it
       //   sun=0|1  lights=<L>   a shadowed sun (1 by default) and L shadowed lamps in view
       //   pe=<px>               the cut's screen error (the engine's default when absent or `default`)
@@ -41,47 +51,36 @@
       if (asked.has('cache')) await world.scene.load(last('cache'))
       const count = number('runtime', 0)
       if (count) {
-        // The open world of `scatter.ts`, the same seeded sequence: one every 4 m².
-        const side = Math.sqrt(count / 0.25)
-        let state = 7
-        const next = () => (
-          (state = (Math.imul(state, 1664525) + 1013904223) >>> 0),
-          state / 2 ** 32
-        )
-        const matte = (color) => material.meshStandard({ color, roughness: 0.85 })
-        const kinds = [
-          {
-            share: 0.6,
-            scale: [0.6, 1.6],
-            shape: geometry.sphere(0.15, 24, 16),
-            paint: matte('#8c8780'),
-          },
-          {
-            share: 0.3,
-            scale: [0.5, 1.5],
-            shape: geometry.sphere(0.8, 64, 40),
-            paint: matte('#66615c'),
-          },
-          {
-            share: 0.1,
-            scale: [0.6, 1.4],
-            shape: geometry.cylinder(1.5, 1.5, 8, 64),
-            paint: matte('#b3a899'),
-          },
-        ]
-        const counts = kinds.map((kind) => Math.floor(kind.share * count))
-        counts[0] += count - counts.reduce((a, b) => a + b, 0)
-        const floor = object.mesh(geometry.box(side + 40, 0.2, side + 40), matte('#6b5c45'))
-        floor.position.y = -0.1
+        // The open world the cooked scene holds (`world.ts`), built here: the same meshes, paints
+        // and seeded places, cut at run time.
+        const { meshes, placed } = lawWorld(count)
+        const shapes = meshes.map(({ data, material: paint }) => ({
+          shape: geometry.createBuffer({
+            position: buffer.float32(data.positions, 3),
+            normal: buffer.float32(data.normals, 3),
+            index: buffer.uint32(data.indices),
+          }),
+          paint: material.meshStandard({
+            color: paint.color,
+            roughness: paint.roughness,
+            metalness: paint.metalness,
+          }),
+        }))
+        const floor = object.mesh(shapes[0].shape, shapes[0].paint)
         floor.receiveShadow = true
         world.scene.add(floor)
-        kinds.forEach((kind, k) => {
-          for (let i = 0; i < counts[k]; i++) {
-            const mesh = object.mesh(kind.shape, kind.paint)
-            mesh.position.set((next() - 0.5) * side, 0, (next() - 0.5) * side)
-            mesh.rotation.y = next() * Math.PI * 2
-            const s = kind.scale[0] + next() * (kind.scale[1] - kind.scale[0])
-            mesh.scale.set(s, s, s)
+        placed.forEach(({ translations, rotations, scales }, k) => {
+          const { shape, paint } = shapes[k + 1]
+          for (let i = 0; i < scales.length / 3; i++) {
+            const mesh = object.mesh(shape, paint)
+            mesh.position.set(translations[3 * i], translations[3 * i + 1], translations[3 * i + 2])
+            mesh.quaternion.set(
+              rotations[4 * i],
+              rotations[4 * i + 1],
+              rotations[4 * i + 2],
+              rotations[4 * i + 3],
+            )
+            mesh.scale.set(scales[3 * i], scales[3 * i + 1], scales[3 * i + 2])
             mesh.castShadow = mesh.receiveShadow = true
             world.scene.add(mesh)
           }

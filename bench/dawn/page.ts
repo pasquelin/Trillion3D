@@ -64,6 +64,15 @@ export function createWorld(...args) {
 }
 `
 
+/** The modules a page imports by a relative path, each the checkout's source the bench reads it
+ *  as: the engine (`engine`, its module written beside the page's), the examples' kit, and the
+ *  scale laws' world (`laws/world.ts`), which their page builds at run time. */
+export const pageModules = (root: string, engine: string): Record<string, string> => ({
+  '../runtime/engine.js': engine,
+  '../runtime/kit.js': pathToFileURL(join(root, 'site', 'examples', 'kit', 'index.ts')).href,
+  './world.js': pathToFileURL(join(root, 'bench', 'dawn', 'laws', 'world.ts')).href,
+})
+
 /** Writes the page's scripts as one module whose runtime imports name the checkout's sources, and
  *  imports it: the page runs. Resolves to the worlds it made. */
 export async function runPage(file: string, root: string, scripts: readonly string[]) {
@@ -74,10 +83,7 @@ export async function runPage(file: string, root: string, scripts: readonly stri
     engine,
     engineModule(pathToFileURL(join(root, 'packages', 'sdk-browser', 'src', 'index.ts')).href),
   )
-  const runtime: Record<string, string> = {
-    '../runtime/engine.js': pathToFileURL(engine).href,
-    '../runtime/kit.js': pathToFileURL(join(root, 'site', 'examples', 'kit', 'index.ts')).href,
-  }
+  const runtime = pageModules(root, pathToFileURL(engine).href)
   let code = scripts.join('\n;\n')
   for (const [from, to] of Object.entries(runtime))
     code = code.replaceAll(`'${from}'`, `'${to}'`).replaceAll(`"${from}"`, `'${to}'`)

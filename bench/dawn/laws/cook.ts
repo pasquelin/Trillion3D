@@ -10,8 +10,7 @@ import { join } from 'node:path'
 import { compileFullCache } from '../../../scripts/native-compiler.ts'
 import { measureOutput } from '../../core/paths.ts'
 import { sceneGltf, type SceneMesh, type SceneNode } from './gltf.ts'
-import { cylinder, ground, sphere } from './meshes.ts'
-import { scatter, sideOf } from './scatter.ts'
+import { lawObject, lawWorld } from './world.ts'
 
 /** The folder of a law's scene. */
 const lawScene = (key: string) => measureOutput('law-scenes', key)
@@ -19,22 +18,9 @@ const lawScene = (key: string) => measureOutput('law-scenes', key)
 export const manifestOf = (key: string) =>
   join(lawScene(key), 'cache', 'native', 'full', 'manifest.json')
 
-const matte = (r: number, g: number, b: number) => ({
-  color: [r, g, b] as [number, number, number],
-  roughness: 0.85,
-  metalness: 0,
-})
-
-/** The open world of `count` objects: a ground reaching past them, pebbles, rocks and towers. */
+/** The open world of `count` objects (`world.ts`): the ground, then each kind instanced. */
 function worldScene(count: number) {
-  const side = sideOf(count) + 40
-  const meshes: SceneMesh[] = [
-    { name: 'ground', data: ground(side, 64), material: matte(0.42, 0.36, 0.27) },
-    { name: 'pebble', data: sphere([0.15, 0.12, 0.15], 24, 16), material: matte(0.55, 0.53, 0.5) },
-    { name: 'rock', data: sphere([0.9, 0.6, 0.8], 64, 40), material: matte(0.4, 0.38, 0.36) },
-    { name: 'tower', data: cylinder(1.5, 8, 64), material: matte(0.7, 0.66, 0.6) },
-  ]
-  const placed = scatter(count)
+  const { meshes, placed } = lawWorld(count)
   const nodes: SceneNode[] = [
     { mesh: 0 },
     ...placed.map((instances, k) => ({ mesh: k + 1, instances })),
@@ -42,13 +28,11 @@ function worldScene(count: number) {
   return { meshes, nodes }
 }
 
-/** One sphere of radius 1 m, 512 × 256: 261 120 triangles. */
-function objectScene() {
-  const meshes: SceneMesh[] = [
-    { name: 'sphere', data: sphere([1, 1, 1], 512, 256), material: matte(0.7, 0.7, 0.72) },
-  ]
-  return { meshes, nodes: [{ mesh: 0, translation: [0, 1, 0] }] as SceneNode[] }
-}
+/** The distance law's sphere, its centre a metre up. */
+const objectScene = () => ({
+  meshes: [lawObject()],
+  nodes: [{ mesh: 0, translation: [0, 1, 0] }] as SceneNode[],
+})
 
 /** Writes and compiles the scene `key` once; returns its manifest. */
 function cookScene(key: string, build: () => { meshes: SceneMesh[]; nodes: SceneNode[] }) {
