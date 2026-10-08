@@ -28,7 +28,13 @@
  * alone; a new root list, section, focal length or frustum shape, or a view no longer rigid, reads
  * every root once.
  */
-import { distanceVector3, keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
+import {
+  distanceVector3,
+  dotVector3,
+  keepNumbers,
+  length3,
+  transformDirectionRow,
+} from '../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -218,8 +224,7 @@ function fit(s: State, n: number) {
 
 /** The eye of a rigid world-to-view matrix, column-major: `−Rᵀt`. */
 function eyeOf(view: ArrayLike<number>, out: Float64Array) {
-  for (let j = 0; j < 3; j++)
-    out[j] = -(view[4 * j] * view[12] + view[4 * j + 1] * view[13] + view[4 * j + 2] * view[14])
+  for (let j = 0; j < 3; j++) out[j] = -dotVector3(view, view, 4 * j, 12)
 }
 
 /** Whether `view`'s linear part is a rotation: then view depth and distance are the world's. */
@@ -351,10 +356,11 @@ function onDistance(c: number, a: number, b: number, rho: number) {
 function onBound(s: State, reading: Reading, rank: number, a: number, b: number) {
   const world = s.roots![rank].world.elements,
     centre = reading.table.entries[rank]?.centre ?? [0, 0, 0]
+  const [x, y, z] = centre
   const offset = length3(
-    world[0] * centre[0] + world[4] * centre[1] + world[8] * centre[2],
-    world[1] * centre[0] + world[5] * centre[1] + world[9] * centre[2],
-    world[2] * centre[0] + world[6] * centre[1] + world[10] * centre[2],
+    transformDirectionRow(world, 0, x, y, z),
+    transformDirectionRow(world, 1, x, y, z),
+    transformDirectionRow(world, 2, x, y, z),
   )
   const rho = reading.table.radius[rank] + offset,
     of = s.boundOf,
