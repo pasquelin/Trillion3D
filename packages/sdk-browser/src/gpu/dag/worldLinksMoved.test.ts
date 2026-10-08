@@ -1,0 +1,34 @@
+// The placements whose link moved reach the residency mirror whole: more moves than the list first
+// holds grow it, and the mirror reads the grown list, at the residency and at the cut. On a
+// generated world of 300 placements, 120 of them placed.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { followWorldLinks } from './worldFollow.ts'
+import type { GpuSelection } from '../core/selection.ts'
+import type { PackedDag } from './types.ts'
+
+test('every moved link reaches the mirror, past the list’s first room', () => {
+  const told: number[][] = []
+  const world = {
+    root: -1,
+    links: new Uint32Array(300).fill(0xffffffff),
+    linkBase: 0,
+    linkOf: (object: number) => object,
+    linksMoved: (placements: Int32Array, count: number) =>
+      void told.push(Array.from(placements.subarray(0, count))),
+  }
+  const selection = {
+    updateResidency: () => true,
+    dispatch: () => undefined,
+  } as unknown as GpuSelection
+  const device = { queue: { writeBuffer: () => {} } } as unknown as GPUDevice
+  const coldParts = { buffers: [{} as GPUBuffer], bytes: 4 * 300 }
+  const packed = { world } as unknown as PackedDag
+  followWorldLinks(selection, { device, packed, coldParts })
+  const placed = Array.from({ length: 120 }, (_, k) => 2 * k + 7)
+  for (const w of placed) selection.placeObject!(w, w)
+  selection.updateResidency(new Uint32Array(1))
+  assert.deepEqual(told.at(-1), placed, 'at the residency')
+  selection.dispatch({ view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never)
+  assert.deepEqual(told.at(-1), placed, 'at the cut')
+})

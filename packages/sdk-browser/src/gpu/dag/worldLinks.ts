@@ -44,8 +44,8 @@ import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { DagCutLinks, DagRoot } from './types.ts'
 
 /** The world DAG's placement, its `origins`, and per placement the world cluster that stands in for
- *  it (`NONE` without), held at `linkBase` in the cold table behind the world DAG's record shift; `moved`, the placements whose link
- *  moved since the residency mirror last read them (`worldMirror.ts`). */
+ *  it (`NONE` without), held at `linkBase` in the cold table behind the world DAG's record shift;
+ *  the placements whose link moved are handed to the residency mirror (`linksMoved`). */
 export type PackedWorld = {
   root: number
   origins: Int32Array

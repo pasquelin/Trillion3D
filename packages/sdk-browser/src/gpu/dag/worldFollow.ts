@@ -18,6 +18,7 @@ import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
 import { grown } from '../../page/cut/sparseInts.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
@@ -36,28 +37,34 @@ export function followWorldLinks(
   let rows: Uint32Array | undefined,
     pending = false
   /** The placements whose link moved since the last cut, one bit each, from `low` to `high`. */
-  const dirty = new Uint32Array((links.length + 31) >>> 5)
+  const dirty = new Uint32Array(bitWords(links.length))
   let low = links.length,
     high = -1
-  /** The moved ranks, increasing, read off the bitmap; the write ranges over them. */
-  let moved = new Int32Array(8)
+  /** The moved ranks, increasing, read off the bitmap; the write ranges over them. `listed`: the
+   *  ranks the list holds, -1 once a link moved since it was read. */
+  let moved = new Int32Array(8),
+    listed = -1
   const { updateResidency, dispatch } = selection
-  /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`:
-   *  the one record of the moves, which the upload writes and the mirror reads. */
+  /** The ranks whose link moved since the last cut, increasing, read off the bitmap into `moved`
+   *  once for every move since — the one record of the moves, which the upload writes and the
+   *  mirror reads —; their count. */
   const listMoved = () => {
+    if (listed >= 0) return listed
     let count = 0
-    if (high < 0) return 0
-    for (let word = low >>> 5; word <= high >>> 5; word++)
-      for (let bits = dirty[word]; bits; bits &= bits - 1) {
-        if (count === moved.length) moved = grown(moved, count + 1, count)
-        moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
-      }
-    return count
+    if (high >= 0)
+      for (let word = low >>> 5; word <= high >>> 5; word++)
+        for (let bits = dirty[word]; bits; bits &= bits - 1) {
+          if (count === moved.length) moved = grown(moved, count + 1, count)
+          moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
+        }
+    return (listed = count)
   }
   selection.updateResidency = (next, changes, pages) => {
     rows = next
     pending = false
-    world.linksMoved?.(moved, listMoved())
+    // Listed first: a list that grows is another array, the one the mirror must read.
+    const count = listMoved()
+    world.linksMoved?.(moved, count)
     return updateResidency(next, changes, pages)
   }
   selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
@@ -67,6 +74,7 @@ export function followWorldLinks(
     links[w] = c
     selection.linkMoved?.(w)
     dirty[w >>> 5] |= 1 << (w & 31)
+    listed = -1
     low = Math.min(low, w)
     high = Math.max(high, w)
     pending = true
@@ -82,6 +90,7 @@ export function followWorldLinks(
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length
     high = -1
+    listed = 0
   }
   /** The camera of the last cut — its view and its eye —, and the moves seen since the first. */
   const held = {
