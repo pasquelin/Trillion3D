@@ -6,7 +6,7 @@ import { spread } from './summary.ts'
 import { timerDoubts } from './trust.ts'
 
 const pass = (name: string, median: number, extra: Partial<BenchPass> = {}) =>
-  ({ name, median, max: median, lost: 0, empty: 0, ...extra }) as BenchPass
+  ({ name, median, max: median, lost: 0, empty: 0, unknown: 0, ...extra }) as BenchPass
 const frame = (...values: number[]) => spread(values)
 
 test('a coherent segment raises no doubt', () => {

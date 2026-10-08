@@ -85,6 +85,7 @@ export function mergePlays(plays: readonly BenchPlay[]) {
     readySeconds: spread(plays.map((play) => play.readySeconds)),
     calibration: spread(plays.map((play) => play.calibration.median)),
     gbPerSecond: spread(plays.map((play) => play.calibration.gbPerSecond)),
+    machine: first.machine,
     segments: first.segments.map((segment) => mergeSegment(plays, segment.name)),
     cpu: profiled?.cpu ?? null,
     cpuSteps: profiled?.cpuSteps ?? null,

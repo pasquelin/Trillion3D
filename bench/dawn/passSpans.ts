@@ -3,13 +3,13 @@
 // from the work. A pass the driver wrote no timestamp for is `lost`, never confused with one that
 // ran in no time (`empty`): a lost timer says nothing of its pass.
 
+import type { PassWork } from './passWorkHooks.ts'
+
 /** What a pass's timestamps say. `ok`: a span. `empty`: it encoded no work (no dispatch or draw of
  *  any size), so the driver wrote no timestamp — a real zero. `unknown`: only indirect work, which
  *  may have been of no size — a zero or a lost timer, the GPU alone knows. `lost`: it encoded work
  *  and the driver wrote no timestamp — a timer lost, its pass's time unknown. */
 export type PassState = 'ok' | 'empty' | 'unknown' | 'lost'
-/** What a pass encoded: direct dispatches and draws of some size, and indirect ones. */
-export type PassWork = { calls: number; indirect: number }
 /** One timed pass of a frame. `ms`: its own share of the frame's GPU time (the shares add up to
  *  the union). `spanMs`: its begin to its end. `gapMs`: the idle time between what ran before it and
  *  its begin — the GPU waiting for it. `beginMs`: its begin from the frame's first. */
@@ -21,6 +21,8 @@ export type TimedPass = {
   gapMs: number
   beginMs: number
   state: PassState
+  /** What the pass encoded (`passWorkHooks.ts`). */
+  work: PassWork
 }
 /** A frame's passes, the union of their spans, the idle between them, and the window they lie in;
  *  `complete` false when the engine timed one of them itself. */
@@ -57,13 +59,14 @@ export function readPasses(
   const spans: [number, number][] = []
   let covered = -Infinity,
     first = Infinity
-  const read = passes.map(({ label, kind, at, calls, indirect }) => {
+  const read = passes.map(({ label, kind, at, ...work }) => {
+    const { calls, indirect } = work
     const begin = Number(stamps[at]) / 1e6,
       end = Number(stamps[at + 1]) / 1e6
     // A pass the driver skipped writes no timestamp: zero, or an end before its beginning.
     if (!(stamps[at] > 0n && end >= begin)) {
       const state = calls ? ('lost' as const) : indirect ? ('unknown' as const) : ('empty' as const)
-      return { label, kind, ms: 0, spanMs: 0, gapMs: 0, beginMs: Number.NaN, state }
+      return { label, kind, ms: 0, spanMs: 0, gapMs: 0, beginMs: Number.NaN, state, work }
     }
     first = Math.min(first, begin)
     const gapMs = Number.isFinite(covered) ? Math.max(0, begin - covered) : 0
@@ -72,7 +75,7 @@ export function readPasses(
     covered = Math.max(covered, end)
     const state =
       end - begin < EMPTY_MS && !calls && !indirect ? ('empty' as const) : ('ok' as const)
-    return { label, kind, ms, spanMs: end - begin, gapMs, beginMs: begin, state }
+    return { label, kind, ms, spanMs: end - begin, gapMs, beginMs: begin, state, work }
   })
   for (const pass of read)
     pass.beginMs = Number.isNaN(pass.beginMs) ? pass.beginMs : pass.beginMs - first

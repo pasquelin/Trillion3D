@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { COUNTS, type Counts } from './device.ts'
 import type { FrameRecord } from './frames.ts'
+import { emptyWork } from './passWorkHooks.ts'
 import { benchPasses } from './benchPasses.ts'
 import { countsPerFrame, passKey, passTimes, roundNumbers, spread } from './summary.ts'
 

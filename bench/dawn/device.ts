@@ -4,7 +4,8 @@
 import { create, globals } from 'webgpu'
 import { writeBitmap } from './imageCopy.ts'
 import { guardMaps } from './mapGuard.ts'
-import { countCalls, createPassTimer } from './passTimer.ts'
+import { createPassTimer } from './passTimer.ts'
+import { installWorkHooks } from './passWorkHooks.ts'
 import { profiledAdapter } from './profiles.ts'
 
 /** What one frame asked of the GPU: passes (timed or not), copies, bytes written, objects made. */
@@ -127,7 +128,7 @@ export function installGpu(profile: {
       return pass
     }
   }
-  countCalls(g, timer)
+  installWorkHooks(g, timer.recordOf)
   for (const copy of [
     'copyBufferToBuffer',
     'copyBufferToTexture',

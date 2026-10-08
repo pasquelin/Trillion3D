@@ -3,7 +3,8 @@
 // — the union of its passes' spans, passes the GPU overlaps counted once — and never from a host
 // clock a busy main thread would stretch. A pass the engine times keeps its own timestamps: a frame
 // that holds one is marked, its total left out.
-import { readPasses, type FrameGpu, type PassWork, type TimedPass } from './passSpans.ts'
+import { readPasses, type FrameGpu, type TimedPass } from './passSpans.ts'
+import { attachmentBytes, emptyWork, type PassWork } from './passWorkHooks.ts'
 import { readBack } from './readBack.ts'
 
 /** Timestamps of one frame: two per pass. */
@@ -41,8 +42,8 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
         label: descriptor?.label || encoderLabel || `(${kind} pass)`,
         kind,
         at,
-        calls: 0,
-        indirect: 0,
+        ...emptyWork(),
+        attachBytes: kind === 'render' ? attachmentBytes(descriptor as GPURenderPassDescriptor) : 0,
       })
       const timestampWrites = {
         querySet: set,
@@ -57,11 +58,8 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
     watch(pass: object, wrapped: boolean) {
       if (wrapped) records.set(pass, passes[passes.length - 1])
     },
-    /** Tallies what the pass `self` encodes (`countCalls`): work of some size, or indirect. */
-    tally(self: object, indirect: boolean, size: number) {
-      const record = records.get(self)
-      if (record && (indirect || size > 0)) record[indirect ? 'indirect' : 'calls']++
-    },
+    /** The work record of a pass this timer follows. */
+    recordOf: (pass: object) => records.get(pass),
     /** Opens a frame's window on `on`, the device the engine draws with. */
     open(on: GPUDevice) {
       if (device !== on)
@@ -96,40 +94,5 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       )
       return readPasses(stamps, passes, !engineTimed)
     },
-  }
-}
-
-/** The calls of a pass encoder that do GPU work, by the arguments that give them a size: a direct
- *  call tallies when its size is above zero, an indirect one always. */
-const CALLS: Record<string, [indirect: boolean, size: (args: number[]) => number]> = {
-  dispatchWorkgroups: [false, ([x, y = 1, z = 1]) => x * y * z],
-  dispatchWorkgroupsIndirect: [true, () => 1],
-  draw: [false, ([vertices, instances = 1]) => vertices * instances],
-  drawIndexed: [false, ([indices, instances = 1]) => indices * instances],
-  drawIndirect: [true, () => 1],
-  drawIndexedIndirect: [true, () => 1],
-}
-
-/** Makes every pass encoder of `globals` tell `timer` what it encodes, so a pass the driver wrote no
- *  timestamp for is known empty, or lost with work (`passSpans.ts`). */
-export function countCalls(
-  globals: Record<string, { prototype: Record<string, (...args: never[]) => unknown> }>,
-  timer: Pick<ReturnType<typeof createPassTimer>, 'tally'>,
-) {
-  for (const encoder of ['GPUComputePassEncoder', 'GPURenderPassEncoder'] as const)
-    for (const [name, [indirect, size]] of Object.entries(CALLS)) {
-      const proto = globals[encoder].prototype
-      const original = proto[name]
-      if (!original) continue
-      proto[name] = function (this: object, ...args: never[]) {
-        timer.tally(this, indirect, size(args as unknown as number[]))
-        return original.apply(this, args)
-      }
-    }
-  const render = globals.GPURenderPassEncoder.prototype
-  const bundles = render.executeBundles
-  render.executeBundles = function (this: object, ...args: never[]) {
-    timer.tally(this, false, (args[0] as unknown as unknown[]).length)
-    return bundles.apply(this, args)
   }
 }

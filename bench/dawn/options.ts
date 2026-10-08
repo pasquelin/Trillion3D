@@ -24,6 +24,7 @@ export function benchOptions(args = process.argv.slice(2)) {
       timeout: { type: 'string', default: '600' },
       engine: { type: 'string' },
       dirty: { type: 'boolean', default: false },
+      recalibrate: { type: 'boolean', default: false },
       'child-report': { type: 'string' },
     },
   })
@@ -56,6 +57,7 @@ export function benchOptions(args = process.argv.slice(2)) {
     timeoutS: Number(values.timeout),
     switches: values.switch,
     search: values.switch.length ? `?${values.switch.join('&')}` : '',
+    recalibrate: values.recalibrate,
     childReport: values['child-report'],
   }
 }

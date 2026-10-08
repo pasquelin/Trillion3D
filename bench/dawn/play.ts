@@ -5,6 +5,7 @@ import { captureCanvas } from './capture.ts'
 import { functionTimes, startCpuProfile } from './cpuProfile.ts'
 import { installGpu } from './device.ts'
 import { installBrowser } from './dom.ts'
+import { machineFor } from './machine.ts'
 import { createClock, runFrames, warmUp } from './frames.ts'
 import { gpuBusy } from './gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
@@ -58,6 +59,7 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const calibration = await createCalibration(gpu, device)
   await warmUp(rig, clock, options.timeoutS * 500, 8)
   await runFrames(rig, clock, options.warm)
+  const machine = await machineFor(gpu, device, gpu.held.adapter, options.recalibrate)
   const readySeconds = (performance.now() - opened) / 1000
   let engine: Record<string, unknown> = {}
   world.onFrame(({ metrics }) => (engine = metrics as unknown as Record<string, unknown>))
@@ -134,6 +136,7 @@ export async function playScenario(options: BenchOptions, stem: string) {
       ...calibrationMs,
       gbPerSecond: (2 * CALIBRATION_BYTES) / calibrationMs.median / 1e6,
     },
+    machine,
     segments,
     cpu,
     cpuSteps,
