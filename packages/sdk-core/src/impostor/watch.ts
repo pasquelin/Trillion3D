@@ -29,6 +29,7 @@
  * every root once.
  */
 import { keepNumbers, length3 } from '../../../math/src/vector/vector.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorRoot } from './plan.ts'
@@ -331,7 +332,7 @@ function onDistance(c: number, a: number, b: number, rho: number) {
   const widest = Math.acos(Math.min(1, c))
   const holds = (x: number) => {
     const angle = widest + Math.asin(Math.min(1, rho / x))
-    if (angle >= Math.PI / 2) return false
+    if (angle >= HALF_PI) return false
     const cw = Math.cos(angle)
     return x > Math.max(a / (cw * cw), b / (cw * Math.sqrt(cw)))
   }

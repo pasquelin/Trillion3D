@@ -6,11 +6,7 @@ import assert from 'node:assert/strict'
 import { rebaseWorldsOnGpu } from './worldRebase.ts'
 import { createCameraFrames } from './frameRanges.ts'
 import { FRAME_VEC4 } from './types.ts'
-import { createGpuDagSelection } from './selection.ts'
-import { mockDagDevice } from './selection.fixture.ts'
-import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
-import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { cutOnce } from './selectionHelpers.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import type { AsideCut } from '../core/aside.ts'
@@ -88,14 +84,7 @@ test('a pose sent with the eye still lands at the eye: no rebase of every placem
 })
 
 test('a root its parent stops composing takes back the pose the host holds', async () => {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
-  assert.ok(selection)
-  selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4)
+  const { fixture, uniforms, selection } = await cutOnce()
   // Its parent composes it far out of the view on the GPU, words the host never wrote.
   const [range] = selection.worldRanges
   const bytes = (range.buffer as unknown as { data: Uint8Array }).data

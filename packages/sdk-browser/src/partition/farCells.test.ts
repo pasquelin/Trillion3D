@@ -35,7 +35,14 @@ function partition(admits?: (cell: number) => boolean) {
     hold: async (cell: number) => void world.held.push(cell),
     release: (cell: number) => void world.released.push(cell),
     stream: async () => (world.streams++, { superRoots: bounds }) as never,
-    cover: admits && { room: () => 0, admits, forget: () => {}, keep: () => {}, cells: 0 },
+    cover: admits && {
+      bind: () => {},
+      room: () => 0,
+      admits,
+      forget: () => {},
+      keep: () => {},
+      cells: 0,
+    },
   }
   const placed = new Map<number, unknown>()
   return { index, world, placed, far: createFarCells(holder, placed) }

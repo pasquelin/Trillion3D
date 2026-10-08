@@ -7758,8 +7758,7 @@
     "summary": "Il verdetto della commutazione: le schede da disegnare e le radici di cui sopprime i cluster.",
     "members": {
       "cards": "Una scheda per radice commutata che ha letto, nell'ordine in cui le ha lette.",
-      "switched": "I ranghi di radice che la commutazione sopprime: 1 su una radice commutata, 0 altrove. Un piano di alcuni ranghi mantiene il verdetto degli altri come l'ultimo piano che li ha letti l'ha lasciato.",
-      "visited": "I ranghi che il piano ha letto quando gliene vengono dati alcuni (`planImpostors`, `ranks`); se assente, ogni rango."
+      "switched": "I ranghi di radice che la commutazione sopprime: 1 su una radice commutata, 0 altrove. Un piano di alcuni ranghi mantiene il verdetto degli altri come l'ultimo piano che li ha letti l'ha lasciato."
     }
   },
   "ImpostorRoot": {

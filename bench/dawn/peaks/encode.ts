@@ -1,5 +1,6 @@
 // The resources and the one timed pass of each peak micro-benchmark (`plan.ts`, `wgsl.ts`), on a
 // device of its own: what a run reads filled with noise, the pass encoded with its two timestamps.
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import type { PeakBench } from './plan.ts'
 import { peakWgsl } from './wgsl.ts'
 
@@ -10,7 +11,7 @@ export type PreparedPeak = {
   destroy: () => void
 }
 
-const workgroups = (threads: number, size = 256) => Math.ceil(threads / size)
+const workgroups = (threads: number, size = 256) => ceilDiv(threads, size)
 
 /** `bytes` of noise: a seeded 32-bit sequence, so no compression shrinks what a run reads. */
 function noise(bytes: number) {

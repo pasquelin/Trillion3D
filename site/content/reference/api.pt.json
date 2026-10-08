@@ -7758,8 +7758,7 @@
     "summary": "O veredicto da comutação: os cartões a desenhar e as raízes cujos clusters ele suprime.",
     "members": {
       "cards": "Um cartão por raiz comutada que leu, na ordem em que as leu.",
-      "switched": "Postos de raiz que a comutação suprime: 1 em uma raiz comutada, 0 no restante. Um plano de alguns postos mantém o veredicto dos outros como o último plano que os leu o deixou.",
-      "visited": "Os postos que o plano leu quando lhe são dados alguns (`planImpostors`, `ranks`); ausente, todos os postos."
+      "switched": "Postos de raiz que a comutação suprime: 1 em uma raiz comutada, 0 no restante. Um plano de alguns postos mantém o veredicto dos outros como o último plano que os leu o deixou."
     }
   },
   "ImpostorRoot": {

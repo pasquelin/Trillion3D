@@ -7,23 +7,10 @@ import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { moveRoot } from './pack.fixture.ts'
-
-/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
-async function cutOnce() {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
-  assert.ok(selection)
-  selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4)
-  return { fixture, dag, uniforms, selection }
-}
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()

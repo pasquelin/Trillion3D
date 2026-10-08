@@ -1737,8 +1737,7 @@
     "summary": "Geçişin kararı: çizilecek kartlar ve cluster'larını bastırdığı kökler.",
     "members": {
       "cards": "Okuduğu her geçiş yapılmış kök için bir kart, onları okuduğu sırayla.",
-      "switched": "Geçişin bastırdığı kök sıraları: geçiş yapılmış kökte 1, diğerlerinde 0. Bazı sıraların planı, diğerlerinin kararını onları okuyan son planın bıraktığı gibi korur.",
-      "visited": "Plana bazı sıralar verildiğinde okuduğu sıralar (`planImpostors`, `ranks`); yoksa her sıra."
+      "switched": "Geçişin bastırdığı kök sıraları: geçiş yapılmış kökte 1, diğerlerinde 0. Bazı sıraların planı, diğerlerinin kararını onları okuyan son planın bıraktığı gibi korur."
     }
   },
   "ImpostorRoot": {

@@ -5,6 +5,7 @@
 // `packages/sdk-browser/src/`). Compulsory work only: a data-dependent walk (a shadow ray's
 // march past its first sample, a reflection ray's steps) is counted at its least, so what a pass
 // takes above its floor (`floor.ts`) holds those walks. Pure.
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hizLevelSizes } from '../../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts'
 import { PRIMITIVE_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import {
@@ -131,7 +132,7 @@ export const PASSES: PassModel[] = [
       const samples = lit * f.reach * f.L * (VSM_TRACE_STEPS_SUN + 1) * SAMPLE_FETCHES
       return {
         texels: lit * SCREEN_RAY + samples,
-        bytes: lit * 21 + 4 * f.P * Math.ceil(f.L / 4),
+        bytes: lit * 21 + 4 * f.P * ceilDiv(f.L, 4),
         passes: 1,
       }
     },

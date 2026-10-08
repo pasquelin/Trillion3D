@@ -27,6 +27,8 @@
  */
 import { rowCell } from '../../partition/rowCells.ts'
 import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxEmpty, boxTransform, boxUnion } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_NONE as NONE, SELECTION_WORKGROUP } from '../core/selection.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
@@ -84,8 +86,8 @@ const groupsPlacements = (members: number) => members > TREE_SPAN
 function treeLevels(capacity: number, cellBase: number) {
   let depth = 1
   for (let span = TREE_SPAN; span < capacity; span *= TREE_SPAN) depth++
-  const counts = [Math.ceil(capacity / TREE_SPAN)]
-  while (counts.length < depth) counts.unshift(Math.ceil(counts[0] / TREE_SPAN))
+  const counts = [ceilDiv(capacity, TREE_SPAN)]
+  while (counts.length < depth) counts.unshift(ceilDiv(counts[0], TREE_SPAN))
   let base = cellBase
   return counts.map((count) => {
     const level = { base, count }
@@ -171,7 +173,7 @@ function mortonOrder(roots: readonly Ordered[], members: number[], rankBits: num
     for (let a = 0; a < 3; a++) {
       const span = high[a] - low[a],
         q = span > 0 ? Math.floor(((roots[w].world.elements[12 + a] - low[a]) / span) * cells) : 0
-      code += spread(Math.min(cells, Math.max(0, q || 0))) * 2 ** a
+      code += spread(clamp(q || 0, 0, cells)) * 2 ** a
     }
     keys[k] = code * 2 ** rankBits + w
   })
@@ -203,7 +205,7 @@ const MARGIN = 2 ** -16
 
 /** The members group `g` holds now: from its first, up to the live members. */
 const groupMembers = (tree: PlacementTree, g: number) =>
-  Math.max(0, Math.min(TREE_SPAN, tree.count - g * TREE_SPAN))
+  clampLowWins(tree.count - g * TREE_SPAN, 0, TREE_SPAN)
 
 /**
  * Writes every tree node into `nodes` (`nodeInts` its words): children, kind, the world a range
@@ -232,7 +234,7 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
 
 /** The member slot the next batch a growth appends starts at: the first of a new group, so no
  *  group holds placements of two batches. */
-export const joinStart = (tree: PlacementTree) => Math.ceil(tree.count / TREE_SPAN) * TREE_SPAN
+export const joinStart = (tree: PlacementTree) => ceilDiv(tree.count, TREE_SPAN) * TREE_SPAN
 
 /**
  * Placements `batch`, appended to the packing in place, ordered as the full build orders its

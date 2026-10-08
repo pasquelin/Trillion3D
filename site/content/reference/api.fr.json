@@ -7758,8 +7758,7 @@
     "summary": "Le verdict de la bascule : les cartes à dessiner, et les racines dont elle supprime les clusters.",
     "members": {
       "cards": "Une carte par racine basculée qu’elle a lue, dans l’ordre où elle les a lues.",
-      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs. Un plan de quelques rangs garde le verdict des autres tel que le dernier plan qui les a lus l’a laissé.",
-      "visited": "Les rangs que le plan a lus quand on lui en donne (`planImpostors`, `ranks`) ; absent, tous les rangs."
+      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs. Un plan de quelques rangs garde le verdict des autres tel que le dernier plan qui les a lus l’a laissé."
     }
   },
   "ImpostorRoot": {

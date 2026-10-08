@@ -2,7 +2,8 @@ import { createEngineCamera, readCameraWorld, type HostCamera } from '../../came
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
-import { packDagSelection } from './selection.ts'
+import assert from 'node:assert/strict'
+import { createGpuDagSelection, packDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { ruleResidency } from './readiness.fixture.ts'
@@ -89,4 +90,17 @@ export function gatedDag() {
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const { device, destroyedMaps } = mockDagDevice(dag, { mapGate: gate })
   return { release, fixture, dag, uniforms, device, destroyedMaps }
+}
+
+/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
+export async function cutOnce() {
+  installGpuGlobals()
+  const fixture = dagFixture()
+  const { dag, roots } = packed(fixture)
+  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
+  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
+  assert.ok(selection)
+  selection.dispatch(uniforms)
+  assert.equal((await selection.flush())?.pageIds.length, 4)
+  return { fixture, dag, uniforms, selection }
 }

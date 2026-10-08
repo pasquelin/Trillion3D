@@ -7759,8 +7759,7 @@
     "summary": "Putusan sakelar: kartu yang digambar, dan root yang cluster-nya ditindas.",
     "members": {
       "cards": "Satu kartu per root yang disakelar yang dibacanya, dalam urutan ia membacanya.",
-      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain. Rencana atas sebagian peringkat mempertahankan putusan peringkat lainnya seperti yang ditinggalkan rencana terakhir yang membacanya.",
-      "visited": "Peringkat yang dibaca rencana ketika diberi sebagian (`planImpostors`, `ranks`); jika tidak ada, setiap peringkat."
+      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain. Rencana atas sebagian peringkat mempertahankan putusan peringkat lainnya seperti yang ditinggalkan rencana terakhir yang membacanya."
     }
   },
   "ImpostorRoot": {
