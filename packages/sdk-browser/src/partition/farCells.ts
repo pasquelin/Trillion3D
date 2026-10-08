@@ -29,6 +29,8 @@ type Placed = ReadonlyMap<number, unknown>
 export function createFarCells(world: World | undefined, placed: Placed) {
   const far = new Set<number>()
   const holds = createCellHolds(world)
+  /** The cells this frame's plan reaches, held or not: the cover forgets every other. */
+  const reached = new Set<number>()
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
   let bounds: Float64Array | undefined,
     opening = false
@@ -77,6 +79,10 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       // no super-root: neither stays held far.
       for (const cell of far) if (!reading || placed.has(cell)) release(cell)
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)
+      // What the cover counted of a cell past the plan's reach, and held by no plan, is forgotten.
+      reached.clear()
+      for (const cell of plan.far) reached.add(cell)
+      world?.cover?.keep({ has: (cell) => reached.has(cell) || held.has(cell) })
       // A cell whose roots the cache has no room for is not held far: the plan holds no more.
       for (const cell of plan.far) {
         if (world?.cover && !world.cover.admits(cell)) continue

@@ -25,6 +25,7 @@
  * — opens its group and every node above it: they are never rejected, said by an explicit flag
  * (`nodeOpen`). A parked member, or a member slot no placement holds yet, holds nothing.
  */
+import { rowCell } from '../../partition/rowCells.ts'
 import {
   boxEmpty,
   boxTransform,
@@ -106,7 +107,7 @@ const membersOf = (roots: readonly unknown[], world: number) =>
  * member slots and `worlds` placements, its nodes from `cellBase` on, if they take one.
  */
 export function placementTreeShape(
-  roots: readonly Pick<DagRoot, 'world' | 'parked'>[],
+  roots: readonly Ordered[],
   world: number,
   capacity: { members: number; worlds: number },
   cellBase: number,
@@ -132,15 +133,33 @@ export function placementTreeShape(
  *  rank beside them, up to `2 ** (53 - 3 * MORTON_BITS)` placements. */
 const MORTON_BITS = 10
 
+/** The cell a partition placed placement `w`'s row in, or none. */
+type Ordered = Pick<DagRoot, 'world' | 'placement'>
+const cellOf = (roots: readonly Ordered[], w: number) => {
+  const placement = roots[w].placement
+  return placement ? rowCell(placement.rows, placement.index)?.cell : undefined
+}
+
 /**
- * The tree's order of `members`: the rows' own when any is parked — rows a partition fills and
- * empties —, else the placements sorted on the Morton curve of their translations over the box
- * that holds them.
+ * The tree's order of `members`: a partition's rows by their cell, the cell's together, then every
+ * other placement on the Morton curve of its translation over the box that holds them — a cell's
+ * rows lie together however its rows were filled, the others side by side as they stand.
  */
-function placementOrder(roots: readonly Pick<DagRoot, 'world' | 'parked'>[], members: number[]) {
-  const order = Uint32Array.from(members),
-    rankBits = 53 - 3 * MORTON_BITS
-  if (roots.length > 2 ** rankBits || members.some((w) => roots[w].parked)) return order
+function placementOrder(roots: readonly Ordered[], members: number[]) {
+  const rankBits = 53 - 3 * MORTON_BITS
+  if (roots.length > 2 ** rankBits) return Uint32Array.from(members)
+  const celled: number[] = [],
+    free: number[] = []
+  for (const w of members) (cellOf(roots, w) === undefined ? free : celled).push(w)
+  celled.sort((a, b) => cellOf(roots, a)! - cellOf(roots, b)! || a - b)
+  const order = new Uint32Array(members.length)
+  order.set(celled)
+  order.set(mortonOrder(roots, free, rankBits), celled.length)
+  return order
+}
+
+/** `members` sorted on the Morton curve of their translations over the box that holds them. */
+function mortonOrder(roots: readonly Ordered[], members: number[], rankBits: number) {
   const low = [Infinity, Infinity, Infinity],
     high = [-Infinity, -Infinity, -Infinity]
   for (const w of members)
@@ -161,8 +180,7 @@ function placementOrder(roots: readonly Pick<DagRoot, 'world' | 'parked'>[], mem
     keys[k] = code * 2 ** rankBits + w
   })
   keys.sort()
-  for (let k = 0; k < members.length; k++) order[k] = keys[k] % 2 ** rankBits
-  return order
+  return Array.from(keys, (key) => key % 2 ** rankBits)
 }
 
 /** `q`'s bits spread three apart, the first at bit 0: one axis of a Morton code. */

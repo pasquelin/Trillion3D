@@ -94,6 +94,8 @@ function createBundleCounts(table: WorldRoots, watchers: Set<Watcher>) {
       for (const bundle of own.bundles) counts.letGo(bundle, true)
       if (--own.holds === 0) cells.delete(cell)
     },
+    /** Whether a hold keeps `cell`. */
+    holds: (cell: number) => cells.has(cell),
     /** `cell`'s bundles, counted once more. */
     listed(cell: number) {
       let own = cells.get(cell)
@@ -105,10 +107,16 @@ function createBundleCounts(table: WorldRoots, watchers: Set<Watcher>) {
   return counts
 }
 
-/** Per cell of `table`, the bundles past the top it needs, listed once. */
+/** Per cell of `table`, the bundles past the top it needs, listed once while the cell is asked of,
+ *  forgotten as it is let go. */
 function createCellBundles(table: WorldRoots) {
-  const needs: Int32Array[] = []
-  return (cell: number) => (needs[cell] ??= Int32Array.from(cellDependencies(table, cell)))
+  const needs = new Map<number, Int32Array>()
+  const of = (cell: number) => {
+    let bundles = needs.get(cell)
+    if (!bundles) needs.set(cell, (bundles = Int32Array.from(cellDependencies(table, cell))))
+    return bundles
+  }
+  return Object.assign(of, { forget: (cell: number) => void needs.delete(cell), needs })
 }
 
 /** The session's queue a world's bundles are read through: bound by each session, let go as it
@@ -154,7 +162,15 @@ export function createWorldBundles(
     { held, take, letGo, listed } = counts
   const byCell = (bundle: number) => take(bundle, true),
     cellBundles = createCellBundles(table)
-  const binding = createBinding(table, url)
+  const binding = createBinding(table, url),
+    cover = createCoverShare(cellBundles, counts.byCells, rootsIn),
+    keepCounted = cover.keep
+  // A cell past the plan's reach that no hold keeps: its bundles' list goes with its counts.
+  cover.keep = (reached) => {
+    keepCounted(reached)
+    for (const cell of cellBundles.needs.keys())
+      if (!reached.has(cell) && !counts.holds(cell)) cellBundles.forget(cell)
+  }
   /** The pages of `bundles` not read yet, held as `owns`, read through `session` as `asked`. */
   const readOn = (
     session: PageQueue,
@@ -201,8 +217,18 @@ export function createWorldBundles(
       asked.signal?.throwIfAborted()
       await read(bundles, owns, asked)
     },
-    /** `cell` left: a bundle no placed cell needs any more is let go. */
-    release: counts.release,
+    /** `cell` left: a bundle no placed cell needs any more is let go, and what was counted of the
+     *  cell once no hold keeps it. */
+    release(cell: number) {
+      counts.release(cell)
+      if (counts.holds(cell)) return
+      cellBundles.forget(cell)
+      cover.forget(cell)
+    },
+    /** Cells whose counts are kept: those held or asked of, never every cell met. */
+    get countedCells() {
+      return cellBundles.needs.size + cover.cells
+    },
     /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a world's
      *  model not partitioned, one cell, holds from its load, before any session. */
     async keep(cell: number, read: SpanRead) {
@@ -234,7 +260,7 @@ export function createWorldBundles(
     },
     /** The room the cut's cache leaves the roots the held cells add, and whether a cell may be
      *  held far within it (`worldCoverShare.ts`), the roots `rootsIn` counts per bundle. */
-    cover: createCoverShare(cellBundles, counts.byCells, rootsIn),
+    cover,
     /** The bytes of the bundles held. */
     bytes: counts.bytes,
     /** The session's queue the bundles are read through: they join its catalogue, once. */

@@ -1,3 +1,4 @@
+import type { PlacementOf } from '../../placement/rows.ts'
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../../page/cone/cone.ts'
@@ -46,6 +47,9 @@ export type DagRoot = {
   flat?: boolean
   /** A parked instance-buffer row: packed with the others, and deposited in no queue. */
   parked?: boolean
+  /** The row the placement draws from, when it draws from one (`ClusterRoot.placement`): a row a
+   *  partition placed knows its cell (`../../partition/rowCells.ts`). */
+  placement?: PlacementOf
   /** Its root mark (`ClusterRoot.mark`): a root its impostor card draws opens no descent, one never
    *  culled takes planes no box leaves. */
   mark?: number
