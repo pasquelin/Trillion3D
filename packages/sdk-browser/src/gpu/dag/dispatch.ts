@@ -79,7 +79,7 @@ function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommand
   else encodeDagDifference(encoder, resources)
   if (i >= 0) claimCopy(cut, encoder, i, snap)
   const settled = { encoder, shared, i, captured: snap, serial: swap.cut, undo }
-  return settleMain(cut, { ...settled, coarsen: state.coarsen })
+  return settleMain(cut, { ...settled, coarsen: state.coarse.factor })
 }
 
 /** The main cut's lists, still in `out` and copied by no slot, copied into `encoder` before a view
@@ -99,7 +99,7 @@ function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission
     serial = state.owed
   encodeDagDifference(encoder, resources)
   claimCopy(cut, encoder, i, captured)
-  const coarsen = state.coarsen
+  const coarsen = state.coarse.factor
   return settleMain(cut, { encoder, shared: encoder, i, captured, serial, coarsen, undo })
 }
 
@@ -114,7 +114,7 @@ function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUnifor
     snap,
     listCap,
     saveRegionFor(swap, MAIN_VIEW),
-    state.coarsen,
+    state.coarse.factor,
   )
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(encoder, resources, copy)
@@ -146,7 +146,7 @@ function claimCopy(
 }
 
 /** The submission of a dispatch: slot `i` (-1 none), copied from the main cut `serial` under
- *  `captured` and the factor `coarsen` (`listCap.ts`), read once the buffer ran; everything
+ *  `captured` and the factor `coarsen` (`coarsening.ts`), read once the buffer ran; everything
  *  claimed given back (`undo`) when it is dropped. Without `shared`, submitted here. */
 function settleMain(
   cut: MainCut,

@@ -65,7 +65,7 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
  * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
  * factor its projected-error threshold is cut under, 1 but past the list the device holds
- * (`coarsened`, `listCap.ts`).
+ * (`coarsening.ts`).
  */
 export function writeDagUniforms(
   target: Float32Array,

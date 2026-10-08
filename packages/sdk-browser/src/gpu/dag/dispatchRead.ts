@@ -48,7 +48,7 @@ async function adoptMain(
 ) {
   const { readback, outputBytes, readbackBytes: copied, listCap, device, packed } = resources
   const { listFull } = state
-  const { parsed, grown, coarsen, retried } = await readDagSlot(
+  const { parsed, grown, moved, retried } = await readDagSlot(
     readback[i],
     {
       bytes: copied,
@@ -57,7 +57,13 @@ async function adoptMain(
       scratch: scratch[i],
       levelsWord: levelCountsWord(listCap),
     },
-    { limits: device.limits, pageCount: packed.pageCount, listFull, coarsen: read.coarsen },
+    {
+      limits: device.limits,
+      pageCount: packed.pageCount,
+      listFull,
+      coarse: state.coarse,
+      cutFactor: read.coarsen,
+    },
     // Every copy lands in the chain, adoptable or not: the next is taken against it. A residency
     // that moved since makes the mask a lie; a pose that moved only makes the cut a frame late, as
     // a camera's.
@@ -74,9 +80,8 @@ async function adoptMain(
   // A cut past the list: the list grows, or past the device the cut coarsens, and the next
   // dispatch cuts again, rather than hand the host a truncated readout. The factor follows the
   // readouts cut under it alone: one copied before it moved names an older cut.
-  if (read.coarsen === state.coarsen && coarsen !== state.coarsen) {
+  if (moved) {
     state.factorMoved = true
-    state.coarsen = coarsen
     recutMain(resources.swap, state)
   }
   if (grown) state.grow = Math.max(state.grow, grown)

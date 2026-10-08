@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
 import { createDagOutputScratch } from './uniforms.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { createCoarsening } from './coarsening.ts'
 
 /** A slot whose mapping and range do what the test says; `unmapped` counts its unmaps. */
 function slotOf(map: () => Promise<void>, range: () => ArrayBuffer) {
@@ -23,7 +24,7 @@ const read = (slot: ReturnType<typeof slotOf>) =>
       scratch: createDagOutputScratch(),
       levelsWord: 0,
     },
-    { limits: {}, pageCount: 4, listFull: false, coarsen: 1 },
+    { limits: {}, pageCount: 4, listFull: false, coarse: createCoarsening(), cutFactor: 1 },
   )
 
 test('a refused mapping rejects as SlotMapRefused; an error past it is the engine’s own', async () => {

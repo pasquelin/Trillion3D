@@ -77,7 +77,7 @@ export function packClusterFlags(
  * threshold 64, 31,250 at threshold 16. It is where a cut STARTS: overflow remains possible — a
  * camera placed in the geometry at a tiny threshold, hundreds of thousands of placements — and
  * it is SAID: the kernel sets the overflow bit, and the cut grows its list within the device
- * (`listCap.ts`); past what the device holds, the cut coarsens until it fits (`coarsened`). Only a
+ * (`listCap.ts`); past what the device holds, the cut coarsens until it fits (`coarsening.ts`). Only a
  * cut whose coarsest still overflows stays truncated: the frame still draws by its mask, and the
  * host adopts the head of each list, never an exit from it (`../../webgpu/cut/adoption.ts`). The pool's list (`poolBase`) keeps this cap.
  */

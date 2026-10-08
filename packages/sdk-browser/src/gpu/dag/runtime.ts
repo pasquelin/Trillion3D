@@ -110,7 +110,7 @@ function selectionOver(run: DagRun): GpuSelection {
       return state.growing
     },
     get coarsen() {
-      return state.coarsen
+      return state.coarse.factor
     },
     appendRoots: (roots) => appendRoots(run, roots),
     // The root travels behind the stretch in the frame buffer (`resources.ts`).

@@ -2,7 +2,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * A TRUNCATED READOUT NAMES NO EXIT. A list still past the device at the coarsest cut — its roots
- * and cells alone (`../../gpu/dag/listCap.ts`, `COARSEST`) — is read by its head: the frame's
+ * and cells alone (`../../gpu/dag/coarsening.ts`) — is read by its head: the frame's
  * mask draws the whole cut, so a page past the head has not left it, and must not leave the sets
  * the residency keeps and evicts from. Such a list is
  * published as its head, then every page the list held before that the head does not name, in the

@@ -78,3 +78,23 @@ test('below the device list the cut and its threshold are the view’s own', asy
   assert.deepEqual(cut?.result.pageIds, full.asked)
   assert.ok(resources.listCap >= near, 'the list holds the whole cut')
 })
+
+test('a view that overflowed by a tenth and shrinks to nine tenths draws its own cut again', async () => {
+  // Generated distances whose cuts ask about 1.1 and 0.9 of the list.
+  const probe = world()
+  const over = probe.lists(probe.view(NEAR)).drawn.length,
+    under = probe.lists(probe.view(NEAR + 2)).drawn.length
+  const cap = Math.round((over + under) / 2)
+  assert.ok(over > 1.05 * cap && under < 0.95 * cap, `${over} and ${under} of ${cap}`)
+  const { selection, frame, threshold, view, lists } = await worldCut(cap)
+  for (let k = 0; k < 3; k++) await frame(view(NEAR))
+  assert.ok(selection.coarsen > 1, 'the overflow raised the factor')
+  const shrunk = view(NEAR + 2)
+  let images = 0,
+    cut = await frame(shrunk)
+  while (selection.coarsen > 1 && ++images < 4) cut = await frame(shrunk)
+  assert.equal(selection.coarsen, 1, `back to 1 in ${images + 1} images`)
+  assert.equal(threshold(), Math.fround(shrunk.pixelError), 'the threshold bit for bit')
+  assert.equal(cut?.result.truncated, false)
+  assert.deepEqual(cut?.result.drawablePageIds, lists(shrunk).drawn, 'the view’s own cut')
+})
