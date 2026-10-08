@@ -22,7 +22,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math, camera } from '../runtime/engine.js';
-      import { controls, readout, words, seeded, ease } from '../runtime/kit.js';
+      import { controls, readout, words, seeded, ease, mix } from '../runtime/kit.js';
       const say = words();
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -169,7 +169,7 @@
         let { d, length } = direction();
         if (turn) {
           turn.t = Math.min(1, turn.t + step / 1.4);
-          const [az, polar] = turn.from.map((value, n) => value + (turn.to[n] - value) * ease.inOut(turn.t));
+          const [az, polar] = mix({ math }, turn.from, turn.to, ease.inOut(turn.t));
           d = [Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az)];
           if (turn.t === 1) turn = null;
         } else if (drift) {

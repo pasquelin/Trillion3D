@@ -11,7 +11,8 @@ import {
 } from './unoccluded.fixture.ts'
 import type { HizPage } from './types.ts'
 import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
-import { cameraAt, occluderPyramid, quad, seededRandom } from '../../../../tests/fixtures/hiz.ts'
+import { cameraAt, occluderPyramid, quad } from '../../../../tests/fixtures/hiz.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
@@ -54,7 +55,7 @@ test('a box behind a wall that covers the view is rejected, one in front of it i
 })
 
 test('the test never culls a box that could be seen, over generated cuts and occluders', () => {
-  const rand = seededRandom(31)
+  const rand = lcgRandom(31)
   const size: [number, number] = [40, 36]
   const cam = engineCamera(cameraAt())
   let rejected = 0
@@ -176,7 +177,7 @@ test('a bias keeps what the wall hides by less than the bias, and the counts add
   const page = box([-0.5, -0.5, -0.01], [0.5, 0.5, -0.01], 0, 4)
   assert.equal(filterUnoccluded([page], identityRoots(), pyramid, cam, size).length, 0)
   assert.equal(filterUnoccluded([page], identityRoots(), pyramid, cam, size, 0.5).length, 1)
-  const rand = seededRandom(3)
+  const rand = lcgRandom(3)
   const pages = Array.from({ length: 80 }, (_, i) => randomBox(rand, i))
   const counts = createHizCounts()
   const kept = countUnoccluded(pages, identityRoots(), pyramid, cam, size, counts)

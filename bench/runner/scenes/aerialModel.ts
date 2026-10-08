@@ -4,6 +4,7 @@
 // normals; the ground's tiles read one height function, so two neighbours meet without a seam.
 import type { Random } from '../../../site/examples/kit/random.ts'
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts'
+import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 
@@ -72,7 +73,7 @@ export function lathe(
     for (let r = 0; r < rings; r++) {
       const t = r / rings,
         [a, b] = [profile[p], profile[p + 1]]
-      points.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t])
+      points.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t)])
     }
   points.push(profile[profile.length - 1])
   const row = segments + 1,

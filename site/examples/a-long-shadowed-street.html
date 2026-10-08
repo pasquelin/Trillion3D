@@ -215,7 +215,7 @@
       const flight = opening(world, (time) => {
         const swoop = ease.smooth(time / 5), along = Math.max(0, time - 5) * 7;
         const z = LOW[2] - along;
-        world.camera.position.set(HIGH[0] + (LOW[0] - HIGH[0]) * swoop, HIGH[1] + (LOW[1] - HIGH[1]) * swoop, HIGH[2] + (z - HIGH[2]) * swoop);
+        world.camera.position.set(math.lerp(HIGH[0], LOW[0], swoop), math.lerp(HIGH[1], LOW[1], swoop), math.lerp(HIGH[2], z, swoop));
         world.controls.target.set(0, 5.5 * swoop, (z - 30) * swoop);
         return z >= -HALF + 60;
       });

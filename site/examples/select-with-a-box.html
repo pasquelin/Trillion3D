@@ -212,7 +212,7 @@
         // A selected piece rises off its plinth and turns; let go, it settles back.
         for (const entry of pieces) {
           const goal = entry.selected ? 1 : 0;
-          entry.lift += (goal - entry.lift) * Math.min(1, step * 6);
+          entry.lift = math.lerp(entry.lift, goal, Math.min(1, step * 6));
           if (entry.lift < 0.001 && !entry.selected) {
             if (entry.lift) entry.piece.position.y = entry.rest + (entry.lift = 0);
             continue;

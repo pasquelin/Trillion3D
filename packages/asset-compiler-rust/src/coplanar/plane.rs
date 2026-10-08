@@ -9,7 +9,7 @@ pub struct ClusterPlane {
 
 use trillion3d_math::aabb::{extend_aabb, longest_side};
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, cross, dot, length, scale, unit_unless_zero};
+use trillion3d_math::vec3::{add, cross, dot, length, point_checked, scale, unit_unless_zero};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.
@@ -36,16 +36,7 @@ pub fn plane_of_triangles(
     positions: &[f32],
     tolerance_ratio: f64,
 ) -> Option<ClusterPlane> {
-    let corner = |id: u32| -> Option<[f64; 3]> {
-        let base = id as usize * 3;
-        positions.get(base + 2).map(|_| {
-            [
-                positions[base] as f64,
-                positions[base + 1] as f64,
-                positions[base + 2] as f64,
-            ]
-        })
-    };
+    let corner = |id: u32| point_checked(positions, id);
     let mut accumulated = [0.0f64; 3];
     let mut area = 0.0f64;
     let mut low = [f64::INFINITY; 3];

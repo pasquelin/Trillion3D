@@ -30,6 +30,10 @@ export function nextPow2(v: number) {
   throw new RangeError(`nextPow2: ${v} is past 2^32`)
 }
 
+/** Side of mip level `level` of a texture whose base side is `size`, a non-negative int32: `size`
+ *  halved `level` times by integer division, one texel at least; a level past 31 gives one texel. */
+export const mipSize = (size: number, level: number) => Math.max(1, size >>> Math.min(level, 31))
+
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
 export const floorLog2 = (v: number) => 31 - Math.clz32(v)
 

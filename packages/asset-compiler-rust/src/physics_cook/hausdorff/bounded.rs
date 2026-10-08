@@ -1,9 +1,10 @@
 //! The sampled Hausdorff distance raised to a floor the caller already holds: a sample stops
 //! at the first triangle within the floor, so only the samples that can raise the result are
 //! measured exactly, and the result is the full measure's raised to the floor, bit for bit.
-use super::{at, Grid, P};
+use super::{Grid, P};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::lerp;
 
 /// A floor raised to every value a parallel search returns. A value at or below the floor cannot
@@ -49,9 +50,9 @@ fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
     edges.par_sort_unstable();
     edges.dedup();
     let mut points: Vec<P> = Vec::with_capacity(vertices.len() + edges.len() + triangles.len());
-    points.extend(vertices.iter().map(|&v| at(pos, v)));
+    points.extend(vertices.iter().map(|&v| point(pos, v)));
     for (k, &(i, j, reversed)) in edges.iter().enumerate() {
-        let (a, b) = (at(pos, i), at(pos, j));
+        let (a, b) = (point(pos, i), point(pos, j));
         let forward = lerp(a, b, 0.5);
         if !reversed {
             points.push(forward);
@@ -66,7 +67,7 @@ fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
         }
     }
     points.extend(triangles.iter().map(|tri| {
-        let [a, b, c] = tri.map(|v| at(pos, v));
+        let [a, b, c] = tri.map(|v| point(pos, v));
         [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0)
     }));
     points
@@ -112,7 +113,7 @@ mod tests {
     /// The samples of one triangle as the serial measure takes them: corners, edge midpoints,
     /// centroid.
     fn samples(pos: &[f32], tri: &[u32]) -> [P; 7] {
-        let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
+        let [a, b, c] = [0, 1, 2].map(|k| point(pos, tri[k]));
         let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
         let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
         [a, b, c, middles[0], middles[1], middles[2], centroid]

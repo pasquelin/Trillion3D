@@ -12,6 +12,12 @@ pub fn point(positions: &[f32], id: u32) -> [f64; 3] {
         positions[i + 2] as f64,
     ]
 }
+/// `point`, or `None` when the vertex lies past the end of the array.
+#[inline]
+pub fn point_checked(positions: &[f32], id: u32) -> Option<[f64; 3]> {
+    let i = id as usize * 3;
+    positions.get(i + 2).map(|_| point(positions, id))
+}
 #[inline]
 pub fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]

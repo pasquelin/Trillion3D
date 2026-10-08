@@ -93,7 +93,7 @@
       };
       const crossing = (p, q, level) => {
         const share = (level - p[6]) / (q[6] - p[6]);
-        return p.map((value, axis) => value + (q[axis] - value) * share);
+        return mix({ math }, p, q, share);
       };
       const clip = (polygon, level, keepAbove) => {
         const kept = [], inside = (p) => (keepAbove ? p[6] >= level : p[6] <= level);

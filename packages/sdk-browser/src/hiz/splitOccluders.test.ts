@@ -2,7 +2,8 @@
 // of the eye, and never makes an occluder of a box crossing the near plane.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cameraAt, seededRandom } from '../../../../tests/fixtures/hiz.ts'
+import { cameraAt } from '../../../../tests/fixtures/hiz.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { bounds, box, randomBox, split } from './occlusionCuts.fixture.ts'
 
@@ -32,7 +33,7 @@ test('a box crossing the near plane never becomes an occluder, NaN and Infinity 
 })
 
 test('the split is a partition: the nearest half of the boxes in front, the near clippers last', () => {
-  const rand = seededRandom(7)
+  const rand = lcgRandom(7)
   for (let round = 0; round < 60; round++) {
     const pages = Array.from({ length: 1 + Math.floor(rand() * 40) }, (_, i) => randomBox(rand, i))
     const { occluders, rest, count } = split(pages)

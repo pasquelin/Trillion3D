@@ -53,11 +53,9 @@ function reference(
   ] as number[]
 }
 
-/** A fixed-seed generator: the same boxes on every run. */
-const seededDraw = lcgRandom
-
+/** Boxes from a fixed seed: the same on every run. */
 function randomBoxes(count: number) {
-  const next = seededDraw(20260916)
+  const next = lcgRandom(20260916)
   const out: Float64Array[] = []
   for (let b = 0; b < count; b++) {
     const cx = (next() - 0.5) * 400,
