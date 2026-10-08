@@ -102,18 +102,17 @@ export class Light extends Object3D {
   readonly kind: string
   /** What its colours and its target's place call while it is in a world; made on its first entry. */
   declare private _heard?: () => void
-  /** A colour written in a world, noted on the light. */
-  declare private _noted?: () => void
   constructor(kind: string, p: LightParameters = {}) {
     super()
     this.kind = kind
     this.type = `${kind}Light`
     this.color = new Color(p.color ?? 0xffffff)
     this.groundColor = new Color(p.groundColor ?? 0x000000)
-    // A colour written is counted, in a world or not: a watch reads the count, not the colour.
-    // Out of one it names no light (a colour holds no reference to it); in one, the light.
-    listen(this.color, noteNodeWrite)
-    listen(this.groundColor, noteNodeWrite)
+    // A colour written is noted on the light, in a world or not: a watch reads the light it names,
+    // not the colour.
+    const noted = () => noteNodeWrite(this)
+    listen(this.color, noted)
+    listen(this.groundColor, noted)
     this._values = {
       intensity: p.intensity ?? 1,
       distance: p.distance ?? 0,
@@ -136,14 +135,9 @@ export class Light extends Object3D {
    *  reference to it, and a write reaches nothing. */
   protected override linked(inWorld: boolean) {
     const heard = (this._heard ??= () => this._link?.content(this))
-    const noted = (this._noted ??= () => noteNodeWrite(this))
     for (const value of [this.color, this.groundColor, this.target.position])
       if (inWorld) listen(value, heard)
       else unlisten(value, heard)
-    for (const colour of [this.color, this.groundColor]) {
-      unlisten(colour, inWorld ? noteNodeWrite : noted)
-      listen(colour, inWorld ? noted : noteNodeWrite)
-    }
   }
   protected override get looksDownNegativeZ() {
     return true
