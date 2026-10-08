@@ -123,7 +123,7 @@ const GAP_BYTES = 256
 /** Writes an upload makes at most; past it, the narrowest gaps join. */
 const CAP = 1024
 
-/** The runs a write joins its indices into: one scratch for every upload, grown to the widest. */
+/** The runs a write joins its indices into: one scratch for every upload, `CAP` runs at most. */
 const spans = new Int32Array(CAP * 2)
 /** The one rule every upload joins by, its gap set to the record's bytes. */
 const rule: RangeRule & { overflow: 'narrowest' } = {

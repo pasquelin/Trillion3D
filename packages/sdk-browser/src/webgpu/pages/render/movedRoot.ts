@@ -25,8 +25,8 @@ export type MovedRootTarget = {
  * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
  * scene keeps its own. Its windings are computed again. A transparent placement claims no visibility
  * row: its caster rows move, and the transparent corners are sent again. Placement `rank` is named
- * beside that write: its world alone goes up, and its tree group alone fits again
- * (`movedWorlds.ts`). Returns the rows rewritten.
+ * beside that write: its world alone goes up (`movedWorlds.ts`), and the GPU cut's tree fits again
+ * the group of the pose its send says moved (`updateWorlds`). Returns the rows rewritten.
  *
  * The table's age does not move: it rewrote every row, every corner and every transparent corner,
  * and dropped the whole scene's occlusion history, each image a model moved.

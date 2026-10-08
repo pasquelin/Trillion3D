@@ -3,10 +3,10 @@
  * fitted again where a change lands, and only there, once before the next cut is encoded — a
  * placement parked or taken back, marked past what a box holds or whose pose a send moved
  * (`updateWorlds`, a call's or a host walk's alike), refits its group and the nodes above. Each
- * refit writes back
- * the tree nodes it changed, never the placements' own nodes, before the cut reads the tree again. A pose the GPU
- * composes (`../../placement/gpuCompose.ts`) is not one the host holds: the group of a root composed
- * so is open while it is, and no other (`composedPlacement`).
+ * refit writes back the tree nodes it changed, never the placements' own nodes, before the cut
+ * reads the tree again. A pose the GPU composes (`../../placement/gpuCompose.ts`) is not one the
+ * host holds: the group of a root composed so is open while it is, and no other
+ * (`composedPlacement`).
  */
 import type { GpuSelection } from '../core/selection.ts'
 import { fitPlacementTree, opensTree, refitPlacementTree, treeNodeCount } from './placementTree.ts'

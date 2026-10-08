@@ -7,10 +7,10 @@
 
 /**
  * The share over the bundles `bundlesOf` lists per cell, `has` saying which a cell holds already:
- * the room the live sessions leave (`room`) — none, any cell may be held — and whether a cell may be held far within it, the roots
- * `rootsIn` counts in the bundles it needs that no cell holds yet. A cell refused is asked again
- * only once that room grows: whatever else the cells hold meanwhile moves the room and its roots
- * alike.
+ * the room the live sessions leave (`room`) — none, any cell may be held — and whether a cell may
+ * be held far within it, the roots `rootsIn` counts in the bundles it needs that no cell holds
+ * yet. A cell refused is asked again only once that room grows: whatever else the cells hold
+ * meanwhile moves the room and its roots alike.
  */
 export function createCoverShare(
   bundlesOf: (cell: number) => ArrayLike<number>,

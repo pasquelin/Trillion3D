@@ -276,15 +276,15 @@ function compact(d: DemandState) {
   return rowless
 }
 
-/** The pending entries, compacted, ranked again by the readback's order of the request each came
- *  in with, the camera's then the view ahead's; one whose request left after them; each run in its
- *  order. One key per entry — its rank times the count, plus its place — sorted as numbers. */
 /** The ranks of list `l`'s requests not ranked yet, after `rank`; the last given. */
 function rankList(d: DemandState, l: DemandState['lists']['asked'], rank: number) {
   for (let i = 0; i < l.count; i++) if (!d.ranks.get(l.ids[i])) d.ranks.set(l.ids[i], ++rank)
   return rank
 }
 
+/** The pending entries, compacted, ranked again by the readback's order of the request each came
+ *  in with, the camera's then the view ahead's; one whose request left after them; each run in its
+ *  order. One key per entry — its rank times the count, plus its place — sorted as numbers. */
 function rerank(d: DemandState) {
   const { asked, ahead } = d.lists,
     sc = d.scratch,
