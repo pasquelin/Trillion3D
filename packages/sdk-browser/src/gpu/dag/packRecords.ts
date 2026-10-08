@@ -17,6 +17,7 @@ import {
   HOT_SPHERE,
   packClusterFlags,
 } from './layout.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 function writeSphere(
   target: Float32Array,
@@ -77,11 +78,6 @@ function writeRecords(
 }
 
 type Block = { hot: Uint32Array; cold: Uint32Array; base: number }
-const sameWords = (a: Uint32Array, b: Uint32Array) => {
-  if (a.length !== b.length) return false
-  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false
-  return true
-}
 
 /**
  * The unique records of a packing. Each placement writes its records into a scratch, then takes
@@ -111,7 +107,7 @@ export function createRecordTable() {
         coldBits = new Uint32Array(cold.buffer, 0, n * COLD_WORDS)
       const known = byShape.get(shape)
       for (const block of known ?? [])
-        if (sameWords(block.hot, hotBits) && sameWords(block.cold, coldBits)) return block.base
+        if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
       const block = { hot: hotBits.slice(), cold: coldBits.slice(), base: count }
       count += n
       blocks.push(block)
