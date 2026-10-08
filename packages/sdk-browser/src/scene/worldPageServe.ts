@@ -13,6 +13,7 @@
 // the caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold) and the GPU
 // page pool's, never a second cache here. The world matrix stays the identity: the positions are
 // already in world space, never placed by a per-cluster pose.
+import { firstTrue } from '../../../math/src/scalar/search.ts'
 import { waitShared, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import {
   firstPage,
@@ -87,17 +88,12 @@ function worldRootsPageLocation(address: string): { bundle: number; offset: numb
 /** The rank among bundle `bundle`'s pages of the one at `offset`, its records lying in binary
  *  order from the bundle's first (`firstPage`): `page − firstPage(bundle)`, -1 for none. */
 function rankAt(table: WorldRoots, bundle: number, offset: number) {
-  const first = firstPage(table, bundle)
-  let low = first,
-    high = first + table.bundles[bundle].count - 1
-  while (low <= high) {
-    const mid = (low + high) >>> 1,
-      at = table.pages.at(mid).offset
-    if (at === offset) return mid - first
-    if (at < offset) low = mid + 1
-    else high = mid - 1
-  }
-  return -1
+  const first = firstPage(table, bundle),
+    count = table.bundles[bundle].count
+  if (!count) return -1
+  // The first page at or past `offset`: the one there, or none.
+  const at = firstTrue(first, first + count - 1, (page) => table.pages.at(page).offset >= offset)
+  return table.pages.at(at).offset === offset ? at - first : -1
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
