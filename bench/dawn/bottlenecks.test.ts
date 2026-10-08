@@ -2,30 +2,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { BenchPass } from './benchPasses.ts'
 import { floorsOf, rankBottlenecks, topGains } from './bottlenecks.ts'
-import type { Machine } from './machine.ts'
+import { TEST_MACHINE } from './machine.fixture.ts'
 import { emptyWork } from './passWorkHooks.ts'
 
-const machine: Machine = {
-  version: 3,
-  adapter: 'test',
-  date: '',
-  readGBs: 400,
-  writeGBs: 400,
-  textureReadGBs: 500,
-  textureWriteGBs: 300,
-  attachmentGBs: 800,
-  threadsPerMs: 1e8,
-  passMs: 0.002,
-  dispatchMs: 0.0015,
-  barrierMs: 0.0005,
-  texelLoadG: 500,
-  texelFilterG: 250,
-  aluTflops: 20,
-  sharedGBs: 4000,
-  mrt4G: 25,
-  fragmentsG: 100,
-  trianglesG: 4,
-}
+const machine = TEST_MACHINE
 const pass = (name: string, median: number, extra: Partial<BenchPass> & { work?: object } = {}) =>
   ({
     name,
