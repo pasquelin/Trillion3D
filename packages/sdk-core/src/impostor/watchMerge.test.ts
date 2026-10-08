@@ -4,18 +4,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createImpostorWatch } from './watch.ts'
+import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { COS, FOCAL, field, section, viewAt } from './watch.fixture.ts'
 
 test('a steady motion past sixteen anchors takes about one heap place a read', () => {
-  const roots = field(4000),
-    watch = createImpostorWatch()
   let reads = 0,
-    pushes = 0
+    pushes = 0,
+    counting = false
+  // The watch's heaps, each push counted once the motion has settled.
+  const roots = field(4000),
+    watch = createImpostorWatch((before, placed) => {
+      const heap = createHeap(before, placed),
+        push = heap.push
+      heap.push = (rank) => ((pushes += counting ? 1 : 0), push(rank))
+      return heap
+    })
   for (let frame = 0; frame < 300; frame++) {
+    counting = frame >= 100
     watch.update(roots, section, viewAt([frame * 3, 2, 0], 0), FOCAL, COS)
-    if (frame < 100) continue
-    reads += watch.reads
-    pushes += watch.pushes
+    if (counting) reads += watch.reads
   }
   assert.ok(reads > 0, 'the motion reads roots')
   // A read takes one place, and a root merged out of an old anchor one more: never a heap whole.

@@ -38,7 +38,7 @@ import { bakedLookup, point, readRoot, switchesAt, switchTable } from './switchT
 
 /** The relative margin each class bound keeps from the switch's own, far past its rounding. */
 const SAFE = 1e-9
-/** Anchors kept at most: the newest two merge past it. */
+/** Anchors kept at most: the oldest two merge past it (`mergeOldest`). */
 const ANCHORS = 16
 /** The heap of the roots whose measure is the eye's travel alone: `OFF` and `ON` ones. */
 const TRAVEL = 1 << 10
@@ -56,12 +56,18 @@ export function impostorViewCosine(projection: ArrayLike<number>) {
 }
 
 type Heap = ReturnType<typeof createHeap<number>>
+/** What makes the heap a bucket's roots wait in (`createHeap`). */
+type HeapMaker = (
+  before: (a: number, b: number) => boolean,
+  placed: (rank: number, at: number) => void,
+) => Heap
 /** An eye and a forward axis, and per measure the heap of the roots keyed from them: `TRAVEL`'s,
  *  or band bucket `j`'s, whose measure is `φ + 2^j·τ`. */
 type Anchor = { eye: Float64Array; forward: Float64Array; heaps: Map<number, Heap> }
 
-function createState() {
+function createState(makeHeap: HeapMaker) {
   return {
+    makeHeap,
     holder: {},
     roots: undefined as readonly ImpostorRoot[] | undefined,
     section: undefined as ImpostorSection | undefined,
@@ -95,8 +101,6 @@ function createState() {
     boundOf: new Float64Array(0),
     every: true,
     reads: 0,
-    /** Places taken in the heaps this update: a root waiting again, or an old anchor's merged. */
-    pushes: 0,
     reading: {} as Reading,
   }
 }
@@ -116,9 +120,10 @@ type Reading = {
   carded?: (rank: number) => boolean
 }
 
-/** A watch over the switch of every root: `update` each image, `touch` a root that moved. */
-export function createImpostorWatch() {
-  const s = createState()
+/** A watch over the switch of every root: `update` each image, `touch` a root that moved. Each
+ *  bucket's roots wait in a heap `makeHeap` makes. */
+export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
+  const s = createState(makeHeap)
   return {
     /** 1 at a switched root. */
     get switched() {
@@ -134,10 +139,6 @@ export function createImpostorWatch() {
     /** Roots the last update read. */
     get reads() {
       return s.reads
-    },
-    /** Places the last update took in the heaps: never more than its reads and an old anchor's. */
-    get pushes() {
-      return s.pushes
     },
     /** Bytes of the per-root tables and the heaps: what the roots hold, never what they did. */
     get hostBytes() {
@@ -171,7 +172,7 @@ export function createImpostorWatch() {
       cos: number,
       carded?: (rank: number) => boolean,
     ) {
-      s.reads = s.changedCount = s.pushes = 0
+      s.reads = s.changedCount = 0
       s.frame++
       if (roots !== s.roots || section !== s.section || focal !== s.focal || cos !== s.cos)
         s.every = true
@@ -431,7 +432,7 @@ function heapOf(s: State, anchor: Anchor, bucket: number) {
       bucket,
       (heap =
         s.spareHeaps.pop() ??
-        createHeap<number>(
+        s.makeHeap(
           (a, b) => s.key[a] < s.key[b],
           (rank, at) => void (s.at[rank] = at),
         )),
@@ -462,7 +463,6 @@ function wait(s: State, rank: number, bucket: number, slack: number) {
   s.key[rank] = slack - spent
   s.home[rank] = heap
   heap.push(rank)
-  s.pushes++
 }
 
 /** The second-oldest anchor emptied into the oldest, each key lowered by the measure between the
@@ -479,7 +479,6 @@ function mergeOldest(s: State) {
       s.key[rank] -= shift
       s.home[rank] = target
       target.push(rank)
-      s.pushes++
     }
   }
   letGo(s, from)
