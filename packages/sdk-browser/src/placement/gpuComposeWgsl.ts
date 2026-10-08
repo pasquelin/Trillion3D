@@ -57,8 +57,9 @@ fn sameWord(a:u32,b:u32)->bool{
 )
 
 /**
- * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye — its
- * exact translation kept behind the range's matrices, as the host's are (`worldOrigins.ts`) —, and,
+ * One thread per root of a range of the cut's worlds: `parent · local` — its exact translation
+ * kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which each cut reads at
+ * its own eye —, and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
  * accumulated image (`previous`): a restart takes the world as reference with no motion; a
@@ -66,7 +67,7 @@ fn sameWord(a:u32,b:u32)->bool{
  * writes identity.
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,pad:vec2u,}
+  `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -82,19 +83,17 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
- let eye=array<vec2u,3>(params.eyeX,params.eyeY,params.eyeZ);
  var world:array<u32,16>;
  for(var k=0u;k<16u;k++){
-  var value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
+  let value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
-  // The exact translation behind the range's matrices, which the cut's worlds are brought to the
-  // eye from (\`../gpu/dag/worldRebase.ts\`), then the word at the eye.
+  worlds[i*16u+k]=world[k];
+  // The exact translation behind the range's matrices, which each cut reads at its own eye
+  // (\`../gpu/dag/shader/worldPoseWgsl.ts\`).
   if(k>=12u&&k<15u){
    let at=params.count*16u+i*8u+2u*(k-12u);
    worlds[at]=value.x;worlds[at+1u]=value.y;
-   value=dSub(value,eye[k-12u]);
   }
-  worlds[i*16u+k]=toF32(value);
  }
  let mode=motionMode.mode;
  if(params.motion==0u||mode==${MOTION_SKIP}u){return;}

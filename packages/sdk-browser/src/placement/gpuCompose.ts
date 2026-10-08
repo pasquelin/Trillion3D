@@ -87,8 +87,6 @@ function createComposeState(roots: number) {
     motionMode: new Uint32Array(8),
     /** The motion buffer the roots pass wrote this frame, undefined without one. */
     motionBound: undefined as GPUBuffer | undefined,
-    /** The eye the cut's worlds are brought to (`worldUploadOrigin`). */
-    eye: new Float64Array(3),
     linksDirty: true,
     /** The frame whose parents the GPU holds. */
     frame: -1,
@@ -400,7 +398,6 @@ function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
   state.seeds.clear()
-  state.eye.set(rt.run.worldUploadOrigin)
   writeParents(state)
   const count = state.slots
   if (!gpu.parents || gpu.parents.size < count * MATRIX_DOUBLES * 8) {
@@ -441,7 +438,6 @@ function writeRootParams(
     params[at + 1] = ranges[r].first
     params[at + 2] = ranges[r].count
     params[at + 3] = motion ? 1 : 0
-    packDoubles(params, at + 4, state.eye)
   }
   device.queue.writeBuffer(gpu.uniforms[0], 0, params, 0, words)
 }
@@ -486,7 +482,7 @@ export function encodeComposedRoots(
       held.group = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-          { binding: 0, resource: { buffer: gpu.uniforms[0], offset: r * 256, size: 48 } },
+          { binding: 0, resource: { buffer: gpu.uniforms[0], offset: r * 256, size: 16 } },
           { binding: 1, resource: { buffer: gpu.locals } },
           { binding: 2, resource: { buffer: gpu.parentOf } },
           { binding: 3, resource: { buffer: gpu.parents! } },

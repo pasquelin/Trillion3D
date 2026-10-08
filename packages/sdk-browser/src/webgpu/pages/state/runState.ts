@@ -69,7 +69,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     feedbackWritten: false,
     worldUploadRevision: 0,
     // No frame before the first image: it rebases, whatever happens.
-    worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
     movedWorlds: createMovedWorlds(),
     occluderSignature: 0,
   }

@@ -55,6 +55,9 @@ const VIEW_FIELDS = [
   { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },
+  // The eye the cut reads its translations at, \`cameraWorld\` in doubles, high word then low word
+  // (\`shader/worldPoseWgsl.ts\`): x and y in the first, z in the second.
+  { name: 'eye', type: 'array<vec4u,2>', words: 8, align: 4 },
 ] as const satisfies readonly Field[]
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */

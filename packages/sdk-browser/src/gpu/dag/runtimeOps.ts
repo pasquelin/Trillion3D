@@ -69,18 +69,18 @@ export function updateRuntimeWorlds(run: DagRun, next: Float32Array, named?: Int
   return true
 }
 
-/** The placements that moved among those of `named`, those whose stretch moved with them, and
- *  the placements written: the moved and those whose exact translation alone moved. */
+/** The placements that moved among those of `named`, those whose stretch moved with them, and the
+ *  one an unlink writes again. */
 let movedScratch = new Int32Array(8),
-  stretchedScratch = new Int32Array(8),
-  writtenScratch = new Int32Array(8)
+  stretchedScratch = new Int32Array(8)
+const rewritten = new Int32Array(1)
 
 /**
  * The placements of `named`, increasing — the ones a call moved —, compared with the worlds last
  * received and those that moved sent, each run to its range, with their exact translations and,
  * where the linear part moved, their stretch: a frame's CPU and upload follow what moved, never
- * the placements' count. A placement whose exact translation alone moved is written again too: its
- * world at the eye changed (`writeNamedWorlds`).
+ * the placements' count. Each cut reads a translation at its own eye from the exact one
+ * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone.
  */
 function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, named: Int32Array) {
   const { packed, frames, frameData } = resources
@@ -98,24 +98,10 @@ function updateNamedWorlds({ resources, state }: DagRun, next: Float32Array, nam
     if (moved === movedScratch.length) movedScratch = grown(movedScratch, moved + 1, moved)
     movedScratch[moved++] = w
   }
-  const written = mergeIncreasing(movedScratch, moved, frames.originsChanged, origins)
-  if (written) frames.writeNamedWorlds(packed.worlds, writtenScratch, written)
+  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
   if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
   if (moved || origins) state.worldRevision++
   return moved > 0 || origins > 0
-}
-
-/** The two increasing lists joined into `writtenScratch`, each placement once; their count. */
-function mergeIncreasing(a: Int32Array, na: number, b: Int32Array, nb: number) {
-  if (writtenScratch.length < na + nb) writtenScratch = grown(writtenScratch, na + nb)
-  let i = 0,
-    j = 0,
-    n = 0
-  while (i < na || j < nb) {
-    const next = j >= nb || (i < na && a[i] <= b[j]) ? a[i++] : b[j++]
-    if (n === 0 || writtenScratch[n - 1] !== next) writtenScratch[n++] = next
-  }
-  return n
 }
 
 /** `GpuSelection.composedPlacement`, unlinked: placement `w`'s parent no longer poses it, and the
@@ -125,9 +111,9 @@ export function rewritePlacement({ resources, state }: DagRun, w: number) {
   const { packed, frames } = resources
   if (w >= packed.worldCount) return
   frames.forgetOrigin(w)
-  writtenScratch[0] = w
-  frames.writeWorldOrigins(writtenScratch.subarray(0, 1))
-  frames.writeNamedWorlds(packed.worlds, writtenScratch, 1)
+  rewritten[0] = w
+  frames.writeWorldOrigins(rewritten)
+  frames.writeNamedWorlds(packed.worlds, rewritten, 1)
   state.worldRevision++
 }
 

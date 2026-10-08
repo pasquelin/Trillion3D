@@ -369,9 +369,9 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
   )
 }
 
-/** Each root's world as the cut's worlds hold it before the eye is taken off it on the GPU
- *  (`worldRebase.ts`): its sixteen numbers in single precision, the translation kept exactly beside
- *  them (`worldOrigins.ts`). */
+/** Each root's world as the cut's worlds hold it: its sixteen numbers in single precision, the
+ *  translation kept exactly beside them (`worldOrigins.ts`), which each cut reads at its own eye
+ *  (`shader/worldPoseWgsl.ts`). */
 export function rootWorlds(worlds: Float32Array, roots: readonly DagRoot[]) {
   for (let w = 0; w < roots.length; w++) worlds.set(roots[w].world.elements, w * 16)
 }

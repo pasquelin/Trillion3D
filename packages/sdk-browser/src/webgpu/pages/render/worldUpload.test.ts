@@ -5,7 +5,6 @@ import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
 import { createMovedWorlds, noteWorldMoved } from './movedWorlds.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
 
 /** An image entry after a scene change; `walked` says whether the host's write made it. */
 function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]) => boolean }) {
@@ -27,7 +26,6 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
     run: {
       gate: { updateWorlds: () => walked, revisions: { scene: 2 } },
       worldUploadRevision: 1,
-      worldUploadOrigin: new Float64Array(3),
       gpuSelection,
       movedWorlds: createMovedWorlds(),
       noOccluderHistory: false,
@@ -35,21 +33,19 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
   } as unknown as WebgpuPagesRuntime
 }
 
-const cam = { eye: [0, 0, 0] } as unknown as EngineCamera
-
 test('a host pose rewrites every row, with or without a GPU selection, and only a host pose', () => {
   const bare = image(true)
-  assert.equal(uploadWorlds(bare, cam), true)
+  assert.equal(uploadWorlds(bare), true)
   assert.equal(bare.layout.rows.tableEpoch, 2, 'a scene with no GPU selection rewrites the table')
   assert.equal(bare.run.noOccluderHistory, true)
   const gpu = image(true, { updateWorlds: () => true })
-  uploadWorlds(gpu, cam)
+  uploadWorlds(gpu)
   assert.equal(gpu.layout.rows.tableEpoch, 2, 'the GPU cut too')
   const light = image(true, { updateWorlds: () => false })
-  uploadWorlds(light, cam)
+  uploadWorlds(light)
   assert.equal(light.layout.rows.tableEpoch, 1, 'a GPU cut whose worlds did not change keeps it')
   const engine = image(false)
-  uploadWorlds(engine, cam)
+  uploadWorlds(engine)
   assert.equal(engine.layout.rows.tableEpoch, 1, 'a move the engine made rewrote its own rows')
 })
 
@@ -62,23 +58,22 @@ for (const kind of ['GPU selection', 'no selection'] as const)
     const rt = image(true, kind === 'GPU selection' ? { updateWorlds: () => true } : undefined)
     Object.assign(rt.layout, { selectionRoots: [{ world: { elements: world }, pages: [] }] })
     const { revisions } = rt.run.gate,
-      rows = rt.layout.rows,
-      eye = (x: number) => ({ eye: [x, 2, 3] }) as unknown as EngineCamera
-    uploadWorlds(rt, eye(0))
+      rows = rt.layout.rows
+    uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 2, 'the first rebase has nothing to compare with')
     revisions.scene++
-    uploadWorlds(rt, eye(1))
+    uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 2, 'a light written as the eye moves: the rows stand')
     revisions.scene++
     world[13] = 6.5
-    uploadWorlds(rt, eye(2))
+    uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 3, 'a pose written as the eye moves: every row again')
     revisions.scene++
-    uploadWorlds(rt, eye(2))
+    uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 3, 'the eye at rest, no pose moved: the rows stand')
     revisions.scene++
     world[12] = 4
-    uploadWorlds(rt, eye(2))
+    uploadWorlds(rt)
     assert.equal(rows.tableEpoch, 4, 'the eye at rest, a pose moved: every row again')
   })
 
@@ -95,7 +90,7 @@ test('a pose a call named sends its world alone, every other left as the cut hol
     worldUpdates: new Float32Array(48),
   })
   noteWorldMoved(rt.run, 1)
-  uploadWorlds(rt, cam)
+  uploadWorlds(rt)
   const [[worlds, named]] = calls
   assert.deepEqual([...named], [1], 'the one named placement')
   assert.equal(worlds[1 * 16 + 12], 2, 'its world taken')

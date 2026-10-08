@@ -128,7 +128,7 @@ function drawFrameInputs(
   marks.gateEnd = performance.now()
   restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging))
   marks.tilesEnd = performance.now()
-  const worldsMoved = uploadWorlds(rt, cam)
+  const worldsMoved = uploadWorlds(rt)
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
   // A moved view lets every row the GPU partition kept leave the occluders again; while it stands

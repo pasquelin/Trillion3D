@@ -3,6 +3,7 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './mockBuffers.ts'
+import { worldsAtEye } from './mockWorldPose.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
 
@@ -57,7 +58,11 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     clusters: floats(byBinding.get(DAG_BINDING.clusters)!.data),
     nodes: floats(byBinding.get(DAG_BINDING.nodes)!.data),
     pageCones: floats(byBinding.get(DAG_BINDING.cold)!.data),
-    worlds: floats(byBinding.get(DAG_BINDING.worlds)!.data).subarray(0, worldCount * 16),
+    worlds: worldsAtEye(
+      byBinding.get(DAG_BINDING.worlds)!.data,
+      byBinding.get(DAG_BINDING.views)!.data,
+      worldCount * 16,
+    ),
     worldStretch: floatsAt(0),
     rootNodes,
     rootBases: rootNodes.slice(),

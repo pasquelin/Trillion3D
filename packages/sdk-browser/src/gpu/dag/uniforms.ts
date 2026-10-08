@@ -17,6 +17,7 @@ import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { packDoubles } from '../../placement/composedMotion.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -88,6 +89,8 @@ export function writeDagUniforms(
     target[W('cameraWorld')] = cw[0]
     target[W('cameraWorld') + 1] = cw[1]
     target[W('cameraWorld') + 2] = cw[2]
+    // The eye exact, which every translation the cut reads is taken off (`worldPoseWgsl.ts`).
+    packDoubles(ints, W('eye'), cw, 0, 3)
   }
   target[W('cameraStretch')] = uniforms.cameraStretch ?? 1
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it

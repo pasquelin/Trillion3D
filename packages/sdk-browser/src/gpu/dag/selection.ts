@@ -17,7 +17,6 @@ import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { followPlacementTree } from './treeFollow.ts'
 import { followWorldLinks } from './worldFollow.ts'
-import { createWorldRebase, rebaseWorldsOnGpu } from './worldRebase.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
@@ -50,16 +49,8 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut creation failed')
     return undefined
   }
-  const selection = followWorldLinks(
+  return followWorldLinks(
     followPlacementTree(createDagRuntime(resources, options.poolHeld), resources, options.composed),
     resources,
   )
-  // The cut's worlds are brought to the eye on the GPU (`worldRebase.ts`): no cut without it.
-  const rebase = await createWorldRebase(device, selection.worldRanges).catch(() => undefined)
-  if (!rebase) {
-    selection.dispose()
-    options.onRefused?.('world rebase creation failed')
-    return undefined
-  }
-  return rebaseWorldsOnGpu(selection, device, rebase)
 }

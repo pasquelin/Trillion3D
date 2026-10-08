@@ -17,15 +17,13 @@ export async function prepareGpuCut(
   gpuDevice: GPUDevice,
   step: <T>(name: string, work: () => Promise<T>) => Promise<T>,
 ) {
-  const { vis, run } = rt,
+  const { vis } = rt,
     { selectionRoots } = rt.layout
   if (!selectionRoots.length) return
   if (!vis.gpuDraw) throw new Error('WEBGPU_DRAW_UNAVAILABLE')
   const made = await step('GPU cut', () => createSessionCut(rt, gpuDevice, selectionRoots))
   if (!made.cut) throw new Error(`GPU_SELECTION_REFUSED: ${made.refused}`)
   adoptCut(rt, made.cut)
-  // ABSOLUTE world matrices on the GPU, no render origin yet: the first image brings them back.
-  run.worldUploadOrigin.fill(NaN)
 }
 
 /** The session's GPU cut over `roots` — at open, exactly theirs, or beside the running one for a

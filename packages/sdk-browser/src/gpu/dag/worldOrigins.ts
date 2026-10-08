@@ -5,7 +5,8 @@ import { grown } from '../../page/cut/sparseInts.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
  *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
- *  and two words of padding. The cut's worlds are brought to the eye from them (`worldRebase.ts`). */
+ *  and two words of padding. Each cut reads its translations at its eye from them
+ *  (`shader/worldPoseWgsl.ts`). */
 export const WORLD_ORIGIN_BYTES = 32
 
 /** Writes one placement's exact translation, three doubles, into `out` (words) from `at`. */
@@ -54,10 +55,6 @@ export function createWorldOrigins(
   }
   const origins = {
     hostBytes: words.byteLength + next.byteLength,
-    /** The placements the last `write` sent, increasing: `changed[0 .. count)`. */
-    get changed() {
-      return changed
-    },
     /** Placement `row`'s translation as the GPU no longer holds it — its parent composed another
      *  there (`../../placement/gpuCompose.ts`) —: its next `write` sends it, whatever it was. */
     forget(row: number) {

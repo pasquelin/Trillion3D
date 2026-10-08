@@ -7,7 +7,6 @@ import { prepared } from '../water/pass.fixture.ts'
 import { uploadWorlds } from './render/worldUpload.ts'
 import { orderBlendPasses } from '../blend/order.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
-import type { EngineCamera } from '../../camera/world.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 
@@ -75,7 +74,6 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
         markWorld: (_: number, mark: number) => marks.push(mark),
       },
       worldUploadRevision: 1,
-      worldUploadOrigin: new Float64Array(3),
     },
     setup: { worlds: {} },
     vis: {},
@@ -87,9 +85,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
       changes: { worldChanged: (lo: number[], hi: number[]) => changed.push([...lo, ...hi]) },
     },
   } as unknown as WebgpuPagesRuntime
-  const cam = { eye: new Float64Array(3) } as unknown as EngineCamera
   group.visible = false
-  uploadWorlds(rt, cam)
+  uploadWorlds(rt)
   assert.deepEqual(parks, [[0, true]])
   assert.equal(item.hidden, true, 'the blend item of the hidden node is hidden')
   assert.ok(!kept.hidden, 'another node keeps its blend item')
@@ -97,10 +94,10 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
   orderBlendPasses(blendState, [0, 0, 0])
   assert.equal(blendState.keepPacked[0] & 1, 0, 'the frustum verdict keeps it out')
-  uploadWorlds(rt, cam)
+  uploadWorlds(rt)
   assert.equal(changed.length, 1, 'a revision that changes nothing stales nothing')
   group.visible = true
-  uploadWorlds(rt, cam)
+  uploadWorlds(rt)
   assert.deepEqual(parks, [
     [0, true],
     [0, false],
@@ -112,7 +109,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.equal(blendState.keepPacked[0] & 1, 1)
   // #456: a node set to cast no shadow leaves every light cut; its shadow pages are drawn again.
   node.castShadow = false
-  uploadWorlds(rt, cam)
+  uploadWorlds(rt)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
   assert.equal(changed.length, 3, 'its shadow is drawn again without it')
 })

@@ -106,9 +106,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   feedbackWritten: boolean
   /** Revision whose matrices are carried to the GPU and to transparent items. */
   worldUploadRevision: number
-  /** Origin of the render frame of matrices carried to the GPU: the eye of that image. A moving
-   *  camera voids it as a scene change voids the revision. */
-  worldUploadOrigin: Float64Array
   /** The placements whose world a call wrote since the last upload (`../render/movedWorlds.ts`). */
   movedWorlds: MovedWorlds
   /** Ordered signature of the tested half: two images that share it share their occluders, therefore

@@ -64,8 +64,3 @@ export function holdRenderOriginFrame(into: RenderOriginFrame, from: RenderOrigi
   into.planesRelative.set(from.planesRelative)
   return into
 }
-
-/** Whether two render origins — two eyes — are one, number for number: what a pass that brings
- *  the worlds to the eye compares before running again (`../gpu/dag/worldRebase.ts`). */
-export const sameRenderOrigin = (a: ArrayLike<number>, b: ArrayLike<number>) =>
-  a[0] === b[0] && a[1] === b[1] && a[2] === b[2]

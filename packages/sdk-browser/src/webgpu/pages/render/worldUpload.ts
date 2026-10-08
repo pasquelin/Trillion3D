@@ -1,6 +1,5 @@
 import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
 import { followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { takeMovedWorlds } from './movedWorlds.ts'
@@ -14,12 +13,12 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
  * moved roots nobody named, walks it here, and then rewrites every row the GPU cut reads. Returns
  * whether the poses moved.
  *
- * A camera that moves sends nothing: the cut's worlds are held in single precision with
- * their exact translations beside them, and brought to the eye on the GPU before the cut reads
- * them (`../../../gpu/dag/worldRebase.ts`), the eye the cut and the compose pass work at being
- * `worldUploadOrigin`. A frame's CPU follows what moved, never the world's placements.
+ * A camera that moves sends nothing: the cut's worlds are held in single precision with their
+ * exact translations beside them, and each cut reads a translation at its own eye
+ * (`../../../gpu/dag/shader/worldPoseWgsl.ts`). A frame's CPU follows what moved, never the
+ * world's placements.
  */
-export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+export function uploadWorlds(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds)
@@ -39,7 +38,6 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     )
     if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly)
   }
-  run.worldUploadOrigin.set(cam.eye)
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
   rt.timing.worldCounts.rootsRebased = 0
   if (!worldsMoved) return false

@@ -62,15 +62,11 @@ function selectionOver(run: DagRun): GpuSelection {
     },
     worldCapacity: packed.worldCount,
     worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
-    get worldsWritten() {
-      return frames.worldsWritten
-    },
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
     },
     updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
-    worldsAt: (eye) => frames.worldsAt(eye),
     composedPlacement: (w, composed) => !composed && live() && rewritePlacement(run, w),
     worldsMovedOnGpu() {
       if (live()) state.worldRevision++

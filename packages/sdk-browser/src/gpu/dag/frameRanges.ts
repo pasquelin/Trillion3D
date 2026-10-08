@@ -36,10 +36,6 @@ export function createCameraFrames(
     ...rangeBuffers(device, slots, ranges, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: { from: Infinity, to: -1 },
-    written: 0,
-    eye: new Float64Array(3).fill(NaN),
-    sources,
-    held: new Float32Array(24),
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -57,30 +53,11 @@ export function createCameraFrames(
     buffers,
     worldBuffers,
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
-     *  its range; how many moved, listed in `originsChanged`. Every one sent asks the rebase of the
-     *  whole table; those of `named`, while the eye the worlds stand at is known (`worldsAt`), are
-     *  the caller's to send again at it (`writeNamedWorlds`). */
-    writeWorldOrigins(named?: Int32Array) {
-      const moved = origins.write(named)
-      if (moved && (!named || Number.isNaN(f.eye[0]))) f.written++
-      return moved
-    },
-    get originsChanged() {
-      return origins.changed
-    },
+     *  its range, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); how many
+     *  moved. */
+    writeWorldOrigins: (named?: Int32Array) => origins.write(named),
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),
-    /** The eye the GPU's worlds stand at once the rebase that brings them there is queued, or
-     *  none while one is in flight (`worldRebase.ts`). */
-    worldsAt(eye?: ArrayLike<number>) {
-      if (eye) f.eye.set(eye)
-      else f.eye.fill(NaN)
-    },
-    /** Bumped at every write of worlds or origins to the GPU: what is written there is absolute
-     *  until the rebase brings it to the eye (`worldRebase.ts`), the one place that knows it. */
-    get worldsWritten() {
-      return f.written
-    },
     originBytes: origins.hostBytes,
     bindGroup,
     /** One bind group per range (`bindGroup`), with its primitive count. */
@@ -99,16 +76,9 @@ export function createCameraFrames(
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
     writeWorlds: (next: Float32Array) => writeWorlds(f, next),
     /** The world matrices in `next` of the `count` increasing primitives of `named`: the ones a
-     *  call moved, each run to its range (`writeRanges`). At the eye the worlds stand at, when it
-     *  is known: each translation brought there here, the bits the rebase writes, so no rebase of
-     *  the whole table follows a pose; absolute otherwise, the next cut rebasing the table. */
-    writeNamedWorlds(next: Float32Array, named: Int32Array, count: number) {
-      if (Number.isNaN(f.eye[0]) || !f.sources) {
-        f.written++
-        return writeNamed(f, worldBuffers, 16, next, named, count)
-      }
-      writeAtEye(f, next, named, count)
-    },
+     *  call moved, each run to its range (`writeRanges`). */
+    writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
+      writeNamed(f, worldBuffers, 16, next, named, count),
     /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
      *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
@@ -137,34 +107,6 @@ type Frames = {
   bounds: GPUBuffer
   /** Words written and not yet sent: one interval, in `frameInts` indices. */
   pending: { from: number; to: number }
-  /** Writes of worlds or origins to the GPU so far (`worldsWritten`). */
-  written: number
-  /** The eye the GPU's worlds stand at, NaN while unknown (`worldsAt`). */
-  eye: Float64Array
-  /** The placements whose exact translations the worlds carry. */
-  sources: PackedDag['worldSources']
-  /** The absolute translations a write at the eye sets aside, three a placement. */
-  held: Float32Array
-}
-
-/** The world matrices of `named` written at the eye: each translation the single nearest its exact
- *  one less the eye's — `toF32(dSub(t, e))`, the rebase's bits —, set in `next` while its run is
- *  written, the absolute one put back after. */
-function writeAtEye(f: Frames, next: Float32Array, named: Int32Array, count: number) {
-  if (f.held.length < count * 3) f.held = new Float32Array(Math.max(count * 3, f.held.length * 2))
-  const { eye, held } = f,
-    sources = f.sources!
-  for (let i = 0; i < count; i++) {
-    const w = named[i],
-      t = sources[w].world.elements
-    for (let k = 0; k < 3; k++) {
-      held[i * 3 + k] = next[w * 16 + 12 + k]
-      next[w * 16 + 12 + k] = t[12 + k] - eye[k]
-    }
-  }
-  writeNamed(f, f.worldBuffers, 16, next, named, count)
-  for (let i = 0; i < count; i++)
-    for (let k = 0; k < 3; k++) next[named[i] * 16 + 12 + k] = held[i * 3 + k]
 }
 
 /** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
@@ -234,7 +176,6 @@ function writeRows({ device, ranges, buffers, frameData }: Frames, from: number,
 
 function writeWorlds(f: Frames, next: Float32Array) {
   const { device, ranges, worldBuffers } = f
-  f.written++
   for (let r = 0; r < ranges.length; r++) {
     const { first, count } = ranges[r],
       bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)

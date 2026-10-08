@@ -1,6 +1,6 @@
 // The per-element loops of the world step (`packages/sdk-browser/src/webgpu/pages/render/render.ts`), on the root count of the
-// reference scene: what a scene change pays in JavaScript — a moving camera pays none, the cut's
-// worlds being brought to the eye on the GPU —, timed on a nanosecond clock where the engine's
+// reference scene: what a scene change pays in JavaScript — a moving camera pays none, each cut
+// reading its translations at its own eye on the GPU —, timed on a nanosecond clock where the engine's
 // own `worldMs` bound reads on a 0.1 ms one. This is the measurement a WebAssembly kernel is gated
 // on: a loop under 0.1 ms per image keeps its JavaScript form.
 import * as THREE from 'three'

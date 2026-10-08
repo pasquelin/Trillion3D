@@ -12,7 +12,7 @@ export const DAG_WORLD_GATE_WGSL = wgslBlock(
   `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
 fn worldLinkOf(w:u32)->u32{return select(0xffffffffu,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
 /** \`view · world\` of the world DAG under the view \`vi\`, as \`preparePrimitive\` derives it: its
- *  world is the identity, its origin taken to the eye as the rebase takes it (\`../worldRebase.ts\`). */
+ *  world is the identity, its origin taken to the eye as a placement's is (\`worldPoseWgsl.ts\`). */
 fn worldViewOf()->mat4x4f{
  let o=-views[0u].cameraWorld;
  return views[vi].view*mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,o.x,o.y,o.z,1.0);

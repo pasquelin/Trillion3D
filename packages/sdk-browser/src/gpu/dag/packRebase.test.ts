@@ -1,5 +1,5 @@
 // The worlds the host sends the cut: each root's world in single precision, whatever the
-// eye — the eye is taken off them on the GPU (`worldRebase.ts`). Whether a pose moved is read
+// eye — each cut takes its eye off them as it reads them (`shader/worldPoseWgsl.ts`). Whether a pose moved is read
 // against them bit for bit: a pose left alone reads unmoved, one changed past single precision
 // moved, a NaN never unmoved.
 import test from 'node:test'

@@ -5,8 +5,8 @@ import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
 
-test('the block holds the hundred words the uniform array strides by', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 100)
+test('the block holds the hundred and eight words the uniform array strides by', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 108)
   // The array is allocated from the same number the kernels index by: one source, no drift.
   assert.equal(DAG_VIEW_WORDS, VIEW_BLOCK_WORDS)
 })
@@ -69,7 +69,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
       'worldRoot:u32,treeTop:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
-      'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,}',
+      'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,eye:array<vec4u,2>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.
   assert.ok(DAG_SELECTION_SHADER.includes(VIEW_UNIFORM_STRUCT))

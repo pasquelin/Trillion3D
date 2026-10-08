@@ -93,17 +93,11 @@ export type GpuSelection = {
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
   readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
-  /** Advanced at every write of worlds or their exact translations to the GPU (`updateWorlds`,
-   *  `appendRoots`): absolute until the rebase brings them to the eye (`../dag/worldRebase.ts`). */
-  readonly worldsWritten: number
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved, named first
    *  (`placementMoved`): those alone are compared and sent. Advances `worldRevision` when one
    *  moved. */
   updateWorlds(worlds: Float32Array, named?: Int32Array): boolean
-  /** The eye the cut's worlds stand at once the rebase that brings them there is queued, or none
-   *  while one is in flight (`../dag/worldRebase.ts`): a pose sent meanwhile lands at it. */
-  worldsAt?(eye?: ArrayLike<number>): void
   /** Placement `world`'s pose was just written by a call that names it (`moveRootRows`): its
    *  tree group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
   placementMoved?(world: number): void

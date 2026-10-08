@@ -2,8 +2,8 @@ import { worldToRenderOrigin } from '../../../../sdk-core/src/index.ts'
 import { rootWorlds } from './pack.ts'
 import type { PackedDag, DagRoot } from './types.ts'
 
-/** Each root's world brought to `origin` in single precision, the double subtraction first: what
- *  the GPU's rebase leaves in the cut's worlds (`worldRebase.ts`), word for word. */
+/** Each root's world brought to `origin` in single precision, the double subtraction first: the
+ *  worlds a cut reads at that eye (`shader/worldPoseWgsl.ts`), word for word. */
 export function rootWorldsToRenderOrigin(
   worlds: Float32Array,
   roots: readonly DagRoot[],
@@ -16,8 +16,8 @@ export function rootWorldsToRenderOrigin(
 /**
  * Brings packed world matrices into the RENDER FRAME whose origin is `origin` —
  * the frame's eye (`../../../../math/src/projection/renderOrigin.ts`). `packDagSelection` returns them
- * in absolute world: the engine's GPU rebase brings them to the eye before the cut reads them
- * (`worldRebase.ts`), and this is how a kernel caller without the engine — oracle, bench, test
+ * in absolute world: each cut reads a translation at its eye from the exact one
+ * (`shader/worldPoseWgsl.ts`), and this is how a kernel caller without the engine — oracle, bench, test
  * mount — enters the frame of the uniforms it builds. Root matrices, in double,
  * are the source: subtraction precedes rounding.
  */
