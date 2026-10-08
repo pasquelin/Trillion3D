@@ -57,9 +57,8 @@ impl Deformation {
             .collect();
         let targets: Vec<f64> = (self.targets.iter())
             .map(|t| {
-                t.position
-                    .chunks(3)
-                    .map(|d| d.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>().sqrt())
+                (t.position.as_chunks::<3>().0.iter())
+                    .map(|d| length(d.map(f64::from)))
                     .fold(0.0, f64::max)
             })
             .collect();

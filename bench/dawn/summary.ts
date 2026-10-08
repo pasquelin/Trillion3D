@@ -2,6 +2,7 @@
 // timer and on the engine's, the CPU, the hitches, the passes by their GPU time and the commands
 // per frame.
 import { stats } from '../core/chrono.ts'
+import { mean } from '../../packages/math/src/scalar/quantile.ts'
 import {
   gpuPassBlockOf,
   gpuPassStageOf,
@@ -28,16 +29,16 @@ export function spread(values: readonly number[]) {
   if (!finite.length) return null
   const { medianeMs: median, p95Ms: p95, minMs: min } = stats(finite)
   const sorted = [...finite].sort((a, b) => a - b)
-  const mean = finite.reduce((sum, v) => sum + v, 0) / finite.length
+  const average = mean(finite)
   return {
     median,
     p95,
     min,
     max: Math.max(...finite),
-    mean,
+    mean: average,
     n: finite.length,
     iqr: quantile(sorted, 0.75) - quantile(sorted, 0.25),
-    std: Math.sqrt(finite.reduce((sum, v) => sum + (v - mean) ** 2, 0) / finite.length),
+    std: Math.sqrt(finite.reduce((sum, v) => sum + (v - average) ** 2, 0) / finite.length),
   }
 }
 export type Spread = NonNullable<ReturnType<typeof spread>>

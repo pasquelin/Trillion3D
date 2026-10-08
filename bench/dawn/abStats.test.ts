@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { compare } from './abStats.ts'
+import { lcgRandom } from '../../packages/math/src/sequence/random.ts'
 
 /** A seeded noise, so the test is the same on every run. */
 const noise = (seed: number, n: number, amp: number) => {
-  let s = seed
-  return Array.from(
-    { length: n },
-    () => ((s = (s * 1664525 + 1013904223) % 2 ** 32) / 2 ** 32 - 0.5) * amp,
-  )
+  const next = lcgRandom(seed)
+  return Array.from({ length: n }, () => (next() - 0.5) * amp)
 }
 const times = (base: number, n: number, seed: number, amp = 0.2) =>
   noise(seed, n, amp).map((e) => base + e)

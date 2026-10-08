@@ -1,4 +1,5 @@
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../sdk-core/src/index.ts'
 import { buildCentreTree, centreTreeNodes } from '../../../../sdk-core/src/collision/centreTree.ts'
 import { refreshBlendWorlds } from './worlds.ts'
@@ -19,6 +20,8 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
  * rejected, in the tree or out of it (no box at build: judged alone every frame).
  */
 const LEAF_ITEMS = 8
+/** A boxed item's centre in double precision, then stored in `centres` (one rounding). */
+const centre = new Float64Array(3)
 
 export function createBlendHierarchy() {
   return {
@@ -55,7 +58,8 @@ export function buildBlendHierarchy(blendState: BlendState) {
   const centres = new Float32Array(items.length * 3)
   for (const rank of boxed) {
     const box = items[rank].bounds!
-    for (let a = 0; a < 3; a++) centres[rank * 3 + a] = (box[a] + box[a + 3]) / 2
+    boxCenter(centre, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+    centres.set(centre, rank * 3)
   }
   const capacity = centreTreeNodes(boxed.length, LEAF_ITEMS)
   tree.leaves = Uint32Array.from(boxed)

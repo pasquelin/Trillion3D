@@ -15,6 +15,7 @@ import {
 import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
 import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
 import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
+import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
 import type { ComputeBind } from './mockCompute.ts'
 import { words } from './mockBuffers.ts'
 
@@ -76,6 +77,9 @@ const doubleAt = (source: Uint32Array, at: number) => (
   (cellWords[1] = source[at + 1]),
   cell[0]
 )
+/** A key record's box, then its centre (or its origin) relative to the eye. */
+const keyBox = new Float64Array(6),
+  keyGap = new Float64Array(3)
 
 /**
  * Replays the order of one pass at its last dispatch (`placeBlendSlots`), when the plan, key
@@ -98,14 +102,11 @@ function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
       own = keyed[at + 13]
     if (own !== NOT_OWN) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2)
     const box = (keyed[at + 12] & KEY_HAS_BOX) !== 0
+    for (let i = 0; i < (box ? 6 : 3); i++) keyBox[i] = doubleAt(keyed, at + i * 2)
+    if (box) boxCenterFrom(keyGap, 0, keyBox, 0, eye[0], eye[1], eye[2])
+    else for (let axis = 0; axis < 3; axis++) keyGap[axis] = keyBox[axis] - eye[axis]
     let key = 0
-    for (let axis = 0; axis < 3; axis++) {
-      const low = doubleAt(keyed, at + axis * 2),
-        gap = box
-          ? (low - eye[axis] + (doubleAt(keyed, at + 6 + axis * 2) - eye[axis])) / 2
-          : low - eye[axis]
-      key += gap * gap
-    }
+    for (const gap of keyGap) key += gap * gap
     return key
   }
   const keys = Array.from(seeds, (_, seed) => keyOf(seed))

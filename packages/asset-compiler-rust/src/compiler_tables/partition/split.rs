@@ -4,7 +4,7 @@
 //! from its tree (`pages.rs`).
 use super::*;
 use std::ops::Range;
-use trillion3d_math::aabb::aabb_of;
+use trillion3d_math::aabb::{aabb_of, centre};
 
 /// One placed node: its rank in the published scene, its world box, the core rank of its parent
 /// (`None`: a scene root) and its box in that parent's frame, its descriptor as the cell writes
@@ -19,7 +19,8 @@ pub(in crate::compiler_tables) struct Placed {
 }
 impl Placed {
     fn centre(&self, axis: usize) -> f64 {
-        (self.bounds[axis] + self.bounds[axis + 3]) * 0.5
+        let b = &self.bounds;
+        centre([b[0], b[1], b[2]], [b[3], b[4], b[5]])[axis]
     }
 }
 

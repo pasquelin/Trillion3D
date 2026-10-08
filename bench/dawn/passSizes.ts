@@ -2,6 +2,7 @@
 // counting, `textureBytesOf`), what a view shows of it, what an attachment stores, and the threads
 // of a workgroup. Read from the descriptors as the engine makes them; a size that cannot be read is
 // NaN or 0, which the pass work reports as unsized.
+import { mipSize } from '../../packages/math/src/scalar/integers.ts'
 import { textureBytesOf } from '../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /** A texture: its bytes whole (every level), and what `viewed` needs to size a level of it. */
@@ -83,7 +84,7 @@ export function describeView(
     texture,
     stored:
       textureBytesOf({
-        size: [Math.max(1, texture.width >> level), Math.max(1, texture.height >> level), 1],
+        size: [mipSize(texture.width, level), mipSize(texture.height, level), 1],
         format: texture.format,
         sampleCount: texture.samples,
       }) ?? Number.NaN,

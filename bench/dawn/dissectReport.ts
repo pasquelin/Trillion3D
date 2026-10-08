@@ -1,6 +1,7 @@
 // What the cut variants of a pass say: each one's frame time and the pass's own, the difference
 // between one cut and the next being the cost of the code between them. Two whole runs, one at each
 // end, say how far the machine drifted meanwhile: a step smaller than that is noise.
+import { mean } from '../../packages/math/src/scalar/quantile.ts'
 import { ms, table } from './reportText.ts'
 
 /** One variant's numbers, medians over its frames: `cut` null is the shader whole. */
@@ -16,7 +17,6 @@ export function stepsOf(cuts: readonly string[], variants: readonly Variant[]) {
   // The whole shader was played between cuts: how far those plays spread is how far the machine went.
   const wholes = whole.map((v) => v.frameMs)
   const drift = Math.max(...wholes) - Math.min(...wholes)
-  const mean = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
   const base = mean(wholes)
   const wholePass = mean(whole.map((v) => v.passMs))
   const points = [

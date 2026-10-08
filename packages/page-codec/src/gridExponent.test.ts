@@ -7,6 +7,7 @@ import {
   uvGridExponent,
 } from './gridExponent.ts'
 import { log2Integers } from './log2.fixture.ts'
+import { xorshiftRandom } from '../../math/src/sequence/random.ts'
 
 // The cases of the Rust rules' own tests (`asset-compiler-rust` `geometry_page_quant/tile_tests.rs`,
 // `tile_quantum_tests.rs`), held by the TypeScript twin of `bits/grid.rs`.
@@ -35,13 +36,7 @@ const EDGES = [
   64,
 ]
 
-let state = 930
-const unit = () => (
-  (state ^= state << 13),
-  (state ^= state >>> 17),
-  (state ^= state << 5),
-  (state >>> 0) / 2 ** 32
-)
+const unit = xorshiftRandom(930)
 
 test('a primitive narrower than a tile keeps its grid', () => {
   const bound = 2 ** (TILE + 1)

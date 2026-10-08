@@ -29,7 +29,7 @@ import {
   stagedOutputBytes,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { setBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** One cut to run: a packed scene, the camera's uniforms and each page's residency, every page
  *  resident when none is given. */

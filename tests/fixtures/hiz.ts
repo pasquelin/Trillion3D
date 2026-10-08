@@ -11,6 +11,7 @@ import { visibilityDepth } from '../../packages/sdk-browser/src/hiz/visibilityDe
 import { HIZ_BOUNDS_VALUES } from '../../packages/sdk-browser/src/hiz/corners.ts'
 import { projectBoxesFlat } from '../../packages/sdk-browser/src/hiz/projection.fixture.ts'
 import { rasterVisibilityIds } from '../../bench/oracles/browser/cpu-image/raster.ts'
+import { boxCenter } from '../../packages/math/src/geometry/box.ts'
 
 export function cameraAt(z = 5, near = 0.1) {
   const cam = G.perspectiveCamera(55, 1, near, 100)
@@ -26,7 +27,9 @@ export function quad(
   max: number[],
   clusterId: string,
 ): { page: VisPage & HizPage & { matrix: G.Matrix4 }; geometry: G.Geometry } {
-  const z = (min[2] + max[2]) * 0.5
+  const centre = new Float64Array(3)
+  boxCenter(centre, 0, min[0], min[1], min[2], max[0], max[1], max[2])
+  const z = centre[2]
   const geometry = new G.Geometry()
   geometry.setAttribute(
     'position',

@@ -1,3 +1,5 @@
+import { lerp } from '../../../math/src/scalar/reals.ts'
+
 /**
  * The page reads' round trip: the time from a request until the page's bytes have landed,
  * smoothed with a gain of an eighth, so one slow answer moves it by an eighth of its lateness.
@@ -16,7 +18,7 @@ export function createRoundTrip() {
   return {
     ms: () => ms ?? 0,
     note(sample: number) {
-      if (sample >= 0 && sample < Infinity) ms = ms === undefined ? sample : ms + (sample - ms) / 8
+      if (sample >= 0 && sample < Infinity) ms = ms === undefined ? sample : lerp(ms, sample, 0.125)
     },
   }
 }

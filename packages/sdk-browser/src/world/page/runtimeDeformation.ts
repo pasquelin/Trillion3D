@@ -1,6 +1,9 @@
-import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { boxCenter, boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+
+/** A joint box's centre, module scratch. */
+const centre = new Float64Array(3)
 
 /** The compiler's conservative rest balls and target radii, measured once for page-authored data. */
 export function runtimeDeformation(drawn: DrawnTriangles) {
@@ -31,9 +34,10 @@ export function runtimeDeformation(drawn: DrawnTriangles) {
       joints.push(0, 0, 0, 0)
       continue
     }
-    const x = (box[0] + box[3]) / 2,
-      y = (box[1] + box[4]) / 2,
-      z = (box[2] + box[5]) / 2
+    boxCenter(centre, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+    const x = centre[0],
+      y = centre[1],
+      z = centre[2]
     joints.push(x, y, z, length3(box[3] - x, box[4] - y, box[5] - z))
   }
   const targets = source.targets.map(({ positions }) => {

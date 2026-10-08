@@ -1,4 +1,5 @@
 import { BOX_VALUES, frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
+import { setBit } from '../../../../math/src/scalar/bits.ts'
 import { notDrawn } from '../../placement/hidden.ts'
 import { currentBlendHierarchy } from './hierarchy.ts'
 import { includeWaterItem } from '../water/bounds.ts'
@@ -30,7 +31,7 @@ function judge(
   if (box && (cut || frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])))
     tally.rejected++
   else {
-    mask[rank >>> 5] |= 1 << (rank & 31)
+    setBit(mask, rank)
     // The water pass is encoded for a surface in view, never for a scene that merely has one;
     // its scissor and copies are bounded by these kept surfaces only (`../water/bounds.ts`).
     if (item.transmissive) {
