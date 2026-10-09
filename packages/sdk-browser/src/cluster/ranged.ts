@@ -7,7 +7,7 @@ import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runti
 type RangeAsk = { meter?: ByteMeter; attempts?: number; signal?: AbortSignal }
 
 /** A read of `length` bytes from `offset` of the file at `url` (`createRangedReads`). */
-export type ReadRange = (
+type ReadRange = (
   url: string,
   offset: number,
   length: number,

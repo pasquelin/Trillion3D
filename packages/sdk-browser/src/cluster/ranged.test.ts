@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createTextureLevelReader } from '../texture/levelReader.ts'
 import { heldLevelsOf } from '../texture/heldLevels.ts'
-import { tileRecord, tiledLevelBytes } from '../texture/tileRecords.ts'
+import { tileRecord } from '../texture/tileRecords.ts'
+import { tiledLevelBytes } from '../texture/tileRecords.fixture.ts'
 
 const URL = 'http://cache/world.bin'
 

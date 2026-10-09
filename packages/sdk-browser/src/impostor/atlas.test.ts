@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { loadImpostorAtlas } from './atlas.ts'
-import { heldLevelsOf, levelId } from '../texture/heldLevels.ts'
+import { heldLevelsOf } from '../texture/heldLevels.ts'
 import type { TextureLevelRequest, TextureLevelReader } from '../texture/levelReader.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import type { ImpostorMap, ImpostorMaps } from '../../../sdk-core/src/index.ts'
@@ -68,10 +68,12 @@ test('the atlas reads each level once at its own url, held by the one cache, a f
   assert.equal(store.levelBytes, 3 * 64, 'three levels held, in the one cache')
   assert.equal(loadImpostorAtlas(maps, levels, 2, report), 'waiting', 'the failed level waits')
   await settle()
-  // The level comes from another reader of the cache. Once every level is held, the atlas is
-  // handed over, and nothing is read again.
+  // The level comes from another reader of the cache, for the same cook. Once every level is
+  // held, the atlas is handed over, and nothing is read again.
+  const other = heldLevelsOf(Object.assign(async () => bitmap(), { store, key: 'k1' }))
   const d = { sha256: 'd'.repeat(64), atlas: 0, level: 0, format: 'png' } as const
-  store.keepLevel(levelId('k1', d, true, 0, 0), bitmap())
+  assert.equal(other.read(d, 3, [4, 4], report), 'waiting')
+  await other.settled()
   const atlas = loadImpostorAtlas(maps, levels, 3, report)
   assert.notEqual(typeof atlas, 'string')
   const counts = Object.values(atlas as object).map((levels: unknown[]) => levels.length)

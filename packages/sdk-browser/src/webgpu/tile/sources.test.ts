@@ -10,7 +10,8 @@ import { poolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts'
+import { tileRecord } from '../../texture/tileRecords.ts'
+import { tiledLevelBytes } from '../../texture/tileRecords.fixture.ts'
 
 // Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
 // where its read resolves — one failure, never held, never read again — and no tile of it takes

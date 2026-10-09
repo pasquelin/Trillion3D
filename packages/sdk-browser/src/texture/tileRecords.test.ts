@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { tileRecord, tiledLevelBytes } from './tileRecords.ts'
+import { tileRecord } from './tileRecords.ts'
+import { tiledLevelBytes } from './tileRecords.fixture.ts'
 import { tilesAt } from './tiles.ts'
 import { tileRegion } from '../webgpu/tile/write.ts'
 import { writeTileFromBlocks } from '../webgpu/tile/writeBlocks.ts'

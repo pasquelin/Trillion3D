@@ -47,7 +47,7 @@ const always = () => true
 /** What `address` is held under for the cook `cook`, one string a tile asks: the whole level when
  *  `lossless` — its file —, else the tile `tx`, `ty`'s record. The format is in it: a session that
  *  changes family mid-life reads the other file. */
-export function levelId(
+function levelId(
   cook: string,
   { sha256, atlas, level, format }: TextureLevelAddress,
   lossless: boolean,
