@@ -11,14 +11,14 @@ import {
   devicePixels,
 } from '../../engine/common.ts'
 import type { EngineContext } from '../../engine/types.ts'
-import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 type Inputs = {
   manifestUrl: string
   metadataUrl: string
   base: string
   source: EngineContext['source']
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
+  pageSources: ExplorerPageSources
 }
 /** Sizes the canvas the engine presents into, and reports the session's configuration. */
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {

@@ -29,13 +29,13 @@ export interface HostRetentionDelta {
 }
 
 /** How `request` reads a batch: its owner's signal, its priority, and what runs as each page
- *  lands. */
+ *  lands, handed its bytes. */
 export interface BatchRead {
   /** Lets the batch's reads go: a read no one waits on any more is dropped while it waits. */
   signal: AbortSignal
   /** Queue priority, 1 by default. */ priority?: number
   /** Runs as each page's read lands, not after the whole batch. */
-  onPage?: (url: string) => unknown
+  onPage?: (url: string, bytes: Uint8Array) => unknown
 }
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */

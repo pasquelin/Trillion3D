@@ -8,7 +8,7 @@ import { createTextureLevelReader } from '../../texture/levelReader.ts'
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts'
 import type { EngineContext, EngineFactory, Engine } from '../../engine/types.ts'
-import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -17,7 +17,7 @@ type Inputs = {
   sceneLightingSource?: Object3D
   associations: EngineContext['associations']
   textureIndices: Map<HostTexture, number>
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
+  pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
   /** What builds the session's engine: the WebGPU page raster's factory. */
   factory: EngineFactory

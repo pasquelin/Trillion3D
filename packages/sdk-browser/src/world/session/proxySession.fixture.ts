@@ -1,6 +1,6 @@
 import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { probeEngineContext } from './engine.fixture.ts'
-import { createExplorerPageSources } from './pageSources.ts'
+import { openExplorerPageSources } from './pageSources.ts'
 import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
@@ -116,7 +116,7 @@ export async function openSession(
 ) {
   const options = { manifestUrl: `${root}manifest.json`, pageCache, maxPageTransferBytes }
   const channel = createDiagnosticChannel(diagnostics)
-  const pageSources = await createExplorerPageSources(
+  const pageSources = await openExplorerPageSources(
     metadata,
     options,
     root,
@@ -124,7 +124,7 @@ export async function openSession(
     () => undefined,
     channel,
     () => {},
-  )
+  ).sources
   const context = await probeEngineContext(metadata, pageSources, {
     options,
     base: root,

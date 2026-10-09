@@ -4,9 +4,9 @@ import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
+import { createIndexViews } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 import { worldRootsOf } from '../../scene/worldRoots.ts'
-import { loadClusterPages } from '../../cluster/pages.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
 import { indexManifestBundles, indexManifestPages } from '../../scene/manifestPageIndex.ts'
@@ -18,36 +18,35 @@ type Progress = (phase: string, completed: number, total: number, message: strin
  *  and how many reads fail now (`streamFailed`). */
 type Stalled = (detail: string, failedPages: number) => void
 
-/** The pages a session preloads whole (`preload: 'all'`), read beside its queue, and what they
- *  cost; none otherwise. */
+/** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
+ *  request (`streamer`), through the page cache, each as it lands; none otherwise. */
 async function preloaded(
-  pages: Parameters<typeof loadClusterPages>[0],
-  options: MeasuredWorldOptions,
-  base: string,
-  signal: AbortSignal | undefined,
+  streamer: ReturnType<typeof createPageStreamer>,
+  pages: readonly { url: string }[],
+  preload: MeasuredWorldOptions['preload'],
   progress: Progress,
 ) {
   const indices = new Map<string, Uint32Array>()
-  if ((options.preload ?? 'visible') !== 'all') {
+  if (preload !== 'all') {
     progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
-    return { loaded: 0, pageBytesRead: 0, indices }
+    return indices
   }
-  const all = await loadClusterPages(
-    pages,
-    base,
-    signal,
-    (completed, total) =>
-      progress('pages', completed, total, 'Reading and checking exact and LOD pages'),
-    options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-  )
-  for (const [url, array] of all.indices) indices.set(url, array)
-  return { loaded: all.loaded, pageBytesRead: all.pageBytesRead, indices }
+  const asIndices = createIndexViews()
+  const urls = pages.map((page) => page.url)
+  await streamer.request(urls, {
+    signal: streamer.signal,
+    onPage(url, bytes) {
+      indices.set(url, asIndices(bytes))
+      progress('pages', indices.size, urls.length, 'Reading and checking exact and LOD pages')
+    },
+  })
+  return indices
 }
 
 /** The session's page sources: its queue at once (`streamer`), which its scene loads through, and
  *  the rest once the pages it preloads have landed (`sources`), among them the page cache the queue
- *  reads through (`pageCache`). A read that fails for good or first waits the longest is told to
- *  `stalled`. */
+ *  reads through (`pageCache`) and the index pages preloaded (`indices`). A read that fails for
+ *  good or first waits the longest is told to `stalled`. */
 export function openExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
@@ -94,19 +93,15 @@ export function openExplorerPageSources(
     onStalled: ({ key, cause }) => stalled(`${key}: ${String(cause)}`, streamer.stats().failed),
   })
   const preload = options.preload ?? 'visible'
-  const sources = preloaded(pages, options, base, signal, progress).then((read) => ({
-    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer, pageCache },
-    ...read,
+  const sources = preloaded(streamer, pages, preload, progress).then((indices) => ({
+    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer, pageCache, indices },
   }))
   return { streamer, sources }
 }
 
-/** The session's page sources, once those it preloads have landed (`openExplorerPageSources`). */
-export const createExplorerPageSources = (...args: Parameters<typeof openExplorerPageSources>) =>
-  openExplorerPageSources(...args).sources
-
-/** What a session reads its pages through. */
-export type ExplorerPageSources = Awaited<ReturnType<typeof createExplorerPageSources>>
+/** What a session reads its pages through, once those it preloads have landed
+ *  (`openExplorerPageSources`). */
+export type ExplorerPageSources = Awaited<ReturnType<typeof openExplorerPageSources>['sources']>
 
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
  *  its partitions' index pages catalogued, and its world roots bound to the queue (`worldRootsOf`). */

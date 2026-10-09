@@ -156,7 +156,7 @@ export function createPageStreamer(
       }))
       const { signal, priority = 1, onPage } = options
       const landed = await Promise.allSettled(
-        unique.map((url) => read(url, signal, priority).then(() => onPage?.(url))),
+        unique.map((url) => read(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
       )
       for (const page of landed) if (page.status === 'rejected') throw page.reason
     },

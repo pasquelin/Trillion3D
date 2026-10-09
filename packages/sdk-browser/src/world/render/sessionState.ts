@@ -16,13 +16,16 @@ export type SessionState = {
 
 export function createSessionState(prepared: Prepared, signal?: AbortSignal) {
   const { camera, center } = prepared
+  // What the session read before its first frame — the pages it preloads among them — its queue
+  // counted.
+  const { loaded, bytesRead } = prepared.pageSources.streamer.stats()
   const state: SessionState = {
     disposed: false,
     diagnostic: 'beauty',
     capturingSurface: false,
     frame: 0,
-    loaded: prepared.pageSources.loaded,
-    pageBytesRead: prepared.pageSources.pageBytesRead,
+    loaded,
+    pageBytesRead: bytesRead,
   }
   /** What the session owns beside its engine — controls, listeners —, disposed with it. */
   const ownedControls: { dispose(): void }[] = []
