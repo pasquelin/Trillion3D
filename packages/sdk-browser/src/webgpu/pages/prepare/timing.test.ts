@@ -5,13 +5,14 @@ import assert from 'node:assert/strict'
 import { fixture } from '../../../../../../tests/kit/gpu/timingDevice.ts'
 import { MS } from '../../../gpu/timing/imageTimer.fixture.ts'
 import { prepareGpuTiming } from './timing.ts'
+import { createWebgpuTimingState } from '../state/timing.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 async function observed(pairs: [bigint, bigint][]) {
   const f = fixture(),
     seen: (number | null)[] = []
   const rt = {
-    timing: {} as Record<string, unknown>,
+    timing: createWebgpuTimingState(),
     diag: { traceEnabled: false, engineDiagnostic() {} },
     scale: {
       bounds: { auto: false },
