@@ -6,7 +6,10 @@ import { lazyDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 /** A read that failed, its error kept for its load: a read never rejects, so one that fails before
  *  its load's turn comes is no unhandled rejection. */
 export class FailedPageRead {
-  constructor(readonly error: unknown) {}
+  readonly error: unknown
+  constructor(error: unknown) {
+    this.error = error
+  }
 }
 
 const failed = (error: unknown) => new FailedPageRead(error)
