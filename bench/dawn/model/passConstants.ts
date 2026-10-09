@@ -84,13 +84,9 @@ export const TILE_ID_BYTES = 4
 /** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
 export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
-/** The rough reflections: a ray a 2×2 block, at least six fetches each; the filter's sixteen taps
- *  and its centre; the history's four owners and four history texels, 16 bytes written. */
+/** The rough reflections: a ray a 2×2 block, at least six fetches each. */
 export const REFLECTION_BLOCK = 4,
-  TRACE_FETCHES = 6,
-  FILTER_TAPS = 16 + 1,
-  HISTORY_FETCHES = 4 + 4,
-  HISTORY_BYTES = 16
+  TRACE_FETCHES = 6
 /** The composition: the HDR read, the capture and the canvas written. */
 export const COMPOSE_READ = 8,
   COMPOSE_WRITE = 2 * 4

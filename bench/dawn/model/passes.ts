@@ -129,29 +129,9 @@ export const PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/encode.ts', 'encodeReflectionSource'),
-      K.engine('reflections/traceShader.ts', 'screenTraceWgsl'),
+      K.engine('reflections/trace.ts', 'encodeReflectionTrace'),
+      K.engine('reflections/trace.ts', 'TRACE_SHADER'),
     ],
-  },
-  {
-    label: 'reflection filter',
-    formula: `P·rough/${K.REFLECTION_BLOCK} texels × ${K.FILTER_TAPS} taps (16 + centre)`,
-    work: (f) => ({
-      texels: (f.P * f.rough * K.FILTER_TAPS) / K.REFLECTION_BLOCK,
-      fragments: f.P / K.REFLECTION_BLOCK,
-      passes: 1,
-    }),
-    sources: [K.engine('reflections/resolveWgsl.ts', 'REFLECTION_RESOLVE_WGSL')],
-  },
-  {
-    label: 'reflection history resolve',
-    formula: `P·rough·(${K.HISTORY_FETCHES} fetches: 4 owners + 4 history), ${K.HISTORY_BYTES} B written`,
-    work: (f) => ({
-      texels: f.P * f.rough * K.HISTORY_FETCHES,
-      bytes: K.HISTORY_BYTES * f.P * f.rough,
-      passes: 1,
-    }),
-    sources: [K.engine('reflections/historyRuntime.ts', 'createReflectionHistory')],
   },
   {
     label: 'temporal antialiasing',
