@@ -2,21 +2,54 @@
 // session's per-frame step (`createPartitionFrame`) on an engine stand-in that grows its rows in
 // place (`growPlacements`), as the engine does; its cell records read from disk as the runtime
 // reads them (`cellRecords`).
+import type { TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
 import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
 import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts'
+import { createPageCache } from '../../packages/sdk-browser/src/streaming/pageCache.ts'
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts'
-import type { LoadedModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
+import {
+  loadModel,
+  type LoadedModel,
+} from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
 import {
   createPartitionFrame,
   primePartitions,
 } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
 import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts'
+import { compiled, machine, type world } from './world-partition.fixture.ts'
+
+/** `gltf` compiled under a folder of its own named from `prefix`, served and read whole. */
+export async function served(t: TestContext, prefix: string, gltf: ReturnType<typeof world>) {
+  const root = await mkdtemp(join(tmpdir(), prefix))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const pointer = await compiled(root, gltf)
+  machine(t, pointer)
+  return loadModel(pointer.href, {
+    textureSource: 'host',
+    scope: 'full',
+    pageCache: createPageCache(),
+  })
+}
+
+/** `model`'s cells, their streamer and a 60°, 300 m camera at `eye`, the cells within its reach
+ *  primed as a session opened now primes them. */
+export async function primed(model: LoadedModel, eye: readonly number[]) {
+  const [cells] = model.record.scene.partitions
+  const streamer = createPageStreamer(cells.pages, model.record.base)
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
+  camera.position.set(eye[0], eye[1], eye[2])
+  camera.updateMatrixWorld()
+  await primePartitions([cells], camera, streamer, true)
+  return { cells, streamer, camera }
+}
 
 /** The engine stand-in: the rows it draws, those of its open, each grown one in their place. */
 function standIn(opened: Iterable<PlacementRows>) {
@@ -40,12 +73,7 @@ function standIn(opened: Iterable<PlacementRows>) {
  * complete.
  */
 export async function followed(model: LoadedModel, eye: readonly number[]) {
-  const [cells] = model.record.scene.partitions
-  const streamer = createPageStreamer(cells.pages, model.record.base)
-  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
-  camera.position.set(eye[0], eye[1], eye[2])
-  camera.updateMatrixWorld()
-  await primePartitions([cells], camera, streamer, true)
+  const { cells, streamer, camera } = await primed(model, eye)
   // The engine opens on the rows primed.
   const atOpen = [...model.record.scene.associations.values()].flatMap(({ placements }) =>
     placements ? [placements] : [],
@@ -70,11 +98,18 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
   return { cells, camera, engine, renewed, settle }
 }
 
-/** Asserts every node of `cells` within reach of `camera` has a live row, at its place scaled by
- *  `scale`, in rows the engine draws; returns how many there are. */
+/** Asserts every node of `cells` within reach of `camera` has a live row, at its compiled
+ *  translation taken by `place` to where the page moved it, in rows the engine draws; returns how
+ *  many there are. */
 export async function assertNoneMissing(
-  { cells, camera, engine }: Awaited<ReturnType<typeof followed>>,
-  scale = 1,
+  {
+    cells,
+    camera,
+    engine,
+  }: Pick<Awaited<ReturnType<typeof followed>>, 'cells' | 'camera'> & {
+    engine: { drawn: Iterable<PlacementRows> }
+  },
+  place: (translation: readonly number[]) => readonly number[] = (translation) => translation,
 ) {
   const key = (x: number, z: number) => `${Math.round(x * 1e3)},${Math.round(z * 1e3)}`
   const drawn = new Set<string>()
@@ -87,7 +122,7 @@ export async function assertNoneMissing(
   for (const { url } of await cellRecords(cells.pages)) {
     const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'))
     for (const { translation } of body.nodes) {
-      const [x, y, z] = translation.map((value: number) => value * scale)
+      const [x, y, z] = place(translation)
       if (length3(x - eye.x, y - eye.y, z - eye.z) > reach) continue
       near++
       assert.ok(drawn.has(key(x, z)), `the node at ${[x, y, z]} is drawn`)
