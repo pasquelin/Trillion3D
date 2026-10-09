@@ -42,7 +42,13 @@ export function cpuStepTable<Table extends ReadonlyArray<readonly [string, strin
   }
 }
 
-/** The CPU bounds of a window of images, as a host reads them. */
+/**
+ * CPU step profile of a render loop: a bounded ring of recent images plus the worst images by total
+ * duration, summarised on demand. It exists so an engine can report where its own CPU time goes in
+ * `summary` mode — turning the per-frame trace on to find that out changes the timing being measured.
+ * Nothing is allocated per image: the caller fills the scratch row and hands it over. Two windows
+ * over the same images — one on the publish cadence, one a host pulls — share that row (`row`).
+ */
 export type CpuStepSummary = {
   /** Frames measured. */
   frames: number
