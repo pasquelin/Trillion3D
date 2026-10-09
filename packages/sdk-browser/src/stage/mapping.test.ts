@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
 import { WEBGPU_STAGES } from './passDeclaration.ts'
-import { DECLARED_PASSES } from './passTable.ts'
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
 import { DEFERRED_LIGHTING_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
@@ -120,11 +119,6 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
 
 // The Shadows stage spans the virtual shadow maps' passes, by their prefix, and no other pass.
 test('the Shadows stage sums only the virtual shadow map passes', () => {
-  assert.deepEqual(
-    DECLARED_PASSES.filter(({ stage }) => stage === 'shadows'),
-    [],
-    'the family is the one rule: no declared pass joins the Shadows stage',
-  )
   const shadows = [VSM_PASS, `${VSM_PASS_PREFIX}other pass`]
   const others = [LIGHT_TILES_PASS, DEFERRED_LIGHTING_PASS, 'Trillion3D visibility primary']
   const s = sample([

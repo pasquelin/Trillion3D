@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
-import { DECLARED_PASSES, passRowOf } from '../../stage/passTable.ts'
+import { passRowOf } from '../../stage/passTable.ts'
 import {
   AS_IS_SHARE_PASS,
   BLEND_ORDER_PASS,
@@ -23,6 +23,7 @@ import {
   DISPLAY_FILTER_PASS,
   DISPLAY_MASK_PASS,
   EMPTY_SURFACES_PASS,
+  ENGINE_PASSES,
   GUIDE_PASS,
   HDR_COMPOSITION_PASS,
   HDR_PRESENT_PASS,
@@ -55,14 +56,19 @@ import {
   VISIBILITY_SECONDARY_PASS,
   VSM_PASS_PREFIX,
 } from '../../stage/passLabels.ts'
-import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../../webgpu/water/passLabels.ts'
 import {
+  WATER_COMPOSITE_PASS,
+  WATER_PASSES,
+  WATER_SURFACE_PASS,
+} from '../../webgpu/water/passLabels.ts'
+import {
+  MIPS_PASSES,
   REFLECTION_BOUNDS_MIPS_PASS,
   REFLECTION_RADIANCE_MIPS_PASS,
   TEXTURE_MIPS_PASS,
 } from '../../texture/mipsPass.ts'
-import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts'
-import { DEFORMATION_PASS } from '../../deformation/pass.ts'
+import { REFLECTION_SOURCE_PASS, REFLECTION_SOURCE_PASSES } from '../../reflections/sourcePass.ts'
+import { DEFORMATION_PASS, DEFORMATION_PASSES } from '../../deformation/pass.ts'
 
 /** The labels the engine's passes begin with, as the passes import them. */
 const BEGUN = [
@@ -120,24 +126,39 @@ const BEGUN = [
   WATER_SURFACE_PASS,
 ]
 
+/** The declarations, as each label module files its own passes: the table reads these. */
+const DECLARED = [
+  ...ENGINE_PASSES,
+  ...WATER_PASSES,
+  ...MIPS_PASSES,
+  ...REFLECTION_SOURCE_PASSES,
+  ...DEFORMATION_PASSES,
+]
+
 test('the declarations and the labels the passes begin with are one to one', () => {
-  const declared = DECLARED_PASSES.map((pass) => pass.label).sort()
+  const declared = DECLARED.map((pass) => pass.label).sort()
   assert.equal(new Set(BEGUN).size, BEGUN.length, 'no two passes share a label')
   assert.deepEqual(declared, [...BEGUN].sort(), 'each label is declared once, and nothing else')
+  for (const label of BEGUN) assert.ok(passRowOf(label), `${label}: the table files its pass`)
 })
 
 test('every declaration files its pass on a stage the engine profiles, at its index', () => {
-  for (const { label, stage, block } of DECLARED_PASSES)
+  for (const { label, stage, block } of DECLARED)
     assert.deepEqual(passRowOf(label), { stage, at: WEBGPU_STAGES.indexOf(stage), block }, label)
-  assert.ok(DECLARED_PASSES.every(({ stage }) => WEBGPU_STAGES.includes(stage)))
+  assert.ok(DECLARED.every(({ stage }) => WEBGPU_STAGES.includes(stage)))
 })
 
 test('the virtual shadow maps are one declared family, which no declared label repeats', () => {
   assert.equal(passRowOf(`${VSM_PASS_PREFIX}render.cull 3`)?.stage, 'shadows')
   assert.equal(passRowOf(`${VSM_PASS_PREFIX}render.cull 3`)?.block, 'other')
   assert.deepEqual(
-    DECLARED_PASSES.filter(({ label }) => label.startsWith(VSM_PASS_PREFIX)),
+    DECLARED.filter(({ label }) => label.startsWith(VSM_PASS_PREFIX)),
     [],
+  )
+  assert.deepEqual(
+    DECLARED.filter(({ stage }) => stage === 'shadows'),
+    [],
+    'the family is the one rule: no declared pass joins the Shadows stage',
   )
 })
 

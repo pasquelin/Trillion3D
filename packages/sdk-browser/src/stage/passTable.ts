@@ -24,7 +24,7 @@ type PassRow = {
  * them and their shaders in the CDN core, ahead of the renderer's own chunk, which the page
  * downloads beside the scene (#1353).
  */
-export const DECLARED_PASSES: readonly PassDeclaration[] = [
+const DECLARED_PASSES: readonly PassDeclaration[] = [
   ...ENGINE_PASSES,
   ...WATER_PASSES,
   ...MIPS_PASSES,
