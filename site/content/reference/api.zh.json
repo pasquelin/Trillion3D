@@ -3507,10 +3507,27 @@
     "summary": "一个层级文件所保存的内容:无损 PNG,还是某一种族在某种布局下的数据块。"
   },
   "TextureLevelReader": {
-    "summary": "用于获取一个已烘焙纹理层级的函数。"
+    "summary": "用于获取一个已烘焙纹理层级的函数,以及保存其层级的存储和它所针对的烘焙(`heldLevels.ts`)。"
   },
   "TextureLevelRequest": {
-    "summary": "要读取的一个层级:无损层级整体读取,或块压缩层级的一个图块记录(`tileRecords.ts`),通过 HTTP Range 读取——块压缩层级只通过其图块的记录读取。"
+    "summary": "要读取的一个层级:无损层级整体读取,或者带上其 `range`,通过 HTTP Range 读取块压缩层级的一个图块记录(`tileRecords.ts`)——块压缩层级只通过其图块的记录读取。",
+    "members": {
+      "sha256": "源图像的指纹。",
+      "atlas": "对应哪个图集。",
+      "level": "对应哪个层级。",
+      "format": "对应哪种格式。",
+      "url": "该层级自身的地址,当缓存列出地址时 — impostor 图集的一个层级(`maps.<name>.levels[k].url`)。通过这同一个读取器读取,相对 `base` 解析,取代 `textures.url` 模板:一个加载器,一份预算。",
+      "range": "图块在层级文件中的记录,以其首字节和长度表示;缺省时整体读取该层级。"
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "读取的层级保存之处:页面缓存的条目之中(`PageCache.level`)。",
+    "members": {
+      "level": "保存在 `id` 下的纹理层级或图块记录,标记为最近使用。",
+      "keepLevel": "把 `level` 保存在 `id` 下,此后由缓存拥有:它离开时由缓存关闭。已保存的层级——其间由被设备丢失替换的会话读取——保留,标记为最近使用,副本被关闭:其字节只计一次。",
+      "roomBytes": "到达的条目可占用的字节:预算减去任何淘汰都不能取走的部分。",
+      "levelBytes": "纹理层级和图块记录占用的字节。"
+    }
   },
   "TexturePool": {
     "summary": "纹理池当前的状态:预算与已占用字节数。",
@@ -4616,6 +4633,13 @@
       "slots": "池容纳的槽位数。",
       "homes": "每个页面自己的位置，在 `slots` 容纳整个目录期间占用（`homes.ts`）。",
       "onDiagnostic": "接收缓存报告的内容：其布局、被取消的加载和拒绝。"
+    }
+  },
+  "EvictionOrder": {
+    "summary": "GPU 剪切发布的淘汰顺序(`../dag/evict.ts`),其键在选取牺牲者时逐个读取。",
+    "members": {
+      "count": "该顺序列出的键数。",
+      "keyAt": "位于名次 `at` 的键,第一个牺牲者在 0。"
     }
   },
   "PagePinTier": {

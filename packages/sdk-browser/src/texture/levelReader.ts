@@ -27,6 +27,8 @@ export type TextureLevelAddress = {
 /** A level to read: a lossless level whole, or, with its `range`, one tile's record of a block
  *  level (`tileRecords.ts`) by an HTTP Range — a block level is read by its tiles' records alone. */
 export type TextureLevelRequest = TextureLevelAddress & {
+  /** The tile's record in the level file, by its first byte and its length; absent, the level
+   *  is read whole. */
   range?: { offset: number; bytes: number }
 }
 /** Where the levels read are held: the page cache, among its entries (`PageCache.level`). */

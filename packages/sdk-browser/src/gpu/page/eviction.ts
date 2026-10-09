@@ -3,7 +3,12 @@ import { createCacheEntries } from '../../streaming/cacheEntries.ts'
 
 /** An eviction order a GPU cut publishes (`../dag/evict.ts`), its keys read one at a time as
  *  victims are taken. */
-export type EvictionOrder = { readonly count: number; keyAt(at: number): string }
+export type EvictionOrder = {
+  /** How many keys the order lists. */
+  readonly count: number
+  /** The key at rank `at`, the first victim at 0. */
+  keyAt(at: number): string
+}
 
 /** Why no slot is given back: every page pinned, or the published order spent. */
 export type NoVictim = 'all-pages-pinned' | 'eviction-queue-spent'

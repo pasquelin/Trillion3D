@@ -1170,6 +1170,13 @@
       "onDiagnostic": "Escucha lo que la caché informa: su disposición, las cargas canceladas y los rechazos."
     }
   },
+  "EvictionOrder": {
+    "summary": "Un orden de desalojo que publica un corte GPU (`../dag/evict.ts`), sus claves leídas una a una a medida que se toman las víctimas.",
+    "members": {
+      "count": "Cuántas claves lista el orden.",
+      "keyAt": "La clave en el rango `at`, la primera víctima en 0."
+    }
+  },
   "PagePinTier": {
     "summary": "Cómo se fija una página cargada: `'held'` por delante de las fijaciones ordinarias al redimensionar, si no `'pinned'`."
   },
@@ -5946,10 +5953,27 @@
     "summary": "Lo que contiene un archivo de nivel: el PNG sin pérdida, o los bloques de una familia en una disposición."
   },
   "TextureLevelReader": {
-    "summary": "Una función que recupera un nivel de textura horneado."
+    "summary": "Una función que recupera un nivel de textura horneado, el almacén donde se guardan sus niveles y la cocción para la que se hizo (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Un nivel a leer: un nivel sin pérdida entero, o el registro de una tesela de un nivel por bloques (`tileRecords.ts`), por una petición HTTP Range — un nivel por bloques se lee solo por los registros de sus teselas."
+    "summary": "Un nivel a leer: un nivel sin pérdida entero, o, con su `range`, el registro de una tesela de un nivel por bloques (`tileRecords.ts`) por una petición HTTP Range — un nivel por bloques se lee solo por los registros de sus teselas.",
+    "members": {
+      "sha256": "Huella de la imagen fuente.",
+      "atlas": "Qué atlas.",
+      "level": "Qué nivel.",
+      "format": "Qué formato.",
+      "url": "La dirección propia del nivel, cuando la caché lista una — un nivel de atlas de impostor (`maps.<name>.levels[k].url`). Se lee por este mismo lector, resuelta contra `base`, en lugar de la plantilla `textures.url`: un cargador, un presupuesto.",
+      "range": "El registro de la tesela en el archivo del nivel, por su primer byte y su longitud; ausente, el nivel se lee entero."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Dónde se guardan los niveles leídos: la caché de páginas, entre sus entradas (`PageCache.level`).",
+    "members": {
+      "level": "El nivel de textura o registro de tesela guardado bajo `id`, marcado como usado el último.",
+      "keepLevel": "Guarda `level` bajo `id`, y la caché lo posee desde aquí: lo cierra cuando sale. Un nivel ya guardado — leído entretanto por la sesión que una pérdida de dispositivo reemplazó — se queda, marcado como usado el último, y la copia se cierra: sus bytes se cuentan una vez.",
+      "roomBytes": "Bytes que puede tomar una entrada que llega: el presupuesto, menos lo que ningún desalojo puede tomar.",
+      "levelBytes": "Bytes que ocupan los niveles de textura y los registros de teselas."
+    }
   },
   "textureLevelUrl": {
     "summary": "Dirección de un nivel horneado, a partir de la plantilla que publica el manifiesto (`textures.url`): `{sha}` es la huella de los bytes de la imagen fuente, `{kind}` el nombre del atlas, `{level}` el rango del nivel, `{format}` la codificación del archivo.",

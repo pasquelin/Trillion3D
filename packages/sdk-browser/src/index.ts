@@ -124,6 +124,7 @@ export type {
   TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
+  TextureLevelStore,
 } from './texture/levelReader.ts'
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts'
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts'
@@ -137,6 +138,7 @@ export {
   type GpuPageCacheOptions,
   type ResidentPage,
 } from './gpu/page/pages.ts'
+export type { EvictionOrder } from './gpu/page/eviction.ts'
 export type { PagePinTier } from './gpu/page/load.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'

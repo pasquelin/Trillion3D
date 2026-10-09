@@ -3507,10 +3507,27 @@
     "summary": "O que um arquivo de nível contém: o PNG sem perdas, ou os blocos de uma família em um layout."
   },
   "TextureLevelReader": {
-    "summary": "Uma função que busca um nível de textura pré-processado."
+    "summary": "Uma função que busca um nível de textura pré-processado, o armazém onde seus níveis são guardados e o cozimento para o qual foi feita (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Um nível a ler: um nível sem perdas inteiro, ou o registro de um ladrilho de um nível em blocos (`tileRecords.ts`), por uma requisição HTTP Range — um nível em blocos é lido apenas pelos registros de seus ladrilhos."
+    "summary": "Um nível a ler: um nível sem perdas inteiro, ou, com sua `range`, o registro de um ladrilho de um nível em blocos (`tileRecords.ts`) por uma requisição HTTP Range — um nível em blocos é lido apenas pelos registros de seus ladrilhos.",
+    "members": {
+      "sha256": "Impressão digital da imagem de origem.",
+      "atlas": "Qual atlas.",
+      "level": "Qual nível.",
+      "format": "Qual formato.",
+      "url": "O endereço próprio do nível, quando a cache lista um — um nível de atlas de impostor (`maps.<name>.levels[k].url`). Lido por este mesmo leitor, resolvido contra `base`, em vez do modelo `textures.url`: um carregador, um orçamento.",
+      "range": "O registro do ladrilho no arquivo do nível, por seu primeiro byte e seu comprimento; ausente, o nível é lido inteiro."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Onde os níveis lidos são guardados: o cache de páginas, entre suas entradas (`PageCache.level`).",
+    "members": {
+      "level": "O nível de textura ou registro de ladrilho guardado sob `id`, marcado como usado por último.",
+      "keepLevel": "Guarda `level` sob `id`, o cache passando a possuí-lo: ele o fecha quando sai. Um nível já guardado — lido nesse meio-tempo pela sessão que uma perda de dispositivo substituiu — fica, marcado como usado por último, e a cópia é fechada: seus bytes são contados uma vez.",
+      "roomBytes": "Bytes que uma entrada que chega pode tomar: o orçamento, menos o que nenhum despejo pode tomar.",
+      "levelBytes": "Bytes que os níveis de textura e os registros de ladrilhos ocupam."
+    }
   },
   "TexturePool": {
     "summary": "O pool de texturas como está: orçamento e bytes mantidos.",
@@ -4616,6 +4633,13 @@
       "slots": "Quantos slots o pool contém.",
       "homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
       "onDiagnostic": "Ouve o que o cache reporta: o seu layout, os carregamentos cancelados e as recusas."
+    }
+  },
+  "EvictionOrder": {
+    "summary": "Uma ordem de despejo que um corte de GPU publica (`../dag/evict.ts`), suas chaves lidas uma a uma conforme as vítimas são tomadas.",
+    "members": {
+      "count": "Quantas chaves a ordem lista.",
+      "keyAt": "A chave na posição `at`, a primeira vítima em 0."
     }
   },
   "PagePinTier": {

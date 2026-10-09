@@ -3591,10 +3591,27 @@
     "summary": "Những gì một tệp mức chứa: tệp PNG không mất dữ liệu, hoặc các khối của một họ theo một cách bố trí."
   },
   "TextureLevelReader": {
-    "summary": "Một hàm lấy về một mức kết cấu đã nướng sẵn."
+    "summary": "Một hàm lấy về một mức kết cấu đã nướng sẵn, kho nơi các mức của nó được giữ và lần nướng mà nó được tạo cho (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Một mức cần đọc: một mức không mất dữ liệu nguyên vẹn, hoặc bản ghi của một ô của một mức dạng khối (`tileRecords.ts`), bằng một yêu cầu HTTP Range — một mức dạng khối chỉ được đọc qua bản ghi của các ô của nó."
+    "summary": "Một mức cần đọc: một mức không mất dữ liệu nguyên vẹn, hoặc, với `range` của nó, bản ghi của một ô của một mức dạng khối (`tileRecords.ts`) bằng một yêu cầu HTTP Range — một mức dạng khối chỉ được đọc qua bản ghi của các ô của nó.",
+    "members": {
+      "sha256": "Dấu vân tay của hình ảnh nguồn.",
+      "atlas": "Atlas nào.",
+      "level": "Mức nào.",
+      "format": "Định dạng nào.",
+      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
+      "range": "Bản ghi của ô trong tệp của mức, theo byte đầu tiên và độ dài của nó; khi vắng, mức được đọc nguyên vẹn."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Nơi các mức đã đọc được giữ: bộ đệm trang, giữa các mục của nó (`PageCache.level`).",
+    "members": {
+      "level": "Mức kết cấu hoặc bản ghi ô được giữ dưới `id`, được đánh dấu là dùng gần nhất.",
+      "keepLevel": "Giữ `level` dưới `id`, bộ đệm sở hữu nó từ đây: nó đóng mức khi mức rời đi. Một mức đã được giữ — được đọc trong lúc đó bởi phiên mà một lần mất thiết bị đã thay thế — ở lại, được đánh dấu là dùng gần nhất, và bản sao được đóng: các byte của nó được đếm một lần.",
+      "roomBytes": "Số byte mà một mục đến có thể lấy: ngân sách, trừ đi phần không lần loại bỏ nào được lấy.",
+      "levelBytes": "Số byte mà các mức kết cấu và bản ghi ô chiếm."
+    }
   },
   "TexturePool": {
     "summary": "Bể kết cấu ở trạng thái hiện tại: ngân sách và số byte được giữ.",
@@ -4587,6 +4604,13 @@
       "slots": "Số ô mà vùng chứa giữ.",
       "homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
       "onDiagnostic": "Nghe những gì bộ nhớ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
+    }
+  },
+  "EvictionOrder": {
+    "summary": "Một thứ tự loại bỏ mà một lát cắt GPU công bố (`../dag/evict.ts`), các khóa của nó được đọc từng cái một khi các nạn nhân được lấy.",
+    "members": {
+      "count": "Số khóa mà thứ tự liệt kê.",
+      "keyAt": "Khóa ở hạng `at`, nạn nhân đầu tiên ở 0."
     }
   },
   "PagePinTier": {

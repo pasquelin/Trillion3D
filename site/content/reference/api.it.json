@@ -1170,6 +1170,13 @@
       "onDiagnostic": "Ascolta ciò che la cache riferisce: la sua disposizione, i caricamenti annullati e i rifiuti."
     }
   },
+  "EvictionOrder": {
+    "summary": "Un ordine di sfratto che un taglio GPU pubblica (`../dag/evict.ts`), le sue chiavi lette una alla volta man mano che le vittime vengono prese.",
+    "members": {
+      "count": "Quante chiavi elenca l’ordine.",
+      "keyAt": "La chiave al rango `at`, la prima vittima a 0."
+    }
+  },
   "PagePinTier": {
     "summary": "Come viene fissata una pagina caricata: `'held'` davanti ai fissaggi ordinari durante un ridimensionamento, altrimenti `'pinned'`."
   },
@@ -5946,10 +5953,27 @@
     "summary": "Ciò che contiene un file di livello: il PNG senza perdita, o i blocchi di una famiglia in una disposizione."
   },
   "TextureLevelReader": {
-    "summary": "Una funzione che recupera un livello di texture cotto."
+    "summary": "Una funzione che recupera un livello di texture cotto, l’archivio in cui i suoi livelli sono tenuti e la cottura per cui è stata fatta (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Un livello da leggere: un livello senza perdita intero, o il record di una tile di un livello a blocchi (`tileRecords.ts`), con una richiesta HTTP Range — un livello a blocchi si legge solo tramite i record delle sue tile."
+    "summary": "Un livello da leggere: un livello senza perdita intero, o, con la sua `range`, il record di una tile di un livello a blocchi (`tileRecords.ts`) con una richiesta HTTP Range — un livello a blocchi si legge solo tramite i record delle sue tile.",
+    "members": {
+      "sha256": "Impronta dell'immagine sorgente.",
+      "atlas": "Quale atlante.",
+      "level": "Quale livello.",
+      "format": "Quale formato.",
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
+      "range": "Il record della tile nel file del livello, dal suo primo byte e dalla sua lunghezza; assente, il livello si legge intero."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Dove sono tenuti i livelli letti: la cache delle pagine, tra le sue voci (`PageCache.level`).",
+    "members": {
+      "level": "Il livello di texture o il record di tile tenuto sotto `id`, segnato come usato per ultimo.",
+      "keepLevel": "Tiene `level` sotto `id`, la cache lo possiede da qui: lo chiude quando esce. Un livello già tenuto — letto nel frattempo dalla sessione che una perdita del dispositivo ha sostituito — resta, segnato come usato per ultimo, e la copia si chiude: i suoi byte sono contati una volta.",
+      "roomBytes": "Byte che una voce in arrivo può prendere: il budget, meno ciò che nessuno sfratto può prendere.",
+      "levelBytes": "Byte che occupano i livelli di texture e i record delle tile."
+    }
   },
   "textureLevelUrl": {
     "summary": "Indirizzo di un livello cotto, a partire dal modello pubblicato dal manifesto (`textures.url`): `{sha}` è l'impronta dei byte dell'immagine sorgente, `{kind}` il nome dell'atlante, `{level}` il rango del livello, `{format}` la codifica del file.",

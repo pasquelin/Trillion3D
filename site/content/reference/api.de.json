@@ -1170,6 +1170,13 @@
       "onDiagnostic": "Hört, was der Cache berichtet: seine Anordnung, abgebrochene Ladevorgänge und Ablehnungen."
     }
   },
+  "EvictionOrder": {
+    "summary": "Eine Verdrängungsreihenfolge, die ein GPU-Schnitt veröffentlicht (`../dag/evict.ts`), ihre Schlüssel einzeln gelesen, während Opfer genommen werden.",
+    "members": {
+      "count": "Wie viele Schlüssel die Reihenfolge auflistet.",
+      "keyAt": "Der Schlüssel auf Rang `at`, das erste Opfer bei 0."
+    }
+  },
   "PagePinTier": {
     "summary": "Wie eine geladene Seite angeheftet wird: `'held'` vor gewöhnlichen Anheftungen bei einer Größenänderung, sonst `'pinned'`."
   },
@@ -5946,10 +5953,27 @@
     "summary": "Was eine Stufendatei enthält: das verlustfreie PNG, oder die Blöcke einer Familie in einer Anordnung."
   },
   "TextureLevelReader": {
-    "summary": "Eine Funktion, die eine gebackene Texturstufe abruft."
+    "summary": "Eine Funktion, die eine gebackene Texturstufe abruft, der Speicher, in dem ihre Stufen gehalten werden, und der Bake, für den sie gemacht wurde (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Eine zu lesende Stufe: eine verlustfreie Stufe ganz, oder der Datensatz einer Kachel einer Block-Stufe (`tileRecords.ts`), per HTTP Range — eine Block-Stufe wird allein über die Datensätze ihrer Kacheln gelesen."
+    "summary": "Eine zu lesende Stufe: eine verlustfreie Stufe ganz, oder, mit ihrer `range`, der Datensatz einer Kachel einer Block-Stufe (`tileRecords.ts`) per HTTP Range — eine Block-Stufe wird allein über die Datensätze ihrer Kacheln gelesen.",
+    "members": {
+      "sha256": "Fingerabdruck des Quellbildes.",
+      "atlas": "Welcher Atlas.",
+      "level": "Welche Stufe.",
+      "format": "Welches Format.",
+      "url": "Die eigene Adresse der Stufe, wenn der Cache eine auflistet — eine Impostor-Atlas-Stufe (`maps.<name>.levels[k].url`). Wird durch denselben Leser gelesen, gegen `base` aufgelöst, anstelle der Vorlage `textures.url`: ein Lader, ein Budget.",
+      "range": "Der Datensatz der Kachel in der Datei der Stufe, durch sein erstes Byte und seine Länge; fehlt er, wird die Stufe ganz gelesen."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Wo die gelesenen Stufen gehalten werden: der Seitencache, unter seinen Einträgen (`PageCache.level`).",
+    "members": {
+      "level": "Die Texturstufe oder der Kachel-Datensatz, unter `id` gehalten, als zuletzt benutzt markiert.",
+      "keepLevel": "Hält `level` unter `id`, der Cache besitzt sie von hier an: er schließt sie, wenn sie geht. Eine bereits gehaltene Stufe — inzwischen von der Sitzung gelesen, die ein Geräteverlust ersetzt hat — bleibt, als zuletzt benutzt markiert, und die Kopie wird geschlossen: ihre Bytes werden einmal gezählt.",
+      "roomBytes": "Bytes, die ein ankommender Eintrag nehmen darf: das Budget, abzüglich dessen, was keine Verdrängung nehmen darf.",
+      "levelBytes": "Bytes, die die Texturstufen und Kachel-Datensätze halten."
+    }
   },
   "textureLevelUrl": {
     "summary": "Adresse einer gebackenen Stufe, aus dem vom Manifest veröffentlichten Modell (`textures.url`): `{sha}` ist der Fingerabdruck der Bytes des Quellbildes, `{kind}` der Name des Atlas, `{level}` der Rang der Stufe, `{format}` die Kodierung der Datei.",

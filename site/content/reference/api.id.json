@@ -3591,10 +3591,27 @@
     "summary": "Apa yang dipegang sebuah berkas tingkat: PNG lossless, atau blok satu keluarga dalam satu tata letak."
   },
   "TextureLevelReader": {
-    "summary": "Sebuah fungsi yang mengambil satu tingkat tekstur yang dipanggang."
+    "summary": "Sebuah fungsi yang mengambil satu tingkat tekstur yang dipanggang, penyimpanan tempat tingkat-tingkatnya disimpan dan pemanggangan yang menjadi tujuannya (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Sebuah tingkat untuk dibaca: tingkat lossless secara utuh, atau rekaman satu ubin dari level blok (`tileRecords.ts`), lewat permintaan HTTP Range — level blok hanya dibaca melalui rekaman ubin-ubinnya."
+    "summary": "Sebuah tingkat untuk dibaca: tingkat lossless secara utuh, atau, dengan `range`-nya, rekaman satu ubin dari level blok (`tileRecords.ts`) lewat permintaan HTTP Range — level blok hanya dibaca melalui rekaman ubin-ubinnya.",
+    "members": {
+      "sha256": "Sidik jari gambar sumbernya.",
+      "atlas": "Atlas mana.",
+      "level": "Tingkat mana.",
+      "format": "Format mana.",
+      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
+      "range": "Rekaman ubin dalam berkas tingkat, menurut byte pertamanya dan panjangnya; bila tidak ada, tingkat dibaca utuh."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Tempat tingkat yang dibaca disimpan: cache halaman, di antara entri-entrinya (`PageCache.level`).",
+    "members": {
+      "level": "Tingkat tekstur atau rekaman ubin yang disimpan di bawah `id`, ditandai terakhir dipakai.",
+      "keepLevel": "Menyimpan `level` di bawah `id`, cache memilikinya sejak itu: cache menutupnya saat ia keluar. Tingkat yang sudah disimpan — dibaca sementara itu oleh sesi yang digantikan oleh hilangnya perangkat — tetap, ditandai terakhir dipakai, dan salinannya ditutup: byte-nya dihitung sekali.",
+      "roomBytes": "Byte yang boleh diambil entri yang datang: anggaran, dikurangi apa yang tidak boleh diambil pengusiran mana pun.",
+      "levelBytes": "Byte yang ditempati tingkat tekstur dan rekaman ubin."
+    }
   },
   "TexturePool": {
     "summary": "Kolam tekstur sebagaimana adanya: anggaran dan byte yang tersimpan.",
@@ -4587,6 +4604,13 @@
       "slots": "Berapa banyak slot yang dimuat pool.",
       "homes": "Tempat sendiri setiap halaman, diambil selama `slots` memuat seluruh katalog (`homes.ts`).",
       "onDiagnostic": "Mendengar apa yang dilaporkan cache: tata letaknya, pemuatan yang dibatalkan, dan penolakan."
+    }
+  },
+  "EvictionOrder": {
+    "summary": "Urutan pengusiran yang diterbitkan sebuah potongan GPU (`../dag/evict.ts`), kuncinya dibaca satu per satu saat korban diambil.",
+    "members": {
+      "count": "Berapa banyak kunci yang didaftar urutan itu.",
+      "keyAt": "Kunci pada peringkat `at`, korban pertama di 0."
     }
   },
   "PagePinTier": {

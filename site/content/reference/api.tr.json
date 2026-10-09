@@ -4118,10 +4118,27 @@
     "summary": "Bir seviye dosyasının tuttuğu şey: kayıpsız PNG, ya da bir ailenin bir düzendeki blokları."
   },
   "TextureLevelReader": {
-    "summary": "Pişirilmiş bir doku seviyesini getiren bir fonksiyon."
+    "summary": "Pişirilmiş bir doku seviyesini getiren bir fonksiyon, seviyelerinin tutulduğu depo ve yapıldığı pişirme (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Okunacak bir seviye: kayıpsız bir seviye bütünüyle, ya da bir blok seviyesinin bir karosunun kaydı (`tileRecords.ts`), bir HTTP Range isteğiyle — bir blok seviyesi yalnızca karolarının kayıtlarıyla okunur."
+    "summary": "Okunacak bir seviye: kayıpsız bir seviye bütünüyle, ya da `range` ile, bir blok seviyesinin bir karosunun kaydı (`tileRecords.ts`) bir HTTP Range isteğiyle — bir blok seviyesi yalnızca karolarının kayıtlarıyla okunur.",
+    "members": {
+      "sha256": "Kaynak görselin parmak izi.",
+      "atlas": "Hangi atlas.",
+      "level": "Hangi seviye.",
+      "format": "Hangi format.",
+      "url": "Önbellek bir tane listelediğinde, seviyenin kendi adresi — bir impostor atlası seviyesi (`maps.<name>.levels[k].url`). Bu aynı okuyucuyla okunur, `textures.url` şablonu yerine `base`e göre çözülür: bir yükleyici, bir bütçe.",
+      "range": "Karonun seviye dosyasındaki kaydı, ilk baytı ve uzunluğuyla; yoksa seviye bütünüyle okunur."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Okunan seviyelerin tutulduğu yer: sayfa önbelleği, girdileri arasında (`PageCache.level`).",
+    "members": {
+      "level": "`id` altında tutulan doku seviyesi ya da karo kaydı, en son kullanılmış olarak işaretlenir.",
+      "keepLevel": "`level`'ı `id` altında tutar, bundan sonra sahibi önbellektir: ayrılırken onu kapatır. Zaten tutulan bir seviye — bu arada bir aygıt kaybının yerini aldığı oturum tarafından okunmuş — kalır, en son kullanılmış olarak işaretlenir ve kopya kapanır: baytları bir kez sayılır.",
+      "roomBytes": "Gelen bir girdinin alabileceği baytlar: bütçe, hiçbir tahliyenin alamayacağı kısım düşülerek.",
+      "levelBytes": "Doku seviyelerinin ve karo kayıtlarının tuttuğu baytlar."
+    }
   },
   "TexturePool": {
     "summary": "Olduğu haliyle doku havuzu: bütçe ve tutulan baytlar.",
@@ -5673,6 +5690,13 @@
       "slots": "Havuzun kaç yuva tuttuğu.",
       "homes": "Her sayfanın kendi yeri, `slots` tüm kataloğu tuttuğu sürece alınır (`homes.ts`).",
       "onDiagnostic": "Önbelleğin bildirdiklerini dinler: düzeni, iptal edilen yüklemeler ve retler."
+    }
+  },
+  "EvictionOrder": {
+    "summary": "Bir GPU kesiminin yayımladığı bir tahliye sırası (`../dag/evict.ts`); anahtarları, kurbanlar alındıkça birer birer okunur.",
+    "members": {
+      "count": "Sıranın listelediği anahtar sayısı.",
+      "keyAt": "`at` sırasındaki anahtar; ilk kurban 0'da."
     }
   },
   "PagePinTier": {

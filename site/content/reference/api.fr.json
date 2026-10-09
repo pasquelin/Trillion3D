@@ -1170,6 +1170,13 @@
       "onDiagnostic": "Entend ce que le cache rapporte : sa disposition, les chargements annulés et les refus."
     }
   },
+  "EvictionOrder": {
+    "summary": "Un ordre d’éviction qu’une coupe GPU publie (`../dag/evict.ts`), ses clés lues une à une à mesure que les victimes sont prises.",
+    "members": {
+      "count": "Combien de clés l’ordre liste.",
+      "keyAt": "La clé au rang `at`, la première victime à 0."
+    }
+  },
   "PagePinTier": {
     "summary": "Comment une page chargée est épinglée : `'held'` devant les épingles ordinaires lors d’un redimensionnement, sinon `'pinned'`."
   },
@@ -5954,10 +5961,27 @@
     "summary": "Ce que contient un fichier de niveau : le PNG sans perte, ou les blocs d’une famille dans une disposition."
   },
   "TextureLevelReader": {
-    "summary": "Une fonction qui récupère un niveau de texture cuit."
+    "summary": "Une fonction qui récupère un niveau de texture cuit, le magasin où ses niveaux sont gardés et la cuisson pour laquelle elle a été faite (`heldLevels.ts`)."
   },
   "TextureLevelRequest": {
-    "summary": "Un niveau à lire : un niveau sans perte en entier, ou l’enregistrement d’une tuile d’un niveau en blocs (`tileRecords.ts`), par une requête HTTP Range — un niveau en blocs n’est lu que par les enregistrements de ses tuiles."
+    "summary": "Un niveau à lire : un niveau sans perte en entier, ou, avec sa `range`, l’enregistrement d’une tuile d’un niveau en blocs (`tileRecords.ts`) par une requête HTTP Range — un niveau en blocs n’est lu que par les enregistrements de ses tuiles.",
+    "members": {
+      "sha256": "Empreinte de l’image source.",
+      "atlas": "Quel atlas.",
+      "level": "Quel niveau.",
+      "format": "Quel format.",
+      "url": "L’adresse propre du niveau, quand le cache en liste une — un niveau d’atlas d’imposteur (`maps.<name>.levels[k].url`). Lu par ce même lecteur, résolue contre `base`, à la place du modèle `textures.url` : un chargeur, un budget.",
+      "range": "L’enregistrement de la tuile dans le fichier du niveau, par son premier octet et sa longueur ; absent, le niveau est lu en entier."
+    }
+  },
+  "TextureLevelStore": {
+    "summary": "Où les niveaux lus sont gardés : le cache de pages, parmi ses entrées (`PageCache.level`).",
+    "members": {
+      "level": "Le niveau de texture ou l’enregistrement de tuile gardé sous `id`, marqué utilisé en dernier.",
+      "keepLevel": "Garde `level` sous `id`, le cache le possédant dès lors : il le ferme quand il part. Un niveau déjà gardé — lu entre-temps par la session qu’une perte de périphérique a remplacée — reste, marqué utilisé en dernier, et la copie se ferme : ses octets sont comptés une fois.",
+      "roomBytes": "Les octets qu’une entrée qui arrive peut prendre : le budget, moins ce qu’aucune éviction ne peut prendre.",
+      "levelBytes": "Les octets que tiennent les niveaux de texture et les enregistrements de tuiles."
+    }
   },
   "textureLevelUrl": {
     "summary": "Adresse d’un niveau cuit, à partir du modèle que publie le manifeste (`textures.url`) : `{sha}` est l’empreinte des octets de l’image source, `{kind}` le nom de l’atlas, `{level}` le rang du niveau, `{format}` l’encodage du fichier.",

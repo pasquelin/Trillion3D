@@ -64,6 +64,7 @@ export type {
 } from '../../sdk-core/src/physics/options.ts'
 export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
+export type { EvictionOrder } from '../../sdk-browser/src/gpu/page/eviction.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts'
 export { framingFromBounds } from '../../sdk-browser/src/camera/framing.ts'
@@ -148,6 +149,7 @@ export type {
   TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
+  TextureLevelStore,
 } from '../../sdk-browser/src/texture/levelReader.ts'
 export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts'
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts'
