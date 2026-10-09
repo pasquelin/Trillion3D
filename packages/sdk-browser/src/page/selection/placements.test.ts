@@ -18,6 +18,11 @@ test('a packed rank is its root’s, empty roots skipped, past the packing none'
     assert.equal(index.packedCount, owner.length)
     for (let packed = -2; packed < owner.length + 3; packed++)
       assert.equal(rootOfPacked(index, packed), owner[packed] ?? -1, `layout ${layout}, ${packed}`)
+    // In any order: the root found last only spares a search.
+    for (let k = 0; k < 40; k++) {
+      const packed = Math.floor(next() * (owner.length + 4)) - 2
+      assert.equal(rootOfPacked(index, packed), owner[packed] ?? -1, `layout ${layout}, ${packed}`)
+    }
   }
 })
 

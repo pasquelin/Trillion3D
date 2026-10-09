@@ -25,15 +25,26 @@ type Ranked = { packedBase?: number; pages: readonly unknown[] }
 export type PlacementIndex = {
   baseOfRoot: Int32Array
   packedCount: number
+  /** The root the last lookup found: a walk over consecutive ranks finds its next one there, or
+   *  just behind, without a search (`rootOfPacked`). */
+  last?: number
 }
 
 /** The root whose pages hold packed rank `packed`, or -1 past the packed ranks: the last root whose
- *  first rank is not past it — one of no page shares its base with the next and is never it. */
+ *  first rank is not past it — one of no page shares its base with the next and is never it. The
+ *  root found last, or the one after it, is tried first: a walk over the ranks in order pays no
+ *  search. */
 export function rootOfPacked(index: PlacementIndex, packed: number) {
   const { baseOfRoot } = index
   if (!(packed >= 0 && packed < index.packedCount) || !baseOfRoot.length) return -1
-  return lastTrue(0, baseOfRoot.length - 1, (rank) => baseOfRoot[rank] <= packed)
+  for (let rank = index.last ?? 0, k = 0; k < 2 && rank < baseOfRoot.length; k++, rank++)
+    if (holds(baseOfRoot, rank, packed)) return (index.last = rank)
+  return (index.last = lastTrue(0, baseOfRoot.length - 1, (rank) => baseOfRoot[rank] <= packed))
 }
+
+/** Whether root `rank` is the last whose first rank is not past `packed`. */
+const holds = (baseOfRoot: Int32Array, rank: number, packed: number) =>
+  baseOfRoot[rank] <= packed && (rank + 1 === baseOfRoot.length || baseOfRoot[rank + 1] > packed)
 
 /**
  * Where the pages of a list are placed, in the order of that list: the roots, the packed rank of
