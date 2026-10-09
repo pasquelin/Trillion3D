@@ -3,21 +3,32 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { HIZ_MAX_LEVELS } from './uniforms.ts'
 
 /**
- * WHERE THE PYRAMID LIES: one `r32uint` texture of two layers, each the packed mips of
+ * WHERE THE PYRAMID LIES: one `r32uint` texture of three layers, each the packed mips of
  * `pyramidBytes` laid row after row — the texel of packed index `i` at `(i mod HIZ_ROW, i / HIZ_ROW)`
- * (`hizTexel`). Layer `HIZ_FARTHEST` holds the farthest depth of each cell, its level 0 a copy of
- * level 0; layer `HIZ_NEAREST`, at the same indices, the nearest of the planes each cell covers, its
- * level 0 each pixel's plane slopes (`shader.ts`). A word holds a depth's `f32` bits, or two half
- * slopes: a texture, so that a fragment stage reads it as a compute stage does, and integer, so that
- * no bit pattern is a float the hardware may rewrite.
+ * (`hizTexel`). Two layers hold the farthest depth of a cell, of two different depths:
+ *  - `HIZ_CULL_FARTHEST`, the farthest of the OCCLUDERS' depth, built mid-frame, before the rest
+ *    of the scene is drawn: what the culling (the partition's, the transparent clusters', the
+ *    occlusion test) trusts, because the depth only comes nearer after it. Its level 0 is a copy
+ *    of level 0.
+ *  - `HIZ_WHOLE_FARTHEST`, the farthest of the FINISHED depth, built once every opaque pixel is
+ *    drawn: what a ray march of the whole depth needs to know a cell is entirely in front of the
+ *    ray (the occluder-only bound is farther, hence too loose to say it). Written at levels 1 and
+ *    up only: level 0 is the depth texture itself.
+ *  - `HIZ_NEAREST` holds, at the same indices, the nearest of the planes each cell covers, its
+ *    level 0 each pixel's plane slopes (`shader.ts`).
+ * A word holds a depth's `f32` bits, or two half slopes: a texture, so that a fragment stage reads
+ * it as a compute stage does, and integer, so that no bit pattern is a float the hardware may
+ * rewrite.
  */
 export const HIZ_FORMAT: GPUTextureFormat = 'r32uint'
 /** Texels of one row of the pyramid texture, a power of two: the index splits by mask and shift. */
 const HIZ_ROW_SHIFT = 13
 export const HIZ_ROW = 1 << HIZ_ROW_SHIFT
-/** The layers of the pyramid texture. */
-export const HIZ_FARTHEST = 0
+/** The layers of the pyramid texture, and their count. */
+export const HIZ_CULL_FARTHEST = 0
 export const HIZ_NEAREST = 1
+export const HIZ_WHOLE_FARTHEST = 2
+export const HIZ_LAYERS = 3
 
 /** The texture that holds `texels` packed texels a layer: whole rows of `HIZ_ROW`, or one shorter
  *  row when they fit in it. */
@@ -26,14 +37,14 @@ export function hizTextureSize(texels: number) {
   return {
     width: Math.min(HIZ_ROW, count),
     height: ceilDiv(count, HIZ_ROW),
-    depthOrArrayLayers: 2,
+    depthOrArrayLayers: HIZ_LAYERS,
   }
 }
 
 /** Bytes of the pyramid texture over `texels` packed texels a layer. */
 export const hizTextureBytes = (texels: number) => {
   const { width, height } = hizTextureSize(texels)
-  return width * height * 2 * 4
+  return width * height * HIZ_LAYERS * 4
 }
 
 /** The texel of packed index `i`. */
@@ -43,13 +54,15 @@ export const HIZ_TEXEL_WGSL = wgslBlock(
   `fn hizTexel(i:u32)->vec2u{return vec2u(i&${HIZ_ROW - 1}u,i>>${HIZ_ROW_SHIFT}u);}`,
 )
 
-/** The two channels at packed index `i` of the sampled pyramid `hizPyramid` the host declares
- *  (`texture_2d_array<u32>`): its farthest depth and its nearest. */
+/** The three layers at packed index `i` of the sampled pyramid `hizPyramid` the host declares
+ *  (`texture_2d_array<u32>`): the culling's farthest depth, the nearest, and the finished depth's
+ *  farthest. */
 export const HIZ_READ_WGSL = wgslBlock(
   'HIZ_READ_WGSL',
   [HIZ_TEXEL_WGSL],
-  `fn hizFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),${HIZ_FARTHEST},0).r);}
-fn hizNearest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),${HIZ_NEAREST},0).r);}`,
+  `fn hizCullFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),${HIZ_CULL_FARTHEST},0).r);}
+fn hizNearest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),${HIZ_NEAREST},0).r);}
+fn hizWholeFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),${HIZ_WHOLE_FARTHEST},0).r);}`,
 )
 
 /** Words of the levels uniform (`HizLevels`): per level its first packed index, its width and
@@ -76,8 +89,8 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0,
  * the depth the image drew, the pyramid, and its levels. `hizPlane` is a pixel's depth and its
- * plane's slopes in depth per pixel; `hizCell` a cell of a level from 1 up, its farthest and its
- * nearest. Both clamp the cell to the level: the last texel of a level covers the image's edge.
+ * plane's slopes in depth per pixel; `hizCell` a cell of a level from 1 up, its farthest depth of
+ * the finished image and its nearest. Both clamp the cell to the level: the last texel of a level covers the image's edge.
  */
 export const hizDepthWgsl = (group: number, binding: number) =>
   wgslBlock(
@@ -99,6 +112,6 @@ fn hizCell(cell:vec2i,level:i32)->vec2f{
  let at=hizLevels.level[level];
  let p=vec2u(clamp(cell,vec2i(0),vec2i(at.yz)-vec2i(1)));
  let i=at.x+p.y*at.y+p.x;
- return vec2f(hizFarthest(i),hizNearest(i));
+ return vec2f(hizWholeFarthest(i),hizNearest(i));
 }`,
   )

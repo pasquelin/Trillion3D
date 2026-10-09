@@ -1,10 +1,10 @@
 // The depth pyramid a reflection march reads, built from any depth image for its tests: level 0
-// of the nearest layer by the Hi-Z build's own first pass, the coarser texels of both layers by the
-// Hi-Z oracle's reductions.
+// of the nearest layer by the Hi-Z build's own first pass, the coarser texels of its three layers by
+// the Hi-Z oracle's reductions.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
-import { HIZ_NEAREST, HIZ_ROW, hizLevelWords } from '../gpu/hiz/pyramidTexture.ts'
+import { HIZ_LAYERS, HIZ_NEAREST, HIZ_ROW, hizLevelWords } from '../gpu/hiz/pyramidTexture.ts'
 import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 
 const WORD = new Float32Array(1),
@@ -16,21 +16,22 @@ const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
  * The depth pyramid a march reads of the `width × height` depth image `depth`, at the packed
  * indices the Hi-Z lays (`pyramidBytes`), each texel made the first time a march reads it (and the
  * finer ones it covers before it): level 0 of the nearest layer by the shipped build's first pass
- * (`hizSource`, its plane's slopes and nearest corner), the coarser texels of both layers by the
+ * (`hizSource`, its plane's slopes and nearest corner), the coarser texels of every layer by the
  * oracle's reductions (`hizReduceCeil`, `hizReduceNearestCeil`). `word` is the texel the shipped
  * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform.
  */
 export function depthField(width: number, height: number, depth: ArrayLike<number>) {
   const { sizes, offsets, texels } = pyramidBytes(width, height)
-  const made = [0, 1].map(() => new Float64Array(texels).fill(NaN))
+  const made = Array.from({ length: HIZ_LAYERS }, () => new Float64Array(texels).fill(NaN))
   const slopes = new Uint32Array(width * height)
   const level0 = {}
   const build = shaderRun<{
-    hizSource: (at: number, origin: number[], x: number, y: number) => number
+    hizSource: (at: number, origin: number[], x: number, y: number) => number[]
   }>(
     HIZ_SHADER,
     [
       'hizSource',
+      'hizLoadBound',
       'hizPlaneNearest',
       'hizDepthAt',
       'surfaceSlopeOf',
@@ -51,9 +52,10 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
     const at = offsets[level] + y * sizes[level][0] + x
     if (Number.isNaN(made[layer][at])) {
       if (level === 0)
-        made[layer][at] = layer
-          ? Math.fround(build.hizSource(0, [0, 0], x, y))
-          : Math.fround(depth[y * width + x])
+        made[layer][at] =
+          layer === HIZ_NEAREST
+            ? Math.fround(build.hizSource(0, [0, 0], x, y)[0])
+            : Math.fround(depth[y * width + x])
       else {
         const [w, h] = sizes[level - 1],
           square: number[][] = []
@@ -63,7 +65,9 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
             row.push(cell(layer, level - 1, u, v))
           square.push(row)
         }
-        made[layer][at] = Math.fround((layer ? hizReduceNearestCeil : hizReduceCeil)(square)[0][0])
+        made[layer][at] = Math.fround(
+          (layer === HIZ_NEAREST ? hizReduceNearestCeil : hizReduceCeil)(square)[0][0],
+        )
       }
     }
     return made[layer][at]

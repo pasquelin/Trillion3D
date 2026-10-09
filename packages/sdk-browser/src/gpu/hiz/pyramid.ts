@@ -8,7 +8,7 @@ import { HIZ_FORMAT, hizLevelWords, hizTextureBytes, hizTextureSize } from './py
 /** The label of a pyramid's level 0, the one texture it holds. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel, and its two layers of packed mips. */
+ *  texel a pixel, and its three layers of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
   width * height * 4 + hizTextureBytes(pyramidBytes(width, height).texels)
 
@@ -17,7 +17,8 @@ const TILE = 2 * HIZ_BUILD_SIDE
 
 /**
  * The build passes of `count` pyramids, one per `z`, as dispatches of the open compute `pass`, by
- * `buildPipeline` — the farthest layer's or the nearest's (`HIZ_NEAREST_BUILD`):
+ * `buildPipeline` — the culling layer's, or the nearest's with the finished depth's farthest
+ * (`HIZ_NEAREST_BUILD`):
  * consecutive dispatches inside a pass already see each other's writes. Build pass `i` reads
  * uniform slot `i`, bound at `slots[i]` (`UniformSlots.offset`).
  */
@@ -59,7 +60,7 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
 export type Pyramid = HizPyramid & {
   level0: GPUTexture
   level0View: GPUTextureView
-  /** The two layers of packed mips (`pyramidTexture.ts`), and their one view: written by the
+  /** The three layers of packed mips (`pyramidTexture.ts`), and their one view: written by the
    *  build as storage, read by the others as a texture. */
   pyramid: GPUTexture
   pyramidView: GPUTextureView
@@ -72,7 +73,7 @@ export type Pyramid = HizPyramid & {
   depth?: HizDepth
 }
 
-/** One view's pyramid at `width × height`: its level 0 and its two layers of packed mips, its
+/** One view's pyramid at `width × height`: its level 0 and its three layers of packed mips, its
  *  build's uniform words laid in `slots`. */
 export function allocPyramid(
   device: GPUDevice,
@@ -87,13 +88,17 @@ export function allocPyramid(
     format: 'r32float',
     usage,
   })
-  // `COPY_DST` serves only the proof tools, which lay a pyramid of their own; no frame copies.
+  // `COPY_DST` and `COPY_SRC` serve only the proof tools, which lay a pyramid of their own and
+  // reread it; no frame copies.
   const pyramid = device.createTexture({
     label: 'Trillion3D Hi-Z pyramid',
     size: hizTextureSize(pyramidBytes(width, height).texels),
     format: HIZ_FORMAT,
     usage:
-      GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.COPY_SRC,
   })
   return {
     width,

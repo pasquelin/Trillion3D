@@ -10,8 +10,8 @@ export type GpuHiz = {
   /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the occluders'
    *  —, as dispatches of the frame's compute pass. */
   encodePyramid(open: OpenPass): void
-  /** The build of its nearest layer — each pixel's plane, each cell's nearest — once level 0 holds
-   *  the whole depth, as dispatches of the open compute pass. */
+  /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
+   *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
   encodeNearest(open: OpenPass): void
   /**
    * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the

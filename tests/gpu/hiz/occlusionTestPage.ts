@@ -13,7 +13,7 @@ import {
   TESTED_U32,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import {
-  HIZ_FARTHEST,
+  HIZ_CULL_FARTHEST,
   HIZ_FORMAT,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
@@ -80,7 +80,7 @@ export async function testOcclusion(cases: OcclusionCase[]) {
     })
     const layer = hizFarthestLayer(sample.pyramid)
     device.queue.writeTexture(
-      { texture: pyramid, origin: [0, 0, HIZ_FARTHEST] },
+      { texture: pyramid, origin: [0, 0, HIZ_CULL_FARTHEST] },
       layer.words,
       { bytesPerRow: layer.width * 4 },
       [layer.width, layer.height, 1],

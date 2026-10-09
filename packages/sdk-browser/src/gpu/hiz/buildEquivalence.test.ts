@@ -13,7 +13,8 @@ import { hizLevelSizes } from './levelSizes.ts'
 // way and reduces four mips per dispatch through workgroup memory. Below, both transcribed line by
 // line, driven by the uniform words the host really writes, must leave the pyramid identical bit
 // for bit — every texel written, no other — on random sizes, capped mip counts, several pyramids
-// per dispatch, and NaN, ±0, ±Inf depths: the farthest layer, and the nearest, its maximum.
+// per dispatch, and NaN, ±0, ±Inf depths: the culling layer, and the nearest, its maximum, beside the
+// finished depth's farthest layer.
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN]
 
@@ -46,9 +47,16 @@ function assertSamePyramid(s: Scene, rand: () => number, label: string) {
   // The same garbage on both sides: a texel one side writes and the other does not shows.
   const before = Float32Array.from({ length: words + 8 }, (_, i) => -1000 - i)
   const after = Float32Array.from(before)
-  buildBefore(s, before)
-  buildAfter(s, after, rand)
+  const wholeBefore = Float32Array.from(before)
+  const wholeAfter = Float32Array.from(before)
+  buildBefore(s, before, wholeBefore)
+  buildAfter(s, after, wholeAfter, rand)
   assert.deepEqual(new Uint32Array(after.buffer), new Uint32Array(before.buffer), label)
+  assert.deepEqual(
+    new Uint32Array(wholeAfter.buffer),
+    new Uint32Array(wholeBefore.buffer),
+    `${label}, the finished depth's farthest`,
+  )
 }
 
 for (const [seed, hostile, trials] of [
@@ -95,20 +103,20 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
 })
 
 test('the shipped build is one kernel over workgroup memory, with no copy kernel left', () => {
-  assert.match(HIZ_SHADER, new RegExp(`var<workgroup> hizTile:array<f32,${S * S}>;`))
+  assert.match(HIZ_SHADER, new RegExp(`var<workgroup> hizTile:array<vec2f,${S * S}>;`))
   assert.match(HIZ_SHADER, new RegExp(`@workgroup_size\\(${S}, ${S}\\)\\s*fn buildHiz\\(`))
   assert.match(HIZ_SHADER, new RegExp(`dst:array<vec4u,${HIZ_PASS_LEVELS}>,`))
   assert.doesNotMatch(HIZ_SHADER, /fn copyDepth|fn reduceHiz/)
   // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
-    'if(uni.a!=0u){return hizLoad(i,hizLayer());}',
-    `if(${HIZ_NEAREST_BUILD}){return hizPlaneNearest(i,origin,q,depth);}`,
-    'if(uni.d>0u){hizPut(uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x,layer,bitcast<u32>(bound));}',
+    'if(uni.a!=0u){return hizLoadBound(i);}',
+    `if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,origin,q,depth),depth);}`,
+    'if(uni.d>0u){hizPutBound(uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
-    'hizPut(dst.x+z*uni.g+ty*dst.y+tx,layer,bitcast<u32>(bound));',
-    `if(${HIZ_NEAREST_BUILD}){return max(a,b);}`,
+    'hizPutBound(dst.x+z*uni.g+ty*dst.y+tx,bound);',
+    `if(${HIZ_NEAREST_BUILD}){return vec2f(max(a.x,b.x),min(a.y,b.y));}`,
   ])
     assert.ok(build.includes(line), line)
   assert.equal(build.match(/workgroupBarrier\(\);/g)?.length, 2, 'read, barrier, write, barrier')
