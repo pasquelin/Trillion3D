@@ -6,7 +6,8 @@ import {
   type FakeBuffer,
   type FakeWrite,
 } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { createCameraFrames, framesBytes } from './frameRanges.ts'
+import { createCameraFrames } from './frameRanges.ts'
+import { WORLD_ROW_BYTES } from './cameraRanges.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { rootWorlds } from './pack.ts'
 import { rootWorldsToRenderOrigin } from './pack.fixture.ts'
@@ -32,8 +33,8 @@ test('split world bindings retain camera matrix bytes and keep absolute origins 
   rootWorlds(next, sources)
   const fake = fakeDevice({
     limits: {
-      maxBufferSize: framesBytes(2),
-      maxStorageBufferBindingSize: framesBytes(2),
+      maxBufferSize: 2 * WORLD_ROW_BYTES,
+      maxStorageBufferBindingSize: 2 * WORLD_ROW_BYTES,
       minUniformBufferOffsetAlignment: 256,
     },
   })

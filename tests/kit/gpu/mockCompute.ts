@@ -1,8 +1,15 @@
+import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import { compactDrawnPages } from './globals.ts'
+import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
+import {
+  LIST_DROPPED,
+  QUEUE_DROPPED,
+  WORK_DROPPED,
+} from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
 import { words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -11,6 +18,7 @@ import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
+
 import {
   residentFlags,
   writeTriangleTotals,
@@ -32,6 +40,7 @@ import { LIST_KERNELS, mirrorListStage } from './mockLists.ts'
 const DAG_STAGES = new Set([
   'dagMask',
   'dagDrawScatter',
+  'dagCommitMask',
   'dagSortRequests',
   'dagListEvictions',
   ...LIST_KERNELS,
@@ -84,7 +93,7 @@ export function simulateComputeDispatch(
     const mask = maskBytes ? words(maskBytes) : undefined
     const filtered =
       uni[4] && mask
-        ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0)
+        ? source.filter((_, i) => maskBit(mask, uni[5], itemInts[i * DRAW_ITEM_U32 + 2]))
         : source
     const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
     words(byBinding.get(5)!.data).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
@@ -110,11 +119,11 @@ export function simulateComputeDispatch(
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
-      byBinding.get(DAG_BINDING.flags)!.data,
+      byBinding.get(DAG_BINDING.work)!.data,
       byBinding.get(DAG_BINDING.out)!.data,
-      dag.nodeCount,
       dag.pageCount,
     )
+  if (stage === 'dagCommitMask') return commitMask(byBinding, dag.pageCount)
   if (stage !== 'dagMask') return
   const { uniforms } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data)
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
@@ -139,10 +148,10 @@ export function simulateComputeDispatch(
   const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
   mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
-  // `dagMask` posts a draw flag for every drawn page: `dagDrawScatter` compacts them.
-  const flags = words(byBinding.get(DAG_BINDING.flags)!.data)
-  flags.fill(0, dag.nodeCount, dag.nodeCount + dag.pageCount)
-  for (const id of result.drawablePageIds ?? []) flags[dag.nodeCount + id] = 1
+  // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
+  const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
+  mask.fill(0, 0, bitWords(dag.pageCount))
+  for (const id of result.drawablePageIds ?? []) mask[id >>> 5] |= 1 << (id & 31)
   const ints = words(byBinding.get(DAG_BINDING.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
@@ -154,8 +163,23 @@ export function simulateComputeDispatch(
   ints[0] = list.length
   // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
   ints[3] = list.length > listCap ? 1 : 0
+  // Past a queue's entries or a list's, the kernel drops work: the cut is not drawn.
+  const views = words(byBinding.get(DAG_BINDING.views)!.data),
+    { levels, candidates, live } = result.work
+  const entries = views[viewWord('queueCap')] / 2,
+    cap = views[viewWord('candCap')]
+  if (Math.max(...levels) > entries) ints[3] |= QUEUE_DROPPED
+  if (candidates > cap || live > cap) ints[3] |= LIST_DROPPED
   list.slice(0, listCap).forEach((staged, s) => {
     ints[at + 2 * s] = stagedPage(staged)
     ints[at + 2 * s + 1] = stagedPriority(staged)
   })
+}
+
+/** `dagCommitMask`: the mask the cut wrote made the frame's, unless it dropped work. */
+function commitMask(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
+  if (words(byBinding.get(DAG_BINDING.out)!.data)[3] & WORK_DROPPED) return
+  const work = byBinding.get(DAG_BINDING.work)!.data
+  const written = writtenMask(work, pageCount).subarray(0, bitWords(pageCount))
+  drawMask(work, pageCount).set(written)
 }

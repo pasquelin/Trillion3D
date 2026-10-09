@@ -17,6 +17,7 @@ import {
 } from '../../residency/poolGrants.ts'
 import type { TexturePool } from '../../residency/memoryBudgets.ts'
 import { vertexBytesOf } from './metrics.ts'
+import { ledgerReplacing } from '../../../gpu/core/deviceLedger.ts'
 import { growWebgpuTables } from '../prepare/growTables.ts'
 import { impostorCardsBytes } from '../../../impostor/cards.ts'
 
@@ -163,7 +164,10 @@ async function setGeometryBudget(
     if (tables?.refused) pool = undefined
   }
   if (pool && pool.slots !== setup.slots && gpu.cache && device && !run.lost) {
-    const probe = geometryProbe(device)
+    // The probe stands for the pool that replaces the one in place (`ledgerReplacing`).
+    const held = setup.geometryPool.allocatedBytes,
+      bare = geometryProbe(device)
+    const probe = (drawn: GeometryPool) => ledgerReplacing(device, held, () => bare(drawn))
     pool = await probed(
       grantedGeometryPool(device, bytes, setup.geometryPoolFor, diag.engineDiagnostic, probe),
     )

@@ -6,7 +6,7 @@ type Rows = ReturnType<typeof createWebgpuRowState>
 const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** `from` copied into the head of `to`, the rest of `to` set to `fill`. */
-export function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
+function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
   to.set(from)
   to.fill(fill, from.length)
   return to

@@ -98,14 +98,21 @@ test('shadows still to be made past their share: the default total funds them, p
   })
 })
 
-test('by default no grant is held: a first admission squeezed by bytes since freed recovers', () => {
+// By default, what the session holds beside its pools past the frame's share — its scene's own
+// buffers — is funded too: the total never falls under what is held, which would refuse the next
+// allocation of a frame by name, and the pools keep their defaults. A total the page sets presses
+// them instead.
+test('by default what is held past the frame share is funded: pools whole, limit over the held', () => {
   const { admitGpuMemory } = sessionPools(worldPools())
-  const squeezed = admitGpuMemory(holding(1100 * MiB, { frameShare: 300 * MiB }))
-  assert.ok(squeezed.geometryPoolBytes < DEFAULT_GEOMETRY_POOL_BUDGET)
-  assert.deepEqual(admitGpuMemory(holding(300 * MiB)), {
+  const active = holding(1100 * MiB, { frameShare: 300 * MiB })
+  assert.deepEqual(admitGpuMemory(active), {
     geometryPoolBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePoolBytes: DEFAULT_TEXTURE_POOL_BUDGET,
   })
+  const held = active.frameTargets + active.shadowPool + 2 * DEFAULT_GEOMETRY_POOL_BUDGET
+  assert.ok(admitGpuMemory.limit() >= held, `${admitGpuMemory.limit()} >= ${held}`)
+  const set = sessionPools(Object.assign(worldPools(), { gpu: 2048 * MiB }))
+  assert.ok(set.admitGpuMemory(active).geometryPoolBytes < DEFAULT_GEOMETRY_POOL_BUDGET)
 })
 
 test('a held grant is never under a floor risen since', () => {

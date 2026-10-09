@@ -9,10 +9,23 @@ export function createResidencyLog() {
   const changes = new Map<string, number>()
   /** The keys the host holds resident: those it drained last as arrived. */
   const known = new Set<string>()
+  /** The keys that arrived since a reader last took them, kept once one asks. */
+  let arrivals: string[] | undefined
   return {
     /** `key`'s page now starts at `offset` bytes. */
     placed(key: string, offset: number) {
       changes.set(key, offset / 4)
+    },
+    /** `key`'s page arrived. */
+    arrived(key: string) {
+      arrivals?.push(key)
+    },
+    /** Each key that arrived since the last call, told once, in order: what a reader that waits on
+     *  pages follows instead of asking for every one it waits on. Kept from the first call. */
+    takeArrivals(visit: (key: string) => void) {
+      arrivals ??= []
+      for (let i = 0; i < arrivals.length; i++) visit(arrivals[i])
+      arrivals.length = 0
     },
     /** `key`'s page left. */
     left(key: string) {

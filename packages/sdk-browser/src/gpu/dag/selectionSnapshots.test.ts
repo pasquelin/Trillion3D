@@ -13,6 +13,7 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { moveRoot } from './pack.fixture.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 test('an in-flight snapshot that a world change crosses is never drained as the current cut', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
@@ -70,14 +71,18 @@ test('a residency republished identically does not drop the held cut', async () 
   const resident = new Uint32Array(dag.pageCount).fill(1),
     moved: number[] = []
   assert.equal(
-    selection.updateResidency(resident, undefined, (page) => moved.push(page)),
+    selection.updateResidency(pageResidency(resident), undefined, (page) => moved.push(page)),
     true,
   )
   assert.ok(moved.length > 0, 'the pages whose readiness moved are named')
   selection.dispatch(uniforms)
   assert.ok(await selection.flush())
   assert.ok(selection.peek(), 'the cut is held')
-  assert.equal(selection.updateResidency(resident.slice()), false, 'no bit has moved')
+  assert.equal(
+    selection.updateResidency(pageResidency(resident.slice())),
+    false,
+    'no bit has moved',
+  )
   assert.ok(selection.peek(), 'and the held cut was not dropped')
   selection.dispose()
   fixture.geometry.dispose()

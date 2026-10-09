@@ -75,9 +75,9 @@ test('a translation is taken from whole words: a low word a float move would alt
   }
 })
 
-test('the cone reads the translation its primitive prepared, the one worldPose makes', () => {
-  // One subtraction of the eye a primitive (`preparePrimitive`), none a page (`coneRejectsBox`).
-  assert.ok(DAG_SELECTION_SHADER.includes('frames[at+AT_EYE]=world[3];'))
+test('the cone reads the translation its thread made, the one worldPose makes', () => {
+  // One subtraction of the eye a thread (`placed`), none more a page (`coneRejectsBox`).
+  assert.ok(DAG_SELECTION_SHADER.includes('placedW=w;placedPose=worldPose(w);'))
   const cone = DAG_SELECTION_SHADER.slice(DAG_SELECTION_SHADER.indexOf('fn coneRejectsBox'))
   assert.ok(cone.slice(0, cone.indexOf('\n}')).includes('preparedPose(w)'))
   assert.ok(!cone.slice(0, cone.indexOf('\n}')).includes('worldPose('))

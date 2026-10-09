@@ -3,6 +3,7 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
@@ -110,7 +111,8 @@ export function createTransparentTable(
   /** Words of the resident page, then the index words it holds: what one instance draws. */
   const spans = new Uint32Array(capacity * 4)
   const pageOfEntry = new Int32Array(capacity).fill(-1)
-  const entryOfPage = new Int32Array(Math.max(1, packedPages.length)).fill(-1)
+  // Each blended instance's entry, plus one: held for them alone, never one word a page.
+  const entryPlus = createSparseInts()
   const itemRanges = new Uint32Array(Math.max(1, paged.length) * 2)
   let at = 0
   for (let item = 0; item < paged.length; item++) {
@@ -123,7 +125,7 @@ export function createTransparentTable(
         words = recordOf(pageIndex)!.triangles * 3
       entries[entry] = pageIndex
       pageOfEntry[entry] = pageIndex
-      entryOfPage[pageIndex] = entry
+      entryPlus.set(pageIndex, entry + 1)
       if (words > maxVertexWords) maxVertexWords = words
     }
     at += alignUp(order.length, TRANSPARENT_GROUP)
@@ -132,7 +134,8 @@ export function createTransparentTable(
     entries,
     spans,
     pageOfEntry,
-    entryOfPage,
+    /** The entry packed page `page` draws from, -1 when it is no blended instance. */
+    entryOf: (page: number) => entryPlus.get(page) - 1,
     itemRanges,
     /** Items the table describes, in the order the transparent pass draws them. */
     pagedItems: paged,

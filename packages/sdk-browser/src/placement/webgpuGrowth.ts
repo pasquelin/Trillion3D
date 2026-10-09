@@ -164,5 +164,4 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: Growth): Promise<void> {
 }
 
 /** Whether packed page `page` — of the roots the session holds — has its bytes in the pool. */
-export const heldPage = (rt: WebgpuPagesRuntime, page: number) =>
-  page < rt.layout.rows.residentOffsetWords.length && rt.layout.rows.residentOffsetWords[page] >= 0
+export const heldPage = (rt: WebgpuPagesRuntime, page: number) => rt.layout.rows.offsetOf(page) >= 0

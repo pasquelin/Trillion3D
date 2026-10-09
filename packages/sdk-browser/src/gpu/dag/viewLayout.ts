@@ -52,6 +52,15 @@ const VIEW_FIELDS = [
   { name: 'members', type: 'u32', words: 1, align: 1 },
   { name: 'worldLinks', type: 'u32', words: 1, align: 1 },
   { name: 'worldScale', type: 'f32', words: 1, align: 1 },
+  // The open counts placements hold of their own (\`heldOpen.ts\`): the first word of their table in
+  // \`out.pages\`, and its slots less one.
+  { name: 'heldBase', type: 'u32', words: 1, align: 1 },
+  { name: 'heldMask', type: 'u32', words: 1, align: 1 },
+  // The candidates and the live list hold \`candCap\` entries each (\`shader/levelWgsl.ts\`); the
+  // cold table's unique records and content keys (\`layout.ts\`).
+  { name: 'candCap', type: 'u32', words: 1, align: 1 },
+  { name: 'recordCount', type: 'u32', words: 1, align: 1 },
+  { name: 'keyCount', type: 'u32', words: 1, align: 1 },
   { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },

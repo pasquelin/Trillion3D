@@ -7,6 +7,7 @@ import type { InstanceClosure } from './rowDemand.ts'
 import type { IdDelta } from '../cut/delta.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
+import { pageAddress } from './pageSlots.ts'
 
 const WORDS = PAGE_INFO_STRIDE / 4
 
@@ -57,10 +58,6 @@ export function closePairs(): InstanceClosure {
   return alone
 }
 
-/** `count` packed instances, each a record of its own. */
-export const packedOf = (count: number) =>
-  Array.from({ length: count }, (_, id) => ({ id }) as unknown as PageRec)
-
 export function rowCache(instances: number, slots: number) {
   const pages = Array.from(
     { length: instances },
@@ -90,7 +87,7 @@ export function rowCache(instances: number, slots: number) {
   /** The instances `ids` take their bytes (`offset` a slot) or give them back (-1). */
   const land = (ids: Iterable<number>, offset = 16) => {
     for (const page of ids) {
-      rows.residentOffsetWords[page] = offset < 0 ? -1 : page * offset
+      rows.setAddressOffset(pageAddress(pages[page]), offset < 0 ? -1 : page * offset)
       rows.touchPage(page)
     }
   }

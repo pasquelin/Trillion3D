@@ -107,7 +107,7 @@ function scene(terrain: number, model: number, blendSlots = 0) {
   const rows = createWebgpuRowState(pages, terrain + model, blendSlots)
   rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS)
   for (let row = 0; row < terrain + model; row++) {
-    rows.rowOfPage[row] = row
+    rows.setRowOf(row, row)
     rows.packedPageIndex[row] = row
   }
   rows.packedCount = terrain + model
@@ -152,8 +152,8 @@ test('a transparent model claims no row: its corners are sent again, no row is',
 test('a moved blended model moves its shadow caster rows, and those alone', () => {
   const { rt, rows, glass } = scene(4, 2, 2)
   // The glass casts from the rows behind the visibility rows, in reverse order.
-  rows.blendRowOf[6] = 7
-  rows.blendRowOf[7] = 6
+  rows.setBlendRowOf(6, 7)
+  rows.setBlendRowOf(7, 6)
   ;(glass.world.elements as Float64Array)[12] = 5
   assert.equal(moveRootRows(rt, glass, 0), 2)
   assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [6, 7], 'the caster rows travel, no other')

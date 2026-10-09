@@ -7,7 +7,7 @@ import { createPageBuffer, pageBufferBytes } from './resize.ts'
 import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
 import { createEviction, type EvictionOrder } from './eviction.ts'
-import { homePlacement, slotPlacement } from './placement.ts'
+import { homePlacement, slotPlacement, wholeSlots } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import { createReadFailures } from '../../streaming/failures.ts'
 import { checked, ONE_REQUEST, retriableError } from '../../cluster/checked.ts'
@@ -67,6 +67,8 @@ export function createGpuPageCache(
     get residencyRevision() {
       return state.generation + state.evictions
     },
+    /** Each key that arrived since the last call, told once, in order (`residencyLog.ts`). */
+    takeArrivals: (visit: (key: string) => void) => context.changes.takeArrivals(visit),
     /** Moves the pending residency changes into the caller's arrays, then empties the log: one
      *  entry a key, its last place (`residencyLog.ts`). */
     drainResidencyChanges: (keys: string[], slots: number[]) => context.changes.drain(keys, slots),
@@ -119,8 +121,10 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     ? homePlacement(ownHomes, ownHomes.homes.size)
     : slotPlacement(
         pageBytes,
-        Array.from({ length: slots }, (_, slot) => slot),
+        wholeSlots(Array.from({ length: slots }, (_, slot) => slot)),
         eviction,
+        resident,
+        pins,
       )
   const context: GpuPageContext = {
     device,

@@ -13,6 +13,7 @@ import {
   PAGE_INFO_STRIDE,
 } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { rootOfPacked } from '../page/selection/placements.ts'
 
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
 export const DEFORM_VERTEX_WORDS = 11
@@ -149,16 +150,16 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
     const at = row * (PAGE_INFO_STRIDE / 4),
       output = rec.deformationOutput,
       // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
-      record = deformation?.rowWord(placement.rootOfPacked[rows.packedPageIndex[row]]) ?? 0
+      record = deformation?.rowWord(rootOfPacked(placement, rows.packedPageIndex[row])) ?? 0
     if (record === ints[at + PAGE_DEFORM_WORD] && !output?.pool) continue
     ints[at + PAGE_DEFORM_WORD] = record
     if (output?.pool) writeRowDeformation(ints, at, output, 0)
     rows.markRowWords(row)
   }
   const { table, dirtySpans } = rt.blendState
-  for (let page = 0; table && page < table.entryOfPage.length; page++) {
-    const entry = table.entryOfPage[page],
-      output = entry < 0 ? undefined : recordOf(page)?.deformationOutput
+  for (let entry = 0; table && entry < table.pageOfEntry.length; entry++) {
+    const page = table.pageOfEntry[entry],
+      output = page < 0 ? undefined : recordOf(page)?.deformationOutput
     if (!output?.pool || !table.spans[entry * 4 + 1]) continue
     writeSpanDeformation(table.spans, entry, output, 0, table.spans[entry * 4 + 1])
     dirtySpans.add(entry)

@@ -56,7 +56,7 @@ export function placement() {
     root,
     parentsOf: createPageParents(
       [root],
-      { baseOfRoot: Int32Array.from([0]), rootOfPacked: Int32Array.from([0]) },
+      { baseOfRoot: Int32Array.from([0]), packedCount: 1 },
       () => 0,
     ),
   }
@@ -67,6 +67,8 @@ export function lruCache(slots: number) {
   const resident = new Map<string, { key: string }>(),
     pins = new Set<string>(),
     held = new Set<string>()
+  /** What arrived since a reader last took it, kept once one asks, as the GPU page cache keeps it. */
+  let arrivals: string[] | undefined
   const pin = (url: string, tier: 'held' | 'pinned' = 'pinned') => {
     pins.add(url)
     if (tier === 'held') held.add(url)
@@ -83,7 +85,13 @@ export function lruCache(slots: number) {
         resident.delete(victim)
       }
       resident.set(url, { key: url })
+      arrivals?.push(url)
       if (tier) pin(url, tier)
+    },
+    takeArrivals(visit: (key: string) => void) {
+      const arrived = (arrivals ??= [])
+      for (const key of arrived) visit(key)
+      arrived.length = 0
     },
     pin,
     unpin: (url: string) => (held.delete(url), pins.delete(url)),

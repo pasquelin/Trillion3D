@@ -80,8 +80,10 @@ test('the mask sits between the block offsets and the counters the layout alloca
       assert.equal(k.word(b * 64), k.drawMaskBase + 2 * b, `block ${b}, first half`)
       assert.equal(k.word(b * 64 + 32), k.drawMaskBase + 2 * b + 1, `block ${b}, second half`)
     }
-    // The draw mask, two words per block, then the counters: no word per page in `work`.
-    assert.equal(k.liveCounter, k.drawMaskBase + 2 * k.blockCount, 'then the counters')
+    // The mask the cut writes, two words per block, the frame's behind it, then the counters: no
+    // word per page in `work`.
+    assert.equal(layout.drawMask, k.drawMaskBase + 2 * k.blockCount, 'then the frame’s')
+    assert.equal(k.liveCounter, k.drawMaskBase + 4 * k.blockCount, 'then the counters')
     assert.equal(layout.liveCounter, k.liveCounter, 'the layout the engine allocates')
   }
 })

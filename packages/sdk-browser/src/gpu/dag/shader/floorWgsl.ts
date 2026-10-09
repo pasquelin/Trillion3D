@@ -34,6 +34,10 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS
   return {
     base,
+    /** The draw mask, a bit a page, behind the block counts and offsets and the mask the cut
+     *  writes (`compactWgsl.ts`): what the draw, the raster and the blended pass read of the cut, the
+     *  last one that ran whole. */
+    drawMask: 4 * blockCount,
     /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
     liveCounter: base,
     liveGroups: base + 1,
@@ -53,12 +57,13 @@ export function dagWorkLayout(blockCount: number) {
 }
 
 /** Words of the frame counters: the live list's counter and argument, three queue counters, the
- *  candidates' counter and argument, the drawn log's counter and argument. */
-const FRAME_COUNTERS = 12
+ *  candidates' counter and argument, the drawn log's counter and argument, then the counter of the
+ *  log the running cut writes (`levelWgsl.ts`, `drawnAppend`). */
+const FRAME_COUNTERS = 13
 /** Words of `work` per block of sixty-four pages ahead of the counters: its drawn count, its
- *  offset and its draw mask, a bit a page (`compactWgsl.ts`). A quarter of a byte a page: a binding
- *  holds those of half a billion pages. */
-export const WORK_BLOCK_WORDS = 2 + SELECTION_WORKGROUP / 32
+ *  offset, the draw mask the running cut writes and the one the frame draws, a bit a page each
+ *  (`compactWgsl.ts`). Under half a byte a page: a binding holds those of a quarter billion. */
+export const WORK_BLOCK_WORDS = 2 + (2 * SELECTION_WORKGROUP) / 32
 
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { SELECTION_WORKGROUP } from '../../core/selection.ts'

@@ -2,10 +2,11 @@ import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
+import { followRows } from './queueGrowth.ts'
 import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { coarsenTick } from './coarsening.ts'
-import { MASK_SECTION, flagLocation } from './split.ts'
+import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
 import { createTreeFollower } from './treeFollow.ts'
@@ -21,6 +22,7 @@ import {
   type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
+import { cutBytes } from './resources.ts'
 
 export function createDagRuntime(
   resources: DagResources,
@@ -59,10 +61,9 @@ export function createDagRuntime(
 /** The camera cut's face (`GpuSelection`) over `run`. */
 function selectionOver(run: DagRun): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
-  const { packed, pageCount, nodeCount, frames, buffers } = resources
+  const { packed, pageCount, frames, buffers } = resources
   // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
   // bind one buffer at one offset, whatever the split.
-  const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
   const live = () => !state.disposed && !state.dead
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}
@@ -76,12 +77,17 @@ function selectionOver(run: DagRun): GpuSelection {
     run.links?.sync(uniforms, view)
   }
   const selection: GpuSelection = {
+    get gpuBytes() {
+      return cutBytes(resources)
+    },
     get hostBytes() {
       const pool = poolList.entries.byteLength
       return frames.originBytes + uploadResidency.hostBytes + pool + (mirror?.hostBytes ?? 0)
     },
-    maskBuffer: resources.flagParts[mask.part],
-    maskOffset: mask.word,
+    // The draw mask, a bit a page in `work` (`shader/compactWgsl.ts`): its readers bind one buffer at
+    // one offset, whatever the split.
+    maskBuffer: resources.work,
+    maskOffset: dagWorkLayout(resources.blockCount).drawMask,
     get pageCount() {
       return packed.live?.pages ?? pageCount
     },
@@ -114,6 +120,7 @@ function selectionOver(run: DagRun): GpuSelection {
       return state.coarse.factor
     },
     appendRoots: (roots) => appendRoots(run, roots),
+    followRows: (rows) => live() && followRows(resources, state, rows),
     // The root travels behind the stretch in the frame buffer (`resources.ts`).
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).

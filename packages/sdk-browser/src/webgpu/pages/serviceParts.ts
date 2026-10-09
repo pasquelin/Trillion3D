@@ -16,6 +16,7 @@ import { readGeometryAhead } from '../row/pageSlots.ts'
 import { markWebgpuLost } from './io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** The row table's sync: the residency mirror, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
@@ -43,7 +44,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rt.vis,
     rows.markRowDirty,
     rt.layout.selectionRoots,
-    (packed) => rt.layout.placement.rootOfPacked[packed],
+    (packed) => rootOfPacked(rt.layout.placement, packed),
   )
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting. The
@@ -59,16 +60,13 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     () => createGroupClosure(rt.layout.selectionRoots, rt.layout.placement, packedPages, true),
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare
     // the flag at their next plan (`../shadow/residence.ts`).
-    (_rec, page) => (
-      run.gate.resourcesChanged(),
-      rt.lights.residence.noteRow(page, packedPages.length)
-    ),
+    (_rec, page) => (run.gate.resourcesChanged(), rt.lights.residence.noteRow(page)),
     // A blended caster's opacity moved: the shadow pages under it redraw the slice it is cached
     // in — its placement's mobility decides, as for any caster (the VSM transmission atlas keeps a
     // still blended caster in the static slice).
     (rec, page) => {
       const { selectionRoots, placement } = rt.layout
-      noteResidenceChange(rt.lights, selectionRoots, placement.rootOfPacked, page, rec)
+      noteResidenceChange(rt.lights, selectionRoots, placement, page, rec)
     },
     context.frameBudget,
   )
@@ -140,6 +138,7 @@ export function createResidencyFor(
     lowerTiers: () => lowerTiers,
     bytesRevision: rows.touchRevision,
     coverMissing: residencySets.coverMissing,
+    coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   })
   const residency = createWebgpuResidencyQueue({

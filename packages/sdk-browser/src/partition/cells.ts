@@ -89,8 +89,11 @@ export function createPartitionCells(inputs: Inputs) {
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
-    /** The root's pages, the files the streamer's catalogue holds at open. */
-    pages: index.slots,
+    /** The files the streamer's catalogue holds at a session's open: every one the index names now
+     *  (`cellIndex.ts`, `named`). */
+    get pages() {
+      return index.named()
+    },
     /** The pages of the index opened and the cells they list, the cells placed now, those a mesh
      *  short of rows keeps waiting, and the rows sized. */
     stats: () => ({

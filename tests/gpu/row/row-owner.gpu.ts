@@ -42,7 +42,7 @@ test('a row evicted for another placement names its new occupant to every reader
       page + 1,
       `row ${row}'s record names ${page}`,
     )
-    assert.equal(rows.rowOfPage[page], row, `${page} reads its row`)
+    assert.equal(rows.rowOf(page), row, `${page} reads its row`)
     assert.ok(
       rewritten.has(row),
       `row ${row} is rewritten for the draw items, corners and partition`,
@@ -50,7 +50,7 @@ test('a row evicted for another placement names its new occupant to every reader
   }
   // Every page the moved view draws holds a row whose record names it.
   for (const page of moved.drawn) {
-    const row = rows.rowOfPage[page]
+    const row = rows.rowOf(page)
     assert.ok(
       row >= 0 && rows.pageTableInts![row * ROW_WORDS] === page + 1,
       `${page} holds its row`,

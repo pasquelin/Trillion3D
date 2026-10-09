@@ -2,6 +2,7 @@ import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
 import { geometryPoolFor } from '../../residency/pools.ts'
 import { texturePoolFor } from './memoryBudgets.ts'
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
@@ -159,4 +160,31 @@ test('a texture atlas at its floor lets the other shrink until the device grants
   assert.equal(granted.pool.layers.color.lossless, 3, 'the tails kept')
   assert.ok(granted.pool.layers.data.rgba < 3)
   assert.equal(seen[0].grantedBytes, granted.pool.allocatedBytes)
+})
+
+// A pool drawn again is probed beside the one in place, both live a moment: under a budget whose
+// room holds the new pool's bytes beside the old one no longer — a pool shrunk for the frame's
+// sake, the room just taken —, the budget refuses the probe. That refusal is the pool change's
+// alone: the session goes on, and the pool in place stays, never halved for a budget that refused
+// no device memory.
+test('a probe the budget refuses beside the pool in place keeps that pool and refuses no session', async () => {
+  const gpu = fakeDevice({ limits: {} })
+  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 1000 })
+  gpu.device.createBuffer({
+    label: 'Trillion3D geometry page cache',
+    size: 800,
+    usage: GPUBufferUsage.STORAGE,
+  })
+  const { seen, diagnose } = diagnostics()
+  const granted = await grantedGeometryPool(
+    gpu.device,
+    400,
+    geometry,
+    diagnose,
+    geometryProbe(gpu.device),
+  )
+  assert.equal(granted, undefined, 'no pool granted: the one in place stays')
+  assert.equal(ledger.refusal, undefined, 'the session is not refused')
+  assert.equal(gpu.buffers.length, 1, 'no smaller probe: the budget, not the device, refused')
+  assert.deepEqual(seen, [])
 })

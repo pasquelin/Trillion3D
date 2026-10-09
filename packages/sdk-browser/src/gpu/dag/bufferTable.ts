@@ -1,8 +1,9 @@
 import { storageBufferCap } from '../../residency/pools.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
-import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
+import { HELD_SLOT_WORDS } from './heldOpen.ts'
+import { dagFlagShape, flagShapeWords, type FlagShape } from './flagSections.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
@@ -48,12 +49,14 @@ export function cameraCutBuffers(
   packed: Pick<
     PackedDag,
     'pageCount' | 'nodeCount' | 'worldCount' | 'clusters' | 'nodes' | 'pageCones'
-  >,
+  > &
+    Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'keyCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
     workLayout = dagWorkLayout(blockCount)
-  const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount)
+  const shape = dagFlagShape(packed),
+    flagWords = flagShapeWords(shape)
   const split = dagSplit(limits, packed, {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
@@ -83,19 +86,14 @@ export function cameraCutBuffers(
       split.cold,
       ELEMENT_BYTES.cold,
     ),
-    flags: flagRows(
-      'Trillion3D DAG flags',
-      split.flagCuts,
-      packed.nodeCount,
-      packed.pageCount,
-      flagWords,
-      true,
-    ),
+    flags: flagRows('Trillion3D DAG flags', split.flagCuts, shape, flagWords, true),
   }
   return {
     blockCount,
     workLayout,
     split,
+    /** What `flags` is laid out for: the cut's queues and lists as they start (`queueGrowth.ts`). */
+    shape,
     parts,
     rows: {
       ...namedParts('clusters', parts.clusters),
@@ -103,30 +101,20 @@ export function cameraCutBuffers(
       ...namedParts('pageCones', parts.pageCones),
       ...namedParts('flags', parts.flags),
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
-      // Each kept list's rank of every page, bound in place of `work` by its own kernels
-      // (`shader/differenceWgsl.ts`): a page's word each, as the draw mask.
-      ranks0: ranksRow(0, packed.pageCount),
-      ranks1: ranksRow(1, packed.pageCount),
     } satisfies Record<string, DagBufferRow>,
   }
 }
 
-/** Kept list `l`'s rank of each of `pageCount` pages. */
-const ranksRow = (l: number, pageCount: number): DagBufferRow => ({
-  label: `Trillion3D DAG kept ranks ${l}`,
-  size: Math.max(16, pageCount * 4),
-})
-
-/** The rows of a `flags` of `words` cut at `cuts` (`split.ts`); a camera's are copy sources. */
+/** The rows of a `flags` of `shape`, `words` in all, cut at `cuts` (`split.ts`); a camera's are copy
+ *  sources. */
 function flagRows(
   label: string,
   cuts: readonly number[],
-  queueCap: number,
-  pageCount: number,
+  shape: FlagShape,
   words: number,
   copySource?: true,
 ): DagBufferRow[] {
-  const sizes = flagPartWords(cuts, queueCap, pageCount, words)
+  const sizes = flagPartWords(cuts, shape, words)
   return sizes.map((part, k) => ({
     label: k ? `${label} ${k}` : label,
     size: Math.max(16, part * 4),
@@ -134,11 +122,12 @@ function flagRows(
   }))
 }
 
-/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, as
- *  `createDagList` makes it (`listCap.ts`). */
-export const readoutRow = (listCap: number, regions = 0): DagBufferRow => ({
+/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, then the
+ *  `heldSlots` slots of the open counts placements hold (`heldOpen.ts`), as `createDagList` makes
+ *  it (`listCap.ts`). */
+export const readoutRow = (listCap: number, regions = 0, heldSlots = 0): DagBufferRow => ({
   label: 'Trillion3D DAG readback',
-  size: stagedOutputBytes(listCap, regions),
+  size: stagedOutputBytes(listCap, regions) + heldSlots * HELD_SLOT_WORDS * 4,
   copySource: true,
 })
 

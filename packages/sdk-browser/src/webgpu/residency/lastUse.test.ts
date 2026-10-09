@@ -25,11 +25,7 @@ function residency(slots: number, spare: string[]) {
   const sets = setsOver(tracking, bootstrapKey, packed)
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, [])
-  const closure = createGroupClosure(
-      [],
-      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
-      packed,
-    ),
+  const closure = createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packed),
     budget = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
   const cache = lruCache(slots)
   const pins = createWebgpuPinUpdater({

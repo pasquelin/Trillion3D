@@ -11,7 +11,7 @@ import { transformHalfExtent } from '../../../../../math/src/wgsl/geometry.ts'
 
 /**
  * The normal-cone rejection of the DAG selection kernel, and the per-page word that caches it with
- * the cut rule's two comparisons (`coneCache`). Added to the text of `shader.ts`.
+ * the cut rule's two comparisons, in the live entry (`liveWgsl.ts`). Added to the text of `shader.ts`.
  */
 export const DAG_CONE_WGSL = wgslBlock(
   'DAG_CONE_WGSL',
@@ -38,7 +38,7 @@ fn viewPoint()->vec4f{
  *  The world it reads is of the RENDER FRAME, at the eye (\`preparedPose\`): the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.
- *  Its world, conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
+ *  Its world, conformity and normal matrix are made from primitive \`w\`'s pose once for the thread
  *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its 3x3. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${wgslF32(HALF_PI)}){return false;}
@@ -74,10 +74,9 @@ fn coneRejects(r:u32,w:u32)->bool{
  return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),w);
 }
 /** Cone reject depends only on the page, its world and the camera: it is therefore the same for
- *  the passes of one frame. \`dagWanted\` computes it once per live page and stores it behind the
- *  draw flags; \`dagMask\` rereads it instead of redoing \`asin\`, \`sin\` and the two \`length\`s.
- *  It only reads it for a live page, the only one it was written for. */
-fn coneCache(index:u32)->u32{return views[0u].queueCap+views[0u].clusterCount+index;}
+ *  the passes of one frame. \`dagWanted\` computes it once per live page and keeps it in the page's
+ *  live entry (\`liveWgsl.ts\`); \`dagMask\` rereads it instead of redoing \`asin\`, \`sin\` and the
+ *  two \`length\`s. */
 /** Bits of the cone cache word: the cone verdict, then — camera cut only — the two comparisons of
  *  the cut rule (\`parentPixels > t\`, \`ownPixels <= t\`), made once by \`dagWanted\`. */
 const CONE_REJECTED:u32=1u;const PARENT_ABOVE:u32=2u;const OWN_WITHIN:u32=4u;

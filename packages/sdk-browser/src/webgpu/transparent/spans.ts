@@ -7,7 +7,7 @@ export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset:
   const { table, dirtySpans } = rt.blendState
   if (!table) return
   // A page the table does not name is never a blended one.
-  const entry = table.entryOfPage[page] ?? -1
+  const entry = table.entryOf(page)
   if (entry < 0) return
   // The page back through the one catalogue accessor: its geometry page declares the corners, or
   // the index page it still draws from does.

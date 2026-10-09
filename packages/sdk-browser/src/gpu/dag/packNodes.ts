@@ -33,8 +33,9 @@ import {
  * Four more words per node, sixteen floats become twenty-four: the floor sphere,
  * the floor itself, and the node's OPEN count — the clusters under it whose finer group
  * is not resident, the only ones the cut rule may draw above the threshold. Packing
- * writes zero; the kernel's host keeps it (`readiness.ts`), and descent never drops an
- * open subtree on its floor.
+ * writes the DAG's own count with nothing resident (`open`, `baseOpen`), so the table the
+ * cut uploads at creation is already the one the rule reads; the kernel's host keeps it from
+ * then on (`readiness.ts`), and descent never drops an open subtree on its floor.
  */
 
 type Culling = NonNullable<DagRoot['culling']>
@@ -57,20 +58,24 @@ export function cullingBoundsFor(
 }
 
 /**
- * Copies a primitive's nodes into the GPU array and returns, per cluster, the leaf
- * node that owns it. `owner` is filled in place; a cluster no leaf stores stays at
- * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected.
+ * Copies a primitive's nodes into the GPU array — once, every placement of the primitive reading
+ * them —, each node's first page counted from `place.pageBase` (zero: the primitive's own first
+ * page, which a placement's entry adds its base to), and returns, per cluster, the leaf node that
+ * owns it. `owner` is filled in place; a cluster no leaf stores stays at
+ * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected. `open`, the
+ * DAG's open count of each node with nothing resident; zero without a structure.
  */
 export function packCullingNodes(
   nodes: Float32Array,
   nodeInts: Uint32Array,
   culling: Culling,
   bounds: Float64Array,
-  place: { world: number; nodeBase: number; pageBase: number },
+  place: { nodeBase: number; pageBase: number },
   owner: Uint32Array,
+  open?: Int32Array,
 ) {
   if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE')
-  const { world, nodeBase, pageBase } = place
+  const { nodeBase, pageBase } = place
   const count = culling.nodes.length / culling.stride
   if (bounds.length !== count * BOUND_STRIDE) throw new Error('GPU_DAG_CULLING_BOUNDS')
   for (let n = 0; n < count; n++) {
@@ -90,12 +95,13 @@ export function packCullingNodes(
     nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12]
     nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13]
     nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
-    nodeInts[dst + NODE_WORLD] = world
+    // No placement of its own: a queue entry names the placement that reads it.
+    nodeInts[dst + NODE_WORLD] = 0
     const floor = bounds[at + OWN_FLOOR]
     // The shader cannot write an infinite constant: its floor reads `FINITE_SENTINEL` (its `INF`)
     // where the CPU bound returns infinity, and both reject the same subtree.
     nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : FINITE_SENTINEL
-    nodeInts[dst + NODE_OPEN] = 0
+    nodeInts[dst + NODE_OPEN] = open ? open[n] : 0
     nodeInts[dst + NODE_KIND] = 0
     nodeInts[dst + NODE_PAD] = 0
     if (!culling.nodes[src + 12]) {

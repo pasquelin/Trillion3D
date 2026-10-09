@@ -1,16 +1,14 @@
-import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts'
+import { createWorldOrigins } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
 import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
-import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { PRIMITIVE_BYTES, WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { writeParts, writeRanges } from './split.ts'
 import { createSortedKeys, takeSorted, type SortedKeys } from '../../webgpu/cut/denseKeys.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
-/** Bytes of one primitive's world matrix in `worlds`. */
-const WORLD_BYTES = 64
 
 /** Bytes of one range's `frames`; a range holds at least one primitive. */
 export const framesBytes = (count: number) => count * PRIMITIVE_BYTES
@@ -85,8 +83,8 @@ export function createCameraFrames(
      *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
     /** The rows a word was written in since the last flush, each run to its range by the cut's one
-     *  run writer (`writeRanges`): their planes are ones `dagPrepare` writes again before any
-     *  kernel reads them (`shader/shader.ts`). Nothing when no word was written. */
+     *  run writer (`writeRanges`): a row is the host's words alone. Nothing when no word was
+     *  written. */
     flushWords: () => flushWords(f),
   }
   table.writeRows()
@@ -142,7 +140,7 @@ function rangeBuffers(
   const worldBuffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG worlds',
-      size: count * (WORLD_BYTES + WORLD_ORIGIN_BYTES),
+      size: count * WORLD_ROW_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
   )

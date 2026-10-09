@@ -54,6 +54,8 @@ test("the default totals split into each pool's own default", () => {
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
+    // No session holds a cut yet: its tables are funded as they are made.
+    cutTables: 0,
     effectTargets: EFFECT_TARGET_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,

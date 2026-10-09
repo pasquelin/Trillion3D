@@ -68,7 +68,11 @@ export function projectBoxToScreen(
 ): HizBounds {
   projectBoxesFlat(
     [{ min, max }],
-    { roots: [{ world: matrix }], packed: [0], rootOfPacked: Int32Array.from([0]) },
+    {
+      roots: [{ world: matrix }],
+      packed: [0],
+      placement: { baseOfRoot: Int32Array.of(0), packedCount: 1 },
+    },
     1,
     engineCamera(camera),
     viewport,

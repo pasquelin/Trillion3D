@@ -4,23 +4,42 @@ import {
   KEPT_HEADER_WORDS,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
+  heldOpenWord,
   keptSnapshotWord,
   residentReadbackBytes,
   selectionListCap,
   stagedOutputBytes,
 } from './layout.ts'
+import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
-import type { createDagResources } from './resources.ts'
+import { cutBytes, madeAsked, type createDagResources } from './resources.ts'
 import type { CameraFrames } from './frameRanges.ts'
-import { newRegions, regionsWanted } from './swap.ts'
+import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
+import { keptRankRow } from './keptRanks.ts'
+import { HELD_BY_WORD } from './worlds.ts'
+import { viewWord } from './viewLayout.ts'
+import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
+import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
-/** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device. */
-export const initialListCap = (limits: Limits, pageCount: number) =>
-  Math.min(selectionListCap(pageCount), deviceListCap(limits))
+/** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device
+ *  beside the `heldSlots` slots of open counts its readout holds (`heldOpen.ts`). */
+export const initialListCap = (limits: Limits, pageCount: number, heldSlots = 0) =>
+  Math.min(selectionListCap(pageCount), deviceListCap(limits, heldSlots))
+
+/**
+ * The slots of the open counts a cut's placements hold (`heldOpen.ts`), for the `rows` the row
+ * cache holds resident: within a quarter of what one binding leaves past the lists at their first
+ * cap, so the lists — and the regions the views aside add — always come first; a table that small
+ * leaves more counts at their node's, never a list short.
+ */
+export function cutHeldSlots(limits: Limits, pageCount: number, rows: number) {
+  const lists = stagedOutputBytes(initialListCap(limits, pageCount))
+  return heldOpenSlots(rows, (storageBufferCap(limits) - lists) / 4)
+}
 
 /**
  * THE CAP A TRUNCATED READOUT GROWS TO. The list is sized for a wide cut, not for every cut: a
@@ -30,8 +49,14 @@ export const initialListCap = (limits: Limits, pageCount: number) =>
  * `undefined` when even that cannot hold the cut: the cut coarsens instead (`coarsening.ts`); the GPU
  * cut is the engine's one.
  */
-export function grownListCap(limits: Limits, pageCount: number, cap: number, needed: number) {
-  const next = Math.min(pageCount, deviceListCap(limits), 2 * Math.max(cap, needed))
+export function grownListCap(
+  limits: Limits,
+  pageCount: number,
+  cap: number,
+  needed: number,
+  heldSlots = 0,
+) {
+  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), 2 * Math.max(cap, needed))
   return next > cap && next >= Math.min(needed, pageCount) ? next : undefined
 }
 
@@ -43,55 +68,89 @@ export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
 }
 
 /** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals
- *  (`swap.ts`): the buffer the kernels write, and the readback slots the frame copies it into, each
- *  made by `own` (`resources.ts`). */
+ *  (`swap.ts`), the `heldSlots` slots of the open counts placements hold behind them
+ *  (`heldOpen.ts`): the buffer the kernels write, the readback slots the frame copies it into, and
+ *  each kept list's table of ranks (`keptRanks.ts`), which its kernels bind as `work`, each made by
+ *  `own` (`resources.ts`). */
 export function createDagList(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   listCap: number,
   regions = 0,
+  heldSlots = 0,
 ) {
   const outputBytes = (HEAD + listCap) * 4,
     // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
     readbackBytes = residentReadbackBytes(listCap)
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
   // (`shader/snapshotWgsl.ts`).
-  const output = makeDagBuffer(own, readoutRow(listCap, regions))
+  const output = makeDagBuffer(own, readoutRow(listCap, regions, heldSlots))
   const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
     own({
+      label: 'Trillion3D DAG readback slot',
       size: readbackBytes,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),
   )
-  return { listCap, outputBytes, readbackBytes, output, readback }
+  const ranks = [0, 1].map((l) => makeDagBuffer(own, keptRankRow(l, listCap)))
+  return { listCap, outputBytes, readbackBytes, output, readback, heldSlots, ranks }
+}
+
+/** Where the open counts placements hold lie for the kernels — the first word in `out.pages`, the
+ *  slots less one —: none without a table (`heldOpen.ts`). */
+export const heldOpenAt = (resources: {
+  listCap: number
+  heldSlots: number
+  swap: { regions: number }
+}) => ({
+  base: heldOpenWord(resources.listCap, resources.swap.regions) - HEAD,
+  mask: Math.max(0, resources.heldSlots - 1),
+})
+
+/** The host's table of open counts written whole into `resources`' readout (`heldOpen.ts`): at
+ *  open, and into a readout made again — made again itself first when the readout holds more slots
+ *  (`queueGrowth.ts`), each placement whose count moved told in its frame words. A table laid out
+ *  for other slots is not this cut's: its residency upload makes its own (`residencyUpload.ts`). */
+function writeHeldOpen(resources: DagResources, grown: boolean) {
+  const held = resources.packed.heldOpen
+  if (!held || !resources.heldSlots) return
+  if (grown && held.slots < resources.heldSlots) {
+    held.resize(resources.heldSlots)
+    for (const w of held.takePlacements())
+      resources.frames.writeWord(w, HELD_BY_WORD, held.heldBy(w))
+    resources.frames.flushWords()
+  }
+  if (held.slots !== resources.heldSlots) return
+  const at = (heldOpenAt(resources).base + HEAD) * 4
+  resources.device.queue.writeBuffer(resources.output, at, held.words)
 }
 
 /**
- * Gives the camera cut a list of `listCap` ranks and `regions` saved journals, between two frames
- * and with no readback in flight: a new readout and its slots, the bind groups that name it, and
- * the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
+ * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
+ * open counts, between two frames and with no readback in flight: a new readout and its slots, the
+ * bind groups that name it, and the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
  * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
  * coarsens its cut (`coarsening.ts`) — or the views aside cut without a region — rather than end on an
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
  * `pageCones`, keeps its own (`layout.ts`).
  */
-async function growDagList(
+export async function growDagList(
   resources: DagResources,
   listCap: number,
   regions: number,
   disposed: () => boolean,
+  heldSlots = resources.heldSlots,
 ) {
-  if (stagedOutputBytes(listCap, regions) > storageBufferCap(resources.device.limits)) return false
+  const bytes = readoutRow(listCap, regions, heldSlots).size
+  if (bytes > storageBufferCap(resources.device.limits)) return false
   const made: GPUBuffer[] = []
-  const make = (descriptor: GPUBufferDescriptor) => {
-    const buffer = resources.device.createBuffer(descriptor)
-    made.push(buffer)
-    return buffer
-  }
+  // What the readout replaces leaves the share: the new one is made within what remains.
+  const replaced = [resources.output, ...resources.readback, ...resources.ranks]
+  const make = madeWithin(resources, replaced, made)
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
       resources.device,
-      () => createDagList(make, listCap, regions),
+      () => createDagList(make, listCap, regions, heldSlots),
       'out-of-memory',
     )
     if (!error) list = value
@@ -103,8 +162,9 @@ async function growDagList(
     for (const buffer of made) buffer.destroy()
     return false
   }
-  const old = [resources.output, ...resources.readback]
-  moveKeptSnapshot(resources.device, resources, list)
+  const old = [resources.output, ...resources.readback, ...resources.ranks],
+    from = { output: resources.output, listCap: resources.listCap },
+    grown = heldSlots > resources.heldSlots
   Object.assign(resources, list)
   resources.buffers.push(...made)
   resources.group.out = list.output
@@ -112,6 +172,8 @@ async function growDagList(
   resources.rankGroups = rankGroups(resources)
   // The saved journals and the lists were the old readout's (`swap.ts`).
   newRegions(resources.swap, regions)
+  writeHeldOpen(resources, grown)
+  carryKeptSnapshot(resources, from)
   for (const buffer of old) {
     resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
     buffer.destroy()
@@ -120,17 +182,15 @@ async function growDagList(
 }
 
 /**
- * The kept snapshot carried into the grown readout, lengths and both lists, each at the place the
- * new cap gives it (`keptSnapshotWord`): the next copy's difference is taken against it as if the
- * list had not grown, and the readbacks since keep naming their pages by its ranks
- * (`differenceChain.ts`). The ranks of each page stay where they are (`rankGroups`).
+ * The kept snapshot carried into the grown readout `to`, lengths and both lists, each at the place
+ * the new cap gives it (`keptSnapshotWord`), then each list ranked in its new table
+ * (`shader/differenceWgsl.ts`, `dagCutRekeep`) — the kernels read the new cap, written first —:
+ * the next copy's difference is taken against it as if the list had not grown, and the readbacks
+ * since keep naming their pages by its ranks (`differenceChain.ts`).
  */
-function moveKeptSnapshot(
-  device: GPUDevice,
-  from: { output: GPUBuffer; listCap: number },
-  to: { output: GPUBuffer; listCap: number },
-) {
-  const encoder = device.createCommandEncoder(),
+function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap: number }) {
+  const { device } = to,
+    encoder = device.createCommandEncoder(),
     a = keptSnapshotWord(from.listCap) * 4,
     b = keptSnapshotWord(to.listCap) * 4,
     asked = (KEPT_HEADER_WORDS + from.listCap) * 4
@@ -142,45 +202,15 @@ function moveKeptSnapshot(
     b + (KEPT_HEADER_WORDS + to.listCap) * 4,
     from.listCap * 4,
   )
+  device.queue.writeBuffer(to.uniforms, viewWord('listCap') * 4, Uint32Array.of(to.listCap))
+  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG selection' })
+  to.rekeepPipelines.forEach((pipeline, l) => {
+    pass.setBindGroup(0, to.rankGroups[l])
+    pass.setPipeline(pipeline)
+    dispatchRows(pass, workgroupCount(from.listCap, WORKGROUP), 1, groupWidth(device.limits))
+  })
+  pass.end()
   device.queue.submit([encoder.finish()])
-}
-
-/** Grows the list to `state.grow`, and `out` to the regions the views aside ask, behind the
- *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
- *  cuts and reads again — on the grown list, or, refused, to coarsen the cut past it
- *  (`coarsening.ts`) and draw the views aside without a region. */
-function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
-  const { swap } = resources,
-    cap = Math.max(state.grow, resources.listCap),
-    regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
-  state.grow = 0
-  state.growing = true
-  state.pending = state.pending
-    .catch(() => {})
-    .then(async () => {
-      try {
-        if (await growDagList(resources, cap, regions, () => state.disposed)) return
-        if (cap > resources.listCap) state.listFull = true
-        if (regions > swap.regions) state.regionsFull = true
-      } finally {
-        state.growing = false
-        recutMain(swap, state)
-      }
-    })
-}
-
-/** True when the list must grow, or `out` must hold the saved regions the views aside ask. */
-const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
-  !!state.grow || (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
-
-/** True when no cut may run on the tables now: disposed, lost, or a list or regions to grow —
- *  which wait for the readbacks in flight, then grow (`queueDagListGrowth`): no frame cuts on the
- *  old ones. The main view's dispatch (`dispatch.ts`) and a view's aside (`aside.ts`) alike. */
-export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
-  if (state.disposed || state.dead || state.growing) return true
-  if (!growthAsked(resources, state)) return false
-  if (!state.mapped.includes(true)) queueDagListGrowth(resources, state)
-  return true
 }
 
 /** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference
@@ -194,4 +224,23 @@ export function rankGroups(resources: {
   const { layout, frames, group } = resources
   // The first range's group alone: the difference reads no primitive's words.
   return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
+}
+
+/**
+ * A maker of the buffers that replace `replaced`, each noted in `made`: one that would take the cut
+ * past its share — what it holds, less what it replaces, with what is made — is never made, and the
+ * growth is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+ */
+export function madeWithin(
+  resources: DagResources,
+  replaced: readonly GPUBuffer[],
+  made: GPUBuffer[],
+) {
+  const kept = cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0)
+  return (descriptor: GPUBufferDescriptor) => {
+    const held = kept + made.reduce((sum, buffer) => sum + buffer.size, 0)
+    const buffer = madeAsked(resources.device, resources.admit, held, resources.share, descriptor)
+    made.push(buffer)
+    return buffer
+  }
 }

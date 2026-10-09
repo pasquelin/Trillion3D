@@ -12,7 +12,8 @@ import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 export interface DrawCase {
   name: string
   items: DrawItem[]
-  /** The selection mask, one word per selection index; absent, every row is selected. */
+  /** The selection mask, one flag per selection index, sent a bit each as the cut writes it
+   *  (`compactWgsl.ts`); absent, every row is selected. */
   mask?: number[]
 }
 
@@ -46,8 +47,9 @@ export async function runCase(
   device.queue.writeBuffer(draw.restBitsBuffer, 0, rest)
   let selection: { maskBuffer: GPUBuffer; maskOffset: number } | undefined
   if (mask) {
-    const words = new Uint32Array(cap + MASK_OFFSET).fill(1)
-    words.set(mask, MASK_OFFSET)
+    const words = new Uint32Array(ceilDiv(cap, 32) + MASK_OFFSET).fill(0xffffffff)
+    const bits = words.subarray(MASK_OFFSET).fill(0)
+    mask.forEach((flag, index) => flag && setBit(bits, index))
     const maskBuffer = device.createBuffer({
       size: words.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,

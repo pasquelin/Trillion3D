@@ -14,9 +14,11 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
  * is served does not double the work. The list is sorted before it is served, because the residency
  * journal writes ranges only while the indices it is given increase.
  */
-export function createWebgpuRowClaims(pageCount: number) {
-  let marks = new Uint8Array(Math.max(1, pageCount))
-  let pages = new Int32Array(Math.max(1, pageCount))
+export function createWebgpuRowClaims() {
+  // A mark a page up to the largest one claimed, read with no probe as the serve passes; the list
+  // follows the pages waiting.
+  let marks = new Uint8Array(0)
+  let pages = new Int32Array(8)
   let count = 0
   return {
     get pages() {
@@ -27,11 +29,9 @@ export function createWebgpuRowClaims(pageCount: number) {
     },
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
-      if (page >= marks.length) {
-        marks = resized(marks, page + 1)
-        pages = resized(pages, marks.length)
-      }
+      if (page >= marks.length) marks = resized(marks, page + 1)
       if (marks[page]) return
+      if (count === pages.length) pages = resized(pages, count + 1)
       marks[page] = 1
       pages[count++] = page
     },

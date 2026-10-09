@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
-import { rootOf } from '../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../webgpu/shadow/rowBuffers.ts'
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts'
 import { transformAffinePoint, type SceneLight } from '../../../sdk-core/src/index.ts'
@@ -75,7 +75,7 @@ function casterRows({ rt }: Session) {
     spheres = new Float32Array(held(lights.spheres.buffer))
   return Array.from({ length: rows.packedCount }, (_, row) => {
     const rec = rows.packedRecs[row]!,
-      rank = placement.rootOfPacked[rows.packedPageIndex[row]],
+      rank = rootOfPacked(placement, rows.packedPageIndex[row]),
       at = row * CLUSTER_SPHERE_FLOATS
     return {
       url: rec.url,

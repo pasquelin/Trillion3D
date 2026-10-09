@@ -7,6 +7,7 @@ import { mockDagDevice } from '../../gpu/dag/selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { kernelUniforms, packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
 import { moveRoot } from '../../gpu/dag/pack.fixture.ts'
+import { pageResidency } from '../../gpu/dag/readiness.fixture.ts'
 
 // A loaded model moved on every frame. A move that dropped the cut in hand and
 // every readback in flight would adopt no cut, leave `selectedTriangles` at 0 and the terrain
@@ -23,7 +24,7 @@ async function bench() {
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
   assert.ok(selection)
-  selection.updateResidency(new Uint32Array(dag.pageCount).fill(1))
+  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
   const { adopter } = mountCutAdopter({
     packedPages: fixturePages(dag.pageCount),
     uniforms,

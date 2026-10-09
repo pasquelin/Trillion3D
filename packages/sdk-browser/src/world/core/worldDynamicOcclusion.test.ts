@@ -42,7 +42,7 @@ async function recordsOf(source: ExplorerSource) {
     locationOf = (pages: readonly PageRec[]): PageLocations => ({
       roots,
       packed: pages.map(packedOf),
-      rootOfPacked: placement.rootOfPacked,
+      placement,
     })
   const records = allPages as (PageRec & { array: Uint32Array })[]
   return { records, locations: locationOf(records), locationOf }

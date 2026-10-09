@@ -1,4 +1,5 @@
 import { deviceMade } from '../../gpu/core/errorScope.ts'
+import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../../gpu/page/resize.ts'
 import { tilePoolTexture } from '../tile/pool.ts'
 import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts'
@@ -39,11 +40,31 @@ async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   diagnose: Diagnose
 }): Promise<Granted<P, R> | undefined> {
   const { device, name, draw, make, diagnose } = options
-  let pool = draw(options.budgetBytes)
+  try {
+    return await grantedWithin(device, name, draw(options.budgetBytes), draw, make, diagnose)
+  } catch (error) {
+    // The budget refused the pool beside what it holds: no device memory was refused, so no
+    // smaller pool is drawn, and the pool in place stays — the session is never refused for it.
+    if (budgetRefused(error)) return undefined
+    throw error
+  }
+}
+
+/** `grantedPool`'s halvings from `pool`, each asked of the device under the budget, tentatively
+ *  (`ledgerTentative`): a budget refusal throws, the device's halves the pool. */
+async function grantedWithin<P extends ShrunkPool, R extends Made>(
+  device: GPUDevice,
+  name: RefusedPool,
+  first: P,
+  draw: (budgetBytes: number) => P,
+  make: (pool: P) => R,
+  diagnose: Diagnose,
+): Promise<Granted<P, R> | undefined> {
+  let pool = first
   const requestedBytes = pool.allocatedBytes
   let made: R | undefined,
     halvings = 0
-  while (!(made = await deviceMade(device, () => make(pool)))) {
+  while (!(made = await deviceMade(device, () => ledgerTentative(device, () => make(pool))))) {
     const smaller = halvedPool(pool, draw)
     if (!smaller) {
       const refused = outOfMemoryContext(name, requestedBytes)

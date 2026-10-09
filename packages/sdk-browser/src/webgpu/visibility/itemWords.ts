@@ -5,6 +5,7 @@ import { visBin } from '../pages/prepare/pipelineFor.ts'
 import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
@@ -70,7 +71,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32,
-      rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]]
+      rank = rootOfPacked(rt.layout.placement, rows.packedPageIndex[row])
     const cull = visBin(rec, rank, rt.layout.selectionRoots)
     drawItemWords[word] = row
     // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads.

@@ -47,7 +47,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   // The hardware raster is the producer of the opaque image: the cut reaches it through the image
   // mask, which its indirect commands consume as instances. The compute raster is not created in
   // production — no binning, no opaque compute capability.
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
   const vis = indirectDraws(draws)
   assert.equal(
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
@@ -84,7 +84,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   backend.render(camera())
   // The two bins — front-only and double-sided — hold two indirect commands on a shared page
   // table, and read the SAME image mask.
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
   assert.equal(computes.includes('bin'), false)
   const vis = indirectDraws(draws)
   assert.ok(vis.length >= 2)

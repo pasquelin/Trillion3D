@@ -7,6 +7,7 @@ import { noteWhole } from './swap.ts'
 import { recutView } from './runtimeState.ts'
 import { createCoarsening } from './coarsening.ts'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
+import { widerFlagShape } from './queueGrowth.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
@@ -98,7 +99,7 @@ async function readAsideSlot(
     drawn = SELECTION_HEADER_WORDS + ranks
   try {
     if (slots.disposed) return
-    const { parsed, demand, grown, moved, retried } = await readDagSlot(
+    const { parsed, demand, grown, grownFlags, moved, retried } = await readDagSlot(
       own.buffers[i],
       {
         bytes: drawn * 8 + ADMISSION_BUCKETS * 4,
@@ -109,10 +110,16 @@ async function readAsideSlot(
       },
       {
         limits: resources.device.limits,
+        heldSlots: resources.heldSlots,
         pageCount: resources.pageCount,
         listFull: state.listFull,
         coarse: slots.coarse,
         cutFactor: read.captured.coarsen,
+        flags: {
+          shape: resources.flagShape,
+          entryCount: resources.entryCount,
+          full: state.flagsFull,
+        },
       },
     )
     // The next copy follows what the cut asks, twice it, within the list.
@@ -120,10 +127,13 @@ async function readAsideSlot(
       slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
     // A cut past its list grows it, as the main cut's does (`listCap.ts`).
     if (grown) state.grow = Math.max(state.grow, grown)
+    // A cut that dropped work grows the queues or lists it filled, as the main cut's does
+    // (`queueGrowth.ts`), and is never adopted.
+    if (grownFlags) state.growFlags = widerFlagShape(state.growFlags, grownFlags)
     // Past the device, its cut coarsens and the view cuts again, its truncated readout adopted
     // never; the factor follows the readouts cut under it alone.
     if (moved) recutView(resources.swap, own.view)
-    if (retried && !grown) return
+    if (retried && (!grown || parsed?.dropped)) return
     // Lists copied short of the cut are copied again at their size; a residency moved since names
     // pages the mask no longer draws: the next cut will.
     const whole = demand <= ranks || ranks === listCap

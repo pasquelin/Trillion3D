@@ -5,6 +5,7 @@ import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/
 import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
+import { maskBit } from './globals.ts'
 import {
   KEY_HAS_BOX,
   KEY_RECORD_WORDS,
@@ -30,7 +31,7 @@ function simulateTransparentCompaction(bind: ComputeBind) {
     entryCount: uni[0],
     itemCount: uni[2],
     vertexCount: uni[4],
-    selected: (cluster) => mask[uni[3] + cluster] !== 0,
+    selected: (cluster) => maskBit(mask, uni[3], cluster),
   })
   words(byBinding.get(5)!.data).set(result.instances.subarray(0, uni[0]))
   words(byBinding.get(6)!.data).set(result.indirect)

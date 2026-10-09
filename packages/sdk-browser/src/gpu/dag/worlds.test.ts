@@ -80,7 +80,7 @@ test('a single resized primitive is the only one recomputed, to the float', () =
   assert.equal(refresh(previous, next, packed, frameData), 1)
   assert.equal(stretched[0], 2, 'the resized one listed')
   assert.deepEqual([...packed.worldStretch], [...reference(next)])
-  assert.equal(frameData[(2 * FRAME_VEC4 + 6) * 4], reference(next)[2])
+  assert.equal(frameData[2 * FRAME_VEC4 * 4], reference(next)[2])
 })
 
 test('changedWorlds lists the rows whose read words moved; a translation alone moves none', () => {

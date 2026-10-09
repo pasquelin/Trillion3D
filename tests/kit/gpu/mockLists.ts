@@ -1,3 +1,4 @@
+import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 // The double's kernels over the cut's lists, the readout and the journals: each kept list's
 // difference and keep (`gpu/dag/difference.fixture.ts`), and the mask swap
 // (`gpu/dag/shader/swapWgsl.ts`). The double's `dagMask` writes the whole mask and keeps no journal,
@@ -12,6 +13,7 @@ import {
   mirrorDifferenceStage,
 } from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
 import { words } from './mockBuffers.ts'
+import { drawMask } from './globals.ts'
 
 /** Every kernel this file mirrors. */
 export const LIST_KERNELS: readonly string[] = [
@@ -27,7 +29,7 @@ const regions = new WeakMap<Uint8Array, Uint32Array[]>()
 export function mirrorListStage(
   stage: string,
   byBinding: ReadonlyMap<number, { data: Uint8Array }>,
-  dag: Pick<PackedDag, 'nodeCount' | 'pageCount'>,
+  dag: Pick<PackedDag, 'pageCount'>,
   listCap: number,
 ) {
   if (mirrorDifferenceStage(stage, words(byBinding.get(DAG_BINDING.out)!.data), listCap))
@@ -36,10 +38,10 @@ export function mirrorListStage(
   const views = words(byBinding.get(DAG_BINDING.views)!.data),
     save = views[viewWord('swapRegions')] & 0xffff,
     restore = views[viewWord('swapRegions')] >>> 16
-  const flags = byBinding.get(DAG_BINDING.flags)!.data,
-    mask = words(flags).subarray(dag.nodeCount, dag.nodeCount + dag.pageCount)
-  const held = regions.get(flags) ?? []
-  regions.set(flags, held)
+  const work = byBinding.get(DAG_BINDING.work)!.data,
+    mask = drawMask(work, dag.pageCount).subarray(0, bitWords(dag.pageCount))
+  const held = regions.get(work) ?? []
+  regions.set(work, held)
   if (stage === 'dagClearDrawn' && save !== REGION_NONE) held[save] = mask.slice()
   if (stage === 'dagRestoreJournal' && held[restore]) mask.set(held[restore])
   return true

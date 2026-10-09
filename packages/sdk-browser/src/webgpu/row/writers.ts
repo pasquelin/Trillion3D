@@ -29,7 +29,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
     rows.rowPageIndex[row] = page
     rows.rowOffsetWords[row] = offsetWords
     rows.rowEpoch[row] = rows.tableEpoch
-    rows.rowOfPage[page] = row
+    rows.setRowOf(page, row)
     state.changed = true
     writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!)
   }
@@ -47,7 +47,7 @@ export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writeP
     rows.rowPageIndex[to] = page
     rows.rowOffsetWords[to] = rows.rowOffsetWords[from]
     rows.rowEpoch[to] = rows.rowEpoch[from]
-    rows.rowOfPage[page] = to
+    rows.setRowOf(page, to)
     rows.markRowDirty(to)
     state.changed = true
   }

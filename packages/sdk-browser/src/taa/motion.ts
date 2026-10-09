@@ -8,6 +8,7 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { type MatrixElements } from '../host/matrixElements.ts'
+import { createDenseKeySet } from '../webgpu/cut/denseKeys.ts'
 
 /** What a placement's motion asks of a root: its host world matrix. */
 export type MotionRoot = { world: MatrixElements }
@@ -18,7 +19,9 @@ export type MotionRoot = { world: MatrixElements }
  * for one that moved since the last accumulated frame. The entry exists for every root, but
  * only those that move are rewritten, and reset to identity the frame after.
  * A CPU mirror holds the whole buffer; a frame only sends the range it touched,
- * in a single write.
+ * in a single write. Told which roots moved (`noteMoved`, `../webgpu/pages/render/worldUpload.ts`),
+ * a frame reads those alone — a reset takes their poses as the reference, an update compares
+ * them —, never the world's placements; never told, it scans every root as it must.
  *
  * Eye anchoring follows the partition: the position the pass reprojects is relative to the
  * frame's eye, so `M` is written `T(−eye) · M · T(eye)`, of which only the translation column
@@ -56,6 +59,17 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   size()
   /** Roots whose entry is not identity. */
   const moved: number[] = []
+  /** Roots whose pose moved since the last accumulated frame, as the poses' writer told; whether
+   *  it tells at all. */
+  const noted = createDenseKeySet()
+  let told = false
+  /** Each root `visit` reads: those told, else every one. */
+  const each = (visit: (w: number) => void) => {
+    if (!told) for (let w = 0; w < roots.length; w++) visit(w)
+    else
+      for (let i = 0; i < noted.count; i++) if (noted.list[i] < roots.length) visit(noted.list[i])
+    noted.clear()
+  }
   const current = new Float64Array(16),
     held = new Float64Array(16),
     motion = new Float64Array(16)
@@ -99,11 +113,11 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
      */
     update(eye: ArrayLike<number>, scan: boolean) {
       clearMoved()
-      if (scan)
-        for (let w = 0; w < roots.length; w++) {
+      if (scan || told)
+        each((w) => {
           const elements = roots[w].world.elements,
             at = w * 16
-          if (sameElements(previous, elements, at)) continue
+          if (sameElements(previous, elements, at)) return
           current.set(elements)
           invertMatrix4(current, current)
           copyMatrix4(held, previous, 0, at)
@@ -114,8 +128,13 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
           previous.set(elements, at)
           moved.push(w)
           touch(w)
-        }
+        })
       flush()
+    },
+    /** The roots `ranks` moved: the next frame reads them alone (`each`). */
+    noteMoved(ranks: ArrayLike<number>) {
+      told = true
+      for (let i = 0; i < ranks.length; i++) noted.add(ranks[i])
     },
     /** The pose root `w` was last accumulated at, which its next world is compared with. */
     poseOf(w: number) {
@@ -125,7 +144,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
     reset() {
       clearMoved()
       flush()
-      rememberPoses()
+      each((w) => previous.set(roots[w].world.elements, w * 16))
     },
     dispose() {
       buffer!.destroy()

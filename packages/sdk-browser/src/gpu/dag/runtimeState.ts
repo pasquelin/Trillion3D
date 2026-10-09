@@ -2,6 +2,7 @@ import type { GpuCut } from '../core/selection.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
 import { MAIN_VIEW, type CutStamp, type MaskSwap } from './swap.ts'
 import { createCoarsening, type Coarsening } from './coarsening.ts'
+import type { FlagShape } from './flagSections.ts'
 
 /** What a camera cut's dispatches, readbacks and views aside share (`runtime.ts`). */
 export type DagRuntimeState = {
@@ -26,6 +27,14 @@ export type DagRuntimeState = {
   growing: boolean
   /** The device refused a larger list: a truncated readout now coarsens the cut (`listCap.ts`). */
   listFull: boolean
+  /** The queues and lists a cut that dropped work asked for, taken once no readback is in flight
+   *  (`queueGrowth.ts`); none asked. */
+  growFlags?: FlagShape
+  /** The device refused larger queues or lists: a cut that drops work now coarsens. */
+  flagsFull: boolean
+  /** The slots of open counts the row cache's growth asked (`queueGrowth.ts`, `followRows`); 0:
+   *  none. */
+  growHeld: number
   /** What the factor the main view's threshold is cut under follows (`coarsening.ts`): 1 but
    *  past the list the device holds. */
   coarse: Coarsening
@@ -50,6 +59,9 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   grow: 0,
   growing: false,
   listFull: false,
+  growFlags: undefined,
+  flagsFull: false,
+  growHeld: 0,
   coarse: createCoarsening(),
   factorMoved: false,
   regionsFull: false,

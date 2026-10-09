@@ -7,8 +7,8 @@
  * it or not. The tree puts two levels of the same `CullNode`s above them, in the same descent, no
  * second traversal: an instance GROUP bounds up to `TREE_SPAN` placements, a CELL up to `TREE_SPAN`
  * nodes of the level below. Its top level starts the descent; a kept group deposits its placements,
- * each prepared then where it is read (`placementTreeWgsl.ts`), and a rejected one costs its members
- * nothing. Every placement but the world DAG's is a member, wherever it sits in the packing, and
+ * each read where the descent reaches it (`placementTreeWgsl.ts`), and a rejected one costs its
+ * members nothing. Every placement but the world DAG's is a member, wherever it sits in the packing, and
  * the tree is laid out for the packing's capacity: the placements a growth appends in place fill
  * new groups in the order the full build gives them (`joinPlacementTree`), its nodes kept at the
  * end of the node table.

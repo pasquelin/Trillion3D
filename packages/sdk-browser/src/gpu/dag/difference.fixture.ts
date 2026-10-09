@@ -11,7 +11,7 @@ import {
   keptSnapshotWord,
 } from './layout.ts'
 import { SELECTION_NONE } from '../core/selection.ts'
-import { DIFFERENCE_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
+import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** `list`'s difference against `kept`: the rank each page held there, or none. */
 export function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
@@ -55,8 +55,13 @@ function keepSnapshot(out: Uint32Array, listCap: number) {
   out.set(drawn.now, kept + KEPT_HEADER_WORDS + listCap)
 }
 
-/** Every kernel of the difference: each list's, then each list's keep. */
-export const DIFFERENCE_KERNELS: readonly string[] = [...DIFFERENCE_STAGES, ...KEEP_STAGES]
+/** Every kernel of the difference: each list's, then each list's keep, and each kept list ranked
+ *  again in a grown readout — which the map, read off the kept list, needs not. */
+export const DIFFERENCE_KERNELS: readonly string[] = [
+  ...DIFFERENCE_STAGES,
+  ...KEEP_STAGES,
+  ...REKEEP_STAGES,
+]
 
 /** The mirror of kernel `stage` on `out`, true when it is one of the difference kernels: both lists
  *  at once on the first list's, which run before the second's (`../encode.ts`). */

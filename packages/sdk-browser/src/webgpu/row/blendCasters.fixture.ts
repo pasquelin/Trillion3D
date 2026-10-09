@@ -8,6 +8,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
+import { pageAddress } from './pageSlots.ts'
 
 export const STRIDE = PAGE_INFO_STRIDE / 4
 /** One level-0 root cluster, the blend fixture's first, at the address `url`. */
@@ -62,7 +63,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
     (packed) => packed,
   )
   pages.forEach((_, page) => {
-    rows.residentOffsetWords[page] = page * 16
+    rows.setAddressOffset(pageAddress(pages[page]), page * 16)
     rows.touchPage(page)
   })
   const restaled: PageRec[] = []

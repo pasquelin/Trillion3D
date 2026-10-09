@@ -64,6 +64,7 @@ function encodeOnce(
     maskPipeline,
     drawPrefixPipeline,
     drawScatterPipeline,
+    commitPipeline,
     requestSortPipeline,
     evictPipeline,
   } = resources
@@ -103,7 +104,7 @@ function encodeOnce(
       perRangeIndirect(pass, ranges, pipeline, dispatchArgs, DAG_ARGS.queues[level % 3])
       continue
     }
-    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.nodeCount))
+    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.entryCount))
   }
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)
@@ -125,6 +126,10 @@ function encodeOnce(
   pass.dispatchWorkgroups(1)
   pass.setPipeline(drawScatterPipeline)
   pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
+  // The cut's mask and drawn log become the frame's, unless it dropped work: a thread a word of
+  // the masks (`shader/commitWgsl.ts`).
+  pass.setPipeline(commitPipeline)
+  dispatchRows(pass, Math.max(1, workgroupCount(2 * resources.blockCount, WORKGROUP)), 1, width)
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(evictPipeline)

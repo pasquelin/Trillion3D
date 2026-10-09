@@ -31,6 +31,9 @@ export type LedgerBooks = {
   liveBytes: number
   refusal: Error | undefined
   tentative: number
+  /** Bytes the allocation in hand replaces (`GpuDeviceLedger.replacing`): freed once it is made
+   *  and filled, so the limit admits it as if they were already gone. */
+  replacing: number
   admissions: Set<Admission>
   transactions: Set<Set<{ destroy(): void }>>
   /** The snapshot is read every host frame, held frame included: it is rebuilt only after an
@@ -45,7 +48,7 @@ export type LedgerBooks = {
  *  ledger's `tentative`, or under its base's — so no budget it crosses is refused. */
 export function checkAllocation(books: LedgerBooks, bytes: number, label: string, held = false) {
   const soft = held || books.tentative > 0
-  const total = books.liveBytes + (books.base?.bytes ?? 0) + bytes
+  const total = books.liveBytes + (books.base?.bytes ?? 0) + bytes - books.replacing
   const ceiling = books.limit?.()
   if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
     const error = new Error(

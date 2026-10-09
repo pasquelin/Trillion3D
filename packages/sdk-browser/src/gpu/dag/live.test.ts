@@ -39,6 +39,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagRootLevel',
     'dagLevel1',
     'dagDrawPrefix',
+    'dagCommitMask',
     'dagSortRequests',
     'dagListEvictions',
   ])
@@ -48,9 +49,9 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   const { encoder, dispatches } = witnessEncoder()
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cutResources())
   // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
-  // request sort and the eviction queue: the cut rule decides each cluster once, in the mask, with
-  // no round per primitive before it.
-  assert.equal(dispatches.length, 11)
+  // commit of the cut's mask, the request sort and the eviction queue: the cut rule decides each
+  // cluster once, in the mask, with no round per primitive before it.
+  assert.equal(dispatches.length, 12)
   const kernels = dispatches.map((l) => l.kernel)
   assert.ok(!kernels.includes('dagArgs') && !kernels.includes('dagDrawCount'))
   assert.equal(kernels[0], 'dagClearDrawn')

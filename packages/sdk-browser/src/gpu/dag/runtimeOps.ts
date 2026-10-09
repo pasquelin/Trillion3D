@@ -3,7 +3,7 @@ import {
   type ResidencyChanges,
   type SelectionUniforms,
 } from '../core/selection.ts'
-import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import type { DagRoot } from './types.ts'
 import {
   refreshMovedStretch,
   changedWorlds,
@@ -21,10 +21,10 @@ import type { createDagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './worldMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
-import { keyBase } from './layout.ts'
 import { writeParts } from './split.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
+import type { PageResidency } from '../core/selection.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -183,7 +183,7 @@ export function appendRoots(
 /** `GpuSelection.updateResidency`: the pool's residency, through the world mirror when one packs. */
 export function updateRuntimeResidency(
   { resources, state, uploadResidency, mirror, links }: DagRun,
-  next: Uint32Array,
+  next: PageResidency,
   changes?: ResidencyChanges,
   moved?: (page: number) => void,
 ) {
@@ -231,12 +231,13 @@ export async function flushRuntime(
   cut: (uniforms: SelectionUniforms) => void,
 ) {
   await state.pending
-  // A cut past its list grows it, or past the device coarsens (`listCap.ts`): the drain grows it,
-  // then cuts again on it, rather than hand back the cut before; a factor that moved back cuts
-  // again under it too. It rises √2 at least to its coarsest, and falls only to a factor that did
-  // not overflow for the view as it stands (`coarsening.ts`): the drain ends.
+  // A cut past its list grows it, a cut that dropped work its queues or lists (`queueGrowth.ts`),
+  // or past the device it coarsens (`listCap.ts`): the drain grows them, then cuts again on them,
+  // rather than hand back the cut before; a factor that moved back cuts again under it too. It
+  // rises √2 at least to its coarsest, and falls only to a factor that did not overflow for the
+  // view as it stands (`coarsening.ts`): the drain ends.
   const { cuts } = resources.swap
-  const again = () => (state.grow || state.factorMoved) && !state.dead
+  const again = () => (state.grow || state.growFlags || state.factorMoved) && !state.dead
   for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again();) {
     cut(asked)
     await state.pending
@@ -259,22 +260,16 @@ export async function flushRuntime(
   return last?.worldRevision === state.worldRevision ? last.result : null
 }
 
-/** What `appendDagRoots` wrote, sent: the appended nodes, their pages' placement words and content
- *  keys, their primitives' frame rows, worlds and origins, and the placement tree's nodes and member
- *  words they joined. Nothing else of the tables moved. */
+/** What `appendDagRoots` wrote, sent: the appended placements' frame rows, worlds and origins, and
+ *  the placement tree's nodes and member words they joined. Nothing else of the tables moved: their
+ *  nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
-    cones = packed.pageCones,
-    nodeBytes = DAG_NODE_FLOATS * 4
+    cones = packed.pageCones
   const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
     bytes > 0 &&
     writeParts(device, target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
-  const [n0, n1] = added.nodes,
-    [p0, p1] = added.pages,
-    [w0, w1] = added.worlds
-  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
-  send(coldParts, cones, p0 * 4, (p1 - p0) * 4)
-  send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
+  const [w0, w1] = added.worlds
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
   // The tree nodes joined, in the run writer's ranges.

@@ -44,8 +44,8 @@ function dynamicRoots(pages = 1, shared = 1, transparent = false) {
     each = Int32Array.from({ length: rows }, (_, i) => i)
   Object.assign(layout.rows, {
     pageTableFloats: new Float32Array(rows * 64),
-    rowOfPage: each,
-    blendRowOf: each,
+    rowOf: (page: number) => each[page] ?? -1,
+    blendRowOf: (page: number) => each[page] ?? -1,
     packedPageIndex: each,
     packedCount: rows,
     markRowWords: (row: number) => void marked.push(row),
@@ -85,7 +85,7 @@ test('only the rows and transparent entries whose box moved travel again, on eve
   Object.assign(rt.blendState, {
     occlusionEpoch: 7,
     occlusionMoved: moved,
-    table: { entryOfPage: Int32Array.of(10, 11, 12, 20, 21, 22) },
+    table: { entryOf: (page: number) => [10, 11, 12, 20, 21, 22][page] ?? -1 },
   })
   const boxes = box(0, 0, 0, 1, 1, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 3, 1, 1)
   noteRewritten(rt, attributes, EMPTY, 0, boxes)

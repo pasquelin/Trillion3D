@@ -1,63 +1,49 @@
 import { InvT3, invTranspose3Prep } from '../../../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
-import { PRIMITIVE_VEC4 } from '../types.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 
 /**
- * What a camera cut derives once per primitive and frame, not once per node or page it visits.
+ * WHAT A CUT READS OF A PLACEMENT, made where it is read: no block is stored per placement beyond
+ * the host's words and its pose (`../worlds.ts`, `worldPoseWgsl.ts`), so a placement no kept group
+ * holds costs nothing, and one the descent visits pays for what it reads.
  *
- * `dagPrepare` already brings the frustum planes into each primitive's space (`shader.ts`). Behind
- * the first row of slots of `frames`, it also leaves, for each primitive of a camera cut:
- * - `view · world`, the matrix every screen error projects through (`projected`), for the camera
- *   and for the view ahead — a 4x4 product each node of the descent and each page would redo;
- * - the normal matrix of the world's 3x3, prepared as `invTranspose3Prep` prepares it, and whether
- *   the 3x3 is conformal (`isConformal`), the two things the normal cone reads of the primitive;
- * - the view ahead's six planes in the primitive's space (`aheadWgsl.ts`), as the camera's own;
- * - its world's translation at the eye (`worldPose`), the one subtraction of the eye a primitive
- *   pays: the normal cone reads it for each of its pages (`preparedPose`).
- * Each camera expression keeps its operands and order.
+ * A thread reads one placement at a time — a node's, a page's —, so its pose at the eye is made
+ * once for it and kept in the thread (`placed`): the frustum planes brought into its space, one
+ * plane at a time as the box test asks (`planeOf`), `view · world` for the screen error, and its
+ * 3x3's normal matrix and conformity for the normal cone. Reading a stored block of these costs
+ * more than making them from the 48 bytes of the pose (measured on Dawn, Metal: 0.25 ms read, 0.15
+ * ms made, 2.8 M visits over 250 k placements). Each expression keeps its operands and order.
  */
 export const DAG_PRIMITIVE_WGSL = wgslBlock(
   'DAG_PRIMITIVE_WGSL',
-  [InvT3, worldMatrix3, invTranspose3Prep],
-  `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
-/** Offsets inside a primitive's values: the two \`view · world\`, the normal matrix, the planes ahead. */
-const CAMERA_E:u32=0u;const AHEAD_E:u32=4u;const NORMAL:u32=8u;const AHEAD_PLANES:u32=11u;const AT_EYE:u32=17u;
-/** First vec4 of primitive \`w\`'s values, behind the range's row of slots. Camera cut only. */
-fn primitiveBase(w:u32)->u32{return rangeCount()*FRAME+rowOf(w)*PRIMITIVE;}
-fn putMatrix(at:u32,m:mat4x4f){frames[at]=m[0];frames[at+1u]=m[1];frames[at+2u]=m[2];frames[at+3u]=m[3];}
+  [InvT3, worldMatrix3, invTranspose3Prep, boxBehindPlane],
+  `/** The placement this thread reads, its world at the eye and that world transposed. */
+var<private> placedW:u32=0xffffffffu;
+var<private> placedPose:mat4x4f;
+var<private> placedT:mat4x4f;
+/** Placement \`w\`'s pose at the eye, made once for the thread (\`worldPose\`). */
+fn placed(w:u32){if(placedW!=w){placedW=w;placedPose=worldPose(w);placedT=transpose(placedPose);}}
 /** \`view · world\` of primitive \`w\` under the current view \`vi\`. */
-fn viewWorld(w:u32)->mat4x4f{
- let at=primitiveBase(w)+select(CAMERA_E,AHEAD_E,vi==AHEAD_VIEW);
- return mat4x4f(frames[at],frames[at+1u],frames[at+2u],frames[at+3u]);
+fn viewWorld(w:u32)->mat4x4f{placed(w);return views[select(0u,AHEAD_VIEW,vi==AHEAD_VIEW)].view*placedPose;}
+/** The normal matrix of primitive \`w\`, prepared: \`invTranspose3Apply\` of it is \`inverseTranspose3\`. */
+fn normalOf(w:u32)->InvT3{placed(w);return invTranspose3Prep(worldMatrix3(placedPose));}
+fn conformalOf(w:u32)->bool{placed(w);return isConformal(worldMatrix3(placedPose));}
+/** Primitive \`w\`'s world at the eye (\`worldPose\`). */
+fn preparedPose(w:u32)->mat4x4f{placed(w);return placedPose;}
+/** Plane \`i\` of view \`v\` in placement \`w\`'s space, moved out by its deformation reach; a
+ *  primitive no camera culls (\`unculledOf\`) takes a plane no box leaves. */
+fn planeOf(w:u32,v:u32,i:u32)->vec4f{
+ placed(w);
+ return select(grownPlane(placedT*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));
 }
-/** The prepared normal matrix of primitive \`w\`: \`invTranspose3Apply\` of it is \`inverseTranspose3\`. */
-fn normalOf(w:u32)->InvT3{
- let at=primitiveBase(w)+NORMAL;let a=frames[at];let b=frames[at+1u];let c=frames[at+2u];
- return InvT3(mat3x3f(a.xyz,b.xyz,c.xyz),a.w,b.w!=0.0);
-}
-fn conformalOf(w:u32)->bool{return frames[primitiveBase(w)+NORMAL+2u].w!=0.0;}
-/** Primitive \`w\`'s world at the eye as \`dagPrepare\` read it: the matrices' linear part, the
- *  translation it prepared (\`AT_EYE\`), the same bits as \`worldPose\`. */
-fn preparedPose(w:u32)->mat4x4f{
- let at=rowOf(w)*4u;
- return mat4x4f(bitcast<vec4f>(worlds[at]),bitcast<vec4f>(worlds[at+1u]),bitcast<vec4f>(worlds[at+2u]),frames[primitiveBase(w)+AT_EYE]);
-}
-/** First of the view ahead's six planes in primitive \`w\`'s space. */
-fn aheadPlanes(w:u32)->u32{return primitiveBase(w)+AHEAD_PLANES;}
-/** \`dagPrepare\`'s share for primitive \`w\` of a camera cut, on the world and transposed world \`t\`
- *  it already read. A primitive no camera culls (\`open\`) takes six planes ahead no box leaves. */
-fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
- let at=primitiveBase(w);
- frames[at+AT_EYE]=world[3];
- putMatrix(at+CAMERA_E,views[0u].view*world);
- let m=worldMatrix3(world);let n=invTranspose3Prep(m);
- frames[at+NORMAL]=vec4f(n.adj[0],n.scale);
- frames[at+NORMAL+1u]=vec4f(n.adj[1],select(0.0,1.0,n.regular));
- frames[at+NORMAL+2u]=vec4f(n.adj[2],select(0.0,1.0,isConformal(m)));
- if(!aheadOn()){return;}
- putMatrix(at+AHEAD_E,views[AHEAD_VIEW].view*world);
- putPlanes(at+AHEAD_PLANES,t,AHEAD_VIEW,open);
+/** Frustum planes are brought into the primitive's space, so no box is ever transformed. GPU
+ *  mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same
+ *  corners, same sum. An infinite far plane is not tested (\`farlessOf\`): it rejects no box. */
+fn outsideFrustum(w:u32,v:u32,bmin:vec3f,bmax:vec3f)->bool{
+ let skip=select(6u,FAR_PLANE,farlessOf(v));
+ for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(planeOf(w,v,i),bmin,bmax)){return true;}}
+ return false;
 }
 `,
 )

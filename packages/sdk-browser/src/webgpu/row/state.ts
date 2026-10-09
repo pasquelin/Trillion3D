@@ -4,7 +4,8 @@ import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.t
 import { pageAddress } from './pageSlots.ts'
 import { flatInstances, type PackedInstances } from './instances.ts'
 import { createDirtyRows } from './dirty.ts'
-import { growRowState, widened } from './grow.ts'
+import { growRowState } from './grow.ts'
+import { createRowPageState } from './pageState.ts'
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
  *
@@ -37,7 +38,8 @@ export function createWebgpuRowState(
     /** A record's packed ranks all share its pool address: the address's first rank names it. A
      *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
     pageIndexOf: (rec: PageRec) => instances.first(pageAddress(rec)),
-    ...rowArrays(packedPages.length, drawSlots, casterSlots),
+    ...createRowPageState(createPageCatalogue(packedPages).recordOf, () => packedPages.length),
+    ...rowArrays(drawSlots, casterSlots),
     ...rowCounters(),
     /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
     markRowDirty: dirtyRows.mark,
@@ -45,7 +47,7 @@ export function createWebgpuRowState(
     markRowWords: dirtyRows.markWords,
     /** Packed page `page`'s readiness moved: its row, if it has one, is written again. */
     markRowOfPage: (page: number) => {
-      const row = state.rowOfPage[page]
+      const row = state.rowOf(page)
       if (row >= 0) dirtyRows.markWords(row)
     },
     clearDirty: dirtyRows.clear,
@@ -75,19 +77,14 @@ export function createWebgpuRowState(
   return state
 }
 
-/** The per-page arrays, over `pages` catalogue pages, and the per-row ones, over `drawSlots`
- *  visibility rows and `casterSlots` rows in all. */
-function rowArrays(pages: number, drawSlots: number, casterSlots: number) {
+/** The per-row arrays, over `drawSlots` visibility rows and `casterSlots` rows in all: nothing per
+ *  page (`pageState.ts`). */
+function rowArrays(drawSlots: number, casterSlots: number) {
   return {
-    /** Per catalogue page, the shadow-only row a blended cluster casts from, or -1. */
-    blendRowOf: new Int32Array(pages).fill(-1),
-    residentFlags: new Uint32Array(pages),
-    residentOffsetWords: new Int32Array(pages).fill(-1),
     rowPageIndex: new Int32Array(drawSlots).fill(-1),
     rowOffsetWords: new Int32Array(drawSlots).fill(-1),
     rowEpoch: new Int32Array(drawSlots),
     packedPageIndex: new Int32Array(casterSlots),
-    rowOfPage: new Int32Array(pages).fill(-1),
     packedRecs: new Array<PageRec | undefined>(casterSlots).fill(undefined),
   }
 }
@@ -116,24 +113,12 @@ function rowCounters() {
 
 /**
  * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): `instances` indexes the
- * new roots, and the per-page arrays take the new pages, each with the pool slot the page at its
- * address holds — no residency flag and no row yet —, each named to the journal so the row cache
- * serves it as any arrival.
+ * new roots, and each new page — reading the pool slot its address holds, no residency flag and no
+ * row yet (`pageState.ts`) — is named to the journal so the row cache serves it as any arrival.
  */
 function addRowPages(state: RowState, packedPages: PageList, first: number) {
-  const { instances } = state
-  instances.add()
-  const n = packedPages.length,
-    { recordOf } = createPageCatalogue(packedPages)
-  state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0)
-  state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1)
-  state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1)
-  state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1)
-  for (let page = first; page < n; page++) {
-    const sibling = instances.first(pageAddress(recordOf(page)!))!
-    state.residentOffsetWords[page] = state.residentOffsetWords[sibling]
-    state.touchPage(page)
-  }
+  state.instances.add()
+  for (let page = first; page < packedPages.length; page++) state.touchPage(page)
 }
 
 type RowState = ReturnType<typeof createWebgpuRowState>

@@ -97,7 +97,7 @@ test('the table is the source draw order, the culling walk separating equal rank
   // Rank 4 first, then the three that share rank 7 in the order the walk reaches them.
   assert.deepEqual([...table.entries.subarray(0, 4)], [3, 2, 0, 1])
   assert.deepEqual([...table.entries.subarray(TRANSPARENT_GROUP, TRANSPARENT_GROUP + 2)], [5, 4])
-  assert.equal(table.entryOfPage[3], 0)
+  assert.equal(table.entryOf(3), 0)
   assert.equal(table.maxVertexWords, 3)
 })
 

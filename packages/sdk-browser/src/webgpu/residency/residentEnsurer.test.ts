@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 
-/** A cache of three slots all pinned: the fourth page cannot enter. */
-function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED') {
+/** A cache of three slots all pinned: the fourth page cannot enter. `spare` slots it says it has
+ *  beside them: a load then fails by `error` alone. */
+function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED', spare = 0) {
   const held = new Set(resident)
   return {
     get: (url: string) => (held.has(url) ? { key: url } : undefined),
@@ -13,6 +14,7 @@ function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED') {
       held.add(url)
     },
     pin() {},
+    unpinnedSlots: () => 3 - held.size + spare,
   }
 }
 
@@ -31,7 +33,7 @@ test('a full pool stops the burst without dropping the image; any other error bu
   assert.ok(cache.get('c'))
   assert.equal(cache.get('d'), undefined)
   await assert.rejects(
-    ensurer(tracking, saturatedCache(['a', 'b', 'c'], 'WEBGPU_LOST'))([pages[3]], 2, 2),
+    ensurer(tracking, saturatedCache(['a', 'b', 'c'], 'WEBGPU_LOST', 1))([pages[3]], 2, 2),
     /WEBGPU_LOST/,
   )
 })
@@ -89,6 +91,7 @@ test('a burst of pages the pool holds settles in a few microtasks, none admitted
       loads++
     },
     pin() {},
+    unpinnedSlots: () => 1,
   }
   // The microtasks the pass takes, counted until it settles.
   let ticks = 0,

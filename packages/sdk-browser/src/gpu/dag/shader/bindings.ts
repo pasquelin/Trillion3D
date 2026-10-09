@@ -71,7 +71,7 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
 @group(0) @binding(${B.worlds}) var<storage, read> worlds:array<vec4u>;
-@group(0) @binding(${B.frames}) var<storage, read_write> frames:array<vec4f>;
+@group(0) @binding(${B.frames}) var<storage, read> frames:array<vec4f>;
 @group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
 @group(0) @binding(${B.range}) var<uniform> range:FrameRange;
 `,
@@ -101,7 +101,7 @@ const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
   out: write,
   work: write,
   worlds: read,
-  frames: write,
+  frames: read,
   cold: read,
   range: 'uniform',
 }

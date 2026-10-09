@@ -7,6 +7,7 @@ import { closeAlone } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import type { PageRec } from '../../page/selection/types.ts'
+import { pageStateOf } from './pageState.fixture.ts'
 
 /** `count` packed instances whose records and catalogue are counted: a record read through
  *  `recordOf` or by its rank, a catalogue made over them (which asks whether they resolve their
@@ -45,12 +46,9 @@ function readbacks(count: number, frames: number) {
 
 test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ instances', () => {
   for (const count of [1e3, 1e5]) {
-    const { pages, counts } = countedPages(count)
-    const table = {
-      rowOfPage: new Int32Array(count).fill(-1),
-      residentFlags: new Uint32Array(count),
-    }
-    const demand = createRowDemand(table, createRowUse(count), () => true, pages, closeAlone)
+    const { counts } = countedPages(count)
+    const table = pageStateOf(count)
+    const demand = createRowDemand(table, createRowUse(count), () => true, closeAlone)
     let wanted = 0
     for (const cut of readbacks(count, 24)) {
       demand.follow(cut)
@@ -59,4 +57,27 @@ test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ 
     assert.equal(wanted, 24, `${count}: every readback's first request wanted`)
     assert.deepEqual(counts, { records: 0, catalogues: 0 }, `${count} instances`)
   }
+})
+
+test('per readback, the lists are marked with no hash probe, and the row table read per change', () => {
+  const count = 1e5,
+    table = pageStateOf(count)
+  // An instance in eight holds a row, resident.
+  for (let page = 0; page < count; page += 8) {
+    table.setRowOf(page, page >> 3)
+    table.setResidentFlag(page, 1)
+  }
+  let rowReads = 0
+  const counted = { ...table, rowOf: (page: number) => (rowReads++, table.rowOf(page)) }
+  const demand = createRowDemand(counted, createRowUse(count), () => true, closeAlone)
+  let named = 0
+  for (const cut of readbacks(count, 24)) {
+    demand.follow(cut)
+    named += cut.drawablePageIds.length + cut.pageIds.length + cut.aheadPageIds.length
+  }
+  // The marks are a byte an id up to the largest named — dense, read with no probe —, the
+  // difference's and the demand's alike.
+  assert.ok(demand.bytes >= 2 * Math.max(...readbacks(count, 24).flatMap((c) => c.drawablePageIds)))
+  // The row table is read for what entered or left the held closure alone, never per id named.
+  assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
 })

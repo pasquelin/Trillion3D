@@ -111,7 +111,7 @@ export function assertOccluderImage(
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),
-    rootOfPacked: new Int32Array(visPages.length),
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: visPages.length },
   }
   assert.equal(
     compareImages(

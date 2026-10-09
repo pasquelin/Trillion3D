@@ -1,7 +1,7 @@
 // The engine's real cut (`createDagResources`, `encodeDagKernels`) on the device the engine opens
-// (`requestExplorerDevice`), once whole and once through that same device reporting a binding half
-// the primitives' `frames`: `frames` then splits in two ranges (`frameRanges.ts`) and every table
-// past the binding in parts bound at once (`split.ts`). Only the capacity the cut reads
+// (`requestExplorerDevice`), once whole and once through that same device reporting a binding two
+// thirds of the primitives' `worlds` rows hold (`WORLD_ROW_BYTES`): `frames` then splits in two ranges
+// (`frameRanges.ts`) and every table past the binding in parts bound at once (`split.ts`). Only the capacity the cut reads
 // changes; the device underneath is the same.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
@@ -10,7 +10,7 @@ import {
   writeDagUniforms,
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts'
+import { WORLD_ROW_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/cameraRanges.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
@@ -19,9 +19,10 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
-/** Placements of a small pyramid, ten abreast, row behind row: the first range's behind the
- *  camera, the second's before it, its outer columns past the frustum's sides. Small, so its tables
- *  split in few parts where `frames` splits in two: a deeper hierarchy's would need more storage
+/** Placements of a small pyramid, ten abreast, row behind row: the first half behind the camera,
+ *  the second before it, its outer columns past the frustum's sides; the first range holds the half
+ *  behind and a third of the half before. Small, so its tables split in few parts where `frames`
+ *  splits in two: a deeper hierarchy's would need more storage
  *  bindings than a stage holds (ten on Apple's Metal), and the engine refuses that device
  *  (`deviceRefusal.ts`). */
 const PLACEMENTS = 600
@@ -55,8 +56,8 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
-  const { packed, uniforms } = sceneView(8, 2, poses)
-  const lying = reporting(device, framesBytes(ceilDiv(packed.worldCount, 2)))
+  const { packed, uniforms } = sceneView(2, 2, poses)
+  const lying = reporting(device, ceilDiv(2 * packed.worldCount, 3) * WORLD_ROW_BYTES)
   const refusal = dagDeviceRefusal(lying.limits, packed)
   const cut = async (target: GPUDevice) => {
     // The readout keeps the catalogue's cap on both devices: a list sized from the reported

@@ -48,7 +48,6 @@ export function createWebgpuRowSlots(
     const rec = recordOf(page)!
     return !rec.transparent && rowHasGeometry(rec)
   }
-  const pages = packedPages.length
   const s: RowSlots = {
     rows,
     packedPages,
@@ -57,8 +56,8 @@ export function createWebgpuRowSlots(
     onResidenceChange,
     use,
     free: { rows: new Int32Array(0), count: 0 },
-    claims: createWebgpuRowClaims(pages),
-    demand: createRowDemand(rows, use, drawsRow, packedPages, closure),
+    claims: createWebgpuRowClaims(),
+    demand: createRowDemand(rows, use, drawsRow, closure),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,
     candidates: 0,

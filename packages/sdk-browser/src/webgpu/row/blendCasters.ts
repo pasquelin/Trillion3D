@@ -5,6 +5,7 @@ import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, ROW_TRANSMISSION_WORD } from 
 import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
@@ -43,8 +44,9 @@ export function createBlendCasterRows(
      *  (`../pages/prepare/catalogue.ts`). */
     recordOf: createPageCatalogue(packedPages).recordOf,
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
-    waiting: new Uint8Array(packedPages.length),
+    waiting: createSparseInts(),
     ...{ table: undefined, epoch: -1 },
+    pages: [],
   }
   seat(c)
   return {
@@ -58,7 +60,11 @@ export function createBlendCasterRows(
       c.table = rows.pageTableFloats
       c.epoch = rows.tableEpoch
       if (!c.free.length) return
-      for (let page = 0; page < packedPages.length; page++) follow(c, page, restale)
+      // The blended instances alone, in packed order: no walk over every page.
+      c.pages.length = 0
+      rows.instances.eachBlended((page) => c.pages.push(page))
+      c.pages.sort((a, b) => a - b)
+      for (const page of c.pages) follow(c, page, restale)
     },
     /** Caster rows in use: what a list of casters can hold beyond the visibility rows. */
     get used() {
@@ -81,10 +87,13 @@ type Casters = {
   freeCount: number
   /** Casters that found no row, each once: what the table grows by. */
   short: number
-  /** Casters waiting for a row, counted once however often they are followed (`short`). */
-  waiting: Uint8Array
+  /** Casters waiting for a row, counted once however often they are followed (`short`): held
+   *  for them alone. */
+  waiting: ReturnType<typeof createSparseInts>
   table: Float32Array | undefined
   epoch: number
+  /** The blended instances a refresh follows, kept from one to the next. */
+  pages: number[]
 }
 
 /** The rows `[blendFirst, casterSlots)` of the table as it stands, all free; a caster that held
@@ -96,12 +105,10 @@ function seat(c: Casters) {
   c.free = new Int32Array(rows.casterSlots - first)
   c.freeCount = 0
   c.short = 0
-  c.waiting.fill(0)
+  c.waiting.clear()
   // Popped from the end: the lowest row first.
   for (let row = rows.casterSlots - 1; row >= first; row--) c.free[c.freeCount++] = row
-  if (held)
-    for (let page = 0; page < rows.blendRowOf.length; page++)
-      if (rows.blendRowOf[page] >= 0) rows.blendRowOf[page] = -1
+  if (held) rows.clearBlendRows()
 }
 
 /** Seats the rows again when the table grew since: before any row is taken or written. */
@@ -118,7 +125,7 @@ function write(c: Casters, page: number, row: number, held: boolean) {
     wasTransmissive = rows.pageTableFloats![row * ROW_WORDS + ROW_TRANSMISSION_WORD] > 0
   rows.packedRecs[row] = rec
   rows.packedPageIndex[row] = page
-  const offsetWords = rows.residentOffsetWords[page]
+  const offsetWords = rows.offsetOf(page)
   c.writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, ints)
   if (held && (ints[coverage] !== before || wasTransmissive || rec.material.transmission > 0))
     c.onCoverageChange(rec, page)
@@ -126,7 +133,7 @@ function write(c: Casters, page: number, row: number, held: boolean) {
 
 function release(c: Casters, page: number, row: number) {
   const { rows } = c
-  rows.blendRowOf[page] = -1
+  rows.setBlendRowOf(page, -1)
   rows.packedRecs[row] = undefined
   // A list built before the release may still name the row: it then draws no corner.
   rows.pageTableInts![row * ROW_WORDS + ROW_INDEX_WORDS] = 0
@@ -143,14 +150,14 @@ function follow(c: Casters, page: number, restale: boolean) {
   const rec = c.recordOf(page)!
   if (!rec.transparent || !rows.pageTableInts) return
   followTable(c)
-  const row = rows.blendRowOf[page]
-  if (c.waiting[page]) {
-    c.waiting[page] = 0
+  const row = rows.blendRowOf(page)
+  if (c.waiting.get(page)) {
+    c.waiting.set(page, 0)
     c.short--
   }
   // A cluster drawn from its geometry page holds no index page: its slot is all it needs.
   const casts =
-    rows.residentOffsetWords[page] >= 0 &&
+    rows.offsetOf(page) >= 0 &&
     !awaitsPageBytes(rec) &&
     (castsBlendShadow(rec.material) || !!rec.deformationOutput)
   if (!casts) {
@@ -162,12 +169,12 @@ function follow(c: Casters, page: number, restale: boolean) {
   if (row >= 0) return write(c, page, row, restale)
   // Empty only past the rows the view holds (#1232): the table grows by the casters left out.
   if (!c.freeCount) {
-    c.waiting[page] = 1
+    c.waiting.set(page, 1)
     c.short++
     return
   }
   const taken = c.free[--c.freeCount]
-  rows.blendRowOf[page] = taken
+  rows.setBlendRowOf(page, taken)
   write(c, page, taken, false)
   if (restale) c.onCoverageChange(rec, page)
 }

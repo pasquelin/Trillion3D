@@ -30,7 +30,9 @@ type EnsureOptions = {
   bytesRevision: () => number
   /** The pages a holder brought into the root cover that the pool lacks (`coverHolders.ts`):
    *  loaded before the queue's. */
-  coverMissing?: (holds: (page: PageRec) => boolean) => readonly PageRec[]
+  coverMissing?: (holds: (page: PageRec) => boolean, limit?: number) => readonly PageRec[]
+  /** How many pages the cover's later holders brought that the pool may lack still. */
+  coverLacking?: () => number
 }
 
 type EnsureState = EnsureOptions & LowerPassOptions & { lower: ReturnType<typeof createLowerPass> }
@@ -139,7 +141,11 @@ async function admitWanted(
   const { tracking } = s
   const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
   const pool = run.cache,
-    covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec))) ?? []
+    room = pool.unpinnedSlots()
+  // The cover lists no more of its missing pages than the slots that could take them — a pool its
+  // pins fill, none —, each still counted missing (`needsAdmit`).
+  const covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec)), room) ?? []
+  if (room <= 0 && (s.coverLacking?.() ?? 0) > 0) run.missing++
   s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
   for (const rec of covering)
     if (needsAdmit(s, run, rec) && !(await admitOne(s, run, rec, landed))) return

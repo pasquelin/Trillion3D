@@ -57,11 +57,7 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const sets = setsOver(tracking, bootstrapKey, packed)
   const pages: PageRec[] = []
   const delta = createCutDelta(packed, pages)
-  const closure = createGroupClosure(
-      [],
-      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
-      packed,
-    ),
+  const closure = createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packed),
     admission = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
   const cut = (difference: CutDelta = delta) => {
     closure.apply(difference)

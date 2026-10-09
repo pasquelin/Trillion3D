@@ -23,7 +23,7 @@ const HEAD_ORACLE = 4
 /**
  * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
- * one of the two produces — `truncated`, `requestPriorities` that only the oracle publishes,
+ * one of the two produces — `truncated`, `dropped`, `requestPriorities` that only the oracle publishes,
  * `aheadPageIds` that only the reader of the view ahead splits off,
  * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn), the
  * difference only the GPU takes (`shader/differenceWgsl.ts`), and the four totals — are STRIPPED
@@ -35,6 +35,7 @@ const champs = (
   if (!reading) return reading
   const {
     truncated: _t,
+    dropped: _w,
     complete: _c,
     requestPriorities: _r,
     aheadPageIds: _a,

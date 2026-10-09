@@ -65,7 +65,8 @@ export async function worldCut(deviceCap: number) {
     readouts.push({ image: images, threshold: threshold() })
     return { cap: held.resources.listCap, cut: scene.lists(viewed, threshold()) }
   })
-  const resources = await createDagResources(fake.device, scene.dag, null)
+  // No table of open counts behind the lists: the readout is the lists alone (`heldOpen.ts`).
+  const resources = await createDagResources(fake.device, scene.dag, null, undefined, undefined, 0)
   if (!resources) throw new Error('the fake device refused the tables')
   held.resources = resources
   const selection = createDagRuntime(resources)

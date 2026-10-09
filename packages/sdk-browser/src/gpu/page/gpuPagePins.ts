@@ -38,7 +38,8 @@ export function createGpuPagePins(context: GpuPageContext) {
       eviction.touched(key, lower)
       return true
     },
-    /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
+    /** Places a load can take without evicting a pinned page: the free slots and quarters, and
+     *  the unpinned pages' (`places.ts`). */
     unpinnedSlots() {
       return context.placement.free + resident.size - pins.size
     },

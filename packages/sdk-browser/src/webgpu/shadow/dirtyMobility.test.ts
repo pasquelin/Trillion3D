@@ -15,9 +15,12 @@ import {
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 const ROWS = 1000,
-  PLACEMENTS = 8
+  PLACEMENTS = 8,
+  /** Each placement's pages, consecutive. */
+  SPAN = ROWS / PLACEMENTS
 
 /** A table of `ROWS` rows over `PLACEMENTS` placements, and the bytes its mobility buffer holds. */
 function twin() {
@@ -37,7 +40,7 @@ function twin() {
     layout: {
       rows,
       selectionRoots: roots,
-      placement: { rootOfPacked: Int32Array.from({ length: ROWS }, (_, p) => p % PLACEMENTS) },
+      placement: { baseOfRoot: Int32Array.from(roots, (_, r) => r * SPAN), packedCount: ROWS },
     },
     lights: { mobility: createShadowMobility() },
     setup: { maxCorners: 96 },
@@ -73,7 +76,7 @@ test('the mobility words of a scattered change are its runs, and the words the s
       ints[row * (PAGE_INFO_STRIDE / 4) + ROW_INDEX_WORDS] = 3 * row
       rows.markRowWords(row)
     }
-    rt.layout.placement.rootOfPacked[500] = 3
+    rows.packedPageIndex[500] = 3 * SPAN
     rows.markRowWords(500)
     rt.lights.mobility.move(3, roots[3].world.elements, true)
     ;(roots[5] as { parked?: boolean }).parked = true
@@ -118,7 +121,7 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
       ints[row * words + ROW_INDEX_WORDS] = 7 * row + image
       rows.markRowWords(row)
     }
-    rt.layout.placement.rootOfPacked[500 + image] = image
+    rows.packedPageIndex[500 + image] = image * SPAN
     rows.markRowWords(500 + image)
     mobility.move(image, roots[image].world.elements, true)
     moved.add(image)
@@ -128,7 +131,8 @@ test('the words after a sequence of dirty runs are the rows own, from closures b
       parked.add(image + 3)
     }
     upload()
-    const placementOf = (row: number) => rt.layout.placement.rootOfPacked[row]
+    const placementOf = (row: number) =>
+      rootOfPacked(rt.layout.placement, rows.packedPageIndex[row])
     const expected = Array.from(
       { length: ROWS },
       (_, row) =>

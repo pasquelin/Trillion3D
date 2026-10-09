@@ -48,7 +48,8 @@ async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) 
   // The list in place when a readback maps: it grows only with none in flight (`dispatch.ts`).
   let held = () => cap
   writtenReadbacks(fake.device, () => ({ cap: held(), cut: { asked: drawn, drawn } }))
-  const resources = await createDagResources(fake.device, dag, null, cap)
+  // No table of open counts behind the lists: the readout is the lists alone (`heldOpen.ts`).
+  const resources = await createDagResources(fake.device, dag, null, cap, undefined, 0)
   assert.ok(resources)
   held = () => resources.listCap
   const selection = createDagRuntime(resources)

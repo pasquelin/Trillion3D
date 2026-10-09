@@ -19,24 +19,23 @@ import { boxPlaneDistance } from '../../../../math/src/wgsl/geometry.ts'
  * no deadline.
  */
 
-/** The WGSL, on the planes `dagPrepare` left in `frames` (`shader/primitiveWgsl.ts`): the
- *  camera's in its row — `slotOf` under view 0, whatever view `vi` names when the view ahead asks —,
- *  those ahead behind it. The two views share their far plane's kind (`../core/aheadView.ts`). */
+/** The WGSL, on the planes of both views in the placement's space (`shader/primitiveWgsl.ts`,
+ *  `planeOf`): the camera's, view 0's whatever view `vi` names when the view ahead asks, and those
+ *  ahead. The two views share their far plane's kind (`../core/aheadView.ts`). */
 export const DAG_AHEAD_DUE_WGSL = wgslBlock(
   'DAG_AHEAD_DUE_WGSL',
   [boxPlaneDistance],
-  `fn cameraPlanes(w:u32)->u32{return rowOf(w)*FRAME;}
-fn planeReach(p:vec4f,bmin:vec3f,bmax:vec3f)->f32{
+  `fn planeReach(p:vec4f,bmin:vec3f,bmax:vec3f)->f32{
  let n=length(p.xyz);if(!(n>0.0)){return 0.0;}
  return boxPlaneDistance(p,bmin,bmax)/n;
 }
 fn aheadDue(w:u32,bmin:vec3f,bmax:vec3f)->f32{
- let now=cameraPlanes(w);let later=aheadPlanes(w);let skip=select(6u,FAR_PLANE,farless());
+ let skip=select(6u,FAR_PLANE,farless());
  var due=0.0;
  for(var i=0u;i<6u;i++){
   if(i==skip){continue;}
-  let outside=-planeReach(frames[now+i],bmin,bmax);
-  if(outside>0.0){due=max(due,outside/(outside+max(planeReach(frames[later+i],bmin,bmax),0.0)));}
+  let outside=-planeReach(planeOf(w,0u,i),bmin,bmax);
+  if(outside>0.0){due=max(due,outside/(outside+max(planeReach(planeOf(w,AHEAD_VIEW,i),bmin,bmax),0.0)));}
  }
  return due;
 }

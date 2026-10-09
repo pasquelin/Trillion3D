@@ -37,7 +37,7 @@ test('a still rig turned static, its palette held, stales its shadows the frame 
     {
       pageTableFloats: new Float32Array(64),
       packedCount: 1,
-      rowOfPage: [0],
+      rowOf: (page: number) => [0][page] ?? -1,
       packedPageIndex: [0],
       markRowWords() {},
     },

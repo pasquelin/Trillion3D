@@ -3,7 +3,6 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
-import { canonicalPage } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import {
   sortStaged,
@@ -20,6 +19,8 @@ import { words } from './mockBuffers.ts'
 import { boundListCap } from './mockDag.ts'
 import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { dagFlagShape } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
@@ -29,22 +30,28 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
   )
   const { pageCount } = packed,
     frame = dagWorkLayout(ceilDiv(pageCount, SELECTION_WORKGROUP)).frame,
-    stamps = dagFlagsWords(packed.nodeCount, pageCount, false),
-    keys = cold.subarray(L.keyBase(pageCount)),
+    shape = dagFlagShape(packed),
+    stamps = dagFlagsWords(shape.queueWords, shape.candCap, 0),
+    recordKeys = cold.subarray(L.recordKeyBase(pageCount)),
+    keyWords = cold.subarray(L.keyWordBase(packed)),
     pool = L.poolBase(pageCount),
     listCap = boundListCap(byBinding)
   return {
-    /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its canonical page. */
+    /** `countFrame`, then `stampUse` on each page the cut drew or asked for, at its content key. */
     stamp(used: Iterable<number>) {
       const now = ++work[frame]
-      for (const page of used) flags[stamps + canonicalPage(keys[page])] = now
+      for (const page of used)
+        flags[
+          stamps +
+            recordKeys[(page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0]
+        ] = now
     },
     /** The queue behind the drawn list, at most `EVICTION_BURST` entries. */
     list() {
       const queue = listEvictions({
         pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
-        keys,
-        stampOf: (page) => flags[stamps + page],
+        keyWords,
+        stampOf: (key) => flags[stamps + key],
         now: work[frame],
         cap: L.EVICTION_BURST,
       })

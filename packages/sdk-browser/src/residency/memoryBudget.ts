@@ -40,11 +40,14 @@ const NOTHING_HELD: ActiveGpuMemory = Object.freeze({
  * the two pools at their defaults. Once a session said what it holds (`active`), each fixed share
  * is at least what it holds or reserves — the shadows still to be made (`shadowReserve`), a chain
  * on a canvas past the declared one —, the frame's share at the render scale's maximum on the real
- * canvas is added (`ActiveGpuMemory.frameShare`), and each pool is at its floor where a scene's
+ * canvas is added (`ActiveGpuMemory.frameShare`), so are the camera cut's tables
+ * (`ActiveGpuMemory.cutTables`), and each pool is at its floor where a scene's
  * passes its default — a pool is raised to its floor by its own rule (`geometryPoolFor`,
  * `admittedPools`). The frame at full resolution is thus never what the pools leave: it is funded
- * before them, on any canvas, and follows it; only what else is live beside them, past what the
- * shares leave unused, presses them.
+ * before them, on any canvas, and follows it; so is what else is live beside them past that share
+ * (`ActiveGpuMemory.frameTargets`): the total by default never falls under what the session holds,
+ * so no allocation of its frames is refused for it, and the pools stay at their defaults. Only a
+ * total the page sets presses them.
  */
 export function defaultGpuBudget(
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
@@ -53,8 +56,9 @@ export function defaultGpuBudget(
   return (
     Math.max(SHADOW_POOL_BYTES, active.shadowPool + active.shadowReserve) +
     BOUNCE_PROBE_BYTES +
+    (active.cutTables ?? 0) +
     Math.max(effectTargetReserve(canvas), active.effectTargets) +
-    active.frameShare +
+    Math.max(active.frameShare, active.frameTargets) +
     Math.max(DEFAULT_GEOMETRY_POOL_BUDGET, active.geometryMinimum) +
     Math.max(DEFAULT_TEXTURE_POOL_BUDGET, active.textureMinimum)
   )
@@ -100,12 +104,15 @@ export function splitMemoryBudget(
   const shadowPool = active?.shadowPool ?? SHADOW_POOL_BYTES
   const bounceProbes = active?.bounceProbes ?? BOUNCE_PROBE_BYTES
   const effectTargets = active?.effectTargets ?? effectTargetReserve(canvas)
-  const fixed = shadowPool + bounceProbes + effectTargets + (active?.frameTargets ?? 0)
+  // The camera cut's tables, as a session holds and asks them (`ActiveGpuMemory.cutTables`).
+  const cutTables = active?.cutTables ?? 0
+  const fixed = shadowPool + bounceProbes + cutTables + effectTargets + (active?.frameTargets ?? 0)
   if (!active && gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL')
   const half = Math.floor((gpu - fixed) / 2)
   return {
     shadowPool,
     bounceProbes,
+    cutTables,
     effectTargets,
     ...(active ? { frameTargets: active.frameTargets } : {}),
     ...(active

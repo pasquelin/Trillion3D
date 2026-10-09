@@ -102,7 +102,13 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     const bytes = await (job.fetched ?? readOf(context, key, signal, job.priority))
     check(signal)
     checkRoom(context, key, bytes)
-    const page = commitGpuPage(context, key, bytes, placeOf(context, key), job.requestStarted)
+    const page = commitGpuPage(
+      context,
+      key,
+      bytes,
+      placeOf(context, key, bytes.byteLength),
+      job.requestStarted,
+    )
     if (tier) pin(key, tier)
     return page
   } catch (error) {
@@ -160,10 +166,10 @@ function checkRoom(context: GpuPageContext, key: string, bytes: Uint8Array) {
   throw new Error('PAGE_SIZE_MISMATCH')
 }
 
-/** `key`'s place, its victim evicted; refused by name when every slot is pinned or the published
+/** The place of `key`'s page of `bytes`, its victims evicted; refused by name when every slot is pinned or the published
  *  order is spent. */
-function placeOf(context: GpuPageContext, key: string) {
-  const place = context.placement.slotFor(key)
+function placeOf(context: GpuPageContext, key: string, bytes: number) {
+  const place = context.placement.slotFor(key, bytes)
   if (typeof place === 'string') {
     const { resident, slots, pins } = context
     context.reader.emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
@@ -176,6 +182,6 @@ function placeOf(context: GpuPageContext, key: string) {
     }))
     throw new Error('ALL_PAGES_PINNED')
   }
-  if (place.victim) evictResident(context, place.victim, 'capacity')
+  for (const victim of place.victims) evictResident(context, victim, 'capacity')
   return place
 }

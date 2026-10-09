@@ -178,6 +178,7 @@ export function createWebgpuResidencySets(options: {
       return cover.covered
     },
     coverMissing: cover.missing,
+    coverLacking: cover.lacking,
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta)

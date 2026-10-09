@@ -149,7 +149,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
       backend.render(cam)
       // Selection of the CURRENT IMAGE, read in its mask: that is what the indirect commands consume
       // as instances, without waiting for a past image's sample.
-      assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, target ? 0 : 2)
+      assert.equal(drawnPageIds(buffers, packed).length, target ? 0 : 2)
       await backend.flush()
     }
     assert.ok(events.some((event) => event.phase === 'gpu-selection-current-frame'))

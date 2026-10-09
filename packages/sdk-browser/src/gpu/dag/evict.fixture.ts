@@ -1,24 +1,39 @@
 import { REQUEST_AHEAD } from './request.ts'
 import { sortStaged, stagedPage, stagedRequest } from './request.fixture.ts'
-import { EVICT_LEVELS, EVICT_AGES, KEY_PAGE_BITS } from './evict.ts'
+import { EVICT_LEVELS, EVICT_AGES, KEY_PAGE_BITS, canonicalPage } from './evict.ts'
+import { keyWordBase, recordKeyBase } from './layout.ts'
+import type { PackedDag } from './types.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
-/** CPU mirror of `dagListEvictions`: the pool's listed pages (`poolList.ts`) not stamped `now`, by
- *  `evictionRank` through `sortStaged`, the first `cap`; within a rank, page order. */
+/** CPU mirror of `dagListEvictions`: the pool's listed content keys (`poolList.ts`) not stamped
+ *  `now`, by `evictionRank` through `sortStaged`, the first `cap`, each as its canonical page;
+ *  within a rank, page order. */
 export function listEvictions(options: {
   pool: Iterable<number>
-  keys: Uint32Array
-  stampOf: (page: number) => number
+  keyWords: Uint32Array
+  stampOf: (key: number) => number
   now: number
   cap: number
 }) {
-  const { pool, keys, stampOf, now, cap } = options
+  const { pool, keyWords, stampOf, now, cap } = options
   const words: number[] = []
-  for (const page of pool) {
-    const used = stampOf(page)
+  for (const key of pool) {
+    const used = stampOf(key),
+      page = canonicalPage(keyWords[key])
     if (used !== now)
-      words.push(stagedRequest(page, evictionRank(keys[page], now - used) ^ REQUEST_AHEAD))
+      words.push(stagedRequest(page, evictionRank(keyWords[key], now - used) ^ REQUEST_AHEAD))
   }
   return sortStaged(words).slice(0, Math.max(0, cap)).map(stagedPage)
+}
+
+/** The content key of `packed`'s page `page`, through its record (`layout.ts`), and the key words. */
+export function pageKeys(packed: PackedDag) {
+  const cold = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset)
+  const recordKeys = cold.subarray(recordKeyBase(packed.pageCount)),
+    keyWords = cold.subarray(keyWordBase(packed))
+  const keyOf = (page: number) =>
+    recordKeys[(page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0]
+  return { keyOf, keyWords, keyWordOf: (page: number) => keyWords[keyOf(page)] }
 }
 
 /** Rank of a key in the queue, highest evicted first: finer level, then older use. Integer only,

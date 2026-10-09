@@ -22,6 +22,7 @@ import { createRowDemand } from './rowDemand.ts'
 import type { DagRoot } from '../../gpu/dag/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { IdDelta } from '../cut/delta.ts'
+import { pageStateOf } from './pageState.fixture.ts'
 
 /** `count` host meshes of one page — a box, its cluster its own root —, laid out by `at`. */
 function hostMeshes(count: number, at: (k: number) => [number, number]) {
@@ -65,11 +66,8 @@ test('a still camera closes nothing over; a moving one, its lists’ differences
       closure.apply = (cut: IdDelta) => ((closed += cut.enteredCount + cut.exitedCount), apply(cut))
       return closure
     }
-    const table = {
-      rowOfPage: new Int32Array(pages.length).fill(-1),
-      residentFlags: new Uint32Array(pages.length),
-    }
-    const demand = createRowDemand(table, createRowUse(pages.length), () => true, pages, counted)
+    const table = pageStateOf(pages.length)
+    const demand = createRowDemand(table, createRowUse(pages.length), () => true, counted)
     const centre = [span / 2, 0, -span / 2]
     let before = 0,
       after = 0

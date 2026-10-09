@@ -1,5 +1,5 @@
 import type { PageRec } from './types.ts'
-import type { PlacementIndex } from './placements.ts'
+import { rootOfPacked, type PlacementIndex } from './placements.ts'
 
 /**
  * The packed instances of a layout, stored as nothing per instance (#1235): a rank is resolved
@@ -22,11 +22,11 @@ export function createPackedPages(
 ): PackedPages {
   return {
     get length() {
-      return placement.rootOfPacked.length
+      return placement.packedCount
     },
     recordOf(packed: number) {
-      if (!(packed >= 0 && packed < placement.rootOfPacked.length)) return undefined
-      const root = placement.rootOfPacked[packed]
+      const root = rootOfPacked(placement, packed)
+      if (root < 0) return undefined
       return roots[root]?.pages[packed - placement.baseOfRoot[root]]
     },
   }

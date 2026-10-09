@@ -30,10 +30,10 @@ export const DAG_SWAP_WGSL = wgslBlock(
   `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
-/** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag can be one. No
- *  other is visited, and none is walked in full. The journal is saved into the region
- *  \`swapRegions\` names first on the way — its length as counted, its first \`listCap\` pages —,
- *  and the length of the one it names second armed for \`dagRestoreJournal\`. */
+/** The drawn log of the last cut that ran whole, saved into the region \`swapRegions\` names first
+ *  — its length as counted, its first \`listCap\` pages —, and the length of the one it names second
+ *  armed for \`dagRestoreJournal\`. On a swap, its pages' draw flags are zeroed: the only ones that
+ *  can be one; no other is visited, and none is walked in full. */
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id,n,64u);let held=atomicLoad(&work[drawnCounter()]);
@@ -43,9 +43,10 @@ fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
   if(back!=REGION_NONE){armList(2u,min(out.pages[savedAt(back)],cap));}
  }
  if(s>=held){return;}
- let entry=flagAt(candBase()+s);
+ let entry=flagAt(journalBase()+s);
  if(save!=REGION_NONE&&s<cap){out.pages[savedAt(save)+1u+s]=entry;}
- setFlag(views[0u].queueCap+entry,0u);
+ // A swap gives the frame another view's mask; a cut writes its own whole (\`dagCommitMask\`).
+ if(back!=REGION_NONE){atomicAnd(&work[liveMaskWord(entry)],~drawBit(entry));}
 }
 /** The region \`swapRegions\` names second back as the drawn journal, its pages' draw flags set and its dispatch
  *  argument as its appends would leave it (\`openSlice\`): the next cut clears it as its own. The
@@ -60,6 +61,6 @@ fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
   atomicStore(&work[drawnGroups()],grid.x);
   atomicStore(&work[drawnGroups()+1u],grid.y);
  }
- if(s<count){let entry=out.pages[savedAt(v)+1u+s];setFlag(views[0u].queueCap+entry,1u);setFlag(candBase()+s,entry);}
+ if(s<count){let entry=out.pages[savedAt(v)+1u+s];atomicOr(&work[liveMaskWord(entry)],drawBit(entry));setFlag(journalBase()+s,entry);}
 }`,
 )

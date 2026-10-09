@@ -49,6 +49,9 @@ export type SelectionUniforms = {
  * did not hold. Claims, checked against the list held before they are believed.
  */
 export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
+/** Each packed page's residency flag as the host's row cache sets it, what the cut reads: at the
+ *  pages a change names, every page at a rebuild (`../../webgpu/row/pageState.ts`). */
+export type PageResidency = { readonly length: number; flag(page: number): number }
 export type SelectionResult = {
   pageIds: number[]
   /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
@@ -69,6 +72,10 @@ export type SelectionResult = {
   /** True when the cut exceeded the sample cap the device can hold: each list is its head, the
    *  frame's mask is whole, and nothing exits on it (`../../webgpu/cut/adoption.ts`). */
   truncated?: boolean
+  /** Non-zero when the cut dropped work, a queue or a list full (`../dag/queueGrowth.ts`): its
+   *  bits say which. The frame keeps drawing the last cut that ran whole; this one is never
+   *  adopted. */
+  dropped?: number
 }
 /** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
 export type GpuCut = {
@@ -94,6 +101,8 @@ export type GpuSelection = {
   readonly packsWorld?: boolean
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number
+  /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
+  readonly gpuBytes?: number
   readonly worldRevision: number
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
@@ -123,6 +132,9 @@ export type GpuSelection = {
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
    *  grown capacity, unless it waits for the growth to end. */
   appendRoots(roots: readonly DagRoot[]): boolean
+  /** The row cache now holds `rows` rows: the open counts placements hold follow it
+   *  (`../dag/queueGrowth.ts`), grown before the next cut. */
+  followRows?(rows: number): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
@@ -136,7 +148,7 @@ export type GpuSelection = {
   /** Told of each placement whose link to the world DAG moved (`placeObject`). */
   linkMoved?: (world: number) => void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
-  updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean
+  updateResidency(resident: PageResidency, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */
   isReady(page: number): boolean
   isChildReady(page: number): boolean

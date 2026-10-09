@@ -103,7 +103,7 @@ export const rasterView = (rt: WebgpuPagesRuntime) => {
     locations: {
       roots: rt.layout.selectionRoots,
       packed,
-      rootOfPacked: rt.layout.placement.rootOfPacked,
+      placement: rt.layout.placement,
     },
     cam: engineCameraOf(rt),
     size: rt.setup.viewport ?? rt.gpu.targetSize,

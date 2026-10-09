@@ -94,7 +94,7 @@ function captureSettled(rt: WebgpuPagesRuntime) {
   for (let i = 0; i < run.desired.length; i++) {
     const rec = run.desired[i]
     if (!services.residencySets.accepts(rec)) continue
-    if (!services.poolHolds(rec) || !rows.residentFlags[run.desiredPacked[i]]) return false
+    if (!services.poolHolds(rec) || !rows.residentFlag(run.desiredPacked[i])) return false
   }
   return true
 }

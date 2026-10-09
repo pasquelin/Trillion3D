@@ -4,6 +4,7 @@ import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/world
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './mockBuffers.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
+import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
 
@@ -53,6 +54,14 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
   const intsAt = (at: number) =>
     Uint32Array.from({ length: worldCount }, (_, w) => frameInts[primitiveWordAt(w) + at])
   const rootNodes = intsAt(1)
+  // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
+  // kernels read it from the entries that carry it, the double indexes the placements.
+  const ranks: number[] = [],
+    firsts = intsAt(4),
+    counts = intsAt(6)
+  for (let w = 0; w < worldCount; w++)
+    for (let page = firsts[w]; page < firsts[w] + counts[w]; page++) ranks[page] = w
+  const pageIndex = indexOfRanks(ranks, worldCount)
   return {
     kind: 'dag',
     clusters: floats(byBinding.get(DAG_BINDING.clusters)!.data),
@@ -70,9 +79,15 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     mark: intsAt(3),
     levelSizes: new Uint32Array(0),
     nodeCount,
+    // Two words an entry in each queue (`levelWgsl.ts`).
+    entryCount: views[viewWord('queueCap')] / 2,
+    queueEntries: views[viewWord('queueCap')] / 2,
     worldCount,
     pageCount,
-    recordCount: 0,
+    recordCount: views[viewWord('recordCount')],
+    keyCount: views[viewWord('keyCount')],
+    candCount: views[viewWord('candCap')],
+    pageIndex,
     rootCount: worldCount,
     pageUrlOf: () => undefined,
     cutLinks: [],

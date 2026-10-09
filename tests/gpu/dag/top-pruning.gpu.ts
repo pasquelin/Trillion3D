@@ -23,7 +23,7 @@ const POSES: Array<[string, number, number, number]> = [
 ]
 /** Pruning's sole guard: disarmed, the descent walks every subtree. */
 const GUARD =
-  'fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{\n'
+  'fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{\n'
 
 test('pruning drops candidates and keeps exactly the same pages', async () => {
   assert.ok(DAG_SELECTION_SHADER.includes(GUARD), 'the `floorPrunes` guard has changed shape')

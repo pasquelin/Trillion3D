@@ -2,7 +2,7 @@ import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts'
 import { visLayerTop } from '../visibility/uniforms.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
@@ -77,7 +77,7 @@ export async function readTransparentOcclusionAudit(
     const page = table.pageOfEntry[rejected[i]],
       rec = recordOf(page)
     if (!rec) continue
-    const root = rootOf(selectionRoots, placement.rootOfPacked[page])
+    const root = rootOf(selectionRoots, rootOfPacked(placement, page))
     pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, root.world, root.reach)
   }
   return {

@@ -1,5 +1,5 @@
 // A camera cut whose flags pass one binding makes them in parts, binds each at once, and hands its
-// mask readers the part that holds the draw mask, at its offset there.
+// mask readers the draw mask, a bit a page in `work`, at its offset there.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDagResources } from './resources.ts'
@@ -11,9 +11,10 @@ import { packed } from './selectionHelpers.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-test('flags past one binding: parts, all bound, the mask in one', async () => {
+test('flags past one binding: parts, all bound, the mask in `work`', async () => {
   const { dag } = packed(dagFixture())
-  const words = Math.max(dag.pageCount, dag.nodeCount, dag.worldCount)
+  // The live list, three words a page here, the widest section (`liveWgsl.ts`).
+  const words = Math.max(3 * dag.pageCount, dag.nodeCount, dag.worldCount)
   const limit = Math.max(96, 4 * words)
   const fake = fakeDevice({
     limits: {
@@ -32,6 +33,6 @@ test('flags past one binding: parts, all bound, the mask in one', async () => {
   for (const binding of extra) assert.ok(bound.includes(binding), `binding ${binding} bound`)
 
   const selection = createDagRuntime(resources)
-  assert.ok(resources.flagParts.includes(selection.maskBuffer), 'the mask is one part')
-  assert.ok((selection.maskOffset + dag.pageCount) * 4 <= selection.maskBuffer.size)
+  assert.equal(selection.maskBuffer, resources.work, 'the mask is in `work`')
+  assert.ok((selection.maskOffset + Math.ceil(dag.pageCount / 32)) * 4 <= selection.maskBuffer.size)
 })

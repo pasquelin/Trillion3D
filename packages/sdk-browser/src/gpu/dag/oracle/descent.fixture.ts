@@ -1,6 +1,6 @@
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { dagNodeFloor, dagNodeVerdict, dagTreeVerdict } from './nodeVerdict.fixture.ts'
-import { NODE_FIRST_CHILD, NODE_KIND, NODE_WORLD } from '../nodeLayout.ts'
+import { NODE_FIRST_CHILD, NODE_KIND, NODE_PAGE_COUNT } from '../nodeLayout.ts'
 import { TREE_GROUP, type PlacementTree } from '../placementTree.ts'
 import { drawsCard } from '../../../page/cut/select.fixture.ts'
 import { thresholdOf, type DagViewFrames } from './math.fixture.ts'
@@ -9,14 +9,39 @@ import { thresholdOf, type DagViewFrames } from './math.fixture.ts'
  *  ahead and never drawn. */
 export const AHEAD_LEAF = 3
 
-/** One view's node verdict: `-1` rejected — outside, too fine or too coarse —, else its children. */
-function keeps(frames: DagViewFrames, nodes: Float32Array, nodeInts: Uint32Array, n: number) {
+/** One view's verdict on node `n` read by placement `w`: `-1` rejected — outside, too fine or too
+ *  coarse —, else its children. `open`, the placement's open count there (`dagNodeFloor`). */
+function keeps(
+  frames: DagViewFrames,
+  packed: Descended,
+  nodeInts: Uint32Array,
+  n: number,
+  w: number,
+) {
+  const { nodes } = packed
   if (nodeInts[n * DAG_NODE_FLOATS + NODE_KIND]) return dagTreeVerdict(frames, nodes, nodeInts, n)
-  const children = dagNodeVerdict(frames, nodes, nodeInts, n)
-  const w = nodeInts[n * DAG_NODE_FLOATS + NODE_WORLD]
-  if (children < 0 || dagNodeFloor(frames, nodes, nodeInts, n) > thresholdOf(frames, w)) return -1
-  return children
+  const children = dagNodeVerdict(frames, nodes, nodeInts, n, w)
+  if (children < 0) return -1
+  const open = packed.heldOpen?.get(w, n)
+  return dagNodeFloor(frames, nodes, nodeInts, n, w, open) > thresholdOf(frames, w) ? -1 : children
 }
+
+/**
+ * Each (placement, node) verdict a descent spoke: `1`, never reached, by default — a primitive's
+ * nodes are its placements' alike, so a verdict is a placement's.
+ */
+function createDescentFlags() {
+  const byPlacement = new Map<number, Map<number, number>>()
+  return {
+    at: (w: number, n: number) => byPlacement.get(w)?.get(n) ?? 1,
+    set(w: number, n: number, flag: number) {
+      let flags = byPlacement.get(w)
+      if (!flags) byPlacement.set(w, (flags = new Map()))
+      flags.set(n, flag)
+    },
+  }
+}
+export type DescentFlags = ReturnType<typeof createDescentFlags>
 
 type Descended = {
   nodeCount: number
@@ -26,6 +51,7 @@ type Descended = {
   mark?: Uint32Array
   placementTree?: PlacementTree
   world?: { root: number }
+  heldOpen?: { get(w: number, node: number): number | undefined }
 }
 
 /**
@@ -41,11 +67,11 @@ function firstChild(packed: Descended, nodeInts: Uint32Array, n: number) {
 /** Whether the world DAG draws a placement in its place (`./worldGate.fixture.ts`). */
 type Covers = (w: number) => boolean
 
-/** The root a placement entry (`nodeCount + k`, member `k` of the tree's order) opens, or none:
- *  parked, drawn by its card, or drawn by the world DAG. */
+/** The placement a member entry (`nodeCount + k`, member `k` of the tree's order) names, and the
+ *  root it opens, or none: parked, drawn by its card, or drawn by the world DAG. */
 function memberRoot(packed: Descended, k: number, covers: Covers) {
   const w = packed.placementTree!.order[k]
-  return w === 0xffffffff ? -1 : placementRoot(packed, w, covers)
+  return { w, root: w === 0xffffffff ? -1 : placementRoot(packed, w, covers) }
 }
 
 /** The root placement `w` opens, or none: parked, drawn by its card, or by the world DAG. */
@@ -55,11 +81,12 @@ function placementRoot(packed: Descended, w: number, covers: Covers) {
 }
 
 /**
- * Oracle descent: the Node mirror of `../shader/levelWgsl.ts`.
+ * Oracle descent: the Node mirror of `../shader/levelWgsl.ts`, each entry a node and the placement
+ * that reads it.
  *
- * A rejected node yields nothing, and a never-reached leaf stays rejected. `nodeFlags` carries
- * each node's verdict — non-zero means « the camera does not descend here » —, and only kept leaves
- * fall back to zero: they alone are what clusters consult next. A node the camera rejects is tried
+ * A rejected node yields nothing, and a never-reached leaf stays rejected. The flags carry each
+ * (placement, node) verdict — non-zero means « the camera does not descend here » —, and only kept
+ * leaves fall back to zero: they alone are what clusters consult next. A node the camera rejects is tried
  * against the view `ahead`, when there is one, and what that view keeps continues under it alone;
  * its kept leaves take `AHEAD_LEAF`. With a placement tree, the descent starts at its top nodes and
  * the world DAG's root, wherever it sits; a placement the world DAG draws in its place (`covers`)
@@ -76,38 +103,51 @@ export function dagOracleDescent(
   ahead?: DagViewFrames,
   covers: Covers = () => false,
 ) {
-  const { nodes } = packed,
-    nodeInts = new Uint32Array(nodes.buffer),
+  const nodeInts = new Uint32Array(packed.nodes.buffer),
     tree = packed.placementTree
-  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1)
-  /** Pairs: the node, then whether it is the view ahead's alone. */
+  const nodeFlags = createDescentFlags()
+  /** Quadruples: the node, the placement reading it, whether it is the view ahead's alone, then its
+   *  level. */
   const frontier: number[] = []
   // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
   const opened = tree ? (packed.world ? [packed.world.root] : []) : packed.rootNodes.keys()
   for (const w of opened)
-    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], 0)
+    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0, 0)
   const top = tree?.levels[0]
-  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0)
+  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0, 0, 0)
+  // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
+  // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
+  const work = {
+    levels: [tree ? (top?.count ?? 0) + (packed.world ? 1 : 0) : packed.worldCount],
+    candidates: 0,
+  }
   while (frontier.length) {
+    const level = frontier.pop() as number
     let aheadOnly = frontier.pop() as number
+    let w = frontier.pop() as number
     let n = frontier.pop() as number
-    if (n >= packed.nodeCount && (n = memberRoot(packed, n - packed.nodeCount, covers)) < 0)
-      continue
-    let children = aheadOnly ? -1 : keeps(frames, nodes, nodeInts, n)
+    if (n >= packed.nodeCount) {
+      const member = memberRoot(packed, n - packed.nodeCount, covers)
+      if (member.root < 0) continue
+      ;({ w, root: n } = member)
+    }
+    let children = aheadOnly ? -1 : keeps(frames, packed, nodeInts, n, w)
     if (children < 0 && ahead) {
-      children = keeps(ahead, nodes, nodeInts, n)
+      children = keeps(ahead, packed, nodeInts, n, w)
       aheadOnly = 1
     }
     if (children < 0) {
-      nodeFlags[n] = 2
+      nodeFlags.set(w, n, 2)
       continue
     }
     if (children) {
       const first = firstChild(packed, nodeInts, n)
-      for (let c = 0; c < children; c++) frontier.push(first + c, aheadOnly)
+      for (let c = 0; c < children; c++) frontier.push(first + c, w, aheadOnly, level + 1)
+      work.levels[level + 1] = (work.levels[level + 1] ?? 0) + children
       continue
     }
-    nodeFlags[n] = aheadOnly ? AHEAD_LEAF : 0
+    nodeFlags.set(w, n, aheadOnly ? AHEAD_LEAF : 0)
+    work.candidates += nodeInts[n * DAG_NODE_FLOATS + NODE_PAGE_COUNT]
   }
-  return nodeFlags
+  return Object.assign(nodeFlags, { work })
 }

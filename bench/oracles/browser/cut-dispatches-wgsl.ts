@@ -4,6 +4,7 @@
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 import { DAG_SWAP_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/swapWgsl.ts'
+import { DAG_COMMIT_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/commitWgsl.ts'
 import { DAG_TREE_DESCENT_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/placementTreeWgsl.ts'
 
 const DAG_LEVEL_WGSL_BEFORE = `fn queueCounter(q:u32)->u32{return liveCounter()+2u+q*2u;}
@@ -22,6 +23,15 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
+/** The same append on a queue, each entry the node then the placement reading it: the shipped
+ *  tables share a primitive's nodes among its placements (\`pack.ts\`). */
+fn pairAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,w:u32){
+ let at=atomicAdd(&work[counter],count);
+ for(var k=0u;k<count;k++){
+  flags[base+2u*(at+k)]=first+k;flags[base+2u*(at+k)+1u]=w;
+  if(((at+k)&63u)==0u){atomicAdd(&work[groups],1u);}
+ }
+}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
  *  thread per primitive has just deposited its own, at its own rank, with no counter to dispute. */
 fn resetCounters(){
@@ -36,22 +46,23 @@ fn resetCounters(){
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
- flags[uni.nodeCount+flags[candBase()+s]]=0u;
+ let e=flags[candBase()+s];atomicAnd(&work[drawMaskWord(e)],~drawBit(e));
 }
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children in the
  *  opposite queue, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
  if(s>=atomicLoad(&work[queueCounter(src)])){return;}
- let i=flags[queueBase(src)+s];
+ let i=flags[queueBase(src)+2u*s];
  if(i==0xffffffffu){return;}
+ let w=flags[queueBase(src)+2u*s+1u];
  let node=nodes[i];
- if(outsideFrustum(node.worldIndex*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ if(outsideFrustum(w,0u,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  if(node.maxParentError>=0.0){
-  let e=uni.view*worldPose(node.worldIndex);
-  if(projected(node.maxParentError,node.sphere,e,stretchOf(node.worldIndex),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
+  let e=uni.view*worldPose(w);
+  if(projected(node.maxParentError,node.sphere,e,stretchOf(w),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
  }
- if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
- spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+ if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
+ pairAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,w);
 }
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
@@ -68,14 +79,16 @@ function shippedFn(name: string) {
   return found[0]
 }
 
-/** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: for a
- *  camera `queueCap` is `nodeCount`, so queues 0 and 1 are the frozen ones, and the shipped stages
- *  reach queue 3 through `lastUseAt`), `rootOf`, and `markOf`/`tooCoarse`, which other shipped
- *  stages call. `descend` is rewritten: the shipped one appends to queues this layout lacks. */
-const BEFORE_SHIMS = `${['queueBase', 'candBase', 'rootOf', 'markOf', 'tooCoarse'].map(shippedFn).join('\n')}
-fn descend(src:u32,node:CullNode){
- if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
- spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+/** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: queues 0
+ *  and 1 are the frozen ones, two words an entry, and the shipped stages reach queue 3 through
+ *  `lastUseAt`), `rootOf`, `pageBaseOf`, `heldByOf`, `putEntry`, and `markOf`/`tooCoarse`, which
+ *  other shipped stages call. `descend` is rewritten: the shipped one appends to queues this layout
+ *  lacks. */
+const SHIPPED_SHIMS = ['queueBase', 'candBase', 'rootOf', 'markOf', 'pageBaseOf', 'heldByOf']
+const BEFORE_SHIMS = `${[...SHIPPED_SHIMS, 'putEntry', 'tooCoarse'].map(shippedFn).join('\n')}
+fn descend(src:u32,node:CullNode,w:u32){
+ if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
+ pairAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,w);
 }
 `
 
@@ -85,11 +98,11 @@ export const DESCENT_BEFORE = DAG_LEVEL_WGSL_BEFORE.replaceAll('uni.', 'views[0u
 
 /** The shipped cut shader without its swap kernels: the shipped drawn clear lives there (#1483),
  *  and the frozen descent brings its own, on its own layout, with no swap before it. Nor the
- *  placement tree's share of the descent, which the frozen descent has no tree to walk. */
-export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL.text, '').replace(
-  DAG_TREE_DESCENT_WGSL.text,
-  '',
-)
+ *  placement tree's share of the descent, which the frozen descent has no tree to walk, nor the
+ *  commit of the cut's mask and log: the frozen cut reads back every cut it runs. */
+export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL.text, '')
+  .replace(DAG_TREE_DESCENT_WGSL.text, '')
+  .replace(DAG_COMMIT_WGSL.text, '')
 
 /** The shipped cut shader with this descent in place of its own: the module the oracle compiles. */
 export const DAG_SELECTION_SHADER_BEFORE = SHIPPED_STAGES.replace(

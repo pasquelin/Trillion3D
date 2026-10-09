@@ -71,6 +71,7 @@ export function commitGpuPage(
   resident.set(key, page)
   context.eviction.arrived(page)
   context.changes.placed(key, offset)
+  context.changes.arrived(key)
   emit?.('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,

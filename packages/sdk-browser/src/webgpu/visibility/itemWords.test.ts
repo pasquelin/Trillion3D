@@ -40,7 +40,7 @@ function runtime(n: number, drawLayerSlots: number) {
     // Every row draws a page of the one placement: its packed ranks all name root 0.
     placement: {
       baseOfRoot: Int32Array.of(0),
-      rootOfPacked: Int32Array.from({ length: 1024 }, () => 0),
+      packedCount: 1024,
     },
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(n),

@@ -8,7 +8,7 @@ import { PAGE_DEFORM_OUTPUT_WORD, PAGE_DEFORM_WORD, PAGE_INFO_STRIDE } from '../
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
-/** Three rows — a float-pool block, a slot's tail, the block again — over two placements. */
+/** Three rows — a float-pool block, a slot's tail, the block again —, a placement each. */
 function rig() {
   const block = { from: 100, count: 9, pool: { attributes: {} as HostAttributes } },
     tail = { from: 12, count: 3 }
@@ -37,9 +37,9 @@ function rig() {
     layout: {
       rows,
       recordOf: (page: number) => recs[page],
-      placement: { rootOfPacked: Int32Array.from([0, 1, 0]) },
+      placement: { baseOfRoot: Int32Array.of(0, 1, 2), packedCount: 3 },
     },
-    blendState: { table: { entryOfPage: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
+    blendState: { table: { pageOfEntry: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
     vis: { deformation },
   } as unknown as Parameters<typeof followPooledBlocks>[0]
   ints[words + PAGE_DEFORM_WORD] = deformation.rowWord(1)

@@ -64,7 +64,7 @@ export function evaluateDagSelectionKernel(
     aheadFrames,
     oracleWorldCovers(packed, frames, resident?.ready),
   )
-  const predicates = (f: typeof frames, flags: Uint8Array) =>
+  const predicates = (f: typeof frames, flags: Pick<typeof nodeFlags, 'at'>) =>
     createDagOraclePredicates({
       packed,
       records,
@@ -77,10 +77,9 @@ export function evaluateDagSelectionKernel(
   // The view ahead reads every kept leaf, the camera's and its own.
   const aheadView =
     aheadFrames &&
-    predicates(
-      aheadFrames,
-      nodeFlags.map((f) => (f === AHEAD_LEAF ? 0 : f)),
-    )
+    predicates(aheadFrames, {
+      at: (w, n) => (nodeFlags.at(w, n) === AHEAD_LEAF ? 0 : nodeFlags.at(w, n)),
+    })
   /** The error the page's replacement removes, or its own when nothing replaces it (`dagWanted`). */
   const replaced = (view: ReturnType<typeof predicates>, i: number) =>
     view.bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)
@@ -112,7 +111,8 @@ export function evaluateDagSelectionKernel(
     if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totals.transparent += tri
   }
   let frustumRejected = 0,
-    lodLevel = 0
+    lodLevel = 0,
+    live = 0
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
@@ -122,6 +122,7 @@ export function evaluateDagSelectionKernel(
       wantAhead(i)
       continue
     }
+    live++
     if (!draws(i, thresholdOf(frames, w), true, true) || coneRejects(i, w)) {
       wantAhead(i)
       continue
@@ -157,6 +158,9 @@ export function evaluateDagSelectionKernel(
     selectedTriangles: totals.drawn,
     transparentTriangles: totals.transparent,
     drawnTriangles: totals.drawn,
+    // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
+    // work and the cut is not drawn.
+    work: { ...nodeFlags.work, live },
   } as DagOracleResult
 }
 
@@ -171,4 +175,6 @@ export type DagOracleResult = SelectionResult & {
   /** Priority of each request, at the same rank as `pageIds` (`../request.ts`): the oracle's own,
    *  for the proofs that compare the two rankings; the GPU returns only the order. */
   requestPriorities: number[]
+  /** The entries each level's queue holds, the candidates and the live pages. */
+  work: { levels: number[]; candidates: number; live: number }
 }

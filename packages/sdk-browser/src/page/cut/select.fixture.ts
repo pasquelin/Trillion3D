@@ -16,7 +16,7 @@ import { OPEN_PLANES, openMark } from './openRoot.fixture.ts'
 export const drawsCard = (mark: number | undefined) => ((mark ?? 0) & CARD_ROOT) !== 0
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
- *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */
+ *  if the box grown by `reach` on each side would — the GPU cut does the same (`planeOf`). */
 function growPlanes(planes: Float64Array, reach: number) {
   for (let i = 0; i < 24; i += 4)
     planes[i + 3] +=

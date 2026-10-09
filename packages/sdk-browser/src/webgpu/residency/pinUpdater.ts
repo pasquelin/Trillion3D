@@ -37,9 +37,26 @@ export function createWebgpuPinUpdater(options: {
   const { traceEnabled, traceDiagnostic } = options
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet()
-  /** A held key the cache has not pinned yet waits for its bytes. */
+  /** The waiting keys the image keeps: what it still misses, the window's pressure. */
+  const waitingKept = createDenseKeySet()
+  /** A held key the cache has not pinned yet: pinned now when the cache holds it, else waiting for
+   *  its bytes — pinned as they arrive (`takeArrivals`), never asked of the cache again. */
   const want = (key: number) => {
-    if (!tracking.pinned.has(key)) waiting.add(key)
+    if (tracking.pinned.has(key)) return
+    if (current?.get(tracking.pageCatalog[key])) pinKey(key)
+    else {
+      waiting.add(key)
+      if (tracking.keep.has(key)) waitingKept.add(key)
+    }
+  }
+  const pinKey = (key: number) => {
+    const url = tracking.pageCatalog[key]
+    // A root-cover page evicted by a resize comes back in the held tier it had.
+    current.pin(url, bootstrapKey[key] > 0 ? 'held' : 'pinned')
+    tracking.markPinned(key)
+    waiting.remove(key)
+    waitingKept.remove(key)
+    if (traceEnabled) added.push(url)
   }
   const lastUse = createLastUse({
     idleWindow: LAST_USE_WINDOW,
@@ -54,6 +71,7 @@ export function createWebgpuPinUpdater(options: {
   /** True when the key held a slot pinned: unpinning it gives that slot back. */
   const unpin = (key: number) => {
     waiting.remove(key)
+    waitingKept.remove(key)
     if (!tracking.pinned.remove(key)) return false
     const url = tracking.pageCatalog[key]
     if (traceEnabled) removed.push(url)
@@ -78,7 +96,10 @@ export function createWebgpuPinUpdater(options: {
     added.length = 0
     removed.length = 0
     const { entering, enteringPages, leaving } = sets
-    for (let i = leaving.count - 1; i >= 0; i--) lastUse.leave(leaving.list[i], frame)
+    for (let i = leaving.count - 1; i >= 0; i--) {
+      waitingKept.remove(leaving.list[i])
+      lastUse.leave(leaving.list[i], frame)
+    }
     leaving.clear()
     for (let i = entering.count - 1; i >= 0; i--) {
       const key = entering.list[i]
@@ -93,25 +114,14 @@ export function createWebgpuPinUpdater(options: {
       if (lastUse.holds(key)) want(key)
     }
     notices.length = 0
-    // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
-    // image once the cut has settled instead of one lookup per kept key. The kept keys still
-    // missing are what asks the pool for slots; a key that only waits out its window asks none.
-    let missing = 0
-    for (let i = waiting.count - 1; i >= 0; i--) {
-      const key = waiting.list[i]
-      if (!tracking.pinned.has(key)) {
-        const url = tracking.pageCatalog[key]
-        if (!cache.get(url)) {
-          if (tracking.keep.has(key)) missing++
-          continue
-        }
-        // A root-cover page evicted by a resize comes back in the held tier it had.
-        cache.pin(url, bootstrapKey[key] > 0 ? 'held' : 'pinned')
-        tracking.markPinned(key)
-        if (traceEnabled) added.push(url)
-      }
-      waiting.remove(key)
-    }
+    // The keys still waiting are pinned as their bytes arrive: each arrival is read once, never
+    // the waiting keys, which a pool its pins fill could keep by the hundred thousand.
+    cache.takeArrivals((url) => {
+      const key = tracking.pageCatalogIds.get(url)
+      if (key !== undefined && waiting.has(key) && !tracking.pinned.has(key)) pinKey(key)
+    })
+    // What the image keeps and still misses is the pressure the window gives way to.
+    const missing = waitingKept.count
     // Released oldest first, each where it went when it went idle: the cache then reclaims the
     // released pages in their last-use order. What the image still misses beyond the unpinned
     // slots is the pressure: the window gives way to it (`../../residency/lastUse.ts`).
