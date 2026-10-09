@@ -230,12 +230,13 @@ export async function flushRuntime(
   cut: (uniforms: SelectionUniforms) => void,
 ) {
   await state.pending
-  // A cut past its list grows it, or past the device coarsens (`listCap.ts`): the drain grows it,
-  // then cuts again on it, rather than hand back the cut before; a factor that moved back cuts
-  // again under it too. It rises √2 at least to its coarsest, and falls only to a factor that did
-  // not overflow for the view as it stands (`coarsening.ts`): the drain ends.
+  // A cut past its list grows it, a cut that dropped work its queues or lists (`queueGrowth.ts`),
+  // or past the device it coarsens (`listCap.ts`): the drain grows them, then cuts again on them,
+  // rather than hand back the cut before; a factor that moved back cuts again under it too. It
+  // rises √2 at least to its coarsest, and falls only to a factor that did not overflow for the
+  // view as it stands (`coarsening.ts`): the drain ends.
   const { cuts } = resources.swap
-  const again = () => (state.grow || state.factorMoved) && !state.dead
+  const again = () => (state.grow || state.growFlags || state.factorMoved) && !state.dead
   for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again();) {
     cut(asked)
     await state.pending

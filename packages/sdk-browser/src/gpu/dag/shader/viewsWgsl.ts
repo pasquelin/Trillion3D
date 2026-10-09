@@ -44,10 +44,13 @@ export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4
  *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */
 export const VIEW_WORD_ROWS = 3
 /**
- * Bit of the output's flag word set when a queue or a list was full and work was dropped: each
- * list holds the whole catalogue, each queue every node and one root per slot.
+ * Bits of the output's flag word set when work was dropped — a descent queue full, or the
+ * candidate list, the live list or the log the cut writes: the cut is then not drawn
+ * (`dagCommitMask`), and the host grows what was full (`../queueGrowth.ts`).
  */
-const WORK_DROPPED = 4
+export const QUEUE_DROPPED = 4,
+  LIST_DROPPED = 8,
+  WORK_DROPPED = QUEUE_DROPPED | LIST_DROPPED
 
 export const DAG_VIEWS_WGSL = wgslBlock(
   'DAG_VIEWS_WGSL',
@@ -78,6 +81,8 @@ fn rangeSlot(i:u32)->u32{if(!SPLIT){return i;}let v=i/range.count;return v*views
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
-fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
+const QUEUE_DROPPED:u32=${QUEUE_DROPPED}u;
+const LIST_DROPPED:u32=${LIST_DROPPED}u;
+fn dropWork(bit:u32){atomicOr(&out.overflow,bit);}
 `,
 )

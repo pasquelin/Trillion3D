@@ -17,7 +17,7 @@ import {
   saveRegionFor,
   takeAsideView,
 } from './swap.ts'
-import { heldOpenAt, tablesHeld } from './listCap.ts'
+import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
 import { coarsenTick } from './coarsening.ts'
 import { recutView } from './runtimeState.ts'
 import { pickSlot } from './readbackSlot.ts'
@@ -124,7 +124,7 @@ function cutAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCommandE
   const undo = holdSwap(swap, view)
   const { factor } = aside.slots.coarse
   const region = saveRegionFor(swap, view)
-  writeDagUniforms(uniformData, packed, uniforms, listCap, region, factor, heldOpenAt(resources))
+  writeDagUniforms(uniformData, packed, uniforms, listCap, region, factor, cutTablesAt(resources))
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(shared, resources, false)
   // One copy of the uniforms, kept by the swap and by the readback alike: none is written after.

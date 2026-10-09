@@ -82,6 +82,12 @@ export function packClusterFlags(
  * host adopts the head of each list, never an exit from it (`../../webgpu/cut/adoption.ts`). The pool's list (`poolBase`) keeps this cap.
  */
 export const SELECTION_LIST_CAP = 262144
+/** What a cut's descent queues and its candidate and live lists hold when it is made: a view's
+ *  reach, never the world's. A cut that passes one is not drawn and grows them (`queueGrowth.ts`):
+ *  measured on an 8 km world from six eyes, a level holds up to 976 k entries and a frame lists up
+ *  to 3.9 M candidates with nothing resident, 1.7 M with everything. */
+export const QUEUE_ENTRIES_START = 4 * SELECTION_LIST_CAP,
+  CANDIDATES_START = 8 * SELECTION_LIST_CAP
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) => clamp(pageCount, 0, SELECTION_LIST_CAP)
 /** Bytes a resident cut's frame copies: everything before the staged requests. */

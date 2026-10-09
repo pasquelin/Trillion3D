@@ -3,7 +3,13 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import { compactDrawnPages, drawMask, maskBit } from './globals.ts'
+import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
+import {
+  LIST_DROPPED,
+  QUEUE_DROPPED,
+  WORK_DROPPED,
+} from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
 import { words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -34,6 +40,7 @@ import { LIST_KERNELS, mirrorListStage } from './mockLists.ts'
 const DAG_STAGES = new Set([
   'dagMask',
   'dagDrawScatter',
+  'dagCommitMask',
   'dagSortRequests',
   'dagListEvictions',
   ...LIST_KERNELS,
@@ -116,6 +123,7 @@ export function simulateComputeDispatch(
       byBinding.get(DAG_BINDING.out)!.data,
       dag.pageCount,
     )
+  if (stage === 'dagCommitMask') return commitMask(byBinding, dag.pageCount)
   if (stage !== 'dagMask') return
   const { uniforms } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data)
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
@@ -141,7 +149,7 @@ export function simulateComputeDispatch(
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
   mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
-  const mask = drawMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
+  const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
   for (const id of result.drawablePageIds ?? []) mask[id >>> 5] |= 1 << (id & 31)
   const ints = words(byBinding.get(DAG_BINDING.out)!.data)
@@ -155,8 +163,23 @@ export function simulateComputeDispatch(
   ints[0] = list.length
   // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
   ints[3] = list.length > listCap ? 1 : 0
+  // Past a queue's entries or a list's, the kernel drops work: the cut is not drawn.
+  const views = words(byBinding.get(DAG_BINDING.views)!.data),
+    { levels, candidates, live } = result.work
+  const entries = views[viewWord('queueCap')] / 2,
+    cap = views[viewWord('candCap')]
+  if (Math.max(...levels) > entries) ints[3] |= QUEUE_DROPPED
+  if (candidates > cap || live > cap) ints[3] |= LIST_DROPPED
   list.slice(0, listCap).forEach((staged, s) => {
     ints[at + 2 * s] = stagedPage(staged)
     ints[at + 2 * s + 1] = stagedPriority(staged)
   })
+}
+
+/** `dagCommitMask`: the mask the cut wrote made the frame's, unless it dropped work. */
+function commitMask(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
+  if (words(byBinding.get(DAG_BINDING.out)!.data)[3] & WORK_DROPPED) return
+  const work = byBinding.get(DAG_BINDING.work)!.data
+  const written = writtenMask(work, pageCount).subarray(0, bitWords(pageCount))
+  drawMask(work, pageCount).set(written)
 }

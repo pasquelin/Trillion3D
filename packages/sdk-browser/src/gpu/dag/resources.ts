@@ -143,6 +143,8 @@ function dagBuffers(
     /** How the tables split on this device, and each as its parts (`split.ts`). */
     split,
     flagParts: tables.flags,
+    /** What `flags` holds now: its queues and lists grow on demand (`queueGrowth.ts`). */
+    flagShape: tables.shape,
     ranks,
   }
 }

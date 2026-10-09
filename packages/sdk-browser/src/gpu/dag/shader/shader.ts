@@ -6,6 +6,7 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { isNanWord } from '../../../../../math/src/wgsl/integer.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
+import { DAG_COMMIT_WGSL } from './commitWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
 import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts'
@@ -147,6 +148,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_ERROR_WGSL,
       CUT_RULE_WGSL,
       DAG_COMPACT_WGSL,
+      DAG_COMMIT_WGSL,
       DAG_TOTALS_WGSL,
       DAG_REQUEST_WGSL,
       DAG_READING_WGSL,

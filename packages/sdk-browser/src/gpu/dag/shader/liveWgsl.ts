@@ -51,7 +51,7 @@ fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].candCa
 /** \`entry\` is the candidate's, view included, read by placement \`w\`, its cone word \`cone\`. */
 fn liveAppend(entry:u32,w:u32,cone:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
- if(s>=views[0u].candCap){dropWork();return;}
+ if(s>=views[0u].candCap){dropWork(LIST_DROPPED);return;}
  setFlag(liveBase()+3u*s,entry);setFlag(liveBase()+3u*s+1u,w);setFlag(liveBase()+3u*s+2u,cone);
  if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
 }

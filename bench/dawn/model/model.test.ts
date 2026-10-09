@@ -113,7 +113,7 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
   assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
 })
 
-test('the selection’s dispatches are the encoder’s: nine, and two a level', () => {
+test('the selection’s dispatches are the encoder’s: ten, and two a level', () => {
   for (const levels of [2, 3, 4, 5]) {
     const { encoder, dispatches, armements } = witnessEncoder()
     encodeDagKernels(encoder as never, cutResources(levels) as never)

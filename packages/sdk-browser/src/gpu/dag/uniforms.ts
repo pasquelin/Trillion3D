@@ -12,6 +12,7 @@ import {
 } from './layout.ts'
 import type { SelectionResult } from '../core/selection.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
+import { WORK_DROPPED } from './shader/viewsWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
@@ -19,6 +20,11 @@ import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagQueueWords } from './flagSections.ts'
+
+/** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
+ *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the words of each descent queue
+ *  and the entries of each list its `flags` holds (`queueGrowth.ts`), the packing's when absent. */
+export type CutTablesAt = { base: number; mask: number; queueWords?: number; candCap?: number }
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -66,8 +72,9 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
  * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
  * factor its projected-error threshold is cut under, 1 but past the list the device holds
- * (`coarsening.ts`). `held`, where the open counts placements hold lie in `out` (`listCap.ts`,
- * `heldOpenAt`): none by default.
+ * (`coarsening.ts`). `at`, where the open counts placements hold lie in `out` (`listCap.ts`,
+ * `heldOpenAt`) — none by default —, and the words of each queue and the entries of each list the
+ * cut's `flags` holds now (`queueGrowth.ts`), the packing's by default.
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -76,7 +83,7 @@ export function writeDagUniforms(
   listCap: number,
   saveRegion = REGION_NONE,
   coarsen = 1,
-  held = { base: 0, mask: 0 },
+  at: CutTablesAt = { base: 0, mask: 0 },
 ) {
   const W = viewWord
   target.fill(0)
@@ -108,11 +115,11 @@ export function writeDagUniforms(
   // node: two words an entry, the node then its placement (`shader/levelWgsl.ts`).
   ints[W('viewCount')] = 1
   ints[W('viewCapacity')] = 1
-  ints[W('queueCap')] = dagQueueWords(packed)
+  ints[W('queueCap')] = at.queueWords ?? dagQueueWords(packed)
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
-  ints[W('heldBase')] = held.base
-  ints[W('heldMask')] = held.mask
-  ints[W('candCap')] = packed.candCount
+  ints[W('heldBase')] = at.base
+  ints[W('heldMask')] = at.mask
+  ints[W('candCap')] = at.candCap ?? packed.candCount
   ints[W('recordCount')] = packed.recordCount
   ints[W('keyCount')] = packed.keyCount
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
@@ -177,6 +184,8 @@ export function parseDagOutput(
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
+  // A queue or a list full: the cut was not drawn, and its lists are not the cut's.
+  result.dropped = (ints[OUT_FLAGS] ?? 0) & WORK_DROPPED
   result.drawablePageIds = undefined
   if (levelsWord) result.levelCounts = readLevelCounts(ints, levelsWord, scratch.levels)
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks

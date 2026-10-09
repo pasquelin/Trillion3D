@@ -128,8 +128,10 @@ export type PackedDag = {
   recordCount: number
   /** Content keys behind the records, one per page address (`evict.ts`). */
   keyCount: number
-  /** What the candidate and live lists hold at most (`shader/levelWgsl.ts`). */
+  /** What the candidate and live lists hold, and each descent queue, now (`shader/levelWgsl.ts`):
+   *  a view's reach, grown when a cut passes one (`queueGrowth.ts`). */
   candCount: number
+  queueEntries: number
   /** Each page's placement, on the host alone: the kernels read it from the entries that carry
    *  it. */
   pageWorlds: Uint32Array

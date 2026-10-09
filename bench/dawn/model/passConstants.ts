@@ -68,10 +68,10 @@ export const TAA_TARGET_BYTES = 8 + 4 + 8 + 4,
 export const taaFetches = (f: Pick<Frame, 'P' | 'D'>) =>
   countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1, false).fetches
 /** The cut's dependent dispatches per frame (`encodeDagKernels`), counted on its encoder by the
- *  model's test: nine whatever the levels — the first arming, clear, prepare, wanted, mask,
- *  prefix, scatter, sort, eviction —, and two a level — its kernel and its arming —; the levels
+ *  model's test: ten whatever the levels — the first arming, clear, prepare, wanted, mask,
+ *  prefix, scatter, commit, sort, eviction —, and two a level — its kernel and its arming —; the levels
  *  the model counts. */
-export const DAG_FIXED_DISPATCHES = 9,
+export const DAG_FIXED_DISPATCHES = 10,
   DAG_LEVEL_DISPATCHES = 2,
   DAG_LEVELS = 8
 /** The partition's bytes a cluster: its row, then its counts (`encodeVis`). */

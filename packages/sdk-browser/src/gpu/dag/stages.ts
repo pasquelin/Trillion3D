@@ -33,6 +33,7 @@ export async function createDagStages(
       'dagWanted',
       'dagMask',
       'dagDrawPrefix',
+      'dagCommitMask',
       'dagDrawScatter',
       'dagSortRequests',
       'dagListEvictions',
@@ -54,6 +55,8 @@ export async function createDagStages(
     maskPipeline: stage.dagMask,
     drawPrefixPipeline: stage.dagDrawPrefix,
     drawScatterPipeline: stage.dagDrawScatter,
+    /** The cut's mask and drawn log made the frame's, when no work was dropped. */
+    commitPipeline: stage.dagCommitMask,
     requestSortPipeline: stage.dagSortRequests,
     evictPipeline: stage.dagListEvictions,
     /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */

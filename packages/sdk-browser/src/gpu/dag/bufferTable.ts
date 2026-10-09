@@ -92,6 +92,8 @@ export function cameraCutBuffers(
     blockCount,
     workLayout,
     split,
+    /** What `flags` is laid out for: the cut's queues and lists as they start (`queueGrowth.ts`). */
+    shape,
     parts,
     rows: {
       ...namedParts('clusters', parts.clusters),

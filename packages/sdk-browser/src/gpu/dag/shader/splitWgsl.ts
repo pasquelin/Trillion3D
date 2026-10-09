@@ -20,7 +20,7 @@ function equalParts(fn: string, table: string, type: string, { per, parts }: Tab
  *  bases (`queueBase`, `../split.ts` `flagSectionStart`), so a camera cut and a light cut of other queue
  *  capacities share one text. */
 function flagParts(cuts: readonly number[]) {
-  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s==1u){return candBase();}if(s==2u){return liveBase();}return queueBase(s-2u);}`
+  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s==1u){return candBase();}if(s==2u){return liveBase();}if(s==3u){return journalBase();}if(s==4u){return writtenBase();}return queueBase(s-4u);}`
   const at = (part: number) => (part ? `i-flagSection(${cuts[part - 1]}u)` : 'i')
   let read = '',
     write = ''

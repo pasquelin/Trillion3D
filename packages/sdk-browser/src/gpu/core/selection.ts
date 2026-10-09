@@ -69,6 +69,10 @@ export type SelectionResult = {
   /** True when the cut exceeded the sample cap the device can hold: each list is its head, the
    *  frame's mask is whole, and nothing exits on it (`../../webgpu/cut/adoption.ts`). */
   truncated?: boolean
+  /** Non-zero when the cut dropped work, a queue or a list full (`../dag/queueGrowth.ts`): its
+   *  bits say which. The frame keeps drawing the last cut that ran whole; this one is never
+   *  adopted. */
+  dropped?: number
 }
 /** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
 export type GpuCut = {

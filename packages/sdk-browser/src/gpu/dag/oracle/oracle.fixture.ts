@@ -111,7 +111,8 @@ export function evaluateDagSelectionKernel(
     if (flagsOf(records, i) & CLUSTER_TRANSPARENT) totals.transparent += tri
   }
   let frustumRejected = 0,
-    lodLevel = 0
+    lodLevel = 0,
+    live = 0
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
@@ -121,6 +122,7 @@ export function evaluateDagSelectionKernel(
       wantAhead(i)
       continue
     }
+    live++
     if (!draws(i, thresholdOf(frames, w), true, true) || coneRejects(i, w)) {
       wantAhead(i)
       continue
@@ -156,6 +158,9 @@ export function evaluateDagSelectionKernel(
     selectedTriangles: totals.drawn,
     transparentTriangles: totals.transparent,
     drawnTriangles: totals.drawn,
+    // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
+    // work and the cut is not drawn.
+    work: { ...nodeFlags.work, live },
   } as DagOracleResult
 }
 
@@ -170,4 +175,6 @@ export type DagOracleResult = SelectionResult & {
   /** Priority of each request, at the same rank as `pageIds` (`../request.ts`): the oracle's own,
    *  for the proofs that compare the two rankings; the GPU returns only the order. */
   requestPriorities: number[]
+  /** The entries each level's queue holds, the candidates and the live pages. */
+  work: { levels: number[]; candidates: number; live: number }
 }

@@ -14,9 +14,8 @@ import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import type { createDagResources } from './resources.ts'
 import type { CameraFrames } from './frameRanges.ts'
-import { newRegions, regionsWanted } from './swap.ts'
+import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -123,7 +122,7 @@ function writeHeldOpen(resources: {
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
  * `pageCones`, keeps its own (`layout.ts`).
  */
-async function growDagList(
+export async function growDagList(
   resources: DagResources,
   listCap: number,
   regions: number,
@@ -194,44 +193,6 @@ function moveKeptSnapshot(
     from.listCap * 4,
   )
   device.queue.submit([encoder.finish()])
-}
-
-/** Grows the list to `state.grow`, and `out` to the regions the views aside ask, behind the
- *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
- *  cuts and reads again — on the grown list, or, refused, to coarsen the cut past it
- *  (`coarsening.ts`) and draw the views aside without a region. */
-function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
-  const { swap } = resources,
-    cap = Math.max(state.grow, resources.listCap),
-    regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
-  state.grow = 0
-  state.growing = true
-  state.pending = state.pending
-    .catch(() => {})
-    .then(async () => {
-      try {
-        if (await growDagList(resources, cap, regions, () => state.disposed)) return
-        if (cap > resources.listCap) state.listFull = true
-        if (regions > swap.regions) state.regionsFull = true
-      } finally {
-        state.growing = false
-        recutMain(swap, state)
-      }
-    })
-}
-
-/** True when the list must grow, or `out` must hold the saved regions the views aside ask. */
-const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
-  !!state.grow || (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
-
-/** True when no cut may run on the tables now: disposed, lost, or a list or regions to grow —
- *  which wait for the readbacks in flight, then grow (`queueDagListGrowth`): no frame cuts on the
- *  old ones. The main view's dispatch (`dispatch.ts`) and a view's aside (`aside.ts`) alike. */
-export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
-  if (state.disposed || state.dead || state.growing) return true
-  if (!growthAsked(resources, state)) return false
-  if (!state.mapped.includes(true)) queueDagListGrowth(resources, state)
-  return true
 }
 
 /** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference

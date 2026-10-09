@@ -3,6 +3,7 @@ import { levelCountsWord } from './layout.ts'
 import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
+import { widerFlagShape } from './queueGrowth.ts'
 import type { MainCut } from './dispatch.ts'
 
 // The landing side of the main view's dispatch (`dispatch.ts`): the readback a slot copied, read
@@ -48,7 +49,7 @@ async function adoptMain(
 ) {
   const { readback, outputBytes, readbackBytes: copied, listCap, device, packed } = resources
   const { listFull } = state
-  const { parsed, grown, moved, retried } = await readDagSlot(
+  const { parsed, grown, grownFlags, moved, retried } = await readDagSlot(
     readback[i],
     {
       bytes: copied,
@@ -64,6 +65,7 @@ async function adoptMain(
       listFull,
       coarse: state.coarse,
       cutFactor: read.coarsen,
+      flags: { shape: resources.flagShape, entryCount: packed.entryCount, full: state.flagsFull },
     },
     // Every copy lands in the chain, adoptable or not: the next is taken against it. A residency
     // that moved since makes the mask a lie; a pose that moved only makes the cut a frame late, as
@@ -86,8 +88,10 @@ async function adoptMain(
     recutMain(resources.swap, state)
   }
   if (grown) state.grow = Math.max(state.grow, grown)
-  else if (retried) return
-  else if (parsed && read.residency === state.residencyRevision) {
+  // A cut that dropped work was not drawn: its queues or lists grow, and it is never adopted.
+  if (grownFlags) state.growFlags = widerFlagShape(state.growFlags, grownFlags)
+  if (retried) return
+  if (parsed && read.residency === state.residencyRevision) {
     state.last = { uniforms: read.captured, result: parsed, worldRevision: read.world }
     if (!parsed.truncated) noteWhole(resources.swap, MAIN_VIEW, read.serial)
   } else if (!parsed) state.readback = undefined

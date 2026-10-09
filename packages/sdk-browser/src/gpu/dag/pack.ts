@@ -1,5 +1,6 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
@@ -11,7 +12,15 @@ import {
 import { baseOpen, linksFor } from '../../page/cut/links.ts'
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
-import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyWordBase, recordKeyBase } from './layout.ts'
+import {
+  CANDIDATES_START,
+  CLUSTER_WORDS,
+  COLD_WORDS,
+  QUEUE_ENTRIES_START,
+  coldBase,
+  keyWordBase,
+  recordKeyBase,
+} from './layout.ts'
 import { KEY_PAGE_MAX, keyCount, writeKeyTables } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
@@ -268,7 +277,10 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     pageCount: size.pages,
     recordCount: records.count,
     keyCount: tables.keyCount,
-    candCount: size.pages,
+    // The lists and queues a view's reach holds, the catalogue's at most: grown on demand.
+    candCount: clampLowWins(size.pages, 1, CANDIDATES_START),
+    // Queue 0 holds a root slot a placement without a tree (`dagPrepare`): never fewer.
+    queueEntries: clamp(plan.worlds, QUEUE_ENTRIES_START, plan.entries),
     pageWorlds: p.pageWorlds,
     recordShift: p.recordShift,
     rootCount: p.rootClusters,

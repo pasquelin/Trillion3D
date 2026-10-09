@@ -1,6 +1,6 @@
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { dagNodeFloor, dagNodeVerdict, dagTreeVerdict } from './nodeVerdict.fixture.ts'
-import { NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
+import { NODE_FIRST_CHILD, NODE_KIND, NODE_PAGE_COUNT } from '../nodeLayout.ts'
 import { TREE_GROUP, type PlacementTree } from '../placementTree.ts'
 import { drawsCard } from '../../../page/cut/select.fixture.ts'
 import { thresholdOf, type DagViewFrames } from './math.fixture.ts'
@@ -106,15 +106,23 @@ export function dagOracleDescent(
   const nodeInts = new Uint32Array(packed.nodes.buffer),
     tree = packed.placementTree
   const nodeFlags = createDescentFlags()
-  /** Triples: the node, the placement reading it, then whether it is the view ahead's alone. */
+  /** Quadruples: the node, the placement reading it, whether it is the view ahead's alone, then its
+   *  level. */
   const frontier: number[] = []
   // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
   const opened = tree ? (packed.world ? [packed.world.root] : []) : packed.rootNodes.keys()
   for (const w of opened)
-    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0)
+    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0, 0)
   const top = tree?.levels[0]
-  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0, 0)
+  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0, 0, 0)
+  // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
+  // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
+  const work = {
+    levels: [tree ? (top?.count ?? 0) + (packed.world ? 1 : 0) : packed.worldCount],
+    candidates: 0,
+  }
   while (frontier.length) {
+    const level = frontier.pop() as number
     let aheadOnly = frontier.pop() as number
     let w = frontier.pop() as number
     let n = frontier.pop() as number
@@ -134,10 +142,12 @@ export function dagOracleDescent(
     }
     if (children) {
       const first = firstChild(packed, nodeInts, n)
-      for (let c = 0; c < children; c++) frontier.push(first + c, w, aheadOnly)
+      for (let c = 0; c < children; c++) frontier.push(first + c, w, aheadOnly, level + 1)
+      work.levels[level + 1] = (work.levels[level + 1] ?? 0) + children
       continue
     }
     nodeFlags.set(w, n, aheadOnly ? AHEAD_LEAF : 0)
+    work.candidates += nodeInts[n * DAG_NODE_FLOATS + NODE_PAGE_COUNT]
   }
-  return nodeFlags
+  return Object.assign(nodeFlags, { work })
 }

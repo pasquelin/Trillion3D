@@ -28,15 +28,32 @@ export function splitTable(count: number, bytes: number, cap: number): TableSpli
  *  `shader/splitWgsl.ts` states them in WGSL. */
 export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) {
   if (s === 0) return 0
-  if (s === 1) return queueWords
-  if (s === 2) return queueWords + 2 * candCap
-  return (s - 2) * queueWords + CAND_LIVE_WORDS * candCap
+  if (s <= LISTS) return queueWords + LIST_STARTS[s - 1] * candCap
+  return (s - LISTS) * queueWords + CAND_LIVE_WORDS * candCap
 }
+
+/** Sections a cut keeps from one cut to the next: the drawn log of the last cut that ran whole,
+ *  and each content key's last use. The others each cut writes before it reads them. */
+export const JOURNAL_SECTION = 3,
+  LAST_USE_SECTION = FLAG_SECTIONS - 1
+
+/** The part of a `flags` of `shape` cut at `cuts` holding section `s`, and its first word there. */
+export function flagSectionPlace(cuts: readonly number[], shape: FlagShape, s: number) {
+  let part = 0
+  while (part < cuts.length && cuts[part] <= s) part++
+  const first = part ? flagSectionStart(cuts[part - 1], shape) : 0
+  return { part, word: flagSectionStart(s, shape) - first }
+}
+
+/** The lists behind queue 0, and where each starts, in words of an entry (`shader/levelWgsl.ts`):
+ *  the candidates, two; the live list, three; the drawn log and the log being written, one each. */
+const LIST_STARTS = [0, 2, 5, 6],
+  LISTS = LIST_STARTS.length
 
 /** Words of section `s`: a queue's, a list's, or the last uses, a word a content key. */
 function sectionWords(s: number, shape: FlagShape) {
-  if (s === 1) return 2 * shape.candCap
-  if (s === 2) return 3 * shape.candCap
+  if (s >= 1 && s <= LISTS)
+    return ((LIST_STARTS[s] ?? CAND_LIVE_WORDS) - LIST_STARTS[s - 1]) * shape.candCap
   return s === FLAG_SECTIONS - 1 ? shape.keyCount : shape.queueWords
 }
 

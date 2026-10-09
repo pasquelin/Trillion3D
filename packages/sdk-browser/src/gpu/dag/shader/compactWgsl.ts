@@ -36,11 +36,15 @@ fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,BLOCK);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
 /** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
- *  flag — THE draw mask, the one the draw, the raster and the blended pass read —, set by \`dagMask\`,
- *  cleared by \`dagPrepare\` with the block count, and by a swap from its journal (\`swapWgsl.ts\`). */
+ *  flag as the running cut decides it, set by \`dagMask\`, cleared by \`dagPrepare\` with the block
+ *  count. The mask the draw, the raster and the blended pass read lies behind (\`liveMaskBase\`). */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
+/** The mask the frame draws, behind the one the cut writes: the last cut that ran whole's
+ *  (\`dagCommitMask\`), or the view a swap brought back (\`swapWgsl.ts\`). */
+fn liveMaskBase()->u32{return blockCount()*4u;}
+fn liveMaskWord(i:u32)->u32{return liveMaskBase()+bitWord(i);}
 fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}

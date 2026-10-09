@@ -69,7 +69,7 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
  * wanted pages, in the same buffer.
  */
 export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, pageCount: number) {
-  const marks = drawMask(workBytes, pageCount),
+  const marks = writtenMask(workBytes, pageCount),
     out = words(outBytes)
   const head = SELECTION_HEADER_WORDS,
     base = head + pageCount
@@ -78,9 +78,12 @@ export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, p
   out[base] = found
 }
 
-/** The cut's draw mask in its `work` words, a bit a page (`compactWgsl.ts`), and page `id`'s bit. */
+/** The cut's draw mask in its `work` words, a bit a page — the frame's (`drawMask`), the one the
+ *  running cut writes (`writtenMask`) — (`compactWgsl.ts`), and page `id`'s bit. */
 export const drawMask = (workBytes: Uint8Array, pageCount: number) =>
   words(workBytes).subarray(dagWorkLayout(ceilDiv(Math.max(1, pageCount), 64)).drawMask)
+export const writtenMask = (workBytes: Uint8Array, pageCount: number) =>
+  words(workBytes).subarray(2 * ceilDiv(Math.max(1, pageCount), 64))
 const drawn = (mask: Uint32Array, id: number) => (mask[id >>> 5] & (1 << (id & 31))) !== 0
 /** Page `id`'s bit of the draw mask at word `offset` of `words` (`compactWgsl.ts`). */
 export const maskBit = (words: Uint32Array, offset: number, id: number) =>

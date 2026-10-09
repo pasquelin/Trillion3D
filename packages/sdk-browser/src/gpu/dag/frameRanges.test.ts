@@ -37,7 +37,14 @@ async function split(per: number) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
   const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(per) }
-  const fake = fakeDevice({ limits: { ...limits, minUniformBufferOffsetAlignment: 256 } })
+  // Its lists split `flags` in parts too (`split.ts`): the device binds them all at once.
+  const fake = fakeDevice({
+    limits: {
+      ...limits,
+      minUniformBufferOffsetAlignment: 256,
+      maxStorageBuffersPerShaderStage: 16,
+    },
+  })
   const resources = await createDagResources(fake.device, dag)
   assert.ok(resources)
   return { fake, resources }

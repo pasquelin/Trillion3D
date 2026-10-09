@@ -1,6 +1,6 @@
 // The DAG selection kernel run on the GPU: the device and its pipelines opened once, then for each
 // case its buffers as the engine lays them out (`selectionCase.ts`), the stages `dagPrepare`, the
-// level descent, `dagWanted`, `dagMask` and `dagSortRequests` in the engine's order
+// level descent, `dagWanted`, `dagMask`, `dagCommitMask` and `dagSortRequests` in the engine's order
 // (`gpu/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
 // counters and the draw flags read back.
 import assert from 'node:assert/strict'
@@ -69,6 +69,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     deeper = stage('dagLevel0'),
     wanted = stage('dagWanted'),
     mask = stage('dagMask'),
+    commit = stage('dagCommitMask'),
     sort = stage('dagSortRequests')
   const groups = (threads: number) => workgroupCount(threads, SELECTION_WORKGROUP)
 
@@ -111,13 +112,15 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       [
         [wanted, pages],
         [mask, pages],
+        // The cut's mask made the frame's, a thread a word of two a block (`commitWgsl.ts`).
+        [commit, groups(2 * pages)],
         [sort, 1],
       ],
     )
     const header = SELECTION_HEADER_WORDS
     const out = await readBuffer(device, buffers.out.buffer, 0, (header + packed.pageCount) * 4)
     const work = await readBuffer(device, buffers.work.buffer, 0, at.work.words * 4)
-    // The draw mask, a bit a page in `work` (`compactWgsl.ts`).
+    // The frame's draw mask, a bit a page in `work` (`compactWgsl.ts`).
     const drawBits = work.subarray(at.work.drawMask)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
     const requests = Array.from(out.subarray(header, header + count))

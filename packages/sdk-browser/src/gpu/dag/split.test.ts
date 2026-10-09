@@ -15,14 +15,16 @@ test('a table splits in parts of as many whole elements as one binding holds', (
   assert.deepEqual(splitTable(3, 96, 64), { per: 1, parts: 3 }, 'one element past: refused later')
 })
 
-test("the sections are the kernel's: queue 0, the two lists, the queues, the last use", () => {
+test("the sections are the kernel's: queue 0, the lists and logs, the queues, the last use", () => {
   const shape = { queueWords: 14, candCap: 100, keyCount: 30 }
-  assert.equal(FLAG_SECTIONS, 1 + 2 + LEVEL_QUEUES)
+  assert.equal(FLAG_SECTIONS, 1 + 4 + LEVEL_QUEUES)
   assert.equal(flagSectionStart(1, shape), 14, 'the candidates, behind queue 0')
   assert.equal(flagSectionStart(2, shape), 14 + 2 * 100, 'the live list, behind them')
+  assert.equal(flagSectionStart(3, shape), 14 + 5 * 100, 'the drawn log, behind it')
+  assert.equal(flagSectionStart(4, shape), 14 + 6 * 100, 'the log being written, behind it')
   assert.equal(
     flagSectionStart(FLAG_SECTIONS - 1, shape),
-    14 * LEVEL_QUEUES + 5 * 100,
+    14 * LEVEL_QUEUES + 7 * 100,
     'the last use, behind the last queue (`lastUseAt`)',
   )
 })
@@ -33,7 +35,7 @@ test('flags cut between whole sections, each part within the binding, all words 
   const cuts = flagCuts(shape, cap)
   const words = dagFlagsWords(shape.queueWords, shape.candCap, shape.keyCount)
   const parts = flagPartWords(cuts, shape, words)
-  assert.deepEqual(cuts, [2, 5])
+  assert.deepEqual(cuts, [2, 3, 7])
   assert.ok(parts.every((part) => part * 4 <= cap))
   assert.equal(
     parts.reduce((a, b) => a + b),

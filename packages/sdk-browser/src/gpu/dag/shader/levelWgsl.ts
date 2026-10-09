@@ -52,9 +52,9 @@ import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  *  and zeroes `(L+2) % …`, which it neither reads nor writes. Three is the smallest
  *  count that makes those three indices distinct. */
 export const LEVEL_QUEUES = 3
-/** Words of the candidate list and of the live list, for one entry of each: two, then three
- *  (`liveWgsl.ts`). */
-export const CAND_LIVE_WORDS = 5
+/** Words of the lists, for one entry of each: the candidates, two; the live list, three
+ *  (`liveWgsl.ts`); the drawn log, one, and the log the running cut writes, one (`swapWgsl.ts`). */
+export const CAND_LIVE_WORDS = 7
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
@@ -62,9 +62,12 @@ export const DAG_LEVEL_WGSL = wgslBlock(
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].candCap*${CAND_LIVE_WORDS}u,0u,q==0u);}
 /** Entries a queue holds: two words each, the node then the placement that reads it. */
 fn queueEntries()->u32{return views[0u].queueCap/2u;}
-/** The candidates behind queue 0, two words each, the page then its placement: \`candCap\` of them,
- *  the previous frame's drawn journal — a word a page — in the same words (\`swapWgsl.ts\`). */
+/** The candidates behind queue 0, two words each, the page then its placement: \`candCap\` of them. */
 fn candBase()->u32{return views[0u].queueCap;}
+/** The drawn log of the last cut that ran whole, a word a page, then the one the running cut
+ *  writes, \`candCap\` each, behind the live list (\`swapWgsl.ts\`, \`dagCommitMask\`). */
+fn journalBase()->u32{return views[0u].queueCap+5u*views[0u].candCap;}
+fn writtenBase()->u32{return journalBase()+views[0u].candCap;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
 /** Queue \`q\`'s group count, x then y, which a level past the first dispatches on (\`armWgsl.ts\`). */
 fn queueGroups(q:u32)->u32{return listGroups(3u+q);}
@@ -72,6 +75,8 @@ fn candCounter()->u32{return liveCounter()+6u;}
 fn candGroups()->u32{return candCounter()+1u;}
 fn drawnCounter()->u32{return liveCounter()+9u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
+/** The log the running cut writes: its count (\`dagCommitMask\` makes it the drawn log). */
+fn writtenCounter()->u32{return liveCounter()+12u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
@@ -87,7 +92,7 @@ fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].y);}
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,stride:u32,cap:u32,w:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
-  if(at+k>=cap){dropWork();return;}
+  if(at+k>=cap){dropWork(LIST_DROPPED);return;}
   setFlag(base+stride*(at+k),packEntry(vi,first+k));
   if(stride>1u){setFlag(base+stride*(at+k)+1u,w);}
   if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
@@ -100,14 +105,18 @@ fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
  let at=atomicAdd(&work[queueCounter(dst)],count);
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){
-  if(at+k>=queueEntries()){dropWork();return;}
+  if(at+k>=queueEntries()){dropWork(QUEUE_DROPPED);return;}
   putEntry(base,at+k,packEntry(vi,first+k),w);
   if(((at+k)&63u)==0u){openSlice(queueGroups(dst),(at+k)>>6u);}
  }
 }
 /** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
 fn putEntry(base:u32,s:u32,entry:u32,w:u32){setFlag(base+2u*s,entry);setFlag(base+2u*s+1u,w);}
-fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u,1u,2u*views[0u].candCap,0u);}
+fn drawnAppend(page:u32){
+ let at=atomicAdd(&work[writtenCounter()],1u);
+ if(at>=views[0u].candCap){dropWork(LIST_DROPPED);return;}
+ setFlag(writtenBase()+at,page);
+}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
  *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
@@ -116,7 +125,7 @@ fn resetCounters(){
  atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
  for(var q=0u;q<${LEVEL_QUEUES}u;q++){resetGrid(queueGroups(q));}
  atomicStore(&work[candCounter()],0u);resetGrid(candGroups());
- atomicStore(&work[drawnCounter()],0u);resetGrid(drawnGroups());
+ atomicStore(&work[writtenCounter()],0u);
 }
 /** A list's dispatch argument, x and y, back to no group. */
 fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+1u],0u);}
