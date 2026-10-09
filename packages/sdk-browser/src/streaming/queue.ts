@@ -41,7 +41,7 @@ export function createStreamingQueue(
     if (!catalog.has(url)) return Promise.reject(new Error('Unknown page ' + url))
     // A read that failed for good is refused at once (`failures.ts`).
     const blocked = failures.blocked(url)
-    if (blocked?.final) return Promise.reject(blocked.error)
+    if (blocked?.state === 'refused') return Promise.reject(blocked.error)
     const cached = answerFromCache(context, url)
     if (cached) return Promise.resolve(cached)
     const job = jobFor(context, sync, url, priority)

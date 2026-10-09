@@ -136,7 +136,7 @@ export function createPageStreamerWith(
     loading: (url: string) => jobs.has(url),
     /** Whether a read of `url` is refused for good: another request would meet its failure again.
      *  One that may pass is never refused: it waits its turn, its askers waiting on it. */
-    failed: (url: string) => failures.blocked(url)?.final === true,
+    failed: (url: string) => failures.blocked(url)?.state === 'refused',
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,
     read: (url: string, signal: AbortSignal) => readBytes(url, signal).then(asIndices),

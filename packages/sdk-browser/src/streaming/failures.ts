@@ -25,25 +25,27 @@ import { createHeap } from '../../../math/src/sequence/heap.ts'
 const FIRST_WAIT_MS = 500,
   LAST_WAIT_MS = 8000
 
-/** A key's failures in a row: the last one's error, how many, when its wait ends — or, its wait
- *  over, when it is forgotten —, and its place in the waits' heap, −1 out of it. */
+/** Where a key's failures in a row stand: its wait runs, no request sent for it (`waiting`); its
+ *  wait is over, its key asked again, the failure remembered till it is forgotten (`over`); or it
+ *  is refused for good, no request ever sent for it (`refused`). */
+type FailureState = 'waiting' | 'over' | 'refused'
+
+/** A key's failures in a row: the last one's error, how many, where they stand, when its wait ends
+ *  — or, its wait over, when it is forgotten —, the longest wait they took — said once it reaches
+ *  the last (`onStalled`) —, and its place in the waits' heap, −1 out of it. */
 type ReadFailure = {
   key: string
   error: Error
   tries: number
+  state: FailureState
   due: number
+  longest: number
   slot: number
-  /** Its wait runs: no request is sent for its key. */
-  waits: boolean
-  /** Refused for good: no request is ever sent for its key. */
-  final: boolean
-  /** Said once (`onStalled`): its failures in a row end only when its key passes. */
-  said: boolean
 }
 
-/** Why a read of a key is held back now (`blocked`): the error it is refused with, and whether for
- *  good. */
-type Blocked = { readonly error: Error; readonly final: boolean }
+/** Why a read of a key is held back now (`blocked`): the error it is refused with, and whether it
+ *  waits its turn or is refused for good. */
+type Blocked = { readonly error: Error; readonly state: Exclude<FailureState, 'over'> }
 
 /** How the failures are weighed and who hears them: `retriable`, whether a failure may pass;
  *  `ended`, each wait over; `onStalled`, a failure said. */
@@ -108,37 +110,38 @@ function createWaits(due: (failure: ReadFailure) => void) {
 }
 
 /** A key's first failure in a row, before it is recorded. */
-const fresh = (key: string): ReadFailure => {
-  return {
-    key,
-    error: new Error(),
-    tries: 0,
-    due: 0,
-    slot: -1,
-    waits: false,
-    final: false,
-    said: false,
-  }
-}
+const fresh = (key: string): ReadFailure => ({
+  key,
+  error: new Error(),
+  tries: 0,
+  state: 'over',
+  due: 0,
+  longest: 0,
+  slot: -1,
+})
 
 /** The failures of reads by key, weighed by `retriable`, each wait over told to `ended`. */
 export function createReadFailures({ retriable, ended, onStalled }: FailurePolicy) {
   const failures = new Map<string, ReadFailure>()
-  let final = 0,
-    waiting = 0
+  /** How many failures stand in each state. */
+  const counts: Record<FailureState, number> = { waiting: 0, over: 0, refused: 0 }
+  /** `failure` stands at `state` from now on. */
+  const move = (failure: ReadFailure, state: FailureState) => {
+    counts[failure.state]--
+    counts[state]++
+    failure.state = state
+  }
   /** `failure` leaves: out of the heap, and out of its count. */
   const remove = (failure: ReadFailure) => {
     waits.leave(failure)
-    if (failure.final) final--
-    else if (failure.waits) waiting--
+    counts[failure.state]--
     failures.delete(failure.key)
   }
   // A wait over: its key may be asked again, its tries remembered a while; a key not failed again
   // by then is forgotten.
   const waits = createWaits((failure) => {
-    if (!failure.waits) return void failures.delete(failure.key)
-    failure.waits = false
-    waiting--
+    if (failure.state !== 'waiting') return remove(failure)
+    move(failure, 'over')
     failure.due = performance.now() + LAST_WAIT_MS
     waits.wait(failure)
     ended?.(failure.key)
@@ -147,28 +150,21 @@ export function createReadFailures({ retriable, ended, onStalled }: FailurePolic
     /** `key`'s read failed by `cause`: the error its read fails with, and whether it waits —
      *  asked again once its wait ends — rather than failing for good. */
     record(key: string, cause: unknown) {
-      const failure = failures.get(key) ?? fresh(key)
+      let failure = failures.get(key)
+      if (!failure) {
+        failures.set(key, (failure = fresh(key)))
+        counts.over++
+      }
       const tries = ++failure.tries,
         again = retriable(cause),
         wait = again ? Math.max(waitAfter(tries), retryAfterOf(cause)) : Infinity
       failure.error = failedRead(key, tries, cause)
       failure.due = performance.now() + wait
-      failures.set(key, failure)
-      if (again) {
-        if (!failure.waits) waiting++
-        failure.waits = true
-        waits.wait(failure)
-      } else {
-        if (failure.waits) waiting--
-        if (!failure.final) final++
-        failure.waits = false
-        failure.final = true
-        waits.leave(failure)
-      }
-      if (wait >= LAST_WAIT_MS && !failure.said) {
-        failure.said = true
-        onStalled?.({ key, cause })
-      }
+      move(failure, again ? 'waiting' : 'refused')
+      if (again) waits.wait(failure)
+      else waits.leave(failure)
+      if (wait >= LAST_WAIT_MS && failure.longest < LAST_WAIT_MS) onStalled?.({ key, cause })
+      failure.longest = Math.max(failure.longest, wait)
       return { error: failure.error, waits: again }
     },
     /** `key` was read: its failures in a row are over. */
@@ -180,19 +176,19 @@ export function createReadFailures({ retriable, ended, onStalled }: FailurePolic
      *  no request is sent for it. */
     blocked(key: string): Blocked | undefined {
       const failure = failures.get(key)
-      return failure && (failure.final || failure.waits) ? failure : undefined
+      return failure?.state === 'over' ? undefined : (failure as Blocked | undefined)
     },
     /** `key` is let go by its owner: its failure leaves, unless its wait runs. */
     leaves(key: string) {
       const failure = failures.get(key)
-      if (failure && !failure.waits) remove(failure)
+      if (failure && failure.state !== 'waiting') remove(failure)
     },
     /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
-    count: () => waiting + final,
+    count: () => counts.waiting + counts.refused,
     clear() {
       waits.clear()
       failures.clear()
-      final = waiting = 0
+      counts.waiting = counts.over = counts.refused = 0
     },
   }
 }
