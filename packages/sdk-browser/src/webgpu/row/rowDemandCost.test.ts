@@ -58,3 +58,26 @@ test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ 
     assert.deepEqual(counts, { records: 0, catalogues: 0 }, `${count} instances`)
   }
 })
+
+test('per readback, the lists are marked with no hash probe, and the row table read per change', () => {
+  const count = 1e5,
+    table = pageStateOf(count)
+  // An instance in eight holds a row, resident.
+  for (let page = 0; page < count; page += 8) {
+    table.setRowOf(page, page >> 3)
+    table.setResidentFlag(page, 1)
+  }
+  let rowReads = 0
+  const counted = { ...table, rowOf: (page: number) => (rowReads++, table.rowOf(page)) }
+  const demand = createRowDemand(counted, createRowUse(count), () => true, closeAlone)
+  let named = 0
+  for (const cut of readbacks(count, 24)) {
+    demand.follow(cut)
+    named += cut.drawablePageIds.length + cut.pageIds.length + cut.aheadPageIds.length
+  }
+  // The marks are a byte an id up to the largest named — dense, read with no probe —, the
+  // difference's and the demand's alike.
+  assert.ok(demand.bytes >= 2 * Math.max(...readbacks(count, 24).flatMap((c) => c.drawablePageIds)))
+  // The row table is read for what entered or left the held closure alone, never per id named.
+  assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
+})

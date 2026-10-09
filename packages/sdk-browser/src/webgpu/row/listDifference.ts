@@ -1,6 +1,5 @@
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { IdDelta } from '../cut/delta.ts'
-import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /** A packed id held by the last list applied, and one the list being applied names. */
 const HELD = 1,
@@ -15,9 +14,8 @@ const HELD = 1,
  * the records a list names; a list of ids alone needs none of it.
  */
 export function createListDifference() {
-  // A mark per id the lists hold, never one per id of the catalogue.
-  const marks = createSparseInts()
-  let held = new Int32Array(0),
+  let marks = new Uint8Array(0),
+    held = new Int32Array(0),
     /** The list being applied, swapped with `held` once applied: nothing allocated per list. */
     spare = new Int32Array(0)
   const list = {
@@ -27,7 +25,7 @@ export function createListDifference() {
     exitedCount: 0,
     /** Ids the last list applied holds, each once. */
     count: 0,
-    has: (id: number) => marks.get(id) === HELD,
+    has: (id: number) => marks[id] === HELD,
     /** `ids`, the next list: what entered since the last, and what left. */
     apply(ids: ArrayLike<number>) {
       const entered = (list.entered = resized(list.entered, ids.length)),
@@ -38,18 +36,19 @@ export function createListDifference() {
         exitedCount = 0
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i]
-        const was = marks.get(id)
+        if (id >= marks.length) marks = resized(marks, id + 1)
+        const was = marks[id]
         if (was === NAMED) continue
         if (was !== HELD) entered[enteredCount++] = id
-        marks.set(id, NAMED)
+        marks[id] = NAMED
         next[nextCount++] = id
       }
       for (let k = 0; k < list.count; k++)
-        if (marks.get(held[k]) === HELD) {
+        if (marks[held[k]] === HELD) {
           exited[exitedCount++] = held[k]
-          marks.set(held[k], 0)
+          marks[held[k]] = 0
         }
-      for (let k = 0; k < nextCount; k++) marks.set(next[k], HELD)
+      for (let k = 0; k < nextCount; k++) marks[next[k]] = HELD
       spare = held
       held = next
       list.count = nextCount

@@ -1,7 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -16,8 +15,9 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
  * journal writes ranges only while the indices it is given increase.
  */
 export function createWebgpuRowClaims() {
-  // The marks and the list follow the pages waiting, never the catalogue.
-  const marks = createSparseInts()
+  // A mark a page up to the largest one claimed, read with no probe as the serve passes; the list
+  // follows the pages waiting.
+  let marks = new Uint8Array(0)
   let pages = new Int32Array(8)
   let count = 0
   return {
@@ -29,9 +29,10 @@ export function createWebgpuRowClaims() {
     },
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
-      if (marks.get(page)) return
+      if (page >= marks.length) marks = resized(marks, page + 1)
+      if (marks[page]) return
       if (count === pages.length) pages = resized(pages, count + 1)
-      marks.set(page, 1)
+      marks[page] = 1
       pages[count++] = page
     },
     /** Sorts the list by increasing page index, the order the residency journal requires. */
@@ -40,13 +41,13 @@ export function createWebgpuRowClaims() {
     },
     /** Drops the first `served` pages, already served, and keeps the rest in its order. */
     consume(served: number) {
-      for (let i = 0; i < served; i++) marks.set(pages[i], 0)
+      for (let i = 0; i < served; i++) marks[pages[i]] = 0
       if (served < count) pages.copyWithin(0, served, count)
       count -= served
     },
     /** Nothing waits any more: the table has just been rebuilt as a block. */
     clear() {
-      marks.clear()
+      for (let i = 0; i < count; i++) marks[pages[i]] = 0
       count = 0
     },
   }
