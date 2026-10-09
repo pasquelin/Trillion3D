@@ -146,14 +146,13 @@ test('a texture level a server sends whole is sent once, every tile record cut f
   const levels = heldLevelsOf(read)
   const level = { sha256: 'c'.repeat(64), atlas: 0, level: 0, format: 'bc7' } as const
   const tiles = [0, 1, 2, 3].map((i) => [i & 1, i >> 1] as const)
-  const ask = (frame: number, tx: number, ty: number) =>
-    levels.read(level, frame, [256, 256], assert.fail, tx, ty)
-  for (const [tx, ty] of tiles) ask(0, tx, ty)
+  const ask = (tx: number, ty: number) => levels.read(level, [256, 256], assert.fail, tx, ty)
+  for (const [tx, ty] of tiles) ask(tx, ty)
   await levels.settled()
   assert.equal(sent.length, 1, 'one request: the others waited for its answer')
   for (const [tx, ty] of tiles) {
     const { offset, bytes } = tileRecord(256, 256, tx, ty)
-    assert.deepEqual(ask(1, tx, ty), file.subarray(offset, offset + bytes))
+    assert.deepEqual(ask(tx, ty), file.subarray(offset, offset + bytes))
   }
   // The file and the records are entries of the one cache: each counted once.
   assert.deepEqual([cache.bytes, cache.levelBytes], [2 * file.byteLength, file.byteLength])

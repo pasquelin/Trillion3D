@@ -196,7 +196,10 @@ export function createWorldBundles(
   }
   /** What `use` reads through the queue bound now, else the next one bound, till `signal` lets
    *  go: a read its session's close stopped is asked again of the next session's queue. */
-  const onBound = async <T>(signal: AbortSignal | undefined, use: (session: PageQueue) => T) => {
+  const onBound = async <T>(
+    signal: AbortSignal | undefined,
+    use: (session: PageQueue) => Promise<T>,
+  ) => {
     for (;;) {
       const session = await binding.next(signal)
       try {
