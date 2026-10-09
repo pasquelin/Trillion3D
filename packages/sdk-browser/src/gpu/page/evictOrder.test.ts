@@ -43,6 +43,16 @@ test('before any order, an arrival takes the slot of the least recently loaded o
   assert.ok(!cache.get('c') && cache.get('a'))
 })
 
+test('a pinned page leaves the least recent order and comes back at its last touch', async () => {
+  const cache = await cacheOf(['a', 'b', 'c'])
+  cache.pin('a')
+  await cache.load('d')
+  assert.ok(cache.get('a') && !cache.get('b'), 'the oldest unpinned page goes, not the pinned one')
+  cache.unpin('a')
+  await cache.load('e')
+  assert.ok(!cache.get('a') && cache.get('c') && cache.get('d'), 'back as the oldest')
+})
+
 test('each entry of the order is read once, however many a lower tier holds', async () => {
   const keys = Array.from({ length: 64 }, (_, i) => `k${i}`)
   const cache = await cacheOf(keys)

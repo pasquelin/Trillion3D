@@ -182,3 +182,49 @@ test('a failed read fails its load at once: the cache asks its source once a loa
   assert.equal(reads, 2)
   await cache.dispose()
 })
+test('a load of a resident page reads nothing; one that left by its turn reads it then', async () => {
+  const { device } = fakeDevice({ limits: LIMITS })
+  const reads: string[] = []
+  const read = async (key: string) => (reads.push(key), new Uint8Array([1, 2, 3, 4]))
+  const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 })
+  await cache.load('a')
+  await cache.load('a', undefined, 'pinned')
+  cache.unpin('a')
+  assert.deepEqual(reads, ['a'], 'a repin of a resident page asks the source nothing')
+  // `b` takes the only slot before the second load of `a` comes to its turn.
+  const [, again] = await Promise.all([cache.load('b'), cache.load('a')])
+  assert.equal(again.key, 'a')
+  assert.deepEqual(reads, ['a', 'b', 'a'])
+  await cache.dispose()
+})
+test('the residency log keeps one entry a key, and nothing of a page the host never saw', async () => {
+  const { device } = fakeDevice({ limits: LIMITS })
+  const cache = createGpuPageCache(
+    device,
+    { read: async () => new Uint8Array([1, 2, 3, 4]) },
+    { pageBytes: 8, slots: 1 },
+  )
+  const drained = () => {
+    const keys: string[] = [],
+      slots: number[] = []
+    cache.drainResidencyChanges(keys, slots)
+    return keys.map((key, i) => [key, slots[i]])
+  }
+  await cache.load('a')
+  assert.deepEqual(drained(), [['a', 0]])
+  // Undrained, a thousand pages pass through the slot: `a`'s departure and the last arrival stay.
+  for (let i = 0; i < 1000; i++) await cache.load(`p${i}`)
+  assert.deepEqual(drained(), [
+    ['a', -1],
+    ['p999', 0],
+  ])
+  // A known page that leaves and comes back is told once, at its last place.
+  await cache.load('a')
+  await cache.load('p999')
+  await cache.load('a')
+  assert.deepEqual(drained(), [
+    ['p999', -1],
+    ['a', 0],
+  ])
+  await cache.dispose()
+})

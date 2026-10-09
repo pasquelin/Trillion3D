@@ -4,14 +4,11 @@ import { createGpuPageReader } from './reader.ts'
 import { createGpuPageLoader } from './load.ts'
 import { createGpuPagePins } from './gpuPagePins.ts'
 import { createPageBuffer, pageBufferBytes } from './resize.ts'
-import {
-  disposePageCache,
-  drainResidencyChanges,
-  pageCacheStats,
-  resizeBehind,
-  unloadPage,
-} from './cacheOps.ts'
+import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
+import { createEviction, type EvictionOrder } from './eviction.ts'
+import { placementOf } from './placement.ts'
+import { createResidencyLog } from './residencyLog.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
@@ -62,19 +59,15 @@ export function createGpuPageCache(
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
      *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
-    evictInOrder(order?: { readonly count: number; keyAt(at: number): string }) {
-      Object.assign(context.eviction, { order, at: 0, lateAt: 0 })
-      context.eviction.epoch++
-      context.eviction.held.length = context.eviction.late.length = 0
-    },
+    evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
     get residencyRevision() {
       return state.generation + state.evictions
     },
-    /** Moves the pending residency changes into the caller's arrays, then empties the log. */
-    drainResidencyChanges: (keys: string[], slots: number[]) =>
-      drainResidencyChanges(context, keys, slots),
+    /** Moves the pending residency changes into the caller's arrays, then empties the log: one
+     *  entry a key, its last place (`residencyLog.ts`). */
+    drainResidencyChanges: (keys: string[], slots: number[]) => context.changes.drain(keys, slots),
     ...pinning,
     unload: (key: string) => unloadPage(context, key),
     stats: () => pageCacheStats(context),
@@ -116,24 +109,26 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     }
     signal?.throwIfAborted()
   }
+  const resident = new Map<string, ResidentPage>(),
+    pins = new Set<string>()
+  const ownHomes = heldHomes(homes, slots)
+  const free = Array.from({ length: ownHomes?.homes.size ?? slots }, (_, i) => i)
+  const eviction = createEviction(resident, pins)
   const context: GpuPageContext = {
     device,
     pageBytes,
     slots,
     homes,
     buffer,
-    resident: new Map<string, ResidentPage>(),
-    pins: new Set<string>(),
+    resident,
+    pins,
     held: new Set<string>(),
-    free: Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
+    free,
     abort: new AbortController(),
     state,
-    eviction: { at: 0, epoch: 0, lower: new Map(), held: [], late: [], lateAt: 0 },
-    // Every arrival and departure in order, so a host mirrors the cache page by page instead of
-    // asking for all of its catalogue every frame. `changeSlots[i]` is the slot's words offset,
-    // or -1.
-    changeKeys: [],
-    changeSlots: [],
+    eviction,
+    placement: placementOf(ownHomes, pageBytes, free, eviction),
+    changes: createResidencyLog(),
     reader,
     check,
   }

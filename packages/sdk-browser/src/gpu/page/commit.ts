@@ -1,5 +1,5 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
-import { heldHomes } from './homes.ts'
+import type { Place } from './placement.ts'
 import { alignDown, alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires; it copies them at once. */
@@ -12,13 +12,12 @@ export function evictResident(
   page: ResidentPage,
   reason: 'capacity' | 'explicit-unload' | 'resize',
 ) {
-  const { resident, pins, changeKeys, changeSlots, state } = context
+  const { resident, pins, state } = context
   resident.delete(page.key)
   pins.delete(page.key)
   context.held.delete(page.key)
-  context.eviction.lower.delete(page.key)
-  changeKeys.push(page.key)
-  changeSlots.push(-1)
+  context.eviction.left(page.key)
+  context.changes.left(page.key)
   state.evictions++
   context.reader.emit?.('gpu-page-eviction', 'Page removed from GPU residency', () => ({
     version: 1,
@@ -31,89 +30,19 @@ export function evictResident(
   }))
 }
 
-/** The page at `key`, resident and not pinned. */
-const unpinned = ({ resident, pins }: GpuPageContext, key: string) =>
-  pins.has(key) ? undefined : resident.get(key)
-
-/** The page whose slot an arrival takes, or why none is. Once a GPU cut published an order: its
- *  next resident, unpinned page, each entry passed once — one pinned when passed waits in `held`
- *  for its unpin; one a lower tier touched since the last order (`touch`) goes in `late`, taken
- *  after every other —, never a page it leaves out. Before any order: the first unpinned page in
- *  residency order, the least recently loaded or touched; everything pinned is stated in O(1). */
-function victimOf(
-  context: GpuPageContext,
-): ResidentPage | 'all-pages-pinned' | 'eviction-queue-spent' {
-  const { eviction, resident, pins } = context
-  const { order } = eviction
-  if (!order) {
-    if (pins.size < resident.size)
-      for (const page of resident.values()) if (!pins.has(page.key)) return page
-    return 'all-pages-pinned'
-  }
-  const { epoch, lower, held, late } = eviction
-  while (eviction.at < order.count) {
-    const key = order.keyAt(eviction.at++)
-    const page = resident.get(key)
-    if (!page) continue
-    if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key)
-    else if (pins.has(key)) held.push(key)
-    else return page
-  }
-  for (const key of held) {
-    const page = unpinned(context, key)
-    if (page) return page
-  }
-  while (eviction.lateAt < late.length) {
-    const page = unpinned(context, late[eviction.lateAt++])
-    if (page) return page
-  }
-  return 'eviction-queue-spent'
-}
-
-/** `key`'s home when the pool holds the whole catalogue (`homes.ts`), `undefined` in fixed slots;
- *  a key the catalogue does not name has no place there, and is refused by name. */
-export function homeOf(context: GpuPageContext, key: string) {
-  const homes = heldHomes(context.homes, context.slots)
-  if (!homes) return undefined
-  const home = homes.homes.get(key)
-  if (!home) throw new Error('PAGE_HOME_MISSING')
-  return home
-}
-
-/** Reserves a slot, evicts only an unpinned page, and uploads one complete fixed-size GPU slot. */
+/** Uploads `key`'s bytes at `place`, its victim already gone (`placement.ts`), and records the
+ *  arrival. */
 export function commitGpuPage(
   context: GpuPageContext,
   key: string,
   bytes: Uint8Array,
+  { slot, offset }: Place,
   requestStarted: number,
 ): ResidentPage {
-  const { state, free, resident, pins, slots, changeKeys, changeSlots } = context
-  const { device, buffer, pageBytes, reader } = context
+  const { state, resident, device, buffer, reader } = context
   const { emit, now, report } = reader
   state.bytesRead += bytes.byteLength
-  // A pool that holds the whole catalogue has a home for each page: no slot to choose, none to
-  // take back; `free` counts the homes still empty.
-  const home = homeOf(context, key)
-  let slot = free.pop()
-  if (home) slot = home.rank
-  else if (slot === undefined) {
-    const victim = victimOf(context)
-    if (typeof victim === 'string') {
-      emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
-        version: 1,
-        key,
-        reason: victim,
-        resident: resident.size,
-        slots,
-        pinned: pins.size,
-      }))
-      throw new Error('ALL_PAGES_PINNED')
-    }
-    evictResident(context, victim, 'capacity')
-    slot = victim.slot
-  }
-  const uploadStarted = now(),
-    offset = home ? home.offset : slot * pageBytes
+  const uploadStarted = now()
   // A slot is the size of the scene's LARGEST cluster. Writing the whole slot would charge every
   // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
   // reads the slot's tail: a page-table row names its offset and triangle count, and the
@@ -140,8 +69,8 @@ export function commitGpuPage(
     generation: ++state.generation,
   }
   resident.set(key, page)
-  changeKeys.push(key)
-  changeSlots.push(page.offset / 4)
+  context.eviction.arrived(page)
+  context.changes.placed(key, offset)
   emit?.('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,

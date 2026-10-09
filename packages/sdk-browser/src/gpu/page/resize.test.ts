@@ -15,6 +15,10 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
   // Six pages, one per slot: a..f. Slots are taken from the top (5, 4, …).
   for (const key of ['a', 'b', 'c', 'd', 'e', 'f']) await cache.load(key)
   cache.pin('a') // slot 5, the highest: it keeps a place before any unpinned page
+  const keys: string[] = [],
+    slots: number[] = []
+  cache.drainResidencyChanges(keys, slots)
+  keys.length = slots.length = 0
   const before = cache.buffer
   const evicted = await cache.resize(3)
   // Three places for six pages: a (pinned) first, then the most recent — f, e. Slots 0 and 1
@@ -28,11 +32,9 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
   assert.ok(cache.get('e') && cache.get('f'))
   assert.equal(cache.get('a')!.slot, 2, 'moved into the slot the evicted page left')
   assert.equal(cache.get('d'), undefined)
-  const keys: string[] = [],
-    slots: number[] = []
   cache.drainResidencyChanges(keys, slots)
-  assert.deepEqual(keys.slice(-4), ['d', 'c', 'b', 'a'], 'evictions, then the move')
-  assert.deepEqual(slots.slice(-4), [-1, -1, -1, 4], 'word offset of slot 2')
+  assert.deepEqual(keys, ['d', 'c', 'b', 'a'], 'evictions, then the move')
+  assert.deepEqual(slots, [-1, -1, -1, 4], 'word offset of slot 2')
 })
 
 test('the held cover keeps its place before every pinned page, and no held page is evicted', async () => {

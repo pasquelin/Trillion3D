@@ -2,6 +2,7 @@ import type { GpuPageContext, ResidentPage } from './types.ts'
 import { evictResident } from './commit.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
+import { placementOf } from './placement.ts'
 
 /** Bytes of a pool of `slots`: its pages' own homes when it holds the whole catalogue
  *  (`homes.ts`), a slot of `pageBytes` each otherwise. */
@@ -85,8 +86,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     page.slot = slot
     if (page.offset === offset) return
     page.offset = offset
-    context.changeKeys.push(page.key)
-    context.changeSlots.push(offset / 4)
+    context.changes.placed(page.key, offset)
   }
   free.length = 0
   if (to) {
@@ -121,5 +121,6 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
   context.buffer.destroy()
   context.buffer = next
   context.slots = slots
+  context.placement = placementOf(to, pageBytes, free, context.eviction)
   return evicted
 }
