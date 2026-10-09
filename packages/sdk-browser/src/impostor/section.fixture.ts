@@ -10,6 +10,7 @@ import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
 import type { TextureLevelReader, TextureLevelRequest } from '../texture/levelReader.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 /** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
@@ -48,10 +49,11 @@ export const ATLAS_URLS = ['a', 'b', 'c'].map((name) => `../../objects/${name}.p
 /** The DAG fixture's roots, each standing for `MESH`, and a reader answering decoded levels. */
 export function impostorScene() {
   const asked: TextureLevelRequest[] = []
-  const reader = (async (request: TextureLevelRequest) => {
+  const read = async (request: TextureLevelRequest) => {
     asked.push(request)
     return { width: 8, height: 8, close() {} } as ImageBitmap
-  }) as TextureLevelReader
+  }
+  const reader = Object.assign(read, { store: createPageCache(), key: 'k' }) as TextureLevelReader
   const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,

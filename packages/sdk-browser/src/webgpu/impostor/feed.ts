@@ -4,7 +4,6 @@ import {
   ATLAS_MAPS,
   createAtlasFeed,
   type AtlasFeedOptions,
-  type DecodedAtlas,
   type FedAtlas,
 } from '../../impostor/feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
@@ -61,7 +60,7 @@ export function createImpostorFeed(
   const make = (
     key: string,
     maps: ImpostorMaps,
-    atlas: DecodedAtlas,
+    atlas: ImpostorAtlasLevels,
     entry: FedAtlas<GPUBindGroup>,
   ) => {
     const copy = () => {

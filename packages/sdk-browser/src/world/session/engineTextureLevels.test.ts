@@ -58,14 +58,14 @@ test('the baked-level reader follows the cache, not the texture-source option', 
   }
 })
 
-// Behaviour (#745): with no world, the levels count in the session's own CPU total, beside its
+// Behaviour (#745): with no world, the levels count in the session's own CPU total, among its
 // pages, never in a store of their own outside it.
 test("the baked levels are held in the cache the session's pages are read through", async () => {
   const scope = globalThis as { createImageBitmap?: unknown }
   scope.createImageBitmap = async () => ({})
   try {
     const context = await run({}, { url: 'textures/v4' })
-    assert.equal(context.readTextureLevel?.store, ownCache.levels)
+    assert.equal(context.readTextureLevel?.store, ownCache)
   } finally {
     delete scope.createImageBitmap
   }

@@ -74,7 +74,7 @@ export function openExplorerPageSources(
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   // The one cache every reader of the session shares — its world's, kept across a device loss, or
-  // the session's own —: the texture levels are held beside its pages, their files read through
+  // the session's own —: the texture levels are held among its pages, their files read through
   // it (`createTextureLevelReader`), and the scene's proxy is kept whole there
   // (`createSceneProxyReader`). The session's own cache ends with it: emptied, its kept read
   // cancelled, as the session closes.

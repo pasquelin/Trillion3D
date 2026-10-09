@@ -1,77 +1,98 @@
 import { MIB } from '../../../math/src/constants.ts'
 import { createRangedReads } from '../cluster/ranged.ts'
 import { createCacheEntries } from './cacheEntries.ts'
-import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
+import { closeTextureLevel, textureLevelBytes, type TextureLevel } from '../texture/levelReader.ts'
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
 export const DEFAULT_CACHED_BYTES = 256 * MIB
 
-/** The session reading through the cache: what it reserves off the total, which may change while
- *  it reads, and how it evicts — past what is held — when the pages do not fit. */
-type Holder = { reserved(): number; evict(): void }
-
-/** The read kept whole beside the pages, the scene's resident proxy: its key, its read, and the
- *  cancellation that is the cache's, not a session's. */
-type Kept = { kind: 'kept'; key: string; read: Promise<ArrayBuffer>; abort: AbortController }
+/** A session reading through the cache: what it reserves off the total, which may change while it
+ *  reads, the most pages it lets the cache hold, and who hears a page evicted, or an eviction that
+ *  found nothing it could take. */
+type CacheSession = {
+  reserved(): number
+  maxPages?: number
+  evicted?(url: string): void
+  blocked?(): void
+}
 
 /** What an entry of the cache holds: a page, with the fingerprint its bytes were verified against
- *  when read; a file a server answered whole in place of a range (`createRangedReads`); or the
- *  kept read. */
+ *  when read; a file a server answered whole in place of a range (`createRangedReads`); a decoded
+ *  texture level or a block tile's record (`texture/heldLevels.ts`); or the read of the scene's
+ *  proxy, with the cancellation that is the cache's, not a session's. */
 type Held =
   | { kind: 'page'; array: Uint8Array; sha256: string | undefined }
   | { kind: 'file'; buffer: ArrayBuffer }
-  | Kept
+  | { kind: 'level'; level: TextureLevel }
+  | KeptRead
+type KeptRead = { kind: 'proxy'; read: Promise<ArrayBuffer>; abort: AbortController }
+
+/** The tier of the scene's proxy: it leaves only once no page, file or level that may leave is left
+ *  (`cacheEntries.ts`). Every other entry is of tier 0, by last use alone. */
+const SCENE_TIER = 1
 
 const checkBytes = (bytes: number) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET')
 }
 
 /**
- * The decoded-page cache: the bytes of every page and bundle read, of every file a server answered
- * whole in place of a range (`readRange`), and of the scene's resident proxy (`keep`), as one set
- * of entries least recently used first (`cacheEntries.ts`), and the CPU total they count against
- * (`cpuBytes`, `world.budget.cpu`). One cache, which its owner keeps across sessions: a world hands
- * the same one to every session it opens, so a session reopened — on a device granted again after
- * a loss, or on a scene that changed — reads what the last one fetched from here, and fetches
- * nothing it holds.
+ * THE ONE HOST CACHE: the bytes of every page and bundle read, of every file a server answered
+ * whole in place of a range (`readRange`), of every decoded texture level and block tile record
+ * (`level`), and of the scene's resident proxy (`keep`), as one set of entries, ONE budget and ONE
+ * eviction (`cacheEntries.ts`), against the CPU total (`cpuBytes`, `world.budget.cpu`). Its owner
+ * keeps it across sessions: a world hands the same one to every session it opens, so a session
+ * reopened — on a device granted again after a loss, or on a scene that changed — reads what the
+ * last one fetched from here, and fetches nothing it holds.
  *
- * The total is shared by a fixed rule: the session reading through it reserves its manifest
- * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`), the decoded texture levels take theirs (`levels`, at most
- * `textureLevelShare` of the total, within what the entries held leave), and the entries hold the
- * rest (`budgetBytes`). An entry someone holds — a page the session pins or reads, the kept proxy —
- * is never evicted. Eviction runs only once the entries exceed the budget: through the session in
- * place, which first lets the levels and the kept proxy yield, or by last use alone when none
- * reads.
+ * Each session reading through it reserves its manifest tables, its transfer queue and the
+ * engine's tables (`CacheSession.reserved`: `manifestTableBytes`, `maxTransferBytes`, the
+ * streamer's `reserve`) and takes holds on the pages it pins or reads; the entries hold the rest
+ * (`budgetBytes`). The cache alone evicts, once its entries exceed the budget: an entry someone
+ * holds never, then the pages, files and levels least recently used, the proxy last. A level
+ * needs no room of its own: it takes what eviction can free (`roomBytes`), as a page does.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes)
+  const sessions = new Set<CacheSession>()
   let total = cpuBytes,
-    holder: Holder | undefined,
     pages = 0,
-    kept: Kept | undefined
-  const entries = createCacheEntries<Held>((held) => {
+    levelBytes = 0,
+    /** The key the scene's proxy is kept under, while one is. */
+    proxy: string | undefined
+  const entries = createCacheEntries<Held>((held, key) => {
     if (held.kind === 'page') pages--
-    else if (held === kept) kept = undefined
+    else if (held.kind === 'level') {
+      levelBytes -= textureLevelBytes(held.level)
+      closeTextureLevel(held.level)
+    } else if (held.kind === 'proxy') {
+      held.abort.abort(new DOMException('Kept file released', 'AbortError'))
+      if (proxy === key) proxy = undefined
+    }
   })
-  /** The entries leave by last use until they fit, through the session in place. */
-  const evict = () => {
-    if (holder) holder.evict()
-    else entries.evict(() => entries.bytes > cache.budgetBytes)
+  /** The fewest pages a session lets the cache hold; none bounds them by default. */
+  const pageBound = () => {
+    let most = Infinity
+    for (const { maxPages } of sessions)
+      if (maxPages && maxPages >= 1) most = Math.min(most, maxPages)
+    return most
   }
-  /** Evicts only once the entries exceed the budget. */
+  /** Evicts what no one holds, the lowest tier and the least recently used first, while the
+   *  entries exceed the budget — read once: it sums the engine's tables, which the entries leaving
+   *  do not move — or the pages their bound. Each page that leaves is told to every session; an
+   *  eviction that takes nothing while over is told too. */
   const fit = () => {
-    if (entries.bytes > cache.budgetBytes) evict()
+    const budget = cache.budgetBytes,
+      most = pageBound()
+    const over = () => entries.bytes > budget || pages > most
+    if (!over()) return
+    const count = entries.evict(over, (key, held) => {
+      if (held.kind === 'page') for (const session of sessions) session.evicted?.(key)
+    })
+    if (!count && over()) for (const session of sessions) session.blocked?.()
   }
-  // With no session reading — between a lost device and its next session — every entry is held
-  // for the next one: a level landing then takes no page's place.
-  const levels = createTextureLevelStore(textureLevelShare(cpuBytes), {
-    roomBeside: () => cache.levelRoom(holder ? entries.heldBytes : entries.bytes),
-    onHeld: fit,
-  })
   const cache = {
-    /** Bytes the entries hold: the pages, the files kept whole and the kept proxy. */
+    /** Bytes every entry holds. */
     get bytes() {
       return entries.bytes
     },
@@ -83,24 +104,35 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get pageCount() {
       return pages
     },
-    /** The CPU total: entries, manifest tables, transfer queue and engine tables together. */
+    /** Bytes the texture levels and tile records hold. */
+    get levelBytes() {
+      return levelBytes
+    },
+    /** The CPU total: entries, manifest tables, transfer queues and engine tables together. */
     get cpuBytes() {
       return total
     },
-    /** Bytes reserved off the total: the session's in place, and the decoded texture levels'. */
+    /** Bytes the sessions reading through it reserve off the total. */
     get reservedBytes() {
-      return (holder?.reserved() ?? 0) + levels.bytes
-    },
-    /** Bytes the texture levels may take beside the `held` bytes no eviction may take; negative
-     *  when those do not fit. */
-    levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - held,
-    /** Bytes held beside the entries: the decoded texture levels'. */
-    get besideBytes() {
-      return levels.bytes
+      let reserved = 0
+      for (const session of sessions) reserved += session.reserved()
+      return reserved
     },
     /** Bytes the entries may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes)
+    },
+    /** Bytes an entry landing may take: the budget, less what no eviction may take. */
+    get roomBytes() {
+      return Math.max(0, cache.budgetBytes - entries.heldBytes)
+    },
+    /** Bytes the entry at `key` holds; 0 for none. */
+    weight: (key: string) => entries.entry(key)?.bytes ?? 0,
+    /** The entry at `key` now weighs `bytes` — the decoded allocations of a read kept —, while the
+     *  cache keeps it. */
+    weigh(key: string, bytes: number) {
+      entries.resize(key, bytes)
+      fit()
     },
     /** The page at `url`, nothing marked. */
     page(url: string) {
@@ -130,14 +162,10 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** One more holds the entry at `url`, before it lands too. */
     acquire: entries.acquire,
-    /** One hold on the entry at `url` ends; the caller weighs the cache when it is done. */
+    /** One hold on the entry at `url` ends; the caller weighs the cache when it is done (`fit`). */
     release: entries.release,
-    /** Evicts the least recently used entries no one holds while `over()`, each page that leaves
-     *  told to `evictedPage`. Returns how many left. */
-    evict: (over: () => boolean, evictedPage: (url: string) => void) =>
-      entries.evict(over, (url, held) => {
-        if (held.kind === 'page') evictedPage(url)
-      }),
+    /** Evicts what no longer fits (`fit`): after a page landed or a hold ended. */
+    fit,
     /** The file at `url` a server answered whole, marked used last, while the cache keeps it. */
     file(url: string) {
       const held = entries.touch(url)
@@ -148,75 +176,72 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       entries.set(url, { kind: 'file', buffer }, buffer.byteLength)
       fit()
     },
+    /** The texture level or tile record held under `id`, marked used last. */
+    level(id: string) {
+      const held = entries.touch(id)
+      return held?.kind === 'level' ? held.level : undefined
+    },
+    /** Holds `level` under `id`, the cache owning it from here: it closes it as it leaves. A level
+     *  already held — read meanwhile by the session a device loss replaced — stays, marked used
+     *  last, and the copy closes: its bytes are counted once. */
+    keepLevel(id: string, level: TextureLevel) {
+      if (cache.level(id)) return closeTextureLevel(level)
+      const bytes = textureLevelBytes(level)
+      entries.set(id, { kind: 'level', level }, bytes)
+      levelBytes += bytes
+      fit()
+    },
     /**
      * The read of the file `key` names, of `bytes` bytes — the scene's resident proxy —, kept
-     * whole beside the pages in place of any other: `start` begins it on the cache's own
-     * cancellation when none is kept, and a session reopened meanwhile joins the one in flight.
-     * It is held from the moment it is asked, its bytes counted then: no page evicts it, and it
-     * stays kept, across sessions, until `keepOnly` no longer names it, or it yields
-     * (`yieldKept`). A read that fails leaves at once.
+     * whole in place of any other: `start` begins it on the cache's own cancellation when it is not
+     * kept, and a session reopened meanwhile joins the one in flight. Its bytes count from the
+     * moment it is asked; held while in flight, it leaves only once landed, and then only once no
+     * page, file or level may (`SCENE_TIER`). It stays across sessions until `keepOnly` no longer
+     * names it. A read that fails leaves at once.
      */
     keep(key: string, bytes: number, start: (signal: AbortSignal) => Promise<ArrayBuffer>) {
-      if (kept?.key === key) return kept.read
+      const held = entries.touch(key)
+      if (held?.kind === 'proxy') return held.read
       cache.keepOnly(key)
       const abort = new AbortController()
-      const own: Kept = { kind: 'kept', key, read: start(abort.signal), abort }
-      kept = own
+      const own: KeptRead = { kind: 'proxy', read: start(abort.signal), abort }
+      proxy = key
       entries.acquire(key)
-      entries.set(key, own, bytes)
-      own.read.catch(() => {
-        if (kept === own) entries.drop(key)
-      })
+      entries.set(key, own, bytes, SCENE_TIER)
+      const kept = () => entries.entry(key)?.value === own
+      own.read.then(
+        () => {
+          if (!kept()) return
+          entries.release(key)
+          fit()
+        },
+        () => kept() && entries.drop(key),
+      )
       fit()
       return own.read
     },
-    /** Charge decoded allocations only while this file is still kept. */
-    resizeKept(key: string, bytes: number) {
-      if (kept?.key !== key || entries.entry(key)!.bytes === bytes) return
-      entries.resize(key, bytes)
-      fit()
-    },
-    /** The decoded texture levels, kept across sessions as the pages are (`levelStore.ts`); they
-     *  yield first to the pages a frame keeps (`streaming/cache.ts`). */
-    levels,
-    /** Bytes the kept proxy holds. */
-    get keptBytes() {
-      return kept ? entries.entry(kept.key)!.bytes : 0
-    },
-    /** Lets the kept proxy go, its read cancelled, unless `key` names it: a scene gone. */
+    /** Lets the scene's proxy go, its read cancelled, unless `key` names it: a scene gone. */
     keepOnly(key?: string) {
-      if (!kept || kept.key === key) return
-      kept.abort.abort(new DOMException('Kept file released', 'AbortError'))
-      entries.drop(kept.key)
-    },
-    /** Gives the kept proxy's bytes back to the pages, its read left to whoever waits for it: the
-     *  pages a frame keeps come first (`streaming/cache.ts`). */
-    yieldKept() {
-      if (kept) entries.drop(kept.key)
+      if (proxy !== undefined && proxy !== key) entries.drop(proxy)
     },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
       checkBytes(cpu)
       total = cpu
-      levels.resize(textureLevelShare(cpu))
       fit()
     },
-    /** `session` reads through the cache, its reserve and its eviction in place, until the
-     *  returned detach; one at a time. */
-    attach(session: Holder) {
-      holder = session
-      return () => {
-        if (holder === session) holder = undefined
-      }
+    /** `session` reads through the cache from now on, its reserve off the total, until the
+     *  returned end. */
+    open(session: CacheSession) {
+      sessions.add(session)
+      fit()
+      return () => void sessions.delete(session)
     },
-    /** Whether `session` is the one reading through the cache. */
-    attached: (session: Holder) => holder === session,
     /** Empties the cache: its owner is gone. */
     clear() {
-      cache.keepOnly()
       entries.clear()
-      levels.close()
-      pages = 0
+      pages = levelBytes = 0
+      proxy = undefined
     },
   }
   /** Bytes `[offset, offset + length)` of the file at `url`, by an HTTP Range, for every load and

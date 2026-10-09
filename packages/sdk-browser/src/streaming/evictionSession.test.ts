@@ -1,5 +1,5 @@
-// A session's evictions through the cache's entries (`cache.ts`, `cacheEntries.ts`): the least
-// recently used pages past the session's pins, until the pages fit.
+// The cache's evictions as its sessions read (`pageCache.ts`, `cacheEntries.ts`): the least
+// recently used pages past the sessions' pins, until the pages fit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamerWith } from './pageStreamer.ts'
@@ -72,10 +72,10 @@ test('random pins, reads and totals: the session evicts the least recently used 
   }
 })
 
-test('a session another one replaced evicts nothing: the pages the session in place pins stay', async () => {
+test('two sessions over one cache: what either pins stays, the strictest bound evicts the rest', async () => {
   const urls = ['a.bin', 'b.bin', 'c.bin']
   const { pages } = await servedPages(urls)
-  const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * PAGE)
+  const cache = createPageCache(2 * (manifestTableBytes(pages) + TRANSFER) + 3 * PAGE)
   const open = (maxPages?: number) =>
     createPageStreamerWith(pages, 'http://cache/', {
       cache,
@@ -88,12 +88,15 @@ test('a session another one replaced evicts nothing: the pages the session in pl
   before.retain(urls)
   await before.request(urls, { signal: before.signal })
   assert.deepEqual(held(cache, urls), urls)
-  // The next session reads through the cache before the first one closes, and pins `b`: its
-  // eviction order keeps its holds. The first one, closing, takes no page past one of its own.
+  // The next session reads through the cache before the first one closes, and pins `b`. The first
+  // lets `b` and `c` go: `b` stays, held by the next, and `c` leaves for the first one's bound.
   const after = open()
   after.retain(['b.bin'])
   before.retain(['a.bin'])
-  assert.deepEqual(held(cache, urls), urls)
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
+  // The first one closed, its bound goes with it: nothing more leaves.
   before.dispose()
+  after.retain([])
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
   after.dispose()
 })

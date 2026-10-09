@@ -708,10 +708,10 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
   coverage and texture tails are mandatory, and admission never changes resolution or raises the
   declared total.
 - **CPU split.** The decoded-page cache takes the whole CPU total (`split.pageCache`): manifest
-  tables, transfer queue, cut tables (sized by the view and the pool, never the world), the
-  resident proxy (`page-cache-kept-yielded` when pages need its room) and decoded baked texture
-  levels, at most three quarters of it (`split.textureLevels`), yielding first
-  (`page-cache-levels-yielded`). A change applies at once, pages and levels leaving by last use.
+  tables, transfer queue and cut tables (sized by the view and the pool, never the world) are
+  reserved off it, and its entries — pages, decoded baked texture levels, files read whole and
+  the resident proxy — share the rest under one budget, the proxy leaving last. A change applies
+  at once, entries leaving by last use, never one a frame keeps.
 - **Live textures.** A video or a canvas redrawn every frame takes its working texture,
   `textureLiveBytes`, from the texture pool; the recorded budget stays the declared one.
 - **Canvas.** Declared larger, it grows the default total, or takes room from the pools under a

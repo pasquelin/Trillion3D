@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import '../../impostor/lent.fixture.ts'
 import { createImpostorFeed } from './feed.ts'
 
@@ -25,10 +26,11 @@ function feedOf(room: number, refuse?: Parameters<typeof fakeDevice>[0]) {
   const gpu = fakeDevice(refuse)
   const asked: string[] = [],
     failed: string[] = []
-  const reader = (async ({ url }: { url: string }) => {
-    asked.push(url)
-    return { width: 8, height: 8, close() {} }
-  }) as unknown as TextureLevelReader
+  const read = async ({ url }: { url?: string }) => {
+    asked.push(url!)
+    return { width: 8, height: 8, close() {} } as ImageBitmap
+  }
+  const reader = Object.assign(read, { store: createPageCache(), key: 'k' }) as TextureLevelReader
   const feed = createImpostorFeed(gpu.device, {} as GPUBindGroupLayout, reader, {
     room: () => room,
     landed: () => undefined,

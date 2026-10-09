@@ -1,5 +1,5 @@
-// The host caches' entries (`cacheEntries.ts`): least recently touched first, never a held one,
-// without ever looking at one, the bytes and the held bytes as running totals.
+// The caches' entries (`cacheEntries.ts`): the lowest tier and least recently touched first, never
+// a held one, without ever looking at one, the bytes and the held bytes as running totals.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCacheEntries } from './cacheEntries.ts'
@@ -175,4 +175,18 @@ test('a value touched again leaves last; touching the newest moves nothing', () 
     (k) => void victims.push(k),
   )
   assert.deepEqual(victims, ['b', 'c', 'a'])
+})
+
+test('a tier above leaves only once every entry below that may leave has, whatever the touches', () => {
+  const cache = createCacheEntries<string>()
+  cache.set('kept', 'kept', 1, 1)
+  for (const key of ['a', 'b', 'c']) cache.set(key, key, 1)
+  cache.acquire('b')
+  cache.touch('a')
+  const victims: string[] = []
+  cache.evict(
+    () => true,
+    (key) => void victims.push(key),
+  )
+  assert.deepEqual(victims, ['c', 'a', 'kept'], 'the held entry stays, the upper tier leaves last')
 })

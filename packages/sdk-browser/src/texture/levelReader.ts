@@ -1,13 +1,10 @@
 import {
-  PREVIEW_LOSSLESS_FORMAT,
   textureLevelUrl,
   type ClusterManifest,
   type TextureLevelFormat,
 } from '../../../sdk-core/src/index.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
-import type { ReadRange } from '../cluster/ranged.ts'
-import type { TextureLevelStore } from './levelStore.ts'
-import { tiledLevelBytes } from './tileRecords.ts'
+import type { PageCache } from '../streaming/pageCache.ts'
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
  *  or, block-compressed, the bytes as the file holds them, which the GPU reads as they are. */
@@ -27,30 +24,26 @@ export type TextureLevelAddress = {
    *  in place of the `textures.url` template: one loader, one budget. */
   url?: string
 }
-/** A level to read: a lossless level whole, or one tile's record of a block level
- *  (`tileRecords.ts`), by an HTTP Range — a block level is read by its tiles' records alone. */
-export type TextureLevelRequest = TextureLevelAddress &
-  ({ kind: 'lossless' } | { kind: 'block'; range: { offset: number; bytes: number } })
-// The explorer's reader also names the store its session holds the levels in: its world's
-// (`levelStore.ts`).
-/** A function that fetches one baked texture level. */
+/** A level to read: a lossless level whole, or, with its `range`, one tile's record of a block
+ *  level (`tileRecords.ts`) by an HTTP Range — a block level is read by its tiles' records alone. */
+export type TextureLevelRequest = TextureLevelAddress & {
+  range?: { offset: number; bytes: number }
+}
+/** Where the levels read are held: the page cache, among its entries (`PageCache.level`). */
+export type TextureLevelStore = Pick<PageCache, 'level' | 'keepLevel' | 'roomBytes' | 'levelBytes'>
+/** A function that fetches one baked texture level, the store its levels are held in and the cook
+ *  it was made for (`heldLevels.ts`). */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
-  readonly store?: TextureLevelStore
+  readonly store: TextureLevelStore
   /** The cook the reader was made for: its levels are held in `store` under it. */
-  readonly key?: string
+  readonly key: string
 }
 
 /** Host bytes a decoded bitmap of `width` × `height` texels holds. */
-const bitmapBytes = (width: number, height: number) => width * height * 4
+export const bitmapBytes = (width: number, height: number) => width * height * 4
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
   level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height)
-/** Host bytes the whole level `address` names will hold once read, `width` × `height` texels. */
-export const requestedLevelBytes = (
-  { format }: TextureLevelAddress,
-  [width, height]: readonly [number, number],
-) =>
-  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : tiledLevelBytes(width, height)
 export const closeTextureLevel = (level: TextureLevel) => {
   if (!(level instanceof Uint8Array)) level.close()
 }
@@ -61,32 +54,31 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * decodes as the browser does, off the main thread, with exactly the options the prepared scene
  * decodes its source images with (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`,
  * `../host/prepared/images.ts`): the bytes that reach the atlas by this path are those that reached
- * it by the other. A block level is read by one tile's record at a time, by `readRange`, the page
- * cache's every session reads through (`PageCache.readRange`): a server that ignores the Range
- * answers the file whole, kept there among the pages, evicted as they are, and every record is cut
- * from it. `heldLevels.ts` checks each record's length. A read fails once, never asked again here:
- * what fails waits its turn (`streaming/failures.ts`). A cache whose levels are of another version
- * is refused before any read (`assertCacheIdentity`).
+ * it by the other. A block level is read by one tile's record at a time, by the page cache's
+ * `readRange` (`PageCache.readRange`, which keeps the file a server answers whole). A read fails
+ * once, never asked again here: `heldLevels.ts` checks each record and holds back what failed. A
+ * cache whose levels are of another version is refused before any read (`assertCacheIdentity`).
  *
- * Levels are kept in `levels` under the cook's `key`, which hashes the source, its images, the
+ * Levels are held in `cache` under the cook's `key`, which hashes the source, its images, the
  * compiler and every option that decides the product: under one key a level names one file.
- * Another key's levels leave the store as this reader is made.
  */
 export function createTextureLevelReader(
   { textures, key }: Pick<ClusterManifest, 'textures' | 'key'>,
   base: string,
-  { readRange, levels }: { readRange: ReadRange; levels: TextureLevelStore },
+  cache: Pick<PageCache, 'readRange'> & TextureLevelStore,
   signal?: AbortSignal,
 ): TextureLevelReader | undefined {
-  levels.keepOnly(key)
   if (!textures || typeof createImageBitmap !== 'function') return undefined
   const read = async (request: TextureLevelRequest) => {
-    const { sha256, atlas, level, format } = request
+    const { sha256, atlas, level, format, range } = request
     const own = request.url ?? textureLevelUrl(textures.url, sha256, atlas, level, format)
     const url = new URL(own, base).href
-    if (request.kind === 'block') {
-      const { offset, bytes } = request.range
-      return new Uint8Array(await readRange(url, offset, bytes, { attempts: ONE_REQUEST, signal }))
+    if (range) {
+      const bytes = await cache.readRange(url, range.offset, range.bytes, {
+        attempts: ONE_REQUEST,
+        signal,
+      })
+      return new Uint8Array(bytes)
     }
     const response = await checked(url, signal, ONE_REQUEST)
     return createImageBitmap(await response.blob(), {
@@ -94,5 +86,5 @@ export function createTextureLevelReader(
       colorSpaceConversion: 'none',
     })
   }
-  return Object.assign(read, { store: levels, key })
+  return Object.assign(read, { store: cache, key })
 }

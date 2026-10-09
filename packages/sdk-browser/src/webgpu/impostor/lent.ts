@@ -10,7 +10,7 @@
 export { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 export { focalPixels } from '../../../../math/src/projection/camera.ts'
 export { grownCapacity } from '../../placement/rows.ts'
-export { createHeldLevels, readHeldLevel } from '../../texture/heldLevels.ts'
+export { heldLevelsOf } from '../../texture/heldLevels.ts'
 export { createCacheEntries } from '../../streaming/cacheEntries.ts'
 export { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 export { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'

@@ -1,6 +1,5 @@
 import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts'
 import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts'
-import { textureLevelShare } from '../texture/levelStore.ts'
 import { effectChainBytesAt } from '../effects/targets.ts'
 import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
@@ -80,8 +79,7 @@ export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES
  *   readiness, the residency sets and the cut's differences, sized by what the view asks for and
  *   the pool holds — are held in the cache's share too: the session reserves their bytes there
  *   (`hostTableBytes`, the streamer's `reserve`), read each time the cache weighs itself, and the
- *   decoded pages keep the rest. The decoded texture levels take at most `textureLevelShare` of it
- *   (`textureLevels`), and yield first to the pages a frame keeps.
+ *   cache's entries keep the rest: the decoded pages and texture levels under one budget.
  * With a session's `active` memory, each share is what it holds — the frame's targets with what
  * else is live beside the pools (`frameTargets`) — and the two pools the rest, less the shadows
  * still to be made (`shadowReserve`), within their floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the
@@ -124,6 +122,5 @@ export function splitMemoryBudget(
           texturePool: clamp(half, 1, DEFAULT_TEXTURE_POOL_BUDGET),
         }),
     pageCache: cpu,
-    textureLevels: textureLevelShare(cpu),
   }
 }

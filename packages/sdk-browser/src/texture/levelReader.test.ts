@@ -33,7 +33,6 @@ test('a block level is read as bytes at the address of its format', async () => 
     atlas: 1,
     level: 1,
     format: 'bc7',
-    kind: 'block',
     range,
   })
   assert.equal(asked[0], `https://host/textures/v6/${SHA}/linear-1.bc7`)
@@ -57,7 +56,6 @@ test('a level with its own url is read there, not through the template', async (
     level: 0,
     format: 'png',
     url: '../../objects/aa.bin',
-    kind: 'lossless',
   })
   assert.equal(asked[0], 'https://host/objects/aa.bin')
   assert.ok(level)

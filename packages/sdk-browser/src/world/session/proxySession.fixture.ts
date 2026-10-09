@@ -15,6 +15,11 @@ import {
 export const base = 'http://localhost/cache/'
 const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
 
+/** Bytes `cache` holds of the proxy `metadata` names under `root`, kept under its address and its
+ *  fingerprint (`createSceneProxyReader`). */
+export const keptProxy = (cache: PageCache, metadata: ClusterManifest, root = base) =>
+  cache.weight(`${root}proxy.bin#${metadata.proxy!.sha256}`)
+
 /**
  * A scene of `pages` 12-byte pages and a proxy of `triangles` triangles and no node, served under
  * any root by a `fetch` that records every url it is asked: a file `held` names is answered once

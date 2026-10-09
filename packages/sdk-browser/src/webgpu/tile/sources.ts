@@ -2,7 +2,7 @@ import type { TilePlace } from '../../texture/tiles.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
-import { createHeldLevels, type HeldLevels, type LevelKey } from '../../texture/heldLevels.ts'
+import { heldLevelsOf, type HeldLevels, type LevelFailed } from '../../texture/heldLevels.ts'
 import type { TileScratch } from './scratch.ts'
 import { buildHostScratch, createScratchBuilds, type Build } from './scratchBuilds.ts'
 import { copyLiveTexture, liveScratches, pictureFits } from './live.ts'
@@ -23,24 +23,16 @@ type SourcesOptions = {
 /** The pass's encoder, opened at the first copy that needs it. */
 type OpenEncoder = () => GPUCommandEncoder
 
-/** What the sources hold: the level store, the live working textures, those built off the frame. */
+/** What the sources hold: the held levels and who hears a read of theirs fail, the live working
+ *  textures, those built off the frame. */
 type Sources = {
   device: GPUDevice
   encoding: PoolEncoding
   levels?: HeldLevels
+  failed: LevelFailed
   build: Build
   live: ReturnType<typeof liveScratches>
   builds: ReturnType<typeof createScratchBuilds>
-}
-
-/** The level store of the cooked chains, when a level reader is given. */
-function heldLevelsOf({ readLevel, onFailure }: SourcesOptions) {
-  if (!readLevel) return undefined
-  return createHeldLevels({
-    read: readLevel,
-    onFailure: (key: LevelKey, error) =>
-      onFailure(`texture-level-read-failed ${key.sha256}/${key.atlas}/${key.level}`, error),
-  })
 }
 
 /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
@@ -70,8 +62,7 @@ function withScratch(
 /** Serves a tile from its source (`Served`). */
 function serveTile(sources: Sources, ask: TileAsk, encoder: OpenEncoder): Served {
   const { source } = ask.atlas.textures[ask.key.slot]
-  if (source.kind === 'baked')
-    return serveBaked(sources.device, sources.levels, sources.encoding, source, ask)
+  if (source.kind === 'baked') return serveBaked(sources, source, ask)
   if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE')
   const id = scratchId(ask.atlas, ask.key.slot)
   return serveHost(sources.builds, heldScratch(sources, id), id, ask, encoder)
@@ -112,19 +103,25 @@ function reduceHost(sources: Sources, atlas: WebgpuTileAtlas, slot: number) {
 
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
- * by the browser, or a block tile's record as the file holds it, held in the level store, or a
+ * by the browser, or a block tile's record as the file holds it, held in the page cache, or a
  * working texture built from the host image, which only the lossless lane receives. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
  * tail takes the same path, one temporary working texture at a time.
  */
 export function createTileSources(options: SourcesOptions) {
-  const { device, counters, encoding } = options
-  const levels = heldLevelsOf(options)
+  const { device, counters, encoding, readLevel, onFailure } = options
+  // The session's one held-level read, the impostor atlases' too (`heldLevelsOf`).
+  const levels = readLevel && heldLevelsOf(readLevel)
+  const failed: LevelFailed = (address, error) =>
+    onFailure(
+      `texture-level-read-failed ${address.sha256}/${address.atlas}/${address.level}`,
+      error,
+    )
   const build: Build = (atlas, slot, encoder) =>
     buildHostScratch(device, counters, atlas, slot, encoder)
   const live = liveScratches(device, build),
     builds = createScratchBuilds(device, build, options.onFailure)
-  const sources: Sources = { device, encoding, levels, build, live, builds }
+  const sources: Sources = { device, encoding, levels, failed, build, live, builds }
   return {
     release(atlas: WebgpuTileAtlas, slot: number) {
       const id = scratchId(atlas, slot)
@@ -168,7 +165,6 @@ export function createTileSources(options: SourcesOptions) {
     destroy() {
       builds.destroy()
       live.destroy()
-      levels?.destroy()
     },
   }
 }

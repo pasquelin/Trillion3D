@@ -1,29 +1,31 @@
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 
 /** One entry of a cache: its value — absent while it is only held, before it lands —, its bytes,
- *  how many hold it, its last touch, and its place in the heap, −1 out of it. */
+ *  how many hold it, its tier, its last touch, and its place in the heap, −1 out of it. */
 type CacheEntry<V> = {
   readonly key: string
   value: V | undefined
   bytes: number
   holds: number
+  tier: number
   stamp: number
   slot: number
 }
 
 /**
- * THE ENTRIES OF EVERY HOST-MEMORY CACHE — the page cache's pages, the files its ranged reads keep
- * whole and the scene proxy it keeps (`pageCache.ts`), the decoded texture levels
- * (`texture/levelStore.ts`) and the impostor atlases (`impostor/feed.ts`): one map of refcounted
- * entries, and the one heap of those no one holds, least recently touched first. Each cache weighs
- * them against its own budget: `evict` takes the oldest while its owner says it is over.
+ * THE ENTRIES OF EVERY CACHE — the host's page cache, its pages, the files its ranged reads keep
+ * whole, the decoded texture levels and the scene proxy (`pageCache.ts`), and the impostor atlases
+ * on the GPU (`impostor/feed.ts`): one map of refcounted entries, and the one heap of those no one
+ * holds, the lowest tier first and, within a tier, the least recently touched first. Each cache
+ * weighs them against its own budget: `evict` takes the first while its owner says it is over.
  *
  * Each touch stamps its entry with a counter that only grows: the stamps are the recency order. An
- * entry leaves the heap the moment it is held (`acquire`) and comes back at its stamp the moment
- * its last hold ends (`release`), so the heap never holds a held entry and its top is always the
- * least recently touched entry that may leave. A key held before its value lands — a page pinned
- * or in flight — is an entry with no value: it lands held. `drop` takes an entry out whole, its
- * holds with it.
+ * entry's tier, set with its value, says what leaves before it whatever their touches: a tier above
+ * leaves only once every entry below that may leave has. An entry leaves the heap the moment it is
+ * held (`acquire`) and comes back at its place the moment its last hold ends (`release`), so the
+ * heap never holds a held entry and its top is always the first entry that may leave. A key held
+ * before its value lands — a page pinned or in flight — is an entry with no value: it lands held.
+ * `drop` takes an entry out whole, its holds with it.
  *
  * Costs, n the entries:
  * - `touch`: O(1) when the entry is already the newest — a page read every frame —, else one heap
@@ -36,7 +38,7 @@ type CacheEntry<V> = {
 export function createCacheEntries<V>(left: (value: V, key: string) => void = () => {}) {
   const entries = new Map<string, CacheEntry<V>>()
   const heap = createHeap<CacheEntry<V>>(
-    (a, b) => a.stamp < b.stamp,
+    (a, b) => (a.tier === b.tier ? a.stamp < b.stamp : a.tier < b.tier),
     (entry, at) => (entry.slot = at),
   )
   let next = 0,
@@ -67,7 +69,7 @@ export function createCacheEntries<V>(left: (value: V, key: string) => void = ()
   const entryOf = (key: string) => {
     let entry = entries.get(key)
     if (!entry) {
-      entry = { key, value: undefined, bytes: 0, holds: 0, stamp: -1, slot: -1 }
+      entry = { key, value: undefined, bytes: 0, holds: 0, tier: 0, stamp: -1, slot: -1 }
       entries.set(key, entry)
     }
     return entry
@@ -97,13 +99,14 @@ export function createCacheEntries<V>(left: (value: V, key: string) => void = ()
       }
       return entry.value
     },
-    /** Puts `value`, `weight` bytes, at `key` as the most recently used, in place of any value
-     *  there: its holds stay. */
-    set(key: string, value: V, weight: number) {
+    /** Puts `value`, `weight` bytes, at `key` as the most recently used of its `tier`, in place of
+     *  any value there: its holds stay. */
+    set(key: string, value: V, weight: number, tier = 0) {
       const entry = entryOf(key)
       if (entry.value !== undefined) vacate(entry)
       entry.value = value
       entry.bytes = weight
+      entry.tier = tier
       entry.stamp = next++
       bytes += weight
       size++
@@ -141,8 +144,8 @@ export function createCacheEntries<V>(left: (value: V, key: string) => void = ()
       const entry = entries.get(key)
       if (entry) remove(entry)
     },
-    /** Takes the least recently used value no one holds while `over(it)`, each told to `evicted`
-     *  once it left. Returns how many left. */
+    /** Takes the first value no one holds — lowest tier, least recently used — while `over(it)`,
+     *  each told to `evicted` once it left. Returns how many left. */
     evict(over: (oldest: V) => boolean, evicted?: (key: string, value: V) => void) {
       let count = 0
       while (heap.size && over(heap.items[0].value!)) {

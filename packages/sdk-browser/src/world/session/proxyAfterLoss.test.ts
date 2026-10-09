@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { base, openSession, servedScene } from './proxySession.fixture.ts'
+import { base, keptProxy, openSession, servedScene } from './proxySession.fixture.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { manifestTableBytes } from '../../streaming/manifestTables.ts'
 
@@ -24,7 +24,7 @@ test('a session reopened after a device loss reads the resident proxy from the k
   assert.deepEqual(fetched, [proxyUrl], 'the proxy it held is not fetched again')
   assert.equal(relit.data, lit.data, 'decoded columns are reused across device sessions')
   assert.equal(
-    pageCache.keptBytes,
+    keptProxy(pageCache, metadata),
     metadata.proxy!.bytes + lit.data.bindWorlds.byteLength,
     'its bytes count against the CPU total',
   )
@@ -61,7 +61,7 @@ test('another scene the world loads reads its own proxy, and the one it kept lea
   first.close()
   const other = 'http://localhost/other/'
   const second = await openSession(metadata, pageCache, { root: other })
-  assert.equal(pageCache.keptBytes, 0, "the first scene's proxy left with it")
+  assert.equal(keptProxy(pageCache, metadata), 0, "the first scene's proxy left with it")
   await second.context.readSceneProxy!()
   assert.deepEqual(fetched, [proxyUrl, `${other}proxy.bin`])
   second.close()
@@ -77,7 +77,7 @@ test('a proxy whose bytes are not the announced ones fails, naming the file and 
     code: 'INVALID_CACHE',
     message: new RegExp(`SHA-256 [0-9a-f]{64}, ${announced} announced`),
   })
-  assert.equal(pageCache.keptBytes, 0, 'what failed reserves nothing')
+  assert.equal(keptProxy(pageCache, metadata), 0, 'what failed reserves nothing')
   session.close()
 })
 
@@ -101,7 +101,10 @@ test('a session reopened while the proxy is in flight joins that read, fetching 
   release('proxy.bin')
   await Promise.all([lost, relit])
   assert.deepEqual(fetched, [proxyUrl])
-  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes + metadata.proxy!.instances * 128)
+  assert.equal(
+    keptProxy(pageCache, metadata),
+    metadata.proxy!.bytes + metadata.proxy!.instances * 128,
+  )
   after.close()
 })
 
@@ -115,7 +118,7 @@ test('a proxy that lands after another scene was loaded is not kept', async () =
   const second = await openSession({ ...metadata, proxy: undefined }, pageCache)
   release('proxy.bin')
   await assert.rejects(late, { name: 'AbortError' }, 'the read of a scene gone is cancelled')
-  assert.equal(pageCache.keptBytes, 0, "the first scene's proxy does not come back")
+  assert.equal(keptProxy(pageCache, metadata), 0, "the first scene's proxy does not come back")
   second.close()
 })
 
@@ -152,28 +155,23 @@ test('a proxy cooked again at the same address and size is read again, not serve
   second.close()
 })
 
-test('a CPU total too small for the proxy beside the pages a frame keeps: the proxy yields, never the pages', async () => {
+test('a CPU total too small for the proxy beside the pages a frame keeps: the proxy leaves, never a kept page', async () => {
   const { metadata, urls } = await servedScene(5)
   const transfer = 64
   // Room for the tables, one transfer and the five pages, not for the proxy beside the four kept.
   const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + 5 * 12
   const pageCache = createPageCache(cpu)
-  const heard: string[] = []
-  const session = await openSession(metadata, pageCache, {
-    maxPageTransferBytes: transfer,
-    diagnostics: (diagnostic) => heard.push(diagnostic.phase),
-  })
-  session.streamer.retain(urls.slice(0, 4))
+  const session = await openSession(metadata, pageCache, { maxPageTransferBytes: transfer })
+  const kept = urls.slice(0, 4)
+  session.streamer.retain(kept)
   await session.streamer.request(urls, { signal: session.streamer.signal })
   const lit = await session.context.readSceneProxy!()
   assert.equal(lit.triangles, 1, 'the bounce still gets its proxy')
-  assert.equal(pageCache.keptBytes, 0, 'the proxy gave its bytes back')
+  assert.equal(keptProxy(pageCache, metadata), 0, 'the proxy gave its bytes back')
   assert.ok(
-    urls.every((url) => session.streamer.has(url)),
-    'every page stays: the one the frame does not keep fits once the proxy has yielded',
+    kept.every((url) => session.streamer.has(url)),
+    'every page the frame keeps stays: the page it does not keep left first, then the proxy',
   )
-  assert.equal(session.streamer.stats().evictions, 0)
-  await session.flush()
-  assert.ok(heard.includes('page-cache-kept-yielded'), 'a notice says the proxy yielded')
+  assert.equal(session.streamer.stats().evictions, 1)
   session.close()
 })

@@ -58,7 +58,6 @@ test("the default totals split into each pool's own default", () => {
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     pageCache: DEFAULT_CACHED_BYTES,
-    textureLevels: (3 * DEFAULT_CACHED_BYTES) / 4,
   })
   assert.equal(handle.geometryPool, DEFAULT_GEOMETRY_POOL_BUDGET)
 })

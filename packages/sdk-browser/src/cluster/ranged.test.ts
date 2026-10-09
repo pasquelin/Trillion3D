@@ -6,7 +6,7 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createTextureLevelReader } from '../texture/levelReader.ts'
-import { createHeldLevels, levelId } from '../texture/heldLevels.ts'
+import { heldLevelsOf } from '../texture/heldLevels.ts'
 import { tileRecord, tiledLevelBytes } from '../texture/tileRecords.ts'
 
 const URL = 'http://cache/world.bin'
@@ -104,7 +104,7 @@ test('a file kept whole is one entry among the pages, counted once: it leaves by
   land()
   const cache = createPageCache(64)
   assert.deepEqual([...new Uint8Array(await cache.readRange(URL, 0, 4))], [0, 1, 2, 3])
-  assert.deepEqual([cache.bytes, cache.besideBytes, cache.file(URL)?.byteLength], [32, 0, 32])
+  assert.deepEqual([cache.bytes, cache.file(URL)?.byteLength], [32, 32])
   cache.put('page.bin', new Uint8Array(48)) // used after the file
   cache.resize(64)
   assert.deepEqual([cache.bytes, cache.file(URL), cache.pageCount], [48, undefined, 1])
@@ -142,19 +142,18 @@ test('a texture level a server sends whole is sent once, every tile record cut f
   const cache = createPageCache()
   const textures = { url: '{sha}/{kind}-{level}.{format}', version: 6 }
   const read = createTextureLevelReader({ textures, key: 'k' }, 'https://host/', cache)!
-  const levels = createHeldLevels({ read, onFailure: assert.fail })
+  const levels = heldLevelsOf(read)
   const level = { sha256: 'c'.repeat(64), atlas: 0, level: 0, format: 'bc7' } as const
   const tiles = [0, 1, 2, 3].map((i) => [i & 1, i >> 1] as const)
-  for (const [tx, ty] of tiles) levels.request(level, levelId(level, tx, ty), 0, [256, 256], tx, ty)
+  const ask = (frame: number, tx: number, ty: number) =>
+    levels.read(level, frame, [256, 256], assert.fail, tx, ty)
+  for (const [tx, ty] of tiles) ask(0, tx, ty)
   await levels.settled()
   assert.equal(sent.length, 1, 'one request: the others waited for its answer')
   for (const [tx, ty] of tiles) {
     const { offset, bytes } = tileRecord(256, 256, tx, ty)
-    assert.deepEqual(levels.get(levelId(level, tx, ty)), file.subarray(offset, offset + bytes))
+    assert.deepEqual(ask(1, tx, ty), file.subarray(offset, offset + bytes))
   }
-  // The file is one entry among the pages, the records the levels' own: each counted once.
-  assert.deepEqual(
-    [cache.bytes, cache.besideBytes, levels.bytes],
-    [file.byteLength, file.byteLength, file.byteLength],
-  )
+  // The file and the records are entries of the one cache: each counted once.
+  assert.deepEqual([cache.bytes, cache.levelBytes], [2 * file.byteLength, file.byteLength])
 })

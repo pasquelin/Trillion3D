@@ -33,7 +33,10 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   } as unknown as WebgpuTileAtlas
   const sources = createTileSources({
     device,
-    readLevel: async ({ format }) => (read.push(format), new Uint8Array(1)),
+    readLevel: Object.assign(
+      async ({ format }: { format: string }) => (read.push(format), new Uint8Array(1)),
+      { store: createPageCache(), key: 'k' },
+    ),
     encoding: poolEncoding('bc7'),
     counters: createTileCounters(),
     onFailure: (phase, error) => failures.push(`${phase}: ${(error as Error).message}`),

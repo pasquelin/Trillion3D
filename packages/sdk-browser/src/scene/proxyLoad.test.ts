@@ -35,13 +35,15 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
     return new Response(bytes.slice())
   })
   const cache = createPageCache()
+  /** Bytes the cache holds of the proxy, kept under its address and fingerprint. */
+  const kept = () => cache.weight(`https://example.test/proxy.bin#${descriptor.sha256}`)
   const read = createSceneProxyReader(descriptor, 'https://example.test/', cache)!
   const [first, concurrent] = await Promise.all([read(), read()])
   const reopened = createSceneProxyReader(descriptor, 'https://example.test/', cache)!
   assert.equal((await reopened()).data, first.data)
   assert.equal(concurrent.data, first.data)
   assert.equal(requests, 1)
-  assert.equal(cache.keptBytes, bytes.byteLength + triangles * 40 + instances * 128)
+  assert.equal(kept(), bytes.byteLength + triangles * 40 + instances * 128)
   assert.equal(first.data.triangles.byteLength, triangles * 36)
   const own = createSceneProxyReader(descriptor, 'https://example.test/', createPageCache())!
   assert.equal((await own()).data, (await own()).data)
@@ -60,5 +62,5 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
   )!
   await assert.rejects(invalid(), /disagrees with its manifest/)
   cache.keepOnly()
-  assert.equal(cache.keptBytes, 0)
+  assert.equal(kept(), 0)
 })

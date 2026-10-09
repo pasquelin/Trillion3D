@@ -88,15 +88,15 @@ export function createPageStreamerWith(
   const { read: transfer, roundTrip } = createStreamingFetcher(context)
   const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes()
   const streaming = createStreamingCache(context, reserved)
-  const { evict, retain, retainRanks, reserve } = streaming
+  const { retain, retainRanks, reserve } = streaming
   /** A kept page held under a page's name as another file leaves before its first read. */
   const dropForeign = (admitted: readonly StreamPage[]) => {
     for (const page of admitted) if (store.foreign(page)) streaming.drop(page.url)
   }
   dropForeign(pages)
-  const detach = store.attach(streaming.holder)
-  if (kept) evict()
-  else store.resize(store.cpuBytes + store.reservedBytes)
+  streaming.open()
+  // A cache of its own holds `maxCachedBytes` of pages, the session's reserve on top.
+  if (!kept) store.resize(store.cpuBytes + store.reservedBytes)
   emit?.('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
     version: 1,
     pages: catalog.size,
@@ -179,8 +179,8 @@ export function createPageStreamerWith(
         resident: store.pageCount,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes held (manifest tables, transfers, the cache's entries, levels). */
-        cpuBytes: state.tableBytes + state.activeBytes + store.bytes + store.besideBytes,
+        /** CPU bytes held (manifest tables, transfers, the cache's entries). */
+        cpuBytes: state.tableBytes + state.activeBytes + store.bytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
@@ -201,7 +201,6 @@ export function createPageStreamerWith(
       jobs.clear()
       queue.clear()
       streaming.close()
-      detach()
       // A kept cache is its owner's, for the next session; one of the streamer's own leaves now.
       if (!kept) store.clear()
       pinned.clear()

@@ -6,6 +6,7 @@ import { createWebgpuTileStreamer } from './streamer.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { levelSize, tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
  *  what the shadows that follow the landed colour tiles cost after the last copy. */
@@ -59,10 +60,13 @@ function streamer(budgetMs: number) {
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs,
     now,
-    readLevel: async ({ level }) => {
-      const [width, height] = levelSize(256, 256, level)
-      return { width, height, close() {} } as ImageBitmap
-    },
+    readLevel: Object.assign(
+      async ({ level }: { level: number }) => {
+        const [width, height] = levelSize(256, 256, level)
+        return { width, height, close() {} } as ImageBitmap
+      },
+      { store: createPageCache(), key: 'k' },
+    ),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: follow,
   })
