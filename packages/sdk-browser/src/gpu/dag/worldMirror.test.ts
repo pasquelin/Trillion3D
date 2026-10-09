@@ -14,6 +14,7 @@ import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { oracleBackend, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
+import { pageResidency, residencySlice } from './readiness.fixture.ts'
 
 const THRESHOLD = 0.1,
   OBJECTS = 12
@@ -25,12 +26,13 @@ function scene() {
     manifest = ruleDag(8)
   const packed = packDagSelection([...Array.from({ length: OBJECTS }, () => manifest), world])
   const mirror = createWorldResidencyMirror({ ...packed, world: packed.world! })
-  const rows = new Uint32Array(packed.pageCount)
+  const rows = new Uint32Array(packed.pageCount),
+    resident = pageResidency(rows)
   const { pageBase } = packed.cutLinks[OBJECTS]
   // Every super-root held: their rows say so.
   world.origins.forEach((origin, rank) => origin < 0 && (rows[pageBase + rank] = 1))
   /** The world DAG's slice of the mirror, as the oracle reads it. */
-  const worldResidency = () => Uint8Array.from(mirror.flags.subarray(pageBase))
+  const worldResidency = () => residencySlice(mirror.flags, pageBase)
   /** Placement `w`'s root cover resident, or not, in the rows' flags. */
   const cover = (w: number, resident: boolean) => {
     const { pageBase: base, structure } = packed.cutLinks[w]
@@ -42,40 +44,42 @@ function scene() {
     placed.links[w] = placed.linkOf(object)
     placed.linksMoved?.(Int32Array.of(w), 1)
   }
-  return { world, packed, mirror, rows, pageBase, worldResidency, cover, link }
+  return { world, packed, mirror, rows, resident, pageBase, worldResidency, cover, link }
 }
 
 test('the cut that packs the world DAG mirrors the rows; one without it reads them', async () => {
-  const { packed, mirror, rows } = scene()
+  const { packed, mirror, rows, resident } = scene()
   const cutOf = async (dag: typeof packed) =>
     createDagRuntime((await createDagResources(fakeDevice({ limits: SHADOW_LIMITS }).device, dag))!)
   // The rows name every page; its mirror sets the object clusters.
   const selection = await cutOf(packed)
   assert.deepEqual([packed.world!.root, selection.packsWorld], [OBJECTS, true])
-  assert.equal(mirror.update(rows).flags.length, packed.pageCount)
+  assert.equal(mirror.update(resident).flags.length, packed.pageCount)
   // Its tables are host bytes the CPU budget holds, counted in the cut's own.
-  assert.ok(mirror.hostBytes >= mirror.flags.byteLength)
+  assert.ok(mirror.hostBytes > 0)
   assert.ok(selection.hostBytes >= mirror.hostBytes, 'the cut counts its mirror')
-  assert.doesNotThrow(() => selection.updateResidency(rows))
+  assert.doesNotThrow(() => selection.updateResidency(resident))
   assert.throws(
-    () => selection.updateResidency(rows.subarray(1)),
+    () => selection.updateResidency(pageResidency(rows.subarray(1))),
     /GPU_SELECTION_RESIDENCY_COUNT_CHANGED/,
   )
   // A cut without the world DAG: the rows go up as they are.
   const scenePacked = packDagSelection(Array.from({ length: OBJECTS }, () => ruleDag(8)))
   const plain = await cutOf(scenePacked)
   assert.deepEqual([scenePacked.world, plain.packsWorld], [undefined, false])
-  assert.doesNotThrow(() => plain.updateResidency(rows.subarray(0, scenePacked.pageCount)))
+  assert.doesNotThrow(() =>
+    plain.updateResidency(pageResidency(rows.subarray(0, scenePacked.pageCount))),
+  )
 })
 
 test('an object cluster is resident only while its object is placed and its cover resident', () => {
-  const { mirror, rows, pageBase, cover, link } = scene()
+  const { mirror, pageBase, cover, link, resident } = scene()
   link(3, 3)
-  mirror.update(rows)
-  assert.equal(mirror.flags[pageBase + 3], 0, 'placed, its cover not yet read')
+  mirror.update(resident)
+  assert.equal(mirror.flags.flag(pageBase + 3), 0, 'placed, its cover not yet read')
   cover(3, true)
-  const { changes } = mirror.update(rows)
-  assert.equal(mirror.flags[pageBase + 3], 1, 'placed and drawable')
+  const { changes } = mirror.update(resident)
+  assert.equal(mirror.flags.flag(pageBase + 3), 1, 'placed and drawable')
   // Only what moved is handed over, sorted: the cover's pages, then the object root.
   const moved = [...changes.pages.subarray(0, changes.count)]
   assert.deepEqual(
@@ -84,13 +88,13 @@ test('an object cluster is resident only while its object is placed and its cove
   )
   assert.ok(moved.includes(pageBase + 3))
   link(3, -1)
-  mirror.update(rows)
-  assert.equal(mirror.flags[pageBase + 3], 0, 'its object left: the super-root stands in')
-  assert.equal(mirror.update(rows).changes.count, 0, 'nothing moved, nothing handed over')
+  mirror.update(resident)
+  assert.equal(mirror.flags.flag(pageBase + 3), 0, 'its object left: the super-root stands in')
+  assert.equal(mirror.update(resident).changes.count, 0, 'nothing moved, nothing handed over')
 })
 
 test('a cell coming near and going far is covered exactly once at every step', () => {
-  const { world, mirror, rows, worldResidency, cover, link } = scene()
+  const { world, mirror, worldResidency, cover, link, resident } = scene()
   const cut = oracleBackend(world, THRESHOLD)
   /** Cells 0 and 1 near (their objects placed, covers resident), cell 2 far. */
   for (let o = 0; o < 8; o++) {
@@ -126,7 +130,7 @@ test('a cell coming near and going far is covered exactly once at every step', (
   ]
   steps.forEach(([name, step], at) => {
     step()
-    mirror.update(rows)
+    mirror.update(resident)
     const { drawn } = cut(worldResidency())
     assert.equal(coverFault(world, drawn), -1, `${name}: a leaf is not covered exactly once`)
     const units = Array.from({ length: OBJECTS }, (_, unit) => coverAt(world, drawn, unit))
@@ -135,7 +139,7 @@ test('a cell coming near and going far is covered exactly once at every step', (
 })
 
 test('a placement that gives its object back turns it out before the next cut, no row moving', async () => {
-  const { packed, rows, pageBase, cover } = scene()
+  const { packed, pageBase, cover, resident } = scene()
   const host = fakeDevice({ limits: SHADOW_LIMITS }),
     resources = (await createDagResources(host.device, packed))!
   // The cut runs on no GPU here: what it hands the tables before encoding is what counts.
@@ -145,7 +149,7 @@ test('a placement that gives its object back turns it out before the next cut, n
     selection.placeObject(o, o)
     cover(o, true)
   }
-  selection.updateResidency(rows)
+  selection.updateResidency(resident)
   assert.ok(selection.isReady(pageBase + 5), 'placed and drawable')
   // The links that moved go up behind the cold records before the cut, in one write, where the
   // descent's gate reads them.

@@ -56,7 +56,7 @@ function scene() {
     (row) => !MODEL_ROWS.includes(row),
   )
   ;[...MODEL_ROWS, ...free].forEach((row, packed) => {
-    rows.rowOfPage[packed] = row
+    rows.setRowOf(packed, row)
     rows.packedPageIndex[row] = packed
     rows.packedRecs[row] = pages[packed]
   })

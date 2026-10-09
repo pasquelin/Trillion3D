@@ -60,10 +60,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     () => createGroupClosure(rt.layout.selectionRoots, rt.layout.placement, packedPages, true),
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare
     // the flag at their next plan (`../shadow/residence.ts`).
-    (_rec, page) => (
-      run.gate.resourcesChanged(),
-      rt.lights.residence.noteRow(page, packedPages.length)
-    ),
+    (_rec, page) => (run.gate.resourcesChanged(), rt.lights.residence.noteRow(page)),
     // A blended caster's opacity moved: the shadow pages under it redraw the slice it is cached
     // in — its placement's mobility decides, as for any caster (the VSM transmission atlas keeps a
     // still blended caster in the static slice).

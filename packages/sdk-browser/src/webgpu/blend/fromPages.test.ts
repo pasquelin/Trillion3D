@@ -59,9 +59,9 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
     // Once resident, each cluster's span is its slot and the corners its page declares.
     ensurePageTable(rt, device)
     rt.services.syncRows()
-    const { spans, entryOfPage } = rt.blendState.table!
+    const { spans, entryOf } = rt.blendState.table!
     fixture.encoded.forEach((page, id) => {
-      const entry = entryOfPage[id]
+      const entry = entryOf(id)
       assert.equal(spans[entry * 4 + 1], page.indexCount)
       assert.equal(spans[entry * 4], rt.gpu.cache!.get(`g${id}`)!.offset / 4)
     })

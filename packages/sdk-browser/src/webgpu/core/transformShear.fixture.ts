@@ -65,7 +65,7 @@ export function runtime(
     // Rows no page holds yet: a moved root rewrites none.
     layout = {
       selectionRoots: roots,
-      rows: { tableEpoch: 0, rowOfPage: Int32Array.of(-1), packedCount: 0 },
+      rows: { tableEpoch: 0, rowOf: () => -1, packedCount: 0 },
     },
     // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
     // there and aligns `worldsRevision`. A partial state would hide that contract.

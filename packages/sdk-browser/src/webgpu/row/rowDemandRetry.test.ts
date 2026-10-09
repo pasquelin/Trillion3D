@@ -3,16 +3,10 @@
 // for again, the list keeps the GPU's order, and the host budget counts every table it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  MIRROR,
-  closeAlone,
-  closePairs,
-  packedOf,
-  rowCache,
-  rowIdleSpan,
-} from './rowCache.fixture.ts'
+import { MIRROR, closeAlone, closePairs, rowCache, rowIdleSpan } from './rowCache.fixture.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
+import { pageStateOf } from './pageState.fixture.ts'
 
 test('a page that left the requests and came back after the serve passed it takes its row', () => {
   const cache = rowCache(4, 2)
@@ -55,16 +49,13 @@ test('a request resident when asked, its row dropped by a rebuild, is asked for 
   cache.frame()
   MIRROR.dirty = true
   cache.frame()
-  assert.ok(rows.rowOfPage[2] >= 0, 'the request takes a row back')
-  assert.equal(rows.residentFlags[2], 1)
+  assert.ok(rows.rowOf(2) >= 0, 'the request takes a row back')
+  assert.equal(rows.residentFlag(2), 1)
 })
 
 test('the demand is served in the GPU’s order: a nearer new request before an older one', () => {
-  const table = {
-    rowOfPage: new Int32Array(4).fill(-1),
-    residentFlags: new Uint32Array(4),
-  }
-  const demand = createRowDemand(table, createRowUse(1), () => true, packedOf(4), closeAlone)
+  const table = pageStateOf(4)
+  const demand = createRowDemand(table, createRowUse(1), () => true, closeAlone)
   const tried: number[] = []
   const refuse = (page: number) => (tried.push(page), false)
   demand.follow({ pageIds: [1] })
@@ -89,8 +80,8 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
     const alone = closeAlone()
     return Object.assign(alone, { hostBytes: 5000 })
   }
-  const table = { rowOfPage: new Int32Array(2).fill(-1), residentFlags: new Uint32Array(2) }
-  const demand = createRowDemand(table, createRowUse(1), () => true, packedOf(2), closure)
+  const table = pageStateOf(2)
+  const demand = createRowDemand(table, createRowUse(1), () => true, closure)
   assert.ok(demand.bytes >= 10000, `${demand.bytes} bytes: the two closures counted`)
   // The three lists' differences count as theirs do: a longer readback, more bytes.
   const before = demand.bytes
@@ -99,8 +90,8 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
 })
 
 test('a group-mate a request closed over is served right behind that request, in its rank', () => {
-  const table = { rowOfPage: new Int32Array(20).fill(-1), residentFlags: new Uint32Array(20) }
-  const demand = createRowDemand(table, createRowUse(1), () => true, packedOf(20), closePairs)
+  const table = pageStateOf(20)
+  const demand = createRowDemand(table, createRowUse(1), () => true, closePairs)
   // The table at its cap refuses 3; the next readback ranks 1 before it.
   demand.follow({ pageIds: [3] })
   demand.serve(

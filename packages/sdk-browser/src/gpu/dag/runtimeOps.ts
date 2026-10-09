@@ -24,6 +24,7 @@ import { appendDagRoots, type DagAppended } from './pack.ts'
 import { writeParts } from './split.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
+import type { PageResidency } from '../core/selection.ts'
 
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
@@ -182,7 +183,7 @@ export function appendRoots(
 /** `GpuSelection.updateResidency`: the pool's residency, through the world mirror when one packs. */
 export function updateRuntimeResidency(
   { resources, state, uploadResidency, mirror, links }: DagRun,
-  next: Uint32Array,
+  next: PageResidency,
   changes?: ResidencyChanges,
   moved?: (page: number) => void,
 ) {

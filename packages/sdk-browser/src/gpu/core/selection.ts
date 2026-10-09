@@ -49,6 +49,9 @@ export type SelectionUniforms = {
  * did not hold. Claims, checked against the list held before they are believed.
  */
 export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
+/** Each packed page's residency flag as the host's row cache sets it, what the cut reads: at the
+ *  pages a change names, every page at a rebuild (`../../webgpu/row/pageState.ts`). */
+export type PageResidency = { readonly length: number; flag(page: number): number }
 export type SelectionResult = {
   pageIds: number[]
   /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
@@ -143,7 +146,7 @@ export type GpuSelection = {
   /** Told of each placement whose link to the world DAG moved (`placeObject`). */
   linkMoved?: (world: number) => void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
-  updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean
+  updateResidency(resident: PageResidency, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */
   isReady(page: number): boolean
   isChildReady(page: number): boolean

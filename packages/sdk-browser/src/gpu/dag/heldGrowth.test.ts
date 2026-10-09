@@ -11,6 +11,7 @@ import { dagFixture, frontCamera } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createDagReadiness } from './readiness.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 /** Fifty placements of the grouped fixture on a grid, every page resident — each placement's
  *  open counts its own —, and an eye over them. */
@@ -28,7 +29,7 @@ function scene() {
 /** The entries a table large enough for every count holds, on `dag`'s own residency. */
 function allEntries(dag: ReturnType<typeof scene>['dag'], resident: Uint32Array) {
   const readiness = createDagReadiness({ ...dag }, 1 << 16)
-  readiness.apply(resident)
+  readiness.apply(pageResidency(resident))
   return readiness.heldOpen.entries
 }
 
@@ -37,7 +38,7 @@ test('the open counts follow the row cache: a small table refuses nothing, a gro
   const { dag, resident, uniforms } = scene()
   const every = allEntries(dag, resident)
   const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, { rows: 4 }))!
-  assert.ok(selection.updateResidency(resident), 'the residency is taken whole')
+  assert.ok(selection.updateResidency(pageResidency(resident)), 'the residency is taken whole')
   const held = dag.heldOpen!
   assert.ok(held.slots < 2 * every && held.dropped > 0, 'four rows: a table short of the counts')
   selection.dispatch(uniforms)

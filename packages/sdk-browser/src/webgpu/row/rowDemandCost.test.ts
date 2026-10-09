@@ -7,6 +7,7 @@ import { closeAlone } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import type { PageRec } from '../../page/selection/types.ts'
+import { pageStateOf } from './pageState.fixture.ts'
 
 /** `count` packed instances whose records and catalogue are counted: a record read through
  *  `recordOf` or by its rank, a catalogue made over them (which asks whether they resolve their
@@ -45,12 +46,9 @@ function readbacks(count: number, frames: number) {
 
 test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ instances', () => {
   for (const count of [1e3, 1e5]) {
-    const { pages, counts } = countedPages(count)
-    const table = {
-      rowOfPage: new Int32Array(count).fill(-1),
-      residentFlags: new Uint32Array(count),
-    }
-    const demand = createRowDemand(table, createRowUse(count), () => true, pages, closeAlone)
+    const { counts } = countedPages(count)
+    const table = pageStateOf(count)
+    const demand = createRowDemand(table, createRowUse(count), () => true, closeAlone)
     let wanted = 0
     for (const cut of readbacks(count, 24)) {
       demand.follow(cut)

@@ -33,7 +33,7 @@ export function followCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // Residency changed since the last frame: a cluster that entered or left is another caster;
   // its box joins the change list at once, as the old scheduler's did (#831).
   const { rows, recordOf, selectionRoots, placement } = rt.layout
-  lights.residence.flush(rows.residentFlags, (page) =>
+  lights.residence.flush(rows.residency, (page) =>
     noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true),
   )
   // The cached-as-dynamic update: a placement at rest past the static threshold frames

@@ -23,6 +23,8 @@ import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
+import type { PageResidency } from '../core/selection.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 type WorldPacked = PackedDag & Required<Pick<PackedDag, 'world'>>
 type Mirror = ReturnType<typeof mirrorState>
@@ -38,7 +40,7 @@ function mirrorState(packed: WorldPacked) {
     pageBase,
     pageEnd: pageBase + pageCount,
     clusterOf,
-    flags: new Uint32Array(packed.pageCount),
+    flags: createSparseInts(),
     pageIndex: packed.pageIndex,
     /** The placement drawing each object, -1 when none, and the object each placement draws. */
     placementOf: new Int32Array(clusterOf.length).fill(-1),
@@ -56,8 +58,8 @@ function mirrorState(packed: WorldPacked) {
 
 /** Writes `page`'s flag; whether it moved. */
 function write(m: Mirror, page: number, value: number) {
-  if (m.flags[page] === value) return false
-  m.flags[page] = value
+  if (m.flags.get(page) === value) return false
+  m.flags.set(page, value)
   m.changed.add(page)
   return true
 }
@@ -69,20 +71,20 @@ function coverResident(m: Mirror, w: number) {
   if (known !== undefined) return known
   const { structure, pageBase: base, pageCount: count } = m.packed.cutLinks[w]
   let resident = true
-  if (structure) resident = structure.roots.every((root) => m.flags[base + root] !== 0)
-  else for (let page = base; page < base + count && resident; page++) resident = !!m.flags[page]
+  if (structure) resident = structure.roots.every((root) => m.flags.get(base + root) !== 0)
+  else for (let page = base; page < base + count && resident; page++) resident = !!m.flags.get(page)
   m.covers.set(w, resident)
   return resident
 }
 
 /** The rows' flag of `page`: a scene page's, its placement's object told; a super-root's. An
  *  object cluster's is the mirror's own. */
-function rowPage(m: Mirror, scene: ArrayLike<number>, page: number) {
+function rowPage(m: Mirror, scene: PageResidency, page: number) {
   if (page >= m.pageBase && page < m.pageEnd) {
-    if (m.packed.world.origins[page - m.pageBase] < 0) write(m, page, scene[page] ? 1 : 0)
+    if (m.packed.world.origins[page - m.pageBase] < 0) write(m, page, scene.flag(page) ? 1 : 0)
     return
   }
-  if (!write(m, page, scene[page] ? 1 : 0)) return
+  if (!write(m, page, scene.flag(page) ? 1 : 0)) return
   const object = m.objectOf[rootOfPacked(m.pageIndex, page)]
   if (object >= 0) m.dirty.add(object)
 }
@@ -109,7 +111,7 @@ const linkedObject = (m: Mirror, c: number) =>
   c === NONE ? -1 : m.packed.world.origins[c - m.pageBase]
 
 /** `scene`, the rows' residency at the pages `changes` names, mirrored (`createWorldResidencyMirror`). */
-function update(m: Mirror, scene: Uint32Array, changes?: ResidencyChanges) {
+function update(m: Mirror, scene: PageResidency, changes?: ResidencyChanges) {
   if (scene.length !== m.packed.pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED')
   if (m.handed) {
     m.changed.clear()
@@ -147,11 +149,12 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
       return m.changed.count
     },
   } satisfies ResidencyChanges
+  /** The residency the cut reads, every packed page: the rows', each object cluster's its own. */
+  const flags: PageResidency = { length: packed.pageCount, flag: (page) => m.flags.get(page) }
   /** What `update` hands back, one object a mirror. */
-  const updated = { flags: m.flags, changes: moved as ResidencyChanges }
+  const updated = { flags, changes: moved as ResidencyChanges }
   return {
-    /** The residency the cut reads, every packed page: the rows', each object cluster's its own. */
-    flags: m.flags,
+    flags,
     /** Bytes of its host tables, which the cut's `hostBytes` counts. */
     get hostBytes() {
       const { flags, clusterOf, placementOf, objectOf, changed } = m
@@ -165,10 +168,10 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
     },
     /**
      * The rows' residency `scene` — one flag per packed page — at the pages `changes` names (every
-     * page without), each object cluster mirrored from its placement: the whole array, and the
-     * pages it moved, sorted, which the cut's upload reads (`GpuSelection.updateResidency`).
+     * page without), each object cluster mirrored from its placement: the flags, and the pages it
+     * moved, sorted, which the cut's upload reads (`GpuSelection.updateResidency`).
      */
-    update(scene: Uint32Array, changes?: ResidencyChanges) {
+    update(scene: PageResidency, changes?: ResidencyChanges) {
       update(m, scene, changes)
       return updated
     },

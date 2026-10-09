@@ -42,11 +42,11 @@ function scatteredScene() {
   const rows = createWebgpuRowState(pages, ROWS)
   rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4)
   for (let row = 0; row < ROWS; row++) {
-    rows.rowOfPage[row] = row
+    rows.setRowOf(row, row)
     rows.packedPageIndex[row] = row
   }
   MODEL_ROWS.forEach((row, packed) => {
-    rows.rowOfPage[packed] = row
+    rows.setRowOf(packed, row)
     rows.packedPageIndex[row] = packed
   })
   rows.packedCount = ROWS

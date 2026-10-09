@@ -9,6 +9,7 @@ import { SELECTION_HEADER_WORDS } from './layout.ts'
 import { HELD_BY_WORD } from './worlds.ts'
 import { createDagReadiness } from './readiness.ts'
 import { writeParts, writeRanges, type DagParts, type RangeTarget } from './split.ts'
+import type { PageResidency } from '../core/selection.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -112,7 +113,7 @@ export function createDagResidencyUpload(
     )
   whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount))
   const apply = (
-    next: ArrayLike<number>,
+    next: PageResidency,
     changes?: ResidencyChanges,
     moved?: (page: number) => void,
   ) => {

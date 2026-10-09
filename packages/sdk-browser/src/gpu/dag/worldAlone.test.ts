@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { objectCovers, worldScene } from './worldScene.fixture.ts'
-import { ruleResidency } from './readiness.fixture.ts'
+import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -63,7 +63,7 @@ function cut(s: Lone, cell: Cell, threshold: number, covers: boolean[], held: bo
     world.links[object] = c
     world.linksMoved?.(Int32Array.of(object), 1)
   }
-  const { flags } = s.mirror.update(rows)
+  const { flags } = s.mirror.update(pageResidency(rows))
   const uniforms = cameraSelectionUniforms(s.cam, threshold, [1280, 720])
   return (
     evaluateDagSelectionKernel(packed, uniforms, ruleResidency(packed, flags)).drawablePageIds ?? []

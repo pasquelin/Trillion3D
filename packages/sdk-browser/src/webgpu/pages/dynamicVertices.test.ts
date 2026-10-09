@@ -82,7 +82,7 @@ const runtimeOf = (
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
     ...{ run: { lost: false, gate } },
     // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
-    layout: { selectionRoots, rows: { rowOfPage: [], blendRowOf: [] } },
+    layout: { selectionRoots, rows: { rowOf: () => -1, blendRowOf: () => -1 } },
   }) as unknown as WebgpuPagesRuntime
 
 test('a rewrite lands in its pool block alone and stales only its own shadow pages', () => {

@@ -36,6 +36,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 
 /** Slots of the open counts a case's placements hold: every count of the cases fits. */
 const HELD_SLOTS = heldOpenSlots(1 << 16)
@@ -72,7 +73,7 @@ export function posedSelection(
  *  (`gpu/dag/residencyUpload.ts`). */
 function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: number) {
   const readiness = createDagReadiness(packed, slots)
-  readiness.apply(resident)
+  readiness.apply(pageResidency(resident))
   const { buffer, byteOffset, length } = packed.pageCones
   const cold = new Uint32Array(buffer, byteOffset, length).slice()
   const sets = [

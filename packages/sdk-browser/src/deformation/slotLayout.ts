@@ -157,9 +157,9 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
     rows.markRowWords(row)
   }
   const { table, dirtySpans } = rt.blendState
-  for (let page = 0; table && page < table.entryOfPage.length; page++) {
-    const entry = table.entryOfPage[page],
-      output = entry < 0 ? undefined : recordOf(page)?.deformationOutput
+  for (let entry = 0; table && entry < table.pageOfEntry.length; entry++) {
+    const page = table.pageOfEntry[entry],
+      output = page < 0 ? undefined : recordOf(page)?.deformationOutput
     if (!output?.pool || !table.spans[entry * 4 + 1]) continue
     writeSpanDeformation(table.spans, entry, output, 0, table.spans[entry * 4 + 1])
     dirtySpans.add(entry)

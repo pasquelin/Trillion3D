@@ -9,7 +9,7 @@ import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
-import { ruleResidency } from './readiness.fixture.ts'
+import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { GpuSelection } from '../core/selection.ts'
 
@@ -58,7 +58,7 @@ test('a full queue costs no image: the overflowed cut is not adopted, then the t
   assert.ok(Math.max(...b.work.levels) > queue && b.work.candidates > list, 'the fine cut passes')
   Object.assign(dag, { queueEntries: queue, candCount: list })
   const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag))!
-  selection.updateResidency(resident)
+  selection.updateResidency(pageResidency(resident))
   selection.dispatch(coarse)
   const drawnA = (await selection.flush())?.drawablePageIds?.slice().sort((x, y) => x - y)
   assert.deepEqual(

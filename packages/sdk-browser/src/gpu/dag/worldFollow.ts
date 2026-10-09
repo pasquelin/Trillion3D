@@ -11,7 +11,7 @@
  * cluster turns out the frame its placement leaves, so its group's super-roots stand in at once.
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).
  */
-import type { ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
+import type { PageResidency, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
@@ -31,7 +31,7 @@ const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
 export function createLinkFollower(
   resources: { device: GPUDevice; packed: PackedDag; coldParts: DagParts },
   hooks: {
-    updateResidency: (rows: Uint32Array, changes: ResidencyChanges) => void
+    updateResidency: (rows: PageResidency, changes: ResidencyChanges) => void
     linkMoved: (world: number) => void
   },
 ) {
@@ -40,7 +40,7 @@ export function createLinkFollower(
   if (!world) return undefined
   const { links } = world
   /** The rows' flags the cut last received, and whether a link moved since. */
-  let rows: Uint32Array | undefined,
+  let rows: PageResidency | undefined,
     pending = false
   /** The placements whose link moved since the last cut, one bit each, from `low` to `high`. */
   const dirty = new Uint32Array(bitWords(links.length))
@@ -87,7 +87,7 @@ export function createLinkFollower(
   return {
     /** The rows' flags `next` reach the cut: the links moved since are handed to the mirror
      *  first, once. */
-    residency(next: Uint32Array) {
+    residency(next: PageResidency) {
       rows = next
       pending = false
       if (handed) return

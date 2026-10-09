@@ -8,6 +8,7 @@ import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
+import type { PageResidency } from '../core/selection.ts'
 
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
@@ -76,7 +77,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
     },
     /** Reads `resident` at the pages `changes` names — every page when there is none —,
      *  and settles: what is handed over is what moved from the state with nothing resident. */
-    apply: (resident: ArrayLike<number>, changes?: ResidencyChanges) => apply(r, resident, changes),
+    apply: (resident: PageResidency, changes?: ResidencyChanges) => apply(r, resident, changes),
   }
 }
 
@@ -147,9 +148,10 @@ function set(r: Readiness, page: number, value: boolean) {
   if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.add(at)
 }
 
-function apply(r: Readiness, resident: ArrayLike<number>, changes: ResidencyChanges | undefined) {
+function apply(r: Readiness, resident: PageResidency, changes: ResidencyChanges | undefined) {
   if (changes)
-    for (let i = 0; i < changes.count; i++) set(r, changes.pages[i], !!resident[changes.pages[i]])
-  else for (let page = 0; page < r.packed.pageCount; page++) set(r, page, !!resident[page])
+    for (let i = 0; i < changes.count; i++)
+      set(r, changes.pages[i], !!resident.flag(changes.pages[i]))
+  else for (let page = 0; page < r.packed.pageCount; page++) set(r, page, !!resident.flag(page))
   return settle(r)
 }

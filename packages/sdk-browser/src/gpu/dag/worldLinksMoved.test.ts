@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createLinkFollower } from './worldFollow.ts'
 import type { PackedDag } from './types.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 test('every moved link reaches the mirror, past the list’s first room', () => {
   const told: number[][] = []
@@ -22,13 +23,13 @@ test('every moved link reaches the mirror, past the list’s first room', () => 
   const packed = { world } as unknown as PackedDag
   const links = createLinkFollower(
     { device, packed, coldParts },
-    { updateResidency: (rows) => links.residency(rows), linkMoved: () => {} },
+    { updateResidency: (rows) => links.residency(pageResidency(rows)), linkMoved: () => {} },
   )!
   const view = {},
     camera = { view: new Float64Array(16), cameraWorld: [0, 0, 0] } as never
   const placed = Array.from({ length: 120 }, (_, k) => 2 * k + 7)
   for (const w of placed) links.place(w, w)
-  links.residency(new Uint32Array(1))
+  links.residency(pageResidency(new Uint32Array(1)))
   assert.deepEqual(told.at(-1), placed, 'at the residency')
   links.sync(camera, view)
   assert.equal(told.length, 1, 'handed once: the cut that follows hands it no more')

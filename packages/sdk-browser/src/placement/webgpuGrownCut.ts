@@ -108,7 +108,7 @@ function swapCut(
   })
   // The poses named since the cut was packed — it holds them as they were then —: replayed.
   replayMoves(rt, cut, added, first)
-  cut.updateResidency(layout.rows.residentFlags)
+  cut.updateResidency(layout.rows.residency)
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)
     if (page < layout.packedPages.length) cut.notePool(page, heldPage(rt, page))

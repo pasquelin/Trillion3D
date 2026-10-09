@@ -6,6 +6,7 @@ import { MOBILITY_SHADOWLESS } from '../../gpu/shadow/mobilityBits.ts'
 import { createShadowMobility } from './mobility.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
 import { createShadowResidence } from './residence.ts'
+import { pageResidency } from '../../gpu/dag/readiness.fixture.ts'
 
 /** Rows that draw no corner: the words hold their flags alone. */
 const none = () => 0
@@ -129,18 +130,18 @@ test('a residency flag that drops and rises between two plans is no change for t
   const residence = createShadowResidence()
   const flags = new Uint32Array(4),
     changed: number[] = []
-  const flush = () => residence.flush(flags, (page) => changed.push(page))
+  const flush = () => residence.flush(pageResidency(flags), (page) => changed.push(page))
   flags[2] = 1
-  residence.noteRow(2, 4)
+  residence.noteRow(2)
   flush()
   assert.deepEqual(changed, [2], 'a page that arrived')
   // A row rewrite: the flag drops, then rises again before the next plan reads it.
-  residence.noteRow(2, 4)
-  residence.noteRow(2, 4)
+  residence.noteRow(2)
+  residence.noteRow(2)
   flush()
   assert.deepEqual(changed, [2], 'nothing new: the light cuts see the same page')
   flags[2] = 0
-  residence.noteRow(2, 4)
+  residence.noteRow(2)
   flush()
   assert.deepEqual(changed, [2, 2], 'a page that left')
 })

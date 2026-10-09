@@ -29,6 +29,7 @@ import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 import { packed as fixturePacked } from './selectionHelpers.fixture.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 const pages = scenePages(1024, 6)
 
@@ -64,7 +65,9 @@ test('the node table holds each primitive once, from one placement to ten thousa
 function residency(packed: PackedDag, resident: ArrayLike<number>, slots?: number) {
   const device = { queue: { writeBuffer() {} } } as unknown as GPUDevice
   const parts = { buffers: [{} as GPUBuffer], bytes: Number.MAX_SAFE_INTEGER }
-  createDagResidencyUpload({ device, packed, coldParts: parts, heldSlots: slots })(resident)
+  createDagResidencyUpload({ device, packed, coldParts: parts, heldSlots: slots })(
+    pageResidency(resident),
+  )
   const bits = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset)
   return {
     ready: residentFlags(bits, packed.pageCount, residentBase(packed.pageCount)),
@@ -135,7 +138,7 @@ test('placements holding their own open counts cut as each alone, a table short 
   const resident = new Uint8Array(roots.length * root.pages.length).fill(1)
   // Every page resident: each placement holds counts of its own, the table's to keep.
   const readiness = createDagReadiness(packDagSelection(roots), 1 << 10)
-  readiness.apply(resident)
+  readiness.apply(pageResidency(resident))
   assert.ok(readiness.heldOpen.entries >= roots.length, 'no count of its own: the proof is empty')
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 400)
   camera.position.set(0, 2, 10)

@@ -26,7 +26,7 @@ test('the root cover draws through a pool resize and the row growth that follows
     layout.viewRows = 2
     await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     await draw(1)
-    const flags = () => cover.map((page) => layout.rows.residentFlags[page])
+    const flags = () => cover.map((page) => layout.rows.residentFlag(page))
     assert.deepEqual(flags(), [1, 1], 'the cover stays resident, its rows at its new place')
     assert.ok(drawn().length > 0, 'the first image after the resize draws')
     for (let image = 1; image < 4; image++) {

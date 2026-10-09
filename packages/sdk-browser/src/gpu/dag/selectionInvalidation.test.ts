@@ -6,6 +6,7 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { dagPageUrls } from './pack.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals()
@@ -73,7 +74,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
       .sort()
   }
   selection.updateResidency(
-    Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
+    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),
   )
   selection.dispatch(uniforms)
   assert.deepEqual(
@@ -81,7 +82,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     ['root'],
   )
   assert.deepEqual(mask(), ['root'])
-  selection.updateResidency(new Uint32Array(dag.pageCount).fill(1))
+  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
   assert.equal(selection.peek(), null)
   selection.dispatch(uniforms)
   assert.deepEqual(
@@ -114,10 +115,10 @@ test('readback from an older resident cut cannot restore an invalidated drawable
   const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   selection.updateResidency(
-    Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
+    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),
   )
   selection.dispatch(uniforms)
-  selection.updateResidency(new Uint32Array(dag.pageCount).fill(1))
+  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
   release()
   assert.equal(await selection.flush(), null)
   assert.equal(selection.peek(), null)

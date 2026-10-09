@@ -39,7 +39,7 @@ function rig() {
       recordOf: (page: number) => recs[page],
       placement: { baseOfRoot: Int32Array.of(0, 1, 2), packedCount: 3 },
     },
-    blendState: { table: { entryOfPage: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
+    blendState: { table: { pageOfEntry: Int32Array.from([0, 1, 2]), spans }, dirtySpans },
     vis: { deformation },
   } as unknown as Parameters<typeof followPooledBlocks>[0]
   ints[words + PAGE_DEFORM_WORD] = deformation.rowWord(1)

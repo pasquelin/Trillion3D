@@ -9,6 +9,7 @@ import { requestScene } from './requestScene.fixture.ts'
 import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import * as L from './layout.ts'
 import { listEvictions, pageKeys } from './evict.fixture.ts'
+import { pageResidency } from './readiness.fixture.ts'
 
 /** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
 async function residentCut(leaves = 256) {
@@ -18,7 +19,7 @@ async function residentCut(leaves = 256) {
   const gpu = mockGpu({ packed })
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
-  selection.updateResidency(new Uint32Array(packed.pageCount).fill(1))
+  selection.updateResidency(pageResidency(new Uint32Array(packed.pageCount).fill(1)))
   const { keyWordOf } = pageKeys(packed),
     keys = Uint32Array.from({ length: packed.pageCount }, (_, page) => keyWordOf(page))
   const cut = async () => {

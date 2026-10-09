@@ -1,6 +1,7 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -14,9 +15,10 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
  * is served does not double the work. The list is sorted before it is served, because the residency
  * journal writes ranges only while the indices it is given increase.
  */
-export function createWebgpuRowClaims(pageCount: number) {
-  let marks = new Uint8Array(Math.max(1, pageCount))
-  let pages = new Int32Array(Math.max(1, pageCount))
+export function createWebgpuRowClaims() {
+  // The marks and the list follow the pages waiting, never the catalogue.
+  const marks = createSparseInts()
+  let pages = new Int32Array(8)
   let count = 0
   return {
     get pages() {
@@ -27,12 +29,9 @@ export function createWebgpuRowClaims(pageCount: number) {
     },
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
-      if (page >= marks.length) {
-        marks = resized(marks, page + 1)
-        pages = resized(pages, marks.length)
-      }
-      if (marks[page]) return
-      marks[page] = 1
+      if (marks.get(page)) return
+      if (count === pages.length) pages = resized(pages, count + 1)
+      marks.set(page, 1)
       pages[count++] = page
     },
     /** Sorts the list by increasing page index, the order the residency journal requires. */
@@ -41,13 +40,13 @@ export function createWebgpuRowClaims(pageCount: number) {
     },
     /** Drops the first `served` pages, already served, and keeps the rest in its order. */
     consume(served: number) {
-      for (let i = 0; i < served; i++) marks[pages[i]] = 0
+      for (let i = 0; i < served; i++) marks.set(pages[i], 0)
       if (served < count) pages.copyWithin(0, served, count)
       count -= served
     },
     /** Nothing waits any more: the table has just been rebuilt as a block. */
     clear() {
-      for (let i = 0; i < count; i++) marks[pages[i]] = 0
+      marks.clear()
       count = 0
     },
   }
