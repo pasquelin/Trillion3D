@@ -9,15 +9,18 @@ import { dagGroup, dagTables, uploadDagTables, type Own } from './resourceTables
 import { createDagList, initialListCap, rankGroups } from './listCap.ts'
 import { createDagArm } from './arm.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
-import { validated } from '../core/errorScope.ts'
+import { validatedOrWhy } from '../core/errorScope.ts'
 import { createMaskSwap } from './swap.ts'
 
+/** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
+ *  told to `refused` by the device's own words, never swallowed. */
 export async function createDagResources(
   device: GPUDevice,
   packed: PackedDag,
   repeat: 'all' | 'head' | null = null,
   // Sized by the pages its roots hold, not the room a growth keeps: a list grows on demand.
   listCap = initialListCap(device.limits, packed.live?.pages ?? packed.pageCount),
+  refused: (reason: string) => void = () => {},
 ) {
   const buffers: GPUBuffer[] = []
   /** A buffer of this cut's: the runtime's dispose destroys them all. */
@@ -31,12 +34,17 @@ export async function createDagResources(
     const { group, frames, split, work, dispatchArgs } = made
     // One validation scope after the other: the device's scopes are one stack, and two built
     // together would each pop the other's.
-    const pipeline = await createDagPipeline(device, group, frames, split)
-    const arm =
-      pipeline &&
-      (await validated(device, () => createDagArm(device, work, dispatchArgs, tables.workLayout)))
+    const compiled = await createDagPipeline(device, group, frames, split)
+    const armed =
+      compiled.value &&
+      (await validatedOrWhy(device, () =>
+        createDagArm(device, work, dispatchArgs, tables.workLayout),
+      ))
+    const pipeline = compiled.value,
+      arm = armed?.value
     if (!pipeline || !arm) {
       for (const buffer of buffers) buffer.destroy()
+      refused((pipeline ? armed?.refused : compiled.refused) ?? 'the device made no pipeline')
       return undefined
     }
     const resources = {
@@ -53,7 +61,8 @@ export async function createDagResources(
       swap: createMaskSwap(),
     }
     return { ...resources, rankGroups: rankGroups(resources) }
-  } catch {
+  } catch (error) {
+    refused(error instanceof Error ? error.message : String(error))
     for (const buffer of buffers)
       try {
         buffer.destroy()

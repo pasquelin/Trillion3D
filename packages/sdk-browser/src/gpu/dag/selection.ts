@@ -38,13 +38,16 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut past the device limits', refusal)
     return undefined
   }
+  let why = ''
   const resources = await createDagResources(
     device,
     packed,
     selectionRepeat(options.diagnosticGpuVariant),
+    undefined,
+    (reason) => (why = reason),
   )
   if (!resources) {
-    options.onRefused?.('camera cut creation failed')
+    options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined
   }
   return createDagRuntime(resources, options.poolHeld, options.composed)
