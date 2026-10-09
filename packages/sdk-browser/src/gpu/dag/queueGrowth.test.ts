@@ -3,31 +3,14 @@
 // that ran whole —, and what was full grows until the cut runs whole, the cut the flat tables give.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { gridScene } from './gridScene.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { GpuSelection } from '../core/selection.ts'
-
-/** Nine placements of a four-level primitive on a grid, every page resident, and an eye over
- *  them. */
-function scene() {
-  const roots = sceneRoots(
-    scenePages(256, 4),
-    Array.from({ length: 9 }, (_, w) =>
-      new G.Matrix4().setPosition((w % 3) * 6 - 6, 0, -Math.floor(w / 3) * 6),
-    ),
-  )
-  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 400)
-  camera.position.set(0, 3, 12)
-  camera.lookAt(0, 0, -6)
-  camera.updateMatrixWorld()
-  return { roots, camera, dag: packDagSelection(roots) }
-}
 
 /** The pages the mask the frame draws holds (`dagCommitMask`), ascending. */
 function maskPages(selection: GpuSelection, pageCount: number) {
@@ -45,7 +28,7 @@ const landed = async () => {
 
 test('a full queue costs no image: the overflowed cut is not adopted, then the tables grow to the flat cut', async () => {
   installGpuGlobals()
-  const { roots, camera, dag } = scene()
+  const { roots, camera, dag } = gridScene()
   const resident = new Uint32Array(dag.pageCount).fill(1)
   const coarse = kernelUniforms(dag, roots, camera, 4),
     fine = kernelUniforms(dag, roots, camera, 0.5)

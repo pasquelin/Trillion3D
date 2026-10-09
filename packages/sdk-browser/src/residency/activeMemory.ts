@@ -19,6 +19,10 @@ export interface ActiveGpuMemory {
   effectTargets: number
   geometryMinimum: number
   textureMinimum: number
+  /** The camera cut's tables, as they hold them and as the allocation in hand asks
+   *  (`../gpu/dag/resources.ts`): funded before the pools, as the frame's share is, at most
+   *  `CUT_TABLE_BYTES` (`cutTableBytes.ts`). */
+  cutTables?: number
 }
 
 /** The world's existing budget supplies this transaction to its rendering session. */

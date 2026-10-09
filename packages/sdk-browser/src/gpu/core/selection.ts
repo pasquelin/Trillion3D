@@ -101,6 +101,8 @@ export type GpuSelection = {
   readonly packsWorld?: boolean
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number
+  /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
+  readonly gpuBytes?: number
   readonly worldRevision: number
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */

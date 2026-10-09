@@ -4,7 +4,7 @@ import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
 import { JOURNAL_SECTION, LAST_USE_SECTION, flagSectionPlace } from './splitFlags.ts'
 import { createDagPipeline } from './pipeline.ts'
-import { cutHeldSlots, growDagList, heldOpenAt, rankGroups } from './listCap.ts'
+import { cutHeldSlots, growDagList, heldOpenAt, madeWithin, rankGroups } from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
@@ -80,11 +80,7 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   const sized = { ...packed, queueEntries: shape.queueWords / 2, candCount: shape.candCap }
   const cut = cameraCutBuffers(sized, device.limits)
   const made: GPUBuffer[] = []
-  const make = (descriptor: GPUBufferDescriptor) => {
-    const buffer = device.createBuffer(descriptor)
-    made.push(buffer)
-    return buffer
-  }
+  const make = madeWithin(resources, resources.flagParts, made)
   let parts: GPUBuffer[] | undefined
   try {
     const { value, error } = await validationScope(

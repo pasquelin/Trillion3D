@@ -11,6 +11,7 @@ import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { frameSizeOf, type FrameSize } from '../state/renderScale.ts'
 import { viewGpu, type WebgpuView } from '../state/view.ts'
+import { cutLedgerBytes } from '../../../gpu/dag/resources.ts'
 
 /** Admit proposed targets before makeTargets creates any resource. Pool floors use
  * the same constructors as normal residency, so root coverage and texture tails
@@ -105,10 +106,14 @@ export function fundFrameTargets(
   // Auxiliary buffers, other views/captures and proxy resources are already live.
   // Credit only the active view being replaced and the separately charged pools;
   // the device ledger is the existing ownership accounting, not a second budget.
+  // The cuts' tables hold their own share, funded before the pools: what the ledger counts of them
+  // (`cutLedgerBytes`), and the buffer one is about to make (`admitCutTables`).
+  const cutHeld = ledger ? cutLedgerBytes(ledger.byLabel) : 0
   const separatelyHeld =
     gpu.targetBytes +
     shadowHeld +
     bounceProbes +
+    cutHeld +
     effectTargets +
     setup.geometryPool.allocatedBytes +
     vertexBytes +
@@ -126,6 +131,7 @@ export function fundFrameTargets(
     effectTargets,
     geometryMinimum,
     textureMinimum,
+    cutTables: cutHeld + (cutAsked.get(rt) ?? 0),
   })
   // This call may run inside prepare itself: the host report's wait would await
   // this very target grant. Admission only redistributes the existing tables.
@@ -138,6 +144,27 @@ export function fundFrameTargets(
   )
     return setWebgpuMemoryBudgets(rt, pools, 'prepare-targets').then(record)
   record()
+}
+
+/** The buffer of the cut's tables each runtime is about to make: funded with what they hold. */
+const cutAsked = new WeakMap<WebgpuPagesRuntime, number>()
+/** The frame's size the cut's admission funds the targets at, written by `admitCutTables`. */
+const cutFrame = {} as FrameSize
+
+/**
+ * THE CUT'S TABLES ASK THE BUDGET before each buffer of theirs is made (`../../../gpu/dag/resources.ts`,
+ * `CutAdmission`): the session is funded again with `bytes` more of them beside what they hold
+ * (`ActiveGpuMemory.cutTables`) — the default total grows by them, a total the page set presses the
+ * pools —, or it throws, by its own name (`GPU_BUDGET_UNDER_MINIMUM`), and that buffer is not made.
+ * A session without a budget funds nothing and asks nothing.
+ */
+export function admitCutTables(rt: WebgpuPagesRuntime, bytes: number) {
+  cutAsked.set(rt, bytes)
+  try {
+    void fundFrameTargets(rt, frameSizeOf(rt, cutFrame), 0, true)
+  } finally {
+    cutAsked.delete(rt)
+  }
 }
 
 /** The pools' funding beside the frames still in flight, if any: no frame waits for it, but a

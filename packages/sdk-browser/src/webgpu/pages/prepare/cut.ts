@@ -5,6 +5,7 @@ import { linkWorldObjects } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import { composedRoot } from '../../../placement/gpuCompose.ts'
+import { admitCutTables } from './targetFunding.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
@@ -52,6 +53,7 @@ export async function createSessionCut(
     poolHeld,
     composed: (rank) => composedRoot(rt, rank),
     rows: rt.layout.rows.casterSlots,
+    admit: (bytes) => admitCutTables(rt, bytes),
   })
   return { cut, refused }
 }

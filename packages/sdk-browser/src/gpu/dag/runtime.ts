@@ -22,6 +22,7 @@ import {
   type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
+import { cutBytes } from './resources.ts'
 
 export function createDagRuntime(
   resources: DagResources,
@@ -76,6 +77,9 @@ function selectionOver(run: DagRun): GpuSelection {
     run.links?.sync(uniforms, view)
   }
   const selection: GpuSelection = {
+    get gpuBytes() {
+      return cutBytes(resources)
+    },
     get hostBytes() {
       const pool = poolList.entries.byteLength
       return frames.originBytes + uploadResidency.hostBytes + pool + (mirror?.hostBytes ?? 0)

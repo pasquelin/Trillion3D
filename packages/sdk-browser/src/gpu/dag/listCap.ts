@@ -12,7 +12,7 @@ import {
 } from './layout.ts'
 import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
-import type { createDagResources } from './resources.ts'
+import { cutBytes, madeAsked, type createDagResources } from './resources.ts'
 import type { CameraFrames } from './frameRanges.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -86,6 +86,7 @@ export function createDagList(
   const output = makeDagBuffer(own, readoutRow(listCap, regions, heldSlots))
   const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
     own({
+      label: 'Trillion3D DAG readback slot',
       size: readbackBytes,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),
@@ -142,11 +143,9 @@ export async function growDagList(
   const bytes = readoutRow(listCap, regions, heldSlots).size
   if (bytes > storageBufferCap(resources.device.limits)) return false
   const made: GPUBuffer[] = []
-  const make = (descriptor: GPUBufferDescriptor) => {
-    const buffer = resources.device.createBuffer(descriptor)
-    made.push(buffer)
-    return buffer
-  }
+  // What the readout replaces leaves the share: the new one is made within what remains.
+  const replaced = [resources.output, ...resources.readback, ...resources.ranks]
+  const make = madeWithin(resources, replaced, made)
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
@@ -225,4 +224,23 @@ export function rankGroups(resources: {
   const { layout, frames, group } = resources
   // The first range's group alone: the difference reads no primitive's words.
   return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
+}
+
+/**
+ * A maker of the buffers that replace `replaced`, each noted in `made`: one that would take the cut
+ * past its share — what it holds, less what it replaces, with what is made — is never made, and the
+ * growth is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+ */
+export function madeWithin(
+  resources: DagResources,
+  replaced: readonly GPUBuffer[],
+  made: GPUBuffer[],
+) {
+  const kept = cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0)
+  return (descriptor: GPUBufferDescriptor) => {
+    const held = kept + made.reduce((sum, buffer) => sum + buffer.size, 0)
+    const buffer = madeAsked(resources.device, resources.admit, held, resources.share, descriptor)
+    made.push(buffer)
+    return buffer
+  }
 }

@@ -17,6 +17,7 @@ import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { cutHeldSlots } from './listCap.ts'
+import type { CutAdmission } from './resources.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
 
@@ -33,6 +34,10 @@ export async function createGpuDagSelection(
     composed?: (w: number) => boolean
     /** The rows the session's row cache holds: the open counts placements hold follow them. */
     rows?: number
+    /** The most its tables may hold (`../../residency/cutTableBytes.ts`): past it, refused. */
+    share?: number
+    /** The session's budget, asked before each buffer of its tables is made (`CutAdmission`). */
+    admit?: CutAdmission
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -51,6 +56,8 @@ export async function createGpuDagSelection(
     options.rows === undefined
       ? undefined
       : cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, options.rows),
+    options.share,
+    options.admit,
   )
   if (!resources) {
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })
