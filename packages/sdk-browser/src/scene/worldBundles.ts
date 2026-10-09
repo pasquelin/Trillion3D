@@ -31,7 +31,7 @@ import {
 import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue } from '../streaming/types.ts'
-import { bundlePages, readAtOpen, readBundle, type SpanRead } from './worldRuns.ts'
+import { bundlePages, readBundle } from './worldRuns.ts'
 import { createCoverShare } from './worldCoverShare.ts'
 
 /** How a cell holds: the read priority of its bundles, and the signal that lets its hold go — the
@@ -122,8 +122,8 @@ function createCellBundles(table: WorldRoots) {
   return Object.assign(of, { forget: (cell: number) => void lists.delete(cell) })
 }
 
-/** The session's queue a world's bundles are read through: bound by each session, let go as it
- *  closes; a read asked while none is bound waits for the next (`next`). */
+/** The queue a world's bundles are read through: bound by each session — or a world's model as it
+ *  loads —, let go as it closes; a read asked while none is bound waits for the next (`next`). */
 function createBinding(table: WorldRoots, url: string) {
   let queue: PageQueue | undefined, bind!: (session: PageQueue) => void
   let bound = new Promise<PageQueue>((resolve) => (bind = resolve))
@@ -222,12 +222,6 @@ export function createWorldBundles(
     release(cell: number) {
       counts.release(cell)
       if (!counts.holds(cell)) cover.forget(cell)
-    },
-    /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a world's
-     *  model not partitioned, one cell, holds from its load, before any session. */
-    async keep(cell: number, read: SpanRead) {
-      const bundles = listed(cell)
-      await readAtOpen(bundles, bundles.map(byCell), read)
     },
     /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a cell
      *  holds it, till `signal` — its askers' — lets it go, and let go once read (the GPU page pool

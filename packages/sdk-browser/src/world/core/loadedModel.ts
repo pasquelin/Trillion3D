@@ -12,6 +12,7 @@ import { loadClusterManifest } from '../../scene/manifestLoad.ts'
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
+import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
@@ -136,7 +137,8 @@ export async function loadModel(
     signal?: AbortSignal
     textureSource: 'host' | 'cache'
     onProgress?: (event: JobProgress) => void
-    /** The world's page cache: the model's world roots are read through it, as every session's. */
+    /** The world's page cache: the model's world roots are read through it, as every session's
+     *  pages are. */
     pageCache: PageCache
   },
 ): Promise<LoadedModel> {
@@ -152,14 +154,17 @@ export async function loadModel(
   const { metadata, metadataUrl, base, declared } = loaded,
     scope = metadata.scope
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` })
+  // The model reads its world roots through a queue of its own over the world's page cache, as a
+  // session reads through its own: let go once the model is read.
+  const queue = createPageStreamerWith([], base, { cache: options.pageCache, signal })
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
       {
         manifestUrl,
         textureSource,
         meter,
-        worldRead: { cache: options.pageCache },
-        onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
+        queue,
+        onTables: () => meter.plan(plannedFiles(declared, base)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,
@@ -174,7 +179,7 @@ export async function loadModel(
       return read
     }),
     loadImportedLights(base, signal, meter),
-  ])
+  ]).finally(() => queue.dispose())
   meter.settle()
   const model = new LoadedModel({
     manifestUrl,

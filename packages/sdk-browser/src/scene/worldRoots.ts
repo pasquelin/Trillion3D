@@ -14,12 +14,13 @@
  * roots need (`cellDependencies`), a lone object's copy among them, which nothing
  * above replaces and no other cell pays for. A cell the view places holds those bundles (`hold`,
  * `worldBundles.ts`), read through the queue of the session drawing it (`bind`); a scene not
- * partitioned is one cell, held from its load for its whole life. The session counts every byte
- * held here in its CPU budget (`bytes`).
+ * partitioned is one cell, held from its load for its whole life. Every read of the roots goes
+ * through one page queue: the session's its load reads for, or — a world's model, before any
+ * session — one of its own over the world's page cache. The session counts every byte held here in
+ * its CPU budget (`bytes`).
  */
 import type { WorldPageServer } from './worldPageServe.ts'
 import {
-  WORLD_ROOTS_BIN,
   WORLD_ROOTS_DAG,
   WORLD_ROOTS_FILE,
   type WorldRoots,
@@ -32,16 +33,14 @@ import {
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { fetchVerified } from '../cluster/pages.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
-import type { ReadRange } from '../cluster/ranged.ts'
 import { families } from '../host/families.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
-import { bundlePages, readBundle, readSpan } from './worldRuns.ts'
+import { bundlePages, readBundle } from './worldRuns.ts'
 import { createWorldObjects } from './worldObjects.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue } from '../streaming/types.ts'
-import type { PageCache } from '../streaming/pageCache.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): a partitioned world opens them at load,
@@ -55,26 +54,16 @@ type WorldStream = {
 }
 
 type Announced = { bytes: number; sha256: string }
-/** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
+/** Where a cache keeps its world roots' table and the DAG file the cook writes beside it. */
 const worldRootsUrls = (base: string) => ({
   table: new URL(WORLD_ROOTS_FILE, base).href,
   dag: new URL(WORLD_ROOTS_DAG, base).href,
-  bin: new URL(WORLD_ROOTS_BIN, base).href,
 })
-/** What a load reads of the world roots `declared` lists, address to length: the table whole, and
- *  of the binary the one range it reads, the pinned top its cook published in `manifest`
- *  (`worldRoots.pinnedTopBytes`); a server that ignores the Range adds the rest as it arrives. */
-export function worldRootsPlan(
-  declared: ReadonlyMap<string, number>,
-  base: string,
-  manifest: object,
-) {
-  const { table, bin } = worldRootsUrls(base)
-  const top = (manifest as { worldRoots?: { pinnedTopBytes?: number } }).worldRoots?.pinnedTopBytes
-  const plan: [string, number][] = []
-  if (declared.has(table)) plan.push([table, declared.get(table)!])
-  if (declared.has(bin) && top) plan.push([bin, top])
-  return plan
+/** What a load reads of the world roots `declared` lists, address to length, by its own request:
+ *  the table whole. Its binary is read through a page queue, its bundles as pages. */
+export function worldRootsPlan(declared: ReadonlyMap<string, number>, base: string) {
+  const { table } = worldRootsUrls(base)
+  return declared.has(table) ? [[table, declared.get(table)!] as [string, number]] : []
 }
 
 /** The world stream of `table`, opened on first use — `dag` its DAG file, read at `dagUrl` then,
@@ -113,11 +102,7 @@ function worldStream(
   }
 }
 
-/** What a load reads the world roots through: the session's queue it loads for, else — a world's
- *  model, before any session — the page cache of its world, which every session reads through. */
-export type WorldRead = { queue: PageQueue } | { cache: PageCache }
-
-/** The pinned top of `table`'s binary at `url`, read for a load on `signal`: through `queue`, its
+/** The pinned top of `table`'s binary at `url`, read for a load on `signal` through `queue`, its
  *  bundles admitted as pages. */
 function readTop(
   table: WorldRoots,
@@ -134,9 +119,10 @@ function readTop(
 
 /**
  * The cache's geometry page reader `read` with the world's pages of `hold` served by its own
- * source: built once, where the engine's context is made, and the one reader every page read goes
- * through. Both kinds of page are read under the reader's own signal, else `session`'s — a read
- * never outlives its session —, at the caller's priority.
+ * source, which names the addresses it serves (`WorldPageServer.serves`): built once, where the
+ * engine's context is made, and the one reader every page read goes through. Both kinds of page are
+ * read under the reader's own signal, else `session`'s — a read never outlives its session —, at
+ * the caller's priority.
  */
 export function worldOrGeometryReader(
   hold: WorldRootsHold | undefined,
@@ -146,9 +132,8 @@ export function worldOrGeometryReader(
   const world = hold?.drawn
   return (url: string, own?: AbortSignal, priority?: number) => {
     const signal = own ?? session
-    if (world && url.startsWith(`${WORLD_ROOTS_BIN}#`))
-      return world.source.read(url, signal, priority)
-    return read(url, signal, priority)
+    const source = world?.source.serves(url) ? world.source : undefined
+    return source ? source.read(url, signal, priority) : read(url, signal, priority)
   }
 }
 
@@ -160,15 +145,15 @@ type WorldOpening = { signal?: AbortSignal; meter?: ByteMeter; whole?: boolean }
  * The world roots of the cache `metadata` describes at `base`, their top read and pinned — with
  * the one cell of a scene not partitioned (`whole`), held for its life —, or `undefined` for a
  * cache that publishes none (a scene with no placed DAG, or one cooked without the roots table).
- * A session's load reads them through its queue (`through.queue`), the bundles bound to it; a
- * world's model, before any session, through its world's page cache (`through.cache`). A
- * partitioned world — more than one cell — opens its stream at once, its DAG read: the cut packs
- * it to draw the cells it holds far (`drawn`, `../webgpu/pages/prepare/worldRoot.ts`).
+ * Their bundles are read through `queue`, bound to it: a session's load reads through the
+ * session's, a world's model through one of its own over its world's page cache. A partitioned
+ * world — more than one cell — opens its stream at once, its DAG read: the cut packs it to draw the
+ * cells it holds far (`drawn`, `../webgpu/pages/prepare/worldRoot.ts`).
  */
 export async function openWorldRoots(
   metadata: ClusterManifest,
   base: string,
-  through: WorldRead,
+  queue: PageQueue,
   { signal, meter = unmetered, whole = false }: WorldOpening = {},
 ) {
   const files = (metadata as { files?: Record<string, Announced | undefined> }).files ?? {}
@@ -178,18 +163,12 @@ export async function openWorldRoots(
   const bytes = await fetchVerified(urls.table, announced, signal, meter)
   const table = readWorldRoots(new Uint8Array(bytes))
   const url = new URL(table.payload.url, base).href
-  const span = (read: ReadRange) => (bundles: [number, number]) =>
-    readSpan(read, url, table, bundles, { meter, signal })
-  const top = await ('queue' in through
-    ? readTop(table, url, signal, through.queue)
-    : span(through.cache.readRange)([0, table.pinned]))
+  const top = await readTop(table, url, signal, queue)
   // The roots a held bundle carries for its cell join the cut's cache cover with it.
   const rootsIn = (bundle: number) => roots.drawn?.dag?.held.get(bundle)?.length ?? 0
   const bundles = createWorldBundles(table, url, top, rootsIn)
-  if ('queue' in through) {
-    bundles.bind(through.queue)
-    if (whole) await bundles.hold(0, { signal })
-  } else if (whole) await bundles.keep(0, span(through.cache.readRange))
+  bundles.bind(queue)
+  if (whole) await bundles.hold(0, { signal })
   const dag = files[WORLD_ROOTS_DAG]
   const stream = worldStream(table, dag, urls.dag, signal, bundles.pages)
   const objects = createWorldObjects(table, metadata.primitives ?? [])

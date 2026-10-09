@@ -90,7 +90,7 @@ async function sessionScene(
   )
   const loadedScene = await sceneThrough(streamer, inputs.scene, () =>
     loadPreparedScene(
-      { ...options, textureSource, worldRead: { queue: streamer } },
+      { ...options, textureSource, queue: streamer },
       metadata,
       base,
       scope,

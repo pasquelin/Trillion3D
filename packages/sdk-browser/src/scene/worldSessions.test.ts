@@ -9,8 +9,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
-import { heldBy, modelRead, opened, served, sha } from './worldRoots.fixture.ts'
-import { openWorldRoots } from './worldRoots.ts'
+import { heldBy, modelOpened, opened, served, sha } from './worldRoots.fixture.ts'
 
 const turns = async (count = 4) => {
   for (let i = 0; i < count; i++) await new Promise(setImmediate)
@@ -62,28 +61,20 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   const { manifest, asked, release } = wholeOnRelease(t)
   const cache = createPageCache(),
     load = new AbortController()
-  const loading = openWorldRoots(
-    manifest,
-    'http://world/',
-    { cache },
-    {
-      signal: load.signal,
-      whole: true,
-    },
-  )
+  const loading = modelOpened(manifest, { signal: load.signal, whole: true }, cache)
   while (!asked.length) await turns(1) // the table read and checked: the binary asked
   load.abort()
   await assert.rejects(loading, { name: 'AbortError' })
   release()
   await turns()
-  assert.deepEqual([cache.bytes, cache.besideBytes], [0, 0], 'no binary kept')
+  assert.equal(cache.bytes, 0, 'no binary kept')
 })
 
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {
   const { clusters, groups } = worldRootsDag()
   const { manifest } = served(t, { dag: { clusters, groups } })
   // A world's model: no session yet.
-  const roots = (await openWorldRoots(manifest, 'http://world/', modelRead()))!
+  const roots = (await modelOpened(manifest))!
   const stream = await roots.stream()
   const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
   const engine = new AbortController()

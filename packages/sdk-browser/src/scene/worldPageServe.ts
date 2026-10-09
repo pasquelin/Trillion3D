@@ -170,7 +170,11 @@ export function worldPageServer(
       if (--own.users === 0 && streamed.get(bundle) === own) streamed.delete(bundle)
     }
   }
+  /** What every address of its pages starts with: its binary's name (`worldRootPages`). */
+  const prefix = `${table.payload.url}#`
   const server = {
+    /** Whether `address` names one of its pages: the one test a reader routes a page by. */
+    serves: (address: string) => address.startsWith(prefix),
     /** The bytes of the bundles it reads now past the pinned top that `held` does not hold. */
     keptBytes(held: { has(bundle: number): boolean }) {
       let kept = 0

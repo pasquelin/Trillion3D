@@ -8,14 +8,26 @@ import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
-import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import type { PageStreamerOptions } from '../streaming/types.ts'
 
 export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
-/** How a world's model reads its world roots before any session: through its page cache. */
-export const modelRead = () => ({ cache: createPageCache() })
+/** The world `manifest` declares, opened at `http://world/` as a world's model opens it before any
+ *  session: through a queue of its own over `cache`, on the load's `signal`, let go once opened. */
+export async function modelOpened(
+  manifest: ClusterManifest,
+  opening: { signal?: AbortSignal; meter?: ByteMeter; whole?: boolean } = {},
+  cache = createPageCache(),
+) {
+  const queue = createPageStreamerWith([], 'http://world/', { cache, signal: opening.signal })
+  try {
+    return await openWorldRoots(manifest, 'http://world/', queue, opening)
+  } finally {
+    queue.dispose()
+  }
+}
 
 /** How `served` answers: the world it serves (the cook's fixture by default), its binary as the
  *  server holds it, whether the server ignores the Range, the world DAG its cook writes beside
@@ -75,7 +87,7 @@ export async function opened(t: TestContext, manifest: ClusterManifest, opening:
   const options = { workerCount: transfers, onStalled, maxTransferBytes }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
-  const roots = (await openWorldRoots(manifest, 'http://world/', { queue }, { meter, whole }))!
+  const roots = (await openWorldRoots(manifest, 'http://world/', queue, { meter, whole }))!
   return { roots, queue }
 }
 
