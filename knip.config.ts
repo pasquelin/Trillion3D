@@ -109,14 +109,23 @@ const config: KnipConfig = {
       },
       // The harness server maps this browser URL to the page entry above.
       ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
-      // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
-      // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
+      // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
+      // one) are platform tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
       // The tap runner is a Stryker plugin, loaded by name (`scripts/test-mutation.ts`).
       ignoreDependencies: ['daisyui', 'flag-icons', '@stryker-mutator/tap-runner'],
       // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
       // and decodes the images its pages load.
-      ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/, 'ioreg', 'sips'],
+      ignoreBinaries: [
+        'rustc',
+        'rustfmt',
+        'emcmake',
+        'cmake',
+        'em-config',
+        /^c\+\+$/,
+        'ioreg',
+        'sips',
+      ],
     },
   },
 }
