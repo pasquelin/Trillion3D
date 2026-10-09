@@ -81,7 +81,7 @@ const F = ACES.fit
  * matrices and its power, its contrast polynomial by bisection over its [0, 1] domain, then its log
  * encoding; the neutral operator undoes its shoulder at the peak, then its toe at the lowest
  * channel. `linear` and `none` keep `y`. What a mirror needs to show a colour the display shows
- * (`../reflections/gpu.ts`).
+ * (`BEGIN_SHADER`, `../reflections/trace.ts`).
  */
 export const TONE_UNMAPPING_WGSL = wgslBlock(
   'TONE_UNMAPPING_WGSL',

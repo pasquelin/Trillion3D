@@ -104,10 +104,13 @@ fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
 )
 
 /** The rectangle's fitted lobe at (roughness, cos θ_v): bilinear over the table's cells, texel
- *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`). */
-const LTC_WGSL = wgslBlock(
+ *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`).
+ *  \`ltcSplitSum\` is the engine's split-sum term of the GGX lobe at its roughness and N·V, on its
+ *  reflectance \`f0\`: the weight of a rectangle's specular lobe and of every reflected radiance
+ *  (\`../../reflections/weight.ts\`) — one function, one table. */
+export const LTC_WGSL = wgslBlock(
   'LTC_WGSL',
-  [bilinear4],
+  [bilinear4, splitSumTerm],
   `
 const LTC_SIZE:u32=${LTC_SIZE}u;
 fn ltcTexel(x:u32,y:u32,k:u32)->vec4f{return directLights.ltc[(y*LTC_SIZE+x)*2u+k];}
@@ -115,7 +118,8 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  let at=vec2f(clamp(rough,0.0,1.0),sqrt(clamp(1.0-NdotV,0.0,1.0)))*f32(LTC_SIZE-1u);
  let i=min(vec2u(at),vec2u(LTC_SIZE-2u));let f=at-vec2f(i);
  return bilinear4(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1u,i.y,k),ltcTexel(i.x,i.y+1u,k),ltcTexel(i.x+1u,i.y+1u,k),f);
-}`,
+}
+fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLookup(rough,NdotV,1u));}`,
 )
 
 /** The shading of a rectangle at a surface point, colour and intensity included: the diffuse of
@@ -128,7 +132,6 @@ export const RECT_SHADING_WGSL = wgslBlock(
     f0Of,
     lambertAlbedoMul,
     ndotvClamped,
-    splitSumTerm,
     tangentSide,
     vectorRejection,
     LTC_WGSL,
@@ -147,9 +150,9 @@ fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  let side=vectorRejection(V,N);
  let other=tangentSide(N);
  let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
- let m=ltcLookup(rough,NdotV,0u);let t=ltcLookup(rough,NdotV,1u);
+ let m=ltcLookup(rough,NdotV,0u);
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
- return splitSumTerm(f0,t)*lobe;
+ return ltcSplitSum(f0,rough,NdotV)*lobe;
 }
 fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let r=rectView(light,P);

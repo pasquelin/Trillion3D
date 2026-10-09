@@ -83,12 +83,6 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  let picked=select(negative,positive,direction>vec3f(0.0));
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
 }
-/**
- * A level's answer at a point, or nothing when that level does not reach it (\`probeFieldWgsl\`).
- * Eight probes, three weights: the cell's trilinear, the back of the surface — a probe behind it
- * knows nothing of it — and measured visibility, which closes leaks through walls. A probe that
- * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
- */
 `,
 )
 
@@ -96,8 +90,12 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  * A field of the cascades, written once for every field they hold: `name` at a point is the finest
  * level that can answer, from tightest to widest — exactly zero when none can, since a leak would
  * be light without a source —, and a level's answer (`level`) the eight probes around the point,
- * weighed (see `BOUNCE_GRID_HEAD_WGSL`), each evaluated by `value` (a shader expression of `probe`,
- * `N` and the `params` the field takes beyond the point `P` and its normal `N`).
+ * weighed, each evaluated by `value` (a shader expression of `probe`, `N` and the `params` the
+ * field takes beyond the point `P` and its normal `N`). A level answers a point or nothing, when
+ * it does not reach it: eight probes, three weights — the cell's trilinear, the back of the
+ * surface (a probe behind it knows nothing of it) and measured visibility, which closes leaks
+ * through walls; a probe that does not carry the requested cell, was never updated, or is buried
+ * in a surface, weighs nothing.
  */
 export const probeFieldWgsl = (name: string, level: string, params: string, value: string) => {
   const args = params.replace(/:[^,]+/g, '')

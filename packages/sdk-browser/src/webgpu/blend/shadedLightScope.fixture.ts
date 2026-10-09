@@ -22,7 +22,7 @@ export function shadedLightScope(
     directLights: { count, items },
     tileLights: [7, 7, ...[...Array(count).keys()].filter(() => r() < 0.7)],
     thinSubsurface: r() < 0.5 ? [0, 0, 0] : [u(0, 1), u(0, 1), u(0, 1)],
-    surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
+    surfaceModel: [MODEL_FLAG.physical, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
     shadowReceiverOffset: [0, 0, 0],
     shadowReceiverPlane: [0, 0, 0],
     shadowBiasNormal: (vector: number[]) => vector,

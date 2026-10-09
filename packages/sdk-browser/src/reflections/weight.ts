@@ -1,7 +1,8 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { f0Of, ndotvClamped, splitSumTerm } from '../../../math/src/wgsl/lighting.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
-import { MODEL_FLAG } from '../scene/surfaceModel.ts'
+import { f0Of, ndotvClamped } from '../../../math/src/wgsl/lighting.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
+import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
+import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionFieldWgsl } from './field.ts'
@@ -22,29 +23,27 @@ import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 const reflectionWeightWgsl = (lobes: boolean, probes: boolean) =>
   wgslBlock(
     `reflectionWeightWgsl(${lobes}, ${probes})`,
-    [reflectionFieldWgsl(probes), splitSumTerm, f0Of, ndotvClamped, ROUGHNESS_FLOOR],
+    [reflectionFieldWgsl(probes), LTC_WGSL, LOBE_AXIS_WGSL, f0Of, ndotvClamped, surfaceReflects],
     `fn reflectionWeight(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
- return splitSumTerm(f0Of(rgb,metal),ltcLookup(clamp(rough,ROUGHNESS_FLOOR,1.0),ndotvClamped(N,V),1u));
+ return ltcSplitSum(f0Of(rgb,metal),lobeRoughness(rough),ndotvClamped(N,V));
 }
-fn reflects()->bool{return surfaceModel==${MODEL_FLAG.physical}u;}
 fn reflectionShare(reflected:vec3f,coat:vec3f,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
  return reflected*reflectionWeight(rgb,metal,rough,N,V)*lobeThrough()+coat;
 }
 ${
   lobes
     ? `fn reflectionLobe(rough:f32)->vec4f{
- if(lobes.on&&lobes.strength>0.0){return vec4f(lobes.T,lobes.at);}
- let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
- return vec4f(0.0,0.0,0.0,r*r);
+ if(lobes.on){return vec4f(lobes.T,lobes.at);}
+ return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
 }
 fn reflectionCoat(V:vec3f,P:vec3f)->vec3f{
  if(!lobes.on||lobes.coat<=0.0){return vec3f(0.0);}
- let r=clamp(lobes.coatRough,ROUGHNESS_FLOOR,1.0);
- let a=r*r;
+ let r=lobeRoughness(lobes.coatRough);
+ let a=lobeAlpha(r);
  let field=reflectionField(P,lobes.coatN,reflectionLobeOf(reflect(-V,lobes.coatN),a,vec4f(0.0,0.0,0.0,a)));
  return lobes.coat*field*reflectionWeight(vec3f(0.0),0.0,r,lobes.coatN,V);
 }`
-    : `fn reflectionLobe(rough:f32)->vec4f{let r=clamp(rough,ROUGHNESS_FLOOR,1.0);return vec4f(0.0,0.0,0.0,r*r);}
+    : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}
 fn reflectionCoat(V:vec3f,P:vec3f)->vec3f{return vec3f(0.0);}`
 }`,
   )
@@ -57,7 +56,7 @@ export const forwardReflectionWgsl = (group: number, lobes: boolean) =>
     `forwardReflectionWgsl(${group}, ${lobes})`,
     [reflectedRadianceWgsl(group), reflectionWeightWgsl(lobes, true)],
     `fn surfaceReflection(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!reflects()){return vec3f(0.0);}
+ if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
  return reflectionShare(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),reflectionCoat(V,P),rgb,metal,rough,N,V);
 }`,
   )
@@ -85,7 +84,7 @@ export const resolvedReflectionWgsl = (lobes: boolean, probes: boolean) =>
     `${REFLECTION_TARGET.wgsl}
 @group(0) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
 fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!reflects()){return vec3f(0.0);}
+  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
  return reflectionShare(textureLoad(reflectionTarget,coord).rgb,reflectionCoat(V,P),rgb,metal,rough,N,V);
 }`,
   )

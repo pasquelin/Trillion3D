@@ -3,7 +3,7 @@ import { sameEntries } from '../gpu/core/sameEntries.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
-import { MODEL_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
+import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../sdk-core/src/scene/core/environment.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -38,14 +38,13 @@ struct TraceArgs{count:atomic<u32>,rows:u32,layers:u32,}
 @group(0) @binding(7) var<storage,read_write> traceArgs:TraceArgs;
 @group(0) @binding(8) var<storage,read_write> traceList:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
-fn traceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u;}
 fn traceLobe(coord:vec2i,flags:u32,N:vec3f,alpha:f32)->vec4f{
  if((flags&${PHYSICAL_SURFACE_FLAG}u)==0u){return vec4f(0.0,0.0,0.0,alpha);}
  return packedLobeAxis(textureLoad(traceLobes,coord,0),N,alpha);
 }
 @compute @workgroup_size(${SIDE},${SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
- if(all(vec2f(id.xy)<reflectionView.screen.xy)&&traceReflects(textureLoad(traceFlags,vec2i(id.xy),0).r)){atomicOr(&reflecting,1u);}
+ if(all(vec2f(id.xy)<reflectionView.screen.xy)&&surfaceReflects(textureLoad(traceFlags,vec2i(id.xy),0).r)){atomicOr(&reflecting,1u);}
  workgroupBarrier();
  if(lane==0u&&atomicLoad(&reflecting)!=0u){
   traceList[atomicAdd(&traceArgs.count,1u)]=wg.x|(wg.y<<16u);
@@ -58,15 +57,14 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id
  if(any(vec2f(id)>=reflectionView.screen.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
- if(!traceReflects(flags)){return;}
+ if(!surfaceReflects(flags)){return;}
  let P=reflectionWorldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
  let normal=textureLoad(traceNormals,coord,0);
  let N=normalize(normal.xyz);
- let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
- let lobe=traceLobe(coord,flags,N,rough*rough);
- textureStore(traceOut,coord,vec4f(reflectedRadiance(P,N,reflectionToEye(P),rough,lobe),1.0));
+ let lobe=traceLobe(coord,flags,N,lobeAlpha(normal.a));
+ textureStore(traceOut,coord,vec4f(reflectedRadiance(P,N,reflectionToEye(P),normal.a,lobe),1.0));
 }`,
-  [directLightWgsl(), reflectedRadianceWgsl(REFLECTION_GROUP), LOBE_AXIS_WGSL],
+  [directLightWgsl(), reflectedRadianceWgsl(REFLECTION_GROUP), LOBE_AXIS_WGSL, surfaceReflects],
 )
 
 /**

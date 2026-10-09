@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { reflectionFieldWgsl } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { REFLECTION_MARCH_WGSL } from './march.ts'
@@ -119,10 +119,9 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
 export const reflectedRadianceWgsl = (group: number) =>
   wgslBlock(
     `reflectedRadianceWgsl(${group})`,
-    [reflectionSeenWgsl(group), reflectionFieldWgsl(true), ROUGHNESS_FLOOR],
+    [reflectionSeenWgsl(group), reflectionFieldWgsl(true), LOBE_AXIS_WGSL],
     `fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
- let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
- let ellipse=reflectionLobeOf(reflect(-V,N),r*r,lobe);
+ let ellipse=reflectionLobeOf(reflect(-V,N),lobeAlpha(rough),lobe);
  let field=reflectionField(P,N,ellipse);
  if(reflectionView.counts.x==0u||dot(N,V)<=0.0){return field;}
  let seen=reflectionSeen(P,N,ellipse);

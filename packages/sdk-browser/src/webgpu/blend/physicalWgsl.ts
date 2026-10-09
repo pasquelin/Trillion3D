@@ -7,6 +7,7 @@ import {
 } from '../../visibility/types.ts'
 import { physicalCoreWgsl, physicalTableWgsl } from '../../visibility/shader/physicalWgsl.ts'
 import { LOBES_LIGHTING_WGSL } from '../../lighting/direct/lobesWgsl.ts'
+import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -26,6 +27,7 @@ export const BLEND_PHYSICAL_WGSL = wgslBlock(
     physicalCoreWgsl('physicalSampled'),
     physicalTableWgsl(BLEND_BINDINGS.physical),
     LOBES_LIGHTING_WGSL,
+    LOBE_AXIS_WGSL,
   ],
   `var<private> physicalSampled:bool;
 var<private> physicalOn:bool;
@@ -52,7 +54,8 @@ fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32)
  if(!physicalOn){return;}
  let v=blendPhysicalValues(in,front,g,s);
  if(physicalLobeless(v)){return;}
- setLobes(v.direction,v.strength,v.coat,v.coatRough,v.coatN,s.N,V,rough);
+ let alpha=lobeAlpha(rough);
+ setLobes(lobeAxis(v.direction,v.strength,s.N,alpha),v.coat,v.coatRough,v.coatN,s.N,V,alpha);
 }`,
 )
 
