@@ -142,6 +142,10 @@ export type { EvictionOrder } from './gpu/page/eviction.ts'
 export type { PagePinTier } from './gpu/page/load.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'
+// The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
+export { createPageCache, type CacheSession, type PageCache } from './streaming/pageCache.ts'
+export type { RangeAsk, ReadRange } from './cluster/ranged.ts'
+export type { ByteMeter } from './cluster/byteMeter.ts'
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts'
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts'

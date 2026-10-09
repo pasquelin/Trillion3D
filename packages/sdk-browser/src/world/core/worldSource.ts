@@ -9,7 +9,7 @@ import {
 import type { Cut } from './worldCuts.ts'
 import type { Batch } from './worldBatches.ts'
 import { buildWorldMirror } from './worldMirror.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { modelWorldRoots, type LoadedModel } from './loadedModel.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 
@@ -95,7 +95,7 @@ export function buildWorldSource(plan: WorldPlan) {
         clips: [],
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
-        worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
+        worldRoots: models.flatMap(modelWorldRoots),
       },
     },
   }

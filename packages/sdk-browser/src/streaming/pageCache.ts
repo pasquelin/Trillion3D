@@ -10,7 +10,7 @@ export const DEFAULT_CACHED_BYTES = 256 * MIB
 /** A session reading through the cache: the most pages it lets the cache hold, and who hears a page
  *  evicted, or an eviction that found nothing it could take. What it reserves off the total it
  *  tells the seat it opens (`open`) each time that changes. */
-type CacheSession = {
+export type CacheSession = {
   maxPages?: number
   evicted?(url: string): void
   blocked?(): void

@@ -16,6 +16,9 @@ export type {
   MultiplyLot,
 } from '../../sdk-browser/src/page/decode/batch/batchRuntime.ts'
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts'
+export type { ByteMeter } from '../../sdk-browser/src/cluster/byteMeter.ts'
+export { createPageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
+export type { CacheSession, PageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
 export type {
@@ -129,6 +132,7 @@ export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts'
 export type { PlacementGrowth } from '../../sdk-browser/src/placement/engineSceneUpdates.ts'
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
+export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts'
 export {

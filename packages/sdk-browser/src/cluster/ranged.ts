@@ -4,10 +4,10 @@ import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runti
 
 /** How one range is read: the meter counting what arrives, the requests `checked` makes at most,
  *  and the signal that lets its asker go. */
-type RangeAsk = { meter?: ByteMeter; attempts?: number; signal?: AbortSignal }
+export type RangeAsk = { meter?: ByteMeter; attempts?: number; signal?: AbortSignal }
 
 /** A read of `length` bytes from `offset` of the file at `url` (`createRangedReads`). */
-type ReadRange = (
+export type ReadRange = (
   url: string,
   offset: number,
   length: number,
