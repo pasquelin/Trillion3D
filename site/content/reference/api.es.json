@@ -262,7 +262,7 @@
     }
   },
   "BatchRead": {
-    "summary": "Cómo `request` lee un lote: la señal de su propietario, su prioridad y lo que se ejecuta al llegar cada página.",
+    "summary": "Cómo `request` lee un lote: la señal de su propietario, su prioridad y lo que se ejecuta al llegar cada página, con sus bytes en mano.",
     "members": {
       "signal": "Suelta las lecturas del lote: una lectura que ya nadie espera se descarta mientras espera.",
       "priority": "Prioridad en la cola, 1 por defecto.",
@@ -1187,17 +1187,17 @@
     "summary": "Búferes de un plan, dimensionados para la mayor demanda del catálogo."
   },
   "createPageStreamer": {
-    "summary": "Lecturas acotadas, por prioridad y sin duplicado.",
+    "summary": "Lecturas acotadas, por prioridad y sin duplicado, a través de `options.cache`, la caché de páginas que guarda su propietario (`pageCache.ts`).",
     "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola.",
     "parameters": {
-      "options": "Cómo lee un lector de páginas (`createPageStreamer`). Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+      "options": "Cómo lee un lector de páginas (`createPageStreamer`): a través de `cache`, el de su propietario, que reserva sus tablas de manifiesto y su cola de transferencia junto a sus páginas; cada otro miembro tiene un valor por defecto.",
+      "options.cache": "La caché de páginas a través de la cual lee, la de su propietario: sobrevive al lector.",
       "options.signal": "Cancela todas las lecturas una vez abortado.",
       "options.workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
       "options.maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
       "options.onEvict": "Escucha cada página que sale de la caché.",
       "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "options.onDiagnostic": "Escucha cada paso de cada lectura.",
-      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto.",
       "options.onStalled": "Escucha, una sola vez, una lectura que falla definitivamente o que primero espera más tiempo, por la url de su página: de nuevo solo después de que llegó."
     }
   },
@@ -2459,8 +2459,8 @@
     "summary": "Tono, saturación y luminosidad a tres componentes RGB escritas en `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`, a través de un lector de páginas propio (`streaming/pageStreamer.ts`): cada lectura de una clave se une a su única tarea, así que dos cargas en curso de una misma página envían una sola petición, y una página cuya lectura falló espera su turno según la única política de fallos, con sus cargas esperándola — o se rechaza para siempre cuando otra petición volvería a encontrar su fallo (`streaming/failures.ts`).",
-    "description": "No anuncia nada de una página: sus bytes se toman tal como el servidor los envía, y solo las cargas los guardan."
+    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`, a través de un lector de páginas propio sobre una caché de páginas propia (`streaming/pageStreamer.ts`): cada lectura de una clave se une a su única tarea, así que dos cargas en curso de una misma página envían una sola petición, y una página cuya lectura falló espera su turno según la única política de fallos, con sus cargas esperándola — o se rechaza para siempre cuando otra petición volvería a encontrar su fallo (`streaming/failures.ts`).",
+    "description": "No anuncia nada de una página: sus bytes se toman tal como el servidor los envía, y solo las cargas los guardan. Una clave se cataloga en su primera lectura. `dispose` cancela sus lecturas y vacía su caché."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identidad columna por columna, leída y nunca escrita: la pose de un nodo o de una raíz sin pose."
@@ -4356,7 +4356,7 @@
     "description": "`createCache` es la reserva de páginas de GPU (`createGpuPageCache`), `decode` el decodificador de páginas de clústeres (`decodeGeometryPage`), un trozo propio que descarga la primera llamada: el motor dibuja las páginas en la GPU y nunca decodifica una en la CPU."
   },
   "page.httpSource": {
-    "summary": "Una fuente de páginas que lee las páginas por HTTP desde `baseUrl`.",
+    "summary": "Una fuente de páginas que lee las páginas por HTTP desde `baseUrl`; `dispose` cancela sus lecturas.",
     "parameters": {
       "baseUrl": "La dirección respecto a la cual se leen las páginas."
     }
@@ -4507,16 +4507,15 @@
     }
   },
   "PageStreamerOptions": {
-    "summary": "Cómo lee un lector de páginas (`createPageStreamer`).",
-    "description": "Además de sus páginas, su caché reserva sus tablas de manifiesto y su cola de transferencia; cada miembro tiene un valor por defecto.",
+    "summary": "Cómo lee un lector de páginas (`createPageStreamer`): a través de `cache`, el de su propietario, que reserva sus tablas de manifiesto y su cola de transferencia junto a sus páginas; cada otro miembro tiene un valor por defecto.",
     "members": {
+      "cache": "La caché de páginas a través de la cual lee, la de su propietario: sobrevive al lector.",
       "signal": "Cancela todas las lecturas una vez abortado.",
       "workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
       "maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
       "onEvict": "Escucha cada página que sale de la caché.",
       "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "onDiagnostic": "Escucha cada paso de cada lectura.",
-      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto.",
       "onStalled": "Escucha, una sola vez, una lectura que falla definitivamente o que primero espera más tiempo, por la url de su página: de nuevo solo después de que llegó."
     }
   },
@@ -7828,5 +7827,65 @@
   },
   "TRANSPARENT_DEPTH_LAYER": {
     "summary": "La capa sobre la que dibujan las pasadas transparentes: un cristal, una calcomanía o una lámina de agua apoyados exactamente sobre una cara opaca se dibuja encima —una superficie transparente nunca entra en la etapa del compilador, así que sus páginas llevan la capa 0—, un escalón de capa por encima del redondeo de coma flotante entre el ráster opaco y el suyo, nunca suficiente para alcanzar una superficie que está más arriba."
+  },
+  "ByteMeter": {
+    "summary": "Cuenta los bytes que lee una carga, frente a las longitudes que declara su manifiesto.",
+    "members": {
+      "plan": "Los archivos que lee la carga, de dirección a longitud declarada: su suma se une al total de inmediato, salvo un archivo ya leído, contado al llegar. Un plan vacío no es ninguno: la carga se oye entonces una vez, entera, al terminar.",
+      "read": "Devuelve `response` (leída desde `url`) con su cuerpo contado a medida que llega.",
+      "settle": "Quita los archivos planeados que nunca se leyeron, para que el último evento tenga `loaded === total`."
+    }
+  },
+  "CacheSession": {
+    "summary": "Una sesión que lee a través de la caché: el máximo de páginas que deja tener a la caché, y quién se entera de una página desalojada, o de un desalojo que no encontró nada que tomar.",
+    "description": "Lo que reserva del total se lo dice al puesto que abre (`open`) cada vez que cambia."
+  },
+  "ModelScene": {
+    "summary": "La escena de un modelo tal como la muestra su registro: el grafo que construyó su cargador, sin las raíces del mundo que abrió, que el modelo guarda para sí para las sesiones de su mundo.",
+    "members": {
+      "clips": "Los clips que reproduce el archivo (#357)."
+    }
+  },
+  "PageCache": {
+    "summary": "La caché de páginas decodificadas a través de la cual lee una sesión (`createPageCache`).",
+    "members": {
+      "bytes": "Bytes que tienen todas las entradas.",
+      "heldBytes": "Bytes de las entradas que alguien retiene: ningún desalojo las toma.",
+      "pageCount": "Cuántas páginas tiene.",
+      "levelBytes": "Bytes que tienen los niveles de textura y los registros de teselas.",
+      "cpuBytes": "El total de CPU: entradas, tablas de manifiesto, colas de transferencia y tablas del motor juntas.",
+      "reservedBytes": "Bytes que las sesiones que leen a través de ella reservan del total.",
+      "budgetBytes": "Bytes que pueden tener las entradas: el total menos lo reservado (`reservedBytes`).",
+      "roomBytes": "Bytes que puede tomar una entrada que llega: el presupuesto, menos lo que ningún desalojo puede tomar.",
+      "weight": "Bytes que tiene la entrada de `key`; 0 si no hay.",
+      "weigh": "La entrada de `key` pesa ahora `bytes` — las asignaciones decodificadas de una lectura guardada —, mientras la caché la guarde.",
+      "page": "La página de `url`, sin marcar nada.",
+      "touch": "La página de `url`, marcada como usada la última.",
+      "put": "Pone `array` como la página usada más recientemente en `url`; `sha256` cuando acaba de leerse y verificarse. Sus retenciones se quedan: una página fijada o en vuelo llega retenida.",
+      "drop": "La entrada de `url` se va, y sus retenciones con ella.",
+      "foreign": "Si la página retenida en `url` es otro archivo que el que nombra `announced`: otra huella u otro tamaño, o bytes nunca verificados frente a una. Un nombre solo no es un archivo: otra escena, otra base o la misma carpeta cocinada de nuevo puede reutilizarlo con el mismo tamaño. La misma huella son los mismos bytes, verificados al leer, bajo cualquier base.",
+      "acquire": "Uno más retiene la entrada de `url`, también antes de que llegue.",
+      "release": "Termina una retención de la entrada de `url`; quien llama pesa la caché cuando termina (`fit`).",
+      "fit": "Desaloja lo que ya no cabe (`fit`): tras llegar una página o terminar una retención.",
+      "file": "El archivo de `url` que un servidor respondió entero, marcado como usado el último, mientras la caché lo guarde.",
+      "keepFile": "Guarda el archivo de `url` que un servidor respondió entero como la entrada usada más recientemente.",
+      "level": "El nivel de textura o el registro de tesela retenido bajo `id`, marcado como usado el último.",
+      "keepLevel": "Retiene `level` bajo `id`, siendo la caché su dueña desde aquí: lo cierra cuando se va. Un nivel ya retenido — leído entretanto por la sesión que reemplazó una pérdida del dispositivo — se queda, marcado como usado el último, y la copia se cierra: sus bytes se cuentan una vez.",
+      "keep": "La lectura del archivo que nombra `key`, de `bytes` bytes — el proxy residente de la escena —, guardada entera en lugar de cualquier otra: `start` la inicia sobre la cancelación propia de la caché cuando no está guardada, y una sesión reabierta entretanto se une a la que está en vuelo. Sus bytes cuentan desde que se pide; retenida mientras está en vuelo, solo se va una vez llegada, y entonces solo cuando ninguna página, archivo o nivel puede irse (`SCENE_TIER`). Se queda de una sesión a otra hasta que `keepOnly` ya no la nombre. Una lectura que falla se va enseguida.",
+      "keepOnly": "Deja ir el proxy de la escena, con su lectura cancelada, salvo que `key` lo nombre: una escena que se fue.",
+      "resize": "Fija el total y desaloja enseguida lo que ya no cabe.",
+      "open": "`session` lee a través de la caché desde ahora, reservando `reserving` bytes del total, hasta que se va: el puesto que se le entrega comunica cada nueva reserva (`reserve`) y su salida (`leave`).",
+      "clear": "Vacía la caché: su propietario se ha ido."
+    }
+  },
+  "RangeAsk": {
+    "summary": "Cómo se lee un rango: el contador de lo que llega, el máximo de peticiones que hace `checked`, y la señal que deja ir a quien lo pide."
+  },
+  "ReadRange": {
+    "summary": "Una lectura de `length` bytes desde `offset` del archivo en `url` (`createRangedReads`)."
+  },
+  "createPageCache": {
+    "summary": "LA ÚNICA CACHÉ DEL ANFITRIÓN: los bytes de cada página y paquete leídos, de cada archivo que un servidor respondió entero en lugar de un rango (`readRange`), de cada nivel de textura decodificado y registro de tesela en bloques (`level`), y del proxy residente de la escena (`keep`), como un solo conjunto de entradas, UN presupuesto y UN desalojo (`cacheEntries.ts`), frente al total de CPU (`cpuBytes`, `world.budget.cpu`).",
+    "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
   }
 }

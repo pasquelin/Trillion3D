@@ -262,7 +262,7 @@
     }
   },
   "BatchRead": {
-    "summary": "Come `request` legge un lotto: il segnale del suo proprietario, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
+    "summary": "Come `request` legge un lotto: il segnale del suo proprietario, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina, ricevendone i byte.",
     "members": {
       "signal": "Lascia andare le letture del lotto: una lettura che nessuno aspetta più viene scartata mentre attende.",
       "priority": "Priorità in coda, 1 per impostazione predefinita.",
@@ -1187,17 +1187,17 @@
     "summary": "Buffer di un piano, dimensionati per la richiesta più grande del catalogo."
   },
   "createPageStreamer": {
-    "summary": "Letture limitate, per priorità e senza duplicati.",
+    "summary": "Letture limitate, per priorità e senza duplicati, tramite `options.cache`, la cache di pagine che il suo proprietario tiene (`pageCache.ts`).",
     "description": "Una richiesta ancora in attesa in coda viene scartata quando il suo ultimo consumatore se ne va; una richiesta già in transito può arrivare nella cache. La cache è un insieme «usato meno di recente» limitato sia in voci che in byte; le voci fissate sopravvivono allo sfratto, quindi un chiamante mantiene la propria copertura mostrata trattenendola.",
     "parameters": {
-      "options": "Come legge uno streamer di pagine (`createPageStreamer`). Accanto alle sue pagine, la sua cache riserva le tabelle del manifesto e la coda di trasferimento; ogni membro ha un valore predefinito.",
+      "options": "Come legge uno streamer di pagine (`createPageStreamer`): tramite `cache`, quella del suo proprietario, che riserva le tabelle del manifesto e la coda di trasferimento accanto alle sue pagine; ogni altro membro ha un valore predefinito.",
+      "options.cache": "La cache di pagine tramite cui legge, quella del suo proprietario: sopravvive allo streamer.",
       "options.signal": "Annulla ogni lettura una volta interrotto.",
       "options.workerCount": "Letture eseguite insieme; 8 per impostazione predefinita.",
       "options.maxPages": "Massimo di pagine tenute insieme; limitato solo dai byte se assente.",
       "options.onEvict": "Riceve ogni pagina che lascia la cache.",
       "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
       "options.onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo, tramite l'url della sua pagina: di nuovo solo dopo che è arrivata."
     }
   },
@@ -2459,8 +2459,8 @@
     "summary": "Tonalità, saturazione e luminosità in tre componenti RGB scritte in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, tramite uno streamer di pagine proprio (`streaming/pageStreamer.ts`): ogni lettura di una chiave si unisce al suo unico lavoro, così due caricamenti in corso della stessa pagina inviano una sola richiesta, e una pagina la cui lettura è fallita attende il suo turno secondo l'unica politica di errore, con i suoi caricamenti in attesa — o viene rifiutata per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`).",
-    "description": "Non annuncia nulla di una pagina: i suoi byte sono presi così come il server li invia, e tenuti dai soli caricamenti."
+    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, tramite uno streamer di pagine proprio su una cache di pagine propria (`streaming/pageStreamer.ts`): ogni lettura di una chiave si unisce al suo unico lavoro, così due caricamenti in corso della stessa pagina inviano una sola richiesta, e una pagina la cui lettura è fallita attende il suo turno secondo l'unica politica di errore, con i suoi caricamenti in attesa — o viene rifiutata per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`).",
+    "description": "Non annuncia nulla di una pagina: i suoi byte sono presi così come il server li invia, e tenuti dai soli caricamenti. Una chiave viene catalogata alla sua prima lettura. `dispose` annulla le sue letture e svuota la sua cache."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa."
@@ -4356,7 +4356,7 @@
     "description": "`createCache` è la riserva di pagine GPU (`createGpuPageCache`), `decode` il decodificatore di pagine di cluster (`decodeGeometryPage`), un blocco a sé che la prima chiamata scarica: il motore disegna le pagine sulla GPU e non ne decodifica mai una sulla CPU."
   },
   "page.httpSource": {
-    "summary": "Una fonte di pagine che legge le pagine via HTTP da `baseUrl`.",
+    "summary": "Una fonte di pagine che legge le pagine via HTTP da `baseUrl`; `dispose` annulla le sue letture.",
     "parameters": {
       "baseUrl": "L'indirizzo rispetto al quale si leggono le pagine."
     }
@@ -4507,16 +4507,15 @@
     }
   },
   "PageStreamerOptions": {
-    "summary": "Come legge uno streamer di pagine (`createPageStreamer`).",
-    "description": "Accanto alle sue pagine, la sua cache riserva le tabelle del manifesto e la coda di trasferimento; ogni membro ha un valore predefinito.",
+    "summary": "Come legge uno streamer di pagine (`createPageStreamer`): tramite `cache`, quella del suo proprietario, che riserva le tabelle del manifesto e la coda di trasferimento accanto alle sue pagine; ogni altro membro ha un valore predefinito.",
     "members": {
+      "cache": "La cache di pagine tramite cui legge, quella del suo proprietario: sopravvive allo streamer.",
       "signal": "Annulla ogni lettura una volta interrotto.",
       "workerCount": "Letture eseguite insieme; 8 per impostazione predefinita.",
       "maxPages": "Massimo di pagine tenute insieme; limitato solo dai byte se assente.",
       "onEvict": "Riceve ogni pagina che lascia la cache.",
       "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
       "onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo, tramite l'url della sua pagina: di nuovo solo dopo che è arrivata."
     }
   },
@@ -7828,5 +7827,65 @@
   },
   "TRANSPARENT_DEPTH_LAYER": {
     "summary": "Lo strato su cui disegnano i passaggi trasparenti: un vetro, una decalcomania o una lastra d’acqua appoggiati esattamente su una faccia opaca vengono disegnati sopra di essa — una superficie trasparente non entra mai nello stadio del compilatore, quindi le sue pagine portano lo strato 0 —, un gradino di strato sopra l’arrotondamento in virgola mobile tra il raster opaco e il proprio, mai abbastanza da raggiungere una superficie che sta più in alto."
+  },
+  "ByteMeter": {
+    "summary": "Conta i byte che un caricamento legge, rispetto alle lunghezze che il suo manifesto dichiara.",
+    "members": {
+      "plan": "I file che il caricamento legge, dall’indirizzo alla lunghezza dichiarata: la loro somma entra subito nel totale, tranne un file già letto, contato al suo arrivo. Un piano vuoto non è un piano: il caricamento viene allora sentito una volta, intero, quando si conclude.",
+      "read": "Restituisce `response` (letta da `url`) con il corpo contato man mano che arriva.",
+      "settle": "Scarta i file previsti mai letti, così che l’ultimo evento abbia `loaded === total`."
+    }
+  },
+  "CacheSession": {
+    "summary": "Una sessione che legge tramite la cache: il massimo di pagine che lascia tenere alla cache, e chi sente una pagina sfrattata, o uno sfratto che non ha trovato nulla da prendere.",
+    "description": "Ciò che riserva sul totale lo comunica al posto che apre (`open`) ogni volta che cambia."
+  },
+  "ModelScene": {
+    "summary": "La scena di un modello come la mostra il suo record: il grafo costruito dal suo caricatore, senza le radici del mondo che ha aperto, che il modello tiene per sé per le sessioni del suo mondo.",
+    "members": {
+      "clips": "Le clip che il file riproduce (#357)."
+    }
+  },
+  "PageCache": {
+    "summary": "La cache di pagine decodificate tramite cui legge una sessione (`createPageCache`).",
+    "members": {
+      "bytes": "Byte tenuti da tutte le voci.",
+      "heldBytes": "Byte delle voci che qualcuno trattiene: nessuno sfratto le prende.",
+      "pageCount": "Quante pagine tiene.",
+      "levelBytes": "Byte tenuti dai livelli di texture e dai record delle tile.",
+      "cpuBytes": "Il totale CPU: voci, tabelle del manifesto, code di trasferimento e tabelle del motore insieme.",
+      "reservedBytes": "Byte che le sessioni che leggono tramite essa riservano sul totale.",
+      "budgetBytes": "Byte che le voci possono tenere: il totale meno ciò che è riservato (`reservedBytes`).",
+      "roomBytes": "Byte che una voce in arrivo può prendere: il budget, meno ciò che nessuno sfratto può prendere.",
+      "weight": "Byte tenuti dalla voce di `key`; 0 se non c’è.",
+      "weigh": "La voce di `key` ora pesa `bytes` — le allocazioni decodificate di una lettura conservata —, finché la cache la tiene.",
+      "page": "La pagina di `url`, senza segnare nulla.",
+      "touch": "La pagina di `url`, segnata come usata per ultima.",
+      "put": "Mette `array` come pagina usata più di recente in `url`; `sha256` quando è appena stata letta e verificata. I suoi trattenimenti restano: una pagina fissata o in volo arriva trattenuta.",
+      "drop": "La voce di `url` se ne va, con i suoi trattenimenti.",
+      "foreign": "Se la pagina tenuta in `url` è un altro file rispetto a quello che `announced` nomina: un’altra impronta o un’altra dimensione, o byte mai verificati rispetto a una. Un nome da solo non è un file: un’altra scena, un’altra base o la stessa cartella ricotta può riusarlo con la stessa dimensione. La stessa impronta sono gli stessi byte, verificati in lettura, sotto qualsiasi base.",
+      "acquire": "Uno in più trattiene la voce di `url`, anche prima che arrivi.",
+      "release": "Un trattenimento della voce di `url` finisce; il chiamante pesa la cache quando ha finito (`fit`).",
+      "fit": "Sfratta ciò che non ci sta più (`fit`): dopo l’arrivo di una pagina o la fine di un trattenimento.",
+      "file": "Il file di `url` che un server ha restituito intero, segnato come usato per ultimo, finché la cache lo tiene.",
+      "keepFile": "Tiene il file di `url` che un server ha restituito intero come voce usata più di recente.",
+      "level": "Il livello di texture o il record di tile tenuto sotto `id`, segnato come usato per ultimo.",
+      "keepLevel": "Tiene `level` sotto `id`, la cache ne è proprietaria da qui: lo chiude quando se ne va. Un livello già tenuto — letto nel frattempo dalla sessione che una perdita del dispositivo ha sostituito — resta, segnato come usato per ultimo, e la copia si chiude: i suoi byte sono contati una volta.",
+      "keep": "La lettura del file che `key` nomina, di `bytes` byte — il proxy residente della scena —, tenuta intera al posto di ogni altra: `start` la avvia sull’annullamento proprio della cache quando non è tenuta, e una sessione riaperta nel frattempo si unisce a quella in volo. I suoi byte contano da quando viene chiesta; trattenuta finché è in volo, se ne va solo una volta arrivata, e solo quando nessuna pagina, file o livello può andarsene (`SCENE_TIER`). Resta da una sessione all’altra finché `keepOnly` non la nomina più. Una lettura che fallisce se ne va subito.",
+      "keepOnly": "Lascia andare il proxy della scena, con la lettura annullata, a meno che `key` non lo nomini: una scena scomparsa.",
+      "resize": "Imposta il totale e sfratta subito ciò che non ci sta più.",
+      "open": "`session` legge tramite la cache da ora, riservando `reserving` byte sul totale, finché se ne va: il posto che le viene dato comunica ogni nuova riserva (`reserve`) e la sua uscita (`leave`).",
+      "clear": "Svuota la cache: il suo proprietario non c’è più."
+    }
+  },
+  "RangeAsk": {
+    "summary": "Come viene letto un intervallo: il contatore di ciò che arriva, il massimo di richieste che `checked` fa, e il segnale che lascia andare chi lo chiede."
+  },
+  "ReadRange": {
+    "summary": "Una lettura di `length` byte da `offset` del file in `url` (`createRangedReads`)."
+  },
+  "createPageCache": {
+    "summary": "L’UNICA CACHE DELL’HOST: i byte di ogni pagina e di ogni pacchetto letti, di ogni file che un server ha restituito intero invece di un intervallo (`readRange`), di ogni livello di texture decodificato e record di tile a blocchi (`level`), e del proxy residente della scena (`keep`), come un unico insieme di voci, UN budget e UNO sfratto (`cacheEntries.ts`), rispetto al totale CPU (`cpuBytes`, `world.budget.cpu`).",
+    "description": "Il suo proprietario la tiene da una sessione all’altra: un mondo passa la stessa a ogni sessione che apre, così una sessione riaperta — su un dispositivo concesso di nuovo dopo una perdita, o su una scena cambiata — legge da qui ciò che la precedente ha recuperato, e non recupera nulla di ciò che essa tiene. Ogni sessione che legge tramite essa riserva le tabelle del manifesto, la coda di trasferimento e le tabelle del motore (`manifestTableBytes`, `maxTransferBytes`, il `reserve` dello streamer), comunicate man mano che cambiano (`open`), con la cache che ne tiene la somma, e prende trattenimenti sulle pagine che fissa o legge; le voci tengono il resto (`budgetBytes`). Solo la cache sfratta, una volta che le sue voci superano il budget: mai una voce che qualcuno trattiene, poi le pagine, i file e i livelli usati meno di recente, il proxy per ultimo. Un livello non ha bisogno di spazio proprio: prende ciò che lo sfratto può liberare (`roomBytes`), come una pagina."
   }
 }
