@@ -32,7 +32,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastGpuHostGapMs = null
   timing.lastGpuIdleMs = null
   timing.lastSubmitMs = submitMs
-  const steps = timing.cpuProfile.row
+  const steps = timing.profiler.row
   steps.fill(0)
   // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
   steps[CPU_STEP.tilesPumpMs] = NaN

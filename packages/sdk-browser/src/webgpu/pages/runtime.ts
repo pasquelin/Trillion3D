@@ -18,11 +18,7 @@ import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/captu
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
 import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
 import type { EngineCamera } from '../../camera/world.ts'
-import {
-  createWebgpuStageProfiler,
-  createWebgpuTimingState,
-  type WebgpuTimingState,
-} from './state/timing.ts'
+import { createWebgpuTimingState, type WebgpuTimingState } from './state/timing.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
 import type { FeedbackAbState } from './diagnostic/feedbackAb.ts'
 import type { VisPage } from '../../visibility/types.ts'
@@ -132,7 +128,7 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     capture: createWebgpuCaptureState(),
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
-      explorerSwitch(context, 'stageProfile') ? createWebgpuStageProfiler() : undefined,
+      explorerSwitch(context, 'stageProfile'),
       () => layout.selectionRoots.length,
     ),
     scale: createScaleControl(context.renderScale),

@@ -1,12 +1,19 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
-import { addCpuSteps } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts'
 import {
+  stageQuantiles,
+  type GpuPassTimings,
+  type StageQuantiles,
+} from '../../../packages/sdk-core/src/index.ts'
+import {
+  WEBGPU_STAGES,
   addGpuPasses,
   directLightTimings,
 } from '../../../packages/sdk-browser/src/stage/mapping.ts'
-import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
+import {
+  createStageProfiler,
+  type StageAdd,
+} from '../../../packages/sdk-browser/src/stage/profiler.ts'
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
@@ -34,15 +41,38 @@ const depose =
     return total
   }
 
+/** Each stage's CPU spread once `rows` are filed by a profile whose window holds them all. */
+const fileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]> => {
+  const profiler = createStageProfiler({
+    backend: 'webgpu',
+    steps: { names: CPU_STEP_NAMES, stages: CPU_STEP_STAGES },
+    stages: WEBGPU_STAGES,
+    gpuMethod: null,
+    window: rows.length,
+  })
+  for (const row of rows) {
+    profiler.row.set(row)
+    profiler.record(0, 0)
+  }
+  return profiler.profile().stages.map((entry) => [entry.stage, entry.cpuMs])
+}
+const referenceFileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]> => {
+  const series = new Map<string, number[]>()
+  for (const row of rows)
+    for (const [stage, ms] of depose(referenceAddCpuSteps)([row]))
+      series.set(stage, [...(series.get(stage) ?? []), ms])
+  return WEBGPU_STAGES.map((stage) => [stage, stageQuantiles(series.get(stage) ?? [])])
+}
+
 const measureCpu = await measure({
   name: 'CPU bounds per stage',
-  fichier: 'packages/sdk-browser/src/stage/cpuSteps.ts',
+  fichier: 'packages/sdk-browser/src/stage/profiler.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },
   ],
-  calculation: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
-  expected: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
+  calculation: fileRows,
+  expected: referenceFileRows,
 })
 
 // A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow

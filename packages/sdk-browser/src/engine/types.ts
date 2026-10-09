@@ -10,7 +10,7 @@ import type {
 } from '../../../sdk-core/src/index.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts'
-import type { CpuStepSummary } from '../stage/cpuProfile.ts'
+import type { CpuStepSummary } from '../stage/profiler.ts'
 import type { HostCpuStep } from '../host/cpuProfile.ts'
 import type { EngineDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts'
 import type { PlacementRows } from '../placement/rows.ts'

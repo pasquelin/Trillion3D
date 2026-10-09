@@ -1,6 +1,6 @@
 // The table of an image's CPU bounds, alone: the timing state reads its names without the
 // frame code that fills them.
-import { cpuStepTable } from '../../../stage/cpuSteps.ts'
+import { cpuStepTable } from '../../../stage/profiler.ts'
 
 /**
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits

@@ -34,7 +34,7 @@ export type {
   ContactEventName,
   PhysicsHost,
 } from '../../sdk-core/src/physics/objectPhysics.ts'
-export type { CpuStepSummary } from '../../sdk-browser/src/stage/cpuProfile.ts'
+export type { CpuStepSummary } from '../../sdk-browser/src/stage/profiler.ts'
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts'
 export type {
   DiagnosticChannel,

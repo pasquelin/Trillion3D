@@ -2,8 +2,7 @@ import type { GuideSet } from '../../guides/guideSet.ts'
 import { createScaleControl } from '../../frame/scaleControl.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 import { HOLD_SIGNATURE_VALUES } from './signature.ts'
-import { createCpuStepProfile } from '../../stage/cpuProfile.ts'
-import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts'
+import { createWebgpuTimingState } from '../pages/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { WebgpuEffects } from '../effects/webgpuEffects.ts'
@@ -81,7 +80,7 @@ export function settledRt() {
       partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
-      cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+      profiler: createWebgpuTimingState().profiler,
       rowFilled: false,
       cpuSample: undefined as Record<string, unknown> | undefined,
       lastGpuPassMs: null as number | null,

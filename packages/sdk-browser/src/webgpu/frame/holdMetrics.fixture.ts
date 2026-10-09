@@ -48,7 +48,7 @@ export function heldFrame() {
     lastGpuFrameMs: 9,
     lastGpuHostGapMs: 2,
     lastSubmitMs: 8,
-    cpuProfile: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
+    profiler: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
     rowFilled: false,
     cpuSample: { version: 1 },
     partitionCounts: {},

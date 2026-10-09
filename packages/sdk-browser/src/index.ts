@@ -116,7 +116,7 @@ export type { TexturePool } from './webgpu/residency/memoryBudgets.ts'
 export type { BudgetCanvas } from './residency/memoryBudget.ts'
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts'
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
-export type { CpuStepSummary } from './stage/cpuProfile.ts'
+export type { CpuStepSummary } from './stage/profiler.ts'
 export type { ArrivalPlan } from './page/integration/host.ts'
 export type { DecodedGeometryPage } from './page/codec/geometryPage.ts'
 export type {

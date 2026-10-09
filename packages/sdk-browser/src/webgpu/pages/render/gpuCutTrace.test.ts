@@ -38,7 +38,7 @@ function image(worked: boolean) {
 test('the gate, the tile pump and the world step each own their bound', () => {
   const { rt, timing } = image(true)
   recordGpuCutTiming(rt)
-  const row = timing.cpuProfile.row
+  const row = timing.profiler.row
   assert.equal(row[CPU_STEP.gateMs], 0.5)
   assert.equal(row[CPU_STEP.tilesPumpMs], 1.25, 'the pass measured itself: the step files it')
   assert.equal(row[CPU_STEP.worldMs], 0.5, 'the world step no longer carries the tile pump')
@@ -50,12 +50,12 @@ test('the gate, the tile pump and the world step each own their bound', () => {
 test('a pump with nothing to serve files no bound, so the textures stage stays unmeasured', () => {
   const { rt, timing } = image(false)
   recordGpuCutTiming(rt)
-  assert.ok(Number.isNaN(timing.cpuProfile.row[CPU_STEP.tilesPumpMs]))
+  assert.ok(Number.isNaN(timing.profiler.row[CPU_STEP.tilesPumpMs]))
   const barrier = image(true)
   barrier.rt.run.textureConverging = true
   recordGpuCutTiming(barrier.rt)
   assert.ok(
-    Number.isNaN(barrier.timing.cpuProfile.row[CPU_STEP.tilesPumpMs]),
+    Number.isNaN(barrier.timing.profiler.row[CPU_STEP.tilesPumpMs]),
     'a barrier image pumps nothing: its unbounded pass is not filed as a frame',
   )
   assert.equal(CPU_STEP_STAGES[CPU_STEP.tilesPumpMs], 'textures')

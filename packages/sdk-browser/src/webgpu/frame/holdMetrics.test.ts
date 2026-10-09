@@ -22,7 +22,7 @@ test('a held frame counts only its present, not the last full render', () => {
 test('step durations of a held frame describe only the present', () => {
   const { rt, timing, device } = heldFrame()
   holdWebgpuFrame(rt, device)
-  const row = timing.cpuProfile.row
+  const row = timing.profiler.row
   const presentation = new Set([
     CPU_STEP.queueSubmitMs,
     CPU_STEP.encodeSubmitMs,

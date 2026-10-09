@@ -9,7 +9,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     m = timing.marks
   const submitMs = m.cpuEnd - m.encodeStart
   timing.lastSubmitMs = submitMs
-  const steps = timing.cpuProfile.row
+  const steps = timing.profiler.row
   steps[CPU_STEP.gateMs] = m.gateEnd - m.preStart
   // The pass is timed once, on the clock its millisecond budget is read on: the step files that
   // measure. A pump with no feedback to serve did nothing at all, not zero work — no bound is

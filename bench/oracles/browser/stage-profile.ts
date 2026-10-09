@@ -6,6 +6,7 @@
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
 import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
+import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
 
 // Stage of each label, then its shadow part: choosing the casters or drawing them.
 const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
@@ -27,13 +28,9 @@ const stageOf = (name: string) =>
   ROW_OF[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry')
 const partOf = (name: string) => ROW_OF[name]?.[1] ?? 'other'
 
-export function referenceAddCpuSteps(
-  stages: ReadonlyArray<string | null>,
-  row: ArrayLike<number>,
-  add: StageAdd,
-) {
-  for (let i = 0; i < stages.length; i++) {
-    const stage = stages[i]
+export function referenceAddCpuSteps(row: ArrayLike<number>, add: StageAdd) {
+  for (let i = 0; i < CPU_STEP_STAGES.length; i++) {
+    const stage = CPU_STEP_STAGES[i]
     if (stage) add(stage, row[i])
   }
 }

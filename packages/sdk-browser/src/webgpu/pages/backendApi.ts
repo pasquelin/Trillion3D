@@ -1,5 +1,3 @@
-import { disabledStageProfile } from '../../../../sdk-core/src/index.ts'
-import { WEBGPU_ENGINE_ID } from '../../engine/factory.ts'
 import type { Engine, EngineContext } from '../../engine/types.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts'
@@ -167,11 +165,10 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
 export function backendTiming(rt: WebgpuPagesRuntime) {
   return {
     resetStageProfile() {
-      rt.timing.stages?.reset()
-      rt.timing.cpuWindow.reset()
+      rt.timing.profiler.reset()
     },
     cpuSteps() {
-      return rt.timing.cpuWindow.summary()
+      return rt.timing.profiler.steps('host')
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms)
@@ -183,10 +180,7 @@ export function backendTiming(rt: WebgpuPagesRuntime) {
       endCpuFrame(rt)
     },
     stageProfile() {
-      return (
-        rt.timing.stages?.profile() ??
-        disabledStageProfile(WEBGPU_ENGINE_ID, 'per-step profile not requested by the host')
-      )
+      return rt.timing.profiler.profile()
     },
   } satisfies Partial<Engine>
 }
