@@ -44,9 +44,10 @@ fn differenceAt(k:u32)->u32{return levelCountAt(${ADMISSION_BUCKETS}u+k);}
 /** List \`l\`'s difference (0 the camera's requests, 1 the drawn pages): the rank each of its pages
  *  held in the kept list. */
 fn fromAt(l:u32,s:u32)->u32{return differenceAt(l*views[0u].listCap+s);}
-/** Word \`k\` of the kept snapshot in \`out.pages\`, behind the staged requests ahead
- *  (\`keptSnapshotWord\`): the two lengths, then the requests' pages, then the drawn pages. */
-fn keptAt(k:u32)->u32{return aheadStagedAt(aheadCap()+k);}
+/** Word \`k\` of the kept snapshot in \`out.pages\`, behind the staged requests ahead, two words
+ *  each (\`keptSnapshotWord\`): the two lengths, then the requests' pages, then the drawn pages, a
+ *  word each. */
+fn keptAt(k:u32)->u32{return aheadStagedAt(aheadCap())+k;}
 fn keptPage(l:u32,s:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+l*views[0u].listCap+s);}
 /** List \`l\` as long as the host reads it, and its page at rank \`s\`: the camera's requests, the
  *  drawn pages. */
