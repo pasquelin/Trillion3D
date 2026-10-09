@@ -3,7 +3,7 @@
 // header.
 import ts from 'typescript'
 import { waveRest } from '../../packages/sdk-core/src/fluids/waveRest.ts'
-import { WAVE_FIELDS, waveTerms } from '../../packages/sdk-core/src/fluids/waves.ts'
+import { TERM_SLOTS, WAVE_FIELDS, waveTerms } from '../../packages/sdk-core/src/fluids/waves.ts'
 import {
   comment,
   constantsOf,
@@ -52,9 +52,12 @@ export function waveTermsWgsl() {
     },
     0,
   )
-  if (terms.length !== 6 || terms.some((term) => term === undefined))
-    throw new Error(`${WAVES}: waveTerms writes six terms`)
-  lines.push(`d+=vec3f(${terms.slice(0, 3).join(',')});n-=vec3f(${terms.slice(3).join(',')});`)
+  const { offset, normal } = TERM_SLOTS
+  const slots: readonly number[] = [...offset, ...normal]
+  if (terms.length !== slots.length || slots.some((slot) => terms[slot] === undefined))
+    throw new Error(`${WAVES}: waveTerms writes each of its TERM_SLOTS`)
+  const sum = (group: readonly number[]) => group.map((slot) => terms[slot]).join(',')
+  lines.push(`d+=vec3f(${sum(offset)});n-=vec3f(${sum(normal)});`)
   return `${header([`${WAVES} (\`waveTerms\`)`], '//')}
 
 /**
@@ -80,7 +83,7 @@ export function waveModelHeader() {
         const wave = waveField(node)
         return wave && `waves[${wave.index}].${WAVE_FIELDS[wave.field]}`
       },
-      write: (index, value) => `${['restX', '', 'restZ'][index]} = ${value};`,
+      write: (index, value) => `rest${'XYZ'[index]} = ${value};`,
       counter: (bound) => (bound === 'count' ? 'uint32_t' : 'int'),
       pairs: new Map(),
     },

@@ -21,9 +21,8 @@ constexpr uint32_t WAVE_DOUBLES = 6;
 /// `sin` and `cos` of `x` (`waterPlanes.cpp`).
 void sinCos(double x, double &s, double &c);
 
-/// The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`. The
-/// physics module runs the same lines, printed into C++ from this function
-/// (`scripts/generate-shared-rules.ts`, `waveModel.h`).
+/// The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`; the
+/// physics module runs its C++ print (`scripts/generate-shared-rules.ts`).
 inline void waveRest(const Wave *waves, uint32_t count, double x, double z, double &restX,
                      double &restZ) {
   double px = x, pz = z;

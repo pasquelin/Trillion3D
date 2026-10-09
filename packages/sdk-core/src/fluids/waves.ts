@@ -71,13 +71,17 @@ const OFFSET_X = 0,
   NORMAL_X = 3,
   NORMAL_Y = 4,
   NORMAL_Z = 5
+/** The slots of a wave's terms by what they sum into: the displacement, then the normal. */
+export const TERM_SLOTS = {
+  offset: [OFFSET_X, OFFSET_Y, OFFSET_Z],
+  normal: [NORMAL_X, NORMAL_Y, NORMAL_Z],
+} as const
 
 /**
  * The terms of wave `i` of `waves` at the rest point `(x, z)`, into `out` at their slots: the
  * displacement it adds (`OFFSET_X` to `OFFSET_Z`), then what it takes from the surface's
  * unnormalised normal (`NORMAL_X` to `NORMAL_Z`). The one formula of a wave: `Waves.offset` and
- * `Waves.normal` sum it, and the GPU deformation sums the same lines, printed into WGSL from this
- * function (`scripts/generate-shared-rules.ts`).
+ * `Waves.normal` sum it, and the GPU deformation its WGSL print (`scripts/generate-shared-rules.ts`).
  */
 export function waveTerms(waves: Waves, i: number, x: number, z: number, out: Float64Array) {
   const dx = waves.dirX[i],

@@ -1,6 +1,6 @@
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import type { Deformed } from './frame.ts'
-import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
+import { WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { WAVE_FLOATS } from './layout.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 import { leastStretchOf } from '../partition/boxes.ts'
@@ -11,23 +11,9 @@ const inverse = new Float64Array(16)
  *  matrix it was read for, then the least that matrix stretches a distance (`leastStretchOf`). */
 export const WAVE_STRETCH_FLOATS = 17
 
-const value = (model: Waves, w: number, c: number) => {
-  if (w >= model.count) return c === 0 ? 1 : 0
-  switch (c) {
-    case 0:
-      return model.dirX[w]
-    case 1:
-      return model.dirZ[w]
-    case 2:
-      return model.k[w]
-    case 3:
-      return model.amplitude[w]
-    case 4:
-      return model.lateral[w]
-    default:
-      return model.phase[w]
-  }
-}
+/** Field `c` (`WAVE_FIELDS`) of wave `w`; a wave past the model's count is still, heading along x. */
+const value = (model: Waves, w: number, c: number) =>
+  w < model.count ? model[WAVE_FIELDS[c]][w] : WAVE_FIELDS[c] === 'dirX' ? 1 : 0
 
 /** World-space sampling changes even at a frozen clock; every control participates. */
 export function wavesChanged(block: Float32Array, entry: Deformed, world: number, wave: number) {
@@ -40,7 +26,7 @@ export function wavesChanged(block: Float32Array, entry: Deformed, world: number
   )
     return true
   for (let w = 0; w < entry.shape.waves; w++)
-    for (let c = 0; c < 6; c++)
+    for (let c = 0; c < WAVE_FIELDS.length; c++)
       if (block[wave + w * WAVE_FLOATS + c] !== Math.fround(value(model, w, c))) return true
   return false
 }
@@ -68,7 +54,7 @@ export function writeWaves(
   for (let w = 0; w < entry.shape.waves; w++) {
     const at = wave + w * WAVE_FLOATS,
       present = w < model.count
-    for (let c = 0; c < 6; c++) block[at + c] = value(model, w, c)
+    for (let c = 0; c < WAVE_FIELDS.length; c++) block[at + c] = value(model, w, c)
     if (present) crest += model.amplitude[w] + model.lateral[w]
   }
   if (first) {

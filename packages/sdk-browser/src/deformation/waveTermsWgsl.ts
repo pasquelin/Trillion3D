@@ -6,8 +6,7 @@
  * The terms of wave `i` of `waves` at the rest point `(x, z)`, into `out` at their slots: the
  * displacement it adds (`OFFSET_X` to `OFFSET_Z`), then what it takes from the surface's
  * unnormalised normal (`NORMAL_X` to `NORMAL_Z`). The one formula of a wave: `Waves.offset` and
- * `Waves.normal` sum it, and the GPU deformation sums the same lines, printed into WGSL from this
- * function (`scripts/generate-shared-rules.ts`).
+ * `Waves.normal` sum it, and the GPU deformation its WGSL print (`scripts/generate-shared-rules.ts`).
  *
  * In WGSL: statements over wave `i`'s floats in `positions` from `b`, in `WAVE_FIELDS` order,
  * at the point `p`, adding the displacement to `d` and taking the normal's terms from `n`.

@@ -9,17 +9,19 @@
  * joint, target and wave counts. Then, from `RECORD_HEAD`: the joint palette of this frame and of
  * the last, twelve floats a joint (`PALETTE_FLOATS`); the morph weights of this frame and of the
  * last, one a target; current and previous world/inverse matrices, sixteen each, which the waves
- * are read through; then current and previous blocks of eight floats per wave (`WAVE_FLOATS`).
+ * are read through; then current and previous blocks of floats per wave (`WAVE_FLOATS`).
  */
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
+import { WAVE_FIELDS } from '../../../sdk-core/src/fluids/waves.ts'
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 export const KIND_SKIN = 1,
   KIND_MORPH = 2,
   KIND_WAVE = 4,
   KIND_SOFT = 8
 export const RECORD_HEAD = 8
-/** Floats of one wave: direction x/z, wave number, amplitude, lateral amplitude, phase, two pads. */
-export const WAVE_FLOATS = 8
+/** Floats of one wave: its `WAVE_FIELDS`, padded to a multiple of four. */
+export const WAVE_FLOATS = alignUp(WAVE_FIELDS.length, 4)
 
 /** Counts a record is laid out for. */
 export type RecordShape = { joints: number; targets: number; waves: number; soft?: number }
