@@ -64,12 +64,12 @@ export const WAVE_FIELDS = ['dirX', 'dirZ', 'k', 'amplitude', 'lateral', 'phase'
 export const WAVE_DOUBLES = WAVE_FIELDS.length
 
 /** The slots of a wave's terms (`waveTerms`): the displacement it adds, then what it takes from the
- *  surface's unnormalised normal. */
+ *  surface's unnormalised normal; the rest point's (`waveRest.ts`) exported. */
 export const OFFSET_X = 0,
-  OFFSET_Y = 1,
   OFFSET_Z = 2,
+  NORMAL_Y = 4
+const OFFSET_Y = 1,
   NORMAL_X = 3,
-  NORMAL_Y = 4,
   NORMAL_Z = 5
 /** Slots of a wave's terms. */
 export const TERM_COUNT = NORMAL_Z + 1

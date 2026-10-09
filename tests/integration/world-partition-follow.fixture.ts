@@ -133,7 +133,7 @@ export async function assertNoneMissing(
 
 /** Every cell record under `pages`, the root's slots of a compiled partition, its address made
  *  whole: read from disk page by page as the runtime reads them (`readCellPage`). */
-export async function cellRecords(
+async function cellRecords(
   pages: readonly { url: string }[],
 ): Promise<{ url: string; bytes: number; meshPages: readonly string[] }[]> {
   const lists = await Promise.all(
