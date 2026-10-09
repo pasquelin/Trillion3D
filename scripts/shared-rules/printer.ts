@@ -25,6 +25,10 @@ export type Target = {
   /** `Math.sin` and `Math.cos` of one angle a C++ statement reads together, by the angle: one
    *  argument reduction for both (`sinCos`). */
   pairs?: Map<string, { sin: string; cos: string }>
+  /** Whether a declaration prints; every one does without it. */
+  declares?: (item: ts.VariableDeclaration) => boolean
+  /** The lines a call statement prints as (`withInlined`). */
+  inline?: (call: ts.CallExpression, depth: number) => string[]
 }
 
 export const unsupported = (node: ts.Node): never => {
@@ -108,8 +112,8 @@ function call(node: ts.CallExpression, t: Target): string {
   return `${t.call ? t.call(callee) : callee}(${printed()})`
 }
 
-/** The angles of a statement whose sine and cosine it reads both. */
-export function trigPairs(node: ts.Node) {
+/** The angles whose sine and cosine `nodes` read both. */
+export function trigPairs(nodes: readonly ts.Node[]) {
   const seen = new Map<string, Set<string>>()
   const visit = (child: ts.Node) => {
     if (ts.isCallExpression(child) && /^Math\.(sin|cos)$/.test(child.expression.getText())) {
@@ -118,6 +122,6 @@ export function trigPairs(node: ts.Node) {
     }
     child.forEachChild(visit)
   }
-  visit(node)
+  nodes.forEach(visit)
   return [...seen].filter(([, both]) => both.size === 2).map(([angle]) => angle)
 }

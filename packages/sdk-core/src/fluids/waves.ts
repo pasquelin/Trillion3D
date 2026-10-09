@@ -65,12 +65,14 @@ export const WAVE_DOUBLES = WAVE_FIELDS.length
 
 /** The slots of a wave's terms (`waveTerms`): the displacement it adds, then what it takes from the
  *  surface's unnormalised normal. */
-const OFFSET_X = 0,
+export const OFFSET_X = 0,
   OFFSET_Y = 1,
   OFFSET_Z = 2,
   NORMAL_X = 3,
   NORMAL_Y = 4,
   NORMAL_Z = 5
+/** Slots of a wave's terms. */
+export const TERM_COUNT = NORMAL_Z + 1
 /** The slots of a wave's terms by what they sum into: the displacement, then the normal. */
 export const TERM_SLOTS = {
   offset: [OFFSET_X, OFFSET_Y, OFFSET_Z],
@@ -100,7 +102,7 @@ export function waveTerms(waves: Waves, i: number, x: number, z: number, out: Fl
   out[NORMAL_Z] = dz * k * amplitude * c
 }
 /** One wave's terms, rewritten by each wave of `offset` and `normal`. */
-const terms = new Float64Array(NORMAL_Z + 1)
+const terms = new Float64Array(TERM_COUNT)
 
 /**
  * A set of trochoidal waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave

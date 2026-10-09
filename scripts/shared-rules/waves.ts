@@ -1,6 +1,6 @@
 // The wave model printed (`../generate-shared-rules.ts`): `waveTerms` into the GPU deformation's
-// WGSL, `waveRest`, the constants it reads and the wave's doubles into the physics module's C++
-// header.
+// WGSL, `waveRest` with `waveTerms` inlined, the constants it reads and the wave's doubles into the
+// physics module's C++ header.
 import ts from 'typescript'
 import { waveRest } from '../../packages/sdk-core/src/fluids/waveRest.ts'
 import { TERM_SLOTS, WAVE_FIELDS, waveTerms } from '../../packages/sdk-core/src/fluids/waves.ts'
@@ -11,6 +11,7 @@ import {
   header,
   readConstants,
   statements,
+  withInlined,
 } from './statements.ts'
 
 const WAVES = 'packages/sdk-core/src/fluids/waves.ts'
@@ -70,12 +71,12 @@ export const WAVE_TERMS = \`${lines.join('')}\`
 `
 }
 
-/** The physics module's wave header: the constants, the wave's doubles and `waveRest`. */
+/** The physics module's wave header: the constants, the wave's doubles and `waveRest`, `waveTerms`
+ *  inlined in it. */
 export function waveModelHeader() {
   const { body: source, doc } = functionOf(WAVE_REST, waveRest.name)
   const constants = readConstants(source, constantsOf(WAVE_REST))
-  const lines = statements(
-    source.statements,
+  const target = withInlined(
     {
       lang: 'cpp',
       read(node) {
@@ -87,14 +88,16 @@ export function waveModelHeader() {
       counter: (bound) => (bound === 'count' ? 'uint32_t' : 'int'),
       pairs: new Map(),
     },
-    1,
+    WAVES,
+    waveTerms.name,
   )
+  const lines = statements(source.statements, target, 1)
   const constexprs = constants.map(
     ([name, { value, doc: constantDoc }]) =>
       `${comment(constantDoc, '/// ')}
 constexpr ${/^\d+$/.test(value) ? 'int' : 'double'} ${name} = ${value};`,
   )
-  return `${header([WAVES, `${WAVE_REST} (\`waveRest\`)`], '//')}
+  return `${header([`${WAVES} (\`waveTerms\`)`, `${WAVE_REST} (\`waveRest\`)`], '//')}
 #pragma once
 
 #include <cstdint>
