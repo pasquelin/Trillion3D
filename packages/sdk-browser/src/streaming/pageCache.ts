@@ -181,8 +181,11 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       const held = entries.touch(url)
       return held?.kind === 'file' ? held.buffer : undefined
     },
-    /** Keeps the file at `url` a server answered whole as the most recently used entry. */
+    /** Keeps the file at `url` a server answered whole as the most recently used entry, when it
+     *  fits in what eviction can free (`roomBytes`): one past it would take every entry, then
+     *  itself, and is let go. */
     keepFile(url: string, buffer: ArrayBuffer) {
+      if (buffer.byteLength > cache.roomBytes) return
       entries.set(url, { kind: 'file', buffer }, buffer.byteLength)
       fit()
     },

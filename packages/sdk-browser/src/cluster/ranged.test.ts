@@ -1,7 +1,7 @@
 // A server that ignores the Range answers the whole file: its download is shared by every range
 // waiting on it, and stops only once none does. Landed, it is one entry of the page cache among
-// the pages, counted once and evicted as they are, never while a read waits on its download. A
-// texture level file is read the same way, through the page cache.
+// the pages when it fits the cache's room, counted once and evicted as they are, never while a
+// read waits on its download. A texture level file is read the same way, through the page cache.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageCache } from '../streaming/pageCache.ts'
@@ -130,6 +130,25 @@ test('no eviction takes a download a read waits on: the read is served, the file
   land()
   assert.deepEqual([...new Uint8Array(await waiting)], [4, 5, 6, 7])
   assert.deepEqual([signals.length, cache.bytes], [1, 0], 'served, it leaves: it does not fit')
+})
+
+test('a whole file past the room serves every range waiting on it and is let go: no entry leaves for it', async (t) => {
+  const { signals, land } = wholeServer(
+    t,
+    Uint8Array.from({ length: 80 }, (_, i) => i),
+  )
+  const cache = createPageCache(64)
+  cache.put('page.bin', new Uint8Array(16))
+  const waiting = [cache.readRange(URL, 0, 4), cache.readRange(URL, 76, 4)]
+  await new Promise(setImmediate)
+  land()
+  const [low, high] = await Promise.all(waiting)
+  assert.deepEqual([...new Uint8Array(low), ...new Uint8Array(high)], [0, 1, 2, 3, 76, 77, 78, 79])
+  assert.deepEqual(
+    [signals.length, cache.bytes, cache.file(URL), cache.pageCount],
+    [1, 16, undefined, 1],
+    'sent once, not kept: the page stays',
+  )
 })
 
 test('a texture level a server sends whole is sent once, every tile record cut from it, its bytes counted once', async (t) => {

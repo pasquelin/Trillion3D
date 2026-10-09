@@ -16,7 +16,8 @@ export type ReadRange = (
 
 /** Where the ranged reads keep each file a server answered whole: the page cache, among its pages
  *  (`../streaming/pageCache.ts`). `file` is its bytes, marked used, while the cache keeps them;
- *  `keepFile` takes a file in, evicted by last use as the pages are. */
+ *  `keepFile` takes a file in when it fits the cache's room, evicted by last use as the pages
+ *  are. */
 type WholeFiles = {
   file(url: string): ArrayBuffer | undefined
   keepFile(url: string, buffer: ArrayBuffer): void
@@ -42,9 +43,10 @@ const cut = (whole: ArrayBuffer, offset: number, length: number) =>
 /**
  * Reads byte ranges of files, each by an HTTP Range (`checked`) as it is asked. A server that
  * ignores the Range answers the whole file: its download is shared by every range waiting on it
- * and stopped once none does before it lands. Landed, it is one entry of the page cache among the
- * pages (`files`), evicted by last use as they are, every range cut from it until then, and asked
- * again by the next range once it left. Until an origin answered a range, one request of a file is
+ * and stopped once none does before it lands. Landed, it is cut for every range waiting on it and
+ * is one entry of the page cache among the pages (`files`) when it fits the cache's room, evicted
+ * by last use as they are, every range cut from it until then; a file past the room is let go at
+ * once. Either way it is asked again by the next range once it left. Until an origin answered a range, one request of a file is
  * sent at a time and the ranges of that file asked meanwhile wait on its answer: the whole file is
  * downloaded once. A file is followed only while a read of it is under way: what it keeps once
  * read is the cache's, and the origins that answer ranges are a few words.
