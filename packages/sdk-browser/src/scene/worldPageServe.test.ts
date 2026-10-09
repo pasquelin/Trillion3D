@@ -35,6 +35,7 @@ function twoPageBundle() {
     { bundle: 0, offset: low.byteLength, bytes: high.byteLength, level: 0, lodError: 0 },
   ]
   const table = {
+    payload: { url: 'world-roots.bin', sha256: '0', bytes: bin.byteLength },
     bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
     pages: { count: pages.length, at: (page: number) => pages[page] },
   } as unknown as WorldRoots
