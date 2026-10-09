@@ -96,11 +96,13 @@ export async function assertNoneMissing(
   return near
 }
 
-/** Every cell record under `pages`, the root's slots of a compiled partition, its address made
- *  whole: read from disk page by page as the runtime reads them (`readCellPage`). */
+/** Every cell record under the index pages among `files` — the files a partition's index names
+ *  (`cells.pages`): its root's pages, the pages it opened, their cells —, once each, its address
+ *  made whole: read from disk page by page as the runtime reads them (`readCellPage`). */
 export async function cellRecords(
-  pages: readonly { url: string }[],
+  files: readonly { url: string }[],
 ): Promise<{ url: string; bytes: number; meshPages: readonly string[] }[]> {
+  const pages = files.filter(({ url }) => url.includes('/scene-page-'))
   const lists = await Promise.all(
     pages.map(async ({ url }) => {
       const body = readCellPage(await readFile(fileURLToPath(url)), url)
@@ -109,5 +111,5 @@ export async function cellRecords(
       return body.cells.map((cell) => ({ ...cell, url: whole(cell.url) }))
     }),
   )
-  return lists.flat()
+  return [...new Map(lists.flat().map((cell) => [cell.url, cell])).values()]
 }
