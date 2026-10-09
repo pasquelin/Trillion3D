@@ -677,7 +677,7 @@
   },
   "CpuStepSummary": {
     "summary": "Perfil de etapas de CPU de um laço de renderização: um anel limitado de imagens recentes mais as piores imagens por duração total, resumido sob demanda.",
-    "description": "Existe para que um motor possa relatar para onde vai seu próprio tempo de CPU no modo `summary` — ativar o rastro por quadro para descobrir isso mudaria a própria medição. Nada é alocado por imagem: o chamador preenche a linha de rascunho e a entrega. Duas janelas sobre as mesmas imagens — uma na cadência de publicação, uma que um host puxa — compartilham essa linha (`row`).",
+    "description": "Existe para que um motor possa relatar para onde vai seu próprio tempo de CPU no modo `summary` — ativar o rastro por quadro para descobrir isso mudaria a própria medição. Nada é alocado por imagem: o chamador preenche a linha de rascunho e a entrega.",
     "members": {
       "frames": "Quadros medidos.",
       "steps": "Tempo de cada etapa: mediana, percentil 95 e pior.",
@@ -2394,7 +2394,7 @@
       "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "onDiagnostic": "Ouve cada passo de cada leitura.",
       "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão.",
-      "onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo: de novo só depois de ter chegado."
+      "onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo, pela url de sua página: de novo só depois de ter chegado."
     }
   },
   "PanZoomCameraControls": {
@@ -3220,7 +3220,7 @@
     "members": {
       "url": "Onde é lida, ou o seu nome no catálogo quando é um `range` de outro ficheiro.",
       "bytes": "Seu tamanho.",
-      "sha256": "Impressão digital de seus bytes.",
+      "sha256": "Impressão digital de seus bytes, que sua leitura verifica junto com seu tamanho; nenhuma para uma página da qual sua origem não anuncia nada (`httpPageSource`): seus bytes são tomados como seu servidor os envia.",
       "range": "Uma página que são os `bytes` do ficheiro `file` a partir de `offset`, lida por um HTTP Range: a fila lê, num só pedido, os intervalos enfileirados topo a topo num mesmo ficheiro (`queueRanges.ts`).",
       "kept": "Falso para uma página cujo decodificado cada requerente guarda para si: lida para quem se junta à sua leitura, nunca guardada na cache de páginas, os seus bytes mantidos uma só vez."
     }
@@ -3493,6 +3493,16 @@
   "TextureLevel": {
     "summary": "O que um motor lê de um nível pré-processado: a imagem decodificada pelo navegador, pronta para copiar — ou, comprimida em blocos, os bytes como o arquivo os contém, que a GPU lê como estão."
   },
+  "TextureLevelAddress": {
+    "summary": "Onde fica um nível: seu endereço, e o formato que a sessão amostra.",
+    "members": {
+      "sha256": "Impressão digital da imagem de origem.",
+      "atlas": "Qual atlas.",
+      "level": "Qual nível.",
+      "format": "Qual formato.",
+      "url": "O endereço próprio do nível, quando a cache lista um — um nível de atlas de impostor (`maps.<name>.levels[k].url`). Lido por este mesmo leitor, resolvido contra `base`, em vez do modelo `textures.url`: um carregador, um orçamento."
+    }
+  },
   "TextureLevelFormat": {
     "summary": "O que um arquivo de nível contém: o PNG sem perdas, ou os blocos de uma família em um layout."
   },
@@ -3500,15 +3510,7 @@
     "summary": "Uma função que busca um nível de textura pré-processado."
   },
   "TextureLevelRequest": {
-    "summary": "Um nível a ler: seu endereço, e o formato que a sessão amostra.",
-    "members": {
-      "sha256": "Impressão digital da imagem de origem.",
-      "atlas": "Qual atlas.",
-      "level": "Qual nível.",
-      "format": "Qual formato.",
-      "url": "O endereço próprio do nível, quando a cache lista um — um nível de atlas de impostor (`maps.<name>.levels[k].url`). Lido por este mesmo leitor, resolvido contra `base`, em vez do modelo `textures.url`: um carregador, um orçamento.",
-      "range": "Os bytes de um nível em blocos a ler — o registro de um ladrilho (`tileRecords.ts`) —, por uma requisição HTTP Range: um nível em blocos é lido apenas pelos registros de seus ladrilhos."
-    }
+    "summary": "Um nível a ler: um nível sem perdas inteiro, ou o registro de um ladrilho de um nível em blocos (`tileRecords.ts`), por uma requisição HTTP Range — um nível em blocos é lido apenas pelos registros de seus ladrilhos."
   },
   "TexturePool": {
     "summary": "O pool de texturas como está: orçamento e bytes mantidos.",
@@ -4637,7 +4639,7 @@
       "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "options.onDiagnostic": "Ouve cada passo de cada leitura.",
       "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão.",
-      "options.onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo: de novo só depois de ter chegado."
+      "options.onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo, pela url de sua página: de novo só depois de ter chegado."
     }
   },
   "createPathGovernor": {
@@ -5116,8 +5118,8 @@
     "summary": "Matiz, saturação e luminosidade para três componentes RGB escritos em `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Uma origem de páginas que busca páginas via HTTP, por chave, a partir de `baseUrl`, uma requisição por leitura.",
-    "description": "Uma página cuja leitura falhou é recusada, sem enviar requisição, até o fim de sua espera — ou para sempre quando outra requisição encontraria a mesma falha (`streaming/failures.ts`). Não junta leituras: dois carregamentos em andamento da mesma página enviam duas requisições."
+    "summary": "Uma origem de páginas que busca páginas via HTTP, por chave, a partir de `baseUrl`, por meio de um leitor de páginas próprio (`streaming/pageStreamer.ts`): cada leitura de uma chave se junta à sua única tarefa, então dois carregamentos em andamento da mesma página enviam uma só requisição, e uma página cuja leitura falhou espera sua vez pela única política de falhas, com seus carregamentos esperando por ela — ou é recusada para sempre quando outra requisição encontraria a mesma falha (`streaming/failures.ts`).",
+    "description": "Não anuncia nada de uma página: seus bytes são tomados como o servidor os envia, e guardados só pelos carregamentos."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` por cofatores."

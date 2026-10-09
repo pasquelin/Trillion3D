@@ -684,7 +684,7 @@
   },
   "CpuStepSummary": {
     "summary": "Hồ sơ chặng CPU của một vòng lặp kết xuất: một vòng giới hạn các hình ảnh gần đây cộng với những hình ảnh tệ nhất theo tổng thời lượng, được tóm tắt theo yêu cầu.",
-    "description": "Nó tồn tại để một bộ máy có thể báo cáo thời gian CPU của chính nó đi đâu ở chế độ `summary` — bật dấu vết theo từng khung hình để tìm ra điều đó lại làm thay đổi chính việc đo thời gian. Không có gì được cấp phát cho mỗi hình ảnh: bên gọi điền vào hàng nháp rồi giao nó đi. Hai cửa sổ trên cùng những hình ảnh đó — một theo nhịp công bố, một do ứng dụng chủ kéo về — chia sẻ hàng đó (`row`).",
+    "description": "Nó tồn tại để một bộ máy có thể báo cáo thời gian CPU của chính nó đi đâu ở chế độ `summary` — bật dấu vết theo từng khung hình để tìm ra điều đó lại làm thay đổi chính việc đo thời gian. Không có gì được cấp phát cho mỗi hình ảnh: bên gọi điền vào hàng nháp rồi giao nó đi.",
     "members": {
       "frames": "Số khung hình đã đo.",
       "steps": "Thời gian của mỗi bước: trung vị, phần trăm thứ 95 và tệ nhất.",
@@ -2412,7 +2412,7 @@
       "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
       "maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB.",
-      "onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên: chỉ nghe lại sau khi nó đã về tới."
+      "onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên, theo url của trang của nó: chỉ nghe lại sau khi nó đã về tới."
     }
   },
   "PanZoomCameraControls": {
@@ -3304,7 +3304,7 @@
     "members": {
       "url": "Nơi nó được đọc, hoặc tên của nó trong danh mục khi nó là một `range` của tệp khác.",
       "bytes": "Kích thước của nó.",
-      "sha256": "Dấu vân tay của các byte của nó.",
+      "sha256": "Dấu vân tay của các byte của nó, được lần đọc kiểm tra cùng với kích thước; không có đối với một trang mà nguồn của nó không công bố gì (`httpPageSource`): các byte của nó được nhận đúng như máy chủ gửi.",
       "range": "Trang là `bytes` của tệp `file` từ `offset`, được đọc bằng HTTP Range: hàng đợi đọc bằng một yêu cầu các dải xếp nối đuôi nhau trong cùng một tệp (`queueRanges.ts`).",
       "kept": "False với trang mà mỗi bên yêu cầu tự giữ những gì nó giải mã: được đọc cho những bên nhập vào lần đọc của nó, không bao giờ được giữ trong bộ đệm trang, các byte của nó chỉ được giữ một lần."
     }
@@ -3577,6 +3577,16 @@
   "TextureLevel": {
     "summary": "Những gì một bộ máy đọc từ một mức đã nướng sẵn: hình ảnh được trình duyệt giải mã, sẵn sàng để sao chép — hoặc, đã nén khối, các byte đúng như tệp giữ chúng, mà GPU đọc nguyên trạng."
   },
+  "TextureLevelAddress": {
+    "summary": "Nơi một mức nằm: địa chỉ của nó, và định dạng mà phiên lấy mẫu.",
+    "members": {
+      "sha256": "Dấu vân tay của hình ảnh nguồn.",
+      "atlas": "Atlas nào.",
+      "level": "Mức nào.",
+      "format": "Định dạng nào.",
+      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách."
+    }
+  },
   "TextureLevelFormat": {
     "summary": "Những gì một tệp mức chứa: tệp PNG không mất dữ liệu, hoặc các khối của một họ theo một cách bố trí."
   },
@@ -3584,15 +3594,7 @@
     "summary": "Một hàm lấy về một mức kết cấu đã nướng sẵn."
   },
   "TextureLevelRequest": {
-    "summary": "Một mức cần đọc: địa chỉ của nó, và định dạng mà phiên lấy mẫu.",
-    "members": {
-      "sha256": "Dấu vân tay của hình ảnh nguồn.",
-      "atlas": "Atlas nào.",
-      "level": "Mức nào.",
-      "format": "Định dạng nào.",
-      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
-      "range": "Các byte cần đọc của một mức dạng khối — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range: một mức dạng khối chỉ được đọc qua bản ghi của các ô của nó."
-    }
+    "summary": "Một mức cần đọc: một mức không mất dữ liệu nguyên vẹn, hoặc bản ghi của một ô của một mức dạng khối (`tileRecords.ts`), bằng một yêu cầu HTTP Range — một mức dạng khối chỉ được đọc qua bản ghi của các ô của nó."
   },
   "TexturePool": {
     "summary": "Bể kết cấu ở trạng thái hiện tại: ngân sách và số byte được giữ.",
@@ -4608,7 +4610,7 @@
       "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
       "options.maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB.",
-      "options.onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên: chỉ nghe lại sau khi nó đã về tới."
+      "options.onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên, theo url của trang của nó: chỉ nghe lại sau khi nó đã về tới."
     }
   },
   "createPathGovernor": {
@@ -5087,8 +5089,8 @@
     "summary": "Sắc độ, độ bão hòa, và độ sáng thành ba thành phần RGB được ghi vào `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`, mỗi lần đọc một yêu cầu.",
-    "description": "Một trang đọc thất bại sẽ bị từ chối, không gửi yêu cầu nào, cho đến khi thời gian chờ của nó kết thúc — hoặc vĩnh viễn khi một yêu cầu khác sẽ lại gặp đúng lỗi đó (`streaming/failures.ts`). Nguồn này không gộp các lần đọc: hai lần tải đang chạy của cùng một trang gửi hai yêu cầu."
+    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`, thông qua bộ đọc trang riêng của nó (`streaming/pageStreamer.ts`): mỗi lần đọc một khóa nhập vào tác vụ duy nhất của khóa đó, nên hai lần tải đang chạy của cùng một trang chỉ gửi một yêu cầu, và một trang đọc thất bại chờ đến lượt theo chính sách lỗi duy nhất, các lần tải của nó chờ nó — hoặc bị từ chối vĩnh viễn khi một yêu cầu khác sẽ lại gặp đúng lỗi đó (`streaming/failures.ts`).",
+    "description": "Nó không công bố gì về một trang: các byte của trang được nhận đúng như máy chủ gửi, và chỉ các lần tải giữ chúng."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` bằng phần bù đại số (cofactors)."

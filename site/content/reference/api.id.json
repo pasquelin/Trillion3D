@@ -684,7 +684,7 @@
   },
   "CpuStepSummary": {
     "summary": "Profil tahap CPU sebuah loop render: cincin terbatas gambar-gambar terbaru ditambah gambar terburuk menurut durasi total, dirangkum sesuai permintaan.",
-    "description": "Ini ada supaya sebuah mesin bisa melaporkan ke mana waktu CPU-nya pergi dalam mode `summary` — menyalakan jejak per-bingkai untuk mengetahuinya justru mengubah pewaktuan yang diukur. Tidak ada yang dialokasikan per gambar: pemanggil mengisi baris coretan dan menyerahkannya. Dua jendela atas gambar yang sama — satu pada laju publikasi, satu yang ditarik sebuah host — berbagi baris itu (`row`).",
+    "description": "Ini ada supaya sebuah mesin bisa melaporkan ke mana waktu CPU-nya pergi dalam mode `summary` — menyalakan jejak per-bingkai untuk mengetahuinya justru mengubah pewaktuan yang diukur. Tidak ada yang dialokasikan per gambar: pemanggil mengisi baris coretan dan menyerahkannya.",
     "members": {
       "frames": "Bingkai yang diukur.",
       "steps": "Waktu setiap langkah: median, ke-95 dan terburuk.",
@@ -2412,7 +2412,7 @@
       "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
       "maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB.",
-      "onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama: lagi hanya setelah ia tiba."
+      "onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama, menurut url halamannya: lagi hanya setelah ia tiba."
     }
   },
   "PanZoomCameraControls": {
@@ -3304,7 +3304,7 @@
     "members": {
       "url": "Tempat ia dibaca, atau namanya dalam katalog bila ia berupa `range` dari berkas lain.",
       "bytes": "Ukurannya.",
-      "sha256": "Sidik jari byte-nya.",
+      "sha256": "Sidik jari byte-nya, yang diperiksa pembacaannya bersama ukurannya; tidak ada untuk halaman yang sumbernya tidak mengumumkan apa pun tentangnya (`httpPageSource`): byte-nya diambil sebagaimana servernya mengirimkannya.",
       "range": "Halaman yang berupa `bytes` dari berkas `file` mulai `offset`, dibaca dengan HTTP Range: antrean membaca rentang yang diantre berurutan ujung ke ujung dalam satu berkas dengan satu permintaan (`queueRanges.ts`).",
       "kept": "False untuk halaman yang setiap peminta menyimpan hasil dekodenya sendiri: dibaca untuk mereka yang bergabung ke pembacaannya, tidak pernah disimpan di cache halaman, byte-nya ditahan sekali saja."
     }
@@ -3577,6 +3577,16 @@
   "TextureLevel": {
     "summary": "Apa yang dibaca sebuah mesin dari sebuah tingkat panggang: gambar yang diurai peramban, siap disalin — atau, terkompresi blok, byte seperti disimpan berkasnya, yang dibaca GPU apa adanya."
   },
+  "TextureLevelAddress": {
+    "summary": "Di mana sebuah tingkat berada: alamatnya, dan format yang disampel sesi itu.",
+    "members": {
+      "sha256": "Sidik jari gambar sumbernya.",
+      "atlas": "Atlas mana.",
+      "level": "Tingkat mana.",
+      "format": "Format mana.",
+      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran."
+    }
+  },
   "TextureLevelFormat": {
     "summary": "Apa yang dipegang sebuah berkas tingkat: PNG lossless, atau blok satu keluarga dalam satu tata letak."
   },
@@ -3584,15 +3594,7 @@
     "summary": "Sebuah fungsi yang mengambil satu tingkat tekstur yang dipanggang."
   },
   "TextureLevelRequest": {
-    "summary": "Sebuah tingkat untuk dibaca: alamatnya, dan format yang disampel sesi itu.",
-    "members": {
-      "sha256": "Sidik jari gambar sumbernya.",
-      "atlas": "Atlas mana.",
-      "level": "Tingkat mana.",
-      "format": "Format mana.",
-      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
-      "range": "Byte level blok yang dibaca — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range: level blok hanya dibaca melalui rekaman ubin-ubinnya."
-    }
+    "summary": "Sebuah tingkat untuk dibaca: tingkat lossless secara utuh, atau rekaman satu ubin dari level blok (`tileRecords.ts`), lewat permintaan HTTP Range — level blok hanya dibaca melalui rekaman ubin-ubinnya."
   },
   "TexturePool": {
     "summary": "Kolam tekstur sebagaimana adanya: anggaran dan byte yang tersimpan.",
@@ -4608,7 +4610,7 @@
       "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
       "options.maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB.",
-      "options.onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama: lagi hanya setelah ia tiba."
+      "options.onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama, menurut url halamannya: lagi hanya setelah ia tiba."
     }
   },
   "createPathGovernor": {
@@ -5087,8 +5089,8 @@
     "summary": "Hue, saturasi, dan kecerahan menjadi tiga komponen RGB ditulis ke `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`, satu permintaan per pembacaan.",
-    "description": "Halaman yang pembacaannya gagal ditolak, tanpa permintaan dikirim, sampai waktu tunggunya berakhir — atau untuk selamanya bila permintaan lain akan menemui kegagalannya lagi (`streaming/failures.ts`). Sumber ini tidak menggabungkan pembacaan: dua pemuatan halaman yang sama yang sedang berjalan mengirim dua permintaan."
+    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`, melalui pembaca halamannya sendiri (`streaming/pageStreamer.ts`): setiap pembacaan sebuah kunci bergabung dengan satu-satunya tugasnya, sehingga dua pemuatan halaman yang sama yang sedang berjalan mengirim satu permintaan, dan halaman yang pembacaannya gagal menunggu gilirannya menurut satu-satunya kebijakan kegagalan, sementara pemuatannya menunggunya — atau ditolak untuk selamanya bila permintaan lain akan menemui kegagalannya lagi (`streaming/failures.ts`).",
+    "description": "Sumber ini tidak mengumumkan apa pun tentang sebuah halaman: byte-nya diambil sebagaimana server mengirimkannya, dan disimpan oleh pemuatan saja."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` dengan kofaktor."

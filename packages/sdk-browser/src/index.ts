@@ -121,6 +121,7 @@ export type { ArrivalPlan } from './page/integration/host.ts'
 export type { DecodedGeometryPage } from './page/codec/geometryPage.ts'
 export type {
   TextureLevel,
+  TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
 } from './texture/levelReader.ts'

@@ -1097,7 +1097,7 @@
   },
   "CpuStepSummary": {
     "summary": "Profilo CPU per fase di un ciclo di rendering: un anello limitato dei fotogrammi recenti più i fotogrammi peggiori per durata totale, riassunto su richiesta.",
-    "description": "Esiste affinché un motore possa dire dove va il proprio tempo CPU in modalità `summary` — attivare la traccia per fotogramma per scoprirlo cambierebbe il tempo misurato. Nulla viene allocato per fotogramma: il chiamante riempie la riga di lavoro e la consegna. Due finestre sugli stessi fotogrammi — una al ritmo di pubblicazione, l'altra estratta da un host — condividono questa riga (`row`).",
+    "description": "Esiste affinché un motore possa dire dove va il proprio tempo CPU in modalità `summary` — attivare la traccia per fotogramma per scoprirlo cambierebbe il tempo misurato. Nulla viene allocato per fotogramma: il chiamante riempie la riga di lavoro e la consegna.",
     "members": {
       "frames": "Fotogrammi misurati.",
       "steps": "Tempo di ogni fase: mediana, 95° percentile e peggiore.",
@@ -1191,7 +1191,7 @@
       "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
       "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
-      "options.onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
+      "options.onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo, tramite l'url della sua pagina: di nuovo solo dopo che è arrivata."
     }
   },
   "createPathGovernor": {
@@ -2452,8 +2452,8 @@
     "summary": "Tonalità, saturazione e luminosità in tre componenti RGB scritte in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, una richiesta per lettura.",
-    "description": "Una pagina la cui lettura è fallita viene rifiutata, senza inviare richieste, finché la sua attesa non termina — o per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`). Non unisce letture: due caricamenti in corso della stessa pagina inviano due richieste."
+    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, tramite uno streamer di pagine proprio (`streaming/pageStreamer.ts`): ogni lettura di una chiave si unisce al suo unico lavoro, così due caricamenti in corso della stessa pagina inviano una sola richiesta, e una pagina la cui lettura è fallita attende il suo turno secondo l'unica politica di errore, con i suoi caricamenti in attesa — o viene rifiutata per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`).",
+    "description": "Non annuncia nulla di una pagina: i suoi byte sono presi così come il server li invia, e tenuti dai soli caricamenti."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa."
@@ -4510,7 +4510,7 @@
       "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "onDiagnostic": "Riceve ogni passo di ogni lettura.",
       "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
-      "onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
+      "onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo, tramite l'url della sua pagina: di nuovo solo dopo che è arrivata."
     }
   },
   "PanZoomCameraControls": {
@@ -5601,7 +5601,7 @@
     "members": {
       "url": "Dove viene letta, o il suo nome nel catalogo quando è un `range` di un altro file.",
       "bytes": "La sua dimensione.",
-      "sha256": "Impronta dei suoi byte.",
+      "sha256": "Impronta dei suoi byte, che la sua lettura verifica insieme alla sua dimensione; nessuna per una pagina di cui la sua fonte non annuncia nulla (`httpPageSource`): i suoi byte sono presi così come il suo server li invia.",
       "range": "Una pagina che è i `bytes` del file `file` a partire da `offset`, letta con un HTTP Range: la coda legge con una sola richiesta gli intervalli accodati uno dopo l’altro in uno stesso file (`queueRanges.ts`).",
       "kept": "False per una pagina di cui ciascuno di chi la chiede tiene ciò che decodifica: letta per chi si unisce alla sua lettura, mai tenuta nella cache delle pagine, i suoi byte conservati una sola volta."
     }
@@ -5929,6 +5929,16 @@
   "TextureLevel": {
     "summary": "Ciò che un motore legge di un livello cotto: l'immagine decodificata dal browser, pronta da copiare — o, compressa in blocchi, i byte così come li mantiene il file, che la GPU legge così come sono."
   },
+  "TextureLevelAddress": {
+    "summary": "Dove si trova un livello: il suo indirizzo, e il formato campionato dalla sessione.",
+    "members": {
+      "sha256": "Impronta dell'immagine sorgente.",
+      "atlas": "Quale atlante.",
+      "level": "Quale livello.",
+      "format": "Quale formato.",
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget."
+    }
+  },
   "textureLevelFormat": {
     "summary": "Il file di livello nominato dalla disposizione di una catena in una famiglia: quello senza perdita quando non ne ha mantenuto nessuno."
   },
@@ -5939,15 +5949,7 @@
     "summary": "Una funzione che recupera un livello di texture cotto."
   },
   "TextureLevelRequest": {
-    "summary": "Un livello da leggere: il suo indirizzo, e il formato campionato dalla sessione.",
-    "members": {
-      "sha256": "Impronta dell'immagine sorgente.",
-      "atlas": "Quale atlante.",
-      "level": "Quale livello.",
-      "format": "Quale formato.",
-      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
-      "range": "I byte di un livello a blocchi da leggere — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range: un livello a blocchi si legge solo tramite i record delle sue tile."
-    }
+    "summary": "Un livello da leggere: un livello senza perdita intero, o il record di una tile di un livello a blocchi (`tileRecords.ts`), con una richiesta HTTP Range — un livello a blocchi si legge solo tramite i record delle sue tile."
   },
   "textureLevelUrl": {
     "summary": "Indirizzo di un livello cotto, a partire dal modello pubblicato dal manifesto (`textures.url`): `{sha}` è l'impronta dei byte dell'immagine sorgente, `{kind}` il nome dell'atlante, `{level}` il rango del livello, `{format}` la codifica del file.",

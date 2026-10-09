@@ -1097,7 +1097,7 @@
   },
   "CpuStepSummary": {
     "summary": "CPU-Profil pro Phase einer Renderschleife: ein begrenzter Ring der letzten Bilder plus die schlimmsten Bilder nach Gesamtdauer, auf Anfrage zusammengefasst.",
-    "description": "Er existiert, damit eine Engine sagen kann, wohin ihre eigene CPU-Zeit im Modus `summary` geht — die Ablaufverfolgung pro Bild einzuschalten, um es herauszufinden, würde die gemessene Zeit verändern. Nichts wird pro Bild zugewiesen: der Aufrufer füllt die Arbeitszeile und gibt sie ab. Zwei Fenster auf denselben Bildern — eines im Veröffentlichungsrhythmus, eines das ein Host abruft — teilen sich diese Zeile (`row`).",
+    "description": "Er existiert, damit eine Engine sagen kann, wohin ihre eigene CPU-Zeit im Modus `summary` geht — die Ablaufverfolgung pro Bild einzuschalten, um es herauszufinden, würde die gemessene Zeit verändern. Nichts wird pro Bild zugewiesen: der Aufrufer füllt die Arbeitszeile und gibt sie ab.",
     "members": {
       "frames": "Gemessene Bilder.",
       "steps": "Zeit jeder Phase: Median, 95. Perzentil und schlimmster Wert.",
@@ -1191,7 +1191,7 @@
       "options.maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "options.onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
       "options.maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB.",
-      "options.onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet: erneut erst, nachdem er angekommen ist."
+      "options.onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet, unter der URL seiner Seite: erneut erst, nachdem er angekommen ist."
     }
   },
   "createPathGovernor": {
@@ -2452,8 +2452,8 @@
     "summary": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`, eine Anfrage pro Lesevorgang.",
-    "description": "Eine Seite, deren Lesen fehlschlug, wird abgewiesen, ohne dass eine Anfrage gesendet wird, bis ihre Wartezeit endet — oder endgültig, wenn eine weitere Anfrage wieder auf ihren Fehler träfe (`streaming/failures.ts`). Sie führt keine Lesevorgänge zusammen: Zwei laufende Ladevorgänge derselben Seite senden zwei Anfragen."
+    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`, über einen eigenen Seiten-Streamer (`streaming/pageStreamer.ts`): Jeder Lesevorgang eines Schlüssels schließt sich dessen einzigem Auftrag an, sodass zwei laufende Ladevorgänge derselben Seite eine einzige Anfrage senden, und eine Seite, deren Lesen fehlschlug, wartet nach der einen Fehlerregel, bis sie an der Reihe ist, und ihre Ladevorgänge warten auf sie — oder wird endgültig abgewiesen, wenn eine weitere Anfrage wieder auf ihren Fehler träfe (`streaming/failures.ts`).",
+    "description": "Sie kündigt nichts von einer Seite an: Ihre Bytes werden genommen, wie der Server sie sendet, und allein von den Ladevorgängen gehalten."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Spaltenweise Identität, gelesen und nie geschrieben: die Pose eines Knotens oder einer Wurzel ohne Pose."
@@ -4510,7 +4510,7 @@
       "maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
       "maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB.",
-      "onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet: erneut erst, nachdem er angekommen ist."
+      "onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet, unter der URL seiner Seite: erneut erst, nachdem er angekommen ist."
     }
   },
   "PanZoomCameraControls": {
@@ -5601,7 +5601,7 @@
     "members": {
       "url": "Wo sie gelesen wird, oder ihr Name im Katalog, wenn sie ein `range` einer anderen Datei ist.",
       "bytes": "Ihre Größe.",
-      "sha256": "Fingerabdruck ihrer Bytes.",
+      "sha256": "Fingerabdruck ihrer Bytes, den ihr Lesevorgang zusammen mit ihrer Größe prüft; keiner für eine Seite, von der ihre Quelle nichts ankündigt (`httpPageSource`): Ihre Bytes werden genommen, wie ihr Server sie sendet.",
       "range": "Eine Seite, die die `bytes` der Datei `file` ab `offset` ist und per HTTP Range gelesen wird: Die Warteschlange liest die Bereiche, die in einer Datei lückenlos hintereinander eingereiht sind, mit einer einzigen Anfrage (`queueRanges.ts`).",
       "kept": "False für eine Seite, bei der jeder Anfragende behält, was er dekodiert: gelesen für alle, die sich ihrem Lesevorgang anschließen, nie im Seitencache behalten, ihre Bytes nur einmal gehalten."
     }
@@ -5929,6 +5929,16 @@
   "TextureLevel": {
     "summary": "Was eine Engine von einer gebackenen Stufe liest: das vom Browser dekodierte Bild, bereit zu kopieren — oder, in Blöcke komprimiert, die Bytes, so wie die Datei sie hält, die die GPU unverändert liest."
   },
+  "TextureLevelAddress": {
+    "summary": "Wo eine Stufe liegt: ihre Adresse, und das Format, das die Sitzung abtastet.",
+    "members": {
+      "sha256": "Fingerabdruck des Quellbildes.",
+      "atlas": "Welcher Atlas.",
+      "level": "Welche Stufe.",
+      "format": "Welches Format.",
+      "url": "Die eigene Adresse der Stufe, wenn der Cache eine auflistet — eine Impostor-Atlas-Stufe (`maps.<name>.levels[k].url`). Wird durch denselben Leser gelesen, gegen `base` aufgelöst, anstelle der Vorlage `textures.url`: ein Lader, ein Budget."
+    }
+  },
   "textureLevelFormat": {
     "summary": "Die Stufendatei, die die Anordnung einer Kette in einer Familie benennt: die verlustfreie, wenn sie keine behalten hat."
   },
@@ -5939,15 +5949,7 @@
     "summary": "Eine Funktion, die eine gebackene Texturstufe abruft."
   },
   "TextureLevelRequest": {
-    "summary": "Eine zu lesende Stufe: ihre Adresse, und das Format, das die Sitzung abtastet.",
-    "members": {
-      "sha256": "Fingerabdruck des Quellbildes.",
-      "atlas": "Welcher Atlas.",
-      "level": "Welche Stufe.",
-      "format": "Welches Format.",
-      "url": "Die eigene Adresse der Stufe, wenn der Cache eine auflistet — eine Impostor-Atlas-Stufe (`maps.<name>.levels[k].url`). Wird durch denselben Leser gelesen, gegen `base` aufgelöst, anstelle der Vorlage `textures.url`: ein Lader, ein Budget.",
-      "range": "Die zu lesenden Bytes einer Block-Stufe — der Datensatz einer Kachel (`tileRecords.ts`) —, per HTTP Range: Eine Block-Stufe wird allein über die Datensätze ihrer Kacheln gelesen."
-    }
+    "summary": "Eine zu lesende Stufe: eine verlustfreie Stufe ganz, oder der Datensatz einer Kachel einer Block-Stufe (`tileRecords.ts`), per HTTP Range — eine Block-Stufe wird allein über die Datensätze ihrer Kacheln gelesen."
   },
   "textureLevelUrl": {
     "summary": "Adresse einer gebackenen Stufe, aus dem vom Manifest veröffentlichten Modell (`textures.url`): `{sha}` ist der Fingerabdruck der Bytes des Quellbildes, `{kind}` der Name des Atlas, `{level}` der Rang der Stufe, `{format}` die Kodierung der Datei.",
