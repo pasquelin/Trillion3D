@@ -269,8 +269,8 @@ export function createStageProfiler(options: {
      *  window. A bound an image did not file (`NaN`) is left out of its quantiles; a bound no image
      *  filed reads `NaN`, never zero. `null` when the window filed no image. */
     steps(name: CpuStepWindow): CpuStepSummary | null {
-      const window = windows[name]
-      const frames = Math.min(stepCapacity, filed - window.opened)
+      const read = windows[name]
+      const frames = Math.min(stepCapacity, filed - read.opened)
       if (!frames) return null
       const first = filed - frames
       const summary: CpuStepSummary['steps'] = {}
@@ -287,9 +287,9 @@ export function createStageProfiler(options: {
           max: length ? sorted[length - 1] : NaN,
         }
       }
-      const worst = window.worst.read(names)
-      window.opened = filed
-      window.worst.clear()
+      const worst = read.worst.read(names)
+      read.opened = filed
+      read.worst.clear()
       return { frames, steps: summary, worst }
     },
     /** The per-stage profile over the stage window; disabled when the host did not mount it. */
