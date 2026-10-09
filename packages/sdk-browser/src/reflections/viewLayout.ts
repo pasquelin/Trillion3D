@@ -17,7 +17,8 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    (`w`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
  *    depth and the radiance pyramid an earlier image of this view);
- *  - `proxy`, the resident proxy's cell, the width of its coarsest triangle in metres (`x`);
+ *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
+ *    off its normal;
  *  - `surroundings`, the radiance around the scene a miss adds to the environment's, written on the
  *    GPU from the background, the exposure and the display curve (`BEGIN_SHADER`).
  */

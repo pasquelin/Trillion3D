@@ -2,8 +2,8 @@
 // grey, a glossy metal patch in the middle of its floor, and its resident proxy (`rig.ts`): the
 // twelve triangles of its inner faces, whose surface cache holds each face's colour. A ray that
 // leaves the screen finds the room again in the proxy, and never the background. The patch lies
-// metres from every wall, so that the cone of its lobe is wider than the proxy's cell where it
-// meets them (`reflectionProxied`).
+// metres from every wall. Its far wall's colour is a parameter (`roomFrame`): a dark one tells the
+// proxy's answer from the background's.
 import { trianglesProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
@@ -24,6 +24,8 @@ const FACES: { axis: number; side: number; color: V3 }[] = [
   { axis: 2, side: 0, color: [0.5, 0.5, 0.52] },
   { axis: 2, side: 1, color: [0.5, 0.5, 0.48] },
 ]
+/** The face at the far end of the view (low z). */
+const FAR = 4
 /** The largest radiance of the room's lit surfaces. */
 export const ROOM_MAXIMUM = 0.52
 /** The glossy patch of the floor, a film of two millimetres on it: no side of it shows. */
@@ -39,10 +41,10 @@ function slab(axis: number, side: number): Block['box'] {
 }
 
 /** The room's proxy: two triangles to a face, and the radiance of both sides of each. */
-function roomProxy() {
+function roomProxy(faces: typeof FACES) {
   const triangles: number[] = []
   const surface: number[] = []
-  for (const { axis, side, color } of FACES) {
+  for (const { axis, side, color } of faces) {
     const [u, v] = [0, 1, 2].filter((a) => a !== axis)
     const at = side ? HIGH[axis] : LOW[axis]
     const corner = (a: number, b: number): number[] => {
@@ -68,14 +70,23 @@ function roomProxy() {
 }
 
 /** The room seen from `eye` toward `target`, `width × height` pixels: its glossy patch of
- *  roughness `rough`, the proxy beyond the screen, a white background. */
-export function roomFrame(eye: V3, target: V3, width: number, height: number, rough: number) {
-  const blocks: Block[] = FACES.map(({ axis, side, color }) => ({ box: slab(axis, side), color }))
-  const patch = blocks.push({ box: PATCH, color: FACES[2].color, mirror: true }) - 1
+ *  roughness `rough`, the proxy beyond the screen, a white background; the far wall's colour is
+ *  `far`, the room's own by default. */
+export function roomFrame(
+  eye: V3,
+  target: V3,
+  width: number,
+  height: number,
+  rough: number,
+  far: V3 = FACES[FAR].color,
+) {
+  const faces = FACES.map((face, k) => (k === FAR ? { ...face, color: far } : face))
+  const blocks: Block[] = faces.map(({ axis, side, color }) => ({ box: slab(axis, side), color }))
+  const patch = blocks.push({ box: PATCH, color: faces[2].color, mirror: true }) - 1
   const { frame, view, shown } = boxFrame(blocks, eye, target, width, height)
   // The patch is a glossy metal: its roughness, in every pixel it shows.
   for (let p = 0; p < width * height; p++)
     if (shown[p] >= 0 && Math.floor(shown[p] / 6) === patch) frame.normals[p * 4 + 3] = rough
-  const room: RigFrame = { ...frame, proxy: roomProxy(), background: 0xffffff }
+  const room: RigFrame = { ...frame, proxy: roomProxy(faces), background: 0xffffff }
   return { frame: room, view, shown, floor: patch }
 }

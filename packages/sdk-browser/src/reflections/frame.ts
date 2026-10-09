@@ -19,7 +19,6 @@ const frame: ReflectionFrame = {
   viewProjection: viewProj,
   size: [0, 0],
   depthDrawn: false,
-  proxyCell: 0,
   proxyError: 0,
 }
 const inputs = {} as TraceInputs
@@ -46,7 +45,6 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   if (!reflection || !stages || !hiz || !depth || !over) return
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
-  frame.proxyCell = resident?.cellMetres ?? 0
   frame.proxyError = resident?.errorMetres ?? 0
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
   const surfaces = gpu.surfaces,

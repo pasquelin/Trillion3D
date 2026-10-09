@@ -27,7 +27,6 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     viewProjection,
     size: [400, 300] as const,
     depthDrawn: true,
-    proxyCell: 0.5,
     proxyError: 0.1,
   }
   write(frame, held, 8)
@@ -43,7 +42,7 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   )
   assert.equal(words[AT.radianceViewProj], 2, "the held image's view-projection")
   assert.equal(traced[AT.traced], 0, 'no held image: the environment alone')
-  assert.deepEqual([...words.slice(AT.proxy, AT.proxy + 2)], [0.5, Math.fround(0.1)])
+  assert.deepEqual([...words.slice(AT.proxy, AT.proxy + 1)], [Math.fround(0.1)])
   assert.equal(words.length, REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
   write(frame, { ...held, valid: true }, 8)
   assert.equal(new Uint32Array(written[1].buffer)[AT.traced], 1)
