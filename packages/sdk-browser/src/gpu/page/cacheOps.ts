@@ -37,7 +37,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     return false
   }
   evictResident(context, page, 'explicit-unload')
-  context.free.push(page.slot)
+  context.placement.freed(page.slot)
   return true
 }
 

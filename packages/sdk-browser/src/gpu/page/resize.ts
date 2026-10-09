@@ -2,7 +2,7 @@ import type { GpuPageContext, ResidentPage } from './types.ts'
 import { evictResident } from './commit.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
-import { placementOf } from './placement.ts'
+import { homePlacement, slotPlacement } from './placement.ts'
 
 /** Bytes of a pool of `slots`: its pages' own homes when it holds the whole catalogue
  *  (`homes.ts`), a slot of `pageBytes` each otherwise. */
@@ -58,7 +58,7 @@ function rankedPages(
  * them on its side.
  */
 export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
-  const { device, pageBytes, resident, pins, held, free } = context
+  const { device, pageBytes, resident, pins, held } = context
   const from = heldHomes(context.homes, context.slots),
     to = heldHomes(context.homes, slots)
   // Both hold the whole catalogue: every page keeps its home, in the buffer it is in.
@@ -88,19 +88,14 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     page.offset = offset
     context.changes.placed(page.key, offset)
   }
-  free.length = 0
   if (to) {
     // Each page to its own home; one the catalogue does not name has none, and leaves.
-    const occupied = new Uint8Array(to.homes.size)
     for (const page of [...resident.values()]) {
       const home = to.homes.get(page.key)
       if (!home) leave(page)
-      else {
-        occupied[home.rank] = 1
-        move(page, home.rank, home.offset)
-      }
+      else move(page, home.rank, home.offset)
     }
-    for (let rank = 0; rank < occupied.length; rank++) if (!occupied[rank]) free.push(rank)
+    context.placement = homePlacement(to, to.homes.size - resident.size)
   } else {
     const pages = rankedPages(resident, slots, pins, held)
     // The first `slots` pages stay; those already inside the new pool keep their slot, the
@@ -112,15 +107,16 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
       else displaced.push(pages[i])
     for (let i = slots; i < pages.length; i++) leave(pages[i])
     // Free slots are taken from the top by a load; a displaced page takes the lowest.
+    const free: number[] = []
     for (let slot = 0; slot < slots; slot++) if (!occupied[slot]) free.push(slot)
     // Every displaced page has a free slot: the pool keeps at most `slots` pages.
     displaced.forEach((page, i) => move(page, free[i], free[i] * pageBytes))
     free.splice(0, displaced.length)
+    context.placement = slotPlacement(pageBytes, free, context.eviction)
   }
   device.queue.submit([encoder.finish()])
   context.buffer.destroy()
   context.buffer = next
   context.slots = slots
-  context.placement = placementOf(to, pageBytes, free, context.eviction)
   return evicted
 }

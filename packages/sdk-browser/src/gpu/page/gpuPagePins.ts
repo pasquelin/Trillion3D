@@ -1,7 +1,7 @@
 import type { GpuPageContext } from './types.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
-  const { resident, pins, held, free, eviction, check, reader } = context
+  const { resident, pins, held, eviction, check, reader } = context
   const { emit } = reader
   return {
     pin(key: string, tier: 'held' | 'pinned' = 'pinned') {
@@ -40,7 +40,7 @@ export function createGpuPagePins(context: GpuPageContext) {
     },
     /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
     unpinnedSlots() {
-      return free.length + resident.size - pins.size
+      return context.placement.free + resident.size - pins.size
     },
     unpin(key: string) {
       const changed = pins.delete(key)

@@ -59,10 +59,12 @@ function withScratch(
   }
 }
 
-/** Serves a tile from its source (`Served`). */
+/** Serves a tile from its source (`Served`). A baked source is catalogued only beside the reader of
+ *  its levels (`tileCatalogue`): one without them has no source, refused by name. */
 function serveTile(sources: Sources, ask: TileAsk, encoder: OpenEncoder): Served {
   const { source } = ask.atlas.textures[ask.key.slot]
-  if (source.kind === 'baked') return serveBaked(sources, source, ask)
+  const { levels } = sources
+  if (source.kind === 'baked' && levels) return serveBaked(sources, levels, source, ask)
   if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE')
   const id = scratchId(ask.atlas, ask.key.slot)
   return serveHost(sources.builds, heldScratch(sources, id), id, ask, encoder)

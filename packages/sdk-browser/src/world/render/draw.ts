@@ -2,7 +2,6 @@ import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { PAGE_REQUEST_BATCH } from '../../engine/common.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
 
@@ -59,7 +58,8 @@ export function createDrawFrame(inputs: Inputs) {
       }
     }
     const pendingEnd = performance.now()
-    retainVisiblePages(engine, streamer)
+    // The pages the view reads pinned through its request-rank difference.
+    streamer.retainRanks(engine.retainedRanks())
     streamer.reserve(hostBytes())
     engine.cpuStep('pendingMs', pendingEnd - renderEnd)
     engine.cpuStep('retainMs', performance.now() - pendingEnd)

@@ -148,3 +148,23 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   assert.deepEqual(evicted, ['b.bin', 'a.bin'])
   streamer.dispose()
 })
+
+test('pins reset from a list report what they added and removed, not their totals', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin'])
+  const told: { added: number; removed: number }[] = []
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    onDiagnostic: ({ phase, context }) =>
+      phase === 'page-retain' && told.push(context as (typeof told)[number]),
+  })
+  streamer.retain(['a.bin', 'b.bin'])
+  streamer.retain(['b.bin', 'c.bin'])
+  assert.deepEqual(
+    told.map(({ added, removed }) => [added, removed]),
+    [
+      [2, 0],
+      [1, 1],
+    ],
+  )
+  streamer.dispose()
+})

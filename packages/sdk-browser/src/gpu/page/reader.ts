@@ -1,20 +1,7 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
-import { lazyDiagnostic, type LazyDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
-
-/** A read that failed, its error kept for its load: a read never rejects, so one that fails before
- *  its load's turn comes is no unhandled rejection. */
-export class FailedPageRead {
-  readonly error: unknown
-  constructor(error: unknown) {
-    this.error = error
-  }
-}
-
-const failed = (error: unknown) => new FailedPageRead(error)
-/** The emitter of a reader nobody listens to. */
-const silent: LazyDiagnostic = () => {}
+import { lazyDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 
 /** `key`'s bytes from `source`, a source that throws as it is asked included. */
 function asked(source: PageSource, key: string, signal: AbortSignal, priority?: number) {
@@ -39,20 +26,17 @@ export function createGpuPageReader(
 ) {
   const report = typeof diagnostic === 'function' ? diagnostic : undefined
   const emit = lazyDiagnostic(report)
-  const tell = emit ?? silent
   const now = () => (report ? performance.now() : 0)
-  /** `key`'s bytes from the source, read on `signal` at `priority`, or what the read failed by. */
-  const read = (
-    key: string,
-    signal: AbortSignal,
-    priority?: number,
-  ): Promise<Uint8Array | FailedPageRead> => {
+  /** `key`'s bytes from the source, read on `signal` at `priority`. Its failure is caught here
+   *  already: one that fails before its load's turn comes is no unhandled rejection, and the load
+   *  that awaits it meets it. */
+  const read = (key: string, signal: AbortSignal, priority?: number) => {
     const started = now()
-    tell('gpu-page-read-start', 'GPU page read started', () => ({ version: 1, key }))
-    return asked(source, key, signal, priority).then(
+    emit?.('gpu-page-read-start', 'GPU page read started', () => ({ version: 1, key }))
+    const reading = asked(source, key, signal, priority).then(
       (bytes) => {
         const durationMs = now() - started
-        tell('gpu-page-read-end', 'GPU page read finished', () => ({
+        emit?.('gpu-page-read-end', 'GPU page read finished', () => ({
           version: 1,
           key,
           status: null,
@@ -64,16 +48,18 @@ export function createGpuPageReader(
       },
       (error: unknown) => {
         const durationMs = now() - started
-        tell('gpu-page-read-end', 'GPU page read failed', () => ({
+        emit?.('gpu-page-read-end', 'GPU page read failed', () => ({
           version: 1,
           key,
           status: refusedStatus(error),
           error: String(error),
           durationMs,
         }))
-        return failed(error)
+        throw error
       },
     )
+    reading.catch(() => {})
+    return reading
   }
   return { report, emit, now, read }
 }

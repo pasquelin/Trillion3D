@@ -2,7 +2,6 @@ import { awaitEnginePages } from '../../engine/awaitEnginePages.ts'
 import { releasePageWorkers } from '../../page/work/host.ts'
 import { releasePageIntegration } from '../../page/integration/host.ts'
 import { disposeSource } from './disposeSource.ts'
-import { retainVisiblePages } from '../../streaming/retainVisiblePages.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import type { SessionState } from '../render/sessionState.ts'
@@ -130,7 +129,7 @@ function pageAwaiter(inputs: Inputs) {
         }
       }
       await awaitEnginePages(engine, camera, load, wait)
-      retainVisiblePages(engine, streamer)
+      streamer.retainRanks(engine.retainedRanks())
       report(true)
     } finally {
       read.stop()

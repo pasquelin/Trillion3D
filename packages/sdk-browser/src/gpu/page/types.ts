@@ -27,7 +27,6 @@ export type GpuPageContext = {
   resident: Map<string, ResidentPage>
   pins: Set<string>
   held: Set<string>
-  free: number[]
   abort: AbortController
   state: {
     pending: Promise<unknown>
@@ -41,7 +40,8 @@ export type GpuPageContext = {
   }
   /** Which unpinned page gives its slot back, in fixed slots (`eviction.ts`). */
   eviction: Eviction
-  /** Where an arrival lands: its home, a free slot or a victim's (`placement.ts`). */
+  /** Where an arrival lands: its home, a free slot or a victim's, and the slots free
+   *  (`placement.ts`). */
   placement: Placement
   /** The changes the host has not drained yet (`residencyLog.ts`). */
   changes: ResidencyLog

@@ -49,14 +49,23 @@ export function createStreamingPins(
     }))
   /** Reset full membership: pins are exactly the `urls` known to the catalogue. */
   const resetPins = (urls: Iterable<string>, requested: number) => {
-    const before = pinned.size
     next.clear()
     for (const url of urls) if (catalog.has(url)) next.add(url)
     // Only the pins that change are marked: a list that moves little moves the order little.
-    for (const url of pinned) if (!next.has(url)) unpin(url)
-    for (const url of next) if (!pinned.has(url)) pin(url)
+    let added = 0,
+      removed = 0
+    for (const url of pinned)
+      if (!next.has(url)) {
+        unpin(url)
+        removed++
+      }
+    for (const url of next)
+      if (!pinned.has(url)) {
+        pin(url)
+        added++
+      }
     evict()
-    emitRetain(requested, pinned.size, before)
+    emitRetain(requested, added, removed)
     return true
   }
   /** URLs designated by ranks in `urls`; a rank off the table designates nothing. */

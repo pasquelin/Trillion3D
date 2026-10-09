@@ -7,7 +7,7 @@ import { createPageBuffer, pageBufferBytes } from './resize.ts'
 import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
 import { createEviction, type EvictionOrder } from './eviction.ts'
-import { placementOf } from './placement.ts'
+import { homePlacement, slotPlacement } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
@@ -113,8 +113,14 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   const resident = new Map<string, ResidentPage>(),
     pins = new Set<string>()
   const ownHomes = heldHomes(homes, slots)
-  const free = Array.from({ length: ownHomes?.homes.size ?? slots }, (_, i) => i)
   const eviction = createEviction(resident, pins)
+  const placement = ownHomes
+    ? homePlacement(ownHomes, ownHomes.homes.size)
+    : slotPlacement(
+        pageBytes,
+        Array.from({ length: slots }, (_, slot) => slot),
+        eviction,
+      )
   const context: GpuPageContext = {
     device,
     pageBytes,
@@ -124,11 +130,10 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     resident,
     pins,
     held: new Set<string>(),
-    free,
     abort: new AbortController(),
     state,
     eviction,
-    placement: placementOf(ownHomes, pageBytes, free, eviction),
+    placement,
     changes: createResidencyLog(),
     reader,
     check,

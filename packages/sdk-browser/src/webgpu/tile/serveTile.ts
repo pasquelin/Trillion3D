@@ -25,20 +25,11 @@ function tileTarget(atlas: WebgpuTileAtlas, key: TileKey) {
   return { pool: atlas.poolOf(key.slot).texture, size, region }
 }
 
-/** A cooked level's tile, read through the held levels, written as its block record or its decoded
+/** A cooked level's tile, read through `levels`, written as its block record or its decoded
  *  bitmap; a failed read told `failed`. */
 export function serveBaked(
-  {
-    device,
-    levels,
-    encoding,
-    failed,
-  }: {
-    device: GPUDevice
-    levels: HeldLevels | undefined
-    encoding: PoolEncoding
-    failed: LevelFailed
-  },
+  { device, encoding, failed }: { device: GPUDevice; encoding: PoolEncoding; failed: LevelFailed },
+  levels: HeldLevels,
   source: Baked,
   { atlas, key, frame }: TileAsk,
 ): Served {
@@ -51,7 +42,6 @@ export function serveBaked(
   }
   // A level that cannot fit beside the pages kept will not come: refused, not waited for.
   const roomFor = () => atlas.roomFor(key.slot, frame)
-  if (!levels) return roomFor() ? 'waiting' : 'refused'
   const held = levels.read(address, size, failed, key.tx, key.ty, roomFor)
   if (typeof held === 'string') return held
   const place = atlas.place(key, frame)

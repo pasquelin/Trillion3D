@@ -1,6 +1,5 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { commitGpuPage, evictResident } from './commit.ts'
-import { FailedPageRead } from './reader.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
 
 /** A load that failed leaves the next ones their turn. */
@@ -74,7 +73,7 @@ type Load = {
   abortListener: (() => void) | undefined
   requestStarted: number
   /** Its read, started with the request when the page was absent. */
-  fetched: Promise<Uint8Array | FailedPageRead> | undefined
+  fetched: Promise<Uint8Array> | undefined
 }
 
 /** The load's turn in the queue: the resident page, or the bytes read, checked and committed. */
@@ -101,7 +100,6 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       source: 'page-source',
     }))
     const bytes = await (job.fetched ?? readOf(context, key, signal, job.priority))
-    if (bytes instanceof FailedPageRead) throw bytes.error
     check(signal)
     checkRoom(context, key, bytes)
     const page = commitGpuPage(context, key, bytes, placeOf(context, key), job.requestStarted)
