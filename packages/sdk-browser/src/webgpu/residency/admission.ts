@@ -3,7 +3,10 @@ import type { createGpuPageCache } from '../../gpu/page/pages.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 
-type PoolCache = Pick<ReturnType<typeof createGpuPageCache>, 'get' | 'load' | 'pin'>
+type PoolCache = Pick<
+  ReturnType<typeof createGpuPageCache>,
+  'get' | 'load' | 'pin' | 'unpinnedSlots'
+>
 type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
@@ -23,7 +26,8 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  *
  * `admit` returns the number of pages it loaded, or -1 when a dependency has no bytes yet or was
  * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
- * through its resident ancestor. A full pool is not caught here: the load throws, and the caller stops.
+ * through its resident ancestor. A full pool is not caught here: the load throws, before any read
+ * when every slot is pinned, and the caller stops.
  * `priority` goes with every read the admission makes, its parents' included: a lower tier's stays
  * a prefetch, so the view's loading `total` never counts it.
  */
@@ -48,6 +52,9 @@ export function createPageAdmission(options: {
     const address = pageAddress(rec),
       key = tracking.keyOf(rec),
       held = !!bootstrapKey[key]
+    // A pool its pins fill takes no page: none is read for it, read for nothing and again by the
+    // next image, until a pin is let go. The caller stops as on a full pool.
+    if (current().unpinnedSlots() <= 0) throw new Error('ALL_PAGES_PINNED')
     // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
     await current().load(address, signal, held ? 'held' : undefined, priority)
     if (held || tracking.wanted.has(key)) {
