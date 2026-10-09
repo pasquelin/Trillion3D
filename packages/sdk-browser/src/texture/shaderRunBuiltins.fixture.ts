@@ -1,6 +1,7 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>
@@ -14,7 +15,14 @@ export class Mat {
       Object.defineProperty(this, column, { value: m.slice(column * 4, column * 4 + 4) })
   }
 }
-type Value = number | boolean | Vec | Mat
+/** A column-major 3×3 matrix, from its three columns (`mat3x3f`). */
+class Mat3 {
+  readonly columns: readonly number[][]
+  constructor(columns: number[][]) {
+    this.columns = columns
+  }
+}
+type Value = number | boolean | Vec | Mat | Mat3
 type Scalar = number | boolean
 
 const LETTERS = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 } as Record<string, number>
@@ -52,6 +60,12 @@ const SCALAR: Record<string, (a: number, b: number) => Scalar> = {
 
 /** A binary operator: a matrix times a vector, otherwise component-wise. */
 function $b(op: string, a: Value, b: Value): Value {
+  if (a instanceof Mat3) {
+    const v = b as number[]
+    return [0, 1, 2].map((row) =>
+      a.columns.reduce((sum, column, col) => sum + column[row] * v[col], 0),
+    )
+  }
   if (a instanceof Mat) {
     const v = b as number[]
     return [0, 1, 2, 3].map((row) => v.reduce((sum, x, col) => sum + a.m[col * 4 + row] * x, 0))
@@ -137,6 +151,7 @@ export const builtins = {
   }),
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
+  mat3x3f: (...columns: number[][]) => new Mat3(columns),
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),
@@ -167,6 +182,13 @@ export const builtins = {
   asin: numeric(Math.asin),
   atan: numeric(Math.atan),
   sqrt: numeric(Math.sqrt),
+  inverseSqrt: numeric((x) => 1 / Math.sqrt(x)),
+  // Two halves in one word, the first in the low bits, and back.
+  pack2x16float: (v: Value) => (toHalf(vec(v)[0]) | (toHalf(vec(v)[1]) << 16)) >>> 0,
+  unpack2x16float: (word: Value) => [
+    fromHalf(n(word as Scalar) & 0xffff),
+    fromHalf(n(word as Scalar) >>> 16),
+  ],
   log: numeric(Math.log),
   log2: numeric(Math.log2),
   exp2: numeric((x) => 2 ** x),

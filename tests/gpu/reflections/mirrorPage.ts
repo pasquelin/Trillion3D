@@ -1,8 +1,8 @@
 // The engine side of the reflection proof: a synthetic still frame — a mirror floor and an emissive
 // quad standing on it, seen by an infinite reversed perspective — laid in the engine's own inputs
 // (the surface flags and normals, the Hi-Z level 0, the lit image), then the engine's reflection
-// kernels run on it as an image runs them (`reflections/frame.ts`): the depth's nearest levels, the
-// view uniform and the opaque trace, then the radiance pyramid of the lit image. Twice:
+// kernels run on it as an image runs them (`reflections/frame.ts`): the depth the trace marches, the
+// view uniform, the surroundings and the opaque trace, then the radiance pyramid of the lit image. Twice:
 // two consecutive still images, whose reflection targets are read back to the bit.
 import {
   createReflectionPipelines,
@@ -54,7 +54,17 @@ export function run() {
     const reflection = createScreenReflection(device, size, size)
     const inverse = new Float64Array(16)
     invertMatrix4(inverse, scene.viewProjection)
-    const views = { flags: flags.createView(), normals: normals.createView() }
+    // No pixel carries the physical lobes: their target is a texel the trace never reads.
+    const lobes = device.createTexture({
+      size: [1, 1],
+      format: 'rgba32uint',
+      usage: GPUTextureUsage.TEXTURE_BINDING,
+    })
+    const views = {
+      flags: flags.createView(),
+      normals: normals.createView(),
+      lobes: lobes.createView(),
+    }
     const image = (radiance: boolean) => {
       writeReflectionView(reflection, {
         viewProjection: scene.viewProjection,
@@ -62,6 +72,8 @@ export function run() {
         camera: [0, 0, 0, 1],
         size: [size, size],
         depthDrawn: true,
+        // A black background: a mirror ray that meets nothing reflects zero.
+        display: { background: [0, 0, 0], exposure: 1, curve: 0 },
       })
       const encoder = device.createCommandEncoder()
       const pass = encoder.beginComputePass()
@@ -95,6 +107,6 @@ export function run() {
     result.size = size
     reflection.dispose()
     lights.destroy()
-    for (const made of [flags, normals, hdr, level0]) made.destroy()
+    for (const made of [flags, normals, hdr, level0, lobes]) made.destroy()
   })
 }

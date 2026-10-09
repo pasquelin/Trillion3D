@@ -10,7 +10,7 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
-import { REFLECTION_TARGET_BINDING } from '../../reflections/wgsl.ts'
+import { REFLECTION_TARGET_BINDING, REFLECTION_VIEW_BINDING } from '../../reflections/wgsl.ts'
 import type { ComposeInput } from './shaders.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
@@ -45,6 +45,8 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The reflection target the opaque trace wrote (`../../reflections/gpu.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
+  /** The reflection's view (`../../reflections/wgsl.ts`); absent, one of zeros. */
+  reflectionView?: GPUBuffer
   receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
@@ -207,7 +209,8 @@ function bindLight(
     probes = direct.probes,
     proxy = direct.proxy ?? placeholders.proxy,
     receiver = direct.receiver ?? placeholders.receiver,
-    reflection = direct.reflection ?? placeholders.reflection
+    reflection = direct.reflection ?? placeholders.reflection,
+    reflectionView = direct.reflectionView ?? placeholders.reflectionView
   state.boundHdr = hdr
   const { next } = state.identity
   next[0] = surface
@@ -223,6 +226,7 @@ function bindLight(
   next[9 + receiver.length] = vsmTransmission
   next[10 + receiver.length] = maskTiles
   next[11 + receiver.length] = reflection
+  next[12 + receiver.length] = reflectionView
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
@@ -243,6 +247,7 @@ function bindLight(
       proxy,
       receiver,
       reflection,
+      reflectionView,
     }
     entries.push(...contractEntries(placeholders, surface, contract))
   }
@@ -285,6 +290,7 @@ function contractEntries(
     proxy: GPUBuffer
     receiver: ReceiverResources
     reflection: GPUTextureView
+    reflectionView: GPUBuffer
   },
 ): GPUBindGroupEntry[] {
   return [
@@ -303,5 +309,6 @@ function contractEntries(
     { binding: VSM_MASK_TILES_BINDING, resource: r.maskTiles },
     { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: r.vsmTransmission },
     { binding: REFLECTION_TARGET_BINDING, resource: r.reflection },
+    { binding: REFLECTION_VIEW_BINDING, resource: { buffer: r.reflectionView } },
   ]
 }

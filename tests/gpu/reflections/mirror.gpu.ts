@@ -1,7 +1,8 @@
 // The reflection on the GPU (`mirrorPage.ts`, `mirrorScene.ts`): two consecutive still images give
 // the same reflection target to the bit — nothing it reads turns with the frame —, and a mirror
 // floor shows an emissive quad standing on it where the analytic mirror puts it, sharp, while a
-// floor pixel whose mirror ray meets nothing reads the environment (zero here) alone.
+// floor pixel whose mirror ray meets nothing reads the radiance around the scene alone — no light
+// around it and a black background: zero.
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/mirror.gpu.ts
 import test from 'node:test'
@@ -34,7 +35,7 @@ test('a still mirror reflects the same bits twice, the quad where the mirror put
     const seen = rgb(px, py)
     for (const c of [0, 1, 2]) assert.ok(Math.abs(seen[c] - quad[c]) < 0.02, `${px},${py}: ${seen}`)
   }
-  // Beside the reflection, the floor's mirror ray meets nothing: the environment, zero.
+  // Beside the reflection, the floor's mirror ray meets nothing: the surroundings, zero.
   for (const [px, py] of [
     [10, 120],
     [64, 125],

@@ -60,7 +60,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
   let declared=declaredLightingPair(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ);
   // What the surface reflects, traced once: weighed on its colour for the lit share, on a null
   // albedo for the specular share, as the lights are.
-  let reflected=reflectedRadiance(P,Nv,V,rough);
+  let reflected=reflectedRadiance(P,Nv,V,rough,reflectionLobe(rough));
   if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+lobeReflection(reflected*reflectionWeight(base.rgb,metal,rough,Nv,V),V)+emissiveAo.rgb;}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the dielectric
   // specular lobe stays.

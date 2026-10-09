@@ -75,6 +75,7 @@ function runner(text: string) {
       bounceLighting: () => (lit++, pixel.bounce),
       environmentLighting: () => pixel.environment,
       reflectedRadiance: () => pixel.reflected,
+      reflectionLobe: () => [0, 0, 0, 0.25],
       reflectionWeight: () => pixel.weight,
       transmittedBackdrop: () => pixel.through,
       fogged: (color: number[]) => color.map((c) => c * pixel.fog + 0.25 * (1 - pixel.fog)),

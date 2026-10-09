@@ -3,6 +3,28 @@ import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 
 /**
+ * The slope of a surface along one axis of a depth image, in depth per pixel, from the depth `z`
+ * a pixel holds and the two before it and after it (`before`, `after`, then `farBefore`,
+ * `farAfter`): read on a side whose two pixels continue the surface — the step into the pixel
+ * differs from the step beyond it by less than that step: a plane makes them equal, where a
+ * silhouette makes the first a jump that the background beyond does not continue —; of two such
+ * sides, the straighter; none when neither side continues (a wire, a bar, a far part one pixel
+ * wide). The one rule of every reader of a depth's plane: the shadow level's unjittered centre
+ * below, and where a reflected ray meets a pixel (`../../reflections/wgsl.ts`).
+ */
+export const SURFACE_SLOPE_WGSL = wgslBlock(
+  'SURFACE_SLOPE_WGSL',
+  [],
+  `fn surfaceSlopeOf(z:f32,before:f32,after:f32,farBefore:f32,farAfter:f32)->f32{
+ let into=vec2f(z-before,after-z);
+ let beyond=vec2f(before-farBefore,farAfter-after);
+ let bend=abs(into-beyond);let continues=bend<abs(beyond);
+ if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
+ return select(0.0,into.y,continues.y);
+}`,
+)
+
+/**
  * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
  * point it holds there, and its footprint, the world distance to its right neighbour at that
  * depth. The one reading of them the resolve (`surfaceWgsl.ts`) and the per-pixel demand
@@ -14,32 +36,22 @@ import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
  * The jitter moves the image by `view.jitter.xy` pixels (`shadowJitterWords`): the pixel's
  * unjittered centre lies there in this image. A receiver's plane has an NDC depth affine across
  * the screen — `1/w` is, and a projected depth is affine in `1/w` —, so its depth there is the
- * depth held, moved along the plane's slope. On each axis the slope is read on a side whose two
- * pixels continue the surface (`surfaceSlope`): the step into the pixel differs from the step
- * beyond it by less than that step — a plane makes them equal, where a silhouette makes the first
- * a jump that the background beyond does not continue —; of two such sides, the straighter. On an
- * axis neither side continues — a wire, a bar or a far part one pixel wide, background on both
- * sides —, the slope is none: the depth held, never a jump across the background. With no jitter
+ * depth held, moved along the plane's slope (`surfaceSlopeOf`, above): on an axis no side
+ * continues, the depth held, never a jump across the background. With no jitter
  * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint is the jittered
  * sample's, to the bit.
  */
 export const PIXEL_FOOTPRINT_WGSL = wgslBlock(
   'PIXEL_FOOTPRINT_WGSL',
-  [WORLD_AT_WGSL, clampToExtent],
+  [WORLD_AT_WGSL, clampToExtent, SURFACE_SLOPE_WGSL],
   `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */
 fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{
  return textureLoad(depth,clampToExtent(coord+axis*k,vec2i(view.viewport.xy)),0);
 }
-/** The slope of the surface at \`coord\` (depth \`z\`) along \`axis\`, from a side whose two pixels
- *  continue it, the straighter of two; none when neither does. */
+/** The slope of the surface at \`coord\` (depth \`z\`) along \`axis\` (\`surfaceSlopeOf\`). */
 fn surfaceSlope(coord:vec2i,axis:vec2i,z:f32)->f32{
- let before=footprintDepth(coord,axis,-1);let after=footprintDepth(coord,axis,1);
- let into=vec2f(z-before,after-z);
- let beyond=vec2f(before-footprintDepth(coord,axis,-2),footprintDepth(coord,axis,2)-after);
- let bend=abs(into-beyond);let continues=bend<abs(beyond);
- if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
- return select(0.0,into.y,continues.y);
+ return surfaceSlopeOf(z,footprintDepth(coord,axis,-1),footprintDepth(coord,axis,1),footprintDepth(coord,axis,-2),footprintDepth(coord,axis,2));
 }
 fn unjitteredDepth(coord:vec2i,z:f32)->f32{
  let slope=vec2f(surfaceSlope(coord,vec2i(1,0),z),surfaceSlope(coord,vec2i(0,1),z));
