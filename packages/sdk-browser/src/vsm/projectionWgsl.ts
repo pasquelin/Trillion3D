@@ -353,7 +353,7 @@ fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
  let c=light.shiftedPosition;
  let d=max(max(low-c,c-high),vec3f(0.0));
  let g=dot(d,d);
- return g<FLOAT32_MIN_NORMAL||sqrt(g)<light.radius*VSM_TILE_REACH;
+ return g<FLOAT32_MIN_NORMAL||sqrt(g)<=light.radius*VSM_TILE_REACH;
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
