@@ -13,8 +13,14 @@ export function createStreamingQueue(
   context: StreamContext,
   read: (jobs: readonly Job[], signal: AbortSignal) => Promise<Landed[]>,
   /** The session's side of the cache: its hold on a page follows its transfer (`sync`), a page
-   *  that leaves the catalogue leaves the cache (`drop`), and it evicts once a transfer settled. */
-  pages: { sync(url: string): void; drop(url: string): void; evict(): void },
+   *  that leaves the catalogue leaves the cache (`drop`) and its table's bytes the reserve
+   *  (`tables`), and it evicts once a transfer settled. */
+  pages: {
+    sync(url: string): void
+    drop(url: string): void
+    tables(bytes: number): void
+    evict(): void
+  },
 ) {
   const { state, abort, catalog, emit, abortError, failures, queue } = context
   const { sync, evict } = pages

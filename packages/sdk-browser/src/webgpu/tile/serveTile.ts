@@ -52,7 +52,7 @@ export function serveBaked(
   // A level that cannot fit beside the pages kept will not come: refused, not waited for.
   const roomFor = () => atlas.roomFor(key.slot, frame)
   if (!levels) return roomFor() ? 'waiting' : 'refused'
-  const held = levels.read(address, frame, size, failed, key.tx, key.ty, roomFor)
+  const held = levels.read(address, size, failed, key.tx, key.ty, roomFor)
   if (typeof held === 'string') return held
   const place = atlas.place(key, frame)
   if (!place) return 'refused'

@@ -1,11 +1,13 @@
 import type { StreamContext } from './types.ts'
+import type { PageCache } from './pageCache.ts'
 import { createStreamingPins } from './streamingPins.ts'
 
-/** A session's side of the page cache: its reserve and its holds. `reserved` is what it takes off
- *  the total beside its pages; the cache evicts (`PageCache.fit`), and tells the session each page
- *  that left. */
-export function createStreamingCache(context: StreamContext, reserved: () => number) {
-  const { store, state, maxPages, pinned, jobs, emit, onEvict } = context
+/** A session's side of the page cache: its reserve and its holds. Its reserve — its manifest
+ *  tables, its transfer queue and the engine's host tables, beside its pages — is told the cache
+ *  each time it moves; the cache evicts (`PageCache.fit`), and tells the session each page that
+ *  left. */
+export function createStreamingCache(context: StreamContext) {
+  const { store, state, maxPages, pinned, jobs, emit, onEvict, maxTransferBytes } = context
   /** The pages this session holds in the cache: those the frame keeps and those in flight, one
    *  hold each, whatever keeps it. */
   const holding = new Set<string>()
@@ -56,23 +58,33 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
     }))
   }
   const evict = store.fit
-  /** The engine's host tables take `bytes()` of the CPU share the cache holds
-   *  (`../residency/memoryBudget.ts`): the decoded pages keep the rest. Read each time the cache
-   *  weighs itself, for tables that follow the view. */
-  const reserve = (bytes: () => number) => {
-    state.reservedBytes = bytes
-    evict()
+  /** What the session reserves off the cache's total beside its pages. */
+  const reserved = () => state.tableBytes + maxTransferBytes + state.engineBytes
+  const session = { maxPages, evicted, blocked }
+  let seat: ReturnType<PageCache['open']> | undefined
+  const told = () => seat?.reserve(reserved())
+  /** The catalogue's tables grew by `bytes`, or shrank (`manifestTables.ts`). */
+  const tables = (bytes: number) => {
+    state.tableBytes += bytes
+    told()
   }
-  const session = { reserved, maxPages, evicted, blocked }
-  let leave = () => {}
+  /** The engine's host tables take `bytes` of the CPU share the cache holds
+   *  (`../residency/memoryBudget.ts`): the decoded pages keep the rest. Told the cache only once
+   *  they moved: those tables follow the view, and its frame says them each time. */
+  const reserve = (bytes: number) => {
+    if (bytes === state.engineBytes) return
+    state.engineBytes = bytes
+    told()
+  }
   /** The session reads through the cache from now on, its reserve off the total. */
-  const open = () => void (leave = store.open(session))
+  const open = () => void (seat = store.open(session, reserved()))
   /** The session's holds end with it: what it pinned or read stays cached for the next one. */
   const close = () => {
     for (const url of holding) store.release(url)
     holding.clear()
-    leave()
+    seat?.leave()
+    seat = undefined
   }
   const { retain, retainRanks } = createStreamingPins(context, sync, evict)
-  return { evict, sync, drop, open, close, retain, retainRanks, reserve }
+  return { evict, sync, drop, tables, open, close, retain, retainRanks, reserve }
 }

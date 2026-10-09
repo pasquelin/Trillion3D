@@ -78,8 +78,8 @@ export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES
  *   The cut's host tables — the GPU cut publication's host mirrors: group closure, the rule's
  *   readiness, the residency sets and the cut's differences, sized by what the view asks for and
  *   the pool holds — are held in the cache's share too: the session reserves their bytes there
- *   (`hostTableBytes`, the streamer's `reserve`), read each time the cache weighs itself, and the
- *   cache's entries keep the rest: the decoded pages and texture levels under one budget.
+ *   (`hostTableBytes`, the streamer's `reserve`), told by each frame, and the cache's entries keep
+ *   the rest: the decoded pages and texture levels under one budget.
  * With a session's `active` memory, each share is what it holds — the frame's targets with what
  * else is live beside the pools (`frameTargets`) — and the two pools the rest, less the shadows
  * still to be made (`shadowReserve`), within their floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the

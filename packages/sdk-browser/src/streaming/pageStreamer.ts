@@ -70,7 +70,7 @@ export function createPageStreamer(
     evictions: 0,
     admissionBlocked: 0,
     disposed: false,
-    reservedBytes: () => 0,
+    engineBytes: 0,
   }
   const emit = lazyDiagnostic(onDiagnostic)
   const abortError = () => new DOMException('Page request cancelled', 'AbortError')
@@ -79,8 +79,7 @@ export function createPageStreamer(
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
   }
   const { read: transfer, roundTrip } = createStreamingFetcher(context)
-  const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes()
-  const streaming = createStreamingCache(context, reserved)
+  const streaming = createStreamingCache(context)
   const { retain, retainRanks, reserve } = streaming
   /** A kept page held under a page's name as another file leaves before its first read. */
   const dropForeign = (admitted: readonly StreamPage[]) => {
@@ -109,12 +108,14 @@ export function createPageStreamer(
   return {
     admit(more: readonly StreamPage[]) {
       dropForeign(more)
+      let tables = 0
       for (const page of more) {
         if (!listed(page)) continue
         keep(page.url)
-        if (!catalog.has(page.url)) state.tableBytes += manifestEntryBytes(page.url)
+        if (!catalog.has(page.url)) tables += manifestEntryBytes(page.url)
         catalog.set(page.url, page)
       }
+      if (tables) streaming.tables(tables)
     },
     // A page a read holds, queued or in transfer, stays catalogued until that read settles.
     forget: (urls: readonly string[]) => urls.forEach(forget),

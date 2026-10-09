@@ -5,7 +5,7 @@ import { manifestEntryBytes } from './manifestTables.ts'
  *  while a job holds it leaves when that job ends (`end`), unless `keep` takes it back first. */
 export function createQueueEnds(
   context: StreamContext,
-  pages: { sync(url: string): void; drop(url: string): void },
+  pages: { sync(url: string): void; drop(url: string): void; tables(bytes: number): void },
 ) {
   const { jobs, state, catalog, failures, abortError } = context
   const { sync } = pages
@@ -17,7 +17,7 @@ export function createQueueEnds(
     if (!catalog.delete(url)) return
     failures.leaves(url)
     pages.drop(url)
-    state.tableBytes -= manifestEntryBytes(url)
+    pages.tables(-manifestEntryBytes(url))
   }
   /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. After
    *  `dispose` a kept store is the next session's: a late settle no longer drops from it. */

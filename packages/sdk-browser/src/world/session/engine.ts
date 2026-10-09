@@ -179,10 +179,10 @@ export async function prepareExplorerEngine(session: ExplorerSession, inputs: In
   await prepareEngine(session, engine)
   if (preload !== 'all') indices.clear()
   // The engine's host tables, which follow the view, and the world roots the models hold come out
-  // of the cached pages' CPU share.
+  // of the cached pages' CPU share: reserved once prepared, then as each frame says them.
   const roots = inputs.worldRoots
-  streamer.reserve(() =>
-    roots.reduce((bytes, held) => bytes + held.bytes(), engine.hostTableBytes()),
-  )
-  return { viewport: context.viewport!, context, engine }
+  const hostBytes = () =>
+    roots.reduce((bytes, held) => bytes + held.bytes(), engine.hostTableBytes())
+  streamer.reserve(hostBytes())
+  return { viewport: context.viewport!, context, engine, hostBytes }
 }

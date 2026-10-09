@@ -11,6 +11,8 @@ type Inputs = {
   streamer: ReturnType<typeof createPageStreamer>
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine
+  /** The CPU bytes the engine's host tables and the world roots hold now. */
+  hostBytes: () => number
 }
 
 /**
@@ -24,11 +26,12 @@ export function pushPending(pending: Set<string>, urls: readonly string[]) {
 
 /**
  * One frame of the engine: it draws and presents its own surface, then the pages it still lacks
- * are asked for and the ones it reads are retained. The engine times its own passes; a frame whose
- * visible pages exceed the resident budget is refused by name (`PAGE_BUDGET`).
+ * are asked for, the ones it reads are retained, and the host tables its view sized are reserved
+ * off the page cache. The engine times its own passes; a frame whose visible pages exceed the
+ * resident budget is refused by name (`PAGE_BUDGET`).
  */
 export function createDrawFrame(inputs: Inputs) {
-  const { camera, streamer, streaming, engine } = inputs
+  const { camera, streamer, streaming, engine, hostBytes } = inputs
   return () => {
     engine.render(camera)
     const renderEnd = performance.now()
@@ -57,6 +60,7 @@ export function createDrawFrame(inputs: Inputs) {
     }
     const pendingEnd = performance.now()
     retainVisiblePages(engine, streamer)
+    streamer.reserve(hostBytes())
     engine.cpuStep('pendingMs', pendingEnd - renderEnd)
     engine.cpuStep('retainMs', performance.now() - pendingEnd)
     // The engine draws into the page canvas: the frame closes here, where the bounds the host

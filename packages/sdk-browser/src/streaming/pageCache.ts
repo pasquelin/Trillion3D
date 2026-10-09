@@ -7,11 +7,10 @@ import { closeTextureLevel, textureLevelBytes, type TextureLevel } from '../text
  *  cache bounded only by entry count would hold hundreds of megabytes. */
 export const DEFAULT_CACHED_BYTES = 256 * MIB
 
-/** A session reading through the cache: what it reserves off the total, which may change while it
- *  reads, the most pages it lets the cache hold, and who hears a page evicted, or an eviction that
- *  found nothing it could take. */
+/** A session reading through the cache: the most pages it lets the cache hold, and who hears a page
+ *  evicted, or an eviction that found nothing it could take. What it reserves off the total it
+ *  tells the seat it opens (`open`) each time that changes. */
 type CacheSession = {
-  reserved(): number
   maxPages?: number
   evicted?(url: string): void
   blocked?(): void
@@ -46,16 +45,19 @@ const checkBytes = (bytes: number) => {
  * last one fetched from here, and fetches nothing it holds.
  *
  * Each session reading through it reserves its manifest tables, its transfer queue and the
- * engine's tables (`CacheSession.reserved`: `manifestTableBytes`, `maxTransferBytes`, the
- * streamer's `reserve`) and takes holds on the pages it pins or reads; the entries hold the rest
- * (`budgetBytes`). The cache alone evicts, once its entries exceed the budget: an entry someone
- * holds never, then the pages, files and levels least recently used, the proxy last. A level
- * needs no room of its own: it takes what eviction can free (`roomBytes`), as a page does.
+ * engine's tables (`manifestTableBytes`, `maxTransferBytes`, the streamer's `reserve`), told as
+ * they change (`open`), the cache keeping their sum, and takes holds on the pages it pins or
+ * reads; the entries hold the rest (`budgetBytes`). The cache alone evicts, once its entries
+ * exceed the budget: an entry someone holds never, then the pages, files and levels least recently
+ * used, the proxy last. A level needs no room of its own: it takes what eviction can free
+ * (`roomBytes`), as a page does.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes)
   const sessions = new Set<CacheSession>()
   let total = cpuBytes,
+    /** Bytes the sessions reserve off the total, their sum kept as each tells its own. */
+    reserved = 0,
     pages = 0,
     levelBytes = 0,
     /** The key the scene's proxy is kept under, while one is. */
@@ -78,9 +80,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     return most
   }
   /** Evicts what no one holds, the lowest tier and the least recently used first, while the
-   *  entries exceed the budget — read once: it sums the engine's tables, which the entries leaving
-   *  do not move — or the pages their bound. Each page that leaves is told to every session; an
-   *  eviction that takes nothing while over is told too. */
+   *  entries exceed the budget — read once: the entries leaving do not move it — or the pages
+   *  their bound. Each page that leaves is told to every session; an eviction that takes nothing
+   *  while over is told too. */
   const fit = () => {
     const budget = cache.budgetBytes,
       most = pageBound()
@@ -114,8 +116,6 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     },
     /** Bytes the sessions reading through it reserve off the total. */
     get reservedBytes() {
-      let reserved = 0
-      for (const session of sessions) reserved += session.reserved()
       return reserved
     },
     /** Bytes the entries may hold: the total less what is reserved (`reservedBytes`). */
@@ -230,12 +230,27 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       total = cpu
       fit()
     },
-    /** `session` reads through the cache from now on, its reserve off the total, until the
-     *  returned end. */
-    open(session: CacheSession) {
+    /** `session` reads through the cache from now on, `reserving` bytes off the total, until it
+     *  leaves: the seat it is handed tells each new reserve (`reserve`) and its leave (`leave`). */
+    open(session: CacheSession, reserving: number) {
       sessions.add(session)
-      fit()
-      return () => void sessions.delete(session)
+      let own = 0
+      const seat = {
+        /** The session reserves `bytes` from now on: what no longer fits leaves. */
+        reserve(bytes: number) {
+          reserved += bytes - own
+          own = bytes
+          fit()
+        },
+        /** The session reads through the cache no more: its reserve is given back. */
+        leave() {
+          if (!sessions.delete(session)) return
+          reserved -= own
+          own = 0
+        },
+      }
+      seat.reserve(reserving)
+      return seat
     },
     /** Empties the cache: its owner is gone. */
     clear() {

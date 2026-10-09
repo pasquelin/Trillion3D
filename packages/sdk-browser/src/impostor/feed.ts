@@ -103,7 +103,7 @@ export function createAtlasFeed<G>(
       }
       // An atlas past the whole room is never read: it would not fit even alone.
       if (entry.making || entry.bytes > room() || atlases.bytes >= entry.refusedAt) return undefined
-      const atlas = loadImpostorAtlas(maps, levels, frame, failed)
+      const atlas = loadImpostorAtlas(maps, levels, failed)
       if (typeof atlas === 'string' || !fits(entry.bytes, frame)) return undefined
       Object.assign(entry, { making: true, refusedAt: Infinity })
       atlases.acquire(key)

@@ -40,7 +40,7 @@ function serving(
   const frames = async (ms: number, tiles: [number, number][] = [[0, 0]]) => {
     for (const end = clock.now + ms; clock.now < end;) {
       for (const [tx, ty] of tiles)
-        levels.read(level, clock.now, [256, 256], (_, error) => failed.push(error), tx, ty)
+        levels.read(level, [256, 256], (_, error) => failed.push(error), tx, ty)
       await levels.settled()
       clock.now += 100
       t.mock.timers.tick(100)

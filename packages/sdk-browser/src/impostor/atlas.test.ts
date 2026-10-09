@@ -51,8 +51,8 @@ test('the atlas reads each level once at its own url, held by the one cache, a f
   const failed: string[] = []
   const levels = heldLevelsOf(reader)
   const report = (address: { sha256: string }) => void failed.push(address.sha256)
-  assert.equal(loadImpostorAtlas(maps, levels, 0, report), 'waiting', 'asked, not yet held')
-  assert.equal(loadImpostorAtlas(maps, levels, 1, report), 'waiting')
+  assert.equal(loadImpostorAtlas(maps, levels, report), 'waiting', 'asked, not yet held')
+  assert.equal(loadImpostorAtlas(maps, levels, report), 'waiting')
   assert.deepEqual(
     asked.map((request) => [request.url, request.level]),
     [
@@ -66,15 +66,15 @@ test('the atlas reads each level once at its own url, held by the one cache, a f
   await settle()
   assert.deepEqual(failed, ['d'.repeat(64)], 'the failed level is reported, not swallowed')
   assert.equal(store.levelBytes, 3 * 64, 'three levels held, in the one cache')
-  assert.equal(loadImpostorAtlas(maps, levels, 2, report), 'waiting', 'the failed level waits')
+  assert.equal(loadImpostorAtlas(maps, levels, report), 'waiting', 'the failed level waits')
   await settle()
   // The level comes from another reader of the cache, for the same cook. Once every level is
   // held, the atlas is handed over, and nothing is read again.
   const other = heldLevelsOf(Object.assign(async () => bitmap(), { store, key: 'k1' }))
   const d = { sha256: 'd'.repeat(64), atlas: 0, level: 0, format: 'png' } as const
-  assert.equal(other.read(d, 3, [4, 4], report), 'waiting')
+  assert.equal(other.read(d, [4, 4], report), 'waiting')
   await other.settled()
-  const atlas = loadImpostorAtlas(maps, levels, 3, report)
+  const atlas = loadImpostorAtlas(maps, levels, report)
   assert.notEqual(typeof atlas, 'string')
   const counts = Object.values(atlas as object).map((levels: unknown[]) => levels.length)
   assert.deepEqual(counts, [2, 1, 1])

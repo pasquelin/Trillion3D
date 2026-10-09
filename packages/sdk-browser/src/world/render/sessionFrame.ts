@@ -19,7 +19,7 @@ type Inputs = {
 export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
   const { options, metadata } = session
   const { prepared, host, engine } = inputs
-  const { camera, pageSources, partitions, frameBudget } = prepared
+  const { camera, pageSources, partitions, frameBudget, hostBytes } = prepared
   const { pageIdByUrl, streamer } = pageSources
   const { state, lookAtTarget, check, setPose } = host
   const { metricsScratch, profiler, fillMetrics } = createExplorerMetrics(
@@ -41,7 +41,7 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     state,
     budget: frameBudget,
   })
-  const drawFrame = createDrawFrame({ camera, streamer, streaming, engine })
+  const drawFrame = createDrawFrame({ camera, streamer, streaming, engine, hostBytes })
   const followCells = createPartitionFrame({
     partitions,
     streamer,

@@ -26,9 +26,9 @@ const address = (level: number, format: 'bc7' | 'png' = 'bc7'): TextureLevelAddr
   level,
   format,
 })
-/** Asks tile (0, 0) of `key` of `side`² texels from `levels` at `frame`. */
-const askTile = (levels: HeldLevels, key: TextureLevelAddress, frame: number, side: number) =>
-  levels.read(key, frame, [side, side], assert.fail)
+/** Asks tile (0, 0) of `key` of `side`² texels from `levels`. */
+const askTile = (levels: HeldLevels, key: TextureLevelAddress, side: number) =>
+  levels.read(key, [side, side], assert.fail)
 
 /** A session's levels of `format`, read by the explorer's reader through `cache` under the cook
  *  `key`, from a server that honours Range; `fetched` lists every level address it was asked. */
@@ -44,9 +44,9 @@ function session(cache: PageCache, key = 'k1', side = 1024, format: 'bc7' | 'png
     return new Response(file.slice(from, to + 1), { status: 206 })
   }) as typeof fetch
   const levels = heldLevelsOf(createTextureLevelReader({ textures, key }, BASE, cache)!)
-  /** Asks tile (0, 0) of `level` at `frame`, and waits for what it read. */
-  const ask = async (level: number, frame = 0) => {
-    askTile(levels, address(level, format), frame, side)
+  /** Asks tile (0, 0) of `level`, and waits for what it read. */
+  const ask = async (level: number) => {
+    askTile(levels, address(level, format), side)
     await levels.settled()
   }
   return { levels, fetched, ask }
@@ -56,7 +56,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   const cache = createPageCache()
   await session(cache).ask(0)
   const reopened = session(cache)
-  assert.ok(askTile(reopened.levels, address(0), 1, 1024) instanceof Uint8Array, 'held')
+  assert.ok(askTile(reopened.levels, address(0), 1024) instanceof Uint8Array, 'held')
   assert.deepEqual([reopened.fetched, reopened.levels.fetched], [[], 0], '0 texture refetch')
   // Another cook's level of the same address is another file: read, never served from this one.
   const other = session(cache, 'k2')
@@ -68,7 +68,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
 test('a level read by both sides of a device loss is counted once', async () => {
   const cache = createPageCache()
   const lost = session(cache)
-  askTile(lost.levels, address(0), 0, 1024)
+  askTile(lost.levels, address(0), 1024)
   const reopened = session(cache)
   await reopened.ask(0)
   await lost.levels.settled()
@@ -92,9 +92,9 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   const { evictions, admissionBlocked } = streamer.stats()
   assert.deepEqual([urls.every(streamer.has), evictions, admissionBlocked], [true, 0, 0])
   assert.deepEqual([levels.bytes, cache.weight('proxy')], [0, proxy], 'the level left first')
-  for (let frame = 1; frame < 4; frame++) await ask(0, frame)
+  for (let frame = 1; frame < 4; frame++) await ask(0)
   assert.deepEqual(fetched, urls, 'a level that cannot fit is not read again')
-  assert.equal(askTile(levels, address(0), 4, 8), 'refused', 'refused, not waited for')
+  assert.equal(askTile(levels, address(0), 8), 'refused', 'refused, not waited for')
   streamer.dispose()
 })
 
@@ -115,7 +115,7 @@ test('the texture levels follow world.budget.cpu live, the least recently read l
     assert.equal(levels.bytes, 2 * bytes)
     handle.cpu = (3 * MIB) / 2
     assert.equal(levels.bytes, bytes, 'the level read first left')
-    assert.ok(askTile(levels, address(1, 'png'), 1, side) !== 'waiting', 'the one read last stays')
+    assert.ok(askTile(levels, address(1, 'png'), side) !== 'waiting', 'the one read last stays')
   } finally {
     scope.createImageBitmap = decoder
   }

@@ -26,7 +26,6 @@ const MAP_NAMES = ['colourCoverage', 'normalDepth', 'orm'] as const
 export function loadImpostorAtlas(
   maps: ImpostorMaps,
   levels: HeldLevels,
-  frame: number,
   failed: LevelFailed,
 ): ImpostorAtlasLevels | 'waiting' | 'refused' {
   let verdict: 'waiting' | 'refused' | undefined
@@ -41,7 +40,7 @@ export function loadImpostorAtlas(
         format: PREVIEW_LOSSLESS_FORMAT,
         url,
       }
-      const held = levels.read(address, frame, [width, height], failed)
+      const held = levels.read(address, [width, height], failed)
       if (typeof held !== 'string') chain.push(held as ImageBitmap)
       else if (verdict !== 'refused') verdict = held
     })

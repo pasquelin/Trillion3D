@@ -66,11 +66,8 @@ function createHeldLevels(read: TextureLevelReader) {
     }),
     /** Who hears each level land. */
     watchers = new Set<() => void>()
-  /** The room the levels may take, weighed once a frame: it sums the engine's tables. */
-  let roomFrame = -1,
-    room = 0,
-    /** Bytes the reads in flight will hold once landed. */
-    reading = 0,
+  /** Bytes the reads in flight will hold once landed. */
+  let reading = 0,
     fetched = 0
   /** Reads `request`, `bytes` once landed, and holds it under `id`; a failure told `failed`. */
   const launch = (
@@ -110,7 +107,6 @@ function createHeldLevels(read: TextureLevelReader) {
      */
     read(
       address: TextureLevelAddress,
-      frame: number,
       size: Size,
       failed: LevelFailed,
       tx = 0,
@@ -124,10 +120,10 @@ function createHeldLevels(read: TextureLevelReader) {
       if (!roomFor()) return 'refused'
       if (pending.has(id) || failures.blocked(id) || pending.size >= MAX_LEVEL_READS)
         return 'waiting'
-      if (frame !== roomFrame) [roomFrame, room] = [frame, store.roomBytes]
       // The record is reckoned where it is needed: a waiting tile asks every frame.
       const range = lossless ? undefined : tileRecord(size[0], size[1], tx, ty),
-        bytes = range?.bytes ?? bitmapBytes(size[0], size[1])
+        bytes = range?.bytes ?? bitmapBytes(size[0], size[1]),
+        room = store.roomBytes
       if (bytes > room) return 'refused'
       // The reads in flight hold their room: one that fits only once they have landed waits for
       // them, rather than landing to evict a level read for a tile not cut yet.

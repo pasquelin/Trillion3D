@@ -182,7 +182,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
   await renderer // the engine is built once its renderer has arrived
-  const { viewport, context, engine } = await prepareExplorerEngine(session, {
+  const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {
     ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
@@ -204,6 +204,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     context,
     frameBudget,
     engine,
+    /** The CPU bytes the engine's host tables and the world roots hold now, which each frame
+     *  reserves off the page cache (`streamer.reserve`). */
+    hostBytes,
     ...cameraState,
   }
 }

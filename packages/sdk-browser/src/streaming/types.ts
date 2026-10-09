@@ -138,9 +138,9 @@ export type StreamContext = {
     /** CPU bytes the catalogue's tables hold (`manifestTables.ts`), as pages join and leave it. */
     tableBytes: number
     disposed: boolean
-    /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
-     *  the cache weighs itself: those tables follow the view. */
-    reservedBytes: () => number
+    /** Bytes the engine's own tables take from the cache's share (`reserve`), as last told:
+     *  those tables follow the view. */
+    engineBytes: number
   }
   /** `undefined` when nobody listens: `emit?.(…)` then builds nothing (`lazyDiagnostic`). */
   emit: LazyDiagnostic | undefined
