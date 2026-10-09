@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuDeviceLedger } from '../core/deviceLedger.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
@@ -123,4 +124,26 @@ test('a page loaded held is held on arrival: a resize queued behind its load kee
   assert.deepEqual(evicted.sort(), ['a', 'b'], 'the newer unpinned pages go, not the cover')
   assert.ok(cache.get('root') && cache.get('cover'))
   assert.equal(cache.unpinnedSlots(), 0, 'both cover pages arrived pinned')
+})
+
+// A pool drawn again under a budget holds both buffers a moment, while its pages are copied: the
+// budget admits the new one as the state the replacement leaves — the old one gone —, so a pool
+// shrunk to make room for the frame is never refused for the copy itself.
+test('a pool shrunk under a budget at its limit is admitted as the replacement it is', async () => {
+  const { device: gpu, destroyed } = fakeDevice({ limits: LIMITS })
+  let limit = 1 << 20
+  const ledger = installGpuDeviceLedger(gpu, { limit: () => limit })
+  const cache = createGpuPageCache(
+    gpu,
+    { read: async () => new Uint8Array(8) },
+    { pageBytes: 8, slots: 6 },
+  )
+  for (const key of ['a', 'b', 'c']) await cache.load(key)
+  // The limit holds what is in place and no byte more: the shrunk pool fits once the old is gone.
+  limit = ledger.bytes
+  const evicted = await cache.resize(3)
+  assert.deepEqual(evicted, [])
+  assert.equal(cache.stats().allocatedBytes, 24)
+  assert.equal(destroyed.length, 1, 'the old pool is freed')
+  assert.equal(ledger.refusal, undefined, 'no refusal of the session')
 })

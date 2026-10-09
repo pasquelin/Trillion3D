@@ -1,4 +1,5 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
+import { ledgerReplacing } from '../core/deviceLedger.ts'
 import { evictResident } from './commit.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
@@ -62,7 +63,10 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     to = heldHomes(context.homes, slots)
   // Both hold the whole catalogue: every page keeps its home, in the buffer it is in.
   if (from && to) return ((context.slots = slots), [])
-  const next = createPageBuffer(device, pageBufferBytes(device, pageBytes, slots, to))
+  // The new pool replaces the old, freed once its pages are copied: the budget admits it so.
+  const next = ledgerReplacing(device, context.buffer.size, () =>
+    createPageBuffer(device, pageBufferBytes(device, pageBytes, slots, to)),
+  )
   const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache resize' })
   if (!from && !to)
     encoder.copyBufferToBuffer(
