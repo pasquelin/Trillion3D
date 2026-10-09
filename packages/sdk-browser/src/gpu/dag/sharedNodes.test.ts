@@ -13,7 +13,16 @@ import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { residentFlags } from './layout.fixture.ts'
-import { childBase, coldBase, residentBase, selectionListCap } from './layout.ts'
+import {
+  CANDIDATES_START,
+  QUEUE_ENTRIES_START,
+  childBase,
+  coldBase,
+  residentBase,
+  selectionListCap,
+} from './layout.ts'
+import { dagFlagShape, flagShapeWords } from './flagSections.ts'
+import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
@@ -125,5 +134,18 @@ test('the cold table holds no word per page: residency bits, then what each reco
       pages = packed.pageCount - one.pageCount
     assert.ok(bytes / pages < 1, `${count} placements: ${bytes / pages} bytes a page`)
     assert.ok(coldBase(packed) - coldBase(one) <= Math.ceil(pages / 16) + 2 + pool / 4, `${count}`)
+  }
+})
+
+test('a cut’s flags hold a view’s reach, its queues and lists, never a word per placement or page', () => {
+  const one = packDagSelection(field(1))
+  // Each queue's entries, each list's, as a cut starts; the last uses, a word a content key.
+  const bound =
+    LEVEL_QUEUES * 2 * QUEUE_ENTRIES_START + CAND_LIVE_WORDS * CANDIDATES_START + one.keyCount
+  for (const count of [100, 10_000]) {
+    const packed = packDagSelection(field(count)),
+      shape = dagFlagShape(packed)
+    assert.equal(shape.keyCount, one.keyCount, `${count} placements: the keys are the primitive's`)
+    assert.ok(flagShapeWords(shape) <= bound, `${count} placements: within the reach`)
   }
 })
