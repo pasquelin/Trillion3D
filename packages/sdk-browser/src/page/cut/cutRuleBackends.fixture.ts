@@ -143,6 +143,8 @@ export function placements(dag: RuleDag, copies: number, spacing = 0) {
  *  a candidate unless the rule opens its node. */
 export function floorPrunedPages(dag: RuleDag, threshold: number) {
   const { packed, uniforms } = stripUniforms(dag, threshold)
+  // Every page resident: each node's open count is the one full residency leaves.
+  ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1))
   const frames = dagViewFrames(packed, uniforms)
   const ints = new Uint32Array(packed.nodes.buffer)
   return dag.pages

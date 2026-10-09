@@ -8,7 +8,7 @@ import {
   type DagRoot,
   type PackedDag,
 } from './types.ts'
-import { linksFor } from '../../page/cut/links.ts'
+import { baseOpen, linksFor } from '../../page/cut/links.ts'
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
 import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts'
@@ -92,9 +92,10 @@ function placeRoot(
   const owner = new Uint32Array(count).fill(NONE)
   const bounds = cullingBoundsFor(culling, root.pages, p.shared.boundsOf)
   const place = { world: w, nodeBase, pageBase }
-  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, bounds, place, owner)
   const links = linksFor(culling, count)
   const { structure } = root
+  const open = structure && baseOpen(links, structure)
+  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, bounds, place, owner, open)
   p.cutLinks.push({ structure, links, pageBase, pageCount: count, nodeBase, nodeCount })
   const base = recordBase(culling, owner, nodeBase)
   if (!p.shared.firstOf.has(root.pages))

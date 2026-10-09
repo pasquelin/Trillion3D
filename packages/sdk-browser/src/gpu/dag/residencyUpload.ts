@@ -82,8 +82,9 @@ export function createDagResidencyUpload(resources: {
       targetBase: base,
       stride,
     })
-  // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
-  // readiness's state with nothing resident; from then on only what moves is.
+  // Nothing is resident yet: both bit sets are written whole, once, from the readiness's state with
+  // nothing resident; the node counts are the packing's own, uploaded with the nodes
+  // (`packCullingNodes`). From then on only what moves is.
   const words = new Int32Array(Math.max(1, residentWords(pageCount)))
   for (const { values, base } of sets)
     updateResidencyBits(values, pageCount, bits, base, undefined, words)
@@ -97,7 +98,6 @@ export function createDagResidencyUpload(resources: {
       words * 4,
     )
   whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount))
-  whole(nodeParts, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS)
   const apply = (
     next: ArrayLike<number>,
     changes?: ResidencyChanges,

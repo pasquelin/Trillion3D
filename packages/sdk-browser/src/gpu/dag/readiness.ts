@@ -38,8 +38,9 @@ export function createDagReadiness(packed: PackedDag) {
   }
   const { worlds, pageWorlds, nodeInts } = r
   for (const links of packed.cutLinks) worlds.push(blankOf(r, links))
-  // Nothing is resident yet: each node holds its DAG's own open count, and only what then moves
-  // is ever handed over.
+  // Nothing is resident yet: each node holds its DAG's own open count — the packing's
+  // (`packCullingNodes`), set again for a packing an earlier readiness moved —, and only what then
+  // moves is ever handed over.
   for (let n = 0; n < packed.nodeCount; n++) nodeInts[n * DAG_NODE_FLOATS + NODE_OPEN] = 0
   worlds.forEach((_, at) => openNodes(r, at))
   return {
