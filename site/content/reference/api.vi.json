@@ -7891,11 +7891,17 @@
       "keepOnly": "Để proxy của cảnh đi, lần đọc của nó bị hủy, trừ khi `key` nêu nó: một cảnh đã biến mất.",
       "resize": "Đặt tổng, và loại bỏ ngay những gì không còn vừa.",
       "open": "`session` đọc qua bộ nhớ đệm từ giờ, dành `reserving` byte khỏi tổng, cho tới khi nó rời đi: chỗ được trao cho nó báo mỗi phần dành mới (`reserve`) và việc nó rời đi (`leave`).",
-      "clear": "Làm rỗng bộ nhớ đệm: chủ của nó đã đi."
+      "clear": "Làm rỗng bộ nhớ đệm: chủ của nó đã đi.",
+      "readRange": "Các byte `[offset, offset + length)` của tệp tại `url`, bằng một HTTP Range, cho mọi lần tải và mọi phiên đọc qua bộ nhớ đệm này: một tệp mà máy chủ trả nguyên vẹn được đọc một lần và giữ ở đây (`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "Cách một khoảng được đọc: bộ đếm những gì về, số yêu cầu nhiều nhất mà `checked` gửi, và tín hiệu để người hỏi đi."
+    "summary": "Cách một khoảng được đọc: bộ đếm những gì về, số yêu cầu nhiều nhất mà `checked` gửi, và tín hiệu để người hỏi đi.",
+    "members": {
+      "meter": "Đếm các byte đến.",
+      "attempts": "Số yêu cầu nhiều nhất mà `checked` gửi cho dải.",
+      "signal": "Cho người hỏi rời đi: lần đọc dừng khi không còn ai chờ nó."
+    }
   },
   "ReadRange": {
     "summary": "Một lần đọc `length` byte từ `offset` của tệp tại `url` (`createRangedReads`)."

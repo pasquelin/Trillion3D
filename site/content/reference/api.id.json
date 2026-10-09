@@ -7891,11 +7891,17 @@
       "keepOnly": "Melepas proksi adegan, pembacaannya dibatalkan, kecuali `key` menamainya: adegan yang sudah pergi.",
       "resize": "Menetapkan total, dan langsung mengusir yang tidak muat lagi.",
       "open": "`session` membaca melalui cache mulai sekarang, mencadangkan `reserving` byte dari total, hingga ia pergi: tempat yang diserahkan kepadanya memberitahukan setiap cadangan baru (`reserve`) dan kepergiannya (`leave`).",
-      "clear": "Mengosongkan cache: pemiliknya sudah pergi."
+      "clear": "Mengosongkan cache: pemiliknya sudah pergi.",
+      "readRange": "Byte `[offset, offset + length)` dari berkas di `url`, lewat HTTP Range, untuk setiap pemuatan dan sesi yang membaca melalui cache ini: berkas yang dijawab utuh oleh servernya dibaca sekali dan disimpan di sini (`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "Cara satu rentang dibaca: penghitung yang mencatat apa yang tiba, permintaan terbanyak yang dibuat `checked`, dan sinyal yang melepaskan pemintanya."
+    "summary": "Cara satu rentang dibaca: penghitung yang mencatat apa yang tiba, permintaan terbanyak yang dibuat `checked`, dan sinyal yang melepaskan pemintanya.",
+    "members": {
+      "meter": "Menghitung byte yang datang.",
+      "attempts": "Permintaan terbanyak yang dibuat `checked` untuk rentang itu.",
+      "signal": "Membiarkan peminta pergi: pembacaan berhenti ketika tidak ada lagi yang menunggunya."
+    }
   },
   "ReadRange": {
     "summary": "Pembacaan `length` byte dari `offset` berkas di `url` (`createRangedReads`)."

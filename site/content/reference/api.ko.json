@@ -7890,11 +7890,17 @@
       "keepOnly": "`key`가 가리키지 않는 한 장면의 프록시를 놓아주고 그 읽기를 취소합니다: 장면이 사라진 경우입니다.",
       "resize": "총량을 정하고, 더 이상 들어맞지 않는 것을 즉시 축출합니다.",
       "open": "`session`은 이제부터 캐시를 거쳐 읽으며, 떠날 때까지 총량에서 `reserving` 바이트를 예약합니다: 넘겨받은 자리가 새 예약(`reserve`)과 떠남(`leave`)을 매번 알립니다.",
-      "clear": "캐시를 비웁니다: 그 소유자가 떠났습니다."
+      "clear": "캐시를 비웁니다: 그 소유자가 떠났습니다.",
+      "readRange": "`url` 파일의 바이트 `[offset, offset + length)`를 HTTP Range로 가져옵니다. 이 캐시를 거쳐 읽는 모든 불러오기와 세션을 위한 것으로, 서버가 통째로 응답한 파일은 한 번 읽혀 여기에 보관됩니다(`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "한 범위를 읽는 방식: 도착하는 것을 세는 미터, `checked`가 보내는 요청의 최대 수, 그리고 요청자를 놓아주는 신호."
+    "summary": "한 범위를 읽는 방식: 도착하는 것을 세는 미터, `checked`가 보내는 요청의 최대 수, 그리고 요청자를 놓아주는 신호.",
+    "members": {
+      "meter": "도착하는 바이트를 셉니다.",
+      "attempts": "`checked`가 그 범위를 위해 보내는 최대 요청 수.",
+      "signal": "요청한 쪽을 놓아 줍니다: 기다리는 것이 없어지면 읽기는 멈춥니다."
+    }
   },
   "ReadRange": {
     "summary": "`url` 파일의 `offset`부터 `length` 바이트를 읽는 것(`createRangedReads`)."

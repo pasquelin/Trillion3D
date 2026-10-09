@@ -275,10 +275,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       proxy = undefined
     },
   }
-  /** Bytes `[offset, offset + length)` of the file at `url`, by an HTTP Range, for every load and
-   *  session that reads through this cache: a file its server answers whole is read once and kept
-   *  here (`createRangedReads`). */
-  return Object.assign(cache, { readRange: createRangedReads(cache) })
+  return Object.assign(cache, {
+    /** Bytes `[offset, offset + length)` of the file at `url`, by an HTTP Range, for every load and
+     *  session that reads through this cache: a file its server answers whole is read once and kept
+     *  here (`createRangedReads`). */
+    readRange: createRangedReads(cache),
+  })
 }
 
 /** The decoded-page cache a session reads through (`createPageCache`). */

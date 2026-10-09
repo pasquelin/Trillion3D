@@ -7890,11 +7890,17 @@
       "keepOnly": "Lascia andare il proxy della scena, con la lettura annullata, a meno che `key` non lo nomini: una scena scomparsa.",
       "resize": "Imposta il totale e sfratta subito ciò che non ci sta più.",
       "open": "`session` legge tramite la cache da ora, riservando `reserving` byte sul totale, finché se ne va: il posto che le viene dato comunica ogni nuova riserva (`reserve`) e la sua uscita (`leave`).",
-      "clear": "Svuota la cache: il suo proprietario non c’è più."
+      "clear": "Svuota la cache: il suo proprietario non c’è più.",
+      "readRange": "I byte `[offset, offset + length)` del file di `url`, tramite un Range HTTP, per ogni caricamento e ogni sessione che legge tramite questa cache: un file che il suo server restituisce intero viene letto una volta e tenuto qui (`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "Come viene letto un intervallo: il contatore di ciò che arriva, il massimo di richieste che `checked` fa, e il segnale che lascia andare chi lo chiede."
+    "summary": "Come viene letto un intervallo: il contatore di ciò che arriva, il massimo di richieste che `checked` fa, e il segnale che lascia andare chi lo chiede.",
+    "members": {
+      "meter": "Conta i byte che arrivano.",
+      "attempts": "Il massimo di richieste che `checked` fa per l’intervallo.",
+      "signal": "Lascia andare chi lo chiede: la lettura si ferma quando nessuno la attende più."
+    }
   },
   "ReadRange": {
     "summary": "Una lettura di `length` byte da `offset` del file in `url` (`createRangedReads`)."

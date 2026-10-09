@@ -7890,11 +7890,17 @@
       "keepOnly": "除非 `key` 指名它，否则放走场景的代理并取消其读取：场景已不在。",
       "resize": "设置总量，并立即驱逐已放不下的内容。",
       "open": "`session` 从现在起经由缓存读取，在离开前从总量中预留 `reserving` 字节：交给它的席位会告知每次新的预留（`reserve`）及其离开（`leave`）。",
-      "clear": "清空缓存：其所有者已离开。"
+      "clear": "清空缓存：其所有者已离开。",
+      "readRange": "`url` 处文件的字节 `[offset, offset + length)`，以 HTTP Range 读取，供每个通过该缓存读取的加载和会话使用：服务器整体返回的文件只读取一次并保存在这里（`createRangedReads`）。"
     }
   },
   "RangeAsk": {
-    "summary": "一个范围如何读取：统计到达内容的计量器、`checked` 最多发出的请求数，以及放走请求方的信号。"
+    "summary": "一个范围如何读取：统计到达内容的计量器、`checked` 最多发出的请求数，以及放走请求方的信号。",
+    "members": {
+      "meter": "统计到达的字节。",
+      "attempts": "`checked` 为该范围最多发出的请求数。",
+      "signal": "让发起者离开：不再有人等待时，读取即停止。"
+    }
   },
   "ReadRange": {
     "summary": "从 `url` 处文件的 `offset` 读取 `length` 字节（`createRangedReads`）。"

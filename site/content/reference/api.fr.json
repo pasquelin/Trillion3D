@@ -7890,11 +7890,17 @@
       "keepOnly": "Laisse partir le proxy de la scène, sa lecture annulée, sauf si `key` le nomme : une scène disparue.",
       "resize": "Fixe le total, et évince aussitôt ce qui ne tient plus.",
       "open": "`session` lit par le cache dès maintenant, réservant `reserving` octets sur le total, jusqu’à son départ : la place qui lui est remise dit chaque nouvelle réserve (`reserve`) et son départ (`leave`).",
-      "clear": "Vide le cache : son propriétaire est parti."
+      "clear": "Vide le cache : son propriétaire est parti.",
+      "readRange": "Les octets `[offset, offset + length)` du fichier de `url`, par une plage HTTP, pour chaque chargement et chaque session qui lit par ce cache : un fichier que son serveur renvoie entier est lu une fois et gardé ici (`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "Comment une plage est lue : le compteur de ce qui arrive, le plus de requêtes que fait `checked`, et le signal qui laisse partir celui qui la demande."
+    "summary": "Comment une plage est lue : le compteur de ce qui arrive, le plus de requêtes que fait `checked`, et le signal qui laisse partir celui qui la demande.",
+    "members": {
+      "meter": "Compte les octets qui arrivent.",
+      "attempts": "Le plus de requêtes que fait `checked` pour la plage.",
+      "signal": "Laisse partir celui qui la demande : la lecture s’arrête quand plus personne ne l’attend."
+    }
   },
   "ReadRange": {
     "summary": "Une lecture de `length` octets depuis `offset` du fichier de `url` (`createRangedReads`)."

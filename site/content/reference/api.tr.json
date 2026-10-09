@@ -7890,11 +7890,17 @@
       "keepOnly": "`key` onu adlandırmıyorsa sahnenin vekilini, okuması iptal edilmiş olarak bırakır: gitmiş bir sahne.",
       "resize": "Toplamı ayarlar ve artık sığmayanı hemen tahliye eder.",
       "open": "`session` bundan sonra, ayrılana dek toplamdan `reserving` bayt ayırarak önbellek üzerinden okur: ona verilen yer her yeni ayırmayı (`reserve`) ve ayrılışını (`leave`) bildirir.",
-      "clear": "Önbelleği boşaltır: sahibi gitmiştir."
+      "clear": "Önbelleği boşaltır: sahibi gitmiştir.",
+      "readRange": "`url`'deki dosyanın `[offset, offset + length)` baytları, bir HTTP Range ile, bu önbellek üzerinden okuyan her yükleme ve oturum için: sunucusunun bütün olarak yanıtladığı dosya bir kez okunur ve burada tutulur (`createRangedReads`)."
     }
   },
   "RangeAsk": {
-    "summary": "Bir aralığın nasıl okunduğu: geleni sayan sayaç, `checked`'in yaptığı en çok istek ve isteyeni bırakan sinyal."
+    "summary": "Bir aralığın nasıl okunduğu: geleni sayan sayaç, `checked`'in yaptığı en çok istek ve isteyeni bırakan sinyal.",
+    "members": {
+      "meter": "Gelen baytları sayar.",
+      "attempts": "`checked`'in aralık için yaptığı en çok istek.",
+      "signal": "İsteyeni bırakır: kimse beklemediğinde okuma durur."
+    }
   },
   "ReadRange": {
     "summary": "`url`'deki dosyanın `offset`'inden `length` baytlık bir okuma (`createRangedReads`)."
