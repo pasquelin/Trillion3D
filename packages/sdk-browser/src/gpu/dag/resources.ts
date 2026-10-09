@@ -14,6 +14,7 @@ import { createMaskSwap } from './swap.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import { ledgerTentative } from '../core/deviceLedger.ts'
+import type { CutSteps } from './cutSteps.ts'
 
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */
@@ -37,6 +38,8 @@ export async function createDagResources(
   // The session's budget asked for each buffer before it is made (`ActiveGpuMemory.cutTables`):
   // it throws, by its own name, when it cannot fund it.
   admit: CutAdmission = () => {},
+  // Each sub-step named as it begins, timed (`cutSteps.ts`).
+  steps?: CutSteps,
 ) {
   listCap ??= initialListCap(device.limits, packed.live?.pages ?? packed.pageCount, heldSlots)
   const buffers: GPUBuffer[] = []
@@ -50,11 +53,13 @@ export async function createDagResources(
     return buffer
   }
   try {
+    steps?.begin('tables')
     const { tables, ...made } = dagBuffers(device, packed, own, listCap, heldSlots)
     const { group, frames, split, work, dispatchArgs } = made
     // One validation scope after the other: the device's scopes are one stack, and two built
     // together would each pop the other's.
-    const compiled = await createDagPipeline(device, group, frames, split)
+    const compiled = await createDagPipeline(device, group, frames, split, steps)
+    steps?.begin('arm')
     const armed =
       compiled.value &&
       (await validatedOrWhy(device, () =>
@@ -67,6 +72,7 @@ export async function createDagResources(
       refused((pipeline ? armed?.refused : compiled.refused) ?? 'the device made no pipeline')
       return undefined
     }
+    steps?.begin('uploads')
     const resources = {
       device,
       packed,

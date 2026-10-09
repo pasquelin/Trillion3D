@@ -10,6 +10,7 @@
  * and its `maxParentError` bounds every `parentError` below it, so the selected set is identical
  * with or without the hierarchy.
  */
+import { cutSteps, type CutProgress, type CutSteps } from './cutSteps.ts'
 import type { GpuSelection } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
@@ -38,6 +39,10 @@ export async function createGpuDagSelection(
     share?: number
     /** The session's budget, asked before each buffer of its tables is made (`CutAdmission`). */
     admit?: CutAdmission
+    /** Told each sub-step of the making as it begins (`cutSteps.ts`). */
+    progress?: CutProgress
+    /** Told what each sub-step took once the making is over, made or refused. */
+    timed?: (steps: ReturnType<CutSteps['end']>) => void
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -47,6 +52,7 @@ export async function createGpuDagSelection(
     return undefined
   }
   let why = ''
+  const steps = cutSteps(options.progress)
   const resources = await createDagResources(
     device,
     packed,
@@ -58,7 +64,9 @@ export async function createGpuDagSelection(
       : cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, options.rows),
     options.share,
     options.admit,
+    steps,
   )
+  options.timed?.(steps.end())
   if (!resources) {
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined

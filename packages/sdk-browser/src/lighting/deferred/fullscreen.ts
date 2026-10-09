@@ -32,13 +32,16 @@ export async function buildComputeStages<E extends string>(
   module: GPUShaderModule,
   entryPoints: readonly E[],
   constants?: Record<string, number>,
+  /** Told of each pipeline as the device hands it back, with the ms since all were asked. */
+  handed?: (entryPoint: E, ms: number) => void,
 ) {
+  const asked = performance.now()
   const built = await Promise.all(
     entryPoints.map((entryPoint) =>
       buildComputePipeline(device, {
         layout,
         compute: { module, entryPoint, ...(constants && { constants }) },
-      }),
+      }).then((pipeline) => (handed?.(entryPoint, performance.now() - asked), pipeline)),
     ),
   )
   return Object.fromEntries(entryPoints.map((entry, at) => [entry, built[at]])) as Record<

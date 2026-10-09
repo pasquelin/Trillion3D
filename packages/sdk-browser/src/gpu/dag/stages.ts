@@ -1,6 +1,7 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import type { CutSteps } from './cutSteps.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
@@ -12,6 +13,7 @@ export async function createDagStages(
   layout: GPUBindGroupLayout,
   module: GPUShaderModule,
   split: boolean,
+  steps?: CutSteps,
 ) {
   const width = groupWidth(device.limits)
   const set = {
@@ -21,28 +23,38 @@ export async function createDagStages(
   const constants = Object.keys(set).length ? set : undefined
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
+  const entries = [
+    ...levels,
+    'dagRootLevel',
+    'dagPrepare',
+    'dagClearDrawn',
+    'dagWanted',
+    'dagMask',
+    'dagDrawPrefix',
+    'dagCommitMask',
+    'dagDrawScatter',
+    'dagSortRequests',
+    'dagListEvictions',
+    ...DIFFERENCE_STAGES,
+    ...KEEP_STAGES,
+    ...REKEEP_STAGES,
+    'dagRestoreJournal',
+  ] as const
+  // What each pipeline handed back tells, and those still asked: a compile that never answers is
+  // named by the opening that waits on it.
+  const waiting = new Set<string>(entries)
   const stage = await buildComputeStages(
     device,
     pipelineLayout,
     module,
-    [
-      ...levels,
-      'dagRootLevel',
-      'dagPrepare',
-      'dagClearDrawn',
-      'dagWanted',
-      'dagMask',
-      'dagDrawPrefix',
-      'dagCommitMask',
-      'dagDrawScatter',
-      'dagSortRequests',
-      'dagListEvictions',
-      ...DIFFERENCE_STAGES,
-      ...KEEP_STAGES,
-      ...REKEEP_STAGES,
-      'dagRestoreJournal',
-    ],
+    entries,
     constants,
+    (entry, ms) => {
+      waiting.delete(entry)
+      const rest = waiting.size ? `; waiting on ${[...waiting].join(' ')}` : ''
+      const done = entries.length - waiting.size
+      steps?.note(`${done}/${entries.length}, ${entry} after ${Math.round(ms)} ms${rest}`)
+    },
   )
   const levelPipelines = levels.map((level) => stage[level])
   return {

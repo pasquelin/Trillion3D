@@ -1,4 +1,5 @@
 import { dagSelectionShader } from './shader/splitWgsl.ts'
+import type { CutSteps } from './cutSteps.ts'
 import { dagPartCounts, type DagSplit } from './split.ts'
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts'
 import { withScreenErrorVariant } from './shader/error.ts'
@@ -17,6 +18,7 @@ export function createDagPipeline(
   buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
   frames: CameraFrames,
   split?: DagSplit,
+  steps?: CutSteps,
 ) {
   return validatedOrWhy(device, async () => {
     const layout = device.createBindGroupLayout({
@@ -25,13 +27,15 @@ export function createDagPipeline(
     // The screen-error variant is frozen at shader compile: it does not change from session
     // open to session close, and the default text is rendered character for character
     // (`withScreenErrorVariant`).
+    steps?.begin('shader module')
     const module = await checkShaderModule(
       device.createShaderModule({
         code: withScreenErrorVariant(dagSelectionShader(split), screenErrorVariant()),
       }),
       'camera cut selection',
     )
-    const stages = await createDagStages(device, layout, module, frames.ranges.length > 1)
+    steps?.begin('pipelines')
+    const stages = await createDagStages(device, layout, module, frames.ranges.length > 1, steps)
     const ranges = frames.bindGroups(layout, buffers)
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
