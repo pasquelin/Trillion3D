@@ -136,7 +136,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The minified bytes of a bundle of `multiplyMatrix4Batch` alone, through each entry: the engine
   // core, its node writes noted in their journal and its stage labels, the screen reflections and
-  // the image effects among them, the shadow casters' gone since no pass fed it; the package, with
+  // the image effects among them; the package, with
   // the machine-independent quaternion normalisation and arc trigonometry; its browser condition.
   // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
   // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
