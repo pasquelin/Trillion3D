@@ -17,7 +17,7 @@ function asked(source: PageSource, key: string, signal: AbortSignal, priority?: 
  * reads its page from the source, which joins the reads of a page in flight: the engine's source is
  * its page streamer, where a read joins the page's one job, raised to the most urgent read's
  * priority (`streaming/queueRequest.ts`), and is counted by the view it waits for; an HTTP source
- * is a page streamer too (`httpPageSource`).
+ * joins the loads of a key in its one read (`httpPageSource`).
  */
 export function createGpuPageReader(
   source: PageSource,

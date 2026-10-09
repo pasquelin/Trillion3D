@@ -43,3 +43,25 @@ test('a page a busy server refuses (503) waits its turn, its loads waiting on it
   assert.deepEqual([page.bytes, again, asked.length], [4, page, 2], 'asked once its wait ended')
   await cache.dispose()
 })
+
+test('loads of a key in flight join its one read; ended, the read is forgotten: nothing is kept', async (t) => {
+  const asked = answering(t, 'p0.bin', [200], () => new Uint8Array([1, 2, 3, 4]))
+  const source = httpPageSource(BASE)
+  const [first, joined] = await Promise.all([source.read('p0.bin'), source.read('p0.bin')])
+  assert.deepEqual([first, asked.length], [joined, 1], 'one request')
+  await source.read('p0.bin')
+  assert.equal(asked.length, 2, 'read again: the source keeps no page')
+  source.dispose()
+})
+
+test('a read every load left is stopped', async (t) => {
+  const asked = answering(t, 'p0.bin', ['hang'])
+  const source = httpPageSource(BASE)
+  const leave = new AbortController()
+  const load = source.read('p0.bin', leave.signal)
+  await eventually(() => asked.length === 1)
+  leave.abort()
+  await assert.rejects(load, { name: 'AbortError' })
+  assert.equal(asked[0].init.signal?.aborted, true, 'its request cancelled')
+  source.dispose()
+})

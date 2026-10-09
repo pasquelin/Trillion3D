@@ -1,6 +1,7 @@
 // A range of another file is a page of the queue, read by an HTTP Range and checked against its own
-// digest, kept by those who ask it alone. The ranges queued end to end in one file are one request,
-// each checked where it lies; once under way, a range is read to its end for whoever asks it again.
+// digest, and kept in the page cache as any page. The ranges queued end to end in one file are one
+// request, each checked where it lies; once under way, a range is read to its end for whoever asks
+// it again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from './eventually.fixture.ts'
@@ -31,7 +32,7 @@ async function served(t: TestContext, count: number, { gap = 0, wrong = -1, held
   })
   const pages: StreamPage[] = await Promise.all(
     parts.map(async (part, i) => ({
-      ...{ url: `part${i}`, bytes: 4, kept: false },
+      ...{ url: `part${i}`, bytes: 4 },
       sha256: i === wrong ? '0'.repeat(64) : await sha256Hex(part.slice().buffer),
       range: { file: 'world.bin', offset: i * (4 + gap) },
     })),
@@ -44,7 +45,7 @@ async function served(t: TestContext, count: number, { gap = 0, wrong = -1, held
   return { streamer, asked, release }
 }
 
-test('ranges end to end asked within a task are one request, each checked, kept by their askers', async (t) => {
+test('ranges end to end asked within a task are one request, each checked and cached', async (t) => {
   const { streamer, asked } = await served(t, 3)
   const read = await Promise.all(
     [0, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal)),
@@ -58,7 +59,7 @@ test('ranges end to end asked within a task are one request, each checked, kept 
       [9, 10, 11, 12],
     ],
   )
-  assert.deepEqual([streamer.has('part0'), streamer.stats().loaded], [false, 3], 'not cached')
+  assert.deepEqual([streamer.has('part0'), streamer.stats().loaded], [true, 3], 'cached')
 })
 
 test('ranges queued behind a transfer are merged with their neighbours as it frees', async (t) => {

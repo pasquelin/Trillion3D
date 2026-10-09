@@ -1,7 +1,7 @@
 /**
  * WHEN A READ THAT FAILED IS ASKED AGAIN — the one failure policy of every read by key: the page
- * streamer's pages, those of an HTTP page source among them (`gpu/page/pages.ts`), and the baked
- * texture levels (`texture/heldLevels.ts`). A read its owner's `retriable` says may pass — the
+ * streamer's pages, an HTTP page source's (`gpu/page/pages.ts`), and the baked texture levels
+ * (`texture/heldLevels.ts`). A read its owner's `retriable` says may pass — the
  * network, a timeout, a rate limit, a server error (`retriableError`) — waits 0.5 s · 2^(k−1) after
  * its k-th failure in a row, at most 8 s — or the longer wait its server asked (`Retry-After`,
  * capped: `retryAfterOf`) —; one another request would meet again — a 404, a 403, a level file
