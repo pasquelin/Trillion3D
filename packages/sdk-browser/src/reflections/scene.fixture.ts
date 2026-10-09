@@ -10,6 +10,7 @@ import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
 type Lobe = { R: V3; T: V3; bands: number[]; widths: number[] }
+type Cone = { short: number; long: number; level: number }
 type ReflectionView = {
   viewProj: Mat
   inverseViewProj: Mat
@@ -63,14 +64,15 @@ export function reflectionRunner(
       o: number[],
       d: number[],
       end: number,
-    ) => { t: number; plane: number[]; pixel: number[]; iterations: number }
+    ) => { t: number; plane: number[]; pixel: number[] }
     reflectionScreenEnd: (o: number[], d: number[], size: number[]) => number
+    reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
     reflectionFootprint: (
       Q: number[],
       hit: V3,
-      P: V3,
       pixel: number,
       lobe: Lobe,
+      cone: Cone,
       toView: number[],
       surface: { pixel: number[]; plane: number[]; thickness: number },
     ) => { color: number[]; weight: number }
@@ -80,10 +82,12 @@ export function reflectionRunner(
       'reflectionLobeOf',
       'reflectionBands',
       'reflectionSeen',
+      'reflectionConeAt',
+      'reflectionReach',
       'reflectionFootprint',
       'reflectionRadianceAt',
       'reflectionLevelRead',
-      'reflectionTap',
+      'reflectionLevelColor',
       'reflectionDepthWeight',
       'reflectionMarch',
       'hizPlane',
@@ -94,11 +98,9 @@ export function reflectionRunner(
       'hizTexel',
       'reflectionScreenEnd',
       'reflectionSlab',
-      'reflectionLengthFade',
       'reflectionToEye',
-      'reflectionThickness',
       'reflectionWorldAt',
-      'reflectionThicknessFade',
+      'reflectionLevelTrust',
       'reflectionEdgeFade',
       'reflectionConeTangent',
     ].filter((name) => !(name in overrides)),
@@ -116,12 +118,8 @@ export function reflectionRunner(
         bands,
         widths,
       }),
-      ReflectionHit: (t: number, plane: number[], pixel: number[], iterations: number) => ({
-        t,
-        plane,
-        pixel,
-        iterations,
-      }),
+      ReflectionHit: (t: number, plane: number[], pixel: number[]) => ({ t, plane, pixel }),
+      ReflectionCone: (short: number, long: number, level: number) => ({ short, long, level }),
       ReflectionTaps: (color: number[], weight: number) => ({ color, weight }),
       ReflectionSurface: (pixel: number[], plane: number[], thickness: number) => ({
         pixel,

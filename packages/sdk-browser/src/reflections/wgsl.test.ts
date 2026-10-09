@@ -1,7 +1,6 @@
 // The reflection's cone and fades, and its view, shipped WGSL and TypeScript run as JavaScript
 // (`shaderRun`): the cone's half-angle at the GGX lobe's half maximum, the fades that blend the
-// screen into the environment — the image's edge, the thickness, the march's length, the roughness
-// —, and the view uniform each image writes, in which nothing turns with the frame.
+// screen into the environment — the image's edge, the footprint's pyramid level —, and the view uniform each image writes, in which nothing turns with the frame.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -9,9 +8,6 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import {
   REFLECTION_CONE_WGSL,
   REFLECTION_EDGE,
-  REFLECTION_FADE_ROUGHNESS,
-  REFLECTION_ITERATIONS,
-  REFLECTION_TRACE_ROUGHNESS,
   REFLECTION_VIEW_WRITTEN_BYTES,
   reflectedRadianceWgsl,
 } from './wgsl.ts'
@@ -20,19 +16,11 @@ import { writeReflectionView, type ScreenReflection } from './gpu.ts'
 type Cone = {
   reflectionConeTangent: (alpha: number) => number
   reflectionEdgeFade: (pixel: number[], size: number[]) => number
-  reflectionThicknessFade: (gap: number, thickness: number) => number
-  reflectionLengthFade: (iterations: number) => number
-  reflectionTraceWeight: (rough: number) => number
+  reflectionLevelTrust: (level: number, top: number) => number
 }
 const cone = shaderRun<Cone>(
   wgslModule(REFLECTION_CONE_WGSL),
-  [
-    'reflectionConeTangent',
-    'reflectionEdgeFade',
-    'reflectionThicknessFade',
-    'reflectionLengthFade',
-    'reflectionTraceWeight',
-  ],
+  ['reflectionConeTangent', 'reflectionEdgeFade', 'reflectionLevelTrust'],
   {},
 )
 
@@ -75,36 +63,19 @@ test('a hit fades into the environment at the image edge, smoothly and only ther
   assert.equal(cone.reflectionEdgeFade([3, 100], size), cone.reflectionEdgeFade([317, 100], size))
 })
 
-test('a hit away from its surface fades out over the thickness, smoothly', () => {
-  const thickness = 2
-  assert.equal(cone.reflectionThicknessFade(0, thickness), 1)
-  assert.equal(cone.reflectionThicknessFade(0.5 * thickness, thickness), 0.25)
-  assert.equal(cone.reflectionThicknessFade(thickness, thickness), 0)
-  assert.equal(cone.reflectionThicknessFade(10 * thickness, thickness), 0)
+test('the screen gives way to the environment over the last level below the pyramid top, smoothly', () => {
+  const top = 8
+  assert.equal(cone.reflectionLevelTrust(0, top), 1)
+  assert.equal(cone.reflectionLevelTrust(top - 1, top), 1)
+  assert.equal(cone.reflectionLevelTrust(top, top), 0)
+  assert.equal(cone.reflectionLevelTrust(top + 3, top), 0)
+  assert.ok(Math.abs(cone.reflectionLevelTrust(top - 0.5, top) - 0.5) < 1e-6)
   let last = 1
-  for (let gap = 0; gap <= thickness; gap += thickness / 64) {
-    const fade = cone.reflectionThicknessFade(gap, thickness)
-    assert.ok(fade <= last && last - fade < 0.05, 'no step')
-    last = fade
+  for (let level = top - 1; level <= top; level += 1 / 64) {
+    const trust = cone.reflectionLevelTrust(level, top)
+    assert.ok(trust <= last && last - trust < 0.05, 'no step')
+    last = trust
   }
-})
-
-test('a march fades over its last quarter of iterations, none at their bound', () => {
-  assert.equal(cone.reflectionLengthFade(0), 1)
-  assert.equal(cone.reflectionLengthFade(0.75 * REFLECTION_ITERATIONS), 1)
-  assert.equal(cone.reflectionLengthFade(REFLECTION_ITERATIONS), 0)
-  assert.ok(Math.abs(cone.reflectionLengthFade(0.875 * REFLECTION_ITERATIONS) - 0.5) < 1e-9)
-})
-
-test('the screen gives way to the environment over the trace roughness range', () => {
-  assert.equal(cone.reflectionTraceWeight(0), 1)
-  assert.equal(cone.reflectionTraceWeight(REFLECTION_FADE_ROUGHNESS), 1)
-  assert.equal(cone.reflectionTraceWeight(REFLECTION_TRACE_ROUGHNESS), 0)
-  assert.equal(cone.reflectionTraceWeight(1), 0)
-  const mid = cone.reflectionTraceWeight(
-    (REFLECTION_FADE_ROUGHNESS + REFLECTION_TRACE_ROUGHNESS) / 2,
-  )
-  assert.ok(Math.abs(mid - 0.5) < 1e-6)
 })
 
 test('the view uniform carries the pixel scale, the held image, the display and whether the screen traces', () => {

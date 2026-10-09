@@ -29,7 +29,7 @@ test('a point of light read through the chain at a coarse level is round, never 
     ) => void
   }>(
     wgslModule(reflectedRadianceWgsl(1)),
-    ['reflectionRadianceAt', 'reflectionLevelRead', 'reflectionTap'],
+    ['reflectionRadianceAt', 'reflectionLevelRead', 'reflectionLevelColor'],
     {
       reflectionRadiance: radiance,
       reflectionSampler: {},

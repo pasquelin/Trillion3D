@@ -111,19 +111,13 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
   /** The footprint's taps from `P`, two metres or more from the hit, of `alpha` and `lobe`. */
   const taps = (P: V3, alpha: number, lobe: number[]) => {
     read.length = 0
-    const sum = run.reflectionFootprint(
-      Q,
-      hit,
-      P,
-      pixel,
-      run.reflectionLobeOf(R, alpha, lobe),
-      [0, 0, 320, 180],
-      {
-        pixel: [0, 0],
-        plane: [0, 0, 0],
-        thickness: 1,
-      },
-    )
+    const ellipse = run.reflectionLobeOf(R, alpha, lobe)
+    const cone = run.reflectionConeAt(Math.hypot(...hit.map((v, k) => v - P[k])), pixel, ellipse)
+    const sum = run.reflectionFootprint(Q, hit, pixel, ellipse, cone, [0, 0, 320, 180], {
+      pixel: [0, 0],
+      plane: [0, 0, 0],
+      thickness: 1,
+    })
     return { mean: sum.color.map((v) => v / sum.weight), taps: [...read] }
   }
   const axis = (distance: number, alpha: number) =>
