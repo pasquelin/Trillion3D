@@ -82,7 +82,7 @@ type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes'> & {
  *  the session's queue, closed with the test. */
 export async function opened(t: TestContext, manifest: ClusterManifest, opening: Opening = {}) {
   const { transfers, whole, onStalled, maxTransferBytes } = opening
-  const options = { workerCount: transfers, onStalled, maxTransferBytes }
+  const options = { cache: createPageCache(), workerCount: transfers, onStalled, maxTransferBytes }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
   const roots = (await openWorldRoots(manifest, 'http://world/', queue, { whole }))!

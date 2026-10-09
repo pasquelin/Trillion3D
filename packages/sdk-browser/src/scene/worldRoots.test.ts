@@ -79,14 +79,13 @@ test('the top read at open and a bundle a cell holds are refused alike, naming t
 })
 
 test("a server that ignores the Range is read whole once through the page cache: by a world's load and its sessions alike", async (t) => {
-  const { manifest, ranges, bin, bytes } = served(t, { ignoresRange: true })
+  const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const cache = createPageCache()
   // A world's model loads before any session, through a queue of its own over its page cache.
   const roots = (await modelOpened(manifest, { whole: true }, cache))!
-  // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole, one entry beside
-  // the table's.
-  const kept = bin.byteLength + bytes.byteLength
-  assert.equal(cache.bytes, kept, 'counted once')
+  // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole, one entry: the
+  // table, read for its decode, is never one.
+  assert.equal(cache.bytes, bin.byteLength, 'counted once')
   for (const cell of [1, 2]) {
     const session = createPageStreamer([], 'http://world/', { cache })
     roots.bind(session)
@@ -94,7 +93,7 @@ test("a server that ignores the Range is read whole once through the page cache:
     session.dispose() // the device is lost: the next session reads on
   }
   assert.deepEqual(heldBy(roots), [1, 2, 3])
-  assert.equal(cache.bytes, kept, 'kept whole, counted once, till the budget evicts it')
+  assert.equal(cache.bytes, bin.byteLength, 'kept whole, counted once, till the budget evicts it')
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
   const bundles = heldBy(roots).reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
   assert.equal(roots.bytes(), roots.pinned.bytes + bundles, 'never counted twice')
@@ -103,9 +102,15 @@ test("a server that ignores the Range is read whole once through the page cache:
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
   const { clusters, groups } = worldRootsDag()
   const { manifest, ranges, whole } = served(t, { dag: { clusters, groups } })
-  const { roots } = await opened(t, manifest)
+  const { roots, queue } = await opened(t, manifest)
   // A partitioned world — three cells — reads its DAG at load: the cut packs it.
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
+  const files = ['table', 'dag'].map((file) => `http://world/world-roots.${file}`)
+  assert.deepEqual(
+    files.flatMap((url) => [queue.catalogued(url), queue.has(url)]),
+    [false, false, false, false],
+    'decoded, neither is kept in the page cache nor stays catalogued',
+  )
   const stream = await roots.stream()
   assert.equal(stream, roots.drawn, 'the stream the cut draws from')
   assert.equal(stream, await roots.stream(), 'opened once')

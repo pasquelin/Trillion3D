@@ -17,8 +17,8 @@
  * partitioned is one cell, held from its load for its whole life. Every read of the roots — their
  * table and DAG whole, their bundles as pages — goes through one page queue: the session's its
  * load reads for, or — a world's model, before any session — one of its own over the world's page
- * cache; the table and the DAG stay there, so a session reopened reads them from it. The session
- * counts every byte held here in its CPU budget (`bytes`).
+ * cache; the table and the DAG are read for their decode alone, never kept there (`readWhole`).
+ * The session counts every byte held here in its CPU budget (`bytes`).
  */
 import type { WorldPageServer } from './worldPageServe.ts'
 import {

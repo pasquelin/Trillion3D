@@ -34,8 +34,7 @@ test('a session closed before it binds is refused: a hold waits for the next one
 })
 
 /** A world served by a server that ignores the Range, its binary answered whole once `release`
- *  runs: its manifest, the binary's and the table's lengths, and the requests of the binary
- *  sent. */
+ *  runs: its manifest, the binary's length, and the requests of the binary sent. */
 function wholeOnRelease(t: TestContext) {
   const world = worldRootsFixture(sha)
   let release = () => {}
@@ -55,11 +54,11 @@ function wholeOnRelease(t: TestContext) {
   })
   const table = { bytes: world.bytes.byteLength, sha256: sha(world.bytes) }
   const manifest = { files: { 'world-roots.table': table } } as unknown as ClusterManifest
-  return { manifest, asked, release, bytes: world.bin.byteLength, tableBytes: table.bytes }
+  return { manifest, asked, release, bytes: world.bin.byteLength }
 }
 
-test('a load let go while the whole binary downloads stops it: the page cache keeps no binary', async (t) => {
-  const { manifest, asked, release, tableBytes } = wholeOnRelease(t)
+test('a load let go while the whole binary downloads stops it: the page cache keeps nothing', async (t) => {
+  const { manifest, asked, release } = wholeOnRelease(t)
   const cache = createPageCache(),
     load = new AbortController()
   const loading = modelOpened(manifest, { signal: load.signal, whole: true }, cache)
@@ -68,7 +67,7 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   await assert.rejects(loading, { name: 'AbortError' })
   release()
   await turns()
-  assert.equal(cache.bytes, tableBytes, 'the table alone kept')
+  assert.equal(cache.bytes, 0, 'neither the binary nor the table kept')
 })
 
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {

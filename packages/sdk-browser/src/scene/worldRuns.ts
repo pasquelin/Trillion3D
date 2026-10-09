@@ -25,12 +25,17 @@ export function bundlePages(table: WorldRoots, url: string, first = 0) {
   return pages
 }
 
-/** The file `page` names, read whole through `queue` on `signal` — a page of its catalogue from
- *  now on, kept in the page cache the queue reads through, verified against its fingerprint: a
- *  world's table or DAG, which a session reopened reads from there. */
-export function readWhole(queue: PageQueue, page: StreamPage, signal: AbortSignal) {
-  queue.admit([page])
-  return queue.readBytes(page.url, signal, PRIORITY_VISIBLE)
+/** The file `page` names, read whole through `queue` on `signal`, verified against its
+ *  fingerprint: a world's table or DAG, which its reader decodes and holds. Its bytes are that
+ *  reader's alone (`StreamPage.kept`), never an entry of the page cache, whose budget holds pages
+ *  and levels: the page is catalogued for its read only, and leaves once the read settles. */
+export async function readWhole(queue: PageQueue, page: StreamPage, signal: AbortSignal) {
+  queue.admit([{ ...page, kept: false }])
+  try {
+    return await queue.readBytes(page.url, signal, PRIORITY_VISIBLE)
+  } finally {
+    queue.forget([page.url])
+  }
 }
 
 /** Bundle `bundle` of `table`'s binary at `url` read through `queue` on `signal` at `priority`:
