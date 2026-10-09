@@ -18,7 +18,7 @@ import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { cutHeldSlots } from './listCap.ts'
-import type { CutAdmission } from './resources.ts'
+import type { CutAdmission } from './cutBuffers.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
 

@@ -11,7 +11,7 @@ import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { frameSizeOf, type FrameSize } from '../state/renderScale.ts'
 import { viewGpu, type WebgpuView } from '../state/view.ts'
-import { cutLedgerBytes } from '../../../gpu/dag/resources.ts'
+import { cutLedgerBytes } from '../../../gpu/dag/cutBuffers.ts'
 
 /** Admit proposed targets before makeTargets creates any resource. Pool floors use
  * the same constructors as normal residency, so root coverage and texture tails

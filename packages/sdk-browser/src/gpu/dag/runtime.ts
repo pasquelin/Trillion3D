@@ -22,7 +22,7 @@ import {
   type DagResources,
   type DagRun,
 } from './runtimeOps.ts'
-import { cutBytes } from './resources.ts'
+import { cutBytes } from './cutBuffers.ts'
 
 export function createDagRuntime(
   resources: DagResources,
