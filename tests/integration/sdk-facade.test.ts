@@ -133,12 +133,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The minified bytes of a bundle of `multiplyMatrix4Batch` alone, through each entry: the engine
-  // core, its node writes noted in their journal; the package, with the machine-independent quaternion normalisation and arc trigonometry;
+  // core, its node writes noted in their journal and its stage labels, the screen reflections and
+  // the image effects among them; the package, with the machine-independent quaternion normalisation and arc trigonometry;
   // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
   // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
   // entry's camera projections read `length2` from the vector module, whose lazy init it starts;
   // its transform tree grows by the one growth rule (`resized`).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_177)
+  assert.equal(baseline.outputFiles[0].contents.length, 3_242)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_183)
   assert.ok(
