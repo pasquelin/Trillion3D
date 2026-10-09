@@ -12,6 +12,7 @@ import {
   unloadPage,
 } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
+import { quarterBytesOf } from './places.ts'
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
@@ -131,6 +132,9 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     pins: new Set<string>(),
     held: new Set<string>(),
     free: Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
+    quarterBytes: quarterBytesOf(pageBytes),
+    quarters: new Set<number>(),
+    split: new Map<number, Set<string>>(),
     abort: new AbortController(),
     fetches,
     state,

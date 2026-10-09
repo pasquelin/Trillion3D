@@ -1,6 +1,7 @@
 import { evictResident } from './commit.ts'
 import { heldHomes } from './homes.ts'
 import { resizeGpuPages } from './resize.ts'
+import { releasePlace } from './places.ts'
 import type { GpuPageContext } from './types.ts'
 
 /** Changes the pool size behind the loads in flight (`createGpuPageCache`, `resize`). */
@@ -48,7 +49,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     return false
   }
   evictResident(context, page, 'explicit-unload')
-  context.free.push(page.slot)
+  releasePlace(context, page)
   return true
 }
 

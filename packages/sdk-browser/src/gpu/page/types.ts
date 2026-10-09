@@ -26,6 +26,12 @@ export type GpuPageContext = {
   pins: Set<string>
   held: Set<string>
   free: number[]
+  /** The bytes of a quarter of a slot, 0 when the slots do not split (`places.ts`). */
+  quarterBytes: number
+  /** The free quarters of the split slots, each `slot · SLOT_SPLIT + quarter`. */
+  quarters: Set<number>
+  /** Each split slot, by the keys of the pages its quarters hold. */
+  split: Map<number, Set<string>>
   abort: AbortController
   fetches: Map<string, Promise<Uint8Array>>
   state: {
