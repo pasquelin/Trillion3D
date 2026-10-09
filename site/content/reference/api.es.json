@@ -2459,8 +2459,8 @@
     "summary": "Tono, saturación y luminosidad a tres componentes RGB escritas en `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`, a través de un lector de páginas propio sobre una caché de páginas propia (`streaming/pageStreamer.ts`): cada lectura de una clave se une a su única tarea, así que dos cargas en curso de una misma página envían una sola petición, y una página cuya lectura falló espera su turno según la única política de fallos, con sus cargas esperándola — o se rechaza para siempre cuando otra petición volvería a encontrar su fallo (`streaming/failures.ts`).",
-    "description": "No anuncia nada de una página: sus bytes se toman tal como el servidor los envía, y solo las cargas los guardan. Una clave se cataloga en su primera lectura. `dispose` cancela sus lecturas y vacía su caché."
+    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`: cada lectura de una clave es una lectura a la que se unen todas sus cargas mientras dura, así que dos cargas en curso de una misma página envían una sola petición, y la lectura se detiene cuando ninguna carga la espera.",
+    "description": "Una lectura que falla espera su turno según la única política de fallos, con sus cargas esperándola, y luego pregunta de nuevo — o se rechaza para siempre cuando otra petición volvería a encontrar su fallo, rechazada al instante cada carga posterior de su clave (`streaming/failures.ts`). No anuncia nada de una página: sus bytes se toman tal como el servidor los envía, y solo las cargas los guardan; una lectura se olvida al terminar, el fallo de su clave cuando la política lo olvida. Sus peticiones se envían según se piden: no tiene cola, y `priority` no ordena nada. `dispose` detiene sus lecturas."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identidad columna por columna, leída y nunca escrita: la pose de un nodo o de una raíz sin pose."
@@ -5607,7 +5607,7 @@
     "members": {
       "url": "Dónde se lee, o su nombre en el catálogo cuando es un `range` de otro archivo.",
       "bytes": "Su tamaño.",
-      "sha256": "Huella de sus bytes, que su lectura comprueba junto con su tamaño; ninguna para una página de la que su fuente no anuncia nada (`httpPageSource`): sus bytes se toman tal como su servidor los envía.",
+      "sha256": "Huella de sus bytes, que su lectura comprueba junto con su tamaño.",
       "range": "Una página que son los `bytes` del archivo `file` desde `offset`, leída con un HTTP Range: la cola lee con una sola petición los rangos encolados de extremo a extremo en un mismo archivo (`queueRanges.ts`).",
       "kept": "Falso para una página en la que cada quien que la pide conserva lo que decodifica: se lee para quienes se unen a su lectura, nunca se guarda en la caché de páginas y sus bytes se tienen una sola vez."
     }
@@ -5966,12 +5966,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Dónde se guardan los niveles leídos: la caché de páginas, entre sus entradas (`PageCache.level`).",
+    "summary": "Dónde se guardan los niveles leídos: la caché de páginas, entre sus entradas (`PageCache.level`), cada uno retenido allí por quien lo pide mientras no deba salir (`acquire`, `release`, luego `fit`).",
     "members": {
       "level": "El nivel de textura o registro de tesela guardado bajo `id`, marcado como usado el último.",
       "keepLevel": "Guarda `level` bajo `id`, y la caché lo posee desde aquí: lo cierra cuando sale. Un nivel ya guardado — leído entretanto por la sesión que una pérdida de dispositivo reemplazó — se queda, marcado como usado el último, y la copia se cierra: sus bytes se cuentan una vez.",
       "roomBytes": "Bytes que puede tomar una entrada que llega: el presupuesto, menos lo que ningún desalojo puede tomar.",
-      "levelBytes": "Bytes que ocupan los niveles de textura y los registros de teselas."
+      "levelBytes": "Bytes que ocupan los niveles de textura y los registros de teselas.",
+      "acquire": "Uno más retiene la entrada de `url`, también antes de que llegue.",
+      "release": "Termina una retención de la entrada de `url`; quien llama pesa la caché cuando termina (`fit`).",
+      "fit": "Desaloja lo que ya no cabe (`fit`): tras llegar una página o terminar una retención."
     }
   },
   "textureLevelUrl": {
@@ -7838,7 +7841,12 @@
   },
   "CacheSession": {
     "summary": "Una sesión que lee a través de la caché: el máximo de páginas que deja tener a la caché, y quién se entera de una página desalojada, o de un desalojo que no encontró nada que tomar.",
-    "description": "Lo que reserva del total se lo dice al puesto que abre (`open`) cada vez que cambia."
+    "description": "Lo que reserva del total se lo dice al puesto que abre (`open`) cada vez que cambia.",
+    "members": {
+      "maxPages": "El máximo de páginas que la sesión deja tener a la caché; sin tope por defecto.",
+      "evicted": "Se llama con la url de una página cuando la caché la desaloja.",
+      "blocked": "Se llama cuando un desalojo por encima del presupuesto no encontró nada que tomar."
+    }
   },
   "ModelScene": {
     "summary": "La escena de un modelo tal como la muestra su registro: el grafo que construyó su cargador, sin las raíces del mundo que abrió, que el modelo guarda para sí para las sesiones de su mundo.",
@@ -7868,7 +7876,7 @@
       "release": "Termina una retención de la entrada de `url`; quien llama pesa la caché cuando termina (`fit`).",
       "fit": "Desaloja lo que ya no cabe (`fit`): tras llegar una página o terminar una retención.",
       "file": "El archivo de `url` que un servidor respondió entero, marcado como usado el último, mientras la caché lo guarde.",
-      "keepFile": "Guarda el archivo de `url` que un servidor respondió entero como la entrada usada más recientemente.",
+      "keepFile": "Guarda el archivo de `url` que un servidor respondió entero como la entrada usada más recientemente, cuando cabe en lo que el desalojo puede liberar (`roomBytes`): uno que lo supera tomaría todas las entradas, luego a sí mismo, y se deja ir.",
       "level": "El nivel de textura o el registro de tesela retenido bajo `id`, marcado como usado el último.",
       "keepLevel": "Retiene `level` bajo `id`, siendo la caché su dueña desde aquí: lo cierra cuando se va. Un nivel ya retenido — leído entretanto por la sesión que reemplazó una pérdida del dispositivo — se queda, marcado como usado el último, y la copia se cierra: sus bytes se cuentan una vez.",
       "keep": "La lectura del archivo que nombra `key`, de `bytes` bytes — el proxy residente de la escena —, guardada entera en lugar de cualquier otra: `start` la inicia sobre la cancelación propia de la caché cuando no está guardada, y una sesión reabierta entretanto se une a la que está en vuelo. Sus bytes cuentan desde que se pide; retenida mientras está en vuelo, solo se va una vez llegada, y entonces solo cuando ninguna página, archivo o nivel puede irse (`SCENE_TIER`). Se queda de una sesión a otra hasta que `keepOnly` ya no la nombre. Una lectura que falla se va enseguida.",
@@ -7886,6 +7894,6 @@
   },
   "createPageCache": {
     "summary": "LA ÚNICA CACHÉ DEL ANFITRIÓN: los bytes de cada página y paquete leídos, de cada archivo que un servidor respondió entero en lugar de un rango (`readRange`), de cada nivel de textura decodificado y registro de tesela en bloques (`level`), y del proxy residente de la escena (`keep`), como un solo conjunto de entradas, UN presupuesto y UN desalojo (`cacheEntries.ts`), frente al total de CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
+    "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último; por encima del mínimo de páginas que permite una sesión, solo las páginas. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
   }
 }

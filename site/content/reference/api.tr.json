@@ -3814,7 +3814,7 @@
     "members": {
       "url": "Nereden okunduğu; başka bir dosyanın `range`'i ise katalogdaki adı.",
       "bytes": "Boyutu.",
-      "sha256": "Baytlarının parmak izi; okuması bunu boyutuyla birlikte denetler. Kaynağının hakkında hiçbir şey bildirmediği bir sayfa için yoktur (`httpPageSource`): baytları sunucusunun gönderdiği gibi alınır.",
+      "sha256": "Baytlarının parmak izi; okuması bunu boyutuyla birlikte denetler.",
       "range": "`file` dosyasının `offset` konumundan başlayan `bytes` olan bir sayfa, HTTP Range ile okunur: kuyruk, aynı dosyada uç uca kuyruğa girmiş aralıkları tek istekle okur (`queueRanges.ts`).",
       "kept": "Onu isteyen herkesin çözdüğünü kendisinin tuttuğu bir sayfa için false: okumasına katılanlar için okunur, sayfa önbelleğinde hiç tutulmaz, baytları bir kez tutulur."
     }
@@ -4131,12 +4131,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Okunan seviyelerin tutulduğu yer: sayfa önbelleği, girdileri arasında (`PageCache.level`).",
+    "summary": "Okunan seviyelerin tutulduğu yer: sayfa önbelleği, girdileri arasında (`PageCache.level`), her biri onu isteyen tarafından gitmemesi gerektiği sürece orada tutulur (`acquire`, `release`, sonra `fit`).",
     "members": {
       "level": "`id` altında tutulan doku seviyesi ya da karo kaydı, en son kullanılmış olarak işaretlenir.",
       "keepLevel": "`level`'ı `id` altında tutar, bundan sonra sahibi önbellektir: ayrılırken onu kapatır. Zaten tutulan bir seviye — bu arada bir aygıt kaybının yerini aldığı oturum tarafından okunmuş — kalır, en son kullanılmış olarak işaretlenir ve kopya kapanır: baytları bir kez sayılır.",
       "roomBytes": "Gelen bir girdinin alabileceği baytlar: bütçe, hiçbir tahliyenin alamayacağı kısım düşülerek.",
-      "levelBytes": "Doku seviyelerinin ve karo kayıtlarının tuttuğu baytlar."
+      "levelBytes": "Doku seviyelerinin ve karo kayıtlarının tuttuğu baytlar.",
+      "acquire": "`url`'deki girdiyi bir kişi daha tutar, girdi gelmeden önce de.",
+      "release": "`url`'deki girdi üzerindeki bir tutma biter; çağıran işi bitince önbelleği tartar (`fit`).",
+      "fit": "Artık sığmayanı tahliye eder (`fit`): bir sayfa geldikten ya da bir tutma bittikten sonra."
     }
   },
   "TexturePool": {
@@ -6201,8 +6204,8 @@
     "summary": "Ton, doygunluk ve parlaklığı `out[o..o+2]`'ye yazılan üç RGB bileşene dönüştürür."
   },
   "httpPageSource": {
-    "summary": "Sayfaları HTTP üzerinden, anahtara göre, `baseUrl`'den kendi sayfa önbelleği üzerinde kendi sayfa akışı (`streaming/pageStreamer.ts`) aracılığıyla getiren bir sayfa kaynağı: bir anahtarın her okuması onun tek işine katılır, böylece aynı sayfanın devam eden iki yüklemesi tek bir istek gönderir; okuması başarısız olan bir sayfa tek hata politikasına göre sırasını bekler, yüklemeleri de onu bekler — ya da başka bir istek aynı hatayla yeniden karşılaşacaksa kalıcı olarak reddedilir (`streaming/failures.ts`).",
-    "description": "Bir sayfa hakkında hiçbir şey bildirmez: baytları sunucunun gönderdiği gibi alınır ve yalnızca yüklemeler tarafından tutulur. Bir anahtar ilk okumasında kataloglanır. `dispose` okumalarını iptal eder ve önbelleğini boşaltır."
+    "summary": "Sayfaları HTTP üzerinden, anahtara göre, `baseUrl`'den getiren bir sayfa kaynağı: bir anahtarın her okuması, sürdüğü sürece onun bütün yüklemelerinin katıldığı tek bir okumadır; böylece aynı sayfanın devam eden iki yüklemesi tek bir istek gönderir ve hiçbir yükleme beklemediğinde okuma durur.",
+    "description": "Başarısız olan bir okuma tek hata politikasına göre sırasını bekler, yüklemeleri de onu bekler, sonra yeniden ister — ya da başka bir istek aynı hatayla yeniden karşılaşacaksa kalıcı olarak reddedilir ve anahtarının sonraki her yüklemesi hemen reddedilir (`streaming/failures.ts`). Bir sayfa hakkında hiçbir şey bildirmez: baytları sunucunun gönderdiği gibi alınır ve yalnızca yüklemeler tarafından tutulur; bir okuma bittiğinde unutulur, anahtarının hatası ise politika onu unuttuğunda. İstekleri istendikleri gibi gönderilir: kuyruğu yoktur ve `priority` hiçbir şeyi sıralamaz. `dispose` okumalarını durdurur."
   },
   "impostorBakedByMesh": {
     "summary": "Bölümün pişirilmiş mesh'leri, derlenmiş mesh numarasıyla anahtarlanır; reddedilen girdiler dışarıda bırakılır."
@@ -7838,7 +7841,12 @@
   },
   "CacheSession": {
     "summary": "Önbellek üzerinden okuyan bir oturum: önbelleğin tutmasına izin verdiği en çok sayfa ve tahliye edilen bir sayfayı ya da alacak hiçbir şey bulamayan bir tahliyeyi kimin duyduğu.",
-    "description": "Toplamdan ayırdığını, her değiştiğinde açtığı yere (`open`) bildirir."
+    "description": "Toplamdan ayırdığını, her değiştiğinde açtığı yere (`open`) bildirir.",
+    "members": {
+      "maxPages": "Oturumun önbelleğin tutmasına izin verdiği en çok sayfa; varsayılan olarak sınır yok.",
+      "evicted": "Önbellek bir sayfayı tahliye ederken sayfanın url'siyle çağrılır.",
+      "blocked": "Bütçeyi aşan bir tahliye alacak hiçbir şey bulamadığında çağrılır."
+    }
   },
   "ModelScene": {
     "summary": "Bir modelin, kaydının gösterdiği haliyle sahnesi: yükleyicisinin kurduğu grafik, açtığı dünya kökleri olmadan; model bunları dünyasının oturumları için kendine saklar.",
@@ -7868,7 +7876,7 @@
       "release": "`url`'deki girdi üzerindeki bir tutma biter; çağıran işi bitince önbelleği tartar (`fit`).",
       "fit": "Artık sığmayanı tahliye eder (`fit`): bir sayfa geldikten ya da bir tutma bittikten sonra.",
       "file": "Bir sunucunun bütün olarak yanıtladığı `url`'deki dosya, en son kullanılmış olarak işaretlenmiş, önbellek onu tuttuğu sürece.",
-      "keepFile": "Bir sunucunun bütün olarak yanıtladığı `url`'deki dosyayı en son kullanılan girdi olarak tutar.",
+      "keepFile": "Bir sunucunun bütün olarak yanıtladığı `url`'deki dosyayı, tahliyenin boşaltabileceği yere sığıyorsa (`roomBytes`) en son kullanılan girdi olarak tutar: onu aşan bir dosya her girdiyi, sonra kendisini alırdı ve bırakılır.",
       "level": "`id` altında tutulan doku seviyesi ya da karo kaydı, en son kullanılmış olarak işaretlenmiş.",
       "keepLevel": "`level`'ı `id` altında tutar, bundan sonra sahibi önbellektir: ayrılırken onu kapatır. Zaten tutulan bir seviye — bu arada bir cihaz kaybının yerini aldırdığı oturum tarafından okunmuş — kalır, en son kullanılmış olarak işaretlenir ve kopya kapanır: baytları bir kez sayılır.",
       "keep": "`key`'in adlandırdığı, `bytes` baytlık dosyanın okuması — sahnenin yerleşik vekili —, diğer her birinin yerine bütün olarak saklanır: saklanmıyorsa `start` onu önbelleğin kendi iptali üzerinde başlatır ve bu arada yeniden açılan bir oturum yoldakine katılır. Baytları istendiği andan itibaren sayılır; yoldayken tutulur, yalnızca geldikten sonra ayrılır, o da ancak hiçbir sayfa, dosya ya da seviye ayrılamadığında (`SCENE_TIER`). `keepOnly` onu artık adlandırmayana dek oturumlar boyunca kalır. Başarısız olan bir okuma hemen ayrılır.",
@@ -7886,6 +7894,6 @@
   },
   "createPageCache": {
     "summary": "TEK ANA BİLGİSAYAR ÖNBELLEĞİ: okunan her sayfanın ve paketin, bir sunucunun aralık yerine bütün olarak yanıtladığı her dosyanın (`readRange`), çözülmüş her doku seviyesinin ve blok karo kaydının (`level`) ve sahnenin yerleşik vekilinin (`keep`) baytları; tek bir girdi kümesi, TEK bütçe ve TEK tahliye olarak (`cacheEntries.ts`), CPU toplamına karşı (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Sahibi onu oturumlar boyunca tutar: bir dünya açtığı her oturuma aynısını verir; böylece yeniden açılan bir oturum — bir kayıptan sonra yeniden verilen bir cihazda ya da değişen bir sahnede — sonuncusunun getirdiğini buradan okur ve onun tuttuğu hiçbir şeyi getirmez. Onun üzerinden okuyan her oturum bildirim tablolarını, aktarım kuyruğunu ve motorun tablolarını (`manifestTableBytes`, `maxTransferBytes`, akışın `reserve`'ü) ayırır, değiştikçe bildirilir (`open`), önbellek bunların toplamını tutar; ve sabitlediği ya da okuduğu sayfalar üzerinde tutmalar alır; girdiler gerisini tutar (`budgetBytes`). Yalnızca önbellek tahliye eder, girdileri bütçeyi aştığında: birinin tuttuğu bir girdiyi asla, sonra en uzun süredir kullanılmayan sayfaları, dosyaları ve seviyeleri, vekili en son. Bir seviyenin kendi yerine ihtiyacı yoktur: tahliyenin boşaltabileceğini alır (`roomBytes`), bir sayfa gibi."
+    "description": "Sahibi onu oturumlar boyunca tutar: bir dünya açtığı her oturuma aynısını verir; böylece yeniden açılan bir oturum — bir kayıptan sonra yeniden verilen bir cihazda ya da değişen bir sahnede — sonuncusunun getirdiğini buradan okur ve onun tuttuğu hiçbir şeyi getirmez. Onun üzerinden okuyan her oturum bildirim tablolarını, aktarım kuyruğunu ve motorun tablolarını (`manifestTableBytes`, `maxTransferBytes`, akışın `reserve`'ü) ayırır, değiştikçe bildirilir (`open`), önbellek bunların toplamını tutar; ve sabitlediği ya da okuduğu sayfalar üzerinde tutmalar alır; girdiler gerisini tutar (`budgetBytes`). Yalnızca önbellek tahliye eder, girdileri bütçeyi aştığında: birinin tuttuğu bir girdiyi asla, sonra en uzun süredir kullanılmayan sayfaları, dosyaları ve seviyeleri, vekili en son; bir oturumun izin verdiği en az sayfa sayısının ötesinde yalnızca sayfaları. Bir seviyenin kendi yerine ihtiyacı yoktur: tahliyenin boşaltabileceğini alır (`roomBytes`), bir sayfa gibi."
   }
 }

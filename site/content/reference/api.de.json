@@ -2459,8 +2459,8 @@
     "summary": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`, über einen eigenen Seiten-Streamer auf einem eigenen Seiten-Cache (`streaming/pageStreamer.ts`): Jeder Lesevorgang eines Schlüssels schließt sich dessen einzigem Auftrag an, sodass zwei laufende Ladevorgänge derselben Seite eine einzige Anfrage senden, und eine Seite, deren Lesen fehlschlug, wartet nach der einen Fehlerregel, bis sie an der Reihe ist, und ihre Ladevorgänge warten auf sie — oder wird endgültig abgewiesen, wenn eine weitere Anfrage wieder auf ihren Fehler träfe (`streaming/failures.ts`).",
-    "description": "Sie kündigt nichts von einer Seite an: Ihre Bytes werden genommen, wie der Server sie sendet, und allein von den Ladevorgängen gehalten. Ein Schlüssel wird bei seinem ersten Lesen katalogisiert. `dispose` bricht ihre Lesevorgänge ab und leert ihren Cache."
+    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`: Jeder Lesevorgang eines Schlüssels ist ein Lesevorgang, dem sich alle Ladevorgänge davon anschließen, solange er läuft, sodass zwei laufende Ladevorgänge derselben Seite eine einzige Anfrage senden, und der Lesevorgang endet, sobald kein Ladevorgang mehr auf ihn wartet.",
+    "description": "Ein fehlgeschlagener Lesevorgang wartet nach der einen Fehlerregel, bis er an der Reihe ist, seine Ladevorgänge warten auf ihn, und fragt dann erneut — oder wird endgültig abgewiesen, wenn eine weitere Anfrage wieder auf seinen Fehler träfe, wobei jeder spätere Ladevorgang seines Schlüssels sofort abgewiesen wird (`streaming/failures.ts`). Sie kündigt nichts von einer Seite an: Ihre Bytes werden genommen, wie der Server sie sendet, und allein von den Ladevorgängen gehalten; ein Lesevorgang wird vergessen, wenn er endet, der Fehler seines Schlüssels, wenn die Regel ihn vergisst. Ihre Anfragen werden gesendet, sobald sie gestellt werden: Sie hat keine Warteschlange, und `priority` ordnet nichts. `dispose` stoppt ihre Lesevorgänge."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Spaltenweise Identität, gelesen und nie geschrieben: die Pose eines Knotens oder einer Wurzel ohne Pose."
@@ -5607,7 +5607,7 @@
     "members": {
       "url": "Wo sie gelesen wird, oder ihr Name im Katalog, wenn sie ein `range` einer anderen Datei ist.",
       "bytes": "Ihre Größe.",
-      "sha256": "Fingerabdruck ihrer Bytes, den ihr Lesevorgang zusammen mit ihrer Größe prüft; keiner für eine Seite, von der ihre Quelle nichts ankündigt (`httpPageSource`): Ihre Bytes werden genommen, wie ihr Server sie sendet.",
+      "sha256": "Fingerabdruck ihrer Bytes, den ihr Lesevorgang zusammen mit ihrer Größe prüft.",
       "range": "Eine Seite, die die `bytes` der Datei `file` ab `offset` ist und per HTTP Range gelesen wird: Die Warteschlange liest die Bereiche, die in einer Datei lückenlos hintereinander eingereiht sind, mit einer einzigen Anfrage (`queueRanges.ts`).",
       "kept": "False für eine Seite, bei der jeder Anfragende behält, was er dekodiert: gelesen für alle, die sich ihrem Lesevorgang anschließen, nie im Seitencache behalten, ihre Bytes nur einmal gehalten."
     }
@@ -5966,12 +5966,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Wo die gelesenen Stufen gehalten werden: der Seitencache, unter seinen Einträgen (`PageCache.level`).",
+    "summary": "Wo die gelesenen Stufen gehalten werden: der Seitencache, unter seinen Einträgen (`PageCache.level`), dort jeweils von seinem Anfragenden gehalten, solange er nicht gehen darf (`acquire`, `release`, dann `fit`).",
     "members": {
       "level": "Die Texturstufe oder der Kachel-Datensatz, unter `id` gehalten, als zuletzt benutzt markiert.",
       "keepLevel": "Hält `level` unter `id`, der Cache besitzt sie von hier an: er schließt sie, wenn sie geht. Eine bereits gehaltene Stufe — inzwischen von der Sitzung gelesen, die ein Geräteverlust ersetzt hat — bleibt, als zuletzt benutzt markiert, und die Kopie wird geschlossen: ihre Bytes werden einmal gezählt.",
       "roomBytes": "Bytes, die ein ankommender Eintrag nehmen darf: das Budget, abzüglich dessen, was keine Verdrängung nehmen darf.",
-      "levelBytes": "Bytes, die die Texturstufen und Kachel-Datensätze halten."
+      "levelBytes": "Bytes, die die Texturstufen und Kachel-Datensätze halten.",
+      "acquire": "Einer mehr hält den Eintrag bei `url`, auch bevor er eintrifft.",
+      "release": "Eine Haltung des Eintrags bei `url` endet; der Aufrufer wiegt den Cache, wenn er fertig ist (`fit`).",
+      "fit": "Verdrängt, was nicht mehr passt (`fit`): nachdem eine Seite eingetroffen ist oder eine Haltung endete."
     }
   },
   "textureLevelUrl": {
@@ -7838,7 +7841,12 @@
   },
   "CacheSession": {
     "summary": "Eine Sitzung, die über den Cache liest: die meisten Seiten, die sie den Cache halten lässt, und wer von einer verdrängten Seite hört oder von einer Verdrängung, die nichts zu nehmen fand.",
-    "description": "Was sie vom Gesamtwert reserviert, teilt sie dem Platz, den sie öffnet (`open`), bei jeder Änderung mit."
+    "description": "Was sie vom Gesamtwert reserviert, teilt sie dem Platz, den sie öffnet (`open`), bei jeder Änderung mit.",
+    "members": {
+      "maxPages": "Die meisten Seiten, die die Sitzung den Cache halten lässt; standardmäßig keine Grenze.",
+      "evicted": "Wird mit der URL einer Seite aufgerufen, wenn der Cache sie verdrängt.",
+      "blocked": "Wird aufgerufen, wenn eine Verdrängung über dem Budget nichts zu nehmen fand."
+    }
   },
   "ModelScene": {
     "summary": "Die Szene eines Modells, wie sein Datensatz sie zeigt: der Graph, den sein Lader gebaut hat, ohne die Weltwurzeln, die er geöffnet hat und die das Modell für die Sitzungen seiner Welt für sich behält.",
@@ -7868,7 +7876,7 @@
       "release": "Eine Haltung des Eintrags bei `url` endet; der Aufrufer wiegt den Cache, wenn er fertig ist (`fit`).",
       "fit": "Verdrängt, was nicht mehr passt (`fit`): nachdem eine Seite eingetroffen ist oder eine Haltung endete.",
       "file": "Die Datei bei `url`, die ein Server ganz beantwortet hat, als zuletzt benutzt markiert, solange der Cache sie hält.",
-      "keepFile": "Hält die Datei bei `url`, die ein Server ganz beantwortet hat, als zuletzt benutzten Eintrag.",
+      "keepFile": "Hält die Datei bei `url`, die ein Server ganz beantwortet hat, als zuletzt benutzten Eintrag, wenn sie in das passt, was die Verdrängung freigeben kann (`roomBytes`): eine größere würde jeden Eintrag nehmen, dann sich selbst, und wird losgelassen.",
       "level": "Die Texturstufe oder der Kachel-Datensatz unter `id`, als zuletzt benutzt markiert.",
       "keepLevel": "Hält `level` unter `id`, der Cache besitzt sie von nun an: Er schließt sie, wenn sie geht. Eine bereits gehaltene Stufe — inzwischen von der Sitzung gelesen, die ein Geräteverlust ersetzt hat — bleibt, als zuletzt benutzt markiert, und die Kopie wird geschlossen: Ihre Bytes werden einmal gezählt.",
       "keep": "Der Lesevorgang der Datei, die `key` nennt, von `bytes` Bytes — der residente Proxy der Szene —, ganz gehalten anstelle jedes anderen: `start` beginnt ihn auf dem eigenen Abbruch des Caches, wenn er nicht gehalten wird, und eine inzwischen wieder geöffnete Sitzung schließt sich dem laufenden an. Seine Bytes zählen ab der Anfrage; gehalten, solange er läuft, geht er erst nach dem Eintreffen, und dann erst, wenn keine Seite, Datei oder Stufe mehr gehen kann (`SCENE_TIER`). Er bleibt über Sitzungen hinweg, bis `keepOnly` ihn nicht mehr nennt. Ein fehlschlagender Lesevorgang geht sofort.",
@@ -7886,6 +7894,6 @@
   },
   "createPageCache": {
     "summary": "DER EINE HOST-CACHE: die Bytes jeder gelesenen Seite und jedes Bündels, jeder Datei, die ein Server ganz statt eines Bereichs beantwortet hat (`readRange`), jeder dekodierten Texturstufe und jedes Block-Kachel-Datensatzes (`level`) und des residenten Proxys der Szene (`keep`), als eine Menge von Einträgen, EIN Budget und EINE Verdrängung (`cacheEntries.ts`), gegen den CPU-Gesamtwert (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Sein Besitzer hält ihn über Sitzungen hinweg: Eine Welt übergibt denselben jeder Sitzung, die sie öffnet, sodass eine wieder geöffnete Sitzung — auf einem nach einem Verlust erneut gewährten Gerät oder auf einer geänderten Szene — von hier liest, was die letzte abgerufen hat, und nichts abruft, was er hält. Jede über ihn lesende Sitzung reserviert ihre Manifest-Tabellen, ihre Übertragungswarteschlange und die Tabellen der Engine (`manifestTableBytes`, `maxTransferBytes`, das `reserve` des Streamers), gemeldet, wie sie sich ändern (`open`), wobei der Cache ihre Summe hält, und nimmt Haltungen auf die Seiten, die sie anheftet oder liest; die Einträge halten den Rest (`budgetBytes`). Allein der Cache verdrängt, sobald seine Einträge das Budget überschreiten: nie einen Eintrag, den jemand hält, dann die am längsten unbenutzten Seiten, Dateien und Stufen, den Proxy zuletzt. Eine Stufe braucht keinen eigenen Platz: Sie nimmt, was die Verdrängung freigeben kann (`roomBytes`), wie eine Seite."
+    "description": "Sein Besitzer hält ihn über Sitzungen hinweg: Eine Welt übergibt denselben jeder Sitzung, die sie öffnet, sodass eine wieder geöffnete Sitzung — auf einem nach einem Verlust erneut gewährten Gerät oder auf einer geänderten Szene — von hier liest, was die letzte abgerufen hat, und nichts abruft, was er hält. Jede über ihn lesende Sitzung reserviert ihre Manifest-Tabellen, ihre Übertragungswarteschlange und die Tabellen der Engine (`manifestTableBytes`, `maxTransferBytes`, das `reserve` des Streamers), gemeldet, wie sie sich ändern (`open`), wobei der Cache ihre Summe hält, und nimmt Haltungen auf die Seiten, die sie anheftet oder liest; die Einträge halten den Rest (`budgetBytes`). Allein der Cache verdrängt, sobald seine Einträge das Budget überschreiten: nie einen Eintrag, den jemand hält, dann die am längsten unbenutzten Seiten, Dateien und Stufen, den Proxy zuletzt; über der kleinsten Seitenzahl, die eine Sitzung erlaubt, allein die Seiten. Eine Stufe braucht keinen eigenen Platz: Sie nimmt, was die Verdrängung freigeben kann (`roomBytes`), wie eine Seite."
   }
 }

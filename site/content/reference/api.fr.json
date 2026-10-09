@@ -2467,8 +2467,8 @@
     "summary": "Teinte, saturation et luminosité vers trois composantes RGB écrites dans `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Une source de pages qui récupère les pages en HTTP, par clé, depuis `baseUrl`, par un flux de pages qui lui est propre, sur un cache de pages qui lui est propre (`streaming/pageStreamer.ts`) : chaque lecture d’une clé rejoint son unique tâche, donc deux chargements en cours d’une même page envoient une seule requête, et une page dont la lecture a échoué attend son tour selon l’unique politique d’échec, ses chargements l’attendant — ou est refusée définitivement quand une autre requête retrouverait son échec (`streaming/failures.ts`).",
-    "description": "Elle n’annonce rien d’une page : ses octets sont pris tels que le serveur les envoie, et gardés par les seuls chargements. Une clé est cataloguée par sa première lecture. `dispose` annule ses lectures et vide son cache."
+    "summary": "Une source de pages qui récupère les pages en HTTP, par clé, depuis `baseUrl` : chaque lecture d’une clé est une lecture que se partagent tous ses chargements tant qu’elle dure, donc deux chargements en cours d’une même page envoient une seule requête, et la lecture s’arrête quand plus aucun chargement ne l’attend.",
+    "description": "Une lecture qui échoue attend son tour selon l’unique politique d’échec, ses chargements l’attendant, puis redemande — ou est refusée définitivement quand une autre requête retrouverait son échec, chaque chargement ultérieur de sa clé étant aussitôt refusé (`streaming/failures.ts`). Elle n’annonce rien d’une page : ses octets sont pris tels que le serveur les envoie, et gardés par les seuls chargements ; une lecture est oubliée quand elle finit, l’échec de sa clé quand la politique l’oublie. Ses requêtes partent à mesure qu’on les demande : elle n’a pas de file, et `priority` n’ordonne rien. `dispose` arrête ses lectures."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identité colonne par colonne, lue et jamais écrite : la pose d’un nœud ou d’une racine sans pose."
@@ -5615,7 +5615,7 @@
     "members": {
       "url": "Où on la lit, ou son nom dans le catalogue quand c’est un `range` d’un autre fichier.",
       "bytes": "Sa taille.",
-      "sha256": "Empreinte de ses octets, que sa lecture vérifie avec sa taille ; aucune pour une page dont sa source n’annonce rien (`httpPageSource`) : ses octets sont pris tels que son serveur les envoie.",
+      "sha256": "Empreinte de ses octets, que sa lecture vérifie avec sa taille.",
       "range": "Une page qui est les `bytes` du fichier `file` à partir de `offset`, lue par une requête HTTP Range : la file lit en une seule requête les plages mises en file bout à bout dans un même fichier (`queueRanges.ts`).",
       "kept": "Faux pour une page dont chacun de ceux qui la demandent garde ce qu’il décode : lue pour ceux qui rejoignent sa lecture, jamais gardée dans le cache de pages, ses octets tenus une seule fois."
     }
@@ -5974,12 +5974,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Où les niveaux lus sont gardés : le cache de pages, parmi ses entrées (`PageCache.level`).",
+    "summary": "Où les niveaux lus sont gardés : le cache de pages, parmi ses entrées (`PageCache.level`), chacun tenu là par celui qui le demande tant qu’il ne doit pas partir (`acquire`, `release`, puis `fit`).",
     "members": {
       "level": "Le niveau de texture ou l’enregistrement de tuile gardé sous `id`, marqué utilisé en dernier.",
       "keepLevel": "Garde `level` sous `id`, le cache le possédant dès lors : il le ferme quand il part. Un niveau déjà gardé — lu entre-temps par la session qu’une perte de périphérique a remplacée — reste, marqué utilisé en dernier, et la copie se ferme : ses octets sont comptés une fois.",
       "roomBytes": "Les octets qu’une entrée qui arrive peut prendre : le budget, moins ce qu’aucune éviction ne peut prendre.",
-      "levelBytes": "Les octets que tiennent les niveaux de texture et les enregistrements de tuiles."
+      "levelBytes": "Les octets que tiennent les niveaux de texture et les enregistrements de tuiles.",
+      "acquire": "Un de plus tient l’entrée de `url`, même avant son arrivée.",
+      "release": "Une prise sur l’entrée de `url` prend fin ; l’appelant pèse le cache quand il a fini (`fit`).",
+      "fit": "Évince ce qui ne tient plus (`fit`) : après l’arrivée d’une page ou la fin d’une prise."
     }
   },
   "textureLevelUrl": {
@@ -7838,7 +7841,12 @@
   },
   "CacheSession": {
     "summary": "Une session qui lit par le cache : le plus de pages qu’elle laisse le cache tenir, et qui entend une page évincée, ou une éviction qui n’a rien trouvé à prendre.",
-    "description": "Ce qu’elle réserve sur le total, elle le dit à la place qu’elle ouvre (`open`) chaque fois que cela change."
+    "description": "Ce qu’elle réserve sur le total, elle le dit à la place qu’elle ouvre (`open`) chaque fois que cela change.",
+    "members": {
+      "maxPages": "Le plus de pages que la session laisse le cache tenir ; aucun plafond par défaut.",
+      "evicted": "Appelé avec l’url d’une page quand le cache l’évince.",
+      "blocked": "Appelé quand une éviction au-delà du budget n’a rien trouvé à prendre."
+    }
   },
   "ModelScene": {
     "summary": "La scène d’un modèle telle que la montre son enregistrement : le graphe que son chargeur a construit, sans les racines du monde qu’il a ouvertes, que le modèle garde pour lui à l’usage des sessions de son monde.",
@@ -7868,7 +7876,7 @@
       "release": "Une prise sur l’entrée de `url` prend fin ; l’appelant pèse le cache quand il a fini (`fit`).",
       "fit": "Évince ce qui ne tient plus (`fit`) : après l’arrivée d’une page ou la fin d’une prise.",
       "file": "Le fichier de `url` qu’un serveur a renvoyé entier, marqué utilisé en dernier, tant que le cache le garde.",
-      "keepFile": "Garde le fichier de `url` qu’un serveur a renvoyé entier comme l’entrée la plus récemment utilisée.",
+      "keepFile": "Garde le fichier de `url` qu’un serveur a renvoyé entier comme l’entrée la plus récemment utilisée, quand il tient dans ce que l’éviction peut libérer (`roomBytes`) : un fichier qui le dépasse prendrait toutes les entrées, puis lui-même, et est laissé partir.",
       "level": "Le niveau de texture ou la fiche de tuile tenu sous `id`, marqué utilisé en dernier.",
       "keepLevel": "Tient `level` sous `id`, le cache en étant désormais propriétaire : il le ferme à son départ. Un niveau déjà tenu — lu entre-temps par la session qu’une perte de périphérique a remplacée — reste, marqué utilisé en dernier, et la copie se ferme : ses octets sont comptés une fois.",
       "keep": "La lecture du fichier que nomme `key`, de `bytes` octets — le proxy résident de la scène —, gardée entière à la place de toute autre : `start` la lance sur l’annulation propre au cache quand elle n’est pas gardée, et une session rouverte entre-temps rejoint celle en vol. Ses octets comptent dès qu’elle est demandée ; tenue tant qu’elle est en vol, elle ne part qu’une fois arrivée, et alors seulement quand aucune page, aucun fichier ni aucun niveau ne le peut (`SCENE_TIER`). Elle reste d’une session à l’autre jusqu’à ce que `keepOnly` ne la nomme plus. Une lecture qui échoue part aussitôt.",
@@ -7886,6 +7894,6 @@
   },
   "createPageCache": {
     "summary": "LE CACHE HÔTE UNIQUE : les octets de chaque page et de chaque paquet lus, de chaque fichier qu’un serveur a renvoyé entier au lieu d’une plage (`readRange`), de chaque niveau de texture décodé et de chaque fiche de tuile en blocs (`level`), et du proxy résident de la scène (`keep`), en un seul ensemble d’entrées, UN budget et UNE éviction (`cacheEntries.ts`), face au total CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Son propriétaire le garde d’une session à l’autre : un monde remet le même à chaque session qu’il ouvre, donc une session rouverte — sur un périphérique de nouveau accordé après une perte, ou sur une scène qui a changé — lit ici ce que la précédente a récupéré, et ne récupère rien de ce qu’il tient. Chaque session qui lit par lui réserve ses tables de manifeste, sa file de transfert et les tables du moteur (`manifestTableBytes`, `maxTransferBytes`, le `reserve` du flux), dites à mesure qu’elles changent (`open`), le cache gardant leur somme, et prend des prises sur les pages qu’elle épingle ou lit ; les entrées tiennent le reste (`budgetBytes`). Seul le cache évince, une fois que ses entrées dépassent le budget : jamais une entrée que quelqu’un tient, puis les pages, fichiers et niveaux les moins récemment utilisés, le proxy en dernier. Un niveau n’a pas besoin d’une place à lui : il prend ce que l’éviction peut libérer (`roomBytes`), comme une page."
+    "description": "Son propriétaire le garde d’une session à l’autre : un monde remet le même à chaque session qu’il ouvre, donc une session rouverte — sur un périphérique de nouveau accordé après une perte, ou sur une scène qui a changé — lit ici ce que la précédente a récupéré, et ne récupère rien de ce qu’il tient. Chaque session qui lit par lui réserve ses tables de manifeste, sa file de transfert et les tables du moteur (`manifestTableBytes`, `maxTransferBytes`, le `reserve` du flux), dites à mesure qu’elles changent (`open`), le cache gardant leur somme, et prend des prises sur les pages qu’elle épingle ou lit ; les entrées tiennent le reste (`budgetBytes`). Seul le cache évince, une fois que ses entrées dépassent le budget : jamais une entrée que quelqu’un tient, puis les pages, fichiers et niveaux les moins récemment utilisés, le proxy en dernier ; au-delà du plus petit nombre de pages qu’une session permet, les pages seules. Un niveau n’a pas besoin d’une place à lui : il prend ce que l’éviction peut libérer (`roomBytes`), comme une page."
   }
 }

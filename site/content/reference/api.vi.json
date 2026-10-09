@@ -3303,7 +3303,7 @@
     "members": {
       "url": "Nơi nó được đọc, hoặc tên của nó trong danh mục khi nó là một `range` của tệp khác.",
       "bytes": "Kích thước của nó.",
-      "sha256": "Dấu vân tay của các byte của nó, được lần đọc kiểm tra cùng với kích thước; không có đối với một trang mà nguồn của nó không công bố gì (`httpPageSource`): các byte của nó được nhận đúng như máy chủ gửi.",
+      "sha256": "Dấu vân tay của các byte của nó, được lần đọc kiểm tra cùng với kích thước.",
       "range": "Trang là `bytes` của tệp `file` từ `offset`, được đọc bằng HTTP Range: hàng đợi đọc bằng một yêu cầu các dải xếp nối đuôi nhau trong cùng một tệp (`queueRanges.ts`).",
       "kept": "False với trang mà mỗi bên yêu cầu tự giữ những gì nó giải mã: được đọc cho những bên nhập vào lần đọc của nó, không bao giờ được giữ trong bộ đệm trang, các byte của nó chỉ được giữ một lần."
     }
@@ -3604,12 +3604,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Nơi các mức đã đọc được giữ: bộ đệm trang, giữa các mục của nó (`PageCache.level`).",
+    "summary": "Nơi các mức đã đọc được giữ: bộ đệm trang, giữa các mục của nó (`PageCache.level`), mỗi mức được người hỏi giữ ở đó chừng nào nó chưa được rời đi (`acquire`, `release`, rồi `fit`).",
     "members": {
       "level": "Mức kết cấu hoặc bản ghi ô được giữ dưới `id`, được đánh dấu là dùng gần nhất.",
       "keepLevel": "Giữ `level` dưới `id`, bộ đệm sở hữu nó từ đây: nó đóng mức khi mức rời đi. Một mức đã được giữ — được đọc trong lúc đó bởi phiên mà một lần mất thiết bị đã thay thế — ở lại, được đánh dấu là dùng gần nhất, và bản sao được đóng: các byte của nó được đếm một lần.",
       "roomBytes": "Số byte mà một mục đến có thể lấy: ngân sách, trừ đi phần không lần loại bỏ nào được lấy.",
-      "levelBytes": "Số byte mà các mức kết cấu và bản ghi ô chiếm."
+      "levelBytes": "Số byte mà các mức kết cấu và bản ghi ô chiếm.",
+      "acquire": "Thêm một người giữ mục tại `url`, kể cả trước khi nó về.",
+      "release": "Một lượt giữ trên mục tại `url` kết thúc; bên gọi cân bộ nhớ đệm khi xong (`fit`).",
+      "fit": "Loại bỏ những gì không còn vừa (`fit`): sau khi một trang về hoặc một lượt giữ kết thúc."
     }
   },
   "TexturePool": {
@@ -5112,8 +5115,8 @@
     "summary": "Sắc độ, độ bão hòa, và độ sáng thành ba thành phần RGB được ghi vào `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`, thông qua bộ đọc trang riêng của nó trên bộ nhớ đệm trang riêng của nó (`streaming/pageStreamer.ts`): mỗi lần đọc một khóa nhập vào tác vụ duy nhất của khóa đó, nên hai lần tải đang chạy của cùng một trang chỉ gửi một yêu cầu, và một trang đọc thất bại chờ đến lượt theo chính sách lỗi duy nhất, các lần tải của nó chờ nó — hoặc bị từ chối vĩnh viễn khi một yêu cầu khác sẽ lại gặp đúng lỗi đó (`streaming/failures.ts`).",
-    "description": "Nó không công bố gì về một trang: các byte của trang được nhận đúng như máy chủ gửi, và chỉ các lần tải giữ chúng. Một khóa được ghi vào danh mục ở lần đọc đầu tiên. `dispose` hủy các lần đọc và làm rỗng bộ nhớ đệm của nó."
+    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`: mỗi lần đọc một khóa là một lần đọc mà mọi lần tải của khóa đó nhập vào khi nó đang chạy, nên hai lần tải đang chạy của cùng một trang chỉ gửi một yêu cầu, và lần đọc dừng khi không còn lần tải nào chờ nó.",
+    "description": "Một lần đọc thất bại chờ đến lượt theo chính sách lỗi duy nhất, các lần tải của nó chờ nó, rồi hỏi lại — hoặc bị từ chối vĩnh viễn khi một yêu cầu khác sẽ lại gặp đúng lỗi đó, mọi lần tải sau của khóa bị từ chối ngay (`streaming/failures.ts`). Nó không công bố gì về một trang: các byte của trang được nhận đúng như máy chủ gửi, và chỉ các lần tải giữ chúng; một lần đọc bị quên khi kết thúc, lỗi của khóa nó khi chính sách quên đi. Các yêu cầu của nó được gửi ngay khi được hỏi: nó không có hàng đợi, và `priority` không sắp xếp gì. `dispose` dừng các lần đọc của nó."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` bằng phần bù đại số (cofactors)."
@@ -7839,7 +7842,12 @@
   },
   "CacheSession": {
     "summary": "Một phiên đọc qua bộ nhớ đệm: số trang nhiều nhất nó để bộ nhớ đệm giữ, và ai nghe một trang bị loại ra, hay một lần loại bỏ không tìm thấy gì để lấy.",
-    "description": "Phần nó dành ra khỏi tổng, nó báo cho chỗ mà nó mở (`open`) mỗi khi phần đó thay đổi."
+    "description": "Phần nó dành ra khỏi tổng, nó báo cho chỗ mà nó mở (`open`) mỗi khi phần đó thay đổi.",
+    "members": {
+      "maxPages": "Số trang nhiều nhất phiên để bộ nhớ đệm giữ; mặc định không giới hạn.",
+      "evicted": "Được gọi với url của một trang khi bộ nhớ đệm loại nó ra.",
+      "blocked": "Được gọi khi một lần loại bỏ vượt ngân sách không tìm thấy gì để lấy."
+    }
   },
   "ModelScene": {
     "summary": "Cảnh của một mô hình như bản ghi của nó cho thấy: đồ thị mà bộ nạp của nó dựng, không có các gốc thế giới mà nó đã mở, những gốc mà mô hình giữ riêng cho các phiên của thế giới nó.",
@@ -7869,7 +7877,7 @@
       "release": "Một lượt giữ trên mục tại `url` kết thúc; bên gọi cân bộ nhớ đệm khi xong (`fit`).",
       "fit": "Loại bỏ những gì không còn vừa (`fit`): sau khi một trang về hoặc một lượt giữ kết thúc.",
       "file": "Tệp tại `url` mà máy chủ trả nguyên vẹn, được đánh dấu là dùng gần nhất, chừng nào bộ nhớ đệm còn giữ nó.",
-      "keepFile": "Giữ tệp tại `url` mà máy chủ trả nguyên vẹn làm mục dùng gần nhất.",
+      "keepFile": "Giữ tệp tại `url` mà máy chủ trả nguyên vẹn làm mục dùng gần nhất, khi nó vừa trong phần việc loại bỏ có thể giải phóng (`roomBytes`): một tệp vượt quá sẽ lấy mọi mục, rồi chính nó, và bị thả đi.",
       "level": "Mức kết cấu hoặc bản ghi ô được giữ dưới `id`, được đánh dấu là dùng gần nhất.",
       "keepLevel": "Giữ `level` dưới `id`, từ đây bộ nhớ đệm sở hữu nó: nó đóng mức đó khi mức rời đi. Một mức đã được giữ — trong lúc đó được đọc bởi phiên mà việc mất thiết bị đã thay thế — vẫn ở lại, được đánh dấu là dùng gần nhất, còn bản sao thì đóng lại: các byte của nó được đếm một lần.",
       "keep": "Lần đọc tệp mà `key` nêu, gồm `bytes` byte — proxy thường trú của cảnh —, được giữ trọn thay cho bất kỳ lần nào khác: `start` khởi động nó trên lệnh hủy riêng của bộ nhớ đệm khi nó chưa được giữ, và một phiên mở lại trong lúc đó nhập vào lần đang chạy. Các byte của nó được tính từ lúc được yêu cầu; được giữ khi đang trên đường về, nó chỉ rời đi sau khi đã về, và khi đó chỉ khi không trang, tệp hay mức nào còn được rời đi (`SCENE_TIER`). Nó ở lại qua các phiên cho đến khi `keepOnly` không còn nêu nó. Một lần đọc thất bại rời đi ngay.",
@@ -7887,6 +7895,6 @@
   },
   "createPageCache": {
     "summary": "BỘ NHỚ ĐỆM MÁY CHỦ DUY NHẤT: các byte của mọi trang và gói đã đọc, của mọi tệp mà máy chủ trả nguyên vẹn thay cho một khoảng (`readRange`), của mọi mức kết cấu đã giải mã và bản ghi ô khối (`level`), và của proxy thường trú của cảnh (`keep`), như một tập mục, MỘT ngân sách và MỘT cơ chế loại bỏ (`cacheEntries.ts`), so với tổng CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Chủ của nó giữ nó qua các phiên: một thế giới trao cùng một bộ nhớ đệm cho mọi phiên nó mở, nên một phiên mở lại — trên thiết bị được cấp lại sau khi mất, hoặc trên một cảnh đã thay đổi — đọc từ đây những gì phiên trước đã tải, và không tải gì mà nó đang giữ. Mỗi phiên đọc qua nó dành chỗ cho các bảng manifest, hàng đợi truyền và các bảng của engine (`manifestTableBytes`, `maxTransferBytes`, `reserve` của bộ đọc), được báo khi chúng thay đổi (`open`), bộ nhớ đệm giữ tổng của chúng, và giữ các trang mà nó ghim hoặc đọc; các mục giữ phần còn lại (`budgetBytes`). Chỉ bộ nhớ đệm loại bỏ, khi các mục của nó vượt ngân sách: không bao giờ một mục có người đang giữ, rồi các trang, tệp và mức lâu nhất không được dùng, proxy sau cùng. Một mức không cần chỗ riêng: nó lấy những gì việc loại bỏ có thể giải phóng (`roomBytes`), như một trang."
+    "description": "Chủ của nó giữ nó qua các phiên: một thế giới trao cùng một bộ nhớ đệm cho mọi phiên nó mở, nên một phiên mở lại — trên thiết bị được cấp lại sau khi mất, hoặc trên một cảnh đã thay đổi — đọc từ đây những gì phiên trước đã tải, và không tải gì mà nó đang giữ. Mỗi phiên đọc qua nó dành chỗ cho các bảng manifest, hàng đợi truyền và các bảng của engine (`manifestTableBytes`, `maxTransferBytes`, `reserve` của bộ đọc), được báo khi chúng thay đổi (`open`), bộ nhớ đệm giữ tổng của chúng, và giữ các trang mà nó ghim hoặc đọc; các mục giữ phần còn lại (`budgetBytes`). Chỉ bộ nhớ đệm loại bỏ, khi các mục của nó vượt ngân sách: không bao giờ một mục có người đang giữ, rồi các trang, tệp và mức lâu nhất không được dùng, proxy sau cùng; vượt quá số trang ít nhất mà một phiên cho phép thì chỉ các trang. Một mức không cần chỗ riêng: nó lấy những gì việc loại bỏ có thể giải phóng (`roomBytes`), như một trang."
   }
 }

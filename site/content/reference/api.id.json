@@ -3303,7 +3303,7 @@
     "members": {
       "url": "Tempat ia dibaca, atau namanya dalam katalog bila ia berupa `range` dari berkas lain.",
       "bytes": "Ukurannya.",
-      "sha256": "Sidik jari byte-nya, yang diperiksa pembacaannya bersama ukurannya; tidak ada untuk halaman yang sumbernya tidak mengumumkan apa pun tentangnya (`httpPageSource`): byte-nya diambil sebagaimana servernya mengirimkannya.",
+      "sha256": "Sidik jari byte-nya, yang diperiksa pembacaannya bersama ukurannya.",
       "range": "Halaman yang berupa `bytes` dari berkas `file` mulai `offset`, dibaca dengan HTTP Range: antrean membaca rentang yang diantre berurutan ujung ke ujung dalam satu berkas dengan satu permintaan (`queueRanges.ts`).",
       "kept": "False untuk halaman yang setiap peminta menyimpan hasil dekodenya sendiri: dibaca untuk mereka yang bergabung ke pembacaannya, tidak pernah disimpan di cache halaman, byte-nya ditahan sekali saja."
     }
@@ -3604,12 +3604,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Tempat tingkat yang dibaca disimpan: cache halaman, di antara entri-entrinya (`PageCache.level`).",
+    "summary": "Tempat tingkat yang dibaca disimpan: cache halaman, di antara entri-entrinya (`PageCache.level`), masing-masing ditahan di sana oleh peminta selama tidak boleh pergi (`acquire`, `release`, lalu `fit`).",
     "members": {
       "level": "Tingkat tekstur atau rekaman ubin yang disimpan di bawah `id`, ditandai terakhir dipakai.",
       "keepLevel": "Menyimpan `level` di bawah `id`, cache memilikinya sejak itu: cache menutupnya saat ia keluar. Tingkat yang sudah disimpan — dibaca sementara itu oleh sesi yang digantikan oleh hilangnya perangkat — tetap, ditandai terakhir dipakai, dan salinannya ditutup: byte-nya dihitung sekali.",
       "roomBytes": "Byte yang boleh diambil entri yang datang: anggaran, dikurangi apa yang tidak boleh diambil pengusiran mana pun.",
-      "levelBytes": "Byte yang ditempati tingkat tekstur dan rekaman ubin."
+      "levelBytes": "Byte yang ditempati tingkat tekstur dan rekaman ubin.",
+      "acquire": "Satu lagi menahan entri di `url`, juga sebelum entri itu tiba.",
+      "release": "Satu penahanan atas entri di `url` berakhir; pemanggil menimbang cache saat selesai (`fit`).",
+      "fit": "Mengusir yang tidak muat lagi (`fit`): setelah sebuah halaman tiba atau sebuah penahanan berakhir."
     }
   },
   "TexturePool": {
@@ -5112,8 +5115,8 @@
     "summary": "Hue, saturasi, dan kecerahan menjadi tiga komponen RGB ditulis ke `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`, melalui pembaca halamannya sendiri di atas cache halamannya sendiri (`streaming/pageStreamer.ts`): setiap pembacaan sebuah kunci bergabung dengan satu-satunya tugasnya, sehingga dua pemuatan halaman yang sama yang sedang berjalan mengirim satu permintaan, dan halaman yang pembacaannya gagal menunggu gilirannya menurut satu-satunya kebijakan kegagalan, sementara pemuatannya menunggunya — atau ditolak untuk selamanya bila permintaan lain akan menemui kegagalannya lagi (`streaming/failures.ts`).",
-    "description": "Sumber ini tidak mengumumkan apa pun tentang sebuah halaman: byte-nya diambil sebagaimana server mengirimkannya, dan disimpan oleh pemuatan saja. Sebuah kunci dikatalogkan pada pembacaan pertamanya. `dispose` membatalkan pembacaannya dan mengosongkan cache-nya."
+    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`: setiap pembacaan sebuah kunci adalah satu pembacaan yang diikuti semua pemuatannya selama berjalan, sehingga dua pemuatan halaman yang sama yang sedang berjalan mengirim satu permintaan, dan pembacaan berhenti ketika tidak ada pemuatan yang menunggunya.",
+    "description": "Pembacaan yang gagal menunggu gilirannya menurut satu-satunya kebijakan kegagalan, sementara pemuatannya menunggunya, lalu meminta lagi — atau ditolak untuk selamanya bila permintaan lain akan menemui kegagalannya lagi, setiap pemuatan kuncinya sesudahnya langsung ditolak (`streaming/failures.ts`). Sumber ini tidak mengumumkan apa pun tentang sebuah halaman: byte-nya diambil sebagaimana server mengirimkannya, dan disimpan oleh pemuatan saja; sebuah pembacaan dilupakan saat berakhir, kegagalan kuncinya saat kebijakan melupakannya. Permintaannya dikirim begitu diminta: ia tidak punya antrean, dan `priority` tidak mengurutkan apa pun. `dispose` menghentikan pembacaannya."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` dengan kofaktor."
@@ -7839,7 +7842,12 @@
   },
   "CacheSession": {
     "summary": "Sebuah sesi yang membaca melalui cache: halaman terbanyak yang ia izinkan untuk ditahan cache, dan siapa yang mendengar halaman yang diusir, atau pengusiran yang tidak menemukan apa pun untuk diambil.",
-    "description": "Apa yang dicadangkannya dari total ia beritahukan kepada tempat yang dibukanya (`open`) setiap kali hal itu berubah."
+    "description": "Apa yang dicadangkannya dari total ia beritahukan kepada tempat yang dibukanya (`open`) setiap kali hal itu berubah.",
+    "members": {
+      "maxPages": "Halaman terbanyak yang diizinkan sesi untuk ditahan cache; secara bawaan tanpa batas.",
+      "evicted": "Dipanggil dengan url sebuah halaman saat cache mengusirnya.",
+      "blocked": "Dipanggil saat pengusiran yang melampaui anggaran tidak menemukan apa pun untuk diambil."
+    }
   },
   "ModelScene": {
     "summary": "Adegan sebuah model sebagaimana ditunjukkan catatannya: graf yang dibangun pemuatnya, tanpa akar dunia yang dibukanya, yang disimpan model untuk dirinya sendiri bagi sesi-sesi dunianya.",
@@ -7869,7 +7877,7 @@
       "release": "Satu penahanan atas entri di `url` berakhir; pemanggil menimbang cache saat selesai (`fit`).",
       "fit": "Mengusir yang tidak muat lagi (`fit`): setelah sebuah halaman tiba atau sebuah penahanan berakhir.",
       "file": "Berkas di `url` yang dijawab utuh oleh server, ditandai terakhir dipakai, selama cache menyimpannya.",
-      "keepFile": "Menyimpan berkas di `url` yang dijawab utuh oleh server sebagai entri yang paling baru dipakai.",
+      "keepFile": "Menyimpan berkas di `url` yang dijawab utuh oleh server sebagai entri yang paling baru dipakai, bila muat dalam apa yang dapat dibebaskan pengusiran (`roomBytes`): berkas yang melampauinya akan mengambil setiap entri, lalu dirinya sendiri, dan dilepaskan.",
       "level": "Level tekstur atau catatan petak yang ditahan di bawah `id`, ditandai terakhir dipakai.",
       "keepLevel": "Menahan `level` di bawah `id`, cache menjadi pemiliknya mulai sekarang: cache menutupnya saat ia pergi. Level yang sudah ditahan — sementara itu dibaca oleh sesi yang digantikan karena kehilangan perangkat — tetap, ditandai terakhir dipakai, dan salinannya ditutup: byte-nya dihitung sekali.",
       "keep": "Pembacaan berkas yang dinamai `key`, sebesar `bytes` byte — proksi residen adegan —, disimpan utuh menggantikan yang lain: `start` memulainya di atas pembatalan milik cache sendiri bila belum disimpan, dan sesi yang dibuka ulang sementara itu bergabung dengan yang sedang berjalan. Byte-nya dihitung sejak diminta; ditahan selama dalam perjalanan, ia hanya pergi setelah tiba, dan itu pun hanya bila tak ada halaman, berkas, atau level yang boleh pergi (`SCENE_TIER`). Ia bertahan antarsesi hingga `keepOnly` tidak lagi menamainya. Pembacaan yang gagal langsung pergi.",
@@ -7887,6 +7895,6 @@
   },
   "createPageCache": {
     "summary": "SATU-SATUNYA CACHE HOST: byte setiap halaman dan bundel yang dibaca, setiap berkas yang dijawab utuh oleh server sebagai ganti sebuah rentang (`readRange`), setiap level tekstur terdekode dan catatan petak blok (`level`), dan proksi residen adegan (`keep`), sebagai satu himpunan entri, SATU anggaran dan SATU pengusiran (`cacheEntries.ts`), terhadap total CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Pemiliknya menyimpannya antarsesi: sebuah dunia menyerahkan cache yang sama kepada setiap sesi yang dibukanya, sehingga sesi yang dibuka ulang — pada perangkat yang diberikan lagi setelah hilang, atau pada adegan yang berubah — membaca dari sini apa yang diambil sesi terakhir, dan tidak mengambil apa pun yang ditahannya. Setiap sesi yang membaca melaluinya mencadangkan tabel manifes, antrean transfer, dan tabel mesinnya (`manifestTableBytes`, `maxTransferBytes`, `reserve` milik pembaca), diberitahukan saat berubah (`open`), dengan cache menyimpan jumlahnya, dan mengambil penahanan atas halaman yang disematkan atau dibacanya; entri menahan sisanya (`budgetBytes`). Hanya cache yang mengusir, begitu entrinya melampaui anggaran: tidak pernah entri yang ditahan seseorang, lalu halaman, berkas, dan level yang paling lama tidak dipakai, proksi terakhir. Sebuah level tidak perlu ruang sendiri: ia mengambil apa yang dapat dibebaskan pengusiran (`roomBytes`), seperti halaman."
+    "description": "Pemiliknya menyimpannya antarsesi: sebuah dunia menyerahkan cache yang sama kepada setiap sesi yang dibukanya, sehingga sesi yang dibuka ulang — pada perangkat yang diberikan lagi setelah hilang, atau pada adegan yang berubah — membaca dari sini apa yang diambil sesi terakhir, dan tidak mengambil apa pun yang ditahannya. Setiap sesi yang membaca melaluinya mencadangkan tabel manifes, antrean transfer, dan tabel mesinnya (`manifestTableBytes`, `maxTransferBytes`, `reserve` milik pembaca), diberitahukan saat berubah (`open`), dengan cache menyimpan jumlahnya, dan mengambil penahanan atas halaman yang disematkan atau dibacanya; entri menahan sisanya (`budgetBytes`). Hanya cache yang mengusir, begitu entrinya melampaui anggaran: tidak pernah entri yang ditahan seseorang, lalu halaman, berkas, dan level yang paling lama tidak dipakai, proksi terakhir; melewati jumlah halaman paling sedikit yang diizinkan sebuah sesi, hanya halamannya. Sebuah level tidak perlu ruang sendiri: ia mengambil apa yang dapat dibebaskan pengusiran (`roomBytes`), seperti halaman."
   }
 }

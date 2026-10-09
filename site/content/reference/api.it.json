@@ -2459,8 +2459,8 @@
     "summary": "Tonalità, saturazione e luminosità in tre componenti RGB scritte in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, tramite uno streamer di pagine proprio su una cache di pagine propria (`streaming/pageStreamer.ts`): ogni lettura di una chiave si unisce al suo unico lavoro, così due caricamenti in corso della stessa pagina inviano una sola richiesta, e una pagina la cui lettura è fallita attende il suo turno secondo l'unica politica di errore, con i suoi caricamenti in attesa — o viene rifiutata per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`).",
-    "description": "Non annuncia nulla di una pagina: i suoi byte sono presi così come il server li invia, e tenuti dai soli caricamenti. Una chiave viene catalogata alla sua prima lettura. `dispose` annulla le sue letture e svuota la sua cache."
+    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`: ogni lettura di una chiave è una lettura a cui si uniscono tutti i suoi caricamenti finché dura, così due caricamenti in corso della stessa pagina inviano una sola richiesta, e la lettura si ferma quando nessun caricamento la attende più.",
+    "description": "Una lettura che fallisce attende il suo turno secondo l’unica politica di errore, con i suoi caricamenti in attesa, poi chiede di nuovo — o viene rifiutata per sempre quando un’altra richiesta incontrerebbe di nuovo il suo errore, ogni caricamento successivo della sua chiave rifiutato subito (`streaming/failures.ts`). Non annuncia nulla di una pagina: i suoi byte sono presi così come il server li invia, e tenuti dai soli caricamenti; una lettura viene dimenticata quando finisce, l’errore della sua chiave quando la politica lo dimentica. Le sue richieste partono man mano che vengono chieste: non ha coda, e `priority` non ordina nulla. `dispose` ferma le sue letture."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa."
@@ -5607,7 +5607,7 @@
     "members": {
       "url": "Dove viene letta, o il suo nome nel catalogo quando è un `range` di un altro file.",
       "bytes": "La sua dimensione.",
-      "sha256": "Impronta dei suoi byte, che la sua lettura verifica insieme alla sua dimensione; nessuna per una pagina di cui la sua fonte non annuncia nulla (`httpPageSource`): i suoi byte sono presi così come il suo server li invia.",
+      "sha256": "Impronta dei suoi byte, che la sua lettura verifica insieme alla sua dimensione.",
       "range": "Una pagina che è i `bytes` del file `file` a partire da `offset`, letta con un HTTP Range: la coda legge con una sola richiesta gli intervalli accodati uno dopo l’altro in uno stesso file (`queueRanges.ts`).",
       "kept": "False per una pagina di cui ciascuno di chi la chiede tiene ciò che decodifica: letta per chi si unisce alla sua lettura, mai tenuta nella cache delle pagine, i suoi byte conservati una sola volta."
     }
@@ -5966,12 +5966,15 @@
     }
   },
   "TextureLevelStore": {
-    "summary": "Dove sono tenuti i livelli letti: la cache delle pagine, tra le sue voci (`PageCache.level`).",
+    "summary": "Dove sono tenuti i livelli letti: la cache delle pagine, tra le sue voci (`PageCache.level`), ciascuno tenuto lì da chi lo chiede finché non deve andarsene (`acquire`, `release`, poi `fit`).",
     "members": {
       "level": "Il livello di texture o il record di tile tenuto sotto `id`, segnato come usato per ultimo.",
       "keepLevel": "Tiene `level` sotto `id`, la cache lo possiede da qui: lo chiude quando esce. Un livello già tenuto — letto nel frattempo dalla sessione che una perdita del dispositivo ha sostituito — resta, segnato come usato per ultimo, e la copia si chiude: i suoi byte sono contati una volta.",
       "roomBytes": "Byte che una voce in arrivo può prendere: il budget, meno ciò che nessuno sfratto può prendere.",
-      "levelBytes": "Byte che occupano i livelli di texture e i record delle tile."
+      "levelBytes": "Byte che occupano i livelli di texture e i record delle tile.",
+      "acquire": "Uno in più trattiene la voce di `url`, anche prima che arrivi.",
+      "release": "Un trattenimento della voce di `url` finisce; il chiamante pesa la cache quando ha finito (`fit`).",
+      "fit": "Sfratta ciò che non ci sta più (`fit`): dopo l’arrivo di una pagina o la fine di un trattenimento."
     }
   },
   "textureLevelUrl": {
@@ -7838,7 +7841,12 @@
   },
   "CacheSession": {
     "summary": "Una sessione che legge tramite la cache: il massimo di pagine che lascia tenere alla cache, e chi sente una pagina sfrattata, o uno sfratto che non ha trovato nulla da prendere.",
-    "description": "Ciò che riserva sul totale lo comunica al posto che apre (`open`) ogni volta che cambia."
+    "description": "Ciò che riserva sul totale lo comunica al posto che apre (`open`) ogni volta che cambia.",
+    "members": {
+      "maxPages": "Il massimo di pagine che la sessione lascia tenere alla cache; nessun limite per impostazione predefinita.",
+      "evicted": "Chiamato con l’url di una pagina quando la cache la sfratta.",
+      "blocked": "Chiamato quando uno sfratto oltre il budget non ha trovato nulla da prendere."
+    }
   },
   "ModelScene": {
     "summary": "La scena di un modello come la mostra il suo record: il grafo costruito dal suo caricatore, senza le radici del mondo che ha aperto, che il modello tiene per sé per le sessioni del suo mondo.",
@@ -7868,7 +7876,7 @@
       "release": "Un trattenimento della voce di `url` finisce; il chiamante pesa la cache quando ha finito (`fit`).",
       "fit": "Sfratta ciò che non ci sta più (`fit`): dopo l’arrivo di una pagina o la fine di un trattenimento.",
       "file": "Il file di `url` che un server ha restituito intero, segnato come usato per ultimo, finché la cache lo tiene.",
-      "keepFile": "Tiene il file di `url` che un server ha restituito intero come voce usata più di recente.",
+      "keepFile": "Tiene il file di `url` che un server ha restituito intero come voce usata più di recente, quando sta in ciò che lo sfratto può liberare (`roomBytes`): uno che lo supera prenderebbe ogni voce, poi sé stesso, e viene lasciato andare.",
       "level": "Il livello di texture o il record di tile tenuto sotto `id`, segnato come usato per ultimo.",
       "keepLevel": "Tiene `level` sotto `id`, la cache ne è proprietaria da qui: lo chiude quando se ne va. Un livello già tenuto — letto nel frattempo dalla sessione che una perdita del dispositivo ha sostituito — resta, segnato come usato per ultimo, e la copia si chiude: i suoi byte sono contati una volta.",
       "keep": "La lettura del file che `key` nomina, di `bytes` byte — il proxy residente della scena —, tenuta intera al posto di ogni altra: `start` la avvia sull’annullamento proprio della cache quando non è tenuta, e una sessione riaperta nel frattempo si unisce a quella in volo. I suoi byte contano da quando viene chiesta; trattenuta finché è in volo, se ne va solo una volta arrivata, e solo quando nessuna pagina, file o livello può andarsene (`SCENE_TIER`). Resta da una sessione all’altra finché `keepOnly` non la nomina più. Una lettura che fallisce se ne va subito.",
@@ -7886,6 +7894,6 @@
   },
   "createPageCache": {
     "summary": "L’UNICA CACHE DELL’HOST: i byte di ogni pagina e di ogni pacchetto letti, di ogni file che un server ha restituito intero invece di un intervallo (`readRange`), di ogni livello di texture decodificato e record di tile a blocchi (`level`), e del proxy residente della scena (`keep`), come un unico insieme di voci, UN budget e UNO sfratto (`cacheEntries.ts`), rispetto al totale CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Il suo proprietario la tiene da una sessione all’altra: un mondo passa la stessa a ogni sessione che apre, così una sessione riaperta — su un dispositivo concesso di nuovo dopo una perdita, o su una scena cambiata — legge da qui ciò che la precedente ha recuperato, e non recupera nulla di ciò che essa tiene. Ogni sessione che legge tramite essa riserva le tabelle del manifesto, la coda di trasferimento e le tabelle del motore (`manifestTableBytes`, `maxTransferBytes`, il `reserve` dello streamer), comunicate man mano che cambiano (`open`), con la cache che ne tiene la somma, e prende trattenimenti sulle pagine che fissa o legge; le voci tengono il resto (`budgetBytes`). Solo la cache sfratta, una volta che le sue voci superano il budget: mai una voce che qualcuno trattiene, poi le pagine, i file e i livelli usati meno di recente, il proxy per ultimo. Un livello non ha bisogno di spazio proprio: prende ciò che lo sfratto può liberare (`roomBytes`), come una pagina."
+    "description": "Il suo proprietario la tiene da una sessione all’altra: un mondo passa la stessa a ogni sessione che apre, così una sessione riaperta — su un dispositivo concesso di nuovo dopo una perdita, o su una scena cambiata — legge da qui ciò che la precedente ha recuperato, e non recupera nulla di ciò che essa tiene. Ogni sessione che legge tramite essa riserva le tabelle del manifesto, la coda di trasferimento e le tabelle del motore (`manifestTableBytes`, `maxTransferBytes`, il `reserve` dello streamer), comunicate man mano che cambiano (`open`), con la cache che ne tiene la somma, e prende trattenimenti sulle pagine che fissa o legge; le voci tengono il resto (`budgetBytes`). Solo la cache sfratta, una volta che le sue voci superano il budget: mai una voce che qualcuno trattiene, poi le pagine, i file e i livelli usati meno di recente, il proxy per ultimo; oltre il minimo di pagine che una sessione consente, le sole pagine. Un livello non ha bisogno di spazio proprio: prende ciò che lo sfratto può liberare (`roomBytes`), come una pagina."
   }
 }
