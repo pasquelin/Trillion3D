@@ -6,15 +6,8 @@ import { levelSize, mipLevelCountFor } from './tiles.ts'
 import { coveragePipelines, LEVEL_BIN_BYTES, pickGroup } from './coverageMips.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
-import {
-  chainGroups,
-  levelViews,
-  type ChainGroups,
-  type ChainPlace,
-  type MipChain,
-} from './mipGroups.ts'
+import { chainGroups, type ChainGroups, type ChainPlace, type MipChain } from './mipGroups.ts'
 
-export { levelViews }
 export type { MipChain }
 
 type Place = ChainPlace & { cutoff: number }
@@ -191,36 +184,5 @@ function encodeByLevel(
       pass.setBindGroup(0, reduce[level - 1])
       dispatch(pass, sizes[level])
     }
-  }
-}
-
-/** The uniform of a chain of `count` reductions over a `width × height` image — block `index`
- *  holds source level `index`'s size, then the image's — and a bind group per reduction, `group`
- *  given its block. A frame source keeps both; its owner admits the buffer before construction,
- *  and a group that throws releases it. */
-export function reductionGroups(
-  device: GPUDevice,
-  label: string,
-  [width, height]: readonly [number, number],
-  count: number,
-  group: (index: number, extent: GPUBufferBinding) => GPUBindGroup,
-) {
-  const slots = uniformSlots(device.limits, Math.max(1, count), 4)
-  const uniforms = device.createBuffer({
-    label,
-    size: slots.bytes,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  try {
-    const packed = new Uint32Array(uniforms.size / 4)
-    const groups = Array.from({ length: count }, (_, index) => {
-      packed.set([...levelSize(width, height, index), width, height], index * slots.strideWords)
-      return group(index, { buffer: uniforms, offset: slots.offset(index)[0], size: 16 })
-    })
-    device.queue.writeBuffer(uniforms, 0, packed)
-    return { uniforms, groups }
-  } catch (error) {
-    uniforms.destroy()
-    throw error
   }
 }

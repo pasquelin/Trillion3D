@@ -49,7 +49,7 @@ export class Scene extends Object3D {
   /** Tells the world the background changed, chained on the colour to hear writes in place; a
    *  link that is no world's hears neither the background nor the fog. */
   private readonly recoloured = () => (this._link as Partial<WorldSceneLink> | null)?.background?.()
-  /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
+  /** A picture of the surroundings; `null` for none. */
   environment: Texture | null = null
   private _fog: Fog | null = null
   /** Tells the world the fog changed, chained on its colour to hear writes in place. */

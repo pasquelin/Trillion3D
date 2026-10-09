@@ -20,17 +20,13 @@ const REASONS = [
   'cutPending',
   'bounceProbes',
   'deforming',
-  'reflections',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
   number
 >
 export const TEXTURES_PENDING = BIT.texturesPending,
-  SHADOWS_PENDING = BIT.shadowsPending,
-  /** Reflection history alone still advancing: a frame that holds nothing else restarts TAA on it
-   *  (`hold.ts`). */
-  REFLECTIONS_PENDING = BIT.reflections
+  SHADOWS_PENDING = BIT.shadowsPending
 /** The run's own state: loss, capture, frame, cut and budget flags. */
 function runMask(rt: WebgpuPagesRuntime) {
   const { run, capture, timing } = rt,
@@ -74,22 +70,13 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (services.cutPending.count) mask |= BIT.cutPending
   return mask
 }
-/** The temporal histories still advancing: bounce probes, reflections and deformation. */
+/** The temporal histories still advancing: bounce probes and deformation. */
 function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   const { vis, bounce } = rt
   let mask = 0
   // Closed probe series hold; a pending unrefused series still needs a frame.
   if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
     mask |= BIT.bounceProbes
-  // Only an active contract pass can advance reflection history; unlit never consumes it.
-  const reflection = rt.gpu.reflection
-  if (
-    rt.gpu.deferred?.usesContract &&
-    reflection?.active &&
-    reflection.history &&
-    !reflection.history.settled
-  )
-    mask |= BIT.reflections
   // Deformation advances its own temporal history; its answers serve `frame`'s update alone.
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
   return mask

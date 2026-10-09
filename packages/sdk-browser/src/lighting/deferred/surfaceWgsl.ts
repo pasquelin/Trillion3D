@@ -10,12 +10,10 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
 export const LIGHTING_RECEIVER_BINDING = 23
 
-/** The lighting's entry, its camera fog and its mirror term: the texts the reflection source
- *  output finds in it (`reflections/sourceOutputWgsl.ts`). */
+/** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
   '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
-export const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
-export const MIRROR_TERM = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)'
+const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
 
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
@@ -42,14 +40,14 @@ const SHADOW_SETUP_WGSL = wgslBlock(
 }`,
 )
 
-/** What the bounce program adds to the direct sum, the mirror term last, and its diagnostic view of
- *  the bounced light alone; the direct program adds the mirror term only. */
+/** What the bounce program adds to the direct sum, and its diagnostic view of the bounced light
+ *  alone; the direct program adds nothing. */
 const SURFACE_TERMS = {
   bounce: {
-    sum: `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)${MIRROR_TERM}`,
+    sum: '+bounceLighting(base.rgb,base.a,N,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
   },
-  direct: { sum: MIRROR_TERM, diagnostic: '' },
+  direct: { sum: '', diagnostic: '' },
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes

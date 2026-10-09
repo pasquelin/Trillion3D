@@ -1,4 +1,3 @@
-import { reflectionLayout } from '../../reflections/layout.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 import {
@@ -102,10 +101,10 @@ export async function blendStagePipelines(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  group2?: GPUBindGroupLayout,
+  mask?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
   const [none, front, back] = await Promise.all(
-    stageDescriptors(device, module, layout, fragment, depthWrite, group2).map((stage) =>
+    stageDescriptors(device, module, layout, fragment, depthWrite, mask).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
   )
@@ -114,7 +113,7 @@ export async function blendStagePipelines(
 
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
-/** The descriptors of those three, one per cull mode: what a blend mode compiles; `group2`, the
+/** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
  *  display mask's layout of a filtered image's pipelines. Each draws one coplanar layer over the
  *  opaque depth (`TRANSPARENT_DEPTH_LAYER`): a glass lying on its base covers it, as the opaque
  *  layers and the lines cover the faces they lie on. */
@@ -124,10 +123,10 @@ export function stageDescriptors(
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  group2?: GPUBindGroupLayout,
+  mask?: GPUBindGroupLayout,
 ): GPURenderPipelineDescriptor[] {
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, reflectionLayout(device), ...(group2 ? [group2] : [])],
+    bindGroupLayouts: [layout, ...(mask ? [mask] : [])],
   })
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,

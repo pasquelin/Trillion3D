@@ -12,7 +12,6 @@ export const QUALITY_GROUPS = [
   'edgeSmoothing',
   'imageEffects',
   'shadows',
-  'reflections',
   'textures',
   'effects',
   'indirectLight',

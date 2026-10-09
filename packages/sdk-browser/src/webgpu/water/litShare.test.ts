@@ -1,7 +1,7 @@
 // At full transmission the water's lit colour carries no share of the composite, `(1-t)·alpha·lit`
 // an exact zero: the composite does not light it (the bounce walk, the environment, the emission).
 // The shipped `waterColor` runs as JavaScript (`shaderRun`) on random water pixels, every read
-// beside it a pure function of the pixel — random finite lighting, reflection, backdrop and fog —:
+// beside it a pure function of the pixel — random finite lighting, specular, backdrop and fog —:
 // at t = 1 the composed colour does not depend on the lit terms (bounce, environment, emission),
 // which it does not evaluate; and only below it is the colour lit.
 import { lerp } from '../../../../math/src/scalar/reals.ts'
@@ -32,7 +32,6 @@ function pixelOf(r: () => number, t: number) {
     declared: { lit: big(), specular: big() },
     bounce: big(),
     environment: big(),
-    radiance: big(),
     through: { color: v3(0, 4), coverage: r() < 0.3 ? u(0, 1) : 1 },
     fog: u(0, 1),
   }
@@ -49,7 +48,7 @@ function runner(text: string) {
   const { waterColor } = shaderRun<{ waterColor: Color }>(
     text.replace('textureLoad(emissiveAo,', 'textureLoad(emissiveAoTexture,'),
     // With the lobeless program's stand-ins (`WATER_LOBELESS_WGSL`, `lobeThrough`) and the marks.
-    ['waterColor', 'waterLobes', 'waterCoatMirror', 'lobeThrough', 'volumeMarked', 'fresnelScalar'],
+    ['waterColor', 'waterLobes', 'lobeThrough', 'volumeMarked', 'fresnelScalar'],
     {
       ...Object.fromEntries(textures.map((name) => [name, { name }])),
       textureLoad: ({ name }: { name: keyof Pixel['textures'] }) => pixel.textures[name],
@@ -73,7 +72,6 @@ function runner(text: string) {
       declaredLightingPair: () => pixel.declared,
       bounceLighting: () => (lit++, pixel.bounce),
       environmentLighting: () => pixel.environment,
-      resolvedRadiance: () => pixel.radiance,
       transmittedBackdrop: () => pixel.through,
       fogged: (color: number[]) => color.map((c) => c * pixel.fog + 0.25 * (1 - pixel.fog)),
     },
@@ -88,7 +86,7 @@ function runner(text: string) {
 test('a fully transmissive pixel composes the same numbers without lighting its colour', () => {
   const r = random(1468),
     // The program without lobe code: a lobed one adds terms under the same share (`waterLobesWgsl.ts`).
-    run = runner(waterCompositeShader(false, { lobeless: true }))
+    run = runner(waterCompositeShader({ lobeless: true }))
   for (let round = 0; round < 4000; round++) {
     const t = round % 2 ? 1 : r()
     const pixel = pixelOf(r, t)

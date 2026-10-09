@@ -1,9 +1,9 @@
 // Every lighting program of the opaque resolve, the blends and the water pass binds no more of a
 // kind in one stage than the session's device holds: the counts it asks of the adapter
 // (`WEBGPU_REQUIRED_LIMITS`), WebGPU's defaults for the others. The kit's device, holding the
-// defaults, refuses a pipeline layout past them (`tests/kit/gpu/limitRules.ts`), and the widest
-// layout binds exactly the sampled textures the device asks for — WebGPU's guaranteed 16 —: no more
-// is asked than bound, and a device with the defaults draws every program.
+// defaults, refuses a pipeline layout past them (`tests/kit/gpu/limitRules.ts`), and every layout
+// binds within the sampled textures the device asks for — WebGPU's guaranteed 16 —: a device with
+// the defaults draws every program.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -65,7 +65,7 @@ const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
   })),
 )
 
-test("every opaque resolve program fits the device's per-stage limits, the widest exactly", async () => {
+test("every opaque resolve program fits the device's per-stage limits", async () => {
   const { device, layouts } = recordingDevice()
   const failures: unknown[] = []
   const onFailure = (error: unknown) => void failures.push(error)
@@ -77,13 +77,12 @@ test("every opaque resolve program fits the device's per-stage limits, the wides
   const variants = createContractVariants(device, bindings, undefined, { onFailure })
   for (const bounce of [false, true]) for (const key of KEYS) await variants.precompile(bounce, key)
   assert.deepEqual(failures, [])
-  assert.equal(
-    widestSampled(layouts),
-    WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
-    'the device asks for the sampled textures the widest program binds',
+  assert.ok(
+    widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
+    'the device holds the sampled textures the widest program binds',
   )
   // Its targets read by load alone are read-only storage textures (`deferredLayoutEntries`): within
-  // the guaranteed four of a fragment stage, the rough trace's record beside them.
+  // the guaranteed four of a fragment stage.
   assert.ok(
     widest(layouts, 'maxStorageTexturesPerShaderStage', 'Fragment') <= GUARANTEED_STORAGE_TEXTURES,
   )

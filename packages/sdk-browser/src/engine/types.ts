@@ -151,7 +151,6 @@ export interface EngineContext {
    *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`, #33)
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain
   sceneLighting?: Object3D

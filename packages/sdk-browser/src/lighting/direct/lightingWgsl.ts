@@ -69,7 +69,7 @@ fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileL
   )
 /**
  * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
- * the resident proxy, which the mirror reflection traces (`bounce/reflectWgsl.ts`), the translucent
+ * the resident proxy, which the shadow rays trace (`bounce/traceWgsl.ts`), the translucent
  * casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
  * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
  * transmission; the blend and water passes, without it, read the transmission alone
@@ -208,7 +208,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  *
  * With `pair`, `declaredLightingPair`: the two sums of one walk, on the surface and on a null
  * albedo (`declaredLightWgsl`), each that of its own walk bit for bit — the water lights its pixel
- * once for its colour and its reflection's specular.
+ * once for its colour and its specular.
  *
  * `key` (`LOBELESS_KEY` unless given) as the opaque resolve's, its `narrow` aside: `unshadowed`,
  * the loop of a scene no light of which holds a shadow slot; `rectless`, of a scene that holds no

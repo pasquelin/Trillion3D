@@ -8,8 +8,6 @@
 // proves with the real bricks: `createDeferredLighting`, `run.gate.resourcesChanged`,
 // `holdWebgpuFrame`, `keepWebgpuFrame`. `rt` is mounted by hand, reduced to what `frameSettled`
 // reads.
-import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts'
-import { createScaleControl } from '../../frame/scaleControl.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
@@ -21,28 +19,12 @@ import { directLightResources } from '../pages/prepare/contractLight.ts'
 
 installGpuGlobals()
 
-test('the TAA hold cannot freeze an unfinished reflection window', () => {
-  const h = deferredLightingHarness()
-  const rt = settledRt()
-  for (let i = 0; i < 2; i++) keepWebgpuFrame(rt)
-  rt.gpu.reflection = { active: true, history: { settled: false } } as unknown as NonNullable<
-    typeof rt.gpu.reflection
-  >
-  rt.gpu.deferred = { usesContract: true } as typeof rt.gpu.deferred
-  assert.equal(holdWebgpuFrame(rt, h.device), false)
-  Object.assign(rt.gpu.reflection.history!, { settled: true })
-  assert.equal(holdWebgpuFrame(rt, h.device), true)
-})
-
 test('GEO-02: the contract program that finishes compiling breaks the held frame', async () => {
   const h = deferredLightingHarness()
   const rt = settledRt()
   // The wiring of `../pages/prepare/preparePages.ts`, word for word.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged())
   rt.gpu.deferred = lighting
-  rt.gpu.reflection = { active: true, history: { settled: false } } as NonNullable<
-    typeof rt.gpu.reflection
-  >
 
   // The frame binds what the hold asks the lit program for (`contractLight.ts`), the engine's own
   // resources: one program asked, whose arrival is one resource. A hand-written key that differs
@@ -75,15 +57,7 @@ test('GEO-02: the contract program that finishes compiling breaks the held frame
   assert.equal(lighting.usesContract, true, 'contract draws the frame after arrival')
   assert.equal(rt.run.frame, frameTenue + 1)
   keepWebgpuFrame(rt)
-  assert.equal(
-    holdWebgpuFrame(rt, h.device),
-    false,
-    'the active contract must finish reflection work',
-  )
-  Object.assign(rt.gpu.reflection.history!, { settled: true })
-  assert.equal(holdWebgpuFrame(rt, h.device), true)
-  Object.assign(rt.gpu.reflection, { active: false, history: { settled: false } })
-  assert.equal(holdWebgpuFrame(rt, h.device), true, 'disabled reflection cannot advance history')
+  assert.equal(holdWebgpuFrame(rt, h.device), true, 'the contract frame is held once remade')
 })
 
 test('GEO-02: both contract variants announce their arrival, DIRECT as well as BOUNCE', async () => {
@@ -97,33 +71,4 @@ test('GEO-02: both contract variants announce their arrival, DIRECT as well as B
   h.finishCompilation()
   await lighting.settle()
   assert.equal(arrivees, 2, 'DIRECT and BOUNCE each announce theirs')
-})
-
-test('reflection refinement keeps the still TAA scale and complete lighting while delaying hold', async () => {
-  const h = deferredLightingHarness()
-  const rt = settledRt()
-  const temporal = await createTemporalAntialiasing(h.device, [], true)
-  rt.gpu.temporal = temporal
-  rt.gpu.temporalWanted = true
-  rt.run.diagnostic = 'beauty'
-  rt.gpu.displayTexture = {} as GPUTexture
-  rt.scale = createScaleControl({ min: 0.5, max: 1 })
-  rt.gpu.reflection = { active: true, history: { settled: false } } as NonNullable<
-    typeof rt.gpu.reflection
-  >
-  rt.gpu.deferred = { usesContract: true } as typeof rt.gpu.deferred
-  try {
-    for (let i = 0; i < 2; i++) keepWebgpuFrame(rt)
-    assert.equal(holdWebgpuFrame(rt, h.device), false)
-    assert.equal(
-      temporal.frame.stillFrames,
-      1,
-      'reflection work must not masquerade as camera motion',
-    )
-    assert.equal(temporal.frame.sampledRank, 0)
-    assert.equal(temporal.frame.scale, 1)
-    assert.deepEqual(rt.gpu.targetSize, [4, 4])
-  } finally {
-    temporal.dispose()
-  }
 })

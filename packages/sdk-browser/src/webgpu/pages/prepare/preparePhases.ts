@@ -73,7 +73,7 @@ export async function prepareMaterials(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   step: PrepareStep,
-  started: { impostorCode: ReturnType<typeof loadImpostorCode>; reflectionMips: Promise<unknown> },
+  started: { impostorCode: ReturnType<typeof loadImpostorCode> },
 ) {
   const { gpu, vis, diag, blendState } = rt,
     { allPages } = rt.setup
@@ -97,7 +97,6 @@ export async function prepareMaterials(
   // census of the surfaces its opaque pages wear, on their geometry, says (`shadeCensus.ts`).
   vis.shadeCensus = createShadeCensus(allPages, vis.geometryBlocks, vis)
   vis.writesEmissiveAo = wantsEmissiveAo(rt)
-  await started.reflectionMips
   await grantFrameTargets(rt, gpuDevice)
   // A refused deformation import is a geometry failure, told below: no compute without its code.
   const deformationCode = vis.deformationCode

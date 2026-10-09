@@ -1,6 +1,5 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { createScreenReflection, reflectionPlan } from '../../../reflections/gpu.ts'
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop } from '../../transparent/transmission.ts'
@@ -13,9 +12,7 @@ import { makesDisplayColor } from './targetAllocation.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
-  const { gpu, vis } = rt,
-    plan = reflectionPlan(rt),
-    pyramid = gpu.reflection?.pyramid
+  const { gpu, vis } = rt
   return (
     !!gpu.hdrTexture &&
     !!gpu.colorTexture === makesDisplayColor(rt, size) &&
@@ -27,13 +24,6 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     !!gpu.surfaces &&
     holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
     // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
-    // Judged by the plan the targets were made from (`makeTargets`): a fit that asked otherwise
-    // would remake them every image, and a prepare would never settle.
-    gpu.reflection?.active === plan.active &&
-    !!gpu.reflection?.history === plan.rough &&
-    !!pyramid === plan.pyramid &&
-    !!gpu.reflection?.mirror === plan.mirror &&
-    !!pyramid?.radiance === plan.cone &&
     !!vis.visTexture
   )
 }
@@ -164,17 +154,6 @@ export function buildTargets(
       : undefined
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = gpu.hdrTexture.createView()
-  const plan = reflectionPlan(rt)
-  gpu.reflection = createScreenReflection(
-    device,
-    width,
-    height,
-    gpu.depthView,
-    plan.active,
-    plan.rough,
-    plan.cone,
-    plan.mirror,
-  )
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0)
   // Temporal history follows the display size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height)

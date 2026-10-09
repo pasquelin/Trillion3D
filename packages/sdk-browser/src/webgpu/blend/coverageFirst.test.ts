@@ -65,7 +65,6 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     declaredLighting: lit,
     bounceLighting: lit,
     environmentLighting: lit,
-    mirrorLighting: lit,
     fogged: (rgb: number[]) => rgb,
     shadowSetView: () => undefined,
     displayRoute: () => ({ keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] }),
@@ -131,7 +130,7 @@ test('a fragment the material rejects reads its base colour alone, and lights no
   ])
     assert.deepEqual(rejected.counts, { color: 1, data: 0, lights: 0, discarded: 1 })
   // A kept fragment reads its three maps and lights itself: four light terms, nothing discarded.
-  assert.deepEqual(runBlendFragment(1, LIT).counts, { color: 1, data: 3, lights: 4, discarded: 0 })
+  assert.deepEqual(runBlendFragment(1, LIT).counts, { color: 1, data: 3, lights: 3, discarded: 0 })
   const unlit = runBlendFragment(0.75, FLAG_UNLIT_VIEW)
   assert.deepEqual(unlit.counts, { color: 1, data: 3, lights: 0, discarded: 0 })
   assert.deepEqual(unlit.out.color, [0.5, 0.5, 0.5, 0.75])

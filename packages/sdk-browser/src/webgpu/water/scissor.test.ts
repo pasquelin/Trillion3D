@@ -13,7 +13,7 @@ async function recorded() {
   const { blendState, gpu } = prepared()
   targets(gpu)
   const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true, false)
+  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
   const restore = fake.renderPipelines.find((p) => p.fragment?.entryPoint === 'restore_fs')!
   const bounds = blendState.waterBounds
   bounds.active = true

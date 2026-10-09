@@ -85,16 +85,3 @@ export const madeTextureBytes = (texture: GPUTexture) =>
     sampleCount: texture.sampleCount,
     dimension: texture.dimension,
   }) ?? 0
-
-/** Bytes of levels 1 and up of a `levels`-level chain: the mips beside a level 0 held elsewhere. */
-export function mipTailBytes(
-  width: number,
-  height: number,
-  format: GPUTextureFormat,
-  levels: number,
-): number {
-  const size: GPUExtent3D = [width, height]
-  return (
-    textureBytesOf({ size, format, mipLevelCount: levels })! - textureBytesOf({ size, format })!
-  )
-}

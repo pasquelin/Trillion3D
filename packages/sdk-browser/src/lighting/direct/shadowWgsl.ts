@@ -329,8 +329,7 @@ fn vsmFilterTaps${kind}(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f)->f3
  * (`encodeVsm.ts`). The opaque resolve reads the frame's traced shadow mask
  * (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`, set by its shadow setup),
  * the light's channel, and the located sample (`vsmTransmissionRead`) for the translucent casters'
- * transmission alone. The blend and water passes read the filtered taps (`vsmShadowRead`). A
- * reflection reads the lit image, never a shadow map.
+ * transmission alone. The blend and water passes read the filtered taps (`vsmShadowRead`).
  *
  * The resolve reads a shadow only in a cell its shadow setup set the mask pixel of
  * (`cellShadowed`, `shadowSetup`): a cell whose list holds a light with a shadow slot, or — no room

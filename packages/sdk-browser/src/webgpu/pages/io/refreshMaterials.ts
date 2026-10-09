@@ -41,8 +41,8 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
 
 const materialEpochs = new WeakMap<WebgpuPagesRuntime, number>()
 
-/** How many writes of material values `rt` took: what lit a reflection's history moved with each
- *  (`reflectionFrame.ts`). */
+/** How many writes of material values `rt` took: what the blends' resources reread with each
+ *  (`../../blend/resources.ts`). */
 export const materialEpoch = (rt: WebgpuPagesRuntime) => materialEpochs.get(rt) ?? 0
 
 /**

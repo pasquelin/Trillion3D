@@ -145,8 +145,8 @@ function nextMapWords(image: ArrayBuffer) {
  * The planes every point the frame lights lies within, in world space (`frustum.ts` order): the
  * view's frustum one pixel wider on each side of `width` × `height` — a jittered sample stays
  * within half a pixel of it — and its near plane as much nearer; no far plane where the projection
- * has none. The opaque, blend and water passes read a shadow only at their own pixels (a
- * reflection reads the lit image, bounce traces its proxy): a light no such point is in reach of
+ * has none. The opaque, blend and water passes read a shadow only at their own pixels (bounce
+ * traces its proxy): a light no such point is in reach of
  * has no shadow anyone reads.
  */
 export function vsmSeenPlanes(

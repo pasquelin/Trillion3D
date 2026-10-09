@@ -1,4 +1,3 @@
-import type { ScreenReflection } from '../../../reflections/gpu.ts'
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts'
 import type { createGpuPageCache } from '../../../gpu/page/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
@@ -41,7 +40,6 @@ export interface WebgpuGpuState {
    *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
    *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined
-  reflection?: ScreenReflection
   surfaces: SurfaceBuffer | undefined
   asIsShare: AsIsShare | undefined
   /** The display filter, made by the first image whose blends filter and kept while the plan

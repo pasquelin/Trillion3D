@@ -15,7 +15,6 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number> = {
   dynamicShadows: true,
   glass: true,
   particles: true,
-  reflections: true,
   postProcessing: true,
   maxAnisotropy: MAX_ANISOTROPY,
   shadowPages: vsm.VSM_POOL_PAGES,

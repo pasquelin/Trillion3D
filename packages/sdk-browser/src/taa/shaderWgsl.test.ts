@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { taaReprojectWgsl, taaShader } from './shaderWgsl.ts'
+import { taaShader } from './shaderWgsl.ts'
 import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
@@ -8,16 +8,18 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { TAA_WEIGHTS } from './filterWeights.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
-import { REFLECTION_RESOLVE_WGSL } from '../reflections/resolveWgsl.ts'
-import { REFLECTION_SOURCE_WGSL } from '../reflections/sourceWgsl.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-const TAA_REPROJECT_WGSL = taaReprojectWgsl().text
+/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousUv`. */
+const TAA_REPROJECT_WGSL = TAA_SHADER.slice(
+  TAA_SHADER.indexOf('fn placementOf('),
+  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousUv(')) + 2,
+)
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the temporal shader assembles each fragment once, on the shared page record', () => {
-  for (const fragment of [wgslSource(YCOCG_WGSL), TAA_REPROJECT_WGSL])
+  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousUv('])
     assert.equal(occurrences(TAA_SHADER, fragment), 1)
   assert.match(TAA_SHADER, /@vertex fn fullscreen\(/)
   assert.match(TAA_SHADER, /@fragment fn resolve\(/)
@@ -111,14 +113,11 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
 })
 
-// `previousUv` takes the identifier its caller read once, never the texel to read it at: the
-// reflections' reprojections hand it theirs, as the resolve does.
+// `previousUv` takes the identifier its caller read once, never the texel to read it at.
 test('every reprojection hands previousUv the identifier it read', () => {
-  for (const shader of [TAA_SHADER, REFLECTION_RESOLVE_WGSL, REFLECTION_SOURCE_WGSL]) {
-    const calls = [...shader.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
-      .map((call) => call[1].split(',').at(-1))
-      .filter((last) => last !== 'id:u32')
-    assert.ok(calls.length > 0)
-    for (const last of calls) assert.equal(last, 'id')
-  }
+  const calls = [...TAA_SHADER.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
+    .map((call) => call[1].split(',').at(-1))
+    .filter((last) => last !== 'id:u32')
+  assert.ok(calls.length > 0)
+  for (const last of calls) assert.equal(last, 'id')
 })

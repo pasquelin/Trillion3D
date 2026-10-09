@@ -9,7 +9,6 @@ import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { PROXY_HEADER_BYTES } from '../../bounce/sizes.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
-import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import {
@@ -49,9 +48,9 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
       buffer: { type: 'read-only-storage' },
     })
   if (direct && resolve) entries.push(...resolveLayoutEntries())
-  // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
-  // bounce program, so a session without bounce keeps exactly the previous layout. The two last
-  // are atlases (`atlas.ts`): no storage buffer of the eight.
+  // Probe grid and their coefficients: bound only by the bounce program, so a session without
+  // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
+  // storage buffer of the eight.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
@@ -59,11 +58,6 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
         binding: 12,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-      },
-      {
-        binding: BOUNCE_SURFACE_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
       },
     )
   return entries
@@ -92,9 +86,9 @@ function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'uniform' },
     },
-    // The resident proxy the mirror reflection traces: a single read-only binding, which
-    // carries the columns a ray traverses and that ray's settings, so every lighting pass
-    // (opaque, blend, water) binds it alike.
+    // The resident proxy the shadow rays trace: a single read-only binding, which carries the
+    // columns a ray traverses and that ray's settings, so every lighting pass (opaque, blend,
+    // water) binds it alike.
     {
       binding: RESIDENT_PROXY_BINDING,
       visibility: GPUShaderStage.FRAGMENT,
@@ -113,9 +107,8 @@ function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
 /**
  * The receiver offset's reads, subsurface, lobes, the mask's transmission, table and tiles: only
  * the opaque resolve. The subsurface, the lobes and the mask's table, three targets read by load
- * alone, are read-only storage textures: the widest program — with bounce, under the reflection
- * group — holds the sixteen sampled textures WebGPU guarantees a stage, and its storage textures
- * the four, the rough trace's record among them (`../../reflections/layout.ts`).
+ * alone, are read-only storage textures: the widest program, with bounce, stays within the sixteen
+ * sampled textures WebGPU guarantees a stage.
  */
 function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
   return [
@@ -145,7 +138,7 @@ export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean,
 
 /**
  * Contract substitute resources: an empty tile list, a one-texel transmittance layer, a probe
- * grid at zero, an empty surface cache, and the virtual shadow maps' stand-ins. A device without
+ * grid at zero, and the virtual shadow maps' stand-ins. A device without
  * the maps keeps valid bindings, the light simply unshadowed; a frame without bounce reads zero
  * probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
@@ -173,8 +166,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM,
   })
   const probes = emptyAtlas(device, 'Trillion3D empty bounce probes', PROBE_TEXELS)
-  // One texel of zero: the water composite binds it while bounce is off, and reads none.
-  const surfaceCache = emptyAtlas(device, 'Trillion3D empty bounce surface cache')
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node.
   // Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -191,7 +182,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     transmittanceView: arrayView(transmittance),
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
-    surfaceCache: surfaceCache.createView(),
     proxy,
     receiver: receiver.resources,
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -203,7 +193,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       transmittance.destroy()
       bounceGrid.destroy()
       probes.destroy()
-      surfaceCache.destroy()
       proxy.destroy()
     },
   }

@@ -57,7 +57,6 @@ export const VIEW_GPU_KEYS = [
   'feedbackTexture',
   'feedbackView',
   'backdrop',
-  'reflection',
   'surfaces',
   'targetSize',
   'allocatedSize',

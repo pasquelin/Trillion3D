@@ -41,7 +41,7 @@ test('every program holds each library declaration once, as the library writes i
 })
 
 /** A shared fragment's name: `X_WGSL`, or a factory `xWgsl(…)`; an expression or a statement a
- *  host writes in a body is named otherwise (`FULLSCREEN_XY`, `MIRROR_TERM`). */
+ *  host writes in a body is named otherwise (`FULLSCREEN_XY`, `CAMERA_FOG`). */
 const SPLICE =
   /\$\{\s*([A-Za-z_]\w*(?:_WGSL|Wgsl))\b|\b([A-Z][A-Z0-9_]*_WGSL)\s*\+|\+\s*([A-Z][A-Z0-9_]*_WGSL)\b/g
 
@@ -60,5 +60,5 @@ test('the splice reader finds a fragment spliced or added, and leaves a paramete
   assert.deepEqual(found('const A = `${EDGE_WGSL}\nfn f(){}`'), ['EDGE_WGSL'])
   assert.deepEqual(found('const B = `${normalAtlasWgsl(6)}`'), ['normalAtlasWgsl'])
   assert.deepEqual(found('const C = VIS_SHADER + DIAGNOSTIC_VIS_WGSL'), ['DIAGNOSTIC_VIS_WGSL'])
-  assert.deepEqual(found('const D = `vec4f(${FULLSCREEN_XY},0.0,1.0)${MIRROR_TERM}`'), [])
+  assert.deepEqual(found('const D = `vec4f(${FULLSCREEN_XY},0.0,1.0)${CAMERA_FOG}`'), [])
 })

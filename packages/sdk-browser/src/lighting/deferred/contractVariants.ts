@@ -173,11 +173,9 @@ class LitVariantTable<P> {
   }
 }
 
-/** What the opaque resolve's programs are told: a failed compile (`onFailure`), and a reference
- *  session's rough reflection trace, unbounded (`reflectionTrace`, #33). */
+/** What the opaque resolve's programs are told: a failed compile (`onFailure`). */
 type ContractVariantOptions = {
   onFailure?: (error: unknown) => void
-  unboundedReflections?: boolean
 }
 /** The lit programs: when `precompile`, the one a first frame asks for (`key`) compiles from the
  *  start beside the unlit one (#1362), without bounce always, with it too when `bounce`;
@@ -192,7 +190,7 @@ export const createContractVariants = (
   device: GPUDevice,
   bindings: DeferredBindings,
   onReady?: () => void,
-  { onFailure, unboundedReflections }: ContractVariantOptions = {},
+  { onFailure }: ContractVariantOptions = {},
 ) =>
   createLitVariants<DeferredProgram>(
     (bounce, key) =>
@@ -204,7 +202,6 @@ export const createContractVariants = (
           label: `${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)}`,
           direct: true,
           bounce,
-          unboundedReflections,
         },
         bindings,
       ),

@@ -1,20 +1,13 @@
-import { MATERIAL_MIP_WGSL, RADIANCE_MIP_WGSL } from './mipsWgsl.ts'
+import { MATERIAL_MIP_WGSL } from './mipsWgsl.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
-import {
-  preparedComputePipeline,
-  preparedPipeline,
-  preparedPipelines,
-} from '../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
 import type { PoolEncoding } from './blockFormats.ts'
 import { prepareCoveragePipelines } from './coverageMips.ts'
 
-/** How a level reduces: a material's colour, or a radiance. */
-type MipRule = 'material' | 'radiance'
-
-/** What decides a reduction's pipeline: the level's format — for a material, its pool format,
- *  sRGB or not —, the colour rule — plain, or weighted by alpha —, and how the level reduces. */
-export type MipKey = { format: GPUTextureFormat; weighted: boolean; rule: MipRule }
+/** What decides a reduction's pipeline: the level's pool format, sRGB or not, and the colour
+ *  rule — plain, or weighted by alpha. */
+type MipKey = { format: GPUTextureFormat; weighted: boolean }
 
 /** The format a material chain's levels are stored in: an sRGB format has no storage binding, so a
  *  colour chain is `rgba8unorm` viewed as `rgba8unorm-srgb` for its reads and its copies. */
@@ -50,8 +43,7 @@ export const levelView = (texture: GPUTexture, level: number, format?: GPUTextur
  * pipelines with it; it is built on the device itself (`sharedGpuDevice`), never on a session's
  * handle: it serves every session, and names none.
  *
- * A material level is a compute dispatch, the whole chain one compute pass (`mipBatch.ts`); a
- * radiance level is drawn, its source being the frame's render target.
+ * A material level is a compute dispatch, the whole chain one compute pass (`mipBatch.ts`).
  */
 const materialProgram = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
@@ -84,30 +76,6 @@ const materialProgram = oncePerDevice((device: GPUDevice) => {
   return { layout, pipelines }
 })
 
-const radianceProgram = oncePerDevice((device: GPUDevice) => {
-  const layout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-    ],
-  })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module = device.createShaderModule({ code: RADIANCE_MIP_WGSL })
-  const pipelines = preparedPipelines((format: GPUTextureFormat) =>
-    preparedPipeline(device, {
-      layout: pipelineLayout,
-      vertex: { module, entryPoint: 'vs' },
-      fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-      primitive: { topology: 'triangle-list' },
-    }),
-  )
-  return { layout, pipelines }
-})
-
 /** A material chain's pipeline on `device`'s shared cache — its pool format, checked when its
  *  working texture was made (`materialMipTexture`), says whether it encodes sRGB —, and its
  *  program's layout. */
@@ -117,27 +85,13 @@ const materialOf = (device: GPUDevice, format: GPUTextureFormat, weighted: boole
   return { layout, pipeline: pipelines.of({ srgb, weighted }) }
 }
 
-/** A radiance chain's pipeline on `device`'s shared cache, and its program's layout. */
-const radianceOf = (device: GPUDevice, format: GPUTextureFormat) => {
-  const { layout, pipelines } = radianceProgram(sharedGpuDevice(device))
-  return { layout, pipeline: pipelines.of(format) }
-}
-
-const pipelineOf = (device: GPUDevice, { format, weighted, rule }: MipKey) =>
-  rule === 'radiance'
-    ? radianceOf(device, format).pipeline
-    : materialOf(device, format, weighted).pipeline
+const pipelineOf = (device: GPUDevice, { format, weighted }: MipKey) =>
+  materialOf(device, format, weighted).pipeline
 
 /** Compiles off the thread, before any texture reduces with them, the pipelines of `keys` on
  *  `device`'s shared cache; resolves once all have. */
-export const prepareMipPipelines = (device: GPUDevice, keys: readonly MipKey[]) =>
+const prepareMipPipelines = (device: GPUDevice, keys: readonly MipKey[]) =>
   Promise.all(keys.map((key) => pipelineOf(device, key).prepare())).then(() => {})
-
-/** The reduction of a reflection's radiance levels (`../reflections/conePyramid.ts`): the format of
- *  the source it reduces, the lit image's. */
-export const REFLECTION_MIP_KEYS: readonly MipKey[] = [
-  { format: 'rgba16float', weighted: false, rule: 'radiance' },
-]
 
 /** The atlases a host texture's working texture reduces into (`../webgpu/tile/scratch.ts`). */
 type HostKind = 'color' | 'data'
@@ -148,7 +102,7 @@ type HostKind = 'color' | 'data'
 const hostMipKeys = (encoding: PoolEncoding, kinds: readonly HostKind[]) =>
   kinds.flatMap((kind): MipKey[] => {
     const format = encoding.formatOf(kind, 'lossless')
-    const plain: MipKey = { format, weighted: false, rule: 'material' }
+    const plain: MipKey = { format, weighted: false }
     return kind === 'color' ? [plain, { ...plain, weighted: true }] : [plain]
   })
 
@@ -176,11 +130,5 @@ export function materialMipPipeline(
   weighted: boolean,
 ) {
   const { layout, pipeline } = materialOf(device, format, weighted)
-  return { layout, pipeline: pipeline.get() }
-}
-
-/** The bind group layout and the compiled pipeline of a radiance chain of format `format`. */
-export function radianceMipPipeline(device: GPUDevice, format: GPUTextureFormat) {
-  const { layout, pipeline } = radianceOf(device, format)
   return { layout, pipeline: pipeline.get() }
 }

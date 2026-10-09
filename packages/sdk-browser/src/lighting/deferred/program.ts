@@ -2,7 +2,6 @@ import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_BINDING } from '../../scene/physicalLobes.ts'
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
-import { reflectionPipelines } from '../../reflections/pipelines.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
@@ -11,9 +10,9 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
-import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts'
-import type { ComposeInput, LitProgram } from './shaders.ts'
+import type { ComposeInput } from './shaders.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
@@ -36,24 +35,21 @@ export interface DirectLightResources extends Partial<ContractKey> {
   vsmMaskTiles?: GPUTextureView
   /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none. */
   vsmTransmission?: GPUTextureView
-  /** Probe grid, coefficients, mirror surface cache — the two atlases of `atlas.ts`: one
-   *  lifetime, the probes' identity. */
+  /** Probe grid and coefficients — an atlas of `atlas.ts`: one lifetime, the probes'
+   *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  surfaceCache?: GPUTextureView
   /** Resident proxy; absent, a zero substitute. */
   proxy?: GPUBuffer
   receiver?: ReceiverResources // what the receiver offset reads
 }
 export interface DeferredSources {
-  /** The lighting program (`contractLightingProgram`): its plain pass compiles it at its own
-   *  mirror radiance, its reflection passes at the screen's (`reflectionPipelines`). */
-  lighting: LitProgram
+  /** The lighting program (`contractLightingProgram`). */
+  lighting: WgslDecl
   compose: CompositionSources
   label: string
   direct: boolean
   bounce?: boolean
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`)
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition. */
@@ -112,15 +108,12 @@ export async function createDeferredProgram(
 ) {
   const lighting = await createCheckedShaderModule(
     device,
-    wgslModule(sources.lighting()),
+    wgslModule(sources.lighting),
     `${sources.label}_LIGHTING`,
   )
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce)
-  const [light, reflection, compositions] = await Promise.all([
+  const [light, compositions] = await Promise.all([
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    sources.direct
-      ? reflectionPipelines(device, sources.lighting, lightingLayout, sources)
-      : undefined,
     createCompositions(device, sources.compose, sources.label),
   ])
   const { placeholders } = bindings
@@ -138,7 +131,6 @@ export async function createDeferredProgram(
   }
   return {
     light,
-    reflection,
     get lightGroup() {
       return state.lightGroup
     },
@@ -238,11 +230,10 @@ function bindLight(
     const contract = { lights, tiles, vsm, mask, maskTiles, vsmTransmission, proxy, receiver }
     entries.push(...contractEntries(placeholders, surface, contract))
   }
-  if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
+  if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
       { binding: 11, resource: { buffer: direct.bounceGrid } },
       { binding: 12, resource: direct.probes },
-      { binding: BOUNCE_SURFACE_BINDING, resource: direct.surfaceCache },
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
   state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }

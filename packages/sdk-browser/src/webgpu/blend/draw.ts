@@ -63,8 +63,7 @@ export function drawBlendRuns(
     main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!
-  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group)
-  if (filter) pass.setBindGroup(2, filter.maskGroup)
+  if (filter) pass.setBindGroup(1, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
     pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))

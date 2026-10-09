@@ -61,10 +61,9 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
     'target',
   ])
   assert.deepEqual(reservedNames('// from the target\n@builtin(position) p:vec4f'), [])
-  // The translucent march's walk, whose names the gate keeps clear of reserved words.
   const blend = ENGINE_SHADERS.BLEND_SHADER
   assert.deepEqual(reservedNames(blend), [])
-  assert.deepEqual(reservedNames(blend.replace(/\bwalkFrom\b/g, 'from')), ['from'])
+  assert.deepEqual(reservedNames(blend.replace(/\bclamped\b/g, 'from')), ['from'])
 })
 
 /** The call sites that compile a text their caller hands them (the resolve's, the deferred
@@ -89,11 +88,7 @@ const HANDED_IN = new Set([
 
 test('the list holds the text of every call that compiles a module', () => {
   // A pass added without its text on the list would escape the sweep above without a word.
-  const fixture = [
-    'engineShaders.fixture.ts',
-    'engineShaders.vsm.fixture.ts',
-    'engineShaders.reflections.fixture.ts',
-  ]
+  const fixture = ['engineShaders.fixture.ts', 'engineShaders.vsm.fixture.ts']
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))
     .join('\n')
   const listed = new Set(

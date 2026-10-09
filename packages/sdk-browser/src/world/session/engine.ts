@@ -70,7 +70,6 @@ function optionContext(session: ExplorerSession) {
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
-    unboundedReflections: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     admitGpuMemory: options.admitGpuMemory,

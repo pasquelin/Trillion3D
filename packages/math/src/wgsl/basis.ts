@@ -3,19 +3,9 @@ import { wgslFn, wgslStruct } from './decl.ts'
 /**
  * A unit vector across a direction: the cross product with an axis the direction is not along.
  * Each shader picks its own axes, threshold and order, and each choice turns a frame differently:
- * six formulas, six declarations, none merged into another. Last, a whole orthonormal frame around
+ * five formulas, five declarations, none merged into another. Last, a whole orthonormal frame around
  * a unit axis, branchless, and the moves into and out of it.
  */
-
-const tangentAround = wgslFn(
-  'tangentAround',
-  [],
-  `fn tangentAround(v:vec3f)->vec3f{
- var axis:vec3f=vec3f(0.0,0.0,1.0);
- if(abs(v.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
- return normalize(cross(axis,v));
-}`,
-)
 
 export const tangentImpostor = wgslFn(
   'tangentImpostor',
@@ -68,13 +58,6 @@ export const frameAround = wgslFn(
  let b=axis.x*axis.y*a;
  return Frame3(vec3f(1.0+s*a*axis.x*axis.x,s*b,-s*axis.x),vec3f(b,s+a*axis.y*axis.y,-axis.y),axis);
 }`,
-)
-
-/** The frame of `tangentAround(N)`: its `x` that tangent, its `y` `cross(N, x)`, its `z` `N`. */
-export const tangentFrame = wgslFn(
-  'tangentFrame',
-  [Frame3, tangentAround],
-  'fn tangentFrame(N:vec3f)->Frame3{let T=tangentAround(N);return Frame3(T,cross(N,T),N);}',
 )
 
 /** The vector `v` in the frame `m`: its dot with each of the frame's rows. */

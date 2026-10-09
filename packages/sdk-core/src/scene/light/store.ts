@@ -87,7 +87,7 @@ export function createSceneLightStore() {
     },
     /** Bumped with the epoch, except by a change of the fog alone or of a shadow slice alone: fog
      *  is a view-ray term and a slice where a light's maps are addressed, neither light transport,
-     *  so what caches transported light (the bounce probes, the reflections' history) keeps it. */
+     *  so what caches transported light (the bounce probes) keeps it. */
     get transportEpoch() {
       return epoch - notTransport
     },

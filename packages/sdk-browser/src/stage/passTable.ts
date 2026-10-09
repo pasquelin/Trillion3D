@@ -8,7 +8,6 @@ import {
 import { ENGINE_PASSES, VSM_PASSES } from './passLabels.ts'
 import { WATER_PASSES } from '../webgpu/water/passLabels.ts'
 import { MIPS_PASSES } from '../texture/mipsPass.ts'
-import { REFLECTION_SOURCE_PASSES } from '../reflections/sourcePass.ts'
 import { DEFORMATION_PASSES } from '../deformation/pass.ts'
 
 /** A pass's row: its stage, that stage's index in `WEBGPU_STAGES`, and its block. */
@@ -28,7 +27,6 @@ const DECLARED_PASSES: readonly PassDeclaration[] = [
   ...ENGINE_PASSES,
   ...WATER_PASSES,
   ...MIPS_PASSES,
-  ...REFLECTION_SOURCE_PASSES,
   ...DEFORMATION_PASSES,
 ]
 

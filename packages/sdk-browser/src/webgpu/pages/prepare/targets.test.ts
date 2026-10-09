@@ -1,5 +1,4 @@
 import { MIB } from '../../../../../math/src/constants.ts'
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import { runtime } from './targets.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -41,7 +40,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height))
-    assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80)
+    assert.equal(base, frameTargetBytes(width, height, true))
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
@@ -62,36 +61,12 @@ test("a surface capture does not touch the view's history targets", () => {
   assert.deepEqual(resized, [])
 })
 
-test('an eligible receiver accounts for viewport reflection colour, its uniform and the bounds its mirror ray walks', () => {
-  const { rt } = runtime(true)
-  // A mirror's ray walks the depth bounds (`reflectionPlan`): 32×16 down to 1×1 in rg32float, and
-  // a uniform block a level; no radiance levels, no cone reads them.
-  const bounds = (512 + 128 + 32 + 8 + 2 + 1) * 8 + 6 * 256
-  assert.equal(
-    frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 24 + REFLECTION_SOURCE_VIEW_BYTES + 80 + bounds,
-  )
-})
-
 // A blended scene pays for the share target only when a debug view or the temporal pass reads it.
 test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
   const { rt } = runtime()
-  // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
-  const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256
-  const base =
-    frameTargetAllocation(rt, native(64, 32)) +
-    64 * 32 * 24 -
-    8 +
-    REFLECTION_SOURCE_VIEW_BYTES +
-    cone
-  // Under the screen-reflection cutoff, above the mirror range: the cone's lobe.
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) }
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } })
-  assert.equal(
-    frameTargetAllocation(rt, native(64, 32)),
-    base,
-    'forward reflection source and cone hierarchy, no opaque history',
-  )
+  const base = frameTargetAllocation(rt, native(64, 32))
   rt.vis.asIsShown = true
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'a debug view shown')
   rt.vis.asIsShown = false
@@ -144,7 +119,6 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       allocatedSize: [32, 32],
       displaySize: [32, 32],
       surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
-      reflection: { active: false },
       targetGrant: undefined,
     },
     vis: { visTexture: {} },
@@ -168,7 +142,6 @@ test('a frame drawn below the display costs its render targets and the display c
     displayTexture: {},
     surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
     feedbackTexture: {},
-    reflection: { active: false },
     allocatedSize: [32, 16],
     displaySize: [64, 32],
   })

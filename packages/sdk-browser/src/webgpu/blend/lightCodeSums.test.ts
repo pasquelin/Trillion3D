@@ -46,7 +46,7 @@ const PASSES = {
   },
   water: {
     // The same, the lobed pair summing as it does (`../water/lobedPair.test.ts`).
-    text: (key: Partial<ContractKey>) => waterCompositeShader(false, { ...key, lobeless: true }),
+    text: (key: Partial<ContractKey>) => waterCompositeShader({ ...key, lobeless: true }),
     loop: ['sliceLightingPair', 'declaredLightPair'],
   },
 }

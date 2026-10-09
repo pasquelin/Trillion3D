@@ -1,12 +1,6 @@
 import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../../scene/physicalLobes.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts'
-import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts'
-import { reflectionHistoryBytes } from '../../../reflections/historyTargets.ts'
-import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts'
-import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts'
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import {
   checkSurfaceSize,
   emissiveAoBytes,
@@ -44,7 +38,6 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     { renderWidth: width, renderHeight: height } = size,
     display = size.apart ? size.width * size.height : 0
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE')
-  const plan = reflectionPlan(rt)
   checkSurfaceSize(gpuDevice, size.width, size.height, 1)
   return (
     frameTargetBytes(width, height, hiz) -
@@ -62,16 +55,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // The lobes target, or its 1×1 placeholder, which frameTargetBytes counts (`physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
-    (plan.pyramid
-      ? reflectionConeAllocation(width, height, gpuDevice.limits, plan.cone).bytes
-      : 0) +
-    // The reprojected source (8 bytes a pixel) and what it is reprojected from (`source.ts`).
-    (plan.active
-      ? width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) + REFLECTION_SOURCE_VIEW_BYTES
-      : 8) +
-    (plan.rough ? reflectionHistoryBytes(width, height) + REFLECTION_RESOLVE_VIEW_BYTES : 0) +
-    display * DISPLAY_BYTES +
-    REFLECTION_VIEW_BYTES
+    display * DISPLAY_BYTES
   )
 }
 

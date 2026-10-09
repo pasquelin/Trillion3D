@@ -27,7 +27,6 @@ import { FULL_CONTRACT, type ContractKey } from '../../lighting/deferred/contrac
  */
 export async function createWaterFrame(
   device: GPUDevice,
-  unbounded = false,
   feedback = true,
   lit?: ForwardLit,
   reach: Reach = createReach({ modes: [], share: false, filtered: false }),
@@ -35,10 +34,7 @@ export async function createWaterFrame(
   const layout = createWaterCompositeLayout(device)
   const [composites, restore] = await Promise.all([
     // The composite lit with the code the scene's lights need (`createForwardVariants`).
-    createForwardVariants(
-      (key) => createWaterComposites(device, layout, unbounded, key, reach),
-      lit,
-    ),
+    createForwardVariants((key) => createWaterComposites(device, layout, key, reach), lit),
     // The opaque depth's restore: the surface pass's first draw, on its targets.
     createWaterDepthRestore(device, feedback),
   ])
@@ -182,8 +178,7 @@ function encodeWaterFrame(
   scissorTo(composite, rect)
   composite.setPipeline(frame.composites.pick(key, lobed).at(!!filter, !!share))
   composite.setBindGroup(0, group)
-  if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group)
-  if (filter) composite.setBindGroup(2, filter.maskGroup)
+  if (filter) composite.setBindGroup(1, filter.maskGroup)
   composite.draw(3)
   composite.end()
   return encoded

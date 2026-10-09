@@ -20,12 +20,7 @@ import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpu
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
-import {
-  CONTRACT_COMPOSITIONS,
-  contractLightingProgram,
-  UNLIT_COMPOSITIONS,
-} from '../../lighting/deferred/shaders.ts'
-import { withScreenReflections } from '../../reflections/screenWgsl.ts'
+import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts'
 import { taaShader } from '../../taa/shaderWgsl.ts'
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
@@ -33,7 +28,6 @@ import {
   COVERAGE_CHOOSE_WGSL,
   COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
-  RADIANCE_MIP_WGSL,
 } from '../../texture/mipsWgsl.ts'
 import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
@@ -50,10 +44,8 @@ import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShade
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
   BLEND_SHADER,
-  BOUNCE_LIGHTING_PROGRAM,
   BOUNCE_LIGHTING_SHADER,
   contractLightingShader,
-  DIRECT_LIGHTING_PROGRAM,
   DIRECT_LIGHTING_SHADER,
   TAA_SHADER,
   UNLIT_LIGHTING_SHADER,
@@ -62,7 +54,6 @@ import '../../impostor/lent.fixture.ts'
 import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
 import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
-import { reflectionShaders } from './engineShaders.reflections.fixture.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -79,7 +70,6 @@ const compositions = (label: string, sources: Record<string, string>) =>
 const NARROW = { narrow: true, lobeless: true }
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
-  ...reflectionShaders(),
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),
@@ -106,8 +96,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
-  REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_PROGRAM),
-  REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_PROGRAM),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, NARROW),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, NARROW),
   // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
@@ -123,9 +111,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   // The resolve of an image that holds an anisotropic or clear-coat surface (`lobesWgsl.ts`).
   DIRECT_LOBES_LIGHTING: contractLightingShader(false, {}),
   BOUNCE_LOBES_LIGHTING: contractLightingShader(true, {}),
-  REFLECTION_RESOLVE_BOUNCE_LOBES: withScreenReflections(contractLightingProgram(true, {})),
-  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingProgram(false, NARROW)),
-  REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingProgram(true, NARROW)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
@@ -143,7 +128,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
   TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
   MATERIAL_MIP_WGSL,
-  RADIANCE_MIP_WGSL,
   COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
   TEXEL_TURN_WGSL,
@@ -169,17 +153,16 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REDUCE_WGSL,
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER: waterCompositeShader(),
-  WATER_COMPOSITE_UNBOUNDED: waterCompositeShader(true),
   WATER_ROUTED: waterRoutedShader(),
-  WATER_COMPOSITE_UNSHADOWED_RECTLESS: waterCompositeShader(false, {
+  WATER_COMPOSITE_UNSHADOWED_RECTLESS: waterCompositeShader({
     unshadowed: true,
     rectless: true,
   }),
-  WATER_COMPOSITE_SUNLESS: waterCompositeShader(false, { sunless: true }),
-  WATER_COMPOSITE_LOCALLESS: waterCompositeShader(false, { localless: true }),
+  WATER_COMPOSITE_SUNLESS: waterCompositeShader({ sunless: true }),
+  WATER_COMPOSITE_LOCALLESS: waterCompositeShader({ localless: true }),
   // Transmissive surfaces without an anisotropic or clear-coat lobe (`waterLobesWgsl.ts`).
-  WATER_COMPOSITE_LOBELESS: waterCompositeShader(false, { lobeless: true }),
-  WATER_ROUTED_UNSHADOWED: waterRoutedShader(false, { unshadowed: true }),
+  WATER_COMPOSITE_LOBELESS: waterCompositeShader({ lobeless: true }),
+  WATER_ROUTED_UNSHADOWED: waterRoutedShader({ unshadowed: true }),
   WATER_DEPTH_RESTORE_SHADER,
   PARTICLES_WGSL: particlesWgsl(false),
   PARTICLES_SUBGROUPS: particlesWgsl(true),

@@ -53,7 +53,7 @@ export const declaredLightWgsl = (
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
- * null albedo — the water's lit colour and its reflection's specular (`../../webgpu/water/compositeWgsl.ts`).
+ * null albedo — the water's lit colour and its specular (`../../webgpu/water/compositeWgsl.ts`).
  * Each is the expression `declaredLight` returns, with `rgb`, `metal`, `shading` or `vec3f(0.0)`,
  * `0.0`, `dielectric` — a dielectric's reflectance and no diffuse — where it passes its arguments;
  * what they share — the incidence, the shadow read, the transmission —

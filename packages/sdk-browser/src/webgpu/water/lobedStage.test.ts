@@ -17,7 +17,7 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
   const { blendState, gpu } = prepared()
   targets(gpu)
   const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true, false)
+  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
   const r = replay(blendState, gpu)
   const surfaces = gpu.surfaces as unknown as { lobesView: GPUTextureView; lobes: object }
   const cases: [boolean, boolean][] = [

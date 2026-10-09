@@ -6,13 +6,6 @@ import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { type ContractKey, variantLabel } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
-import {
-  BOUNCE_SURFACE_BINDING,
-  BOUNCE_SURFACE_FIELDS_WGSL,
-  DIRECT_REFLECTION_WGSL,
-  bounceReflectionWgsl,
-} from '../../bounce/reflectWgsl.ts'
-import { mirrorLightingWgsl, PROBE_MIRROR_RADIANCE } from '../../reflections/modelShader.ts'
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts'
@@ -67,71 +60,48 @@ export const CONTRACT_BINDINGS_WGSL = wgslBlock(
 /** Shared body of the two contract programs, what its surface lists: only the bounce lines
  *  separate them. Each program lists the full-screen vertex (`FULLSCREEN_VERTEX`). */
 const contractSurface = (bounce: boolean) => [WORLD_AT_WGSL, contractSurfaceBody(bounce)]
-/** The bounce program's surface: bounced light, under the coat, and what a mirror reflects
- *  (`mirrorLightingWgsl`, on the radiance `mirror` its pass chooses). */
-const bounceSurfaceWgsl = (mirror: WgslDecl) =>
-  wgslBlock(
-    'bounceSurfaceWgsl',
-    [
-      BOUNCE_APPLY_WGSL,
-      bounceReflectionWgsl(BOUNCE_SURFACE_BINDING),
-      mirrorLightingWgsl(mirror),
-      BOUNCE_SURFACE_FIELDS_WGSL,
-      FULLSCREEN_VERTEX,
-      ...contractSurface(true),
-    ],
-    `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
+/** The bounce program's surface: bounced light, under the coat. */
+const BOUNCE_SURFACE_WGSL = wgslBlock(
+  'BOUNCE_SURFACE_WGSL',
+  [BOUNCE_APPLY_WGSL, FULLSCREEN_VERTEX, ...contractSurface(true)],
+  `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
  return bounceLighting(thinSubsurface,0.0,-N,P,ao);
 }`,
-  )
-/** The direct program's surface: what a specular lobe reflects of the environment (#1341), on
- *  the radiance `mirror` its pass chooses. */
-const directSurfaceWgsl = (mirror: WgslDecl) =>
-  wgslBlock(
-    'directSurfaceWgsl',
-    [
-      DIRECT_REFLECTION_WGSL,
-      mirrorLightingWgsl(mirror),
-      FULLSCREEN_VERTEX,
-      ...contractSurface(false),
-    ],
-    '',
-  )
+)
+/** The direct program's surface. */
+const DIRECT_SURFACE_WGSL = wgslBlock(
+  'DIRECT_SURFACE_WGSL',
+  [FULLSCREEN_VERTEX, ...contractSurface(false)],
+  '',
+)
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added. An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
- * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
- * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
+ * probe irradiance multiplied by the pixel's diffuse albedo, added to the direct. It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is each program of a `key` (`contractCuts.ts`): `narrow` (#849), `unshadowed` (#1249),
- * `rectless` (#1369), without `lobeless` the lobes' (`../direct/lobesWgsl.ts`).
- *
- * It is a `LitProgram`: the pass that compiles it chooses its mirror radiance — the probes' or the
- * environment's (`PROBE_MIRROR_RADIANCE`, the default), or the screen's resolved over them
- * (`withScreenReflections`) —, a declaration its mirror term lists, so the text is assembled once
- * with the one it names. Its name carries the program's key, so no two variants collide.
+ * `rectless` (#1369), without `lobeless` the lobes' (`../direct/lobesWgsl.ts`). Its name carries
+ * the program's key, so no two variants collide.
  */
-export const contractLightingProgram =
-  (bounce: boolean, key: Partial<ContractKey> = { lobeless: true }): LitProgram =>
-  (mirror = PROBE_MIRROR_RADIANCE) =>
-    wgslBlock(
-      `contractLightingProgram(${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)})`,
-      [
-        STANDARD_LIGHTING_WGSL,
-        directLightingWgsl(key),
-        bounce ? bounceSurfaceWgsl(mirror) : directSurfaceWgsl(mirror),
-        VIEW_WGSL,
-        surfaceBindingsWgsl(),
-        CONTRACT_BINDINGS_WGSL,
-      ],
-      SUBSURFACE_TARGET.wgsl,
-    )
+export const contractLightingProgram = (
+  bounce: boolean,
+  key: Partial<ContractKey> = { lobeless: true },
+) =>
+  wgslBlock(
+    `contractLightingProgram(${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)})`,
+    [
+      STANDARD_LIGHTING_WGSL,
+      directLightingWgsl(key),
+      bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL,
+      VIEW_WGSL,
+      surfaceBindingsWgsl(),
+      CONTRACT_BINDINGS_WGSL,
+    ],
+    SUBSURFACE_TARGET.wgsl,
+  )
 
-/** A lit program at the mirror radiance its pass chooses (`contractLightingProgram`): the plain
- *  resolve's default, the screen reflections' passes theirs. */
-export type LitProgram = (mirror?: WgslDecl) => WgslDecl
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface

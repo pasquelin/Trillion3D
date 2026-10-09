@@ -16,7 +16,7 @@
  * computes it from the root's composed single-precision world and the one the GPU holds for it at the
  * last accumulated image, as the temporal pass decides this image (`composedMotion.ts`). That
  * decision is a uniform written after the pass is encoded and before the image is submitted, as the
- * CPU motion's own write is: every reader of the motion, the reflections' history included, sees it.
+ * CPU motion's own write is: every reader of the motion sees it.
  *
  * The shadows follow a parent's move as they follow a moved node's (`movedBatch.ts`): the box of
  * the slot's linked roots in the parent's frame (`slotBoxes`, the union of each root's local box

@@ -42,7 +42,7 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
 export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {
   const side = surfaceSide(rec.material)
   if (side === 'double') return BIN_NONE
-  // Indirect pipelines share ccw front faces; a reflection swaps which side
+  // Indirect pipelines share ccw front faces; a mirrored transform swaps which side
   // must be culled instead of requiring three more draw slots.
   return (side === 'back') !== windingCw(roots, rootRank) ? BIN_FRONT : BIN_BACK
 }

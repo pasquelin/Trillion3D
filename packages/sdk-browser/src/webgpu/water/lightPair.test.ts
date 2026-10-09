@@ -1,5 +1,5 @@
 // The water composite walks its declared lights once (`declaredLightingPair`) for the two sums it
-// took from two walks: its lit colour, and its reflection's specular on a null albedo. The shipped
+// took from two walks: its lit colour, and its specular on a null albedo. The shipped
 // pair loop runs as JavaScript (`shaderRun`) against the shipped single loop of the blend pass,
 // called twice as the composite called it — with the surface's albedo and metal, then with
 // `vec3f(0.0)` and `0.0` —, and both sums are the same numbers, bit for bit: random lamp sets,
@@ -21,7 +21,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 type Sum = (...args: unknown[]) => number[]
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 // The program without lobe code; the lobed one's pair is `lobedPair.test.ts`'s.
-const WATER = waterCompositeShader(false, { lobeless: true })
+const WATER = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(
   declaredLightingWgsl({ proxy: 13, transmittance: 18 }),
   STANDARD_LIGHTING_WGSL,

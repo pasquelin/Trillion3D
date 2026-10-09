@@ -6,13 +6,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
-import { MIRROR_TERM } from './surfaceWgsl.ts'
 import { LOBELESS_LIGHTING_WGSL, LOBELESS_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
-test('only the program with lobes reads them, lights through them and keeps its mirror term', () => {
+test('only the program with lobes reads them and lights through them', () => {
   for (const bounce of [false, true]) {
     const plain = contractLightingShader(bounce, { lobeless: true })
     const lobes = contractLightingShader(bounce, {})
@@ -23,10 +22,6 @@ test('only the program with lobes reads them, lights through them and keeps its 
       assert.ok(plain.includes(stub) && !lobes.includes(stub), stub)
     for (const call of ['readLobes(coord,', '*lobeThrough()'])
       assert.ok(plain.includes(call) && lobes.includes(call), call)
-    // The term the reflection source output moves keeps its text; the coat adds its own above it.
-    assert.ok(lobes.includes(`${MIRROR_TERM};`))
-    const coat = 'lobes.coat*surfaceMirrorLighting('
-    assert.ok(lobes.includes(coat) && !plain.includes(coat))
   }
 })
 

@@ -62,13 +62,6 @@ export const splitSumTerm = wgslFn(
   'fn splitSumTerm(f0:vec3f,t:vec4f)->vec3f{return f0*t.x+(vec3f(1.0)-f0)*t.y;}',
 )
 
-/** Left to right. */
-export const roughnessToAlpha2Chain = wgslFn(
-  'roughnessToAlpha2Chain',
-  [],
-  'fn roughnessToAlpha2Chain(rough:f32)->f32{return rough*rough*rough*rough;}',
-)
-
 export const ndotvFloor = wgslFn(
   'ndotvFloor',
   [],

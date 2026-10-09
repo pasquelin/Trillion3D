@@ -5,7 +5,6 @@ export const REFERENCE_APPROXIMATIONS = [
   'probeBudget',
   'shadowResolution',
   'supersampling',
-  'reflectionTrace',
 ] as const
 
 /** The bounce target of the reference mode, in milliseconds: far past any frame, so the budget never

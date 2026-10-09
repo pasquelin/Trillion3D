@@ -75,12 +75,6 @@ export const ndcToUvUnflipped = wgslFn(
   'fn ndcToUvUnflipped(ndc:vec2f)->vec2f{return ndc*0.5+vec2f(0.5);}',
 )
 
-export const clipToUvUnflipped = wgslFn(
-  'clipToUvUnflipped',
-  [perspectiveDivide, ndcToUvUnflipped],
-  'fn clipToUvUnflipped(clip:vec4f)->vec2f{return ndcToUvUnflipped(perspectiveDivide(clip).xy);}',
-)
-
 export const ndcToUv = wgslFn(
   'ndcToUv',
   [],

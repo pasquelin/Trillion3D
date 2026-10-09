@@ -21,8 +21,6 @@ export type BlendLighting = {
   tileLights: GPUBuffer
   /** The resident proxy, the very one the opaque resolve binds. */
   proxy: GPUBuffer
-  /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
-  surfaceCache: GPUTextureView
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -90,10 +88,9 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
   // The resident proxy, **read-only**: a binding the fragment stage could write would cost the
-  // pass its early depth reject (4232 hidden fragment draws). The probes and the surface cache are
-  // atlases (`../../bounce/atlas.ts`), no storage buffer.
+  // pass its early depth reject (4232 hidden fragment draws). The probes are an atlas
+  // (`../../bounce/atlas.ts`), no storage buffer.
   proxy: ['fragment', STORAGE],
-  surfaceCache: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   // The physical records a lobed blend reads (`../blend/physicalWgsl.ts`): a texture, the
   // fragment stage holding the eight storage buffers WebGPU guarantees.
   physical: ['fragment', { texture: { sampleType: 'uint' } }],

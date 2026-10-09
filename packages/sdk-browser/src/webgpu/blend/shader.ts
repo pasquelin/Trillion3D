@@ -1,10 +1,7 @@
-import { TRANSLUCENT_SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
-import { bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
-import { FORWARD_MIRROR_WGSL } from '../../reflections/modelShader.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { tileDeclarations } from '../tile/wgsl.ts'
 import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
@@ -22,7 +19,7 @@ import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
  *  `lobeless`, a scene whose blend carries an anisotropic or clear-coat lobe: its fragment sets
- *  them (`physicalWgsl.ts`), its lights, environment, bounce and mirror go through them, a fragment
+ *  them (`physicalWgsl.ts`), its lights, environment and bounce go through them, a fragment
  *  without them summing the very same terms (`../../lighting/direct/lobesWgsl.ts`). */
 const blendProgram = (key: Partial<ContractKey>) => {
   const lobes = !key.lobeless
@@ -38,9 +35,6 @@ const blendProgram = (key: Partial<ContractKey>) => {
       STANDARD_LIGHTING_WGSL,
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
-      bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache),
-      FORWARD_MIRROR_WGSL,
-      TRANSLUCENT_SCREEN_REFLECTION_WGSL,
       blendSurfaceWgsl(lobes),
       ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
       blendFragmentWgsl(lobes),
@@ -48,7 +42,6 @@ const blendProgram = (key: Partial<ContractKey>) => {
     `${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
 ${tileDeclarations(BLEND_BINDINGS.data, 'data')}
-fn translucentReflectionFrame()->f32{return uni.frameNoise;}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 // The blended colour, the tile rank this pixel asks of the virtual textures, in its own target
@@ -71,7 +64,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
     [
       blendRequestWgsl(lobes),
       DISPLAY_ROUTE_WGSL,
-      displayMaskWgsl(2),
+      displayMaskWgsl(1),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
       ROUGHNESS_FLOOR,
       wireframeEdge,
@@ -105,7 +98,6 @@ ${BLEND_DIAGNOSTIC}
    blendLobes(in,front,g,s,V,clamped);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+s.emissive;
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
-   rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
@@ -113,7 +105,7 @@ ${BLEND_DIAGNOSTIC}
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);
  return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,s.alpha*r.keep),r.tint,r.add);
 }
-// A filtered image's pipelines read the display mask (group 2); every other one reads none.
+// A filtered image's pipelines read the display mask (group 1); every other one reads none.
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `,

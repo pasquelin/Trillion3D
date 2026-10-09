@@ -1,6 +1,6 @@
 // The transparent programs' text, character for character, over every variant: the blend vertex
-// stage lobed and lobeless, the blend module and the water composite under every contract key (the
-// composite bounded and unbounded), 194 texts. The digests pin the texts as the WGSL library
+// stage lobed and lobeless, the blend module and the water composite under every contract key, 130
+// texts. The digests pin the texts as the WGSL library
 // assembles them, its declarations in their order; they prove no equivalence with an earlier text.
 // A deliberate change to any WGSL these programs include, or to the order its fragments list their
 // declarations in, takes new digests.
@@ -39,9 +39,6 @@ test('the blend module text is pinned under every contract key', () => {
   assert.equal(digest(KEYS.map((key) => blendShader(key))), BLEND)
 })
 
-test('the water composite text is pinned under every key, bounded or not', () => {
-  const texts = [false, true].flatMap((unbounded) =>
-    KEYS.map((key) => waterCompositeShader(unbounded, key)),
-  )
-  assert.equal(digest(texts), WATER)
+test('the water composite text is pinned under every key', () => {
+  assert.equal(digest(KEYS.map((key) => waterCompositeShader(key))), WATER)
 })

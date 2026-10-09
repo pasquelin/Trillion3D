@@ -110,11 +110,9 @@ export const BLEND_BINDINGS = {
    *  (`BLEND_VSM_BINDINGS`). */
   shadowTransmittance: 26,
   shadowTranslucentDepth: 27,
-  /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
-  surfaceCache: 28,
   /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
    *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
-  physical: 29,
+  physical: 28,
 }
 
 /**

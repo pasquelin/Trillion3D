@@ -23,7 +23,6 @@ const SET_GPU_KEYS = [
   'feedbackTexture',
   'feedbackView',
   'backdrop',
-  'reflection',
   'surfaces',
   'asIsShare',
   'displayFilter',
@@ -71,8 +70,6 @@ export function releaseSet(gpu: TargetSet['gpu'], vis: TargetSet['vis']) {
   vis.visTexture = undefined
   vis.visView = undefined
   disposeBackdrop(gpu as WebgpuGpuState)
-  gpu.reflection?.dispose()
-  gpu.reflection = undefined
   gpu.surfaces?.dispose()
   gpu.surfaces = undefined
   gpu.asIsShare?.dispose()

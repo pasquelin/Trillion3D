@@ -1,5 +1,3 @@
-import { encodeReflectionSource } from '../../reflections/encode.ts'
-import type { ScreenReflection } from '../../reflections/gpu.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_PROGRAM } from './shaders.ts'
 import { createContractVariants, type LitPrograms } from './contractVariants.ts'
@@ -44,7 +42,7 @@ const unlitProgram = (device: GPUDevice, bindings: DeferredBindings) =>
   createDeferredProgram(
     device,
     {
-      lighting: () => UNLIT_LIGHTING_PROGRAM,
+      lighting: UNLIT_LIGHTING_PROGRAM,
       compose: UNLIT_COMPOSITIONS,
       label: 'UNLIT',
       direct: false,
@@ -163,29 +161,24 @@ function programBind(
   }
 }
 
-/** The lighting's `light`: draws the lighting, after the reflection source when the frame's
- *  program reflects, the next image's source then written beside it; returns the passes drawn
- *  (#1157). */
+/** The lighting's `light`: draws the lighting; returns the passes drawn (#1157). */
 function lightPass(state: LightingState) {
-  return (encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) => {
+  return (encoder: GPUCommandEncoder, target: GPUTextureView) => {
     const { active, drawn } = state
     const group = active.lightGroup
     if (!group) throw new Error('SURFACE_NOT_BOUND')
-    const reflected = reflection?.active && active.reflection
-    if (reflected) encodeReflectionSource(encoder, target, reflection, reflected, group, drawn)
-    const colorAttachments: GPURenderPassColorAttachment[] = [
-      { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-    ]
-    const source = reflected && reflection.source?.target
-    if (source) colorAttachments.push({ ...colorAttachments[0], view: source })
-    const pass = encoder.beginRenderPass({ label: DEFERRED_LIGHTING_PASS, colorAttachments })
+    const pass = encoder.beginRenderPass({
+      label: DEFERRED_LIGHTING_PASS,
+      colorAttachments: [
+        { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
+      ],
+    })
     pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1)
-    pass.setPipeline(reflected ? reflected.final : active.light)
-    if (reflected) pass.setBindGroup(1, reflection.group)
+    pass.setPipeline(active.light)
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    return reflected ? (reflection.history && !reflection.history.reuse ? 4 : 2) : 1
+    return 1
   }
 }
 

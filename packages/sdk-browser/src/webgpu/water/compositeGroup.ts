@@ -36,7 +36,6 @@ const HELD: readonly Held[] = [
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
   [b.probes, ({ lighting }) => lighting.probes],
   [b.proxy, ({ lighting }) => lighting.proxy],
-  [b.surface, ({ lighting }) => lighting.surfaceCache],
   [
     b.backdrop,
     ({ gpu }) => gpu.backdrop!.colorView,

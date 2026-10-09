@@ -90,7 +90,6 @@ const WORLD_SETTINGS = {
   dynamicShadows: flag(true, 'shadows', 'frame', cache),
   glass: flag(true, 'effects', 'frame'),
   particles: flag(true, 'effects', 'frame'),
-  reflections: flag(true, 'reflections', 'resources'),
   postProcessing: flag(true, 'imageEffects', 'frame'),
   maxAnisotropy: count(MAX_ANISOTROPY, [1, MAX_ANISOTROPY], 'textures', 'uniform'),
   // The pool shrinks to an eighth at most, as the grant does (`vsmGrant.ts`).

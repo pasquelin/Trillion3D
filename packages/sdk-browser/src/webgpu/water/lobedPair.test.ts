@@ -1,6 +1,6 @@
 // The water composite's lobed program (`lobesWgsl.ts`, a key without `lobeless`) walks its lights
 // once for two sums (`declaredLightingPair`): its lit colour through the pixel's lobes, and its
-// reflection's specular on a null albedo — whose anisotropic lobe takes a dielectric's reflectance
+// specular on a null albedo — whose anisotropic lobe takes a dielectric's reflectance
 // (`DIELECTRIC_F0`), not the surface's the lobes were set for. The shipped pair loop runs as
 // JavaScript (`shaderRun`) against the blend pass's lobed single loop called twice — on the surface
 // with its lobes, then on a null albedo under the same lobes —: the same numbers, bit
@@ -20,8 +20,8 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
-const LOBED = waterCompositeShader(false, {})
-const PLAIN = waterCompositeShader(false, { lobeless: true })
+const LOBED = waterCompositeShader({})
+const PLAIN = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(
   declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false }),
   STANDARD_LIGHTING_WGSL,

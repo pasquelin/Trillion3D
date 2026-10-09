@@ -7,7 +7,6 @@ import { throwIfStopped } from '../io/lost.ts'
 import { litPrograms } from './contractLight.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
 import { loadImpostorCode } from '../../../impostor/code.ts'
-import { REFLECTION_MIP_KEYS, prepareMipPipelines } from '../../../texture/mips.ts'
 import * as impostorLent from '../../impostor/lent.ts'
 import {
   finishPreparation,
@@ -26,14 +25,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   }
   // The impostor draw's code, on its way beside every step below, awaited before the first image.
   const impostorCode = loadImpostorCode(rt.context, impostorLent)
-  // The reflection pyramids' reductions, compiled off the thread beside every step below, before
-  // the frame targets that hold the pyramids are made (`../../../reflections/conePyramid.ts`); one
-  // refused is refused again where a pyramid is made, as it was.
-  const reflectionMips = prepareMipPipelines(gpuDevice, REFLECTION_MIP_KEYS).catch(() => {})
   await preparePrograms(rt, gpuDevice, step)
   preparePresenter(rt, gpuDevice)
   await prepareGeometryAndBlend(rt, gpuDevice, step)
-  await prepareMaterials(rt, gpuDevice, step, { impostorCode, reflectionMips })
+  await prepareMaterials(rt, gpuDevice, step, { impostorCode })
   await finishPreparation(rt, gpuDevice, step)
 }
 

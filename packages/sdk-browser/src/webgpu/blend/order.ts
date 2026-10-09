@@ -58,7 +58,7 @@ function writeOrderFrame(blendState: BlendState, eye: ArrayLike<number>) {
  *
  * `cull` is the frustum verdict: the box tree, or develop's item walk the equivalence test ranks the
  * same scene with (`hierarchyOracle.fixture.ts`). It stays on the CPU: the water pass, its scissor,
- * the reflections, the frame signature and the published metrics read it, and none may wait for the
+ * the frame signature and the published metrics read it, and none may wait for the
  * GPU.
  */
 export function orderBlendPasses(

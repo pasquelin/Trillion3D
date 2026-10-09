@@ -42,8 +42,6 @@ import {
   RASTER_OCCLUDER_HIZ_PASS,
   RASTER_RESOLVE_PASS,
   RASTER_TESTED_DEPTH_PASS,
-  REFLECTION_HISTORY_PASS,
-  REFLECTION_TRACE_PASS,
   TAA_PASS,
   TEXEL_TURN_PASS,
   TEXTURE_FEEDBACK_REDUCE_PASS,
@@ -61,13 +59,7 @@ import {
   WATER_PASSES,
   WATER_SURFACE_PASS,
 } from '../../webgpu/water/passLabels.ts'
-import {
-  MIPS_PASSES,
-  REFLECTION_BOUNDS_MIPS_PASS,
-  REFLECTION_RADIANCE_MIPS_PASS,
-  TEXTURE_MIPS_PASS,
-} from '../../texture/mipsPass.ts'
-import { REFLECTION_SOURCE_PASS, REFLECTION_SOURCE_PASSES } from '../../reflections/sourcePass.ts'
+import { MIPS_PASSES, TEXTURE_MIPS_PASS } from '../../texture/mipsPass.ts'
 import { DEFORMATION_PASS, DEFORMATION_PASSES } from '../../deformation/pass.ts'
 
 /** The labels the engine's passes begin with, as the passes import them. */
@@ -106,11 +98,6 @@ const BEGUN = [
   RASTER_OCCLUDER_HIZ_PASS,
   RASTER_RESOLVE_PASS,
   RASTER_TESTED_DEPTH_PASS,
-  REFLECTION_BOUNDS_MIPS_PASS,
-  REFLECTION_HISTORY_PASS,
-  REFLECTION_RADIANCE_MIPS_PASS,
-  REFLECTION_SOURCE_PASS,
-  REFLECTION_TRACE_PASS,
   TAA_PASS,
   TEXEL_TURN_PASS,
   TEXTURE_FEEDBACK_REDUCE_PASS,
@@ -127,13 +114,7 @@ const BEGUN = [
 ]
 
 /** The declarations, as each label module files its own passes: the table reads these. */
-const DECLARED = [
-  ...ENGINE_PASSES,
-  ...WATER_PASSES,
-  ...MIPS_PASSES,
-  ...REFLECTION_SOURCE_PASSES,
-  ...DEFORMATION_PASSES,
-]
+const DECLARED = [...ENGINE_PASSES, ...WATER_PASSES, ...MIPS_PASSES, ...DEFORMATION_PASSES]
 
 test('the declarations and the labels the passes begin with are one to one', () => {
   const declared = DECLARED.map((pass) => pass.label).sort()

@@ -100,7 +100,6 @@ test('a lobed transmissive item holds the frame until its lobed stage lands', as
     module,
     {} as never,
     true,
-    false,
     undefined,
     undefined,
     lobes,

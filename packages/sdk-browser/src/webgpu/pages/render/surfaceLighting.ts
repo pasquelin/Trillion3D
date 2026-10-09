@@ -1,5 +1,4 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
-import { updateScreenReflection } from '../../../reflections/frame.ts'
 import { drawParticles } from '../../particles/webgpuParticleFrame.ts'
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts'
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
@@ -66,8 +65,7 @@ export function encodeSurfaceLighting(
     direct,
     taaSampledRank(rt),
   )
-  updateScreenReflection(rt, viewProj, gpu.deferred.usesContract && !raw)
-  run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection)
+  run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView)
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
   encodeBlend(rt, device, encoder, true, blendRuns)

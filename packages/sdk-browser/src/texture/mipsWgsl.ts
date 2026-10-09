@@ -1,14 +1,12 @@
-import { FULLSCREEN_XY } from '../gpu/shader/fullscreenTriangle.ts'
 import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { CUT_BIN_WGSL } from './coverageMathWgsl.ts'
-import { cellReductionWgsl } from './cellReduction.ts'
 import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
-import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 // The mip chains' kernels: the reduction of a material level and the coverage counts of a
-// coverage chain (`mipBatch.ts`, `coverageMips.ts`), and a reflection's radiance reduction.
+// coverage chain (`mipBatch.ts`, `coverageMips.ts`).
 
 /** A material level's uniform block, the counts' as well: the source level's extent, the cutoff
  *  byte `C`, then level 0's extent and the level. */
@@ -72,27 +70,6 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
   textureStore(written,vec2i(id.xy),vec4f(rgb,reducedAlpha(a,c,t)));
  }`,
   [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb],
-)
-
-/** A radiance level's read of the one above (`cellReductionWgsl`): its texel, as stored. */
-const TEXTURE_MIP_READ = wgslFn(
-  'mipRead',
-  [],
-  'fn mipRead(p:vec2i)->vec4f{return textureLoad(source,p,0);}',
-)
-
-/** A reflection's radiance level from the one above (`cellReduction`, `cellReduction.ts`), drawn
- *  into the level: its source is the frame's render target, kept free of storage usage. `extent`
- *  is the source level's size, then the image's. */
-export const RADIANCE_MIP_WGSL = wgslProgram(
-  `
- @group(0) @binding(0) var source:texture_2d<f32>;
- @group(0) @binding(1) var<uniform> extent:vec4u;
- @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
-  return vec4f(${FULLSCREEN_XY},0.0,1.0);
- }
- @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{return cellReduction(vec2i(pos.xy));}`,
-  [cellReductionWgsl(TEXTURE_MIP_READ)],
 )
 
 /**

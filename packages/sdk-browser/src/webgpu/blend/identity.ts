@@ -38,7 +38,6 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       probes: () => rt.blendState.lighting?.probes,
       tileLights: () => rt.blendState.lighting?.tileLights,
       proxy: () => rt.blendState.lighting?.proxy,
-      surfaceCache: () => rt.blendState.lighting?.surfaceCache,
       physical: () => rt.vis.physicalTable.view,
     }),
   )

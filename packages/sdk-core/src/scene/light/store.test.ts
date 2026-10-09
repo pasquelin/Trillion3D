@@ -64,7 +64,7 @@ test('a shadow slice moved is pushed to the GPU, never a change of light transpo
   store.assignSlice(slot, 8192 * 64)
   store.assignSlice(slot, -1)
   assert.equal(store.epoch, epoch + 2, 'the buffer is pushed')
-  assert.equal(store.transportEpoch, transport, 'bounce and reflections keep their history')
+  assert.equal(store.transportEpoch, transport, 'the bounce keeps its history')
   store.assignSlice(slot, -1)
   assert.equal(store.epoch, epoch + 2, 'the same slice publishes nothing')
   store.set('l0', { intensity: 5 })

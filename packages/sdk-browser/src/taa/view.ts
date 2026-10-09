@@ -21,11 +21,11 @@ function writeGrid(into: Float32Array, at: number, [width, height]: readonly num
 }
 
 /**
- * The header `taaReprojectWgsl` reads (`prevViewProj`, `invViewProj`, `viewport`), floats 0 to 35
+ * The header `TAA_REPROJECT_WGSL` reads (`prevViewProj`, `invViewProj`, `viewport`), floats 0 to 35
  * of `into`: `previous` and the inverse of `current`, both anchored at `eye`, then `grid`. The
- * temporal pass's uniform and the reflections' (`historyRuntime.ts`, `source.ts`) start with it.
+ * temporal pass's uniform starts with it.
  */
-export function writeReprojection(
+function writeReprojection(
   into: Float32Array,
   previous: ArrayLike<number>,
   current: ArrayLike<number>,

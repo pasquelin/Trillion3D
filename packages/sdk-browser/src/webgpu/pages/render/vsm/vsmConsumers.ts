@@ -14,7 +14,7 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
   return vsm?.plan && vsm.plan.projectionCount > 0 ? vsm : undefined
 }
 
-/** This frame's buffers a non-mask read samples (blend, water, reflections), or none: the pool
+/** This frame's buffers a non-mask read samples (blend, water), or none: the pool
  *  must be one binding (the device's binding limit holds a whole slice). */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   const vsm = projectedVsm(rt)

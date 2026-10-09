@@ -25,7 +25,7 @@ import {
  * 1 / (π αt αb |(T·H/αt, B·H/αb, N·H)|⁴) and its height-correlated visibility. The coat: a
  * dielectric GGX lobe (F0 0.04) on the coat normal at the coat roughness, weighted by the coat,
  * above a base that the coat's Fresnel at the view, 1 − coat·F(N_c·V), lets through — on every
- * light, the environment, bounced light and the mirror term alike. What a pixel's lights share is
+ * light, the environment and bounced light alike. What a pixel's lights share is
  * taken once: αt, αb, their reciprocals and the distribution's scale 1/(π αt αb) (a light's T·H/αt
  * is a product, its D a quotient by q², the same 8-bit image, `lobeLight.test.ts`), the view's
  * length in the stretched frame and, under a coat, the coat's own surface (`lobeSurface`) when its
@@ -61,14 +61,6 @@ fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:ve
 }
 /** What the coat lets through of the base: one without lobes. */
 fn lobeThrough()->f32{return select(1.0,lobes.through,lobes.on);}
-/** The mirror term \`m\` of the surface under the coat, and the coat's own reflection on its
- *  normal at its roughness (\`surfaceMirrorLighting\`); as it is on a pixel without lobes. */
-fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!lobes.on){return m;}
- var coat=vec3f(0.0);
- if(lobes.coat>0.0){coat=lobes.coat*surfaceMirrorLighting(vec3f(0.0),0.0,lobes.coatRough,lobes.coatN,V,P);}
- return m*lobes.through+coat;
-}
 /** The anisotropic lobe of one light past its direction \`L\`, half-vector \`H\` and \`NdotL\` above
  *  zero, on surface \`s\`, as \`standardLobe\` is the standard one's. */
 fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
@@ -131,14 +123,12 @@ fn lobeRectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
 }`,
 )
 
-/** A lobeless program's stand-ins (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
- *  lets the whole base through, an exact one, and the mirror term is the surface's — every term
- *  they weigh keeps its bits. */
+/** A lobeless program's stand-in (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
+ *  lets the whole base through, an exact one — every term it weighs keeps its bits. */
 export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
   [],
-  `fn lobeThrough()->f32{return 1.0;}
-fn lobeMirror(m:vec3f,V:vec3f,P:vec3f)->vec3f{return m;}`,
+  'fn lobeThrough()->f32{return 1.0;}',
 )
 
 /** The read of a pixel's lobes from the lobes target, a read-only storage texture: no sampled

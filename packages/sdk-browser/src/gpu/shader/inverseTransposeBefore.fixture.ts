@@ -49,7 +49,7 @@ const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  * rasterisation, face state included), this form drops 656 drawn clusters over 6 916 cases
  * where the shipped form drops none (`tests/gpu/math/inverse-transpose-small-scale.gpu.ts`).
  * The "560 before, 54 after" of an earlier sample read raw geometric orientation, which
- * ignores face swap under reflection: it counted 119 legitimate rejects as defects and missed
+ * ignores face swap under a mirror: it counted 119 legitimate rejects as defects and missed
  * 215.
  */
 export const INVERSE_TRANSPOSE_BEFORE = inverseTransposeKernel(PREP_BEFORE_DEFECT_6, 'v')

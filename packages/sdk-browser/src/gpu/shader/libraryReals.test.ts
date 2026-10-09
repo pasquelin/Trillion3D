@@ -1,5 +1,5 @@
-// The fold, remap, texel, wireframe, frame and extent declarations of the maths library
-// (`packages/math/src/wgsl/reals.ts`, `sampling.ts`, `barycentric.ts`, `basis.ts`, `geometry.ts`),
+// The fold, remap, texel, wireframe and extent declarations of the maths library
+// (`packages/math/src/wgsl/reals.ts`, `sampling.ts`, `barycentric.ts`, `geometry.ts`),
 // their shipped text run in JavaScript against the processor's twins and what each one claims.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -14,7 +14,6 @@ import {
 } from '../../../../math/src/wgsl/reals.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
-import { tangentFrame } from '../../../../math/src/wgsl/basis.ts'
 import { rayInverseDirection, transformHalfExtent } from '../../../../math/src/wgsl/geometry.ts'
 import { floorMod as floorModTs } from '../../../../math/src/scalar/reals.ts'
 import { transformHalfExtent as halfExtentTs } from '../../../../math/src/geometry/box.ts'
@@ -30,8 +29,6 @@ const NAMES = [
   'signedToUnit3',
   'clampToExtent',
   'wireframeEdge',
-  'tangentAround',
-  'tangentFrame',
   'transformHalfExtent',
   'rayInverseDirection',
 ]
@@ -44,12 +41,11 @@ const run = shaderRun<Record<string, F>>(
     signedToUnit3,
     clampToExtent,
     wireframeEdge,
-    tangentFrame,
     transformHalfExtent,
     rayInverseDirection,
   ),
   NAMES,
-  { Frame3: (x: V, y: V, z: V) => ({ x, y, z }) },
+  {},
 )
 const call = (name: string, ...args: unknown[]) =>
   (run[name] as (...a: unknown[]) => never)(...args)
@@ -92,26 +88,6 @@ test('wireframeEdge: 1 on an edge, 0 past 1.2 pixel widths from all three', () =
   const edge = call('wireframeEdge', [0.5, 0.488, 0.012], width) as number
   const t = 0.012 / (0.04 * 1.2)
   assert.ok(Math.abs(edge - (1 - t * t * (3 - 2 * t))) < 1e-12)
-})
-
-test('tangentFrame is tangentAround, its cross with N, then N: an orthonormal frame', () => {
-  for (let k = 1; k < 300; k++) {
-    const z = haltonSpan(k, 2, -1, 1),
-      a = haltonSpan(k, 3, -Math.PI, Math.PI),
-      r = Math.sqrt(1 - z * z)
-    const N = [r * Math.cos(a), r * Math.sin(a), z]
-    const f = call('tangentFrame', N) as { x: V; y: V; z: V }
-    assert.deepEqual(f.x, call('tangentAround', N))
-    assert.deepEqual(f.z, N)
-    const dot = (p: V, q: V) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2]
-    for (const [p, q] of [
-      [f.x, f.y],
-      [f.y, f.z],
-      [f.x, f.z],
-    ])
-      assert.ok(Math.abs(dot(p, q)) < 1e-9)
-    for (const p of [f.x, f.y]) assert.ok(Math.abs(dot(p, p) - 1) < 1e-9)
-  }
 })
 
 test('transformHalfExtent is the processor transformHalfExtent on a world matrix', () => {

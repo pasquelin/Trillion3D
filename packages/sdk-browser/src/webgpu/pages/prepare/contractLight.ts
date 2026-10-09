@@ -58,7 +58,6 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   bounce: rt.bounce.wanted,
   key: keyFor('opaque', rt),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
-  unboundedReflections: rt.context.unboundedReflections === true,
 })
 
 /** What the blend and water programs are built with (`createWebgpuBlendPipelines`): the session's
@@ -187,7 +186,6 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined
   contractResources.bounceGrid = bounce?.uniform
   contractResources.probes = bounce?.probes
-  contractResources.surfaceCache = bounce?.surface.view
   // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
   contractResources.receiver = active ? receiverResources(rt) : undefined
   return contractResources

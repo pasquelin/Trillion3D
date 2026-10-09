@@ -9,7 +9,7 @@ import {
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 
-/** A slot's face modes, in its bins' order (`CULL_BINS`): a reflected placement draws in the bin
+/** A slot's face modes, in its bins' order (`CULL_BINS`): a mirrored placement draws in the bin
  *  of the side it shows (`visBin`), so no clockwise pipeline is made. */
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
