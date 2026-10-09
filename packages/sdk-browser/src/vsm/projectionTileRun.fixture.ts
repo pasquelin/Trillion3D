@@ -14,9 +14,9 @@ import {
 
 /** A light's result at a lane: what the trace would count, a function of what it is handed. */
 const traced = (lane: number, k: number, participating: boolean): Result => {
-  if (!participating) return { valid: false, shadowFactor: 1, rayCount: 0 }
+  if (!participating) return { shadowFactor: 1, rayCount: 0 }
   const n = 1 + ((lane * 7 + k * 13) % 7)
-  return { valid: true, shadowFactor: f(f((lane + k) % (n + 1)) / f(n)), rayCount: n }
+  return { shadowFactor: f(f((lane + k) % (n + 1)) / f(n)), rayCount: n }
 }
 
 export interface Run {

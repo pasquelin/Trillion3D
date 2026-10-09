@@ -379,14 +379,11 @@ fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmT
    traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.noise);
   }
  }
- var result=vsmEmptyTrace();
  if(directional){
-  result=vsmTraceSun(light.mapId,light,pixel.pos,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
+  return vsmTraceSun(light.mapId,light,pixel.pos,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
  }else{
-  result=vsmTraceLocal(light.mapId,light,pixel.pos,pixel.sceneDepth,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
+  return vsmTraceLocal(light.mapId,light,pixel.pos,pixel.sceneDepth,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
  }
- if(!participating){result=vsmEmptyTrace();}
- return result;
 }
 `
 

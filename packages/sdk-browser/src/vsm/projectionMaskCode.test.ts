@@ -21,7 +21,7 @@ const f = Math.fround
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,
 })
-type Result = { valid: boolean; shadowFactor: number; rayCount: number }
+type Result = { shadowFactor: number; rayCount: number }
 const { vsmMaskCode } = shaderRun<{ vsmMaskCode: (r: Result) => number }>(CODE, ['vsmMaskCode'], {})
 const { vsmMaskTableValue } = shaderRun<{ vsmMaskTableValue: (c: number) => number }>(
   VSM_MASK_TABLE_WGSL,
@@ -30,10 +30,10 @@ const { vsmMaskTableValue } = shaderRun<{ vsmMaskTableValue: (c: number) => numb
 )
 /** Every result a trace gives: no ray traced (factor 1), or k of n rays missed. */
 function* results() {
-  yield { valid: false, shadowFactor: 1, rayCount: 0 }
+  yield { shadowFactor: 1, rayCount: 0 }
   const most = Math.max(VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL, 8)
   for (let n = 1; n <= most; n++)
-    for (let k = 0; k <= n; k++) yield { valid: true, shadowFactor: f(f(k) / f(n)), rayCount: n }
+    for (let k = 0; k <= n; k++) yield { shadowFactor: f(f(k) / f(n)), rayCount: n }
 }
 
 test('a lane holds four bits of rays: every ray count the traces use fits', () => {

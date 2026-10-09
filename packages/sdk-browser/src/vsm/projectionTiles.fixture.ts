@@ -40,7 +40,7 @@ export interface Pixel {
   screenRayWorld: number
   noise: number
 }
-export type Result = { valid: boolean; shadowFactor: number; rayCount: number }
+export type Result = { shadowFactor: number; rayCount: number }
 
 const unit = (v: number[]) => {
   const l = Math.hypot(...v)

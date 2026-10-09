@@ -20,7 +20,7 @@ const AT_COUNT = 'else if(i==u32(settings.voteAfter)){halfStops='
 /** The traces with the umbra vote asked at every ray from the adaptive count on. */
 const EVERY_RAY = SHIPPED.replaceAll(AT_COUNT, 'else if(i>=u32(settings.voteAfter)){halfStops=')
 
-type Result = { valid: boolean; shadowFactor: number; rayCount: number }
+type Result = { shadowFactor: number; rayCount: number }
 type Trace = (...args: unknown[]) => Result
 /** The lane running, its group's case, its ray and its cube-face reads in that ray. */
 type Cursor = { lane: number; group: number; ray: number; face: number }

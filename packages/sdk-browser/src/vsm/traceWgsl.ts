@@ -599,8 +599,6 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
  let settings=vsmTraceSetupSun();
  let h=vsmHandleFromIdDirectional(u32(mapId));
  var result=vsmEmptyTrace();
- result.valid=true;
- result.shadowFactor=1.0;
  var traced=participating;
  var levelMap=vsmHandleInvalid();
  if(traced){
@@ -678,7 +676,6 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
  let h=vsmHandleFromId(u32(mapId));
  let isSpot=light.kind==LIGHT_KIND_SPOT;
  var result=vsmEmptyTrace();
- result.valid=true;
  result.shadowFactor=0.0;
  let traced=participating;
  let toLight=light.shiftedPosition-shiftedPosition;
@@ -782,13 +779,13 @@ ${rayCountStatement('rayCap>1u&&settings.voteAfter>0')}  if(running&&!stopped){s
 `,
   )
 
-/** The shadow map sample result (debug members and the occluder distance no consumer
- *  reads dropped): what a trace returns. */
+/** What a trace returns: the share of its rays that missed, and how many it traced — none, its
+ *  factor 1, where it traced no ray (`vsmEmptyTrace`). */
 export const VSM_TRACE_RESULT_WGSL = wgslBlock(
   'VSM_TRACE_RESULT_WGSL',
   [],
   `
-struct VsmTraceResult{valid:bool,shadowFactor:f32,rayCount:u32,}
-fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(false,1.0,0u);}
+struct VsmTraceResult{shadowFactor:f32,rayCount:u32,}
+fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u);}
 `,
 )
