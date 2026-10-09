@@ -21,9 +21,10 @@ test("a world page and a cache page are read under the session's signal, at the 
     readBytes: record,
     reserve: () => {},
   }
-  // The world's source serves the pages of its own binary.
+  // The world's source serves the pages of its own binary; the hold holds no byte the prepared
+  // engine's reserve counts.
   const serves = (url: string) => url.startsWith('world-roots.bin#')
-  const hold = { metadata, drawn: { source: { serves, read: record } } }
+  const hold = { metadata, drawn: { source: { serves, read: record } }, bytes: () => 0 }
   const context = await probeEngineContext(
     metadata,
     {
