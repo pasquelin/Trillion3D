@@ -4,9 +4,9 @@
  * `make`, which copies them into its textures and binds them. Its bytes are texture memory held
  * within the one texture budget: `room` is what that budget leaves them. An atlas past the room is
  * not read; within it the atlases drawn least recently leave first, one the frame draws or one
- * being made never (`streaming/cacheEntries.ts`). Until its binding exists, `group` answers nothing
- * and the root keeps its clusters — never a hole. `landed` is told when a level lands, so a held
- * image is drawn again.
+ * being made never (`streaming/cacheEntries.ts`), keyed by mesh number: no string is built a
+ * frame. Until its binding exists, `group` answers nothing and the root keeps its clusters — never
+ * a hole. `landed` is told when a level lands, so a held image is drawn again.
  */
 import type { ImpostorMaps } from '../../../sdk-core/src/index.ts'
 import { loadImpostorAtlas, type ImpostorAtlasLevels } from './atlas.ts'
@@ -16,19 +16,23 @@ import { core } from './borrowed.ts'
 /** The three maps in binding order: colour and coverage, normal and depth, packed ORM. */
 export const ATLAS_MAPS = ['colourCoverage', 'normalDepth', 'orm'] as const
 /**
- * One mesh's atlas as the feed holds it from its first ask: its GPU bytes, read once from its maps;
- * while its textures are made (`making`); its binding once made, the last frame that drew it, and
- * what frees its textures; and the feed's bytes when the device refused it — asked again only once
- * the feed holds less —, `Infinity` otherwise. It weighs nothing until it is made.
+ * One mesh's atlas as the feed holds it from the moment its textures are asked of the device: its
+ * GPU bytes; while its textures are made (`making`); its binding once made, the last frame that
+ * drew it, and what frees its textures.
  */
 export type FedAtlas<G> = {
   group?: G
   bytes: number
   drawn: number
   making: boolean
-  refusedAt: number
   release: () => void
 }
+
+/** What the feed knows of a mesh from its first ask, its atlas held or not: its GPU bytes, read
+ *  once from its maps, and the feed's bytes when the device refused it — asked again only once the
+ *  feed holds less —, `Infinity` otherwise. Kept beside the atlases, out of eviction's reach: a
+ *  refusal outlives the atlas it refused. */
+type KnownMesh = { bytes: number; refusedAt: number }
 
 export type AtlasFeedOptions = {
   room: () => number
@@ -43,16 +47,18 @@ export function createAtlasFeed<G>(
     bytesOf: (maps: ImpostorMaps) => number
     /** Makes the textures of `entry` and hands them to `made` — at once or later —, or answers
      *  through `drop` or `refuse`. */
-    make: (key: string, maps: ImpostorMaps, atlas: ImpostorAtlasLevels, entry: FedAtlas<G>) => void
+    make: (mesh: number, maps: ImpostorMaps, atlas: ImpostorAtlasLevels, entry: FedAtlas<G>) => void
   },
 ) {
   const { room, landed, onFailure, bytesOf, make } = options
   const levels = core.heldLevelsOf(reader)
   const failed = (address: { sha256: string }, error: unknown) =>
     onFailure(`impostor-level-read-failed ${address.sha256}`, error)
-  /** The atlases by mesh number as text, drawn least recently first, past those being made: held
-   *  until `made`. One that leaves frees its textures. */
-  const atlases = core.createCacheEntries<FedAtlas<G>>((atlas) => atlas.release())
+  /** The atlases by mesh number, drawn least recently first, past those being made: held until
+   *  `made`. One that leaves frees its textures. */
+  const atlases = core.createCacheEntries<FedAtlas<G>, number>((atlas) => atlas.release())
+  /** Each mesh asked, by its number. */
+  const known = new Map<number, KnownMesh>()
   /** What an atlas with no textures frees. */
   const release = () => undefined
   /** Frees the room `bytes` needs, the atlases drawn least recently first; false if it cannot.
@@ -67,48 +73,46 @@ export function createAtlasFeed<G>(
       return atlases.bytes
     },
     closed: false,
-    /** True while `entry` is still the feed's atlas of `key`: a make that lands late checks it. */
-    holds: (key: string, entry: FedAtlas<G>) => !feed.closed && atlases.entry(key)?.value === entry,
-    /** Frees `key`'s atlas and its bytes. */
+    /** True while `entry` is still the feed's atlas of `mesh`: a make that lands late checks
+     *  it. */
+    holds: (mesh: number, entry: FedAtlas<G>) =>
+      !feed.closed && atlases.entry(mesh)?.value === entry,
+    /** Frees `mesh`'s atlas and its bytes. */
     drop: atlases.drop,
-    /** `entry`, the atlas of `key`, is made: bound by `group`, its textures freed by `release`. */
-    made(key: string, entry: FedAtlas<G>, group: G, release: () => void) {
+    /** `entry`, the atlas of `mesh`, is made: bound by `group`, its textures freed by `release`. */
+    made(mesh: number, entry: FedAtlas<G>, group: G, release: () => void) {
       Object.assign(entry, { group, release, making: false })
-      atlases.release(key)
+      atlases.release(mesh)
     },
-    /** `key`'s atlas the device refused: its bytes given back, asked again only once the feed
+    /** `mesh`'s atlas the device refused: its bytes given back, asked again only once the feed
      *  holds less. */
-    refuse(key: string) {
-      const entry = atlases.entry(key)?.value
-      if (!entry) return
-      entry.making = false
-      atlases.resize(key, 0)
-      atlases.release(key)
-      entry.refusedAt = atlases.bytes
+    refuse(mesh: number) {
+      if (!atlases.entry(mesh)?.value) return
+      atlases.drop(mesh)
+      known.get(mesh)!.refusedAt = atlases.bytes
     },
     /** The binding of `mesh`'s atlas, marked drawn at `frame`; absent until it is made, its levels
      *  read the first frames it is asked and fits. A refused or failed read leaves the mesh to its
      *  clusters, and is asked again; an atlas the device refused, once the feed holds less. */
     group(mesh: number, maps: ImpostorMaps, frame: number) {
       if (feed.closed) return undefined
-      const key = String(mesh)
-      let entry = atlases.touch(key)
-      if (entry?.group) {
-        entry.drawn = frame
-        return entry.group
+      const held = atlases.touch(mesh)
+      if (held) {
+        if (held.group) held.drawn = frame
+        return held.group
       }
-      if (!entry) {
-        entry = { bytes: bytesOf(maps), drawn: -1, making: false, refusedAt: Infinity, release }
-        atlases.set(key, entry, 0)
-      }
+      let seen = known.get(mesh)
+      if (!seen) known.set(mesh, (seen = { bytes: bytesOf(maps), refusedAt: Infinity }))
+      const { bytes } = seen
       // An atlas past the whole room is never read: it would not fit even alone.
-      if (entry.making || entry.bytes > room() || atlases.bytes >= entry.refusedAt) return undefined
+      if (bytes > room() || atlases.bytes >= seen.refusedAt) return undefined
       const atlas = loadImpostorAtlas(maps, levels, failed)
-      if (typeof atlas === 'string' || !fits(entry.bytes, frame)) return undefined
-      Object.assign(entry, { making: true, refusedAt: Infinity })
-      atlases.acquire(key)
-      atlases.resize(key, entry.bytes)
-      make(key, maps, atlas, entry)
+      if (typeof atlas === 'string' || !fits(bytes, frame)) return undefined
+      seen.refusedAt = Infinity
+      const entry: FedAtlas<G> = { bytes, drawn: -1, making: true, release }
+      atlases.acquire(mesh)
+      atlases.set(mesh, entry, bytes)
+      make(mesh, maps, atlas, entry)
       // A path that makes it at once draws it this image.
       if (entry.group) entry.drawn = frame
       return entry.group
@@ -117,6 +121,7 @@ export function createAtlasFeed<G>(
       feed.closed = true
       unwatch()
       atlases.clear()
+      known.clear()
     },
   }
   const unwatch = levels.watch(() => feed.closed || landed())
