@@ -126,13 +126,8 @@ function engineContext(
     readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, options.pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the loader read:
     // the engine reads the levels the compiler baked and regenerates none it could have read
-    // instead. Its levels are held beside the pages the streamer reads (`textureLevels`).
-    readTextureLevel: createTextureLevelReader(
-      metadata,
-      inputs.base,
-      streamer.textureLevels,
-      signal,
-    ),
+    // instead. Its levels are held beside the pages the streamer reads, in its page cache.
+    readTextureLevel: createTextureLevelReader(metadata, inputs.base, streamer.pageCache, signal),
     ...lights,
     frameBudget: inputs.frameBudget,
   }

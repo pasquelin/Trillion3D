@@ -1,9 +1,8 @@
-// The page cache's eviction order (`cacheEvictionOrder.ts`): the victims `evictOldest` takes, without
-// ever looking at a held page, and the held bytes as a running total.
+// The host caches' eviction order (`cacheEvictionOrder.ts`): least recently touched first, never a
+// held key, without ever looking at one, and the held bytes as a running total.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
-import { evictOldest } from './evictOldest.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 
 /** A cache as `pageCache.ts` keeps it: a `Map` in recency order, and its eviction order. */
@@ -65,7 +64,7 @@ test('one eviction past P held pages checks over() twice and evicts the one vict
   }
 })
 
-test('random touches, drops, holds and evictions: the victims of evictOldest, one by one', () => {
+test('random touches, drops, holds and evictions: the least recently touched key not held leaves first', () => {
   for (const seed of [1, 7, 914, 2026]) {
     const draw = random(seed)
     const { pages, order, touch, drop } = cache()
@@ -86,28 +85,20 @@ test('random touches, drops, holds and evictions: the victims of evictOldest, on
         order.releaseAll()
         held.clear()
       } else {
-        // Both sides evict the same count from copies of the same state: the walk over
-        // the Map's order, and the heap.
+        // The least recently used keys not held, in the order a touch re-inserts them.
         const want = Math.floor(draw() * 6)
-        const walked = new Map(pages),
-          expected: string[] = [],
+        const expected = [...pages.keys()].filter((k) => !held.has(k)).slice(0, want),
           got: string[] = []
         let left = want
-        const take = (into: string[], out: (k: string) => unknown) => (k: string) => {
-          left--
-          into.push(k)
-          out(k)
-        }
-        evictOldest(
-          walked.keys(),
+        order.evict(
           () => left > 0,
-          (k) => held.has(k),
-          take(expected, (k) => walked.delete(k)),
+          (k) => {
+            left--
+            got.push(k)
+            drop(k)
+          },
         )
-        left = want
-        order.evict(() => left > 0, take(got, drop))
         assert.deepEqual(got, expected, `seed ${seed}, step ${step}`)
-        assert.deepEqual([...pages.keys()], [...walked.keys()])
       }
       let recount = 0
       for (const [k, bytes] of pages) if (held.has(k)) recount += bytes
@@ -136,4 +127,23 @@ test('a cleared cache keeps its holds: a page pinned before it comes back stays 
     },
   )
   assert.deepEqual(victims, ['b'])
+})
+
+test('an eviction is asked with the oldest key it would take, and stops at the first refused', () => {
+  const { order, touch, drop } = cache()
+  for (const key of ['a', 'b', 'c', 'd']) touch(key, 1)
+  order.hold('b')
+  const asked: string[] = [],
+    victims: string[] = []
+  order.evict(
+    (oldest) => (asked.push(oldest), oldest !== 'd'),
+    (key) => (victims.push(key), drop(key)),
+  )
+  assert.deepEqual(
+    [asked, victims],
+    [
+      ['a', 'c', 'd'],
+      ['a', 'c'],
+    ],
+  )
 })

@@ -1,4 +1,5 @@
-// The cache on the GPU-cut path gives its slots back in the order the cut published.
+// The cache on the GPU-cut path gives its slots back in the order the cut published; before any,
+// in residency order.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -23,10 +24,23 @@ test('a published order evicts in its order, and never a page it leaves out', as
   assert.ok(!cache.get('old') && cache.get('read'))
   // The order is spent: the burst stops, the page left out stays.
   await assert.rejects(cache.load('c'), /ALL_PAGES_PINNED/)
-  // Without a GPU cut, the least recent page goes first again.
-  cache.evictInOrder(undefined)
+})
+
+test('before any order, an arrival takes the slot of the least recently loaded or touched unpinned page', async () => {
+  const cache = await cacheOf(['a', 'b', 'c', 'd'])
+  cache.pin('a')
+  cache.touch('b')
   await cache.load('c')
-  assert.ok(!cache.get('read'))
+  // Residency order is now a, d, b, c: `a` pinned, `d` goes first, then `b`.
+  await cache.load('e')
+  assert.ok(!cache.get('d') && cache.get('a') && cache.get('b') && cache.get('c'))
+  await cache.load('f')
+  assert.ok(!cache.get('b') && cache.get('c'))
+  // An order withdrawn falls back the same way.
+  cache.evictInOrder(orderOf([]))
+  cache.evictInOrder(undefined)
+  await cache.load('g')
+  assert.ok(!cache.get('c') && cache.get('a'))
 })
 
 test('each entry of the order is read once, however many a lower tier holds', async () => {

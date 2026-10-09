@@ -1,5 +1,4 @@
 import type { StreamContext } from './types.ts'
-import { evictOldest } from './evictOldest.ts'
 import { createStreamingPins } from './streamingPins.ts'
 
 /** A session's side of the page cache: its budget, its holds and its evictions. `reserved` is what
@@ -11,24 +10,17 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
    *  leaving do not move. */
   let budget = 0
   const over = () => (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > budget
-  const pinnedOrLoading = (url: string) => pinned.has(url) || jobs.has(url)
   /** While this session holds the cache, the cache's eviction order keeps its holds: each pin or
-   *  transfer that starts or ends is marked there (`sync`), and neither an eviction nor `held`
-   *  walks the pages. A session another one has replaced keeps its own reckoning, walking the
-   *  pages as the order would not know its holds: it is closing. */
+   *  transfer that starts or ends is marked there (`sync`). A session another one has replaced is
+   *  closing: it marks nothing, and evicts nothing — the session in place does, past its own holds. */
   const owns = () => store.holds(holder)
   const sync = (url: string) => {
     if (!owns()) return
-    if (pinnedOrLoading(url)) store.order.hold(url)
+    if (pinned.has(url) || jobs.has(url)) store.order.hold(url)
     else store.order.release(url)
   }
   /** Bytes of the pages no eviction may take: those the frame keeps and those in flight. */
-  const heldBytes = () => {
-    if (owns()) return store.order.heldBytes
-    let held = 0
-    for (const [url, page] of cache) if (pinnedOrLoading(url)) held += page.byteLength
-    return held
-  }
+  const heldBytes = () => store.order.heldBytes
   const evictOne = (url: string) => {
     store.drop(url)
     state.evictions++
@@ -77,15 +69,12 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
     )
   }
   const evict = () => {
+    if (!owns()) return
     budget = store.budgetBytes
     if (!over()) return
-    // Nothing beside, nothing to yield: the pages are not walked.
-    const held = store.besideBytes > 0 ? heldBytes() : 0
+    const held = heldBytes()
     if (held > budget) yieldBeside(held)
-    const evicted = owns()
-      ? store.order.evict(over, evictOne)
-      : evictOldest(cache.keys(), over, pinnedOrLoading, evictOne)
-    if (!evicted && over()) {
+    if (!store.order.evict(over, evictOne) && over()) {
       state.admissionBlocked++
       emit?.('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
         version: 1,

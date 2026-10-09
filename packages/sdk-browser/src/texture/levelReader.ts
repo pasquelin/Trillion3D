@@ -4,8 +4,9 @@ import {
   type ClusterManifest,
   type TextureLevelFormat,
 } from '../../../sdk-core/src/index.ts'
-import { checked } from '../cluster/checked.ts'
+import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { TextureLevelStore } from './levelStore.ts'
+import type { PageCache } from '../streaming/pageCache.ts'
 import { tiledLevelBytes } from './tileRecords.ts'
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
@@ -25,8 +26,8 @@ export type TextureLevelRequest = {
    *  (`maps.<name>.levels[k].url`). Read through this same reader, resolved against `base`,
    *  in place of the `textures.url` template: one loader, one budget. */
   url?: string
-  /** A block level's bytes to read alone — one tile's record (`tileRecords.ts`) —, by an HTTP
-   *  Range; a server that ignores it answers the whole file. */
+  /** A block level's bytes to read — one tile's record (`tileRecords.ts`) —, by an HTTP Range: a
+   *  block level is read by its tiles' records alone. */
   range?: { offset: number; bytes: number }
 }
 // The explorer's reader also names the store its session holds the levels in: its world's
@@ -55,25 +56,29 @@ export const closeTextureLevel = (level: TextureLevel) => {
 
 /**
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
- * engine itself only receives the function. A lossless level decodes as the browser does, off
- * the main thread, with exactly the options the prepared scene decodes its source images with
- * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the
- * bytes that reach the atlas by this path are those that reached it by the other. A block level
- * is read as bytes — one tile's record by an HTTP Range, or the whole file —, whose length
- * `heldLevels.ts` checks. A cache whose levels are of another version is refused before
- * any read (`assertCacheIdentity`).
+ * engine itself only receives the function. A lossless level is read whole, by one request, and
+ * decodes as the browser does, off the main thread, with exactly the options the prepared scene
+ * decodes its source images with (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`,
+ * `../host/prepared/images.ts`): the bytes that reach the atlas by this path are those that reached
+ * it by the other. A block level is read by one tile's record at a time, through the one reader
+ * of its file `cache` holds for every session (`PageCache.reader`): a server that ignores the Range
+ * answers the file whole once, kept there, counted beside the pages, and every record is cut from
+ * it. `heldLevels.ts` checks each record's length. A read fails once, never asked again here: what
+ * fails waits its turn (`streaming/failures.ts`). A cache whose levels are of another version is
+ * refused before any read (`assertCacheIdentity`).
  *
- * Levels are kept in `store` under the cook's `key`, which hashes the source, its images, the
- * compiler and every option that decides the product: under one key a level names one file.
+ * Levels are kept in `cache.levels` under the cook's `key`, which hashes the source, its images,
+ * the compiler and every option that decides the product: under one key a level names one file.
  * Another key's levels leave the store as this reader is made.
  */
 export function createTextureLevelReader(
   { textures, key }: Pick<ClusterManifest, 'textures' | 'key'>,
   base: string,
-  store?: TextureLevelStore,
+  cache: Pick<PageCache, 'levels' | 'reader'>,
   signal?: AbortSignal,
 ): TextureLevelReader | undefined {
-  store?.keepOnly(key)
+  const store = cache.levels
+  store.keepOnly(key)
   if (!textures || typeof createImageBitmap !== 'function') return undefined
   const read = async ({
     sha256,
@@ -85,14 +90,17 @@ export function createTextureLevelReader(
   }: TextureLevelRequest) => {
     const url = new URL(direct ?? textureLevelUrl(textures.url, sha256, atlas, level, format), base)
       .href
-    const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` }
-    const response = await checked(url, signal, undefined, headers)
-    if (format === PREVIEW_LOSSLESS_FORMAT)
-      return createImageBitmap(await response.blob(), {
-        premultiplyAlpha: 'none',
-        colorSpaceConversion: 'none',
-      })
-    return new Uint8Array(await response.arrayBuffer())
+    if (format !== PREVIEW_LOSSLESS_FORMAT) {
+      const { offset, bytes } = range!
+      return new Uint8Array(
+        await cache.reader(url)(offset, bytes, { attempts: ONE_REQUEST, signal }),
+      )
+    }
+    const response = await checked(url, signal, ONE_REQUEST)
+    return createImageBitmap(await response.blob(), {
+      premultiplyAlpha: 'none',
+      colorSpaceConversion: 'none',
+    })
   }
   return Object.assign(read, { store, key })
 }

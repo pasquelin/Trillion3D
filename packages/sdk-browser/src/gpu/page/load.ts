@@ -1,12 +1,15 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { commitGpuPage, homeOf } from './commit.ts'
-import { refusedStatus, retriableError } from '../../cluster/checked.ts'
+import { refusedStatus } from '../../cluster/checked.ts'
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
- *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its read's. */
+ *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its
+ *  read's. The read starts with the request — reads overlap, uploads stay in order — and is asked
+ *  once: a failure fails the load, and its source says when the page is asked again
+ *  (`streaming/failures.ts`). */
 export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
-  const { abort, resident, fetches, state, reader } = context
-  const { report, emit, now, fetchBytes } = reader
+  const { abort, resident, state, reader } = context
+  const { report, emit, now } = reader
   return function load(
     key: string,
     signal?: AbortSignal,
@@ -29,10 +32,13 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
       version: 1,
       key,
       resident: resident.has(key),
-      loading: fetches.has(key),
+      loading: state.loading,
     }))
     const fetched =
-      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined
+      !state.disposed && !resident.has(key) ? reader.read(key, combined, priority) : undefined
+    // Its failure is the load's to report, once its turn comes: a load ended before leaves it.
+    void fetched?.catch(() => {})
+    state.loading++
     const job: Load = {
       key,
       signal,
@@ -66,7 +72,7 @@ type Load = {
 
 /** The load's turn in the queue: the resident page, or the bytes read, checked and committed. */
 async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<ResidentPage> {
-  const { resident, fetches, check, pins } = context
+  const { resident, state, check, pins } = context
   const { report, emit, now } = context.reader
   const { key, combined, tier, signal, abortListener } = job
   const queueStarted = now()
@@ -87,7 +93,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       key,
       source: 'page-source',
     }))
-    const bytes = await readPageBytes(context, job)
+    const bytes = await (job.fetched ?? context.reader.read(key, combined, job.priority))
     check(combined)
     checkRoom(context, key, bytes)
     const page = commitGpuPage(context, key, bytes, job.requestStarted)
@@ -106,7 +112,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     throw error
   } finally {
     if (abortListener) signal?.removeEventListener('abort', abortListener)
-    fetches.delete(key)
+    state.loading--
   }
 }
 
@@ -124,28 +130,6 @@ function residentHit({ resident, reader }: GpuPageContext, key: string) {
     source: 'resident-cache',
   }))
   return existing
-}
-
-/** The page's bytes: the read started with the request, or one now, asked again once after a
- *  failure another request would not meet again. */
-async function readPageBytes({ state, reader }: GpuPageContext, job: Load) {
-  const { key, combined, priority } = job
-  try {
-    return await (job.fetched ?? reader.fetchBytes(key, combined, priority))
-  } catch (err) {
-    // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
-    if (!combined.aborted && !state.disposed && retriableError(err)) {
-      reader.emit?.('gpu-page-retry', 'New GPU read after failure', () => ({
-        version: 1,
-        key,
-        attempt: 1,
-        nextAttempt: 2,
-        error: String(err),
-      }))
-      return await reader.readBytes(key, combined, 2, priority)
-    }
-    throw err
-  }
 }
 
 /** A page fills its own home at most, where the pool holds the whole catalogue: one past it would

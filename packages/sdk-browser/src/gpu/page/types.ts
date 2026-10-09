@@ -27,10 +27,11 @@ export type GpuPageContext = {
   held: Set<string>
   free: number[]
   abort: AbortController
-  fetches: Map<string, Promise<Uint8Array>>
   state: {
     pending: Promise<unknown>
     disposed: boolean
+    /** Loads in flight: each takes a slot when it lands. */
+    loading: number
     generation: number
     bytesRead: number
     uploadedBytes: number

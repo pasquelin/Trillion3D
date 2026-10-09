@@ -1,18 +1,17 @@
-// A session's evictions through the cache's eviction order (`cache.ts`, `cacheEvictionOrder.ts`): the
-// pages the plain walk (`evictOldest` over the cache's `Map`, past the session's pins) evicted.
+// A session's evictions through the cache's eviction order (`cache.ts`, `cacheEvictionOrder.ts`):
+// the least recently used pages past the session's pins, until the pages fit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamerWith } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
-import { evictOldest } from './evictOldest.ts'
 import { servedPages } from './servedPages.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 
 const TRANSFER = 64,
   PAGE = 12
 
-test('random pins, reads and totals: the session evicts what the walk past its pins evicted', async () => {
+test('random pins, reads and totals: the session evicts the least recently used pages past its pins', async () => {
   const urls = Array.from({ length: 24 }, (_, i) => `p${i}.bin`)
   const { pages } = await servedPages(urls)
   const reserved = manifestTableBytes(pages) + TRANSFER
@@ -27,20 +26,10 @@ test('random pins, reads and totals: the session evicts what the walk past its p
       maxTransferBytes: TRANSFER,
     })
     let pins: string[] = []
-    /** What the walk takes from `order`: oldest first, past the pins, until the pages fit. */
+    /** What leaves `order`, least recently used first: the pages past the pins, until they fit. */
     const walk = (order: string[], budget: number) => {
-      const expected: string[] = []
-      let bytes = order.length * PAGE
-      evictOldest(
-        order,
-        () => bytes > budget,
-        (key) => pins.includes(key),
-        (key) => {
-          expected.push(key)
-          bytes -= PAGE
-        },
-      )
-      return expected
+      const over = Math.max(0, Math.ceil((order.length * PAGE - budget) / PAGE))
+      return order.filter((key) => !pins.includes(key)).slice(0, over)
     }
     for (let step = 0; step < 160; step++) {
       const roll = draw(),
@@ -69,7 +58,7 @@ test('random pins, reads and totals: the session evicts what the walk past its p
   }
 })
 
-test('a session another one replaced evicts as the walk past its own pins did', async () => {
+test('a session another one replaced evicts nothing: the pages the session in place pins stay', async () => {
   const urls = ['a.bin', 'b.bin', 'c.bin']
   const { pages } = await servedPages(urls)
   const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * PAGE)
@@ -85,12 +74,12 @@ test('a session another one replaced evicts as the walk past its own pins did', 
   before.retain(urls)
   await before.request(urls, { signal: before.signal })
   assert.deepEqual([...cache.pages.keys()], urls)
-  // The next session reads through the cache before the first one closes, and pins `b`: the order
-  // keeps its holds now. The first one's eviction still walks past its own pin alone.
+  // The next session reads through the cache before the first one closes, and pins `b`: its
+  // eviction order keeps its holds. The first one, closing, takes no page past one of its own.
   const after = open()
   after.retain(['b.bin'])
   before.retain(['a.bin'])
-  assert.deepEqual([...cache.pages.keys()], ['a.bin'])
+  assert.deepEqual([...cache.pages.keys()], urls)
   before.dispose()
   after.dispose()
 })

@@ -67,7 +67,7 @@ test('the atlas reads each level once at its own url, held by the one store, a f
   await settle()
   assert.deepEqual(failed, ['d'.repeat(64)], 'the failed level is reported, not swallowed')
   assert.equal(store.bytes, 3 * 64, 'three levels held, in the one store')
-  assert.equal(loadImpostorAtlas(maps, levels, 2), 'waiting', 'the failed level is asked again')
+  assert.equal(loadImpostorAtlas(maps, levels, 2), 'waiting', 'the failed level waits its turn')
   await settle()
   // The level comes from another reader of the store. Once every level is held, the atlas is handed over, and nothing is read again.
   store.take(`${'d'.repeat(64)}/0/0/png`, bitmap(), 'k1')
@@ -75,5 +75,6 @@ test('the atlas reads each level once at its own url, held by the one store, a f
   assert.notEqual(typeof atlas, 'string')
   const counts = Object.values(atlas as object).map((chain: unknown[]) => chain.length)
   assert.deepEqual(counts, [2, 1, 1])
-  assert.equal(asked.length, 5, 'only the failed level was read again')
+  assert.equal(asked.length, 4, 'nothing read again: the failed level not before its wait')
+  levels.destroy()
 })

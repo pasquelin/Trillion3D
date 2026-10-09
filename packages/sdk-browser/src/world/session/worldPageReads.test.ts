@@ -20,7 +20,7 @@ test("a world page and a cache page are read under the session's signal, at the 
     read: async () => undefined,
     readBytes: record,
     reserve: () => {},
-    textureLevels: createPageCache().levels,
+    pageCache: createPageCache(),
   }
   const hold = { metadata, drawn: { source: { read: record } } }
   const context = await probeEngineContext(

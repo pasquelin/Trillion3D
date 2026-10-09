@@ -168,15 +168,17 @@ test('GPU diagnostics expose queue, read, upload, pins and eviction while observ
   assert.equal(first.generation, 1)
   await cache.dispose()
 })
-test('a page source failing otherwise than by HTTP is asked once more, as a network failure is', async () => {
+test('a failed read fails its load at once: the cache asks its source once a load, never again on its own', async () => {
   const { device } = fakeDevice({ limits: LIMITS })
-  let attempts = 0
+  let reads = 0
   const read = async () => {
-    if (++attempts === 1) throw new Error('offline')
+    if (++reads === 1) throw new Error('offline')
     return new Uint8Array([1, 2, 3, 4])
   }
   const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 })
-  assert.equal((await cache.load('retry')).bytes, 4)
-  assert.equal(attempts, 2)
+  await assert.rejects(cache.load('page'), /offline/)
+  assert.equal(reads, 1)
+  assert.equal((await cache.load('page')).bytes, 4, 'the next load reads it again')
+  assert.equal(reads, 2)
   await cache.dispose()
 })

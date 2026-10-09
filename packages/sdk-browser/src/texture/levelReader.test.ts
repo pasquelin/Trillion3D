@@ -1,8 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTextureLevelReader } from './levelReader.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 const SHA = 'b'.repeat(64)
+const BASE = 'https://host/cache/full/clusters.json'
 const manifest = {
   textures: { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 },
   key: 'k1',
@@ -18,14 +20,15 @@ function serve(bytes: Uint8Array<ArrayBuffer>) {
   return asked
 }
 
-// Behaviour: a block level is read as the bytes the file holds, at the address of its format —
-// the level store checks their length; a lossless level goes through the
+// Behaviour: a block level is read by its tile's record, as the bytes the file holds, at the
+// address of its format — the held levels check their length; a lossless level goes through the
 // browser's decoder.
 test('a block level is read as bytes at the address of its format', async () => {
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
-  const reader = createTextureLevelReader(manifest, 'https://host/cache/full/clusters.json')!
+  const reader = createTextureLevelReader(manifest, BASE, createPageCache())!
   const asked = serve(new Uint8Array(17 * 3 * 16))
-  const level = await reader({ sha256: SHA, atlas: 1, level: 1, format: 'bc7' })
+  const range = { offset: 0, bytes: 816 }
+  const level = await reader({ sha256: SHA, atlas: 1, level: 1, format: 'bc7', range })
   assert.equal(asked[0], `https://host/textures/v6/${SHA}/linear-1.bc7`)
   assert.ok(level instanceof Uint8Array)
   assert.equal(level.byteLength, 816)
@@ -39,7 +42,7 @@ test('a level with its own url is read there, not through the template', async (
     height: 2,
     close() {},
   })) as unknown as typeof createImageBitmap
-  const reader = createTextureLevelReader(manifest, 'https://host/cache/full/clusters.json')!
+  const reader = createTextureLevelReader(manifest, BASE, createPageCache())!
   const asked = serve(new Uint8Array(16))
   const level = await reader({
     sha256: SHA,

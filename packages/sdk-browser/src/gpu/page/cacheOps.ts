@@ -60,7 +60,7 @@ export function pageCacheStats(context: GpuPageContext) {
     slots,
     residentPages: context.resident.size,
     /** Loads in flight: each takes a slot when it lands. */
-    loading: context.fetches.size,
+    loading: state.loading,
     bytesRead: state.bytesRead,
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,
@@ -75,7 +75,7 @@ export function disposePageCache(context: GpuPageContext) {
   context.reader.emit?.('gpu-page-dispose', 'GPU cache released', () => ({
     version: 1,
     resident: resident.size,
-    loading: context.fetches.size,
+    loading: state.loading,
     evictions: state.evictions,
   }))
   state.disposed = true

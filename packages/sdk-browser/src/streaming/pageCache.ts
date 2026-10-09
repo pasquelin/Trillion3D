@@ -1,5 +1,4 @@
 import { MIB } from '../../../math/src/constants.ts'
-import { evictOldest } from './evictOldest.ts'
 import { rangedReader } from '../cluster/ranged.ts'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
@@ -73,13 +72,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
    *  and its transfers, or all of them evictable when none reads. */
   const evict = () => {
     if (holder) holder.evict()
-    else
-      evictOldest(
-        pages.keys(),
-        () => bytes > cache.budgetBytes,
-        () => false,
-        drop,
-      )
+    else order.evict(() => bytes > cache.budgetBytes, drop)
   }
   // With no session reading — between a lost device and its next session — every page is held
   // for the next one: a level landing then takes no page's place.

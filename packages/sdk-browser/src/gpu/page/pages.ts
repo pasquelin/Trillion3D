@@ -13,6 +13,7 @@ import {
 } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts'
+import { createReadFailures } from '../../streaming/failures.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
@@ -27,10 +28,12 @@ export type GpuPageCacheOptions = {
   onDiagnostic?: (d: EngineDiagnostic) => void
 }
 
-/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes
- * are ordered; dispose waits for in-flight submits before destroy. `pin(key, 'held')` keeps a page
- * ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary
- * repinning preserves the held tier; `unpin(key)` removes it. */
+/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host: each load
+ * reads its page from `source` (`reader.ts`), which joins the reads of a page in flight and says
+ * when a failed one is asked again. Queue writes are ordered; dispose waits for in-flight submits
+ * before destroy. `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`,
+ * which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)`
+ * removes it. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
@@ -88,13 +91,13 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   const state = {
     pending: Promise.resolve() as Promise<unknown>,
     disposed: false,
+    loading: 0,
     generation: 0,
     bytesRead: 0,
     uploadedBytes: 0,
     evictions: 0,
   }
-  const fetches = new Map<string, Promise<Uint8Array>>()
-  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches)
+  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic)
   const { emit } = reader
   emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
@@ -125,7 +128,6 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     held: new Set<string>(),
     free: Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
     abort: new AbortController(),
-    fetches,
     state,
     eviction: { at: 0, epoch: 0, lower: new Map(), held: [], late: [], lateAt: 0 },
     // Every arrival and departure in order, so a host mirrors the cache page by page instead of
@@ -138,12 +140,25 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   }
   return context
 }
-/** A page source that fetches pages over HTTP, by key, from `baseUrl`. */
+/** A page source that fetches pages over HTTP, by key, from `baseUrl`, one request a read. A page
+ *  whose read failed is refused, no request sent, until its wait ends — or for good when another
+ *  request would meet its failure again (`streaming/failures.ts`). It joins no reads: two loads of
+ *  one page in flight send two requests. */
 export function httpPageSource(baseUrl: string): PageSource {
+  const failures = createReadFailures()
   return {
     async read(key, signal) {
-      const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST)
-      return new Uint8Array(await response.arrayBuffer())
+      const blocked = failures.blocked(key)
+      if (blocked) throw blocked
+      try {
+        const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST)
+        const bytes = new Uint8Array(await response.arrayBuffer())
+        failures.passed(key)
+        return bytes
+      } catch (error) {
+        if (!signal?.aborted) failures.record(key, error)
+        throw error
+      }
     },
   }
 }

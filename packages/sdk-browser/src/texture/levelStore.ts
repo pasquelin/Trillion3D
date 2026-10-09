@@ -1,5 +1,5 @@
 import { closeTextureLevel, textureLevelBytes, type TextureLevel } from './levelReader.ts'
-import { evictOldest } from '../streaming/evictOldest.ts'
+import { createEvictionOrder } from '../streaming/cacheEvictionOrder.ts'
 
 /** The decoded texture levels' share of the page cache, at most: three quarters, 192 MiB at the
  *  default CPU total. */
@@ -19,9 +19,12 @@ export function createTextureLevelStore(
   { roomBeside = () => Infinity, onHeld }: { roomBeside?: () => number; onHeld?: () => void } = {},
 ) {
   const held = new Map<string, { level: TextureLevel; bytes: number }>()
+  /** The least recently read first (`streaming/cacheEvictionOrder.ts`). */
+  const order = createEvictionOrder((id) => held.get(id)!.bytes)
   const drop = (id: string) => {
     const entry = held.get(id)
     if (!entry) return
+    order.drop(id)
     held.delete(id)
     store.bytes -= entry.bytes
     closeTextureLevel(entry.level)
@@ -35,8 +38,7 @@ export function createTextureLevelStore(
     get(id: string) {
       const entry = held.get(id)
       if (!entry) return undefined
-      held.delete(id)
-      held.set(id, entry)
+      order.touch(id)
       return entry.level
     },
     /** Bytes one level may take: the share, within what is left beside. */
@@ -52,18 +54,14 @@ export function createTextureLevelStore(
       if (bytes > room) return closeTextureLevel(level)
       store.shedTo(room - bytes)
       held.set(id, { level, bytes })
+      order.touch(id)
       store.bytes += bytes
       onHeld?.()
     },
     /** Drops the least recently read levels until the rest fit in `limit`; the bytes freed. */
     shedTo(limit: number) {
       const before = store.bytes
-      evictOldest(
-        held.keys(),
-        () => store.bytes > limit,
-        () => false,
-        drop,
-      )
+      order.evict(() => store.bytes > limit, drop)
       return before - store.bytes
     },
     /** A new share, applied at once, within what is left beside. */

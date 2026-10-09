@@ -1,35 +1,36 @@
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 
-/** A page's last touch and its place in the heap. */
+/** A key's last touch and its place in the heap. */
 type Stamp = { key: string; stamp: number; slot: number }
 
 /**
- * The page cache's eviction order: least recently touched first, past the pages the reading
- * session holds — pinned by its frame or in transfer (`cache.ts`).
+ * THE EVICTION ORDER of every host-memory cache — the page cache past the pages its reading session
+ * holds (pinned by its frame or in transfer, `cache.ts`), the decoded texture levels
+ * (`texture/levelStore.ts`) and the impostor atlases past those being made (`impostor/feed.ts`):
+ * least recently touched first, never one held.
  *
- * Each touch stamps its page with a counter that only grows, so the stamps order the pages exactly
- * as the cache's `Map` does (a touch re-inserts). The pages that may leave sit in the streaming
- * engine's one heap (`math/src/sequence/heap.ts`), ordered by stamp. A page is taken OUT of the heap the moment it
- * becomes held (`hold`: a pin added, a transfer started) and put back at its stamp the moment it
- * is let go (`release`), so the heap never holds a held page and its top is always the first page `evictOldest(pages.keys(),
- * over, held, …)` takes: the same victims, in the same order.
+ * Each touch stamps its key with a counter that only grows: the stamps are the recency order. The
+ * keys that may leave sit in the streaming engine's one heap (`math/src/sequence/heap.ts`), ordered
+ * by stamp. A key is taken OUT of the heap the moment it becomes held (`hold`) and put back at its
+ * stamp the moment it is let go (`release`), so the heap never holds a held key and its top is
+ * always the least recently touched key that may leave.
  *
- * Costs, n the pages cached and h the pages held:
+ * Costs, n the keys cached and h the keys held:
  * - `touch`, `drop`, `hold`, `release`: one heap insertion or removal each, O(log n);
- * - `evict`: O(log n) per page it evicts, plus one `over()` per page and one to stop — worst case
- *   of a single call included, since no held page is ever looked at, whatever h;
- * - `releaseAll`, when the session reading through the cache changes (`pageCache.hold`): O(h log n),
- *   once per session opened or closed, never inside an eviction;
+ * - `evict`: O(log n) per key it evicts, plus one `over()` per key and one to stop — worst case
+ *   of a single call included, since no held key is ever looked at, whatever h;
+ * - `releaseAll`, when the session reading through the page cache changes (`pageCache.hold`):
+ *   O(h log n), once per session opened or closed, never inside an eviction;
  * - `heldBytes`: a running total kept by the four operations above, O(1) to read.
  */
 export function createEvictionOrder(sizeOf: (key: string) => number) {
   let next = 0,
     heldBytes = 0
-  /** Each cached page's last touch, and its place in the heap, −1 while held. */
+  /** Each cached key's last touch, and its place in the heap, −1 while held. */
   const stamps = new Map<string, Stamp>()
-  /** Pages the session holds, cached or not yet: they never enter the heap. */
+  /** Keys held, cached or not yet: they never enter the heap. */
   const held = new Set<string>()
-  /** The pages that may leave, the least recently touched first (`math/src/sequence/heap.ts`). */
+  /** The keys that may leave, the least recently touched first (`math/src/sequence/heap.ts`). */
   const heap = createHeap<Stamp>(
     (a, b) => a.stamp < b.stamp,
     (entry, at) => (entry.slot = at),
@@ -55,7 +56,7 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
     insert(entry)
   }
   return {
-    /** `key` is the most recently used page; its bytes are cached (`sizeOf` reads them). */
+    /** `key` is the most recently used; its bytes are cached (`sizeOf` reads them). */
     touch(key: string) {
       drop(key)
       const entry = { key, stamp: next++, slot: -1 }
@@ -65,7 +66,8 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
     },
     /** `key` left the cache; called while `sizeOf` still reads its bytes. */
     drop,
-    /** No eviction may take `key` until it is released: a pin added, a transfer started. */
+    /** No eviction may take `key` until it is released: a pin added, a transfer started, an atlas
+     *  being made. */
     hold(key: string) {
       if (held.has(key)) return
       held.add(key)
@@ -74,21 +76,21 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
       heldBytes += sizeOf(key)
       remove(entry)
     },
-    /** `key` may leave again, at its last touch's place: its pin and its transfer are gone. */
+    /** `key` may leave again, at its last touch's place: what held it is gone. */
     release,
-    /** Nothing is held any more: the session holding the pages changed (`pageCache.hold`). */
+    /** Nothing is held any more: the session holding the page cache changed (`pageCache.hold`). */
     releaseAll() {
       for (const key of held) release(key)
     },
-    /** Bytes of the cached pages held, kept as a running total: no page is walked. */
+    /** Bytes of the cached keys held, kept as a running total: no key is walked. */
     get heldBytes() {
       return heldBytes
     },
-    /** Evicts the least recently used page no one holds, while `over()`; `evict` takes it out of
-     *  the cache. Returns how many left, as `evictOldest` does. */
-    evict(over: () => boolean, evict: (key: string) => void) {
+    /** Evicts the least recently used key no one holds while `over(it)`; `evict` takes it out of
+     *  its cache. Returns how many left. */
+    evict(over: (oldest: string) => boolean, evict: (key: string) => void) {
       let evicted = 0
-      while (heap.size && over()) {
+      while (heap.size && over(heap.items[0].key)) {
         const { key } = heap.items[0]
         drop(key)
         evict(key)
@@ -96,7 +98,7 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
       }
       return evicted
     },
-    /** Every page left: the holds stay, they are the session's. */
+    /** Every key left: the holds stay, they are their holder's. */
     clear() {
       stamps.clear()
       heap.clear()

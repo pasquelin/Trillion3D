@@ -38,10 +38,16 @@ export function createPageStreamerWith(
     queue = createTransferQueue()
   const pinned = new Set<string>(),
     abort = new AbortController()
-  // A job whose failure's wait ended is queued again by the queue below, made once this is.
-  const failures = createReadFailures({ jobs, catalog, onStalled: options.onStalled }, (job) =>
-    reads.requeue(job),
-  )
+  // A wait over: a job waiting is queued again by the queue below, made once this is; the failure
+  // of a page no longer catalogued leaves.
+  const failures = createReadFailures({
+    onStalled: options.onStalled,
+    ended(url) {
+      const job = jobs.get(url)
+      if (job?.state === 'waiting') reads.requeue(job)
+      else if (!catalog.has(url)) failures.leaves(url)
+    },
+  })
   if (signal) {
     if (signal.aborted) abort.abort(signal.reason)
     else signal.addEventListener('abort', () => abort.abort(signal.reason), { once: true })
@@ -139,8 +145,9 @@ export function createPageStreamerWith(
     /** The streamer's life, aborted once it is disposed or its owner's signal aborts: the signal
      *  of a read its session owns. */
     signal: abort.signal,
-    /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
-    textureLevels: store.levels,
+    /** The page cache it reads through — its world's, kept across a device loss, or its own —: the
+     *  texture levels are held beside its pages, their files read by its readers. */
+    pageCache: store,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */

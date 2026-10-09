@@ -4,7 +4,7 @@
  * path's `make`, which copies them into its textures and binds them. Its bytes are texture memory
  * held within the one texture budget: `room` is what that budget leaves them. An atlas past the
  * room is not read; within it the atlases drawn least recently leave first, one the frame draws
- * never. Until its binding exists, `group` answers nothing and the root keeps its clusters — never
+ * or one being made never (`streaming/cacheEvictionOrder.ts`). Until its binding exists, `group` answers nothing and the root keeps its clusters — never
  * a hole. `landed` is told when levels land, so a held image is drawn again.
  */
 import type { ImpostorMaps } from '../../../sdk-core/src/index.ts'
@@ -31,8 +31,8 @@ export function createAtlasFeed<G>(
   options: AtlasFeedOptions & {
     /** The GPU bytes of a mesh's atlas, read from its maps before any level is. */
     bytesOf: (maps: ImpostorMaps) => number
-    /** Makes the textures of `entry`, sets its `group` and `release` once made — at once or later
-     *  —, or answers through `drop` or `refuse`. */
+    /** Makes the textures of `entry` and hands them to `made` — at once or later —, or answers
+     *  through `drop` or `refuse`. */
     make: (key: string, maps: ImpostorMaps, atlas: DecodedAtlas, entry: FedAtlas<G>) => void
   },
 ) {
@@ -41,23 +41,21 @@ export function createAtlasFeed<G>(
     read: reader,
     onFailure: (key, error) => onFailure(`impostor-level-read-failed ${key.sha256}`, error),
   })
-  // Keyed by mesh number as text, in recency order: a group read re-inserts its mesh.
+  // Keyed by mesh number as text.
   const fed = new Map<string, FedAtlas<G>>()
+  /** The atlases drawn least recently first, past those being made: held until `made`. */
+  const order = core.createEvictionOrder((key) => fed.get(key)!.bytes)
   // Meshes whose atlas the device refused, each with the feed's bytes then: asked again only once
   // the feed holds less.
   const refused = new Map<string, number>()
   // Each mesh's atlas bytes, read once from its maps: a streaming mesh asks every image.
   const sizes = new Map<string, number>()
   let watching = false
-  /** Frees the room `bytes` needs, the atlases drawn least recently first; false if it cannot. */
-  const fits = (key: string, bytes: number, frame: number) => {
-    core.evictOldest(
-      fed.keys(),
-      () => feed.bytes + bytes > room(),
-      (other) => {
-        const held = fed.get(other)!
-        return other === key || !held.group || held.drawn === frame
-      },
+  /** Frees the room `bytes` needs, the atlases drawn least recently first; false if it cannot.
+   *  Those the frame draws were touched last: the first of them met ends the eviction. */
+  const fits = (bytes: number, frame: number) => {
+    order.evict(
+      (oldest) => fed.get(oldest)!.drawn !== frame && feed.bytes + bytes > room(),
       feed.drop,
     )
     return feed.bytes + bytes <= room()
@@ -71,10 +69,17 @@ export function createAtlasFeed<G>(
     /** Frees `key`'s atlas and its bytes. */
     drop(key: string) {
       const entry = fed.get(key)
-      fed.delete(key)
       if (!entry) return
+      order.release(key)
+      order.drop(key)
+      fed.delete(key)
       feed.bytes -= entry.bytes
       entry.release()
+    },
+    /** `entry`, the atlas of `key`, is made: bound by `group`, its textures freed by `release`. */
+    made(key: string, entry: FedAtlas<G>, group: G, release: () => void) {
+      Object.assign(entry, { group, release })
+      order.release(key)
     },
     /** Frees `key`'s atlas the device refused: asked again only once the feed holds less. */
     refuse(key: string) {
@@ -88,8 +93,7 @@ export function createAtlasFeed<G>(
       const key = String(mesh)
       const entry = fed.get(key)
       if (entry) {
-        fed.delete(key)
-        fed.set(key, entry)
+        order.touch(key)
         if (entry.group) entry.drawn = frame
         return entry.group
       }
@@ -110,9 +114,11 @@ export function createAtlasFeed<G>(
       if (typeof atlas === 'string') return undefined
       if (ATLAS_MAPS.some((name) => atlas[name].some((level) => level instanceof Uint8Array)))
         return undefined
-      if (!fits(key, bytes, frame)) return undefined
+      if (!fits(bytes, frame)) return undefined
       const made: FedAtlas<G> = { bytes, drawn: -1, release: () => undefined }
       fed.set(key, made)
+      order.hold(key)
+      order.touch(key)
       feed.bytes += bytes
       make(key, maps, atlas as DecodedAtlas, made)
       // A path that makes it at once draws it this image.

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTextureLevelReader, type TextureLevelRequest } from './levelReader.ts'
 import { createHeldLevels } from './heldLevels.ts'
-import { tiledLevelBytes } from './tileRecords.ts'
+import { tileRecord, tiledLevelBytes } from './tileRecords.ts'
 import { createPageCache, type PageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'
 import { createPageStreamerWith } from '../streaming/pageStreamer.ts'
@@ -13,30 +13,36 @@ import { MIB } from '../../../math/src/constants.ts'
 
 const BASE = 'https://host/cache/full/clusters.json'
 const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 }
-/** Bytes of a `side`² block level file: a server that ignores Range sends it whole. */
+/** Bytes of a `side`² block level file. */
 const fileBytes = (side: number) => tiledLevelBytes(side, side)
-/** The block level `level` of one texture. */
-const request = (level: number): TextureLevelRequest => ({
+/** Bytes of tile (0, 0)'s record in a `side`² block level file: what a session holds of it. */
+const recordBytes = (side: number) => tileRecord(side, side, 0, 0).bytes
+/** The level `level` of one texture, block-compressed or lossless. */
+const request = (level: number, format: 'bc7' | 'png' = 'bc7'): TextureLevelRequest => ({
   sha256: 'b'.repeat(64),
   atlas: 1,
   level,
-  format: 'bc7',
+  format,
 })
 
-/** A session's levels, read by the explorer's reader through `cache`'s store under the cook
- *  `key`; `fetched` lists every level address the server was asked. */
-function session(cache: PageCache, key = 'k1', side = 1024) {
+/** A session's levels of `format`, read by the explorer's reader through `cache` under the cook
+ *  `key`, from a server that honours Range; `fetched` lists every level address it was asked. */
+function session(cache: PageCache, key = 'k1', side = 1024, format: 'bc7' | 'png' = 'bc7') {
   const fetched: string[] = []
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
-  globalThis.fetch = (async (url: string | URL) => {
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
     fetched.push(String(url))
-    return new Response(new Uint8Array(fileBytes(side)))
+    const file = new Uint8Array(fileBytes(side)),
+      range = new Headers(init?.headers).get('range')
+    if (!range) return new Response(file)
+    const [from, to] = range.slice(6).split('-').map(Number)
+    return new Response(file.slice(from, to + 1), { status: 206 })
   }) as typeof fetch
-  const read = createTextureLevelReader({ textures, key }, BASE, cache.levels)!
+  const read = createTextureLevelReader({ textures, key }, BASE, cache)!
   const levels = createHeldLevels({ read, onFailure: assert.fail })
-  /** Asks for `level` at `frame`, and waits for what it read. */
+  /** Asks tile (0, 0) of `level` at `frame`, and waits for what it read. */
   const ask = async (level: number, frame = 0) => {
-    levels.request(request(level), frame, [side, side], 0, 0)
+    levels.request(request(level, format), frame, [side, side], 0, 0)
     await levels.settled()
   }
   return { levels, fetched, ask }
@@ -50,10 +56,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   await lost.ask(0)
   lost.levels.destroy()
   const reopened = session(cache)
-  assert.ok(
-    reopened.levels.get(request(0), [1024, 1024], 0, 0) instanceof Uint8Array,
-    'held across the loss',
-  )
+  assert.ok(reopened.levels.get(request(0), 0, 0) instanceof Uint8Array, 'held across the loss')
   await reopened.ask(0, 1)
   assert.deepEqual([reopened.fetched, reopened.levels.fetched], [[], 0], '0 texture refetch')
   // A read in flight while another cook opens lands for nothing.
@@ -72,7 +75,7 @@ test('a level read by both sides of a device loss is counted once', async () => 
   const reopened = session(cache)
   await reopened.ask(0)
   await lost.levels.settled()
-  assert.equal(cache.levels.bytes, fileBytes(1024))
+  assert.equal(cache.levels.bytes, recordBytes(1024))
 })
 
 // Behaviour: the levels yield to the pages a frame keeps, before the proxy
@@ -115,13 +118,23 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
   const pools = worldPools()
   const physics = { ...DEFAULT_PHYSICS_BUDGET }
   const handle = worldBudget(pools, { explorer: null }, { last: null }, physics)
-  const { levels, ask } = session(pools.pageCache)
-  await ask(0)
-  await ask(1)
-  assert.equal(levels.bytes, 2 * fileBytes(1024))
-  handle.cpu = 2 * MIB
-  const cap = (3 * 2 * MIB) / 4
-  assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap])
-  assert.equal(levels.bytes, fileBytes(1024), 'the level read first left')
-  assert.ok(levels.get(request(1), [1024, 1024], 0, 0), 'the one read last stays')
+  // Two decoded 512² levels, 1 MiB each: both fit the default cap, one alone fits the cap below.
+  const side = 512,
+    bytes = side * side * 4
+  const scope = globalThis as { createImageBitmap?: unknown },
+    decoder = scope.createImageBitmap
+  scope.createImageBitmap = async () => ({ width: side, height: side, close() {} })
+  try {
+    const { levels, ask } = session(pools.pageCache, 'k1', side, 'png')
+    await ask(0)
+    await ask(1)
+    assert.equal(levels.bytes, 2 * bytes)
+    handle.cpu = 2 * MIB
+    const cap = (3 * 2 * MIB) / 4
+    assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap])
+    assert.equal(levels.bytes, bytes, 'the level read first left')
+    assert.ok(levels.get(request(1, 'png'), 0, 0), 'the one read last stays')
+  } finally {
+    scope.createImageBitmap = decoder
+  }
 })

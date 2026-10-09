@@ -1,8 +1,13 @@
 // A server that ignores the Range answers the whole file: its download is the reader's, shared by
-// every range waiting on it, and stops only once none does.
+// every range waiting on it, and stops only once none does. A texture level file is read the same
+// way, through the page cache's one reader of it.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { rangedReader } from './ranged.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
+import { createTextureLevelReader } from '../texture/levelReader.ts'
+import { createHeldLevels } from '../texture/heldLevels.ts'
+import { tileRecord, tiledLevelBytes } from '../texture/tileRecords.ts'
 
 /** A server sending the whole of `file` whatever the Range, its body held until `land`, cut off
  *  by the request's signal: the signals of the requests sent. */
@@ -87,4 +92,29 @@ test("a range waiting on another's first answer lets go at once when its own ask
   await assert.rejects(waiting, { name: 'AbortError' }) // before the answer
   answer()
   assert.equal((await first).byteLength, 4)
+})
+
+test('a texture level a server sends whole is sent once, kept by its reader, every tile record cut from it', async (t) => {
+  const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
+  const sent: (string | null)[] = []
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    sent.push(new Headers(init.headers).get('range'))
+    return new Response(file.slice(), { status: 200 })
+  })
+  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
+  const cache = createPageCache()
+  const textures = { url: '{sha}/{kind}-{level}.{format}', version: 6 }
+  const read = createTextureLevelReader({ textures, key: 'k' }, 'https://host/', cache)!
+  const levels = createHeldLevels({ read, onFailure: assert.fail })
+  const level = { sha256: 'c'.repeat(64), atlas: 0, level: 0, format: 'bc7' } as const
+  const tiles = [0, 1, 2, 3].map((i) => [i & 1, i >> 1] as const)
+  for (const [tx, ty] of tiles) levels.request(level, 0, [256, 256], tx, ty)
+  await levels.settled()
+  assert.equal(sent.length, 1, 'one request: the others waited for its answer')
+  for (const [tx, ty] of tiles) {
+    const { offset, bytes } = tileRecord(256, 256, tx, ty)
+    assert.deepEqual(levels.get(level, tx, ty), file.subarray(offset, offset + bytes))
+  }
+  // The whole file is its reader's alone, counted once beside the pages; the store holds records.
+  assert.equal(cache.besideBytes - levels.bytes, file.byteLength)
 })

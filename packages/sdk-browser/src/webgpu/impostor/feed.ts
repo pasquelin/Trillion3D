@@ -99,8 +99,7 @@ export function createImpostorFeed(
           new Error(`impostor atlas ${key}: ${entry.bytes} bytes`),
         )
       }
-      entry.release = made.destroy
-      entry.group = device.createBindGroup({
+      const group = device.createBindGroup({
         label: `Trillion3D impostor atlas ${key}`,
         layout,
         entries: [
@@ -108,6 +107,7 @@ export function createImpostorFeed(
           { binding: 3, resource: sampler },
         ],
       })
+      feed.made(key, entry, group, made.destroy)
       landed()
     }, failed)
   }
