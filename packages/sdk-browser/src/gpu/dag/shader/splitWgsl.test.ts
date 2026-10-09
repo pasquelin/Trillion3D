@@ -26,6 +26,6 @@ test('a split kernel declares the bindings its layout makes, and every name it r
   assert.equal(wgslBufferBindings(text).length, 10 + 2 + 1 + 4)
   assert.deepEqual(entryBufferBindings(dagBindEntries(counts)), wgslBufferBindings(text))
   assert.deepEqual(unresolvedNames(text), [])
-  for (const read of ['clusters2[i-170u]', 'cold1[i-1024u]', 'flags4[i-flagSection(7u)]=v'])
+  for (const read of ['clusters2[i-170u]', 'cold1[i-1024u]', 'flags4[i-flagSection(6u)]=v'])
     assert.ok(text.includes(read), read)
 })

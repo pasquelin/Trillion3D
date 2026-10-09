@@ -16,6 +16,7 @@ import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpu
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
+import { cutHeldSlots } from './listCap.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
 
@@ -30,6 +31,8 @@ export async function createGpuDagSelection(
     poolHeld?: (page: number) => boolean
     /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
     composed?: (w: number) => boolean
+    /** The rows the session's row cache holds: the open counts placements hold follow them. */
+    rows?: number
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -45,6 +48,9 @@ export async function createGpuDagSelection(
     selectionRepeat(options.diagnosticGpuVariant),
     undefined,
     (reason) => (why = reason),
+    options.rows === undefined
+      ? undefined
+      : cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, options.rows),
   )
   if (!resources) {
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })

@@ -44,19 +44,24 @@ test('roots appended into the room read as a packing of every root at that capac
   const added = appendDagRoots(grown, roots.slice(2))
   const per = counts.pages / roots.length,
     nodes = counts.nodes / roots.length
+  // No node appended: every placement reads its primitive's, packed once.
   assert.deepEqual(added, {
     pages: [2 * per, counts.pages],
-    nodes: [2 * nodes, counts.nodes],
     worlds: [2, 5],
     tree: { nodes: new Int32Array(0), members: [0, 0] },
   })
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)
-  assert.deepEqual(grown.live, { pages: counts.pages, nodes: counts.nodes, worlds: 5 })
-  assert.deepEqual(
-    [grown.pageCount, grown.nodeCount, grown.worldCount, grown.recordCount, grown.rootCount],
-    [whole.pageCount, whole.nodeCount, whole.worldCount, whole.recordCount, whole.rootCount],
-  )
+  assert.deepEqual(grown.live, { pages: counts.pages, nodes, worlds: 5, entries: counts.nodes })
+  const sizes = ({
+    pageCount,
+    nodeCount,
+    entryCount,
+    worldCount,
+    recordCount,
+    rootCount,
+  }: typeof whole) => [pageCount, nodeCount, entryCount, worldCount, recordCount, rootCount]
+  assert.deepEqual(sizes(grown), sizes(whole))
   assert.deepEqual(grown.cutLinks, whole.cutLinks)
   for (let page = 0; page < capacity.pages; page++)
     assert.equal(grown.pageUrlOf(page), whole.pageUrlOf(page), `page ${page}`)
@@ -75,9 +80,10 @@ test('roots past the room, or of a primitive the packing does not hold, are not 
 test('a packing without a capacity is the exact one and keeps no room', () => {
   const { roots, counts } = scene()
   const exact = packDagSelection(roots)
+  // One primitive: its nodes once, an entry for each of them a placement.
   assert.deepEqual(
-    [exact.pageCount, exact.nodeCount, exact.worldCount],
-    [counts.pages, counts.nodes, roots.length],
+    [exact.pageCount, exact.nodeCount, exact.entryCount, exact.worldCount],
+    [counts.pages, counts.nodes / roots.length, counts.nodes, roots.length],
   )
   assert.equal(exact.shared, undefined)
   assert.equal(appendDagRoots(exact, roots.slice(0, 1)), undefined)

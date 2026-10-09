@@ -6,11 +6,12 @@ import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { makeDagBuffer } from './bufferTable.ts'
 import { dagGroup, dagTables, uploadDagTables, type Own } from './resourceTables.ts'
-import { createDagList, initialListCap, rankGroups } from './listCap.ts'
+import { createDagList, cutHeldSlots, initialListCap, rankGroups } from './listCap.ts'
 import { createDagArm } from './arm.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
 import { validatedOrWhy } from '../core/errorScope.ts'
 import { createMaskSwap } from './swap.ts'
+import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */
@@ -19,9 +20,18 @@ export async function createDagResources(
   packed: PackedDag,
   repeat: 'all' | 'head' | null = null,
   // Sized by the pages its roots hold, not the room a growth keeps: a list grows on demand.
-  listCap = initialListCap(device.limits, packed.live?.pages ?? packed.pageCount),
+  listCap?: number,
   refused: (reason: string) => void = () => {},
+  // The open counts placements hold of their own follow what the row cache holds resident
+  // (`heldOpen.ts`): a cut made beside none sizes them for the rows a view starts with, its pages
+  // at most (`cutHeldSlots`).
+  heldSlots = cutHeldSlots(
+    device.limits,
+    packed.live?.pages ?? packed.pageCount,
+    Math.min(VIEW_ROWS, packed.live?.pages ?? packed.pageCount),
+  ),
 ) {
+  listCap ??= initialListCap(device.limits, packed.live?.pages ?? packed.pageCount, heldSlots)
   const buffers: GPUBuffer[] = []
   /** A buffer of this cut's: the runtime's dispose destroys them all. */
   const own = (descriptor: GPUBufferDescriptor) => {
@@ -30,7 +40,7 @@ export async function createDagResources(
     return buffer
   }
   try {
-    const { tables, ...made } = dagBuffers(device, packed, own, listCap)
+    const { tables, ...made } = dagBuffers(device, packed, own, listCap, heldSlots)
     const { group, frames, split, work, dispatchArgs } = made
     // One validation scope after the other: the device's scopes are one stack, and two built
     // together would each pop the other's.
@@ -74,7 +84,13 @@ export async function createDagResources(
 }
 
 /** Every buffer of the cut, and the group its kernels bind. */
-function dagBuffers(device: GPUDevice, packed: PackedDag, own: Own, listCap: number) {
+function dagBuffers(
+  device: GPUDevice,
+  packed: PackedDag,
+  own: Own,
+  listCap: number,
+  heldSlots: number,
+) {
   const tables = dagTables(device, packed, own)
   const { rows, blockCount, split } = tables
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
@@ -91,7 +107,7 @@ function dagBuffers(device: GPUDevice, packed: PackedDag, own: Own, listCap: num
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(dispatchArgs, 0, DAG_ARGS_INITIAL)
-  const list = createDagList(own, listCap)
+  const list = createDagList(own, listCap, 0, heldSlots)
   // No extra storage buffer in the selection's group, a stage's ceiling is already reached: the
   // arming kernel reads the list counts here through its own group.
   const work = makeDagBuffer(own, rows.work)
@@ -106,6 +122,7 @@ function dagBuffers(device: GPUDevice, packed: PackedDag, own: Own, listCap: num
     tables,
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
+    entryCount: packed.entryCount,
     worldCount,
     blockCount,
     ...list,

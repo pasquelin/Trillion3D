@@ -20,7 +20,7 @@
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 import { dagViewFrames, projectedError } from './oracle/math.fixture.ts'
 import { dagNodeFloor, dagNodeVerdict } from './oracle/nodeVerdict.fixture.ts'
-import { bandError, bandSphere, dagRecords, worldOf } from './records.fixture.ts'
+import { bandError, bandSphere, dagRecords } from './records.fixture.ts'
 import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './nodeLayout.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 
@@ -67,20 +67,23 @@ export function descenteComptee(
     tooCoarse: 0,
   }
   const records = dagRecords(packed)
+  // Pairs: a node, then the placement reading it — a primitive's nodes are its placements' alike.
   let file: number[] = []
-  for (const root of packed.rootNodes) if (root !== 0xffffffff) file.push(root)
+  packed.rootNodes.forEach((root, w) => root !== 0xffffffff && file.push(root, w))
   while (file.length) {
     const suivante: number[] = []
-    for (const n of file) {
+    for (let k = 0; k < file.length; k += 2) {
+      const n = file[k],
+        w = file[k + 1]
       count.visites++
-      const children = dagNodeVerdict(frames, nodes, ints, n)
+      const children = dagNodeVerdict(frames, nodes, ints, n, w)
       if (children < 0) {
         count.rejectedFrontier++
         continue
       }
       // The subtree error FLOOR, which the node does not yet carry as it carries its ceiling:
       // none of its clusters is fine enough, so no candidate will come out of it.
-      if (plancher && dagNodeFloor(frames, nodes, ints, n) > frames.pixelError) {
+      if (plancher && dagNodeFloor(frames, nodes, ints, n, w) > frames.pixelError) {
         count.plancherCoupe++
         count.rejectedFrontier++
         continue
@@ -88,7 +91,7 @@ export function descenteComptee(
       if (children) {
         count.internes++
         const premier = ints[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
-        for (let c = 0; c < children; c++) suivante.push(premier + c)
+        for (let c = 0; c < children; c++) suivante.push(premier + c, w)
         continue
       }
       count.frontiereFeuilles++
@@ -97,8 +100,7 @@ export function descenteComptee(
       // What top-down rejection aims at: a cluster whose own error still exceeds the threshold
       // is too coarse, the cut will not take it, and the descent listed it anyway.
       for (let p = 0; p < ints[at + NODE_PAGE_COUNT]; p++) {
-        const i = ints[at + NODE_FIRST_PAGE] + p,
-          w = worldOf(records, i),
+        const i = packed.cutLinks[w].pageBase + ints[at + NODE_FIRST_PAGE] + p,
           sphere = bandSphere(records, i, 0)
         if (
           projectedError(

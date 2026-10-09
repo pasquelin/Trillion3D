@@ -36,6 +36,8 @@ export async function readDagSlot(
   growth: {
     limits: Limits
     pageCount: number
+    /** The slots of open counts its readout holds behind its lists (`heldOpen.ts`). */
+    heldSlots?: number
     listFull: boolean
     coarse: Coarsening
     cutFactor: number
@@ -60,7 +62,7 @@ export async function readDagSlot(
     )
     const grown =
       parsed?.truncated && !growth.listFull
-        ? grownListCap(growth.limits, growth.pageCount, read.listCap, demand)
+        ? grownListCap(growth.limits, growth.pageCount, read.listCap, demand, growth.heldSlots)
         : undefined
     const { coarse, cutFactor } = growth,
       past = !!parsed?.truncated && !grown

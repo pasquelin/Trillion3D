@@ -64,7 +64,7 @@ export function evaluateDagSelectionKernel(
     aheadFrames,
     oracleWorldCovers(packed, frames, resident?.ready),
   )
-  const predicates = (f: typeof frames, flags: Uint8Array) =>
+  const predicates = (f: typeof frames, flags: Pick<typeof nodeFlags, 'at'>) =>
     createDagOraclePredicates({
       packed,
       records,
@@ -77,10 +77,9 @@ export function evaluateDagSelectionKernel(
   // The view ahead reads every kept leaf, the camera's and its own.
   const aheadView =
     aheadFrames &&
-    predicates(
-      aheadFrames,
-      nodeFlags.map((f) => (f === AHEAD_LEAF ? 0 : f)),
-    )
+    predicates(aheadFrames, {
+      at: (w, n) => (nodeFlags.at(w, n) === AHEAD_LEAF ? 0 : nodeFlags.at(w, n)),
+    })
   /** The error the page's replacement removes, or its own when nothing replaces it (`dagWanted`). */
   const replaced = (view: ReturnType<typeof predicates>, i: number) =>
     view.bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1)

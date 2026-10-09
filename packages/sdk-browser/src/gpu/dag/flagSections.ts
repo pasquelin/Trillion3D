@@ -1,5 +1,14 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 
+/** Words of each descent queue of a packing: two an entry, the node then the placement reading it
+ *  (`shader/levelWgsl.ts`), for every entry it may hold (`PackedDag.entryCount`), one root slot a
+ *  placement at least. */
+export const dagQueueWords = (packed: {
+  entryCount?: number
+  nodeCount?: number
+  worldCount?: number
+}) => 2 * Math.max(1, packed.entryCount ?? packed.nodeCount ?? 0, packed.worldCount ?? 0)
+
 /** Flag sections behind queue 0: the draw mask, the cone words, the live list, the candidate list
  *  (a light cut's drawn log), each one word per page (`shader/levelWgsl.ts`). */
 export const PAGE_SECTIONS = 4

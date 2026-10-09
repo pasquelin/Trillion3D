@@ -12,21 +12,20 @@ import {
   NODE_MIN,
   NODE_OPEN,
   NODE_SPHERE,
-  NODE_WORLD,
 } from '../nodeLayout.ts'
 import { projectedError, thresholdOf, type DagViewFrames } from './math.fixture.ts'
 
-/** Kernel verdict on a cut node (`../shader/levelWgsl.ts`, `levelStep`): `-1` rejected —
- *  outside the trunk, or whose subtree replacement is not yet too coarse —, otherwise
- *  the number of children it opens, `0` meaning a kept leaf. */
+/** Kernel verdict on a cut node read by placement `w` (`../shader/levelWgsl.ts`, `levelStep`):
+ *  `-1` rejected — outside the trunk, or whose subtree replacement is not yet too coarse —,
+ *  otherwise the number of children it opens, `0` meaning a kept leaf. */
 export function dagNodeVerdict(
   f: DagViewFrames,
   nodes: ArrayLike<number>,
   ints: Uint32Array,
   n: number,
+  w: number,
 ) {
-  const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD]
+  const base = n * DAG_NODE_FLOATS
   if (
     frustumExcludesBox(
       f.planes[w],
@@ -63,17 +62,19 @@ export function dagNodeVerdict(
  * The subtree error FLOOR, projected as the kernel projects it (`../shader/floorWgsl.ts`,
  * `errorFloor`): above the threshold none of its clusters is fine enough and the cut
  * takes none. An open subtree — it holds a cluster whose finer group is not resident, which the
- * cut rule may draw whatever its error — returns zero, so never prunes.
+ * cut rule may draw whatever its error — returns zero, so never prunes. `open`, placement `w`'s
+ * own count there (`../heldOpen.ts`); the node's, shared, when it holds none.
  */
 export function dagNodeFloor(
   f: DagViewFrames,
   nodes: ArrayLike<number>,
   ints: Uint32Array,
   n: number,
+  w: number,
+  open = ints[n * DAG_NODE_FLOATS + NODE_OPEN],
 ) {
-  const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD]
-  if (ints[base + NODE_OPEN] !== 0) return 0
+  const base = n * DAG_NODE_FLOATS
+  if (open !== 0) return 0
   return errorFloorAt(
     nodes[base + NODE_FLOOR],
     viewDepthOf(

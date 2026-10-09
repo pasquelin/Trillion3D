@@ -102,7 +102,7 @@ function encodeOnce(
       perRangeIndirect(pass, ranges, pipeline, dispatchArgs, DAG_ARGS.queues[level % 3])
       continue
     }
-    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.nodeCount))
+    perRange(pass, resources, pipeline, width, Math.min(levelSizes[level], resources.entryCount))
   }
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)

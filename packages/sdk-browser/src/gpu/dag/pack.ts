@@ -25,8 +25,9 @@ import {
 
 type Culling = NonNullable<DagRoot['culling']>
 
-/** Room a packing keeps past its live pages, nodes and placements, for roots a growth appends
- *  (`appendDagRoots`): inert — no root names them — until one does. */
+/** Room a packing keeps past its live pages, queue entries (`nodes`: a placement's node each) and
+ *  placements, for roots a growth appends (`appendDagRoots`): inert — no root names them — until
+ *  one does. Placements of packed primitives add no node: they share theirs. */
 export type DagCapacity = { pages: number; nodes: number; worlds: number }
 
 type PackShared = DagPackShared
@@ -35,6 +36,7 @@ const emptyShared = (): PackShared => ({
   levelSizesOf: new Map(),
   boundsOf: new Map(),
   firstOf: new Map(),
+  nodeBlocks: new Map(),
 })
 
 /** The tables a packing writes a root into, and its live counts (`placeRoot`). */
@@ -70,8 +72,29 @@ function levelSizesOf(culling: Culling, shared: PackShared) {
 }
 
 /**
- * Root `root` packed as placement `w`, behind the live pages and nodes: its world, stretch, root
- * node and mark, its culling nodes, its links, its pages' placement words, and the shift that leads
+ * The nodes of `root`'s primitive in the node table, packed behind the live ones at its first
+ * placement and shared by every later one: each node's first page counted from the primitive's,
+ * its open count the DAG's with nothing resident (`baseOpen`), and the node owning each page.
+ */
+function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
+  const known = p.shared.nodeBlocks.get(culling.nodes)
+  if (known) return known
+  const count = root.pages.length,
+    nodeBase = p.live.nodes,
+    owner = new Uint32Array(count).fill(NONE)
+  const bounds = cullingBoundsFor(culling, root.pages, p.shared.boundsOf)
+  const open = root.structure && baseOpen(linksFor(culling, count), root.structure)
+  const place = { nodeBase, pageBase: 0 }
+  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, bounds, place, owner, open)
+  const block = { nodeBase, nodeCount, owner }
+  p.shared.nodeBlocks.set(culling.nodes, block)
+  p.live.nodes += nodeCount
+  return block
+}
+
+/**
+ * Root `root` packed as placement `w`, behind the live pages: its world, stretch, root node — its
+ * primitive's, shared — and mark, its links, its pages' placement words, and the shift that leads
  * its pages to their records, the first record `recordBase` gives for its owner nodes.
  */
 function placeRoot(
@@ -82,20 +105,15 @@ function placeRoot(
 ) {
   const culling = cullingOf(root, p.shared),
     pageBase = p.live.pages,
-    nodeBase = p.live.nodes,
     count = root.pages.length
+  const { nodeBase, nodeCount, owner } = nodeBlockOf(p, root, culling)
   p.worlds.set(root.world.elements, w * 16)
   p.worldStretch[w] = maxStretch(root.world.elements)
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NONE : nodeBase
   p.mark[w] = root.mark ?? 0
-  const owner = new Uint32Array(count).fill(NONE)
-  const bounds = cullingBoundsFor(culling, root.pages, p.shared.boundsOf)
-  const place = { world: w, nodeBase, pageBase }
   const links = linksFor(culling, count)
   const { structure } = root
-  const open = structure && baseOpen(links, structure)
-  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, bounds, place, owner, open)
   p.cutLinks.push({ structure, links, pageBase, pageCount: count, nodeBase, nodeCount })
   const base = recordBase(culling, owner, nodeBase)
   if (!p.shared.firstOf.has(root.pages))
@@ -105,37 +123,44 @@ function placeRoot(
   for (const rec of root.pages)
     if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) p.rootClusters++
   p.live.pages += count
-  p.live.nodes += nodeCount
+  p.live.entries += nodeCount
   p.live.worlds = w + 1
 }
 
-/** The live counts of `roots`, their levels summed level by level — pass `L`'s queue only holds
- *  nodes of level `L`, so this total upper-bounds it, and the pass launches flat. Placement `w`'s
- *  levels lie `shift(w)` below the placement tree's (`placementTree.ts`). */
+/** The live counts of `roots` — pages, queue entries (a placement's node each), and nodes, each
+ *  primitive's once —, their levels summed level by level: pass `L`'s queue only holds entries of
+ *  level `L`, so this total upper-bounds it, and the pass launches flat. Placement `w`'s levels lie
+ *  `shift(w)` below the placement tree's (`placementTree.ts`). */
 function countRoots(
   roots: readonly DagRoot[],
   shared: PackShared,
   shift: (w: number) => number = () => 0,
 ) {
   let pages = 0,
+    entries = 0,
     nodes = 0
-  const levels: number[] = []
+  const levels: number[] = [],
+    seen = new Set<Float64Array>()
   roots.forEach((root, w) => {
     const culling = cullingOf(root, shared),
       sizes = levelSizesOf(culling, shared),
-      below = shift(w)
+      below = shift(w),
+      count = culling.nodes.length / culling.stride
     pages += root.pages.length
-    nodes += culling.nodes.length / culling.stride
+    entries += count
+    if (!seen.has(culling.nodes)) nodes += count
+    seen.add(culling.nodes)
     for (let level = 0; level < sizes.length; level++)
       levels[level + below] = (levels[level + below] ?? 0) + sizes[level]
   })
-  return { pages, nodes, levels }
+  return { pages, entries, nodes, levels }
 }
 
-/** The pages, nodes and placements `roots` fill: what a growth's capacity starts from. */
+/** The pages, queue entries (`nodes`) and placements `roots` fill: what a growth's capacity starts
+ *  from. */
 export function dagRootCounts(roots: readonly DagRoot[]): DagCapacity {
-  const { pages, nodes } = countRoots(roots, emptyShared())
-  return { pages, nodes, worlds: roots.length }
+  const { pages, entries } = countRoots(roots, emptyShared())
+  return { pages, nodes: entries, worlds: roots.length }
 }
 
 /** A packing's tables at `capacity`: every placement past the live ones parked, every page past
@@ -157,7 +182,7 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
     // The whole frame word: the mark's bits, and the deformation reach above them (`markReach`).
     mark: new Uint32Array(worldSlots),
     cutLinks: [],
-    live: { pages: 0, nodes: 0, worlds: 0 },
+    live: { pages: 0, nodes: 0, worlds: 0, entries: 0 },
     shared,
     rootClusters: 0,
   }
@@ -175,15 +200,18 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
     room = capacity,
     worlds = Math.max(roots.length, room?.worlds ?? 0),
     members = worlds - (world >= 0 ? 1 : 0)
-  // The tree's nodes follow every placement's, the room's included: an append fills those first.
-  const first = countRoots(roots, shared),
-    placementNodes = Math.max(first.nodes, room?.nodes ?? 0)
-  const tree = placementTreeShape(roots, world, { members, worlds }, placementNodes)
+  // The tree's nodes follow the primitives' shared ones: an append adds none of either.
+  const first = countRoots(roots, shared)
+  const tree = placementTreeShape(roots, world, { members, worlds }, first.nodes)
   const shift = tree?.depth ?? 0
   const counted = shift ? countRoots(roots, shared, (w) => (w === world ? 0 : shift)) : first
   tree?.levels.forEach(({ count }, l) => (counted.levels[l] = (counted.levels[l] ?? 0) + count))
-  const nodes = placementNodes + treeNodeCount(tree)
-  return { ...counted, nodes, tree, world, room, worlds }
+  const treeNodes = treeNodeCount(tree),
+    nodes = first.nodes + treeNodes
+  // Every placement's entry for each of its nodes — the room's included —, one at least for each
+  // placement's root slot (`dagPrepare`), then the tree's.
+  const entries = Math.max(first.entries, room?.nodes ?? 0, worlds) + treeNodes
+  return { ...counted, nodes, entries, tree, world, room, worlds }
 }
 
 /**
@@ -192,8 +220,9 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
  *
  * Records are stored once per unique cluster (`packRecords.ts`): the placements of one
  * primitive share them, and the working table names each page's placement, whose record
- * shift leads the page to its record (`layout.ts`). Nodes stay per placement, and the placement
- * tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
+ * shift leads the page to its record (`layout.ts`). Nodes are each primitive's once, shared by its
+ * placements — a queue entry names the placement beside the node (`shader/levelWgsl.ts`) —, and the
+ * placement tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
  * `grownCapacity`) takes later placements of its primitives in place (`appendDagRoots`), each a
  * member of its tree and linked to the world DAG as the others.
  */
@@ -233,6 +262,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     mark: p.mark,
     levelSizes: Uint32Array.from(plan.levels, (count) => count ?? 0),
     nodeCount: size.nodes,
+    entryCount: plan.entries,
     worldCount: size.worlds,
     pageCount: size.pages,
     recordCount: records.count,
@@ -280,11 +310,11 @@ function recordTables(
   return { clusters, pageCones, cold, linkBase }
 }
 
-/** The live ranges `appendDagRoots` filled: pages, nodes and placements `[from, to)`, and the
- *  placement tree's nodes it rewrote and member slots it filled. */
+/** The live ranges `appendDagRoots` filled: pages and placements `[from, to)` — no node: an
+ *  appended placement reads its primitive's —, and the placement tree's nodes it rewrote and member
+ *  slots it filled. */
 export type DagAppended = {
   pages: readonly [number, number]
-  nodes: readonly [number, number]
   worlds: readonly [number, number]
   tree: { nodes: Int32Array; members: readonly [number, number] }
 }
@@ -339,33 +369,31 @@ export function appendDagRoots(
       words[tree!.members + k] = tree!.order[k]
   return {
     pages: [from.pages, live.pages],
-    nodes: [from.nodes, live.nodes],
     worlds: [from.worlds, live.worlds],
     tree: { nodes: joined?.nodes ?? new Int32Array(0), members: joined?.members ?? [0, 0] },
   }
 }
 
 /** Whether `roots` fit the room `packed` kept: each a placement of a page array it packed, no
- *  deeper than its levels, within its pages, nodes and placements. */
+ *  deeper than its levels, within its pages, queue entries and placements. */
 function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShared) {
   const live = packed.live!
   let pages = live.pages,
-    nodes = live.nodes
+    entries = live.entries
   for (const root of roots) {
     if (!shared.firstOf.has(root.pages)) return false
     const culling = cullingOf(root, shared),
       shift = packed.placementTree?.depth ?? 0
     if (levelSizesOf(culling, shared).length + shift > packed.levelSizes.length) return false
     pages += root.pages.length
-    nodes += culling.nodes.length / culling.stride
+    entries += culling.nodes.length / culling.stride
   }
-  // The tree's nodes close the node table: placements fill what lies before them; its member
-  // slots take the batch from a new group on (`joinStart`).
+  // Its member slots take the batch from a new group on (`joinStart`).
   const tree = packed.placementTree
   if (tree && joinStart(tree) + roots.length > tree.capacity) return false
   return (
     pages <= packed.pageCount &&
-    nodes <= packed.nodeCount - treeNodeCount(packed.placementTree) &&
+    entries <= packed.entryCount - treeNodeCount(tree) &&
     live.worlds + roots.length <= packed.worldCount
   )
 }

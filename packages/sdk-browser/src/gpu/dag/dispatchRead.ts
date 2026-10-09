@@ -59,6 +59,7 @@ async function adoptMain(
     },
     {
       limits: device.limits,
+      heldSlots: resources.heldSlots,
       pageCount: packed.pageCount,
       listFull,
       coarse: state.coarse,

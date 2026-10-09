@@ -11,6 +11,7 @@ import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
+import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import {
   residentFlags,
   writeTriangleTotals,
@@ -112,7 +113,7 @@ export function simulateComputeDispatch(
     return compactDrawnPages(
       byBinding.get(DAG_BINDING.flags)!.data,
       byBinding.get(DAG_BINDING.out)!.data,
-      dag.nodeCount,
+      dagQueueWords(dag),
       dag.pageCount,
     )
   if (stage !== 'dagMask') return
@@ -141,8 +142,9 @@ export function simulateComputeDispatch(
   mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
   // `dagMask` posts a draw flag for every drawn page: `dagDrawScatter` compacts them.
   const flags = words(byBinding.get(DAG_BINDING.flags)!.data)
-  flags.fill(0, dag.nodeCount, dag.nodeCount + dag.pageCount)
-  for (const id of result.drawablePageIds ?? []) flags[dag.nodeCount + id] = 1
+  const mask = dagQueueWords(dag)
+  flags.fill(0, mask, mask + dag.pageCount)
+  for (const id of result.drawablePageIds ?? []) flags[mask + id] = 1
   const ints = words(byBinding.get(DAG_BINDING.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel

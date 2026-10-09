@@ -57,6 +57,8 @@ export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
   [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL],
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
+/** Entries a queue holds: two words each, the node then the placement that reads it. */
+fn queueEntries()->u32{return views[0u].queueCap/2u;}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
 /** Queue \`q\`'s group count, x then y, which a level past the first dispatches on (\`armWgsl.ts\`). */
@@ -69,6 +71,10 @@ fn drawnGroups()->u32{return drawnCounter()+1u;}
 fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
 fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}
+/** Placement \`w\`'s first page: its shared nodes count their pages from it. */
+fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].x);}
+/** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
+fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].y);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
  *  pulling it afterwards (\`openSlice\`). What passes the list's capacity is dropped and said
@@ -82,16 +88,19 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  }
 }
 /** The same append on a descent queue, its group count opened as it fills: a level past the
- *  first is dispatched on what the level before it deposited (\`../encode.ts\`). */
-fn queueAppend(dst:u32,first:u32,count:u32){
+ *  first is dispatched on what the level before it deposited (\`../encode.ts\`). Each entry is the
+ *  node, then the placement \`w\` that reads it: a primitive's nodes are its placements' alike. */
+fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
  let at=atomicAdd(&work[queueCounter(dst)],count);
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){
-  if(at+k>=views[0u].queueCap){dropWork();return;}
-  setFlag(base+at+k,packEntry(vi,first+k));
+  if(at+k>=queueEntries()){dropWork();return;}
+  putEntry(base,at+k,packEntry(vi,first+k),w);
   if(((at+k)&63u)==0u){openSlice(queueGroups(dst),(at+k)>>6u);}
  }
 }
+/** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
+fn putEntry(base:u32,s:u32,entry:u32,w:u32){setFlag(base+2u*s,entry);setFlag(base+2u*s+1u,w);}
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
  *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
@@ -111,44 +120,45 @@ fn levelStep(src:u32,s:u32){
  // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
  // Its first thread always runs: a level past the first dispatches one workgroup at least.
  if(s==0u){let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));}
- if(s>=min(atomicLoad(&work[queueCounter(src)]),views[0u].queueCap)){return;}
- let entry=flagAt(queueBase(src)+s);
+ if(s>=min(atomicLoad(&work[queueCounter(src)]),queueEntries())){return;}
+ let entry=flagAt(queueBase(src)+2u*s);
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
  let index=entryIndex(entry);
  // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).
  if(index>=views[0u].nodeCount){placementStep(src,index-views[0u].nodeCount);return;}
- nodeStep(src,index);
+ nodeStep(src,index,flagAt(queueBase(src)+2u*s+1u));
 }
-/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of a
- *  placement's own hierarchy, whose root its gate already opened (\`opensRoot\`). */
-fn nodeStep(src:u32,index:u32){
+/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of the
+ *  shared hierarchy placement \`w\` reads, whose root its gate already opened (\`opensRoot\`). */
+fn nodeStep(src:u32,index:u32,w:u32){
  let node=nodeAt(index);
  if(node.kind!=0u){treeStep(src,node);return;}
- let w=node.worldIndex;
  if(!inRange(w)){return;}
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
- if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
- if(outsideFrustum(planesOf(w),node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
+ let open=openOf(w,index,node.open);
+ if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w,open);return;}
+ if(outsideFrustum(planesOf(w),node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
  // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
- if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
- if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w);return;}
- descend(src,node);
+ if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
+ if(floorPrunes(open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w,open);return;}
+ descend(src,node,w);
 }
 /** Too coarse under the view \`vi\` and its threshold \`t\`: no cluster of the subtree is fine enough. */
 fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
  return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=t;
 }
-/** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
-fn descend(src:u32,node:CullNode){
- if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
- spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+/** A kept node opens its children for placement \`w\`, or deposits its pages — counted from the
+ *  placement's first —, under the current view \`vi\`. */
+fn descend(src:u32,node:CullNode,w:u32){
+ if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount,w);return;}
+ spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
 }
 /** Pass 0: without a tree, queue 0 holds one root per slot, so a range's dispatch reads its own
  *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch

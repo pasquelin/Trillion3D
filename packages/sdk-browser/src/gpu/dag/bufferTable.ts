@@ -3,6 +3,8 @@ import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
+import { HELD_SLOT_WORDS } from './heldOpen.ts'
+import { dagQueueWords } from './flagSections.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
@@ -48,12 +50,14 @@ export function cameraCutBuffers(
   packed: Pick<
     PackedDag,
     'pageCount' | 'nodeCount' | 'worldCount' | 'clusters' | 'nodes' | 'pageCones'
-  >,
+  > &
+    Partial<Pick<PackedDag, 'entryCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
     workLayout = dagWorkLayout(blockCount)
-  const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount)
+  const queueWords = dagQueueWords(packed),
+    flagWords = dagFlagsWords(queueWords, packed.pageCount)
   const split = dagSplit(limits, packed, {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
@@ -86,7 +90,7 @@ export function cameraCutBuffers(
     flags: flagRows(
       'Trillion3D DAG flags',
       split.flagCuts,
-      packed.nodeCount,
+      queueWords,
       packed.pageCount,
       flagWords,
       true,
@@ -134,11 +138,12 @@ function flagRows(
   }))
 }
 
-/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, as
- *  `createDagList` makes it (`listCap.ts`). */
-export const readoutRow = (listCap: number, regions = 0): DagBufferRow => ({
+/** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, then the
+ *  `heldSlots` slots of the open counts placements hold (`heldOpen.ts`), as `createDagList` makes
+ *  it (`listCap.ts`). */
+export const readoutRow = (listCap: number, regions = 0, heldSlots = 0): DagBufferRow => ({
   label: 'Trillion3D DAG readback',
-  size: stagedOutputBytes(listCap, regions),
+  size: stagedOutputBytes(listCap, regions) + heldSlots * HELD_SLOT_WORDS * 4,
   copySource: true,
 })
 

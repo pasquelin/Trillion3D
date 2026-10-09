@@ -17,6 +17,7 @@ import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/ind
 import { dagScratch, projectedError } from './math.fixture.ts'
 import { drawsCluster } from '../../../page/cut/rule.fixture.ts'
 import type { MatrixElements } from '../../../host/matrixElements.ts'
+import type { DescentFlags } from './descent.fixture.ts'
 
 /** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
 export type CutRuleAt = (
@@ -32,7 +33,8 @@ type PredicateContext = {
   packed: PackedDag
   /** Unique decoder, opened once per evaluation and shared with the rest of the oracle. */
   records: DagRecords
-  nodeFlags: Uint8Array
+  /** Each (placement, node) verdict of the descent (`descent.fixture.ts`). */
+  nodeFlags: Pick<DescentFlags, 'at'>
   planes: Float64Array[]
   views: number[][]
   stretches: number[]
@@ -67,12 +69,12 @@ export function createDagOraclePredicates(context: PredicateContext) {
   }
   const visible = (index: number) => {
     // The owner node lives in the cold, outside what each frame pass rereads.
-    const node = ownerOf(records, index)
+    const node = ownerOf(records, index),
+      w = worldOf(records, index)
     if (flagsOf(records, index) & CLUSTER_NEVER) return false
-    if (node !== NONE && nodeFlags[node]) return false
+    if (node !== NONE && nodeFlags.at(w, node)) return false
     const { min, max } = dagScratch
     boxInto(records, index, min, max)
-    const w = worldOf(records, index)
     return !frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])
   }
   const bandPixels = (index: number, at: number) => {

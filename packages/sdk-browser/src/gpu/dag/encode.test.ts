@@ -64,13 +64,13 @@ test('a level past the first is dispatched on what the level before it deposited
 })
 
 test('a flat dispatch past the device width runs in rows of it', () => {
-  // Level 1 of 1000 nodes, capped at 1000 queued nodes: 16 groups on a device four groups wide.
+  // Level 1 of 1000 entries, capped at 1000 queued entries: 16 groups on a device four groups wide.
   const base = cutResources(2),
     device = { limits: { maxComputeWorkgroupsPerDimension: 4 } }
   const wide = {
     ...base,
     levelSizes: Uint32Array.of(2, 1000),
-    nodeCount: 1000,
+    entryCount: 1000,
     device,
   } as unknown as typeof base
   const { encoder, dispatches } = witnessEncoder()

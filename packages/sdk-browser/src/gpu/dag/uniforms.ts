@@ -18,6 +18,7 @@ import { ADMISSION_BUCKETS } from './request.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { dagQueueWords } from './flagSections.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -65,7 +66,8 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
  * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
  * factor its projected-error threshold is cut under, 1 but past the list the device holds
- * (`coarsening.ts`).
+ * (`coarsening.ts`). `held`, where the open counts placements hold lie in `out` (`listCap.ts`,
+ * `heldOpenAt`): none by default.
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -74,6 +76,7 @@ export function writeDagUniforms(
   listCap: number,
   saveRegion = REGION_NONE,
   coarsen = 1,
+  held = { base: 0, mask: 0 },
 ) {
   const W = viewWord
   target.fill(0)
@@ -101,10 +104,14 @@ export function writeDagUniforms(
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
-  // One view, the camera's, on buffers sized for one, whose queues hold every node.
+  // One view, the camera's, on buffers sized for one, whose queues hold every placement's every
+  // node: two words an entry, the node then its placement (`shader/levelWgsl.ts`).
   ints[W('viewCount')] = 1
   ints[W('viewCapacity')] = 1
-  ints[W('queueCap')] = packed.nodeCount
+  ints[W('queueCap')] = dagQueueWords(packed)
+  // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
+  ints[W('heldBase')] = held.base
+  ints[W('heldMask')] = held.mask
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)

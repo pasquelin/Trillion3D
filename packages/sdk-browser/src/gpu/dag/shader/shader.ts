@@ -19,6 +19,7 @@ import { DAG_WORLD_GATE_WGSL } from './worldGateWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
+import { DAG_HELD_OPEN_WGSL } from '../heldOpen.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
@@ -161,6 +162,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_LAST_USE_WGSL,
       DAG_EVICT_WGSL,
       DAG_FLOOR_WGSL,
+      DAG_HELD_OPEN_WGSL,
       FLAT_INDEX_WGSL,
       DAG_VIEWS_WGSL,
       DAG_RECORD_WGSL,

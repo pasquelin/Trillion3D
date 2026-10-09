@@ -147,10 +147,12 @@ export function floorPrunedPages(dag: RuleDag, threshold: number) {
   ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1))
   const frames = dagViewFrames(packed, uniforms)
   const ints = new Uint32Array(packed.nodes.buffer)
+  /** Placement 0's own count at `node`, its node's when it holds none (`heldOpen.ts`). */
+  const open = (node: number) => packed.heldOpen?.get(0, node)
   return dag.pages
     .map((_, page) => page)
     .filter((page) => {
       const node = dag.culling.links.leafOfPage[page]
-      return node >= 0 && dagNodeFloor(frames, packed.nodes, ints, node) > threshold
+      return node >= 0 && dagNodeFloor(frames, packed.nodes, ints, node, 0, open(node)) > threshold
     })
 }

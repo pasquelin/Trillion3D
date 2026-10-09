@@ -16,11 +16,12 @@ import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
 import { cameraFrameRanges } from './cameraRanges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { FRAME_VEC4 } from './types.ts'
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
-  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / 384)))
+  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / framesBytes(1))))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
@@ -71,10 +72,12 @@ test('each range is its own buffer and bind group, and the stages know the split
 test("the host's rows and words land in their range, at their row there", async () => {
   const { fake, resources } = await split(20)
   const { frames, frameData } = resources
-  // range:first row+rows, a host row being 28 floats, 112 bytes.
+  // range:first row+rows, a host row being `FRAME_VEC4` vec4s.
+  const rowBytes = FRAME_VEC4 * 16
   const at = (b: unknown) => frames.buffers.indexOf(b as GPUBuffer)
   const rows = fake.writes.filter((w) => at(w.buffer) >= 0)
-  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 112}+${w.size! / 112}`
+  const row = (w: (typeof rows)[number]) =>
+    `${at(w.buffer)}:${w.dataOffset / rowBytes}+${w.size! / rowBytes}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
   // The world matrices follow the same ranges, 64 bytes a primitive.
   const world = (w: (typeof rows)[number]) =>
@@ -85,7 +88,7 @@ test("the host's rows and words land in their range, at their row there", async 
   frames.flushWords()
   const word = fake.writes.at(-1)!
   assert.equal(word.buffer, frames.buffers[1])
-  assert.equal(word.offset, 5 * 28 * 4, 'its row, the sixth of its range')
+  assert.equal(word.offset, 5 * rowBytes, 'its row, the sixth of its range')
   const sent = written(word).slice()
   assert.equal(new Uint32Array(sent.buffer)[primitiveWordAt(0) + 1], 7)
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)

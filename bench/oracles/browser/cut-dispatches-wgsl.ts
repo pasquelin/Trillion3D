@@ -22,6 +22,15 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
+/** The same append on a queue, each entry the node then the placement reading it: the shipped
+ *  tables share a primitive's nodes among its placements (\`pack.ts\`). */
+fn pairAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,w:u32){
+ let at=atomicAdd(&work[counter],count);
+ for(var k=0u;k<count;k++){
+  flags[base+2u*(at+k)]=first+k;flags[base+2u*(at+k)+1u]=w;
+  if(((at+k)&63u)==0u){atomicAdd(&work[groups],1u);}
+ }
+}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
  *  thread per primitive has just deposited its own, at its own rank, with no counter to dispute. */
 fn resetCounters(){
@@ -36,22 +45,23 @@ fn resetCounters(){
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
- flags[uni.nodeCount+flags[candBase()+s]]=0u;
+ flags[uni.queueCap+flags[candBase()+s]]=0u;
 }
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children in the
  *  opposite queue, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
  if(s>=atomicLoad(&work[queueCounter(src)])){return;}
- let i=flags[queueBase(src)+s];
+ let i=flags[queueBase(src)+2u*s];
  if(i==0xffffffffu){return;}
+ let w=flags[queueBase(src)+2u*s+1u];
  let node=nodes[i];
- if(outsideFrustum(node.worldIndex*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ if(outsideFrustum(w*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  if(node.maxParentError>=0.0){
-  let e=uni.view*worldPose(node.worldIndex);
-  if(projected(node.maxParentError,node.sphere,e,stretchOf(node.worldIndex),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
+  let e=uni.view*worldPose(w);
+  if(projected(node.maxParentError,node.sphere,e,stretchOf(w),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
  }
- if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
- spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+ if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
+ spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
 }
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
@@ -68,14 +78,16 @@ function shippedFn(name: string) {
   return found[0]
 }
 
-/** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: for a
- *  camera `queueCap` is `nodeCount`, so queues 0 and 1 are the frozen ones, and the shipped stages
- *  reach queue 3 through `lastUseAt`), `rootOf`, and `markOf`/`tooCoarse`, which other shipped
- *  stages call. `descend` is rewritten: the shipped one appends to queues this layout lacks. */
-const BEFORE_SHIMS = `${['queueBase', 'candBase', 'rootOf', 'markOf', 'tooCoarse'].map(shippedFn).join('\n')}
-fn descend(src:u32,node:CullNode){
- if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
- spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
+/** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: queues 0
+ *  and 1 are the frozen ones, two words an entry, and the shipped stages reach queue 3 through
+ *  `lastUseAt`), `rootOf`, `pageBaseOf`, `heldByOf`, `putEntry`, and `markOf`/`tooCoarse`, which
+ *  other shipped stages call. `descend` is rewritten: the shipped one appends to queues this layout
+ *  lacks. */
+const SHIPPED_SHIMS = ['queueBase', 'candBase', 'rootOf', 'markOf', 'pageBaseOf', 'heldByOf']
+const BEFORE_SHIMS = `${[...SHIPPED_SHIMS, 'putEntry', 'tooCoarse'].map(shippedFn).join('\n')}
+fn descend(src:u32,node:CullNode,w:u32){
+ if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
+ spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
 }
 `
 

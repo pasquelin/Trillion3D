@@ -93,7 +93,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     assert.deepEqual(backend.selectedPageIds(), ['2'])
     // The coarse fallback is the only drawable page: the frame mask says so, even before the
     // indirect command turns it into its instance count.
-    assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, 1)
+    assert.equal(drawnPageIds(buffers, packed).length, 1)
     backend.acceptPage('1', fixture.indices.get('1')!)
     render()
     await backend.flush()
@@ -102,7 +102,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
     assert.equal(backend.metrics().submittedTriangles, 2)
     assert.equal(
-      drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
+      drawnPageIds(buffers, packed).length,
       2,
       'coarse is absent once all fine pages are drawable',
     )

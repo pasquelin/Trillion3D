@@ -12,6 +12,7 @@ import {
   mirrorDifferenceStage,
 } from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
 import { words } from './mockBuffers.ts'
+import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 
 /** Every kernel this file mirrors. */
 export const LIST_KERNELS: readonly string[] = [
@@ -27,7 +28,7 @@ const regions = new WeakMap<Uint8Array, Uint32Array[]>()
 export function mirrorListStage(
   stage: string,
   byBinding: ReadonlyMap<number, { data: Uint8Array }>,
-  dag: Pick<PackedDag, 'nodeCount' | 'pageCount'>,
+  dag: Pick<PackedDag, 'nodeCount' | 'pageCount'> & Partial<Pick<PackedDag, 'entryCount'>>,
   listCap: number,
 ) {
   if (mirrorDifferenceStage(stage, words(byBinding.get(DAG_BINDING.out)!.data), listCap))
@@ -37,7 +38,8 @@ export function mirrorListStage(
     save = views[viewWord('swapRegions')] & 0xffff,
     restore = views[viewWord('swapRegions')] >>> 16
   const flags = byBinding.get(DAG_BINDING.flags)!.data,
-    mask = words(flags).subarray(dag.nodeCount, dag.nodeCount + dag.pageCount)
+    queueWords = dagQueueWords(dag),
+    mask = words(flags).subarray(queueWords, queueWords + dag.pageCount)
   const held = regions.get(flags) ?? []
   regions.set(flags, held)
   if (stage === 'dagClearDrawn' && save !== REGION_NONE) held[save] = mask.slice()

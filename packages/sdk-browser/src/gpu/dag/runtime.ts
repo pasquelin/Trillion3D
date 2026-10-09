@@ -6,6 +6,7 @@ import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { coarsenTick } from './coarsening.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
+import { dagQueueWords } from './flagSections.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
 import { createAsideCut } from './aside.ts'
 import { createTreeFollower } from './treeFollow.ts'
@@ -59,10 +60,11 @@ export function createDagRuntime(
 /** The camera cut's face (`GpuSelection`) over `run`. */
 function selectionOver(run: DagRun): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
-  const { packed, pageCount, nodeCount, frames, buffers } = resources
+  const { packed, pageCount, frames, buffers } = resources
   // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
   // bind one buffer at one offset, whatever the split.
-  const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
+  const queueWords = dagQueueWords(packed)
+  const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, queueWords, pageCount)
   const live = () => !state.disposed && !state.dead
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}

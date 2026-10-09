@@ -22,6 +22,7 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
+import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 
 export type { SelectionCase } from './selectionCase.ts'
 
@@ -99,11 +100,11 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     const pages = groups(packed.pageCount)
     // The whole descent in one pass, as the engine encodes it: a thread per primitive, and at
     // least one per block of pages (it resets the block counts), then each level dispatched flat
-    // over a bound of its node count. Then the kept leaves' pages, their verdict and the
+    // over a bound of its entries, a placement's node each. Then the kept leaves' pages, their verdict and the
     // requests' sort: `pageCount` bounds the candidate list and the live list.
     const levelRuns = Array.from({ length: Math.max(1, packed.levelSizes.length) }, (_, l): Run => [
       l >= LEVEL_QUEUES && l % LEVEL_QUEUES === 0 ? deeper : levels[l % LEVEL_QUEUES],
-      groups(packed.nodeCount),
+      groups(packed.entryCount),
     ])
     dispatch(
       group,
@@ -117,11 +118,11 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     const header = SELECTION_HEADER_WORDS
     const out = await readBuffer(device, buffers.out.buffer, 0, (header + packed.pageCount) * 4)
     const work = await readBuffer(device, buffers.work.buffer, 0, at.work.words * 4)
-    // Draw flags, one per page, behind the descent queue (`queueCap` is the node count).
+    // Draw flags, one per page, behind the descent queue (`dagQueueWords`, two words an entry).
     const flags = await readBuffer(
       device,
       buffers.flags.buffer,
-      packed.nodeCount * 4,
+      dagQueueWords(packed) * 4,
       packed.pageCount * 4,
     )
     const count = Math.min(out[OUT_COUNT], packed.pageCount)

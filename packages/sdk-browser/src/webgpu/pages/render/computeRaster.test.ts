@@ -22,7 +22,7 @@ test('the raster-compute variant hands the whole cut to the compute raster', asy
   draws.length = 0
   computes.length = 0
   backend.render(camera())
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
   const at = (entry: string) => computes.indexOf(entry)
   const bin = at('bin'),
     occluder = at(rasterEntry('fine', MODE_DEPTH_OCCLUDER)),

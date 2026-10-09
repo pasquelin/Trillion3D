@@ -70,6 +70,8 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     mark: intsAt(3),
     levelSizes: new Uint32Array(0),
     nodeCount,
+    // Two words an entry in each queue (`levelWgsl.ts`).
+    entryCount: views[viewWord('queueCap')] / 2,
     worldCount,
     pageCount,
     recordCount: 0,

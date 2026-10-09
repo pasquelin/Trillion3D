@@ -3,7 +3,7 @@ import {
   type ResidencyChanges,
   type SelectionUniforms,
 } from '../core/selection.ts'
-import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import type { DagRoot } from './types.ts'
 import {
   refreshMovedStretch,
   changedWorlds,
@@ -259,20 +259,17 @@ export async function flushRuntime(
   return last?.worldRevision === state.worldRevision ? last.result : null
 }
 
-/** What `appendDagRoots` wrote, sent: the appended nodes, their pages' placement words and content
- *  keys, their primitives' frame rows, worlds and origins, and the placement tree's nodes and member
- *  words they joined. Nothing else of the tables moved. */
+/** What `appendDagRoots` wrote, sent: the appended pages' placement words and content keys, their
+ *  primitives' frame rows, worlds and origins, and the placement tree's nodes and member words they
+ *  joined. Nothing else of the tables moved: their nodes are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
-    cones = packed.pageCones,
-    nodeBytes = DAG_NODE_FLOATS * 4
+    cones = packed.pageCones
   const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
     bytes > 0 &&
     writeParts(device, target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
-  const [n0, n1] = added.nodes,
-    [p0, p1] = added.pages,
+  const [p0, p1] = added.pages,
     [w0, w1] = added.worlds
-  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
   send(coldParts, cones, p0 * 4, (p1 - p0) * 4)
   send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
   const tree = packed.placementTree,

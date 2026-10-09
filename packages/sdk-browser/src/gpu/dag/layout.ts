@@ -108,6 +108,9 @@ const savedJournalWord = (listCap: number, v: number) =>
  *  write, more than the frame copies. */
 export const stagedOutputBytes = (listCap: number, regions = 0) =>
   savedJournalWord(listCap, regions) * 4
+/** Word of `out` where the open counts placements hold of their own lie (`heldOpen.ts`), behind its
+ *  `regions` saved journals: written by the host alone, outside what the frame copies. */
+export const heldOpenWord = (listCap: number, regions: number) => savedJournalWord(listCap, regions)
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
  *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
  *  step with each region the readout gains. */

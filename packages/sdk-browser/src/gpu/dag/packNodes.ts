@@ -58,8 +58,10 @@ export function cullingBoundsFor(
 }
 
 /**
- * Copies a primitive's nodes into the GPU array and returns, per cluster, the leaf
- * node that owns it. `owner` is filled in place; a cluster no leaf stores stays at
+ * Copies a primitive's nodes into the GPU array — once, every placement of the primitive reading
+ * them —, each node's first page counted from `place.pageBase` (zero: the primitive's own first
+ * page, which a placement's entry adds its base to), and returns, per cluster, the leaf node that
+ * owns it. `owner` is filled in place; a cluster no leaf stores stays at
  * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected. `open`, the
  * DAG's open count of each node with nothing resident; zero without a structure.
  */
@@ -68,12 +70,12 @@ export function packCullingNodes(
   nodeInts: Uint32Array,
   culling: Culling,
   bounds: Float64Array,
-  place: { world: number; nodeBase: number; pageBase: number },
+  place: { nodeBase: number; pageBase: number },
   owner: Uint32Array,
   open?: Int32Array,
 ) {
   if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE')
-  const { world, nodeBase, pageBase } = place
+  const { nodeBase, pageBase } = place
   const count = culling.nodes.length / culling.stride
   if (bounds.length !== count * BOUND_STRIDE) throw new Error('GPU_DAG_CULLING_BOUNDS')
   for (let n = 0; n < count; n++) {
@@ -93,7 +95,8 @@ export function packCullingNodes(
     nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12]
     nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13]
     nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
-    nodeInts[dst + NODE_WORLD] = world
+    // No placement of its own: a queue entry names the placement that reads it.
+    nodeInts[dst + NODE_WORLD] = 0
     const floor = bounds[at + OWN_FLOOR]
     // The shader cannot write an infinite constant: its floor reads `FINITE_SENTINEL` (its `INF`)
     // where the CPU bound returns infinity, and both reject the same subtree.

@@ -5,17 +5,25 @@ import type { DagCutLinks, PackedDag } from './types.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import { NODE_OPEN } from './nodeLayout.ts'
 import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
+import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
+import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
  * its packed index. The kernel's host feeds it the per-page residency and uploads what changed
  * (`residencyUpload.ts`), whose bit sets are then the only dense copy of it.
  *
- * Each node's `open` count is written into the packed nodes, at the word the kernel reads
- * (`NODE_OPEN`): the host copy of the node buffer stays the one the oracle reads. The state itself
- * is held for the resident pages only (`../../page/cut/readiness.ts`, #483 rule 6).
+ * A placement's node reads its primitive's shared node, whose open count is the DAG's with nothing
+ * resident (`packCullingNodes`); a count a resident page moves is the placement's own, kept in the
+ * table of open counts placements hold (`heldOpen.ts`, `heldSlots` slots), the one the kernel and
+ * the oracle read. The state itself is held for the resident pages only
+ * (`../../page/cut/readiness.ts`, #483 rule 6).
  */
-export function createDagReadiness(packed: PackedDag) {
+export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
+  // A host whose readout holds no table still keeps one, for the rows a view starts with: the
+  // oracle reads it.
+  const heldOpen = createHeldOpen(heldSlots || heldOpenSlots(VIEW_ROWS))
+  packed.heldOpen = heldOpen
   const r: Readiness = {
     packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
@@ -28,21 +36,19 @@ export function createDagReadiness(packed: PackedDag) {
     // Sized for the packing's placements, the live ones and those a growth appends (`append`).
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
     dirty: new Set(),
-    ...{ heldCount: 0, pages: [], nodes: [], w: 0, hostBytes: 0 },
+    ...{ heldCount: 0, pages: [], w: 0, hostBytes: 0 },
     onPage: (page: number) => r.pages.push(packed.cutLinks[r.w].pageBase + page),
+    // A count equal to the shared node's is no placement's own: the table holds none for it.
     onNode: (node: number) => {
-      const at = packed.cutLinks[r.w].nodeBase + node
-      r.nodeInts[at * DAG_NODE_FLOATS + NODE_OPEN] = r.worlds[r.w].openAt(node)
-      r.nodes.push(at)
+      const at = packed.cutLinks[r.w].nodeBase + node,
+        open = r.worlds[r.w].openAt(node)
+      const own = open === r.nodeInts[at * DAG_NODE_FLOATS + NODE_OPEN] ? undefined : open
+      heldOpen.set(r.w, at, own)
     },
   }
-  const { worlds, pageWorlds, nodeInts } = r
+  const { worlds, pageWorlds } = r
+  // Nothing is resident yet: each placement reads its nodes' own counts, the DAG's.
   for (const links of packed.cutLinks) worlds.push(blankOf(r, links))
-  // Nothing is resident yet: each node holds its DAG's own open count — the packing's
-  // (`packCullingNodes`), set again for a packing an earlier readiness moved —, and only what then
-  // moves is ever handed over.
-  for (let n = 0; n < packed.nodeCount; n++) nodeInts[n * DAG_NODE_FLOATS + NODE_OPEN] = 0
-  worlds.forEach((_, at) => openNodes(r, at))
   return {
     /** The rule's `resident(c)` and `resident(childGroup(c))` of packed page `page`; a page no
      *  placement holds — room a growth has not filled — is neither. */
@@ -55,13 +61,13 @@ export function createDagReadiness(packed: PackedDag) {
       return !!worlds[at]?.isChildReady(page - packed.cutLinks[at].pageBase)
     },
     /** The placements a growth appended (`appendDagRoots`), up to `packed.cutLinks`' end: each
-     *  reads its primitive's state with nothing resident, its nodes at their open counts. */
+     *  reads its primitive's state with nothing resident, its nodes' own counts. */
     append() {
-      for (let at = worlds.length; at < packed.cutLinks.length; at++) {
+      for (let at = worlds.length; at < packed.cutLinks.length; at++)
         worlds.push(blankOf(r, packed.cutLinks[at]))
-        openNodes(r, at)
-      }
     },
+    /** The open counts the placements hold of their own (`heldOpen.ts`). */
+    heldOpen,
     /** The placements holding a state of their own: those a page of which is resident. */
     get heldPlacements() {
       return r.heldCount
@@ -92,7 +98,6 @@ type Readiness = {
   /** Placements `set` touched since the last settle. */
   dirty: Set<number>
   pages: number[]
-  nodes: number[]
   /** The placement being settled, which `onPage` and `onNode` read. */
   w: number
   /** Every placement's `hostBytes`, kept as a running total: each settle adds what moved. */
@@ -119,11 +124,10 @@ function own(r: Readiness, at: number) {
 }
 
 /** Settles every placement `set` touched; returns the sorted, repeat-free packed pages whose
- *  readiness changed and nodes whose `open` changed. */
+ *  readiness changed, the open counts that moved held in the table (`heldOpen.ts`). */
 function settle(r: Readiness) {
-  const { worlds, pages, nodes } = r
+  const { worlds, pages } = r
   pages.length = 0
-  nodes.length = 0
   for (const touched of r.dirty) {
     const world = worlds[(r.w = touched)]
     r.hostBytes += world.settle(r.onPage, r.onNode)
@@ -137,21 +141,13 @@ function settle(r: Readiness) {
   }
   r.dirty.clear()
   uniqueSortedInPlace(pages)
-  uniqueSortedInPlace(nodes)
-  return { pages, nodes }
+  return { pages }
 }
 
 function set(r: Readiness, page: number, value: boolean) {
   const at = r.pageWorlds[page]
   if (!value && !r.held[at]) return
   if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.add(at)
-}
-
-/** Placement `at`'s nodes at its DAG's own open counts: what nothing resident leaves. */
-function openNodes(r: Readiness, at: number) {
-  const { nodeBase, nodeCount } = r.packed.cutLinks[at]
-  for (let n = 0; n < nodeCount; n++)
-    r.nodeInts[(nodeBase + n) * DAG_NODE_FLOATS + NODE_OPEN] = r.worlds[at].openAt(n)
 }
 
 function apply(r: Readiness, resident: ArrayLike<number>, changes: ResidencyChanges | undefined) {

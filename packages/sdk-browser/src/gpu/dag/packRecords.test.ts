@@ -11,7 +11,7 @@ import { packDagSelection } from './pack.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { CLUSTER_WORDS, COLD_WORDS as PAGE_CONE_FLOATS, coldBase } from './layout.ts'
-import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.fixture.ts'
+import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf, worldOf } from './records.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import type { DagRoot } from './types.ts'
 import { ruleResidency } from './readiness.fixture.ts'
@@ -55,8 +55,10 @@ test('twelve placements of one primitive store its records once', () => {
 test('every page decodes the same record, owner and placement shared or not', () => {
   const shared = dagRecords(packDagSelection(placedRoots())),
     alone = dagRecords(packDagSelection(unshared(placedRoots())))
+  // The owner within its primitive's nodes: shared ones lie once, copies each at their own place.
+  const local = (r: typeof shared, i: number) => ownerOf(r, i) - r.rootBases[worldOf(r, i)]
   for (let i = 0; i < PLACEMENTS * pages.length; i++) {
-    assert.equal(ownerOf(shared, i), ownerOf(alone, i))
+    assert.equal(local(shared, i), local(alone, i))
     assert.equal(flagsOf(shared, i), flagsOf(alone, i))
     assert.equal(trianglesOf(shared, i), trianglesOf(alone, i))
   }

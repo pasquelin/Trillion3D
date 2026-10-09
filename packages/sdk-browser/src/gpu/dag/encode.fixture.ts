@@ -85,6 +85,8 @@ export function cutResources(levelCount = 3, pageCount = 4096) {
   return {
     pageCount,
     nodeCount: 64,
+    // A placement's entry for each node it reads (`levelWgsl.ts`).
+    entryCount: 64,
     worldCount: 2,
     blockCount: 64,
     levelSizes: Uint32Array.from(ETAGES.slice(0, levelCount)),

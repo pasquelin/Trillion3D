@@ -5,7 +5,7 @@ import type { createDagResources } from './resources.ts'
 import { encodeDagKernels } from './encode.ts'
 import { encodeDagDifference } from './encodeDifference.ts'
 import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts'
-import { tablesHeld } from './listCap.ts'
+import { heldOpenAt, tablesHeld } from './listCap.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import {
   MAIN_VIEW,
@@ -115,6 +115,7 @@ function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUnifor
     listCap,
     saveRegionFor(swap, MAIN_VIEW),
     state.coarse.factor,
+    heldOpenAt(resources),
   )
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   encodeDagKernels(encoder, resources, copy)

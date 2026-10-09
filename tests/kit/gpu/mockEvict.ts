@@ -20,6 +20,7 @@ import { words } from './mockBuffers.ts'
 import { boundListCap } from './mockDag.ts'
 import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
@@ -29,7 +30,7 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
   )
   const { pageCount } = packed,
     frame = dagWorkLayout(ceilDiv(pageCount, SELECTION_WORKGROUP)).frame,
-    stamps = dagFlagsWords(packed.nodeCount, pageCount, false),
+    stamps = dagFlagsWords(dagQueueWords(packed), pageCount, false),
     keys = cold.subarray(L.keyBase(pageCount)),
     pool = L.poolBase(pageCount),
     listCap = boundListCap(byBinding)

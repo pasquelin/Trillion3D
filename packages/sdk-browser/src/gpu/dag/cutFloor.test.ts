@@ -36,7 +36,8 @@ function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms:
   const { coneRejects, visible, draws } = createDagOraclePredicates({
     packed,
     records,
-    nodeFlags: new Uint8Array(Math.max(1, packed.nodeCount)),
+    // Every (placement, node) kept: no verdict filters a page.
+    nodeFlags: { at: () => 0 },
     ...frames,
   })
   const retenues: number[] = []

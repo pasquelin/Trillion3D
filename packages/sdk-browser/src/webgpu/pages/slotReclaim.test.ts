@@ -57,7 +57,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
         draws.length = 0
         backend.render(cam)
         assert.ok(
-          drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length > 0,
+          drawnPageIds(buffers, packed).length > 0,
           'current cut must retain visible coverage',
         )
         await backend.flush()

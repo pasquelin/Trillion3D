@@ -51,6 +51,7 @@ export async function createSessionCut(
     },
     poolHeld,
     composed: (rank) => composedRoot(rt, rank),
+    rows: rt.layout.rows.casterSlots,
   })
   return { cut, refused }
 }

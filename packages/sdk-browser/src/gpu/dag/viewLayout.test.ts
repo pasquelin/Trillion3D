@@ -69,6 +69,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
       'worldRoot:u32,treeTop:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
+      'heldBase:u32,heldMask:u32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,eye:array<vec4u,2>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.

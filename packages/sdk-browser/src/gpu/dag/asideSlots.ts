@@ -109,6 +109,7 @@ async function readAsideSlot(
       },
       {
         limits: resources.device.limits,
+        heldSlots: resources.heldSlots,
         pageCount: resources.pageCount,
         listFull: state.listFull,
         coarse: slots.coarse,

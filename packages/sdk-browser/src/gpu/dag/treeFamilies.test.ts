@@ -90,7 +90,8 @@ test('on every family the tree cuts as the flat descent and tests no more placem
               : undefined
           const flags = dagOracleDescent(packed, frames, ahead)
           let reached = 0
-          for (let w = 0; w < roots.length; w++) if (flags[packed.rootBases[w]] !== 1) reached++
+          for (let w = 0; w < roots.length; w++)
+            if (flags.at(w, packed.rootBases[w]) !== 1) reached++
           const lists = [result.drawablePageIds ?? [], result.pageIds, result.aheadPageIds ?? []]
           return { lists: lists.map((ids) => [...ids].sort((a, b) => a - b)), reached }
         }

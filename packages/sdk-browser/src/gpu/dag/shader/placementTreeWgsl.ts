@@ -39,14 +39,14 @@ fn opensRoot(w:u32)->bool{return rootOf(w)!=0xffffffffu&&(markOf(w)&${CARD_ROOT}
 /** Placement \`w\`'s root, at entry \`at\` of queue 0 under the view \`vi\`, or none; the placement
  *  prepared either way. */
 fn openRoot(at:u32,w:u32){
- setFlag(queueBase(0u)+at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)));
+ putEntry(queueBase(0u),at,select(0xffffffffu,packEntry(vi,rootOf(w)),opensRoot(w)),w);
  preparePlacement(w);
 }
 /** \`dagPrepare\`'s thread \`i\` of the bound range, with a tree: the head range writes its top
  *  nodes, the world DAG's range that root behind them. */
 fn prepareTreeRoots(i:u32){
  let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
- if(i<top){setFlag(queueBase(0u)+i,packEntry(0u,views[0u].cellBase+i));return;}
+ if(i<top){putEntry(queueBase(0u),i,packEntry(0u,views[0u].cellBase+i),0u);return;}
  let w=views[0u].worldRoot;
  if(i==top&&w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}
 }
@@ -73,7 +73,7 @@ fn placementStep(src:u32,k:u32){
  let w=coldAt(views[0u].members+k);
  if(w==0xffffffffu||!inRange(w)||!opensRoot(w)){return;}
  let view=vi;vi=0u;preparePlacement(w);vi=view;
- nodeStep(src,rootOf(w));
+ nodeStep(src,rootOf(w),w);
 }
 /** A cell or a group of the tree: its world box under the camera, then under the view ahead. Its
  *  world is the first (\`NODE_WORLD\`), so one range's dispatch reads it. */
@@ -99,7 +99,7 @@ fn outsideView(v:u32,lo:vec3f,hi:vec3f)->bool{
 /** A kept cell opens its groups, a kept group its placements, in the next queue. */
 fn descendTree(src:u32,node:CullNode){
  let first=select(node.firstChild,views[0u].nodeCount+node.firstChild,node.kind==TREE_GROUP);
- queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount);
+ queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount,0u);
 }
 `,
 )
