@@ -1,17 +1,17 @@
 // The coverage-preserving alpha's arithmetic printed (\`../generate-shared-rules.ts\`): every
-// function of \`coverageMath.ts\` into the mip chains' WGSL and the compiler's Rust, public in both
-// when the module exports it, the module's own when it does not.
+// function of \`coverageMath.ts\` into the mip chains' WGSL and the compiler's Rust, public in a
+// language when the source's \`PUBLIC\` lists it there, the printed module's own when it does not.
 import ts from 'typescript'
-import * as COVERAGE from '../../packages/sdk-browser/src/texture/coverageMath.ts'
+import { PUBLIC, scaled } from '../../packages/sdk-browser/src/texture/coverageMath.ts'
 import { type Target, expression, snake, unsupported } from './printer.ts'
 import { comment, functionsOf, header, statements } from './statements.ts'
 
 const COVERAGE_MATH = 'packages/sdk-browser/src/texture/coverageMath.ts'
 
-/** The rule's functions, each after those it calls, and whether its module exports it. */
-function coverageFunctions() {
+/** The rule's functions, each after those it calls, and whether `lang`'s readers call it. */
+function coverageFunctions(lang: keyof typeof PUBLIC) {
   const declared = functionsOf(COVERAGE_MATH)
-  const exports = Object.keys(COVERAGE)
+  const visible = PUBLIC[lang].map((fn) => fn.name)
   const names = declared.map(({ name }) => name)
   const functions = declared.map(({ name, node, body: source, doc }) => {
     const calls = new Set<string>()
@@ -27,7 +27,7 @@ function coverageFunctions() {
       name: param.name.getText(),
       quad: param.type?.getText() === 'Quad',
     }))
-    return { name, source, doc, params, calls: [...calls], exported: exports.includes(name) }
+    return { name, source, doc, params, calls: [...calls], exported: visible.includes(name) }
   })
   const ordered: typeof functions = []
   const place = (fn: (typeof functions)[number]) => {
@@ -42,7 +42,7 @@ function coverageFunctions() {
 const wgslName = (name: string) => `${snake(name).toUpperCase()}_WGSL`
 
 export function coverageWgsl() {
-  const blocks = coverageFunctions().map(({ name, source, doc, params, calls, exported }) => {
+  const blocks = coverageFunctions('wgsl').map(({ name, source, doc, params, calls, exported }) => {
     const lines = statements(source.statements, { lang: 'wgsl', unsigned: true }, 0)
     const signature = params.map((p) => `${p.name}:${p.quad ? 'vec4u' : 'u32'}`).join(',')
     return `/**
@@ -67,7 +67,7 @@ const SCALE_TABLE = { name: 'bytes', type: '&[[u8; 256]; 256]' }
 
 /** `scaled(a, c, t)` of a function of cutoff `c`, read from `SCALE_TABLE` at `[t][a]`. */
 function scaleTableRead(node: ts.Expression, t: Target) {
-  if (!ts.isCallExpression(node) || node.expression.getText() !== COVERAGE.scaled.name) return
+  if (!ts.isCallExpression(node) || node.expression.getText() !== scaled.name) return
   const [alpha, cutoff, bin] = node.arguments
   if (cutoff.getText() !== 'c') return unsupported(node)
   const index = (arg: ts.Expression) =>
@@ -78,26 +78,28 @@ function scaleTableRead(node: ts.Expression, t: Target) {
 }
 
 export function coverageRust() {
-  const functions = coverageFunctions().map(({ name, source, doc, params, calls, exported }) => {
-    const table = calls.includes(COVERAGE.scaled.name)
-    const target: Target = {
-      lang: 'rust',
-      call: snake,
-      read: table ? (node) => scaleTableRead(node, target) : undefined,
-    }
-    const lines = statements(source.statements, target, 1, true)
-    const signature = [
-      ...params.map((p) => `${p.name}: ${p.quad ? '[u32; 4]' : 'u32'}`),
-      ...(table ? [`${SCALE_TABLE.name}: ${SCALE_TABLE.type}`] : []),
-    ].join(', ')
-    const tableDoc = table
-      ? `\n///\n/// In Rust: \`${COVERAGE.scaled.name}\` at \`c\` is read from \`${SCALE_TABLE.name}\`, its table built once a chain\n/// (\`scale_table\`, \`coverage.rs\`).`
-      : ''
-    return `${comment(doc, '/// ')}${tableDoc}
+  const functions = coverageFunctions('rust').map(
+    ({ name, source, doc, params, calls, exported }) => {
+      const table = calls.includes(scaled.name)
+      const target: Target = {
+        lang: 'rust',
+        call: snake,
+        read: table ? (node) => scaleTableRead(node, target) : undefined,
+      }
+      const lines = statements(source.statements, target, 1, true)
+      const signature = [
+        ...params.map((p) => `${p.name}: ${p.quad ? '[u32; 4]' : 'u32'}`),
+        ...(table ? [`${SCALE_TABLE.name}: ${SCALE_TABLE.type}`] : []),
+      ].join(', ')
+      const tableDoc = table
+        ? `\n///\n/// In Rust: \`${scaled.name}\` at \`c\` is read from \`${SCALE_TABLE.name}\`, its table built once a chain\n/// (\`scale_table\`, \`coverage.rs\`).`
+        : ''
+      return `${comment(doc, '/// ')}${tableDoc}
 ${exported ? 'pub(super) ' : ''}fn ${snake(name)}(${signature}) -> u32 {
 ${lines.join('\n')}
 }`
-  })
+    },
+  )
   return `${header([COVERAGE_MATH], '//!')}
 
 ${functions.join('\n\n')}

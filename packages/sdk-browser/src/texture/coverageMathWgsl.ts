@@ -16,7 +16,7 @@ export const SCALED_WGSL = wgslBlock(
  * Bilinear sample `s` (0 to 3, row by row) of the square of corner alphas `a`, rounded half up:
  * 9, 3, 3, 1 sixteenths from the nearest.
  */
-export const FILTERED_WGSL = wgslBlock(
+const FILTERED_WGSL = wgslBlock(
   'FILTERED_WGSL',
   [],
   `fn filtered(a:vec4u,s:u32)->u32{let x=3u-2u*(s&1u);let y=3u-2u*(s>>1u);return (y*(x*a.x+(4u-x)*a.y)+(4u-y)*(x*a.z+(4u-x)*a.w)+8u)>>4u;}`,
