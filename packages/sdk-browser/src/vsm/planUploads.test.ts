@@ -32,20 +32,23 @@
 // third word, the width it carried, a pad, 0 — seed 2's third frame; every other word kept.
 // Retaken when the per-page thread-per-id bin read its rows' width off `num_workgroups` too: its
 // params' third word, the row pitch it carried, a pad, 0; every other word and buffer kept.
+// Retaken when the uniform block took 192 bytes for 208, the blended surfaces' one read leaving
+// no word for a read setting or the view's half-field tangent: the pressure bias in word 3, the
+// words past its old place closed up, their pads gone; every other buffer kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '5f9fcbad2310bf24be7defe5dc3f359ed4ea8db31c6943bc3140126ab201e3d1',
-    '39d2f9cd7d229efb39c75705070cfb0150a4a03d3be5b19d229b08a252c721dd',
-    'd742542eb8c42384251021a7e2be4a238347dc6e0d260dbfc90c78007eb274ef',
+    'ff0738243f03fdd677621d43a50b809de6eb37d3941036a33707b581bc8d994d',
+    '022225b43a81d3bf09c39052230c116381077f9fc20644d4c784c4b73c8e8662',
+    '2d682cd02cc8ef82c026b9aeb505bdeac85ea89c32e62d59e19ad34fc04ea750',
   ],
   2: [
-    '6f1d70f9e26b0eb55cf2dffc6b735dfab1f7a27eb6d4bc8a9232cb0f539cb203',
-    '7c1efdf7558dd2f964a8f2c0dc4726b82f29a550a33f2ccb62e85f7a5d8f333a',
-    '404726114ac50fa65b9929bf5e47a247e253e13d40b68a967a4a19d6129fa69c',
+    '382cade8c265de3e6934e0ed80ff1705a386010b136606b97fbc81674063f073',
+    '6bea6cea5d182def4fb52972f95be14bff16ecb2a791524eb427897a789cfb24',
+    '0d249236ab4a7863261300cbae2ffb953b13ac22d62790165f30ffd680e3c6d8',
   ],
 }
 

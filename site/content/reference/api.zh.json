@@ -5120,7 +5120,8 @@
     "summary": "把色相、饱和度、明度转换为写入 `out[o..o+2]` 的三个RGB分量。"
   },
   "httpPageSource": {
-    "summary": "一个按键从 `baseUrl` 通过 HTTP 获取页面的数据源。"
+    "summary": "一个按键从 `baseUrl` 通过 HTTP 获取页面的数据源，每次读取一个请求。",
+    "description": "读取失败的页面在等待结束前会被拒绝，不发送任何请求；若另一个请求会再次遇到同样的失败，则永久拒绝（`streaming/failures.ts`）。它不合并读取：同一页面的两个进行中的加载会发送两个请求。"
   },
   "invertMatrix4": {
     "summary": "通过伴随矩阵计算 `out = m⁻¹`。"

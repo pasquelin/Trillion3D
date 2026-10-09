@@ -5091,7 +5091,8 @@
     "summary": "Sắc độ, độ bão hòa, và độ sáng thành ba thành phần RGB được ghi vào `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`."
+    "summary": "Một nguồn trang lấy các trang qua HTTP, theo khóa, từ `baseUrl`, mỗi lần đọc một yêu cầu.",
+    "description": "Một trang đọc thất bại sẽ bị từ chối, không gửi yêu cầu nào, cho đến khi thời gian chờ của nó kết thúc — hoặc vĩnh viễn khi một yêu cầu khác sẽ lại gặp đúng lỗi đó (`streaming/failures.ts`). Nguồn này không gộp các lần đọc: hai lần tải đang chạy của cùng một trang gửi hai yêu cầu."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` bằng phần bù đại số (cofactors)."

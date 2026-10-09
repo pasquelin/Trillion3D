@@ -98,7 +98,7 @@ function engineContext(
   lights: Awaited<ReturnType<typeof sessionLights>>,
 ): EngineContext {
   const { canvas, options, metadata, signal, diagnosticChannel, diagnose } = session
-  const { indices, streamer, cacheCap } = inputs.pageSources
+  const { indices, streamer, cacheCap, pageCache } = inputs.pageSources
   // The world roots the scene's own manifest opened ride the context; their pages are read through
   // the one geometry reader, built here once.
   const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
@@ -126,8 +126,8 @@ function engineContext(
     readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, options.pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the loader read:
     // the engine reads the levels the compiler baked and regenerates none it could have read
-    // instead. Its levels are held beside the pages the streamer reads, in its page cache.
-    readTextureLevel: createTextureLevelReader(metadata, inputs.base, streamer.pageCache, signal),
+    // instead. Its levels are held beside the pages the streamer reads, in their page cache.
+    readTextureLevel: createTextureLevelReader(metadata, inputs.base, pageCache, signal),
     ...lights,
     frameBudget: inputs.frameBudget,
   }

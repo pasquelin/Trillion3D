@@ -145,9 +145,6 @@ export function createPageStreamerWith(
     /** The streamer's life, aborted once it is disposed or its owner's signal aborts: the signal
      *  of a read its session owns. */
     signal: abort.signal,
-    /** The page cache it reads through — its world's, kept across a device loss, or its own —: the
-     *  texture levels are held beside its pages, their files read by its readers. */
-    pageCache: store,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */

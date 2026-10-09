@@ -6180,7 +6180,8 @@
     "summary": "Ton, doygunluk ve parlaklığı `out[o..o+2]`'ye yazılan üç RGB bileşene dönüştürür."
   },
   "httpPageSource": {
-    "summary": "Sayfaları HTTP üzerinden, anahtara göre, `baseUrl`'den getiren bir sayfa kaynağı."
+    "summary": "Sayfaları HTTP üzerinden, anahtara göre, `baseUrl`'den getiren bir sayfa kaynağı; her okuma için bir istek.",
+    "description": "Okuması başarısız olan bir sayfa, bekleme süresi bitene kadar istek gönderilmeden reddedilir — ya da başka bir istek aynı hatayla yeniden karşılaşacaksa kalıcı olarak (`streaming/failures.ts`). Okumaları birleştirmez: aynı sayfanın devam eden iki yüklemesi iki istek gönderir."
   },
   "impostorBakedByMesh": {
     "summary": "Bölümün pişirilmiş mesh'leri, derlenmiş mesh numarasıyla anahtarlanır; reddedilen girdiler dışarıda bırakılır."

@@ -40,7 +40,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
  // Shadows read at the pixel's own footprint (\`shadowReadWgsl.ts\`, #1412); the normal of the side
  // we look from, else refraction would go the wrong way and Fresnel yield a black mirror.
  shadowFootprint=waterShadowFootprint(pixel.xy,fragZ,P);
- shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
+ shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
  let V=waterViewDirection(P);
  let Nv=waterFacing(normal.xyz,V);
  let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);

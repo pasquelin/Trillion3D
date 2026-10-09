@@ -20,12 +20,17 @@ test("a world page and a cache page are read under the session's signal, at the 
     read: async () => undefined,
     readBytes: record,
     reserve: () => {},
-    pageCache: createPageCache(),
   }
   const hold = { metadata, drawn: { source: { read: record } } }
   const context = await probeEngineContext(
     metadata,
-    { indices: new Map(), streamer, cacheCap: 1, preload: 'visible' } as never,
+    {
+      indices: new Map(),
+      streamer,
+      pageCache: createPageCache(),
+      cacheCap: 1,
+      preload: 'visible',
+    } as never,
     { worldRoots: [hold] as never },
   )
   await context.readGeometryPage!('world-roots.bin#1:0', undefined, 7)

@@ -5120,7 +5120,8 @@
     "summary": "Matiz, saturação e luminosidade para três componentes RGB escritos em `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Uma origem de páginas que busca páginas via HTTP, por chave, a partir de `baseUrl`."
+    "summary": "Uma origem de páginas que busca páginas via HTTP, por chave, a partir de `baseUrl`, uma requisição por leitura.",
+    "description": "Uma página cuja leitura falhou é recusada, sem enviar requisição, até o fim de sua espera — ou para sempre quando outra requisição encontraria a mesma falha (`streaming/failures.ts`). Não junta leituras: dois carregamentos em andamento da mesma página enviam duas requisições."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` por cofatores."

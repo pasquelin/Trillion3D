@@ -2452,7 +2452,8 @@
     "summary": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`."
+    "summary": "Eine Seitenquelle, die Seiten per HTTP abruft, nach Schlüssel, von `baseUrl`, eine Anfrage pro Lesevorgang.",
+    "description": "Eine Seite, deren Lesen fehlschlug, wird abgewiesen, ohne dass eine Anfrage gesendet wird, bis ihre Wartezeit endet — oder endgültig, wenn eine weitere Anfrage wieder auf ihren Fehler träfe (`streaming/failures.ts`). Sie führt keine Lesevorgänge zusammen: Zwei laufende Ladevorgänge derselben Seite senden zwei Anfragen."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Spaltenweise Identität, gelesen und nie geschrieben: die Pose eines Knotens oder einer Wurzel ohne Pose."

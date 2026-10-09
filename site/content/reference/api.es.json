@@ -2452,7 +2452,8 @@
     "summary": "Tono, saturación y luminosidad a tres componentes RGB escritas en `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`."
+    "summary": "Una fuente de páginas que recupera las páginas por HTTP, por clave, desde `baseUrl`, una petición por lectura.",
+    "description": "Una página cuya lectura falló se rechaza, sin enviar ninguna petición, hasta que termina su espera — o para siempre cuando otra petición volvería a encontrar su fallo (`streaming/failures.ts`). No une lecturas: dos cargas en curso de una misma página envían dos peticiones."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identidad columna por columna, leída y nunca escrita: la pose de un nodo o de una raíz sin pose."

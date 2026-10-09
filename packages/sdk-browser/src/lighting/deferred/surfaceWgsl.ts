@@ -20,7 +20,7 @@ export const MIRROR_TERM = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)'
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
  * (`vsmMaskPixel`), and, where the frame holds translucent casters, what their transmission's
- * point read takes (`vsmShadowFactor`, its one reader in the resolve): the pixel's footprint at its
+ * located sample takes (`vsmLocate`, its one reader in the resolve): the pixel's footprint at its
  * unjittered centre, whence its view, and its receiver, moved by its shading-point offset,
  * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer).
  * The mask carries the opaque shadow from the receiver the projection read
@@ -36,7 +36,7 @@ const SHADOW_SETUP_WGSL = wgslBlock(
  vsmMaskAt(coord);
  if(vsmTranslucentCasters()){
   shadowFootprint=pixelFootprint(coord,pixel.xy,z,P);
-  shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,z));
+  shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,z));
   let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
  }
 }`,

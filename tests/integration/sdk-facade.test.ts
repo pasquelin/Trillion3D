@@ -138,7 +138,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
   // entry's camera projections read `length2` from the vector module, whose lazy init it starts;
   // its transform tree grows by the one growth rule (`resized`).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_203)
+  assert.equal(baseline.outputFiles[0].contents.length, 3_177)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_183)
   assert.ok(

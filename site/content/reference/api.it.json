@@ -2452,7 +2452,8 @@
     "summary": "Tonalità, saturazione e luminosità in tre componenti RGB scritte in `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`."
+    "summary": "Una fonte di pagine che recupera le pagine via HTTP, per chiave, da `baseUrl`, una richiesta per lettura.",
+    "description": "Una pagina la cui lettura è fallita viene rifiutata, senza inviare richieste, finché la sua attesa non termina — o per sempre quando un'altra richiesta incontrerebbe di nuovo il suo errore (`streaming/failures.ts`). Non unisce letture: due caricamenti in corso della stessa pagina inviano due richieste."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identità colonna per colonna, letta e mai scritta: la posa di un nodo o di una radice senza posa."

@@ -46,7 +46,7 @@ const stochasticReflectionWgsl = (unbounded: boolean) =>
  let z=textureLoad(depth,at,0);
  let P=worldAt(pixel,z);
  shadowFootprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-P);
- shadowSetView(view.camera.xyz,view.viewport.x,pixel,seed,shadowFootprint,worldAt(view.viewport.xy*0.5,z));
+ shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,z));
  let N=normalize(nr.xyz);let V=normalize(view.camera.xyz-P*view.camera.w);
  let pixelSeed=u32(at.y)*u32(reflectionView.enabled.y)+u32(at.x);
  // Integer rank and source epoch are mixed by the caller, independent of wall clock.

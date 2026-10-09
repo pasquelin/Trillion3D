@@ -3,6 +3,7 @@ import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 import { worldRootsOf } from '../../scene/worldRoots.ts'
 import { loadClusterPages } from '../../cluster/pages.ts'
@@ -44,8 +45,9 @@ async function preloaded(
 }
 
 /** The session's page sources: its queue at once (`streamer`), which its scene loads through, and
- *  the rest once the pages it preloads have landed (`sources`). A read that fails for good or first
- *  waits the longest is told to `stalled`. */
+ *  the rest once the pages it preloads have landed (`sources`), among them the page cache the queue
+ *  reads through (`pageCache`). A read that fails for good or first waits the longest is told to
+ *  `stalled`. */
 export function openExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,
@@ -71,8 +73,11 @@ export function openExplorerPageSources(
       : clamp(flatPages, 8192, DEFAULT_CACHED_PAGES))
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
+  // Its world's, kept across a device loss, or the session's own: the texture levels are held
+  // beside its pages, their files read by its readers (`createTextureLevelReader`).
+  const pageCache = options.pageCache ?? createPageCache()
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
-    cache: options.pageCache,
+    cache: pageCache,
     signal,
     workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
     maxPages: cacheCap,
@@ -86,7 +91,7 @@ export function openExplorerPageSources(
   })
   const preload = options.preload ?? 'visible'
   const sources = preloaded(pages, options, base, signal, progress).then((read) => ({
-    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer },
+    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer, pageCache },
     ...read,
   }))
   return { streamer, sources }

@@ -106,7 +106,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   assert.equal(u[75], 9, 'the count')
   for (let k = 0; k < 9; k++) {
     const o = 104 + 12 * k
-    assert.equal(u[o + 10], 8192 + 6 * k, `light ${k}'s map`)
+    assert.equal(u[o + 9], 8192 + 6 * k, `light ${k}'s map`)
     assert.equal(f[o] + 0, k, `light ${k}'s position, the eye at the origin`)
   }
   // Nine lights loop over the view's count; one light alone, over one the compiler knows. Each pass

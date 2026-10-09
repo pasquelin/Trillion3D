@@ -5091,7 +5091,8 @@
     "summary": "Hue, saturasi, dan kecerahan menjadi tiga komponen RGB ditulis ke `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`."
+    "summary": "Sebuah sumber halaman yang mengambil halaman lewat HTTP, menurut kunci, dari `baseUrl`, satu permintaan per pembacaan.",
+    "description": "Halaman yang pembacaannya gagal ditolak, tanpa permintaan dikirim, sampai waktu tunggunya berakhir — atau untuk selamanya bila permintaan lain akan menemui kegagalannya lagi (`streaming/failures.ts`). Sumber ini tidak menggabungkan pembacaan: dua pemuatan halaman yang sama yang sedang berjalan mengirim dua permintaan."
   },
   "invertMatrix4": {
     "summary": "`out = m⁻¹` dengan kofaktor."

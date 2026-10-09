@@ -2460,7 +2460,8 @@
     "summary": "Teinte, saturation et luminosité vers trois composantes RGB écrites dans `out[o..o+2]`."
   },
   "httpPageSource": {
-    "summary": "Une source de pages qui récupère les pages en HTTP, par clé, depuis `baseUrl`."
+    "summary": "Une source de pages qui récupère les pages en HTTP, par clé, depuis `baseUrl`, une requête par lecture.",
+    "description": "Une page dont la lecture a échoué est refusée, sans requête envoyée, jusqu’à la fin de son attente — ou définitivement quand une autre requête retrouverait son échec (`streaming/failures.ts`). Elle ne joint aucune lecture : deux chargements en cours d’une même page envoient deux requêtes."
   },
   "IDENTITY_MATRIX4": {
     "summary": "Identité colonne par colonne, lue et jamais écrite : la pose d’un nœud ou d’une racine sans pose."
