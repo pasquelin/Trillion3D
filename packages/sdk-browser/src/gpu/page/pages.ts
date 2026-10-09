@@ -70,6 +70,13 @@ export function createGpuPageCache(
     get residencyRevision() {
       return state.generation + state.evictions
     },
+    /** Each key that arrived since the last call, told once, in order: what a reader that waits
+     *  on pages follows instead of asking for every one it waits on. Kept from the first call. */
+    takeArrivals(visit: (key: string) => void) {
+      const arrived = (context.arrivals ??= [])
+      for (let i = 0; i < arrived.length; i++) visit(arrived[i])
+      arrived.length = 0
+    },
     /** Moves the pending residency changes into the caller's arrays, then empties the log. */
     drainResidencyChanges: (keys: string[], slots: number[]) =>
       drainResidencyChanges(context, keys, slots),
@@ -133,6 +140,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     // or -1.
     changeKeys: [],
     changeSlots: [],
+    arrivals: undefined,
     reader,
     check,
   }

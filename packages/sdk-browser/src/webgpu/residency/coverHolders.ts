@@ -54,16 +54,19 @@ export function createCoverHolders(options: {
       for (const page of pages) moved = (held ? join(page) : leave(page)) || moved
       return moved
     },
-    /** The pages a later holder brought into the cover that the pool lacks, as `holds` says:
-     *  those it holds leave the list. A list of its own, read across the awaits of a burst. */
-    missing(holds: (page: PageRec) => boolean): readonly PageRec[] {
+    /** The pages a later holder brought into the cover that the pool lacks, as `holds` says, at
+     *  most `limit` — the slots that could take them: those it holds leave the list. A list of its
+     *  own, read across the awaits of a burst. */
+    missing(holds: (page: PageRec) => boolean, limit = Infinity): readonly PageRec[] {
       if (lacking.count === 0) return none
       const out: PageRec[] = []
-      for (let i = lacking.count - 1; i >= 0; i--)
+      for (let i = lacking.count - 1; i >= 0 && out.length < limit; i--)
         if (holds(missingPages[i])) lacking.remove(lacking.list[i])
         else out.push(missingPages[i])
       return out
     },
+    /** How many pages a later holder brought that the pool may lack still. */
+    lacking: () => lacking.count,
     /** The pool slots the cover takes now. */
     get covered() {
       return covered

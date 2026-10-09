@@ -91,6 +91,7 @@ test('a burst of pages the pool holds settles in a few microtasks, none admitted
       loads++
     },
     pin() {},
+    unpinnedSlots: () => 1,
   }
   // The microtasks the pass takes, counted until it settles.
   let ticks = 0,

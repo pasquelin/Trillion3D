@@ -49,6 +49,8 @@ export type GpuPageContext = {
   }
   changeKeys: string[]
   changeSlots: number[]
+  /** The keys that arrived since a reader last took them (`takeArrivals`), kept once one asks. */
+  arrivals: string[] | undefined
   reader: ReturnType<typeof createGpuPageReader>
   check: (signal?: AbortSignal) => void
 }

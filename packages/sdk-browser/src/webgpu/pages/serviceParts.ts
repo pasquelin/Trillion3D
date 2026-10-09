@@ -138,6 +138,7 @@ export function createResidencyFor(
     lowerTiers: () => lowerTiers,
     bytesRevision: rows.touchRevision,
     coverMissing: residencySets.coverMissing,
+    coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   })
   const residency = createWebgpuResidencyQueue({
