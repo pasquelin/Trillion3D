@@ -1,5 +1,6 @@
 import { FULLSCREEN_XY } from '../gpu/shader/fullscreenTriangle.ts'
-import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
+import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
+import { CUT_BIN_WGSL } from './coverageMathWgsl.ts'
 import { cellReductionWgsl } from './cellReduction.ts'
 import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
@@ -106,7 +107,7 @@ export const RADIANCE_MIP_WGSL = wgslProgram(
  */
 export const COVERAGE_COUNT_WGSL = wgslBlock(
   'COVERAGE_COUNT_WGSL',
-  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, COVERAGE_CUT_WGSL],
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, CUT_BIN_WGSL],
   `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<atomic<u32>>;

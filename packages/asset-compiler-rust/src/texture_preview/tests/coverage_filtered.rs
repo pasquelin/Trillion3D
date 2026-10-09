@@ -1,5 +1,6 @@
 use super::*;
-use crate::texture_preview::coverage::{cut_bin, filtered_covered, scale_table};
+use crate::texture_preview::coverage::filtered_covered;
+use crate::texture_preview::coverage_math::{cut_bin, filtered, scaled};
 use trillion3d_math::random::xorshift32;
 
 /// Filtered samples of a square `level` (RGBA8) at or above `cutoff`, four a texel.
@@ -52,19 +53,14 @@ fn coverage_holds_on_the_filtered_cut() {
 
 // The bin search starts between a square's lowest and highest corners, and four equal
 // corners take their byte as bin with no search. Both are exact: every square below, at every
-// cutoff, lands in the bin a scan of all 255 `t` finds, on the rule's arithmetic written out.
+// cutoff, lands in the bin a scan of all 255 `t` finds, on the rule's own arithmetic.
 #[test]
 fn the_bin_search_between_the_corners_finds_the_scan_s_bin() {
     let scan = |a: [u32; 4], s: u32, c: u32| {
-        let lift = |a: u32, t: u32| ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255);
-        let (x, y) = (3 - 2 * (s & 1), 3 - 2 * (s >> 1));
         (1..=255u32)
             .rev()
-            .find(|&t| {
-                let [a, b, d, e] = a.map(|a| lift(a, t));
-                (y * (x * a + (4 - x) * b) + (4 - y) * (x * d + (4 - x) * e) + 8) >> 4 >= c
-            })
-            .unwrap_or(0) as usize
+            .find(|&t| filtered(a.map(|a| scaled(a, c, t)), s) >= c)
+            .unwrap_or(0)
     };
     let mut seed = 0x2545_f491u32;
     let mut byte = || {
@@ -72,20 +68,19 @@ fn the_bin_search_between_the_corners_finds_the_scan_s_bin() {
         [0, 255, seed & 255, seed >> 24][(seed >> 8 & 3) as usize]
     };
     for c in [1, 64, 128, 191, 255] {
-        let bytes = scale_table(c);
         // Flat squares, one corner a byte apart either way, then noise heavy in 0 and 255.
         let near = (1..=255).flat_map(|a| [[a; 4], [a, a - 1, a - 1, a - 1], [a - 1, a, a, a]]);
         let squares = near.chain((0..4000).map(|_| [(); 4].map(|_| byte())));
         for square in squares.collect::<Vec<_>>() {
             for s in 0..4 {
                 assert_eq!(
-                    cut_bin(square, s, c, &bytes),
+                    cut_bin(square, s, c),
                     scan(square, s, c),
                     "{square:?} {s} {c}"
                 );
             }
             if square.iter().all(|&a| a == square[0]) {
-                assert_eq!(scan(square, 0, c), square[0] as usize, "{square:?} {c}");
+                assert_eq!(scan(square, 0, c), square[0], "{square:?} {c}");
             }
         }
     }

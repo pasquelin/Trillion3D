@@ -31,6 +31,7 @@ mod bake_write;
 pub(crate) mod blocks;
 pub(crate) mod collect;
 pub(crate) mod coverage;
+mod coverage_math;
 mod curves;
 mod entry;
 mod gate;
