@@ -2174,7 +2174,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Étape d’une passe, d’après son nom.",
-    "description": "Inconnu vaut `geometry`."
+    "description": "Inconnu vaut `undefined` : un libellé que le moteur ne nomme pas ne rejoint aucune étape."
   },
   "GpuPassTiming": {
     "summary": "Une passe GPU mesurée.",

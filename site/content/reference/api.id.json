@@ -4993,7 +4993,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Tahap sebuah pass, menurut labelnya.",
-    "description": "Tidak diketahui adalah `geometry`."
+    "description": "Tidak diketahui adalah `undefined`: label yang tidak dinamai mesin tidak masuk tahap mana pun."
   },
   "helper": {
     "summary": "Keluarga `helper`: tanda-tanda yang dipakai untuk mengerjakan sebuah scene, dibangun dari garis dan mesh.",

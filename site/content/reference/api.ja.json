@@ -5022,7 +5022,7 @@
   },
   "gpuPassStageOf": {
     "summary": "あるパスの段階、そのラベルによる。",
-    "description": "未知の場合は`geometry`。"
+    "description": "未知の場合は`undefined`。エンジンが名付けていないラベルはどの段階にも属さない。"
   },
   "helper": {
     "summary": "`helper`ファミリー: 線とメッシュから作られる、シーンを作業するためのマーク。",

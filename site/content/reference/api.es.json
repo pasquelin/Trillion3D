@@ -2166,7 +2166,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Etapa de un pase, según su nombre.",
-    "description": "Desconocido vale `geometry`."
+    "description": "Desconocido vale `undefined`: un nombre que el motor no da no se une a ninguna etapa."
   },
   "GpuPassTiming": {
     "summary": "Un pase de GPU medido.",

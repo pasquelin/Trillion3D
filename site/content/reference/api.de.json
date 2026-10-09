@@ -2166,7 +2166,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Phase eines Durchgangs, nach seinem Namen.",
-    "description": "Unbekannt ergibt `geometry`."
+    "description": "Unbekannt ergibt `undefined`: Ein Name, den die Engine nicht vergibt, gehört zu keiner Phase."
   },
   "GpuPassTiming": {
     "summary": "Ein gemessener GPU-Durchgang.",

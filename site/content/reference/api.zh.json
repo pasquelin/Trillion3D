@@ -5022,7 +5022,7 @@
   },
   "gpuPassStageOf": {
     "summary": "根据某个通道的标签,判断它所属的阶段。",
-    "description": "未知的情况归为 `geometry`。"
+    "description": "未知的情况为 `undefined`：引擎未命名的标签不归入任何阶段。"
   },
   "helper": {
     "summary": "`helper` 系列:用来标注场景的标记物,由线条和网格构建而成。",

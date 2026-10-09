@@ -5022,7 +5022,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Etapa de um passo, por seu rótulo.",
-    "description": "Desconhecido é `geometry`."
+    "description": "Desconhecido é `undefined`: um rótulo que o motor não nomeia não entra em nenhuma etapa."
   },
   "helper": {
     "summary": "A família `helper`: as marcas com que uma cena é trabalhada, construídas de linhas e meshes.",

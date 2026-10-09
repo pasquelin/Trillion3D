@@ -6082,7 +6082,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Etiketine göre, bir geçişin aşaması.",
-    "description": "Bilinmeyen `geometry`'dir."
+    "description": "Bilinmeyen `undefined`'dır: motorun adlandırmadığı bir etiket hiçbir aşamaya katılmaz."
   },
   "helper": {
     "summary": "`helper` ailesi: bir sahnenin üzerinde çalışıldığı, çizgilerden ve meshlerden inşa edilen işaretler.",

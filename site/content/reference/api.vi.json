@@ -4993,7 +4993,7 @@
   },
   "gpuPassStageOf": {
     "summary": "Giai đoạn của một lượt, theo nhãn của nó.",
-    "description": "Không xác định là `geometry`."
+    "description": "Không xác định là `undefined`: một nhãn mà engine không đặt tên sẽ không thuộc giai đoạn nào."
   },
   "helper": {
     "summary": "Họ `helper`: các dấu hiệu dùng để làm việc trên một cảnh, được xây dựng từ các đường thẳng và mesh.",
