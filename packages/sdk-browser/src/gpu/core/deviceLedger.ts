@@ -133,6 +133,9 @@ export const ledgerRoom = (device: LedgerDevice | undefined) =>
 
 /** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
  *  one. */
+/** Whether `error` is a budget's refusal (`checkAllocation`): the limit, never the device. */
+export const budgetRefused = (error: unknown) => String(error).includes('GPU_BUDGET_EXCEEDED')
+
 export const ledgerTentative = <T>(device: LedgerDevice | undefined, build: () => T): T => {
   const ledger = gpuDeviceLedgerOf(device)
   return ledger ? ledger.tentative(build) : build()
