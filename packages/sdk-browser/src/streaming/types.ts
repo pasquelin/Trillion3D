@@ -44,9 +44,8 @@ export interface StreamPage {
   url: string
   /** Its size. */
   bytes: number
-  /** Fingerprint of its bytes, which its read checks with its size; none for a page its source
-   *  announces nothing of: its bytes are taken as its server sends them. */
-  sha256?: string
+  /** Fingerprint of its bytes, which its read checks with its size. */
+  sha256: string
   /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the
    *  queue reads the ranges queued end to end in one file by one request (`queueRanges.ts`). */
   range?: { file: string; offset: number }
