@@ -50,3 +50,17 @@ export const linearToSrgb = wgslFn(
  return select(curve,c*12.92,c<=vec3f(0.0031308));
 }`,
 )
+
+/**
+ * The sRGB decode: `C / 12.92` at and under 0.04045, `((C + 0.055) / 1.055)^2.4` above, the twin of
+ * the processor's `srgbToLinear`. A negative input takes the linear branch; `max` keeps the other
+ * branch's `pow` defined, whose value the select drops.
+ */
+export const srgbToLinear = wgslFn(
+  'srgbToLinear',
+  [],
+  `fn srgbToLinear(c:vec3f)->vec3f{
+ let curve=pow((max(c,vec3f(0.0))+vec3f(0.055))/1.055,vec3f(2.4));
+ return select(curve,c/12.92,c<=vec3f(0.04045));
+}`,
+)

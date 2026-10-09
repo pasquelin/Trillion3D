@@ -15,7 +15,8 @@ import { type ContractKey, variantLabel } from '../../lighting/deferred/contract
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
-import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
+import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../../reflections/viewLayout.ts'
+import { f0Of } from '../../../../math/src/wgsl/lighting.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
@@ -40,6 +41,8 @@ const blendProgram = (key: Partial<ContractKey>) => {
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
       blendSurfaceWgsl(lobes),
       forwardReflectionWgsl(REFLECTION_GROUP, lobes),
+      reflectionLightViewWgsl(REFLECTION_GROUP),
+      f0Of,
       ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
       blendFragmentWgsl(lobes),
     ],
@@ -100,7 +103,7 @@ ${BLEND_DIAGNOSTIC}
    shadowFootprint=blendShadowFootprint(in.view);
    shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);
    blendLobes(in,front,g,s,V,clamped);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+surfaceReflection(rgb,m,clamped,s.N,V,in.view)+s.emissive;
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view)+s.emissive;
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.

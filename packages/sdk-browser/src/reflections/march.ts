@@ -1,31 +1,43 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constants.ts'
+import { reflectionGeometryWgsl } from './geometry.ts'
 
 /**
- * The hierarchical ray march (`reflectionMarch`) of the depth pyramid, `o + d·t`, `o` in pixels and reversed depth, `t` from 0
- * to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far end). A cell's surface is the
- * pixel's plane at level 0 — the ray's height above it falls at d.z − slopes · d.xy along `t` —, the
- * cell's nearest depth above it. It returns the `t` it stopped at, and the plane (depth at its
- * centre, slopes) and centre of the pixel it stopped in (`ReflectionHit`); `t` −1 on a miss.
+ * The hierarchical ray march (`reflectionMarch`) of the depth pyramid, `o + d·t`, `o` in pixels and
+ * reversed depth, `t` from 0 to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far
+ * end, within `REFLECTION_STEP_CAP` pixels of the ray's origin). A surface is a slab: at level 0 the
+ * pixel's plane — depth at its centre, slopes — and the plane `REFLECTION_THICKNESS` pixels of
+ * footprint behind it (`reflectionBack`); a coarser cell's surfaces lie between its farthest depth
+ * of the finished image and its nearest, and so do their slabs: between the farthest's back and the
+ * nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes) and centre of
+ * the pixel it stopped in, and how deep into the slab the ray was there, 0 on its front to 1 on its
+ * back (`ReflectionHit`); `t` −1 where it meets nothing.
  *
- * A ray in front of a cell's surface moves to the surface where it meets it, else to the cell's
- * boundary and one level coarser; one behind a cell's nearest depth stays and goes one level finer.
- * At level 0 the ray is behind the pixel's plane, and stops there if it was in front of it one step
- * — one pixel of its path — earlier, after the last place it was in front of everything it passed:
- * it crossed that plane, and hits the surface. Behind it without a crossing, the ray passes behind
- * a surface it never met: a miss. `last` begins at the first pixel boundary, so a hit is never in
- * the pixel the ray leaves. A ray misses too when it leaves the image or reaches its far end
- * (`reflectionReach`), and when its iterations — `REFLECTION_ITERATIONS_PER_LEVEL` a level of the
- * pyramid — run out: the plain miss of a ray that skims a surface.
+ * A cell is crossed by the ray over `[t, across]`, whose depths lie between two bounds. Entirely in
+ * front of the cell's nearest depth, or entirely behind the back of its farthest slab (which lies
+ * behind every other slab of the cell), the ray meets nothing in it: the cell is consumed, and the
+ * march goes one level up. Else it goes one level down. At level 0 the ray meets the slab where it
+ * enters it: from its front, where the ray crosses the plane inside the pixel, or through the
+ * pixel's side, where it is already within the slab at the pixel's edge. A ray behind the slab
+ * consumes the pixel and goes on: it passes behind a thin surface, never in front of the surface
+ * it stood on (the first pixel boundary opens the march).
+ *
+ * The iterations are bounded by the screen distance the ray covers, not by the pyramid
+ * (`reflectionBudget`): each cell of a level is crossed once, two levels' worth of ascents and
+ * descents around each pixel the ray crosses, and the levels once more.
  */
-export const REFLECTION_MARCH_WGSL = wgslBlock(
-  'REFLECTION_MARCH_WGSL',
-  [REFLECTION_CONSTANTS_WGSL],
-  `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,}
+export const REFLECTION_MARCH_WGSL = (group: number) =>
+  wgslBlock(
+    `REFLECTION_MARCH_WGSL(${group})`,
+    [REFLECTION_CONSTANTS_WGSL, reflectionGeometryWgsl(group)],
+    `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,into:f32,}
 fn reflectionScreenEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
  let toward=select(-o,size-o,d>vec2f(0.0));
  let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
  return min(min(t.x,t.y),1.0);
+}
+fn reflectionBudget(d:vec3f,end:f32,levels:i32)->u32{
+ return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }
 fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
  let tiny=vec2f(1e-6);
@@ -33,44 +45,46 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
  let side=select(vec2f(0.0),vec2f(1.0),ahead);
  let nudge=select(vec2f(-REFLECTION_NUDGE),vec2f(REFLECTION_NUDGE),ahead);
- let step=1.0/max(max(abs(d.x),abs(d.y)),1e-6);
  let levels=hizLevelCount();
  let top=levels-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
+ let steps=reflectionBudget(d,end,levels);
  var t=min(first.x,first.y);
- var last=t;
  var level=0;
- for(var k=0u;k<REFLECTION_ITERATIONS_PER_LEVEL*u32(levels);k++){
-  if(t>end){break;}
-  let p=o+d*t;
+ for(var k=0u;k<steps;k++){
+  if(t>=end){break;}
   let size=exp2(f32(level));
-  let cell=floor(p.xy/size);
+  let p=o.xy+d.xy*t;
+  let cell=floor(p/size);
   let exits=((cell+side)*size+nudge-o.xy)*inv;
-  let across=min(exits.x,exits.y);
-  var plane=vec3f(0.0);
-  var height=0.0;
-  var rate=d.z;
+  let across=min(min(exits.x,exits.y),end);
+  let z0=o.z+d.z*t;
+  let z1=o.z+d.z*across;
   if(level==0){
-   plane=hizPlane(vec2i(cell));
-   height=p.z-plane.x-dot(p.xy-cell-vec2f(0.5),plane.yz);
-   rate=d.z-dot(d.xy,plane.yz);
-  }else{height=p.z-hizCell(vec2i(cell),level).y;}
-  if(height>=0.0){
-   last=t;
-   let reach=t-height/min(rate,-1e-30);
-   if(rate>=0.0||across<reach){t=across;level=min(level+1,top);continue;}
-   t=reach;
-  }else if(level==0){
-   let crossed=t-height/min(rate,-1e-30);
-   if(rate>=0.0||crossed<max(last,t-step)){break;}
-   t=crossed;
+   let plane=hizPlane(vec2i(cell));
+   let centre=cell+vec2f(0.5);
+   let s0=plane.x+dot(p-centre,plane.yz);
+   let s1=plane.x+dot(o.xy+d.xy*across-centre,plane.yz);
+   let h0=z0-s0;
+   let h1=z1-s1;
+   if(h0>=0.0){
+    if(h1<0.0){return ReflectionHit(mix(t,across,h0/(h0-h1)),plane,centre,0.0);}
+   }else if(s0>0.0){
+    let back=reflectionBack(s0,REFLECTION_THICKNESS);
+    if(z0>=back){return ReflectionHit(t,plane,centre,(s0-z0)/max(s0-back,1e-30));}
+   }
+   t=across;
+   level=min(1,top);
+   continue;
   }
-  if(level==0){
-   if(t>end){break;}
-   return ReflectionHit(t,plane,cell+vec2f(0.5));
+  let bounds=hizCell(vec2i(cell),level);
+  if(min(z0,z1)>bounds.y||max(z0,z1)<reflectionBack(bounds.x,REFLECTION_THICKNESS)){
+   t=across;
+   level=min(level+1,top);
+   continue;
   }
   level-=1;
  }
- return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0));
+ return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0),0.0);
 }`,
-)
+  )

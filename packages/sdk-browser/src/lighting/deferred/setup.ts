@@ -18,8 +18,7 @@ import {
 } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
-import { REFLECTION_TARGET, REFLECTION_VIEW_BINDING } from '../../reflections/weight.ts'
-import { REFLECTION_VIEW_BYTES } from '../../reflections/viewLayout.ts'
+import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -126,14 +125,8 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
     },
     // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
     VSM_MASK_TABLE_TARGET.layoutEntry(),
-    // The radiance the reflection trace wrote, and the reflection's view, whose surroundings the
-    // coat reflects (`../../reflections/trace.ts`).
+    // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
-    {
-      binding: REFLECTION_VIEW_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      buffer: { type: 'uniform' },
-    },
     {
       binding: VSM_MASK_TILES_BINDING,
       visibility: GPUShaderStage.FRAGMENT,
@@ -193,12 +186,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: 'rgba16float',
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
-  // A view of zeros: no surroundings, what a resolve bound before its reflection reads.
-  const reflectionView = device.createBuffer({
-    label: 'Trillion3D empty reflection view',
-    size: REFLECTION_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM,
-  })
   return {
     ...vsm.views,
     tiles,
@@ -208,13 +195,11 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     proxy,
     receiver: receiver.resources,
     reflection: reflection.createView(),
-    reflectionView,
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
     emptyNormals: receiver.normals,
     dispose() {
       receiver.dispose()
       reflection.destroy()
-      reflectionView.destroy()
       vsm.destroy()
       tiles.destroy()
       transmittance.destroy()

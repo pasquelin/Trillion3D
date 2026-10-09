@@ -95,7 +95,8 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  * it does not reach it: eight probes, three weights — the cell's trilinear, the back of the
  * surface (a probe behind it knows nothing of it) and measured visibility, which closes leaks
  * through walls; a probe that does not carry the requested cell, was never updated, or is buried
- * in a surface, weighs nothing.
+ * in a surface, weighs nothing. `${name}Gathered` is the finest level's answer with the weight it
+ * gathered, in `w` and at most one, zero when none answers; `name` is its mean.
  */
 export const probeFieldWgsl = (name: string, level: string, params: string, value: string) => {
   const args = params.replace(/:[^,]+/g, '')
@@ -140,15 +141,16 @@ export const probeFieldWgsl = (name: string, level: string, params: string, valu
  }
  return vec4f(sum,total);
 }
-fn ${name}(P:vec3f,N:vec3f${params})->vec3f{
- if(bounce.counts.w==0u){return vec3f(0.0);}
+fn ${name}Gathered(P:vec3f,N:vec3f${params})->vec4f{
+ if(bounce.counts.w==0u){return vec4f(0.0);}
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
   let gathered=${level}(level,P,N${args});
-  if(gathered.w>1e-5){return perspectiveDivide(gathered);}
+  if(gathered.w>1e-5){return vec4f(perspectiveDivide(gathered),gathered.w);}
  }
- return vec3f(0.0);
-}`,
+ return vec4f(0.0);
+}
+fn ${name}(P:vec3f,N:vec3f${params})->vec3f{return ${name}Gathered(P,N${args}).xyz;}`,
   )
 }
 

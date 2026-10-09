@@ -36,10 +36,7 @@ import { RESIDENT_PROXY_BINDING } from '../../../packages/sdk-browser/src/bounce
 import { RECEIVER_BINDINGS } from '../../../packages/sdk-browser/src/visibility/shader/receiverOffsetWgsl.ts'
 import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts'
 import { PHYSICAL_LOBES_BINDING } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
-import {
-  REFLECTION_TARGET_BINDING,
-  REFLECTION_VIEW_BINDING,
-} from '../../../packages/sdk-browser/src/reflections/weight.ts'
+import { REFLECTION_TARGET_BINDING } from '../../../packages/sdk-browser/src/reflections/weight.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -51,7 +48,6 @@ const UNREAD = new Set([
   SUBSURFACE_BINDING,
   PHYSICAL_LOBES_BINDING,
   REFLECTION_TARGET_BINDING,
-  REFLECTION_VIEW_BINDING,
 ])
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —

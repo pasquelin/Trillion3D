@@ -188,9 +188,9 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.probes = bounce?.probes
   // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
   contractResources.receiver = active ? receiverResources(rt) : undefined
-  // The radiance the opaque trace wrote this image, and the view it was traced with
-  // (`../../../reflections/frame.ts`).
+  // The share of the radiance the opaque trace wrote this image (`../../../reflections/frame.ts`),
+  // and the resident proxy it and the forward passes trace.
   contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined
-  contractResources.reflectionView = active ? rt.gpu.reflection?.uniform : undefined
+  contractResources.proxy = bounce?.proxy.buffer
   return contractResources
 }

@@ -9,7 +9,7 @@ import { REFLECTION_ENVIRONMENT_WGSL } from './field.ts'
 import { BEGIN_SHADER } from './trace.ts'
 import { TONE_MAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
-import { linearToSrgb, srgbToLinear } from '../../../math/src/color/color.ts'
+import { linearToSrgb } from '../../../math/src/color/color.ts'
 
 type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[] }
 const environmentRun = (environment: number[][], surroundings: number[]) =>
@@ -102,14 +102,16 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
 })
 
 test('a scene with no light around it is surrounded by its background, as the display shows it', () => {
+  // The lighting's view: the background 0x171d28 as the display shows it, the curve and an exposure
+  // of 2; the reflection's own, whose surroundings the begin writes.
   const view = {
-    counts: [0, TONE_MAPPING_RANK.aces, 0, 0],
-    // The background 0x171d28 displayed, in linear, and an exposure of 2.
-    display: [...[0x17, 0x1d, 0x28].map((b) => srgbToLinear(b / 255)), 2],
-    surroundings: [9, 9, 9, 9],
+    background: [...[0x17, 0x1d, 0x28].map((b) => b / 255), 1],
+    display: [TONE_MAPPING_RANK.aces, 0, 0, 0],
+    lightParams: [0, 0, 0, 2],
   }
+  const reflectionView = { surroundings: [9, 9, 9, 9] }
   const environment = Array.from({ length: 9 }, () => [0, 0, 0, 0])
-  const tiles = { count: 7, rows: 0, layers: 0 }
+  const work = [7, 0, 0, 0]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
     BEGIN_SHADER + wgslModule(TONE_MAPPING_WGSL),
     [
@@ -120,12 +122,13 @@ test('a scene with no light around it is surrounded by its background, as the di
       'agxInverse',
       'neutralInverse',
       'aces',
+      'srgbToLinear',
     ],
-    { directLights: { environment }, view, traceArgs: tiles },
+    { directLights: { environment }, view, reflectionView, work },
   )
   run.reflectionBegin()
   // A mirror (its weight one) shows it through the exposure and the curve: the background's bytes.
-  const shown = run.aces(view.surroundings.slice(0, 3).map((c) => c * 2))
+  const shown = run.aces(reflectionView.surroundings.slice(0, 3).map((c) => c * 2))
   assert.deepEqual(
     shown.map((c) => Math.round(linearToSrgb(c) * 255)),
     [0x17, 0x1d, 0x28],
@@ -133,7 +136,7 @@ test('a scene with no light around it is surrounded by its background, as the di
   // A scene that declares light around it — one coefficient — answers alone.
   environment[3] = [0, 0.1, 0, 0]
   run.reflectionBegin()
-  assert.deepEqual(view.surroundings, [0, 0, 0, 0])
-  // The tile list starts empty: its indirect arguments, the count then 1 and 1.
-  assert.deepEqual(tiles, { count: 0, rows: 1, layers: 1 })
+  assert.deepEqual(reflectionView.surroundings, [0, 0, 0, 0])
+  // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
+  assert.deepEqual(work, [0, 1, 1, 0])
 })

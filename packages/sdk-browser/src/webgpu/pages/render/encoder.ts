@@ -1,4 +1,5 @@
 import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
+import { reflectionsSubmitted } from '../../../reflections/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { viewProj } from '../helpers.ts'
 import { enginePose } from '../../../camera/world.ts'
@@ -73,6 +74,7 @@ export function submitColorCopy(
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   vsmSubmitted(rt)
+  reflectionsSubmitted(rt)
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw.
   rt.layout.rows.rowsChanged = false

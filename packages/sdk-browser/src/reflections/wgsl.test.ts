@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { withoutComments } from '../../../math/src/wgsl/comments.fixture.ts'
 import { REFLECTION_EDGE } from './constants.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
@@ -75,9 +76,15 @@ test('the screen gives way to the environment over the last level below the pyra
 })
 
 test('nothing a reflection reads turns with the frame: no seed, no frame rank, no history', () => {
-  // The code, not the declarations: the bounce grid it shares with the diffuse declares the probe
-  // update's frame counters, which nothing here reads.
-  const text = wgslModule(reflectedRadianceWgsl(1)).replace(/struct \w+\{[^}]*\}/g, '')
-  for (const name of ['jitter', 'frame', 'seed', 'noise', 'history', 'random', 'hash'])
+  // The code, not the declarations nor the comments: the bounce grid it shares with the diffuse
+  // declares the probe update's frame counters, which nothing here reads.
+  const text = withoutComments(wgslModule(reflectedRadianceWgsl(1))).replace(
+    /struct \w+\{[^}]*\}/g,
+    '',
+  )
+  for (const name of ['jitter', 'seed', 'noise', 'history', 'random', 'hash'])
     assert.doesNotMatch(text, new RegExp(`\\b${name}\\b`, 'i'), name)
+  // The frame's rank is a member of the cascades' grid (`bounce.frame`) and of nothing else; the
+  // proxy's tree names a box its `frame`, a parameter.
+  assert.doesNotMatch(text, /\.frame\b/, 'the rank of the frame')
 })

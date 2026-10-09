@@ -78,7 +78,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  // The pixel's cell of the light grid, read once: its shadow flag, then its list.
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
  if(shadowed){shadowSetup(coord,pixel,z,P);}
- let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
+ let V=viewToEye(P);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);
  if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord).rgb;}
@@ -87,7 +87,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
- var rgb=lit+ambient+resolvedReflection(coord,base.rgb,base.a,normal.a,N,V,P)+emissive.rgb${sum};${CAMERA_FOG}
+ var rgb=lit+ambient+resolvedReflection(coord)+emissive.rgb${sum};${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

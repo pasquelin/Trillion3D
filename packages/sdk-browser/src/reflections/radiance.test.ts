@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
+import { radianceGroups } from './radiance.ts'
 
 const sum = (img: Image) => img.texels.reduce((s, t) => s.map((v, c) => v + t[c]), [0, 0, 0, 0])
 const close = (a: number[], b: number[], tolerance: number) =>
@@ -61,4 +62,33 @@ test('a level keeps the energy of the one before it, through a separable symmetr
   assert.equal(at(4, 3), 3)
   assert.equal(at(3, 3), 1)
   assert.equal(sum(blob)[0], 16)
+})
+
+test('the dispatch makes every texel of levels 0 to 2 of an image of any width, odd or not', () => {
+  // The widths either side of a multiple of 4 and of 32, where a level cut down by a floor leaves
+  // the last pixel or the last texel unmade.
+  for (const width of [1025, 1026, 1027, 33, 34, 35]) {
+    const height = 41
+    const source = image(width, height, (x, y) => [x * 0.01, y * 0.01, 1, 1])
+    const { copy, coarser, coarsest } = radianceKernels([width, height, 0, 0]).first(
+      source,
+      radianceGroups([width, height], 2, [width, height]),
+    )
+    for (const [level, img] of [copy, coarser, coarsest].entries()) {
+      const missing = img.texels.findIndex((texel) => !(texel[3] > 0))
+      assert.equal(missing, -1, `width ${width}, level ${level}: texel ${missing} unmade`)
+    }
+  }
+})
+
+test('the image hash changes with any texel, and with where it lies, and no order of the threads changes it', () => {
+  const source = (x0: number, y0: number, v: number) =>
+    image(40, 36, (x, y) => (x === x0 && y === y0 ? [v, 0, 0, 1] : [0.25, 0.5, 0.75, 1]))
+  const k = radianceKernels([40, 36, 0, 0])
+  const base = k.first(source(3, 4, 1)).hash
+  assert.deepEqual(k.first(source(3, 4, 1)).hash, base, 'the same image, the same hash')
+  assert.notDeepEqual(k.first(source(3, 4, 1.0000001)).hash, base, 'a texel')
+  assert.notDeepEqual(k.first(source(4, 3, 1)).hash, base, 'where it lies')
+  // Another workgroup order (two rows of groups, taken in turn) sums to the same two words.
+  assert.deepEqual(radianceKernels([40, 36, 0, 0]).first(source(3, 4, 1), [2, 2]).hash, base)
 })

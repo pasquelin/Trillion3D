@@ -14,6 +14,9 @@ import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflect
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
+import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
+import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
+import { TONE_MAPPING_RANK } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createSceneLightContractBuffer } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
@@ -37,6 +40,7 @@ export function run() {
     const texture = (format: GPUTextureFormat, usage: number) =>
       device.createTexture({ size: [size, size], format, usage })
     const sampled = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+    const base = texture('rgba16float', sampled)
     const flags = texture('r8uint', sampled)
     const normals = texture('rgba16float', sampled)
     const hdr = texture('rgba16float', sampled)
@@ -54,6 +58,8 @@ export function run() {
         size,
         size,
       ])
+    // A polished metal floor: white, metalness one, so that the share is the lobe's own weight.
+    write(base, halves(new Float32Array(size * size * 4).fill(1)), 8)
     write(flags, scene.flags, 1)
     write(normals, halves(scene.normals), 8)
     write(hdr, halves(scene.radiance), 8)
@@ -62,6 +68,22 @@ export function run() {
     const reflection = createScreenReflection(device, size, size)
     const inverse = new Float64Array(16)
     invertMatrix4(inverse, scene.viewProjection)
+    // The lighting's view of the image: the eye at the origin, a black background, an exposure of
+    // one, no display curve: a mirror ray that meets nothing reflects zero.
+    const lightView = createDeferredView(device)
+    const direct = [0, 0, 0, 1, TONE_MAPPING_RANK.none, 0, 0, 0]
+    lightView.write(inverse, [0, 0, 0, 1], size, size, 0x000000, false, direct, 0)
+    // No proxy, no surface cache: a header of zeros, which reads as a tree with no node.
+    const proxy = device.createBuffer({
+      size: PROXY_HEADER_BYTES + 16,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    const surface = device.createTexture({
+      size: [1, 1],
+      format: 'rgba16float',
+      usage: GPUTextureUsage.TEXTURE_BINDING,
+    })
+    const over = { lightView: lightView.buffer, surface: surface.createView() }
     // No pixel carries the physical lobes: their target is a texel the trace never reads.
     const lobes = device.createTexture({
       size: [1, 1],
@@ -75,23 +97,25 @@ export function run() {
     })
     const probes = emptyAtlas(device, 'mirror proof probes', PROBE_TEXELS)
     const views = {
+      base: base.createView(),
       flags: flags.createView(),
       normals: normals.createView(),
       lobes: lobes.createView(),
     }
-    const field = { bounceGrid, probes: probes.createView({ dimension: '2d-array' }) }
+    const field = {
+      bounceGrid,
+      probes: probes.createView({ dimension: '2d-array' }),
+      proxy,
+      lightView: lightView.buffer,
+    }
     const image = (radiance: boolean) => {
       reflection.writeView(
         {
           viewProjection: scene.viewProjection,
-          inverseViewProjection: inverse,
-          camera: [0, 0, 0, 1],
           size: [size, size],
           depthDrawn: true,
-          // A black background: a mirror ray that meets nothing reflects zero.
-          background: [0, 0, 0],
-          exposure: 1,
-          curve: 0,
+          proxyCell: 0,
+          proxyError: 0,
         },
         reflection.radiance.held,
         reflection.radiance.levels,
@@ -102,7 +126,7 @@ export function run() {
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
       const inputs = { ...views, ...field, lights }
-      const group = reflectionGroup(reflection, depth)
+      const group = reflectionGroup(reflection, depth, over)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, [size, size])
       pass.end()
       if (radiance) {
@@ -112,7 +136,7 @@ export function run() {
           device,
           reflection.radiance,
           pipelines,
-          { hdr: hdr.createView(), uniform: reflection.uniform },
+          { hdr: hdr.createView(), view: lightView.buffer, hash: reflection.settle.hash },
           [size, size],
           scene.viewProjection,
         )
@@ -134,7 +158,9 @@ export function run() {
     bounceGrid.destroy()
     probes.destroy()
     hiz.dispose()
+    lightView.dispose()
+    proxy.destroy()
     for (const made of partition) made.destroy()
-    for (const made of [flags, normals, hdr, lobes]) made.destroy()
+    for (const made of [base, flags, normals, hdr, lobes, surface]) made.destroy()
   })
 }

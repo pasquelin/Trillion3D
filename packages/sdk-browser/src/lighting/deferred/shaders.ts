@@ -98,7 +98,7 @@ export const contractLightingProgram = (
       STANDARD_LIGHTING_WGSL,
       directLightingWgsl(key),
       bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL,
-      resolvedReflectionWgsl(!key.lobeless, bounce),
+      resolvedReflectionWgsl,
       VIEW_WGSL,
       surfaceBindingsWgsl(),
       CONTRACT_BINDINGS_WGSL,
