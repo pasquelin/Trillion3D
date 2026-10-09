@@ -1,5 +1,5 @@
 import { MIB } from '../../../math/src/constants.ts'
-import { rangedReader } from '../cluster/ranged.ts'
+import { rangedReader, type WholeKeeper } from '../cluster/ranged.ts'
 import { createEvictionOrder } from './cacheEvictionOrder.ts'
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
 
@@ -8,8 +8,8 @@ import { createTextureLevelStore, textureLevelShare } from '../texture/levelStor
 export const DEFAULT_CACHED_BYTES = 256 * MIB
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
- *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its
- *  transfers — when the total shrinks. */
+ *  the bytes no eviction may take (`held`: the pages it keeps or reads, the files kept whole a read
+ *  waits on), and how it evicts — past them — when the total shrinks. */
 type Holder = { reserved(): number; held(): number; evict(): void }
 
 const checkBytes = (bytes: number) => {
@@ -17,24 +17,31 @@ const checkBytes = (bytes: number) => {
 }
 
 /**
- * The decoded-page cache: the bytes of every page and bundle read, least recently used first, and
- * the CPU total they count against (`cpuBytes`, `world.budget.cpu`). One cache, which its owner
- * keeps across sessions: a world hands the same one to every session it opens, so a session
- * reopened — on a device granted again after a loss, or on a scene that changed — reads what the
- * last one fetched from here, and fetches nothing it holds.
+ * The decoded-page cache: the bytes of every page and bundle read, and of every file a server
+ * answered whole in place of a range (`reader`), least recently used first, and the CPU total they
+ * count against (`cpuBytes`, `world.budget.cpu`). One cache, which its owner keeps across sessions:
+ * a world hands the same one to every session it opens, so a session reopened — on a device granted
+ * again after a loss, or on a scene that changed — reads what the last one fetched from here, and
+ * fetches nothing it holds.
  *
  * The total is shared by a fixed rule: the session reading through it reserves its manifest
  * tables, its transfer queue and the engine's tables (`manifestTableBytes`, `maxTransferBytes`, the
  * streamer's `reserve`), the scene's resident proxy its own (`keep`), the decoded texture levels
  * theirs (`levels`, at most `textureLevelShare` of the total, within what the pages the session
- * keeps and the proxy leave), and the pages hold the rest (`budgetBytes`). A total set lower
- * applies at once: pages leave by last use until they fit, save those the session pins.
+ * keeps and the proxy leave), and the pages and the files kept whole hold the rest (`budgetBytes`).
+ * A total set lower applies at once: they leave by last use until they fit, save those the session
+ * pins and the files a read waits on.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes)
   const pages = new Map<string, Uint8Array>()
-  /** The pages' eviction order past the reading session's holds (`cacheEvictionOrder.ts`). */
-  const order = createEvictionOrder((url) => pages.get(url)!.byteLength)
+  /** The files kept whole by their readers (`rangedReader`), by url: their bytes, and how their
+   *  reader lets them go. */
+  const files = new Map<string, { bytes: number; evict(): void }>()
+  /** The files a read waits on: held across sessions, the cache's own. */
+  const reading = new Set<string>()
+  /** The pages' and the files' one eviction order past their holds (`cacheEvictionOrder.ts`). */
+  const order = createEvictionOrder((url) => pages.get(url)?.byteLength ?? files.get(url)!.bytes)
   /** The fingerprint each page's bytes were verified against when read: they leave with them. */
   const fingerprints = new WeakMap<Uint8Array, string>()
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
@@ -47,33 +54,58 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     slot = undefined
   }
   /** The one reader of each file read by ranges (`rangedReader`), for every load and session that
-   *  reads through this cache: a server that ignores the Range answers a file whole once. */
+   *  reads through this cache: a server that ignores the Range answers a file whole once. A reader
+   *  stays till the cache is cleared — a few words, which know whether its server answers ranges. */
   const readers = new Map<string, ReturnType<typeof rangedReader>>()
-  /** The bytes of the files those readers keep whole; a reader that holds nothing and waits on
-   *  nothing — its download stopped with its last asker — is let go. */
-  const readerBytes = () => {
-    let held = 0
-    for (const [url, read] of readers)
-      if (read.idle()) readers.delete(url)
-      else held += read.held()
-    return held
-  }
   let bytes = 0,
     total = cpuBytes,
     holder: Holder | undefined
+  /** The page or the file kept whole at `url` leaves; a file's reader lets it go. */
   const drop = (url: string) => {
-    const held = pages.get(url)
-    if (!held) return
-    bytes -= held.byteLength
+    const page = pages.get(url),
+      file = page ? undefined : files.get(url)
+    if (!page && !file) return
+    bytes -= page?.byteLength ?? file!.bytes
     order.drop(url)
-    pages.delete(url)
+    if (page) return void pages.delete(url)
+    files.delete(url)
+    file!.evict()
   }
-  /** Pages leave by last use until they fit: through the session in place, which keeps its pins
-   *  and its transfers, or all of them evictable when none reads. */
+  /** Pages and files kept whole leave by last use until they fit: through the session in place,
+   *  which keeps its pins and its transfers, or all of them evictable when none reads — past the
+   *  files a read waits on. */
   const evict = () => {
     if (holder) holder.evict()
     else order.evict(() => bytes > cache.budgetBytes, drop)
   }
+  /** The session's holds leave with it; those of the reads waiting on a file stay. */
+  const handOver = () => {
+    order.releaseAll()
+    for (const url of reading) order.hold(url)
+  }
+  /** The keeper of the file at `url` its reader keeps whole, `evicted` letting it go: one entry
+   *  among the pages, in their order and their budget (`WholeKeeper`). */
+  const keeper = (url: string, evicted: () => void): WholeKeeper => ({
+    touch(size) {
+      const fresh = !files.has(url)
+      if (fresh) {
+        files.set(url, { bytes: size, evict: evicted })
+        bytes += size
+      }
+      order.touch(url)
+      if (fresh) evict()
+    },
+    hold() {
+      reading.add(url)
+      order.hold(url)
+    },
+    release() {
+      reading.delete(url)
+      order.release(url)
+      evict()
+    },
+    drop: () => void (files.has(url) && drop(url)),
+  })
   // With no session reading — between a lost device and its next session — every page is held
   // for the next one: a level landing then takes no page's place.
   const levels = createTextureLevelStore(textureLevelShare(cpuBytes), {
@@ -85,7 +117,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     order,
     /** The pages, by url, least recently used first. */
     pages: pages as ReadonlyMap<string, Uint8Array>,
-    /** Bytes the pages hold. */
+    /** Bytes the pages and the files kept whole hold. */
     get bytes() {
       return bytes
     },
@@ -97,16 +129,15 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     get reservedBytes() {
       return (holder?.reserved() ?? 0) + cache.besideBytes
     },
-    /** Bytes the texture levels may take beside the kept file and `held` bytes of pages the
-     *  session keeps or reads; negative when those do not fit. */
-    levelRoom: (held: number) =>
-      total - (holder?.reserved() ?? 0) - cache.keptBytes - readerBytes() - held,
-    /** Bytes held beside the pages: the kept file's, the files its readers keep whole and the
-     *  decoded texture levels'. */
+    /** Bytes the texture levels may take beside the kept file and the `held` bytes no eviction may
+     *  take; negative when those do not fit. */
+    levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - cache.keptBytes - held,
+    /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
     get besideBytes() {
-      return cache.keptBytes + readerBytes() + levels.bytes
+      return cache.keptBytes + levels.bytes
     },
-    /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
+    /** Bytes the pages and the files kept whole may hold: the total less what is reserved
+     *  (`reservedBytes`). */
     get budgetBytes() {
       return Math.max(0, total - cache.reservedBytes)
     },
@@ -181,24 +212,34 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** A session reads through the cache until the returned release; one at a time. */
     hold(next: Holder) {
       holder = next
-      order.releaseAll()
+      handOver()
       return () => {
         if (holder !== next) return
         holder = undefined
-        order.releaseAll()
+        handOver()
       }
     },
     /** Whether `session` is the one reading through the cache, whose holds `order` keeps. */
     holds: (session: Holder) => holder === session,
-    /** The one reader of the file at `url` by ranges, made on its first read. */
+    /** The one reader of the file at `url` by ranges, made on its first read: a file it keeps
+     *  whole is one entry of this cache (`keeper`). */
     reader(url: string) {
       let read = readers.get(url)
-      if (!read) readers.set(url, (read = rangedReader(url)))
+      if (!read) {
+        const own = rangedReader(
+          url,
+          undefined,
+          keeper(url, () => own.evict()),
+        )
+        readers.set(url, (read = own))
+      }
       return read
     },
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear()
+      for (const file of files.values()) file.evict()
+      files.clear()
       readers.clear()
       order.clear()
       release(true)

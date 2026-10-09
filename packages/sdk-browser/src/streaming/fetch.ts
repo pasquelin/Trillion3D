@@ -2,9 +2,9 @@
  * ONE REQUEST OF A TRANSFER: a page's file, or the ranges end to end of one file the queue merged
  * (`queueRanges.ts`), read by one HTTP Range through the one reader of that file the page cache
  * holds for every load and session (`PageCache.reader`: a server that ignores the Range answers the
- * whole file, kept and read no more, its bytes counted once, beside the pages). Each page is checked
- * against what it announced (`fetchAttempt.ts`), counted, and kept in the cache unless its askers
- * keep it (`StreamPage.kept`). One request, never retried here: what fails waits its turn
+ * whole file, kept as one entry of the cache among the pages, evicted as they are). Each page is
+ * checked against what it announced (`fetchAttempt.ts`), counted, and kept in the cache unless its
+ * askers keep it (`StreamPage.kept`). One request, never retried here: what fails waits its turn
  * (`failures.ts`), and that wait is the retry.
  */
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'

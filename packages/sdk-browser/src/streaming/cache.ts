@@ -19,9 +19,12 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
     if (pinned.has(url) || jobs.has(url)) store.order.hold(url)
     else store.order.release(url)
   }
-  /** Bytes of the pages no eviction may take: those the frame keeps and those in flight. */
+  /** Bytes no eviction may take: the pages the frame keeps and those in flight, the files kept
+   *  whole a read waits on. */
   const heldBytes = () => store.order.heldBytes
   const evictOne = (url: string) => {
+    // A file kept whole (`PageCache.reader`) leaves by the same order, but it is no page.
+    if (!cache.has(url)) return store.drop(url)
     store.drop(url)
     state.evictions++
     emit?.('page-cache-eviction', 'Page evicted from the LRU cache', () => ({

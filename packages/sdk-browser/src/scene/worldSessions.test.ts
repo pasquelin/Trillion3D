@@ -68,7 +68,7 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   await assert.rejects(loading, { name: 'AbortError' })
   release()
   await turns()
-  assert.equal(cache.besideBytes, 0, 'no binary kept, no reader held')
+  assert.deepEqual([cache.bytes, cache.besideBytes], [0, 0], 'no binary kept')
 })
 
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {

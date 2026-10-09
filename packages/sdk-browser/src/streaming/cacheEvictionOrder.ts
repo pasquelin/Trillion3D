@@ -4,8 +4,9 @@ import { createHeap } from '../../../math/src/sequence/heap.ts'
 type Stamp = { key: string; stamp: number; slot: number }
 
 /**
- * THE EVICTION ORDER of every host-memory cache — the page cache past the pages its reading session
- * holds (pinned by its frame or in transfer, `cache.ts`), the decoded texture levels
+ * THE EVICTION ORDER of every host-memory cache — the page cache, its pages and the files its
+ * readers keep whole, past the pages its reading session holds (pinned by its frame or in transfer,
+ * `cache.ts`) and the files a read waits on (`pageCache.ts`), the decoded texture levels
  * (`texture/levelStore.ts`) and the impostor atlases past those being made (`impostor/feed.ts`):
  * least recently touched first, never one held.
  *

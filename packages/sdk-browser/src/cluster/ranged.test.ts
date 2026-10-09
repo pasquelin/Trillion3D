@@ -1,6 +1,7 @@
 // A server that ignores the Range answers the whole file: its download is the reader's, shared by
-// every range waiting on it, and stops only once none does. A texture level file is read the same
-// way, through the page cache's one reader of it.
+// every range waiting on it, and stops only once none does. Landed, it is one entry of the page
+// cache among the pages, evicted as they are but never under a read. A texture level file is read
+// the same way, through the page cache's one reader of it.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { rangedReader } from './ranged.ts'
@@ -73,7 +74,8 @@ test('ranges asked at once before the server answered one send one request: neve
   land()
   const [low, high] = await Promise.all(again)
   assert.deepEqual([...new Uint8Array(low), ...new Uint8Array(high)], [1, 2, 3, 4, 5, 6, 7, 8])
-  assert.deepEqual([signals.length, read.held()], [2, 8], 'one request after the stopped one')
+  // Every byte of it copied out by the two ranges, the file is let go.
+  assert.deepEqual([signals.length, read.held()], [2, 0], 'one request after the stopped one')
 })
 
 test("a range waiting on another's first answer lets go at once when its own asker does", async (t) => {
@@ -94,7 +96,45 @@ test("a range waiting on another's first answer lets go at once when its own ask
   assert.equal((await first).byteLength, 4)
 })
 
-test('a texture level a server sends whole is sent once, kept by its reader, every tile record cut from it', async (t) => {
+test('a file kept whole is one entry among the pages, counted once: it leaves by last use, and is read again after', async (t) => {
+  const { signals, land } = wholeServer(
+    t,
+    Uint8Array.from({ length: 32 }, (_, i) => i),
+  )
+  land()
+  const cache = createPageCache(64)
+  const read = cache.reader('http://cache/world.bin')
+  assert.deepEqual([...new Uint8Array(await read(0, 4))], [0, 1, 2, 3])
+  assert.deepEqual([cache.bytes, cache.besideBytes, read.held()], [32, 0, 32], 'among the pages')
+  cache.touch('page.bin', new Uint8Array(48)) // used after the file
+  cache.resize(64)
+  assert.deepEqual([cache.bytes, read.held(), cache.pages.has('page.bin')], [48, 0, true])
+  assert.deepEqual([...new Uint8Array(await read(4, 4))], [4, 5, 6, 7])
+  assert.deepEqual(
+    [signals.length, cache.bytes, cache.pages.has('page.bin')],
+    [2, 32, false],
+    'asked again, the file is the most recent: the page leaves for it',
+  )
+})
+
+test('no eviction takes a file kept whole while a read waits on it: it leaves once that read is served', async (t) => {
+  const { land } = wholeServer(
+    t,
+    Uint8Array.from({ length: 32 }, (_, i) => i),
+  )
+  land()
+  const cache = createPageCache(64)
+  const read = cache.reader('http://cache/world.bin')
+  await read(0, 4)
+  const waiting = read(4, 4) // held from the moment it is asked
+  cache.hold({ reserved: () => 0, held: () => 0, evict() {} })() // a session come and gone
+  cache.resize(16)
+  assert.deepEqual([cache.bytes, read.held()], [32, 32], 'over the total, yet held')
+  assert.deepEqual([...new Uint8Array(await waiting)], [4, 5, 6, 7])
+  assert.deepEqual([cache.bytes, read.held()], [0, 0], 'served, it leaves')
+})
+
+test('a texture level a server sends whole is sent once, every tile record cut from it, then let go', async (t) => {
   const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
   const sent: (string | null)[] = []
   t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
@@ -115,6 +155,9 @@ test('a texture level a server sends whole is sent once, kept by its reader, eve
     const { offset, bytes } = tileRecord(256, 256, tx, ty)
     assert.deepEqual(levels.get(level, tx, ty), file.subarray(offset, offset + bytes))
   }
-  // The whole file is its reader's alone, counted once beside the pages; the store holds records.
-  assert.equal(cache.besideBytes - levels.bytes, file.byteLength)
+  // Every record copied out, the file is let go: its bytes are held once, by the records.
+  assert.deepEqual(
+    [cache.bytes, cache.besideBytes, levels.bytes],
+    [0, file.byteLength, file.byteLength],
+  )
 })

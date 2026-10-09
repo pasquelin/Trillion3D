@@ -62,8 +62,8 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * `../host/prepared/images.ts`): the bytes that reach the atlas by this path are those that reached
  * it by the other. A block level is read by one tile's record at a time, through the one reader
  * of its file `cache` holds for every session (`PageCache.reader`): a server that ignores the Range
- * answers the file whole once, kept there, counted beside the pages, and every record is cut from
- * it. `heldLevels.ts` checks each record's length. A read fails once, never asked again here: what
+ * answers the file whole, kept there among the pages, evicted as they are, and every record is cut
+ * from it. `heldLevels.ts` checks each record's length. A read fails once, never asked again here: what
  * fails waits its turn (`streaming/failures.ts`). A cache whose levels are of another version is
  * refused before any read (`assertCacheIdentity`).
  *

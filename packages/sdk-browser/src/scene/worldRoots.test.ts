@@ -90,14 +90,16 @@ test("a server that ignores the Range is read whole once by the cache's one read
   const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, true, {
     cache,
   }))!
+  // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole for bundle 2.
+  assert.deepEqual([cache.bytes, cache.besideBytes], [bin.byteLength, 0], 'counted once')
   for (const cell of [1, 2]) {
     const session = createPageStreamerWith([], 'http://world/', { cache })
     roots.bind(session)
     await roots.hold(cell)
-    assert.ok(session.stats().cpuBytes >= bin.byteLength, 'the kept binary, counted by the cache')
     session.dispose() // the device is lost: the next session reads on
   }
   assert.deepEqual(heldBy(roots), [1, 2, 3])
+  assert.equal(cache.bytes, 0, 'every bundle copied out of it: the binary is let go')
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
   assert.deepEqual(
     metered,

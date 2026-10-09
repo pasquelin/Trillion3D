@@ -6,27 +6,91 @@ import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runti
  *  and the signal that lets its asker go, the reader's own by default. */
 type Asked = { meter?: ByteMeter; attempts?: number; signal?: AbortSignal }
 
+/** Where a reader keeps the whole file a server answered in place of a range (`PageCache.reader`):
+ *  `touch`, `bytes` long, as each read cuts from it; `hold` while reads wait on it and `release`
+ *  once none does; `drop` once the reader lets it go. The keeper takes it back by the reader's
+ *  `evict`. */
+export type WholeKeeper = {
+  touch(bytes: number): void
+  hold(): void
+  release(): void
+  drop(): void
+}
+
+/** No keeper: the reader keeps its whole file till it lets it go itself, or is let go. */
+const unkept: WholeKeeper = { touch() {}, hold() {}, release() {}, drop() {} }
+
+/** The union of the spans `[start, end)`: each added, it returns the bytes they cover. One binary
+ *  search and one splice a span. */
+function createSpanUnion() {
+  /** `start, end` pairs, disjoint, apart and in order. */
+  const spans: number[] = []
+  let covered = 0
+  return (start: number, end: number) => {
+    // The first span that ends at or past `start`: it and those after it that start at or before
+    // `end` merge into the one added.
+    let low = 0,
+      high = spans.length >> 1
+    while (low < high) {
+      const mid = (low + high) >> 1
+      if (spans[2 * mid + 1] < start) low = mid + 1
+      else high = mid
+    }
+    let last = low,
+      from = start,
+      to = end
+    for (; last < spans.length >> 1 && spans[2 * last] <= end; last++) {
+      from = Math.min(from, spans[2 * last])
+      to = Math.max(to, spans[2 * last + 1])
+      covered -= spans[2 * last + 1] - spans[2 * last]
+    }
+    spans.splice(2 * low, 2 * (last - low), from, to)
+    return (covered += to - from)
+  }
+}
+
+/** The whole file a server answered: its download, the reader's, and the bytes cut from it. */
+type Whole = SharedRead<ArrayBuffer> & {
+  stop: AbortController
+  cut: ReturnType<typeof createSpanUnion>
+}
+
 /**
  * Reads byte ranges of the file at `url`, each by an HTTP Range (`checked`) as it is `asked`. A
  * server that ignores the Range answers the whole file: its download is the reader's, shared by
- * every range waiting on it and stopped once none does before it lands; landed, it is kept and
- * read no more, its length told by `held`. Until the server answered a range, one request is sent
- * at a time and the ranges asked meanwhile wait on its answer: the whole file is downloaded once.
+ * every range waiting on it and stopped once none does before it lands. Landed, it is one entry of
+ * its `keeper`'s cache among the pages, and as they are: touched by each read, held while one
+ * waits on it, evicted by last use (`evict`) and asked again by the next range. Each range is a
+ * copy its asker keeps, the file let go once every byte of it is copied out: a view would keep the
+ * whole file alive past its eviction, uncounted. Until the server answered a range, one request is
+ * sent at a time and the ranges asked meanwhile wait on its answer: the whole file is downloaded
+ * once.
  */
-export function rangedReader(url: string, signal?: AbortSignal) {
+export function rangedReader(url: string, signal?: AbortSignal, keeper = unkept) {
   /** Whether the server answered a range; the request whose answer will say, till it does; the
-   *  whole file it answered instead, on its way or landed; its length once landed. */
+   *  whole file it answered instead, on its way or landed; its length once landed; the reads that
+   *  wait on it. */
   let ranged = false,
     asking: Promise<unknown> | undefined,
-    whole: (SharedRead<ArrayBuffer> & { stop: AbortController }) | undefined,
+    whole: Whole | undefined,
+    held = 0,
+    reading = 0
+  /** Lets `own` go if it is still the whole file kept, its keeper told. */
+  const forget = (own: Whole) => {
+    if (whole !== own) return
+    whole = undefined
     held = 0
+    keeper.drop()
+  }
   /** The whole file `response` brings on `stop`, the reader's: forgotten once stopped or failed. */
   const keep = (response: Response, stop: AbortController) => {
-    const own = { promise: response.arrayBuffer(), askers: 0, stop }
-    const forget = () => void (whole === own && (whole = undefined))
-    stop.signal.addEventListener('abort', forget, { once: true })
+    const own = { promise: response.arrayBuffer(), askers: 0, stop, cut: createSpanUnion() }
+    stop.signal.addEventListener('abort', () => forget(own), { once: true })
     // Stopped before it landed, it is forgotten, and holds nothing.
-    own.promise.then((buffer) => void (whole === own && (held = buffer.byteLength)), forget)
+    own.promise.then(
+      (buffer) => void (whole === own && (held = buffer.byteLength)),
+      () => forget(own),
+    )
     whole = own
   }
   /** One request of `[offset, offset + length)`, on a signal of its own that its asker's stops
@@ -61,17 +125,37 @@ export function rangedReader(url: string, signal?: AbortSignal) {
         asking.catch(() => {}),
         asked.signal ?? signal,
       )
-    if (!whole) {
+    // The whole file kept, or asked: again if it left before this read could hold it.
+    let found = whole
+    while (!found) {
       const range = await request(offset, length, asked)
       if (range) return range
+      found = whole
     }
-    const own = whole!,
+    const own = found,
       mine = asked.signal ?? signal
-    // The last to leave stops the download: no one waits for it any more.
-    const bytes = await waitShared(own, mine, () => own.stop.abort(mine?.reason))
-    return bytes.slice(offset, offset + length)
+    // Held from before it waits, and counted by its keeper only once held: no eviction takes the
+    // file a read is about to cut from.
+    if (reading++ === 0) keeper.hold()
+    try {
+      // The last to leave stops the download: no one waits for it any more.
+      const bytes = await waitShared(own, mine, () => own.stop.abort(mine?.reason))
+      if (whole === own) keeper.touch(bytes.byteLength)
+      const end = Math.min(offset + length, bytes.byteLength)
+      const range = bytes.slice(offset, end)
+      if (own.cut(Math.min(offset, end), end) === bytes.byteLength) forget(own)
+      return range
+    } finally {
+      if (--reading === 0) keeper.release()
+    }
   }
-  /** The bytes the whole file holds once a server answered it whole, else zero; and whether it
-   *  holds nothing and waits on nothing — a reader its owner may let go. */
-  return Object.assign(read, { held: () => held, idle: () => !asking && !whole })
+  /** The bytes of the whole file it keeps once a server answered it whole, else zero; and its
+   *  keeper's eviction of it: the next range asks the server again. */
+  return Object.assign(read, {
+    held: () => held,
+    evict() {
+      whole = undefined
+      held = 0
+    },
+  })
 }
