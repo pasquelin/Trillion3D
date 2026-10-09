@@ -53,3 +53,16 @@ test('one pool slot an address, which every instance of it reads', () => {
   state.setAddressOffset(pageAddress(pages[7]), -1)
   assert.equal(state.offsetOf(64 + 7), -1, 'given back: every instance with it')
 })
+
+test('the blended instances are walked alone, never every packed page', () => {
+  const pages = Array.from(
+    { length: 64 },
+    (_, i) => ({ url: `p${i}`, transparent: i === 9 }) as PageRec,
+  )
+  const roots = Array.from({ length: 1000 }, () => ({ pages }))
+  const placement = postPackedBases(roots)
+  const visited: number[] = []
+  createPackedInstances(roots, placement).eachBlended((page) => visited.push(page))
+  assert.equal(visited.length, roots.length, 'one a placement, the blended page alone')
+  assert.ok(visited.every((page) => page % 64 === 9))
+})

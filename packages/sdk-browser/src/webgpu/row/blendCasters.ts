@@ -46,6 +46,7 @@ export function createBlendCasterRows(
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
     waiting: createSparseInts(),
     ...{ table: undefined, epoch: -1 },
+    pages: [],
   }
   seat(c)
   return {
@@ -59,7 +60,11 @@ export function createBlendCasterRows(
       c.table = rows.pageTableFloats
       c.epoch = rows.tableEpoch
       if (!c.free.length) return
-      for (let page = 0; page < packedPages.length; page++) follow(c, page, restale)
+      // The blended instances alone, in packed order: no walk over every page.
+      c.pages.length = 0
+      rows.instances.eachBlended((page) => c.pages.push(page))
+      c.pages.sort((a, b) => a - b)
+      for (const page of c.pages) follow(c, page, restale)
     },
     /** Caster rows in use: what a list of casters can hold beyond the visibility rows. */
     get used() {
@@ -87,6 +92,8 @@ type Casters = {
   waiting: ReturnType<typeof createSparseInts>
   table: Float32Array | undefined
   epoch: number
+  /** The blended instances a refresh follows, kept from one to the next. */
+  pages: number[]
 }
 
 /** The rows `[blendFirst, casterSlots)` of the table as it stands, all free; a caster that held
