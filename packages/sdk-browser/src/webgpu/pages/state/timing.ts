@@ -2,8 +2,12 @@ import type { GpuPassTimings } from '../../../../../sdk-core/src/index.ts'
 import type { createGpuTiming } from '../../../gpu/timing/timing.ts'
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts'
 import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../render/cpuStepTable.ts'
-import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts'
-import { WEBGPU_STAGES } from '../../../stage/passDeclaration.ts'
+import {
+  createStageProfiler,
+  type CpuStepWindow,
+  type StageProfiler,
+} from '../../../stage/profiler.ts'
+import type { WEBGPU_STAGES } from '../../../stage/passDeclaration.ts'
 import { WEBGPU_ENGINE_ID } from '../../../engine/factory.ts'
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
@@ -40,9 +44,13 @@ export interface WebgpuTimingState {
   logFrame: ((cpuMs: number, rafMs: number | null) => void) | undefined
   /** Duration of the image's only `queue.submit`: encode does not carry it. */
   lastQueueSubmitMs: number
-  /** The image's CPU bounds, their two windows, and the per-stage profile published by
-   *  `stageProfile()` when the host has asked for it (`staged`). */
+  /** The image's CPU bounds, and the per-stage profile published by `stageProfile()` when the host
+   *  has asked for it (`profiler.stages`). */
   profiler: StageProfiler
+  /** The bounds' window the engine's CPU diagnostic reads on its cadence. */
+  publishedSteps: CpuStepWindow
+  /** The bounds' window the host opens again (`resetStageProfile`) and reads (`cpuSteps`). */
+  hostSteps: CpuStepWindow
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
   /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
    *  matrix, and two compute dispatches. Never a row. */
@@ -95,16 +103,16 @@ export interface WebgpuTimingState {
   frameSelection: SelectionSubmission | undefined
 }
 
-/** Profile of the WebGPU engine; its per-stage profile is mounted only when the host has asked
- *  for it (`staged`). */
-function createWebgpuProfiler(staged: boolean): StageProfiler {
+/** Profile of the WebGPU engine; its per-stage profile is mounted on `stages` only when the host
+ *  has asked for it. */
+function createWebgpuProfiler(stages: typeof WEBGPU_STAGES | undefined): StageProfiler {
   const profiler = createStageProfiler({
     backend: WEBGPU_ENGINE_ID,
     steps: { names: CPU_STEP_NAMES, stages: CPU_STEP_STAGES },
-    stages: staged ? WEBGPU_STAGES : undefined,
+    stages,
     gpuMethod: 'timestamp-query',
   })
-  profiler.setReason('coplanar', {
+  profiler.stages?.setReason('coplanar', {
     cpu: 'decided by the cut, with no bound of their own',
     gpu: 'drawn in the geometry passes, with no pass of their own',
   })
@@ -112,9 +120,10 @@ function createWebgpuProfiler(staged: boolean): StageProfiler {
 }
 
 export function createWebgpuTimingState(
-  staged = false,
+  stages?: typeof WEBGPU_STAGES,
   roots: () => number = () => 0,
 ): WebgpuTimingState {
+  const profiler = createWebgpuProfiler(stages)
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
@@ -124,7 +133,9 @@ export function createWebgpuTimingState(
     lastSubmitMs: null,
     logFrame: undefined,
     lastQueueSubmitMs: 0,
-    profiler: createWebgpuProfiler(staged),
+    profiler,
+    publishedSteps: profiler.openWindow(),
+    hostSteps: profiler.openWindow(),
     lastPartitionMs: 0,
     partitionCounts: {
       rows: 0,

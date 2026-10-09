@@ -1,6 +1,6 @@
 import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import type { StageAdd } from './profiler.ts'
-import type { GpuPassBlock, WebgpuStage } from './passDeclaration.ts'
+import { WEBGPU_STAGES, type GpuPassBlock, type WebgpuStage } from './passDeclaration.ts'
 import { passRowOf } from './passTable.ts'
 
 /** Stage of a pass, by its label: its row's (`passRowOf`). A label no declaration names joins no
@@ -28,7 +28,7 @@ export const passOwnMs = (pass: GpuPassTiming) =>
  * partial sum would pass for a measurement. A truncated or missing sample yields no group, for the
  * same reason.
  */
-export function gpuTotalsBy<Group extends string>(
+export function gpuTotalsBy<Group extends string | number>(
   sample: GpuPassTimings | null | undefined,
   classify: (name: string) => Group | undefined,
 ) {
@@ -45,13 +45,20 @@ export function gpuTotalsBy<Group extends string>(
   return totals
 }
 
-/** GPU duration of each profile stage. */
+/** GPU duration of each profile stage, by its index in `WEBGPU_STAGES`. */
 const gpuStageTotals = (sample: GpuPassTimings | null | undefined) =>
-  gpuTotalsBy(sample, gpuPassStageOf)
+  gpuTotalsBy(sample, (name) => passRowOf(name)?.at)
 
-/** Split a sample onto profile stages: what is not measured is not deposited. */
+/** The stages the engine's own readers take from a sample, by index. */
+const BOUNCE = WEBGPU_STAGES.indexOf('bounce'),
+  LIGHT_LISTS = WEBGPU_STAGES.indexOf('lightLists'),
+  SHADOWS = WEBGPU_STAGES.indexOf('shadows'),
+  LIGHTING = WEBGPU_STAGES.indexOf('lighting')
+
+/** Split a sample onto the stages of `WEBGPU_STAGES`, by index: what is not measured is not
+ *  deposited. */
 export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
-  for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms)
+  for (const [at, ms] of gpuStageTotals(sample)) if (ms !== null) add(at, ms)
 }
 
 /**
@@ -60,15 +67,15 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
  * timestamps yield `null`, and the servo does not move rather than follow a zero.
  */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
-  return gpuStageTotals(sample).get('bounce') ?? null
+  return gpuStageTotals(sample).get(BOUNCE) ?? null
 }
 
 /** The direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
   const totals = gpuStageTotals(sample)
   return {
-    gpuLightListsMs: totals.get('lightLists') ?? null,
-    gpuShadowsMs: totals.get('shadows') ?? null,
-    gpuLightingMs: totals.get('lighting') ?? null,
+    gpuLightListsMs: totals.get(LIGHT_LISTS) ?? null,
+    gpuShadowsMs: totals.get(SHADOWS) ?? null,
+    gpuLightingMs: totals.get(LIGHTING) ?? null,
   }
 }

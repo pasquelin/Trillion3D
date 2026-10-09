@@ -52,7 +52,7 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   hostCpuStep(rt, 'pendingMs', 1.25)
   endCpuFrame(rt)
   assert.equal(
-    timing.profiler.steps('published'),
+    timing.publishedSteps.read(),
     null,
     'an image that has not filled its row files none',
   )
@@ -62,7 +62,7 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   timing.rowFilled = true
   endCpuFrame(rt)
   endCpuFrame(rt)
-  const resume = timing.profiler.steps('published')
+  const resume = timing.publishedSteps.read()
   assert.equal(resume?.frames, 1, 'the row is filed once, not twice')
   assert.equal(resume?.steps.pendingMs.p50, 1.25, 'the host bound is in the image')
   assert.equal(resume?.steps.worldMs.p50, 0.5)
@@ -78,13 +78,9 @@ test('the host window keeps every filed row until it is read, whatever the publi
     timing.rowFilled = true
     endCpuFrame(rt)
   }
-  assert.equal(
-    timing.profiler.steps('published')?.frames,
-    2,
-    'the publish window reads and forgets',
-  )
-  assert.equal(timing.profiler.steps('host')?.frames, 2, 'the host window still holds both images')
-  assert.equal(timing.profiler.steps('host'), null, 'read once, then forgotten')
+  assert.equal(timing.publishedSteps.read()?.frames, 2, 'the publish window reads and forgets')
+  assert.equal(timing.hostSteps.read()?.frames, 2, 'the host window still holds both images')
+  assert.equal(timing.hostSteps.read(), null, 'read once, then forgotten')
 })
 
 test('outside debug mode, no one profiles: a filled image files no row and its next row is free', () => {
@@ -93,6 +89,6 @@ test('outside debug mode, no one profiles: a filled image files no row and its n
   timing.rowFilled = true
   endCpuFrame(rt)
   assert.equal(timing.rowFilled, false, 'the image is closed')
-  assert.equal(timing.profiler.steps('published'), null)
-  assert.equal(timing.profiler.steps('host'), null)
+  assert.equal(timing.publishedSteps.read(), null)
+  assert.equal(timing.hostSteps.read(), null)
 })

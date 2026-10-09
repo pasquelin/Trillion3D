@@ -5,8 +5,10 @@
 // truncated or missing sample deposits nothing.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
-import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
 import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
+
+/** Deposits `ms` onto the stage named `stage`. */
+export type StageNameAdd = (stage: string, ms: number) => void
 
 // Stage of each label.
 const STAGE_OF: Record<string, string> = {
@@ -24,7 +26,7 @@ const STAGE_OF: Record<string, string> = {
 const stageOf = (name: string) =>
   STAGE_OF[name] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : undefined)
 
-export function referenceAddCpuSteps(row: ArrayLike<number>, add: StageAdd) {
+export function referenceAddCpuSteps(row: ArrayLike<number>, add: StageNameAdd) {
   for (let i = 0; i < CPU_STEP_STAGES.length; i++) {
     const stage = CPU_STEP_STAGES[i]
     if (stage) add(stage, row[i])
@@ -46,7 +48,7 @@ function totalsBy(
   return totals
 }
 
-export function referenceGpuStages(sample: GpuPassTimings | null | undefined, add: StageAdd) {
+export function referenceGpuStages(sample: GpuPassTimings | null | undefined, add: StageNameAdd) {
   for (const [stage, ms] of totalsBy(sample, stageOf)) if (ms !== null) add(stage, ms)
 }
 

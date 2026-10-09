@@ -11,7 +11,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // image it can (`../../../frame/scaleControl.ts`), its bounds read at each frame: a page may ask
   // `'auto'` after the session opened.
   const sampleEveryFrames = () =>
-    diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.profiler.staged ? 3 : 12
+    diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.profiler.stages ? 3 : 12
   const gpuLog = createGpuLog(gpuDevice)
   timing.logFrame = gpuLog.frame
   const gpuTiming = createGpuTiming(gpuDevice, {
@@ -42,9 +42,10 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       // The sample describes an image already past: it is filed by stage without ever blocking this one.
       // The image envelope is published separately: on a device that overlaps passes, the sum of stages
       // exceeds the image, and it is the envelope that tells the truth about its duration.
-      if (timing.profiler.staged) {
-        timing.profiler.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add))
-        if (sample.submittedMs !== null) timing.profiler.pushImageGpu(sample.submittedMs)
+      const { stages } = timing.profiler
+      if (stages) {
+        stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add))
+        if (sample.submittedMs !== null) stages.pushImageGpu(sample.submittedMs)
       }
       const phase = sample.error ? 'gpu-timing-unavailable' : 'gpu-timing',
         message = sample.error ? 'GPU timing unavailable' : 'GPU timings measured per pass'

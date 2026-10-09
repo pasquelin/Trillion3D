@@ -165,10 +165,11 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
 export function backendTiming(rt: WebgpuPagesRuntime) {
   return {
     resetStageProfile() {
-      rt.timing.profiler.reset()
+      rt.timing.hostSteps.reset()
+      rt.timing.profiler.stages?.reset()
     },
     cpuSteps() {
-      return rt.timing.profiler.steps('host')
+      return rt.timing.hostSteps.read()
     },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms)

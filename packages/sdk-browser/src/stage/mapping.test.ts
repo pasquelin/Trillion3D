@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
+import { WEBGPU_STAGES } from './passDeclaration.ts'
 import { DECLARED_PASSES } from './passTable.ts'
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
@@ -15,7 +16,7 @@ function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTim
 
 function collect(s: GpuPassTimings | null | undefined) {
   const deposits: Array<[string, number]> = []
-  addGpuPasses(s, (stage, ms) => deposits.push([stage, ms]))
+  addGpuPasses(s, (at, ms) => deposits.push([WEBGPU_STAGES[at], ms]))
   return deposits
 }
 

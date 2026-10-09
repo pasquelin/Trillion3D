@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings } from './mapping.ts'
+import { WEBGPU_STAGES } from './passDeclaration.ts'
 import { DEFERRED_LIGHTING_PASS } from './passLabels.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
 import { summarizeTimestamps } from '../gpu/timing/sample.ts'
@@ -32,7 +33,7 @@ test('overlapping spans count once: no stage, shadow stage or block total passes
   const shadows = vsmFrameMetrics(rt, s)
   assert.equal(shadows.shadowVsmTransmissionMs, 26, 'what the transmission adds past the cull')
   const stages: [string, number][] = []
-  addGpuPasses(s, (stage, total) => void stages.push([stage, total]))
+  addGpuPasses(s, (at, total) => void stages.push([WEBGPU_STAGES[at], total]))
   const blocks = gpuPassBlockTotals(s),
     sum = (values: (number | null)[]) => values.reduce<number>((a, b) => a + (b ?? 0), 0)
   for (const [stage, total] of [

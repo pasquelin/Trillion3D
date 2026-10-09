@@ -11,8 +11,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 /** Attaches the image's counters to the public per-stage profile, when it is mounted. */
 function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
-    stages = timing.profiler
-  if (!stages.staged) return
+    { stages } = timing.profiler
+  if (!stages) return
   const tiles = rt.vis.textures?.counters
   if (tiles)
     stages.setCounts('textures', {
@@ -85,7 +85,7 @@ function publishCpuProfile(rt: WebgpuPagesRuntime) {
   timing.lastCpuLogFrame = run.frame
   const details = {
     ...timing.cpuSample,
-    steps: timing.profiler.steps('published'),
+    steps: timing.publishedSteps.read(),
     audit: gpuFrameCostSnapshot(rt),
   }
   diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details)
@@ -109,7 +109,7 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   if (!timing.rowFilled) return
   timing.rowFilled = false
   const { profiler } = timing
-  if (!(profiler.staged || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
+  if (!(profiler.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
   profiler.record(run.frame, profiler.row[CPU_STEP.totalMs])
   recordStages(rt)
   publishCpuProfile(rt)

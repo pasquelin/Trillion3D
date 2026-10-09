@@ -23,6 +23,7 @@ import {
   referenceAddCpuSteps,
   referenceDirectLightTimings,
   referenceGpuStages,
+  type StageNameAdd,
 } from '../../oracles/browser/stage-profile.ts'
 
 const alea = xorshiftRandom(113)
@@ -33,13 +34,18 @@ const lignes = (images: number): Float64Array[] =>
   Array.from({ length: images }, () => Float64Array.from({ length: NB_BORNES }, () => alea() * 10))
 
 const depose =
-  <Row>(ventile: (row: Row, add: StageAdd) => void) =>
+  <Row>(ventile: (row: Row, add: StageNameAdd) => void) =>
   (rows: Row[]) => {
     const total = new Map<string, number>()
-    const add: StageAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms)
+    const add: StageNameAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms)
     for (const row of rows) ventile(row, add)
     return total
   }
+/** The engine's deposits, by stage index, read by the stage's name. */
+const byName =
+  <Row>(ventile: (row: Row, add: StageAdd) => void) =>
+  (row: Row, add: StageNameAdd) =>
+    ventile(row, (at, ms) => add(WEBGPU_STAGES[at], ms))
 
 /** Each stage's CPU spread once `rows` are filed by a profile whose window holds them all. */
 const fileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]> => {
@@ -121,7 +127,7 @@ const measureGpu = await measure({
     { name: 'truncated sample', input: truncatedSample, size: 1 },
     { name: 'no sample', input: sansEchantillon, size: 1 },
   ],
-  calculation: depose(addGpuPasses),
+  calculation: depose(byName(addGpuPasses)),
   expected: depose(referenceGpuStages),
 })
 
