@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import prettier from 'prettier'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
-import { ROOT } from './shared-rules/statements.ts'
+import { ROOT } from './shared-rules/source.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */

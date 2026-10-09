@@ -4,15 +4,9 @@
 import ts from 'typescript'
 import { waveRest } from '../../packages/sdk-core/src/fluids/waveRest.ts'
 import { TERM_SLOTS, WAVE_FIELDS, waveTerms } from '../../packages/sdk-core/src/fluids/waves.ts'
-import {
-  comment,
-  constantsOf,
-  functionOf,
-  header,
-  readConstants,
-  statements,
-  withInlined,
-} from './statements.ts'
+import { withInlined } from './inline.ts'
+import { constantsOf, functionOf, readConstants } from './source.ts'
+import { comment, header, statements } from './statements.ts'
 
 const WAVES = 'packages/sdk-core/src/fluids/waves.ts'
 const WAVE_REST = 'packages/sdk-core/src/fluids/waveRest.ts'

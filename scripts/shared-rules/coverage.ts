@@ -4,7 +4,8 @@
 import ts from 'typescript'
 import { PUBLIC, scaled } from '../../packages/sdk-browser/src/texture/coverageMath.ts'
 import { type Target, expression, snake, unsupported } from './printer.ts'
-import { comment, functionsOf, header, statements } from './statements.ts'
+import { functionsOf } from './source.ts'
+import { comment, header, statements } from './statements.ts'
 
 const COVERAGE_MATH = 'packages/sdk-browser/src/texture/coverageMath.ts'
 
