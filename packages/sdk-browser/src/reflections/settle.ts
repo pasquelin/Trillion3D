@@ -34,6 +34,8 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
   return {
     /** Copies the hash and the count of tiles into a free sample, for `image`. */
     copy(encoder: GPUCommandEncoder, hash: GPUBuffer, tiles: GPUBuffer, image: number) {
+      // A copy still waiting for its submission is an abandoned image's: its commands never ran.
+      for (const stale of ring) if (stale.state === 'copied') stale.state = 'free'
       const sample = ring.find((candidate) => candidate.state === 'free')
       if (!sample || disposed) return
       encoder.copyBufferToBuffer(hash, 0, sample.buffer, 0, RADIANCE_HASH_BYTES)
