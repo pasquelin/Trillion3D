@@ -32,6 +32,9 @@ export type DagRuntimeState = {
   growFlags?: FlagShape
   /** The device refused larger queues or lists: a cut that drops work now coarsens. */
   flagsFull: boolean
+  /** The slots of open counts the row cache's growth asked (`queueGrowth.ts`, `followRows`); 0:
+   *  none. */
+  growHeld: number
   /** What the factor the main view's threshold is cut under follows (`coarsening.ts`): 1 but
    *  past the list the device holds. */
   coarse: Coarsening
@@ -58,6 +61,7 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   listFull: false,
   growFlags: undefined,
   flagsFull: false,
+  growHeld: 0,
   coarse: createCoarsening(),
   factorMoved: false,
   regionsFull: false,

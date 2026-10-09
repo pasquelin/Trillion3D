@@ -18,6 +18,7 @@ import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
 import { keptRankRow } from './keptRanks.ts'
+import { HELD_BY_WORD } from './worlds.ts'
 import { viewWord } from './viewLayout.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
@@ -105,26 +106,27 @@ export const heldOpenAt = (resources: {
 })
 
 /** The host's table of open counts written whole into `resources`' readout (`heldOpen.ts`): at
- *  open, and into a readout made again. A table laid out for other slots is not this cut's: its
- *  residency upload makes its own (`residencyUpload.ts`). */
-function writeHeldOpen(resources: {
-  device: GPUDevice
-  output: GPUBuffer
-  listCap: number
-  heldSlots: number
-  swap: { regions: number }
-  packed: { heldOpen?: { slots: number; words: Uint32Array<ArrayBuffer> } }
-}) {
+ *  open, and into a readout made again — made again itself first when the readout holds more slots
+ *  (`queueGrowth.ts`), each placement whose count moved told in its frame words. A table laid out
+ *  for other slots is not this cut's: its residency upload makes its own (`residencyUpload.ts`). */
+function writeHeldOpen(resources: DagResources, grown: boolean) {
   const held = resources.packed.heldOpen
-  if (!held || !resources.heldSlots || held.slots !== resources.heldSlots) return
+  if (!held || !resources.heldSlots) return
+  if (grown && held.slots < resources.heldSlots) {
+    held.resize(resources.heldSlots)
+    for (const w of held.takePlacements())
+      resources.frames.writeWord(w, HELD_BY_WORD, held.heldBy(w))
+    resources.frames.flushWords()
+  }
+  if (held.slots !== resources.heldSlots) return
   const at = (heldOpenAt(resources).base + HEAD) * 4
   resources.device.queue.writeBuffer(resources.output, at, held.words)
 }
 
 /**
- * Gives the camera cut a list of `listCap` ranks and `regions` saved journals, between two frames
- * and with no readback in flight: a new readout and its slots, the bind groups that name it, and
- * the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
+ * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
+ * open counts, between two frames and with no readback in flight: a new readout and its slots, the
+ * bind groups that name it, and the old ones destroyed. Made under an out-of-memory scope, within one binding: a device that
  * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
  * coarsens its cut (`coarsening.ts`) — or the views aside cut without a region — rather than end on an
  * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
@@ -135,8 +137,9 @@ export async function growDagList(
   listCap: number,
   regions: number,
   disposed: () => boolean,
+  heldSlots = resources.heldSlots,
 ) {
-  const bytes = readoutRow(listCap, regions, resources.heldSlots).size
+  const bytes = readoutRow(listCap, regions, heldSlots).size
   if (bytes > storageBufferCap(resources.device.limits)) return false
   const made: GPUBuffer[] = []
   const make = (descriptor: GPUBufferDescriptor) => {
@@ -148,7 +151,7 @@ export async function growDagList(
   try {
     const { value, error } = await validationScope(
       resources.device,
-      () => createDagList(make, listCap, regions, resources.heldSlots),
+      () => createDagList(make, listCap, regions, heldSlots),
       'out-of-memory',
     )
     if (!error) list = value
@@ -161,7 +164,8 @@ export async function growDagList(
     return false
   }
   const old = [resources.output, ...resources.readback, ...resources.ranks],
-    from = { output: resources.output, listCap: resources.listCap }
+    from = { output: resources.output, listCap: resources.listCap },
+    grown = heldSlots > resources.heldSlots
   Object.assign(resources, list)
   resources.buffers.push(...made)
   resources.group.out = list.output
@@ -169,7 +173,7 @@ export async function growDagList(
   resources.rankGroups = rankGroups(resources)
   // The saved journals and the lists were the old readout's (`swap.ts`).
   newRegions(resources.swap, regions)
-  writeHeldOpen(resources)
+  writeHeldOpen(resources, grown)
   carryKeptSnapshot(resources, from)
   for (const buffer of old) {
     resources.buffers.splice(resources.buffers.indexOf(buffer), 1)

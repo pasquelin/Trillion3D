@@ -4,7 +4,7 @@ import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import type { FlagShape } from './flagSections.ts'
 import { JOURNAL_SECTION, LAST_USE_SECTION, flagSectionPlace } from './splitFlags.ts'
 import { createDagPipeline } from './pipeline.ts'
-import { growDagList, heldOpenAt, rankGroups } from './listCap.ts'
+import { cutHeldSlots, growDagList, heldOpenAt, rankGroups } from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
@@ -148,16 +148,19 @@ function carryFlags(
 }
 
 /** Grows `flags` to `state.growFlags`, the list to `state.grow`, and `out` to the regions the views
- *  aside ask, behind the readbacks in `state.pending`; no frame cuts until each is in place or
- *  refused, and the next one cuts and reads again — on the grown tables, or, refused, to coarsen
- *  the cut past them (`coarsening.ts`) and draw the views aside without a region. */
+ *  aside ask and the open counts the row cache holds (`state.growHeld`), behind the readbacks in
+ *  `state.pending`; no frame cuts until each is in place or refused, and the next one cuts and reads
+ *  again — on the grown tables, or, refused, to coarsen the cut past them (`coarsening.ts`), draw
+ *  the views aside without a region, and leave more open counts at their nodes' (`heldOpen.ts`). */
 function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
     flags = state.growFlags,
     cap = Math.max(state.grow, resources.listCap),
+    held = Math.max(state.growHeld, resources.heldSlots),
     regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
   state.grow = 0
   state.growFlags = undefined
+  state.growHeld = 0
   state.growing = true
   state.pending = state.pending
     .catch(() => {})
@@ -166,8 +169,9 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
         // Every view's cut in hand dropped work or stood on the old queues: each cuts again.
         if (flags && !(await growDagFlags(resources, flags, () => state.disposed)))
           state.flagsFull = true
-        if (cap === resources.listCap && regions === swap.regions) return
-        if (await growDagList(resources, cap, regions, () => state.disposed)) return
+        if (cap === resources.listCap && regions === swap.regions && held === resources.heldSlots)
+          return
+        if (await growDagList(resources, cap, regions, () => state.disposed, held)) return
         if (cap > resources.listCap) state.listFull = true
         if (regions > swap.regions) state.regionsFull = true
       } finally {
@@ -183,6 +187,7 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
 const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
   !!state.grow ||
   !!state.growFlags ||
+  state.growHeld > resources.heldSlots ||
   (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
 
 /** True when no cut may run on the tables now: disposed, lost, or tables to grow — which wait for
@@ -193,4 +198,17 @@ export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
   if (!growthAsked(resources, state)) return false
   if (!state.mapped.includes(true)) queueDagGrowth(resources, state)
   return true
+}
+
+/**
+ * The row cache now holds `rows` rows (`../../webgpu/pages/prepare/growTables.ts`): the open counts
+ * the cut's placements hold follow it, on its readout's growth path, before the next cut. The table
+ * is an accelerator — an entry it cannot place leaves its node's count — so it never refuses a row,
+ * and it grows only once the row cache did.
+ */
+export function followRows(resources: DagResources, state: DagRuntimeState, rows: number) {
+  if (!resources.heldSlots) return
+  const { device, packed } = resources,
+    slots = cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, rows)
+  if (slots > resources.heldSlots) state.growHeld = Math.max(state.growHeld, slots)
 }

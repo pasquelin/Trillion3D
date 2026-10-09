@@ -102,6 +102,8 @@ async function growTables(
   const lost = run.lost
   if (lost) granted.destroy()
   rows.grow(drawSlots, casterSlots - drawSlots)
+  // The open counts the cut's placements hold follow the rows (`../../../gpu/dag/queueGrowth.ts`).
+  run.gpuSelection?.followRows?.(casterSlots)
   Object.assign(layout, rowScratch(drawSlots, setup.pageBytes))
   if (!lost) {
     granted.commit()

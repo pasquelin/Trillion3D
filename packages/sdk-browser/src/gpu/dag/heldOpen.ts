@@ -15,7 +15,8 @@ import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
  * accelerator only: a node's shared count is the largest it can take, and a larger open count never
  * prunes a subtree a smaller one would keep (`shader/floorWgsl.ts`). So an entry the table cannot
  * place — past its probe bound or its load — is left out and the node reads its shared count:
- * more of the hierarchy is walked that frame, the cut is the same.
+ * more of the hierarchy is walked that frame, the cut is the same. The host keeps it, for the table
+ * the row cache's growth makes (`resize`): what the view holds, never the placements.
  *
  * Three words a slot, in the readout behind its regions (`layout.ts`, `heldOpenWord`): the
  * placement plus one (zero, an empty slot), the node, the count.
@@ -42,10 +43,11 @@ function heldHash(w: number, node: number, mask: number) {
 
 /** The host's table: the words the GPU reads, the entries each placement holds, and the slots and
  *  placements a change touched since they were last taken. */
-export function createHeldOpen(slots: number) {
-  const mask = slots - 1,
-    words = new Uint32Array(new ArrayBuffer(slots * HELD_SLOT_WORDS * 4)),
-    held = new Map<number, number>(),
+export function createHeldOpen(capacity: number) {
+  let slots = capacity,
+    mask = slots - 1,
+    words = new Uint32Array(new ArrayBuffer(slots * HELD_SLOT_WORDS * 4))
+  const held = new Map<number, number>(),
     touched = createSortedKeys(),
     placements = createSortedKeys()
   /** The slot holding (`w`, `node`), or the empty one ending its probe; -1 past the probe bound. */
@@ -81,11 +83,21 @@ export function createHeldOpen(slots: number) {
       }
     }
   }
+  /** The counts the table had no room for, by placement then node: what a grown table places. */
+  const spill = new Map<number, Map<number, number>>()
+  const unspill = (w: number, node: number) => {
+    const own = spill.get(w)
+    if (own?.delete(node) && !own.size) spill.delete(w)
+  }
   let entries = 0,
     dropped = 0
-  return {
-    slots,
-    words,
+  const table = {
+    get slots() {
+      return slots
+    },
+    get words() {
+      return words
+    },
     /** Placement `w`'s own count at `node`, `undefined` when it reads its node's. */
     get(w: number, node: number) {
       const s = find(w, node)
@@ -106,9 +118,17 @@ export function createHeldOpen(slots: number) {
         }
         return
       }
+      // A count set again supersedes the one the table had no room for.
+      unspill(w, node)
       if (value === undefined) return
-      // No room within the probe bound or the load: the node reads its own, larger, count.
-      if (s < 0 || 2 * (entries + 1) > slots) return void dropped++
+      // No room within the probe bound or the load: the node reads its own, larger, count; the
+      // host keeps it for a table grown later (`resize`).
+      if (s < 0 || 2 * (entries + 1) > slots) {
+        dropped++
+        const own = spill.get(w) ?? new Map<number, number>()
+        spill.set(w, own.set(node, value))
+        return
+      }
       words.set([w + 1, node, value], at)
       touched.listed.add(s)
       entries++
@@ -127,7 +147,28 @@ export function createHeldOpen(slots: number) {
     takeSlots: () => takeSorted(touched),
     /** The placements whose entry count moved since the last call, ascending. */
     takePlacements: () => takeSorted(placements),
+    /**
+     * The table made again over `capacity` slots, every entry it holds and every count it had no
+     * room for placed again: what the row cache's growth asks (`../queueGrowth.ts`). Its words are new, to be written whole; the
+     * placements whose count moved are listed, as by `set`.
+     */
+    resize(capacity: number) {
+      const old = words
+      slots = capacity
+      mask = slots - 1
+      words = new Uint32Array(new ArrayBuffer(slots * HELD_SLOT_WORDS * 4))
+      for (const w of held.keys()) placements.listed.add(w)
+      held.clear()
+      entries = 0
+      const left = [...spill].flatMap(([w, own]) => [...own].map(([node, v]) => [w, node, v]))
+      spill.clear()
+      for (let at = 0; at < old.length; at += HELD_SLOT_WORDS)
+        if (old[at]) table.set(old[at] - 1, old[at + 1], old[at + 2])
+      for (const [w, node, value] of left) table.set(w, node, value)
+      takeSorted(touched)
+    },
   }
+  return table
 }
 
 export type HeldOpen = ReturnType<typeof createHeldOpen>

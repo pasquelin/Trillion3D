@@ -2,6 +2,7 @@ import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
+import { followRows } from './queueGrowth.ts'
 import { createDifferenceChain } from './differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { coarsenTick } from './coarsening.ts'
@@ -115,6 +116,7 @@ function selectionOver(run: DagRun): GpuSelection {
       return state.coarse.factor
     },
     appendRoots: (roots) => appendRoots(run, roots),
+    followRows: (rows) => live() && followRows(resources, state, rows),
     // The root travels behind the stretch in the frame buffer (`resources.ts`).
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).

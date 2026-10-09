@@ -47,6 +47,8 @@ export interface SelectionCase {
   packed: PackedDag
   uniforms: SelectionUniforms
   resident?: ArrayLike<number>
+  /** Slots of the open counts its placements hold, every count fitting when none is given. */
+  heldSlots?: number
 }
 
 /** `camera` looking at the scene's origin from (`x`, 0, `z`), and `roots` packed for it: the kernel
@@ -68,8 +70,8 @@ export function posedSelection(
 /** The cut rule's two residency bit sets over a copy of the cold words, and the open counts each
  *  placement holds kept in `packed.heldOpen`, as the engine's host uploads them
  *  (`gpu/dag/residencyUpload.ts`). */
-function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
-  const readiness = createDagReadiness(packed, HELD_SLOTS)
+function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: number) {
+  const readiness = createDagReadiness(packed, slots)
   readiness.apply(resident)
   const { buffer, byteOffset, length } = packed.pageCones
   const cold = new Uint32Array(buffer, byteOffset, length).slice()
@@ -86,13 +88,14 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
 
 /** What the kernel binds for `selectionCase`, each buffer under its WGSL name, with the sizes the
  *  engine gives the ones it writes. */
-function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
+function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: SelectionCase) {
   // Before the frame words are read: readiness keeps the open counts each placement holds.
-  const cold = withResidency(packed, resident ?? new Uint8Array(packed.pageCount).fill(1))
+  const all = new Uint8Array(packed.pageCount).fill(1)
+  const cold = withResidency(packed, resident ?? all, heldSlots)
   const listCap = selectionListCap(packed.pageCount)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
   // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
-  const held = { listCap, heldSlots: HELD_SLOTS, swap: { regions: 0 } }
+  const held = { listCap, heldSlots, swap: { regions: 0 } }
   writeDagUniforms(views, packed, uniforms, listCap, undefined, undefined, heldOpenAt(held))
   const blockCount = ceilDiv(Math.max(1, packed.pageCount), SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount)
@@ -101,7 +104,7 @@ function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
     flagsWords: flagShapeWords(dagFlagShape(packed)),
     /** `out` with the staged requests behind the readout, for a list of `listCap` ranks, then the
      *  open counts the placements hold. */
-    outBytes: readoutRow(listCap, 0, HELD_SLOTS).size,
+    outBytes: readoutRow(listCap, 0, heldSlots).size,
     /** Where those counts lie in `out`, in bytes, and their words. */
     heldAt: heldOpenWord(listCap, 0) * 4,
     heldWords: packed.heldOpen!.words,

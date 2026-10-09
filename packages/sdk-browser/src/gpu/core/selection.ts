@@ -127,6 +127,9 @@ export type GpuSelection = {
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
    *  grown capacity, unless it waits for the growth to end. */
   appendRoots(roots: readonly DagRoot[]): boolean
+  /** The row cache now holds `rows` rows: the open counts placements hold follow it
+   *  (`../dag/queueGrowth.ts`), grown before the next cut. */
+  followRows?(rows: number): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */

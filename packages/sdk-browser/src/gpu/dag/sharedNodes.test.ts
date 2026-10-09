@@ -26,6 +26,9 @@ import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
+import { packed as fixturePacked } from './selectionHelpers.fixture.ts'
+import { dagFixture } from '../../page/selection/dag.fixture.ts'
+import { createDagReadiness } from './readiness.ts'
 
 const pages = scenePages(1024, 6)
 
@@ -85,7 +88,7 @@ function cut(
     const shift = (ids: readonly number[] | undefined) => (ids ?? []).map((id) => id + first)
     return { wanted: shift(result.pageIds), drawn: shift(result.drawablePageIds) }
   }
-  const parts = alone ? roots.map((root, w) => of([root], w * pages.length)) : [of(roots, 0)]
+  const parts = alone ? roots.map((root, w) => of([root], w * root.pages.length)) : [of(roots, 0)]
   const sorted = (key: 'wanted' | 'drawn') => parts.flatMap((p) => p[key]).sort((a, b) => a - b)
   return { wanted: sorted('wanted'), drawn: sorted('drawn'), of }
 }
@@ -121,6 +124,34 @@ test('the cut over shared nodes is each placement cut alone, page for page, resi
     }
   }
   assert.ok(drawn > 0, 'no page drawn: the proof covers nothing')
+})
+
+test('placements holding their own open counts cut as each alone, a table short of them as well', () => {
+  const [root] = fixturePacked(dagFixture()).roots
+  const roots = Array.from({ length: 9 }, (_, w) => ({
+    ...root,
+    world: new G.Matrix4().setPosition((w % 3) * 5 - 5, 0, -Math.floor(w / 3) * 5),
+  }))
+  const resident = new Uint8Array(roots.length * root.pages.length).fill(1)
+  // Every page resident: each placement holds counts of its own, the table's to keep.
+  const readiness = createDagReadiness(packDagSelection(roots), 1 << 10)
+  readiness.apply(resident)
+  assert.ok(readiness.heldOpen.entries >= roots.length, 'no count of its own: the proof is empty')
+  const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 400)
+  camera.position.set(0, 2, 10)
+  camera.lookAt(0, 0, -5)
+  camera.updateMatrixWorld()
+  const shared = cut(roots, camera, resident),
+    alone = cut(roots, camera, resident, true)
+  assert.deepEqual(shared.drawn, alone.drawn)
+  assert.deepEqual(shared.wanted, alone.wanted)
+  assert.ok(shared.drawn.length > 0, 'nothing drawn')
+  const tight = shared.of(roots, 0, 2)
+  assert.deepEqual(
+    tight.drawn.toSorted((a, b) => a - b),
+    shared.drawn,
+    'two slots: the same cut',
+  )
 })
 
 test('the cold table holds no word per page: residency bits, then what each record and key holds', () => {
