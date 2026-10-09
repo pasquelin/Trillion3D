@@ -5,6 +5,7 @@ import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionGeometryWgsl } from './geometry.ts'
 import { REFLECTION_MARCH_WGSL } from './march.ts'
+import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
 
 /**
@@ -38,15 +39,7 @@ import { reflectionProxyWgsl } from './proxy.ts'
  *   `reflectedRadiance`, the chain.
  */
 
-/** `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
- *  `toward` (clip), to which the screen can answer: where it meets the near plane, or where the
- *  lobe's footprint grows to the radiance pyramid's top level — the widest short axis, or the long
- *  axis's share of the taps, 2 · s · tan = 2^top pixels, a pixel `scale · w` wide at the clip `w`
- *  of the point, which grows along the ray at `toward.w` —, past which `reflectionLevelTrust` is
- *  zero. A mirror's reach is the near plane's, or `REFLECTION_FAR`.
- *  `reflectionRay`: the screen ray of a reflection — its origin, its direction to the far end of its
- *  reach, and how far along it the march goes, within `REFLECTION_STEP_CAP` pixels.
- *  `reflectionHitNormal`: the normal of the pixel plane the ray stopped in, turned to the eye.
+/** `reflectionHitNormal`: the normal of the pixel plane the ray stopped in, turned to the eye.
  *  `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)
  *  and its confidence: the fades of the image's border (in this image and in the one the radiance
@@ -60,35 +53,16 @@ const reflectionSeenWgsl = (group: number) =>
     [
       reflectionFootprintWgsl(group),
       reflectionGeometryWgsl(group),
+      reflectionRayWgsl(group),
       REFLECTION_MARCH_WGSL(group),
       clipToFramebuffer,
     ],
     `struct ReflectionSeen{color:vec3f,confidence:f32,}
-fn reflectionReach(A:vec4f,toward:vec4f,lobe:ReflectionLobe)->f32{
- let grow=toward.z-toward.w;
- let near=select(REFLECTION_FAR,(A.w-A.z)/grow,grow>0.0);
- let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let top=exp2(reflectionView.radiance.z)*reflectionView.slab.x;
- let room=2.0*tangent-top*toward.w;
- return min(near,select(REFLECTION_FAR,top*A.w/room,room>0.0));
-}
 fn reflectionHitNormal(hit:ReflectionHit)->vec3f{
  let x=vec2f(1.0,0.0);let y=vec2f(0.0,1.0);
  let centre=worldAt(hit.pixel,hit.plane.x);
  let n=normalize(cross(worldAt(hit.pixel+x,hit.plane.x+hit.plane.y)-centre,worldAt(hit.pixel+y,hit.plane.x+hit.plane.z)-centre));
  return select(-n,n,dot(n,viewToEye(centre))>0.0);
-}
-struct ReflectionRay{o:vec3f,d:vec3f,end:f32,}
-fn reflectionRay(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionRay{
- let size=view.viewport.xy;
- // One pixel off the surface along its normal: a ray never starts inside the depth it leaves.
- let origin=P+N*((reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x);
- let A=reflectionView.viewProj*vec4f(origin,1.0);
- let toward=reflectionView.viewProj*vec4f(lobe.R,0.0);
- let S0=clipToFramebuffer(A,size);
- let d=clipToFramebuffer(A+toward*reflectionReach(A,toward,lobe),size)-S0;
- let end=min(reflectionScreenEnd(S0.xy,d.xy,size),REFLECTION_STEP_CAP/max(abs(d.x)+abs(d.y),1e-6));
- return ReflectionRay(S0,d,end);
 }
 fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  var seen=ReflectionSeen(vec3f(0.0),0.0);

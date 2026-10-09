@@ -7,7 +7,7 @@
 import { trianglesProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
-import type { RigFrame } from './rig.ts'
+import type { RigFrame } from './rigFrame.ts'
 
 /** The room's inner extent: x, y and z from `low` to `high`. */
 const LOW: V3 = [-5, 0, -10],

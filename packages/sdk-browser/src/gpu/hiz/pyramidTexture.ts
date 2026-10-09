@@ -28,7 +28,7 @@ export const HIZ_ROW = 1 << HIZ_ROW_SHIFT
 export const HIZ_CULL_FARTHEST = 0
 export const HIZ_NEAREST = 1
 export const HIZ_WHOLE_FARTHEST = 2
-export const HIZ_LAYERS = 3
+const HIZ_LAYERS = 3
 
 /** The texture that holds `texels` packed texels a layer: whole rows of `HIZ_ROW`, or one shorter
  *  row when they fit in it. */

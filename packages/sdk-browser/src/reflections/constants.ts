@@ -17,7 +17,7 @@ export const REFLECTION_STEP_CAP = 256
 export const REFLECTION_THICKNESS = 4
 /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
  *  8-bit channel of a radiance of one. */
-export const REFLECTION_EPSILON = 2 ** -11
+const REFLECTION_EPSILON = 2 ** -11
 
 /**
  * The constants of the reflection's shaders. `REFLECTION_NUDGE` takes a ray past a cell boundary: four

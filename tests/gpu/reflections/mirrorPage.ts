@@ -10,21 +10,31 @@ import { openRig } from './rig.ts'
 /** What the proof reads: each image's reflection target, as its raw half-float words. */
 export type MirrorReading = { targets: number[][]; size: number }
 
+/** The rig over the mirror scene `scene` (`mirrorScene`): its floor a polished metal, white and of
+ *  metalness one, so that the share is the lobe's own weight; its pixels wear `lobes` if given. */
+export function openMirror(
+  device: GPUDevice,
+  scene = mirrorScene(),
+  lobes?: Uint32Array<ArrayBuffer>,
+) {
+  const { size } = MIRROR
+  return openRig(device, {
+    size: [size, size],
+    viewProjection: scene.viewProjection,
+    eye: [0, 0, 0],
+    depth: scene.depth,
+    flags: scene.flags,
+    normals: scene.normals,
+    base: new Float32Array(size * size * 4).fill(1),
+    radiance: scene.radiance,
+    lobes,
+  })
+}
+
 export function run() {
   return runOnDevice<MirrorReading>(async (device, _events, result) => {
-    const scene = mirrorScene()
     const { size } = MIRROR
-    const rig = await openRig(device, {
-      size: [size, size],
-      viewProjection: scene.viewProjection,
-      eye: [0, 0, 0],
-      depth: scene.depth,
-      flags: scene.flags,
-      normals: scene.normals,
-      // A polished metal floor: white, metalness one, so that the share is the lobe's own weight.
-      base: new Float32Array(size * size * 4).fill(1),
-      radiance: scene.radiance,
-    })
+    const rig = await openMirror(device)
     // The first image has no radiance pyramid yet: the environment alone, then the lit image's.
     rig.image()
     result.targets = []
@@ -47,7 +57,6 @@ function roughFloor(coat: boolean) {
   const scene = mirrorScene()
   const { size } = MIRROR
   const lobes = new Uint32Array(size * size * 4)
-  const base = new Float32Array(size * size * 4).fill(1)
   for (let p = 0; p < size * size; p++) {
     if (scene.flags[p] !== STANDARD) continue
     scene.normals[p * 4 + 3] = ROUGH
@@ -57,7 +66,7 @@ function roughFloor(coat: boolean) {
     // `physicalTexel` writes — the octahedral map of +y is (0, 1), the unorm pair (0, 1).
     lobes.set([0, OCT_UP, COAT_ONE, 0], p * 4)
   }
-  return { scene, lobes: coat ? lobes : undefined, base }
+  return { scene, lobes: coat ? lobes : undefined }
 }
 
 /** The surface flag of a lit standard surface (`scene/surfaceModel.ts`), the floor's. */
@@ -72,18 +81,8 @@ export function runCoat() {
   return runOnDevice<CoatReading>(async (device, _events, result) => {
     const { size } = MIRROR
     for (const coat of [false, true]) {
-      const { scene, lobes, base } = roughFloor(coat)
-      const rig = await openRig(device, {
-        size: [size, size],
-        viewProjection: scene.viewProjection,
-        eye: [0, 0, 0],
-        depth: scene.depth,
-        flags: scene.flags,
-        normals: scene.normals,
-        base,
-        radiance: scene.radiance,
-        lobes,
-      })
+      const { scene, lobes } = roughFloor(coat)
+      const rig = await openMirror(device, scene, lobes)
       rig.image()
       rig.image()
       result[coat ? 'coated' : 'bare'] = Array.from(await rig.read())

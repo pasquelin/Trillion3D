@@ -5,7 +5,7 @@
 const READ_EVERY_IMAGES = 15
 
 /** `GPUMapMode.READ`, or its value where a test device leaves the enum empty. */
-const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1
+export const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1
 
 /**
  * Periodic sample of counters the GPU wrote, one frame in fifteen. The caller samples a frame,

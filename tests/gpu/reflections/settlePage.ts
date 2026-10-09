@@ -6,8 +6,9 @@
 // first light and starts on the second is the cold converged image: the held one is it, to the bit.
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { animationFrame } from '../kit/onDawn.ts'
+import { openMirror } from './mirrorPage.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
-import { openRig } from './rig.ts'
+import type { openRig } from './rig.ts'
 
 /** What the proof reads: the images each loop drew and the target it held, as raw half words. */
 export type SettleReading = {
@@ -44,20 +45,9 @@ async function untilSettled(rig: Awaited<ReturnType<typeof openRig>>, limit = 60
 
 export function run() {
   return runOnDevice<SettleReading>(async (device, _events, result) => {
-    const { size } = MIRROR
     const open = async (scale: number) => {
-      const scene = frameLitBy(scale)
-      const rig = await openRig(device, {
-        size: [size, size],
-        viewProjection: scene.viewProjection,
-        eye: [0, 0, 0],
-        depth: scene.depth,
-        flags: scene.flags,
-        normals: scene.normals,
-        base: new Float32Array(size * size * 4).fill(1),
-        radiance: scene.radiance,
-      })
-      return { rig, scene }
+      const rig = await openMirror(device, frameLitBy(scale))
+      return { rig }
     }
     const { rig } = await open(1)
     const first = await untilSettled(rig)

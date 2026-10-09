@@ -6,7 +6,8 @@
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { HALF_NAN, openRig } from './rig.ts'
+import { openRig } from './rig.ts'
+import { HALF_NAN } from './rigFrame.ts'
 
 /** What the proof reads: per size, the pixels the trace left as it found them, and the tiles the
  *  image holds. */

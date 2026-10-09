@@ -11,7 +11,7 @@ import {
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import type { RigFrame } from './rig.ts'
+import type { RigFrame } from './rigFrame.ts'
 
 /** A box of the frame: its geometry, its colour, and whether it is a mirror. */
 export type Block = { box: Box; color: V3; mirror?: boolean }

@@ -4,8 +4,8 @@ import { reflectionGeometryWgsl } from './geometry.ts'
 
 /**
  * The hierarchical ray march (`reflectionMarch`) of the depth pyramid, `o + d·t`, `o` in pixels and
- * reversed depth, `t` from 0 to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far
- * end, within `REFLECTION_STEP_CAP` pixels of the ray's origin). A surface is a slab: at level 0 the
+ * reversed depth, `t` from 0 to `end` (`reflectionRay`: the image's edge, or the ray's far end,
+ * within `REFLECTION_STEP_CAP` pixels of the ray's origin). A surface is a slab: at level 0 the
  * pixel's plane — depth at its centre, slopes — and the plane `REFLECTION_THICKNESS` pixels of
  * footprint behind it (`reflectionBack`); a coarser cell's surfaces lie between its farthest depth
  * of the finished image and its nearest, and so do their slabs: between the farthest's back and the
@@ -31,11 +31,6 @@ export const REFLECTION_MARCH_WGSL = (group: number) =>
     `REFLECTION_MARCH_WGSL(${group})`,
     [REFLECTION_CONSTANTS_WGSL, reflectionGeometryWgsl(group)],
     `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,into:f32,}
-fn reflectionScreenEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
- let toward=select(-o,size-o,d>vec2f(0.0));
- let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
- return min(min(t.x,t.y),1.0);
-}
 fn reflectionBudget(d:vec3f,end:f32,levels:i32)->u32{
  return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }

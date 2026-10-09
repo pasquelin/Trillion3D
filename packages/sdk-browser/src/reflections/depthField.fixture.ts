@@ -4,7 +4,12 @@
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
-import { HIZ_LAYERS, HIZ_NEAREST, HIZ_ROW, hizLevelWords } from '../gpu/hiz/pyramidTexture.ts'
+import {
+  HIZ_NEAREST,
+  HIZ_ROW,
+  HIZ_WHOLE_FARTHEST,
+  hizLevelWords,
+} from '../gpu/hiz/pyramidTexture.ts'
 import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 
 const WORD = new Float32Array(1),
@@ -22,7 +27,9 @@ const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
  */
 export function depthField(width: number, height: number, depth: ArrayLike<number>) {
   const { sizes, offsets, texels } = pyramidBytes(width, height)
-  const made = Array.from({ length: HIZ_LAYERS }, () => new Float64Array(texels).fill(NaN))
+  const made = Array.from({ length: HIZ_WHOLE_FARTHEST + 1 }, () =>
+    new Float64Array(texels).fill(NaN),
+  )
   const slopes = new Uint32Array(width * height)
   const level0 = {}
   const build = shaderRun<{
