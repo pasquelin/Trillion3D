@@ -28,7 +28,7 @@ type OpenEncoder = () => GPUCommandEncoder
 type Sources = {
   device: GPUDevice
   encoding: PoolEncoding
-  levels?: HeldLevels
+  levels: HeldLevels | undefined
   failed: LevelFailed
   build: Build
   live: ReturnType<typeof liveScratches>
