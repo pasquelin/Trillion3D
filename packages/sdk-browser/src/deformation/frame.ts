@@ -1,7 +1,7 @@
 import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
-import { wavesChanged, writeWaves, WAVE_STRETCH_FLOATS } from './waveFrame.ts'
+import { createWaveHeld, wavesChanged, writeWaves } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes, differs } from './skinPalettes.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -74,10 +74,7 @@ function deformationRecords(placed: readonly (Deformed | null)[]) {
     // for frame `knownFor` alone, -1 for none.
     known: new Uint8Array(placed.length),
     knownFor: -1,
-    // The least stretch of each wave placement's world matrix, and the matrix it was read for.
-    waveStretch: placed.map((entry) =>
-      entry?.shape.waves ? new Float64Array(WAVE_STRETCH_FLOATS) : null,
-    ),
+    waveHeld: placed.map((entry) => (entry?.shape.waves ? createWaveHeld() : null)),
     owners: new Array<object | null | undefined>(placed.length),
     skins: createSkinPalettes(placed, block),
     first: true,
@@ -87,7 +84,11 @@ function deformationRecords(placed: readonly (Deformed | null)[]) {
 
 /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
  *  mixer or a clock changes without moving a node, which no scene revision announces. */
-function stale({ layouts, bases, owners, words, block }: Records, i: number, entry: Deformed) {
+function stale(
+  { layouts, bases, owners, words, block, waveHeld }: Records,
+  i: number,
+  entry: Deformed,
+) {
   const layout = layouts[i]!,
     at = bases[i] - 1
   if (owners[i] !== entry.mesh.sourceIdentity) return true
@@ -95,7 +96,7 @@ function stale({ layouts, bases, owners, words, block }: Records, i: number, ent
   const weights = entry.mesh.morphTargetInfluences
   for (let t = 0; weights && t < entry.shape.targets; t++)
     if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true
-  return wavesChanged(block, entry, at + layout.world, at + layout.wave)
+  return wavesChanged(block, entry, at + layout.world, at + layout.wave, waveHeld[i]!)
 }
 
 /** `stale`, read once a frame: `pending` notes each answer it reads for the frame it names, the
@@ -172,7 +173,7 @@ function writeRecord(
     kinds |= KIND_MORPH
   }
   if (shape.waves && mesh.waves) {
-    most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold, r.waveStretch[i]!)
+    most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold, r.waveHeld[i]!)
     kinds |= KIND_WAVE
   }
   if (shape.soft && mesh.softSource) {
