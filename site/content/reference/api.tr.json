@@ -2723,7 +2723,7 @@
   "PageSource": {
     "summary": "Bir modelin sayfalarının anahtara göre nereden okunduğu.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar."
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Bir sayfanın her yüklenmesi onu ister: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine, süren bir sayfa okumasına en acil olana yükseltilmiş olarak katılır."
     }
   },
   "PageStreamer": {
@@ -4117,8 +4117,8 @@
       "atlas": "Hangi atlas.",
       "level": "Hangi seviye.",
       "format": "Hangi format.",
-      "url": "Önbellek bir tane listelediğinde, seviyenin kendi adresi — bir impostor atlası seviyesi (`maps.<name>.levels[k].url`, #1239). Bu aynı okuyucuyla okunur, `textures.url` şablonu yerine `base`e göre çözülür: bir yükleyici, bir bütçe.",
-      "range": "Bir blok seviyesinin tek başına okunacak baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle; bunu yok sayan bir sunucu dosyanın tamamını döndürür."
+      "url": "Önbellek bir tane listelediğinde, seviyenin kendi adresi — bir impostor atlası seviyesi (`maps.<name>.levels[k].url`). Bu aynı okuyucuyla okunur, `textures.url` şablonu yerine `base`e göre çözülür: bir yükleyici, bir bütçe.",
+      "range": "Okunacak bir blok seviyesinin baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle: bir blok seviyesi yalnızca karolarının kayıtlarıyla okunur."
     }
   },
   "TexturePool": {
@@ -5013,7 +5013,7 @@
   "WorldPageSource": {
     "summary": "Sayfaların nereden okunduğu, ve karşı okundukları adres.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar.",
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Bir sayfanın her yüklenmesi onu ister: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine, süren bir sayfa okumasına en acil olana yükseltilmiş olarak katılır.",
       "baseUrl": "Her sayfanın karşı okunduğu adres."
     }
   },
@@ -5655,7 +5655,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU tahsis/kuyruk sınırı.",
-    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır.",
+    "description": "Sayfa baytları ve politika host tarafından sağlanır: her yükleme sayfasını `source` (`reader.ts`) üzerinden okur; bu kaynak süren bir sayfa okumalarını birleştirir ve başarısız bir okumanın ne zaman yeniden isteneceğini söyler. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır.",
     "parameters": {
       "options.homes": "Her sayfanın kendi yeri, `slots` tüm kataloğu tuttuğu sürece alınır (`homes.ts`).",
       "options": "Bir GPU sayfa önbelleğinin nasıl boyutlandırıldığı ve nereye bildirdiği (`createGpuPageCache`).",

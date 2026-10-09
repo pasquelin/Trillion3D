@@ -1152,7 +1152,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontière d’allocation et de file WebGPU.",
-    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime.",
+    "description": "Les octets des pages et la règle sont fournis par l’hôte : chaque chargement lit sa page dans `source` (`reader.ts`), qui joint les lectures d’une page déjà en cours et dit quand une lecture échouée est redemandée. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime.",
     "parameters": {
       "options.homes": "La place propre de chaque page, prise tant que `slots` contiennent tout le catalogue (`homes.ts`).",
       "options": "Comment un cache de pages GPU est dimensionné et où il rapporte (`createGpuPageCache`).",
@@ -4497,7 +4497,7 @@
   "PageSource": {
     "summary": "D’où les pages d’un modèle sont lues, par clé.",
     "members": {
-      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois."
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Chaque chargement d’une page la lui demande : une source qui prend `priority` joint la lecture d’une page déjà en cours, montée à la plus urgente, au lieu de transférer la page deux fois."
     }
   },
   "PageStreamer": {
@@ -5953,8 +5953,8 @@
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
       "format": "Quel format.",
-      "url": "L’adresse propre du niveau, quand le cache en liste une — un niveau d’atlas d’imposteur (`maps.<name>.levels[k].url`, #1239). Lu par ce même lecteur, résolue contre `base`, à la place du modèle `textures.url` : un chargeur, un budget.",
-      "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
+      "url": "L’adresse propre du niveau, quand le cache en liste une — un niveau d’atlas d’imposteur (`maps.<name>.levels[k].url`). Lu par ce même lecteur, résolue contre `base`, à la place du modèle `textures.url` : un chargeur, un budget.",
+      "range": "Les octets d’un niveau en blocs à lire — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range : un niveau en blocs n’est lu que par les enregistrements de ses tuiles."
     }
   },
   "textureLevelUrl": {
@@ -6626,7 +6626,7 @@
   "WorldPageSource": {
     "summary": "D’où les pages sont lues, et l’adresse par rapport à laquelle on les lit.",
     "members": {
-      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois.",
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Chaque chargement d’une page la lui demande : une source qui prend `priority` joint la lecture d’une page déjà en cours, montée à la plus urgente, au lieu de transférer la page deux fois.",
       "baseUrl": "L’adresse par rapport à laquelle chaque page est lue."
     }
   },

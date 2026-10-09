@@ -2373,7 +2373,7 @@
   "PageSource": {
     "summary": "按键索引,一个模型的页面从何处读取。",
     "members": {
-      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。对已在读取中的页面发出的更紧急读取会被再次请求以提升其优先级：接受 `priority` 的来源应将其并入正在进行的读取，而不是把页面传输两次。"
+      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。每次加载页面都会调用它：接受 `priority` 的来源会并入该页面正在进行的读取，并将其提升到最紧急的优先级，而不是把页面传输两次。"
     }
   },
   "PageStreamer": {
@@ -3506,8 +3506,8 @@
       "atlas": "对应哪个图集。",
       "level": "对应哪个层级。",
       "format": "对应哪种格式。",
-      "url": "该层级自身的地址,当缓存列出地址时 — impostor 图集的一个层级(`maps.<name>.levels[k].url`,#1239)。通过这同一个读取器读取,相对 `base` 解析,取代 `textures.url` 模板:一个加载器,一份预算。",
-      "range": "单独读取的块压缩层级字节——一个图块的记录(`tileRecords.ts`)——通过 HTTP Range 读取;忽略它的服务器会返回整个文件。"
+      "url": "该层级自身的地址,当缓存列出地址时 — impostor 图集的一个层级(`maps.<name>.levels[k].url`)。通过这同一个读取器读取,相对 `base` 解析,取代 `textures.url` 模板:一个加载器,一份预算。",
+      "range": "要读取的块压缩层级字节——一个图块的记录(`tileRecords.ts`)——通过 HTTP Range 读取:块压缩层级只通过其图块的记录读取。"
     }
   },
   "TexturePool": {
@@ -4067,7 +4067,7 @@
   "WorldPageSource": {
     "summary": "页面从何处读取,以及所有页面据以读取的地址。",
     "members": {
-      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。对已在读取中的页面发出的更紧急读取会被再次请求以提升其优先级：接受 `priority` 的来源应将其并入正在进行的读取，而不是把页面传输两次。",
+      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。每次加载页面都会调用它：接受 `priority` 的来源会并入该页面正在进行的读取，并将其提升到最紧急的优先级，而不是把页面传输两次。",
       "baseUrl": "所有页面据以读取的地址。"
     }
   },
@@ -4598,7 +4598,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU 分配/队列边界。",
-    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。",
+    "description": "页面字节数据和策略由宿主提供：每次加载都从 `source`(`reader.ts`)读取其页面，它会合并同一页面正在进行中的读取，并说明失败的读取何时再次请求。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。",
     "parameters": {
       "options.homes": "每个页面自己的位置，在 `slots` 容纳整个目录期间占用（`homes.ts`）。",
       "options": "GPU 页缓存如何确定大小，以及向何处报告（`createGpuPageCache`）。",

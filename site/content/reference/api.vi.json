@@ -2391,7 +2391,7 @@
   "PageSource": {
     "summary": "Nơi các trang của một mô hình được đọc từ đó, theo khóa.",
     "members": {
-      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Một lần đọc khẩn hơn cho trang đang được đọc sẽ được yêu cầu lại để nâng nó lên: nguồn nhận `priority` sẽ gộp nó vào lần đọc đang chạy thay vì truyền trang hai lần."
+      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Mỗi lần tải một trang đều hỏi nó: nguồn nhận `priority` sẽ nhập vào lần đọc trang đang chạy, được nâng lên mức khẩn nhất, thay vì truyền trang hai lần."
     }
   },
   "PageStreamer": {
@@ -3590,8 +3590,8 @@
       "atlas": "Atlas nào.",
       "level": "Mức nào.",
       "format": "Định dạng nào.",
-      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`, #1239). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
-      "range": "Các byte của một mức dạng khối được đọc riêng — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range; máy chủ bỏ qua nó sẽ trả về toàn bộ tệp."
+      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
+      "range": "Các byte cần đọc của một mức dạng khối — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range: một mức dạng khối chỉ được đọc qua bản ghi của các ô của nó."
     }
   },
   "TexturePool": {
@@ -4024,7 +4024,7 @@
   "WorldPageSource": {
     "summary": "Nơi các trang được đọc từ đó, và địa chỉ mà chúng được đọc dựa vào.",
     "members": {
-      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Một lần đọc khẩn hơn cho trang đang được đọc sẽ được yêu cầu lại để nâng nó lên: nguồn nhận `priority` sẽ gộp nó vào lần đọc đang chạy thay vì truyền trang hai lần.",
+      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Mỗi lần tải một trang đều hỏi nó: nguồn nhận `priority` sẽ nhập vào lần đọc trang đang chạy, được nâng lên mức khẩn nhất, thay vì truyền trang hai lần.",
       "baseUrl": "Địa chỉ mà mọi trang được đọc dựa vào."
     }
   },
@@ -4569,7 +4569,7 @@
   },
   "createGpuPageCache": {
     "summary": "Ranh giới cấp phát/hàng đợi WebGPU.",
-    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó.",
+    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp: mỗi lần tải đọc trang của nó từ `source` (`reader.ts`), nguồn này gộp các lần đọc của một trang đang chạy và cho biết khi nào một lần đọc thất bại được yêu cầu lại. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó.",
     "parameters": {
       "options.homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
       "options": "Bộ nhớ đệm trang GPU được định cỡ ra sao và báo cáo về đâu (`createGpuPageCache`).",

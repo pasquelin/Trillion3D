@@ -2373,7 +2373,7 @@
   "PageSource": {
     "summary": "De onde as páginas de um modelo são lidas, por chave.",
     "members": {
-      "read": "Lê os bytes de uma página; `priority`, quando dada, é a do streamer (a menor primeiro). Uma leitura mais urgente de uma página já em curso é pedida de novo para subi-la: uma fonte que aceita `priority` junta-a à leitura em curso em vez de transferir a página duas vezes."
+      "read": "Lê os bytes de uma página; `priority`, quando dada, é a do streamer (a menor primeiro). Cada carregamento de uma página a pede: uma fonte que aceita `priority` junta-se à leitura em curso de uma página, elevada à mais urgente, em vez de transferir a página duas vezes."
     }
   },
   "PageStreamer": {
@@ -3506,8 +3506,8 @@
       "atlas": "Qual atlas.",
       "level": "Qual nível.",
       "format": "Qual formato.",
-      "url": "O endereço próprio do nível, quando a cache lista um — um nível de atlas de impostor (`maps.<name>.levels[k].url`, #1239). Lido por este mesmo leitor, resolvido contra `base`, em vez do modelo `textures.url`: um carregador, um orçamento.",
-      "range": "Os bytes de um nível em blocos a ler sozinhos — o registro de um ladrilho (`tileRecords.ts`) —, por uma requisição HTTP Range; um servidor que a ignora responde o arquivo inteiro."
+      "url": "O endereço próprio do nível, quando a cache lista um — um nível de atlas de impostor (`maps.<name>.levels[k].url`). Lido por este mesmo leitor, resolvido contra `base`, em vez do modelo `textures.url`: um carregador, um orçamento.",
+      "range": "Os bytes de um nível em blocos a ler — o registro de um ladrilho (`tileRecords.ts`) —, por uma requisição HTTP Range: um nível em blocos é lido apenas pelos registros de seus ladrilhos."
     }
   },
   "TexturePool": {
@@ -4067,7 +4067,7 @@
   "WorldPageSource": {
     "summary": "De onde as páginas são lidas, e o endereço contra o qual são lidas.",
     "members": {
-      "read": "Lê os bytes de uma página; `priority`, quando dada, é a do streamer (a menor primeiro). Uma leitura mais urgente de uma página já em curso é pedida de novo para subi-la: uma fonte que aceita `priority` junta-a à leitura em curso em vez de transferir a página duas vezes.",
+      "read": "Lê os bytes de uma página; `priority`, quando dada, é a do streamer (a menor primeiro). Cada carregamento de uma página a pede: uma fonte que aceita `priority` junta-se à leitura em curso de uma página, elevada à mais urgente, em vez de transferir a página duas vezes.",
       "baseUrl": "O endereço contra o qual cada página é lida."
     }
   },
@@ -4598,7 +4598,7 @@
   },
   "createGpuPageCache": {
     "summary": "Fronteira de alocação/fila do WebGPU.",
-    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove.",
+    "description": "Bytes de página e política são fornecidos pelo host: cada carregamento lê sua página de `source` (`reader.ts`), que junta as leituras de uma página em curso e diz quando uma leitura falhada é pedida de novo. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove.",
     "parameters": {
       "options.homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
       "options": "Como uma cache de páginas GPU é dimensionada e onde reporta (`createGpuPageCache`).",

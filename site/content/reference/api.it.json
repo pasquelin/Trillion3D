@@ -1152,7 +1152,7 @@
   },
   "createGpuPageCache": {
     "summary": "Confine di allocazione e coda WebGPU.",
-    "description": "I byte delle pagine e la regola sono forniti dall'host. Le scritture in coda sono ordinate; il rilascio attende gli invii in corso prima di distruggere. `pin(key, 'held')` conserva una pagina prima di quelle fissate normalmente durante `resize(slots)`, che non accetta più un insieme held. Fissarla nuovamente in modo ordinario conserva il livello; `unpin(key)` lo rimuove.",
+    "description": "I byte delle pagine e la regola sono forniti dall'host: ogni caricamento legge la sua pagina da `source` (`reader.ts`), che unisce le letture di una pagina in corso e dice quando una lettura fallita viene richiesta di nuovo. Le scritture in coda sono ordinate; il rilascio attende gli invii in corso prima di distruggere. `pin(key, 'held')` conserva una pagina prima di quelle fissate normalmente durante `resize(slots)`, che non accetta più un insieme held. Fissarla nuovamente in modo ordinario conserva il livello; `unpin(key)` lo rimuove.",
     "parameters": {
       "options.homes": "Il posto proprio di ogni pagina, preso mentre `slots` contengono l'intero catalogo (`homes.ts`).",
       "options": "Come è dimensionata una cache di pagine GPU e dove riferisce (`createGpuPageCache`).",
@@ -4489,7 +4489,7 @@
   "PageSource": {
     "summary": "Da dove vengono lette le pagine di un modello, per chiave.",
     "members": {
-      "read": "Legge i byte di una pagina; `priority`, se indicata, è quella dello streamer (la più piccola prima). Una lettura più urgente di una pagina già in corso viene richiesta di nuovo per alzarla: una sorgente che accetta `priority` la unisce alla lettura in corso invece di trasferire la pagina due volte."
+      "read": "Legge i byte di una pagina; `priority`, se indicata, è quella dello streamer (la più piccola prima). Ogni caricamento di una pagina la richiede: una sorgente che accetta `priority` si unisce alla lettura in corso di una pagina, alzata alla più urgente, invece di trasferire la pagina due volte."
     }
   },
   "PageStreamer": {
@@ -5945,8 +5945,8 @@
       "atlas": "Quale atlante.",
       "level": "Quale livello.",
       "format": "Quale formato.",
-      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`, #1239). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
-      "range": "I byte di un livello a blocchi da leggere da soli — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range; un server che la ignora risponde con il file intero."
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
+      "range": "I byte di un livello a blocchi da leggere — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range: un livello a blocchi si legge solo tramite i record delle sue tile."
     }
   },
   "textureLevelUrl": {
@@ -6618,7 +6618,7 @@
   "WorldPageSource": {
     "summary": "Da dove vengono lette le pagine, e l'indirizzo rispetto al quale vengono lette.",
     "members": {
-      "read": "Legge i byte di una pagina; `priority`, se indicata, è quella dello streamer (la più piccola prima). Una lettura più urgente di una pagina già in corso viene richiesta di nuovo per alzarla: una sorgente che accetta `priority` la unisce alla lettura in corso invece di trasferire la pagina due volte.",
+      "read": "Legge i byte di una pagina; `priority`, se indicata, è quella dello streamer (la più piccola prima). Ogni caricamento di una pagina la richiede: una sorgente che accetta `priority` si unisce alla lettura in corso di una pagina, alzata alla più urgente, invece di trasferire la pagina due volte.",
       "baseUrl": "L'indirizzo rispetto al quale viene letta ogni pagina."
     }
   },

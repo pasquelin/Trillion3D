@@ -2391,7 +2391,7 @@
   "PageSource": {
     "summary": "Tempat halaman sebuah model dibaca, menurut kunci.",
     "members": {
-      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Pembacaan yang lebih mendesak atas halaman yang sedang dibaca diminta lagi untuk menaikkannya: sumber yang menerima `priority` menggabungkannya ke pembacaan yang sedang berjalan, bukan mengirim halaman dua kali."
+      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Setiap pemuatan halaman memintanya: sumber yang menerima `priority` bergabung ke pembacaan halaman yang sedang berjalan, dinaikkan ke yang paling mendesak, bukan mengirim halaman dua kali."
     }
   },
   "PageStreamer": {
@@ -3590,8 +3590,8 @@
       "atlas": "Atlas mana.",
       "level": "Tingkat mana.",
       "format": "Format mana.",
-      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`, #1239). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
-      "range": "Byte level blok yang dibaca sendiri — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range; server yang mengabaikannya menjawab dengan seluruh berkas."
+      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
+      "range": "Byte level blok yang dibaca — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range: level blok hanya dibaca melalui rekaman ubin-ubinnya."
     }
   },
   "TexturePool": {
@@ -4024,7 +4024,7 @@
   "WorldPageSource": {
     "summary": "Tempat halaman dibaca, dan alamat yang menjadi acuannya.",
     "members": {
-      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Pembacaan yang lebih mendesak atas halaman yang sedang dibaca diminta lagi untuk menaikkannya: sumber yang menerima `priority` menggabungkannya ke pembacaan yang sedang berjalan, bukan mengirim halaman dua kali.",
+      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Setiap pemuatan halaman memintanya: sumber yang menerima `priority` bergabung ke pembacaan halaman yang sedang berjalan, dinaikkan ke yang paling mendesak, bukan mengirim halaman dua kali.",
       "baseUrl": "Alamat yang menjadi acuan setiap halaman."
     }
   },
@@ -4569,7 +4569,7 @@
   },
   "createGpuPageCache": {
     "summary": "Batas alokasi/antrean WebGPU.",
-    "description": "Byte halaman dan kebijakannya disediakan host. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. `pin(key, 'held')` mempertahankan halaman sebelum halaman yang disematkan biasa saat `resize(slots)`, yang tidak lagi menerima set held. Penyematan ulang biasa mempertahankan tingkat ini; `unpin(key)` menghapusnya.",
+    "description": "Byte halaman dan kebijakannya disediakan host: setiap pemuatan membaca halamannya dari `source` (`reader.ts`), yang menggabungkan pembacaan halaman yang sedang berjalan dan menyatakan kapan pembacaan yang gagal diminta lagi. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. `pin(key, 'held')` mempertahankan halaman sebelum halaman yang disematkan biasa saat `resize(slots)`, yang tidak lagi menerima set held. Penyematan ulang biasa mempertahankan tingkat ini; `unpin(key)` menghapusnya.",
     "parameters": {
       "options.homes": "Tempat sendiri setiap halaman, diambil selama `slots` memuat seluruh katalog (`homes.ts`).",
       "options": "Bagaimana cache halaman GPU diberi ukuran dan ke mana ia melapor (`createGpuPageCache`).",
