@@ -3,9 +3,9 @@ import type { GuideSet } from './guideSet.ts'
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { GUIDE_PASS } from '../stage/passLabels.ts'
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
-const GUIDE_PASS = 'Trillion3D guides'
 
 const STRIDE = GUIDE_INSTANCE_FLOATS * 4
 

@@ -4,11 +4,12 @@ import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
 /** The cut's resources, as it encodes them. */
 export type DagView = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
-const DAG_PASS: GPUComputePassDescriptor = { label: 'Trillion3D DAG selection' }
+const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /**
  * Cut kernels, encoded in order, in ONE compute pass. Each dispatch waits for the previous — the

@@ -13,7 +13,11 @@ import {
   type DirectLightResources,
 } from './program.ts'
 import { ZERO_DIRECT, createDeferredView } from './view.ts'
-import { DEFERRED_LIGHTING_PASS } from '../../stage/passLabels.ts'
+import {
+  DEFERRED_LIGHTING_PASS,
+  HDR_COMPOSITION_PASS,
+  HDR_PRESENT_PASS,
+} from '../../stage/passLabels.ts'
 export { FULLSCREEN_VERTEX } from './shaders.ts'
 
 /** Whether these resources light with the bounce program. */
@@ -205,7 +209,7 @@ function composePass(state: LightingState) {
     ]
     if (presentation) colorAttachments.push({ ...colorAttachments[0], view: presentation })
     const pass = encoder.beginRenderPass({
-      label: presentation ? 'Trillion3D HDR composition + present' : 'Trillion3D HDR composition',
+      label: presentation ? HDR_PRESENT_PASS : HDR_COMPOSITION_PASS,
       colorAttachments,
     })
     const blend = composed?.bloom,

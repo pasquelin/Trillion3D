@@ -43,7 +43,7 @@ export function passesGpu(samples: GpuPassTimings[] | null | undefined): PassesG
     passes: [...parPasse]
       .map(([name, { gpu, own }]) => ({
         name,
-        bloc: gpuPassBlockOf(name),
+        bloc: gpuPassBlockOf(name) ?? 'unnamed',
         gpuMs: distribution(gpu),
         ownMs: distribution(own),
       }))

@@ -48,6 +48,7 @@ import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 
 /** A compose pass's bind group and what it names: made again only when one of them moves. */
 const heldGroup = () => ({
@@ -503,7 +504,7 @@ export function encodeComposedRoots(
   const ranges = selection.worldRanges
   writeRootParams(device, state, gpu, ranges)
   const pipeline = composeKernels(device).roots.get()
-  const pass = encoder.beginComputePass({ label: 'Trillion3D compose roots' })
+  const pass = encoder.beginComputePass({ label: COMPOSE_ROOTS_PASS })
   pass.setPipeline(pipeline)
   for (let r = 0; r < ranges.length; r++) {
     const { count, buffer } = ranges[r],
@@ -557,7 +558,7 @@ export function encodeComposedRows(
   params[2] = spheres ? 1 : 0
   device.queue.writeBuffer(gpu.uniforms[1], 0, params)
   const pipeline = composeKernels(device).rows.get()
-  const pass = encoder.beginComputePass({ label: 'Trillion3D compose rows' })
+  const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
   const held = gpu.rowsGroup,
     next = held.identity.next,

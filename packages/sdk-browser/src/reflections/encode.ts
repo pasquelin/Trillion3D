@@ -2,6 +2,7 @@ import type { ScreenReflection } from './gpu.ts'
 import type { DeferredProgram } from '../lighting/deferred/program.ts'
 import { REFLECTION_SOURCE_PASS } from './sourcePass.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
 
 /**
  * Encode the source, then the rough trace and its resolve, borrowing the HDR target. The source is
@@ -45,7 +46,7 @@ export function encodeReflectionSource(
     reflection.pyramid?.encode(encoder, reflected.bounds)
   if (traced) {
     const trace = encoder.beginRenderPass({
-      label: 'Trillion3D rough reflection trace',
+      label: REFLECTION_TRACE_PASS,
       colorAttachments: [
         { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
       ],

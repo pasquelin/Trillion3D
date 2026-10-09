@@ -12,6 +12,7 @@ import type { GpuRasterInput } from '../../../gpu/raster/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 import { prepared } from '../state/prepared.ts'
+import { EMPTY_SURFACES_PASS } from '../../../stage/passLabels.ts'
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -28,7 +29,7 @@ export function encodeEmptySurfaces(
   // kept by the surfaces' clear.
   const carded = !!rt.gpu.impostorCode?.encodeImpostorVisibilityPass(rt, device, encoder)
   const pass = encoder.beginRenderPass({
-    label: 'Trillion3D empty surfaces',
+    label: EMPTY_SURFACES_PASS,
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
     depthStencilAttachment: {
       view: depthTarget,

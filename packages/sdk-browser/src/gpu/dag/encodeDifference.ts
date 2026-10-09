@@ -1,7 +1,8 @@
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import type { DagView } from './encode.ts'
+import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
-const DAG_PASS: GPUComputePassDescriptor = { label: 'Trillion3D DAG selection' }
+const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /** Each kept list's argument record (`shader/armWgsl.ts`). */
 const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]

@@ -18,6 +18,7 @@ import {
 import { sameElements, sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { reflectionOwnerLayout } from './layout.ts'
+import { REFLECTION_HISTORY_PASS } from '../stage/passLabels.ts'
 
 /** What a history keeps between its calls: its targets, the trace's group of the records it writes
  *  (`sampleWgsl.ts`), the resolve's view and the words written into it, the last frame's matrix,
@@ -252,7 +253,7 @@ function encodeHistory(
   const image = h.targets.resolve(encoder, current.metadata, (history, output, moment) => {
     const group = resolveGroup(h, current, history, scratch, layout, moment)
     const pass = encoder.beginRenderPass({
-      label: 'Trillion3D reflection history resolve',
+      label: REFLECTION_HISTORY_PASS,
       colorAttachments: [
         { view: output, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
         { view: moment.output, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },

@@ -3,6 +3,7 @@ import { constructGpuResources } from '../gpu/core/errorScope.ts'
 import { createGpuBounceProxy } from './proxy.ts'
 import { createBounceUniform } from './uniform.ts'
 import { BOUNCE_ATLAS_FORMAT } from './atlas.ts'
+import { BOUNCE_PROBE_CLEAR_PASS } from '../stage/passLabels.ts'
 
 /** Initial probe storage is atomic even when admission refuses the last resource. The probes and
  *  their snapshot are atlases of `extent` (`probeAtlasExtent`): the update writes the one, reads
@@ -60,7 +61,7 @@ export function createProbeStorage(
       storeOp: 'store',
     }))
     const clear: GPURenderPassDescriptor = {
-      label: 'Trillion3D bounce probe level clear',
+      label: BOUNCE_PROBE_CLEAR_PASS,
       colorAttachments: attachments,
     }
     /** Zeroes the levels whose bit `levels` sets, in both atlases. */

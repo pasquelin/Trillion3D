@@ -2,6 +2,7 @@ import { AS_IS_SHARE_SHADER } from './asIsShareWgsl.ts'
 import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline, started } from './fullscreen.ts'
+import { AS_IS_SHARE_PASS } from '../../stage/passLabels.ts'
 
 /** Red, the as-is share; green, the reactive value. */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
@@ -73,7 +74,7 @@ export function createAsIsShare(
      *  the clear's zeros again, so its draw is left out. */
     seed(encoder: GPUCommandEncoder, asIs: boolean) {
       const pass = encoder.beginRenderPass({
-        label: 'Trillion3D as-is share seed',
+        label: AS_IS_SHARE_PASS,
         colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] }],
       })
       if (asIs) {

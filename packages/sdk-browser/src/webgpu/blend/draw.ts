@@ -11,6 +11,7 @@ import { routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/lightResources.ts'
+import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -139,7 +140,7 @@ export function drawBlendPass(
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined
   const pass = encoder.beginRenderPass({
-    label: transmissive ? 'Trillion3D transmission' : 'Trillion3D transparents',
+    label: transmissive ? TRANSMISSION_PASS : TRANSPARENTS_PASS,
     occlusionQuerySet: overdraw?.set,
     colorAttachments: [
       {
@@ -176,7 +177,7 @@ function drawDisplayMask(
 ) {
   const { gpu, run } = rt
   const pass = encoder.beginRenderPass({
-    label: 'Trillion3D display mask',
+    label: DISPLAY_MASK_PASS,
     colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })

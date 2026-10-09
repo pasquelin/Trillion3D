@@ -1,69 +1,147 @@
 // The GPU timing names a timed pass by its label, or else by the method that began it
 // (`encoder.ts`), and the profile files a span by that label alone (`../../stage/passTable.ts`).
-// Every pass the engine begins is read here from the source: its descriptor, inline or declared
-// before the call in the same module, opens with its label, and that label — a literal, a constant
-// of a module, a template or a choice of them, or a parameter its callers fill — is a row of the
-// pass table, or a virtual shadow map pass by its prefix; and every row is the label of a pass the
-// engine begins. A new pass without a label, or with one the table does not name, fails this test,
-// never the ranking nor the profile; so does a row no pass carries any more.
+// Every label a pass begins with is a constant of a label module, and every one of them is declared
+// once, with its stage and block, in that module (`../../stage/passDeclaration.ts`); the virtual
+// shadow maps' passes, whose labels carry their chunk, set or kernel, are one declared family.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gpuPassStageOf } from '../../stage/mapping.ts'
-import { PASSES } from '../../stage/passTable.ts'
-import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
-import { argumentSpans, descriptorsOf, modules } from './passSource.fixture.ts'
-import { UNREAD, labelsOf } from './passLabelValues.fixture.ts'
+import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
+import { DECLARED_PASSES, passRowOf } from '../../stage/passTable.ts'
+import {
+  AS_IS_SHARE_PASS,
+  BLEND_ORDER_PASS,
+  BLOOM_PASS,
+  BOUNCE_PASS,
+  BOUNCE_PROBE_CLEAR_PASS,
+  CAPTURE_PASS,
+  COMPOSE_ROOTS_PASS,
+  COMPOSE_ROWS_PASS,
+  DAG_MASK_SWAP_PASS,
+  DAG_SELECTION_PASS,
+  DEFERRED_LIGHTING_PASS,
+  DIRECT_PRESENT_PASS,
+  DISPLAY_FILTER_PASS,
+  DISPLAY_MASK_PASS,
+  EMPTY_SURFACES_PASS,
+  GUIDE_PASS,
+  HDR_COMPOSITION_PASS,
+  HDR_PRESENT_PASS,
+  HIZ_PASS,
+  IMPOSTOR_PASS,
+  IMPOSTOR_VISIBILITY_PASS,
+  LIGHT_TILES_PASS,
+  MATERIAL_COMPUTE_PASS,
+  MATERIAL_SURFACES_PASS,
+  PARTICLE_DRAW_PASS,
+  PARTICLES_PASS,
+  PARTITION_PASS,
+  RASTER_BINNING_PASS,
+  RASTER_IDENTIFIERS_PASS,
+  RASTER_OCCLUDER_DEPTH_PASS,
+  RASTER_OCCLUDER_HIZ_PASS,
+  RASTER_RESOLVE_PASS,
+  RASTER_TESTED_DEPTH_PASS,
+  REFLECTION_HISTORY_PASS,
+  REFLECTION_TRACE_PASS,
+  TAA_PASS,
+  TEXEL_TURN_PASS,
+  TEXTURE_FEEDBACK_REDUCE_PASS,
+  TRANSMISSION_PASS,
+  TRANSPARENT_COMPACTION_PASS,
+  TRANSPARENT_OCCLUSION_PASS,
+  TRANSPARENTS_PASS,
+  VIEW_PRESENT_PASS,
+  VISIBILITY_PRIMARY_PASS,
+  VISIBILITY_SECONDARY_PASS,
+  VSM_PASS_PREFIX,
+} from '../../stage/passLabels.ts'
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../../webgpu/water/passLabels.ts'
+import {
+  REFLECTION_BOUNDS_MIPS_PASS,
+  REFLECTION_RADIANCE_MIPS_PASS,
+  TEXTURE_MIPS_PASS,
+} from '../../texture/mipsPass.ts'
+import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts'
+import { DEFORMATION_PASS } from '../../deformation/pass.ts'
 
-/** The timing encoder only forwards the descriptor its caller handed it. */
-const FORWARDER = 'gpu/timing/encoder.ts'
+/** The labels the engine's passes begin with, as the passes import them. */
+const BEGUN = [
+  AS_IS_SHARE_PASS,
+  BLEND_ORDER_PASS,
+  BLOOM_PASS,
+  BOUNCE_PASS,
+  BOUNCE_PROBE_CLEAR_PASS,
+  CAPTURE_PASS,
+  COMPOSE_ROOTS_PASS,
+  COMPOSE_ROWS_PASS,
+  DAG_MASK_SWAP_PASS,
+  DAG_SELECTION_PASS,
+  DEFERRED_LIGHTING_PASS,
+  DEFORMATION_PASS,
+  DIRECT_PRESENT_PASS,
+  DISPLAY_FILTER_PASS,
+  DISPLAY_MASK_PASS,
+  EMPTY_SURFACES_PASS,
+  GUIDE_PASS,
+  HDR_COMPOSITION_PASS,
+  HDR_PRESENT_PASS,
+  HIZ_PASS,
+  IMPOSTOR_PASS,
+  IMPOSTOR_VISIBILITY_PASS,
+  LIGHT_TILES_PASS,
+  MATERIAL_COMPUTE_PASS,
+  MATERIAL_SURFACES_PASS,
+  PARTICLE_DRAW_PASS,
+  PARTICLES_PASS,
+  PARTITION_PASS,
+  RASTER_BINNING_PASS,
+  RASTER_IDENTIFIERS_PASS,
+  RASTER_OCCLUDER_DEPTH_PASS,
+  RASTER_OCCLUDER_HIZ_PASS,
+  RASTER_RESOLVE_PASS,
+  RASTER_TESTED_DEPTH_PASS,
+  REFLECTION_BOUNDS_MIPS_PASS,
+  REFLECTION_HISTORY_PASS,
+  REFLECTION_RADIANCE_MIPS_PASS,
+  REFLECTION_SOURCE_PASS,
+  REFLECTION_TRACE_PASS,
+  TAA_PASS,
+  TEXEL_TURN_PASS,
+  TEXTURE_FEEDBACK_REDUCE_PASS,
+  TEXTURE_MIPS_PASS,
+  TRANSMISSION_PASS,
+  TRANSPARENT_COMPACTION_PASS,
+  TRANSPARENT_OCCLUSION_PASS,
+  TRANSPARENTS_PASS,
+  VIEW_PRESENT_PASS,
+  VISIBILITY_PRIMARY_PASS,
+  VISIBILITY_SECONDARY_PASS,
+  WATER_COMPOSITE_PASS,
+  WATER_SURFACE_PASS,
+]
 
-/** Whether the profile files a pass under `label`: a row of the table, or the virtual shadow
- *  maps' prefix, which a label read only in part must open with. */
-const filed = (label: string) =>
-  label.includes(UNREAD)
-    ? label.split(UNREAD)[0].startsWith(VSM_PASS_PREFIX)
-    : gpuPassStageOf(label) !== undefined
-
-/** Every pass the engine begins: where, and the descriptors it can be (`null` unlabelled). */
-const begun = [...modules]
-  .filter(([file]) => file !== FORWARDER)
-  .flatMap(([file, text]) =>
-    [...text.matchAll(/\.begin(?:Render|Compute)Pass\(/g)].map((match) => {
-      const span = argumentSpans(text, match.index + match[0].length - 1)[0]
-      return {
-        file,
-        text,
-        at: `${file}:${text.slice(0, match.index).split('\n').length}`,
-        descriptors: span ? descriptorsOf(text, span, match.index) : null,
-      }
-    }),
-  )
-
-test('every render and compute pass the engine begins opens its descriptor with a label', () => {
-  const missing = begun.filter((pass) => !pass.descriptors).map((pass) => pass.at)
-  assert.ok(begun.length >= 40, `the scan reached the engine's passes (${begun.length})`)
-  assert.deepEqual(missing, [], 'a timed pass without label is ranked as `beginRenderPass`')
+test('the declarations and the labels the passes begin with are one to one', () => {
+  const declared = DECLARED_PASSES.map((pass) => pass.label).sort()
+  assert.equal(new Set(BEGUN).size, BEGUN.length, 'no two passes share a label')
+  assert.deepEqual(declared, [...BEGUN].sort(), 'each label is declared once, and nothing else')
 })
 
-test('every label a pass begins with is a row of the pass table', () => {
-  const unnamed: string[] = []
-  let read = 0
-  for (const { file, text, at, descriptors } of begun)
-    for (const open of descriptors ?? [])
-      for (const label of labelsOf(file, text, open)) {
-        read++
-        if (!filed(label)) unnamed.push(`${at} ${label.replaceAll(UNREAD, '…')}`)
-      }
-  assert.ok(read >= begun.length, `every pass's label was read (${read})`)
-  assert.deepEqual(unnamed, [], 'a pass the table does not name is filed under no stage')
+test('every declaration files its pass on a stage the engine profiles, at its index', () => {
+  for (const { label, stage, block } of DECLARED_PASSES)
+    assert.deepEqual(passRowOf(label), { stage, at: WEBGPU_STAGES.indexOf(stage), block }, label)
+  assert.ok(DECLARED_PASSES.every(({ stage }) => WEBGPU_STAGES.includes(stage)))
 })
 
-test('every row of the pass table is the label of a pass the engine begins', () => {
-  const carried = new Set(
-    begun.flatMap(({ file, text, descriptors }) =>
-      (descriptors ?? []).flatMap((open) => labelsOf(file, text, open)),
-    ),
+test('the virtual shadow maps are one declared family, which no declared label repeats', () => {
+  assert.equal(passRowOf(`${VSM_PASS_PREFIX}render.cull 3`)?.stage, 'shadows')
+  assert.equal(passRowOf(`${VSM_PASS_PREFIX}render.cull 3`)?.block, 'other')
+  assert.deepEqual(
+    DECLARED_PASSES.filter(({ label }) => label.startsWith(VSM_PASS_PREFIX)),
+    [],
   )
-  const dead = Object.keys(PASSES).filter((label) => !carried.has(label))
-  assert.deepEqual(dead, [], 'a row no pass carries names nothing the profile can file')
+})
+
+test('a label no declaration names has no row', () => {
+  assert.equal(passRowOf('beginComputePass'), undefined)
+  assert.equal(passRowOf('Trillion3D pass invented tomorrow'), undefined)
 })

@@ -5,6 +5,7 @@ import { shaderFailed } from './shaderModule.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
+import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -160,7 +161,7 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
       o.unculled,
     ])
   }
-  const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' })
+  const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
   pass.setPipeline(o.pipeline)
   pass.setBindGroup(0, o.bindGroup)
   dispatchRows(pass, o.groups)

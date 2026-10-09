@@ -173,7 +173,7 @@ test('the sampling cadence bounds how many images are measured, each with its ne
   assert.equal(stats.pending, 0)
   timer.dispose()
 })
-// The name a pass without label falls back to; `passLabels.test.ts` keeps it out of a frame.
+// The name a pass without label falls back to: no declaration names it (`passLabels.test.ts`).
 test('a timed pass without label is named after the method that began it', async () => {
   const f = fixture(),
     samples: any[] = []

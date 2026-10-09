@@ -3,6 +3,7 @@ import { PRESENT_SHADER } from './presentWgsl.ts'
 import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { createPresentAt, type PresentRect } from './presentAt.ts'
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts'
+import { DIRECT_PRESENT_PASS } from '../../stage/passLabels.ts'
 
 /** Configures `context` on `device` itself — WebGPU refuses a session's handle, no `GPUDevice` —:
  *  configuring blanks the canvas, so the image of a closed session stays until this one draws. */
@@ -112,7 +113,7 @@ function drawWhole(
   group: GPUBindGroup,
 ) {
   const pass = encoder.beginRenderPass({
-    label: 'Trillion3D direct present',
+    label: DIRECT_PRESENT_PASS,
     colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }],
   })
   pass.setPipeline(pipeline)

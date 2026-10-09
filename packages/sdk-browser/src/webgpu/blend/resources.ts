@@ -9,6 +9,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { materialEpoch } from '../pages/io/refreshMaterials.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import { BLEND_ORDER_PASS } from '../../stage/passLabels.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted once: the item records, the view
@@ -222,7 +223,7 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
     blendState.keepMoved = false
   }
   expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)
-  const pass = encoder.beginComputePass({ label: 'Trillion3D blend order and expansion' })
+  const pass = encoder.beginComputePass({ label: BLEND_ORDER_PASS })
   for (let slice = 0; slice < seeds.length; slice++)
     if (runCount[slice])
       expand.encode(pass, slice, blendState.orderSteps[slice], {

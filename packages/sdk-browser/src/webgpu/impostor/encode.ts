@@ -3,7 +3,7 @@ import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { uploadRecords } from './cardUpload.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
-import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
+import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 import type { WebgpuImpostors } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -83,7 +83,7 @@ export function encodeImpostorVisibilityPass(
     { depthView } = rt.gpu
   if (!cardsOf(rt) || !visView || !depthView) return false
   const pass = encoder.beginRenderPass({
-    label: `${IMPOSTOR_PASS} visibility`,
+    label: IMPOSTOR_VISIBILITY_PASS,
     colorAttachments: [
       { view: visView, loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } },
     ],

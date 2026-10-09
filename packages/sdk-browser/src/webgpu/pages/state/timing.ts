@@ -3,7 +3,7 @@ import type { createGpuTiming } from '../../../gpu/timing/timing.ts'
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts'
 import { CPU_STEP_NAMES, CPU_STEP_STAGES } from '../render/cpuStepTable.ts'
 import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts'
-import { WEBGPU_STAGES } from '../../../stage/mapping.ts'
+import { WEBGPU_STAGES } from '../../../stage/passDeclaration.ts'
 import { WEBGPU_ENGINE_ID } from '../../../engine/factory.ts'
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */

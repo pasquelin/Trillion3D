@@ -16,6 +16,7 @@ import {
 } from './texelTurnWgsl.ts'
 import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
+import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
 
 /**
  * RAW TEXELS TURNED ON THE GPU as their host texture asks (#362): rows reversed under `flipY` — the
@@ -28,7 +29,6 @@ import type { TileTexture } from './tileTexture.ts'
  * submit; a larger one is turned a ring load at a time, each load submitted before the next is
  * written (the queue orders them), the last in the caller's encoder. The CPU touches no texel.
  */
-const LABEL = 'Trillion3D texel turn'
 /** Bytes the staging ring holds at most: device memory bounded whatever the picture (8 MiB for a
  *  1080p frame, 32 MiB a load for an 8K picture's 256 MiB). */
 const TURN_RING_BYTES = 32 << 20
@@ -38,7 +38,7 @@ const TURN_RING_BYTES = 32 << 20
 const programOf = oncePerDevice((device: GPUDevice) => {
   const visibility = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
-    label: LABEL,
+    label: TEXEL_TURN_PASS,
     entries: [
       { binding: 0, visibility, buffer: { type: 'uniform' } },
       { binding: 1, visibility, buffer: { type: 'read-only-storage' } },
@@ -50,10 +50,10 @@ const programOf = oncePerDevice((device: GPUDevice) => {
     ],
   })
   const pipeline = preparedComputePipeline(device, {
-    label: LABEL,
+    label: TEXEL_TURN_PASS,
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: {
-      module: device.createShaderModule({ label: LABEL, code: TEXEL_TURN_WGSL }),
+      module: device.createShaderModule({ label: TEXEL_TURN_PASS, code: TEXEL_TURN_WGSL }),
       entryPoint: 'main',
     },
   })
@@ -90,8 +90,8 @@ const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
  * time (`heldReadback.ts`): a scene at rest holds no byte of them.
  */
 const spares = heldBuffers(READBACK_IDLE_MS)
-const SOURCE = `${LABEL} source`,
-  WORDS = `${LABEL} words`
+const SOURCE = `${TEXEL_TURN_PASS} source`,
+  WORDS = `${TEXEL_TURN_PASS} words`
 
 /** Rows of a band: as many as `bandBytes` holds, a multiple of the rows whose bytes land on the
  *  256-byte alignment a storage binding's offset asks; never under that multiple. */
@@ -153,7 +153,7 @@ function takeHold(
     ring = spares.take(device, SOURCE, band * row, STORAGE | COPY_DST)
   const groups = Array.from({ length: bands }, (_, b) =>
     device.createBindGroup({
-      label: LABEL,
+      label: TEXEL_TURN_PASS,
       layout,
       entries: [
         { binding: 0, resource: { buffer: words, offset: slots.offset(b)[0], size: 16 } },
@@ -173,7 +173,7 @@ function encodeBand(
   width: number,
   rows: number,
 ) {
-  const pass = encoder.beginComputePass({ label: LABEL })
+  const pass = encoder.beginComputePass({ label: TEXEL_TURN_PASS })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
   pass.dispatchWorkgroups(ceilDiv(width, TEXEL_TURN_WORKGROUP), rows)
@@ -221,7 +221,8 @@ export function createTexelTurn(
         const rows = Math.min(band, height - b * band),
           last = b === shape.bands - 1
         device.queue.writeBuffer(ring, 0, picture, b * band * row, rows * row)
-        const own = last && encoder ? encoder : device.createCommandEncoder({ label: LABEL })
+        const own =
+          last && encoder ? encoder : device.createCommandEncoder({ label: TEXEL_TURN_PASS })
         encodeBand(own, kernel, groups[b], width, rows)
         if (own !== encoder) device.queue.submit([own.finish()])
       }

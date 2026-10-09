@@ -1,6 +1,6 @@
 import { core } from '../../impostor/borrowed.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
-import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
+import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 
 /**
  * The card pipelines (#1335) and their two group layouts: the image's (view uniform, card records)
@@ -60,8 +60,8 @@ async function makeCardPipelines(device: GPUDevice) {
         depthWriteEnabled: false,
       },
     ),
-    make(`${IMPOSTOR_PASS} visibility`, 'card_vis_fs', [core.VIS_TARGETS[0]], core.VIS_DEPTH),
-    make(`${IMPOSTOR_PASS} visibility`, 'card_vis_hiz_fs', core.VIS_TARGETS, core.VIS_DEPTH),
+    make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_fs', [core.VIS_TARGETS[0]], core.VIS_DEPTH),
+    make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_hiz_fs', core.VIS_TARGETS, core.VIS_DEPTH),
   ])
   return {
     imageLayout,

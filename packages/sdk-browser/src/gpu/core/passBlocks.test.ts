@@ -22,7 +22,7 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
   assert.equal(gpuPassBlockOf('vsm.pass'), 'other')
-  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other')
+  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), undefined)
 })
 
 test("a block's durations add up, and the three sum to that of the passes", () => {

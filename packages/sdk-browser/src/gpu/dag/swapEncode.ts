@@ -4,6 +4,7 @@ import { viewWord } from './viewLayout.ts'
 import { swapRegionsWord } from './shader/swapWgsl.ts'
 import type { DagView } from './encode.ts'
 import { holdSwap, saveRegionFor } from './swap.ts'
+import { DAG_MASK_SWAP_PASS } from '../../stage/passLabels.ts'
 
 /** The camera block's region word (`swapRegions`): the host copy, then that one word of the
  *  buffer, nothing allocated. */
@@ -28,7 +29,7 @@ export function encodeSwap(
     undo = holdSwap(swap, view)
   writeRegions(resources, saveRegionFor(swap, view), view - 1)
   const encoder = shared ?? device.createCommandEncoder()
-  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG mask swap' })
+  const pass = encoder.beginComputePass({ label: DAG_MASK_SWAP_PASS })
   const arm = () => {
     pass.setPipeline(resources.armPipeline)
     pass.setBindGroup(0, resources.armGroup)

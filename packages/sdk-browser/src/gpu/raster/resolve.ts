@@ -2,6 +2,7 @@ import type { GpuRasterInput } from './types.ts'
 import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
 
 const RESOLVE_DEPTH = {
   format: 'depth32float' as const,
@@ -143,12 +144,12 @@ function refresh(z: Resolves, input: GpuRasterInput) {
   z.depthFor = input.depthView
   z.hizFor = input.hizView
   z.hizPass = {
-    label: 'Trillion3D raster occluder hiz',
+    label: RASTER_OCCLUDER_HIZ_PASS,
     colorAttachments: [kept(input.hizView!)],
     depthStencilAttachment: depthKept(input.depthView),
   }
   z.finalPass = {
-    label: 'Trillion3D raster resolve',
+    label: RASTER_RESOLVE_PASS,
     colorAttachments: input.hizView
       ? [kept(input.idsView), kept(input.hizView)]
       : [kept(input.idsView)],

@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { WEBGPU_STAGES, addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
-import { PASSES } from './passTable.ts'
+import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
+import { DECLARED_PASSES } from './passTable.ts'
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
 import { DEFERRED_LIGHTING_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
 
-/** A pass of the virtual shadow maps: timed with the Shadows stage by its prefix alone. */
+/** A pass of the virtual shadow maps: timed with the Shadows stage by its family's prefix. */
 const VSM_PASS = `${VSM_PASS_PREFIX}pass`
 
 function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTimings {
@@ -38,11 +38,6 @@ test('a pass with an unknown label joins no stage', () => {
   )
   assert.deepEqual(deposits, [['geometry', 1]])
   assert.equal(gpuPassStageOf('never-seen pass'), undefined)
-})
-
-test('every stage of the pass table is a stage the engine profiles', () => {
-  const stages = new Set<string>(WEBGPU_STAGES)
-  for (const [label, [stage]] of Object.entries(PASSES)) assert.ok(stages.has(stage), label)
 })
 
 test('an unmeasured pass invalidates the whole stage, never a partial sum', () => {
@@ -125,9 +120,9 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
 // The Shadows stage spans the virtual shadow maps' passes, by their prefix, and no other pass.
 test('the Shadows stage sums only the virtual shadow map passes', () => {
   assert.deepEqual(
-    Object.keys(PASSES).filter((name) => gpuPassStageOf(name) === 'shadows'),
+    DECLARED_PASSES.filter(({ stage }) => stage === 'shadows'),
     [],
-    'the prefix is the one rule: no row of the table joins the Shadows stage',
+    'the family is the one rule: no declared pass joins the Shadows stage',
   )
   const shadows = [VSM_PASS, `${VSM_PASS_PREFIX}other pass`]
   const others = [LIGHT_TILES_PASS, DEFERRED_LIGHTING_PASS, 'Trillion3D visibility primary']

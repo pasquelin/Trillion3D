@@ -3,6 +3,7 @@ import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
+import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -79,7 +80,7 @@ async function compactPasses(
     uniData[4] = table.maxVertexWords
     if (mask !== boundMask) bindGroup = bindTo((boundMask = mask))
     device.queue.writeBuffer(uniforms, 0, uniData)
-    const pass = encoder.beginComputePass({ label: 'Trillion3D transparent compaction' })
+    const pass = encoder.beginComputePass({ label: TRANSPARENT_COMPACTION_PASS })
     pass.setBindGroup(0, bindGroup)
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step])

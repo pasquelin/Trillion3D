@@ -1,45 +1,14 @@
 import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import type { StageAdd } from './profiler.ts'
-import { VSM_PASS_PREFIX } from './passLabels.ts'
-import { type GpuPassBlock, PASSES } from './passTable.ts'
+import type { GpuPassBlock, WebgpuStage } from './passDeclaration.ts'
+import { passRowOf } from './passTable.ts'
 
-export type { GpuPassBlock } from './passTable.ts'
-
-/** Stage of a pass, by its label: the table's, or `shadows` for a virtual shadow map pass
- *  (`VSM_PASS_PREFIX`). A label the table does not name joins no stage (`undefined`). */
-export const gpuPassStageOf = (name: string): string | undefined =>
-  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : undefined)
-/** Block of a pass, by its label. Unknown is `other`. */
-export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other'
-
-/** Stages the WebGPU engine can name, in the order they occur. */
-export const WEBGPU_STAGES = [
-  'physics',
-  'animations',
-  'lights',
-  'cutAdoption',
-  'selection',
-  'transparents',
-  'residency',
-  'hostPages',
-  'uploads',
-  'textures',
-  'partition',
-  'encode',
-  'submit',
-  'hiZ',
-  'geometry',
-  'coplanar',
-  'shadows',
-  'shadowCasters',
-  'lightLists',
-  'bounce',
-  'reflections',
-  'lighting',
-  'antialiasing',
-  'effects',
-  'present',
-] as const
+/** Stage of a pass, by its label: its row's (`passRowOf`). A label no declaration names joins no
+ *  stage (`undefined`). */
+export const gpuPassStageOf = (name: string): WebgpuStage | undefined => passRowOf(name)?.stage
+/** Block of a pass, by its label: its row's. A label no declaration names joins no block
+ *  (`undefined`). */
+export const gpuPassBlockOf = (name: string): GpuPassBlock | undefined => passRowOf(name)?.block
 
 /**
  * A pass's own share of the image, ms, or `null` unmeasured: its span less what a pass the queue

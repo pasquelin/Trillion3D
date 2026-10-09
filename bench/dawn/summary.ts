@@ -72,9 +72,9 @@ export function passTimes(frames: readonly FrameRecord[]) {
       const key = passKey(pass.name)
       if (!kinds.has(key))
         kinds.set(key, {
-          // A label the engine's table does not name stands apart, never inside a stage.
+          // A label the engine does not declare stands apart, never inside a stage or a block.
           stage: gpuPassStageOf(pass.name) ?? 'unnamed',
-          block: gpuPassBlockOf(pass.name),
+          block: gpuPassBlockOf(pass.name) ?? 'unnamed',
         })
       sums.set(key, (sums.get(key) ?? 0) + ms)
       total += ms

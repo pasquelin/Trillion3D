@@ -4,7 +4,11 @@ import { restSlotCount } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { ComputeRasterStages } from '../pages/render/encodeVisSetup.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import { HIZ_PASS } from '../../stage/passLabels.ts'
+import {
+  HIZ_PASS,
+  VISIBILITY_PRIMARY_PASS,
+  VISIBILITY_SECONDARY_PASS,
+} from '../../stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { prepared } from '../pages/state/prepared.ts'
 
@@ -97,7 +101,7 @@ export function encodeWebgpuVisibilityPasses(
     ]
   }
   const visPass = encoder.beginRenderPass({
-    label: 'Trillion3D visibility primary',
+    label: VISIBILITY_PRIMARY_PASS,
     colorAttachments: visColors('clear'),
     depthStencilAttachment: {
       view: depthTarget,
@@ -118,7 +122,7 @@ export function encodeWebgpuVisibilityPasses(
   // the image to weigh the occluders alone, and therefore yields an incomplete image.
   if (twoPass && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
     const restPass = encoder.beginRenderPass({
-      label: 'Trillion3D visibility secondary',
+      label: VISIBILITY_SECONDARY_PASS,
       colorAttachments: visColors('load'),
       depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
     })

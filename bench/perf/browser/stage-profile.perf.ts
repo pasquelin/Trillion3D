@@ -6,10 +6,10 @@ import {
   type StageQuantiles,
 } from '../../../packages/sdk-core/src/index.ts'
 import {
-  WEBGPU_STAGES,
   addGpuPasses,
   directLightTimings,
 } from '../../../packages/sdk-browser/src/stage/mapping.ts'
+import { WEBGPU_STAGES } from '../../../packages/sdk-browser/src/stage/passDeclaration.ts'
 import {
   createStageProfiler,
   type StageAdd,

@@ -74,7 +74,7 @@ export type {
   PoolClamp,
   TableGrowthReport,
 } from '../../sdk-browser/src/residency/pools.ts'
-export type { GpuPassBlock } from '../../sdk-browser/src/stage/passTable.ts'
+export type { GpuPassBlock } from '../../sdk-browser/src/stage/passDeclaration.ts'
 export {
   gpuPassBlockOf,
   gpuPassBlockTotals,

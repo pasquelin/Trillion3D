@@ -1,5 +1,6 @@
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { VIEW_PRESENT_PASS } from '../../stage/passLabels.ts'
 
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number }
@@ -54,7 +55,7 @@ export function createPresentAt(
         height = Math.min(at.height, canvas.height - at.y)
       if (width <= 0 || height <= 0 || at.x < 0 || at.y < 0) return
       const pass = encoder.beginRenderPass({
-        label: 'Trillion3D view present',
+        label: VIEW_PRESENT_PASS,
         colorAttachments: [{ view, loadOp: 'load', storeOp: 'store' }],
       })
       pass.setPipeline(program().get())

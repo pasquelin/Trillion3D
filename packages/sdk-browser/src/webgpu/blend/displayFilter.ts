@@ -5,6 +5,7 @@ import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
+import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -160,7 +161,7 @@ function displayApply(
       groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
     }
     const pass = encoder.beginRenderPass({
-      label: 'Trillion3D display filter',
+      label: DISPLAY_FILTER_PASS,
       colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],
     })
     pass.setBindGroup(0, group)

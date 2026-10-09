@@ -13,6 +13,7 @@ import { viewProj } from '../helpers.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import { captureAside, drawResidentCut, renderForCapture } from './captureAside.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { CAPTURE_PASS } from '../../../stage/passLabels.ts'
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal }
 
@@ -83,7 +84,7 @@ function copySurfaces(
   if (!layer)
     encoder
       .beginRenderPass({
-        label: 'Trillion3D capture emission and occlusion',
+        label: CAPTURE_PASS,
         colorAttachments: [
           {
             view: owned.emissiveAo.createView(),

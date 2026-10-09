@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts'
-import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts'
+import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/passDeclaration.ts'
 
 test('stageQuantiles returns null for an empty series: unmeasured, not zero', () => {
   assert.equal(stageQuantiles([]), null)
