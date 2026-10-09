@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { LOD_QUALITY } from '../../../../sdk-core/src/lod/policy.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import * as vsm from '../../vsm/constants.ts'
 import { createWorldSettings } from './worldSettings.ts'
@@ -36,7 +35,6 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number> = {
   lampTexelDither: vsm.VSM_TRACE_DITHER_LOCAL,
   sunExtrapolateSlope: vsm.VSM_TRACE_SLOPE_CAP_SUN,
   lampExtrapolateSlope: vsm.VSM_TRACE_SLOPE_CAP_LOCAL,
-  translucentShadowFilter: LIGHT_SETTINGS.translucentShadowFilter,
 }
 
 test('every default is the constant the engine reads today, and a fresh registry resolves it', () => {
@@ -52,7 +50,6 @@ test('every default is the constant the engine reads today, and a fresh registry
 test('every default lies within its own bounds', () => {
   for (const [name, entry] of Object.entries(WORLD_SETTINGS)) {
     if (entry.kind === 'flag') assert.equal(typeof entry.default, 'boolean', name)
-    else if (entry.kind === 'enum') assert.ok(entry.values.includes(entry.default), name)
     else
       assert.ok(entry.default >= entry.range[0] && entry.default <= entry.range[1], `${name} out`)
   }

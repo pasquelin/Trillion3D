@@ -19,10 +19,10 @@ export const f = Math.fround
 export type V3 = [number, number, number]
 export interface Light {
   shiftedPosition: V3
-  invRadius: number
+  radius: number
   direction: V3
   sourceRadius: number
-  spotAngles: [number, number]
+  cosCone: number
   mapId: number
   kind: number
 }
@@ -47,10 +47,10 @@ const unit = (v: number[]) => {
   return v.map((x) => f(x / l)) as V3
 }
 
-/** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles,
- *  unbounded lamps; some lamps' spheres end a few units in the last place past or short of a
- *  pixel of the tile (`edge`) — with `corner`, the tile's least corner, half of them beyond it,
- *  where that pixel is the box's nearest point. */
+/** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles;
+ *  some lamps' spheres end a few units in the last place past or short of a pixel of the tile
+ *  (`edge`) — with `corner`, the tile's least corner, half of them beyond it, where that pixel is
+ *  the box's nearest point. */
 export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
   return Array.from({ length: count }, (_, k) => {
     const kind = [DIRECTIONAL, POINT, SPOT, RECT, POINT, SPOT][Math.floor(rand() * 6)]
@@ -64,14 +64,13 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
       const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
       radius = d * (1 + (Math.floor(rand() * 9) - 4) * 2 ** -23)
     }
-    const unbounded = kind !== DIRECTIONAL && rand() < 0.05
-    const cosOuter = f(Math.cos(0.2 + rand() * 1.2))
+    const cosCone = f(Math.cos(0.2 + rand() * 1.2))
     return {
       shiftedPosition: at,
-      invRadius: unbounded ? 0 : f(1 / radius),
+      radius: f(radius),
       direction: unit([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
       sourceRadius: f(rand() * 0.5),
-      spotAngles: kind === SPOT ? [cosOuter, f(1 / (1 - cosOuter))] : [-2, 1],
+      cosCone: kind === SPOT ? cosCone : -2,
       mapId: k,
       kind,
     }
@@ -139,7 +138,7 @@ export const NAMES = [
   'vsmOrderedKey',
   'vsmOrderedValue',
   'vsmLightIsDirectional',
-  'vsmSpotCone',
+  'localLightReaches',
   'vsmFacesAwayFromSun',
   'vsmFacesAwayFromLocal',
   'vsmMaskCode',

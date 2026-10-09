@@ -102,15 +102,6 @@ export const LIGHT_SETTINGS = {
   shadowRequestCap: 4096,
   /** PCF taps per pixel and per shadow light (X2). */
   pcfTaps: 16,
-  /**
-   * How a blended surface and the water read a light's virtual shadow map: 0, one point lookup;
-   * 1, sixteen filtered taps a texel apart, each texel with its own receiver-plane bias and its
-   * own translucent-caster transmission; 2, shadow-map rays from a short screen offset, at the
-   * opaque projection's ray counts, with a dither. A word of the shadow maps' uniform block the
-   * shaders branch on (`writeVsmUniforms`): changing it recompiles nothing, and a mode left
-   * unused costs nothing but its code. The opaque surfaces read their projected mask in every mode.
-   */
-  translucentShadowFilter: 1 as 0 | 1 | 2,
   /** Width of the softened edge of a spot cone, in cosine units: against staircasing. */
   spotEdgeSoftness: 0.02,
   /**

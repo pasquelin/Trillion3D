@@ -63,9 +63,10 @@ into the dynamic slice (`VSM_STILL_FRAMES`).
 ## Reading the shadow
 
 Opaque surfaces read the mask. Blended surfaces and water read the page table and the pool
-directly (`lighting/direct/shadowWgsl.ts`, by `translucentShadowFilter`); they bind the pool's
-first part alone, so a device that splits a slice into parts gives them no shadow past it. A page
-not drawn hands its point to the next coarser level mapped; where none holds it, it is lit.
+directly, sixteen filtered taps a texel apart (`lighting/direct/shadowWgsl.ts`); they bind the
+pool's first part alone, so a device that splits a slice into parts gives them no shadow past
+it. A page not drawn hands its point to the next coarser level mapped; where none holds it, it is
+lit.
 
 ## Metrics
 

@@ -1,6 +1,6 @@
 // The world a blended or water shadow read runs over (`vsmFilteredRead.test.ts`): page entries, the
 // pool, the transmission atlas, and the shipped WGSL run in JavaScript.
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -59,12 +59,11 @@ export class World {
   }
 }
 
-/** A blended surface's read as the blend and water stages compose it — the program variant with
- *  the traced read, so that every mode is there —, and two test probes. */
+/** A blended surface's read as the blend and water stages compose it, and two test probes. */
 export const SOURCE = wgslProgram(
   `fn testTransmission()->vec3f{return shadowTransmission;}
 fn testReset(){shadowTransmission=vec3f(1.0);}`,
-  [directShadowWgsl(18, { traced: true })],
+  [directShadowWgsl(18)],
 )
 
 /** The shipped taps, read back from the WGSL. */
@@ -80,48 +79,24 @@ const vector =
     const flat = args.flat().map((x) => Math.trunc(Number(x)) >>> 0)
     return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat
   }
-const each = (f: (x: number) => number) => (v: number | V) => (Array.isArray(v) ? v.map(f) : f(v))
 
-/** The module run over `world`, with `extra` scope entries (stubs) and `uniforms` overrides. */
-export function run<T>(
-  world: World,
-  names: string[],
-  extra: object = {},
-  uniforms: object = {},
-  source = SOURCE,
-) {
+/** The module run over `world`, with `extra` scope entries (stubs). */
+export function run<T>(world: World, names: string[], extra: object = {}, source = SOURCE) {
   const scope = {
     VSM_LOG2_PAGE: 7,
     VSM_PAGE_TEXELS: PAGE,
     VSM_PAGE_TEXEL_MASK: PAGE - 1,
     VSM_LEVEL0_TEXELS: LEVEL,
     VSM_FILTER_TAPS: TAPS,
-    VSM_NOISE_TILE: [64, 64, 64],
     VSM_NORMAL_OFFSET_FLOOR: 0.0002,
     LIGHT_KIND_SPOT: 2,
-    KIND_SPOT: 1,
-    vsm: {
-      poolPages: 2048,
-      poolPagesXY: [128, 16],
-      normalBias: 0.0005,
-      translucentShadowFilter: 1,
-      screenRayShare: 0.015,
-      viewTanHalfFovY: 0.5,
-      frameStamp: 3,
-      ...uniforms,
-    },
+    vsm: { poolPages: 2048, poolPagesXY: [128, 16], normalBias: 0.0005 },
     shadowTransmission: [1, 1, 1],
     shadowCamera: [0, 0, 0],
     shadowAngularPixel: 0.001,
     shadowViewWidth: 1000,
-    shadowFootprint: 0.01,
-    shadowPixel: [100.5, 60.5],
-    vsmView: {},
-    _: 0,
     vsmTransmissionThrough: () => (world.throughReads++, world.through),
     vec4u: vector(4),
-    fract: each((x) => x - Math.floor(x)),
-    mat4x4f: (...columns: V[]) => new Mat(columns.flat()),
     VsmFilterPage: (
       kind: number,
       physical: V,
@@ -139,7 +114,6 @@ export function run<T>(
       depthInverse,
       depthBias,
     }),
-    VsmProjectionLight: (...fields: unknown[]) => ({ fields }),
     VsmFilterTexel: (physical: V, centre: V) => ({ physical, centre }),
     vsmTexelsAtLevel: (mip: number) => LEVEL >> mip,
     vsmHandleOffset: (h: { id: number }, offset: number) => ({ ...h, id: h.id + offset }),

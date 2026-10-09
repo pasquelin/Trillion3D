@@ -19,7 +19,6 @@ const COMPOSED: Record<string, string> = {
   ...ENGINE_SHADERS,
   'direct read, blended': wgslModule(directShadowWgsl(18)),
   'direct read, opaque resolve': wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
-  'direct read, traced': wgslModule(directShadowWgsl(18, { traced: true })),
 }
 
 /** The field names of struct `name` in `text`, pads left out. */

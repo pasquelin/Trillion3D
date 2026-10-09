@@ -1,6 +1,5 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
-import { VSM_CONSTANTS_WGSL, VSM_MASK_MAX_RAYS, VSM_UNIT_PER_CM } from '../../vsm/constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
 import { vsmPoolTexelIndexWgsl } from '../../vsm/resources.ts'
 import {
@@ -15,16 +14,12 @@ import {
   vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
-import { VSM_TRACE_RESULT_WGSL, VSM_TRACE_LIGHT_WGSL, vsmTraceWgsl } from '../../vsm/traceWgsl.ts'
-import { VSM_NOISE_TILE } from '../../vsm/blueNoise.ts'
 import { PCF_TAPS } from './pcfTaps.ts'
 import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
-import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
-import { wgslBlock, wgslConst, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { byteOf, pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
-import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 import {
   ALL_SHADOW_KINDS,
   byShadowKind,
@@ -32,7 +27,7 @@ import {
   type ShadowKinds,
 } from './shadowKinds.ts'
 
-/** Where a pass binds the virtual shadow maps a consumer samples (`vsmShadowFactor`): the page
+/** Where a pass binds the virtual shadow maps a consumer samples (`vsmLocate`): the page
  *  table, the projection data, the uniforms and the pool's dynamic slice (one part). */
 export interface VsmConsumerBindings {
   pageTable: number
@@ -79,11 +74,11 @@ const vsmPoolRead = (binding: number) =>
 const RESOLVE_POOL = wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}')
 
 /**
- * The plain (untraced) lookup of a virtual shadow map — what forward shading and translucency read
- * (directional or local, one filtered page-table lookup with a coarser-level fallback, optimal
- * slope bias) — at a point `P` of normal `N`, for VSM id `id`. The point is moved along its normal
- * by the normal bias length.
- * The origin shift is the pass's eye (`shadowCamera`), in single precision.
+ * Where a point is read in a virtual shadow map (`vsmLocate`) — directional or local, one page-table
+ * lookup with a coarser-level fallback — at a point `P` of normal `N`, for VSM id `id`: what the
+ * blended surfaces' and the water's filtered read and the opaque resolve's transmission read start
+ * from. The point is moved along its normal by the normal bias length. The origin shift is the
+ * pass's eye (`shadowCamera`), in single precision.
  */
 const vsmConsumerWgsl = (
   b: VsmConsumerBindings,
@@ -109,6 +104,69 @@ const vsmConsumerWgsl = (
 @group(0) @binding(${b.pageTable}) var<storage,read> vsmPageTable:array<u32>;
 fn vsmPageTableLoad(i:u32)->u32{return vsmPageTable[i];}
 @group(0) @binding(${b.projectionData}) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
+/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias, which grows with
+ *  the distance and the pixel's angular size. */
+fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
+ let distanceToCamera=length(P-shadowCamera);
+ let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
+ return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+}
+/** Where a point is read: its sample \`sm\` — invalid where no page holds the point, nothing
+ *  mapped at any level — of map level \`handle\`, a sun's clipmap level (\`clipmap\`) or a local
+ *  light's map; the unit normal \`N\`, the receiver from the eye and in the map's shifted frame,
+ *  and its depth there. */
+struct VsmLocated{sm:VsmMapRead,handle:VsmHandle,clipmap:bool,N:vec3f,fromEye:vec3f,fromMap:vec3f,depth:f32,}
+fn vsmLocate(id:u32,directional:bool,P:vec3f,Nin:vec3f)->VsmLocated{
+ var at:VsmLocated;
+ at.N=normalize(Nin);
+ let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
+ at.fromEye=vsmReceiverFromEye(P,at.N);
+ ${byShadowKind(
+   kinds,
+   `  let h=vsmHandleFromIdDirectional(id);
+  let base=vsmProjectionOf(h);
+  let d2=vsmDistanceSqToOrigin(base,at.fromEye,shiftHigh,shiftLow);
+  let level=i32(floor(vsmSampledLevel(base,d2)));
+  let index=max(0,level-base.mapLevel);
+  at.clipmap=true;
+  if(index>=base.levelsLeft){return at;}
+  at.handle=vsmHandleOffset(h,index);
+  let pd=vsmProjectionOf(at.handle);
+  at.fromMap=at.fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
+  let uvz=pd.shiftedToMapUv*vec4f(at.fromMap,1.0);
+  at.depth=uvz.z;
+  at.sm=vsmReadClipmap(at.handle,uvz.xy);
+  return at;`,
+   ` var h=vsmHandleFromId(id);
+ var pd=vsmProjectionOf(h);
+ at.fromMap=at.fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
+ if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(at.fromMap)));pd=vsmProjectionOf(h);}
+ let uvz=perspectiveDivide(pd.shiftedToMapUv*vec4f(at.fromMap,1.0));
+ at.handle=h;
+ at.depth=uvz.z;
+ at.sm=vsmReadMap(h,uvz.xy,pd.finestMip);
+ return at;`,
+ )}
+}`,
+  )
+
+/**
+ * The read of a blended surface and of the water (`vsmShadowRead`): sixteen taps a texel apart
+ * (`pcfTaps.ts`) around the located sample (`vsmLocate`), at the level that sample was read at —
+ * the requested one, or the coarser one its page fell back to —, each a bilinear compare of four
+ * texels. Their footprints all lie in the 4 × 4 texels around the sample: each of those is read
+ * once, against the receiver with its own receiver-plane bias (`vsmConsumerSlopeBiasAt`, from its
+ * centre), and weighed by the share of the taps' footprints it holds. A texel off the sample's page
+ * reads its own page, translated once per page (`vsmFilterPage`): that level's page where mapped,
+ * else the coarser page the table points to, read at the texel holding the centre — as the sample
+ * falls back. The translucent casters' transmission is the sample's, at the receiver, once,
+ * wherever a texel lets the opaque light through. Needs the consumer read (`vsmConsumerWgsl`) and
+ * the light code.
+ */
+const VSM_SHADOW_READ_WGSL = wgslBlock(
+  'VSM_SHADOW_READ_WGSL',
+  [pow2FromExponent],
+  `
 /** The optimal slope bias's terms: the receiver plane's depth slope per texel of the
  *  sample's level (xy), the bias cap (z) and the level's scale to \`requested\` (w). */
 fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4f{
@@ -119,72 +177,6 @@ fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4
 }
 /** The optimal slope bias for a texel \`offset\` texels from the receiver's position. */
 fn vsmConsumerSlopeBiasAt(slope:vec4f,offset:vec2f)->f32{return min(2.0*max(0.0,dot(slope.xy,offset)),slope.z)*slope.w;}
-/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias, which grows with
- *  the distance and the pixel's angular size. */
-fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
- let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
-}
-fn vsmConsumerSlopeBias(slope:vec4f,sm:VsmMapRead)->f32{
- return vsmConsumerSlopeBiasAt(slope,vec2f(sm.mapTexelXY)+0.5-sm.mapTexelPos);
-}
-/** 1 lit, 0 shadowed; 1 where no page holds the point (nothing mapped at any level). Sets
- *  \`shadowTransmission\`: what the translucent casters let through (\`vsmTransmissionThrough\`). */
-fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
- let N=normalize(Nin);
- let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let fromEye=vsmReceiverFromEye(P,N);
- ${byShadowKind(
-   kinds,
-   `  let h=vsmHandleFromIdDirectional(id);
-  let base=vsmProjectionOf(h);
-  let d2=vsmDistanceSqToOrigin(base,fromEye,shiftHigh,shiftLow);
-  let level=i32(floor(vsmSampledLevel(base,d2)));
-  let index=max(0,level-base.mapLevel);
-  if(index>=base.levelsLeft){return 1.0;}
-  let lh=vsmHandleOffset(h,index);
-  let pd=vsmProjectionOf(lh);
-  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
-  let uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
-  let sm=vsmReadClipmap(lh,uvz.xy);
-  if(!sm.valid){return 1.0;}
-  let slope=vsmConsumerSlope(lh,sm,fromMap,N);
-  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,true);
-  return select(1.0,0.0,sm.depth-vsmConsumerSlopeBias(slope,sm)>uvz.z);`,
-   ` var h=vsmHandleFromId(id);
- var pd=vsmProjectionOf(h);
- let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
- if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
- var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(perspectiveDivide(uvz),uvz.w);
- let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
- if(!sm.valid){return 1.0;}
- let slope=vsmConsumerSlope(h,sm,fromMap,N);
- shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);
- return select(1.0,0.0,sm.depth-vsmConsumerSlopeBias(slope,sm)>uvz.z);`,
- )}
-}`,
-  )
-
-/**
- * Mode 1 of a blended surface's and the water's read (`vsmShadowRead`): sixteen taps a texel apart
- * (`pcfTaps.ts`) around the point read's sample, at the level that sample was read at — the
- * requested one, or the coarser one its page fell back to —, each a bilinear compare of four
- * texels. Their footprints all lie in the 4 × 4 texels around the sample: each of those is read
- * once, against the receiver with its own receiver-plane bias (`vsmConsumerSlopeBiasAt`, from its
- * centre), and weighed by the share of the taps' footprints it holds. A texel off the sample's page
- * reads its own page, translated once per page (`vsmFilterPage`): that level's page where mapped,
- * else the coarser page the table points to, read at the texel holding the centre — as the point
- * read falls back. The translucent casters' transmission is the point read's, at the receiver,
- * once, wherever a texel lets the opaque light through (`vsmShadowFiltered`). The normal and slope
- * biases are the point read's.
- */
-const filteredReadWgsl = (kinds: ShadowKinds) =>
-  wgslBlock(
-    `filteredReadWgsl(${shadowKindsLabel(kinds)})`,
-    [perspectiveDivide, pow2FromExponent],
-    `
 const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.length}>(${PCF_TAPS.map(([x, y]) => `vec2f(${x},${y})`).join(',')});
 /** A page of the filtered read's level, translated once for the block texels in it: none (\`kind\`
  *  0), that level's own (1), or the coarser page its entry points to (2), whose texel holding a
@@ -309,167 +301,24 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
  }
  return lit/total;
 }
-/** The filtered read at \`P\`, normal \`N\`: the point read's level and biases, then the
- *  taps. The point read (\`vsmShadowFactor\`) is restated, not shared: it stays, to the byte, the
- *  read of mode 0 and of the opaque resolve's transmission. */
-fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
- let N=normalize(Nin);
- let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let fromEye=vsmReceiverFromEye(P,N);
- ${byShadowKind(
-   kinds,
-   `  let h=vsmHandleFromIdDirectional(id);
-  let base=vsmProjectionOf(h);
-  let d2=vsmDistanceSqToOrigin(base,fromEye,shiftHigh,shiftLow);
-  let level=i32(floor(vsmSampledLevel(base,d2)));
-  let index=max(0,level-base.mapLevel);
-  if(index>=base.levelsLeft){return 1.0;}
-  let lh=vsmHandleOffset(h,index);
-  let pd=vsmProjectionOf(lh);
-  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
-  let uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
-  let sm=vsmReadClipmap(lh,uvz.xy);
-  if(!sm.valid){return 1.0;}
-  let lit=vsmFilterTaps(lh,sm,uvz.z,vsmConsumerSlope(lh,sm,fromMap,N),true);
-  if(lit>0.0){shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,true);}
-  return lit;`,
-   ` var h=vsmHandleFromId(id);
- var pd=vsmProjectionOf(h);
- let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
- if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
- var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(perspectiveDivide(uvz),uvz.w);
- let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
- if(!sm.valid){return 1.0;}
- let lit=vsmFilterTaps(h,sm,uvz.z,vsmConsumerSlope(h,sm,fromMap,N),false);
- if(lit>0.0){shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);}
- return lit;`,
- )}
-}`,
-  )
-
-/** The traced read's ray, the sun's or the local light's (`byShadowKind`'s branches, here a block). */
-const TRACED_SUN = `  let source=VsmProjectionLight(vec3f(0.0),0.0,-light.directionCone.xyz,sin(light.shape.x),vec2f(-2.0,1.0),i32(id),0u);
-  traced=vsmTraceSun(i32(id),source,pixel,fromEye,start,noise,N,true,true);`
-const TRACED_LOCAL = `  let spot=abs(light.params.x-KIND_SPOT)<0.5;
-  let source=VsmProjectionLight(light.positionRange.xyz-shadowCamera,0.0,-light.directionCone.xyz,light.shape.x,vec2f(select(-2.0,light.directionCone.w,spot),1.0),i32(id),0u);
-  traced=vsmTraceLocal(i32(id),source,pixel,depth,fromEye,start,noise,N,true,true);`
-const tracedKindStatement = (kinds: ShadowKinds) =>
-  kinds.sun && kinds.local
-    ? `if(isSun(light)){\n${TRACED_SUN}\n }else{\n${TRACED_LOCAL}\n }`
-    : `{\n${kinds.sun ? TRACED_SUN : TRACED_LOCAL}\n }`
-
-/** The per-frame shift of the pixel noise, per frame of the noise tile (declared, not derived). */
-const VSM_NOISE_FRAME_SHIFT = wgslConst(
-  'VSM_NOISE_FRAME_SHIFT',
-  [],
-  'const VSM_NOISE_FRAME_SHIFT=vec2f(32.665,11.815);',
-)
-
-/** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile:
- *  the traces' noise provider (\`vsmNoiseTwo\`) in a stage with no blue-noise binding. Declared,
- *  without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel noise
- *  (32.665, 11.815) and the shifts that set the pair's second value (47, 17) and the dither's noise
- *  (13, 71) apart from the first; moving any moves this read's noise pattern. */
-const PIXEL_NOISE_TWO = wgslFn(
-  'vsmNoiseTwo',
-  [interleavedGradient, VSM_NOISE_TILE, VSM_NOISE_FRAME_SHIFT],
-  `fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
- let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT;
- return vec2f(interleavedGradient(p),interleavedGradient(p+vec2f(47.0,17.0)));
+/** Light \`light\`'s share at \`P\`, normal \`N\`, of map \`id\`: the located sample's taps; 1 where
+ *  no page holds the point. */
+fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
+ let at=vsmLocate(id,isSun(light),P,N);
+ if(!at.sm.valid){return 1.0;}
+ let lit=vsmFilterTaps(at.handle,at.sm,at.depth,vsmConsumerSlope(at.handle,at.sm,at.fromMap,at.N),at.clipmap);
+ if(lit>0.0){shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,at.fromEye,shadowCamera,at.clipmap);}
+ return lit;
 }`,
 )
-
-/**
- * Mode 2 of the same read: the opaque projection's rays (`vsmTraceWgsl`, every ray traced: a
- * fragment has no wave to stop them early) at its ray counts, from the receiver itself — no normal
- * offset — and starting a share of the view's height at the pixel's depth along the ray
- * (`screenRayShare`, `viewTanHalfFovY`), the result moved by up to a thirtieth where it is a
- * penumbra, against the banding of the ray count. On the four bindings the read already has: the
- * view the traces read is the pass's own pixel — its footprint gives the depth it measured at and
- * half a pixel there —, and the noise is interleaved gradient noise rather than the projection's
- * blue-noise texture, which the blend stage has no binding for. The translucent casters'
- * transmission is the point read's, as the opaque resolve takes it beside its traced mask.
- */
-const tracedReadWgsl = (b: VsmConsumerBindings, kinds: ShadowKinds) =>
-  wgslBlock(
-    `tracedReadWgsl(${vsmBindingsLabel(b)}, ${shadowKindsLabel(kinds)})`,
-    [
-      interleavedGradient,
-      VSM_NOISE_TILE,
-      VSM_NOISE_FRAME_SHIFT,
-      VSM_TRACE_LIGHT_WGSL,
-      VSM_TRACE_RESULT_WGSL,
-      vsmTraceWgsl(false, vsmPoolRead(b.pool), PIXEL_NOISE_TWO),
-      DIVISOR_FLOOR,
-    ],
-    `
-/** The view fields the traces read (\`vsmView\`), filled from the pixel by \`vsmShadowTraced\`. */
-struct VsmPixelView{shiftedToView:mat4x4f,viewToClip:mat4x4f,originShiftHigh:vec3f,frameIndex:u32,originShiftLow:vec3f,viewPixels:vec4f,}
-var<private> vsmView:VsmPixelView;
-fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
- let N=normalize(Nin);
- let angular=max(shadowAngularPixel,DIVISOR_FLOOR);
- let depth=shadowFootprint/angular;
- let frame=vsm.frameStamp;
- vsmView.shiftedToView=mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
- // A view one unit wide whose half pixel at depth d is d·angular/2: the pass's own.
- vsmView.viewToClip=mat4x4f(vec4f(2.0/angular,0.0,0.0,0.0),vec4f(0.0,2.0/angular,0.0,0.0),vec4f(0.0,0.0,0.0,1.0),vec4f(0.0));
- vsmView.viewPixels=vec4f(1.0);
- vsmView.originShiftHigh=-shadowCamera;vsmView.originShiftLow=vec3f(0.0);
- vsmView.frameIndex=frame;
- let pixel=vec2u(shadowPixel);
- let noise=interleavedGradient(shadowPixel+f32(frame&7u)*VSM_NOISE_FRAME_SHIFT);
- let fromEye=P-shadowCamera;
- let start=vsm.screenRayShare*vsm.viewTanHalfFovY*depth;
- var traced:VsmTraceResult;
- ${tracedKindStatement(kinds)}
- var shade=traced.shadowFactor;
- // A penumbra's shade (strictly between 0 and 1: k of R rays) moves by up to half the finest step a
- // shade takes, one ray of the most a light traces (\`VSM_MASK_MAX_RAYS\`).
- if(shade>0.0&&shade<1.0){shade=saturate(shade+(interleavedGradient(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*VSM_NOISE_FRAME_SHIFT)-0.5)/${VSM_MASK_MAX_RAYS}.0);}
- if(shade>0.0){_=vsmShadowFactor(id,isSun(light),P,Nin);}
- return shade;
-}`,
-  )
-
-/**
- * The read of a blended surface and of the water (`vsmShadowRead`), on the word
- * `translucentShadowFilter` of the shadow maps' uniforms (`LIGHT_SETTINGS.translucentShadowFilter`):
- * 0 the point read (`vsmShadowFactor`), 1 the filtered taps, else the traced rays where `traced`
- * compiled them in, the filtered taps where not. Between the point read and the taps the word
- * switches at no recompile. The traces are a variant of the program, behind a read-only setting:
- * compiled into every blend and water program, their code alone slowed the full-screen water by 0.3 ms with the word at 0
- * (a-world-of-blocks, 3456 × 2234). Needs the consumer read (`vsmConsumerWgsl`) and the light code.
- */
-const vsmTranslucentReadWgsl = (b: VsmConsumerBindings, traced: boolean, kinds: ShadowKinds) =>
-  wgslBlock(
-    `vsmTranslucentReadWgsl(${vsmBindingsLabel(b)}, ${traced}, ${shadowKindsLabel(kinds)})`,
-    [filteredReadWgsl(kinds), ...(traced ? [tracedReadWgsl(b, kinds)] : [])],
-    `fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
- let mode=vsm.translucentShadowFilter;
- if(mode==0u){return vsmShadowFactor(id,isSun(light),P,N);}${
-   traced
-     ? `
- if(mode==2u){return vsmShadowTraced(id,light,P,N);}`
-     : ''
- }
- return vsmShadowFiltered(id,isSun(light),P,N);
-}`,
-  )
-
-/** Whether a blend or water program compiles the traced read in: the setting at 2. */
-const tracedBySetting = () => LIGHT_SETTINGS.translucentShadowFilter === 2
 
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
  * A shadowed light's `params.y` is `firstVsmId · 64 + channel`, −1 without a shadow
  * (`encodeVsm.ts`). The opaque resolve reads the frame's traced shadow mask
  * (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`, set by its shadow setup),
- * the light's channel, and the point read's lookup (`vsmTransmissionRead`) for the translucent
- * casters' transmission alone, whatever the mode. The blend and water passes take the read the uniform word
- * `translucentShadowFilter` picks (`vsmShadowRead`): the point read (0), the filtered taps (1, the
- * default) or, in a program built with \`traced\` (the setting at 2), the traced rays (2). A
+ * the light's channel, and the located sample (`vsmTransmissionRead`) for the translucent casters'
+ * transmission alone. The blend and water passes read the filtered taps (`vsmShadowRead`). A
  * reflection reads the lit image, never a shadow map.
  *
  * The resolve reads a shadow only in a cell its shadow setup set the mask pixel of
@@ -488,12 +337,11 @@ export const directShadowWgsl = (
   {
     resolveTransmission = null,
     vsm = CONTRACT_VSM_BINDINGS,
-    traced = tracedBySetting(),
     kinds = ALL_SHADOW_KINDS,
   }: DirectShadowOptions = {},
 ) =>
   wgslBlock(
-    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${traced}, ${shadowKindsLabel(kinds)})`,
+    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${shadowKindsLabel(kinds)})`,
     [
       SHADOW_VIEW_WGSL,
       vsmConsumerWgsl(vsm, {
@@ -501,9 +349,7 @@ export const directShadowWgsl = (
         pool: resolveTransmission === null,
         kinds,
       }),
-      resolveTransmission === null
-        ? vsmTranslucentReadWgsl(vsm, traced, kinds)
-        : vsmMaskWgsl(maskBinding, kinds),
+      resolveTransmission === null ? VSM_SHADOW_READ_WGSL : vsmMaskWgsl(maskBinding),
     ],
     `
 var<private> shadowFootprint:f32=0.0;
@@ -532,18 +378,17 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
 
 /** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
  *  binding of the translucent casters' transmission (none in a blend or water pass), the virtual
- *  shadow maps' bindings, whether the traced read is compiled in, and the light kinds read. */
+ *  shadow maps' bindings and the light kinds read. */
 export type DirectShadowOptions = {
   resolveTransmission?: number | null
   vsm?: VsmConsumerBindings
-  traced?: boolean
   kinds?: ShadowKinds
 }
 
-const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) =>
+const vsmMaskWgsl = (binding: number) =>
   wgslBlock(
-    `vsmMaskWgsl(${binding}, ${shadowKindsLabel(kinds)})`,
-    [VSM_MASK_TABLE_READ_WGSL, perspectiveDivide, byteOf],
+    `vsmMaskWgsl(${binding})`,
+    [VSM_MASK_TABLE_READ_WGSL, byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
@@ -568,41 +413,14 @@ fn vsmMaskAt(coord:vec2i){
  *  still takes the receiver (\`shadowReceiver\`); the opaque shadow is the mask's, whose
  *  projection placed each pixel on its receiver already (\`vsm/projectionWgsl.ts\`). */
 fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory).x>1u;}
-/** The translucent casters' transmission at \`P\` alone, into \`shadowTransmission\`: the point read
- *  (\`vsmShadowFactor\`) restated to its sample, without its opaque compare — the mask holds the
- *  opaque shadow —, read only where the sample's physical page holds a translucent slice:
- *  elsewhere all the light passes, as \`shadowFactor\` set it. The same terms in the same order:
- *  the same colour, bit for bit, at the lookup's cost alone on the pages no pane covers. */
-fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,Nin:vec3f){
- let N=normalize(Nin);
- let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- let fromEye=vsmReceiverFromEye(P,N);
- ${byShadowKind(
-   kinds,
-   `  let h=vsmHandleFromIdDirectional(id);
-  let base=vsmProjectionOf(h);
-  let d2=vsmDistanceSqToOrigin(base,fromEye,shiftHigh,shiftLow);
-  let level=i32(floor(vsmSampledLevel(base,d2)));
-  let index=max(0,level-base.mapLevel);
-  if(index>=base.levelsLeft){return;}
-  let lh=vsmHandleOffset(h,index);
-  let pd=vsmProjectionOf(lh);
-  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
-  let uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
-  let sm=vsmReadClipmap(lh,uvz.xy);
-  if(!vsmTransmissionPaned(sm)){return;}
-  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,true);
-  return;`,
-   ` var h=vsmHandleFromId(id);
- var pd=vsmProjectionOf(h);
- let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
- if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
- var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(perspectiveDivide(uvz),uvz.w);
- let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
- if(!vsmTransmissionPaned(sm)){return;}
- shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);`,
- )}
+/** The translucent casters' transmission at \`P\` alone, into \`shadowTransmission\`: the located
+ *  sample (\`vsmLocate\`), without an opaque compare — the mask holds the opaque shadow —, read only
+ *  where its physical page holds a translucent slice: elsewhere all the light passes, as
+ *  \`shadowFactor\` set it, at the lookup's cost alone on the pages no pane covers. */
+fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,N:vec3f){
+ let at=vsmLocate(id,directional,P,N);
+ if(!vsmTransmissionPaned(at.sm)){return;}
+ shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,at.fromEye,shadowCamera,at.clipmap);
 }
 /** Light \`channel\`'s factor: its 8-bit lane of layer channel / 4 (\`vsmMaskCode\`), decoded — 1, the
  *  decode of a lane 0, where its tile stored no such layer, which is then not read. The layer's

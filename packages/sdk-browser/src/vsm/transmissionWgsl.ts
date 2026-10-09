@@ -957,10 +957,11 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  * position along the map's unit axis at the point, barycentric, against the receiver's, by more
  * than ε = 2⁻²⁰ of the larger (f32 rounds each about eight times: 2⁻²¹, doubled); local: the
  * fraction of the way from the receiver to the light where the ray meets the triangle's plane,
- * above ε = 2⁻²⁰ of the larger of |P| and |w| over |n·P|. The receiver is the point read's own,
- * moved off its surface by the normal bias: a surface's own triangle is never above it. Up to two
- * crossings multiply in any order to the same bits; three or more multiply in increasing distance
- * (then by their quantised value), so the result is the same whatever the list order.
+ * above ε = 2⁻²⁰ of the larger of |P| and |w| over |n·P|. The receiver is the located one
+ * (`vsmLocate`), moved off its surface by the normal bias: a surface's own triangle is never
+ * above it. Up to two crossings multiply in any order to the same bits; three or more multiply in
+ * increasing distance (then by their quantised value), so the result is the same whatever the
+ * list order.
  * Lists `vsmProjectionOf` and the maths library's `bilinear3`; reads its host's `VsmMapRead` (the
  * page sampling) and `vsm` uniform.
  */

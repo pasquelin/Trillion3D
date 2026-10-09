@@ -1588,8 +1588,7 @@
       "shadowRequestCap": "Số trang ảo mà phép tô bóng được yêu cầu mỗi khung hình; phần còn lại yêu cầu lại ở khung sau.",
       "sunLevels": "Các mức clipmap của một đèn định hướng. Mức `L` có texel `2^L` mét, và một điểm ảnh đọc mức có texel không lớn hơn dấu chân của chính nó: mười sáu mức phủ tỉ lệ xa/gần 2^15. Sau mức cuối, bóng xa đảm nhận.",
       "sunLevelPages": "Số trang mỗi cạnh của vùng một mức clipmap quanh camera. Đây là dung lượng, không phải tinh chỉnh: mỗi điểm ảnh đọc mật độ riêng khi `height / tan(halfFovY)` không vượt `sunLevelPages · shadowPage / 2` = 4096 (khung 4K với trường dọc 55°); vượt quá, các điểm ảnh ngoài đọc mức kế tiếp, mật độ một nửa.",
-      "sunAngularRadius": "Bán kính góc của đĩa mặt trời tính bằng radian; không có nghĩa là yêu cầu rõ ràng bóng cứng.",
-      "translucentShadowFilter": "Cách một bề mặt pha trộn và nước đọc bản đồ bóng ảo của một ánh sáng: 0, một lần tra điểm; 1, mười sáu mẫu đã lọc cách nhau một texel, mỗi texel có độ lệch mặt phẳng nhận riêng và độ truyền của vật đổ bóng trong mờ riêng; 2, tia bản đồ bóng từ một độ lệch màn hình ngắn, với số tia của phép chiếu đục, có dither. Một từ của khối uniform của các bản đồ bóng mà shader rẽ nhánh theo (`writeVsmUniforms`): đổi nó không biên dịch lại gì, và một chế độ không dùng chỉ tốn phần mã của nó. Các bề mặt đục đọc mặt nạ chiếu của chúng ở mọi chế độ."
+      "sunAngularRadius": "Bán kính góc của đĩa mặt trời tính bằng radian; không có nghĩa là yêu cầu rõ ràng bóng cứng."
     }
   },
   "LOD_QUALITY": {

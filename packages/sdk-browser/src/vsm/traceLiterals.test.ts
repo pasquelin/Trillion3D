@@ -16,7 +16,6 @@ import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 const f32 = Math.fround
 /** The projection's trace: its pool and its blue noise's pair. */
 const TRACE = vsmTraceWgsl(
-  true,
   vsmPoolLoadOf(
     0,
     VSM_PROJECTION_VSM_SPECS,

@@ -66,6 +66,7 @@ import {
   vsmTraceWgsl,
 } from './traceWgsl.ts'
 import type { VsmLayout } from './layout.ts'
+import { localLightReaches } from '../lighting/direct/lightWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
@@ -119,8 +120,8 @@ export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 
  * 272 originShiftLow + isOrtho, 288 shiftedEye + lightCount, 304 viewForward,
  * 320 depthFromDeviceZ, 336 screenRayScale, 352 halfFovTangents,
  * 368 viewPixels, 384 clipToBufferUv, 400 projectionRect, 416 lights[64] × 48.
- * Light: 0 shiftedPosition, 12 invRadius, 16 direction (towards the light), 28 sourceRadius,
- * 32 spotAngles (cos outer, 1/(cos inner − cos outer); (−2, 1) when not a spot), 40 mapId, 44 kind.
+ * Light: 0 shiftedPosition, 12 radius, 16 direction (towards the light), 28 sourceRadius,
+ * 32 cosCone (a spot's cone, −2 for any other light), 36 mapId, 40 kind, 48 bytes with its tail.
  */
 const PROJECTION_VIEW = /* wgsl */ `
 struct VsmProjectionView{
@@ -286,8 +287,6 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)
  }
  return rayLength;
 }
-/** The spot cone's attenuation mask of a direction. */
-fn vsmSpotCone(L:vec3f,spotDirection:vec3f,spotAngles:vec2f)->f32{return saturate((dot(L,-spotDirection)-spotAngles.x)*spotAngles.y);}
 /** \`biasNormal\`: the normal the receiver's biases follow (normal bias, receiver-plane depth slope);
  *  the shading normal unless the engine's shadow receiver gives its triangle's plane. */
 struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:vec3f,}
@@ -320,8 +319,8 @@ fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{
  let kinds=VSM_PROJECTION_KINDS;
  return kinds==${VSM_PROJECTION_KINDS_DIRECTIONAL}u||(kinds!=${VSM_PROJECTION_KINDS_LOCAL}u&&light.kind==LIGHT_KIND_DIRECTIONAL);
 }
-/** The region test: whether light k shades the pixel at all (in the view
- *  rect, a lit surface, in the light's radius and cone, not back-facing). */
+/** The region test: whether light k shades the pixel at all (in the view rect, a lit surface,
+ *  reached by the light — \`localLightReaches\`, the lighting's own test —, not back-facing). */
 fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool{
  if(!info.valid){return false;}
  let light=vsmView.lights[k];
@@ -330,14 +329,8 @@ fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool
   return !(backfaceCull&&vsmFacesAwayFromSun(info.worldNormal,light.direction,light.sourceRadius));
  }
  let toLight=light.shiftedPosition-shiftedPositionIn;
- let invDist=inverseSqrt(dot(toLight,toLight));
- let L=toLight*invDist;
- var inLightRange=invDist>=light.invRadius&&vsmSpotCone(L,-light.direction,light.spotAngles)>0.0;
- if(light.kind==LIGHT_KIND_RECT&&dot(toLight,light.direction)<0.0){inLightRange=false;}
- if(inLightRange&&backfaceCull){
-  if(vsmFacesAwayFromLocal(toLight,info.worldNormal,light.sourceRadius)){inLightRange=false;}
- }
- return inLightRange;
+ if(!localLightReaches(toLight,light.radius,light.cosCone,-light.direction,light.kind==LIGHT_KIND_RECT)){return false;}
+ return !(backfaceCull&&vsmFacesAwayFromLocal(toLight,info.worldNormal,light.sourceRadius));
 }
 /** \`vsmLightParticipates\`'s radius test widened: a light whose sphere is this much larger misses
  *  the tile's box. 1/64 past the roundings of either test (a few units in the last place). */
@@ -346,22 +339,22 @@ const VSM_TILE_REACH:f32=1.015625;
  * Whether light k may shade a pixel of a tile whose lit pixels' points lie in the box [\`low\`,
  * \`high\`]: never false where \`vsmLightParticipates\` is true at one of those points. Every light
  * may reach a tile one of whose lit points is not finite (\`unbounded\`), whose test WGSL leaves
- * to the device, and a directional or unbounded light any tile; a local light is tested on its
- * sphere alone, the cone and the faces left to the pixels. The box's nearest point is no farther
- * from the centre than any of its pixels, axis by axis: a subtraction is correctly rounded, hence
+ * to the device, and a directional light any tile; a local light is tested on its sphere alone,
+ * the cone and the faces left to the pixels. The box's nearest point is no farther from the
+ * centre than any of its pixels, axis by axis: a subtraction is correctly rounded, hence
  * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distance
- * and its inverse square root then round within a few units in the last place, which the reach's
- * 1/64 holds many times over. A box whose squared distance to the centre is under the smallest
- * normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it, whatever the device does with
+ * and its square root then round within a few units in the last place of a pixel's distance,
+ * which the reach's 1/64 holds many times over. A box whose squared distance to the centre is
+ * under the smallest normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it, whatever the device does with
  * subnormals.
  */
 fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
  let light=vsmView.lights[k];
- if(unbounded||vsmLightIsDirectional(light)||light.invRadius==0.0){return true;}
+ if(unbounded||vsmLightIsDirectional(light)){return true;}
  let c=light.shiftedPosition;
  let d=max(max(low-c,c-high),vec3f(0.0));
  let g=dot(d,d);
- return g<FLOAT32_MIN_NORMAL||inverseSqrt(g)*VSM_TILE_REACH>=light.invRadius;
+ return g<FLOAT32_MIN_NORMAL||sqrt(g)<light.radius*VSM_TILE_REACH;
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
@@ -635,9 +628,9 @@ export function vsmProjectionWgsl(
       vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
       VSM_TRACE_COMMON_WGSL,
       VSM_TRACE_RESULT_WGSL,
+      localLightReaches,
       // The traces sample this pass's pool and take the blue noise's pair.
       vsmTraceWgsl(
-        true,
         vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
         vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
       ),

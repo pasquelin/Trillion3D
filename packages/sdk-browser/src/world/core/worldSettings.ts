@@ -4,7 +4,6 @@
  * its own defaults to what the engine does without it: the pass drawn, the bounce off.
  */
 import { LOD_QUALITY } from '../../../../sdk-core/src/lod/policy.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import {
   createRenderSettings,
   type QualityGroup,
@@ -118,13 +117,6 @@ const WORLD_SETTINGS = {
   lampTexelDither: shadowFloat(VSM_TRACE_DITHER_LOCAL, 'uniform', editor),
   sunExtrapolateSlope: shadowFloat(VSM_TRACE_SLOPE_CAP_SUN, 'uniform', editor),
   lampExtrapolateSlope: shadowFloat(VSM_TRACE_SLOPE_CAP_LOCAL, 'uniform', editor),
-  // Mode 2 is a variant of the blend and water programs (`directShadowWgsl`'s `traced`).
-  translucentShadowFilter: {
-    kind: 'enum',
-    default: LIGHT_SETTINGS.translucentShadowFilter,
-    values: [0, 1, 2],
-    ...base('shadows', 'pipeline', editor),
-  },
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** A world's registry over the engine's settings. */

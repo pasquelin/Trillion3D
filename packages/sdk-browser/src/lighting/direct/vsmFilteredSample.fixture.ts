@@ -83,7 +83,7 @@ export const POSITIONS: V[] = [
 
 /** A flat world for the whole read (`vsmShadowRead`): a sun straight down over level `MAP`
  *  (texel = 1 cm, depth 0.5 + y), its pages mapped one to one; every texel holds depth `depthAt`
- *  of it, `stored` by default, and the point read's sample and the traces read `stored`. */
+ *  of it, `stored` by default, and the located sample reads `stored`. */
 export function sunWorld(stored: number, depthAt: (t: V) => number = () => stored) {
   const world = pagedWorld(depthAt)
   const uv = new Mat([0.01 / 1.6384, 0, 0, 0, 0, 0, 1, 0, 0, 0.01 / 1.6384, 0, 0, 0.5, 0.5, 0.5, 1])
@@ -111,22 +111,14 @@ export function sunWorld(stored: number, depthAt: (t: V) => number = () => store
       depth: stored,
       handle: h,
     }),
-    // The traces, as the projection would answer them: every ray blocked or none.
-    vsmTraceSun: () => ({ shadowFactor: stored > 0.5 ? 0 : 1 }),
-    vsmTraceLocal: () => ({ shadowFactor: 1 }),
   }
   return { world, stubs }
 }
 /** The whole read and what it calls (`sunWorld`). */
 export const SUN_READ = [
-  'perspectiveDivide',
   'vsmShadowRead',
-  'vsmShadowFactor',
-  'vsmShadowFiltered',
+  'vsmLocate',
   'vsmReceiverFromEye',
-  'vsmShadowTraced',
-  'interleavedGradient',
   'vsmConsumerSlope',
-  'vsmConsumerSlopeBias',
   ...FILTER,
 ]

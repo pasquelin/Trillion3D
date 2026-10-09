@@ -2777,8 +2777,7 @@
       "shadowRequestCap": "Páginas virtuales que el sombreado puede pedir por imagen; el resto vuelve a pedirlas en la siguiente.",
       "sunLevels": "Niveles de clipmap de una luz direccional. El nivel `L` tiene téxeles de `2^L` metros, y un píxel lee el nivel cuyo téxel no supera su propia huella: dieciséis niveles cubren una razón lejos/cerca de 2^15. Más allá del último nivel, toma el relevo la sombra lejana.",
       "sunLevelPages": "Páginas por lado de la extensión de un nivel de clipmap alrededor de la cámara. Es una capacidad, no un ajuste: cada píxel lee su propia densidad mientras `height / tan(halfFovY)` no pase de `sunLevelPages · shadowPage / 2` = 4096 (un lienzo 4K con un campo vertical de 55°); más allá, los píxeles exteriores leen el nivel siguiente, a la mitad de densidad.",
-      "sunAngularRadius": "Radio angular del disco solar en radianes; cero pide explícitamente sombras duras.",
-      "translucentShadowFilter": "Cómo leen el mapa de sombras virtual de una luz una superficie mezclada y el agua: 0, una lectura puntual; 1, dieciséis muestras filtradas separadas un texel, cada texel con su propio sesgo de plano receptor y su propia transmisión de emisores translúcidos; 2, rayos en el mapa de sombras desde un corto desplazamiento de pantalla, con los recuentos de rayos de la proyección opaca, con dither. Una palabra del bloque uniforme de los mapas de sombras sobre la que ramifican los shaders (`writeVsmUniforms`): cambiarla no recompila nada, y un modo sin usar solo cuesta su código. Las superficies opacas leen su máscara proyectada en todos los modos."
+      "sunAngularRadius": "Radio angular del disco solar en radianes; cero pide explícitamente sombras duras."
     }
   },
   "LightingCapabilities": {

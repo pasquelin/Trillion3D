@@ -120,8 +120,8 @@ function local(code: string, votes: object, at: Cursor, spot: boolean) {
     },
   )
   const light = {
-    ...{ shiftedPosition: [0, 3, 0], invRadius: 0.1, direction: [0, -1, 0], sourceRadius: 0.1 },
-    ...{ spotAngles: spot ? [0.5, 2] : [-2, 1], mapId: 0, kind: spot ? 2 : 1 },
+    ...{ shiftedPosition: [0, 3, 0], radius: 10, direction: [0, -1, 0], sourceRadius: 0.1 },
+    ...{ cosCone: spot ? 0.5 : -2, mapId: 0, kind: spot ? 2 : 1 },
   }
   return (lane: number) =>
     vsmTraceLocal(0, light, [lane, 0], 2, NO, 0.01, 0.5, [0, 0, 1], participating(at.group, lane))

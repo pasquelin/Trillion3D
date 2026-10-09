@@ -81,7 +81,7 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
     [
       'vsmLightParticipates',
       'vsmLightIsDirectional',
-      'vsmSpotCone',
+      'localLightReaches',
       'vsmFacesAwayFromSun',
       'vsmFacesAwayFromLocal',
       'vsmMaskCode',

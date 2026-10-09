@@ -566,15 +566,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
    if(isSun(light)){continue;}
    let lightShiftedPosition=vsmLightShiftedPosition(light);
    let d=lightShiftedPosition-shiftedPosition;
-   let lengthSquared=dot(d,d);
-   let radius=light.positionRange.w;
-   if(lengthSquared>radius*radius){continue;}
-   let toLight=normalize(d);
-   // The direction points back toward the light (-forward); the cone's cosine is directionCone.w, -2 off-spot.
-   let lightDirection=-light.directionCone.xyz;
-   if(dot(toLight,lightDirection)<light.directionCone.w){continue;}
    let rect=isRect(light);
-   if(rect&&dot(toLight,lightDirection)<0.0){continue;}
+   if(!localLightReaches(d,light.positionRange.w,light.directionCone.w,light.directionCone.xyz,rect)){continue;}
    // The source radius: a point/spot's emitter radius, a rect's half width.
    let sourceRadius=select(light.shape.x,length(light.shape.xyz),rect);
    if(backfaceCull&&vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)){continue;}

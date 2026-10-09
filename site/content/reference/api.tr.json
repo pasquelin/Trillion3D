@@ -1959,8 +1959,7 @@
       "shadowRequestCap": "Gölgelendirmenin kare başına isteyebileceği sanal sayfalar; kalanlar sonraki karede yeniden ister.",
       "sunLevels": "Yönlü bir ışığın clipmap düzeyleri. `L` düzeyinin texelleri `2^L` metredir ve bir piksel, texeli kendi izinden büyük olmayan düzeyi okur: on altı düzey 2^15’lik bir uzak/yakın oranını kapsar. Son düzeyin ötesinde uzak gölge devralır.",
       "sunLevelPages": "Kamera çevresindeki bir clipmap düzeyi alanının kenar başına sayfaları. Bir kapasitedir, ayar değil: `height / tan(halfFovY)` değeri `sunLevelPages · shadowPage / 2` = 4096’yı aşmadıkça her piksel kendi yoğunluğunu okur (55° dikey alanlı 4K bir tuval); ötesinde dış pikseller sonraki düzeyi yarı yoğunlukta okur.",
-      "sunAngularRadius": "Güneş diskinin radyan cinsinden açısal yarıçapı; sıfır açıkça sert gölge ister.",
-      "translucentShadowFilter": "Karışık bir yüzeyin ve suyun bir ışığın sanal gölge haritasını nasıl okuduğu: 0, tek bir nokta okuması; 1, bir texel arayla on altı filtreli örnek, her texel kendi alıcı düzlemi sapmasıyla ve kendi yarı saydam gölge düşürücü geçirgenliğiyle; 2, opak izdüşümün ışın sayılarıyla, titreşimle (dither), kısa bir ekran kaymasından gölge haritası ışınları. Gölgelendiricilerin dallandığı gölge haritalarının uniform bloğunun bir sözcüğü (`writeVsmUniforms`): değiştirmek hiçbir şeyi yeniden derlemez ve kullanılmayan bir mod yalnızca kodunun maliyetine yol açar. Opak yüzeyler izdüşümlü maskelerini her modda okur."
+      "sunAngularRadius": "Güneş diskinin radyan cinsinden açısal yarıçapı; sıfır açıkça sert gölge ister."
     }
   },
   "LOD_QUALITY": {

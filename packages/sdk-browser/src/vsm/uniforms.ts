@@ -26,7 +26,6 @@ import {
 } from './constants.ts'
 import type { VsmLayout } from './layout.ts'
 import { focalScale } from '../../../math/src/projection/camera.ts'
-import { LIGHT_SETTINGS } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
@@ -42,7 +41,7 @@ struct VsmUniforms{
  frameStamp:u32,
  fullMapCount:u32,
  singlePageMapCount:u32,
- translucentShadowFilter:u32,
+ pressureBias:f32,
  poolPages:u32,
  poolRowShift:u32,
  poolRowMask:u32,
@@ -52,12 +51,10 @@ struct VsmUniforms{
  pageTableRowShift:u32,
  pageTableRowMask:u32,
  coverSize:vec2u,
- pressureBias:f32,
  detailPixelsStatic:f32,
  detailPixelsDynamic:f32,
  normalBias:f32,
  screenRayShare:f32,
- viewTanHalfFovY:f32,
  traceVoteAfter:u32,
  traceConeCot:f32,
  traceRaysSun:i32,
@@ -70,8 +67,6 @@ struct VsmUniforms{
  traceSlopeCapLocal:f32,
  traceDitherLocal:f32,
  tracePlaneBiasCapLocal:f32,
- _pad0:u32,
- _pad1:u32,
  markMipOffset:array<vec4u,2>,
  coverMipOffset:array<vec4u,2>,
 }
@@ -87,13 +82,6 @@ export interface VsmFrameUniforms {
   frameStamp: number
   /** Fed back from the previous frames' free page count. */
   pressureBias: number
-  /** How the blended surfaces and the water read the maps (`LIGHT_SETTINGS.translucentShadowFilter`
-   *  when absent): 0 a point lookup, 1 the filtered taps, 2 the traced rays. */
-  translucentShadowFilter?: number
-  /** The view's tangent of half its vertical field: the traced read's screen-ray length is a share
-   *  of the view's height at the pixel's depth, as the opaque projection's. 0 when unknown: no
-   *  screen-ray start. */
-  viewTanHalfFovY?: number
 }
 
 /** Writes the whole block into `out` (at least VSM_UNIFORMS_BYTES). */
@@ -109,7 +97,7 @@ export function writeVsmUniforms(
   u[0] = frame.frameStamp >>> 0
   u[1] = frame.fullMapCount
   u[2] = frame.singlePageMapCount
-  u[3] = frame.translucentShadowFilter ?? LIGHT_SETTINGS.translucentShadowFilter
+  f[3] = frame.pressureBias
   u[4] = layout.poolPages
   u[5] = layout.poolRowShift
   u[6] = layout.poolRowMask
@@ -122,27 +110,24 @@ export function writeVsmUniforms(
   u[13] = layout.pageTableRowMask
   u[14] = layout.coverSize[0]
   u[15] = layout.coverSize[1]
-  f[16] = frame.pressureBias
-  f[17] = VSM_DETAIL_PIXELS_STATIC
-  f[18] = VSM_DETAIL_PIXELS_DYNAMIC
-  f[19] = VSM_NORMAL_BIAS
-  f[20] = VSM_SCREEN_RAY_SHARE
-  f[21] = frame.viewTanHalfFovY ?? 0
-  u[22] = VSM_TRACE_VOTE_AFTER
-  f[23] = focalScale(VSM_TRACE_CONE_LIMIT)
-  i[24] = VSM_TRACE_RAYS_SUN
-  i[25] = VSM_TRACE_STEPS_SUN
-  f[26] = VSM_TRACE_SLOPE_CAP_SUN
-  f[27] = VSM_TRACE_DITHER_SUN
-  f[28] = VSM_TRACE_REACH_SUN
-  i[29] = VSM_TRACE_RAYS_LOCAL
-  i[30] = VSM_TRACE_STEPS_LOCAL
-  f[31] = VSM_TRACE_SLOPE_CAP_LOCAL
-  f[32] = VSM_TRACE_DITHER_LOCAL
-  f[33] = VSM_TRACE_PLANE_BIAS_CAP_LOCAL
-  u[34] = u[35] = 0
+  f[16] = VSM_DETAIL_PIXELS_STATIC
+  f[17] = VSM_DETAIL_PIXELS_DYNAMIC
+  f[18] = VSM_NORMAL_BIAS
+  f[19] = VSM_SCREEN_RAY_SHARE
+  u[20] = VSM_TRACE_VOTE_AFTER
+  f[21] = focalScale(VSM_TRACE_CONE_LIMIT)
+  i[22] = VSM_TRACE_RAYS_SUN
+  i[23] = VSM_TRACE_STEPS_SUN
+  f[24] = VSM_TRACE_SLOPE_CAP_SUN
+  f[25] = VSM_TRACE_DITHER_SUN
+  f[26] = VSM_TRACE_REACH_SUN
+  i[27] = VSM_TRACE_RAYS_LOCAL
+  i[28] = VSM_TRACE_STEPS_LOCAL
+  f[29] = VSM_TRACE_SLOPE_CAP_LOCAL
+  f[30] = VSM_TRACE_DITHER_LOCAL
+  f[31] = VSM_TRACE_PLANE_BIAS_CAP_LOCAL
   for (let m = 0; m < VSM_MIPS; m++) {
-    u[36 + m] = layout.markMipOffsets[m] ?? 0
-    u[44 + m] = layout.coverMipOffsets[m] ?? 0
+    u[32 + m] = layout.markMipOffsets[m] ?? 0
+    u[40 + m] = layout.coverMipOffsets[m] ?? 0
   }
 }

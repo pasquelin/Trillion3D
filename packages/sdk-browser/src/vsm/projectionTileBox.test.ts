@@ -23,30 +23,27 @@ import {
 import { seeded } from './planFrames.fixture.ts'
 
 test('the box test never drops a light a pixel of the tile is in, even with the roundings against it', () => {
-  // The pixel's inverse square root two units high (it takes the light more readily), the box's two
-  // units low: the reach still holds every light a pixel is in.
+  // The pixel's distance two units low (it takes the light more readily), the box's two units
+  // high: the reach still holds every light a pixel is in.
   const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
-  const high = (x: number) => {
-    const r = f(1 / Math.sqrt(x))
-    return r + 2 * ulp(r)
+  const root = (units: number) => (x: number) => {
+    const r = f(Math.sqrt(x))
+    return r + units * ulp(r)
   }
-  const low = (x: number) => {
-    const r = f(1 / Math.sqrt(x))
-    return r - 2 * ulp(r)
-  }
-  const run = (isqrt: (x: number) => number, lights: Light[]) =>
+  const squared = (v: V3) => f(f(f(v[0] * v[0]) + f(v[1] * v[1])) + f(v[2] * v[2]))
+  const run = (lights: Light[], roots: object) =>
     shaderRun<{
       vsmLightParticipates: (k: number, info: Pixel['info'], p: V3) => boolean
       vsmLightMayReachTile: (k: number, lo: V3, hi: V3, unbounded: boolean) => boolean
       vsmOrderedKey: (x: V3) => V3
       vsmOrderedValue: (k: V3) => V3
     }>(CODE, NAMES.slice(6, 14), {
-      // The float tests in binary32, as a GPU runs them, the inverse square roots against them.
+      // The float tests in binary32, as a GPU runs them, the distances' roots against them.
       ...F32_SCOPE,
       ...SCOPE,
       VSM_PROJECTION_KINDS: 0,
       vsmView: { lights },
-      inverseSqrt: (x: number) => (x === 0 ? Infinity : isqrt(x)),
+      ...roots,
     })
   // The keys' integer words exactly: binary32 rounds no bit operation.
   const words = shaderRun<{ vsmOrderedKey: (x: V3) => V3; vsmOrderedValue: (k: V3) => V3 }>(
@@ -67,8 +64,8 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
       pixels.map((p) => p.shifted),
       kind === 'corner' ? pixels[0].shifted : undefined,
     )
-    const pixel = run(high, lights),
-      box = run(low, lights)
+    const pixel = run(lights, { length: (v: V3) => root(-2)(squared(v)) }),
+      box = run(lights, { sqrt: root(2) })
     // The box from the shipped keys: the greatest key and the greatest complement.
     const keys = pixels.map((p) => words.vsmOrderedKey(p.shifted))
     const hi = words.vsmOrderedValue([0, 1, 2].map((i) => Math.max(...keys.map((k) => k[i]))) as V3)
@@ -107,10 +104,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
   }>(CODE, NAMES.slice(1, 2).concat(NAMES.slice(7, 11)), scope)
   // Far from every light, the box alone keeps none of them; one point not finite keeps them all.
   const far: V3 = [1e6, 1e6, 1e6]
-  assert.deepEqual(
-    lights.map((_, k) => run.vsmLightMayReachTile(k, far, far, false)),
-    lights.map((l) => l.invRadius === 0),
-  )
+  assert.ok(lights.every((_, k) => !run.vsmLightMayReachTile(k, far, far, false)))
   assert.ok(lights.every((_, k) => run.vsmLightMayReachTile(k, far, far, true)))
   // The bound: a lit finite point sets bit 0 and the keys, a lit point not finite bit 1 alone,
   // an unlit one nothing.

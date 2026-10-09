@@ -2785,8 +2785,7 @@
       "shadowRequestCap": "Pages virtuelles que l’ombrage peut demander par image ; les autres redemandent à l’image suivante.",
       "sunLevels": "Niveaux du clipmap d’une lumière directionnelle. Le niveau `L` a des texels de `2^L` mètres, et un pixel lit le niveau dont le texel est au plus son empreinte : seize niveaux couvrent un rapport lointain/proche de 2^15. Au-delà du dernier niveau, l’ombre lointaine prend le relais.",
       "sunLevelPages": "Pages par côté de la fenêtre d’un niveau du clipmap autour de la caméra. C’est une capacité, pas un réglage : chaque pixel lit sa propre densité tant que `height / tan(halfFovY)` reste sous `sunLevelPages · shadowPage / 2` = 4096 (un écran 4K à 55° de champ vertical) ; au-delà, les pixels du bord lisent le niveau suivant, à densité moitié.",
-      "sunAngularRadius": "Rayon angulaire du disque solaire en radians ; zéro demande explicitement des ombres dures.",
-      "translucentShadowFilter": "Comment une surface translucide et l’eau lisent la shadow map virtuelle d’une lumière : 0, une lecture ponctuelle ; 1, seize prélèvements filtrés espacés d’un texel, chaque texel avec son propre biais de plan récepteur et sa propre transmission des casters translucides ; 2, des rayons dans la shadow map depuis un court décalage écran, aux nombres de rayons de la projection opaque, avec un dither. Un mot du bloc uniforme des shadow maps sur lequel les shaders branchent (`writeVsmUniforms`) : le changer ne recompile rien, et un mode inutilisé ne coûte que son code. Les surfaces opaques lisent leur masque projeté dans tous les modes."
+      "sunAngularRadius": "Rayon angulaire du disque solaire en radians ; zéro demande explicitement des ombres dures."
     }
   },
   "LightingCapabilities": {

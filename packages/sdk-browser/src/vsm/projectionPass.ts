@@ -20,7 +20,6 @@ import {
   negateRowMatrix4,
 } from '../../../math/src/matrix/matrix4.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
-import { QUARTER_PI } from '../../../math/src/constants.ts'
 import {
   preparedComputePipeline,
   preparedPipelines,
@@ -56,7 +55,6 @@ import {
   type VsmResources,
 } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
-import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {
@@ -112,14 +110,13 @@ export interface VsmProjectionLight {
   direction: ArrayLike<number>
   /** World position (double), local lights. */
   position?: ArrayLike<number>
-  /** Attenuation radius (m), local lights; 0 or absent = unbounded. */
+  /** The light's range (m), local lights: the lighting's (\`localLightReaches\`), none past it. */
   radius?: number
   /** The source's size: its radius in metres for a local light, the sine of its angular radius
    *  for a directional one. */
   sourceRadius?: number
-  /** Spot cone half-angles (radians). */
-  innerConeAngle?: number
-  outerConeAngle?: number
+  /** A spot's cone half-angle (radians), which a spot holds (`SceneLight.coneAngle`). */
+  coneAngle?: number
 }
 
 /** Whether the projection votes by subgroup (`voteWgsl`): exact at any subgroup size, the workgroup
@@ -266,25 +263,16 @@ function writeLightRecord(
   f[o] = p[0] + shift[0]
   f[o + 1] = p[1] + shift[1]
   f[o + 2] = p[2] + shift[2]
-  f[o + 3] = light.radius && light.radius > 0 ? 1 / light.radius : 0
+  f[o + 3] = light.radius ?? 0
   // The record's direction points towards the light.
   f[o + 4] = -d[0]
   f[o + 5] = -d[1]
   f[o + 6] = -d[2]
   f[o + 7] = light.sourceRadius ?? 0
-  if (light.type === 'spot') {
-    // The spot cone: inner clamped below outer, the angles = (cos outer, 1/(cos inner − cos outer)).
-    const outer = light.outerConeAngle ?? QUARTER_PI
-    const inner = clamp(light.innerConeAngle ?? 0, 0, outer - 0.001)
-    const cosOuter = Math.cos(outer)
-    f[o + 8] = cosOuter
-    f[o + 9] = 1 / (Math.cos(inner) - cosOuter)
-  } else {
-    f[o + 8] = -2
-    f[o + 9] = 1
-  }
-  i[o + 10] = light.mapId | 0
-  u[o + 11] = KIND[light.type]
+  // The cone's cosine as the lighting packs it: −2, which no direction's cosine reaches, off a spot.
+  f[o + 8] = light.type === 'spot' ? Math.cos(light.coneAngle!) : -2
+  i[o + 9] = light.mapId | 0
+  u[o + 10] = KIND[light.type]
 }
 
 /** Writes `VsmProjectionView` for these inputs and ≤ 64 lights into its staging words: its header

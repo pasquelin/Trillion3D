@@ -1570,8 +1570,7 @@
       "shadowRequestCap": "Páginas virtuais que o sombreamento pode pedir por quadro; o resto pede de novo no quadro seguinte.",
       "sunLevels": "Níveis de clipmap de uma luz direcional. O nível `L` tem texels de `2^L` metros, e um pixel lê o nível cujo texel não passa da sua própria pegada: dezesseis níveis cobrem uma razão longe/perto de 2^15. Além do último nível, a sombra distante assume.",
       "sunLevelPages": "Páginas por lado da extensão de um nível de clipmap em torno da câmera. É uma capacidade, não um ajuste: cada pixel lê a sua própria densidade enquanto `height / tan(halfFovY)` não passar de `sunLevelPages · shadowPage / 2` = 4096 (uma tela 4K com campo vertical de 55°); além disso, os pixels exteriores leem o nível seguinte, com metade da densidade.",
-      "sunAngularRadius": "Raio angular do disco solar em radianos; zero pede explicitamente sombras duras.",
-      "translucentShadowFilter": "Como uma superfície misturada e a água leem o mapa de sombras virtual de uma luz: 0, uma leitura pontual; 1, dezasseis amostras filtradas a um texel de distância, cada texel com o seu próprio viés de plano recetor e a sua própria transmissão dos emissores translúcidos; 2, raios no mapa de sombras a partir de um curto desvio de ecrã, com as contagens de raios da projeção opaca, com dither. Uma palavra do bloco uniforme dos mapas de sombras sobre a qual os shaders ramificam (`writeVsmUniforms`): mudá-la não recompila nada, e um modo por usar só custa o seu código. As superfícies opacas leem a sua máscara projetada em todos os modos."
+      "sunAngularRadius": "Raio angular do disco solar em radianos; zero pede explicitamente sombras duras."
     }
   },
   "LOD_QUALITY": {

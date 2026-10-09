@@ -10,13 +10,10 @@
  *   every pass's), texel-plane bias and the one-sample paths (ray count 0);
  * - the sampling helpers: square-to-disk maps, the frame around a direction, the ray jitter step.
  *
- * Each fragment lists the declarations its text uses. What a host provides in its own variant
- * comes in as a provider: the pool the page sampling reads (`vsmPoolLoad`, sampled through
- * `vsmProjectionSampleWgsl`) and the rays' noise pair (`vsmNoiseTwo`, `vsmBlueNoiseTwo` or a
- * fragment stage's own). The module brings the bindings and the view `vsmView`: the projection's
- * uniform (`projectionWgsl.ts`), or the view a fragment stage builds from its own pixel
- * (`../lighting/direct/shadowWgsl.ts`, the traced read of a blended surface), with the same
- * fields.
+ * Each fragment lists the declarations its text uses. The projection (`projectionWgsl.ts`) provides
+ * the pool the page sampling reads (`vsmPoolLoad`, sampled through `vsmProjectionSampleWgsl`) and
+ * the rays' noise pair (`vsmNoiseTwo`, `vsmBlueNoiseTwo`), and brings the bindings and the view
+ * `vsmView`, its uniform.
  *
  * UNITS. World unit = metre. Where a world distance is compared with a literal in centimetres, the
  * literal is converted with `VSM_UNIT_PER_CM` (named at each place). Where a world distance is
@@ -475,17 +472,18 @@ fn vsmLocalRayReach(cosTheta:f32)->f32{
 `,
   )
 
-/** The light the traces read, as the projection's view uniform holds it (four a dispatch); a pass
- *  that traces from its own lights builds one. */
+/** A light of the projection, as its view uniform holds it (\`writeLightRecord\`, \`projectionPass.ts\`):
+ *  the traces' and the region test's (\`vsmLightParticipates\`). \`radius\` and \`cosCone\` are the
+ *  lighting's range and cone (\`localLightReaches\`), \`direction\` points towards the light. */
 export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
   'VSM_TRACE_LIGHT_WGSL',
   [],
   `struct VsmProjectionLight{
  shiftedPosition:vec3f,
- invRadius:f32,
+ radius:f32,
  direction:vec3f,
  sourceRadius:f32,
- spotAngles:vec2f,
+ cosCone:f32,
  mapId:i32,
  kind:u32,
 }`,
@@ -540,11 +538,10 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`, false
  *   where the trace measures no spread) stops there, alone: its other rays would sample the
  *   occluder's shadow inside its own pixel, so they would change it only below the pixel.
- * - With the votes, a lane whose first ray missed has no occluder of its own to measure: it stops
- *   where no lane of its 32-pixel half hit a wide one (`vsmVoteAllTrue`), and goes on, as a lane
- *   that hit a wide one does, where one did — it may lie in that penumbra. Without the votes (a
- *   fragment stage) it goes on.
- * - With the votes, at the adaptive count, a half all of whose lanes' rays hit so far (an umbra)
+ * - A lane whose first ray missed has no occluder of its own to measure: it stops where no lane of
+ *   its 32-pixel half hit a wide one (`vsmVoteAllTrue`), and goes on, as a lane that hit a wide
+ *   one does, where one did — it may lie in that penumbra.
+ * - At the adaptive count, a half all of whose lanes' rays hit so far (an umbra)
  *   stops. It is asked there alone: a half it does not stop holds a lane that missed, which votes
  *   no at every later ray (`missCount` never falls) and so is never stopped; a later vote could
  *   stop no lane (`projectionUmbraVote.test.ts`).
@@ -554,11 +551,8 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  */
 const rayCountStatement = (
   guard: string,
-  waveVotes: boolean,
 ) => /* wgsl */ `  if(${guard}&&i==0u&&running&&hit&&narrow){stopped=true;}
-${
-  waveVotes
-    ? `  if(${guard}){
+  if(${guard}){
    var halfStops=false;
    if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit||narrow,voteSplit);}
    else if(i==u32(settings.voteAfter)){halfStops=vsmVoteAllTrue(!running||missCount==0u,voteSplit);}
@@ -566,26 +560,21 @@ ${
    if((i==0u||i==u32(settings.voteAfter))&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
   }
 `
-    : ''
-}`
 
 /**
  * The traces of one light at one pixel, directional and local, over the ray casts above: the rays
  * across the light's disk or sphere, each texel-dithered and marched, their share of misses the
- * shadow factor. With `waveVotes`, the compute projection's: a 32-pixel half of a group votes
- * (`vsmVoteAllTrue`) to stop its rays early, and to trace a point light's rays across two cube
- * faces when any of its rays crosses. Without, a fragment stage's, which has no wave on the web's
- * base path: every ray is traced but where the first one hit an occluder whose rays fall within the
- * pixel (`rayCountStatement`), and each pixel takes two faces only where its own ray crosses.
- * The votes take the trace's `voteSplit`, uniform: whether they count by barrier (`voteWgsl`); a
- * fragment stage passes true, unread. With the votes, a group leaves its loops at once
- * where both its halves stopped (`rayCountStatement`).
+ * shadow factor. A 32-pixel half of a compute projection group votes (`vsmVoteAllTrue`) to stop its
+ * rays early, and to trace a point light's rays across two cube faces when any of its rays
+ * crosses. The votes take the trace's `voteSplit`, uniform: whether they count by barrier
+ * (`voteWgsl`). A group leaves its loops at once where both its halves stopped
+ * (`rayCountStatement`).
  * Reads the view `vsmView` the module declares, the pages of `pool` (`vsmPoolLoad`) and the noise
  * pair `noise` provides (`vsmNoiseTwo`).
  */
-export const vsmTraceWgsl = (waveVotes: boolean, pool: WgslDecl, noise: WgslDecl) =>
+export const vsmTraceWgsl = (pool: WgslDecl, noise: WgslDecl) =>
   wgslBlock(
-    `vsmTraceWgsl(${waveVotes})`,
+    'vsmTraceWgsl',
     [
       VSM_CONSTANTS_WGSL,
       Frame3,
@@ -603,7 +592,7 @@ export const vsmTraceWgsl = (waveVotes: boolean, pool: WgslDecl, noise: WgslDecl
       vsmTraceLocalWgsl(pool),
       VSM_TRACE_RESULT_WGSL,
       vsmRayNoiseWgsl(noise),
-      ...(waveVotes ? [clipmapRayMissesWgsl(pool)] : []),
+      clipmapRayMissesWgsl(pool),
     ],
     `/** Traces the sun's rays. 'participating' = the lane takes part in the group's votes. */
 fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition:vec3f,startOffset:f32,noise:f32,worldNormal:vec3f,participating:bool,voteSplit:bool)->VsmTraceResult{
@@ -666,7 +655,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    var rayState=vsmSunRayBegin(pd,originInMap,rayDir,rayLength,startOffset,uvDepthSlope,texelShift,settings.slopeCapSetting);
    // The projection proves its first ray alone (\`vsmSunRayMisses\`): a later one runs in
    // a half where a lane hit, whose march its lanes wait for, so a proof would save nothing.
-   let proven=${waveVotes ? 'i==0u&&vsmSunRayMisses(&rayState,settings.stepsPerRay,noise)' : 'false'};
+   let proven=i==0u&&vsmSunRayMisses(&rayState,settings.stepsPerRay,noise);
    if(!proven){
     let march=vsmMarchSun(&rayState,settings.stepsPerRay,noise,extrapolate);
     hit=march.hitFound;
@@ -674,7 +663,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    }
    if(!hit){missCount+=1u;}
   }
-${rayCountStatement('settings.voteAfter>0', waveVotes)} }
+${rayCountStatement('settings.voteAfter>0')} }
  if(traced){
   let rayCount=select(rayCap,min(stopIndex+1u,rayCap),stopped);
   result.shadowFactor=f32(missCount)/f32(rayCount);
@@ -687,7 +676,7 @@ ${rayCountStatement('settings.voteAfter>0', waveVotes)} }
 fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f32,shiftedPosition:vec3f,startOffset:f32,noise:f32,worldNormal:vec3f,participating:bool,voteSplit:bool)->VsmTraceResult{
  let settings=vsmTraceSetupLocal();
  let h=vsmHandleFromId(u32(mapId));
- let isSpot=light.spotAngles.x>-2.0;
+ let isSpot=light.kind==LIGHT_KIND_SPOT;
  var result=vsmEmptyTrace();
  result.valid=true;
  result.shadowFactor=0.0;
@@ -763,7 +752,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   }
   // Whether any lane's start face differs from its end face, point lights only.
   var anyCrossing=false;
-  if(!isSpot){anyCrossing=${waveVotes ? '!vsmVoteAllTrue(!(running&&startFace.id!=endFace.id),voteSplit)' : 'running&&startFace.id!=endFace.id'};}
+  if(!isSpot){anyCrossing=!vsmVoteAllTrue(!(running&&startFace.id!=endFace.id),voteSplit);}
   if(running){
    var march:VsmMarchHit;
    if(isSpot){
@@ -778,7 +767,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
    }
    if(march.hitFound){hit=true;}else{missCount+=1u;}
   }
-${rayCountStatement('rayCap>1u&&settings.voteAfter>0', waveVotes)}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
+${rayCountStatement('rayCap>1u&&settings.voteAfter>0')}  if(running&&!stopped){stepJitter=f32(vsmNextRayJitter(bitcast<u32>(stepJitter))>>8u)*5.96046447754e-08;}
   // The top 24 bits of the next word as a fraction: 5.96046447754e-08 is 2^-24, and an f32 holds
   // k · 2^-24 exactly for every k < 2^24.
  }

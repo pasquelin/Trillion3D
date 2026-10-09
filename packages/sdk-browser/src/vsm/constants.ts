@@ -76,7 +76,7 @@ export const VSM_FEEDBACK_POOL = 0
  */
 export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(7 * 4, 16) // 288
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
-export const VSM_UNIFORMS_BYTES = 208
+export const VSM_UNIFORMS_BYTES = 192
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `renderCullWgsl.ts`), one
  *  command and one pair (vec4u). */

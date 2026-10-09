@@ -44,7 +44,6 @@ interface EntryBase {
 export type RenderSettingEntry =
   | (EntryBase & { kind: 'flag'; default: boolean })
   | (EntryBase & { kind: 'int' | 'float'; default: number; range: readonly [number, number] })
-  | (EntryBase & { kind: 'enum'; default: number; values: readonly number[] })
 
 /** A setting's value: a switch, or a number. */
 export type RenderSettingValue = boolean | number
@@ -64,11 +63,9 @@ function check(name: string, entry: RenderSettingEntry, value: unknown, source: 
     entry.kind === 'flag'
       ? typeof value === 'boolean'
       : typeof value === 'number' &&
-        (entry.kind === 'enum'
-          ? entry.values.includes(value)
-          : (entry.kind === 'float' ? Number.isFinite(value) : Number.isInteger(value)) &&
-            value >= entry.range[0] &&
-            value <= entry.range[1])
+        (entry.kind === 'float' ? Number.isFinite(value) : Number.isInteger(value)) &&
+        value >= entry.range[0] &&
+        value <= entry.range[1]
   if (!fits) throw new Error(`RENDER_SETTING_VALUE: ${name} does not take ${String(value)}`)
 }
 

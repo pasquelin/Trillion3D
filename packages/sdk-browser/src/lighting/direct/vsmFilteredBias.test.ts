@@ -1,8 +1,8 @@
-// The blended and water read's bias, transmission and modes (`vsmFilteredRead.test.ts`): each texel's
-// own receiver-plane bias, the receiver's own transmission, mode 0 as it stood, no state kept between lights.
+// The blended and water read's bias and transmission (`vsmFilteredRead.test.ts`): each texel's own
+// receiver-plane bias, the receiver's own transmission, an exact 0 and 1, the resolve's mask and no
+// pool, no state kept between lights.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { type V, MAP, World, SOURCE, run } from './vsmFilteredRead.fixture.ts'
@@ -17,7 +17,6 @@ import {
   sunWorld,
 } from './vsmFilteredSample.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 
 test('each texel takes its own receiver-plane bias: a tilted receiver never shadows itself', () => {
   const p = [700.37, 900.81],
@@ -60,7 +59,6 @@ test('the transmission is the receiver’s own, read once wherever a texel lets 
           return sm
         },
       },
-      { translucentShadowFilter: 1 },
     )
     const got = read.vsmShadowRead(MAP, sun, [1.23, 0, -0.71], [0, 1, 0])
     assert.ok(Math.abs(got - share()) < 1e-12, `${name}: ${got} against ${share()}`)
@@ -70,61 +68,23 @@ test('the transmission is the receiver’s own, read once wherever a texel lets 
   }
 })
 
-test('mode 0 is the point read as it stood, byte for byte, and the word picks the mode', () => {
-  // The perspective divide is the library's, the body the one before it took that name: the call
-  // written back as its expression hashes as it stood.
-  assert.equal(perspectiveDivide.text, 'fn perspectiveDivide(h:vec4f)->vec3f{return h.xyz/h.w;}')
-  const call = 'uvz=vec4f(perspectiveDivide(uvz),uvz.w);'
-  // The receiver's offset from the eye, now `vsmReceiverFromEye`, written back as its three lines.
-  const receiver = 'let fromEye=vsmReceiverFromEye(P,N);'
-  const point = functionText(SOURCE, 'vsmShadowFactor')
-  assert.equal(point.split(call).length, 2)
-  assert.equal(point.split(receiver).length, 2)
-  // Retaken when the record's fields, the normal offset's floor and the map reads took their names
-  // here, and when the light direction no read took left the signature: the same body.
-  assert.equal(
-    createHash('sha256')
-      .update(
-        point
-          .replace(call, 'uvz=vec4f(uvz.xyz/uvz.w,uvz.w);')
-          .replace(
-            receiver,
-            'let distanceToCamera=length(P-shadowCamera);\n' +
-              ' let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);\n' +
-              ' let fromEye=(P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);',
-          ),
-      )
-      .digest('hex'),
-    'a1b9223b2a68debe817ff7bc734b101172c1ce41eaa20332fe5242e45b9906c1',
-  )
-  const pick = (source: string) => {
-    const called: string[] = []
-    const stub = (name: string) => () => (called.push(name), 0.25)
-    for (const mode of [0, 1, 2, 7]) {
-      const { vsmShadowRead } = run<{ vsmShadowRead: (...a: unknown[]) => number }>(
-        new World(),
-        ['vsmShadowRead'],
-        {
-          isSun: () => true,
-          vsmShadowFactor: stub('point'),
-          vsmShadowFiltered: stub('filtered'),
-          vsmShadowTraced: stub('traced'),
-        },
-        { translucentShadowFilter: mode },
-        source,
-      )
-      vsmShadowRead(9, {}, [0, 0, 0], [0, 1, 0])
-    }
-    return called
+test('a receiver at one depth reads exactly 0 or 1', () => {
+  const sun = { directionCone: [0, -1, 0, 0], shape: [0.005, 0, 0, 0], params: [2, 0, 0, 0] }
+  for (const stored of [0.6, 0.4]) {
+    const { world, stubs } = sunWorld(stored)
+    const read = run<{ vsmShadowRead: (...a: unknown[]) => number }>(world, SUN_READ, stubs)
+    // The receiver at y = 0, a hair above it by the normal bias: depth 0.5.
+    const at = read.vsmShadowRead(MAP, sun, [1.23, 0, -0.71], [0, 1, 0])
+    assert.equal(at, stored > 0.5 ? 0 : 1, `stored ${stored}`)
   }
-  assert.deepEqual(pick(SOURCE), ['point', 'filtered', 'traced', 'filtered'])
-  // The program built without the traces (the setting at 0 or 1) reads 2 as the filtered taps.
-  assert.deepEqual(pick(wgslModule(directShadowWgsl(18))), [
-    'point',
-    'filtered',
-    'filtered',
-    'filtered',
-  ])
+})
+
+test('the blended and water passes read the taps; the opaque resolve its mask, and no pool', () => {
+  const resolve = wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+    blend = wgslModule(directShadowWgsl(18))
+  assert.doesNotMatch(resolve, /vsmShadowRead|vsmFilterTaps|vsmPool0/)
+  assert.match(blend, /return vsmShadowRead\(u32\(slice\)>>6u,light,P,N\);/)
+  assert.match(functionText(blend, 'vsmShadowRead'), /vsmFilterTaps\(/)
 })
 
 test('every read is its own: no state is kept from one light to the next', () => {
@@ -141,7 +101,6 @@ fn testReads()->f32{return reads;}`
     new World(),
     ['shadowFactor', 'vsmShadowRead', 'testReads', 'testTransmission'],
     { reads: 0 },
-    {},
     probe,
   )
   const at = (P: V, slice = 64 * MAP + 1) => [

@@ -11,7 +11,6 @@ import {
   type VsmFrameLight,
 } from '../../../../vsm/frameSetup.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
-import { QUARTER_PI } from '../../../../../../math/src/constants.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
@@ -176,7 +175,6 @@ export function projectionLight(light: SceneLight, firstId: number): VsmProjecti
       // A sun without its own disk takes the engine's published one.
       sourceRadius: Math.sin(light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius),
     }
-  const cone = light.coneAngle ?? QUARTER_PI
   return {
     type: light.kind === 'spot' ? 'spot' : 'point',
     mapId: firstId,
@@ -184,8 +182,7 @@ export function projectionLight(light: SceneLight, firstId: number): VsmProjecti
     position: light.position,
     radius: light.range,
     sourceRadius: light.emitterRadius ?? 0,
-    outerConeAngle: cone,
-    innerConeAngle: cone * (1 - (light.penumbra ?? 0)),
+    coneAngle: light.coneAngle,
   }
 }
 

@@ -1,7 +1,7 @@
 // The read of a blended surface and of the water (`vsmShadowRead`, `shadowWgsl.ts`): the shipped
 // WGSL run in JavaScript (`shaderRun`), the virtual shadow map under it a small page table and pool
-// the tests describe. Mode 0 is the point read as it stood; mode 1 sixteen taps a texel apart over
-// the 4 × 4 texels around the sample; mode 2 the traced rays. Taps and neighbour pages here.
+// the tests describe: sixteen taps a texel apart over the 4 × 4 texels around the sample. Taps and
+// neighbour pages here.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PCF_TAPS } from './pcfTaps.ts'

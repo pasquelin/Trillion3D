@@ -128,8 +128,9 @@ export interface VsmFrameLight {
   visible?: boolean
 }
 
-/** Relative room above what the lighting's f32 range test (`directIncidence`, `distance>=range`)
- *  and the light's f32 position round: a few roundings of 2⁻²⁴ each, far below 2⁻¹⁶. */
+/** Relative room above what the lighting's f32 range test (`localLightReaches`,
+ *  `distance>=range`) and the light's f32 position round: a few roundings of 2⁻²⁴ each, far below
+ *  2⁻¹⁶. */
 const F32_ROOM = 2 ** -16
 const seenClip = new Float64Array(16)
 /** The words of a next-data image, made once an image (`planVirtualShadowFrame`). */
@@ -494,15 +495,12 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
 }
 
 /** The frame's uniform counts. */
-function frameUniforms(state: VsmFrameState, ids: VsmMapIds, camera: VsmCameraInput) {
+function frameUniforms(state: VsmFrameState, ids: VsmMapIds) {
   const uniforms: VsmFrameUniforms = {
     fullMapCount: ids.fullMapCount,
     singlePageMapCount: ids.singlePageMapCount,
     frameStamp: state.frameStamp,
     pressureBias: state.cache.pressureBias,
-    // The tangent of the view's half vertical field: the traced read of a blended surface scales
-    // its screen ray by it.
-    viewTanHalfFovY: 1 / camera.projection[5],
   }
   return uniforms
 }
@@ -538,7 +536,7 @@ export function planVirtualShadowFrame(
   setupDirectionalLights(state, casting, camera, viewport, mobilityOf)
   setupLocalLights(state, casting, camera, viewport, mobilityOf)
   const { ids, allocations } = allocateLightIds(state)
-  const uniforms = frameUniforms(state, ids, camera)
+  const uniforms = frameUniforms(state, ids)
   const fullMaps = Math.max(ids.fullMapCount, ids.nextMapCount - VSM_SINGLE_PAGE_MAP_SLOTS)
   if (fullMaps > layout.fullMapCapacity && grow?.(fullMaps)) layout = resources.layout
   const plan: VsmFramePlan = {
