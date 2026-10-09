@@ -8,11 +8,10 @@
 import {
   createReflectionPipelines,
   createScreenReflection,
-  encodeRadiancePyramid,
-  encodeReflectionTrace,
   reflectionGroup,
-  writeReflectionView,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
+import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
+import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
@@ -82,21 +81,27 @@ export function run() {
     }
     const field = { bounceGrid, probes: probes.createView({ dimension: '2d-array' }) }
     const image = (radiance: boolean) => {
-      writeReflectionView(reflection, {
-        viewProjection: scene.viewProjection,
-        inverseViewProjection: inverse,
-        camera: [0, 0, 0, 1],
-        size: [size, size],
-        depthDrawn: true,
-        // A black background: a mirror ray that meets nothing reflects zero.
-        display: { background: [0, 0, 0], exposure: 1, curve: 0 },
-      })
+      reflection.writeView(
+        {
+          viewProjection: scene.viewProjection,
+          inverseViewProjection: inverse,
+          camera: [0, 0, 0, 1],
+          size: [size, size],
+          depthDrawn: true,
+          // A black background: a mirror ray that meets nothing reflects zero.
+          background: [0, 0, 0],
+          exposure: 1,
+          curve: 0,
+        },
+        reflection.radiance.held,
+        reflection.radiance.levels,
+      )
       const encoder = device.createCommandEncoder()
       const pass = encoder.beginComputePass()
       // The visibility's builds once the depth is drawn: its farthest layer, then its nearest.
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
-      const inputs = { ...views, ...field, surfaces: views, lights }
+      const inputs = { ...views, ...field, lights }
       const group = reflectionGroup(reflection, depth)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, [size, size])
       pass.end()
@@ -104,9 +109,10 @@ export function run() {
         const build = encoder.beginComputePass()
         encodeRadiancePyramid(
           build,
-          reflection,
+          device,
+          reflection.radiance,
           pipelines,
-          hdr.createView(),
+          { hdr: hdr.createView(), uniform: reflection.uniform },
           [size, size],
           scene.viewProjection,
         )

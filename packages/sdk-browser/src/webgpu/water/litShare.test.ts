@@ -50,7 +50,15 @@ function runner(text: string) {
   const { waterColor } = shaderRun<{ waterColor: Color }>(
     text.replace('textureLoad(emissiveAo,', 'textureLoad(emissiveAoTexture,'),
     // With the lobeless program's stand-ins (`WATER_LOBELESS_WGSL`, `lobeThrough`) and the marks.
-    ['waterColor', 'waterLobes', 'lobeThrough', 'lobeReflection', 'volumeMarked', 'fresnelScalar'],
+    [
+      'waterColor',
+      'waterLobes',
+      'lobeThrough',
+      'reflectionShare',
+      'reflectionCoat',
+      'volumeMarked',
+      'fresnelScalar',
+    ],
     {
       ...Object.fromEntries(textures.map((name) => [name, { name }])),
       textureLoad: ({ name }: { name: keyof Pixel['textures'] }) => pixel.textures[name],

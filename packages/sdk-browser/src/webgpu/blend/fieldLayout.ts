@@ -6,6 +6,7 @@ const TYPES = {
   vec2f: [2, 2],
   vec3f: [3, 4],
   vec4f: [4, 4],
+  vec4u: [4, 4],
   mat4x4f: [16, 4],
 } as const
 

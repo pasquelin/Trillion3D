@@ -58,13 +58,14 @@ export const WATER_COLOR_WGSL = wgslBlock(
   waterLobes(vol,coord,Nv,V,rough,select(-1.0,1.0,dot(normal.xyz,V)>0.0));
   // One walk of the declared lights, two sums: the surface's, and the null albedo's below.
   let declared=declaredLightingPair(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ);
-  // What the surface reflects, traced once: weighed on its colour for the lit share, on a null
-  // albedo for the specular share, as the lights are.
+  // What the surface reflects, traced once, and its coat, read once: weighed on its colour for the
+  // lit share, on a null albedo for the specular share, as the lights are.
   let reflected=reflectedRadiance(P,Nv,V,rough,reflectionLobe(rough));
-  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+lobeReflection(reflected*reflectionWeight(base.rgb,metal,rough,Nv,V),V,P)+emissiveAo.rgb;}
+  let coat=reflectionCoat(V,P);
+  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+reflectionShare(reflected,coat,base.rgb,metal,rough,Nv,V)+emissiveAo.rgb;}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the dielectric
   // specular lobe stays.
-  specular=declared.specular+lobeReflection(reflected*reflectionWeight(vec3f(0.0),0.0,rough,Nv,V),V,P);
+  specular=declared.specular+reflectionShare(reflected,coat,vec3f(0.0),0.0,rough,Nv,V);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,

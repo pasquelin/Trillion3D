@@ -1,392 +1,139 @@
-import { COMPUTE } from '../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { shaderFailed } from '../gpu/core/shaderModule.ts'
+import { COMPUTE } from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
-import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
-import { TONE_UNMAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
-import { mipLevelCountFor } from '../texture/tiles.ts'
-import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
-import { LOBE_PACK_WGSL, PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
-import { ENVIRONMENT_COEFFICIENTS } from '../../../sdk-core/src/scene/core/environment.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
-import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
+import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
+import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { computeLayout } from './bindings.ts'
+import { REFLECTION_FORMAT } from './constants.ts'
 import {
-  REFLECTION_DEPTH_BINDING,
-  REFLECTION_GROUP,
-  REFLECTION_VIEW_BYTES,
-  REFLECTION_VIEW_WGSL,
-  REFLECTION_VIEW_WRITTEN_BYTES,
-  reflectedRadianceWgsl,
-} from './wgsl.ts'
-
-/** The reflection target's and the radiance pyramid's format: the lit image's. */
-export const REFLECTION_FORMAT: GPUTextureFormat = 'rgba16float'
-/** Levels of the radiance pyramid, level 0 and two a dispatch (`RADIANCE_SHADER`): its coarsest
- *  texel spans 2^(levels − 1) pixels, the widest footprint a reflection reads before it is the
- *  environment's (`REFLECTION_TRACE_ROUGHNESS`). */
-export const REFLECTION_RADIANCE_LEVELS = 9
-/** Threads per side of a reflection workgroup: one pixel or one texel each. */
-const SIDE = 8
-/** The surface flag of a lit standard surface (`../scene/surfaceModel.ts`): the one the opaque
- *  trace marches for; the diffuse and toon models reflect nothing, the background and the unlit
- *  and as-is surfaces neither. */
-const LIT_STANDARD_FLAG = 2
-
-/**
- * The opaque surfaces' reflection, one compute pass at full resolution: each pixel of a lit
- * standard surface writes the radiance it reflects (`reflectedRadiance`), every other pixel zero;
- * the opaque resolve weighs it (`resolvedReflectionWgsl`). A pixel past the trace's roughness reads
- * the environment alone, inside the same function. Its lobe is the one its lights read: where the
- * surface carries the physical lobes (`PHYSICAL_SURFACE_FLAG`), their direction, kept orthogonal to
- * the normal, and αt = mix(α, 1, strength²) along it (`setLobes`); else a round lobe of rough². Its
- * field reads the bounce cascades the resolve reads (`bounce`, `probes`: zero while bounce is off).
- */
-export const TRACE_SHADER = wgslProgram(
-  `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
-@group(0) @binding(1) var traceNormals:texture_2d<f32>;
-@group(0) @binding(2) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(3) var<storage,read> directLights:DirectLights;
-@group(0) @binding(4) var traceLobes:texture_2d<u32>;
-@group(0) @binding(5) var<uniform> bounce:BounceGrid;
-@group(0) @binding(6) var probes:texture_2d_array<f32>;
-fn traceLobe(coord:vec2i,flags:u32,N:vec3f,rough:f32)->vec4f{
- let alpha=rough*rough;
- if((flags&${PHYSICAL_SURFACE_FLAG}u)==0u){return vec4f(0.0,0.0,0.0,alpha);}
- let w=textureLoad(traceLobes,coord,0);
- let strength=unpack2x16unorm(w.z).x;
- let t=vectorRejection(lobeOctDecode(w.x),N);let l=dot(t,t);
- if(!(l>1e-12)||!(strength>0.0)){return vec4f(0.0,0.0,0.0,alpha);}
- return vec4f(t*inverseSqrt(l),mix(alpha,1.0,strength*strength));
-}
-@compute @workgroup_size(${SIDE},${SIDE})
-fn traceReflections(@builtin(global_invocation_id) id:vec3u){
- if(any(vec2f(id.xy)>=reflectionView.screen.xy)){return;}
- let coord=vec2i(id.xy);
- var radiance=vec3f(0.0);
- let flags=textureLoad(traceFlags,coord,0).r;
- if((flags&${SURFACE_MODEL_MASK}u)==${LIT_STANDARD_FLAG}u){
-  let P=reflectionWorldAt(vec2f(id.xy)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
-  let normal=textureLoad(traceNormals,coord,0);
-  let N=normalize(normal.xyz);
-  let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
-  radiance=reflectedRadiance(P,N,reflectionToEye(P),rough,traceLobe(coord,flags,N,rough));
- }
- textureStore(traceOut,coord,vec4f(radiance,1.0));
-}`,
-  [directLightWgsl(), reflectedRadianceWgsl(REFLECTION_GROUP), LOBE_PACK_WGSL, vectorRejection],
-)
-
-/**
- * The radiance around the scene a miss adds to the environment's coefficients (`surroundings`,
- * `reflectionEnvironment`), one thread an image: where the scene declares no light around it — its
- * nine coefficients all zero —, the background the view shows, as a mirror must show it — the
- * radiance the display curve and the exposure turn into the background's displayed value
- * (`toneUnmap`) —; zero where it declares one, which then answers alone.
- */
-export const SURROUNDINGS_SHADER = wgslProgram(
-  `@group(0) @binding(0) var<storage,read> directLights:DirectLights;
-@group(0) @binding(1) var<storage,read_write> view:ReflectionView;
-@compute @workgroup_size(1)
-fn reflectionSurroundings(){
- var declared=false;
- for(var k=0u;k<${ENVIRONMENT_COEFFICIENTS}u;k++){declared=declared||any(directLights.environment[k].rgb!=vec3f(0.0));}
- let shown=toneUnmap(view.display.rgb,view.counts.y)/view.display.w;
- view.surroundings=vec4f(select(shown,vec3f(0.0),declared),0.0);
-}`,
-  [directLightWgsl(), REFLECTION_VIEW_WGSL, TONE_UNMAPPING_WGSL],
-)
-
-/**
- * The radiance pyramid: the lit image of the frame, before the temporal resolve, and its filtered
- * levels, which the next image's reflections read over their footprints. Each level is the one
- * before it through the separable tent [1, 3, 3, 1] / 8 on each axis, centred on the coarse texel
- * (the four finer texels around it, the edge's past the drawn image), read as four bilinear taps
- * between texel pairs at a quarter of a texel (`radianceTent`): a smooth, near-Gaussian chain,
- * shift-free, whose B-spline read is a soft blob at every level, never a texel's square. The colour
- * is filtered with its coverage (the lit image's alpha: 1 where a surface drew, 0 on the
- * background, at most 1 at every level), which the reflection divides by, so a footprint never
- * darkens toward the background.
- *
- * Two levels a dispatch, no workgroup memory: a thread owns one texel of level k + 2, filters the
- * 4 × 4 texels of level k + 1 around it (`radianceTwo`), writes the 2 × 2 of them it owns and its
- * own of level k + 2. `radianceFirst` does so from the drawn image, and copies the 4 × 4 pixels it
- * owns into level 0; `radianceDown` from each level after. `REFLECTION_RADIANCE_LEVELS` = 1 + 2 · 4
- * levels take four dispatches, of W·H/16, W·H/256, … threads. The pixels neighbours share come
- * from the cache: of the image's 8 bytes a pixel, the build reads the image once and writes level 0
- * once and the coarser levels a third of it, and reads a sixteenth back — at 2.35 Mpx, 1 read and
- * 1 + 1/3 writes, 44 MB, a tenth of a millisecond at 400 GB/s.
- */
-export const RADIANCE_SHADER = wgslProgram(
-  `@group(0) @binding(0) var finer:texture_2d<f32>;
-@group(0) @binding(1) var coarser:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(2) var coarsest:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(3) var halves:sampler;
-@group(0) @binding(4) var copy:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(5) var<uniform> drawn:vec4u;
-fn tent(k:i32)->f32{return select(1.0,3.0,k==1||k==2);}
-fn radianceTent(q:vec2i,bounds:vec2i)->vec4f{
- let size=vec2f(textureDimensions(finer));
- let last=vec2f(bounds-vec2i(1));
- let low=(clamp(vec2f(2*q)-vec2f(0.25),vec2f(0.0),last)+vec2f(0.5))/size;
- let high=(clamp(vec2f(2*q)+vec2f(1.25),vec2f(0.0),last)+vec2f(0.5))/size;
- let sum=textureSampleLevel(finer,halves,low,0.0)+textureSampleLevel(finer,halves,vec2f(high.x,low.y),0.0)
-  +textureSampleLevel(finer,halves,vec2f(low.x,high.y),0.0)+textureSampleLevel(finer,halves,high,0.0);
- return vec4f(sum.rgb,min(sum.a,4.0))/4.0;
-}
-fn radianceTwo(c:vec2i,bounds:vec2i){
- let size=vec2i(textureDimensions(coarser));
- var sum=vec4f(0.0);
- for(var j=0;j<4;j++){
-  for(var i=0;i<4;i++){
-   let q=clamp(2*c-vec2i(1)+vec2i(i,j),vec2i(0),size-vec2i(1));
-   let texel=radianceTent(q,bounds);
-   if(i>=1&&i<=2&&j>=1&&j<=2&&all(2*c-vec2i(1)+vec2i(i,j)<size)){textureStore(coarser,q,texel);}
-   sum+=tent(i)*tent(j)*texel;
-  }
- }
- if(all(c<vec2i(textureDimensions(coarsest)))){textureStore(coarsest,c,sum/64.0);}
-}
-@compute @workgroup_size(${SIDE},${SIDE})
-fn radianceFirst(@builtin(global_invocation_id) id:vec3u){
- let c=vec2i(id.xy);
- let size=vec2i(textureDimensions(copy));
- if(any(4*c>=size)){return;}
- let bounds=vec2i(drawn.xy);
- for(var y=0;y<4;y++){
-  for(var x=0;x<4;x++){
-   let p=4*c+vec2i(x,y);
-   if(all(p<size)){
-    let texel=select(vec4f(0.0),textureLoad(finer,p,0),all(p<bounds));
-    textureStore(copy,p,vec4f(texel.rgb,clamp(texel.a,0.0,1.0)));
-   }
-  }
- }
- radianceTwo(c,bounds);
-}
-@compute @workgroup_size(${SIDE},${SIDE})
-fn radianceDown(@builtin(global_invocation_id) id:vec3u){
- let c=vec2i(id.xy);
- if(any(2*c>=vec2i(textureDimensions(coarser)))){return;}
- radianceTwo(c,vec2i(textureDimensions(finer)));
-}`,
-  [],
-)
-
-const storage = (binding: number): GPUBindGroupLayoutEntry => ({
-  binding,
-  visibility: COMPUTE,
-  storageTexture: { access: 'write-only', format: REFLECTION_FORMAT },
-})
+  RADIANCE_SHADER,
+  createRadiancePyramid,
+  radianceLayouts,
+  radianceLevels,
+} from './radiance.ts'
+import {
+  BEGIN_SHADER,
+  TRACE_SHADER,
+  createTraceStages,
+  createTraceTiles,
+  TRACE_ARGS_BYTES,
+  traceListBytes,
+  type TraceGroups,
+} from './trace.ts'
+import { createReflectionViewWriter } from './viewWrite.ts'
+import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP, REFLECTION_VIEW_BYTES } from './viewLayout.ts'
+import { REFLECTION_TARGET } from './weight.ts'
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid and its sampler, then the depth pyramid (`hizDepthEntries`), read by compute
  *  and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
-  return device.createBindGroupLayout({
-    label: 'Trillion3D reflection',
-    entries: [
-      {
-        binding: 0,
-        visibility,
-        buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES },
-      },
-      { binding: 1, visibility, texture: { sampleType: 'float' } },
-      { binding: 2, visibility, sampler: { type: 'filtering' } },
-      ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
-    ],
-  })
+  return computeLayout(device, [
+    { binding: 0, visibility, buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES } },
+    { binding: 1, visibility, texture: { sampleType: 'float' } },
+    { binding: 2, visibility, sampler: { type: 'filtering' } },
+    ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
+  ])
 })
 
-/** The radiance pyramid's two layouts (`RADIANCE_SHADER`): a level read through its sampler, the
- *  two levels a dispatch writes, and for the first, level 0 and the drawn size. */
-function radianceLayouts(device: GPUDevice) {
-  const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-  const finer = { binding: 0, visibility: COMPUTE, texture: { sampleType: 'float' } } as const
-  const halves = { binding: 3, visibility: COMPUTE, sampler: { type: 'filtering' } } as const
-  const drawn = { binding: 5, visibility: COMPUTE, buffer: { type: 'uniform' } } as const
-  return {
-    firstLayout: layout([finer, storage(1), storage(2), halves, storage(4), drawn]),
-    downLayout: layout([finer, storage(1), storage(2), halves]),
-  }
-}
-
-/** The reflection's kernels — the surroundings, the opaque trace, the radiance pyramid's two —
- *  compiled once a device under one validation scope. */
+/** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
+ *  radiance pyramid's two — compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
-    const trace = device.createShaderModule({
-      label: 'Trillion3D reflection trace',
-      code: TRACE_SHADER,
-    })
-    const surroundings = device.createShaderModule({
-      label: 'Trillion3D reflection surroundings',
-      code: SURROUNDINGS_SHADER,
-    })
-    const radiance = device.createShaderModule({
-      label: 'Trillion3D reflection radiance',
-      code: RADIANCE_SHADER,
-    })
-    for (const made of [trace, surroundings, radiance])
-      if (await shaderFailed(made)) return undefined
-    const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-    const traceLayout = layout([
-      { binding: 0, visibility: COMPUTE, texture: { sampleType: 'uint' } },
-      { binding: 1, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
-      storage(2),
-      { binding: 3, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 4, visibility: COMPUTE, texture: { sampleType: 'uint' } },
-      { binding: 5, visibility: COMPUTE, buffer: { type: 'uniform' } },
-      {
-        binding: 6,
-        visibility: COMPUTE,
-        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-      },
-    ])
-    const surroundingsLayout = layout([
-      { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: COMPUTE, buffer: { type: 'storage' } },
-    ])
-    const { firstLayout, downLayout } = radianceLayouts(device)
-    const stage = (made: GPUShaderModule, entryPoint: string, groups: GPUBindGroupLayout[]) =>
-      buildComputePipeline(device, {
-        layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
-        compute: { module: made, entryPoint },
-      })
-    const [tracePipeline, surroundingsPipeline, firstPipeline, downPipeline] = await Promise.all([
-      stage(trace, 'traceReflections', [traceLayout, reflectionLayout(device)]),
-      stage(surroundings, 'reflectionSurroundings', [surroundingsLayout]),
-      stage(radiance, 'radianceFirst', [firstLayout]),
-      stage(radiance, 'radianceDown', [downLayout]),
+    const modules = {
+      trace: device.createShaderModule({
+        label: 'Trillion3D reflection trace',
+        code: TRACE_SHADER,
+      }),
+      begin: device.createShaderModule({
+        label: 'Trillion3D reflection begin',
+        code: BEGIN_SHADER,
+      }),
+      radiance: device.createShaderModule({
+        label: 'Trillion3D reflection radiance',
+        code: RADIANCE_SHADER,
+      }),
+    }
+    for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
+    const layouts = radianceLayouts(device)
+    const layout = (bind: GPUBindGroupLayout) =>
+      device.createPipelineLayout({ bindGroupLayouts: [bind] })
+    const [trace, first, down] = await Promise.all([
+      createTraceStages(device, modules, reflectionLayout(device)),
+      buildComputeStages(device, layout(layouts.firstLayout), modules.radiance, ['radianceFirst']),
+      buildComputeStages(device, layout(layouts.downLayout), modules.radiance, ['radianceDown']),
     ])
     return {
-      traceLayout,
-      surroundingsLayout,
-      firstLayout,
-      downLayout,
-      tracePipeline,
-      surroundingsPipeline,
-      firstPipeline,
-      downPipeline,
+      ...trace,
+      ...layouts,
+      firstPipeline: first.radianceFirst,
+      downPipeline: down.radianceDown,
     }
   }),
 )
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
-/** The radiance pyramid's levels at `width × height`: an odd count, level 0 and two a dispatch,
- *  as many as the image holds up to `REFLECTION_RADIANCE_LEVELS`. */
-const radianceLevels = (width: number, height: number) => {
-  const levels = Math.min(REFLECTION_RADIANCE_LEVELS, mipLevelCountFor(width, height))
-  return levels - ((levels + 1) % 2)
-}
-
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid and its two uniforms; the depth it marches is the Hi-Z's. */
+ *  radiance pyramid, its tile list and its uniform; the depth it marches is the Hi-Z's. */
 export function reflectionBytes(width: number, height: number) {
   const size: GPUExtent3D = [width, height]
   return (
-    textureBytesOf({ size, format: REFLECTION_FORMAT })! +
+    REFLECTION_TARGET.bytes(width, height, true) +
     textureBytesOf({
       size,
       format: REFLECTION_FORMAT,
       mipLevelCount: radianceLevels(width, height),
     })! +
-    REFLECTION_VIEW_BYTES +
-    16
+    traceListBytes(width, height) +
+    TRACE_ARGS_BYTES +
+    REFLECTION_VIEW_BYTES
   )
 }
 
 /**
- * A view's reflection at `width × height`: the target the opaque trace writes, the radiance pyramid
- * of its last lit image, the view uniform — whose surroundings the GPU writes — and the drawn size
- * the pyramid's copy reads, the sampler. `held` is what the
- * pyramid holds: whether it holds an image of this view, and the view-projection and drawn size
- * that image was drawn with — the next image reprojects its hits with them.
+ * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
+ * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
+ * reprojects its hits with its view-projection), the tile list of the trace, the view uniform —
+ * whose surroundings the GPU writes — and the writer of the rest of it.
  */
 export function createScreenReflection(device: GPUDevice, width: number, height: number) {
-  const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
   // `COPY_SRC` serves only the proof tools, which reread the target; no frame copies it.
   const target = device.createTexture({
     label: 'Trillion3D reflection',
     size: [width, height],
     format: REFLECTION_FORMAT,
-    usage: usage | GPUTextureUsage.COPY_SRC,
-  })
-  const levels = radianceLevels(width, height)
-  const radiance = device.createTexture({
-    label: 'Trillion3D reflection radiance',
-    size: [width, height],
-    format: REFLECTION_FORMAT,
-    mipLevelCount: levels,
-    usage,
+    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC,
   })
   const uniform = device.createBuffer({
     label: 'Trillion3D reflection view',
     size: REFLECTION_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  const drawn = device.createBuffer({
-    label: 'Trillion3D reflection drawn size',
-    size: 16,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const sampler = device.createSampler({
-    label: 'Trillion3D reflection radiance',
-    magFilter: 'linear',
-    minFilter: 'linear',
-    mipmapFilter: 'linear',
-  })
-  const level = (at: number) => radiance.createView({ baseMipLevel: at, mipLevelCount: 1 })
+  const radiance = createRadiancePyramid(device, width, height)
+  const tiles = createTraceTiles(device, width, height)
   return {
     device,
     target,
     targetView: target.createView(),
     radiance,
-    radianceView: radiance.createView(),
-    /** Each level of the pyramid alone, which its build writes then reads. */
-    radianceLevels: Array.from({ length: levels }, (_, at) => level(at)),
-    levels,
+    tiles,
     uniform,
-    drawn,
-    sampler,
-    /** The view uniform's words the CPU writes, each image. */
-    words: new Float32Array(REFLECTION_VIEW_WRITTEN_BYTES / 4),
-    drawnWords: new Uint32Array(4),
-    held: {
-      valid: false,
-      viewProjection: new Float64Array(16),
-      size: [0, 0] as [number, number],
-      /** Whether the image before it was drawn with the same view-projection: an image traced on
-       *  it reads the view it is drawn from (`reflectionsSettled`). */
-      still: false,
-    },
+    writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's). */
     groups: new WeakMap<GPUTexture, GPUBindGroup>(),
-    /** The trace's and the surroundings' groups, kept while their surfaces, light buffer and probe
-     *  cascades stay. */
-    trace: undefined as
-      | {
-          surfaces: unknown
-          lights: GPUBuffer
-          probes: GPUTextureView
-          group: GPUBindGroup
-          surroundings: GPUBindGroup
-        }
-      | undefined,
-    /** The pyramid build's groups, kept while the lit image stays. */
-    build: undefined as { hdr: GPUTextureView; groups: GPUBindGroup[] } | undefined,
+    /** The trace's bind groups, kept while its inputs stay (`encodeReflectionTrace`). */
+    traceGroups: undefined as TraceGroups | undefined,
     dispose() {
       target.destroy()
-      radiance.destroy()
+      radiance.texture.destroy()
+      tiles.args.destroy()
+      tiles.list.destroy()
       uniform.destroy()
-      drawn.destroy()
     },
   }
 }
@@ -403,8 +150,8 @@ export function reflectionGroup(reflection: ScreenReflection, depth: HizDepth) {
     layout: reflectionLayout(device),
     entries: [
       { binding: 0, resource: { buffer: reflection.uniform } },
-      { binding: 1, resource: reflection.radianceView },
-      { binding: 2, resource: reflection.sampler },
+      { binding: 1, resource: reflection.radiance.view },
+      { binding: 2, resource: reflection.radiance.sampler },
       ...depth.resources.map((resource, k) => ({
         binding: REFLECTION_DEPTH_BINDING + k,
         resource,
@@ -413,183 +160,6 @@ export function reflectionGroup(reflection: ScreenReflection, depth: HizDepth) {
   })
   reflection.groups.set(depth.pyramid, group)
   return group
-}
-
-/** What an image tells its reflection view (`writeReflectionView`). */
-export type ReflectionFrame = {
-  /** The render view-projection the depth was drawn with, jitter included, and its inverse. */
-  viewProjection: ArrayLike<number>
-  inverseViewProjection: ArrayLike<number>
-  /** The eye, `w` 1, or the view direction, `w` 0, as the lighting reads it. */
-  camera: ArrayLike<number>
-  /** The drawn size. */
-  size: readonly [number, number]
-  /** Whether the depth pyramid holds this image's whole depth. */
-  depthDrawn: boolean
-  /** The background as the display shows it, in linear, the exposure and the display curve's
-   *  rank: what the surroundings are made from (`SURROUNDINGS_SHADER`). */
-  display: { background: readonly [number, number, number]; exposure: number; curve: number }
-}
-
-/**
- * The view uniform of this image: its matrices, the eye, the drawn size and the world size of a
- * pixel at a unit clip `w` — 2 / (height · |row y of the view-projection|), the projection's
- * vertical scale —, the radiance image's view-projection, drawn size and top level, whether the
- * screen is traced — the depth pyramid holds this image's depth and the radiance pyramid an image
- * of this view —, the display curve's rank, the background displayed and the exposure; all but the
- * surroundings, which the GPU writes from them. Nothing in it is a frame index or a seed: a still
- * view writes the same words.
- */
-export function writeReflectionView(reflection: ScreenReflection, frame: ReflectionFrame) {
-  const { words, held } = reflection
-  const counts = new Uint32Array(words.buffer, 60 * 4, 4)
-  const m = frame.viewProjection
-  for (let i = 0; i < 16; i++) {
-    words[i] = m[i]
-    words[16 + i] = frame.inverseViewProjection[i]
-    words[32 + i] = held.viewProjection[i]
-  }
-  for (let i = 0; i < 4; i++) words[48 + i] = frame.camera[i]
-  const [width, height] = frame.size
-  words[52] = width
-  words[53] = height
-  words[54] = 2 / (height * length3(m[1], m[5], m[9]))
-  words[55] = 0
-  words[56] = held.size[0]
-  words[57] = held.size[1]
-  words[58] = reflection.levels - 1
-  words[59] = 0
-  counts[0] = frame.depthDrawn && held.valid ? 1 : 0
-  counts[1] = frame.display.curve
-  counts[2] = counts[3] = 0
-  words.set(frame.display.background, 64)
-  words[67] = frame.display.exposure
-  reflection.device.queue.writeBuffer(reflection.uniform, 0, words)
-}
-
-/** The surroundings, then the opaque trace, one dispatch a pixel of the drawn size, in the open
- *  compute `pass`. */
-export function encodeReflectionTrace(
-  pass: GPUComputePassEncoder,
-  reflection: ScreenReflection,
-  pipelines: ReflectionPipelines,
-  inputs: {
-    flags: GPUTextureView
-    normals: GPUTextureView
-    lobes: GPUTextureView
-    surfaces: unknown
-    lights: GPUBuffer
-    bounceGrid: GPUBuffer
-    probes: GPUTextureView
-  },
-  depthGroup: GPUBindGroup,
-  size: readonly [number, number],
-) {
-  let kept = reflection.trace
-  const { device } = reflection
-  if (
-    !kept ||
-    kept.surfaces !== inputs.surfaces ||
-    kept.lights !== inputs.lights ||
-    kept.probes !== inputs.probes
-  )
-    kept = reflection.trace = {
-      surfaces: inputs.surfaces,
-      lights: inputs.lights,
-      probes: inputs.probes,
-      group: device.createBindGroup({
-        layout: pipelines.traceLayout,
-        entries: [
-          { binding: 0, resource: inputs.flags },
-          { binding: 1, resource: inputs.normals },
-          { binding: 2, resource: reflection.targetView },
-          { binding: 3, resource: { buffer: inputs.lights } },
-          { binding: 4, resource: inputs.lobes },
-          { binding: 5, resource: { buffer: inputs.bounceGrid } },
-          { binding: 6, resource: inputs.probes },
-        ],
-      }),
-      surroundings: device.createBindGroup({
-        layout: pipelines.surroundingsLayout,
-        entries: [
-          { binding: 0, resource: { buffer: inputs.lights } },
-          { binding: 1, resource: { buffer: reflection.uniform } },
-        ],
-      }),
-    }
-  pass.setPipeline(pipelines.surroundingsPipeline)
-  pass.setBindGroup(0, kept.surroundings)
-  pass.dispatchWorkgroups(1)
-  pass.setPipeline(pipelines.tracePipeline)
-  pass.setBindGroup(0, kept.group)
-  pass.setBindGroup(1, depthGroup)
-  pass.dispatchWorkgroups(ceilDiv(size[0], SIDE), ceilDiv(size[1], SIDE))
-}
-
-/**
- * The radiance pyramid of the lit image `hdr`, drawn at `size` with `viewProjection`, in the open
- * compute `pass`: levels 0, 1 and 2 from the image, then two levels a dispatch from the last made
- * (`RADIANCE_SHADER`); what the pyramid holds is then that image, for the next one's reflections.
- */
-export function encodeRadiancePyramid(
-  pass: GPUComputePassEncoder,
-  reflection: ScreenReflection,
-  pipelines: ReflectionPipelines,
-  hdr: GPUTextureView,
-  size: readonly [number, number],
-  viewProjection: ArrayLike<number>,
-) {
-  const { levels, radianceLevels: views, device, held } = reflection
-  if (levels < 3) return
-  if (reflection.build?.hdr !== hdr) {
-    const groups = [
-      device.createBindGroup({
-        layout: pipelines.firstLayout,
-        entries: [
-          { binding: 0, resource: hdr },
-          { binding: 1, resource: views[1] },
-          { binding: 2, resource: views[2] },
-          { binding: 3, resource: reflection.sampler },
-          { binding: 4, resource: views[0] },
-          { binding: 5, resource: { buffer: reflection.drawn } },
-        ],
-      }),
-    ]
-    for (let at = 2; at + 2 < levels; at += 2)
-      groups.push(
-        device.createBindGroup({
-          layout: pipelines.downLayout,
-          entries: [
-            { binding: 0, resource: views[at] },
-            { binding: 1, resource: views[at + 1] },
-            { binding: 2, resource: views[at + 2] },
-            { binding: 3, resource: reflection.sampler },
-          ],
-        }),
-      )
-    reflection.build = { hdr, groups }
-  }
-  if (reflection.drawnWords[0] !== size[0] || reflection.drawnWords[1] !== size[1]) {
-    reflection.drawnWords[0] = size[0]
-    reflection.drawnWords[1] = size[1]
-    device.queue.writeBuffer(reflection.drawn, 0, reflection.drawnWords)
-  }
-  const { width, height } = reflection.radiance
-  reflection.build.groups.forEach((group, at) => {
-    pass.setBindGroup(0, group)
-    pass.setPipeline(at === 0 ? pipelines.firstPipeline : pipelines.downPipeline)
-    // A thread per texel of the coarsest level it makes, and per 4 × 4 pixels of level 0.
-    const threads = (extent: number) =>
-      at === 0 ? ceilDiv(extent, 4) : ceilDiv(Math.max(1, extent >> (2 * at + 1)), 2)
-    pass.dispatchWorkgroups(ceilDiv(threads(width), SIDE), ceilDiv(threads(height), SIDE))
-  })
-  let still = held.valid && held.size[0] === size[0] && held.size[1] === size[1]
-  for (let i = 0; i < 16 && still; i++) still = held.viewProjection[i] === viewProjection[i]
-  held.still = still
-  held.valid = true
-  copyMatrix4(held.viewProjection, viewProjection)
-  held.size[0] = size[0]
-  held.size[1] = size[1]
 }
 
 /** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection
@@ -613,4 +183,6 @@ export function bindForwardReflection(
 export const reflectionsSettled = (
   reflection: ScreenReflection | undefined,
   accumulating: boolean,
-) => !reflection || (reflection.held.valid && (accumulating || reflection.held.still))
+) =>
+  !reflection ||
+  (reflection.radiance.held.valid && (accumulating || reflection.radiance.held.still))

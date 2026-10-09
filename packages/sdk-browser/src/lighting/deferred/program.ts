@@ -10,7 +10,7 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
-import { REFLECTION_TARGET_BINDING, REFLECTION_VIEW_BINDING } from '../../reflections/wgsl.ts'
+import { REFLECTION_TARGET_BINDING, REFLECTION_VIEW_BINDING } from '../../reflections/weight.ts'
 import type { ComposeInput } from './shaders.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
@@ -42,10 +42,10 @@ export interface DirectLightResources extends Partial<ContractKey> {
   probes?: GPUTextureView
   /** Resident proxy; absent, a zero substitute. */
   proxy?: GPUBuffer
-  /** The reflection target the opaque trace wrote (`../../reflections/gpu.ts`); absent, a zero
+  /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
-  /** The reflection's view (`../../reflections/wgsl.ts`); absent, one of zeros. */
+  /** The reflection's view (`../../reflections/viewLayout.ts`); absent, one of zeros. */
   reflectionView?: GPUBuffer
   receiver?: ReceiverResources // what the receiver offset reads
 }

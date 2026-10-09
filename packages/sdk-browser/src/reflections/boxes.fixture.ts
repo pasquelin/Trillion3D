@@ -18,7 +18,7 @@ const cross = (a: V3, b: V3): V3 => [
 ]
 
 /** Where the ray `o + d·t`, t > `from`, enters `box`, `from` when it starts inside, or Infinity. */
-export function rayBox(o: V3, d: V3, box: Box, from = 0) {
+function rayBox(o: V3, d: V3, box: Box, from = 0) {
   let near = -Infinity,
     far = Infinity
   for (let k = 0; k < 3; k++) {

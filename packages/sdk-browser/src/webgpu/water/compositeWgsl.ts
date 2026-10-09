@@ -17,7 +17,8 @@ import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
-import { REFLECTION_GROUP, forwardReflectionWgsl } from '../../reflections/wgsl.ts'
+import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
+import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -52,7 +53,7 @@ export const WATER_BINDINGS = {
  * Fullscreen composite of the water pass. A pixel the surface stage wrote is lit once here: the
  * transmitted backdrop, refracted by the material IOR and attenuated over the distance the ray
  * travels in the volume; the specular of the declared lights and what the surface reflects
- * (`reflectedRadiance`, `../../reflections/wgsl.ts`, traced once for both shares), weighted by
+ * (`reflectedRadiance`, `../../reflections/weight.ts`, traced once for both shares), weighted by
  * Fresnel; and the surface's own lit colour for what the material does not transmit.
  * Everything is read on the imported material — `KHR_materials_transmission`, `KHR_materials_ior`,
  * `KHR_materials_volume` — and the scene's declared sources, with the engine's only lighting

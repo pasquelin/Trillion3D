@@ -1,7 +1,7 @@
 // The radiance pyramid's shipped kernels (`RADIANCE_SHADER`) run as JavaScript for its tests, over
 // images of texels read as the sampler reads them, bilinear, their edge clamped.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { RADIANCE_SHADER } from './gpu.ts'
+import { RADIANCE_SHADER } from './radiance.ts'
 
 export type Image = { width: number; height: number; texels: number[][] }
 export const image = (
@@ -13,7 +13,7 @@ export const image = (
   height,
   texels: Array.from({ length: width * height }, (_, i) => at(i % width, Math.floor(i / width))),
 })
-export const blank = (width: number, height: number) =>
+const blank = (width: number, height: number) =>
   image(Math.max(1, width), Math.max(1, height), () => [0, 0, 0, 0])
 
 /** An image's bilinear read at `uv`, as the sampler reads it, its edge clamped. */
@@ -37,7 +37,8 @@ export function bilinear(level: Image, uv: number[]) {
 }
 
 /** The shipped kernels over `finer` into `coarser`, `coarsest` (and `copy`), `drawn` the image's
- *  drawn size. */
+ *  drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
+ *  its tile, then — past the barrier — every thread's sum (`radianceSum`) from it. */
 export function radianceKernels(drawn: number[]) {
   const binding = { finer: {}, coarser: {}, coarsest: {}, copy: {} }
   const io: Record<keyof typeof binding, Image> = {
@@ -48,13 +49,16 @@ export function radianceKernels(drawn: number[]) {
   }
   const of = (t: object) =>
     io[(Object.keys(binding) as (keyof typeof binding)[]).find((k) => binding[k] === t)!]
+  const tile: number[][] = []
   const run = shaderRun<{
-    radianceFirst: (id: number[]) => void
-    radianceDown: (id: number[]) => void
-  }>(RADIANCE_SHADER, ['radianceFirst', 'radianceDown', 'radianceTwo', 'radianceTent', 'tent'], {
+    radianceFill: (lane: number, wg: number[], bounds: number[]) => void
+    radianceSum: (lid: number[], wg: number[]) => void
+    radianceCopy: (c: number[]) => void
+  }>(RADIANCE_SHADER, ['radianceFill', 'radianceSum', 'radianceCopy', 'radianceTent', 'tent'], {
     ...binding,
     halves: {},
-    drawn,
+    tile,
+    reflectionView: { screen: drawn },
     textureDimensions: (t: object) => [of(t).width, of(t).height],
     textureLoad: (t: object, p: number[]) => of(t).texels[p[1] * of(t).width + p[0]],
     textureSampleLevel: (t: object, _: unknown, uv: number[]) => bilinear(of(t), uv),
@@ -62,9 +66,17 @@ export function radianceKernels(drawn: number[]) {
       of(t).texels[p[1] * of(t).width + p[0]] = value
     },
   })
-  /** Each kernel over its whole grid: `threads` a side. */
-  const dispatch = (kernel: (id: number[]) => void, threads: number[]) => {
-    for (let y = 0; y < threads[1]; y++) for (let x = 0; x < threads[0]; x++) kernel([x, y, 0])
+  /** The workgroups over `groups` a side, each as the device runs it; `copy` the first kernel's. */
+  const dispatch = (groups: number[], bounds: number[], copy: boolean) => {
+    for (let y = 0; y < groups[1]; y++)
+      for (let x = 0; x < groups[0]; x++) {
+        for (let lane = 0; lane < 64; lane++) run.radianceFill(lane, [x, y], bounds)
+        for (let lane = 0; lane < 64; lane++) {
+          const lid = [lane % 8, Math.floor(lane / 8)]
+          run.radianceSum(lid, [x, y])
+          if (copy) run.radianceCopy([x * 8 + lid[0], y * 8 + lid[1]])
+        }
+      }
   }
   return {
     first(source: Image) {
@@ -72,17 +84,18 @@ export function radianceKernels(drawn: number[]) {
       io.copy = blank(source.width, source.height)
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(source.width >> 2, source.height >> 2)
-      dispatch(run.radianceFirst, [Math.ceil(source.width / 4), Math.ceil(source.height / 4)])
+      dispatch([Math.ceil(source.width / 32), Math.ceil(source.height / 32)], drawn, true)
       return { copy: io.copy, coarser: io.coarser, coarsest: io.coarsest }
     },
     down(source: Image) {
       io.finer = source
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(io.coarser.width >> 1, io.coarser.height >> 1)
-      dispatch(run.radianceDown, [
-        Math.ceil(io.coarser.width / 2),
-        Math.ceil(io.coarser.height / 2),
-      ])
+      dispatch(
+        [Math.ceil(io.coarsest.width / 8), Math.ceil(io.coarsest.height / 8)],
+        [source.width, source.height],
+        false,
+      )
       return { coarser: io.coarser, coarsest: io.coarsest }
     },
   }

@@ -7,7 +7,8 @@ import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts'
 import { withScreenErrorVariant } from '../dag/shader/error.ts'
 import { drawShader } from '../draw/shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
-import { RADIANCE_SHADER, SURROUNDINGS_SHADER, TRACE_SHADER } from '../../reflections/gpu.ts'
+import { RADIANCE_SHADER } from '../../reflections/radiance.ts'
+import { BEGIN_SHADER, TRACE_SHADER } from '../../reflections/trace.ts'
 import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
@@ -79,7 +80,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DAG_ARM_SHADER,
   DRAW_SHADER: drawShader(2),
   HIZ_SHADER,
-  SURROUNDINGS_SHADER,
+  BEGIN_SHADER,
   TRACE_SHADER,
   RADIANCE_SHADER,
   MATERIAL_TILES_SHADER,

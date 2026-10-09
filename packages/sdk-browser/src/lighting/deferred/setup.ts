@@ -18,11 +18,8 @@ import {
 } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
-import {
-  REFLECTION_TARGET,
-  REFLECTION_VIEW_BINDING,
-  REFLECTION_VIEW_BYTES,
-} from '../../reflections/wgsl.ts'
+import { REFLECTION_TARGET, REFLECTION_VIEW_BINDING } from '../../reflections/weight.ts'
+import { REFLECTION_VIEW_BYTES } from '../../reflections/viewLayout.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -130,7 +127,7 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
     // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
     VSM_MASK_TABLE_TARGET.layoutEntry(),
     // The radiance the reflection trace wrote, and the reflection's view, whose surroundings the
-    // coat reflects (`../../reflections/gpu.ts`).
+    // coat reflects (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
     {
       binding: REFLECTION_VIEW_BINDING,

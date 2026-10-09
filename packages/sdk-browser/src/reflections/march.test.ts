@@ -5,7 +5,7 @@
 // everything — each within its bound.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_ITERATIONS_PER_LEVEL } from './wgsl.ts'
+import { REFLECTION_ITERATIONS_PER_LEVEL } from './constants.ts'
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 

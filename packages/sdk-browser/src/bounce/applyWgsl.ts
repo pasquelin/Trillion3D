@@ -14,7 +14,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  *
  * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
  * Indirect specular is not part of this term: the reflection reads the same probes through its
- * lobe (`reflectionField`, `../reflections/wgsl.ts`).
+ * lobe (`reflectionField`, `../reflections/field.ts`).
  */
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(
