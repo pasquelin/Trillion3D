@@ -1,20 +1,20 @@
 /**
  * The two passes that compose linked placements under their parent (`gpuCompose.ts`), in exact
- * double arithmetic (`DOUBLE_WGSL`): a world is the parent's world times the child's local matrix,
+ * double arithmetic (`math/src/wgsl/double.ts`): a world is the parent's world times the child's local matrix,
  * each of the sixteen numbers summed over the same four products in the same order as the
  * transform tree's `multiplyMatrix4`, every product and sum rounded once as the CPU rounds it. A
  * number then reaches single precision as `Float32Array` stores a double (`toF32`), so every word
- * the GPU writes is the CPU's, to the bit; a translation is brought to the eye first, by the double
- * subtraction `worldToRenderOrigin` does.
+ * the GPU writes is the CPU's, to the bit; a translation is kept exact, as two words a coordinate,
+ * for each cut to take its eye off (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
-import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
+import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
@@ -30,7 +30,7 @@ export const MATRIX_DOUBLES = 16
  *  an unsigned integer, and integer work a JavaScript run of the text reads as written. */
 const PRODUCT_WGSL = wgslBlock(
   'PRODUCT_WGSL',
-  [DOUBLE_WGSL],
+  [dAdd, dMul],
   `
 fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  let c=k>>2u;let r=k&3u;
@@ -41,7 +41,7 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 )
 
 /** What both passes call: the product, its rounding to single precision and the grid index. */
-const SHARED = [PRODUCT_WGSL, TO_F32_WGSL, FLAT_INDEX_WGSL]
+const SHARED = [PRODUCT_WGSL, toF32, FLAT_INDEX_WGSL]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -57,7 +57,9 @@ fn sameWord(a:u32,b:u32)->bool{
 )
 
 /**
- * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye, and,
+ * One thread per root of a range of the cut's worlds: `parent · local` — its exact translation
+ * kept behind the range's matrices, as the host's are (`worldOrigins.ts`), which each cut reads at
+ * its own eye —, and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
  * accumulated image (`previous`): a restart takes the world as reference with no motion; a
@@ -65,7 +67,7 @@ fn sameWord(a:u32,b:u32)->bool{
  * writes identity.
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,first:u32,count:u32,motion:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,pad:vec2u,}
+  `struct Params{rootCount:u32,first:u32,count:u32,pad:u32,}
 struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> locals:array<vec2u>;
@@ -81,16 +83,19 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
- let eye=array<vec2u,3>(params.eyeX,params.eyeY,params.eyeZ);
  var world:array<u32,16>;
  for(var k=0u;k<16u;k++){
-  var value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
+  let value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
-  if(k>=12u&&k<15u){value=dSub(value,eye[k-12u]);}
-  worlds[i*16u+k]=toF32(value);
+  // The translation is the exact one behind the range's matrices, which each cut reads at its own
+  // eye (\`../gpu/dag/shader/worldPoseWgsl.ts\`): words 12 to 14 of the row are no cut's.
+  if(k>=12u&&k<15u){
+   let at=params.count*16u+i*8u+2u*(k-12u);
+   worlds[at]=value.x;worlds[at+1u]=value.y;
+  }else{worlds[i*16u+k]=world[k];}
  }
  let mode=motionMode.mode;
- if(params.motion==0u||mode==${MOTION_SKIP}u){return;}
+ if(mode==${MOTION_SKIP}u){return;}
  var held:array<u32,16>;
  var same=true;
  for(var k=0u;k<16u;k++){
@@ -106,7 +111,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, DOUBLE_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
+  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL],
 )
 
 /**
@@ -123,7 +128,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
-  [DOUBLE_WGSL, FROM_F32_WGSL, TO_F32_WGSL],
+  [dAdd, dSub, dMul, fromF32, toF32],
   `
 const SPHERE_GROWTH:f32=1.00000095367431640625;
 const CENTRE_ERROR:f32=5.684341886080802e-14;

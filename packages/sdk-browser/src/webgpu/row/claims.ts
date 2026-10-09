@@ -1,5 +1,5 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
 /**
@@ -28,8 +28,8 @@ export function createWebgpuRowClaims(pageCount: number) {
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
       if (page >= marks.length) {
-        marks = grown(marks, page + 1, marks.length)
-        pages = grown(pages, marks.length, count)
+        marks = resized(marks, page + 1)
+        pages = resized(pages, marks.length)
       }
       if (marks[page]) return
       marks[page] = 1

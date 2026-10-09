@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
-import { LOCK_OWNER, benchAlive, lockHolder, takeBenchLock } from './lock.ts'
+import { LOCK_OWNER, benchAlive, lockHolder, takeBenchLock, waitBenchLock } from './lock.ts'
 
 const scratch = () => join(mkdtempSync(join(tmpdir(), 'bench-lock-')), 'gpu-bench.lock')
 
@@ -110,5 +110,28 @@ test('a run whose lock another process took says so and fails, and leaves that l
     assert.equal(lockHolder(path)?.pid, 4242)
   } finally {
     process.exitCode = saved
+  }
+})
+
+test('a bench that waits takes the lock once its holder ends, and gives up past its time', async () => {
+  const path = scratch()
+  const holder = spawn(
+    process.execPath,
+    ['-e', 'setTimeout(() => {}, 20000)', 'bench/dawn/run.ts'],
+    { stdio: 'ignore' },
+  )
+  try {
+    writeFileSync(path, JSON.stringify({ pid: holder.pid, since: 'now', what: 'pebbles' }))
+    await assert.rejects(
+      waitBenchLock('v06', { path, timeoutMs: 60, everyMs: 20 }),
+      /GPU_BENCH_BUSY: bench pid \d+ measures pebbles/,
+    )
+    const waited = waitBenchLock('v06', { path, timeoutMs: 10_000, everyMs: 20 })
+    holder.kill()
+    const release = await waited
+    assert.equal(lockHolder(path)?.pid, process.pid)
+    release()
+  } finally {
+    holder.kill()
   }
 })

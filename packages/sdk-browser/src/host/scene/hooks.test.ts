@@ -9,7 +9,7 @@ import * as G from '../graph/graph.fixture.ts'
 import { hookHostNode, unhookHostNode } from './hooks.ts'
 import type { WriteRevision } from './hookCore.ts'
 
-const mark = (): WriteRevision => ({ revision: 0 })
+const mark = (): WriteRevision => ({ revision: 0, wrote() {} })
 
 function hooked() {
   const parent = new G.Group()
@@ -62,7 +62,7 @@ test('a hooked node and its vectors keep fast properties for the reference to wa
     import * as G from ${JSON.stringify(new URL('../graph/graph.fixture.ts', import.meta.url).href)};
     import { hookHostNode } from ${JSON.stringify(new URL('./hooks.ts', import.meta.url).href)};
     const mesh = G.mesh();
-    hookHostNode(mesh, { revision: 0 });
+    hookHostNode(mesh, { revision: 0, wrote() {} });
     mesh.position.x = 1;
     console.log(JSON.stringify([mesh, mesh.position, mesh.scale].map((o) => %HasFastProperties(o))));`
   const run = spawnSync(

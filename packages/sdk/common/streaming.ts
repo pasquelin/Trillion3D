@@ -107,6 +107,5 @@ export type { TexturePreview } from '../../sdk-core/src/texture/previewContracts
 export type {
   WorldRoots,
   WorldRootsBundle,
-  WorldRootsObject,
   WorldRootsPage,
 } from '../../sdk-core/src/manifest/worldRoots.ts'

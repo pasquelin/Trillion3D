@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { Light, light } from './light.ts'
 import { Group, Object3D } from '../object/object3d.ts'
 import { countingLink } from '../object/sceneLink.fixture.ts'
-import { nodeWrites, noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import { nodeWrites, nodesWrittenSince } from '../../scene/core/nodeEdits.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
@@ -25,10 +25,16 @@ test('a light hears its colours and its target only while it is in a world; each
   const light = new Light('directional')
   // The target's place already tells its own node: only the light's listener comes and goes.
   const own = light.target.position._onChange
-  // Outside a world a colour tells the write count alone, which holds no light.
+  // Outside a world a colour notes the light itself, one listener for both colours.
   const listeners = () => [light.color._onChange, light.groundColor._onChange]
   const held = () => light.target.position._onChange === own
-  assert.deepEqual([...listeners(), held()], [noteNodeWrite, noteNodeWrite, true])
+  const [noted] = listeners()
+  assert.deepEqual([...listeners(), held()], [noted, noted, true])
+  const from = nodeWrites()
+  light.color.setRGB(0.5, 0, 0)
+  const named: number[] = []
+  nodesWrittenSince(from, (slot) => named.push(slot))
+  assert.deepEqual(named, [light.index], 'the light named, out of a world')
   const scene = new Group(),
     { link, heard } = countingLink()
   scene._link = link
@@ -38,7 +44,7 @@ test('a light hears its colours and its target only while it is in a world; each
   light.target.position.x = 3
   assert.equal(heard.filter((node) => node === light).length, 3, 'each write reaches the world')
   scene.remove(light)
-  assert.deepEqual(listeners(), [noteNodeWrite, noteNodeWrite], 'left: the count alone, no chain')
+  assert.deepEqual(listeners(), [noted, noted], 'left: the light noted alone, no chain')
   const [count, reached] = [nodeWrites(), heard.length]
   light.color.setRGB(0, 1, 1)
   light.intensity = 2

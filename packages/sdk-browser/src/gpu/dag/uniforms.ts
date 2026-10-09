@@ -15,7 +15,9 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
+import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -61,7 +63,9 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
  * and the shader together. The camera runs one view on buffers sized for one, whose queues hold
  * every node. `listCap` is the ranks its readout holds (`listCap.ts`), `saveRegion` the region its
- * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none.
+ * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
+ * factor its projected-error threshold is cut under, 1 but past the list the device holds
+ * (`coarsening.ts`).
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -69,6 +73,7 @@ export function writeDagUniforms(
   uniforms: DagViewUniforms,
   listCap: number,
   saveRegion = REGION_NONE,
+  coarsen = 1,
 ) {
   const W = viewWord
   target.fill(0)
@@ -76,7 +81,7 @@ export function writeDagUniforms(
   target.set(uniforms.view, W('view'))
   target[W('pixelScale')] = uniforms.pixelScale[0]
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
-  target[W('pixelError')] = uniforms.pixelError
+  target[W('pixelError')] = uniforms.pixelError * coarsen
   target[W('near')] = uniforms.near
   const ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
   ints[W('clusterCount')] = packed.pageCount
@@ -87,6 +92,8 @@ export function writeDagUniforms(
     target[W('cameraWorld')] = cw[0]
     target[W('cameraWorld') + 1] = cw[1]
     target[W('cameraWorld') + 2] = cw[2]
+    // The eye exact, which every translation the cut reads is taken off (`worldPoseWgsl.ts`).
+    packDoubles(ints, W('eye'), cw, 0, 3)
   }
   target[W('cameraStretch')] = uniforms.cameraStretch ?? 1
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
@@ -101,6 +108,19 @@ export function writeDagUniforms(
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
+  // The world DAG's placement, wherever the packing put it, NONE without one; the placement tree
+  // (`placementTree.ts`): its top level's nodes, which open the descent, from its first node, and
+  // where its order lies in the cold table; no top node, no tree.
+  const tree = packed.placementTree,
+    world = packed.world
+  ints[W('worldRoot')] = world?.root ?? NONE
+  ints[W('treeTop')] = tree?.levels[0].count ?? 0
+  ints[W('cellBase')] = tree?.cellBase ?? 0
+  ints[W('members')] = tree?.members ?? 0
+  // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
+  ints[W('worldLinks')] = world?.linkBase ?? 0
+  // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).
+  target[W('worldScale')] = world?.scale ?? 1
   writeAheadBlock(target, ints, uniforms)
 }
 

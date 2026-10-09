@@ -1,6 +1,7 @@
-//! The root cover of one compiled primitive, kept where its DAG and its positions are both in
-//! hand: further on, its clusters exist only as cache objects.
+//! The root cover of one compiled primitive, kept where its DAG, its positions and the attributes
+//! its pages carry are all in hand: further on, its clusters exist only as cache objects.
 use crate::dag::{DagCluster, DagStrategy};
+use crate::geometry_page::Attribute;
 use crate::qem::compact_region;
 use serde_json::Value;
 
@@ -15,21 +16,24 @@ pub(crate) struct RootCluster {
     pub bundle: usize,
 }
 
-/// The roots of a primitive, on the vertices they use, in object space. Empty for a primitive
-/// with no DAG: it keeps pinning its own pages.
+/// The roots of a primitive, on the vertices they use, in object space, with every attribute its
+/// pages carry on those vertices — normals, texture sets, colour —, which the world super-roots
+/// carry on (`merge.rs`). Empty for a primitive with no DAG: it keeps pinning its own pages.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct RootCover {
     pub positions: Vec<f32>,
+    pub carried: Vec<Attribute>,
     pub clusters: Vec<RootCluster>,
 }
 
 impl RootCover {
-    /// The roots of `dag`, `pages` its published page records by culling rank, `page_of` the rank
-    /// of each DAG slot. Exact clusters are all roots and never simplified: they carry none.
+    /// The roots of `dag` on `pos` and the attributes its pages carry (`carried`, one value set per
+    /// vertex of `pos`), `pages` its published page records by culling rank, `page_of` the rank of
+    /// each DAG slot. Exact clusters are all roots and never simplified: they carry none.
     pub(crate) fn of(
         strategy: DagStrategy,
         dag: &[DagCluster],
-        pos: &[f32],
+        (pos, carried): (&[f32], &[&Attribute]),
         pages: &[Value],
         page_of: &[usize],
     ) -> Self {
@@ -45,7 +49,11 @@ impl RootCover {
             .iter()
             .flat_map(|(_, c)| c.indices.iter().copied())
             .collect();
-        let (positions, mut local, _) = compact_region(pos, &joined);
+        let (positions, mut local, remap) = compact_region(pos, &joined);
+        let carried = carried
+            .iter()
+            .map(|attribute| compact_attribute(attribute, &remap))
+            .collect();
         let mut clusters = Vec::with_capacity(roots.len());
         for &(slot, cluster) in roots.iter().rev() {
             let at = local.len() - cluster.indices.len();
@@ -60,7 +68,23 @@ impl RootCover {
         clusters.reverse();
         Self {
             positions,
+            carried,
             clusters,
         }
+    }
+}
+
+/// `attribute` on the vertices `remap` keeps, in its order (`qem::push_vertex`, which refuses a
+/// vertex the attribute lacks).
+pub(super) fn compact_attribute(attribute: &Attribute, remap: &[u32]) -> Attribute {
+    let width = attribute.width;
+    let mut values = Vec::with_capacity(remap.len() * width);
+    for &source in remap {
+        crate::qem::push_vertex(&mut values, &attribute.values, width, source);
+    }
+    Attribute {
+        flag: attribute.flag,
+        width,
+        values,
     }
 }

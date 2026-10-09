@@ -142,7 +142,7 @@ test('a page the image keeps is pinned once it arrives', () => {
   const pins = createWebgpuPinUpdater({
     tracking: cut.tracking,
     sets: cut.sets,
-    bootstrapUrls: new Set(),
+    bootstrapKey: new Uint8Array(0),
     deferredDrops: new Set(),
     byUrl: new Map(),
     parentsOf: () => [] as PageRec[],

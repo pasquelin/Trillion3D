@@ -1,12 +1,6 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
-
-/**
- * Indices of the linear part of a column-major world matrix, and the only indices `maxStretch`
- * reads (`projectionOracles.ts`). Translation — indices 12 to 14 — is not among them, nor is the
- * last row.
- */
-const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
  *  stretch, then the root (`+ 1`), the record shift (`+ 2`) and the never-culled mark (`+ 3`), as
@@ -14,47 +8,67 @@ const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
 export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
 
 /**
- * Object-to-view stretch of primitives whose linear part moved, recomputed for them only; returns
- * their count.
+ * Object-to-view stretch of the `count` primitives of `moved` whose linear part moved, recomputed
+ * for them only and listed in `into`, increasing as `moved` is; returns their count.
  *
- * The render frame follows the eye: at each camera step, all sixteen floats of each world matrix
- * are rewritten while only their translation changes. Stretch depends only on the nine linear
- * coefficients — `maxStretch` reads only those — so recomputing it for a moved origin would
- * yield the exact same float, then push the whole frame buffer again. Zero returned here means "no
- * stretch changed": the buffer has nothing to receive.
+ * A pose that only moved keeps its linear part. Stretch depends only on the nine linear
+ * coefficients — `maxStretch` reads only those — so recomputing it for a moved translation would
+ * yield the exact same float, then push its frame row again. Zero returned here means "no stretch
+ * changed": the buffer has nothing to receive.
  */
-export function refreshWorldStretch(
+export function refreshMovedStretch(
   previous: Float32Array,
   next: Float32Array,
-  packed: Pick<PackedDag, 'worldCount' | 'worldStretch'>,
+  packed: Pick<PackedDag, 'worldStretch'>,
   frameData: Float32Array,
+  moved: ArrayLike<number>,
+  count: number,
+  into: Int32Array,
 ) {
-  let count = 0
-  for (let w = 0; w < packed.worldCount; w++) {
-    const base = w * 16
-    let stretched = false
-    for (let k = 0; k < LINEAR.length; k++)
-      if (previous[base + LINEAR[k]] !== next[base + LINEAR[k]]) {
-        stretched = true
-        break
-      }
-    if (!stretched) continue
-    count++
-    const stretch = maxStretch(next.subarray(base, base + 16))
-    packed.worldStretch[w] = stretch
-    frameData[primitiveWordAt(w)] = stretch
-  }
-  return count
+  let stretched = 0
+  for (let i = 0; i < count; i++)
+    if (refreshStretchAt(previous, next, packed, frameData, moved[i])) into[stretched++] = moved[i]
+  return stretched
 }
 
-/**
- * True where `next` differs from `previous` at any index: the scan `updateWorlds` runs before it
- * touches a buffer, so an image whose roots stand still uploads nothing. On a moving camera every
- * translation differs and the scan stops at the first root.
- */
-export function worldsChanged(previous: Float32Array, next: Float32Array) {
-  for (let j = 0; j < next.length; j++) if (previous[j] !== next[j]) return true
-  return false
+/** Primitive `w`'s stretch recomputed when its linear part moved (`refreshMovedStretch`); whether
+ *  it was. */
+function refreshStretchAt(
+  previous: Float32Array,
+  next: Float32Array,
+  packed: Pick<PackedDag, 'worldStretch'>,
+  frameData: Float32Array,
+  w: number,
+) {
+  const base = w * 16
+  // `maxStretch` reads the linear part alone (`projectionOracles.ts`).
+  if (sameLinearPart(previous, next, base, base)) return false
+  const stretch = maxStretch(next.subarray(base, base + 16))
+  packed.worldStretch[w] = stretch
+  frameData[primitiveWordAt(w)] = stretch
+  return true
+}
+
+/** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
+ *  and word 15. Words 12 to 14 are no cut's — each makes the translation from the exact one at its
+ *  eye (`shader/worldPoseWgsl.ts`), which goes up through the origins (`worldOrigins.ts`). */
+export const worldChangedAt = (previous: Float32Array, next: Float32Array, w: number) => {
+  const at = w * 16
+  return !sameLinearPart(previous, next, at, at) || previous[at + 15] !== next[at + 15]
+}
+
+/** The primitives of the first `live` of `next` whose read words differ from `previous`'
+ *  (`worldChangedAt`), increasing, into `into`; their count. The scan `updateWorlds` runs before it
+ *  touches a buffer, so an image whose roots stand still — or only moved — uploads no world. */
+export function changedWorlds(
+  previous: Float32Array,
+  next: Float32Array,
+  into: Int32Array,
+  live = next.length / 16,
+) {
+  let count = 0
+  for (let w = 0; w < live; w++) if (worldChangedAt(previous, next, w)) into[count++] = w
+  return count
 }
 
 /**

@@ -1786,6 +1786,7 @@
       "cacheMisses": "Seitenlesevorgänge, die im Cache fehlten.",
       "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt.",
       "lodLevel": "Detailstufe des Schnitts.",
+      "cutCoarsening": "Der Faktor, um den die Schwelle des projizierten Fehlers des GPU-Schnitts gesenkt wird: 1, außer wenn die Ansicht mehr verlangt, als die Liste eines einzelnen GPU-Bindings fasst; dann hält der Schnitt auf gröberen Stufen an, bis seine Liste passt, und kehrt auf 1 zurück, sobald die Ansicht weniger verlangt. Null ohne GPU-Schnitt.",
       "transparentMeshes": "Durchsichtige Zähler von WebGPU. `transparentDrawCalls` zählt jede Zeichnung, beide Hälften eines Materials in zwei Durchgängen eingeschlossen; `transparentSubmittedTriangles` zählt die Dreiecke des durchsichtigen Schnitts je einmal, unabhängig davon, wie viele Durchgänge sie rastern — die Vervielfachung pro Durchgang ist die der GPU, da die Instanzzahlen von der Kompaktierung geschrieben und nie zurückgelesen werden. Null, wenn nicht verfügbar.",
       "transparentFrustumRejected": "Durchsichtige Cluster außerhalb der Ansicht.",
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
@@ -4635,8 +4636,9 @@
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
       "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
       "capacity": "Zeilen, die Platz haben, bevor er wächst.",
-      "sources": "Ursprüngliche Besitzer bleiben bei Wiederverwendung der Zeilen erhalten.",
-      "sourceModels": "Meshes mit gemeinsam genutzten Ressourcen, einschließlich wartender Zeilen."
+      "sources": "Ursprüngliche Besitzer der gespiegelten Zeilen; ihre Animationsquellen bleiben lebendig, wenn Zeilen wiederverwendet werden.",
+      "sourceModels": "Meshes, die diese Ressource teilen, einschließlich derer, die auf eine Platzierungszeile warten.",
+      "cells": "Wo jede Zeile liegt, die eine Partition platziert hat (`../partition/rowCells.ts`): ihre Zelle, ihr Rang unter den Knoten der Zelle; eine eigene Spalte, abwesend, bis eine Zelle eine platziert."
     }
   },
   "Plane": {
@@ -6536,6 +6538,7 @@
       "cacheMisses": "Seitenlesevorgänge, die im Cache fehlten.",
       "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt.",
       "lodLevel": "Detailstufe des Schnitts.",
+      "cutCoarsening": "Der Faktor, um den die Schwelle des projizierten Fehlers des GPU-Schnitts gesenkt wird: 1, außer wenn die Ansicht mehr verlangt, als die Liste eines einzelnen GPU-Bindings fasst; dann hält der Schnitt auf gröberen Stufen an, bis seine Liste passt, und kehrt auf 1 zurück, sobald die Ansicht weniger verlangt. Null ohne GPU-Schnitt.",
       "transparentMeshes": "Durchsichtige Zähler von WebGPU. `transparentDrawCalls` zählt jede Zeichnung, beide Hälften eines Materials in zwei Durchgängen eingeschlossen; `transparentSubmittedTriangles` zählt die Dreiecke des durchsichtigen Schnitts je einmal, unabhängig davon, wie viele Durchgänge sie rastern — die Vervielfachung pro Durchgang ist die der GPU, da die Instanzzahlen von der Kompaktierung geschrieben und nie zurückgelesen werden. Null, wenn nicht verfügbar.",
       "transparentFrustumRejected": "Durchsichtige Cluster außerhalb der Ansicht.",
       "transparentDrawCalls": "Durchsichtige Zeichenaufrufe.",
@@ -7570,7 +7573,7 @@
       "pinnedTopBytes": "Die Bytes der angehefteten Spitze.",
       "payload": "Die Binärdatei, in der die Bündel hintereinander liegen: ihre Adresse, ihr Hash und ihre Länge.",
       "bundles": "Die Bündel, in der Reihenfolge der Binärdatei.",
-      "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
+      "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Länge, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
       "cells": "Die Weltzellen: wie viele, die platzierten Primitive, die eine enthält, an ihren Datensätzen gelesen, und die Zelle, die das Objekt `object` enthält — der `origin` einer Objektwurzel (#1332)."
     }
   },
@@ -7584,20 +7587,10 @@
       "dependencies": "Die Bündel, die seine Seiten brauchen, aufsteigend, bis zur Spitze der Welt."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Ein platziertes Primitiv einer Weltzelle: die Weltbündel, die seine Wurzeln brauchen, bis zur Spitze.",
-    "members": {
-      "node": "Sein veröffentlichter Knoten.",
-      "primitive": "Sein Primitiv im Manifest.",
-      "roots": "Die Bündel der Streams dieses Primitivs, die seine Wurzeln halten.",
-      "dependencies": "Jedes Weltbündel, das diese Wurzeln brauchen, aufsteigend, bis zur Spitze."
-    }
-  },
   "WorldRootsPage": {
-    "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: ihre eigenen Eckpunkte im Weltraum und ihre Dreiecke als lokale Indizes.",
+    "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: eine Geometrieseite, ihre Eckpunkte im Weltraum mit den Attributen, die ihre Objekte tragen, dekodiert und gezeichnet wie jede Seite.",
     "members": {
-      "positions": "Ihre Eckpunkte, je drei Zahlen, im Weltraum.",
-      "indices": "Ihre Dreiecke, je drei lokale Indizes."
+      "bytes": "Die Bytes ihrer Geometrieseite (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7757,8 +7750,8 @@
   "ImpostorPlan": {
     "summary": "Das Urteil der Umschaltung: die zu zeichnenden Karten und die Wurzeln, deren Cluster sie unterdrückt.",
     "members": {
-      "cards": "Eine Karte pro umgeschalteter Wurzel, in Wurzelreihenfolge.",
-      "switched": "Wurzelränge, die die Umschaltung unterdrückt: 1 bei einer umgeschalteten Wurzel, 0 sonst."
+      "cards": "Eine Karte pro umgeschalteter Wurzel, die sie gelesen hat, in der Reihenfolge, in der sie sie gelesen hat.",
+      "switched": "Wurzelränge, die die Umschaltung unterdrückt: 1 bei einer umgeschalteten Wurzel, 0 sonst. Ein Plan einiger Ränge behält das Urteil der übrigen so, wie es der letzte Plan, der sie gelesen hat, hinterlassen hat."
     }
   },
   "ImpostorRoot": {

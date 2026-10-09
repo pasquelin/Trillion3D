@@ -1,3 +1,4 @@
+import type { PlacementOf } from '../../placement/rows.ts'
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../../page/cone/cone.ts'
@@ -5,6 +6,8 @@ import type { PageSurface } from '../../page/surface.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 import type { ClusterStructureIndex } from '../../page/selection/types.ts'
 import type { CullingLinks } from '../../page/cut/links.ts'
+import type { PlacementTree } from './placementTree.ts'
+import type { PackedWorld } from './worldLinks.ts'
 
 /** The view one run of the kernel serves: the camera's uniforms. */
 export type DagViewUniforms = SelectionUniforms
@@ -15,9 +18,9 @@ export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 7,
   CULL_STRIDE = 15
 /** Vec4s per primitive a camera cut's `dagPrepare` derives behind the first row of `frames`
- *  (`shader/primitiveWgsl.ts`): its `view · world`, its prepared normal matrix, and the view
- *  ahead's planes and `view · world`. */
-export const PRIMITIVE_VEC4 = 17
+ *  (`shader/primitiveWgsl.ts`): its `view · world`, its prepared normal matrix, the view ahead's
+ *  planes and `view · world`, and its world's translation at the eye. */
+export const PRIMITIVE_VEC4 = 18
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */
@@ -44,6 +47,9 @@ export type DagRoot = {
   flat?: boolean
   /** A parked instance-buffer row: packed with the others, and deposited in no queue. */
   parked?: boolean
+  /** The row the placement draws from, when it draws from one (`ClusterRoot.placement`): a row a
+   *  partition placed knows its cell (`../../partition/rowCells.ts`). */
+  placement?: PlacementOf
   /** Its root mark (`ClusterRoot.mark`): a root its impostor card draws opens no descent, one never
    *  culled takes planes no box leaves. */
   mark?: number
@@ -84,7 +90,7 @@ export type PackedDag = {
   pageCones: Float32Array
   worlds: Float32Array
   /** Live double-precision placements; light selection reads them before camera rebasing rounds. */
-  worldSources?: readonly Pick<DagRoot, 'world'>[]
+  worldSources: readonly Pick<DagRoot, 'world'>[]
   worldStretch: Float32Array
   /** Root node of each primitive, from which the level descent starts; `SELECTION_NONE` without. */
   rootNodes: Uint32Array
@@ -118,7 +124,10 @@ export type PackedDag = {
   pageUrlOf(page: number): string | undefined
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
-  /** The world DAG, when packed: its placement and its `origins`, which the cut's
-   * residency mirrors (`worldMirror.ts`). */
-  world?: { root: number; origins: Int32Array }
+  /** The world DAG, when packed: its placement and its `origins`, which the cut's residency
+   *  mirrors (`worldMirror.ts`), and each placement's link to the world cluster that stands in for
+   *  it (`worldLinks.ts`). */
+  world?: PackedWorld
+  /** The cells and groups above the placements (`placementTree.ts`), when they take one. */
+  placementTree?: PlacementTree
 }

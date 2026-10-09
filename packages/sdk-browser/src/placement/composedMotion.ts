@@ -1,9 +1,10 @@
 /**
  * The temporal pass's word on the linked placements' motion (`gpuCompose.ts`), kept apart from the
- * compose passes so the temporal pass reaches it without their modules: the decision, and the
- * doubles' shader form it is written in.
+ * compose passes so the temporal pass reaches it without their modules: the decision, written as
+ * the shaders hold a double (`packDoubles`).
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 
 /** What the temporal pass decided for the linked roots' motion this image (`decideComposedMotion`):
  *  nothing, a restart, an image whose poses are not compared, one whose poses are. */
@@ -30,21 +31,3 @@ export function decideComposedMotion(
   packDoubles(state.motionMode, 2, eye, 0, 3)
   device.queue.writeBuffer(state.gpu.motionMode, 0, state.motionMode)
 }
-
-/** Writes `count` of `values` from `from` — all of them by default — as doubles in the shader's
- *  form, high word then low word, from word `at`. */
-export function packDoubles(
-  out: Uint32Array,
-  at: number,
-  values: ArrayLike<number>,
-  from = 0,
-  count = values.length - from,
-) {
-  for (let k = 0; k < count; k++) {
-    cell[0] = values[from + k]
-    out[at + k * 2] = cellWords[1]
-    out[at + k * 2 + 1] = cellWords[0]
-  }
-}
-const cell = new Float64Array(1),
-  cellWords = new Uint32Array(cell.buffer)

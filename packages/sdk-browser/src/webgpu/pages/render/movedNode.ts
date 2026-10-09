@@ -1,51 +1,69 @@
 import type { ClusterRoot } from '../../../page/selection/types.ts'
+import { rootSource } from '../../../placement/hidden.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import {
+  NODE_ALIVE,
+  type TransformTree,
+} from '../../../../../sdk-core/src/world/transform-tree/transformTree.ts'
+import { nextInSubtree } from '../../../../../sdk-core/src/world/transform-tree/links.ts'
 
 type Roots = readonly ClusterRoot<PageRec>[]
 
-/** Selection-root ranks by source mesh, built once per root list. */
-const rootsByMeshOf = new WeakMap<Roots, Map<Object3D, number[]>>()
+/** The entries of one list by their source node's slot in `tree`: the node and the entries' ranks.
+ *  Built once per list and again when it grew in place. */
+type BySlot = {
+  tree: TransformTree
+  length: number
+  slots: Map<number, { node: Object3D; ranks: number[] }>
+}
+const bySlotOf = new WeakMap<readonly unknown[], BySlot>()
 
-function rootsByMesh(roots: Roots) {
-  let map = rootsByMeshOf.get(roots)
-  if (map) return map
-  map = new Map()
-  for (let i = 0; i < roots.length; i++) {
-    const mesh = roots[i].pages[0]?.sourceMesh as Object3D | undefined
-    if (!mesh) continue
-    const list = map.get(mesh)
-    if (list) list.push(i)
-    else map.set(mesh, [i])
+function bySlot<E>(
+  entries: readonly E[],
+  sourceOf: (entry: E) => Object3D | undefined,
+  tree: TransformTree,
+) {
+  const held = bySlotOf.get(entries)
+  if (held?.tree === tree && held.length === entries.length) return held.slots
+  const slots: BySlot['slots'] = new Map()
+  for (let i = 0; i < entries.length; i++) {
+    const node = sourceOf(entries[i])
+    if (!node || Object3D._treeOf(node) !== tree) continue
+    const at = slots.get(node.index)
+    if (at?.node === node) at.ranks.push(i)
+    else slots.set(node.index, { node, ranks: [i] })
   }
-  rootsByMeshOf.set(roots, map)
-  return map
+  bySlotOf.set(entries, { tree, length: entries.length, slots })
+  return slots
 }
 
 /**
- * Ranks of the roots whose source mesh is `node` or lies below it, each once, in the walk's order,
- * written into `out` from `at` on; returns where they end. The node's LIVE subtree is walked once:
- * the same relation as climbing each root's parent chain up to the node. `out` is never
- * truncated: it keeps its storage and grows only past its length.
+ * The entries of `entries` whose source node (`sourceOf`) lies in the subtree of `node`, read in
+ * its slot of the page's tree — each once, in the walk's order —, written into `out` from
+ * `at` on; returns where they end. A slot freed since, or whose node was destroyed and its slot
+ * taken by another, holds none of the old node's entries. `out` is never truncated: it keeps its
+ * storage and grows only past its length.
  */
-export function appendRootsUnder(roots: Roots, node: Object3D, out: number[], at: number) {
-  walking = rootsByMesh(roots)
-  found = out
-  count = at
-  node.traverse(collect)
-  // Let go of the layout's meshes and the list: a released scene is not kept alive by the last move.
-  walking = NONE
-  found = EMPTY
+export function appendUnder<E>(
+  entries: readonly E[],
+  sourceOf: (entry: E) => Object3D | undefined,
+  node: Object3D,
+  out: number[],
+  at: number,
+) {
+  const tree = Object3D._treeOf(node),
+    slot = node.index
+  if (!(tree.flags[slot] & NODE_ALIVE)) return at
+  const slots = bySlot(entries, sourceOf, tree)
+  let count = at
+  for (let j = slot; j >= 0; j = nextInSubtree(tree, j, slot)) {
+    const held = slots.get(j)
+    if (held?.node._alive) for (const i of held.ranks) out[count++] = i
+  }
   return count
 }
 
-// The walk's state and its one callback, declared once: a move allocates no closure.
-const NONE = new Map<Object3D, number[]>(),
-  EMPTY: number[] = []
-let walking = NONE,
-  found = EMPTY,
-  count = 0
-const collect = (walk: Object3D) => {
-  const list = walking.get(walk)
-  if (list) for (const i of list) found[count++] = i
-}
+/** `appendUnder` over the selection roots. */
+export const appendRootsUnder = (roots: Roots, node: Object3D, out: number[], at: number) =>
+  appendUnder(roots, rootSource, node, out, at)

@@ -112,7 +112,9 @@ export function placeRow(s: RowSlots, page: number) {
   if (row < 0 && asked) row = evictRow(s)
   if (row < 0) return false
   s.writers.assign(row, page, rows.residentOffsetWords[page])
-  if (asked) s.use.stamp(row)
+  // A row a readback's closure holds is in use while it holds it (`rowUse.ts`).
+  if (s.demand.holds(page)) s.use.hold(row)
+  else if (asked) s.use.stamp(row)
   else if (own < 0) s.use.idle(row)
   setResident(s, page, true)
   return true
@@ -124,9 +126,11 @@ export function closeFreeRows(s: RowSlots) {
   s.count = closeHoles(s.free, s.count, move)
 }
 
-/** The table rebuilt from the catalogue, once: a new table (prepare, a lost visibility path). */
+/** The table rebuilt from the catalogue, once: a new table (prepare, a lost visibility path). A
+ *  page that held a row and holds none after is named to the demand: asked for, it asks again. */
 export function rebuildRows(s: RowSlots) {
   const { rows } = s
+  const held = heldPages(s)
   rows.rowOfPage.fill(-1)
   s.count = 0
   s.free.count = 0
@@ -139,7 +143,21 @@ export function rebuildRows(s: RowSlots) {
   const { residentOffsetWords, residentFlags } = rows
   for (let page = 0; page < s.packedPages.length && s.count < rows.blendFirst; page++)
     if ((residentOffsetWords[page] >= 0 || residentFlags[page]) && s.release(page)) s.place(page)
+  let dropped = 0
+  for (const page of held) if (rows.rowOfPage[page] < 0) held[dropped++] = page
+  s.demand.touched(held, dropped)
   s.demand.restart()
+}
+
+/** The pages holding a row of the table, each once: what a rebuild may drop. */
+function heldPages({ rows, count }: RowSlots) {
+  const pages = new Int32Array(count)
+  let n = 0
+  for (let row = 0; row < count; row++) {
+    const page = rows.packedPageIndex[row]
+    if (rows.rowOfPage[page] === row) pages[n++] = page
+  }
+  return pages.subarray(0, n)
 }
 
 /** Every live row written again at its rank: the table's age moved (a pose, a surface). */

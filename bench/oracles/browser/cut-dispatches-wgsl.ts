@@ -4,6 +4,7 @@
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 import { DAG_SWAP_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/swapWgsl.ts'
+import { DAG_TREE_DESCENT_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/placementTreeWgsl.ts'
 
 const DAG_LEVEL_WGSL_BEFORE = `fn queueCounter(q:u32)->u32{return liveCounter()+2u+q*2u;}
 fn queueGroups(q:u32)->u32{return queueCounter(q)+1u;}
@@ -83,8 +84,12 @@ fn descend(src:u32,node:CullNode){
 export const DESCENT_BEFORE = DAG_LEVEL_WGSL_BEFORE.replaceAll('uni.', 'views[0u].')
 
 /** The shipped cut shader without its swap kernels: the shipped drawn clear lives there (#1483),
- *  and the frozen descent brings its own, on its own layout, with no swap before it. */
-export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL.text, '')
+ *  and the frozen descent brings its own, on its own layout, with no swap before it. Nor the
+ *  placement tree's share of the descent, which the frozen descent has no tree to walk. */
+export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL.text, '').replace(
+  DAG_TREE_DESCENT_WGSL.text,
+  '',
+)
 
 /** The shipped cut shader with this descent in place of its own: the module the oracle compiles. */
 export const DAG_SELECTION_SHADER_BEFORE = SHIPPED_STAGES.replace(

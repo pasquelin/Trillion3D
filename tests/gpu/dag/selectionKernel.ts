@@ -60,8 +60,13 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const stage = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } })
+  // Level 0 is the root level, as the engine encodes it (`gpu/dag/encode.ts`): the queue's slots,
+  // a grouped placement's left to its kept group (`placementTreeWgsl.ts`).
   const prepare = stage('dagPrepare'),
-    levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`)),
+    levels = Array.from({ length: LEVEL_QUEUES }, (_, q) =>
+      stage(q ? `dagLevel${q}` : 'dagRootLevel'),
+    ),
+    deeper = stage('dagLevel0'),
     wanted = stage('dagWanted'),
     mask = stage('dagMask'),
     sort = stage('dagSortRequests')
@@ -97,7 +102,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     // over a bound of its node count. Then the kept leaves' pages, their verdict and the
     // requests' sort: `pageCount` bounds the candidate list and the live list.
     const levelRuns = Array.from({ length: Math.max(1, packed.levelSizes.length) }, (_, l): Run => [
-      levels[l % LEVEL_QUEUES],
+      l >= LEVEL_QUEUES && l % LEVEL_QUEUES === 0 ? deeper : levels[l % LEVEL_QUEUES],
       groups(packed.nodeCount),
     ])
     dispatch(

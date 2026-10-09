@@ -18,11 +18,13 @@ export async function probeEngineContext(
     probe = {},
     session = {},
     base = 'http://localhost/cache/',
+    worldRoots = [],
   }: {
     options?: object
     probe?: Partial<Engine>
     session?: Partial<ExplorerSession>
     base?: string
+    worldRoots?: Parameters<typeof prepareExplorerEngine>[1]['worldRoots']
   } = {},
 ) {
   let seen: EngineContext | undefined
@@ -53,7 +55,7 @@ export async function probeEngineContext(
       return backend
     },
     base,
-    worldRoots: [],
+    worldRoots,
   })
   return seen!
 }

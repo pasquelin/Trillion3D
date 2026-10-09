@@ -173,6 +173,9 @@ export interface EngineContext {
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../webgpu/pages/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>
+  /** The world roots this scene's manifest opened, whose DAG the cut packs and whose pages
+   *  `readGeometryPage` serves (`../scene/worldRoots.ts`); absent without them. */
+  worldRoots?: import('../scene/worldRoots.ts').WorldRootsHold
   pageRoundTripMs?: () => number // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock

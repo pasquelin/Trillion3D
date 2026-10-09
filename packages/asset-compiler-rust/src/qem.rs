@@ -167,6 +167,14 @@ pub(crate) fn region_extent(positions: &[f32]) -> Result<f64> {
     Ok(meshopt::simplify::simplify_scale(&vertices) as f64)
 }
 
+/// Vertex `source`'s `width` values of `values`, appended to `out`: the one compaction of an
+/// attribute. Every producer carries an attribute on every vertex: a vertex missing from one is a
+/// cook defect, refused here by the index rather than drawn black or flat.
+pub(crate) fn push_vertex(out: &mut Vec<f32>, values: &[f32], width: usize, source: u32) {
+    let at = source as usize * width;
+    out.extend_from_slice(&values[at..at + width]);
+}
+
 /// The attributes of the region's vertices, interleaved in compact order, and one weight per float.
 pub(crate) fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Vec<f32>, Vec<f32>) {
     let weights: Vec<f32> = attributes
@@ -176,11 +184,7 @@ pub(crate) fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Ve
     let mut values = Vec::with_capacity(remap.len() * weights.len());
     for &source in remap {
         for a in attributes {
-            let i = source as usize * a.width;
-            match a.values.get(i..i + a.width) {
-                Some(v) => values.extend_from_slice(v),
-                None => values.extend(std::iter::repeat_n(0.0, a.width)),
-            }
+            push_vertex(&mut values, a.values, a.width, source);
         }
     }
     (values, weights)

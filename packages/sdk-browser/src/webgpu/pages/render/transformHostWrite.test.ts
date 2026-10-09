@@ -1,7 +1,8 @@
 // A host pose write, then `setTransform` on another node in the same task. The move settles
-// the scene watch: without care, the host's write was taken as the engine's own, the next image did
-// not walk the world index, and only the named node's rows were rewritten — the other model kept
-// its old world, corners and windings in the visibility table while the GPU cut saw it moved.
+// the scene watch: without care, the host's write was taken as the engine's own and only the named
+// node's rows were rewritten — the other model kept its old world, corners and windings in the
+// visibility table while the GPU cut saw it moved. The move notes the nodes the host wrote with its
+// own (`takeHostMoves`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -29,13 +30,12 @@ function twoModels(hooked = true) {
 
 const moved = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1])
 
-test('A written by the host, then B moved: the next image walks, and every row is rewritten', () => {
+test('A written by the host, then B moved: the move takes A too, nothing left owed', () => {
   const { a, worlds, rt, run } = twoModels()
   a.position.x = 100
   setWebgpuTransform(rt, 'B', moved)
-  // `render.ts` rewrites the whole table (`tableEpoch`) when this walk happens: A's rows with them.
-  assert.equal(run.gate.updateWorlds(worlds), true, 'the host write is not swallowed')
-  assert.equal(worlds.of(a).elements[12], 100)
+  assert.equal(worlds.of(a).elements[12], 100, 'the host write is not swallowed')
+  assert.equal(run.gate.updateWorlds(worlds), false, 'the move named it: no pass owed')
 })
 
 test('B moved alone: the next image walks nothing, and only its rows travel', () => {
@@ -59,5 +59,5 @@ test('A written by the host, an image held before its world pass, then B moved: 
   run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }])
   setWebgpuTransform(rt, 'B', moved)
   assert.equal(worlds.of(a).elements[12], 100, 'the move walks the whole index')
-  assert.equal(run.gate.updateWorlds(worlds), true, 'and the next image rewrites every row')
+  assert.ok(run.gate.updateWorlds(worlds), 'and the next image reads it')
 })

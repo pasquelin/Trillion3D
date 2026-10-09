@@ -1116,6 +1116,7 @@
       "cacheMisses": "Pembacaan halaman yang meleset dari cache.",
       "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung.",
       "lodLevel": "Tingkat detail potongan itu.",
+      "cutCoarsening": "Faktor yang memotong ambang galat terproyeksi dari potongan GPU: 1, kecuali saat tampilan meminta lebih banyak daripada yang dimuat daftar satu binding GPU; saat itu potongan berhenti di tingkat yang lebih kasar sampai daftarnya muat, dan kembali ke 1 begitu tampilan meminta lebih sedikit. Null tanpa potongan GPU.",
       "transparentMeshes": "Penghitung transparan WebGPU. `transparentDrawCalls` menghitung setiap gambar, termasuk kedua separuh sebuah material dua-tahap; `transparentSubmittedTriangles` menghitung segitiga potongan transparan sekali masing-masing, berapa pun jumlah tahap yang merasterkannya — perkalian per-tahap itu milik GPU sendiri, karena jumlah instance ditulis kompaksi dan tidak pernah dibaca balik. Null saat tidak tersedia.",
       "transparentFrustumRejected": "Cluster tembus pandang di luar tampilan.",
       "transparentDrawCalls": "Panggilan gambar tembus pandang.",
@@ -2512,8 +2513,9 @@
       "live": "1 di mana baris menempatkan sumber daya itu, 0 di mana ia diparkir.",
       "shadowless": "1 di mana baris tidak melempar bayangan (`castShadow` mesh-nya `false`), 0 di mana ia melemparnya.",
       "capacity": "Baris yang muat sebelum ia tumbuh.",
-      "sources": "Pemilik asli tetap hidup saat baris digunakan kembali.",
-      "sourceModels": "Mesh dengan sumber daya bersama, termasuk baris yang menunggu."
+      "sources": "Pemilik asli baris yang dicerminkan; sumber animasinya tetap hidup saat baris digunakan kembali.",
+      "sourceModels": "Mesh yang berbagi sumber daya ini, termasuk yang menunggu baris penempatan.",
+      "cells": "Letak setiap baris yang ditempatkan sebuah partisi (`../partition/rowCells.ts`): selnya dan peringkatnya di antara node sel itu; kolom tersendiri, tidak ada sampai sebuah sel menempatkan satu."
     }
   },
   "Plane": {
@@ -3929,6 +3931,7 @@
       "cacheMisses": "Pembacaan halaman yang meleset dari cache.",
       "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung.",
       "lodLevel": "Tingkat detail potongan itu.",
+      "cutCoarsening": "Faktor yang memotong ambang galat terproyeksi dari potongan GPU: 1, kecuali saat tampilan meminta lebih banyak daripada yang dimuat daftar satu binding GPU; saat itu potongan berhenti di tingkat yang lebih kasar sampai daftarnya muat, dan kembali ke 1 begitu tampilan meminta lebih sedikit. Null tanpa potongan GPU.",
       "transparentMeshes": "Penghitung transparan WebGPU. `transparentDrawCalls` menghitung setiap gambar, termasuk kedua separuh sebuah material dua-tahap; `transparentSubmittedTriangles` menghitung segitiga potongan transparan sekali masing-masing, berapa pun jumlah tahap yang merasterkannya — perkalian per-tahap itu milik GPU sendiri, karena jumlah instance ditulis kompaksi dan tidak pernah dibaca balik. Null saat tidak tersedia.",
       "transparentFrustumRejected": "Cluster tembus pandang di luar tampilan.",
       "transparentDrawCalls": "Panggilan gambar tembus pandang.",
@@ -7571,7 +7574,7 @@
       "pinnedTopBytes": "Byte puncak yang disematkan.",
       "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
       "bundles": "Bundel, menurut urutan biner.",
-      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, levelnya, dan galatnya, dibaca dari rekamannya.",
+      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, panjangnya, levelnya, dan galatnya, dibaca dari rekamannya.",
       "cells": "Sel dunia: berapa banyak, primitif terpasang yang dimuat satu sel, dibaca pada rekamannya, dan sel yang memuat objek `object` — `origin` sebuah akar objek (#1332)."
     }
   },
@@ -7585,20 +7588,10 @@
       "dependencies": "Bundel yang dibutuhkan halamannya, menaik, sampai puncak dunia."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Satu primitif tertempatkan dari sel dunia: bundel dunia yang dibutuhkan akarnya, sampai puncak.",
-    "members": {
-      "node": "Node terbitannya.",
-      "primitive": "Primitifnya di manifest.",
-      "roots": "Bundel aliran primitif itu yang memegang akarnya.",
-      "dependencies": "Setiap bundel dunia yang dibutuhkan akar itu, menaik, sampai puncak."
-    }
-  },
   "WorldRootsPage": {
-    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: verteksnya sendiri di ruang dunia, dan segitiganya sebagai indeks lokal.",
+    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: sebuah halaman geometri, verteksnya di ruang dunia beserta atribut yang dibawa objeknya, didekode dan digambar seperti halaman mana pun.",
     "members": {
-      "positions": "Verteksnya, masing-masing tiga angka, di ruang dunia.",
-      "indices": "Segitiganya, masing-masing tiga indeks lokal."
+      "bytes": "Byte halaman geometrinya (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7758,8 +7751,8 @@
   "ImpostorPlan": {
     "summary": "Putusan sakelar: kartu yang digambar, dan root yang cluster-nya ditindas.",
     "members": {
-      "cards": "Satu kartu per root yang disakelar, dalam urutan root.",
-      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain."
+      "cards": "Satu kartu per root yang disakelar yang dibacanya, dalam urutan ia membacanya.",
+      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain. Rencana atas sebagian peringkat mempertahankan putusan peringkat lainnya seperti yang ditinggalkan rencana terakhir yang membacanya."
     }
   },
   "ImpostorRoot": {

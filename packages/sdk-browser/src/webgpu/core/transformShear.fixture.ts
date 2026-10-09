@@ -76,6 +76,8 @@ export function runtime(
     layout,
     run,
     blendState: { occlusionEpoch: 0 },
+    // No deformation: a host write has no staleness to forget.
+    vis: {},
     lights: {
       changes: {
         worldChanged: (min: number[], max: number[], movingOnly: boolean) =>

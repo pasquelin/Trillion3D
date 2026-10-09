@@ -5,6 +5,7 @@
  */
 import type { ImpostorSection } from '../../../sdk-core/src/index.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
+import type { ClusterRoot } from '../page/selection/types.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts'
@@ -69,3 +70,16 @@ export const cutAt = (roots: ReturnType<typeof impostorScene>['roots'], z: numbe
   selectVisiblePages(roots, engineAt(z), { pixelError: 0, viewport: VIEWPORT })
 /** Lets the levels asked land: each image lands what the one before asked. */
 export const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+/** `count` objects at one per 400 m² on a disk about the origin: the near ones whole, most far. */
+export function cardField(count: number) {
+  const radius = Math.sqrt((count * 400) / Math.PI)
+  let seed = 11
+  const next = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  return Array.from({ length: count }, () => {
+    const r = radius * Math.sqrt(next()),
+      a = 2 * Math.PI * next()
+    const elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, r * Math.cos(a), 0, r * Math.sin(a), 1]
+    return { mesh: MESH, world: { elements } } as unknown as ClusterRoot<unknown>
+  })
+}

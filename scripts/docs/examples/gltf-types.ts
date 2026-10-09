@@ -16,7 +16,7 @@ export interface BufferView {
   buffer: number
   byteOffset: number
   byteLength: number
-  target: number
+  target?: number
 }
 
 export interface Accessor {

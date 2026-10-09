@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { grown, type createSparseInts } from '../../page/cut/sparseInts.ts'
+import type { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * A delta as its two differences write it: the held list and its records, the marks, and the
@@ -41,7 +42,7 @@ export type HeldList = {
 /** The held rank of each raw rank of a list of `count` that skipped ids, written from rank `from`
  *  on by the difference that found the first skip: ranks before it held their own. */
 export function mapRawRanks(held: HeldList, count: number, from: number) {
-  if (held.rawRank.length < count) held.rawRank = grown(held.rawRank, count)
+  if (held.rawRank.length < count) held.rawRank = resized(held.rawRank, count)
   for (let i = 0; i < from; i++) held.rawRank[i] = i
   held.rawToHeld = true
   return held.rawRank

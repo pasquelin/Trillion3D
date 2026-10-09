@@ -35,15 +35,15 @@ fn viewPoint()->vec4f{
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
 /** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/math/src/geometry/cone.ts), same operands.
- *  \`worlds[w]\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
+ *  The world it reads is of the RENDER FRAME, at the eye (\`preparedPose\`): the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.
- *  Its conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
+ *  Its world, conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
  *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its 3x3. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${wgslF32(HALF_PI)}){return false;}
  if(!conformalOf(w)){return false;}
- let world=worldPose(w);
+ let world=preparedPose(w);
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=transformPoint(world,c);
  let we=transformHalfExtent(world,e);

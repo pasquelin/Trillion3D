@@ -2,11 +2,14 @@
 // (`startGrownCut`, `GpuSelection.appendRoots`). A cut made beside it for fewer roots, landed but not
 // adopted yet, is released when the running cut takes the roots instead; and a running cut whose
 // list is growing between two frames takes them at the next entry rather than a whole cut packed.
+// The worlds the host sends hold the appended roots' at once: a host walk before their adoption
+// compares them as the cut holds them, never as zeros.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
 import { growthOf, startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
+import { createSortedKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /** A cut that counts what it took in place, and its releases; it takes nothing while growing. */
@@ -32,8 +35,8 @@ function session() {
   let rows = createPlacementRows(1)
   const root = { pages: [], placement: { rows, index: 0 }, world: placementWorld(rows, 0) }
   const rt = {
-    run: { gpuSelection: cut },
-    layout: { selectionRoots: [root] },
+    run: { gpuSelection: cut, movedWorlds: createSortedKeys() },
+    layout: { selectionRoots: [root], worldUpdates: new Float32Array(4 * 16) },
   } as unknown as WebgpuPagesRuntime
   const grow = () => {
     const to = growPlacementRows(rows, rows.capacity + 1)
@@ -73,4 +76,18 @@ test('a cut whose list grows takes the roots at the next frame entry, no cut mad
   assert.deepEqual(cut.taken, [growth.roots.length], 'taken in place once the list grew')
   assert.equal(growth.ready?.inPlace, true)
   assert.equal(growth.asked, false)
+})
+
+test('the roots taken in place join the worlds the host sends, at their ranks', () => {
+  const { rt, grow } = session()
+  grow()
+  const growth = growthOf(rt)!
+  const [root] = growth.roots as unknown as { world: { elements: ArrayLike<number> } }[]
+  ;(root.world.elements as Float64Array)[12] = 7.5
+  startGrownCut(rt)
+  assert.deepEqual(
+    [...rt.layout.worldUpdates.subarray(16, 32)],
+    [...Float32Array.from(root.world.elements)],
+    'rank 1 holds its world',
+  )
 })

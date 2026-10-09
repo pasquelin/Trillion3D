@@ -34,7 +34,7 @@ export function acceptPage(
 ) {
   const { run, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup
+    { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   run.deferredDrops.delete(url)
   const recs = byUrl.get(url)
   if (!recs) return
@@ -65,7 +65,7 @@ export function acceptPage(
     url,
     bytes: array.byteLength,
     clusters: recs.length,
-    bootstrap: recs.some((rec) => bootstrapUrls.has(pageAddress(rec))),
+    bootstrap: recs.some((rec) => bootstrapKey[tracking.keyOf(rec)] > 0),
     wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
     pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
   }))
@@ -75,12 +75,12 @@ export function acceptPage(
 export function dropPage(rt: WebgpuPagesCore, url: string) {
   const { run, gpu, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup
+    { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   const recs = byUrl.get(url)
   if (!recs) return
   // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
   // cluster is enough to refuse or defer the drop.
-  if (recs.some((rec) => bootstrapUrls.has(pageAddress(rec)))) {
+  if (recs.some((rec) => bootstrapKey[tracking.keyOf(rec)] > 0)) {
     diag.traceDiagnostic(
       'page-drop-deferred',
       'Bootstrap page drop ignored to preserve coverage',

@@ -3,7 +3,8 @@
 import { createWebgpuRowState } from './state.ts'
 import { createWebgpuRowSync } from './sync.ts'
 import { createRowUse } from './rowUse.ts'
-import type { CloseInstances } from './rowDemand.ts'
+import type { InstanceClosure } from './rowDemand.ts'
+import type { IdDelta } from '../cut/delta.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 
@@ -11,10 +12,54 @@ const WORDS = PAGE_INFO_STRIDE / 4
 
 /** A mirror with nothing to report: the fixtures move residency by hand. */
 export const MIRROR = { sync: () => {}, dirty: true }
-/** Without group links, an instance closes over itself alone. */
-export const closeAlone: CloseInstances = (ids, visit) => {
-  for (let i = 0; i < ids.length; i++) visit(ids[i])
+/** Without group links, an instance closes over itself alone: a counted closure whose difference
+ *  is the ids' own. */
+export function closeAlone(): InstanceClosure {
+  const counts = new Map<number, number>()
+  const delta = {
+    ...{ entered: new Int32Array(0), exited: new Int32Array(0), enteredCount: 0, exitedCount: 0 },
+    has: (id: number) => (counts.get(id) ?? 0) > 0,
+  }
+  const apply = (cut: IdDelta) => {
+    const entered: number[] = [],
+      exited: number[] = []
+    for (let i = 0; i < cut.enteredCount; i++) {
+      const id = cut.entered[i],
+        n = counts.get(id) ?? 0
+      counts.set(id, n + 1)
+      if (!n) entered.push(id)
+    }
+    for (let i = 0; i < cut.exitedCount; i++) {
+      const id = cut.exited[i],
+        n = (counts.get(id) ?? 0) - 1
+      counts.set(id, n)
+      if (!n) exited.push(id)
+    }
+    Object.assign(delta, {
+      ...{ entered: Int32Array.from(entered), exited: Int32Array.from(exited) },
+      ...{ enteredCount: entered.length, exitedCount: exited.length },
+    })
+  }
+  return { apply, delta, hostBytes: 0 } as unknown as InstanceClosure
 }
+
+/** Each request `k` closes over itself and its group-mate `k + 10`, which it brings in after it. */
+export function closePairs(): InstanceClosure {
+  const alone = closeAlone(),
+    apply = alone.apply.bind(alone)
+  const paired = (ids: Int32Array, count: number) =>
+    Int32Array.from([...ids.subarray(0, count)].flatMap((id) => [id, id + 10]))
+  alone.apply = (cut) => {
+    const entered = paired(cut.entered, cut.enteredCount),
+      exited = paired(cut.exited, cut.exitedCount)
+    apply({ ...cut, entered, exited, enteredCount: entered.length, exitedCount: exited.length })
+  }
+  return alone
+}
+
+/** `count` packed instances, each a record of its own. */
+export const packedOf = (count: number) =>
+  Array.from({ length: count }, (_, id) => ({ id }) as unknown as PageRec)
 
 export function rowCache(instances: number, slots: number) {
   const pages = Array.from(

@@ -1,7 +1,7 @@
 import { core } from '../../impostor/borrowed.ts'
 import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { cardPipelines } from './pipelines.ts'
-import { CARD_FLOATS } from '../../impostor/cards.ts'
+import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { createImpostorFeed } from './feed.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
 
@@ -20,7 +20,12 @@ export function createImpostorPass(
     size: CARD_VIEW_FLOATS * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  let cardBuffer: GPUBuffer | undefined, imageGroup: GPUBindGroup | undefined
+  // The image's group and the card buffer it binds, handed out as one object: none made an image.
+  const image = {
+    group: undefined as unknown as GPUBindGroup,
+    buffer: undefined as unknown as GPUBuffer,
+  }
+  let cardBuffer: GPUBuffer | undefined
   return {
     pipeline,
     visPipeline,
@@ -37,7 +42,8 @@ export function createImpostorPass(
           size,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         })
-        imageGroup = device.createBindGroup({
+        image.buffer = cardBuffer
+        image.group = device.createBindGroup({
           label: 'Trillion3D impostor image',
           layout: imageLayout,
           entries: [
@@ -46,7 +52,7 @@ export function createImpostorPass(
           ],
         })
       }
-      return { group: imageGroup!, buffer: cardBuffer }
+      return image
     },
     dispose() {
       this.feed.dispose()

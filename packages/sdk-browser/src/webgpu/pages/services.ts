@@ -8,6 +8,7 @@ import { createPageSource } from './readPage.ts'
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { createBootstrapFor, createResidencyFor, createRowSyncFor } from './serviceParts.ts'
+import { coverHeldRoots, takeLandedPages } from './prepare/worldRoot.ts'
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 
@@ -16,10 +17,10 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { gpu } = rt,
     { packedPages, placement } = rt.layout,
-    { tracking, bootstrapUrls, bootstrapKey, sourceBytes } = rt.setup
+    { tracking, bootstrapKey, sourceBytes } = rt.setup
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, placement, packedPages)
-  const rowSync = createRowSyncFor(rt, closure)
+  const rowSync = createRowSyncFor(rt)
   const pageSource = createPageSource(rt)
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
@@ -27,9 +28,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec))
   /** The residency sets: an image that moves no page touches them not. */
-  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages })
+  const residencySets = createWebgpuResidencySets({
+    tracking,
+    bootstrapKey,
+    packedPages,
+  })
   const bootstrapState = createBootstrapFor(rt, hasBytes)
-  const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size)
+  const room = () => Math.max(0, rt.setup.slots - residencySets.coverSlots)
   // The lower tier: the pages ahead of the camera.
   const aheadTier = createLowerTier({ keyOf: tracking.keyOf, room, closeOver: closure.closeOver }),
     lowerTiers = [aheadTier]
@@ -39,6 +44,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapKey,
     requests: residencySets.requests,
   })
+  // The roots the world's held cells add to the cover, followed for the backend's life.
+  coverHeldRoots(rt, residencySets, room)
+  // The pages a world bundle read lands beside the one asked go to the pool's free slots.
+  takeLandedPages(rt)
   const parts = { residencySets, closure, hasBytes, lowerTiers, room }
   const { ensureResident, residency } = createResidencyFor(rt, parts)
   const tiers = { all: lowerTiers, ahead: aheadTier }

@@ -71,10 +71,10 @@ test('each range is its own buffer and bind group, and the stages know the split
 test("the host's rows and words land in their range, at their row there", async () => {
   const { fake, resources } = await split(20)
   const { frames, frameData } = resources
-  // range:first row+rows, a host row being 28 floats.
+  // range:first row+rows, a host row being 28 floats, 112 bytes.
   const at = (b: unknown) => frames.buffers.indexOf(b as GPUBuffer)
   const rows = fake.writes.filter((w) => at(w.buffer) >= 0)
-  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 28}+${w.size! / 28}`
+  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 112}+${w.size! / 112}`
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8')
   // The world matrices follow the same ranges, 64 bytes a primitive.
   const world = (w: (typeof rows)[number]) =>
@@ -85,19 +85,25 @@ test("the host's rows and words land in their range, at their row there", async 
   frames.flushWords()
   const word = fake.writes.at(-1)!
   assert.equal(word.buffer, frames.buffers[1])
-  assert.equal(word.offset, (primitiveWordAt(5) + 1) * 4)
+  assert.equal(word.offset, 5 * 28 * 4, 'its row, the sixth of its range')
+  const sent = written(word).slice()
+  assert.equal(new Uint32Array(sent.buffer)[primitiveWordAt(0) + 1], 7)
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
 })
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
-  const ranges = [100, 30].map((count, r) => ({ count, bindGroup: `r${r}` }))
+  const ranges = [100, 30].map((count, r) => ({ first: r * 100, count, bindGroup: `r${r}` }))
   const { encoder, dispatches, boundGroups } = witnessEncoder()
   const cut = { ...cutResources(5), ranges } as unknown as Parameters<typeof encodeDagKernels>[1]
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut)
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks')
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots")
-  assert.deepEqual(of('dagLevel1'), [1, 1, 1, 1], 'levels 1 and 4: each range walks the queue')
+  assert.deepEqual(
+    of('dagLevel1'),
+    [1, 1, 'indirect', 'indirect'],
+    'levels 1 and 4: each range walks the queue, level 4 on its armed groups',
+  )
   assert.deepEqual(of('dagWanted'), ['indirect', 'indirect'])
   assert.deepEqual(of('dagMask'), ['indirect', 'indirect'])
   assert.deepEqual(of('dagSortRequests'), [1], 'a kernel that reads no primitive runs once')

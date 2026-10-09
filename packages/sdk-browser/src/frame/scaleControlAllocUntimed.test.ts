@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { grown, SAMPLES } from './scaleControlAlloc.fixture.ts'
 import { createScaleControl } from './scaleControl.ts'
 
-test('a thousand display frames without GPU times create no object', () => {
+test('ten thousand display frames without GPU times create no object', () => {
   // A 120 Hz display read by a timer rounded to the millisecond — integers, which a call passes
   // without a box of the caller's.
   const at = (i: number) => Math.round((i * 1000) / 120)

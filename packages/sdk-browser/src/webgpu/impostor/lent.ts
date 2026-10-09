@@ -7,7 +7,7 @@
  * these core modules would be shared by its chunk and split the CDN core into more chunks, which
  * gzip worse (`check-bundle-size.ts`).
  */
-export { markCard, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
+export { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 export { focalPixels } from '../../../../math/src/projection/camera.ts'
 export { grownCapacity } from '../../placement/rows.ts'
 export { createHeldLevels, readHeldLevel } from '../../texture/heldLevels.ts'
@@ -22,3 +22,5 @@ export { viewProj } from '../pages/helpers.ts'
 export { surfaceLoadAttachments } from '../pages/prepare/attachments.ts'
 export { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 export { deviceMade } from '../../gpu/core/errorScope.ts'
+export { createDenseKeySet, createSortedKeys, takeSorted } from '../cut/denseKeys.ts'
+export { writeRanges } from '../../gpu/dag/split.ts'

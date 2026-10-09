@@ -12,9 +12,8 @@ const request = new Float32Array(16)
  *  them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   const node = namedNode(rt.setup.source, nodeName, matrix)
-  rt.run.gate.engineWriting()
   try {
-    moveNode(rt, node, matrix)
+    pose(rt, node, matrix)
   } finally {
     moved(rt)
   }
@@ -39,8 +38,6 @@ export function setWebgpuTransforms(
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
     })
-  // A host pose written in this same task stays owed to the next image's rewrite (`engineWriting`).
-  rt.run.gate.engineWriting()
   try {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k]
@@ -52,23 +49,45 @@ export function setWebgpuTransforms(
           { nodeName: node.name },
         )
       copyMatrix4(request, matrices, 0, k * 16)
-      moveNode(rt, node, request)
+      pose(rt, node, request)
     }
   } finally {
     moved(rt)
   }
 }
 
-/** One node posed and noted for `finishMoves`; nothing when the move moves nothing. */
-function moveNode(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
-  if (poseNode(node, matrix)) noteMoved(rt, node)
+/** The nodes the call moved, each once, with the host's it takes: what its pass notes (`moved`). */
+const posed = new Set<Object3D>()
+
+/** One node posed, kept for the call's pass when the move moved it, and its pose taken by the
+ *  scene watch as the engine's (`adoptPose`): the next image reads no host write back. */
+function pose(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
+  if (!poseNode(node, matrix)) return
+  rt.run.gate.adoptPose(node)
+  posed.add(node)
 }
 
-/** The moves of one call taken: one pass of the transform tree — every matrix it holds, page
- *  records, selection roots, transparent copies, carries the new places, and the pass walks what
- *  the moves and any write before them changed, nothing else —, then the moved roots' rows and
- *  boxes (`finishMoves`). */
+/** The moves of one call taken: the nodes it moved and those the host wrote before it in the same
+ *  task (`takeHostMoves`) noted at once (`noteMoved`) — a node under another moved one moving
+ *  with it, never twice —, one pass of the transform tree — every matrix it holds, page records,
+ *  selection roots, transparent copies, carries the new places, and the pass walks what the writes
+ *  changed, nothing else —, then the moved roots' rows and boxes (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
-  rt.setup.worlds.refresh()
-  finishMoves(rt)
+  try {
+    // The watch heard the call's own writes too: the host's are the others.
+    let host = false
+    for (const node of rt.run.gate.takeHostMoves())
+      if (!posed.has(node)) {
+        host = true
+        posed.add(node)
+      }
+    // The deformation's staleness noted before this pass compared the worlds the host has since
+    // rewritten: its next update reads them again, as after a host write the image reads.
+    if (host) rt.vis.deformation?.frame.forget()
+    noteMoved(rt, posed)
+    rt.setup.worlds.refresh()
+    finishMoves(rt)
+  } finally {
+    posed.clear()
+  }
 }

@@ -3,7 +3,9 @@ import { CLUSTER_WORDS } from './layout.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import type { DagPartTable } from './shader/bindings.ts'
 import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './splitFlags.ts'
+import { coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -94,5 +96,75 @@ export function writeParts(
       bytes = Math.min(end - at, parts.bytes - within)
     device.queue.writeBuffer(parts.buffers[part], within, data, dataOffset + at - offset, bytes)
     at += bytes
+  }
+}
+
+/** Where `writeRanges` sends a run that is not a split table: `size` bytes of `data` from
+ *  `dataOffset`, at byte `offset` of the table the target lays out — the cut's exact translations,
+ *  laid behind each range's worlds (`worldOrigins.ts`). */
+export type RangeTarget = (
+  offset: number,
+  data: ArrayBuffer,
+  dataOffset: number,
+  size: number,
+) => void
+
+/** What `writeRanges` sends: the source's words, `stride` per index, from word `sourceBase` there
+ *  and from word `targetBase` in the table. */
+export type RangeSource = {
+  data: Float32Array | Uint32Array
+  sourceBase: number
+  targetBase: number
+  stride: number
+}
+
+/** Bytes a run may leave unchanged between two written records and still be one write. */
+const GAP_BYTES = 256
+/** Writes an upload makes at most; past it, the narrowest gaps join. */
+const CAP = 1024
+
+/** The runs a write joins its indices into: one scratch for every upload, `CAP` runs at most. */
+const spans = new Int32Array(CAP * 2)
+/** The one rule every upload joins by, its gap set to the record's bytes. */
+const rule: RangeRule & { overflow: 'narrowest' } = {
+  gap: 0,
+  cap: CAP,
+  overflow: 'narrowest',
+  steps: new Int32Array(64),
+}
+
+/**
+ * How the indices of records of `stride` words join into writes, by their bytes whatever the
+ * record — a link, an exact translation, a world, a tree node, a card —: a run spans at most
+ * `GAP_BYTES` unchanged, up to `CAP` writes, the narrowest gaps joined past it. Scattered moves
+ * never rewrite everything between the lowest and the highest.
+ */
+function ruleFor(stride: number, count: number): RangeRule {
+  rule.steps = resized(rule.steps, count)
+  rule.gap = 1 + Math.floor(GAP_BYTES / (stride * 4))
+  return rule
+}
+
+/**
+ * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
+ * ranges (`ruleFor`, `coalesceRanges`), each sent as one write into `parts` — the residency bits
+ * and node counts, the placement tree's nodes, the placements' links, the worlds a call named, the
+ * impostor cards — or through `parts` when it is a `RangeTarget`: the exact translations.
+ */
+export function writeRanges(
+  device: GPUDevice,
+  parts: DagParts | RangeTarget,
+  sorted: Int32Array,
+  count: number,
+  { data, sourceBase, targetBase, stride }: RangeSource,
+) {
+  const runs = coalesceRanges(sorted, count, spans, ruleFor(stride, count))
+  for (let r = 0; r < runs; r++) {
+    const first = spans[r * 2],
+      bytes = (spans[r * 2 + 1] - first + 1) * stride * 4,
+      offset = (targetBase + first * stride) * 4,
+      from = data.byteOffset + (sourceBase + first * stride) * 4
+    if (typeof parts === 'function') parts(offset, data.buffer as ArrayBuffer, from, bytes)
+    else writeParts(device, parts, offset, data.buffer as ArrayBuffer, from, bytes)
   }
 }

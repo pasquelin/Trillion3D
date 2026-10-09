@@ -121,7 +121,7 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
   const { rt, rows, moving } = scene(terrain, model)
   const before = rows.pageTableFloats!.slice()
   ;(moving.world.elements as Float64Array)[12] = 3
-  assert.equal(moveRootRows(rt, moving), model)
+  assert.equal(moveRootRows(rt, moving, 0), model)
   // The table travels for the model's rows alone, and keeps its age.
   assert.equal(rows.dirtyFrom, terrain)
   assert.equal(rows.dirtyTo, terrain + model - 1)
@@ -144,7 +144,7 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
 
 test('a transparent model claims no row: its corners are sent again, no row is', () => {
   const { rt, rows, glass } = scene(4, 2)
-  assert.equal(moveRootRows(rt, glass), 0)
+  assert.equal(moveRootRows(rt, glass, 0), 0)
   assert.equal(rows.dirtyTo, -1)
   assert.equal(rt.blendState.occlusionEpoch, -1)
 })
@@ -155,7 +155,7 @@ test('a moved blended model moves its shadow caster rows, and those alone', () =
   rows.blendRowOf[6] = 7
   rows.blendRowOf[7] = 6
   ;(glass.world.elements as Float64Array)[12] = 5
-  assert.equal(moveRootRows(rt, glass), 2)
+  assert.equal(moveRootRows(rt, glass, 0), 2)
   assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [6, 7], 'the caster rows travel, no other')
   for (let row = 0; row < rows.casterSlots; row++)
     assert.equal(rows.pageTableFloats![row * ROW_WORDS + 12], row >= 6 ? 5 : 0, `row ${row}`)

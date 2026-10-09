@@ -1,7 +1,7 @@
 import type { SelectionUniforms } from '../core/selection.ts'
 import { levelCountsWord } from './layout.ts'
 import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
-import type { DagRuntimeState } from './runtimeState.ts'
+import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
 import type { MainCut } from './dispatch.ts'
 
@@ -13,8 +13,12 @@ import type { MainCut } from './dispatch.ts'
 export const readFor = (state: DagRuntimeState, next: SelectionUniforms) =>
   stampMatches(state.readback, next, state)
 
-/** Slot `i`, copied from the main cut `serial` under `captured`, read behind the reads in flight. */
-export function readMain(cut: MainCut, i: number, captured: SelectionUniforms, serial: number) {
+/** What a slot was copied from: the main cut `serial`, under `captured` and the factor `coarsen`
+ *  (`listCap.ts`). */
+type MainCopy = { captured: SelectionUniforms; serial: number; coarsen: number }
+
+/** Slot `i`, copied from `copy`, read behind the reads in flight. */
+export function readMain(cut: MainCut, i: number, copy: MainCopy) {
   const { state } = cut,
     world = state.worldRevision,
     residency = state.residencyRevision
@@ -24,7 +28,7 @@ export function readMain(cut: MainCut, i: number, captured: SelectionUniforms, s
       try {
         // `dispose` destroyed the buffers: a read queued behind the other slot's maps nothing,
         // since mapping a destroyed buffer is a validation error on the device (#334).
-        if (!state.disposed) await adoptMain(cut, i, { captured, serial, world, residency })
+        if (!state.disposed) await adoptMain(cut, i, { ...copy, world, residency })
       } catch (error) {
         // A mapping refused — a device lost says so on its own (`device.lost`) — reads nothing:
         // the next dispatch copies the cut again. Any other error is the engine's: it surfaces.
@@ -40,10 +44,11 @@ export function readMain(cut: MainCut, i: number, captured: SelectionUniforms, s
 async function adoptMain(
   { resources, state, chain, scratch }: MainCut,
   i: number,
-  read: { captured: SelectionUniforms; serial: number; world: number; residency: number },
+  read: MainCopy & { world: number; residency: number },
 ) {
   const { readback, outputBytes, readbackBytes: copied, listCap, device, packed } = resources
-  const { parsed, grown } = await readDagSlot(
+  const { listFull } = state
+  const { parsed, grown, moved, retried } = await readDagSlot(
     readback[i],
     {
       bytes: copied,
@@ -52,23 +57,35 @@ async function adoptMain(
       scratch: scratch[i],
       levelsWord: levelCountsWord(listCap),
     },
-    { limits: device.limits, pageCount: packed.pageCount, listFull: state.listFull },
+    {
+      limits: device.limits,
+      pageCount: packed.pageCount,
+      listFull,
+      coarse: state.coarse,
+      cutFactor: read.coarsen,
+    },
     // Every copy lands in the chain, adoptable or not: the next is taken against it. A residency
     // that moved since makes the mask a lie; a pose that moved only makes the cut a frame late, as
     // a camera's.
-    (words, parsed, grown) =>
+    (words, parsed, retried) =>
       parsed?.drawablePageIds &&
       chain.land(
         new Uint32Array(words, 0, copied >>> 2),
         listCap,
         parsed.pageIds.length,
         parsed.drawablePageIds.length,
-        !grown && read.residency === state.residencyRevision,
+        !retried && read.residency === state.residencyRevision,
       ),
   )
-  // A cut past the list: the list grows and the next dispatch cuts again, rather than hand the
-  // host a truncated readout it could only give up on.
+  // A cut past the list: the list grows, or past the device the cut coarsens, and the next
+  // dispatch cuts again, rather than hand the host a truncated readout. The factor follows the
+  // readouts cut under it alone: one copied before it moved names an older cut.
+  if (moved) {
+    state.factorMoved = true
+    recutMain(resources.swap, state)
+  }
   if (grown) state.grow = Math.max(state.grow, grown)
+  else if (retried) return
   else if (parsed && read.residency === state.residencyRevision) {
     state.last = { uniforms: read.captured, result: parsed, worldRevision: read.world }
     if (!parsed.truncated) noteWhole(resources.swap, MAIN_VIEW, read.serial)

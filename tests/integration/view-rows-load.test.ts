@@ -17,7 +17,7 @@ import { aerialScene } from '../../bench/runner/scenes/aerial.ts'
 import { compiler } from './world-partition.fixture.ts'
 import { assertOpensUnderCap } from './view-rows-load.fixture.ts'
 
-/** The renderer's memory cap, in MB: under develop's peak, over this branch's. */
+/** The renderer's memory cap, in MB: under the per-placement rows' peak. */
 const CAP_MB = 450
 
 /** Cooks #410's aerial scene under `root`; returns its manifest. */

@@ -10,7 +10,10 @@ import { TILES_PER_LAYER } from '../texture/tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
 import { DEFAULT_CPU_BUDGET, defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts'
 import type { ActiveGpuMemory } from './activeMemory.ts'
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import {
+  cellObjects,
+  worldRootsFixture,
+} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts'
 
@@ -133,7 +136,7 @@ test('invalid reservations cannot create artificial space in the global budget',
 
 test('the existing open-world cell fixture keeps its pinned top and held-cell roots beside 4K history', () => {
   const { table } = worldRootsFixture()
-  const held = new Set([0, ...table.cells.objects(0).flatMap((object) => object.dependencies)])
+  const held = new Set([0, ...cellObjects(table, 0).flatMap((object) => object.dependencies)])
   const roots = [...held].reduce((count, bundle) => count + table.bundles[bundle].count, 0)
   const pageBytes = Math.max(...table.bundles.map((bundle) => bundle.bytes / bundle.count))
   const floor = geometryPoolFor({

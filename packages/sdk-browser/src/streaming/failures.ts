@@ -10,12 +10,12 @@
  * the longest, and again only after it landed: the session tells its host (`streamFailed`). A source refusing every read of F pages is asked at most F times in the first half
  * second, then ever more seldom, down to F every 8 s — never once a frame.
  *
- * The waits are one heap on their end (`heap.ts`) and one timer, set for the first: no timer and
+ * The waits are one heap on their end (`math/src/sequence/heap.ts`) and one timer, set for the first: no timer and
  * no listener per failure. A failure outlives its page while its wait runs — a page admitted again
  * meanwhile still waits it out — and leaves once its wait ended, or at once when for good.
  */
 import { retriableError, retryAfterOf } from '../cluster/checked.ts'
-import { createHeap } from './heap.ts'
+import { createHeap } from '../../../math/src/sequence/heap.ts'
 import type { Job, PageStreamerOptions, StreamPage } from './types.ts'
 
 const FIRST_WAIT_MS = 500,

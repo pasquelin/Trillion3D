@@ -21,7 +21,7 @@ function runtime(traceEnabled: boolean) {
     setup: {
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
       bootstrap: [],
-      bootstrapUrls: new Set<string>(),
+      bootstrapKey: new Uint8Array(64),
       slots: 4,
     },
     layout: { rows: { packedRecs: [], packedCount: 0, candidateCount: 0 } },

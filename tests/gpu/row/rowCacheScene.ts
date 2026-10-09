@@ -41,7 +41,6 @@ export function rowCacheScene(copies: number, table: number) {
     }))
   const placement = postPackedBases(roots)
   const pages = roots.flatMap((root) => root.pages) as PageRec[]
-  const closure = createGroupClosure(roots, placement, pages)
   const rows = createWebgpuRowState(pages, table)
   rows.pageTableFloats = new Float32Array(table * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
@@ -60,7 +59,7 @@ export function rowCacheScene(copies: number, table: number) {
       ints[row * ROW_WORDS] = page + 1
       rows.markRowDirty(row)
     },
-    (ids, visit) => closure.closeOver(ids, visit, undefined, true),
+    () => createGroupClosure(roots, placement, pages, true),
   )
   const packed = packDagSelection(roots)
   /** The view of the placement `back` places behind the one packed last: the strip camera slid

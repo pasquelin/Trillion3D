@@ -6,8 +6,9 @@ import {
   trianglesOf,
   flagsOf,
 } from '../records.fixture.ts'
-import { dagViewFrames } from './math.fixture.ts'
+import { dagViewFrames, thresholdOf } from './math.fixture.ts'
 import { dagOracleDescent, AHEAD_LEAF } from './descent.fixture.ts'
+import { oracleWorldCovers } from './worldGate.fixture.ts'
 import { createDagOraclePredicates } from './predicates.fixture.ts'
 import { aheadDue } from '../aheadDue.fixture.ts'
 import {
@@ -51,14 +52,18 @@ export function evaluateDagSelectionKernel(
   // The per-primitive prologue and per-node verdict are those of `math.fixture.ts`,
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms)
-  const { pixelError } = frames
   // The view ahead of a moving camera (`../shader/aheadWgsl.ts`).
   const ahead = uniforms.ahead ?? null
   const aheadFrames = ahead
     ? dagViewFrames(packed, { ...uniforms, planes: ahead.planes, view: ahead.view })
     : undefined
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
-  const nodeFlags = dagOracleDescent(packed, frames, aheadFrames)
+  const nodeFlags = dagOracleDescent(
+    packed,
+    frames,
+    aheadFrames,
+    oracleWorldCovers(packed, frames, resident?.ready),
+  )
   const predicates = (f: typeof frames, flags: Uint8Array) =>
     createDagOraclePredicates({
       packed,
@@ -93,8 +98,8 @@ export function evaluateDagSelectionKernel(
   const box = { min: [0, 0, 0], max: [0, 0, 0] }
   const wantAhead = (i: number) => {
     if (!aheadView || !aheadFrames || !aheadView.visible(i)) return
-    if (!aheadView.draws(i, pixelError, true, true)) return
     const w = worldOf(records, i)
+    if (!aheadView.draws(i, thresholdOf(aheadFrames, w), true, true)) return
     boxInto(records, i, box.min, box.max)
     const due = aheadDue(frames.planes[w], aheadFrames.planes[w], box.min, box.max)
     requestWords.push(stagedRequest(i, quantizeAheadPriority(replaced(aheadView, i), due)))
@@ -117,7 +122,7 @@ export function evaluateDagSelectionKernel(
       wantAhead(i)
       continue
     }
-    if (!draws(i, pixelError, true, true) || coneRejects(i, w)) {
+    if (!draws(i, thresholdOf(frames, w), true, true) || coneRejects(i, w)) {
       wantAhead(i)
       continue
     }
@@ -133,7 +138,7 @@ export function evaluateDagSelectionKernel(
     if (w === SELECTION_NONE || !visible(i) || coneRejects(i, w)) continue
     const ready = !resident || !!resident.ready[i],
       childReady = !resident || !!resident.childReady[i]
-    if (!draws(i, pixelError, ready, childReady)) continue
+    if (!draws(i, thresholdOf(frames, w), ready, childReady)) continue
     note(i)
     drawablePageIds.push(i)
   }

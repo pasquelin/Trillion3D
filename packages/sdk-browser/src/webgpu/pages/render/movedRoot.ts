@@ -2,12 +2,15 @@ import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
+import { noteWorldMoved } from './movedWorlds.ts'
 
 const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
-/** What a moved root rewrites: its rows and the memos its world feeds. */
+/** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
+ *  moved placements, which names it (`movedWorlds.ts`). */
 export type MovedRootTarget = {
   layout: Pick<WebgpuPagesLayout, 'rows'>
+  run?: Parameters<typeof noteWorldMoved>[0]
   blendState: {
     occlusionEpoch: number
     occlusionMoved?: { from: number; to: number }
@@ -21,13 +24,16 @@ export type MovedRootTarget = {
  * so the table, the corners, the draw items and the shadow spheres travel for them alone, and the
  * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
  * scene keeps its own. Its windings are computed again. A transparent placement claims no visibility
- * row: its caster rows move, and the transparent corners are sent again. Returns the rows rewritten.
+ * row: its caster rows move, and the transparent corners are sent again. Placement `rank` is named
+ * beside that write: its world alone goes up (`movedWorlds.ts`), and the GPU cut's tree fits again
+ * the group of the pose its send says moved (`updateWorlds`). Returns the rows rewritten.
  *
  * The table's age does not move: it rewrote every row, every corner and every transparent corner,
  * and dropped the whole scene's occlusion history, each image a model moved.
  */
-export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
+export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, rank: number) {
   root.windingEpoch = undefined
+  if (rt.run) noteWorldMoved(rt.run, rank)
   return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements)
 }
 

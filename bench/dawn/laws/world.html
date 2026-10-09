@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A generated open world</title>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import {
+        buffer,
+        createWorld,
+        geometry,
+        light,
+        material,
+        math,
+        object,
+      } from '../runtime/engine.js'
+      import { lawWorld } from './world.js'
+
+      // The scale laws' scene (`bench/dawn/laws/`), generated, never an example. Its address says
+      // what it holds:
+      //   cache=<manifest URL>  a cooked scene (`cook.ts`): the open world of n objects, or the object
+      //   runtime=<n>           the same open world built in the page (`world.ts`): n meshes, cut at
+      //                         run time
+      //   distance=<m>          the camera m metres from the object's centre, looking at it
+      //   sun=0|1  lights=<L>   a shadowed sun (1 by default) and L shadowed lamps in view
+      //   pe=<px>               the cut's screen error (the engine's default when absent or `default`)
+      // A key given twice reads its last value: a sweep's own switches come after a point's.
+      //   gloss=1               a glossy floor and metal balls before the camera
+      //   far=<m>               the camera's far plane (the engine's default when absent)
+      const asked = new URLSearchParams(location.search)
+      const last = (key) => asked.getAll(key).at(-1)
+      const number = (key, fallback) => (asked.has(key) ? Number(last(key)) : fallback)
+      const world = createWorld('view')
+      world.scene.background = math.color('#a9c6e4')
+      if (asked.has('pe') && last('pe') !== 'default') world.pixelError = number('pe', 0)
+      const distance = number('distance', 0)
+
+      // The eye, set before the scene loads (the cells a first frame reads are those it reaches):
+      // 1.7 m above the world's centre looking to the horizon, or `distance` from the object. It
+      // walks half a metre to each side and sways by a degree, so every image is drawn while it
+      // moves, never held, as a walker's; the object's eye only sways.
+      const eye = distance ? [0, 1, -distance] : [0, 1.7, 0]
+      const look = distance ? [0, 1, 0] : [0, 0.4, 20]
+      const [sway, walk] = distance ? [0.002, 0] : [0.02, 0.5]
+      world.camera.position.set(...eye)
+      world.camera.lookAt(...look)
+      if (asked.has('far')) world.camera.far = number('far', 2000)
+
+      if (asked.has('cache')) await world.scene.load(last('cache'))
+      const count = number('runtime', 0)
+      if (count) {
+        // The open world the cooked scene holds (`world.ts`), built here: the same meshes, paints
+        // and seeded places, cut at run time.
+        const { meshes, placed } = lawWorld(count)
+        const shapes = meshes.map(({ data, material: paint }) => ({
+          shape: geometry.createBuffer({
+            position: buffer.float32(data.positions, 3),
+            normal: buffer.float32(data.normals, 3),
+            index: buffer.uint32(data.indices),
+          }),
+          paint: material.meshStandard({
+            color: paint.color,
+            roughness: paint.roughness,
+            metalness: paint.metalness,
+          }),
+        }))
+        const floor = object.mesh(shapes[0].shape, shapes[0].paint)
+        floor.receiveShadow = true
+        world.scene.add(floor)
+        placed.forEach(({ translations, rotations, scales }, k) => {
+          const { shape, paint } = shapes[k + 1]
+          for (let i = 0; i < scales.length / 3; i++) {
+            const mesh = object.mesh(shape, paint)
+            mesh.position.set(translations[3 * i], translations[3 * i + 1], translations[3 * i + 2])
+            mesh.quaternion.set(
+              rotations[4 * i],
+              rotations[4 * i + 1],
+              rotations[4 * i + 2],
+              rotations[4 * i + 3],
+            )
+            mesh.scale.set(scales[3 * i], scales[3 * i + 1], scales[3 * i + 2])
+            mesh.castShadow = mesh.receiveShadow = true
+            world.scene.add(mesh)
+          }
+        })
+      }
+      if (last('gloss') === '1') {
+        const floor = object.mesh(
+          geometry.box(16, 0.05, 16),
+          material.meshStandard({ color: '#2a2c30', roughness: 0.2 }),
+        )
+        floor.position.set(0, 0.03, 10)
+        world.scene.add(floor)
+        const ball = geometry.sphere(0.6, 48, 24)
+        ;[0.1, 0.25, 0.4, 0.55].forEach((roughness, k) => {
+          const mesh = object.mesh(
+            ball,
+            material.meshStandard({ color: '#d9d2c4', roughness, metalness: 1 }),
+          )
+          mesh.position.set((k - 1.5) * 2, 0.65, 8)
+          mesh.castShadow = true
+          world.scene.add(mesh)
+        })
+      }
+
+      world.scene.add(
+        light.hemisphere({ intensity: 0.9, color: '#d2e4ff', groundColor: '#6f6a4a' }),
+      )
+      if (number('sun', 1))
+        world.scene.add(
+          light.directional({
+            intensity: 3,
+            color: '#fff1dc',
+            position: [40, 100, 30],
+            castShadow: !distance,
+          }),
+        )
+      // L shadowed lamps over the near field, eight a row, rows going away from the eye.
+      for (let k = 0; k < number('lights', 0); k++) {
+        const lamp = light.point({
+          color: '#ffd9a8',
+          intensity: 40,
+          distance: 12,
+          castShadow: true,
+        })
+        lamp.position.set(((k % 8) - 3.5) * 6, 3, 8 + Math.floor(k / 8) * 8)
+        world.scene.add(lamp)
+      }
+
+      let frame = 0
+      world.onFrame(() => {
+        const phase = (2 * Math.PI * ++frame) / 240
+        const turn = sway * Math.sin(phase),
+          side = walk * Math.sin(phase)
+        const [dx, dz] = [look[0] - eye[0], look[2] - eye[2]]
+        world.camera.position.set(eye[0] + side, eye[1], eye[2])
+        world.camera.lookAt(
+          eye[0] + side + dx * Math.cos(turn) - dz * Math.sin(turn),
+          look[1],
+          eye[2] + dx * Math.sin(turn) + dz * Math.cos(turn),
+        )
+      })
+      world.invalidate()
+    </script>
+  </body>
+</html>

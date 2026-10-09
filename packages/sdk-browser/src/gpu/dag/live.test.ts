@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { witnessEncoder, cutResources, ETAGES, LIVE, CAND } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE } from './encode.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
@@ -20,13 +20,13 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   }
   // Candidate pages, and them alone: a page under a rejected node is not read.
   assert.equal(byKernel.get('dagWanted')?.list, CAND)
-  // Descent: pass 0 starts from the roots, from a count known at packing, and each
-  // following level from its level's node count — known at packing too. No
-  // indirection, hence no argument recopy, and no level visits the whole hierarchy.
+  // Descent: pass 0 starts from the roots, from a count known at packing, level 1 from its
+  // level's node count — known at packing too —, and each deeper level from the queue the level
+  // before it filled: no level visits the whole hierarchy, nor every placement's.
   assert.deepEqual(dispatches.slice(2, 5), [
     { kernel: 'dagRootLevel', groups: 1 },
     { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], 64) },
-    { kernel: 'dagLevel2', groups: ceilDiv(ETAGES[2], 64) },
+    { kernel: 'dagLevel2', groups: 'indirect', list: QUEUE + 2 },
   ])
   const ordre = dispatches.map((l) => l.kernel)
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'))
@@ -38,7 +38,6 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagPrepare',
     'dagRootLevel',
     'dagLevel1',
-    'dagLevel2',
     'dagDrawPrefix',
     'dagSortRequests',
     'dagListEvictions',

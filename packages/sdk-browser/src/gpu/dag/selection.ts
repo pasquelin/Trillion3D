@@ -28,6 +28,8 @@ export async function createGpuDagSelection(
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
     /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
     poolHeld?: (page: number) => boolean
+    /** Whether a parent composes placement `w` on the GPU now: its tree group stays open. */
+    composed?: (w: number) => boolean
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -45,5 +47,5 @@ export async function createGpuDagSelection(
     options.onRefused?.('camera cut creation failed')
     return undefined
   }
-  return createDagRuntime(resources, options.poolHeld)
+  return createDagRuntime(resources, options.poolHeld, options.composed)
 }

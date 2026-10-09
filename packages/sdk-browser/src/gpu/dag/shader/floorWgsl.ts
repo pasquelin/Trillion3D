@@ -45,10 +45,10 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroupsMax,
     /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
     frame: drawnGroupsMax + 1,
-    /** The two kept lists' group counts, then the journal a swap writes back's, x and y each
-     *  (`armWgsl.ts`). */
+    /** The two kept lists' group counts, then the journal a swap writes back's, then the three
+     *  descent queues', x and y each (`armWgsl.ts`). */
     listGroups: drawnGroupsMax + 2,
-    words: drawnGroupsMax + 8,
+    words: drawnGroupsMax + 14,
   }
 }
 
@@ -81,9 +81,9 @@ fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
  if(!(far>0.0)){return INF;}
  return (error*stretch*focal)/far;
 }
-/** A node's verdict: is its subtree too coarse for the frame's threshold? An open subtree —
+/** A node's verdict: is its subtree too coarse for its threshold \`t\`? An open subtree —
  *  one holding a cluster whose finer group is not resident — never is. */
-fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{
+fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
  if(deformReach>0.0){return false;}
  if(open!=0u){return false;}
  // Depth only: the full product would throw three quarters away. Same form as
@@ -91,7 +91,7 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)-
  let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
  // A deformation's reach grows a sphere that is there; an absent one (negative) stays so.
  let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
- return errorFloor(error,depth,radius,stretch,focal)>views[vi].pixelError;
+ return errorFloor(error,depth,radius,stretch,focal)>t;
 }
 `,
 )

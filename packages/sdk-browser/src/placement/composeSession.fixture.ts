@@ -41,10 +41,10 @@ export function session() {
       },
     ],
     worldsMovedOnGpu: () => void revision++,
+    composedPlacement() {},
   }
   const rt = composeRuntime(roots, {
     frame: 0,
-    worldUploadOrigin: new Float64Array(3),
     gpuSelection: selection,
     gpuComputeDispatches: 0,
   })

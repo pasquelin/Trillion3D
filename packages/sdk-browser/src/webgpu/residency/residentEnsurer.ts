@@ -28,6 +28,9 @@ type EnsureOptions = {
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void
   /** Advanced whenever a page's bytes arrive or leave (`../row/journal.ts`, `touchRevision`). */
   bytesRevision: () => number
+  /** The pages a holder brought into the root cover that the pool lacks (`coverHolders.ts`):
+   *  loaded before the queue's. */
+  coverMissing?: (holds: (page: PageRec) => boolean) => readonly PageRec[]
 }
 
 type EnsureState = EnsureOptions & LowerPassOptions & { lower: ReturnType<typeof createLowerPass> }
@@ -123,7 +126,9 @@ async function ensurePass(
   return run.missing === 0 && s.getCache() === run.cache && s.lower.held(run.cache)
 }
 
-/** The camera's burst: every wanted page not in the pool admitted, pinned, in order. */
+/** The camera's burst: every page a holder brought into the root cover, then every wanted page,
+ *  not in the pool admitted, pinned, in order: nothing coarser stands in for the cover's. A page
+ *  with nothing to admit is passed over at once (`needsAdmit`): only an admission awaits. */
 async function admitWanted(
   s: EnsureState,
   run: EnsureRun,
@@ -131,46 +136,65 @@ async function admitWanted(
   landed: () => void,
   reads: AbortSignal,
 ) {
-  const { tracking, budget } = s
+  const { tracking } = s
   const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
+  const pool = run.cache,
+    covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec))) ?? []
   s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
-  for (let i = 0; i < wanted.length; i++) {
-    const rec = wanted[i],
-      key = tracking.keyOf(rec),
-      address = pageAddress(rec)
-    if (!tracking.wanted.has(key)) continue
-    s.signal?.throwIfAborted()
-    if (s.isLost()) throw new Error('WEBGPU_LOST')
-    if (run.cache.get(address)) continue
-    run.missing++
-    if (!s.hasBytes(rec)) continue
-    // The share: past it the burst resumes after a task, nothing dropped — the page read again
-    // against `wanted` and the pool, which a camera that moved in between may have changed.
-    if (!budget.admits()) {
-      await s.nextShare()
-      run.cache = currentCache(s)
-      if (!tracking.wanted.has(key) || run.cache.get(address)) {
-        run.missing--
-        continue
-      }
-    }
-    try {
-      // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
-      if ((await s.admit(rec)) > 0) {
-        landed()
-        run.missing--
-      }
-      budget.spend()
-    } catch (error) {
-      if (!String(error).includes('ALL_PAGES_PINNED')) throw error
-      // Pool full of pages the image holds: the burst stops there, without dropping anything.
-      // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
-      // only reports that the image asks for more than the slots hold.
-      run.full = true
-      return
-    }
+  for (const rec of covering)
+    if (needsAdmit(s, run, rec) && !(await admitOne(s, run, rec, landed))) return
+  for (let i = 0; i < wanted.length; i++)
+    if (needsAdmit(s, run, wanted[i]) && !(await admitOne(s, run, wanted[i], landed))) return
+}
+
+/** Whether the image still asks for `rec` — the queue or the root cover. */
+const asked = (s: EnsureState, rec: PageRec) => {
+  const key = s.tracking.keyOf(rec)
+  return s.tracking.wanted.has(key) || s.bootstrapKey[key] > 0
+}
+
+/** Whether `rec` is one to admit now: asked, not in the pool, its bytes come. One asked and not
+ *  pooled counts as missing, its bytes come or not. */
+function needsAdmit(s: EnsureState, run: EnsureRun, rec: PageRec) {
+  if (!asked(s, rec)) return false
+  s.signal?.throwIfAborted()
+  if (s.isLost()) throw new Error('WEBGPU_LOST')
+  if (run.cache.get(pageAddress(rec))) return false
+  run.missing++
+  return s.hasBytes(rec)
+}
+
+/** One page of the burst admitted (`needsAdmit` said so), unless the image no longer asks for it
+ *  or the pool holds it once the share resumes; false once the pool is full. */
+async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: () => void) {
+  const { budget } = s
+  // The share: past it the burst resumes after a task, nothing dropped — the page read again
+  // against `wanted` and the pool, which a camera that moved in between may have changed.
+  if (!budget.admits()) {
+    await s.nextShare()
     run.cache = currentCache(s)
+    if (!asked(s, rec) || run.cache.get(pageAddress(rec))) {
+      run.missing--
+      return true
+    }
   }
+  try {
+    // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+    if ((await s.admit(rec)) > 0) {
+      landed()
+      run.missing--
+    }
+    budget.spend()
+  } catch (error) {
+    if (!String(error).includes('ALL_PAGES_PINNED')) throw error
+    // Pool full of pages the image holds: the burst stops there, without dropping anything.
+    // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
+    // only reports that the image asks for more than the slots hold.
+    run.full = true
+    return false
+  }
+  run.cache = currentCache(s)
+  return true
 }
 
 /** The pool after an await: lost with the device. */

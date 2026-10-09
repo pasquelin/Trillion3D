@@ -14,12 +14,15 @@ import { quantileFloorOf } from '../../../math/src/scalar/quantile.ts'
 // made and dropped within a step is still made. The code the engine settles on, the optimiser's:
 // the middle tier (Maglev), which hot code passes through, boxes numbers its own way, and a step
 // it still runs while measured counts its boxes, not the code's; and the optimiser compiles on
-// the test's own thread, so a loaded machine never measures code it has not finished. Set before
-// any step is compiled; each test file runs in its own process.
+// the test's own thread — its optimised code, its loops replaced while they run (OSR) and its
+// baseline code alike —, so no compile a loaded machine finished late lands in a measure. Set
+// before any step is compiled; each test file runs in its own process.
 v8.setFlagsFromString('--expose-gc')
 v8.setFlagsFromString('--no-turbo-escape')
 v8.setFlagsFromString('--no-maglev')
 v8.setFlagsFromString('--no-concurrent-recompilation')
+v8.setFlagsFromString('--no-concurrent-osr')
+v8.setFlagsFromString('--no-concurrent-sparkplug')
 v8.setFlagsFromString('--allow-natives-syntax')
 const gc = vm.runInNewContext('gc') as () => void
 const optimize = new Function(
@@ -32,16 +35,31 @@ const prepare = new Function(
   '%PrepareFunctionForOptimization(f); %OptimizeFunctionOnNextCall(f);',
 ) as (f: unknown) => void
 
-/** Runs a measure counts. */
-export const SAMPLES = 1000
+/** Runs a measure counts: enough that the heap's own accounting — read at the granularity of its
+ *  allocation buffers, a few kilobytes either way on a loaded machine — weighs under a byte a run,
+ *  while one object a run weighs sixteen at least. */
+export const SAMPLES = 10_000
 /** Runs before a measure: enough for the optimiser to take the functions the run calls, as an
  *  engine that ran for some minutes has them. */
-const WARM = 30 * SAMPLES
+const WARM = 30_000
 
 /** Rounds a measure takes, and the middle one: a round may also hold what a lower tier boxes,
- *  which only adds, or a collection, which only takes away; the median is neither. */
-const ROUNDS = 5
+ *  which only adds, or a collection, which only takes away; the median is neither. A loaded
+ *  machine may leave the code in a lower tier for the first rounds: the rounds go on until the
+ *  last `SETTLED` read alike — within `SETTLE_BYTES` of one another, the heap's own accounting
+ *  noise —, `MOST_ROUNDS` at most, and the last `ROUNDS` are read. */
+const ROUNDS = 5,
+  SETTLED = 3,
+  MOST_ROUNDS = 25,
+  SETTLE_BYTES = 4096
 const median = (bytes: number[]) => quantileFloorOf(bytes, 0.5) as number
+
+/** Whether the last `SETTLED` rounds of `bytes` read alike: the code settled. */
+export function settled(bytes: readonly number[]) {
+  if (bytes.length < ROUNDS) return false
+  const last = bytes.slice(-SETTLED)
+  return Math.max(...last) - Math.min(...last) <= SETTLE_BYTES
+}
 
 /** Bytes the heap grew by over `SAMPLES` runs of `run`, less an empty run's, each compiled by the
  *  optimiser after a collection — a collection after it would drop code that holds objects the
@@ -54,7 +72,7 @@ export function grown(
 ) {
   const measure = (body: (i: number) => void) => {
     const bytes: number[] = []
-    for (let round = 0; round < ROUNDS; round++) {
+    while (bytes.length < MOST_ROUNDS && !settled(bytes)) {
       for (let i = 0; i < WARM; i++) body(i)
       gc()
       for (const f of hot) prepare(f)
@@ -63,7 +81,7 @@ export function grown(
       for (let i = 0; i < SAMPLES; i++) body(i)
       bytes.push(v8.getHeapStatistics().used_heap_size - before)
     }
-    return pick(bytes)
+    return pick(bytes.slice(-ROUNDS))
   }
   return measure(run) - measure(() => {})
 }

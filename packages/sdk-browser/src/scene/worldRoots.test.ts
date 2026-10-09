@@ -10,6 +10,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
+import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 import { heldBy, opened, rangeOf, served } from './worldRoots.fixture.ts'
 import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
@@ -19,7 +20,8 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   const { roots } = await opened(t, manifest)
   const top = table.pinnedTopBytes
   assert.deepEqual([roots.pinned.bundles, roots.pinned.bytes, roots.bytes()], [1, top, top])
-  assert.deepEqual([...roots.pinned.pages[0].positions], [0, 0, 0, 1, 0, 0, 0, 1, 0])
+  const pinned = decodeGeometryPage(roots.pinned.pages[0].bytes).attributes.position
+  assert.deepEqual([...pinned], [0, 0, 0, 1, 0, 0, 0, 1, 0])
   assert.deepEqual(ranges, [`bytes=0-${top - 1}`], 'the top alone, in one range')
   assert.deepEqual(heldBy(roots), [], 'no object root and no cell bundle is pinned')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
@@ -110,9 +112,10 @@ test('the world DAG names its pages through the one source, from what is held', 
   const { clusters, groups } = worldRootsDag()
   const { manifest, ranges, whole } = served(t, { dag: { clusters, groups } })
   const { roots } = await opened(t, manifest)
-  assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG')
+  // A partitioned world — three cells — reads its DAG at load: the cut packs it.
+  assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
   const stream = await roots.stream()
-  assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once its stream opens')
+  assert.equal(stream, roots.drawn, 'the stream the cut draws from')
   assert.equal(stream, await roots.stream(), 'opened once')
   assert.deepEqual(whole, ['table', 'dag'], 'an opened stream reads its DAG no more')
   assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank')
@@ -121,19 +124,19 @@ test('the world DAG names its pages through the one source, from what is held', 
   const addressed = stream.dag!.pages.filter((page) => page.url)
   const pages = await Promise.all(addressed.map((page) => stream.source.page(page.url)))
   assert.deepEqual(
-    pages.map((page) => page.positions[0]),
+    pages.map((page) => decodeGeometryPage(page.bytes).attributes.position[0]),
     [1, 2, 3, 0],
     'each super-root reads the page at its bundle, the world top last',
   )
   assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read')
-  assert.deepEqual(heldBy(roots), [1, 3], 'a page read is not a cell hold')
-  // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
+  assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold')
+  // A bundle read in flight is counted in the CPU budget, and let go once served.
   const before = roots.bytes(),
     far = addressed[1].url // bundle 2's super-root
-  await stream.source.read(far)
-  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the kept bundle is counted')
-  await stream.source.attributes(far)
-  assert.equal(roots.bytes(), before, 'both views served, it is let go')
+  const reading = stream.source.read(far)
+  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the read bundle is counted')
+  await reading
+  assert.equal(roots.bytes(), before, 'served, it is let go')
 })
 
 test('a cache without its DAG file opens a stream with no DAG', async (t) => {

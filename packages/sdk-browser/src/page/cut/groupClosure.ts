@@ -3,7 +3,8 @@ import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
 import type { ClusterRoot } from '../selection/types.ts'
 import type { PlacementIndex } from '../selection/placements.ts'
 import type { IdDelta } from '../../webgpu/cut/delta.ts'
-import { createSparseInts, grown } from './sparseInts.ts'
+import { createSparseInts } from './sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * What the cache must hold for the cut to draw what it asks for: whole groups, closed upward.
@@ -137,8 +138,8 @@ function enterAll(w: Walk, ids: ArrayLike<number>, count: number, step: number) 
  *  is not; the touched pages then forgotten. */
 function settleDelta(w: Walk) {
   const { delta, touched, heldPages, seen } = w
-  if (delta.entered.length < touched.length) delta.entered = grown(delta.entered, touched.length)
-  if (delta.exited.length < touched.length) delta.exited = grown(delta.exited, touched.length)
+  if (delta.entered.length < touched.length) delta.entered = resized(delta.entered, touched.length)
+  if (delta.exited.length < touched.length) delta.exited = resized(delta.exited, touched.length)
   delta.enteredCount = delta.exitedCount = 0
   for (const id of touched) {
     const now = heldPages.get(id) > 0,
@@ -162,6 +163,9 @@ export function createGroupClosure(
   placement: PlacementIndex,
   /** The packed catalogue ids resolve in. */
   packedPages: PageList = [],
+  /** The counted closure names each placement's own packed ranks, as the row cache holds them
+   *  (`../../webgpu/row/rowDemand.ts`), rather than its primitive's holder's. */
+  instances = false,
 ) {
   const w = createWalk(roots, placement, packedPages)
   return {
@@ -194,8 +198,10 @@ export function createGroupClosure(
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
       // Entries first: a group one page leaves and another joins is never let go in between.
+      w.perInstance = instances
       enterAll(w, cut.entered, cut.enteredCount, 1)
       enterAll(w, cut.exited, cut.exitedCount, -1)
+      w.perInstance = false
       settleDelta(w)
     },
   }

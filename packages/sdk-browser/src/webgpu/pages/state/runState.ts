@@ -5,6 +5,7 @@ import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts'
 import { createWebgpuBudgetState } from '../../residency/budgetState.ts'
 import { RASTER_BACKGROUND } from '../../../page/raster.ts'
 import type { WebgpuRunState } from './run.ts'
+import { createSortedKeys } from '../../cut/denseKeys.ts'
 
 export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
@@ -67,8 +68,8 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     textureConverging: false,
     feedbackWritten: false,
     worldUploadRevision: 0,
-    // No frame before the first image: it rebases, whatever happens.
-    worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
+    // No frame before the first image: it uploads, whatever happens.
+    movedWorlds: createSortedKeys(),
     occluderSignature: 0,
   }
 }

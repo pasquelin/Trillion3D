@@ -37,7 +37,7 @@ export function updateWebgpuDeformation(
     root.reach = frame.reach[i]
     const grew = before !== root.reach
     rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach))
-    if (grew) moveRootRows(rt, root)
+    if (grew) moveRootRows(rt, root, i)
     if (frame.dirty[i] || grew)
       noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root))
   }

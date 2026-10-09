@@ -108,9 +108,11 @@ export class Light extends Object3D {
     this.type = `${kind}Light`
     this.color = new Color(p.color ?? 0xffffff)
     this.groundColor = new Color(p.groundColor ?? 0x000000)
-    // A colour written is counted, in a world or not: a watch reads the count, not the colour.
-    listen(this.color, noteNodeWrite)
-    listen(this.groundColor, noteNodeWrite)
+    // A colour written is noted on the light, in a world or not: a watch reads the light it names,
+    // not the colour.
+    const noted = () => noteNodeWrite(this)
+    listen(this.color, noted)
+    listen(this.groundColor, noted)
     this._values = {
       intensity: p.intensity ?? 1,
       distance: p.distance ?? 0,
@@ -159,7 +161,7 @@ export class Light extends Object3D {
   /** `light.needsUpdate = true` after writing `sh` in place, or a colour's `r`, `g`, `b` straight:
    *  the write is counted (`nodeWrites`), and the world and the scene watch read it again. */
   set needsUpdate(_value: boolean) {
-    noteNodeWrite()
+    noteNodeWrite(this)
     this._link?.content(this)
   }
   get needsUpdate() {
@@ -183,7 +185,7 @@ for (const name of NUMBERS)
     },
     set(this: Light, value: number) {
       this._values[name] = value
-      noteNodeWrite()
+      noteNodeWrite(this)
       this._link?.content(this)
     },
   })

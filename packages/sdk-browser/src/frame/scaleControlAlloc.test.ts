@@ -4,7 +4,7 @@ import { grown, SAMPLES } from './scaleControlAlloc.fixture.ts'
 import { createScaleControl } from './scaleControl.ts'
 import { createRefreshClock } from './refreshClock.ts'
 
-test('a thousand display frames create no object: the refresh clock and the control', () => {
+test('ten thousand display frames create no object: the refresh clock and the control', () => {
   // A 120 Hz display read by a timer rounded to the millisecond — integers, which a call passes
   // without a box of the caller's —, a frame now and then two refreshes long.
   const at = (i: number) => Math.round(((i + Math.floor(i / 7)) * 1000) / 120)

@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'
-import { worldRootsDag, worldRootsFixture } from './worldRoots.fixture.ts'
+import { cellObjects, worldRootsDag, worldRootsFixture } from './worldRoots.fixture.ts'
 import { encodeWorldRoots, encodeWorldRootsDag } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots, readWorldRootsDag } from './worldRootsTable.ts'
 
@@ -22,9 +22,11 @@ test('the table reads every bundle, page, cell and object back at its record', (
     pages,
   )
   assert.equal(table.cells.count, cells.length)
+  const asRead = (c: (typeof cells)[number]) =>
+    c.objects.map(({ node, primitive, dependencies }) => ({ node, primitive, dependencies }))
   assert.deepEqual(
-    cells.map((_, at) => table.cells.objects(at)),
-    cells.map((c) => c.objects),
+    cells.map((_, at) => cellObjects(table, at)),
+    cells.map(asRead),
   )
   // Each object, by its rank, is found in its cell: an object root's `origin` names it.
   const ranks = cells.flatMap((cell, at) => cell.objects.map(() => at))
@@ -35,7 +37,7 @@ test('the table reads every bundle, page, cell and object back at its record', (
   // An unaligned view of the same bytes is read alike.
   const shifted = new Uint8Array(bytes.byteLength + 1)
   shifted.set(bytes, 1)
-  assert.deepEqual(readWorldRoots(shifted.subarray(1)).cells.objects(1), cells[1].objects)
+  assert.deepEqual(cellObjects(readWorldRoots(shifted.subarray(1)), 1), asRead(cells[1]))
 })
 
 test('a binary past 4 GiB is named whole, its offsets in two words', () => {
@@ -57,8 +59,9 @@ test('a binary past 4 GiB is named whole, its offsets in two words', () => {
 
 test('a table that breaks its contract is refused whole', () => {
   const broken: ((spec: ReturnType<typeof worldRootsFixture>['spec']) => void)[] = [
-    // Version 2 named an object root by its instance: an old cache is refused, cooked again.
-    (spec) => (spec.version = 2),
+    // Version 3 wrote a placed object's roots apart and its pages as floats: an old cache is
+    // refused, cooked again.
+    (spec) => (spec.version = 3),
     (spec) => (spec.pinned = 0),
     (spec) => (spec.pinnedTopBytes += 1),
     (spec) => (spec.bundles[2].offset += 4),

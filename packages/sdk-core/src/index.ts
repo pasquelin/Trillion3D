@@ -1,6 +1,7 @@
 export * from './contracts/index.ts'
 export * from './impostor/switch.ts'
 export * from './impostor/plan.ts'
+export { impostorBakedByMesh } from './impostor/switchTable.ts'
 export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
 export * from './bounce/cascades.ts'
@@ -140,10 +141,5 @@ export type { SceneLightStore } from './scene/light/store.ts'
 export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
 export type { Counts } from './manifest/binaryLayout.ts'
 export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts'
-export type {
-  WorldRoots,
-  WorldRootsBundle,
-  WorldRootsObject,
-  WorldRootsPage,
-} from './manifest/worldRoots.ts'
+export type { WorldRoots, WorldRootsBundle, WorldRootsPage } from './manifest/worldRoots.ts'
 export * from './llm/index.ts'

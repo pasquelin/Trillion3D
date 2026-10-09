@@ -1,3 +1,5 @@
+// The fixture's world served over HTTP ranges, as a cache serves `world-roots.*`: what the world
+// roots' tests and the cut's world root read (`worldRoots.test.ts`, `../webgpu/pages/prepare/`).
 import type { TestContext } from 'node:test'
 import { createHash } from 'node:crypto'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'

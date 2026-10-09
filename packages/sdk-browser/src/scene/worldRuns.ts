@@ -43,9 +43,9 @@ export async function readBundle(
   signal: AbortSignal,
   priority: number,
 ) {
-  const { bytes, count } = table.bundles[bundle]
+  const { bytes } = table.bundles[bundle]
   const read = bytes > 0 ? await queue.readBytes(bundleUrl(url, bundle), signal, priority) : null
-  return worldBundlePages(read ?? new Uint8Array(0), count, bundle)
+  return worldBundlePages(table, bundle, read ?? new Uint8Array(0))
 }
 
 /** Bundles `[first, end)` of `table`'s binary at `url`, read by `read` (`rangedReader`) in one
@@ -58,6 +58,7 @@ export async function readSpan(
   [first, end]: readonly [number, number],
   { meter, signal }: { meter: ByteMeter; signal?: AbortSignal },
 ) {
+  if (first >= end) return []
   const bundles = table.bundles.slice(first, end),
     last = bundles[bundles.length - 1]
   const from = bundles[0].offset,
@@ -66,7 +67,7 @@ export async function readSpan(
   const checked = await verifiedRun(run, bytes)
   return checked.map((own, at) => {
     if (!own.bytes) throw own.refused
-    return worldBundlePages(own.bytes, bundles[at].count, first + at)
+    return worldBundlePages(table, first + at, own.bytes)
   })
 }
 

@@ -46,7 +46,8 @@ async function makeCardPipelines(device: GPUDevice) {
       layout,
       vertex: { module, entryPoint: 'card_vs' },
       fragment: { module, entryPoint, targets },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      // Four vertex invocations a card, its two triangles a strip (`card_vs`).
+      primitive: { topology: 'triangle-strip', cullMode: 'none' },
       depthStencil,
     })
   // Compiled together, off the thread (#1362).

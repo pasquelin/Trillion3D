@@ -16,6 +16,7 @@
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
+import { carryCellsMoved } from '../partition/rowCells.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -31,6 +32,9 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
+  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
+   *  among the cell's nodes; a column of its own, absent until a cell places one. */
+  cells?: ({ cell: number; node: number } | undefined)[]
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -57,6 +61,8 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.matrices.set(before.matrices)
     rows.live.set(before.live)
     rows.shadowless.set(before.shadowless)
+    rows.cells = before.cells?.slice()
+    carryCellsMoved(before, rows)
   }
   return rows
 }

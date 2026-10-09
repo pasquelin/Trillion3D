@@ -47,7 +47,7 @@ export class TransformNode extends SceneNode {
   /** Local matrix, a view of this node's slot of the transform tree. */
   get matrix(): Matrix4 {
     markTransformNode(this.state.tree, this.index, NODE_LOCAL_CHANGED | NODE_TRS_DIRTY)
-    noteNodeWrite()
+    noteNodeWrite(this)
     if (!this.adopted) this.local.elements = this.localView = this.localMatrix as Float64Array
     return this.local
   }
@@ -116,7 +116,7 @@ export class TransformNode extends SceneNode {
       return
     }
     markTransformNode(this.state.tree, this.index, NODE_WORLD_NEEDS_UPDATE | NODE_LOCAL_CHANGED)
-    noteNodeWrite()
+    noteNodeWrite(this)
   }
   private owned(matrix: Matrix4) {
     owners.set(matrix, this)
@@ -140,7 +140,7 @@ export class TransformNode extends SceneNode {
     if (this.matrixAutoUpdate) return
     if (keepNumbers(this.localMatrix as Float64Array, own)) return
     markTransformNode(this.state.tree, this.index, NODE_LOCAL_CHANGED | NODE_TRS_DIRTY)
-    noteNodeWrite()
+    noteNodeWrite(this)
   }
   /** Updates its world matrix, the chain's storage of its own taken first (`takeChainStorage`). */
   override updateWorldMatrix(updateParents = true, updateChildren = true) {

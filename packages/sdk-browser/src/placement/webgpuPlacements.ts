@@ -7,8 +7,10 @@ import {
   ownsMove,
 } from '../webgpu/pages/render/movedClusters.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED } from './update.ts'
+import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED, rootRankOfRow } from './update.ts'
+import { takeCellsMoved } from '../partition/rowCells.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
+import { linkWorldObject } from '../webgpu/pages/prepare/worldRoot.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
 export const flipWorld =
@@ -17,6 +19,8 @@ export const flipWorld =
     rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0)
     // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them.
     rt.lights.mobility.touch(rank)
+    // A row parked or taken draws its object, or none, from now on (`worldRoot.ts`).
+    linkWorldObject(rt, rank)
   }
 
 /**
@@ -24,7 +28,9 @@ export const flipWorld =
  * their worlds from the rows, so nothing is copied: their boxes are reprojected, a parked row
  * leaves the GPU cut's first queue and a taken one enters it (`parkWorld`), a row that stops or
  * starts casting leaves or enters every light cut (`markWorld`), the page rows of the
- * roots that read them are rewritten, and them alone (`moveRootRows`), and the frame learns that
+ * roots that read them are rewritten, and them alone (`moveRootRows`), a row whose cell moved or
+ * that was parked or taken is linked to the world object it draws (`linkWorldObject`), and the
+ * frame learns that
  * poses moved — the worlds go up in one write at the next image, and the shadow pages the change
  * touched are drawn again: their moving casters only, once the placements are known to move
  * (`../webgpu/shadow/mobility.ts`). No table is resized and nothing is prepared again.
@@ -53,7 +59,7 @@ export function updateWebgpuPlacements(
       noteOwnMove(rt, rank)
       return mobility.move(rank, world, true)
     },
-    (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
+    (rank) => moveRootRows(rt, layout.selectionRoots[rank], rank),
     (min, max, movingOnly, rank, moveOnly, move) => {
       if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly)
       // A root shown or hidden in place is still as it was: the static slice holds it unless it
@@ -66,10 +72,21 @@ export function updateWebgpuPlacements(
       else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank))
     },
   )
+  // Whether the blend pass draws these rows, asked once and only when needed.
+  let blended: boolean | undefined
+  const drawnBlended = () => (blended ??= placedBy(rt.blendState.blendGpu, rows))
+  // A row its cell placed or left draws that cell's object now, or none (`worldRoot.ts`). A row no
+  // root reads yet keeps its note for the growth that brings its root, unless the blend pass draws
+  // its buffer: no root may ever read it.
+  takeCellsMoved(rows, (index) => {
+    const rank = rootRankOfRow(layout.selectionRoots, rows, index)
+    if (rank >= 0) linkWorldObject(rt, rank)
+    return rank >= 0 || drawnBlended()
+  })
   forgetOwnMoves()
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
-  if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return
+  if (!moved && !drawnBlended()) return
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
   run.gate.engineMovedInPlace()

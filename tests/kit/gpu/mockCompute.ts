@@ -4,11 +4,12 @@ import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/world
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import { compactDrawnPages } from './globals.ts'
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
-import { floats, words } from './mockBuffers.ts'
+import { words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { testBit } from '../../../packages/math/src/scalar/bits.fixture.ts'
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
+import { worldsAtEye } from './mockWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
@@ -123,11 +124,15 @@ export function simulateComputeDispatch(
     ready: residentFlags(cold, dag.pageCount),
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
   }
-  // World matrices are read IN THE BOUND BUFFER, where the shader reads them: image entry writes
-  // them there brought back to the eye, and the view and planes of the same uniform block are of
-  // that frame. A copy made at packing would put absolute worlds under a view with no translation
-  // — two frames in one formula, and not a single page kept.
-  const worlds = floats(byBinding.get(DAG_BINDING.worlds)!.data).subarray(0, dag.worlds.length)
+  // World matrices are read IN THE BOUND BUFFER, where the shader reads them, each translation at
+  // the eye of the same uniform block as the kernel reads it (`mockWorldPose.ts`): the view and
+  // planes are of that frame. A copy made at packing would put absolute worlds under a view with no
+  // translation — two frames in one formula, and not a single page kept.
+  const worlds = worldsAtEye(
+    byBinding.get(DAG_BINDING.worlds)!.data,
+    byBinding.get(DAG_BINDING.views)!.data,
+    dag.worlds.length,
+  )
   // So is each primitive's root, behind its stretch in the frame buffer: a parked one is NONE
   // (`parkWorld`), and the cut skips it as the shader does.
   const frames = words(byBinding.get(DAG_BINDING.frames)!.data)

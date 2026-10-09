@@ -2,7 +2,7 @@
 // holds storage for its entries only.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createSparseInts, grown } from './sparseInts.ts'
+import { createSparseInts } from './sparseInts.ts'
 import { random } from './cutRuleChecks.fixture.ts'
 
 test('random writes, adds and removals read back as a plain map', () => {
@@ -39,10 +39,4 @@ test('storage follows the entries: none before the first, none after the last', 
   map.set(5, 1)
   map.clear()
   assert.ok(map.byteLength > 0 && map.size === 0, 'a cleared scratch map keeps its storage')
-})
-
-test('a grown list keeps what it is asked to keep', () => {
-  const list = Int32Array.of(1, 2, 3, 4)
-  assert.deepEqual([...grown(list, 6, 3)], [1, 2, 3, 0, 0, 0, 0, 0])
-  assert.equal(grown(list, 20).length, 20)
 })

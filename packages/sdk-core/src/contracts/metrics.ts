@@ -98,6 +98,12 @@ export type GpuFrameMs = number | null
   frustumRejected?: number | null
   /** Detail level of the cut. */ lodLevel?: number | null
   /**
+   * The factor the GPU cut's projected-error threshold is cut under: 1, but when the view asks more
+   * than the list one GPU binding holds, where the cut stops at coarser levels until its list fits,
+   * and comes back to 1 once the view asks less. Null without a GPU cut.
+   */
+  cutCoarsening?: number | null
+  /**
    * WebGPU transparent counters. `transparentDrawCalls` counts every draw, both halves of a two-pass
    * material included; `transparentSubmittedTriangles` counts the triangles of the transparent cut
    * once each, whatever the number of passes that rasterise them — the per-pass multiplication is

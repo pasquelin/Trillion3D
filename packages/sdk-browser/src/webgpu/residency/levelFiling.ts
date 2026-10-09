@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import type { createReadbackMerge } from './readbackMerge.ts'
@@ -63,8 +64,8 @@ export function filePage(f: LevelFiling, rec: PageRec) {
   if (f.covers(key) || f.filedBy.get(key)) return
   const visits = f.visits
   if (visits === f.keys.length) {
-    f.keys = grown(f.keys, visits + 1, visits)
-    f.filedLevel = grown(f.filedLevel, visits + 1, visits)
+    f.keys = resized(f.keys, visits + 1)
+    f.filedLevel = resized(f.filedLevel, visits + 1)
   }
   f.keys[visits] = key
   f.filedLevel[visits] = admissionLevel(rec, f.topLevel) + (f.cursor < f.merged.first ? f.lift : 0)
@@ -89,8 +90,8 @@ export function filingFull(f: LevelFiling) {
  */
 export function rankFiling(f: LevelFiling, wanted: Tracking['wanted']) {
   const { floor, taken, end } = countLevels(f)
-  if (f.queue.length < end) f.queue = grown(f.queue, end)
-  if (f.order.length < f.visits) f.order = grown(f.order, f.visits)
+  if (f.queue.length < end) f.queue = resized(f.queue, end)
+  if (f.order.length < f.visits) f.order = resized(f.order, f.visits)
   const { filedLevel, perLevel, order, keys } = f
   for (let i = 0; i < f.visits; i++)
     if (filedLevel[i] >= floor) order[perLevel[filedLevel[i]]++] = i
@@ -113,7 +114,7 @@ function countLevels(f: LevelFiling) {
   const { visits, filedLevel, room } = f
   let top = 0
   for (let i = 0; i < visits; i++) top = Math.max(top, filedLevel[i])
-  if (f.perLevel.length <= top) f.perLevel = grown(f.perLevel, top + 1)
+  if (f.perLevel.length <= top) f.perLevel = resized(f.perLevel, top + 1)
   const perLevel = f.perLevel
   perLevel.fill(0, 0, top + 1)
   for (let i = 0; i < visits; i++) perLevel[filedLevel[i]]++

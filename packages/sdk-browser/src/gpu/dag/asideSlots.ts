@@ -4,13 +4,16 @@ import { SELECTION_HEADER_WORDS } from './layout.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { createDagResources } from './resources.ts'
 import { noteWhole } from './swap.ts'
+import { recutView } from './runtimeState.ts'
+import { createCoarsening } from './coarsening.ts'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
-/** What a copy was cut under, taken when it is copied: the readback's cut is made of it. */
-type Captured = { uniforms: SelectionUniforms; worldRevision: number }
+/** What a copy was cut under, taken when it is copied: the readback's cut is made of it, and the
+ *  factor its threshold was cut under (`coarsening.ts`). */
+type Captured = { uniforms: SelectionUniforms; worldRevision: number; coarsen: number }
 
 /** The fewest ranks of each list a copy after the first takes. */
 const ASIDE_LEAST_RANKS = 1024
@@ -22,7 +25,8 @@ export type AsideSlots = ReturnType<typeof createAsideSlots>
  * The readback slots of a view aside (`aside.ts`): two, each made again larger when a copy needs
  * it, read one after the other. `copied` is the ranks of each list the next copy takes — the whole
  * list until a readback says more —; `inFlight` the cut whose copy is being read, `whole` the last
- * cut read back whole: a cut in neither is owed a copy.
+ * cut read back whole: a cut in neither is owed a copy. `coarse` is what the factor the view's
+ * threshold is cut under follows, its own as the main view's is (`coarsening.ts`).
  */
 export function createAsideSlots(resources: DagResources, state: DagRuntimeState, view: number) {
   const buffers: GPUBuffer[] = []
@@ -35,6 +39,7 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
     inFlight: -1,
     whole: -1,
     last: null as GpuCut | null,
+    coarse: createCoarsening(),
     pending: Promise.resolve() as Promise<unknown>,
     disposed: false,
     /** Slot `i`, made or made again to hold `bytes`. */
@@ -93,7 +98,7 @@ async function readAsideSlot(
     drawn = SELECTION_HEADER_WORDS + ranks
   try {
     if (slots.disposed) return
-    const { parsed, demand, grown } = await readDagSlot(
+    const { parsed, demand, grown, moved, retried } = await readDagSlot(
       own.buffers[i],
       {
         bytes: drawn * 8 + ADMISSION_BUCKETS * 4,
@@ -102,20 +107,31 @@ async function readAsideSlot(
         scratch: own.scratch[i],
         levelsWord: 2 * drawn,
       },
-      { limits: resources.device.limits, pageCount: resources.pageCount, listFull: state.listFull },
+      {
+        limits: resources.device.limits,
+        pageCount: resources.pageCount,
+        listFull: state.listFull,
+        coarse: slots.coarse,
+        cutFactor: read.captured.coarsen,
+      },
     )
     // The next copy follows what the cut asks, twice it, within the list.
     if (demand > slots.copied || 4 * demand < slots.copied)
       slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
     // A cut past its list grows it, as the main cut's does (`listCap.ts`).
     if (grown) state.grow = Math.max(state.grow, grown)
+    // Past the device, its cut coarsens and the view cuts again, its truncated readout adopted
+    // never; the factor follows the readouts cut under it alone.
+    if (moved) recutView(resources.swap, own.view)
+    if (retried && !grown) return
     // Lists copied short of the cut are copied again at their size; a residency moved since names
     // pages the mask no longer draws: the next cut will.
     const whole = demand <= ranks || ranks === listCap
     // Read whole on a list that stays: no copy of this cut is owed any more.
     if (parsed && whole && !grown) slots.whole = read.serial
     if (parsed && whole && read.residency === state.residencyRevision) {
-      slots.last = { ...read.captured, result: parsed }
+      const { uniforms, worldRevision } = read.captured
+      slots.last = { uniforms, worldRevision, result: parsed }
       // Every page its mask draws is in its journal: the swap can bring it back.
       if (!parsed.truncated) noteWhole(resources.swap, own.view, read.serial)
     }

@@ -1,7 +1,7 @@
 import { COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
-import { DOUBLE_WGSL } from './doubleWgsl.ts'
+import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
@@ -11,7 +11,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  *
  * Each frame the CPU sends the eye, and the keys and order of the few own entries it orders itself
  * (`order.ts`); everything else is here. A workgroup loads a block of the pass's seeded entries with
- * their keys — computed in emulated doubles (`doubleWgsl.ts`), so they are the CPU's to the bit —
+ * their keys — computed in emulated doubles (`math/src/wgsl/double.ts`), so they are the CPU's to the bit —
  * and sorts it in its memory; blocks are then merged by a bitonic network, one dispatch per step too
  * wide for a workgroup, the steps that fit finished in the workgroup again. The last dispatch writes
  * the sorted entries where the expansion kernel reads them and where each seed landed;
@@ -243,5 +243,5 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
 `,
-  [orderUniformWgsl(), DOUBLE_WGSL, FLAT_INDEX_WGSL],
+  [orderUniformWgsl(), dAdd, dSub, dMul, FLAT_INDEX_WGSL],
 )

@@ -10,7 +10,7 @@ import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts'
 import { createWebgpuResidencyQueue } from '../residency/queue.ts'
 import { createPageParents } from '../../page/selection/pageParents.ts'
 import type { LowerList } from '../residency/lowerTier.ts'
-import type { GroupClosure } from '../../page/cut/groupClosure.ts'
+import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
 import { readGeometryAhead } from '../row/pageSlots.ts'
 import { markWebgpuLost } from './io/lost.ts'
@@ -18,7 +18,7 @@ import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
 
 /** The row table's sync: the residency mirror, the page-row writer, the row cache. */
-export function createRowSyncFor(rt: WebgpuPagesCore, closure: GroupClosure) {
+export function createRowSyncFor(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages } = rt.layout
   const mirror = createWebgpuResidencyMirror({
@@ -54,8 +54,9 @@ export function createRowSyncFor(rt: WebgpuPagesCore, closure: GroupClosure) {
     packedPages,
     () => !!gpu.cache,
     writePageRow,
-    // A request's readiness needs its groups' rows, each placement's own (`../row/rowDemand.ts`).
-    (ids, visit) => closure.closeOver(ids, visit, undefined, true),
+    // A request's readiness needs its groups' rows, each placement's own: counted closures that
+    // follow the readbacks' differences alone (`../row/rowDemand.ts`).
+    () => createGroupClosure(rt.layout.selectionRoots, rt.layout.placement, packedPages, true),
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare
     // the flag at their next plan (`../shadow/residence.ts`).
     (_rec, page) => (
@@ -79,7 +80,6 @@ export function createBootstrapFor(rt: WebgpuPagesCore, hasBytes: (rec: PageRec)
   const { run, gpu, diag, context } = rt
   return createWebgpuBootstrap({
     pages: rt.setup.bootstrap,
-    urls: rt.setup.bootstrapUrls,
     // The pool the device granted, read when said: prepare grants it after the services exist.
     getSlots: () => rt.setup.slots,
     tracking: rt.setup.tracking,
@@ -120,7 +120,7 @@ export function createResidencyFor(
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
-    bootstrapUrls: rt.setup.bootstrapUrls,
+    bootstrapKey: rt.setup.bootstrapKey,
     deferredDrops: run.deferredDrops,
     byUrl: rt.setup.byUrl,
     parentsOf,
@@ -139,6 +139,7 @@ export function createResidencyFor(
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
     bytesRevision: rows.touchRevision,
+    coverMissing: residencySets.coverMissing,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   })
   const residency = createWebgpuResidencyQueue({

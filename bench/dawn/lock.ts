@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { linkSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { exitOnSignals } from './child.ts'
 
 /** The machine's one bench lock: in the home directory, so every clone and worktree sees it. */
@@ -127,4 +128,22 @@ export function takeBenchLock(what: string, path = BENCH_LOCK): () => void {
     return release
   }
   throw new Error('GPU_BENCH_LOCK: the lock could not be taken')
+}
+
+/** Takes the lock as `takeBenchLock` does, waiting while another live bench holds it: tried again
+ *  every `everyMs`, given up past `timeoutMs` with the holder's `GPU_BENCH_BUSY`. */
+export async function waitBenchLock(
+  what: string,
+  { timeoutMs = 3 * 3600_000, everyMs = 2_000, path = BENCH_LOCK } = {},
+) {
+  const until = Date.now() + timeoutMs
+  for (;;) {
+    try {
+      return takeBenchLock(what, path)
+    } catch (error) {
+      if (!(error as Error).message.startsWith('GPU_BENCH_BUSY') || Date.now() + everyMs > until)
+        throw error
+    }
+    await sleep(everyMs)
+  }
 }

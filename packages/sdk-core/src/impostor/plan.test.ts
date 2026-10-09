@@ -3,7 +3,8 @@
 // meshes of different R and T flip at different distances.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planImpostors, impostorBakedByMesh, type ImpostorRoot } from './plan.ts'
+import { planImpostors, type ImpostorRoot } from './plan.ts'
+import { impostorBakedByMesh } from './switchTable.ts'
 import { impostorSwitchDepth } from './switch.ts'
 import { MAPS, bakedMesh } from './bakedMesh.fixture.ts'
 import type { ImpostorMesh, ImpostorSection } from '../contracts/impostor.ts'

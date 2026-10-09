@@ -14,11 +14,13 @@ import { DAG_REQUEST_WGSL } from '../requestWgsl.ts'
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
+import { DAG_TREE_DESCENT_WGSL, DAG_TREE_PREPARE_WGSL } from './placementTreeWgsl.ts'
+import { DAG_WORLD_GATE_WGSL } from './worldGateWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
-import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
+import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts'
@@ -35,9 +37,9 @@ import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 export const dagSelectionWgsl = (access: WgslDecl = DAG_ACCESS_WGSL) =>
   wgslProgram(
     `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
-struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
-// \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
-// the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
+struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,kind:u32,pad:u32,}
+// \`view\` and \`planes\` are those of the render frame, whose origin is \`cameraWorld\` — the camera sits at zero
+// there —; \`eye\` is that origin in doubles, which every translation a cut reads is taken off (\`worldPoseWgsl.ts\`).
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
 // One block per view (\`viewsWgsl.ts\`): block 0 also carries what the views share — counts, caps, flags — and the
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
@@ -60,7 +62,9 @@ const FAR_PLANE:u32=4u;
 /** True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
  *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
  *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
-fn farless()->bool{return isNanWord(bitcast<u32>(views[vi].planes[FAR_PLANE].x));}
+fn farless()->bool{return farlessOf(vi);}
+/** \`farless\` of view \`v\`. */
+fn farlessOf(v:u32)->bool{return isNanWord(bitcast<u32>(views[v].planes[FAR_PLANE].x));}
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
 fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
@@ -82,8 +86,10 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
  *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
  *  derives once per primitive (\`primitiveWgsl.ts\`).
- *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. Each
- *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
+ *  Without a placement tree, one thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot
+ *  is its primitive, each range's dispatch takes its range's slots (\`rangeSlot\`). With one, the
+ *  tree's top nodes and the world DAG's root alone (\`prepareTreeRoots\`): a member is its kept
+ *  group's to prepare. The first range's dispatch resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let head=rangeFirst()==0u;let i=flatIndex(id,n,64u);
@@ -94,19 +100,13 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
  if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
  if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
+ if(hasTree()){prepareTreeRoots(i);return;}
  let world=views[0u].worldCount;
  if(i>=rangeCount()*views[0u].viewCount){return;}
- let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
- // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // camera cut opens none on a primitive its impostor card draws (\`markOf\`, \`drawsCard\`).
- let mark=markOf(w);
- let skips=(mark&${CARD_ROOT}u)!=0u;
- let root=select(rootOf(w),0xffffffffu,skips);
- setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
- let pose=worldPose(w);let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
- // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
- let open=unculledOf(w);
- putPlanes(base,m,vi,open);preparePrimitive(w,pose,m,open);
+ let t=rangeSlot(i);vi=t/world;let w=t-vi*world;
+ // The primitive's root opens the descent: one thread, one root, no counter to contend for, unless
+ // its gate closes it (\`opensRoot\`).
+ openRoot(t,w);
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -155,6 +155,9 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_WANTED_WGSL,
       DAG_LIVE_WGSL,
       DAG_LEVEL_WGSL,
+      DAG_TREE_DESCENT_WGSL,
+      DAG_TREE_PREPARE_WGSL,
+      DAG_WORLD_GATE_WGSL,
       DAG_LAST_USE_WGSL,
       DAG_EVICT_WGSL,
       DAG_FLOOR_WGSL,

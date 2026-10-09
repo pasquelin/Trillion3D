@@ -16,7 +16,6 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { multiplyMatrix4, worldToRenderOrigin } from '../../../sdk-core/src/index.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
-import { sameRenderOrigin } from './renderOrigin.ts'
 import { engineCamera } from './camera.fixture.ts'
 import { createEngineCamera, readCameraWorld } from './world.ts'
 import { holdCameraWorld } from './engineCamera.ts'
@@ -112,12 +111,4 @@ test('a held view keeps its render frame: holdCameraWorld copies it too', () => 
   readCameraWorld(source, tournee)
   assert.notDeepEqual([...source.viewRelative], before, 'witness: the source has indeed changed')
   memesNombres(gelee.viewRelative, before, 'the held copy has not moved')
-})
-
-test('an origin never set differs from everything: the first frame rebases', () => {
-  const jamais = new Float64Array([NaN, NaN, NaN])
-  assert.equal(sameRenderOrigin(jamais, [0, 0, 0]), false)
-  assert.equal(sameRenderOrigin(jamais, jamais), false)
-  assert.equal(sameRenderOrigin([1, 2, 3], [1, 2, 3]), true)
-  assert.equal(sameRenderOrigin([1, 2, 3], [1, 2, 3.0001]), false)
 })

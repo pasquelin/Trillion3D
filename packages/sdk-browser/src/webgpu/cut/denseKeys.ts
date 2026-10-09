@@ -1,4 +1,5 @@
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * Membership over integer keys, with the members listed densely in a typed array. Testing, adding
@@ -36,7 +37,7 @@ export function createDenseKeySet(mirror?: unknown[]) {
     /** True when the key was not a member yet; `value` fills the mirror entry beside it. */
     add(key: number, value?: unknown) {
       if (rank.get(key) !== 0) return false
-      if (count === list.length) list = grown(list, count + 1, count)
+      if (count === list.length) list = resized(list, count + 1)
       rank.set(key, count + 1)
       list[count] = key
       if (mirror) mirror[count] = value
@@ -65,4 +66,25 @@ export function createDenseKeySet(mirror?: unknown[]) {
       if (mirror) mirror.length = 0
     },
   }
+}
+
+/** Keys listed once each, handed out increasing (`takeSorted`): the moved placements, the tree
+ *  nodes a refit rewrote, the card records written. */
+export type SortedKeys = { listed: DenseKeySet; sorted: Int32Array }
+
+export const createSortedKeys = (): SortedKeys => ({
+  listed: createDenseKeySet(),
+  sorted: new Int32Array(8),
+})
+
+/** The keys listed since the last take, increasing, the list emptied: a view the next take
+ *  overwrites. */
+export function takeSorted(keys: SortedKeys) {
+  const { list, count } = keys.listed
+  keys.sorted = resized(keys.sorted, count)
+  const ranks = keys.sorted.subarray(0, count)
+  ranks.set(list.subarray(0, count))
+  ranks.sort()
+  keys.listed.clear()
+  return ranks
 }

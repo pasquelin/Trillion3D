@@ -12,6 +12,11 @@ import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 
+/** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
+ *  object the main view holds for the selection's life, or each view aside its own, never another
+ *  view's — (`../dag/runtime.ts`, `syncTables`). */
+export type TableSync = (uniforms: SelectionUniforms, view: object) => void
+
 export const SELECTION_NONE = 0xffffffff,
   SELECTION_WORKGROUP = 64
 
@@ -93,9 +98,16 @@ export type GpuSelection = {
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
   readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
-  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
-   *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
-  updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean
+  /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
+   *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
+   *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
+   *  translation —, increasing, a view the next call overwrites: what the placement tree and the
+   *  impostor cards follow (`../dag/treeFollow.ts`). Advances `worldRevision` when one moved. */
+  updateWorlds(worlds: Float32Array, named?: Int32Array): Int32Array
+  /** Placement `world` is posed on the GPU by its parent from now on, or no longer
+   *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
+   *  host holds is written again over the one its parent composed. */
+  composedPlacement(world: number, composed: boolean): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */
@@ -103,6 +115,9 @@ export type GpuSelection = {
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean
+  /** The factor the main view's projected-error threshold is cut under: 1 but past the list one
+   *  binding holds, where the cut coarsens until it fits (`../dag/coarsening.ts`). */
+  readonly coarsen: number
   /** `roots` — later placements of primitives it holds — appended behind its own, in the room
    *  its tables kept (`../dag/pack.ts`, `appendDagRoots`), cut from the next dispatch on. False
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
@@ -112,6 +127,14 @@ export type GpuSelection = {
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
   markWorld(world: number, mark: number): void
+  /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
+   *  for it where its object's group suffices (`../dag/worldFollow.ts`); nothing without a world. */
+  placeObject(world: number, object: number): void
+  /** Whether placement `world` is linked to an object of the world DAG, whose super-roots stand in
+   *  for it far away (`../dag/worldFollow.ts`); never without a world. */
+  worldStandsIn(world: number): boolean
+  /** Told of each placement whose link to the world DAG moved (`placeObject`). */
+  linkMoved?: (world: number) => void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */

@@ -11,6 +11,7 @@ import {
 } from './fakeRecords.ts'
 import { validating } from './validation.ts'
 import { bundleMaker } from './fakeBundles.ts'
+import { fakeEncoder } from './fakeEncoder.ts'
 
 export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts'
 
@@ -134,22 +135,7 @@ export function fakeDevice({
       if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
       return scopes.pop() ?? null
     },
-    createCommandEncoder: () => ({
-      copyBufferToBuffer: (
-        from: GPUBuffer,
-        fromOffset: number,
-        to: GPUBuffer,
-        toOffset: number,
-        size: number,
-      ) => void copies.push({ from, fromOffset, to, toOffset, size }),
-      clearBuffer() {},
-      copyTextureToTexture: (
-        from: GPUTexelCopyTextureInfo,
-        to: GPUTexelCopyTextureInfo,
-        size: GPUExtent3D,
-      ) => void textureCopies.push({ from, to, size }),
-      finish: () => ({}),
-    }),
+    createCommandEncoder: () => fakeEncoder(copies, textureCopies),
     queue: {
       writeBuffer(
         buffer: GPUBuffer,

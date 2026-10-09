@@ -12,7 +12,7 @@ import { heldBy } from '../scene/worldRoots.fixture.ts'
 const SIDE = 100,
   CELLS = SIDE * SIDE,
   /** The queue's transfers. */ K = 6,
-  PAGE = worldPage(0).byteLength
+  PAGE = worldPage(0).bytes.byteLength
 /** A turn of the event loop: what a read takes, and every promise it settles. */
 const turn = () => new Promise(setImmediate)
 

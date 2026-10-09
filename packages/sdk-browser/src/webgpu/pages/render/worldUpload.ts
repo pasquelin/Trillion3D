@@ -1,92 +1,119 @@
-import { sameRenderOrigin } from '../../../camera/renderOrigin.ts'
-import {
-  rootTranslationsToRenderOrigin,
-  rootWorldsMoved,
-  rootWorldsToRenderOrigin,
-} from '../../../gpu/dag/pack.ts'
+import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
-import { followHostVisibility } from '../../../placement/hidden.ts'
+import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
+import { takeSorted } from '../../cut/denseKeys.ts'
+import { resized } from '../../../../../math/src/sequence/resized.ts'
+import { finishMoves, noteMoved } from './movedBatch.ts'
+import { appendRootsUnder, appendUnder } from './movedNode.ts'
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-
-/** The scene revision whose worlds a buffer last received whole, and each root's translation as
- *  that rebase read it, three doubles per root: an image at the same revision only moved the eye,
- *  and rewrites the three translation numbers of each root alone, from those doubles. Every pose
- *  write moves the scene revision (`../../../frame/gateCore.ts`, `sceneChanged`, `sceneMoved`), so
- *  at the same revision no root's matrix moved — the linear part the rebase leaves in place, as the
- *  translation it kept. */
-const fullyRebased = new WeakMap<Float32Array, { scene: number; translations: Float64Array }>()
 
 /**
  * Brings the scene's world matrices to the image. A world matrix is a function of the scene alone:
  * an image that nothing touched would find them all identical. The engine index is therefore only
  * recomputed at a scene-revision change, and a node that `setWebgpuTransform` just moved has
- * already recomputed it — and rewritten its own rows (`movedRoot.ts`). Only a host write, whose
- * moved roots nobody named, walks it here, and then rewrites every row the GPU cut reads. Returns
- * whether the poses moved.
+ * already recomputed it — and rewritten its own rows (`movedRoot.ts`). A host write is followed
+ * the same way: the nodes it wrote, as the scene watch heard them, name the roots under them
+ * (`noteMoved`), whose rows alone are rewritten and whose worlds alone go up; the nodes it showed,
+ * hid or set to cast or not flip the roots under them alone. Only a scene that changed shape walks
+ * every root, and then rewrites every row the GPU cut reads. Returns whether the poses moved.
+ *
+ * A camera that moves sends nothing: the cut's worlds are held in single precision with their
+ * exact translations beside them, and each cut reads a translation at its own eye
+ * (`../../../gpu/dag/shader/worldPoseWgsl.ts`). A frame's CPU follows what moved, never the
+ * world's placements.
  */
-export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+export function uploadWorlds(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     { selectionRoots, worldUpdates, rows } = rt.layout
-  const hostWalked = run.gate.updateWorlds(rt.setup.worlds)
+  const write = run.gate.updateWorlds(rt.setup.worlds, (nodes) => noteMoved(rt, nodes))
+  const reshaped = !!write && write.reshaped
   // The deformation's staleness noted before this refresh (`pending`, read by the hold) compared
   // the worlds the host has since rewritten: the frame's `update` reads them again.
-  if (hostWalked) rt.vis.deformation?.frame.forget()
+  if (write) rt.vis.deformation?.frame.forget()
+  // The poses the host wrote: their roots' rows, boxes and motion, the revision already bumped.
+  if (write && !reshaped) finishMoves(rt, false)
+  // A cut made beside the running one takes every world at its swap (`replayMoves`).
+  if (reshaped && run.movedWorlds.since) run.movedWorlds.since.walked = true
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
   // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
   // roots covered are drawn again, static casters included unless every root that flipped was
   // moving already: the static layer never held those (`../../shadow/mobility.ts`).
-  if (hostWalked) {
+  if (reshaped || (write && write.flipped.length)) {
+    const blend = rt.blendState.blendGpu
     const flipped = followHostVisibility(
       selectionRoots,
-      { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
+      { entries: blend, sourceOf: blendSource },
       flipWorld(rt),
       rt.lights.mobility.moves,
+      reshaped ? undefined : underFlipped(rt, write.flipped),
     )
     if (flipped) rt.lights.changes.worldChanged(flipped.min, flipped.max, flipped.movingOnly)
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
-  // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
-  // a camera that moves therefore changes these sixteen numbers just as much as a moved node. Both
-  // causes lead to the same resend, but they do not invalidate the same thing — a surface moved
-  // in one case, in the other the same point is rewritten in a closer frame, and nothing the
-  // records, the occluders or the cut in hand describe has changed.
-  const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye)
-  const rebased = worldsMoved || originMoved
-  rt.timing.worldCounts.rootsRebased = rebased ? selectionRoots.length : 0
-  // A host write while the eye moves — a light dimmed during a camera flight — sends worlds the
-  // cut finds changed, since each is brought back to the new eye: whether a pose moved is read
-  // against the previous rebase, at its own origin, before the new one overwrites it.
-  const held = fullyRebased.get(worldUpdates)
-  const posesMoved =
-    !(hostWalked && worldsMoved && originMoved) ||
-    held === undefined ||
-    rootWorldsMoved(worldUpdates, selectionRoots, run.worldUploadOrigin)
-  let posted: boolean | undefined
-  if (rebased) {
-    const scene = run.gate.revisions.scene,
-      count = selectionRoots.length * 3
-    run.worldUploadRevision = scene
-    run.worldUploadOrigin.set(cam.eye)
-    // The doubles a rebase of these roots kept, or a table for this one to keep them in.
-    const kept = held?.translations.length === count ? held : undefined,
-      translations = kept?.translations ?? new Float64Array(count)
-    const translationsOnly = !worldsMoved && kept?.scene === scene
-    // The subtraction is done in double, the single-precision rounding comes after it.
-    if (translationsOnly) rootTranslationsToRenderOrigin(worldUpdates, translations, cam.eye)
-    else rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye, translations)
-    posted = run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved, translationsOnly)
-    // A send the cut refused — or threw on — leaves it holding older worlds: sent whole next time.
-    if (posted === false) fullyRebased.delete(worldUpdates)
-    else if (!translationsOnly) fullyRebased.set(worldUpdates, { scene, translations })
+  rt.timing.worldCounts.rootsUploaded = 0
+  if (!worldsMoved) return false
+  run.worldUploadRevision = run.gate.revisions.scene
+  // The placements a call or a host write moved, each named beside its rows' write
+  // (`movedWorlds.ts`): their worlds alone go up — a write that moved no pose, a light dimmed, names
+  // none and sends nothing. A scene that changed shape names none: every one does. The GPU cut
+  // says which poses its send moved (`updateWorlds`) — without one, those named, or those a scan
+  // finds —, and the impostor cards follow those alone.
+  const named = takeSorted(run.movedWorlds),
+    selection = run.gpuSelection,
+    cards = rt.gpu?.impostors
+  if (!reshaped) {
+    rootWorlds(worldUpdates, selectionRoots, named)
+    rt.timing.worldCounts.rootsUploaded = named.length
+    const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
+    cards?.worldsMoved(moved)
+    return true
   }
-  // A host write names no root: every row's world matrix, the only shared input to a row the
-  // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
-  // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.
-  if (hostWalked && worldsMoved && posted !== false && posesMoved) {
+  rt.timing.worldCounts.rootsUploaded = selectionRoots.length
+  // A reshape that moved no pose keeps the table. The GPU cut compares the worlds it holds with
+  // those sent, and says so; without one, the host scans.
+  let moved: Int32Array
+  if (selection) {
+    rootWorlds(worldUpdates, selectionRoots)
+    moved = selection.updateWorlds(worldUpdates)
+  } else {
+    const scanned = (rt.layout.worldsScanned = resized(
+      rt.layout.worldsScanned,
+      selectionRoots.length,
+    ))
+    moved = rootWorldsMoved(worldUpdates, selectionRoots, scanned)
+    rootWorlds(worldUpdates, selectionRoots)
+  }
+  cards?.worldsMoved(moved)
+  // A scene that changed shape names no root: every row's world matrix, the only shared input to
+  // a row the scene can still change after `prepare()`, is written again.
+  if (moved.length) {
     rows.tableEpoch++
     invalidateOccluderHistory(run)
   }
-  return worldsMoved
+  return true
+}
+
+/** The roots and the see-through draws under the nodes `flipped`, read in the tree
+ *  (`appendUnder`) — one under two listed twice, its second read leaving it as the first —:
+ *  what a flip reads, none other. */
+function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
+  const roots = rt.layout.selectionRoots,
+    blend = rt.blendState.blendGpu
+  let rootCount = 0,
+    blendCount = 0
+  for (const node of flipped) {
+    rootCount = appendRootsUnder(roots, node, flippedRoots, rootCount)
+    blendCount = appendUnder(blend, blendSource, node, flippedBlend, blendCount)
+  }
+  under.roots.count = rootCount
+  under.seeThrough.count = blendCount
+  return under
+}
+const flippedRoots: number[] = [],
+  flippedBlend: number[] = []
+const under = {
+  roots: { ranks: flippedRoots, count: 0 },
+  seeThrough: { ranks: flippedBlend, count: 0 },
 }

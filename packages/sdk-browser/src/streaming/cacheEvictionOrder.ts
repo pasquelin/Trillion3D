@@ -1,4 +1,4 @@
-import { createHeap } from './heap.ts'
+import { createHeap } from '../../../math/src/sequence/heap.ts'
 
 /** A page's last touch and its place in the heap. */
 type Stamp = { key: string; stamp: number; slot: number }
@@ -9,7 +9,7 @@ type Stamp = { key: string; stamp: number; slot: number }
  *
  * Each touch stamps its page with a counter that only grows, so the stamps order the pages exactly
  * as the cache's `Map` does (a touch re-inserts). The pages that may leave sit in the streaming
- * layer's one heap (`heap.ts`), ordered by stamp. A page is taken OUT of the heap the moment it
+ * engine's one heap (`math/src/sequence/heap.ts`), ordered by stamp. A page is taken OUT of the heap the moment it
  * becomes held (`hold`: a pin added, a transfer started) and put back at its stamp the moment it
  * is let go (`release`), so the heap never holds a held page and its top is always the first page `evictOldest(pages.keys(),
  * over, held, …)` takes: the same victims, in the same order.
@@ -29,7 +29,7 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
   const stamps = new Map<string, Stamp>()
   /** Pages the session holds, cached or not yet: they never enter the heap. */
   const held = new Set<string>()
-  /** The pages that may leave, the least recently touched first (`heap.ts`). */
+  /** The pages that may leave, the least recently touched first (`math/src/sequence/heap.ts`). */
   const heap = createHeap<Stamp>(
     (a, b) => a.stamp < b.stamp,
     (entry, at) => (entry.slot = at),

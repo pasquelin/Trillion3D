@@ -1,5 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts'
-import { grown } from '../../world/transform-tree/storage.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
@@ -44,9 +44,9 @@ export function createSceneLightStore() {
   /** Twice the room, content kept: N lights cost log N copies. */
   const grow = () => {
     capacity = Math.max(capacity * 2, 32)
-    packed = grown(packed, Float32Array, baseOf(capacity))
+    packed = resized(packed, baseOf(capacity))
     header = new Uint32Array(packed.buffer, 0, SCENE_LIGHT_HEADER_FLOATS)
-    revision = grown(revision, Uint32Array, capacity)
+    revision = resized(revision, capacity)
   }
   grow()
   /** A light's atlas slice lives in the buffer itself: it is not held twice. */

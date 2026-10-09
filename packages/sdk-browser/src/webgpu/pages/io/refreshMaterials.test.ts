@@ -119,7 +119,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
         rootOfPacked: Int32Array.from([0]),
       },
     },
-    run: { gate: { sceneMoved() {} } },
+    run: { gate: { movedInPlace() {} } },
     vis: {},
   } as unknown as Parameters<typeof refreshWebgpuMaterials>[0]
   const alpha = { surfaces: [material], from: 'mask', to: 'mask' } as const

@@ -77,3 +77,29 @@ test('shadow casters fill only what the camera leaves: never pinned, never evict
   assert.ok(cache.get('sh1'), 'the caster still wanted stays')
   assert.equal(cache.get('sh2'), undefined, 'and no other caster takes its place')
 })
+
+test('a burst of pages the pool holds settles in a few microtasks, none admitted', async () => {
+  const pages = Array.from({ length: 2000 }, (_, k) => pageOf(`p${k}`))
+  const tracking = createWebgpuPageTracking(pages)
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
+  let loads = 0
+  const cache = {
+    get: (url: string) => ({ key: url }),
+    async load() {
+      loads++
+    },
+    pin() {},
+  }
+  // The microtasks the pass takes, counted until it settles.
+  let ticks = 0,
+    settled = false
+  const tick = () => {
+    if (settled) return
+    ticks++
+    queueMicrotask(tick)
+  }
+  queueMicrotask(tick)
+  await ensurer(tracking, cache)(pages, 1, 1).then(() => (settled = true))
+  assert.equal(loads, 0, 'nothing admitted')
+  assert.ok(ticks < 20, `${ticks} microtasks for ${pages.length} pooled pages`)
+})

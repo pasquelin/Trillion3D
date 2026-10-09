@@ -22,14 +22,13 @@ import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  * which `dagWanted` then dispatches over. The pass count is the hierarchy depth,
  * known at packing and small.
  *
- * A level pass is launched FLAT, not indirectly, and that is what prices descent.
- * Pass `L`'s queue only holds children of nodes kept at level `L-1`, hence only
- * nodes of level `L`, written compacted from zero: that level's node count, which
- * packing counts once and for all (`hierarchyLevelSizes`), upper-bounds it. Children
- * past the queue count leave on the guard, as they already did. That bound avoids
- * copying the dispatch argument's head word to an indirection buffer before each
- * pass, and nothing else: the whole descent fits in the head pass. What that is
- * worth is measured and written once, next to `hierarchyLevelSizes` (`../hierarchy.ts`).
+ * Pass `L`'s queue only holds children of nodes kept at level `L-1`, hence only nodes of level
+ * `L`, written compacted from zero. Levels 0 and 1 are launched FLAT: their counts are small and
+ * known — the queue 0 entries, then the stage packing counts (`hierarchyLevelSizes`). Deeper, a
+ * stage counts every placement's nodes of that level, the world's, so each level is launched on what
+ * the level before it deposited: the queue's groups open as it fills (`openSlice`) and are armed in
+ * the pass (`armWgsl.ts`), one more dispatch of the head pass, never a copy outside it. Entries past
+ * the queue count leave on the guard.
  *
  * THREE queues in rotation, not two: the counter of the queue a level will fill must
  * be zero before it writes there, and with two queues that reset could only come from
@@ -41,8 +40,8 @@ import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  *
  * No new buffer for all that: the eight storage buffers per stage ceiling is reached. Queue 0
  * occupies the range node flags used, queues 1 and 2 follow the candidates, and the counters
- * extend `work` behind those of the live list. A queue has no group count: nobody reads it
- * indirectly.
+ * extend `work` behind those of the live list, its group count behind the kept lists'
+ * (`queueGroups`).
  *
  * The candidate list and the drawn log share a range: `dagClearDrawn` (`swapWgsl.ts`) reads it as
  * a log at the very start of the frame, level passes then write it as candidates,
@@ -60,6 +59,8 @@ export const DAG_LEVEL_WGSL = wgslBlock(
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
+/** Queue \`q\`'s group count, x then y, which a level past the first dispatches on (\`armWgsl.ts\`). */
+fn queueGroups(q:u32)->u32{return listGroups(3u+q);}
 fn candCounter()->u32{return liveCounter()+6u;}
 fn candGroups()->u32{return candCounter()+1u;}
 fn drawnCounter()->u32{return liveCounter()+9u;}
@@ -80,22 +81,25 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
   if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
  }
 }
-/** The same append, without a group count: descent queues are read flat. */
+/** The same append on a descent queue, its group count opened as it fills: a level past the
+ *  first is dispatched on what the level before it deposited (\`../encode.ts\`). */
 fn queueAppend(dst:u32,first:u32,count:u32){
  let at=atomicAdd(&work[queueCounter(dst)],count);
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){
   if(at+k>=views[0u].queueCap){dropWork();return;}
   setFlag(base+at+k,packEntry(vi,first+k));
+  if(((at+k)&63u)==0u){openSlice(queueGroups(dst),(at+k)>>6u);}
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
-/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
- *  thread per primitive has just deposited its own, at its own rank, with no counter to contest. */
+/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
+ *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
  atomicStore(&work[liveCounter()],0u);resetGrid(liveGroups());
- atomicStore(&work[queueCounter(0u)],views[0u].worldCount*views[0u].viewCount);
+ atomicStore(&work[queueCounter(0u)],rootSlots()*views[0u].viewCount);
  atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
+ for(var q=0u;q<${LEVEL_QUEUES}u;q++){resetGrid(queueGroups(q));}
  atomicStore(&work[candCounter()],0u);resetGrid(candGroups());
  atomicStore(&work[drawnCounter()],0u);resetGrid(drawnGroups());
 }
@@ -105,12 +109,22 @@ fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+
  *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
 fn levelStep(src:u32,s:u32){
  // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
- if(s==0u){atomicStore(&work[queueCounter((src+2u)%${LEVEL_QUEUES}u)],0u);}
+ // Its first thread always runs: a level past the first dispatches one workgroup at least.
+ if(s==0u){let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));}
  if(s>=min(atomicLoad(&work[queueCounter(src)]),views[0u].queueCap)){return;}
  let entry=flagAt(queueBase(src)+s);
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
- let node=nodeAt(entryIndex(entry));
+ let index=entryIndex(entry);
+ // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).
+ if(index>=views[0u].nodeCount){placementStep(src,index-views[0u].nodeCount);return;}
+ nodeStep(src,index);
+}
+/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of a
+ *  placement's own hierarchy, whose root its gate already opened (\`opensRoot\`). */
+fn nodeStep(src:u32,index:u32){
+ let node=nodeAt(index);
+ if(node.kind!=0u){treeStep(src,node);return;}
  let w=node.worldIndex;
  if(!inRange(w)){return;}
  deformReach=reachOf(w);
@@ -122,24 +136,29 @@ fn levelStep(src:u32,s:u32){
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
- if(tooCoarse(node,e,stretch,focal)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
- if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){descendAhead(src,node,w);return;}
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
+ if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
+ if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w);return;}
  descend(src,node);
 }
-/** Too coarse under the view \`vi\`: no cluster of the subtree is fine enough. */
-fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
- return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
+/** Too coarse under the view \`vi\` and its threshold \`t\`: no cluster of the subtree is fine enough. */
+fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
+ return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=t;
 }
 /** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
-/** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
- *  (\`rangeSlot\`). Queue 0 reused deeper (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
+/** Pass 0: without a tree, queue 0 holds one root per slot, so a range's dispatch reads its own
+ *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch
+ *  reads whole, each node keeping its own range's. Queue 0 reused deeper (level 3, 6…) mixes
+ *  primitives: read whole (\`dagLevel0\`). */
 @compute @workgroup_size(64)
-fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,rangeSlot(flatIndex(id,n,64u)));}
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,64u);
+ levelStep(0u,select(rangeSlot(i),i,hasTree()));
+}
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id,n,64u));}
 @compute @workgroup_size(64)

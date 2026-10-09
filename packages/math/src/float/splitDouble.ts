@@ -37,3 +37,21 @@ export function floorFloat32(value: number) {
   bits[0] += nearest > 0 ? -1 : 1
   return rounded[0]
 }
+
+/** Writes `count` of `values` from `from` — all of them by default — as doubles in the shaders'
+ *  form (`../wgsl/double.ts`), high word then low word, from word `at`. */
+export function packDoubles(
+  out: Uint32Array,
+  at: number,
+  values: ArrayLike<number>,
+  from = 0,
+  count = values.length - from,
+) {
+  for (let k = 0; k < count; k++) {
+    cell[0] = values[from + k]
+    out[at + k * 2] = cellWords[1]
+    out[at + k * 2 + 1] = cellWords[0]
+  }
+}
+const cell = new Float64Array(1),
+  cellWords = new Uint32Array(cell.buffer)

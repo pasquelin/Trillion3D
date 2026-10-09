@@ -5,8 +5,36 @@ import { FLOAT32_STEP } from '../constants.ts'
  * pose is the one node already holds. Every caller wrote its own loop; they all read
  * the same arithmetic, float by float without tolerance.
  */
-export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
-  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== now[i]) return false
+export function sameElements(
+  held: ArrayLike<number>,
+  now: ArrayLike<number>,
+  heldAt = 0,
+  nowAt = 0,
+) {
+  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== now[nowAt + i]) return false
+  return true
+}
+
+/** The indices of a column-major matrix's linear part, its upper-left 3×3: what a stretch, a
+ *  radius or an inverse without translation reads of it. */
+export const LINEAR_PART = [0, 1, 2, 4, 5, 6, 8, 9, 10] as const
+
+/** True when the linear part of the matrix `now` holds from `nowAt` is the one `held` holds from
+ *  `heldAt`, each number at its own index (`LINEAR_PART`), float for float: a pose that moved
+ *  without turning or scaling. */
+export function sameLinearPart(
+  held: ArrayLike<number>,
+  now: ArrayLike<number>,
+  heldAt = 0,
+  nowAt = 0,
+) {
+  for (const k of LINEAR_PART) if (held[heldAt + k] !== now[nowAt + k]) return false
+  return true
+}
+
+/** `sameLinearPart` against float32 numbers: `held`'s are `now`'s rounded to float32. */
+export function sameLinearPartFloat32(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
+  for (const k of LINEAR_PART) if (held[heldAt + k] !== Math.fround(now[k])) return false
   return true
 }
 

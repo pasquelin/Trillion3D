@@ -60,11 +60,11 @@ export interface WebgpuTimingState {
      *  never those of the current image. `-1` until a sample has come back. */
     sampledFrame: number
   }
-  /** What the world step walks: counts, never durations. `roots` is how many root matrices one
-   *  rebase brings back to the eye, the layout's roots; `rootsRebased` is how many this image
-   *  did — all of them when the camera or the scene moved, none otherwise, so a held or still image
-   *  reports zero. */
-  worldCounts: { roots: number; rootsRebased: number }
+  /** What the world step walks: counts, never durations. `roots` is the layout's roots;
+   *  `rootsUploaded` how many root worlds this image sent — those a call named, every one after a
+   *  host walk, none otherwise, so a held or still image, a moving camera's included, reports
+   *  zero. */
+  worldCounts: { roots: number; rootsUploaded: number }
   /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
     rowsUploaded: number
@@ -143,7 +143,7 @@ export function createWebgpuTimingState(
       get roots() {
         return roots()
       },
-      rootsRebased: 0,
+      rootsUploaded: 0,
     },
     encodeCounts: {
       rowsUploaded: 0,

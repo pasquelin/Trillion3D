@@ -1794,6 +1794,7 @@
       "cacheMisses": "Lectures de pages absentes du cache.",
       "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.",
       "lodLevel": "Niveau de détail de la coupe.",
+      "cutCoarsening": "Le facteur sous lequel est coupé le seuil d’erreur projetée de la coupe GPU : 1, sauf quand la vue demande plus que la liste qu’un seul binding GPU peut tenir, où la coupe s’arrête à des niveaux plus grossiers jusqu’à ce que sa liste tienne, et revient à 1 dès que la vue demande moins. Null sans coupe GPU.",
       "transparentMeshes": "Compteurs transparents de WebGPU. `transparentDrawCalls` compte chaque dessin, les deux moitiés d’un matériau en deux passes comprises ; `transparentSubmittedTriangles` compte les triangles de la coupe transparente une fois chacun, quel que soit le nombre de passes qui les rastérisent — la multiplication par passe est celle du GPU, puisque les nombres d’instances sont écrits par le compactage et jamais relus. Null quand ils ne sont pas disponibles.",
       "transparentFrustumRejected": "Clusters transparents hors de la vue.",
       "transparentDrawCalls": "Appels de dessin transparents.",
@@ -4643,8 +4644,9 @@
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
       "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
       "capacity": "Rangées qui tiennent avant qu’il grandisse.",
-      "sources": "Propriétaires source originaux, maintenus vivants lorsque les lignes sont réutilisées.",
-      "sourceModels": "Maillages dont les ressources sont partagées, y compris pour les lignes en attente."
+      "sources": "Propriétaires originaux des rangées en miroir ; leurs sources d’animation restent vivantes quand les rangées sont réutilisées.",
+      "sourceModels": "Maillages qui partagent cette ressource, y compris ceux qui attendent une rangée de placement.",
+      "cells": "Où se trouve chaque rangée qu’une partition a placée (`../partition/rowCells.ts`) : sa cellule et son rang parmi les nœuds de la cellule ; une colonne à part, absente tant qu’une cellule n’en place pas."
     }
   },
   "Plane": {
@@ -6544,6 +6546,7 @@
       "cacheMisses": "Lectures de pages absentes du cache.",
       "frustumRejected": "Ce que la coupe a jeté sans le garder. Sur la coupe du DAG par GPU, qui parcourt la hiérarchie de tri niveau par niveau, ce sont les nœuds jetés par la descente — hors du frustum, ou dont le plafond d’erreur de remplacement passe déjà sous le seuil — plus les pages candidates qu’un test par page jette ensuite. Un nœud jeté compte pour un, quel que soit le nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.",
       "lodLevel": "Niveau de détail de la coupe.",
+      "cutCoarsening": "Le facteur sous lequel est coupé le seuil d’erreur projetée de la coupe GPU : 1, sauf quand la vue demande plus que la liste qu’un seul binding GPU peut tenir, où la coupe s’arrête à des niveaux plus grossiers jusqu’à ce que sa liste tienne, et revient à 1 dès que la vue demande moins. Null sans coupe GPU.",
       "transparentMeshes": "Compteurs transparents de WebGPU. `transparentDrawCalls` compte chaque dessin, les deux moitiés d’un matériau en deux passes comprises ; `transparentSubmittedTriangles` compte les triangles de la coupe transparente une fois chacun, quel que soit le nombre de passes qui les rastérisent — la multiplication par passe est celle du GPU, puisque les nombres d’instances sont écrits par le compactage et jamais relus. Null quand ils ne sont pas disponibles.",
       "transparentFrustumRejected": "Clusters transparents hors de la vue.",
       "transparentDrawCalls": "Appels de dessin transparents.",
@@ -7570,7 +7573,7 @@
       "pinnedTopBytes": "Les octets du sommet épinglé.",
       "payload": "Le binaire où les paquets se suivent : son adresse, son empreinte et sa longueur.",
       "bundles": "Les paquets, dans l’ordre du binaire.",
-      "pages": "Les pages : combien, et d’une son paquet, son décalage dedans, son niveau et son erreur, lus à son enregistrement.",
+      "pages": "Les pages : combien, et d’une son paquet, son décalage dedans, sa longueur, son niveau et son erreur, lus à son enregistrement.",
       "cells": "Les cellules du monde : combien, les primitives placées qu’une contient, lues à leurs enregistrements, et la cellule qui contient l’objet `object` — l’`origin` d’une racine d’objet (#1332)."
     }
   },
@@ -7584,20 +7587,10 @@
       "dependencies": "Les paquets dont ses pages ont besoin, croissants, jusqu’au sommet du monde."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Une primitive placée d’une cellule du monde : les paquets du monde dont ses racines ont besoin, jusqu’au sommet.",
-    "members": {
-      "node": "Son nœud publié.",
-      "primitive": "Sa primitive dans le manifeste.",
-      "roots": "Les paquets des flux de cette primitive qui tiennent ses racines.",
-      "dependencies": "Chaque paquet du monde dont ces racines ont besoin, croissants, jusqu’au sommet."
-    }
-  },
   "WorldRootsPage": {
-    "summary": "Une page super-racine lue sur les octets de son paquet : ses propres sommets dans l’espace du monde, et ses triangles en indices locaux.",
+    "summary": "Une page super-racine lue sur les octets de son paquet : une page de géométrie, ses sommets dans l’espace du monde avec les attributs que portent ses objets, décodée et dessinée comme toute page.",
     "members": {
-      "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
-      "indices": "Ses triangles, trois indices locaux chacun."
+      "bytes": "Les octets de sa page de géométrie (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7757,8 +7750,8 @@
   "ImpostorPlan": {
     "summary": "Le verdict de la bascule : les cartes à dessiner, et les racines dont elle supprime les clusters.",
     "members": {
-      "cards": "Une carte par racine basculée, dans l’ordre des racines.",
-      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs."
+      "cards": "Une carte par racine basculée qu’elle a lue, dans l’ordre où elle les a lues.",
+      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs. Un plan de quelques rangs garde le verdict des autres tel que le dernier plan qui les a lus l’a laissé."
     }
   },
   "ImpostorRoot": {

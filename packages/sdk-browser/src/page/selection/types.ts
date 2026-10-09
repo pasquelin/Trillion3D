@@ -82,6 +82,9 @@ export type PageRec = {
   /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
    *  first (`../../residency/minimumCapacity.ts`). */
   rootChild?: boolean
+  /** On a root a cell alone needs, the world bundle its cell holds it by: the cover holds it while
+   *  that bundle is held (`../../webgpu/residency/coverHolders.ts`), never for the session. */
+  holder?: number
 }
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.

@@ -15,7 +15,9 @@ import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
+import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { growthOf, heldPage } from './webgpuGrowth.ts'
+import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 
 /**
  * At frame entry, a cut made over every root replaces the running one (step 3): the waiting roots
@@ -37,7 +39,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   }
   growth.appended = 0
   const added = growth.roots.splice(0),
-    first = packedPages.length
+    first = packedPages.length,
+    firstRank = selectionRoots.length
   for (const root of added) {
     selectionRoots.push(root)
     setup.roots.push(root)
@@ -66,8 +69,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
   reserveBoxes(rt)
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
-  if (ready.inPlace) run.worldUploadOrigin.fill(NaN)
-  else swapCut(rt, ready.cut, ready.moved)
+  if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
   // The new rows as their owner wrote them meanwhile: parked or taken, posed, casting or not.
   for (const root of added)
     if (root.placement)
@@ -78,18 +80,22 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     growWebgpuTables(rt, setup.cap).catch((error) =>
       rt.diag.diagnosticFailure('page-tables-growth-failed', error),
     )
-  // New sources to watch, and every world walked again at the next image.
-  run.gate.sceneChanged()
+  announceGrowth(rt, added, firstRank)
   return true
 }
 
-/** `cut` replaces the running cut: it holds every root's park and mark word, the pool's residency
- *  and absolute worlds until this image rebases them; the views drawn aside cut on it anew. The
- *  pool was listed when the cut began: the pages it `moved` since are noted again, they alone. */
-function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<number>) {
+/** `cut` replaces the running cut (`adoptCut`): it holds every root's park and mark word and the
+ *  pool's residency; the views drawn aside cut on it anew. The pool was listed when the cut began:
+ *  the pages it `moved` since are noted again, they alone. The roots `added` behind rank `first`
+ *  are those it packed beyond the running cut's. */
+function swapCut(
+  rt: WebgpuPagesRuntime,
+  { cut, moved }: { cut: GpuSelection; moved: ReadonlySet<number> },
+  added: GrownRoots,
+  first: number,
+) {
   const { run, layout } = rt
-  run.gpuSelection?.dispose()
-  run.gpuSelection = cut
+  adoptCut(rt, cut)
   // Every view's cut aside was on the old tables: each makes its own anew at its next image.
   for (const view of [rt.views.main, ...rt.views.persistent]) {
     const held = view === rt.views.active ? run : view.run
@@ -100,11 +106,12 @@ function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<n
     cut.parkWorld(rank, !!root.parked)
     cut.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
   })
+  // The poses named since the cut was packed — it holds them as they were then —: replayed.
+  replayMoves(rt, cut, added, first)
   cut.updateResidency(layout.rows.residentFlags)
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)
     if (page < layout.packedPages.length) cut.notePool(page, heldPage(rt, page))
-  run.worldUploadOrigin.fill(NaN)
 }
 
 /** The root boxes' batch for the longer list: the one held no longer plays (`transformRootBoxes`),

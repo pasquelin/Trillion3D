@@ -61,7 +61,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   assert.equal(frames[primitiveWordAt(0) + 3], 3)
   assert.ok(DAG_SELECTION_SHADER.includes('let open=unculledOf(w);'))
   assert.ok(DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'))
-  assert.ok(DAG_SELECTION_SHADER.includes('putPlanes(base,m,vi,open);'))
+  assert.ok(DAG_SELECTION_SHADER.includes('putPlanes(slotOf(w)*FRAME,m,vi,open);'))
   assert.ok(
     DAG_SELECTION_SHADER.includes(
       'frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);',

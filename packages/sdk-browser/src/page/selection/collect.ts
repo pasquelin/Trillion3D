@@ -26,6 +26,16 @@ import { blendMoves, isAssignment, type AlphaChange } from '../../placement/engi
  *  cut again on that class's grid (`classPages.ts`), as a fresh session of it compiles them. */
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent
+/** Whether a primitive is drawn by blended copies alone, no page of its own: a shared blend, or a
+ *  surface that transmits. */
+const drawsCopies = (primitive: { pass?: string }, surface: { transmission: number }) =>
+  primitive.pass === 'shared-blend' || surface.transmission > 0
+/** Whether a primitive is drawn blended — by copies, or by blended pages —: no opaque page, and no
+ *  world page, stands in for it (`../../scene/worldRecords.ts`). */
+export const drawsBlended = (
+  primitive: { pass?: string },
+  surface: { transparent: boolean; transmission: number },
+) => drawsCopies(primitive, surface) || pagesBlend(primitive, surface)
 /** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
  *  (#572) is its own collection, and moves class with the open's records (#837). */
 const collected = new WeakSet<object>()
@@ -156,7 +166,7 @@ export function collectClusterPages(
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh)
-    if (primitive.pass === 'shared-blend' || surface.transmission > 0) {
+    if (drawsCopies(primitive, surface)) {
       blendCopiesOf({ mesh, primitive, surface }, placed, order++, blendCopies)
       continue
     }

@@ -4,7 +4,7 @@ import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import type { createWebgpuRowState } from './state.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'
 import { createWebgpuRowSlots } from './slots.ts'
-import type { CloseInstances, CutLists } from './rowDemand.ts'
+import type { CutLists, InstanceClosure } from './rowDemand.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
@@ -19,8 +19,8 @@ export function createWebgpuRowSync(
   packedPages: PageList,
   cacheReady: () => boolean,
   writePageRow: Writer,
-  /** What a request closes over, per placement (`rowDemand.ts`). */
-  closeInstances: CloseInstances,
+  /** A counted closure over the instances, per placement (`rowDemand.ts`). */
+  closure: () => InstanceClosure,
   /** Called when a page enters residency or leaves it, before the row changes. */
   onResidenceChange: (rec: PageRec, page: number) => void = () => {},
   /** Called when a blended caster's row is written again with another coverage. */
@@ -28,13 +28,7 @@ export function createWebgpuRowSync(
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
-  const slots = createWebgpuRowSlots(
-    rows,
-    packedPages,
-    writePageRow,
-    onResidenceChange,
-    closeInstances,
-  )
+  const slots = createWebgpuRowSlots(rows, packedPages, writePageRow, onResidenceChange, closure)
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange)

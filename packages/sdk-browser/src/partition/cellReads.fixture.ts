@@ -14,17 +14,23 @@ import { io } from './cells.fixture.ts'
 /** The world roots of `count` cells: the top, bundle 0, pinned; then two bundles of one page per
  *  cell, side by side in the binary, which its object's roots need. */
 function gridRoots(count: number) {
-  const pages = Array.from({ length: 1 + 2 * count }, (_, at) => worldPage(at))
+  const pages = Array.from({ length: 1 + 2 * count }, (_, at) => worldPage(at).bytes)
   const { bin, bundles } = packBundles(pages, sha)
   const object = (cell: number) => ({
     ...{ node: 0, primitive: 0, roots: [0] },
     dependencies: [0, 1 + 2 * cell, 2 + 2 * cell],
   })
   const bytes = encodeWorldRoots({
-    ...{ version: 3, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
+    ...{ version: 5, budgetBytes: 4 << 20, pinned: 1, pinnedTopBytes: bundles[0].bytes },
     payload: { url: 'world-roots.bin', sha256: sha(bin), bytes: bin.byteLength },
     bundles,
-    pages: bundles.map((_, bundle) => ({ bundle, offset: 0, level: 1, lodError: 1 })),
+    pages: bundles.map(({ bytes }, bundle) => ({
+      bundle,
+      offset: 0,
+      bytes,
+      level: 1,
+      lodError: 1,
+    })),
     cells: Array.from({ length: count }, (_, cell) => ({ objects: [object(cell)] })),
   })
   return { bytes, bin, table: readWorldRoots(bytes) }

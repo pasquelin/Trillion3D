@@ -1,7 +1,7 @@
 import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { copyPages } from '../pages/helpers.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
 
@@ -41,7 +41,7 @@ export function applyClaimed(
   const { mark, recordOf, pages, ids: kept, count: keptCount, next, entered, exited } = held,
     epoch = held.epoch,
     words = bitWords(keptCount)
-  if (held.named.length < words) held.named = grown(held.named, words)
+  if (held.named.length < words) held.named = resized(held.named, words)
   held.named.fill(0, 0, words)
   // A held page keeps the record of the rank it held: a packed rank's record never changes, the
   // catalogue only grows behind its ranks (`postPackedBases`). They are read off a copy, as the

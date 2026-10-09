@@ -16,7 +16,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
   const { lights } = rt
   rt.capture.capturedRevision = -1
   // Origin of the scene change: a declared light was added, set or removed.
-  rt.run.gate.sceneChanged()
+  rt.run.gate.movedInPlace()
   rt.diag.engineDiagnostic('direct-lighting-changed', 'Contract lights updated', {
     version: 1,
     lights: lights.store.count,

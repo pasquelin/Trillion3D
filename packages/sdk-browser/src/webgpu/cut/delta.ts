@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
@@ -148,10 +149,10 @@ function samePublished(delta: HeldDelta, ids: ArrayLike<number>, count: number) 
 /** Every list long enough for a cut of `count` after the one held: either difference grows them
  *  alike, so the bytes they weigh do not depend on which one ran. */
 function growFor(delta: HeldDelta, count: number) {
-  if (delta.published.length < count) delta.published = grown(delta.published, count)
-  if (delta.next.length < count) delta.next = grown(delta.next, count)
-  if (delta.entered.length < count) delta.entered = grown(delta.entered, count)
-  if (delta.exited.length < delta.count) delta.exited = grown(delta.exited, delta.count)
+  if (delta.published.length < count) delta.published = resized(delta.published, count)
+  if (delta.next.length < count) delta.next = resized(delta.next, count)
+  if (delta.entered.length < count) delta.entered = resized(delta.entered, count)
+  if (delta.exited.length < delta.count) delta.exited = resized(delta.exited, delta.count)
 }
 
 /** Held shown list: no difference is published, and the list is already the one it describes. */

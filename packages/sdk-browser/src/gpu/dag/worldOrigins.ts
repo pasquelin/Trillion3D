@@ -1,18 +1,17 @@
-import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import type { PackedDag } from './types.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { writeRanges, type RangeTarget } from './split.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
-/** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices. */
+/** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
+ *  translation as three doubles, high word then low word, as the GPU holds a double (`math/src/wgsl/double.ts`),
+ *  and two words of padding. Each cut reads its translations at its eye from them
+ *  (`shader/worldPoseWgsl.ts`). */
 export const WORLD_ORIGIN_BYTES = 32
 
-/** Writes one exact placement translation as two floats per coordinate. */
-function writeOrigin(
-  out: Float32Array,
-  at: number,
-  source: NonNullable<PackedDag['worldSources']>[number],
-) {
-  const e = source.world.elements
-  for (let axis = 0; axis < 3; axis++) writeSplitDouble(out, at + axis, at + 4 + axis, e[12 + axis])
-}
+/** Writes one placement's exact translation, three doubles, into `out` (words) from `at`. */
+const writeOrigin = (out: Uint32Array, at: number, source: PackedDag['worldSources'][number]) =>
+  packDoubles(out, at, source.world.elements, 12, 3)
 
 export function createWorldOrigins(
   device: GPUDevice,
@@ -22,37 +21,59 @@ export function createWorldOrigins(
 ) {
   // Every placement the ranges hold: the live ones, and those a growth appends to `sources`.
   const slots = ranges.reduce((sum, { count }) => sum + count, 0),
-    words = new Float32Array(Math.max(slots, sources?.length ?? 0) * 8),
-    next = new Float32Array(8)
-  return {
+    words = new Uint32Array(Math.max(slots, sources.length) * 8),
+    next = new Uint32Array(8),
+    source = { data: words, sourceBase: 0, targetBase: 0, stride: 8 }
+  let changed = new Int32Array(8)
+  /** Placement `row`'s translation taken into `words`; whether it moved. */
+  const take = (row: number) => {
+    writeOrigin(next, 0, sources[row])
+    const at = row * 8
+    let same = true
+    for (let k = 0; k < 8 && same; k++) same = next[k] === words[at + k]
+    if (same) return false
+    words.set(next, at)
+    return true
+  }
+  /** Bytes from `offset` of the translations, laid behind each range's worlds. */
+  const target: RangeTarget = (offset, data, dataOffset, size) => {
+    for (const [r, { first, count }] of ranges.entries()) {
+      const a = Math.max(offset, first * WORLD_ORIGIN_BYTES),
+        b = Math.min(offset + size, (first + count) * WORLD_ORIGIN_BYTES)
+      if (a < b)
+        device.queue.writeBuffer(
+          buffers[r],
+          count * 64 + a - first * WORLD_ORIGIN_BYTES,
+          data,
+          dataOffset + a - offset,
+          b - a,
+        )
+    }
+  }
+  const origins = {
     hostBytes: words.byteLength + next.byteLength,
-    /** Called only for physical pose changes, never for a camera rebase. */
-    write() {
-      if (!sources) return false
-      let from = Infinity,
-        to = -1
-      for (let row = 0; row < sources.length; row++) {
-        const at = row * 8
-        writeOrigin(next, 0, sources[row])
-        if (next.every((value, k) => Object.is(value, words[at + k]))) continue
-        words.set(next, at)
-        from = Math.min(from, row)
-        to = row
+    /** Placement `row`'s translation as the GPU no longer holds it — its parent composed another
+     *  there (`../../placement/gpuCompose.ts`) —: its next `write` sends it, whatever it was. */
+    forget(row: number) {
+      // No exact translation is a NaN: the cached words then match none.
+      words.fill(0xffffffff, row * 8, row * 8 + 8)
+    },
+    /** Called only for physical pose changes, never for a camera move: every placement's, or
+     *  only those of `named`, increasing — the placements a call moved. Those it sent, increasing,
+     *  a view the next call overwrites. */
+    write(named?: Int32Array) {
+      let count = 0
+      const all = named === undefined,
+        length = all ? sources.length : named.length
+      for (let k = 0; k < length; k++) {
+        const row = all ? k : named[k]
+        if (!take(row)) continue
+        if (count === changed.length) changed = resized(changed, count + 1)
+        changed[count++] = row
       }
-      if (to < from) return false
-      for (const [r, { first, count }] of ranges.entries()) {
-        const a = Math.max(from, first),
-          b = Math.min(to + 1, first + count)
-        if (a < b)
-          device.queue.writeBuffer(
-            buffers[r],
-            count * 64 + (a - first) * WORLD_ORIGIN_BYTES,
-            words.buffer,
-            a * WORLD_ORIGIN_BYTES,
-            (b - a) * WORLD_ORIGIN_BYTES,
-          )
-      }
-      return true
+      if (count) writeRanges(device, target, changed, count, source)
+      return changed.subarray(0, count)
     },
   }
+  return origins
 }

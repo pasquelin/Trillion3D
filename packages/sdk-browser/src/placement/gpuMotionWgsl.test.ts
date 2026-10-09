@@ -9,6 +9,10 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
 import { COMPOSE_ROOTS_WGSL } from './gpuComposeWgsl.ts'
+import { MOTION_WGSL } from './gpuMotionWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
+import { unresolvedNames } from '../gpu/core/wgslNames.fixture.ts'
 import { createPlacementMotion } from '../taa/motion.ts'
 import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import {
@@ -119,4 +123,22 @@ test('a singular world inverts to zero, and its motion is the CPU one too', () =
     gpu.map((w) => w >>> 0),
     cpu.words,
   )
+})
+
+test('each declaration the motion pass holds assembles alone: it lists every function it calls', () => {
+  const held = new Set<WgslDecl>()
+  const hold = (decl: WgslDecl) => {
+    if (held.has(decl)) return
+    held.add(decl)
+    decl.deps.forEach(hold)
+  }
+  hold(MOTION_WGSL)
+  // The functions of the whole pass: a name one declaration calls and leaves undeclared alone.
+  const functions = new Set([...wgslModule(MOTION_WGSL).matchAll(/\bfn (\w+)\(/g)].map((m) => m[1]))
+  const missing = [...held].flatMap((decl) =>
+    unresolvedNames(wgslModule(decl))
+      .filter((name) => functions.has(name))
+      .map((name) => `${decl.name}: ${name}`),
+  )
+  assert.deepEqual(missing, [])
 })

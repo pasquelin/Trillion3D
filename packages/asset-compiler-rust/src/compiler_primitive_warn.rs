@@ -36,6 +36,16 @@ pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<
     stats
 }
 
+/// The root cover's triangles a primitive's DAG report publishes: its levels' root triangles
+/// summed, what the primitive draws at its coarsest. Never the report's top-level `rootTriangles`,
+/// the stall summary's level-0 triangles nothing replaces, which is zero once the DAG climbs.
+pub(crate) fn root_cover_triangles(dag: &Value) -> usize {
+    let levels = dag["levels"].as_array().into_iter().flatten();
+    levels
+        .filter_map(|l| l["rootTriangles"].as_u64())
+        .sum::<u64>() as usize
+}
+
 /// The four numbers a warning judges, read once on the DAG.
 pub(super) struct DagShape {
     pub level0: usize,

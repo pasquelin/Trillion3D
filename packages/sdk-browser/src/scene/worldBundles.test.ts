@@ -153,7 +153,7 @@ test('a page asked while its bundle transfers holds the bundle: its cell leaving
   await assert.rejects(left, { name: 'AbortError' })
   roots.release(1) // the cell left
   land()
-  assert.ok((await page).positions.length > 0, 'the page lands')
+  assert.ok((await page).bytes.byteLength > 0, 'the page lands')
   assert.deepEqual([ranges.length, heldBy(roots)], [2, []], 'its bundle read once, then let go')
 })
 

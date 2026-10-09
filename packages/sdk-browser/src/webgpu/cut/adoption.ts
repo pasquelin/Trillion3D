@@ -78,9 +78,10 @@ export function createWebgpuCutAdopter(options: {
     metrics.listsRewritten = false
     const selection = options.selection(),
       cut = selection?.peek()
-    // A list the device could not grow (`../../gpu/dag/listCap.ts`) is read by its head: the
-    // requests the GPU ranked first, and the drawn pages it compacted first, plus what the lists
-    // held past it (`./headUnion.ts`): the frame's mask draws the whole cut, so nothing exits.
+    // A list still past the device at the coarsest cut (`../../gpu/dag/coarsening.ts`),
+    // its roots and cells alone, is read by its head: the requests the GPU ranked first, and the
+    // drawn pages it compacted first, plus what the lists held past it (`./headUnion.ts`): the
+    // frame's mask draws the whole cut, so nothing exits.
     if (!cut?.result.drawablePageIds) return false
     const { desired, shown, drawn, delta, drawnDelta } = options
     // A new readback offers its requests ahead; a held one only empties them once the camera stops.

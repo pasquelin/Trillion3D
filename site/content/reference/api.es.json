@@ -1786,6 +1786,7 @@
       "cacheMisses": "Lecturas de páginas ausentes de la caché.",
       "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan.",
       "lodLevel": "Nivel de detalle del corte.",
+      "cutCoarsening": "El factor bajo el cual se recorta el umbral de error proyectado del corte de la GPU: 1, salvo cuando la vista pide más de lo que cabe en la lista de un solo binding de GPU; entonces el corte se detiene en niveles más gruesos hasta que su lista cabe, y vuelve a 1 en cuanto la vista pide menos. Null sin corte de GPU.",
       "transparentMeshes": "Contadores transparentes de WebGPU. `transparentDrawCalls` cuenta cada dibujo, ambas mitades de un material en dos pases incluidas; `transparentSubmittedTriangles` cuenta los triángulos del corte transparente una vez cada uno, sea cual sea el número de pases que los rasterizan — la multiplicación por pase es la de la GPU, ya que los números de instancias los escribe la compactación y nunca se vuelven a leer. Nulo cuando no están disponibles.",
       "transparentFrustumRejected": "Clústeres transparentes fuera de la vista.",
       "transparentDrawCalls": "Llamadas de dibujo transparentes.",
@@ -4635,8 +4636,9 @@
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
       "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
       "capacity": "Filas que caben antes de que crezca.",
-      "sources": "Propietarios originales, conservados al reutilizar las filas.",
-      "sourceModels": "Mallas que comparten recursos, incluidas las filas en espera."
+      "sources": "Propietarios originales de las filas en espejo; sus fuentes de animación siguen vivas cuando se reutilizan las filas.",
+      "sourceModels": "Mallas que comparten este recurso, incluidas las que esperan una fila de colocación.",
+      "cells": "Dónde se encuentra cada fila que colocó una partición (`../partition/rowCells.ts`): su celda, su rango entre los nodos de la celda; una columna propia, ausente hasta que una celda coloca una."
     }
   },
   "Plane": {
@@ -6536,6 +6538,7 @@
       "cacheMisses": "Lecturas de páginas ausentes de la caché.",
       "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan.",
       "lodLevel": "Nivel de detalle del corte.",
+      "cutCoarsening": "El factor bajo el cual se recorta el umbral de error proyectado del corte de la GPU: 1, salvo cuando la vista pide más de lo que cabe en la lista de un solo binding de GPU; entonces el corte se detiene en niveles más gruesos hasta que su lista cabe, y vuelve a 1 en cuanto la vista pide menos. Null sin corte de GPU.",
       "transparentMeshes": "Contadores transparentes de WebGPU. `transparentDrawCalls` cuenta cada dibujo, ambas mitades de un material en dos pases incluidas; `transparentSubmittedTriangles` cuenta los triángulos del corte transparente una vez cada uno, sea cual sea el número de pases que los rasterizan — la multiplicación por pase es la de la GPU, ya que los números de instancias los escribe la compactación y nunca se vuelven a leer. Nulo cuando no están disponibles.",
       "transparentFrustumRejected": "Clústeres transparentes fuera de la vista.",
       "transparentDrawCalls": "Llamadas de dibujo transparentes.",
@@ -7570,7 +7573,7 @@
       "pinnedTopBytes": "Los bytes de la cima fijada.",
       "payload": "El binario donde los paquetes van uno tras otro: su dirección, su huella y su longitud.",
       "bundles": "Los paquetes, en el orden del binario.",
-      "pages": "Las páginas: cuántas, y de una su paquete, su desplazamiento en él, su nivel y su error, leídos en su registro.",
+      "pages": "Las páginas: cuántas, y de una su paquete, su desplazamiento en él, su longitud, su nivel y su error, leídos en su registro.",
       "cells": "Las celdas del mundo: cuántas, las primitivas colocadas que contiene una, leídas en sus registros, y la celda que contiene el objeto `object`, el `origin` de una raíz de objeto (#1332)."
     }
   },
@@ -7584,20 +7587,10 @@
       "dependencies": "Los paquetes que necesitan sus páginas, ascendentes, hasta la cima del mundo."
     }
   },
-  "WorldRootsObject": {
-    "summary": "Una primitiva colocada de una celda del mundo: los paquetes del mundo que necesitan sus raíces, hasta la cima.",
-    "members": {
-      "node": "Su nodo publicado.",
-      "primitive": "Su primitiva en el manifiesto.",
-      "roots": "Los paquetes de los flujos de esa primitiva que guardan sus raíces.",
-      "dependencies": "Cada paquete del mundo que necesitan esas raíces, ascendentes, hasta la cima."
-    }
-  },
   "WorldRootsPage": {
-    "summary": "Una página superraíz leída sobre los bytes de su paquete: sus propios vértices en el espacio del mundo y sus triángulos como índices locales.",
+    "summary": "Una página superraíz leída sobre los bytes de su paquete: una página de geometría, sus vértices en el espacio del mundo con los atributos que llevan sus objetos, decodificada y dibujada como cualquier página.",
     "members": {
-      "positions": "Sus vértices, tres números cada uno, en el espacio del mundo.",
-      "indices": "Sus triángulos, tres índices locales cada uno."
+      "bytes": "Los bytes de su página de geometría (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7757,8 +7750,8 @@
   "ImpostorPlan": {
     "summary": "El veredicto de la conmutación: las tarjetas a dibujar y las raíces cuyos clústeres suprime.",
     "members": {
-      "cards": "Una tarjeta por raíz conmutada, en orden de raíz.",
-      "switched": "Rangos de raíz que suprime la conmutación: 1 en una raíz conmutada, 0 en el resto."
+      "cards": "Una tarjeta por raíz conmutada que leyó, en el orden en que las leyó.",
+      "switched": "Rangos de raíz que suprime la conmutación: 1 en una raíz conmutada, 0 en el resto. Un plan de algunos rangos conserva el veredicto de los demás tal como lo dejó el último plan que los leyó."
     }
   },
   "ImpostorRoot": {

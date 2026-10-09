@@ -5,13 +5,33 @@
  */
 import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
-import type { WorldRoots, WorldRootsCluster, WorldRootsObject } from './worldRoots.ts'
+import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
+
+/** One placed primitive of a world cell as the cook writes it: the world bundles its roots need,
+ *  up to the top. */
+type WorldRootsObject = {
+  /** Its published node. */
+  node: number
+  /** Its primitive in the manifest. */
+  primitive: number
+  /** The bundles of that primitive's streams holding its roots. */
+  roots: number[]
+  /** Every world bundle those roots need, ascending, up to the top. */
+  dependencies: number[]
+}
 
 /** A world-roots table stated plainly: its pages and cells as lists. */
 export type WorldRootsSpec = Omit<WorldRoots, 'pages' | 'cells'> & {
-  pages: { bundle: number; offset: number; level: number; lodError: number }[]
-  cells: { objects: WorldRootsObject[] }[]
+  pages: { bundle: number; offset: number; bytes: number; level: number; lodError: number }[]
+  /** Each cell's objects and, per node of its file, the first of the node's objects (-1 for
+   *  none); absent, every run of one published node is a node of the file. */
+  cells: { objects: WorldRootsObject[]; nodes?: number[] }[]
 }
+
+/** Per run of one published node among `objects`, its first object: the nodes when a spec states
+ *  none. */
+const runsOf = (objects: readonly WorldRootsObject[]) =>
+  objects.flatMap((object, k) => (k === 0 || objects[k - 1].node !== object.node ? [k] : []))
 
 const NONE = 0xffffffff
 
@@ -59,12 +79,13 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
     r.raw(digest(bundle.sha256))
   }
   for (const page of spec.pages) {
-    r.word(page.bundle, page.offset, page.level, 0)
+    r.word(page.bundle, page.offset, page.level, page.bytes)
     r.float(page.lodError)
   }
   let first = 0
   for (const cell of spec.cells) {
     r.word(first, cell.objects.length)
+    r.pooled((cell.nodes ?? runsOf(cell.objects)).map((k) => (k < 0 ? NONE : k)))
     first += cell.objects.length
   }
   for (const object of objects) {
@@ -90,15 +111,19 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
 /** `clusters` and `groups` as `world-roots.dag`, version `version`. */
 export function encodeWorldRootsDag(
   { clusters, groups }: { clusters: readonly WorldRootsCluster[]; groups: readonly ClusterGroup[] },
-  version = 3,
+  version = 5,
 ) {
   const r = writer('WRTD')
   const index = (value: number | null) => value ?? NONE
   for (const c of clusters) {
-    r.word(c.level, c.triangles, index(c.material), index(c.bundle), index(c.offset))
+    r.word(c.level, c.triangles, index(c.primitive), index(c.bundle), index(c.offset))
     r.word(index(c.origin))
     r.float(c.lodError, c.parentError ?? NaN, ...c.sphere, ...(c.parentSphere ?? [NaN, 0, 0, 0]))
     r.float(...c.min, ...c.max)
+    const p = c.page
+    r.word(p?.bytes ?? 0, p?.vertexCount ?? 0, p?.indexCount ?? 0, p?.flags ?? 0)
+    r.word(p?.uncompressedBytes ?? 0)
+    r.raw(new Uint8Array(Float32Array.of(p?.quantizationError ?? 0).buffer))
   }
   for (const g of groups) {
     r.word(g.level)

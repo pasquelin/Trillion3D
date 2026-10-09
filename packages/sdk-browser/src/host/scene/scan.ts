@@ -1,11 +1,24 @@
 import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { unnoted } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import { isLightNode } from '../graph/kinds.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /** What a watch reports of a read: nothing, a value moved, or the set of read objects changed. */
 export type WatchVerdict = 0 | 'moved' | 'reshaped'
+
+/** What a comparison found of a node (`scan`), as bits: shown, hidden or set to cast or not; its
+ *  pose moved — its matrix mode, or its matrix set by hand —; a value moved, those two or another;
+ *  its parent changed or it was destroyed, the watched set to be rebuilt. */
+export const SCAN_FLIPPED = 1,
+  SCAN_POSED = 2,
+  SCAN_RESHAPED = 8
+const SCAN_MOVED = 4
+
+/** The watch's verdict of a comparison's bits. */
+export const verdictOf = (found: number): WatchVerdict =>
+  found & SCAN_RESHAPED ? 'reshaped' : found & SCAN_MOVED ? 'moved' : 0
 
 /** Numbers of a light the engines consume: colour, intensity, range, decay, cone, ground colour. */
 const LIGHT_VALUES = 11
@@ -28,6 +41,8 @@ export interface NodeState {
   matrix: Float64Array | null
   /** A light's numbers as last read; its target, read-only on the core's `Light`, never changes. */
   light: Float64Array | null
+  /** The read of the watch it was last compared in: once a read whatever its writes. */
+  read: number
 }
 
 function lightValues(light: Light, into: Float64Array) {
@@ -63,6 +78,7 @@ export function snapshot(node: Object3D): NodeState {
     auto: node.matrixAutoUpdate,
     matrix: node.matrixAutoUpdate ? null : Float64Array.from(node._matrixElements),
     light: lit,
+    read: -1,
   }
 }
 
@@ -78,9 +94,11 @@ function scanLight(light: Light, held: Float64Array): boolean {
   return moved
 }
 
-/** Compares the node to its state and takes what moved: what the host's walk writes is
- *  read back as it stands, so a write of the value already held moves nothing. */
-export function scan(state: NodeState): WatchVerdict {
+/** Compares the node to its state and takes what moved (`SCAN_*` bits): what the host's walk
+ *  writes is read back as it stands, so a write of the value already held moves nothing. */
+export function scan(state: NodeState): number {
+  // A node destroyed leaves the watched set: it is to be rebuilt.
+  if (!state.node._alive) return SCAN_RESHAPED
   const node = state.node,
     // One read each, into a local: `parent` and `visible` are getters that check the node is
     // still alive, and this walk runs on every watched node once the write count moved.
@@ -88,25 +106,36 @@ export function scan(state: NodeState): WatchVerdict {
     visible = node.visible,
     castShadow = node.castShadow,
     auto = node.matrixAutoUpdate
+  let found = 0
   // A reparented node changes its ancestor chain: the watched set is reshaped.
-  const reparented = parent !== state.parent
+  if (parent !== state.parent) found |= SCAN_RESHAPED
   state.parent = parent
-  let moved = visible !== state.visible || castShadow !== state.castShadow
+  if (visible !== state.visible || castShadow !== state.castShadow) found |= SCAN_FLIPPED
   state.visible = visible
   state.castShadow = castShadow
   if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = auto
     state.matrix = auto ? null : Float64Array.from(node._matrixElements)
-    moved = true
+    found |= SCAN_POSED
   } else if (state.matrix && !sameElements(state.matrix, node._matrixElements)) {
     // Read without counting as a write; numbers written through the getter, or announced after
-    // a write behind it, are taken into the tree here.
+    // a write behind it, are taken into the tree here — the write already read, noted no more.
     copyMatrix4(state.matrix, node._matrixElements)
-    node._matrixMoved()
-    moved = true
+    unnoted(() => node._matrixMoved())
+    found |= SCAN_POSED
   }
-  if (state.light && isLightNode(node) && scanLight(node, state.light)) moved = true
-  if (reparented) return 'reshaped'
-  return moved ? 'moved' : 0
+  if (state.light && isLightNode(node) && scanLight(node, state.light)) found |= SCAN_MOVED
+  return found & (SCAN_FLIPPED | SCAN_POSED) ? found | SCAN_MOVED : found
+}
+
+/** The engine posed `state`'s node itself, its matrix written and its update cut
+ *  (`../world/moveByName.ts`): what the comparison holds of it follows, so the engine's own
+ *  pose is not read back as the host's. */
+export function adoptPose(state: NodeState) {
+  const node = state.node
+  state.auto = node.matrixAutoUpdate
+  if (state.auto) state.matrix = null
+  else if (state.matrix) copyMatrix4(state.matrix, node._matrixElements)
+  else state.matrix = Float64Array.from(node._matrixElements)
 }

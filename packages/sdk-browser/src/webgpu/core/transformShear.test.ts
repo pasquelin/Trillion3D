@@ -140,6 +140,8 @@ test('two successive moves do not accumulate and the scene is declared moved', (
   // would stay drawn where it was; `worldsRevision` follows, the hierarchy already carrying these
   // matrices.
   assert.equal(run.gate.revisions.scene, 3, 'one scene revision per move')
-  // The hierarchy already carries this revision's matrices: nothing to climb.
+  // The hierarchy already carries this revision's matrices; the walk the first image owes every
+  // root stands, a move spending none of it, and nothing after it.
+  assert.equal((run.gate.updateWorlds(worlds) || undefined)?.reshaped, true)
   assert.equal(run.gate.updateWorlds(worlds), false)
 })

@@ -57,14 +57,6 @@ export function updateRenderOriginFrame(
   return frame
 }
 
-/**
- * True when two render-frame origins are the same point, bit for bit. An origin never
- * set — three `NaN`s — differs from everything, including itself: the first frame rebases.
- */
-export function sameRenderOrigin(a: ArrayLike<number>, b: ArrayLike<number>) {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
-}
-
 /** Copies the three matrices of an engine camera into another, without recomputing anything. */
 export function holdRenderOriginFrame(into: RenderOriginFrame, from: RenderOriginFrame) {
   into.viewRelative.set(from.viewRelative)

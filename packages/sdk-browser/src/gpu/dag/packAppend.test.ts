@@ -48,6 +48,7 @@ test('roots appended into the room read as a packing of every root at that capac
     pages: [2 * per, counts.pages],
     nodes: [2 * nodes, counts.nodes],
     worlds: [2, 5],
+    tree: { nodes: new Int32Array(0), members: [0, 0] },
   })
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)
@@ -102,8 +103,9 @@ test('the GPU cut over the roots appended in place selects what a cut over every
   assert.equal(appended.pageCount, held, 'the pages its roots hold')
   assert.equal(appended.appendRoots(roots.slice(2)), true)
   assert.equal(appended.pageCount, whole.live!.pages)
-  // The same worlds, one placement each, as the session sends them every image.
-  assert.equal(appended.updateWorlds(whole.worlds.slice()), true)
+  // The same worlds, one placement each, as the session sends them every image: the append sent
+  // them already, nothing moves.
+  assert.equal(appended.updateWorlds(whole.worlds.slice()).length, 0)
   const results = []
   for (const selection of [reference, appended]) {
     selection.dispatch(uniforms)
@@ -117,4 +119,26 @@ test('the GPU cut over the roots appended in place selects what a cut over every
   )
   reference.dispose()
   appended.dispose()
+})
+
+test('roots appended under a still eye are brought to it before the next cut', async () => {
+  installGpuGlobals()
+  const { roots, capacity } = scene()
+  const whole = packDagSelection(roots, capacity),
+    grown = packDagSelection(roots.slice(0, 2), capacity)
+  const uniforms = kernelUniforms(whole, roots, frontCamera(20), 1)
+  const cut = async (packed: ReturnType<typeof packDagSelection>, append = false) => {
+    const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed))!
+    selection.dispatch(uniforms)
+    await selection.flush()
+    // The eye has not moved: the cut reads the worlds the append wrote at it.
+    if (append) assert.equal(selection.appendRoots(roots.slice(2)), true)
+    selection.dispatch(uniforms)
+    const pages = (await selection.flush())?.pageIds.slice().sort((a, b) => a - b)
+    selection.dispose()
+    return pages
+  }
+  const [reference, appended] = [await cut(whole), await cut(grown, true)]
+  assert.ok(reference!.length > 0)
+  assert.deepEqual(appended, reference)
 })

@@ -1,4 +1,4 @@
-import { grown } from '../../page/cut/sparseInts.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { ADMISSION_BUCKETS } from '../../gpu/dag/request.ts'
 
 /** What admission reads of a readback: its requests, in the GPU's order, whether that order is
@@ -38,8 +38,8 @@ export function createReadbackMerge(
     let total = merged.first
     for (const cut of cuts) total += cut.result.pageIds.length
     if (merged.ids.length < total) {
-      merged.ids = grown(merged.ids, total)
-      merged.levels = grown(merged.levels, total)
+      merged.ids = resized(merged.ids, total)
+      merged.levels = resized(merged.levels, total)
     }
     if (heads.length < cuts.length) heads = new Int32Array(cuts.length)
     const counted = cuts.every(countedWhole) && (!first || countedWhole(first))

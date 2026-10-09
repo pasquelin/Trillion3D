@@ -11,11 +11,22 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 /** True when `entry` is not drawn: its source node is hidden, or its row parked. */
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
+/** The node a root comes from: its first page's mesh. */
+export const rootSource = <T extends { sourceMesh?: Object3D }>(root: ClusterRoot<T>) =>
+  root.pages[0]?.sourceMesh
+
+/** The node a see-through draw comes from. */
+export const blendSource = (item: { sourceMesh?: unknown }) =>
+  item.sourceMesh as Object3D | undefined
+
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
   for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false
   return true
 }
+
+/** The entries to read of a list, `ranks[0 .. count)`: those under the nodes the host flipped. */
+export type Subset = { readonly ranks: ArrayLike<number>; readonly count: number }
 
 /**
  * Sets `hidden` on each entry from its source node's chain, and hands each entry that flipped to
@@ -25,11 +36,15 @@ function followHidden<E extends { hidden?: boolean }>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
   flipped: (entry: E, rank: number) => void,
+  subset?: Subset,
 ) {
   let last: Object3D | undefined,
     lastHidden = false
-  for (let rank = 0; rank < entries.length; rank++) {
-    const entry = entries[rank],
+  const ranks = subset?.ranks,
+    count = subset ? subset.count : entries.length
+  for (let k = 0; k < count; k++) {
+    const rank = ranks ? ranks[k] : k,
+      entry = entries[rank],
       source = sourceOf(entry)
     if (!source) continue
     if (source !== last) {
@@ -58,6 +73,8 @@ const moved = new Float64Array(BOX_VALUES),
  * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
  * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
  * `movingOnly` says every root that flipped `moves` already: the static casters under it stay.
+ * `under`, when given, names the roots and the see-through draws to read — those under the nodes
+ * the host flipped —, the others standing as they are.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
@@ -68,6 +85,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   moves?: (rank: number) => boolean,
+  under?: { roots: Subset; seeThrough: Subset },
 ) {
   boxEmpty(moved, 0)
   let movingOnly = true
@@ -77,7 +95,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   }
   followHidden(
     roots,
-    (root) => root.pages[0]?.sourceMesh,
+    rootSource,
     (root, rank) => {
       const parked = !!root.hidden || rowParked(root.placement)
       if (parked === !!root.parked) return
@@ -85,14 +103,23 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
       flipped(rank, root)
       if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1)
     },
+    under?.roots,
   )
-  for (let rank = 0; rank < roots.length; rank++) {
-    const root = roots[rank],
-      source = root.pages[0]?.sourceMesh
+  const ranks = under?.roots.ranks,
+    count = under ? under.roots.count : roots.length
+  for (let k = 0; k < count; k++) {
+    const rank = ranks ? ranks[k] : k,
+      root = roots[rank],
+      source = rootSource(root)
     if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue
     flipped(rank, root)
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
   }
-  followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry))
+  followHidden(
+    seeThrough.entries,
+    seeThrough.sourceOf,
+    (entry) => seeThrough.flipped?.(entry),
+    under?.seeThrough,
+  )
   return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly }
 }

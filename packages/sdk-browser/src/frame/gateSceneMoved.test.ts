@@ -37,7 +37,7 @@ test('a pose the engine moved does not have the source graph read anew on the ne
   gate.readScene(source, list.list)
   const built = list.calls
   assert.ok(built > 0, 'the first image builds the watched set')
-  gate.sceneMoved()
+  gate.movedInPlace()
   gate.readScene(source, list.list)
   assert.equal(list.calls, built, 'a move rebuilds nothing')
 })
@@ -55,7 +55,7 @@ test('a change of shape still has it read anew: that is what a new instance or l
 
 test('both announce the scene: a held frame is refused after either of them', () => {
   const { source, drawn } = scene()
-  for (const announce of ['sceneMoved', 'sceneChanged'] as const) {
+  for (const announce of ['movedInPlace', 'sceneChanged'] as const) {
     const gate = createFrameGateCore(1)
     const before = gate.revisions.scene
     gate[announce]()
@@ -69,7 +69,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
   const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh
   const gate = createFrameGateCore(1)
   gate.readScene(source, drawn)
-  gate.sceneMoved()
+  gate.movedInPlace()
   const revision = gate.revisions.scene
   gate.readScene(source, drawn)
   assert.equal(gate.revisions.scene, revision, 'a still scene announces nothing')
@@ -82,7 +82,7 @@ test('a move announced before the first image still has the watched set built', 
   const { source, drawn } = scene()
   const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh
   const gate = createFrameGateCore(1)
-  gate.sceneMoved()
+  gate.movedInPlace()
   gate.readScene(source, drawn)
   const revision = gate.revisions.scene
   mesh.visible = false
@@ -98,7 +98,7 @@ test('a reshape then a move before the same image: the node the reshape brought 
   gate.readScene(source, drawn)
   source.add(entrant)
   gate.sceneChanged() // the reshape: the watched set owes a rebuild
-  gate.sceneMoved() // a pose the engine moved, same interval, before the image
+  gate.movedInPlace() // a pose the engine moved, same interval, before the image
   gate.readScene(source, list)
   const revision = gate.revisions.scene
   entrant.visible = false

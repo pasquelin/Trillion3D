@@ -23,5 +23,8 @@ export interface HostWorldPlacements {
 export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
   const tree = Object3D._treeOf(source)
   updateTransformTree(tree)
-  return { of: (node) => node.matrixWorld, refresh: () => void updateTransformTree(tree) }
+  return {
+    of: (node) => node.matrixWorld,
+    refresh: () => void updateTransformTree(tree),
+  }
 }

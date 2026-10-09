@@ -8,7 +8,8 @@ import {
 } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createCameraFrames, framesBytes } from './frameRanges.ts'
 import { FRAME_VEC4 } from './types.ts'
-import { rootWorldsToRenderOrigin } from './pack.ts'
+import { rootWorlds } from './pack.ts'
+import { rootWorldsToRenderOrigin } from './pack.fixture.ts'
 
 const world = (x: number) => Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1])
 const roots = () =>
@@ -25,10 +26,10 @@ const data = (buffer: GPUBuffer, writes: FakeWrite[]) => {
   return new Float32Array(bytes)
 }
 
-test('split world bindings retain camera matrix bytes and keep absolute origins across camera rebases', () => {
+test('split world bindings retain camera matrix bytes and keep absolute origins across camera moves', () => {
   const sources = roots(),
     next = new Float32Array(sources.length * 16)
-  rootWorldsToRenderOrigin(next, sources, [0, 0, 0], new Float64Array(sources.length * 3))
+  rootWorlds(next, sources)
   const fake = fakeDevice({
     limits: {
       maxBufferSize: framesBytes(2),
@@ -53,7 +54,7 @@ test('split world bindings retain camera matrix bytes and keep absolute origins 
     return words.slice(count * 16)
   })
   for (const origin of [1e9 + 0.01, 1e6 + 0.002, -1e9 - 0.013]) {
-    rootWorldsToRenderOrigin(next, sources, [origin, 0, 0], new Float64Array(sources.length * 3))
+    rootWorldsToRenderOrigin(next, sources, [origin, 0, 0])
     const before = fake.writes.length
     frames.writeWorlds(next)
     assert.equal(fake.writes.length - before, frames.ranges.length)
@@ -61,17 +62,17 @@ test('split world bindings retain camera matrix bytes and keep absolute origins 
       assert.deepEqual(data(buffer, fake.writes).subarray(frames.ranges[r].count * 16), tails[r]),
     )
     assert.equal(
-      frames.writeWorldOrigins(),
-      false,
+      frames.writeWorldOrigins().length,
+      0,
       'unchanged physical poses upload no origin tail',
     )
   }
 })
 
-test('a millimetre physical move updates only its origin words even if absolute float matrices agree', () => {
+test('a millimetre physical move updates only its origin words, its exact double', () => {
   const sources = roots(),
     next = new Float32Array(sources.length * 16)
-  rootWorldsToRenderOrigin(next, sources, [0, 0, 0], new Float64Array(sources.length * 3))
+  rootWorlds(next, sources)
   const fake = fakeDevice()
   const frames = createCameraFrames(
     fake.device,
@@ -84,14 +85,16 @@ test('a millimetre physical move updates only its origin words even if absolute 
   const before = fake.writes.length,
     original = next[12]
   sources[0].world.elements[12] += 0.001
-  rootWorldsToRenderOrigin(next, sources, [0, 0, 0], new Float64Array(sources.length * 3))
+  rootWorlds(next, sources)
   assert.equal(next[12], original, 'single absolute float cannot carry this move')
-  assert.equal(frames.writeWorldOrigins(), true)
+  assert.deepEqual([...frames.writeWorldOrigins()], [0])
   assert.equal(fake.writes.length - before, 1)
   const last = fake.writes.at(-1)!
   assert.equal(last.offset, sources.length * 64)
   assert.equal(last.size, 32)
-  const words = data(frames.worldBuffers[0], fake.writes),
-    at = sources.length * 16
-  assert.ok(Math.abs(words[at] + words[at + 4] - sources[0].world.elements[12]) < 2e-6)
+  // The double, high word then low word, as the GPU holds it (`math/src/wgsl/double.ts`).
+  const tail = new Uint32Array(data(frames.worldBuffers[0], fake.writes).buffer),
+    at = sources.length * 16,
+    held = new Float64Array(new Uint32Array([tail[at + 1], tail[at]]).buffer)[0]
+  assert.equal(held, sources[0].world.elements[12])
 })

@@ -77,6 +77,7 @@ export function askedTableRows(
  *  requests ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
+  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/worldMirror.ts`).
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
@@ -136,6 +137,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
      *  only a cut that selected more raises them (`growTables.ts`, `followCutRows`). */
     viewRows,
     worldUpdates,
+    /** The placements a host walk's scan found moved, without a GPU cut (`rootWorldsMoved`). */
+    worldsScanned: new Int32Array(8),
     gpuWanted,
     /** The visibility rows, as the table stands: it grows in place (`growTables.ts`), so every
      *  reader of the table's size reads it here, at each use. */

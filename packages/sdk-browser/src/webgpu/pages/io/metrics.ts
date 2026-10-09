@@ -56,6 +56,7 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     geometryAllocationBytes: (stats?.allocatedBytes ?? 0) + vertexBytes,
     frustumRejected: run.frustumRejected,
     lodLevel: run.lodLevel,
+    cutCoarsening: run.gpuSelection?.coarsen ?? null,
     submittedTriangles: pending ? null : run.submittedTriangles,
     totalSubmittedTriangles: pending ? null : run.submittedTriangles,
     transparentMeshes: blendState.visibleBlend.length,

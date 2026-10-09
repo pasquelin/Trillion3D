@@ -9,11 +9,9 @@ import '../../impostor/lent.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
-import { impostorCardCorners } from '../../impostor/card.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { CARD_FLOATS } from '../../impostor/cards.ts'
+import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { viewProj } from '../pages/helpers.ts'
-import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts'
 import { planWebgpuImpostors } from './frame.ts'
 import { recordingEncoder } from './recorder.fixture.ts'
@@ -55,7 +53,10 @@ async function bench() {
       frame: 0,
       gate: { resourcesChanged: () => landed++, cam: createEngineCamera() },
       gpuDrawCalls: 0,
-      gpuSelection: { markWorld: (rank: number, mark: number) => marked.push([rank, mark]) },
+      gpuSelection: {
+        markWorld: (rank: number, mark: number) => marked.push([rank, mark]),
+        worldStandsIn: () => false,
+      },
     },
   } as unknown as WebgpuPagesRuntime
   return { gpu, rt, roots, fixture, asked, marked, landed: () => landed }
@@ -92,12 +93,13 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'it keeps its shadow')
   const state = rt.gpu.impostors!
   assert.equal(state.count, 1)
-  // The card's corners are the shared sprite basis at the root's pivot, half-extent R.
+  // The card's record holds no view: its world, the translation in two words, its radius.
+  const record = state.slots.records.subarray(0, CARD_FLOATS),
+    world = roots[0].world.elements
+  for (const k of [0, 1, 2, 4, 5, 6, 8, 9, 10]) assert.equal(record[k], Math.fround(world[k]))
+  for (let k = 0; k < 3; k++) assert.equal(record[12 + k] + record[16 + k], world[12 + k])
+  assert.equal(record[43], 1, 'the world radius R')
   const toClip = engineOf(200).viewProjection
-  const corners = impostorCardCorners(new Float64Array(12), toClip, [0, 0, 0], 1)
-  for (let i = 0; i < 4; i++)
-    for (let k = 0; k < 3; k++)
-      assert.ok(Math.abs(state.records[i * 4 + k] - corners[i * 3 + k]) < 1e-5, `corner ${i}`)
   const { encoder, open, passes } = recordingEncoder()
   // Visibility: identifier 0, depth and the pyramid's level 0, before the pyramid is built.
   viewProj.set(toClip)
@@ -107,11 +109,9 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.deepEqual(vis.fragment?.targets, [{ format: 'r32uint' }, { format: 'r32float' }])
   assert.equal(vis.depthStencil?.depthCompare, 'greater', 'depth-tested as the clusters')
   assert.equal(vis.depthStencil?.depthWriteEnabled, true)
-  const written = gpu.writes.find((write) => write.buffer.label === 'Trillion3D impostor cards')
-  assert.equal(written?.size, CARD_FLOATS, 'the one card record goes up')
-  // Its world composed with the render view-projection in double, rounded once.
-  const composed = multiplyMatrix4(new Float64Array(16), viewProj, state.worlds[0])
-  assert.deepEqual(state.records.subarray(16, 32), Float32Array.from(composed))
+  const cards = () =>
+    gpu.writes.filter((write) => write.buffer.label === 'Trillion3D impostor cards')
+  assert.equal(cards()[0]?.size, state.slots.used * CARD_FLOATS, 'the records go up whole once')
   // Surfaces: where the depth is the card's own.
   encodeImpostorCards(rt, encoder)
   const surfaces = passes[1]
@@ -121,7 +121,15 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(pipeline.depthStencil?.depthCompare, 'greater-equal')
   assert.equal(pipeline.depthStencil?.depthWriteEnabled, false)
   assert.equal(surfaces.groups[1], state.runs[0].group, "the mesh's atlas group")
-  assert.deepEqual(surfaces.draws, [[6, 1, 0, 0]], 'one quad, one instance')
+  assert.deepEqual(
+    surfaces.draws,
+    [[4, 1, 0, 0]],
+    'one quad — a strip of four corners —, one instance',
+  )
+  // The next image of the same view writes no record: the GPU turns the card to the camera.
+  planWebgpuImpostors(rt, engineOf(200))
+  drawImpostorVisibility(rt, gpu.device, open('primary'), true)
+  assert.equal(cards().length, 1, 'no record written again')
   fixture.geometry.dispose()
 })
 
@@ -163,4 +171,29 @@ test('two meshes placed by one shared world each draw their own card', async () 
   const { count, runCount } = rt.gpu.impostors!
   assert.deepEqual([count, runCount], [2, 2], 'a card and an atlas bind per mesh, none dropped')
   fixture.geometry.dispose()
+})
+
+test('a root the packed world DAG stands in for draws no card; one it does not hold keeps its own', async () => {
+  const { rt, roots, marked } = await bench()
+  // Two roots of two baked meshes: one the world holds, one it does not.
+  const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
+  rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] }
+  roots.push({ ...roots[0], mesh: MESH + 1 })
+  await imagesUntilResident(rt, 200)
+  planWebgpuImpostors(rt, engineOf(200))
+  assert.equal(roots[0].mark, CARD_ROOT, 'carded while no world DAG is packed')
+  assert.equal(rt.gpu.impostors!.count, 2)
+  // Root 0 linked to a world object, the others not: a host mesh outside the world's table.
+  const selection = rt.run.gpuSelection as { worldStandsIn?: (w: number) => boolean }
+  selection.worldStandsIn = (w) => w === 0
+  // The cut tells the tier the link moved (`adoptCut`).
+  rt.gpu.impostors!.linkMoved(0)
+  planWebgpuImpostors(rt, engineOf(200))
+  assert.equal(roots[0].mark ?? 0, 0, 'its clusters back, the world gating them')
+  assert.ok(
+    marked.some(([rank, mark]) => rank === 0 && mark === 0),
+    'and the GPU cut told',
+  )
+  assert.equal(roots[1].mark, CARD_ROOT, 'an unlinked root keeps its card')
+  assert.equal(rt.gpu.impostors!.count, 1)
 })

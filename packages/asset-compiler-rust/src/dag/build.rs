@@ -81,10 +81,12 @@ pub fn build_dag_tallied(
 /// world space, each with the error and the sphere it was published at (`compiler_world_roots`):
 /// a parent's sphere then holds the published one, never a tighter sphere of the triangles.
 /// Level 0 is those clusters as given, in order; the levels above them are built exactly as a primitive's,
-/// with the same grouping, the same simplification and the same monotone error. Positions only:
-/// the super-roots carry no attribute.
+/// with the same grouping, the same simplification and the same monotone error, and `attributes`
+/// — the normals, texture sets and colour the roots' pages carry — count in it as in a
+/// primitive's, a texture seam protected the same way: the super-roots carry them on.
 pub fn build_dag_from_roots(
     positions: &[f32],
+    attributes: DagAttributes,
     roots: Vec<(Vec<u32>, f64, [f64; 4])>,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
@@ -108,6 +110,8 @@ pub fn build_dag_from_roots(
     if dag.len() < 2 {
         return Ok((dag, Vec::new(), Vec::new(), Vec::new(), None));
     }
-    let attributes = DagAttributes::default();
+    if attributes.uv_sets().len() > 2 {
+        return Err(invalid("a page carries at most two texture sets"));
+    }
     super::levels::coarsen(positions, attributes, &indices, dag, checkpoint)
 }

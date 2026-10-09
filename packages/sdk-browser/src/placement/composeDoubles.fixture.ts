@@ -1,13 +1,13 @@
 // The compose passes' doubles as their tests run them (`shaderRun`, `gpuComposeWgsl.ts`): the
-// functions of `DOUBLE_WGSL` a run names before its own, a double as the shader holds it, and the
+// functions of `math/src/wgsl/double.ts` a run names before its own, a double as the shader holds it, and the
 // generated matrices the passes are held to the CPU on.
 import { composeMatrix4 } from '../../../sdk-core/src/index.ts'
-import { packDoubles } from './composedMotion.ts'
+import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 
 /** A double as the shader holds it: high word, low word. */
 export type Pair = number[]
 
-/** The functions of `DOUBLE_WGSL` up to `dMul`, which every compose function calls. */
+/** The functions of `math/src/wgsl/double.ts` up to `dMul`, which every compose function calls. */
 export const DOUBLE_HELPERS = [
   'dNan',
   'dExponent',

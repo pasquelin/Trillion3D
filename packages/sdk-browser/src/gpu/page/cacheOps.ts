@@ -59,6 +59,8 @@ export function pageCacheStats(context: GpuPageContext) {
     allocatedBytes: heldHomes(context.homes, slots)?.bytes ?? pageBytes * slots,
     slots,
     residentPages: context.resident.size,
+    /** Loads in flight: each takes a slot when it lands. */
+    loading: context.fetches.size,
     bytesRead: state.bytesRead,
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,

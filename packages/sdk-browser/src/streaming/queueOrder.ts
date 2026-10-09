@@ -1,4 +1,4 @@
-import { createHeap } from './heap.ts'
+import { createHeap } from '../../../math/src/sequence/heap.ts'
 
 /** What the queue reads of a job: its priority, its arrival number, the bytes its transfer holds,
  *  and its place in the heap. */
@@ -9,7 +9,7 @@ const before = (a: Queued, b: Queued) =>
   a.priority < b.priority || (a.priority === b.priority && a.order < b.order)
 
 /**
- * The queue of a streamer's jobs: a heap on (priority, arrival) (`heap.ts`), each job's place in it
+ * The queue of a streamer's jobs: a heap on (priority, arrival) (`math/src/sequence/heap.ts`), each job's place in it
  * kept in `slot`, −1 once out of it. A job is queued, leaves first or is taken out wherever it
  * stands in O(log n), and one whose priority rose climbs to its place: a camera asking thousands of
  * reads never pays a sweep of the queue. A lower bound of the bytes a queued job holds is kept

@@ -126,7 +126,7 @@ export function banc(panne?: 'envoi') {
     context: {},
     // No light cut ran: the lower residency tier receives nothing.
     lights: {},
-    layout: { rows, drawSlots: 4 },
+    layout: { rows, drawSlots: 4, selectionRoots: [] },
     setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },
     services: {
