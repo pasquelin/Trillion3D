@@ -17,36 +17,44 @@ import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
  * and the water inline in their fragment stage. It reads three things of the view: its depth, the
  * previous lit image of the same view, and the radiance around the scene.
  *
- * The depth is the engine's depth pyramid (`../gpu/hiz/shader.ts`), read as a field of slabs
- * (`hizDepthWgsl`). A pixel holds its depth, the surface runs through it on its plane (`hizPlane`:
- * the slopes the pyramid keeps at its level 0), and the slab behind that plane is
- * `REFLECTION_THICKNESS` of the view's height deep at its distance: what the image cannot see
- * behind a surface is taken to be that thick. A coarser cell bounds the slabs it covers
- * (`hizCell`): its farthest depth, of the depth the occluders drew — at or behind the whole
- * depth's, so a cell is never passed for less than it holds —, and the nearest of its planes. A ray
- * leaves the surface one pixel off it along its normal and is marched in screen space from its own
- * pixel (`reflectionMarch`): past a cell it lies in front of, one level coarser; past a cell whose
- * every slab it lies behind; else one level finer, down to a pixel, where the segment it spans there
- * is judged against that pixel's slab — in front of the plane at both ends, or behind the slab at
- * both, it passes on; else it hits at the segment's first point inside the slab. A ray skimming a
- * surface seen edge-on thus never stops on the pixel centres it passes in front of, nor a ray
- * passing behind a thin object on it. `REFLECTION_STEPS` steps bound a ray.
+ * THE MARCH (`reflectionMarch`) is the hierarchical ray march of a depth pyramid: the ray in screen
+ * space, pixels and reversed depth, leaves the surface one pixel off it along its normal, and first
+ * advances to its own pixel's boundary. Each iteration intersects the ray with its cell at the
+ * current level: the cell's two boundary lines it moves toward, and its nearest surface — at level
+ * 0 the pixel's own plane (its depth and the slopes the pyramid keeps, `hizPlane`), above it the
+ * cell's nearest depth (`hizCell`). A ray in front of that surface that reaches the cell's boundary
+ * first moves there and goes one level coarser; one that reaches the surface first moves onto it and
+ * goes one level finer; one behind it stays and goes one level finer. It stops when it would go
+ * finer than level 0 — in contact with a pixel's plane, or behind it, where it crossed that plane if
+ * it did within the last pixel it travelled —; it misses when it leaves the image or reaches its far
+ * end, or after `REFLECTION_ITERATIONS` iterations.
  *
- * A hit reads the previous image, reprojected with the view-projection it was drawn with, from its
- * filtered pyramid (`gpu.ts`) over the reflected lobe's footprint there (`reflectionFootprint`): an
- * ellipse whose axes are 2 · hit distance · tan of the GGX lobe's half-maximum angle
- * (`reflectionConeTangent`) at the lobe's two widths — equal on an isotropic material —, its long
- * axis along the lobe's stretched direction as the image shows it. The pyramid level is the short
- * axis's, read smooth between and within levels (`reflectionRadianceAt`), and up to
- * `REFLECTION_TAPS` taps cover the long axis: one tap on a round footprint, sharp on a mirror,
- * blurred with distance on a rough surface. How far behind the plane the hit lies, and how near the
- * image's edges, fade it into the radiance around the scene.
+ * THE HIT is the pixel's surface where the ray stopped, accepted by a fixed thickness: the distance
+ * between the ray's point and that surface — the depth the pixel holds, on its plane — is set
+ * against `REFLECTION_THICKNESS` of the view's height at the hit's distance, (1 − smoothstep(0,
+ * thickness, gap))², 1 in contact, 0 a thickness away or more. A hit within two pixels of the ray's
+ * start is the surface it leaves: none. The confidence multiplies the acceptance by smooth fades:
+ * the image's border (in this image and in the one the radiance is read from), the march's length
+ * (its last quarter of iterations, to none at the bound) and the roughness past which the screen
+ * gives way to the environment (`reflectionTraceWeight`).
  *
- * That radiance (`reflectionEnvironment`) is the environment the diffuse lighting reads — its
- * order-2 coefficients through the GGX lobe of the roughness —, plus, in a scene that declares no
- * light around it, the background the view shows (`surroundings`, `gpu.ts`): a mirror shows it as
- * the eye sees it. It answers a miss, a surface past the trace's roughness, and the uncovered share
- * of a footprint.
+ * THE HIT'S RADIANCE is the previous image, reprojected with the view-projection it was drawn with,
+ * read from its filtered pyramid (`gpu.ts`) over the reflected lobe's footprint there
+ * (`reflectionFootprint`): an ellipse whose axes are 2 · hit distance · tan of the GGX lobe's
+ * half-maximum angle (`reflectionConeTangent`) at the lobe's two widths, its long axis along the
+ * lobe's stretched direction; the pyramid level is the short axis's, read smooth between and within
+ * levels (`reflectionRadianceAt`), and up to `REFLECTION_TAPS` taps cover the long axis. Each read
+ * is weighted by its depth (`reflectionDepthWeight`, bilateral): the depth the pyramid holds under
+ * it must lie on the hit's surface — the hit pixel's plane carried to it, a thickness on either side,
+ * widened by the depth that plane spans between them —, so that a footprint across a silhouette
+ * never mixes the surface in front with the one behind. The colour is the weighted reads over their
+ * coverage (the image's alpha: 0 on the background); the share of the depth-weighted reads the image
+ * covers multiplies the confidence.
+ *
+ * THE REFLECTION is mix(environment, hit radiance, confidence). The environment
+ * (`reflectionEnvironment`) is what the diffuse lighting reads — its order-2 coefficients through the
+ * GGX lobe of the roughness —, plus, in a scene that declares no light around it, the background the
+ * view shows (`surroundings`, `gpu.ts`): a miss reads what is around the scene, never black.
  *
  * Its weight is the engine's own split-sum term of the GGX lobe (`reflectionWeight`, the rectangle
  * lights' fitted magnitude and Fresnel share): the energy the lights' specular lobe leaves to the
@@ -54,16 +62,19 @@ import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
  * own: two images of a still view give the same bits.
  */
 
-/** Steps of the hierarchical march, the bound of a ray's cost. */
-export const REFLECTION_STEPS = 48
+/** Iterations of the hierarchical march, the bound of a ray's cost: a ray in the open climbs and
+ *  descends the pyramid's dozen levels in some thirty; one approaching a surface at a grazing angle
+ *  walks it pixel by pixel, two iterations each, and a glass pane's ray over the floor at 2 Mpx takes
+ *  up to eighty. */
+export const REFLECTION_ITERATIONS = 128
 /** Roughness from which the screen trace fades into the environment, and past which only the
  *  environment answers (the compute pass then marches nothing). */
 export const REFLECTION_FADE_ROUGHNESS = 0.5
 export const REFLECTION_TRACE_ROUGHNESS = 0.7
 /** The image border, a fraction of its height, over which a hit fades into the environment. */
 export const REFLECTION_EDGE = 1 / 16
-/** The depth of a pixel's slab: a fraction of the view's height at its distance (its world height
- *  under perspective, the view's under an orthographic camera). */
+/** The thickness a hit is accepted within: a fraction of the view's height at its distance (its
+ *  world height under perspective, the view's under an orthographic camera). */
 export const REFLECTION_THICKNESS = 1 / 32
 /** The taps of a footprint along its long axis at most: past that ratio of its axes, the level is
  *  the long axis's share of a tap. */
@@ -72,7 +83,7 @@ export const REFLECTION_TAPS = 5
 const REFLECTION_CONSTANTS_WGSL = wgslBlock(
   'REFLECTION_CONSTANTS_WGSL',
   [],
-  `const REFLECTION_STEPS:u32=${REFLECTION_STEPS}u;
+  `const REFLECTION_ITERATIONS:u32=${REFLECTION_ITERATIONS}u;
 const REFLECTION_FADE_ROUGHNESS:f32=${wgslF32(REFLECTION_FADE_ROUGHNESS)};
 const REFLECTION_TRACE_ROUGHNESS:f32=${wgslF32(REFLECTION_TRACE_ROUGHNESS)};
 const REFLECTION_EDGE:f32=${wgslF32(REFLECTION_EDGE)};
@@ -80,7 +91,7 @@ const REFLECTION_THICKNESS:f32=${wgslF32(REFLECTION_THICKNESS)};
 const REFLECTION_TAPS:f32=${wgslF32(REFLECTION_TAPS)};
 const REFLECTION_HALF_MAXIMUM:f32=${wgslF32(Math.SQRT2)};
 const REFLECTION_CONE_LIMIT:f32=${wgslF32(Math.tan(40 * DEG2RAD))};
-const REFLECTION_NUDGE:f32=0.01;
+const REFLECTION_NUDGE:f32=0.005;
 const REFLECTION_FAR:f32=1e7;`,
 )
 
@@ -92,10 +103,10 @@ const REFLECTION_FAR:f32=1e7;`,
  * distribution's peak — D(θ)/D(0) = ½ gives tan²θ = α²(√2 − 1)/(1 − √2 α²) —, the half-vector's
  * angle bounded at 40°. Zero on a mirror.
  * `reflectionEdgeFade`: 1 inside the image of `size`, falling smoothly to 0 at its edge over
- * `REFLECTION_EDGE` of its height. `reflectionThicknessFade`: 1 for a hit on the plane, 0 for one
- * `thickness` behind it, smooth from half of it.
- * `reflectionTraceWeight`: the screen's share by roughness, 1 to `REFLECTION_FADE_ROUGHNESS`, 0 from
- * `REFLECTION_TRACE_ROUGHNESS`.
+ * `REFLECTION_EDGE` of its height. `reflectionThicknessFade`: the hit's acceptance, (1 −
+ * smoothstep(0, thickness, gap))². `reflectionLengthFade`: 1 to three quarters of the march's
+ * iterations, smoothly 0 at their bound. `reflectionTraceWeight`: the screen's share by roughness, 1
+ * to `REFLECTION_FADE_ROUGHNESS`, 0 from `REFLECTION_TRACE_ROUGHNESS`.
  */
 export const REFLECTION_CONE_WGSL = wgslBlock(
   'REFLECTION_CONE_WGSL',
@@ -111,7 +122,12 @@ fn reflectionEdgeFade(pixel:vec2f,size:vec2f)->f32{
  return s.x*s.y;
 }
 fn reflectionThicknessFade(gap:f32,thickness:f32)->f32{
- return 1.0-smoothstep(0.5*thickness,thickness,gap);
+ let accepted=1.0-smoothstep(0.0,thickness,gap);
+ return accepted*accepted;
+}
+fn reflectionLengthFade(iterations:f32)->f32{
+ let bound=f32(REFLECTION_ITERATIONS);
+ return 1.0-smoothstep(0.75*bound,bound,iterations);
 }
 fn reflectionTraceWeight(rough:f32)->f32{return 1.0-smoothstep(REFLECTION_FADE_ROUGHNESS,REFLECTION_TRACE_ROUGHNESS,rough);}`,
 )
@@ -204,9 +220,10 @@ export const reflectionBindingsWgsl = (group: number) =>
 
 /**
  * The view's geometry: the world point of a pixel at a depth (`reflectionWorldAt`), the direction
- * from a point to the eye (`reflectionToEye`), the slab's depth at a world point
- * (`reflectionThickness`: `REFLECTION_THICKNESS` of the view's height at its clip `w`) and the depth
- * of the slab's back behind the depth `z` at the pixel point `q` (`reflectionSlabBack`).
+ * from a point to the eye (`reflectionToEye`), the thickness a hit at a world point is accepted
+ * within (`reflectionThickness`: `REFLECTION_THICKNESS` of the view's height at its clip `w`) and
+ * its slab (`reflectionSlab`): the reversed depths of the point a thickness behind it and a
+ * thickness in front of it along the eye's ray.
  */
 const REFLECTION_GEOMETRY_WGSL = wgslBlock(
   'REFLECTION_GEOMETRY_WGSL',
@@ -218,30 +235,26 @@ fn reflectionToEye(P:vec3f)->vec3f{return normalize(reflectionView.camera.xyz-P*
 fn reflectionThickness(P:vec3f)->f32{
  return REFLECTION_THICKNESS*(reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.screen.z*reflectionView.screen.y;
 }
-fn reflectionSlabBack(q:vec2f,z:f32)->f32{
- let P=reflectionWorldAt(q,z);
- let back=reflectionView.viewProj*vec4f(P-reflectionToEye(P)*reflectionThickness(P),1.0);
- return back.z/back.w;
+fn reflectionSlab(P:vec3f,thickness:f32)->vec2f{
+ let toward=reflectionToEye(P)*thickness;
+ let back=reflectionView.viewProj*vec4f(P-toward,1.0);
+ let front=reflectionView.viewProj*vec4f(P+toward,1.0);
+ return vec2f(back.z/back.w,front.z/max(front.w,1e-30));
 }`,
 )
 
 /**
  * The march (see the head of this file) of `o + d·t`, `o` in pixels and reversed depth, `t` from 0
- * to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far end). A cell's bounds are its
- * farthest and nearest depths: a pixel's plane over the pixel (`hizPlane`, its depth and slopes); a
- * coarser cell's, as the pyramid keeps them (`hizCell`). Moving away, a ray in front of a cell goes
- * no farther than that cell's nearest depth before it looks finer. Behind a cell, it is passed when
- * it lies behind the back of the farthest slab the cell can hold: the farthest depth's slab, its
- * back taken at the cell's point nearest the image's centre, where a slab is deepest — a ray behind
- * it is behind every slab of the cell. The hit is the first point of a pixel's segment inside its
- * slab — its entry, where it crosses the plane, or where it comes out of the slab's back —,
- * returned as its `t` and the plane's depth there (`ReflectionHit`); `t` -1 on a miss: past `end`,
- * past the steps, or on the background.
+ * to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far end). A cell's surface is the
+ * pixel's plane at level 0 — the ray's height above it falls at d.z − slopes · d.xy along `t` —, the
+ * cell's nearest depth above it. It returns the `t` it stopped at, the plane (depth at its centre,
+ * slopes) and centre of the pixel it stopped in, and the iterations it took (`ReflectionHit`); `t`
+ * −1 on a miss.
  */
 export const REFLECTION_MARCH_WGSL = wgslBlock(
   'REFLECTION_MARCH_WGSL',
-  [REFLECTION_CONSTANTS_WGSL, REFLECTION_GEOMETRY_WGSL],
-  `struct ReflectionHit{t:f32,depth:f32,}
+  [REFLECTION_CONSTANTS_WGSL],
+  `struct ReflectionHit{t:f32,plane:vec3f,pixel:vec2f,iterations:f32,}
 fn reflectionScreenEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
  let toward=select(-o,size-o,d>vec2f(0.0));
  let t=select(vec2f(REFLECTION_FAR),toward/d,abs(d)>vec2f(1e-6));
@@ -256,91 +269,101 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
  let top=hizLevelCount()-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
  var t=min(first.x,first.y);
+ var last=0.0;
  var level=0;
- for(var n=0u;n<REFLECTION_STEPS;n++){
-  if(t>end){break;}
-  var p=o+d*t;
+ var n=0u;
+ var found=false;
+ var plane=vec3f(0.0);
+ var centre=vec2f(0.0);
+ for(var k=0u;k<REFLECTION_ITERATIONS;k++){
+  if(t>end){return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0),f32(n));}
+  n=k+1u;
+  let p=o+d*t;
   let size=exp2(f32(level));
   let cell=floor(p.xy/size);
-  var pixel=vec3f(0.0);
-  var bounds:vec2f;
-  if(level==0){
-   pixel=hizPlane(vec2i(cell));
-   let extent=0.5*(abs(pixel.y)+abs(pixel.z));
-   bounds=vec2f(pixel.x-extent,pixel.x+extent);
-  }else{bounds=hizCell(vec2i(cell),level);}
   let exits=((cell+side)*size+nudge-o.xy)*inv;
   let across=min(exits.x,exits.y);
-  if(p.z>bounds.y){
-   let reach=select(REFLECTION_FAR,(bounds.y-o.z)/min(d.z,-1e-30),d.z<0.0);
+  var height=0.0;
+  var rate=d.z;
+  if(level==0){
+   plane=hizPlane(vec2i(cell));
+   centre=cell+vec2f(0.5);
+   height=p.z-plane.x-dot(p.xy-centre,plane.yz);
+   rate=d.z-dot(d.xy,plane.yz);
+  }else{height=p.z-hizCell(vec2i(cell),level).y;}
+  if(height>=0.0){
+   last=t;
+   let reach=select(REFLECTION_FAR,t-height/min(rate,-1e-30),rate<0.0);
    if(across<reach){t=across;level=min(level+1,top);continue;}
-   t=reach;p=o+d*t;
+   t=reach;
+  }else if(level==0&&rate<0.0){
+   // Behind the pixel's plane on entering it: where the ray crossed that plane, if it did within
+   // the pixel it last crossed in front of the depth.
+   let crossed=t-height/rate;
+   if(crossed>=max(last,t-1.0/max(abs(d.x),abs(d.y)))){t=crossed;}
   }
-  let q=o+d*across;
-  if(level>0){
-   let deepest=clamp(0.5*reflectionView.screen.xy,cell*size,(cell+vec2f(1.0))*size);
-   if(bounds.x>0.0&&max(p.z,q.z)<reflectionSlabBack(deepest,bounds.x)){t=across;}
-   else{level-=1;}
-   continue;
-  }
-  if(pixel.x<=0.0){break;}
-  let centre=cell+vec2f(0.5);
-  let deep=pixel.x-reflectionSlabBack(centre,pixel.x);
-  let enter=p.z-pixel.x-dot(p.xy-centre,pixel.yz);
-  let leave=q.z-pixel.x-dot(q.xy-centre,pixel.yz);
-  if(min(enter,leave)>0.0||max(enter,leave)< -deep){t=across;continue;}
-  let f=select(select(0.0,(enter+deep)/(enter-leave),enter< -deep),enter/(enter-leave),enter>0.0);
-  let h=t+(across-t)*f;
-  if(h>end){break;}
-  return ReflectionHit(h,pixel.x+dot((o+d*h).xy-centre,pixel.yz));
+  if(level==0){found=true;break;}
+  level-=1;
  }
- return ReflectionHit(-1.0,0.0);
+ if(!found||t>end){return ReflectionHit(-1.0,vec3f(0.0),vec2f(0.0),f32(n));}
+ return ReflectionHit(t,plane,centre,f32(n));
 }`,
 )
 
 /**
- * `reflectedRadiance`: the radiance a surface at `P`, of normal `N` and roughness `rough`, seen
- * from `V`, reflects — the one function of every program (see the head of this file). `lobe` is the
- * lobe's long axis: its direction (`xyz`, any on a round lobe) and its α along it (`w`; rough² on a
- * round lobe), the material's anisotropic GGX parameters (`reflectionLobe`). `reflectionSeen` is the
- * screen's answer: the footprint's colour (`reflectionFootprint`; it carries the coverage of the
- * image's drawn pixels, the background's zero) and how much of it holds, the fades multiplied.
- * `reflectionRadianceAt` reads the pyramid at a fractional level, between its two levels: level 0,
- * the image itself, as the sampler interpolates it, sharp; a coarser one, a filtered stand-in, as
- * a cubic B-spline of its texels (`reflectionLevelRead`: four bilinear reads), smooth, so that a
- * blurred reflection is a round blob at every level, never a texel's square.
+ * The footprint a hit reads (see the head of this file), its resources in bind group `group`. Its
+ * reads sum as `ReflectionTaps`: the depth-weighted colour and coverage, and the depth weights
+ * (`reflectionTap`). `toView` maps a point of the radiance image to this image's pixels (`xy` + uv ·
+ * `zw`), the hit's at the centre of the pixel the ray stopped in, where the depth is read;
+ * `ReflectionSurface` is that pixel, its plane and half the hit's slab (`reflectionSlab`).
+ * `reflectionDepthWeight`: 1 where the depth at `X` lies within the surface's thickness of its plane
+ * carried to `X`, widened by the depth the plane spans from its pixel to `X`, falling smoothly to 0
+ * two thicknesses farther. `reflectionLevelRead` reads one level: level 0, the image itself, as the
+ * sampler interpolates it, sharp; a coarser one as a cubic B-spline of its texels (four bilinear
+ * reads, each weighted by its depth), smooth, so that a blurred reflection is a round blob at every
+ * level, never a texel's square. `reflectionRadianceAt` reads a fractional level between its two.
  */
-export const reflectedRadianceWgsl = (group: number) =>
+export const reflectionFootprintWgsl = (group: number) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group})`,
-    [
-      reflectionBindingsWgsl(group),
-      REFLECTION_CONE_WGSL,
-      REFLECTION_MARCH_WGSL,
-      REFLECTION_ENVIRONMENT_WGSL,
-      ROUGHNESS_FLOOR,
-      clipToFramebuffer,
-    ],
-    `struct ReflectionSeen{color:vec4f,fade:f32,}
-fn reflectionLevelRead(uv:vec2f,level:f32)->vec4f{
- if(level==0.0){return textureSampleLevel(reflectionRadiance,reflectionSampler,uv,0.0);}
+    `reflectionFootprintWgsl(${group})`,
+    [reflectionBindingsWgsl(group), REFLECTION_CONE_WGSL, clipToFramebuffer],
+    `struct ReflectionTaps{color:vec4f,weight:f32,}
+struct ReflectionSurface{pixel:vec2f,plane:vec3f,thickness:f32,}
+fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
+ let size=vec2i(reflectionView.screen.xy);
+ let z=textureLoad(hizDepth,clamp(vec2i(floor(X)),vec2i(0),size-vec2i(1)),0).r;
+ let along=dot(X-surface.pixel,surface.plane.yz);
+ let apart=max(abs(z-surface.plane.x-along)-surface.thickness-abs(along),0.0);
+ return 1.0-smoothstep(0.0,2.0*surface.thickness,apart);
+}
+fn reflectionTap(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
+ let w=share*reflectionDepthWeight(toView.xy+uv*toView.zw,surface);
+ if(w>0.0){
+  let c=textureSampleLevel(reflectionRadiance,reflectionSampler,uv,level);
+  (*sum).color+=w*c;
+  (*sum).weight+=w;
+ }
+}
+fn reflectionLevelRead(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
+ if(level==0.0){reflectionTap(sum,uv,0.0,share,toView,surface);return;}
  let size=vec2f(textureDimensions(reflectionRadiance,u32(level)));
  let t=uv*size-vec2f(0.5);let i=floor(t);let f=t-i;
  let f2=f*f;let f3=f2*f;let e=vec2f(1.0)-f;
  let w0=e*e*e/6.0;let w1=(vec2f(4.0)-6.0*f2+3.0*f3)/6.0;let w3=f3/6.0;let w2=vec2f(1.0)-w0-w1-w3;
  let g0=w0+w1;let g1=w2+w3;
  let low=(i-vec2f(0.5)+w1/g0)/size;let high=(i+vec2f(1.5)+w3/g1)/size;
- let s=textureSampleLevel(reflectionRadiance,reflectionSampler,low,level)*g0.x+textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(high.x,low.y),level)*g1.x;
- let n=textureSampleLevel(reflectionRadiance,reflectionSampler,vec2f(low.x,high.y),level)*g0.x+textureSampleLevel(reflectionRadiance,reflectionSampler,high,level)*g1.x;
- return s*g0.y+n*g1.y;
+ reflectionTap(sum,low,level,share*g0.x*g0.y,toView,surface);
+ reflectionTap(sum,vec2f(high.x,low.y),level,share*g1.x*g0.y,toView,surface);
+ reflectionTap(sum,vec2f(low.x,high.y),level,share*g0.x*g1.y,toView,surface);
+ reflectionTap(sum,high,level,share*g1.x*g1.y,toView,surface);
 }
-fn reflectionRadianceAt(uv:vec2f,level:f32)->vec4f{
+fn reflectionRadianceAt(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
  let below=floor(level);
- let at=reflectionLevelRead(uv,below);
- if(level==below){return at;}
- return mix(at,reflectionLevelRead(uv,below+1.0),level-below);
+ let f=level-below;
+ reflectionLevelRead(sum,uv,below,share*(1.0-f),toView,surface);
+ if(f>0.0){reflectionLevelRead(sum,uv,below+1.0,share*f,toView,surface);}
 }
-fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,R:vec3f,pixel:f32,alpha:f32,lobe:vec4f)->vec4f{
+fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,R:vec3f,pixel:f32,alpha:f32,lobe:vec4f,toView:vec4f,surface:ReflectionSurface)->ReflectionTaps{
  let reach=2.0*distance(hit,P)/max(pixel,1e-30);
  let short=max(reach*reflectionConeTangent(alpha),1.0);
  let long=max(reach*reflectionConeTangent(lobe.w),short);
@@ -351,14 +374,29 @@ fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,R:vec3f,pixel:f32,alpha:f32,lob
  let toward=clipToFramebuffer(reflectionView.radianceViewProj*vec4f(hit+across*pixel,1.0),reflectionView.radiance.xy).xy-Q;
  let span=(long-width)*toward*inverseSqrt(max(dot(toward,toward),1e-30));
  let texel=1.0/vec2f(textureDimensions(reflectionRadiance));
- var sum=vec4f(0.0);
+ var sum=ReflectionTaps(vec4f(0.0),0.0);
  for(var k=0.0;k<taps;k+=1.0){
-  sum+=reflectionRadianceAt((Q+span*((k+0.5)/taps-0.5))*texel,level);
+  reflectionRadianceAt(&sum,(Q+span*((k+0.5)/taps-0.5))*texel,level,1.0,toView,surface);
  }
- return sum/taps;
-}
+ return sum;
+}`,
+  )
+
+/** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting along `R`
+ *  through a lobe of width `alpha` and long axis `lobe` — the march, the hit, its footprint and its
+ *  confidence (see the head of this file). */
+const reflectionSeenWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionSeenWgsl(${group})`,
+    [
+      reflectionFootprintWgsl(group),
+      REFLECTION_GEOMETRY_WGSL,
+      REFLECTION_MARCH_WGSL,
+      clipToFramebuffer,
+    ],
+    `struct ReflectionSeen{color:vec3f,confidence:f32,}
 fn reflectionSeen(P:vec3f,N:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->ReflectionSeen{
- var seen=ReflectionSeen(vec4f(0.0),0.0);
+ var seen=ReflectionSeen(vec3f(0.0),0.0);
  let size=reflectionView.screen.xy;
  let scale=reflectionView.screen.z;
  // One pixel off the surface along its normal: a ray never starts inside the depth it leaves.
@@ -375,29 +413,52 @@ fn reflectionSeen(P:vec3f,N:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->ReflectionSeen{
  let S0=clipToFramebuffer(A,size);
  let d=clipToFramebuffer(B,size)-S0;
  let marched=reflectionMarch(S0,d,reflectionScreenEnd(S0.xy,d.xy,size));
- if(marched.t<0.0||marched.depth<=0.0){return seen;}
+ if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=S0+d*marched.t;
- let hit=reflectionWorldAt(H.xy,marched.depth);
+ let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
+ // A hit within two pixels of the ray's start is the surface it leaves, never what it reflects.
+ if(all(abs(H.xy-S0.xy)<vec2f(2.0))){return seen;}
+ let hit=reflectionWorldAt(H.xy,depth);
+ let thickness=reflectionThickness(hit);
  let gap=distance(reflectionWorldAt(H.xy,H.z),hit);
- let fade=reflectionThicknessFade(gap,reflectionThickness(hit))*reflectionEdgeFade(H.xy,size);
+ var confidence=reflectionThicknessFade(gap,thickness)*reflectionEdgeFade(H.xy,size)*reflectionLengthFade(marched.iterations);
  let previous=reflectionView.radianceViewProj*vec4f(hit,1.0);
- if(fade==0.0||previous.w<=0.0){return seen;}
- let Q=clipToFramebuffer(previous,reflectionView.radiance.xy);
- seen.fade=fade*reflectionEdgeFade(Q.xy,reflectionView.radiance.xy);
- if(seen.fade==0.0){return seen;}
+ if(confidence==0.0||previous.w<=0.0){return seen;}
+ let Q=clipToFramebuffer(previous,reflectionView.radiance.xy).xy;
+ confidence*=reflectionEdgeFade(Q,reflectionView.radiance.xy);
+ if(confidence==0.0){return seen;}
+ let ratio=size/reflectionView.radiance.xy;
+ let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionRadiance))*ratio);
  let w=(reflectionView.viewProj*vec4f(hit,1.0)).w;
- seen.color=reflectionFootprint(Q.xy,hit,P,R,w*scale,alpha,lobe);
+ // The hit's surface: its plane across the image, a thickness deep on either side.
+ let slab=reflectionSlab(hit,thickness);
+ let surface=ReflectionSurface(marched.pixel,marched.plane,0.5*(slab.y-slab.x));
+ let taps=reflectionFootprint(Q,hit,P,R,w*scale,alpha,lobe,toView,surface);
+ if(!(taps.color.a>0.0)){return seen;}
+ seen.color=taps.color.rgb/taps.color.a;
+ seen.confidence=confidence*min(taps.color.a/taps.weight,1.0);
  return seen;
-}
-fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
+}`,
+  )
+
+/**
+ * `reflectedRadiance`: the radiance a surface at `P`, of normal `N` and roughness `rough`, seen
+ * from `V`, reflects — the one function of every program (see the head of this file). `lobe` is the
+ * lobe's long axis: its direction (`xyz`, any on a round lobe) and its α along it (`w`; rough² on a
+ * round lobe), the material's anisotropic GGX parameters (`reflectionLobe`).
+ */
+export const reflectedRadianceWgsl = (group: number) =>
+  wgslBlock(
+    `reflectedRadianceWgsl(${group})`,
+    [reflectionSeenWgsl(group), REFLECTION_ENVIRONMENT_WGSL, ROUGHNESS_FLOOR],
+    `fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
  let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
  let R=reflect(-V,N);
  let environment=reflectionEnvironment(R,r);
  let trace=reflectionTraceWeight(r);
  if(trace==0.0||reflectionView.counts.x==0u||dot(N,V)<=0.0){return environment;}
  let seen=reflectionSeen(P,N,R,r*r,lobe);
- let screen=seen.color.rgb+(1.0-clamp(seen.color.a,0.0,1.0))*environment;
- return mix(environment,screen,seen.fade*trace);
+ return mix(environment,seen.color,seen.confidence*trace);
 }`,
   )
 

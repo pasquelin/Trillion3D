@@ -28,13 +28,12 @@ import {
 
 /** The reflection target's and the radiance pyramid's format: the lit image's. */
 export const REFLECTION_FORMAT: GPUTextureFormat = 'rgba16float'
-/** Levels of the radiance pyramid: its coarsest texel spans 2^(levels − 1) pixels, the widest
- *  footprint a reflection reads before it is the environment's (`REFLECTION_TRACE_ROUGHNESS`). */
-export const REFLECTION_RADIANCE_LEVELS = 8
+/** Levels of the radiance pyramid, level 0 and two a dispatch (`RADIANCE_SHADER`): its coarsest
+ *  texel spans 2^(levels − 1) pixels, the widest footprint a reflection reads before it is the
+ *  environment's (`REFLECTION_TRACE_ROUGHNESS`). */
+export const REFLECTION_RADIANCE_LEVELS = 9
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 const SIDE = 8
-/** Pixels per side of the radiance pyramid's first workgroup tile. */
-const TILE = 16
 /** The surface flag of a lit standard surface (`../scene/surfaceModel.ts`): the one the opaque
  *  trace marches for; the diffuse and toon models reflect nothing, the background and the unlit
  *  and as-is surfaces neither. */
@@ -105,60 +104,74 @@ fn reflectionSurroundings(){
  * The radiance pyramid: the lit image of the frame, before the temporal resolve, and its filtered
  * levels, which the next image's reflections read over their footprints. Each level is the one
  * before it through the separable tent [1, 3, 3, 1] / 8 on each axis, centred on the coarse texel
- * (the four finer texels around it, zero past the image): a smooth, near-Gaussian chain, whose
- * trilinear read is a soft blob at every level, never a texel's square. The colour is filtered
- * with its coverage (the lit image's alpha: 1 where a surface drew, 0 on the background), so a
- * footprint over a silhouette reads the background's share as uncovered, which the reflection
- * fills with the environment.
+ * (the four finer texels around it, the edge's past the drawn image), read as four bilinear taps
+ * between texel pairs at a quarter of a texel (`radianceTent`): a smooth, near-Gaussian chain,
+ * shift-free, whose B-spline read is a soft blob at every level, never a texel's square. The colour
+ * is filtered with its coverage (the lit image's alpha: 1 where a surface drew, 0 on the
+ * background, at most 1 at every level), which the reflection divides by, so a footprint never
+ * darkens toward the background.
  *
- * `radianceFirst` reads the drawn image once into a workgroup tile of `TILE` pixels a side and its
- * one-pixel apron, copies the tile into level 0 and filters level 1 from it; `radianceDown` makes
- * each further level from the one before. Per image, of the image's 8 bytes a pixel: one read and
- * one write at level 0, then a quarter written at level 1, and below it a third of a quarter read
- * and a twelfth written — 1.33 reads and 1.33 writes of the image, `REFLECTION_RADIANCE_LEVELS` − 1
- * dispatches; at 2.35 Mpx, 50 MB, a quarter of a millisecond at 200 GB/s.
+ * Two levels a dispatch, no workgroup memory: a thread owns one texel of level k + 2, filters the
+ * 4 × 4 texels of level k + 1 around it (`radianceTwo`), writes the 2 × 2 of them it owns and its
+ * own of level k + 2. `radianceFirst` does so from the drawn image, and copies the 4 × 4 pixels it
+ * owns into level 0; `radianceDown` from each level after. `REFLECTION_RADIANCE_LEVELS` = 1 + 2 · 4
+ * levels take four dispatches, of W·H/16, W·H/256, … threads. The pixels neighbours share come
+ * from the cache: of the image's 8 bytes a pixel, the build reads the image once and writes level 0
+ * once and the coarser levels a third of it, and reads a sixteenth back — at 2.35 Mpx, 1 read and
+ * 1 + 1/3 writes, 44 MB, a tenth of a millisecond at 400 GB/s.
  */
 export const RADIANCE_SHADER = wgslProgram(
   `@group(0) @binding(0) var finer:texture_2d<f32>;
 @group(0) @binding(1) var coarser:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(2) var copy:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(3) var<uniform> drawn:vec4u;
-const APRON:u32=${TILE + 2}u;
-var<workgroup> tile:array<vec4f,${(TILE + 2) * (TILE + 2)}>;
-fn tent(k:u32)->f32{return select(1.0,3.0,k==1u||k==2u);}
-fn radianceAt(p:vec2i)->vec4f{
- if(any(p<vec2i(0))||any(p>=vec2i(drawn.xy))){return vec4f(0.0);}
- let c=textureLoad(finer,p,0);
- return vec4f(c.rgb,clamp(c.a,0.0,1.0));
+@group(0) @binding(2) var coarsest:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(3) var halves:sampler;
+@group(0) @binding(4) var copy:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(5) var<uniform> drawn:vec4u;
+fn tent(k:i32)->f32{return select(1.0,3.0,k==1||k==2);}
+fn radianceTent(q:vec2i,bounds:vec2i)->vec4f{
+ let size=vec2f(textureDimensions(finer));
+ let last=vec2f(bounds-vec2i(1));
+ let low=(clamp(vec2f(2*q)-vec2f(0.25),vec2f(0.0),last)+vec2f(0.5))/size;
+ let high=(clamp(vec2f(2*q)+vec2f(1.25),vec2f(0.0),last)+vec2f(0.5))/size;
+ let sum=textureSampleLevel(finer,halves,low,0.0)+textureSampleLevel(finer,halves,vec2f(high.x,low.y),0.0)
+  +textureSampleLevel(finer,halves,vec2f(low.x,high.y),0.0)+textureSampleLevel(finer,halves,high,0.0);
+ return vec4f(sum.rgb,min(sum.a,4.0))/4.0;
 }
-@compute @workgroup_size(${TILE},${TILE})
-fn radianceFirst(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) index:u32){
- let origin=vec2i(group.xy*${TILE}u)-vec2i(1);
- for(var k=index;k<APRON*APRON;k+=${TILE * TILE}u){tile[k]=radianceAt(origin+vec2i(vec2u(k%APRON,k/APRON)));}
- workgroupBarrier();
- let p=group.xy*${TILE}u+local.xy;
- if(all(p<textureDimensions(copy))){textureStore(copy,p,tile[(local.y+1u)*APRON+local.x+1u]);}
- let id=group.xy*${TILE / 2}u+local.xy;
- if(any(local.xy>=vec2u(${TILE / 2}u))||any(id>=textureDimensions(coarser))){return;}
+fn radianceTwo(c:vec2i,bounds:vec2i){
+ let size=vec2i(textureDimensions(coarser));
  var sum=vec4f(0.0);
- for(var y=0u;y<4u;y++){
-  for(var x=0u;x<4u;x++){sum+=tent(x)*tent(y)*tile[(2u*local.y+y)*APRON+2u*local.x+x];}
+ for(var j=0;j<4;j++){
+  for(var i=0;i<4;i++){
+   let q=clamp(2*c-vec2i(1)+vec2i(i,j),vec2i(0),size-vec2i(1));
+   let texel=radianceTent(q,bounds);
+   if(i>=1&&i<=2&&j>=1&&j<=2&&all(2*c-vec2i(1)+vec2i(i,j)<size)){textureStore(coarser,q,texel);}
+   sum+=tent(i)*tent(j)*texel;
+  }
  }
- textureStore(coarser,id,sum/64.0);
+ if(all(c<vec2i(textureDimensions(coarsest)))){textureStore(coarsest,c,sum/64.0);}
+}
+@compute @workgroup_size(${SIDE},${SIDE})
+fn radianceFirst(@builtin(global_invocation_id) id:vec3u){
+ let c=vec2i(id.xy);
+ let size=vec2i(textureDimensions(copy));
+ if(any(4*c>=size)){return;}
+ let bounds=vec2i(drawn.xy);
+ for(var y=0;y<4;y++){
+  for(var x=0;x<4;x++){
+   let p=4*c+vec2i(x,y);
+   if(all(p<size)){
+    let texel=select(vec4f(0.0),textureLoad(finer,p,0),all(p<bounds));
+    textureStore(copy,p,vec4f(texel.rgb,clamp(texel.a,0.0,1.0)));
+   }
+  }
+ }
+ radianceTwo(c,bounds);
 }
 @compute @workgroup_size(${SIDE},${SIDE})
 fn radianceDown(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=textureDimensions(coarser))){return;}
- let size=vec2i(textureDimensions(finer));
- let low=vec2i(id.xy*2u)-vec2i(1);
- var sum=vec4f(0.0);
- for(var y=0;y<4;y++){
-  for(var x=0;x<4;x++){
-   let p=low+vec2i(x,y);
-   if(all(p>=vec2i(0))&&all(p<size)){sum+=tent(u32(x))*tent(u32(y))*textureLoad(finer,p,0);}
-  }
- }
- textureStore(coarser,id.xy,sum/64.0);
+ let c=vec2i(id.xy);
+ if(any(2*c>=vec2i(textureDimensions(coarser)))){return;}
+ radianceTwo(c,vec2i(textureDimensions(finer)));
 }`,
   [],
 )
@@ -188,6 +201,19 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
     ],
   })
 })
+
+/** The radiance pyramid's two layouts (`RADIANCE_SHADER`): a level read through its sampler, the
+ *  two levels a dispatch writes, and for the first, level 0 and the drawn size. */
+function radianceLayouts(device: GPUDevice) {
+  const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
+  const finer = { binding: 0, visibility: COMPUTE, texture: { sampleType: 'float' } } as const
+  const halves = { binding: 3, visibility: COMPUTE, sampler: { type: 'filtering' } } as const
+  const drawn = { binding: 5, visibility: COMPUTE, buffer: { type: 'uniform' } } as const
+  return {
+    firstLayout: layout([finer, storage(1), storage(2), halves, storage(4), drawn]),
+    downLayout: layout([finer, storage(1), storage(2), halves]),
+  }
+}
 
 /** The reflection's kernels — the surroundings, the opaque trace, the radiance pyramid's two —
  *  compiled once a device under one validation scope. */
@@ -219,18 +245,7 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 1, visibility: COMPUTE, buffer: { type: 'storage' } },
     ])
-    const finer: GPUBindGroupLayoutEntry = {
-      binding: 0,
-      visibility: COMPUTE,
-      texture: { sampleType: 'unfilterable-float' },
-    }
-    const firstLayout = layout([
-      finer,
-      storage(1),
-      storage(2),
-      { binding: 3, visibility: COMPUTE, buffer: { type: 'uniform' } },
-    ])
-    const downLayout = layout([finer, storage(1)])
+    const { firstLayout, downLayout } = radianceLayouts(device)
     const stage = (made: GPUShaderModule, entryPoint: string, groups: GPUBindGroupLayout[]) =>
       buildComputePipeline(device, {
         layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
@@ -256,9 +271,12 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
 )
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
-/** The radiance pyramid's levels at `width × height`. */
-const radianceLevels = (width: number, height: number) =>
-  Math.min(REFLECTION_RADIANCE_LEVELS, mipLevelCountFor(width, height))
+/** The radiance pyramid's levels at `width × height`: an odd count, level 0 and two a dispatch,
+ *  as many as the image holds up to `REFLECTION_RADIANCE_LEVELS`. */
+const radianceLevels = (width: number, height: number) => {
+  const levels = Math.min(REFLECTION_RADIANCE_LEVELS, mipLevelCountFor(width, height))
+  return levels - ((levels + 1) % 2)
+}
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid and its two uniforms; the depth it marches is the Hi-Z's. */
@@ -485,8 +503,8 @@ export function encodeReflectionTrace(
 
 /**
  * The radiance pyramid of the lit image `hdr`, drawn at `size` with `viewProjection`, in the open
- * compute `pass`: level 0 and 1 from the image, then each further level; what the pyramid holds is
- * then that image, for the next one's reflections. A pyramid of one level holds nothing.
+ * compute `pass`: levels 0, 1 and 2 from the image, then two levels a dispatch from the last made
+ * (`RADIANCE_SHADER`); what the pyramid holds is then that image, for the next one's reflections.
  */
 export function encodeRadiancePyramid(
   pass: GPUComputePassEncoder,
@@ -497,7 +515,7 @@ export function encodeRadiancePyramid(
   viewProjection: ArrayLike<number>,
 ) {
   const { levels, radianceLevels: views, device, held } = reflection
-  if (levels < 2) return
+  if (levels < 3) return
   if (reflection.build?.hdr !== hdr) {
     const groups = [
       device.createBindGroup({
@@ -505,18 +523,22 @@ export function encodeRadiancePyramid(
         entries: [
           { binding: 0, resource: hdr },
           { binding: 1, resource: views[1] },
-          { binding: 2, resource: views[0] },
-          { binding: 3, resource: { buffer: reflection.drawn } },
+          { binding: 2, resource: views[2] },
+          { binding: 3, resource: reflection.sampler },
+          { binding: 4, resource: views[0] },
+          { binding: 5, resource: { buffer: reflection.drawn } },
         ],
       }),
     ]
-    for (let at = 2; at < levels; at++)
+    for (let at = 2; at + 2 < levels; at += 2)
       groups.push(
         device.createBindGroup({
           layout: pipelines.downLayout,
           entries: [
-            { binding: 0, resource: views[at - 1] },
-            { binding: 1, resource: views[at] },
+            { binding: 0, resource: views[at] },
+            { binding: 1, resource: views[at + 1] },
+            { binding: 2, resource: views[at + 2] },
+            { binding: 3, resource: reflection.sampler },
           ],
         }),
       )
@@ -530,16 +552,11 @@ export function encodeRadiancePyramid(
   const { width, height } = reflection.radiance
   reflection.build.groups.forEach((group, at) => {
     pass.setBindGroup(0, group)
-    if (at === 0) {
-      pass.setPipeline(pipelines.firstPipeline)
-      pass.dispatchWorkgroups(ceilDiv(width, TILE), ceilDiv(height, TILE))
-      return
-    }
-    pass.setPipeline(pipelines.downPipeline)
-    pass.dispatchWorkgroups(
-      ceilDiv(Math.max(1, width >> (at + 1)), SIDE),
-      ceilDiv(Math.max(1, height >> (at + 1)), SIDE),
-    )
+    pass.setPipeline(at === 0 ? pipelines.firstPipeline : pipelines.downPipeline)
+    // A thread per texel of the coarsest level it makes, and per 4 × 4 pixels of level 0.
+    const threads = (extent: number) =>
+      at === 0 ? ceilDiv(extent, 4) : ceilDiv(Math.max(1, extent >> (2 * at + 1)), 2)
+    pass.dispatchWorkgroups(ceilDiv(threads(width), SIDE), ceilDiv(threads(height), SIDE))
   })
   let still = held.valid && held.size[0] === size[0] && held.size[1] === size[1]
   for (let i = 0; i < 16 && still; i++) still = held.viewProjection[i] === viewProjection[i]
