@@ -7,7 +7,6 @@ import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fix
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
-import type { ByteMeter } from '../cluster/byteMeter.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import type { PageStreamerOptions } from '../streaming/types.ts'
@@ -18,7 +17,7 @@ export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).dig
  *  session: through a queue of its own over `cache`, on the load's `signal`, let go once opened. */
 export async function modelOpened(
   manifest: ClusterManifest,
-  opening: { signal?: AbortSignal; meter?: ByteMeter; whole?: boolean } = {},
+  opening: { signal?: AbortSignal; whole?: boolean } = {},
   cache = createPageCache(),
 ) {
   const queue = createPageStreamer([], 'http://world/', { cache, signal: opening.signal })
@@ -73,21 +72,20 @@ export function rangeOf(table: WorldRoots, first: number, end: number) {
 }
 
 /** How `opened` opens a world: the queue's transfers, its transfer budget and who hears a stall,
- *  the load's meter, and `whole` for a scene not partitioned. */
+ *  and `whole` for a scene not partitioned. */
 type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes'> & {
   transfers?: number
-  meter?: ByteMeter
   whole?: boolean
 }
 
 /** The world `manifest` declares, opened at `http://world/` as a session's load opens it: through
  *  the session's queue, closed with the test. */
 export async function opened(t: TestContext, manifest: ClusterManifest, opening: Opening = {}) {
-  const { transfers, meter, whole, onStalled, maxTransferBytes } = opening
+  const { transfers, whole, onStalled, maxTransferBytes } = opening
   const options = { workerCount: transfers, onStalled, maxTransferBytes }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
-  const roots = (await openWorldRoots(manifest, 'http://world/', queue, { meter, whole }))!
+  const roots = (await openWorldRoots(manifest, 'http://world/', queue, { whole }))!
   return { roots, queue }
 }
 

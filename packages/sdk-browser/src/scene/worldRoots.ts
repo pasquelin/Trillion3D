@@ -14,10 +14,11 @@
  * roots need (`cellDependencies`), a lone object's copy among them, which nothing
  * above replaces and no other cell pays for. A cell the view places holds those bundles (`hold`,
  * `worldBundles.ts`), read through the queue of the session drawing it (`bind`); a scene not
- * partitioned is one cell, held from its load for its whole life. Every read of the roots goes
- * through one page queue: the session's its load reads for, or — a world's model, before any
- * session — one of its own over the world's page cache. The session counts every byte held here in
- * its CPU budget (`bytes`).
+ * partitioned is one cell, held from its load for its whole life. Every read of the roots — their
+ * table and DAG whole, their bundles as pages — goes through one page queue: the session's its
+ * load reads for, or — a world's model, before any session — one of its own over the world's page
+ * cache; the table and the DAG stay there, so a session reopened reads them from it. The session
+ * counts every byte held here in its CPU budget (`bytes`).
  */
 import type { WorldPageServer } from './worldPageServe.ts'
 import {
@@ -31,16 +32,14 @@ import {
   readWorldRootsDag,
 } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import { fetchVerified } from '../cluster/pages.ts'
-import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
 import { families } from '../host/families.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
-import { bundlePages, readBundle } from './worldRuns.ts'
+import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
 import { createWorldObjects } from './worldObjects.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-import type { PageQueue } from '../streaming/types.ts'
+import type { PageQueue, StreamPage } from '../streaming/types.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): a partitioned world opens them at load,
@@ -54,34 +53,32 @@ type WorldStream = {
 }
 
 type Announced = { bytes: number; sha256: string }
-/** Where a cache keeps its world roots' table and the DAG file the cook writes beside it. */
-const worldRootsUrls = (base: string) => ({
-  table: new URL(WORLD_ROOTS_FILE, base).href,
-  dag: new URL(WORLD_ROOTS_DAG, base).href,
-})
-/** What a load reads of the world roots `declared` lists, address to length, by its own request:
- *  the table whole. Its binary is read through a page queue, its bundles as pages. */
-export function worldRootsPlan(declared: ReadonlyMap<string, number>, base: string) {
-  const { table } = worldRootsUrls(base)
-  return declared.has(table) ? [[table, declared.get(table)!] as [string, number]] : []
+/** The file `name` of the cache at `base` its manifest `files` announce, as the page a queue reads
+ *  it whole by (`readWhole`); `undefined` for one it does not announce. */
+function announcedFile(
+  files: Record<string, Announced | undefined>,
+  name: string,
+  base: string,
+): StreamPage | undefined {
+  const announced = files[name]
+  return announced && { url: new URL(name, base).href, ...announced }
 }
 
-/** The world stream of `table`, opened on first use — `dag` its DAG file, read at `dagUrl` then,
- *  `pages` each bundle's —: only an opened stream is kept, so a family refusal is asked again on the
- *  next use (`onDemand`), and a table out of rank is refused again, before any page is served. */
+/** The world stream of `table`, opened on first use — `dag` its DAG file, read whole then by
+ *  `read`, `pages` each bundle's —: only an opened stream is kept, so a family refusal is asked
+ *  again on the next use (`onDemand`), and a table out of rank is refused again, before any page
+ *  is served. */
 function worldStream(
   table: WorldRoots,
-  dag: Announced | undefined,
-  dagUrl: string,
-  signal: AbortSignal | undefined,
+  dag: StreamPage | undefined,
+  read: (page: StreamPage) => Promise<Uint8Array>,
   pages: (bundle: number, signal: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
 ) {
   let stream: WorldStream | undefined
   const open = async () => {
     if (stream) return stream
     const { worldPageServer, worldRootPages } = await families.worldStream.load()
-    const records =
-      dag && readWorldRootsDag(new Uint8Array(await fetchVerified(dagUrl, dag, signal)))
+    const records = dag && readWorldRootsDag(await read(dag))
     const landed = new Set<(addresses: readonly string[]) => void>()
     const tell = (addresses: readonly string[]) => landed.forEach((watcher) => watcher(addresses))
     return (stream ??= {
@@ -137,31 +134,29 @@ export function worldOrGeometryReader(
   }
 }
 
-/** How a load opens the world roots: the signal that lets it go, the meter counting what it
- *  reads, and `whole` for a scene not partitioned. */
-type WorldOpening = { signal?: AbortSignal; meter?: ByteMeter; whole?: boolean }
+/** How a load opens the world roots: the signal that lets it go, and `whole` for a scene not
+ *  partitioned. */
+type WorldOpening = { signal?: AbortSignal; whole?: boolean }
 
 /**
  * The world roots of the cache `metadata` describes at `base`, their top read and pinned — with
  * the one cell of a scene not partitioned (`whole`), held for its life —, or `undefined` for a
  * cache that publishes none (a scene with no placed DAG, or one cooked without the roots table).
- * Their bundles are read through `queue`, bound to it: a session's load reads through the
- * session's, a world's model through one of its own over its world's page cache. A partitioned
- * world — more than one cell — opens its stream at once, its DAG read: the cut packs it to draw the
- * cells it holds far (`drawn`, `../webgpu/pages/prepare/worldRoot.ts`).
+ * Their table, their DAG and their bundles are read through `queue`, bound to it: a session's load
+ * reads through the session's, a world's model through one of its own over its world's page cache.
+ * A partitioned world — more than one cell — opens its stream at once, its DAG read: the cut packs
+ * it to draw the cells it holds far (`drawn`, `../webgpu/pages/prepare/worldRoot.ts`).
  */
 export async function openWorldRoots(
   metadata: ClusterManifest,
   base: string,
   queue: PageQueue,
-  { signal, meter = unmetered, whole = false }: WorldOpening = {},
+  { signal, whole = false }: WorldOpening = {},
 ) {
   const files = (metadata as { files?: Record<string, Announced | undefined> }).files ?? {}
-  const announced = files[WORLD_ROOTS_FILE]
-  if (!announced) return undefined
-  const urls = worldRootsUrls(base)
-  const bytes = await fetchVerified(urls.table, announced, signal, meter)
-  const table = readWorldRoots(new Uint8Array(bytes))
+  const tableFile = announcedFile(files, WORLD_ROOTS_FILE, base)
+  if (!tableFile) return undefined
+  const table = readWorldRoots(await readWhole(queue, tableFile, signal ?? queue.signal))
   const url = new URL(table.payload.url, base).href
   const top = await readTop(table, url, signal, queue)
   // The roots a held bundle carries for its cell join the cut's cache cover with it.
@@ -169,8 +164,8 @@ export async function openWorldRoots(
   const bundles = createWorldBundles(table, url, top, rootsIn)
   bundles.bind(queue)
   if (whole) await bundles.hold(0, { signal })
-  const dag = files[WORLD_ROOTS_DAG]
-  const stream = worldStream(table, dag, urls.dag, signal, bundles.pages)
+  const dag = announcedFile(files, WORLD_ROOTS_DAG, base)
+  const stream = worldStream(table, dag, (page) => bundles.file(page, signal), bundles.pages)
   const objects = createWorldObjects(table, metadata.primitives ?? [])
   const roots = worldRootsHold(table, top, { bundles, stream, objects })
   if (table.cells.count > 1 && dag) {
@@ -179,7 +174,6 @@ export async function openWorldRoots(
   }
   // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
   roots.metadata = metadata
-  opened.set(roots, roots)
   return roots
 }
 
@@ -214,9 +208,7 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     pinned: { bundles: table.pinned, pages: top.flat(), bytes: table.pinnedTopBytes },
     hold: bundles.hold,
     /** `cell` left: a bundle no placed cell needs any more is let go, and its objects read. */
-    release(cell: number) {
-      bundles.release(cell)
-    },
+    release: bundles.release,
     has: bundles.has,
     /** The bundles past the top the placed cells hold now, ascending. */
     held: bundles.held,
@@ -236,11 +228,3 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
 }
 
 export type WorldRootsHold = NonNullable<Awaited<ReturnType<typeof openWorldRoots>>>
-
-/** Each world roots a load opened, by the object a scene's public record shows of it — its pinned
- *  top and bytes alone (`ExplorerScene.worldRoots`): the engine's stream, holds and binding stay
- *  off the public surface. */
-const opened = new WeakMap<object, WorldRootsHold>()
-
-/** The world roots `shown` shows in a scene's record, to bind to a session's queue. */
-export const worldRootsOf = (shown: object) => opened.get(shown)

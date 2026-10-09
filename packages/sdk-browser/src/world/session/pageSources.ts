@@ -6,7 +6,6 @@ import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { createIndexViews } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
-import { worldRootsOf } from '../../scene/worldRoots.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
 import { indexManifestBundles, indexManifestPages } from '../../scene/manifestPageIndex.ts'
@@ -104,7 +103,7 @@ export function openExplorerPageSources(
 export type ExplorerPageSources = Awaited<ReturnType<typeof openExplorerPageSources>['sources']>
 
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
- *  its partitions' index pages catalogued, and its world roots bound to the queue (`worldRootsOf`). */
+ *  its partitions' index pages catalogued, and its world roots bound to the queue. */
 export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'worldRoots'>>(
   streamer: PageQueue,
   given: T | undefined,
@@ -112,7 +111,7 @@ export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 
 ) {
   const scene = given ?? (await load())
   streamer.admit(scene.partitions.flatMap((cells) => cells.pages))
-  for (const shown of scene.worldRoots) worldRootsOf(shown)?.bind(streamer)
+  for (const roots of scene.worldRoots) roots.bind(streamer)
   return scene
 }
 

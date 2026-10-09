@@ -8,6 +8,7 @@
  */
 import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
+import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 /** The name of bundle `bundle` of the binary at `url` in the queue's catalogue. */
 const bundleUrl = (url: string, bundle: number) => `${url}#${bundle}`
@@ -22,6 +23,14 @@ export function bundlePages(table: WorldRoots, url: string, first = 0) {
     if (bytes > 0) pages.push({ url: bundleUrl(url, bundle), bytes, sha256, range, kept: false })
   }
   return pages
+}
+
+/** The file `page` names, read whole through `queue` on `signal` — a page of its catalogue from
+ *  now on, kept in the page cache the queue reads through, verified against its fingerprint: a
+ *  world's table or DAG, which a session reopened reads from there. */
+export function readWhole(queue: PageQueue, page: StreamPage, signal: AbortSignal) {
+  queue.admit([page])
+  return queue.readBytes(page.url, signal, PRIORITY_VISIBLE)
 }
 
 /** Bundle `bundle` of `table`'s binary at `url` read through `queue` on `signal` at `priority`:

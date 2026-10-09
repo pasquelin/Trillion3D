@@ -30,8 +30,8 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-import type { PageQueue } from '../streaming/types.ts'
-import { bundlePages, readBundle } from './worldRuns.ts'
+import type { PageQueue, StreamPage } from '../streaming/types.ts'
+import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
 import { createCoverShare } from './worldCoverShare.ts'
 
 /** How a cell holds: the read priority of its bundles, and the signal that lets its hold go — the
@@ -194,18 +194,21 @@ export function createWorldBundles(
     )
     return Promise.all(reads)
   }
-  /** The pages of `bundles`, held as `owns`, read as `asked`: a read its session's close stopped
-   *  is asked again of the next session's queue. */
-  const read = async (bundles: readonly number[], owns: Held[], asked: WorldHold) => {
+  /** What `use` reads through the queue bound now, else the next one bound, till `signal` lets
+   *  go: a read its session's close stopped is asked again of the next session's queue. */
+  const onBound = async <T>(signal: AbortSignal | undefined, use: (session: PageQueue) => T) => {
     for (;;) {
-      const session = await binding.next(asked.signal)
+      const session = await binding.next(signal)
       try {
-        return void (await readOn(session, bundles, owns, asked))
+        return await use(session)
       } catch (error) {
-        if (!session.signal.aborted || asked.signal?.aborted) throw error
+        if (!session.signal.aborted || signal?.aborted) throw error
       }
     }
   }
+  /** The pages of `bundles`, held as `owns`, read as `asked`. */
+  const read = (bundles: readonly number[], owns: Held[], asked: WorldHold) =>
+    onBound(asked.signal, (session) => readOn(session, bundles, owns, asked))
   return {
     /** `cell` is placed: the bundles its objects' roots need past the top are held, those neither
      *  read nor on their way read. Each hold is released once (`release`), landed or not: a hold
@@ -236,6 +239,10 @@ export function createWorldBundles(
         letGo(bundle)
       }
     },
+    /** The file `page` names — the world's DAG —, read whole through the queue bound on `signal`
+     *  (`readWhole`). */
+    file: (page: StreamPage, signal?: AbortSignal) =>
+      onBound(signal, (session) => readWhole(session, page, signal ?? session.signal)),
     has: (bundle: number) => held.has(bundle),
     /** The bundles past the top the cells hold now, ascending, those refused for good left out. */
     held: () => [...held.keys()].filter(counts.followed).sort((a, b) => a - b),

@@ -19,7 +19,6 @@ import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
 import { loadEngine, webgpuEngine } from '../../engine/factory.ts'
 import type { ExplorerSession } from './session.ts'
-import { worldRootsOf, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 
@@ -187,10 +186,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
     textureIndices: loadedScene.textureIndices,
-    // The engine's own view of each world roots the record shows (`worldRootsOf`).
-    worldRoots: loadedScene.worldRoots
-      .map(worldRootsOf)
-      .filter((hold): hold is WorldRootsHold => hold !== undefined),
+    worldRoots: loadedScene.worldRoots,
   })
   resources.engine = engine
   await families

@@ -70,11 +70,7 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
     }),
-    openWorldRoots(metadata, base, options.queue, {
-      signal,
-      meter: options.meter,
-      whole: !tables.partition,
-    }),
+    openWorldRoots(metadata, base, options.queue, { signal, whole: !tables.partition }),
   ])
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
@@ -198,16 +194,13 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await hostBoundsLot(source)
-  // The world roots the scene holds, counted in the session's CPU budget: only that count leaves
-  // the scene; its page source, DAG and binding stay the engine's (`worldRootsOf`).
-  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
-    ? [worldRoots]
-    : []
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
     /** The clips the file plays (#357). */
     clips: built.clips,
-    worldRoots: counted,
+    /** The world roots the scene holds, bound to each session's queue and counted in its CPU
+     *  budget. */
+    worldRoots: worldRoots ? [worldRoots] : [],
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   }
