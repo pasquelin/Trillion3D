@@ -98,6 +98,8 @@
     "check:links": "node scripts/check-links.ts",
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
+    "generate:shared-rules": "node scripts/generate-shared-rules.ts",
+    "check:shared-rules": "node scripts/generate-shared-rules.ts --check",
     "generate:api": "node scripts/generate-api-reference.ts",
     "compile:caches": "node scripts/site-caches.ts",
     "check:i18n": "node scripts/check-i18n.ts",

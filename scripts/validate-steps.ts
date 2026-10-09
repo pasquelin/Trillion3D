@@ -17,7 +17,9 @@
 //              `check:structure` reads `tsconfig.core.json`, which covers `sdk-core` alone, so the
 //              browser SDK — the largest package — was compiled by no gate at all;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
-//              (`committed_colliders_hold_their_published_tolerance`);
+//              (`committed_colliders_hold_their_published_tolerance`), and the rules printed from
+//              TypeScript into the other languages (`check:shared-rules`), whose Rust it formats
+//              with the toolchain's `rustfmt`;
 //   unit       the unit suite, which needs both the compiled compiler
 //              (`tests/integration/shared-cache-format.test.ts` skips part of itself without it)
 //              and `dist/` (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
@@ -71,7 +73,7 @@ export const VALIDATE_GROUPS = {
     'check:site-types',
     'check:tools-types',
   ],
-  native: ['lint:native', 'build:native', 'compile:caches', 'test:native'],
+  native: ['lint:native', 'check:shared-rules', 'build:native', 'compile:caches', 'test:native'],
   unit: ['build:native', 'build', 'test'],
 } as const satisfies Record<string, readonly string[]>
 

@@ -13,7 +13,7 @@ import {
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts'
-import { WAVE_DOUBLES, type Waves } from '../../../sdk-core/src/fluids/index.ts'
+import { WAVE_DOUBLES, WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/index.ts'
 import { joltImports, type SpawnJoltThread } from './joltThreads.ts'
 
 /** The flat C API of `joltPhysics.wasm` (`packages/physics-jolt-wasm/src/world.cpp`). */
@@ -185,14 +185,8 @@ export function startJolt(
     planes(waves: Waves, level: number, sample: number, count: number, from?: number) {
       const at = jolt.jolt_wave_buffer(waves.count)
       const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES)
-      for (let i = 0, o = 0; i < waves.count; i++, o += WAVE_DOUBLES) {
-        out[o] = waves.dirX[i]
-        out[o + 1] = waves.dirZ[i]
-        out[o + 2] = waves.k[i]
-        out[o + 3] = waves.amplitude[i]
-        out[o + 4] = waves.lateral[i]
-        out[o + 5] = waves.phase[i]
-      }
+      for (let i = 0, o = 0; i < waves.count; i++)
+        for (const field of WAVE_FIELDS) out[o++] = waves[field][i]
       const planes = jolt.jolt_water_planes(from ?? jolt.jolt_water_pieces(), count, level, sample)
       return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS)
     },

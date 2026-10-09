@@ -56,9 +56,42 @@ function trigSpan(a: number, b: number, out: Float64Array) {
 /** A cosine's least and greatest then a sine's, rewritten by each wave of `displacementBox`. */
 const spans = new Float64Array(4)
 
-/** Doubles of one wave the module's planes read (`jolt_wave_buffer`, `waterPlanes.cpp`):
- *  `direction x, z, wave number, amplitude, lateral amplitude, phase` at the step's time. */
-export const WAVE_DOUBLES = 6
+/** The arrays of one wave, in the order the module's planes read its doubles (`jolt_wave_buffer`,
+ *  `waterPlanes.cpp`): direction x, z, wave number, amplitude, lateral amplitude, phase at the
+ *  step's time. */
+export const WAVE_FIELDS = ['dirX', 'dirZ', 'k', 'amplitude', 'lateral', 'phase'] as const
+/** Doubles of one wave the module's planes read. */
+export const WAVE_DOUBLES = WAVE_FIELDS.length
+
+/**
+ * One wave's terms at the rest point `(x, z)`, into `out`: the displacement it adds (`x, y, z`),
+ * then what it takes from the surface's unnormalised normal (`x, y, z`). The one formula of a
+ * wave: `Waves.offset` and `Waves.normal` sum it, and the GPU deformation sums the same lines,
+ * printed into WGSL from this function (`scripts/generate-shared-rules.ts`).
+ */
+export function waveTerms(
+  dx: number,
+  dz: number,
+  k: number,
+  amplitude: number,
+  lateral: number,
+  phase: number,
+  x: number,
+  z: number,
+  out: Float64Array,
+) {
+  const f = k * (dx * x + dz * z) - phase
+  const c = Math.cos(f),
+    s = Math.sin(f)
+  out[0] = lateral * dx * c
+  out[1] = amplitude * s
+  out[2] = lateral * dz * c
+  out[3] = dx * k * amplitude * c
+  out[4] = k * lateral * s
+  out[5] = dz * k * amplitude * c
+}
+/** One wave's terms, rewritten by each wave of `offset` and `normal`. */
+const terms = new Float64Array(6)
 
 /**
  * A set of trochoidal waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
@@ -140,17 +173,31 @@ export class Waves {
     this.phasesAt(t, this.phase)
   }
 
+  /** The terms of wave `i` at the rest point `(x, z)` (`waveTerms`), into `terms`. */
+  private fillTerms(i: number, x: number, z: number) {
+    waveTerms(
+      this.dirX[i],
+      this.dirZ[i],
+      this.k[i],
+      this.amplitude[i],
+      this.lateral[i],
+      this.phase[i],
+      x,
+      z,
+      terms,
+    )
+  }
+
   /** Displacement `[x, y, z]` of the rest point `(x, 0, z)`, into `out`. */
   offset(x: number, z: number, out: Float64Array | number[]) {
     let ox = 0,
       oy = 0,
       oz = 0
     for (let i = 0; i < this.count; i++) {
-      const f = this.k[i] * (this.dirX[i] * x + this.dirZ[i] * z) - this.phase[i]
-      const c = Math.cos(f)
-      ox += this.lateral[i] * this.dirX[i] * c
-      oy += this.amplitude[i] * Math.sin(f)
-      oz += this.lateral[i] * this.dirZ[i] * c
+      this.fillTerms(i, x, z)
+      ox += terms[0]
+      oy += terms[1]
+      oz += terms[2]
     }
     out[0] = ox
     out[1] = oy
@@ -201,12 +248,10 @@ export class Waves {
       ny = 1,
       nz = 0
     for (let i = 0; i < this.count; i++) {
-      const f = this.k[i] * (this.dirX[i] * x + this.dirZ[i] * z) - this.phase[i]
-      const ka = this.k[i] * this.amplitude[i],
-        c = Math.cos(f)
-      nx -= this.dirX[i] * ka * c
-      ny -= this.k[i] * this.lateral[i] * Math.sin(f)
-      nz -= this.dirZ[i] * ka * c
+      this.fillTerms(i, x, z)
+      nx -= terms[3]
+      ny -= terms[4]
+      nz -= terms[5]
     }
     out[0] = nx
     out[1] = ny

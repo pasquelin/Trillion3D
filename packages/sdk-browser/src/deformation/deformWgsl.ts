@@ -9,6 +9,7 @@ import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
 import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
+import { WAVE_TERMS_WGSL } from './waveTermsWgsl.ts'
 
 /**
  * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
@@ -19,7 +20,8 @@ import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
  *
  * In this order: the morph targets move the rest vertex, the joints carry the result
  * (linear blend of every palette influence), then the waves carry the world point to where
- * the trochoidal sum puts it — the formula of `sdk-core/src/fluids/waves.ts`, on the same numbers.
+ * the trochoidal sum puts it — `waveTerms` of `sdk-core/src/fluids/waves.ts`, printed into WGSL
+ * (`waveTermsWgsl.ts`), on the same numbers.
  * The record lives in the float pool the passes already bind (`positions`), after its vertices:
  * no binding is added to any pass.
  */
@@ -81,9 +83,7 @@ fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  for(var i=0u;i<count;i++){
   let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];
   let amplitude=positions[b+3u];let lateral=positions[b+4u];let phase=positions[b+5u];
-  let f=k*(dx*p.x+dz*p.z)-phase;let c=cos(f);let s=sin(f);
-  d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);
-  n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);
+  ${WAVE_TERMS_WGSL}
  }
  return select(d,normalize(n),normal);
 }

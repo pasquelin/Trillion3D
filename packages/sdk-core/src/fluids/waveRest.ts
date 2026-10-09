@@ -1,9 +1,11 @@
 import type { Waves } from './waves.ts'
 
 /** Newton iterations of `waveRest`: two leave 1.3 cm at the steepest crests, three 0.3 mm. */
-const HEIGHT_ITERATIONS = 3
+export const HEIGHT_ITERATIONS = 3
 
-/** The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`. */
+/** The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`. The
+ *  physics module runs the same lines, printed into C++ from this function
+ *  (`scripts/generate-shared-rules.ts`, `waveModel.h`). */
 export function waveRest(waves: Waves, x: number, z: number, out: Float64Array | number[]) {
   let px = x,
     pz = z
