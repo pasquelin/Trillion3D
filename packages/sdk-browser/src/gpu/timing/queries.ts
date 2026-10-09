@@ -7,7 +7,7 @@ export const PARTS = 4
 const IMAGE_PASSES = 256
 /**
  * Passes an image times at most: its own, and the virtual shadow maps' (`./vsmPasses.ts`) — the
- * frame is timed whole, so its shadow milliseconds and their cull and raster split are published.
+ * frame is timed whole, its shadow milliseconds among them.
  * The timestamps take as many query sets as they need, one resolve buffer and a readback per image
  * in flight (`READBACKS`, `encoder.ts`).
  */

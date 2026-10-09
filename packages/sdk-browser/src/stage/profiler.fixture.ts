@@ -1,5 +1,5 @@
-// The stage profiler the profile's tests file images through (\`profilerStages.test.ts\`,
-// \`profilerWindows.test.ts\`): two bounds, each depositing onto a stage of its own.
+// The stage profiler the profile's tests file images through (`profilerStages.test.ts`,
+// `profilerWindows.test.ts`): two bounds, each depositing onto a stage of its own.
 import { createStageProfiler, cpuStepTable } from './profiler.ts'
 
 const TWO = cpuStepTable([

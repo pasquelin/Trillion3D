@@ -5,9 +5,8 @@
  * that missed (low nibble, k ≤ n), the factor k / n. The opaque resolve decodes a lane through
  * this table (`vsmMaskFactor`, `lighting/direct/shadowWgsl.ts`): 256 factors, filled once per
  * device by `f32(k) / f32(n)` — the projection's own expression — stored into an `rgba16float`
- * storage texture, the format and the store the mask was written with before: each decoded
- * factor is the half float the mask held, by the device's own conversion, never a rounding of
- * ours. A factor the traces reach takes no other value than the one it had.
+ * storage texture: each decoded factor is that half float, by the device's own conversion, never
+ * a rounding of ours.
  */
 
 import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'

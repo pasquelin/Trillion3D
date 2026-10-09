@@ -1,6 +1,6 @@
-// The coverage-preserving alpha's arithmetic printed (\`../generate-shared-rules.ts\`): every
-// function of \`coverageMath.ts\` into the mip chains' WGSL and the compiler's Rust, public in a
-// language when the source's \`PUBLIC\` lists it there, the printed module's own when it does not.
+// The coverage-preserving alpha's arithmetic printed (`../generate-shared-rules.ts`): every
+// function of `coverageMath.ts` into the mip chains' WGSL and the compiler's Rust, public in a
+// language when the source's `PUBLIC` lists it there, the printed module's own when it does not.
 import ts from 'typescript'
 import { PUBLIC, scaled } from '../../packages/sdk-browser/src/texture/coverageMath.ts'
 import { type Target, expression, snake, unsupported } from './printer.ts'

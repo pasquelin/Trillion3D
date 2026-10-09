@@ -1,5 +1,5 @@
-// The wave model printed (\`../generate-shared-rules.ts\`): \`waveTerms\` into the GPU deformation's
-// WGSL, \`waveRest\`, the constants it reads and the wave's doubles into the physics module's C++
+// The wave model printed (`../generate-shared-rules.ts`): `waveTerms` into the GPU deformation's
+// WGSL, `waveRest`, the constants it reads and the wave's doubles into the physics module's C++
 // header.
 import ts from 'typescript'
 import { waveRest } from '../../packages/sdk-core/src/fluids/waveRest.ts'

@@ -1,5 +1,5 @@
 /**
- * Page marking (step 3): the WGSL of the first passes of the page marking —
+ * Page marking: the WGSL of the first passes of the page marking —
  * - the page table clear with its per-page dispatch setup;
  * - the page rect bounds init;
  * - the coarse page marking;
@@ -7,12 +7,12 @@
  *   level, page address, page receiver cover, directional and local marking), the clipmap level
  *   and local footprint, and the back-face tests against directional and local lights.
  *
- * Texture writes become storage-buffer writes (`vsm*Store` / `vsm*Or` from the binding builder);
- * an out-of-range texel, which a storage texture write discards, is skipped by an explicit bounds test.
+ * The marks are storage-buffer writes (`vsm*Store` / `vsm*Or` from the binding builder); a texel
+ * out of range is skipped by an explicit bounds test.
  *
  * Pixel inputs are the engine's own (the shadow demand pass's, `webgpu/shadow/demandWgsl.ts`):
  * depth, normals, surface flags, the deferred `View` and `worldAt`, and the light grid
- * (`pixelCell`, `cellSlice`, `tileLights`) in place of a pruned light grid.
+ * (`pixelCell`, `cellSlice`, `tileLights`).
  * What the engine's view uniform lacks (the +z-forward view-to-clip matrix, the depth-from-device-Z
  * coefficients, the origin shift, the view rect) comes in `VsmMarkingParams` (`markingPass.ts`).
  */

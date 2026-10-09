@@ -17,15 +17,11 @@
  * group leaves a ray loop at once, where both its halves voted to stop (`vsmGroupVoted`).
  *
  * LIGHTS. Every shadowed light of the frame in one dispatch, up to 64 (`vsmView.lights`): light k
- * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — its shadow factor as its trace
- * counted it (`vsmMaskCode`), 0 (= 1, lit) for the unused lanes of the last layer —, each pixel's
- * inputs read and reconstructed once for all of them. A directional light takes a pass-per-light
- * path (unfiltered), and so does a local light. A one-pass path would pack four lights into a
- * 16-bit word, each rounded to k/15, after a dither of one fifteenth that hides the rounding's
- * bands. Here a lane keeps the ray fraction as traced, k of n rays — where the dithered rounding
- * left a frame up to 0.033 off it (`projectionMask.test.ts`) — and the resolve decodes it to the
- * very half float the mask held when each light had its own rgba16float channel
- * (`projectionMaskTable.ts`): half the bytes, the same factors.
+ * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — the k of n rays its trace counted
+ * missing (`vsmMaskCode`, decoded by `projectionMaskTable.ts`), 0 (= 1, lit) for the unused lanes
+ * of the last layer —, each pixel's inputs read and reconstructed once for all of them. Each light
+ * takes its own kind's trace; a pass of one kind, or of one light, runs a pipeline specialised to
+ * it (`VSM_PROJECTION_KINDS`, `VSM_PROJECTION_ONE_LIGHT`).
  *
  * TILES. A group's 8×8 pixels are a tile, and its work follows the lights that reach it, never the
  * frame's count: each lane bounds its lit pixel's point into the tile's box, lane k tests light k
@@ -34,8 +30,9 @@
  * is in — the very set a test of every light at every pixel gives. Only a layer holding one of
  * them is stored, and the layers stored go to the tile's word (`vsmShadowMaskTiles`): the resolve
  * reads a light's lane only where its tile stored its layer (`vsmMaskFactor`,
- * `lighting/direct/shadowWgsl.ts`), every other lane being 0, its factor 1. A pixel no light shades (sky, unlit, out of the rect)
- * reads its flags and stops there: it reconstructs nothing, takes no noise and decodes no receiver.
+ * `lighting/direct/shadowWgsl.ts`), every other lane being 0, its factor 1. A pixel no light
+ * shades (sky, unlit, out of the rect) reads its flags and stops there: it reconstructs nothing,
+ * takes no noise and decodes no receiver.
  * The lights are those of the frame's plan, not the light grid's cells: the projection's point is
  * the receiver's (`shadowReceiver`), off the depth a cell's list was built for. A thin-subsurface
  * pixel gets no normal bias, no screen ray, no back-face cull.
@@ -480,10 +477,10 @@ fn vsmPixelOf(groupId:vec2u,groupIndex:u32)->VsmPixel{
  p.noise=vsmNoiseOne(vec2u(svPosition.xy),vsmView.frameIndex);${
    receiver
      ? `
- // The engine's shadow receiver (a deliberate addition), as the old shadow path
- // read every map: the pixel's point on the Phong surface its vertex normals describe rather than
- // its flat triangle (\`shadowReceiver\`), and the biases on the triangle's plane — the depth the
- // caster drew — turned to the side the shading normal faces (\`shadowBiasNormal\`). A smooth
+ // The engine's shadow receiver, as every shadow map of the engine reads it: the pixel's point
+ // on the Phong surface its vertex normals describe rather than its flat triangle
+ // (\`shadowReceiver\`), and the biases on the triangle's plane — the depth the caster drew —
+ // turned to the side the shading normal faces (\`shadowBiasNormal\`). A smooth
  // normal over a coarse triangle otherwise under-biases one side of every edge, and a faceted
  // curved surface shadows itself, in facet-wide streaks, above its shading terminator. Only
  // where a light can shade the pixel: the background and a pixel no surface model lights pay no
