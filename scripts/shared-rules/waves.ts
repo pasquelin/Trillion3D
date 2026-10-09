@@ -68,7 +68,7 @@ export const WAVE_TERMS = \`${lines.join('')}\`
 /** The physics module's wave header: the constants, the wave's doubles and `waveRest`, `waveTerms`
  *  inlined in it. */
 export function waveModelHeader() {
-  const { body: source, doc } = functionOf(WAVE_REST, waveRest.name)
+  const { body: source } = functionOf(WAVE_REST, waveRest.name)
   const constants = readConstants(source, constantsOf(WAVE_REST))
   const target = withInlined(
     {
@@ -110,7 +110,8 @@ constexpr uint32_t WAVE_DOUBLES = ${WAVE_FIELDS.length};
 /// \`sin\` and \`cos\` of \`x\` (\`waterPlanes.cpp\`).
 void sinCos(double x, double &s, double &c);
 
-${comment(doc, '/// ')}
+/// The rest point \`[x, ·, z]\` the waves carry to the world position \`(x, z)\`, into \`restX\` and
+/// \`restZ\`: \`waveRest\` printed (\`scripts/generate-shared-rules.ts\`).
 inline void waveRest(const Wave *waves, uint32_t count, double x, double z, double &restX,
                      double &restZ) {
 ${lines.join('\n')}
