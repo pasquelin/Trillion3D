@@ -1,15 +1,19 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { commitGpuPage, homeOf } from './commit.ts'
+import { FailedPageRead } from './reader.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
+
+/** A load that failed leaves the next ones their turn. */
+const ignore = () => {}
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
  *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its
  *  read's. The read starts with the request — reads overlap, uploads stay in order — and is asked
- *  once: a failure fails the load, and its source says when the page is asked again
- *  (`streaming/failures.ts`). */
+ *  once, its bytes left unused when the page is resident by its turn: a failure fails the load,
+ *  and its source says when the page is asked again (`streaming/failures.ts`). */
 export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   const { abort, resident, state, reader } = context
-  const { report, emit, now } = reader
+  const { emit, now } = reader
   return function load(
     key: string,
     signal?: AbortSignal,
@@ -18,15 +22,15 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   ): Promise<ResidentPage> {
     const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal
     const abortListener =
-      report && signal
+      emit && signal
         ? () =>
-            emit?.('gpu-page-abort', 'GPU load cancelled', () => ({
+            emit('gpu-page-abort', 'GPU load cancelled', () => ({
               version: 1,
               key,
               reason: String(signal.reason ?? 'aborted'),
             }))
         : undefined
-    if (abortListener) signal?.addEventListener('abort', abortListener, { once: true })
+    if (abortListener) signal!.addEventListener('abort', abortListener, { once: true })
     const requestStarted = now()
     emit?.('gpu-page-request', 'GPU page request received', () => ({
       version: 1,
@@ -34,23 +38,18 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
       resident: resident.has(key),
       loading: state.loading,
     }))
-    const fetched =
-      !state.disposed && !resident.has(key) ? reader.read(key, combined, priority) : undefined
-    // Its failure is the load's to report, once its turn comes: a load ended before leaves it.
-    void fetched?.catch(() => {})
-    state.loading++
     const job: Load = {
       key,
       signal,
       tier,
-      priority,
       combined,
       abortListener,
       requestStarted,
-      fetched,
+      fetched: reader.read(key, combined, priority),
     }
+    state.loading++
     const operation = state.pending.then(() => runLoad(context, pin, job))
-    state.pending = operation.catch(() => {})
+    state.pending = operation.catch(ignore)
     return operation
   }
 }
@@ -63,11 +62,11 @@ type Load = {
   key: string
   signal: AbortSignal | undefined
   tier: PagePinTier | undefined
-  priority: number | undefined
   combined: AbortSignal
   abortListener: (() => void) | undefined
   requestStarted: number
-  fetched: Promise<Uint8Array> | undefined
+  /** Its read, started with the request. */
+  fetched: Promise<Uint8Array | FailedPageRead>
 }
 
 /** The load's turn in the queue: the resident page, or the bytes read, checked and committed. */
@@ -93,7 +92,8 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       key,
       source: 'page-source',
     }))
-    const bytes = await (job.fetched ?? context.reader.read(key, combined, job.priority))
+    const bytes = await job.fetched
+    if (bytes instanceof FailedPageRead) throw bytes.error
     check(combined)
     checkRoom(context, key, bytes)
     const page = commitGpuPage(context, key, bytes, job.requestStarted)
@@ -111,7 +111,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     }))
     throw error
   } finally {
-    if (abortListener) signal?.removeEventListener('abort', abortListener)
+    if (abortListener) signal!.removeEventListener('abort', abortListener)
     state.loading--
   }
 }

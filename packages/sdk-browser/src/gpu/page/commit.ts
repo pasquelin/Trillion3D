@@ -31,30 +31,43 @@ export function evictResident(
   }))
 }
 
-/** The page whose slot an arrival takes. Once a GPU cut published an order: its next resident,
- *  unpinned page, each entry passed once — one pinned when passed waits in `held` for its unpin; one
- *  a lower tier touched since the last order (`touch`) goes in `late`, taken after every other —,
- *  never a page it leaves out. Before any order: the first unpinned page in residency order, the
- *  least recently loaded or touched; everything pinned is stated in O(1). */
-function victimOf({ eviction, resident, pins }: GpuPageContext) {
-  const { order, epoch, lower, held, late } = eviction
-  const free = (key: string) => (pins.has(key) ? undefined : resident.get(key))
+/** The page at `key`, resident and not pinned. */
+const unpinned = ({ resident, pins }: GpuPageContext, key: string) =>
+  pins.has(key) ? undefined : resident.get(key)
+
+/** The page whose slot an arrival takes, or why none is. Once a GPU cut published an order: its
+ *  next resident, unpinned page, each entry passed once — one pinned when passed waits in `held`
+ *  for its unpin; one a lower tier touched since the last order (`touch`) goes in `late`, taken
+ *  after every other —, never a page it leaves out. Before any order: the first unpinned page in
+ *  residency order, the least recently loaded or touched; everything pinned is stated in O(1). */
+function victimOf(
+  context: GpuPageContext,
+): ResidentPage | 'all-pages-pinned' | 'eviction-queue-spent' {
+  const { eviction, resident, pins } = context
+  const { order } = eviction
   if (!order) {
     if (pins.size < resident.size)
       for (const page of resident.values()) if (!pins.has(page.key)) return page
-    return undefined
+    return 'all-pages-pinned'
   }
+  const { epoch, lower, held, late } = eviction
   while (eviction.at < order.count) {
     const key = order.keyAt(eviction.at++)
-    if (!resident.has(key)) continue
+    const page = resident.get(key)
+    if (!page) continue
     if ((lower.get(key) ?? -2) >= epoch - 1) late.push(key)
     else if (pins.has(key)) held.push(key)
-    else return resident.get(key)
+    else return page
   }
-  let page: ResidentPage | undefined
-  for (let i = 0; i < held.length && !page; i++) page = free(held[i])
-  while (!page && eviction.lateAt < late.length) page = free(late[eviction.lateAt++])
-  return page
+  for (const key of held) {
+    const page = unpinned(context, key)
+    if (page) return page
+  }
+  while (eviction.lateAt < late.length) {
+    const page = unpinned(context, late[eviction.lateAt++])
+    if (page) return page
+  }
+  return 'eviction-queue-spent'
 }
 
 /** `key`'s home when the pool holds the whole catalogue (`homes.ts`), `undefined` in fixed slots;
@@ -85,11 +98,11 @@ export function commitGpuPage(
   if (home) slot = home.rank
   else if (slot === undefined) {
     const victim = victimOf(context)
-    if (!victim) {
+    if (typeof victim === 'string') {
       emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
-        reason: context.eviction.order ? 'eviction-queue-spent' : 'all-pages-pinned',
+        reason: victim,
         resident: resident.size,
         slots,
         pinned: pins.size,
