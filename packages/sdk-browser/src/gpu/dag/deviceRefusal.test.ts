@@ -50,14 +50,18 @@ test('a table past one binding splits in parts the device binds at once, instead
   assert.match(dagDeviceRefusal(section, dag())?.buffer ?? '', /^flags/, 'a list section past')
 })
 
-test('`work` holds no word per page: a binding past one list section holds the cut (#1483)', () => {
-  // 12,000 bytes the live list of `flags`, 4,000 each kept list's ranks; `work` held both lists'
-  // ranks, 8,516 bytes, and would refuse a binding of 5,000.
+test('`work` holds no word per page: a binding past one list section holds the cut', () => {
+  // 12,000 bytes the live list of `flags`; the kept lists' ranks follow the readout's list
+  // (`keptRanks.ts`), never the pages.
   const limits = { maxStorageBufferBindingSize: 12000, maxStorageBuffersPerShaderStage: 64 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(dag(), limits).rows
   assert.ok(rows.work.size < 1000, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
-  assert.deepEqual([rows.ranks0.size, rows.ranks1.size], [4000, 4000], 'a word a page each')
+  assert.deepEqual(
+    Object.keys(rows).filter((name) => name.startsWith('ranks')),
+    [],
+    'no ranks',
+  )
   assert.match(
     dagDeviceRefusal({ ...limits, maxStorageBufferBindingSize: 11996 }, dag())?.buffer ?? '',
     /^flags/,

@@ -17,6 +17,11 @@ import type { CameraFrames } from './frameRanges.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { type Limits, deviceListCap } from './deviceListCap.ts'
+import { keptRankRow } from './keptRanks.ts'
+import { viewWord } from './viewLayout.ts'
+import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
+import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 /** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device
@@ -63,8 +68,9 @@ export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
 
 /** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals
  *  (`swap.ts`), the `heldSlots` slots of the open counts placements hold behind them
- *  (`heldOpen.ts`): the buffer the kernels write, and the readback slots the frame copies it into,
- *  each made by `own` (`resources.ts`). */
+ *  (`heldOpen.ts`): the buffer the kernels write, the readback slots the frame copies it into, and
+ *  each kept list's table of ranks (`keptRanks.ts`), which its kernels bind as `work`, each made by
+ *  `own` (`resources.ts`). */
 export function createDagList(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
   listCap: number,
@@ -83,7 +89,8 @@ export function createDagList(
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),
   )
-  return { listCap, outputBytes, readbackBytes, output, readback, heldSlots }
+  const ranks = [0, 1].map((l) => makeDagBuffer(own, keptRankRow(l, listCap)))
+  return { listCap, outputBytes, readbackBytes, output, readback, heldSlots, ranks }
 }
 
 /** Where the open counts placements hold lie for the kernels — the first word in `out.pages`, the
@@ -98,17 +105,18 @@ export const heldOpenAt = (resources: {
 })
 
 /** The host's table of open counts written whole into `resources`' readout (`heldOpen.ts`): at
- *  open, and into a readout made again. */
+ *  open, and into a readout made again. A table laid out for other slots is not this cut's: its
+ *  residency upload makes its own (`residencyUpload.ts`). */
 function writeHeldOpen(resources: {
   device: GPUDevice
   output: GPUBuffer
   listCap: number
   heldSlots: number
   swap: { regions: number }
-  packed: { heldOpen?: { words: Uint32Array<ArrayBuffer> } }
+  packed: { heldOpen?: { slots: number; words: Uint32Array<ArrayBuffer> } }
 }) {
   const held = resources.packed.heldOpen
-  if (!held || !resources.heldSlots) return
+  if (!held || !resources.heldSlots || held.slots !== resources.heldSlots) return
   const at = (heldOpenAt(resources).base + HEAD) * 4
   resources.device.queue.writeBuffer(resources.output, at, held.words)
 }
@@ -152,8 +160,8 @@ export async function growDagList(
     for (const buffer of made) buffer.destroy()
     return false
   }
-  const old = [resources.output, ...resources.readback]
-  moveKeptSnapshot(resources.device, resources, list)
+  const old = [resources.output, ...resources.readback, ...resources.ranks],
+    from = { output: resources.output, listCap: resources.listCap }
   Object.assign(resources, list)
   resources.buffers.push(...made)
   resources.group.out = list.output
@@ -162,6 +170,7 @@ export async function growDagList(
   // The saved journals and the lists were the old readout's (`swap.ts`).
   newRegions(resources.swap, regions)
   writeHeldOpen(resources)
+  carryKeptSnapshot(resources, from)
   for (const buffer of old) {
     resources.buffers.splice(resources.buffers.indexOf(buffer), 1)
     buffer.destroy()
@@ -170,17 +179,15 @@ export async function growDagList(
 }
 
 /**
- * The kept snapshot carried into the grown readout, lengths and both lists, each at the place the
- * new cap gives it (`keptSnapshotWord`): the next copy's difference is taken against it as if the
- * list had not grown, and the readbacks since keep naming their pages by its ranks
- * (`differenceChain.ts`). The ranks of each page stay where they are (`rankGroups`).
+ * The kept snapshot carried into the grown readout `to`, lengths and both lists, each at the place
+ * the new cap gives it (`keptSnapshotWord`), then each list ranked in its new table
+ * (`shader/differenceWgsl.ts`, `dagCutRekeep`) — the kernels read the new cap, written first —:
+ * the next copy's difference is taken against it as if the list had not grown, and the readbacks
+ * since keep naming their pages by its ranks (`differenceChain.ts`).
  */
-function moveKeptSnapshot(
-  device: GPUDevice,
-  from: { output: GPUBuffer; listCap: number },
-  to: { output: GPUBuffer; listCap: number },
-) {
-  const encoder = device.createCommandEncoder(),
+function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap: number }) {
+  const { device } = to,
+    encoder = device.createCommandEncoder(),
     a = keptSnapshotWord(from.listCap) * 4,
     b = keptSnapshotWord(to.listCap) * 4,
     asked = (KEPT_HEADER_WORDS + from.listCap) * 4
@@ -192,6 +199,14 @@ function moveKeptSnapshot(
     b + (KEPT_HEADER_WORDS + to.listCap) * 4,
     from.listCap * 4,
   )
+  device.queue.writeBuffer(to.uniforms, viewWord('listCap') * 4, Uint32Array.of(to.listCap))
+  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG selection' })
+  to.rekeepPipelines.forEach((pipeline, l) => {
+    pass.setBindGroup(0, to.rankGroups[l])
+    pass.setPipeline(pipeline)
+    dispatchRows(pass, workgroupCount(from.listCap, WORKGROUP), 1, groupWidth(device.limits))
+  })
+  pass.end()
   device.queue.submit([encoder.finish()])
 }
 

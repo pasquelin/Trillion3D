@@ -111,8 +111,6 @@ function dagBuffers(
   // No extra storage buffer in the selection's group, a stage's ceiling is already reached: the
   // arming kernel reads the list counts here through its own group.
   const work = makeDagBuffer(own, rows.work)
-  // Each kept list's ranks: its kernels bind them as `work`.
-  const ranks = [rows.ranks0, rows.ranks1].map((row) => makeDagBuffer(own, row))
   const worldCount = Math.max(1, packed.worldCount)
   const { worlds, worldSources } = packed
   const frames = createCameraFrames(device, frameData, worldCount, own, worlds, worldSources)
@@ -145,6 +143,5 @@ function dagBuffers(
     flagParts: tables.flags,
     /** What `flags` holds now: its queues and lists grow on demand (`queueGrowth.ts`). */
     flagShape: tables.shape,
-    ranks,
   }
 }
