@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "Bir modelin, kaydının gösterdiği haliyle sahnesi: yükleyicisinin kurduğu grafik, açtığı dünya kökleri olmadan; model bunları dünyasının oturumları için kendine saklar.",
     "members": {
-      "clips": "Dosyanın oynattığı klipler (#357)."
+      "clips": "Dosyanın oynattığı klipler (#357).",
+      "source": "Sahnenin düğümlerinin kökü, seçeneklerin istediği gibi çoğaltılmış.",
+      "associations": "Sahnenin her düğümünün temsil ettiği ağlar ve ilkeller, düğüme göre.",
+      "nodes": "Her glTF düğümünün ev sahibi düğümü, dizinine göre; sahne bölümlenmiş ya da çoğaltılmışsa yoktur: bölüm tabloyu yeniden numaralar, kopyalar onu çoğaltır.",
+      "textureIndices": "Sahnenin her dokusunun, gölgelendiricilerin dizinlediği tablodaki sırası.",
+      "partitions": "Bölümlenmiş bir sahnenin okunduğu hücreler; sahne bölümlenmemişse yoktur.",
+      "sceneLightingSource": "Işıkları ve ortamıyla sahneyi aydınlatan düğüm: `options.sceneLighting`, yoksa herhangi bir çoğaltmadan önce sahnenin kendi kökü.",
+      "framingLot": "Kamera çerçevelemesinin sahnenin sınırlarını aldığı lot, hiçbir düğümün sınırı yoksa `null`; çağıran onu iade eder."
     }
   },
   "PageCache": {

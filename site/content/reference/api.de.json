@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "Die Szene eines Modells, wie sein Datensatz sie zeigt: der Graph, den sein Lader gebaut hat, ohne die Weltwurzeln, die er geöffnet hat und die das Modell für die Sitzungen seiner Welt für sich behält.",
     "members": {
-      "clips": "Die Clips, die die Datei abspielt (#357)."
+      "clips": "Die Clips, die die Datei abspielt (#357).",
+      "source": "Die Wurzel der Knoten der Szene, vervielfältigt, wie die Optionen es verlangen.",
+      "associations": "Die Meshes und Primitive, für die jeder Knoten der Szene steht, nach Knoten.",
+      "nodes": "Der Host-Knoten jedes glTF-Knotens, nach seinem Index; keiner, wenn die Szene partitioniert oder vervielfältigt ist: Eine Partition nummeriert die Tabelle neu, Replikate kopieren sie.",
+      "textureIndices": "Der Rang jeder Textur der Szene in der Tabelle, die die Shader indizieren.",
+      "partitions": "Die Zellen, nach denen eine partitionierte Szene gelesen wird, keine, wenn die Szene nicht partitioniert ist.",
+      "sceneLightingSource": "Der Knoten, dessen Lichter und Umgebung die Szene beleuchten: `options.sceneLighting`, sonst die eigene Wurzel der Szene vor jeder Vervielfältigung.",
+      "framingLot": "Der Posten, in dem die Kameraeinstellung die Grenzen der Szene nimmt, `null`, wenn kein Knoten Grenzen hat; der Aufrufer gibt ihn zurück."
     }
   },
   "PageCache": {

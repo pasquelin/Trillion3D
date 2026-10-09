@@ -195,13 +195,27 @@ export async function loadPreparedScene(
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await hostBoundsLot(source)
   return {
-    ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    /** The root of the scene's nodes, replicated as the options ask. */
+    source,
+    /** The node whose lights and environment the scene is lit by: `options.sceneLighting`, else the
+     *  scene's own root before any replication. */
+    sceneLightingSource,
+    /** The meshes and primitives each node of the scene stands for, by node. */
+    associations,
+    /** The rank of each texture of the scene in the table the shaders index. */
+    textureIndices,
+    /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;
+     *  the caller returns it. */
+    framingLot,
+    /** The cells a partitioned scene is read by, none when the scene is not partitioned. */
+    partitions,
     /** The clips the file plays (#357). */
     clips: built.clips,
     /** The world roots the scene holds, bound to each session's queue and counted in its CPU
      *  budget. */
     worldRoots: worldRoots ? [worldRoots] : [],
-    // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
+    /** Each glTF node's host node, by its index; none when the scene is partitioned or replicated: a
+     *  partition renumbers the table, replicas copy it. */
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   }
 }

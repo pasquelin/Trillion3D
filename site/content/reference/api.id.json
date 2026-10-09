@@ -7852,7 +7852,14 @@
   "ModelScene": {
     "summary": "Adegan sebuah model sebagaimana ditunjukkan catatannya: graf yang dibangun pemuatnya, tanpa akar dunia yang dibukanya, yang disimpan model untuk dirinya sendiri bagi sesi-sesi dunianya.",
     "members": {
-      "clips": "Klip yang dimainkan berkas (#357)."
+      "clips": "Klip yang dimainkan berkas (#357).",
+      "source": "Akar simpul-simpul adegan, direplikasi sebagaimana diminta opsi.",
+      "associations": "Mesh dan primitif yang diwakili tiap simpul adegan, menurut simpul.",
+      "nodes": "Simpul inang dari tiap simpul glTF, menurut indeksnya; tidak ada bila adegan dipartisi atau direplikasi: partisi menomori ulang tabel, replika menyalinnya.",
+      "textureIndices": "Peringkat tiap tekstur adegan dalam tabel yang diindeks shader.",
+      "partitions": "Sel-sel tempat adegan terpartisi dibaca, tidak ada bila adegan tidak dipartisi.",
+      "sceneLightingSource": "Simpul yang lampu dan lingkungannya menerangi adegan: `options.sceneLighting`, jika tidak akar adegan itu sendiri sebelum replikasi apa pun.",
+      "framingLot": "Lot tempat pembingkaian kamera mengambil batas adegan, `null` bila tidak ada simpul yang berbatas; pemanggil mengembalikannya."
     }
   },
   "PageCache": {

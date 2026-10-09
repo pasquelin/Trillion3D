@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "La scena di un modello come la mostra il suo record: il grafo costruito dal suo caricatore, senza le radici del mondo che ha aperto, che il modello tiene per sé per le sessioni del suo mondo.",
     "members": {
-      "clips": "Le clip che il file riproduce (#357)."
+      "clips": "Le clip che il file riproduce (#357).",
+      "source": "La radice dei nodi della scena, replicata come chiedono le opzioni.",
+      "associations": "Le mesh e le primitive che ogni nodo della scena rappresenta, per nodo.",
+      "nodes": "Il nodo ospite di ogni nodo glTF, per il suo indice; nessuno quando la scena è partizionata o replicata: una partizione rinumera la tabella, le repliche la copiano.",
+      "textureIndices": "Il rango di ogni texture della scena nella tabella che gli shader indicizzano.",
+      "partitions": "Le celle con cui si legge una scena partizionata, nessuna quando la scena non è partizionata.",
+      "sceneLightingSource": "Il nodo le cui luci e il cui ambiente illuminano la scena: `options.sceneLighting`, altrimenti la radice propria della scena prima di ogni replica.",
+      "framingLot": "Il lotto in cui l’inquadratura della camera prende i limiti della scena, `null` quando nessun nodo ha limiti; il chiamante lo restituisce."
     }
   },
   "PageCache": {

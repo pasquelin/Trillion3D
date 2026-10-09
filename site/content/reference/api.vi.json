@@ -7852,7 +7852,14 @@
   "ModelScene": {
     "summary": "Cảnh của một mô hình như bản ghi của nó cho thấy: đồ thị mà bộ nạp của nó dựng, không có các gốc thế giới mà nó đã mở, những gốc mà mô hình giữ riêng cho các phiên của thế giới nó.",
     "members": {
-      "clips": "Các clip mà tệp phát (#357)."
+      "clips": "Các clip mà tệp phát (#357).",
+      "source": "Gốc của các nút trong cảnh, được nhân bản như các tùy chọn yêu cầu.",
+      "associations": "Các lưới và nguyên thủy mà mỗi nút của cảnh đại diện, theo nút.",
+      "nodes": "Nút chủ của mỗi nút glTF, theo chỉ số của nó; không có khi cảnh được phân vùng hoặc nhân bản: một phân vùng đánh số lại bảng, các bản sao sao chép nó.",
+      "textureIndices": "Thứ hạng của mỗi kết cấu của cảnh trong bảng mà các shader lập chỉ mục.",
+      "partitions": "Các ô mà một cảnh phân vùng được đọc theo, không có khi cảnh không được phân vùng.",
+      "sceneLightingSource": "Nút mà ánh sáng và môi trường của nó chiếu sáng cảnh: `options.sceneLighting`, nếu không thì chính gốc của cảnh trước mọi lần nhân bản.",
+      "framingLot": "Lô mà việc dựng khung camera lấy biên của cảnh vào, `null` khi không nút nào có biên; bên gọi trả nó lại."
     }
   },
   "PageCache": {

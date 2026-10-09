@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "La scène d’un modèle telle que la montre son enregistrement : le graphe que son chargeur a construit, sans les racines du monde qu’il a ouvertes, que le modèle garde pour lui à l’usage des sessions de son monde.",
     "members": {
-      "clips": "Les clips que joue le fichier (#357)."
+      "clips": "Les clips que joue le fichier (#357).",
+      "source": "La racine des nœuds de la scène, répliquée comme le demandent les options.",
+      "associations": "Les maillages et primitives que chaque nœud de la scène représente, par nœud.",
+      "nodes": "Le nœud hôte de chaque nœud glTF, par son indice ; aucun quand la scène est partitionnée ou répliquée : une partition renumérote la table, les répliques la copient.",
+      "textureIndices": "Le rang de chaque texture de la scène dans la table que les shaders indexent.",
+      "partitions": "Les cellules par lesquelles une scène partitionnée est lue, aucune quand la scène n’est pas partitionnée.",
+      "sceneLightingSource": "Le nœud dont les lumières et l’environnement éclairent la scène : `options.sceneLighting`, sinon la racine propre de la scène avant toute réplication.",
+      "framingLot": "Le lot dans lequel le cadrage de la caméra prend les bornes de la scène, `null` quand aucun nœud n’est borné ; l’appelant le rend."
     }
   },
   "PageCache": {

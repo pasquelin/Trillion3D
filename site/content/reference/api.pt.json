@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "A cena de um modelo tal como o seu registro a mostra: o grafo que o seu carregador construiu, sem as raízes do mundo que abriu, que o modelo guarda para si para as sessões do seu mundo.",
     "members": {
-      "clips": "Os clipes que o arquivo toca (#357)."
+      "clips": "Os clipes que o arquivo toca (#357).",
+      "source": "A raiz dos nós da cena, replicada como as opções pedem.",
+      "associations": "As malhas e primitivas que cada nó da cena representa, por nó.",
+      "nodes": "O nó hospedeiro de cada nó glTF, pelo seu índice; nenhum quando a cena é particionada ou replicada: uma partição renumera a tabela, as réplicas a copiam.",
+      "textureIndices": "A posição de cada textura da cena na tabela que os shaders indexam.",
+      "partitions": "As células pelas quais uma cena particionada é lida, nenhuma quando a cena não é particionada.",
+      "sceneLightingSource": "O nó cujas luzes e ambiente iluminam a cena: `options.sceneLighting`, senão a raiz própria da cena antes de qualquer réplica.",
+      "framingLot": "O lote em que o enquadramento da câmera toma os limites da cena, `null` quando nenhum nó tem limites; quem chama o devolve."
     }
   },
   "PageCache": {

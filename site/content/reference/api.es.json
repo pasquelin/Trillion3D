@@ -7851,7 +7851,14 @@
   "ModelScene": {
     "summary": "La escena de un modelo tal como la muestra su registro: el grafo que construyó su cargador, sin las raíces del mundo que abrió, que el modelo guarda para sí para las sesiones de su mundo.",
     "members": {
-      "clips": "Los clips que reproduce el archivo (#357)."
+      "clips": "Los clips que reproduce el archivo (#357).",
+      "source": "La raíz de los nodos de la escena, replicada como piden las opciones.",
+      "associations": "Las mallas y primitivas que representa cada nodo de la escena, por nodo.",
+      "nodes": "El nodo anfitrión de cada nodo glTF, por su índice; ninguno cuando la escena está particionada o replicada: una partición renumera la tabla, las réplicas la copian.",
+      "textureIndices": "El rango de cada textura de la escena en la tabla que indexan los shaders.",
+      "partitions": "Las celdas por las que se lee una escena particionada, ninguna cuando la escena no está particionada.",
+      "sceneLightingSource": "El nodo cuyas luces y entorno iluminan la escena: `options.sceneLighting`, si no la propia raíz de la escena antes de cualquier réplica.",
+      "framingLot": "El lote en el que el encuadre de la cámara toma los límites de la escena, `null` cuando ningún nodo tiene límites; quien llama lo devuelve."
     }
   },
   "PageCache": {
