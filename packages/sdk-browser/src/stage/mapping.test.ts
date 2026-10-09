@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
+import { WEBGPU_STAGES, addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
 import { PASSES, gpuShadowPartOf } from './passTable.ts'
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
@@ -32,9 +32,20 @@ test('two passes of the same stage sum into one deposit', () => {
   assert.deepEqual(deposits, [['geometry', 3]])
 })
 
-test('a pass with an unknown label joins geometry', () => {
-  const deposits = collect(sample([{ name: 'never-seen pass', gpuMs: 5 }]))
-  assert.deepEqual(deposits, [['geometry', 5]])
+test('a pass with an unknown label joins no stage', () => {
+  const deposits = collect(
+    sample([
+      { name: 'never-seen pass', gpuMs: 5 },
+      { name: 'Trillion3D visibility primary', gpuMs: 1 },
+    ]),
+  )
+  assert.deepEqual(deposits, [['geometry', 1]])
+  assert.equal(gpuPassStageOf('never-seen pass'), undefined)
+})
+
+test('every stage of the pass table is a stage the engine profiles', () => {
+  const stages = new Set<string>(WEBGPU_STAGES)
+  for (const [label, [stage]] of Object.entries(PASSES)) assert.ok(stages.has(stage), label)
 })
 
 test('an unmeasured pass invalidates the whole stage, never a partial sum', () => {
@@ -132,7 +143,8 @@ test('every pass of a shadow stage names its shadow part, and no other pass does
   }
   for (const [label, part] of Object.entries(parts)) {
     assert.equal(gpuShadowPartOf(label), part, label)
-    const shadowStage = ['shadows', 'shadowCasters'].includes(gpuPassStageOf(label))
+    const stage = gpuPassStageOf(label)
+    const shadowStage = stage === 'shadows' || stage === 'shadowCasters'
     assert.equal(part !== 'other', shadowStage, label)
   }
 })

@@ -15,7 +15,8 @@ import { viewProj } from '../pages/helpers.ts'
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts'
 import { planWebgpuImpostors } from './frame.ts'
 import { recordingEncoder } from './recorder.fixture.ts'
-import { IMPOSTOR_PASS, prepareImpostorPipelines } from './pipelines.ts'
+import { prepareImpostorPipelines } from './pipelines.ts'
+import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import {
   ATLAS_URLS,

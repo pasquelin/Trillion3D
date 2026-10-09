@@ -30,3 +30,7 @@ export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting'
 /** The temporal resolve; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
 export const TAA_PASS = 'Trillion3D temporal antialiasing'
+/** The impostor cards' surface pass; their visibility pass is named `${IMPOSTOR_PASS} visibility`. */
+export const IMPOSTOR_PASS = 'Trillion3D impostor cards'
+/** Every pass of the bloom chain, down and up its levels (`../webgpu/effects/webgpuBloom.ts`). */
+export const BLOOM_PASS = 'Trillion3D bloom'

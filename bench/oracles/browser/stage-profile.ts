@@ -1,7 +1,7 @@
 // Oracle of `packages/sdk-browser/src/stage/mapping.ts`, rewritten from its contract: a bound is deposited on its
-// stage unless that stage is `null`; a pass is deposited by its label, an unknown label goes
-// to "geometry" with its own share of the image (its span less what an earlier pass covered, the
-// span itself where the timer gives no share); a `null` duration leaves its stage unmeasured, a
+// stage unless that stage is `null`; a pass is deposited by its label with its own share of the
+// image (its span less what an earlier pass covered, the span itself where the timer gives no
+// share), an unknown label on no stage; a `null` duration leaves its stage unmeasured, a
 // truncated or missing sample deposits nothing. Shadow time also splits by label into choosing the casters and drawing them.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
@@ -25,7 +25,7 @@ const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
 
 // Every virtual shadow map pass is timed with the Shadows stage: the engine's own prefix.
 const stageOf = (name: string) =>
-  ROW_OF[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry')
+  ROW_OF[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : undefined)
 const partOf = (name: string) => ROW_OF[name]?.[1] ?? 'other'
 
 export function referenceAddCpuSteps(row: ArrayLike<number>, add: StageAdd) {
@@ -37,13 +37,13 @@ export function referenceAddCpuSteps(row: ArrayLike<number>, add: StageAdd) {
 
 function totalsBy(
   sample: GpuPassTimings | null | undefined,
-  groupOf: (name: string) => string,
+  groupOf: (name: string) => string | undefined,
 ): Map<string, number | null> {
   const totals = new Map<string, number | null>()
   if (!sample || sample.truncated) return totals
   for (const pass of sample.passes) {
     const group = groupOf(pass.name)
-    if (totals.get(group) === null) continue
+    if (group === undefined || totals.get(group) === null) continue
     const part = pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs)
     totals.set(group, part === null ? null : (totals.get(group) ?? 0) + part)
   }

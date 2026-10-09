@@ -3,7 +3,7 @@ import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { uploadRecords } from './cardUpload.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
-import { IMPOSTOR_PASS } from './pipelines.ts'
+import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 import type { WebgpuImpostors } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 

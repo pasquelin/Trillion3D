@@ -6,9 +6,9 @@ import { type GpuPassBlock, PASSES, gpuShadowPartOf } from './passTable.ts'
 export type { GpuPassBlock } from './passTable.ts'
 
 /** Stage of a pass, by its label: the table's, or `shadows` for a virtual shadow map pass
- *  (`VSM_PASS_PREFIX`). Unknown is `geometry`. */
-export const gpuPassStageOf = (name: string) =>
-  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry')
+ *  (`VSM_PASS_PREFIX`). A label the table does not name joins no stage (`undefined`). */
+export const gpuPassStageOf = (name: string): string | undefined =>
+  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : undefined)
 /** Block of a pass, by its label. Unknown is `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other'
 
@@ -34,8 +34,10 @@ export const WEBGPU_STAGES = [
   'shadowCasters',
   'lightLists',
   'bounce',
+  'reflections',
   'lighting',
   'antialiasing',
+  'effects',
   'present',
 ] as const
 

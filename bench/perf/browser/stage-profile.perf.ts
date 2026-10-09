@@ -75,7 +75,7 @@ const measureCpu = await measure({
   expected: referenceFileRows,
 })
 
-// A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow
+// A sample carries known passes, one unknown pass — which joins no stage —, a virtual shadow
 // map pass — which joins "shadows" by its label's prefix — and, once in ten, a `null` duration
 // that leaves its stage unmeasured. Half the timed passes carry their own share of the image, as a
 // WebGPU timer gives it: a stage adds that share, not the pass's whole span.

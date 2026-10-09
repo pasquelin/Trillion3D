@@ -7,9 +7,8 @@ import { BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.
 import { uniformSlots } from '../../residency/pools.ts'
 import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
+import { BLOOM_PASS } from '../../stage/passLabels.ts'
 
-/** Label of every bloom pass: where it shows in a GPU capture. */
-const BLOOM_PASS = 'Trillion3D bloom'
 const FORMAT: GPUTextureFormat = 'rgba16float'
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4

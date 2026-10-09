@@ -80,7 +80,7 @@ export function createVsmMaskTable(device: GPUDevice) {
     fill() {
       if (filled) return
       const encoder = device.createCommandEncoder({ label })
-      const pass = encoder.beginComputePass({ label })
+      const pass = encoder.beginComputePass({ label: 'vsm.maskTable' })
       pass.setPipeline(pipeline.get())
       pass.setBindGroup(0, group)
       pass.dispatchWorkgroups(1)

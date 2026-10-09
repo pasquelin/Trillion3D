@@ -1,8 +1,6 @@
 import { core } from '../../impostor/borrowed.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
-
-/** The pass label the GPU timings and the tests name the card surfaces by. */
-export const IMPOSTOR_PASS = 'Trillion3D impostor cards'
+import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 
 /**
  * The card pipelines (#1335) and their two group layouts: the image's (view uniform, card records)

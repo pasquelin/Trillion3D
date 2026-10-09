@@ -82,8 +82,10 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   shadowCasters: 'Shadow casters (the light cut)',
   lightLists: 'Light lists',
   bounce: 'Bounce (irradiance probes)',
+  reflections: 'Screen reflections',
   lighting: 'Lighting (resolve)',
   antialiasing: 'Temporal antialiasing',
+  effects: 'Image effects (bloom)',
   present: 'Present',
 })
 
