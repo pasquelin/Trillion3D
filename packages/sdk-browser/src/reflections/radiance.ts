@@ -1,4 +1,4 @@
-import { COMPUTE } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
 import { levelViews } from '../texture/mipGroups.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -6,7 +6,7 @@ import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { sameEntries } from '../gpu/core/sameEntries.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { computeLayout, storageEntry } from './bindings.ts'
+import { storageEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
 import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 
@@ -111,19 +111,16 @@ fn radianceDown(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) li
  *  two levels a dispatch writes, and for the first, level 0 and the view, whose drawn size it
  *  reads. */
 export function radianceLayouts(device: GPUDevice) {
-  const finer = { binding: 0, visibility: COMPUTE, texture: { sampleType: 'float' } } as const
+  const finer = computeTextureEntry(0, 'float')
   const halves = { binding: 3, visibility: COMPUTE, sampler: { type: 'filtering' } } as const
-  const view = { binding: 5, visibility: COMPUTE, buffer: { type: 'uniform' } } as const
+  const view = computeBufferEntry(5, 'uniform')
   return {
-    firstLayout: computeLayout(device, [
-      finer,
-      storageEntry(1),
-      storageEntry(2),
-      halves,
-      storageEntry(4),
-      view,
-    ]),
-    downLayout: computeLayout(device, [finer, storageEntry(1), storageEntry(2), halves]),
+    firstLayout: device.createBindGroupLayout({
+      entries: [finer, storageEntry(1), storageEntry(2), halves, storageEntry(4), view],
+    }),
+    downLayout: device.createBindGroupLayout({
+      entries: [finer, storageEntry(1), storageEntry(2), halves],
+    }),
   }
 }
 

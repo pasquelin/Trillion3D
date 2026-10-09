@@ -1,4 +1,4 @@
-import { COMPUTE } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import { sameEntries } from '../gpu/core/sameEntries.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
@@ -9,7 +9,7 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../sdk-core/src/scene/core/envir
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { TONE_UNMAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
-import { computeLayout, storageEntry } from './bindings.ts'
+import { storageEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
 import { REFLECTION_GROUP, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
@@ -98,22 +98,11 @@ export const TRACE_ARGS_BYTES = 12
 
 /** The trace's bind group 0 and the frame state's layouts. */
 function traceLayouts(device: GPUDevice) {
-  const buffer = (binding: number, type: GPUBufferBindingType): GPUBindGroupLayoutEntry => ({
-    binding,
-    visibility: COMPUTE,
-    buffer: { type },
-  })
-  const texture = (
-    binding: number,
-    sampleType: GPUTextureSampleType,
-    viewDimension: GPUTextureViewDimension = '2d',
-  ): GPUBindGroupLayoutEntry => ({
-    binding,
-    visibility: COMPUTE,
-    texture: { sampleType, viewDimension },
-  })
+  const buffer = computeBufferEntry
+  const texture = computeTextureEntry
+  const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
-    traceLayout: computeLayout(device, [
+    traceLayout: layout([
       texture(0, 'uint'),
       texture(1, 'unfilterable-float'),
       storageEntry(2),
@@ -123,12 +112,8 @@ function traceLayouts(device: GPUDevice) {
       texture(6, 'unfilterable-float', '2d-array'),
       buffer(8, 'storage'),
     ]),
-    classifyLayout: computeLayout(device, [
-      texture(0, 'uint'),
-      buffer(7, 'storage'),
-      buffer(8, 'storage'),
-    ]),
-    beginLayout: computeLayout(device, [
+    classifyLayout: layout([texture(0, 'uint'), buffer(7, 'storage'), buffer(8, 'storage')]),
+    beginLayout: layout([
       buffer(0, 'read-only-storage'),
       buffer(1, 'storage'),
       buffer(2, 'storage'),

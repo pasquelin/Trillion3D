@@ -2,6 +2,7 @@ import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
+import { computeBufferEntry, computeTextureEntry } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
@@ -113,22 +114,13 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
 
 /** The test's layout and pipeline; undefined when its module fails. */
 async function occlusionPipeline(device: GPUDevice, entryCount: number) {
-  const buffer = (binding: number, type: GPUBufferBindingType): GPUBindGroupLayoutEntry => ({
-    binding,
-    visibility: GPUShaderStage.COMPUTE,
-    buffer: { type },
-  })
   const layout = device.createBindGroupLayout({
     entries: [
-      buffer(0, 'read-only-storage'),
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'uint', viewDimension: '2d-array' },
-      },
-      buffer(2, 'storage'),
-      buffer(3, 'uniform'),
-      buffer(4, 'read-only-storage'),
+      computeBufferEntry(0, 'read-only-storage'),
+      computeTextureEntry(1, 'uint', '2d-array'),
+      computeBufferEntry(2, 'storage'),
+      computeBufferEntry(3, 'uniform'),
+      computeBufferEntry(4, 'read-only-storage'),
     ],
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) })

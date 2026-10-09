@@ -7,7 +7,6 @@ import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
-import { computeLayout } from './bindings.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
 import {
   RADIANCE_SHADER,
@@ -33,12 +32,18 @@ import { REFLECTION_TARGET } from './weight.ts'
  *  and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
-  return computeLayout(device, [
-    { binding: 0, visibility, buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES } },
-    { binding: 1, visibility, texture: { sampleType: 'float' } },
-    { binding: 2, visibility, sampler: { type: 'filtering' } },
-    ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
-  ])
+  return device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility,
+        buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES },
+      },
+      { binding: 1, visibility, texture: { sampleType: 'float' } },
+      { binding: 2, visibility, sampler: { type: 'filtering' } },
+      ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
+    ],
+  })
 })
 
 /** The reflection's kernels — the frame state, the opaque trace and its tile classification, the

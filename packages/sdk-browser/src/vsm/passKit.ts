@@ -4,6 +4,7 @@
  * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
  * the maths package's (`packages/math/src/scalar`).
  */
+import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 
 /** A buffer binding of `type` at `binding`, seen by `visibility`. */
@@ -11,7 +12,7 @@ export const vsmBufferEntry = (
   binding: number,
   visibility: GPUShaderStageFlags,
   type: GPUBufferBindingType,
-): GPUBindGroupLayoutEntry => ({ binding, visibility, buffer: { type } })
+) => computeBufferEntry(binding, type, visibility)
 
 /** A compute uniform binding at `binding` read at a dynamic offset: one slot of `minBindingSize`
  *  bytes of a buffer of slots. */
