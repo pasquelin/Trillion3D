@@ -5,8 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { REFLECTION_EDGE } from './constants.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
+import { coneWgsl, reflectionConstant } from './shaderParts.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 
 type Cone = {
@@ -15,7 +14,7 @@ type Cone = {
   reflectionLevelTrust: (level: number, top: number) => number
 }
 const cone = shaderRun<Cone>(
-  wgslModule(REFLECTION_CONE_WGSL),
+  wgslModule(coneWgsl()),
   ['reflectionConeTangent', 'reflectionEdgeFade', 'reflectionLevelTrust'],
   {},
 )
@@ -40,7 +39,7 @@ test('the cone is closed on a mirror and opens with the lobe, as GGX at half its
 
 test('a hit fades into the environment at the image edge, smoothly and only there', () => {
   const size = [320, 200],
-    border = REFLECTION_EDGE * size[1]
+    border = reflectionConstant('REFLECTION_EDGE') * size[1]
   assert.equal(cone.reflectionEdgeFade([160, 100], size), 1)
   assert.equal(cone.reflectionEdgeFade([border, border], size), 1)
   for (const at of [

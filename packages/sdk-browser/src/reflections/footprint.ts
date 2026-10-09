@@ -19,7 +19,7 @@ import { reflectionBindingsWgsl } from './viewLayout.ts'
  * pyramid level against the pyramid's top one: 1 up to the level below the top, falling smoothly
  * to 0 at the top, whose texel spans the whole image.
  */
-export const REFLECTION_CONE_WGSL = wgslBlock(
+const REFLECTION_CONE_WGSL = wgslBlock(
   'REFLECTION_CONE_WGSL',
   [REFLECTION_CONSTANTS_WGSL],
   `fn reflectionConeTangent(alpha:f32)->f32{

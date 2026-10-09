@@ -6,8 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
-import { REFLECTION_TAPS } from './constants.ts'
+import { coneWgsl, reflectionConstant } from './shaderParts.fixture.ts'
+
+const REFLECTION_TAPS = reflectionConstant('REFLECTION_TAPS')
 import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 import { camera, castBoxes, type Box, type V3 } from './boxes.fixture.ts'
@@ -101,7 +102,7 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
     },
   )
   const { reflectionConeTangent } = shaderRun<{ reflectionConeTangent: (a: number) => number }>(
-    wgslModule(REFLECTION_CONE_WGSL),
+    wgslModule(coneWgsl()),
     ['reflectionConeTangent'],
     {},
   )

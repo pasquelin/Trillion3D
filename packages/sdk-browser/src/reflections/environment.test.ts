@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { REFLECTION_ENVIRONMENT_WGSL } from './field.ts'
+import { environmentWgsl } from './shaderParts.fixture.ts'
 import { BEGIN_SHADER } from './trace.ts'
 import { TONE_MAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
@@ -18,7 +18,7 @@ const environmentRun = (environment: number[][], surroundings: number[]) =>
     reflectionLobeOf: (R: number[], alpha: number, lobe: number[]) => Lobe
     reflectionEnvironment: (lobe: Lobe) => number[]
   }>(
-    wgslModule(REFLECTION_ENVIRONMENT_WGSL),
+    wgslModule(environmentWgsl()),
     ['reflectionEnvironment', 'reflectionLobeOf', 'reflectionBands'],
     {
       directLights: { environment },

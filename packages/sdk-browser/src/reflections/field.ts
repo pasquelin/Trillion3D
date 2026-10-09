@@ -64,7 +64,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 /** The radiance around the scene through a lobe (`reflectionEnvironment`): the environment's
  *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
  *  and the uniform radiance the view's `surroundings` add, which every lobe keeps whole. */
-export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
+const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
   [REFLECTION_LOBE_WGSL, REFLECTION_VIEW_WGSL],
   `fn reflectionEnvironment(lobe:ReflectionLobe)->vec3f{

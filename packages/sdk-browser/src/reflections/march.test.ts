@@ -5,7 +5,7 @@
 // everything — each within its bound.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_ITERATIONS_PER_LEVEL } from './constants.ts'
+import { reflectionConstant } from './shaderParts.fixture.ts'
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 
@@ -26,7 +26,7 @@ function marcher(width: number, height: number, depth: (x: number, y: number) =>
   const size = [width, height]
   return {
     /** The iterations the march may take over this image. */
-    bound: REFLECTION_ITERATIONS_PER_LEVEL * field.levels.level[0][3],
+    bound: reflectionConstant('REFLECTION_ITERATIONS_PER_LEVEL') * field.levels.level[0][3],
     /** Where the ray from `o` along `d` stops on the screen, or undefined: a miss. */
     hit(o: number[], d: number[]) {
       run.counter.loads = 0

@@ -6,12 +6,12 @@ import { DEG2RAD } from '../../../math/src/constants.ts'
  *  level climbing and two descending, and each refused ascent is one more — eight a level, `levels
  *  × 8` in all. A ray that skims a surface the pyramid's bounds cannot clear (they hold the
  *  farthest height of a cell, not its tilt) needs more: it is a miss. */
-export const REFLECTION_ITERATIONS_PER_LEVEL = 8
+const REFLECTION_ITERATIONS_PER_LEVEL = 8
 /** The image border, a fraction of its height, over which a hit fades into the environment. */
-export const REFLECTION_EDGE = 1 / 16
+const REFLECTION_EDGE = 1 / 16
 /** The taps of a footprint along its long axis at most: past that ratio of its axes, the level is
  *  the long axis's share of a tap. */
-export const REFLECTION_TAPS = 5
+const REFLECTION_TAPS = 5
 
 /**
  * The constants of the reflection's shaders. `REFLECTION_NUDGE` takes a ray past a cell boundary: four
