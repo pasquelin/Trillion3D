@@ -63,7 +63,10 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
     const occluders = Float32Array.from({ length: width * height }, () => rand())
     // The rest of the scene only comes nearer (reverse-Z: larger), and fills holes.
     const finished = Float32Array.from(occluders, (z) => (rand() < 0.5 ? Math.max(z, rand()) : z))
-    const draw = (depth: Float32Array, build: (open: { pass: GPUComputePassEncoder }) => void) => {
+    const draw = (
+      depth: Float32Array<ArrayBuffer>,
+      build: (open: { pass: GPUComputePassEncoder }) => void,
+    ) => {
       device.queue.writeTexture({ texture: hiz.level0 }, depth, { bytesPerRow: width * 4 }, [
         width,
         height,
