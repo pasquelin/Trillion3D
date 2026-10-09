@@ -2,6 +2,7 @@ import { COMPUTE } from '../gpu/core/computeBindings.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
 import { levelViews } from '../texture/mipGroups.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { sameEntries } from '../gpu/core/sameEntries.ts'
@@ -228,7 +229,7 @@ function buildGroups(
 /** The threads a side of the dispatch that makes level `level` of an image drawn `drawn` wide: its
  *  texels the drawn image covers, and the two beyond it that a footprint's cubic read reaches. */
 const radianceThreads = (drawn: number, level: number, extent: number) =>
-  Math.min(ceilDiv(drawn, 2 ** level) + 2, Math.max(1, extent >> level))
+  clamp(extent >> level, 1, ceilDiv(drawn, 2 ** level) + 2)
 
 const probe: unknown[] = []
 

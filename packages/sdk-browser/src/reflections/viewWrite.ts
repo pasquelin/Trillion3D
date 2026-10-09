@@ -1,5 +1,6 @@
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
 
@@ -30,7 +31,7 @@ export type HeldImage = {
 }
 
 /** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
-const RUNS = Math.ceil(REFLECTION_VIEW_WRITTEN_WORDS / 16)
+const RUNS = ceilDiv(REFLECTION_VIEW_WRITTEN_WORDS, 16)
 
 /** Whether every run of `staged` is what `sent` holds. */
 function unchanged(sent: Float32Array, runs: Float32Array[]) {
