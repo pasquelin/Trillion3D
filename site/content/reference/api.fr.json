@@ -2338,32 +2338,6 @@
   "hierarchyUpdateBatch": {
     "summary": "Calcule les matrices dans le monde de toute une hiérarchie en un passage, parents d’abord."
   },
-  "HIZ_NOTHING": {
-    "summary": "Valeur renvoyée quand aucun texel n’est lu : ne peut rien cacher.",
-    "description": "La profondeur du moteur est INVERSÉE — le proche vaut 1, le lointain 0 (`../../../math/src/projection/camera.ts`). Une boîte englobante n’est cachée que si sa limite de profondeur la plus proche est PLUS LOIN (plus petite valeur) que la profondeur de l’obstacle."
-  },
-  "hizBuildFlat": {
-    "summary": "Pyramide complète depuis la profondeur du visbuffer.",
-    "description": "`into` est réécrit, jamais réalloué."
-  },
-  "HizFlat": {
-    "summary": "La pyramide Hi-Z par image : un seul `Float32Array` pour tous les niveaux, un décalage et une taille par niveau.",
-    "description": "Les valeurs sont celles du visbuffer, déjà en simple précision, et la réduction garde la PLUS LOINTAINE d’un carré 2×2 — un minimum, la profondeur du moteur étant inversée : rien n’est arrondi, la disposition à plat renvoie exactement ce que renvoyait la pyramide en tableaux imbriqués, sans allouer une ligne par rangée et par image. Reflet de production de `hizReduceCeil` (oracles.fixture.ts), qui reste l’oracle : deux mises en œuvre voulues de la même réduction, opposées l’une à l’autre dans un test d’équivalence.",
-    "members": {
-      "data": "Les profondeurs de chaque niveau.",
-      "offsets": "Où commence chaque niveau.",
-      "widths": "La largeur de chaque niveau.",
-      "heights": "La hauteur de chaque niveau.",
-      "count": "Combien de niveaux."
-    }
-  },
-  "hizFlatLayout": {
-    "summary": "Place (ou replace) les décalages et les tailles.",
-    "description": "`into` est réutilisé tel quel s’il a déjà la bonne taille."
-  },
-  "hizFlatLevels": {
-    "summary": "Nombre de niveaux d’une image : le dernier fait 1×1."
-  },
   "holdCameraWorld": {
     "summary": "Copie une caméra du moteur dans une autre, qui garde alors la vue au bit près."
   },

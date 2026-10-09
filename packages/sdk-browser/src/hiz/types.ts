@@ -1,4 +1,3 @@
-import type { HizFlat } from '../../../sdk-core/src/index.ts'
 import type { VisMaterial } from '../visibility/types.ts'
 import type { MovedBox } from '../page/selection/types.ts'
 
@@ -12,5 +11,20 @@ export type HizPage = {
   /** The surface it wears: one never culled (`neverCulled`) is never rejected. */
   material?: Pick<VisMaterial, 'sprite'>
 }
-/** Flat pyramid of the per-frame path: level 0 already holds the frame size. */
-export type HizPyramid = HizFlat
+
+/**
+ * A Hi-Z pyramid laid out flat, as the CPU oracles read it: one `Float32Array` for every level,
+ * one offset and size per level, level 0 the frame's depth and the last level 1×1.
+ */
+export type HizPyramid = {
+  /** Every level's depths. */
+  data: Float32Array
+  /** Where each level starts. */
+  offsets: Int32Array
+  /** Each level's width. */
+  widths: Int32Array
+  /** Each level's height. */
+  heights: Int32Array
+  /** How many levels. */
+  count: number
+}

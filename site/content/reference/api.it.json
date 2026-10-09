@@ -2330,32 +2330,6 @@
   "hierarchyUpdateBatch": {
     "summary": "Calcola le matrici nel mondo di un'intera gerarchia in un solo passaggio, genitori prima."
   },
-  "HIZ_NOTHING": {
-    "summary": "Valore restituito quando non viene letto alcun texel: non può nascondere nulla.",
-    "description": "La profondità del motore è INVERTITA — il vicino vale 1, il lontano 0 (`../../../math/src/projection/camera.ts`). Una scatola avvolgente è nascosta solo se il suo limite di profondità più vicino è PIÙ LONTANO (valore più piccolo) della profondità dell'ostacolo."
-  },
-  "hizBuildFlat": {
-    "summary": "Piramide completa a partire dalla profondità del buffer di visibilità.",
-    "description": "`into` viene riscritto, mai riallocato."
-  },
-  "HizFlat": {
-    "summary": "La piramide Hi-Z per fotogramma: un unico `Float32Array` per tutti i livelli, un offset e una dimensione per livello.",
-    "description": "I valori sono quelli del buffer di visibilità, già in precisione singola, e la riduzione mantiene il PIÙ LONTANO di un quadrato 2×2 — un minimo, essendo la profondità del motore invertita: nulla viene arrotondato, la disposizione piatta restituisce esattamente ciò che restituiva la piramide di array annidati, senza allocare una riga per riga e per fotogramma. Riflesso di produzione di `hizReduceCeil` (oracles.fixture.ts), che resta l'oracolo: due implementazioni volute della stessa riduzione, contrapposte in un test di equivalenza.",
-    "members": {
-      "data": "Le profondità di ogni livello.",
-      "offsets": "Dove inizia ogni livello.",
-      "widths": "La larghezza di ogni livello.",
-      "heights": "L'altezza di ogni livello.",
-      "count": "Quanti livelli."
-    }
-  },
-  "hizFlatLayout": {
-    "summary": "Colloca (o ricolloca) gli offset e le dimensioni.",
-    "description": "`into` viene riutilizzato così com'è se ha già la dimensione giusta."
-  },
-  "hizFlatLevels": {
-    "summary": "Numero di livelli di un fotogramma: l'ultimo è 1×1."
-  },
   "holdCameraWorld": {
     "summary": "Copia una camera del motore in un'altra, che mantiene quindi la vista bit per bit."
   },

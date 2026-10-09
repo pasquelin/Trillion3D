@@ -1349,21 +1349,6 @@
     "summary": "HIERARKI PENUH diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya.",
     "description": "Kedua rumus berjalan pada buffer datar, dan kernel WebAssembly mereplikasinya suku demi suku. `parents[i]` HARUS berupa indeks sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua sisi: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda."
   },
-  "HIZ_NOTHING": {
-    "summary": "Nilai yang dikembalikan saat tidak ada texel yang dibaca: tidak bisa mengoklusi apa pun.",
-    "description": "Kedalaman mesin TERBALIK — dekat adalah 1, jauh adalah 0 (`../../../math/src/projection/camera.ts`). Sebuah kotak pembatas teroklusi hanya jika batas kedalaman terdekatnya LEBIH JAUH (nilai lebih kecil) dari kedalaman pengoklusi."
-  },
-  "HizFlat": {
-    "summary": "Piramida Hi-Z per-bingkai: satu `Float32Array` untuk semua tingkat, satu offset dan ukuran per tingkat.",
-    "description": "Nilainya berasal dari visbuffer, sudah dalam presisi tunggal, dan reduksi menyimpan yang PALING JAUH dari sebuah kuad 2x2 — sebuah minimum, karena kedalaman mesin terbalik: tidak ada yang dibulatkan, tata letak datar mengembalikan persis apa yang dikembalikan piramida larik bersarang, tanpa mengalokasikan satu baris per baris dan bingkai. Cerminan produksi dari `hizReduceCeil` (oracles.fixture.ts), yang tetap jadi acuan: dua implementasi sengaja dari reduksi yang sama, diadu satu sama lain dalam uji kesetaraan.",
-    "members": {
-      "data": "Kedalaman setiap tingkat.",
-      "offsets": "Tempat setiap tingkat dimulai.",
-      "widths": "Lebar setiap tingkat.",
-      "heights": "Tinggi setiap tingkat.",
-      "count": "Berapa banyak tingkat."
-    }
-  },
   "HostAttribute": {
     "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya."
   },
@@ -5106,17 +5091,6 @@
   },
   "hierarchyUpdateBatch": {
     "summary": "Menghitung matriks dunia dari seluruh hierarki dalam satu pass, induk lebih dulu."
-  },
-  "hizBuildFlat": {
-    "summary": "Piramida lengkap dari kedalaman visbuffer.",
-    "description": "`into` ditulis ulang, tidak pernah dialokasikan ulang."
-  },
-  "hizFlatLayout": {
-    "summary": "Menata (atau menata ulang) offset dan ukuran.",
-    "description": "`into` dipakai ulang apa adanya jika sudah cocok."
-  },
-  "hizFlatLevels": {
-    "summary": "Hitungan level sebuah gambar: level terakhir adalah 1x1."
   },
   "holdCameraWorld": {
     "summary": "Menyalin sebuah kamera mesin ke kamera lain, yang kemudian mempertahankan tampilan bit demi bit."

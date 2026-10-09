@@ -3,8 +3,13 @@
 // the farthest occluder of its footprint.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hizBuildPyramid, hizFootprintFar, hizOccluded, hizReduceCeil } from './oracles.fixture.ts'
-import { HIZ_NOTHING } from './pyramidFlat.ts'
+import {
+  HIZ_NOTHING,
+  hizBuildPyramid,
+  hizFootprintFar,
+  hizOccluded,
+  hizReduceCeil,
+} from './oracles.fixture.ts'
 
 test('a background hole prevents any rejection: reduction keeps the farthest', () => {
   assert.deepEqual(

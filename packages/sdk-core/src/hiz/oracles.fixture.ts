@@ -1,9 +1,16 @@
 /**
- * The Hi-Z references the tests and the pyramid bench hold the engine to: a nested-array pyramid,
- * its footprint read, the flat pyramid's footprint read and the occlusion verdict. The CPU oracle
- * builds `pyramidFlat.ts`'s pyramid and decides with `bench/oracles/browser/hizHides.ts`.
+ * The Hi-Z references the tests and the CPU oracles hold the engine to: a nested-array pyramid,
+ * its footprint read and the occlusion verdict.
  */
-import { HIZ_NOTHING, type HizFlat } from './pyramidFlat.ts'
+
+/**
+ * Value returned when no texels are read: cannot occlude anything.
+ *
+ * Engine depth is REVERSED — near is 1, far is 0 (`../../../math/src/projection/camera.ts`). A
+ * bounding box is occluded only if its nearest depth bound is FARTHER (smaller value) than the
+ * occluder depth.
+ */
+export const HIZ_NOTHING = Number.NEGATIVE_INFINITY
 
 /** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed depth). */
 export function hizReduceCeil(depth: readonly (readonly number[])[]): number[][] {
@@ -81,42 +88,4 @@ export function hizOccluded(nearest: number, far: number, bias = 0): boolean {
   if (!Number.isFinite(nearest) || !Number.isFinite(far) || !Number.isFinite(bias) || bias < 0)
     return false
   return nearest < far - bias
-}
-
-/**
- * Farthest occluder depth over the half-open level-0 pixel rectangle
- * [x0,x1)x[y0,y1). Empty or out-of-field rectangle: `HIZ_NOTHING`, which cannot hide anything.
- */
-export function hizFootprintFarFlat(
-  pyramid: HizFlat,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  level: number,
-): number {
-  if (level < 0 || level >= pyramid.count || x1 <= x0 || y1 <= y0) return HIZ_NOTHING
-  const width = pyramid.widths[level],
-    height = pyramid.heights[level],
-    base = pyramid.offsets[level],
-    data = pyramid.data
-  if (width === 0) return HIZ_NOTHING
-  const scale = 2 ** level
-  const minX = Math.floor(x0 / scale),
-    maxX = Math.floor((x1 - 1) / scale)
-  const minY = Math.floor(y0 / scale),
-    maxY = Math.floor((y1 - 1) / scale)
-  let far = Infinity,
-    hit = false
-  for (let y = minY; y <= maxY; y++) {
-    if (y < 0 || y >= height) continue
-    const row = base + y * width
-    for (let x = minX; x <= maxX; x++) {
-      if (x < 0 || x >= width) continue
-      far = Math.min(far, data[row + x])
-      hit = true
-    }
-  }
-  if (!hit) return HIZ_NOTHING
-  return far
 }

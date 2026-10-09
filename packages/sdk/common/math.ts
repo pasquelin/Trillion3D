@@ -90,13 +90,6 @@ export {
 export { frustumClipBox, frustumExcludesBox } from '../../math/src/geometry/frustum/box.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
 export { HALF_PI, PI } from '../../math/src/constants.ts'
-export {
-  HIZ_NOTHING,
-  hizBuildFlat,
-  hizFlatLayout,
-  hizFlatLevels,
-} from '../../sdk-core/src/hiz/pyramidFlat.ts'
-export type { HizFlat } from '../../sdk-core/src/hiz/pyramidFlat.ts'
 export { hslToRgb, linearToSrgb, srgbToLinear } from '../../math/src/color/color.ts'
 export { invertMatrix4 } from '../../math/src/matrix/matrix4Inverse.ts'
 export {

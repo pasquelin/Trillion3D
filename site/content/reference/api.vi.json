@@ -1349,21 +1349,6 @@
     "summary": "TOÀN BỘ PHÂN CẤP được cập nhật trong một chặng: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó.",
     "description": "Hai công thức chạy trên các bộ đệm phẳng, và nhân WebAssembly sao chép lại chúng từng số hạng một. `parents[i]` PHẢI là chỉ số của một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau ở cả hai phía: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau."
   },
-  "HIZ_NOTHING": {
-    "summary": "Giá trị trả về khi không có texel nào được đọc: không thể che khuất gì cả.",
-    "description": "Độ sâu của bộ máy bị ĐẢO NGƯỢC — gần là 1, xa là 0 (`../../../math/src/projection/camera.ts`). Một hộp bao chỉ bị che khuất nếu cận độ sâu gần nhất của nó XA HƠN (giá trị nhỏ hơn) độ sâu của vật che khuất."
-  },
-  "HizFlat": {
-    "summary": "Kim tự tháp Hi-Z theo từng khung hình: một `Float32Array` duy nhất cho mọi mức, một độ lệch và kích thước cho mỗi mức.",
-    "description": "Các giá trị lấy từ visbuffer, đã ở độ chính xác đơn, và phép rút gọn giữ giá trị XA NHẤT của một khối 2x2 — một cực tiểu, vì độ sâu của bộ máy bị đảo ngược: không có gì được làm tròn, cách bố trí phẳng trả về chính xác những gì kim tự tháp mảng lồng nhau trả về, mà không cần cấp phát một dòng cho mỗi hàng và khung hình. Bản sao dùng cho sản xuất của `hizReduceCeil` (oracles.fixture.ts), thứ vẫn là mốc chuẩn: hai cách hiện thực có chủ đích của cùng một phép rút gọn, được đối chọi nhau trong bài kiểm thử tương đương.",
-    "members": {
-      "data": "Độ sâu của mọi mức.",
-      "offsets": "Nơi mỗi mức bắt đầu.",
-      "widths": "Chiều rộng của mỗi mức.",
-      "heights": "Chiều cao của mỗi mức.",
-      "count": "Có bao nhiêu mức."
-    }
-  },
   "HostAttribute": {
     "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó."
   },
@@ -5106,17 +5091,6 @@
   },
   "hierarchyUpdateBatch": {
     "summary": "Tính toán các ma trận thế giới của toàn bộ một hệ thống phân cấp trong một lượt, cha trước."
-  },
-  "hizBuildFlat": {
-    "summary": "Kim tự tháp hoàn chỉnh từ độ sâu của visbuffer.",
-    "description": "`into` được ghi lại, không bao giờ được cấp phát lại."
-  },
-  "hizFlatLayout": {
-    "summary": "Bố trí (hoặc bố trí lại) các độ lệch và kích thước.",
-    "description": "`into` được tái sử dụng nguyên trạng nếu nó đã vừa."
-  },
-  "hizFlatLevels": {
-    "summary": "Số cấp của một hình ảnh: cấp cuối cùng là 1x1."
   },
   "holdCameraWorld": {
     "summary": "Sao chép một camera bộ máy vào một camera khác, sau đó giữ khung nhìn từng bit một."

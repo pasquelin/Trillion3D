@@ -1516,10 +1516,6 @@
     "summary": "Tek bir geçişte güncellenen TAM HİYERARŞİ: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur ve sonra bunu ebeveyninin dünya matrisiyle çarpar.",
     "description": "İki formül düz tamponlarda çalışır ve WebAssembly çekirdeği onları terim terim yeniden üretir. `parents[i]` zaten güncellenmiş bir düğümün indeksi OLMAK ZORUNDADIR, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki tarafta da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onların ayrışmasına neden olamaz."
   },
-  "HIZ_NOTHING": {
-    "summary": "Hiçbir teksel okunmadığında döndürülen değer: hiçbir şeyi gizleyemez.",
-    "description": "Motor derinliği TERS ÇEVRİLMİŞTİR — yakın 1, uzak 0'dır (`../../../math/src/projection/camera.ts`). Sınırlayıcı bir kutu, yalnızca en yakın derinlik sınırı, gizleyenin derinliğinden DAHA UZAKSA (daha küçük değer) gizlenir."
-  },
   "HeadSettings": {
     "summary": "BİR YÜRÜYÜCÜNÜN BAŞI, işaretçi kilitli: işaretçi onu çevirir, ufuk düz kalır — dünya yukarısı etrafında sapma, `[minPitch, maxPitch]`'e sıkıştırılmış yunuslama, asla hiçbir yatma.",
     "description": "Bir kişinin gözlerinden bakan her kontrolcü tarafından paylaşılır. KİLİT, HOST'UN İSTEYECEĞİ ŞEYDİR. Bir tarayıcı, işaretçi kilidini yalnızca bir jest içinde verir, bu yüzden baş `pointerdown`'da ister ve kendi anını seçmeyi tercih eden bir host için `lock()`, `unlock()` ve `locked()`'ı yayımlar; izleyicinin kaçtığı bir kilit sadece bakışı durdurur, ve kilitlenmemiş bir sürükleme yine de başı çevirir.",
@@ -1527,17 +1523,6 @@
       "lookSpeed": "İşaretçi hareketinin pikseli başına dönülen radyan; `null` (varsayılan) 0.002'dir.",
       "minPitch": "Başın ne kadar aşağı baktığı, negatif sayılan ufkun altındaki radyan cinsinden (0 ufuktur); varsayılan olarak dümdüz aşağıya çok az kala. Bir yürüyücünün asla kendi gövdesine bakmaması için yükseltin.",
       "maxPitch": "Başın ne kadar yukarı baktığı, ufkun üstündeki radyan cinsinden; varsayılan olarak zirveye çok az kala."
-    }
-  },
-  "HizFlat": {
-    "summary": "Kare başına Hi-Z piramidi: tüm seviyeler için tek bir `Float32Array`, seviye başına bir ofset ve boyut.",
-    "description": "Değerler, zaten tek hassasiyette olan görünürlük tamponundan gelir, ve indirgeme bir 2x2 dörtlünün EN UZAĞINI tutar — bir minimum, motor derinliği ters çevrilmiş olduğundan: hiçbir şey yuvarlanmaz, düz düzen, satır ve kare başına bir satır tahsis etmeden, iç içe dizi piramidinin döndürdüğünü tam olarak döndürür. `hizReduceCeil`'in (oracles.fixture.ts) üretim aynası, ki bu oracle olarak kalır: aynı indirgemenin, denklik testinde birbirine karşı konan iki kasıtlı uygulaması.",
-    "members": {
-      "data": "Her seviyenin derinlikleri.",
-      "offsets": "Her seviyenin nerede başladığı.",
-      "widths": "Her seviyenin genişliği.",
-      "heights": "Her seviyenin yüksekliği.",
-      "count": "Kaç seviye."
     }
   },
   "HostAttribute": {
@@ -6195,17 +6180,6 @@
   },
   "hierarchyUpdateBatch": {
     "summary": "Tüm bir hiyerarşinin dünya matrislerini tek bir geçişte, önce ebeveynler olacak şekilde hesaplar."
-  },
-  "hizBuildFlat": {
-    "summary": "Görünürlük tamponu derinliğinden tam piramit.",
-    "description": "`into` yeniden yazılır, asla yeniden tahsis edilmez."
-  },
-  "hizFlatLayout": {
-    "summary": "Ofsetleri ve boyutları düzenler (ya da yeniden düzenler).",
-    "description": "Zaten sığıyorsa `into` olduğu gibi yeniden kullanılır."
-  },
-  "hizFlatLevels": {
-    "summary": "Bir görselin seviye sayısı: son seviye 1x1'dir."
   },
   "holdCameraWorld": {
     "summary": "Bir motor kamerasını, görünümü bit bit koruyan başka birine kopyalar."

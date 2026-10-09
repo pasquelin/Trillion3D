@@ -1341,21 +1341,6 @@
     "summary": "HIERARQUIA COMPLETA atualizada em uma única passagem: `n` nós ordenados pais antes de filhos, cada um compondo sua matriz local e então multiplicando-a pela matriz de mundo de seu pai.",
     "description": "As duas fórmulas rodam em buffers lineares, e o kernel WebAssembly as replica termo a termo. `parents[i]` DEVE ser o índice de um nó já atualizado, logo estritamente menor que `i`; qualquer outro valor — incluindo a sentinela `HIERARCHY_ROOT` — torna o nó uma raiz cuja matriz de mundo é sua matriz local. A regra é idêntica nos dois lados: nenhuma entrada, por mais hostil que seja, pode fazê-los divergir."
   },
-  "HIZ_NOTHING": {
-    "summary": "Valor devolvido quando nenhum texel é lido: não pode ocluir nada.",
-    "description": "A profundidade do motor é INVERTIDA — perto é 1, longe é 0 (`../../../math/src/projection/camera.ts`). Uma caixa delimitadora só é ocluída se seu limite de profundidade mais próximo for MAIS DISTANTE (valor menor) que a profundidade do oclusor."
-  },
-  "HizFlat": {
-    "summary": "A pirâmide Hi-Z por quadro: um único `Float32Array` para todos os níveis, um deslocamento e tamanho por nível.",
-    "description": "Os valores são os do buffer de visibilidade, já em precisão simples, e a redução mantém o MAIS DISTANTE de um quadrante 2x2 — um mínimo, sendo a profundidade do motor invertida: nada é arredondado, o layout linear devolve exatamente o que a pirâmide de arrays aninhados devolvia, sem alocar uma linha por fileira e por quadro. Espelho de produção de `hizReduceCeil` (oracles.fixture.ts), que continua sendo o oráculo: duas implementações deliberadas da mesma redução, confrontadas em um teste de equivalência.",
-    "members": {
-      "data": "As profundidades de cada nível.",
-      "offsets": "Onde cada nível começa.",
-      "widths": "A largura de cada nível.",
-      "heights": "A altura de cada nível.",
-      "count": "Quantos níveis."
-    }
-  },
   "HostAttribute": {
     "summary": "Um atributo de vértice de uma geometria de host, intercalado ou não: seu layout e seu armazenamento."
   },
@@ -5135,17 +5120,6 @@
   },
   "hierarchyUpdateBatch": {
     "summary": "Calcula as matrizes de mundo de uma hierarquia inteira em uma única passagem, pais primeiro."
-  },
-  "hizBuildFlat": {
-    "summary": "Pirâmide completa a partir da profundidade do buffer de visibilidade.",
-    "description": "`into` é reescrito, nunca realocado."
-  },
-  "hizFlatLayout": {
-    "summary": "Organiza (ou reorganiza) deslocamentos e tamanhos.",
-    "description": "`into` é reutilizado como está se já cabe."
-  },
-  "hizFlatLevels": {
-    "summary": "Contagem de níveis de uma imagem: o último nível é 1x1."
   },
   "holdCameraWorld": {
     "summary": "Copia uma câmera de motor para outra, que então mantém a visão bit a bit."

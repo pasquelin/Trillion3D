@@ -2330,32 +2330,6 @@
   "hierarchyUpdateBatch": {
     "summary": "Berechnet die Weltmatrizen einer ganzen Hierarchie in einem Durchgang, Eltern zuerst."
   },
-  "HIZ_NOTHING": {
-    "summary": "Zurückgegebener Wert, wenn kein Texel gelesen wird: kann nichts verdecken.",
-    "description": "Die Tiefe der Engine ist UMGEKEHRT — nah ist 1, fern ist 0 (`../../../math/src/projection/camera.ts`). Eine umschließende Box ist nur verdeckt, wenn ihre nächste Tiefengrenze WEITER (kleinerer Wert) ist als die Tiefe des Hindernisses."
-  },
-  "hizBuildFlat": {
-    "summary": "Vollständige Pyramide aus der Tiefe des Sichtbarkeitspuffers.",
-    "description": "`into` wird neu geschrieben, nie neu zugewiesen."
-  },
-  "HizFlat": {
-    "summary": "Die Hi-Z-Pyramide pro Bild: ein einziges `Float32Array` für alle Stufen, ein Versatz und eine Größe pro Stufe.",
-    "description": "Die Werte sind die des Sichtbarkeitspuffers, bereits in einfacher Genauigkeit, und die Reduktion behält die WEITESTE eines 2×2-Quadrats — ein Minimum, da die Tiefe der Engine umgekehrt ist: nichts wird gerundet, die flache Anordnung gibt genau das zurück, was die verschachtelte Array-Pyramide zurückgab, ohne pro Zeile und Bild eine Zeile zuzuweisen. Produktionsspiegel von `hizReduceCeil` (oracles.fixture.ts), das das Orakel bleibt: zwei gewollte Implementierungen derselben Reduktion, gegeneinander in einem Äquivalenztest.",
-    "members": {
-      "data": "Die Tiefen jeder Stufe.",
-      "offsets": "Wo jede Stufe beginnt.",
-      "widths": "Die Breite jeder Stufe.",
-      "heights": "Die Höhe jeder Stufe.",
-      "count": "Wie viele Stufen."
-    }
-  },
-  "hizFlatLayout": {
-    "summary": "Platziert (oder ersetzt) die Versätze und Größen.",
-    "description": "`into` wird unverändert wiederverwendet, wenn es schon die richtige Größe hat."
-  },
-  "hizFlatLevels": {
-    "summary": "Anzahl der Stufen eines Bildes: die letzte ist 1×1."
-  },
   "holdCameraWorld": {
     "summary": "Kopiert eine Engine-Kamera in eine andere, die dann die Sicht bitgenau behält."
   },

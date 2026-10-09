@@ -2330,32 +2330,6 @@
   "hierarchyUpdateBatch": {
     "summary": "Calcula las matrices en el mundo de toda una jerarquía en un solo paso, padres primero."
   },
-  "HIZ_NOTHING": {
-    "summary": "Valor devuelto cuando no se lee ningún texel: no puede ocultar nada.",
-    "description": "La profundidad del motor está INVERTIDA — lo cercano vale 1, lo lejano 0 (`../../../math/src/projection/camera.ts`). Una caja envolvente solo se oculta si su límite de profundidad más cercano está MÁS LEJOS (valor más pequeño) que la profundidad del obstáculo."
-  },
-  "hizBuildFlat": {
-    "summary": "Pirámide completa a partir de la profundidad del búfer de visibilidad.",
-    "description": "`into` se reescribe, nunca se reasigna."
-  },
-  "HizFlat": {
-    "summary": "La pirámide Hi-Z por fotograma: un único `Float32Array` para todos los niveles, un desplazamiento y un tamaño por nivel.",
-    "description": "Los valores son los del búfer de visibilidad, ya en precisión simple, y la reducción conserva el MÁS LEJANO de un cuadrado 2×2 — un mínimo, ya que la profundidad del motor está invertida: nada se redondea, la disposición plana devuelve exactamente lo que devolvía la pirámide de arrays anidados, sin asignar una fila por línea y por fotograma. Reflejo de producción de `hizReduceCeil` (oracles.fixture.ts), que sigue siendo el oráculo: dos implementaciones deseadas de la misma reducción, enfrentadas en una prueba de equivalencia.",
-    "members": {
-      "data": "Las profundidades de cada nivel.",
-      "offsets": "Dónde empieza cada nivel.",
-      "widths": "El ancho de cada nivel.",
-      "heights": "El alto de cada nivel.",
-      "count": "Cuántos niveles."
-    }
-  },
-  "hizFlatLayout": {
-    "summary": "Coloca (o vuelve a colocar) los desplazamientos y tamaños.",
-    "description": "`into` se reutiliza tal cual si ya tiene el tamaño correcto."
-  },
-  "hizFlatLevels": {
-    "summary": "Número de niveles de un fotograma: el último es 1×1."
-  },
   "holdCameraWorld": {
     "summary": "Copia una cámara del motor en otra, que entonces conserva la vista bit a bit."
   },
