@@ -31,6 +31,5 @@ fn worldPose(w:u32)->mat4x4f{
  let c=bitcast<vec4f>(worlds[at+3u]);
  return mat4x4f(bitcast<vec4f>(worlds[at]),bitcast<vec4f>(worlds[at+1u]),bitcast<vec4f>(worlds[at+2u]),vec4f(t,c.w));
 }
-fn planesOf(w:u32)->u32{return slotOf(w)*FRAME;}
 `,
 )

@@ -14,15 +14,11 @@ import type { HeldOpen } from './heldOpen.ts'
 export type DagViewUniforms = SelectionUniforms
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
- *  sphere, the floor and a flags word (`packNodes.ts`). A host row of `frames` is six planes, then
- *  two vec4s of the placement's words (`worlds.ts`). */
+ *  sphere, the floor and a flags word (`packNodes.ts`). A row of `frames` is the placement's words,
+ *  two vec4s (`worlds.ts`): nothing is derived into it (`shader/primitiveWgsl.ts`). */
 export const DAG_NODE_FLOATS = 24,
-  FRAME_VEC4 = 8,
+  FRAME_VEC4 = 2,
   CULL_STRIDE = 15
-/** Vec4s per primitive a camera cut's `dagPrepare` derives behind the first row of `frames`
- *  (`shader/primitiveWgsl.ts`): its `view · world`, its prepared normal matrix, the view ahead's
- *  planes and `view · world`, and its world's translation at the eye. */
-export const PRIMITIVE_VEC4 = 18
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */

@@ -1,14 +1,14 @@
-// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`) changes no
-// verdict. The kernel runs twice on the same cases: as shipped, and with every prepared read put
-// back to the expression it caches — `view · world`, the normal matrix and the conformity of the
-// world's 3×3, the view ahead's planes —, each written on the engine's own accessors (`worldPose`,
-// `invTranspose3Prep`, `isConformal`, `grownPlane`). Requests, drawn pages, counters and totals
-// must be the same, bit for bit.
+// What a cut reads of a placement it makes where it reads it, once per thread (`primitiveWgsl.ts`,
+// `placed`): the cache changes no verdict. The kernel runs twice on the same cases: as shipped, and
+// with every read made again from the pose on each call — `view · world`, the normal matrix and the
+// conformity of the world's 3×3, each plane of either view —, each written on the engine's own
+// accessors (`worldPose`, `invTranspose3Prep`, `isConformal`, `grownPlane`). Requests, drawn pages,
+// counters and totals must be the same, bit for bit.
 //
 // Cases: the cone sample of defect 6 (tiny, singular, mirrored and non-uniform scales, where the
 // normal matrix and the conformity flag decide), and pyramids under random rotations and scales —
 // zero, negative, tiny, huge on an axis — seen by a still camera and by a moving one, whose view
-// ahead reads the prepared planes and a `view · world` of its own.
+// ahead reads planes and a `view · world` of its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
@@ -31,11 +31,11 @@ import { ALL_CASES } from '../math/inverseTransposeSample.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const POSE_3X3 = 'let m=worldPose(w);let n=mat3x3f(m[0].xyz,m[1].xyz,m[2].xyz);'
-/** Each prepared read as the engine ships it, and the expression it caches. */
+/** Each read as the engine ships it, and the expression its thread's cache keeps. */
 const READS: Array<[string, string]> = [
   [
     'fn viewWorld(w:u32)->mat4x4f{',
-    'fn viewWorld(w:u32)->mat4x4f{return views[vi].view*worldPose(w);}',
+    'fn viewWorld(w:u32)->mat4x4f{return views[select(0u,AHEAD_VIEW,vi==AHEAD_VIEW)].view*worldPose(w);}',
   ],
   [
     'fn normalOf(w:u32)->InvT3{',
@@ -45,18 +45,16 @@ const READS: Array<[string, string]> = [
     'fn conformalOf(w:u32)->bool{',
     `fn conformalOf(w:u32)->bool{${POSE_3X3}return isConformal(n);}`,
   ],
+  ['fn preparedPose(w:u32)->mat4x4f{', 'fn preparedPose(w:u32)->mat4x4f{return worldPose(w);}'],
   [
-    'fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{',
-    `fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{
- if(unculledOf(w)){return false;}
- let m=transpose(worldPose(w));let skip=select(6u,FAR_PLANE,farless());
- for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(grownPlane(m*views[AHEAD_VIEW].planes[i]),bmin,bmax)){return true;}}
- return false;
+    'fn planeOf(w:u32,v:u32,i:u32)->vec4f{',
+    `fn planeOf(w:u32,v:u32,i:u32)->vec4f{
+ return select(grownPlane(transpose(worldPose(w))*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));
 }`,
   ],
 ]
 
-/** The shipped kernel with each prepared read replaced, whole, by the expression it caches: the
+/** The shipped kernel with each read replaced, whole, by the expression its cache keeps: the
  *  function from its signature to its closing brace — none holds a block —, defined once. */
 function recomputed() {
   return READS.reduce((text, [signature, expression]) => {
@@ -113,7 +111,7 @@ function pyramidCases() {
   })
 }
 
-test('the prepared values change no request, drawn page, counter or total', async () => {
+test('the thread’s cached pose changes no request, drawn page, counter or total', async () => {
   const cones = {
     name: 'cones',
     packed: packCases(ALL_CASES),
@@ -130,7 +128,7 @@ test('the prepared values change no request, drawn page, counter or total', asyn
   })
   const rows = cases.map(({ name }, k) => {
     const [a, b] = [shipped.readings[k], computed.readings[k]]
-    assert.deepEqual(sorted(a), sorted(b), `${name}: the prepared values change the cut`)
+    assert.deepEqual(sorted(a), sorted(b), `${name}: the cached pose changes the cut`)
     return { name, requests: a.requests.length, drawn: a.drawn.length, live: a.live }
   })
   console.log(JSON.stringify({ adapter: shipped.adapter, rows }))

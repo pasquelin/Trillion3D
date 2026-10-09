@@ -22,7 +22,7 @@ export const DAG_RECORD_WGSL = wgslBlock(
   [ceilDiv, bitWord, bitIsSet],
   `const COLD:u32=13u;
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
-fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME+6u].z);}
+fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME].z);}
 fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
 fn poolBase()->u32{return 2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` keys (\`../layout.ts\`), whatever the readout's cap. */

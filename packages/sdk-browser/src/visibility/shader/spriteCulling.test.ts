@@ -59,17 +59,15 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   assert.deepEqual(Array.from(dag.mark), [3])
   const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
   assert.equal(frames[primitiveWordAt(0) + 3], 3)
-  assert.ok(DAG_SELECTION_SHADER.includes('let open=unculledOf(w);'))
   assert.ok(DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'))
-  assert.ok(DAG_SELECTION_SHADER.includes('putPlanes(slotOf(w)*FRAME,m,vi,open);'))
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);',
+      'return select(grownPlane(placedT*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));',
     ),
   )
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}',
+      'fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME].w);}',
     ),
   )
   fixture.geometry.dispose()

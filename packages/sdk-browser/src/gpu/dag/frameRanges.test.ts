@@ -14,14 +14,16 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
-import { cameraFrameRanges } from './cameraRanges.ts'
+import { WORLD_ROW_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FRAME_VEC4 } from './types.ts'
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 }
   const ranges = cameraFrameRanges(limits, 1_000_000)
-  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / framesBytes(1))))
+  // A range is as many primitives as one binding holds of the wider table, `worlds`.
+  assert.ok(WORLD_ROW_BYTES > framesBytes(1))
+  assert.equal(ranges.length, ceilDiv(1_000_000, Math.floor((64 << 20) / WORLD_ROW_BYTES)))
   let next = 0
   for (const { first, count } of ranges) {
     assert.equal(first, next, 'no gap, no overlap')
@@ -36,7 +38,7 @@ test('the ranges cover every primitive once, each within one binding', () => {
 async function split(per: number) {
   const [root] = packed(dagFixture()).roots
   const dag = packDagSelection(Array.from({ length: 48 }, () => root))
-  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(per) }
+  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: per * WORLD_ROW_BYTES }
   // Its lists split `flags` in parts too (`split.ts`): the device binds them all at once.
   const fake = fakeDevice({
     limits: {

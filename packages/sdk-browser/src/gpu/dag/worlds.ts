@@ -2,12 +2,11 @@ import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 
-/** First per-primitive word of primitive `w` in the frame buffer, behind its six planes: the
- *  stretch, then the root (`+ 1`), the record shift (`+ 2`), the never-culled mark (`+ 3`), its
- *  first page (`+ 4`) — what its shared nodes' pages are counted from —, the open counts it holds
- *  of its own (`+ 5`, `heldOpen.ts`) and its page count (`+ 6`), as `primitiveFrameWords` lays
- *  them. */
-export const primitiveWordAt = (w: number) => (w * FRAME_VEC4 + 6) * 4
+/** First word of primitive `w` in the frame buffer, its row: the stretch, then the root (`+ 1`),
+ *  the record shift (`+ 2`), the never-culled mark (`+ 3`), its first page (`+ 4`) — what its shared
+ *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`) and
+ *  its page count (`+ 6`), as `primitiveFrameWords` lays them. */
+export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
 /** The frame words of a placement's first page and of the open counts it holds (`primitiveWordAt`). */
 const PAGE_BASE_WORD = 4,
   PAGE_COUNT_WORD = 6

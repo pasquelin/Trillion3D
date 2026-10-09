@@ -56,7 +56,7 @@ fn levelStep(src:u32,s:u32){
  if(i==0xffffffffu){return;}
  let w=flags[queueBase(src)+2u*s+1u];
  let node=nodes[i];
- if(outsideFrustum(w*FRAME,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ if(outsideFrustum(w,0u,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  if(node.maxParentError>=0.0){
   let e=uni.view*worldPose(w);
   if(projected(node.maxParentError,node.sphere,e,stretchOf(w),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}

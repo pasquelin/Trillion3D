@@ -78,13 +78,13 @@ fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** The log the running cut writes: its count (\`dagCommitMask\` makes it the drawn log). */
 fn writtenCounter()->u32{return liveCounter()+12u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
-fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
+fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME].y);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}
+fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME].w);}
 /** Placement \`w\`'s first page: its shared nodes count their pages from it. */
-fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].x);}
+fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].x);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
-fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].y);}
+fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+1u].y);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
  *  pulling it afterwards (\`openSlice\`). \`stride\` words an entry, the page then — two words — its
@@ -154,7 +154,7 @@ fn nodeStep(src:u32,index:u32,w:u32){
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  let open=openOf(w,index,node.open);
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w,open);return;}
- if(outsideFrustum(planesOf(w),node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
+ if(outsideFrustum(w,vi,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
  // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
  // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
  // unless the subtree is open, holding the nearest resident ancestor of something missing

@@ -38,7 +38,7 @@ fn viewPoint()->vec4f{
  *  The world it reads is of the RENDER FRAME, at the eye (\`preparedPose\`): the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.
- *  Its world, conformity and normal matrix are the ones \`dagPrepare\` prepared for primitive \`w\`
+ *  Its world, conformity and normal matrix are made from primitive \`w\`'s pose once for the thread
  *  (\`primitiveWgsl.ts\`): the same verdict and the same \`inverseTranspose3\` as on its 3x3. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  if(cone.w>=${wgslF32(HALF_PI)}){return false;}

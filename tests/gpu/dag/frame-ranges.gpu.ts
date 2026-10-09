@@ -1,6 +1,6 @@
 // A camera cut split on a small binding cuts on the GPU as the whole cut does: the shipped
 // kernels and resources, the device the engine opens, and that same device reporting a binding
-// half the primitives' `frames` — two ranges of `frames`, its tables in parts
+// two thirds of the primitives' ranges hold — two ranges of `frames`, its tables in parts
 // (`frameRangesPage.ts`). The engine's own device check must accept the split device first: a
 // device it refuses is refused by name, and proves nothing here.
 import test from 'node:test'
