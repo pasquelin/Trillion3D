@@ -11,7 +11,7 @@ export const FILTER = [
   'vsmFilterPageLocal',
   'vsmFilterPageOfSun',
   'vsmFilterPageOfLocal',
-  'vsmFilterOwnPage',
+  'vsmFilterLevelPage',
   'vsmConsumerSlopeBiasAt',
   'pow2FromExponent',
   'testTransmission',

@@ -44,7 +44,7 @@ import {
   VSM_PROJECTION_TILE_FORMAT,
   VSM_PROJECTION_VIEW_BYTES,
   VSM_PROJECTION_VSM_SPECS,
-  vsmProjectionTiles,
+  vsmProjectionGroups,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts'
 import {
@@ -321,11 +321,10 @@ interface Pipelines {
   vsmGroups: WeakMap<VsmFrameBuffers, GPUBindGroup>
   receiverGroups: WeakMap<GPUTextureView, GPUBindGroup>
   /** By 2 · VSM_PROJECTION_KINDS + VSM_PROJECTION_ONE_LIGHT, each compiled off the frame; the
-   *  pipeline every pass can run (`TWIN`) the prepare step awaits (`vsmProjectionTwin`). */
+   *  pipeline every pass can run (`TWIN`) the prepare step awaits (`vsmProjectionTwin`), every
+   *  other started once, when first made: one the device refuses is not asked again, the twin
+   *  drawing its pixels for good. */
   variants: PreparedPipelines<number, GPUComputePipeline>
-  /** The variants asked of the device already: each is asked once, so a refused one is not asked
-   *  again at every frame — the twin draws its pixels for good. */
-  asked: Set<number>
 }
 
 /** The pass group and what it binds: made again only when one of them changes. */
@@ -513,13 +512,13 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
     receiverLayout,
     vsmGroups: new WeakMap(),
     receiverGroups: new WeakMap(),
-    asked: new Set(),
-    variants: preparedPipelines((key: number) =>
-      preparedComputePipeline(
+    variants: preparedPipelines((key: number) => {
+      const variant = preparedComputePipeline(
         device,
         projectionDescriptor({ module, layout: pipelineLayout }, key),
-      ),
-    ),
+      )
+      return key === TWIN ? variant : started(variant)
+    }),
   }
   made.set(key, p)
   return p
@@ -540,12 +539,12 @@ export const vsmProjectionTwin = (device: GPUDevice, layout: VsmLayout) =>
 
 /**
  * The pipeline of `p` for a pass of `lights`: VSM_PROJECTION_ONE_LIGHT for one light, and
- * VSM_PROJECTION_KINDS their kinds. The asked
- * pipeline compiles off the frame while its twin, every kind and any count of lights, serves the
- * pass — the same pixels, each light taking its own kind branch (`projectionKinds.test.ts`). The
- * twin is made at once the first time a layout asks (the frame that grants the maps, whose pool is
- * allocated in that frame, and whose layout no prepare knows): a frame never draws without its
- * projection, and a new light mix never stalls on a compile.
+ * VSM_PROJECTION_KINDS their kinds. The asked pipeline compiles off the frame while its twin, every
+ * kind and any count of lights, serves the pass — the same pixels, each light taking its own kind
+ * branch (`projectionKinds.test.ts`). The twin is made at once the first time a layout asks (the
+ * frame that grants the maps, whose pool is allocated in that frame, and whose layout no prepare
+ * knows): a frame never draws without its projection, and a new light mix never stalls on a
+ * compile.
  */
 function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
   let kinds = 0
@@ -557,13 +556,9 @@ function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
   const key = 2 * kinds + (lights.length === 1 ? 1 : 0)
   const twin = p.variants.of(TWIN).get()
   if (key === TWIN) return twin
-  // Asked off the frame once, no frame held on it: the twin draws the same pixels meanwhile, and
-  // for good where the device refuses it.
+  // Started off the frame when made, no frame held on it: the twin draws the same pixels meanwhile,
+  // and for good where the device refuses it.
   const variant = p.variants.of(key)
-  if (!p.asked.has(key)) {
-    p.asked.add(key)
-    started(variant)
-  }
   return variant.ready ? variant.get() : twin
 }
 
@@ -661,6 +656,6 @@ export function encodeVirtualShadowProjection(
       VSM_PROJECTION_RECEIVER_GROUP,
       receiverGroupFor(p, p.receiverLayout, inputs.receiver),
     )
-  pass.dispatchWorkgroups(...vsmProjectionTiles(width, height))
+  pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
   pass.end()
 }

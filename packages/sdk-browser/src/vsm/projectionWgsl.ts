@@ -69,9 +69,11 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
 export const VSM_PROJECTION_GROUP_SHIFT = 3
 export const VSM_PROJECTION_GROUP_SIZE = 1 << VSM_PROJECTION_GROUP_SHIFT
-/** The projection's groups, a tile word each, over `width` × `height` pixels. */
+/** The projection's groups, a tile word each, along `pixels`. */
+export const vsmProjectionGroups = (pixels: number) => ceilDiv(pixels, VSM_PROJECTION_GROUP_SIZE)
+/** The projection's groups over `width` × `height` pixels. */
 export const vsmProjectionTiles = (width: number, height: number) =>
-  [ceilDiv(width, VSM_PROJECTION_GROUP_SIZE), ceilDiv(height, VSM_PROJECTION_GROUP_SIZE)] as const
+  [vsmProjectionGroups(width), vsmProjectionGroups(height)] as const
 /** Lights per layer of the mask: four 8-bit lanes of an r32uint texel. */
 export const VSM_PROJECTION_MAX_LIGHTS = 4
 /** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */

@@ -176,12 +176,13 @@ const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.len
  *  texel's centre \`c\` is \`c·texelScale + texelBias\`, kept in [\`first\`, \`first\` + 127]; the
  *  requested level's depth from its own (\`(d − depthBias) · depthInverse\`, the level scale's exact inverse). */
 struct VsmFilterPage{kind:u32,physical:vec2u,first:vec2u,texelScale:f32,texelBias:vec2f,depthInverse:f32,depthBias:f32,}
-/** The page the sample \`sm\` was read in, of a map requested at \`requested\`. */
-fn vsmFilterOwnPage(requested:VsmHandle,sm:VsmMapRead)->VsmFilterPage{
+/** A page of the level the sample \`sm\` was read at, of a map requested at \`requested\`: physical
+ *  page \`physical\`, holding the level's texels from \`first\`. */
+fn vsmFilterLevelPage(requested:VsmHandle,sm:VsmMapRead,physical:vec2u,first:vec2u)->VsmFilterPage{
  var depthInverse=1.0;var depthBias=0.0;
  let offset=i32(sm.handle.id)-i32(requested.id);
  if(offset>0){let t=vsmLevelToLevelOf(requested,offset);depthInverse=t.depthInverse;depthBias=t.bias.z;}
- return VsmFilterPage(1u,sm.poolTexel>>vec2u(VSM_LOG2_PAGE),(sm.mapTexelXY>>vec2u(VSM_LOG2_PAGE))*VSM_PAGE_TEXELS,1.0,vec2f(0.0),depthInverse,depthBias);
+ return VsmFilterPage(1u,physical,first,1.0,vec2f(0.0),depthInverse,depthBias);
 }
 /** Where block texel (\`x\`, \`y\`) of the read level is read in \`page\`: its physical texel, and its
  *  centre in texels of the read level — a coarser page's own texel's, which its bias measures from. */
@@ -220,18 +221,13 @@ fn vsmShadowLit(at:VsmLocated,fromEye:vec3f,lit:f32)->f32{
 
 /** A clipmap level's page off the sample's (\`vsmFilterPage\`): its own where mapped, else the
  *  coarser level's. */
-const CLIPMAP_PAGE = ` let own=i32(sm.handle.id)-i32(requested.id);
- if(e.thisLevelMapped){
-  var depthInverse=1.0;var depthBias=0.0;
-  if(own>0){let t=vsmLevelToLevelOf(requested,own);depthInverse=t.depthInverse;depthBias=t.bias.z;}
-  return VsmFilterPage(1u,e.physicalAddress,page*VSM_PAGE_TEXELS,1.0,vec2f(0.0),depthInverse,depthBias);
- }
+const CLIPMAP_PAGE = ` if(e.thisLevelMapped){return vsmFilterLevelPage(requested,sm,e.physicalAddress,page*VSM_PAGE_TEXELS);}
  // A clipmap's coarser level is a map of its own: its page, then its entry.
  let coarsePage=vsmCoarserLevelPage(page,sm.handle,e.coarserLevels);
  let c=vsmTableEntryAtOffset(vsmTableEntryOf(vsmHandleOffset(sm.handle,i32(e.coarserLevels)),0u,coarsePage));
  if(!c.thisLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
  let texel=vsmLevelToLevelOf(sm.handle,i32(e.coarserLevels));
- let depth=vsmLevelToLevelOf(requested,own+i32(e.coarserLevels));
+ let depth=vsmLevelToLevelOf(requested,i32(sm.handle.id)-i32(requested.id)+i32(e.coarserLevels));
  return VsmFilterPage(2u,c.physicalAddress,coarsePage*VSM_PAGE_TEXELS,texel.scale,texel.bias.xy*f32(VSM_LEVEL0_TEXELS),depth.depthInverse,depth.bias.z);`
 
 /** A lamp's page off the sample's (\`vsmFilterPage\`): its coarser mip has its depth's scale, and
@@ -268,7 +264,7 @@ fn vsmFilterTaps${kind}(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f)->f3
  let span=pageHi-pageLo+vec2u(1u);
  let split=select(vec2i(4),clamp(vec2i(pageHi<<vec2u(VSM_LOG2_PAGE))-origin,vec2i(0),vec2i(4)),pageHi!=pageLo);
  let home=sm.mapTexelXY>>vec2u(VSM_LOG2_PAGE);
- let own=vsmFilterOwnPage(requested,sm);
+ let own=vsmFilterLevelPage(requested,sm,sm.poolTexel>>vec2u(VSM_LOG2_PAGE),home*VSM_PAGE_TEXELS);
  // Each texel's opaque compare, against the receiver with that texel's own bias. A texel no level
  // holds lights the receiver, as an unmapped point does. A depth scale is a power of two: its
  // inverse multiplies exactly.
@@ -354,19 +350,37 @@ export const directShadowWgsl = (
     vsm = CONTRACT_VSM_BINDINGS,
     kinds = ALL_SHADOW_KINDS,
   }: DirectShadowOptions = {},
-) =>
-  wgslBlock(
-    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${shadowKindsLabel(kinds)})`,
+) => {
+  const label = `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${shadowKindsLabel(kinds)})`
+  if (resolveTransmission === null)
+    return wgslBlock(
+      label,
+      [
+        SHADOW_VIEW_WGSL,
+        vsmConsumerWgsl(vsm, { transmission: maskBinding, pool: true, kinds }),
+        vsmShadowReadWgsl(kinds),
+      ],
+      shadowFactorWgsl(`
+ return vsmShadowRead(u32(slice)>>6u,light,P,N);`),
+    )
+  return wgslBlock(
+    label,
     [
       SHADOW_VIEW_WGSL,
-      vsmConsumerWgsl(vsm, {
-        transmission: resolveTransmission ?? maskBinding,
-        pool: resolveTransmission === null,
-        kinds,
-      }),
-      resolveTransmission === null ? vsmShadowReadWgsl(kinds) : vsmMaskWgsl(maskBinding),
+      vsmConsumerWgsl(vsm, { transmission: resolveTransmission, pool: false, kinds }),
+      vsmMaskWgsl(maskBinding),
     ],
-    `
+    shadowFactorWgsl(`
+ let mask=vsmMaskFactor(u32(slice)&63u);
+ // The traced mask is opaque only: the translucent casters' colour from the page-table lookup.
+ if(mask>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
+ return mask;`),
+  )
+}
+
+/** The names every pass's shadow read writes, and \`shadowFactor\` reading a shadowed light's share
+ *  through \`read\`. */
+const shadowFactorWgsl = (read: string) => `
 var<private> shadowFootprint:f32=0.0;
 var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 var<private> shadowReceiverPlane:vec3f=vec3f(0.0);
@@ -378,18 +392,8 @@ fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
  shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}
- if(!taps){return 0.0;}${
-   resolveTransmission === null
-     ? `
- return vsmShadowRead(u32(slice)>>6u,light,P,N);`
-     : `
- let mask=vsmMaskFactor(u32(slice)&63u);
- // The traced mask is opaque only: the translucent casters' colour from the page-table lookup.
- if(mask>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
- return mask;`
- }
-}`,
-  )
+ if(!taps){return 0.0;}${read}
+}`
 
 /** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
  *  binding of the translucent casters' transmission (none in a blend or water pass), the virtual
