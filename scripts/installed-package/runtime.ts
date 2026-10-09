@@ -29,7 +29,7 @@ const fsp=process.getBuiltinModule('node:fs/promises');
 for(const name of ['access','open','readFile','readdir','stat'])fsp[name]=fail('host file read');
 syncBuiltinESMExports();
 const sdk=await import(${json(packageName)});
-if(typeof sdk.hierarchyUpdateBatch!=='function'||typeof sdk.multiplyMatrix4Batch!=='function')throw new Error('common maths exports missing');`
+if(typeof sdk.multiplyMatrix4Batch!=='function')throw new Error('common maths exports missing');`
 }
 
 const emittedInputs = (meta: Metafile, output: string) =>
@@ -37,17 +37,15 @@ const emittedInputs = (meta: Metafile, output: string) =>
     ([, contribution]) => contribution.bytesInOutput > 0,
   )
 
-function assertInstalledMathReachability(bundles: { maths: Metafile; hierarchy: Metafile }): void {
-  for (const name of ['maths', 'hierarchy'] as const) {
-    const forbidden = emittedInputs(bundles[name], name)
-      .map(([path]) => path)
-      .filter(
-        (path) =>
-          path.includes('/sdk-browser/') || path.includes('/sdk-node/') || path.includes('/three/'),
-      )
-    if (forbidden.length)
-      throw new Error(`${name} bundle reaches platform code: ${forbidden.join(', ')}`)
-  }
+function assertInstalledMathReachability(maths: Metafile): void {
+  const forbidden = emittedInputs(maths, 'maths')
+    .map(([path]) => path)
+    .filter(
+      (path) =>
+        path.includes('/sdk-browser/') || path.includes('/sdk-node/') || path.includes('/three/'),
+    )
+  if (forbidden.length)
+    throw new Error(`maths bundle reaches platform code: ${forbidden.join(', ')}`)
 }
 
 export function proveInstalledRuntime({
@@ -62,7 +60,7 @@ export function proveInstalledRuntime({
   run: Run
   write: Write
   bundle: Bundle
-}): { importOnly: true; bundles: { maths: Metafile; hierarchy: Metafile }; workerSource: string } {
+}): { importOnly: true; bundles: { maths: Metafile }; workerSource: string } {
   write('runtime-import-only.mjs', importOnlySource(packageName))
   run(process.execPath, ['runtime-import-only.mjs'], fixture)
   const bundles = {
@@ -70,12 +68,8 @@ export function proveInstalledRuntime({
       'maths',
       `import { multiplyMatrix4Batch } from ${json(packageName)};\nconsole.log(multiplyMatrix4Batch);\n`,
     ),
-    hierarchy: bundle(
-      'hierarchy',
-      `import { hierarchyUpdateBatch } from ${json(packageName)};\nconsole.log(hierarchyUpdateBatch);\n`,
-    ),
   }
-  assertInstalledMathReachability(bundles)
+  assertInstalledMathReachability(bundles.maths)
   return {
     importOnly: true,
     bundles,

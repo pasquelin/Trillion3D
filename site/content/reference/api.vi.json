@@ -1345,10 +1345,6 @@
   "HALF_PI": {
     "summary": "Một phần tư vòng quay, tính bằng radian."
   },
-  "HIERARCHY_ROOT": {
-    "summary": "TOÀN BỘ PHÂN CẤP được cập nhật trong một chặng: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó.",
-    "description": "Hai công thức chạy trên các bộ đệm phẳng, và nhân WebAssembly sao chép lại chúng từng số hạng một. `parents[i]` PHẢI là chỉ số của một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau ở cả hai phía: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau."
-  },
   "HostAttribute": {
     "summary": "Một thuộc tính đỉnh của hình học chủ, xen kẽ hoặc không: cách bố trí và nơi lưu trữ của nó."
   },
@@ -5088,9 +5084,6 @@
     "parameters": {
       "l": "Nguồn sáng cần hiển thị."
     }
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Tính toán các ma trận thế giới của toàn bộ một hệ thống phân cấp trong một lượt, cha trước."
   },
   "holdCameraWorld": {
     "summary": "Sao chép một camera bộ máy vào một camera khác, sau đó giữ khung nhìn từng bit một."

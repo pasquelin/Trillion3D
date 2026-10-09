@@ -2331,13 +2331,6 @@
       "size": "Rayon des cercles."
     }
   },
-  "HIERARCHY_ROOT": {
-    "summary": "HIÉRARCHIE COMPLÈTE mise à jour en un passage : `n` nœuds rangés parents avant enfants, chacun composant sa matrice locale puis la multipliant par la matrice du monde de son parent.",
-    "description": "Les deux formules s’exécutent sur des tampons à plat, et le noyau WebAssembly les reproduit terme à terme. `parents[i]` DOIT être l’indice d’un nœud déjà mis à jour, donc strictement plus petit que `i` ; toute autre valeur — la sentinelle `HIERARCHY_ROOT` comprise — fait du nœud une racine dont la matrice du monde est sa matrice locale. La règle est la même des deux côtés : aucune entrée, même hostile, ne peut les faire diverger."
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Calcule les matrices dans le monde de toute une hiérarchie en un passage, parents d’abord."
-  },
   "holdCameraWorld": {
     "summary": "Copie une caméra du moteur dans une autre, qui garde alors la vue au bit près."
   },

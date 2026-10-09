@@ -1512,10 +1512,6 @@
   "HALF_PI": {
     "summary": "Çeyrek bir tur, radyan cinsinden."
   },
-  "HIERARCHY_ROOT": {
-    "summary": "Tek bir geçişte güncellenen TAM HİYERARŞİ: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur ve sonra bunu ebeveyninin dünya matrisiyle çarpar.",
-    "description": "İki formül düz tamponlarda çalışır ve WebAssembly çekirdeği onları terim terim yeniden üretir. `parents[i]` zaten güncellenmiş bir düğümün indeksi OLMAK ZORUNDADIR, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki tarafta da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onların ayrışmasına neden olamaz."
-  },
   "HeadSettings": {
     "summary": "BİR YÜRÜYÜCÜNÜN BAŞI, işaretçi kilitli: işaretçi onu çevirir, ufuk düz kalır — dünya yukarısı etrafında sapma, `[minPitch, maxPitch]`'e sıkıştırılmış yunuslama, asla hiçbir yatma.",
     "description": "Bir kişinin gözlerinden bakan her kontrolcü tarafından paylaşılır. KİLİT, HOST'UN İSTEYECEĞİ ŞEYDİR. Bir tarayıcı, işaretçi kilidini yalnızca bir jest içinde verir, bu yüzden baş `pointerdown`'da ister ve kendi anını seçmeyi tercih eden bir host için `lock()`, `unlock()` ve `locked()`'ı yayımlar; izleyicinin kaçtığı bir kilit sadece bakışı durdurur, ve kilitlenmemiş bir sürükleme yine de başı çevirir.",
@@ -6177,9 +6173,6 @@
       "l": "Gösterilecek ışık.",
       "size": "Dairelerin yarıçapı."
     }
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Tüm bir hiyerarşinin dünya matrislerini tek bir geçişte, önce ebeveynler olacak şekilde hesaplar."
   },
   "holdCameraWorld": {
     "summary": "Bir motor kamerasını, görünümü bit bit koruyan başka birine kopyalar."

@@ -48,8 +48,6 @@ export {
   boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
-  HIERARCHY_ROOT,
-  hierarchyUpdateBatch,
   multiplyMatrix4Batch,
 } from '../../math/src/batch/batch.ts'
 export {

@@ -1,7 +1,5 @@
 import { BOX_VALUES, boxTransform, boxUnion } from '../geometry/box.ts'
-import { MATRIX_VALUES } from './strides.ts'
 import { multiplyMatrix4 } from '../matrix/matrix4.ts'
-import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
@@ -113,37 +111,5 @@ export function boxTransformUnionBatch(
       scratchUnionBox[4],
       scratchUnionBox[5],
     )
-  }
-}
-
-/**
- * FULL HIERARCHY updated in one pass: `n` nodes ordered parents before children, each
- * composing its local matrix then multiplying it by its parent's world matrix. The two
- * formulas run on flat buffers, and the WebAssembly kernel replicates them term by term.
- *
- * `parents[i]` MUST be the index of an already updated node, hence strictly less than `i`; any
- * other value — sentinel `HIERARCHY_ROOT` included — makes the node a root whose world
- * matrix is its local matrix. The rule is identical on both sides: no input, however
- * hostile, can cause them to diverge.
- */
-export const HIERARCHY_ROOT = 0xffffffff
-
-/** Computes the world matrices of a whole hierarchy in one pass, parents first. */
-export function hierarchyUpdateBatch(
-  worldViews: readonly Float64Array[],
-  positions: readonly Float64Array[],
-  rotations: readonly Float64Array[],
-  scales: readonly Float64Array[],
-  parents: Uint32Array,
-  n: number,
-  local: Float64Array,
-) {
-  for (let i = 0; i < n; i++) {
-    composeMatrix4(local, positions[i], rotations[i], scales[i])
-    const parent = parents[i],
-      world = worldViews[i]
-    // Single loop: `TypedArray.prototype.set` on a view costs a native call.
-    if (parent >= i) for (let k = 0; k < MATRIX_VALUES; k++) world[k] = local[k]
-    else multiplyMatrix4(world, worldViews[parent], local)
   }
 }

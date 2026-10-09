@@ -2323,13 +2323,6 @@
       "size": "Raggio dei cerchi."
     }
   },
-  "HIERARCHY_ROOT": {
-    "summary": "GERARCHIA COMPLETA aggiornata in un passaggio: `n` nodi disposti genitori prima dei figli, ciascuno componendo la propria matrice locale e poi moltiplicandola per la matrice del mondo del proprio genitore.",
-    "description": "Le due formule girano su buffer piatti, e il kernel WebAssembly le riproduce termine per termine. `parents[i]` DEVE essere l'indice di un nodo già aggiornato, quindi strettamente minore di `i`; qualsiasi altro valore — la sentinella `HIERARCHY_ROOT` inclusa — rende il nodo una radice la cui matrice del mondo è la sua matrice locale. La regola è identica su entrambi i lati: nessun ingresso, per quanto ostile, può farli divergere."
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Calcola le matrici nel mondo di un'intera gerarchia in un solo passaggio, genitori prima."
-  },
   "holdCameraWorld": {
     "summary": "Copia una camera del motore in un'altra, che mantiene quindi la vista bit per bit."
   },

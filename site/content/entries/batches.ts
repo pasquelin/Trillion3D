@@ -12,10 +12,6 @@ export const BATCHES: EntryNote[] = [
     replaces: 'a loop of Box3.applyMatrix4',
   },
   {
-    id: 'hierarchyUpdateBatch',
-    replaces: 'Object3D.updateMatrixWorld over a whole scene',
-  },
-  {
     id: 'createPathGovernor',
   },
   {

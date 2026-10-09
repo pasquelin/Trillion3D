@@ -2323,13 +2323,6 @@
       "size": "Radius der Kreise."
     }
   },
-  "HIERARCHY_ROOT": {
-    "summary": "VOLLSTÄNDIGE HIERARCHIE in einem Durchgang aktualisiert: `n` Knoten, angeordnet Eltern vor Kindern, jeder setzt seine lokale Matrix zusammen und multipliziert sie dann mit der Weltmatrix seines Elternteils.",
-    "description": "Die zwei Formeln laufen auf flachen Puffern, und der WebAssembly-Kernel reproduziert sie Term für Term. `parents[i]` MUSS der Index eines bereits aktualisierten Knotens sein, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Seiten dieselbe: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen."
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Berechnet die Weltmatrizen einer ganzen Hierarchie in einem Durchgang, Eltern zuerst."
-  },
   "holdCameraWorld": {
     "summary": "Kopiert eine Engine-Kamera in eine andere, die dann die Sicht bitgenau behält."
   },

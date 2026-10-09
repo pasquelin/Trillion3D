@@ -145,7 +145,6 @@ export { createJob } from '../../sdk-core/src/index.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts'
 export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
 export {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
@@ -157,7 +156,6 @@ export {
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   frustumKeepsBoxBatch,
-  hierarchyUpdateBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,
   multiplyMatrix4Batch,

@@ -41,7 +41,7 @@ test('the chosen path and both medians are published, operation by operation', (
     rapport(
       reading({
         operations: {
-          hierarchyUpdateBatch: operation({
+          multiplyMatrix4Batch: operation({
             path: 'wasm',
             jsNsPerElement: 41.25,
             wasmNsPerElement: 12.5,
@@ -54,7 +54,7 @@ test('the chosen path and both medians are published, operation by operation', (
   ).join('\n')
   assert.match(
     lignes,
-    /\| auto \| loaded, simd128 \| hierarchyUpdateBatch \| wasm \| 41\.3 \| 12\.5 \| 1 \| 4096 \|/,
+    /\| auto \| loaded, simd128 \| multiplyMatrix4Batch \| wasm \| 41\.3 \| 12\.5 \| 1 \| 4096 \|/,
   )
 })
 

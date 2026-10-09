@@ -10,8 +10,6 @@ import {
 import { nextStamp, visitSubtree } from './structure.ts'
 import { nextInSubtree } from './links.ts'
 
-// `hierarchyUpdateBatch` (packages/math/src/batch/batch.ts) runs the same two formulas in the same order, bit for bit.
-
 /**
  * World-matrix update, batched and without allocation, with the semantics of a scene-graph
  * update: a subtree walk with `force`, and a node update with `updateParents` and `updateChildren`.

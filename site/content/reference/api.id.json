@@ -1345,10 +1345,6 @@
   "HALF_PI": {
     "summary": "Seperempat putaran, dalam radian."
   },
-  "HIERARCHY_ROOT": {
-    "summary": "HIERARKI PENUH diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya.",
-    "description": "Kedua rumus berjalan pada buffer datar, dan kernel WebAssembly mereplikasinya suku demi suku. `parents[i]` HARUS berupa indeks sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua sisi: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda."
-  },
   "HostAttribute": {
     "summary": "Satu atribut vertex geometri host, saling diselang-seling atau tidak: tata letak dan penyimpanannya."
   },
@@ -5088,9 +5084,6 @@
     "parameters": {
       "l": "Lampu yang ditampilkan."
     }
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Menghitung matriks dunia dari seluruh hierarki dalam satu pass, induk lebih dulu."
   },
   "holdCameraWorld": {
     "summary": "Menyalin sebuah kamera mesin ke kamera lain, yang kemudian mempertahankan tampilan bit demi bit."

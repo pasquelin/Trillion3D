@@ -1382,9 +1382,6 @@
     "boxTransformBatch": {
       "description": "`n` Boxen, transformiert von `n` Matrizen: `out[i] = boxTransform(boxes[i], mats[i])`. `out` und `boxes` tragen sechs Zahlen pro Element, `mats` eine Untersicht von sechzehn."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Eine ganze Hierarchie in einem Durchgang aktualisiert: `n` Knoten, geordnet Eltern vor Kindern, jeder setzt seine lokale Matrix zusammen und multipliziert sie dann mit der Weltmatrix seines Elternteils — die Traversierung von `packages/sdk-core/src/world/transform-tree/update.ts`, dieselben zwei Formeln in derselben Reihenfolge, auf flachen Puffern. `parents[i]` **muss** einen bereits aktualisierten Knoten indizieren, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Pfaden identisch: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen. `local` ist eine wiederverwendete Streumatrix für jedes Element."
-    },
     "createPathGovernor": {
       "description": "Was JS gegen WebAssembly entscheidet, pro benannter Operation: gleitende Mediane der Nanosekunden pro Element, ein Wechsel erst nach fünf aufeinanderfolgenden Ausführungen mit diesem Vorsprung, und eine von fünfzig Ausführungen, die den anderen Pfad wiederholt, um seinen Median aufzufrischen. Unter fünf Stichproben wird nichts entschieden — ein einzelner Wert würde den Median bilden. `metrics()` veröffentlicht pro Operation `path`, `jsNsPerElement`, `wasmNsPerElement`, die Wechselanzahl und die Uhrenauflösung, auf der die Messung beruht."
     },

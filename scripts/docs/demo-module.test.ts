@@ -20,7 +20,6 @@ test('the module carries the public maths the demos call', () => {
     'frustumExcludesBox',
     'boxConeRejects',
     'createTransformTree',
-    'hierarchyUpdateBatch',
     'srgbToLinear',
     'createPathGovernor',
   ].filter((name) => typeof exports[name] !== 'function')

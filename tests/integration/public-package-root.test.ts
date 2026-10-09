@@ -97,7 +97,7 @@ test('the browser condition imports rendering and common bindings without initia
     const sdk = await import('trillion3d');
     if (typeof sdk.createWorld !== 'function') throw new Error('missing createWorld');
     if ('openMeasuredWorld' in sdk) throw new Error('the measurement entry leaked into the package');
-    if (typeof sdk.hierarchyUpdateBatch !== 'function') throw new Error('missing common maths');
+    if (typeof sdk.multiplyMatrix4Batch !== 'function') throw new Error('missing common maths');
     if ('prepare' in sdk) throw new Error('Node API leaked into browser');
   `
   execFileSync(process.execPath, ['--conditions=browser', '--input-type=module', '-e', probe], {
@@ -140,11 +140,11 @@ test('a packed installation resolves Node and browser runtime and declarations',
     })
     await writeFile(
       join(directory, 'node.ts'),
-      "import {prepare,hierarchyUpdateBatch} from 'trillion3d'; if (!prepare || !hierarchyUpdateBatch) throw Error('node');",
+      "import {prepare,multiplyMatrix4Batch} from 'trillion3d'; if (!prepare || !multiplyMatrix4Batch) throw Error('node');",
     )
     await writeFile(
       join(directory, 'browser.ts'),
-      "import {createWorld,hierarchyUpdateBatch} from 'trillion3d'; if (!createWorld || !hierarchyUpdateBatch) throw Error('browser');",
+      "import {createWorld,multiplyMatrix4Batch} from 'trillion3d'; if (!createWorld || !multiplyMatrix4Batch) throw Error('browser');",
     )
     execFileSync(process.execPath, ['node.ts'], { cwd: directory, stdio: 'pipe' })
     execFileSync(process.execPath, ['--conditions=browser', 'browser.ts'], {

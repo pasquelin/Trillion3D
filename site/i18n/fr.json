@@ -1382,9 +1382,6 @@
     "boxTransformBatch": {
       "description": "`n` boîtes transformées par `n` matrices. `out` et `boxes` portent six nombres par élément, `mats` une sous-vue de seize."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Met à jour une hiérarchie complète en une passe, parents avant enfants : composition locale puis multiplication par la matrice monde du parent. `parents[i]` doit désigner un nœud déjà mis à jour ; toute autre valeur crée une racine."
-    },
     "createPathGovernor": {
       "description": "Arbitre JS contre WebAssembly par opération : médianes glissantes en nanosecondes par élément, bascule après cinq avances consécutives, puis rééchantillonnage périodique de l’autre chemin."
     },

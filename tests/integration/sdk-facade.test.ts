@@ -44,43 +44,6 @@ test('importing each facade starts no browser resource or native process', () =>
   }
 })
 
-test('the five-import hierarchy example composes parents before children', () => {
-  const {
-    HIERARCHY_ROOT,
-    MATRIX_VALUES,
-    POSITION_VALUES,
-    QUATERNION_VALUES,
-    hierarchyUpdateBatch,
-  } = common
-  const count = 3
-  // The guide's five-import example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
-  // jscpd:ignore-start
-  const views = (buffer: Float64Array, stride: number): Float64Array[] =>
-    Array.from({ length: count }, (_, index) =>
-      buffer.subarray(index * stride, (index + 1) * stride),
-    )
-  const world = new Float64Array(count * MATRIX_VALUES)
-  const positions = new Float64Array(count * POSITION_VALUES)
-  const rotations = new Float64Array(count * QUATERNION_VALUES)
-  const scales = new Float64Array(count * POSITION_VALUES).fill(1)
-  // jscpd:ignore-end
-  const parents = new Uint32Array([HIERARCHY_ROOT, 0, 1])
-  rotations[3] = rotations[7] = rotations[11] = 1
-  positions[0] = 2
-  positions[3] = 3
-  positions[6] = 5
-  hierarchyUpdateBatch(
-    views(world, MATRIX_VALUES),
-    views(positions, POSITION_VALUES),
-    views(rotations, QUATERNION_VALUES),
-    views(scales, POSITION_VALUES),
-    parents,
-    count,
-    new Float64Array(MATRIX_VALUES),
-  )
-  assert.deepEqual([world[12], world[28], world[44]], [2, 5, 10])
-})
-
 interface InventoryEntry {
   name: string
   kind: string
@@ -152,7 +115,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const bundle = (entry: string) =>
     build({
       stdin: {
-        contents: `import { hierarchyUpdateBatch } from '${entry}'; console.log(hierarchyUpdateBatch);`,
+        contents: `import { multiplyMatrix4Batch } from '${entry}'; console.log(multiplyMatrix4Batch);`,
         resolveDir: new URL('../..', import.meta.url).pathname,
       },
       bundle: true,
@@ -169,15 +132,15 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs)
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry: the engine
+  // The minified bytes of a bundle of `multiplyMatrix4Batch` alone, through each entry: the engine
   // core, its node writes noted in their journal; the package, with the machine-independent quaternion normalisation and arc trigonometry;
   // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
   // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
   // entry's camera projections read `length2` from the vector module, whose lazy init it starts;
   // its transform tree grows by the one growth rule (`resized`).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_759)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_006)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_829)
+  assert.equal(baseline.outputFiles[0].contents.length, 3_203)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_450)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_183)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

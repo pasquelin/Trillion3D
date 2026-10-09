@@ -11,7 +11,7 @@ interface CommonWorkerMessage {
 export interface InstalledBrowserProof {
   metrics: Record<string, number>
   capture: EvaluatedInstalledPage['capture']
-  hierarchy: EvaluatedInstalledPage['hierarchy']
+  product: EvaluatedInstalledPage['product']
   commonWorker: CommonWorkerMessage | undefined
   workerPage: { nodes: number | null; taskMs?: number }
   workerIntegration: { count?: number; pageCount?: number; taskMs?: number }
@@ -48,7 +48,7 @@ export function installedBrowserResult({
   browserVersion: string
   errors: string[]
 }): InstalledBrowserProof {
-  const { metrics, capture, hierarchy } = result
+  const { metrics, capture, product } = result
   // The page result crosses the `page.evaluate` boundary untyped: cast once, at the point it is read.
   const commonWorker = result.commonWorker as CommonWorkerMessage | undefined
   const { page, integration } = workers
@@ -75,7 +75,7 @@ export function installedBrowserResult({
   return {
     metrics,
     capture,
-    hierarchy,
+    product,
     commonWorker,
     workerPage: { nodes: page.cells?.nodes ?? null, taskMs: page.taskMs },
     workerIntegration: {

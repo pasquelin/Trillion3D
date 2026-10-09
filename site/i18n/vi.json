@@ -928,9 +928,6 @@
     "boxTransformBatch": {
       "description": "`n` hộp được biến đổi bởi `n` ma trận: `out[i] = boxTransform(boxes[i], mats[i])`. `out` và `boxes` mang sáu con số mỗi phần tử, `mats` là một sub-view mười sáu con số."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Toàn bộ một cây phân cấp được cập nhật trong một chặng duy nhất: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó — quá trình duyệt của `packages/sdk-core/src/world/transform-tree/update.ts`, cùng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng. `parents[i]` **bắt buộc** phải chỉ tới một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau trên cả hai con đường: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau. `local` là một ma trận nháp duy nhất, được dùng lại cho mỗi phần tử."
-    },
     "createPathGovernor": {
       "description": "Cái quyết định giữa JS và WebAssembly, cho từng phép toán được đặt tên: các trung vị trượt của số nano giây trên mỗi phần tử, một lần chuyển đổi chỉ sau năm lần thực thi liên tiếp có độ chênh lệch đó, và một trong năm mươi lần thực thi sẽ chạy lại con đường kia để làm mới trung vị của nó. Dưới năm mẫu thì không có gì được quyết định cả — chỉ một giá trị duy nhất sẽ tạo thành trung vị. `metrics()` công bố, cho mỗi phép toán, `path`, `jsNsPerElement`, `wasmNsPerElement`, số lần chuyển đổi, và độ phân giải đồng hồ mà phép đo đó dựa vào."
     },

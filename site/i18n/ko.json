@@ -1382,9 +1382,6 @@
     "boxTransformBatch": {
       "description": "`n`개의 행렬로 변환된 `n`개의 박스: `out[i] = boxTransform(boxes[i], mats[i])`. `out`과 `boxes`는 요소당 6개의 숫자를, `mats`는 16개의 서브뷰를 가집니다."
     },
-    "hierarchyUpdateBatch": {
-      "description": "계층 구조 전체를 한 번의 패스로 업데이트합니다: `n`개의 노드를 부모가 자식보다 먼저 오도록 정렬하고, 각각 로컬 행렬을 합성한 뒤 부모의 월드 행렬과 곱합니다 — 이는 `packages/sdk-core/src/world/transform-tree/update.ts`의 순회와 동일하며, 평평한 버퍼 위에서 같은 두 공식을 같은 순서로 수행합니다. `parents[i]`는 **반드시** 이미 업데이트된 노드를 가리켜야 하며, 즉 엄밀히 `i`보다 작아야 합니다; 그 밖의 값(`HIERARCHY_ROOT` 보초값 포함)은 그 노드를 루트로 만들어, 그 월드 행렬이 로컬 행렬과 같아지게 합니다. 이 규칙은 두 경로 모두에서 동일합니다: 아무리 까다로운 입력이라도 둘을 어긋나게 만들 수 없습니다. `local`은 모든 요소가 공유해서 재사용하는 하나의 임시 행렬입니다."
-    },
     "createPathGovernor": {
       "description": "이름이 붙은 연산마다, JS와 WebAssembly 중 어느 쪽을 쓸지 판정하는 것: 요소당 나노초의 이동 중앙값, 그 우위가 연속 다섯 번의 실행 후에만 전환된다는 규칙, 그리고 50번에 한 번씩 다른 경로를 다시 실행해 중앙값을 갱신하는 것입니다. 샘플이 다섯 개 미만이면 아무것도 결정되지 않습니다 — 그렇지 않으면 단일 값이 중앙값이 되어 버리기 때문입니다. `metrics()`는 연산별로 `path`, `jsNsPerElement`, `wasmNsPerElement`, 전환 횟수, 그리고 측정이 의존하는 시계 분해능을 공개합니다."
     },

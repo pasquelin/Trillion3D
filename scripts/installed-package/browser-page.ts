@@ -22,24 +22,12 @@ export async function evaluateInstalledPage({
     ? ((await import(moduleName)) as LooseSdk)
     : globalThis.__installedSdk
   if (!sdk) throw new Error('installed explorer bundle did not start')
-  const count = 2
-  const views = (buffer: Float64Array, stride: number): Float64Array[] =>
-    Array.from({ length: count }, (_, index) =>
-      buffer.subarray(index * stride, (index + 1) * stride),
-    )
-  const world = new Float64Array(count * sdk.MATRIX_VALUES)
-  sdk.hierarchyUpdateBatch(
-    views(world, sdk.MATRIX_VALUES),
-    views(new Float64Array([2, 3, 4, 5, 7, 11]), sdk.POSITION_VALUES),
-    views(new Float64Array([0, 0, 0, 1, 0, 0, 0, 1]), sdk.QUATERNION_VALUES),
-    views(new Float64Array(6).fill(1), sdk.POSITION_VALUES),
-    new Uint32Array([sdk.HIERARCHY_ROOT, 0]),
-    count,
-    new Float64Array(sdk.MATRIX_VALUES),
-  )
-  const hierarchy = { world: Array.from(world.subarray(28, 31)), parent: 0 }
-  if (hierarchy.world.join(',') !== '7,10,15')
-    throw new Error('installed browser hierarchy did not execute')
+  const translation = (x: number, y: number, z: number) =>
+    new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1])
+  const out = new Float64Array(16)
+  sdk.multiplyMatrix4Batch([out], [translation(2, 3, 4)], [translation(5, 7, 11)], 1)
+  const product = Array.from(out.subarray(12, 15))
+  if (product.join(',') !== '7,10,15') throw new Error('installed browser maths did not execute')
   const commonWorker = await new Promise<unknown>((resolve, reject) => {
     const worker = new Worker(commonWorkerPath, { type: 'module' })
     const timeout = setTimeout(() => {
@@ -134,7 +122,7 @@ export async function evaluateInstalledPage({
   return {
     metrics: value,
     capture: captureEvidence,
-    hierarchy,
+    product,
     commonWorker,
   }
 }

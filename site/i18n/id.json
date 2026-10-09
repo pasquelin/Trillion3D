@@ -928,9 +928,6 @@
     "boxTransformBatch": {
       "description": "`n` kotak ditransformasi oleh `n` matriks: `out[i] = boxTransform(boxes[i], mats[i])`. `out` dan `boxes` membawa enam angka per elemen, `mats` sebuah sub-view enam belas angka."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Sebuah hierarki penuh diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya — penjelajahan `packages/sdk-core/src/world/transform-tree/update.ts`, kedua rumus yang sama dalam urutan yang sama, pada buffer datar. `parents[i]` **harus** menunjuk sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua jalur: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda. `local` adalah satu matriks sementara, dipakai ulang tiap elemen."
-    },
     "createPathGovernor": {
       "description": "Apa yang memutuskan antara JS dan WebAssembly, per operasi bernama: median bergerak nanodetik per elemen, sebuah perpindahan hanya setelah lima eksekusi berturut-turut dengan keunggulan itu, dan satu dari lima puluh eksekusi memutar ulang jalur yang lain untuk menyegarkan mediannya. Di bawah lima sampel tidak ada yang diputuskan — satu nilai saja akan membuat mediannya. `metrics()` menerbitkan, untuk tiap operasi, `path`, `jsNsPerElement`, `wasmNsPerElement`, jumlah perpindahannya, dan resolusi jam yang jadi dasar pengukurannya."
     },

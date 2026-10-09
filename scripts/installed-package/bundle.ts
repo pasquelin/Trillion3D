@@ -62,8 +62,8 @@ export function emitInstalledBrowserBundle({
   mkdirSync(outputRoot, { recursive: true })
   writeFileSync(
     explorer,
-    `import { createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
-      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
+    `import { createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4Batch } from '${packageName}';\n` +
+      `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,multiplyMatrix4Batch};\n`,
   )
   run(
     bundler,

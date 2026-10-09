@@ -15,18 +15,11 @@ export interface LooseWorld {
 }
 
 export interface LooseSdk {
-  MATRIX_VALUES: number
-  POSITION_VALUES: number
-  QUATERNION_VALUES: number
-  HIERARCHY_ROOT: number
-  hierarchyUpdateBatch(
-    world: Float64Array[],
-    positions: Float64Array[],
-    rotations: Float64Array[],
-    scales: Float64Array[],
-    parents: Uint32Array,
-    count: number,
-    local: Float64Array,
+  multiplyMatrix4Batch(
+    out: Float64Array[],
+    a: readonly Float64Array[],
+    b: readonly Float64Array[],
+    n: number,
   ): void
   createWorld(target: string, options: Record<string, unknown>): LooseWorld
   pose: { fromBounds(box: unknown, options: { aspect: number }): unknown }
@@ -65,6 +58,6 @@ export interface EvaluatedInstalledPage {
     camera: unknown
     differentPixelsFromDirect?: number
   }
-  hierarchy: { world: number[]; parent: number }
+  product: number[]
   commonWorker: unknown
 }

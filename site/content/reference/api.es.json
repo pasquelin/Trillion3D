@@ -2323,13 +2323,6 @@
       "size": "Radio de los círculos."
     }
   },
-  "HIERARCHY_ROOT": {
-    "summary": "JERARQUÍA COMPLETA actualizada en un paso: `n` nodos dispuestos padres antes que hijos, cada uno componiendo su matriz local y luego multiplicándola por la matriz del mundo de su padre.",
-    "description": "Las dos fórmulas se ejecutan sobre búferes planos, y el núcleo de WebAssembly las reproduce término a término. `parents[i]` DEBE ser el índice de un nodo ya actualizado, así que estrictamente menor que `i`; cualquier otro valor — el centinela `HIERARCHY_ROOT` incluido — convierte al nodo en una raíz cuya matriz del mundo es su matriz local. La regla es la misma en ambos lados: ninguna entrada, por hostil que sea, puede hacer que diverjan."
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Calcula las matrices en el mundo de toda una jerarquía en un solo paso, padres primero."
-  },
   "holdCameraWorld": {
     "summary": "Copia una cámara del motor en otra, que entonces conserva la vista bit a bit."
   },

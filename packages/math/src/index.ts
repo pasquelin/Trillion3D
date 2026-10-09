@@ -43,7 +43,6 @@ export {
 } from './geometry/box.ts'
 export { sphereFromBounds } from './geometry/sphere.ts'
 export {
-  HIERARCHY_ROOT,
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
@@ -55,7 +54,6 @@ export {
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   frustumKeepsBoxBatch,
-  hierarchyUpdateBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,
   multiplyMatrix4Batch,

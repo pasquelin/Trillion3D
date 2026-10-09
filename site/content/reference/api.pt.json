@@ -1337,10 +1337,6 @@
   "HALF_PI": {
     "summary": "Um quarto de volta, em radianos."
   },
-  "HIERARCHY_ROOT": {
-    "summary": "HIERARQUIA COMPLETA atualizada em uma única passagem: `n` nós ordenados pais antes de filhos, cada um compondo sua matriz local e então multiplicando-a pela matriz de mundo de seu pai.",
-    "description": "As duas fórmulas rodam em buffers lineares, e o kernel WebAssembly as replica termo a termo. `parents[i]` DEVE ser o índice de um nó já atualizado, logo estritamente menor que `i`; qualquer outro valor — incluindo a sentinela `HIERARCHY_ROOT` — torna o nó uma raiz cuja matriz de mundo é sua matriz local. A regra é idêntica nos dois lados: nenhuma entrada, por mais hostil que seja, pode fazê-los divergir."
-  },
   "HostAttribute": {
     "summary": "Um atributo de vértice de uma geometria de host, intercalado ou não: seu layout e seu armazenamento."
   },
@@ -5117,9 +5113,6 @@
       "l": "A luz a mostrar.",
       "size": "Raio dos círculos."
     }
-  },
-  "hierarchyUpdateBatch": {
-    "summary": "Calcula as matrizes de mundo de uma hierarquia inteira em uma única passagem, pais primeiro."
   },
   "holdCameraWorld": {
     "summary": "Copia uma câmera de motor para outra, que então mantém a visão bit a bit."

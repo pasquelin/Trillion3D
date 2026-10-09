@@ -1382,9 +1382,6 @@
     "boxTransformBatch": {
       "description": "`n` caixas transformadas por `n` matrizes: `out[i] = boxTransform(boxes[i], mats[i])`. `out` e `boxes` carregam seis números por elemento, `mats` uma sub-view de dezesseis."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Uma hierarquia inteira atualizada em uma única passagem: `n` nós ordenados pais antes dos filhos, cada um compondo sua matriz local e então multiplicando-a pela matriz de mundo do pai — a travessia de `packages/sdk-core/src/world/transform-tree/update.ts`, as mesmas duas fórmulas na mesma ordem, em buffers lineares. `parents[i]` **precisa** indexar um nó já atualizado, logo estritamente menor que `i`; qualquer outro valor — incluindo a sentinela `HIERARCHY_ROOT` — torna o nó uma raiz cuja matriz de mundo é sua matriz local. A regra é idêntica nos dois caminhos: nenhuma entrada, por mais hostil que seja, pode fazê-los divergir. `local` é uma única matriz de rascunho, reutilizada por cada elemento."
-    },
     "createPathGovernor": {
       "description": "O que decide entre JS e WebAssembly, por operação nomeada: medianas móveis de nanossegundos por elemento, uma troca só depois de cinco execuções consecutivas com essa vantagem, e uma execução em cinquenta repetindo o outro caminho para atualizar sua mediana. Com menos de cinco amostras nada é decidido — um único valor formaria a mediana. `metrics()` publica, por operação, `path`, `jsNsPerElement`, `wasmNsPerElement`, a contagem de trocas, e a resolução do relógio em que a medição se apoia."
     },

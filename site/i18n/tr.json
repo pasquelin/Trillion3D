@@ -1382,9 +1382,6 @@
     "boxTransformBatch": {
       "description": "`n` matrisle dönüştürülen `n` kutu: `out[i] = boxTransform(boxes[i], mats[i])`. `out` ve `boxes` eleman başına altı sayı taşır, `mats` on altılık bir alt görünüm."
     },
-    "hierarchyUpdateBatch": {
-      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/world/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
-    },
     "createPathGovernor": {
       "description": "Adlandırılmış her işlem için JS ile WebAssembly arasında karar veren şey: eleman başına nanosaniyenin hareketli medyanları, yalnızca o üstünlükte beş ardışık çalıştırmadan sonra bir geçiş, ve medyanını güncellemek için diğer yolu tekrarlayan ellide bir çalıştırma. Beşten az örnekte hiçbir şeye karar verilmez — tek bir değer medyanı oluştururdu. `metrics()`, her işlem için `path`, `jsNsPerElement`, `wasmNsPerElement`, geçiş sayısını ve ölçümün dayandığı saat çözünürlüğünü yayımlar."
     },

@@ -95,11 +95,10 @@ try {
   const packageName = source.name
   write(
     'runtime.mjs',
-    `import { HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES,getSdkProvenance,hierarchyUpdateBatch,prepare } from '${packageName}';\n` +
-      `if(typeof hierarchyUpdateBatch!=='function'||typeof prepare!=='function')process.exit(2);\n` +
-      `const n=2,views=(b,s)=>Array.from({length:n},(_,i)=>b.subarray(i*s,(i+1)*s));\n` +
-      `const world=new Float64Array(n*MATRIX_VALUES),positions=new Float64Array(n*POSITION_VALUES),rotations=new Float64Array(n*QUATERNION_VALUES),scales=new Float64Array(n*POSITION_VALUES).fill(1),parents=new Uint32Array([HIERARCHY_ROOT,0]),local=new Float64Array(MATRIX_VALUES);\n` +
-      `positions.set([2,3,4,5,7,11]);rotations[3]=rotations[7]=1;hierarchyUpdateBatch(views(world,MATRIX_VALUES),views(positions,POSITION_VALUES),views(rotations,QUATERNION_VALUES),views(scales,POSITION_VALUES),parents,n,local);if(world[28]!==7||world[29]!==10||world[30]!==15)process.exit(4);\n` +
+    `import { getSdkProvenance,multiplyMatrix4Batch,prepare } from '${packageName}';\n` +
+      `if(typeof multiplyMatrix4Batch!=='function'||typeof prepare!=='function')process.exit(2);\n` +
+      `const translation=(x,y,z)=>new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]),out=new Float64Array(16);\n` +
+      `multiplyMatrix4Batch([out],[translation(2,3,4)],[translation(5,7,11)],1);if(out[12]!==7||out[13]!==10||out[14]!==15)process.exit(4);\n` +
       `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/src/index.mjs'])process.exit(3);\n` +
       `for(const path of ['/core','/node','/browser','/dist/sdk-core/src/index.js'])try{await import('${packageName}'+path);process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
   )
@@ -119,7 +118,7 @@ try {
   const bundles: Record<string, Metafile> = {
     default: bundle(
       'default',
-      `import { hierarchyUpdateBatch } from '${packageName}';\nconsole.log(hierarchyUpdateBatch);\n`,
+      `import { multiplyMatrix4Batch } from '${packageName}';\nconsole.log(multiplyMatrix4Batch);\n`,
       'neutral',
       [],
     ),
@@ -152,7 +151,6 @@ try {
   ) as ExportsManifest
   const runtimeProof = proveInstalledRuntime({ fixture, packageName, run, write, bundle })
   bundles.maths = runtimeProof.bundles.maths
-  bundles.hierarchy = runtimeProof.bundles.hierarchy
   bundles.worker = bundle('common-worker', runtimeProof.workerSource)
   const browserOptions = {
     fixture,
