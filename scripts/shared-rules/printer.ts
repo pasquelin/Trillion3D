@@ -4,9 +4,14 @@ import ts from 'typescript'
 
 type Lang = 'wgsl' | 'cpp' | 'rust'
 
+/** A numeric constant of a rule's module: its literal and its leading documentation. */
+export type Constant = { value: string; doc: string[] }
+
 /** How one language prints the source. */
 export type Target = {
   lang: Lang
+  /** The numeric constants of the source's module, by name: an `out` slot they name is theirs. */
+  constants?: ReadonlyMap<string, Constant>
   /** Integer literals are WGSL's unsigned ones, and a four-element list a `vec4u`. */
   unsigned?: boolean
   /** What the target reads for a source expression it does not print as written. */
@@ -72,13 +77,24 @@ function call(node: ts.CallExpression, t: Target): string {
   // write a quotient they keep whole.
   if (callee === 'Math.trunc')
     return t.lang === 'wgsl' ? `u32(${expression(args[0], t)})` : expression(args[0], t)
+  // Of more than two operands, the first two's, then each next one's: every target names it of
+  // two; Rust calls it on a literal-free receiver, whose type the literals then take.
   if (callee === 'Math.min' || callee === 'Math.max') {
     const name = callee.slice(5)
-    if (t.lang !== 'rust') return `${t.lang === 'cpp' ? 'std::' : ''}${name}(${printed()})`
+    if (t.lang !== 'rust') {
+      const fn = `${t.lang === 'cpp' ? 'std::' : ''}${name}`
+      return args
+        .map((arg) => expression(arg, t))
+        .reduce((folded, next) => `${fn}(${folded}${t.lang === 'wgsl' ? ',' : ', '}${next})`)
+    }
     const receiver = args.find((arg) => !ts.isNumericLiteral(arg)) ?? args[0]
-    const other = args.find((arg) => arg !== receiver)!
     const self = expression(receiver, t)
-    return `${atomic(receiver) ? self : `(${self})`}.${name}(${expression(other, t)})`
+    return args
+      .filter((arg) => arg !== receiver)
+      .reduce(
+        (chain, other) => `${chain}.${name}(${expression(other, t)})`,
+        atomic(receiver) ? self : `(${self})`,
+      )
   }
   if (callee === 'Math.sin' || callee === 'Math.cos') {
     const name = callee.slice(5) as 'sin' | 'cos'

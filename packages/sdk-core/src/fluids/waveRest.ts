@@ -1,7 +1,7 @@
 import type { Waves } from './waves.ts'
 
 /** Newton iterations of `waveRest`: two leave 1.3 cm at the steepest crests, three 0.3 mm. */
-export const HEIGHT_ITERATIONS = 3
+const HEIGHT_ITERATIONS = 3
 
 /** The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`. The
  *  physics module runs the same lines, printed into C++ from this function

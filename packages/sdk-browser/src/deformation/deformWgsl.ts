@@ -81,8 +81,7 @@ fn deformMatrix(at:u32)->mat4x4f{
 fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  var d=vec3f(0.0);var n=vec3f(0.0,1.0,0.0);
  for(var i=0u;i<count;i++){
-  let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];
-  let amplitude=positions[b+3u];let lateral=positions[b+4u];let phase=positions[b+5u];
+  let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);
   ${WAVE_TERMS}
  }
  return select(d,normalize(n),normal);

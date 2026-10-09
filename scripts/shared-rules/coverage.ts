@@ -1,42 +1,19 @@
 // The coverage-preserving alpha's arithmetic printed (\`../generate-shared-rules.ts\`): every
-// function of \`coverageMath.ts\` into the mip chains' WGSL and the compiler's Rust.
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+// function of \`coverageMath.ts\` into the mip chains' WGSL and the compiler's Rust, public in both
+// when the module exports it, the module's own when it does not.
 import ts from 'typescript'
 import * as COVERAGE from '../../packages/sdk-browser/src/texture/coverageMath.ts'
-import { snake, unsupported } from './printer.ts'
-import { ROOT, comment, functionOf, header, statements } from './statements.ts'
+import { type Target, expression, snake, unsupported } from './printer.ts'
+import { comment, functionsOf, header, statements } from './statements.ts'
 
 const COVERAGE_MATH = 'packages/sdk-browser/src/texture/coverageMath.ts'
-const TEXTURE = 'packages/sdk-browser/src/texture'
-const COVERAGE_WGSL = 'coverageMathWgsl.ts'
 
-/** The blocks the printed WGSL's readers import, beside it in the texture folder: those alone are
- *  exported, a block only another block calls stays the module's own. */
-function importedBlocks() {
-  const names = new Set<string>()
-  for (const entry of readdirSync(join(ROOT, TEXTURE))) {
-    if (!entry.endsWith('.ts') || entry === COVERAGE_WGSL) continue
-    const text = readFileSync(join(ROOT, TEXTURE, entry), 'utf8')
-    if (!text.includes(`'./${COVERAGE_WGSL}'`)) continue
-    const file = ts.createSourceFile(entry, text, ts.ScriptTarget.Latest)
-    for (const statement of file.statements) {
-      if (!ts.isImportDeclaration(statement)) continue
-      if ((statement.moduleSpecifier as ts.StringLiteral).text !== `./${COVERAGE_WGSL}`) continue
-      const bindings = statement.importClause?.namedBindings
-      if (bindings && ts.isNamedImports(bindings))
-        for (const element of bindings.elements)
-          names.add((element.propertyName ?? element.name).text)
-    }
-  }
-  return names
-}
-
-/** The rule's functions, each after those it calls. */
+/** The rule's functions, each after those it calls, and whether its module exports it. */
 function coverageFunctions() {
-  const names = Object.keys(COVERAGE)
-  const functions = names.map((name) => {
-    const { node, body: source, doc } = functionOf(COVERAGE_MATH, name)
+  const declared = functionsOf(COVERAGE_MATH)
+  const exports = Object.keys(COVERAGE)
+  const names = declared.map(({ name }) => name)
+  const functions = declared.map(({ name, node, body: source, doc }) => {
     const calls = new Set<string>()
     const visit = (child: ts.Node) => {
       if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
@@ -50,7 +27,7 @@ function coverageFunctions() {
       name: param.name.getText(),
       quad: param.type?.getText() === 'Quad',
     }))
-    return { name, source, doc, params, calls: [...calls] }
+    return { name, source, doc, params, calls: [...calls], exported: exports.includes(name) }
   })
   const ordered: typeof functions = []
   const place = (fn: (typeof functions)[number]) => {
@@ -65,14 +42,13 @@ function coverageFunctions() {
 const wgslName = (name: string) => `${snake(name).toUpperCase()}_WGSL`
 
 export function coverageWgsl() {
-  const imported = importedBlocks()
-  const blocks = coverageFunctions().map(({ name, source, doc, params, calls }) => {
+  const blocks = coverageFunctions().map(({ name, source, doc, params, calls, exported }) => {
     const lines = statements(source.statements, { lang: 'wgsl', unsigned: true }, 0)
     const signature = params.map((p) => `${p.name}:${p.quad ? 'vec4u' : 'u32'}`).join(',')
     return `/**
 ${comment(doc, ' * ')}
  */
-${imported.has(wgslName(name)) ? 'export ' : ''}const ${wgslName(name)} = wgslBlock(
+${exported ? 'export ' : ''}const ${wgslName(name)} = wgslBlock(
   '${wgslName(name)}',
   [${calls.map(wgslName).join(', ')}],
   \`fn ${name}(${signature})->u32{${lines.join('')}}\`,
@@ -85,12 +61,40 @@ ${blocks.join('\n\n')}
 `
 }
 
+/** The Rust table of `scaled` at a chain's cutoff (`scale_table`, `coverage.rs`), built once from
+ *  the printed `scaled`: a function calling `scaled` at its own `c` reads its byte there. */
+const SCALE_TABLE = { name: 'bytes', type: '&[[u8; 256]; 256]' }
+
+/** `scaled(a, c, t)` of a function of cutoff `c`, read from `SCALE_TABLE` at `[t][a]`. */
+function scaleTableRead(node: ts.Expression, t: Target) {
+  if (!ts.isCallExpression(node) || node.expression.getText() !== COVERAGE.scaled.name) return
+  const [alpha, cutoff, bin] = node.arguments
+  if (cutoff.getText() !== 'c') return unsupported(node)
+  const index = (arg: ts.Expression) =>
+    ts.isIdentifier(arg) || ts.isElementAccessExpression(arg)
+      ? `${expression(arg, t)} as usize`
+      : `(${expression(arg, t)}) as usize`
+  return `u32::from(${SCALE_TABLE.name}[${index(bin)}][${index(alpha)}])`
+}
+
 export function coverageRust() {
-  const functions = coverageFunctions().map(({ name, source, doc, params }) => {
-    const lines = statements(source.statements, { lang: 'rust', call: snake }, 1, true)
-    const signature = params.map((p) => `${p.name}: ${p.quad ? '[u32; 4]' : 'u32'}`).join(', ')
-    return `${comment(doc, '/// ')}
-pub(super) fn ${snake(name)}(${signature}) -> u32 {
+  const functions = coverageFunctions().map(({ name, source, doc, params, calls, exported }) => {
+    const table = calls.includes(COVERAGE.scaled.name)
+    const target: Target = {
+      lang: 'rust',
+      call: snake,
+      read: table ? (node) => scaleTableRead(node, target) : undefined,
+    }
+    const lines = statements(source.statements, target, 1, true)
+    const signature = [
+      ...params.map((p) => `${p.name}: ${p.quad ? '[u32; 4]' : 'u32'}`),
+      ...(table ? [`${SCALE_TABLE.name}: ${SCALE_TABLE.type}`] : []),
+    ].join(', ')
+    const tableDoc = table
+      ? `\n///\n/// In Rust: \`${COVERAGE.scaled.name}\` at \`c\` is read from \`${SCALE_TABLE.name}\`, its table built once a chain\n/// (\`scale_table\`, \`coverage.rs\`).`
+      : ''
+    return `${comment(doc, '/// ')}${tableDoc}
+${exported ? 'pub(super) ' : ''}fn ${snake(name)}(${signature}) -> u32 {
 ${lines.join('\n')}
 }`
   })

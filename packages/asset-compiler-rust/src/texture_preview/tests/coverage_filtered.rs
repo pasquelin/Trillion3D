@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture_preview::coverage::filtered_covered;
+use crate::texture_preview::coverage::{filtered_covered, scale_table};
 use crate::texture_preview::coverage_math::{cut_bin, filtered, scaled};
 use trillion3d_math::random::xorshift32;
 
@@ -68,13 +68,14 @@ fn the_bin_search_between_the_corners_finds_the_scan_s_bin() {
         [0, 255, seed & 255, seed >> 24][(seed >> 8 & 3) as usize]
     };
     for c in [1, 64, 128, 191, 255] {
+        let bytes = scale_table(c);
         // Flat squares, one corner a byte apart either way, then noise heavy in 0 and 255.
         let near = (1..=255).flat_map(|a| [[a; 4], [a, a - 1, a - 1, a - 1], [a - 1, a, a, a]]);
         let squares = near.chain((0..4000).map(|_| [(); 4].map(|_| byte())));
         for square in squares.collect::<Vec<_>>() {
             for s in 0..4 {
                 assert_eq!(
-                    cut_bin(square, s, c),
+                    cut_bin(square, s, c, &bytes),
                     scan(square, s, c),
                     "{square:?} {s} {c}"
                 );

@@ -2,6 +2,11 @@
 //!   packages/sdk-browser/src/texture/coverageMath.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
 
+/// Step 4: alpha `a` scaled to cutoff `c` at `t`, `a × (C − 0.5) / (t − 0.5)` rounded half up.
+pub(super) fn scaled(a: u32, c: u32, t: u32) -> u32 {
+    ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255)
+}
+
 /// Bilinear sample `s` (0 to 3, row by row) of the square of corner alphas `a`, rounded half up:
 /// 9, 3, 3, 1 sixteenths from the nearest.
 pub(super) fn filtered(a: [u32; 4], s: u32) -> u32 {
@@ -10,25 +15,23 @@ pub(super) fn filtered(a: [u32; 4], s: u32) -> u32 {
     (y * (x * a[0] + (4 - x) * a[1]) + (4 - y) * (x * a[2] + (4 - x) * a[3]) + 8) >> 4
 }
 
-/// Step 4: alpha `a` scaled to cutoff `c` at `t`, `a × (C − 0.5) / (t − 0.5)` rounded half up.
-pub(super) fn scaled(a: u32, c: u32, t: u32) -> u32 {
-    ((2 * a * (2 * c - 1) + 2 * t - 1) / (4 * t - 2)).min(255)
-}
-
 /// Step 2's bin of sample `s` of square `a`: the highest `t` whose scale lifts it to `c` or more,
 /// searched between the square's lowest and highest corners — a corner reaches `c` exactly while
 /// `t` is at most its byte, and a sample lies between its corners, so the bin does too.
-pub(super) fn cut_bin(a: [u32; 4], s: u32, c: u32) -> u32 {
-    let mut low = a[0].min(a[1]).min(a[2].min(a[3]));
-    let mut high = a[0].max(a[1]).max(a[2].max(a[3])) + 1;
+///
+/// In Rust: `scaled` at `c` is read from `bytes`, its table built once a chain
+/// (`scale_table`, `coverage.rs`).
+pub(super) fn cut_bin(a: [u32; 4], s: u32, c: u32, bytes: &[[u8; 256]; 256]) -> u32 {
+    let mut low = a[0].min(a[1]).min(a[2]).min(a[3]);
+    let mut high = a[0].max(a[1]).max(a[2]).max(a[3]) + 1;
     while high - low > 1 {
         let t = (low + high) >> 1;
         if filtered(
             [
-                scaled(a[0], c, t),
-                scaled(a[1], c, t),
-                scaled(a[2], c, t),
-                scaled(a[3], c, t),
+                u32::from(bytes[t as usize][a[0] as usize]),
+                u32::from(bytes[t as usize][a[1] as usize]),
+                u32::from(bytes[t as usize][a[2] as usize]),
+                u32::from(bytes[t as usize][a[3] as usize]),
             ],
             s,
         ) >= c

@@ -109,6 +109,9 @@ const config: KnipConfig = {
       },
       // The harness server maps this browser URL to the page entry above.
       ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
+      // A printed rule (`scripts/generate-shared-rules.ts`) exports every function its source
+      // exports, in each language: one language's readers may call fewer than another's.
+      ignoreIssues: { 'packages/sdk-browser/src/texture/coverageMathWgsl.ts': ['exports'] },
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.

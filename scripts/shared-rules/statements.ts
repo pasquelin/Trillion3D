@@ -4,28 +4,76 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { type Target, expression, trigPairs, unsupported } from './printer.ts'
+import { type Constant, type Target, expression, trigPairs, unsupported } from './printer.ts'
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-/** The function `name` of the module at `path`, with its leading documentation. */
-export function functionOf(path: string, name: string) {
+/** The module at `path`, parsed. */
+function moduleOf(path: string) {
   const text = readFileSync(join(ROOT, path), 'utf8')
-  const file = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
-  const node = file.statements.find(
-    (statement): statement is ts.FunctionDeclaration =>
-      ts.isFunctionDeclaration(statement) && statement.name?.text === name,
-  )
-  if (!node?.body) throw new Error(`${path}: no function '${name}'`)
+  return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
+}
+
+/** The documentation leading `node`, line by line. */
+function docOf(node: ts.Node) {
+  const text = node.getSourceFile().text
   const comment = ts.getLeadingCommentRanges(text, node.getFullStart())?.at(-1)
-  const doc = comment
+  return comment
     ? text
         .slice(comment.pos, comment.end)
         .replace(/^\/\*\*\s?|\s*\*\/$/g, '')
         .split('\n')
         .map((line) => line.replace(/^\s*\*\s*/, ''))
     : []
-  return { node, body: node.body, doc }
+}
+
+/** The functions of the module at `path`, in their order, each with its body and documentation. */
+export function functionsOf(path: string) {
+  return moduleOf(path)
+    .statements.filter(
+      (statement): statement is ts.FunctionDeclaration & { name: ts.Identifier; body: ts.Block } =>
+        ts.isFunctionDeclaration(statement) && !!statement.name && !!statement.body,
+    )
+    .map((node) => ({
+      name: node.name.text,
+      node,
+      body: node.body,
+      doc: docOf(node),
+    }))
+}
+
+/** The function `name` of the module at `path`, with its leading documentation. */
+export function functionOf(path: string, name: string) {
+  const found = functionsOf(path).find((fn) => fn.name === name)
+  if (!found) throw new Error(`${path}: no function '${name}'`)
+  return found
+}
+
+/** The numeric constants of the module at `path`, by name. */
+export function constantsOf(path: string) {
+  const constants = new Map<string, Constant>()
+  for (const statement of moduleOf(path).statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    if ((statement.declarationList.flags & ts.NodeFlags.Const) === 0) continue
+    for (const item of statement.declarationList.declarations)
+      if (item.initializer && ts.isNumericLiteral(item.initializer))
+        constants.set(item.name.getText(), {
+          value: item.initializer.text,
+          doc: docOf(statement),
+        })
+  }
+  return constants
+}
+
+/** The constants of `constants` that `node` reads, in their order there. */
+export function readConstants(node: ts.Node, constants: ReadonlyMap<string, Constant>) {
+  const read = new Set<string>()
+  const visit = (child: ts.Node) => {
+    if (ts.isIdentifier(child) && constants.has(child.text)) read.add(child.text)
+    child.forEachChild(visit)
+  }
+  visit(node)
+  return [...constants].filter(([name]) => read.has(name))
 }
 
 /** The source statements `list` in the target, one line each, indented `depth` steps; `tail`
@@ -80,7 +128,10 @@ function statement(node: ts.Statement, t: Target, depth: number, tail: boolean):
     const { left, right, operatorToken } = node.expression
     const value = expression(right, t)
     if (ts.isElementAccessExpression(left) && left.expression.getText() === 'out' && t.write) {
-      const written = t.write(Number(left.argumentExpression.getText()), value)
+      const slot = left.argumentExpression.getText()
+      const index = Number(t.constants?.get(slot)?.value ?? slot)
+      if (!Number.isInteger(index)) unsupported(left)
+      const written = t.write(index, value)
       return written === undefined ? [] : [pad(written)]
     }
     const op = operatorToken.getText()

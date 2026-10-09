@@ -3,13 +3,13 @@
 // Edit the source, then run `pnpm run generate:shared-rules`.
 
 /**
- * One wave's terms at the rest point `(x, z)`, into `out`: the displacement it adds (`x, y, z`),
- * then what it takes from the surface's unnormalised normal (`x, y, z`). The one formula of a
- * wave: `Waves.offset` and `Waves.normal` sum it, and the GPU deformation sums the same lines,
- * printed into WGSL from this function (`scripts/generate-shared-rules.ts`).
+ * The terms of wave `i` of `waves` at the rest point `(x, z)`, into `out` at their slots: the
+ * displacement it adds (`OFFSET_X` to `OFFSET_Z`), then what it takes from the surface's
+ * unnormalised normal (`NORMAL_X` to `NORMAL_Z`). The one formula of a wave: `Waves.offset` and
+ * `Waves.normal` sum it, and the GPU deformation sums the same lines, printed into WGSL from this
+ * function (`scripts/generate-shared-rules.ts`).
  *
- * In WGSL: statements over the wave's numbers (`dx`, `dz`, `k`, `amplitude`, `lateral`,
- * `phase`) at the point `p`, adding the displacement to `d` and taking the normal's terms from
- * `n`.
+ * In WGSL: statements over wave `i`'s floats in `positions` from `b`, in `WAVE_FIELDS` order,
+ * at the point `p`, adding the displacement to `d` and taking the normal's terms from `n`.
  */
-export const WAVE_TERMS = `let f=k*(dx*p.x+dz*p.z)-phase;let c=cos(f);let s=sin(f);d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);`
+export const WAVE_TERMS = `let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];let amplitude=positions[b+3u];let lateral=positions[b+4u];let f=k*(dx*p.x+dz*p.z)-positions[b+5u];let c=cos(f);let s=sin(f);d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);`

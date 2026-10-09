@@ -26,8 +26,8 @@ export function filtered(a: Quad, s: number) {
  *  searched between the square's lowest and highest corners — a corner reaches `c` exactly while
  *  `t` is at most its byte, and a sample lies between its corners, so the bin does too. */
 export function cutBin(a: Quad, s: number, c: number) {
-  let low = Math.min(Math.min(a[0], a[1]), Math.min(a[2], a[3])),
-    high = Math.max(Math.max(a[0], a[1]), Math.max(a[2], a[3])) + 1
+  let low = Math.min(a[0], a[1], a[2], a[3]),
+    high = Math.max(a[0], a[1], a[2], a[3]) + 1
   while (high - low > 1) {
     const t = (low + high) >> 1
     if (
