@@ -12,7 +12,7 @@ import { REFLECTION_SOURCE_PASSES } from '../reflections/sourcePass.ts'
 import { DEFORMATION_PASSES } from '../deformation/pass.ts'
 
 /** A pass's row: its stage, that stage's index in `WEBGPU_STAGES`, and its block. */
-export type PassRow = {
+type PassRow = {
   readonly stage: WebgpuStage
   readonly at: number
   readonly block: GpuPassBlock

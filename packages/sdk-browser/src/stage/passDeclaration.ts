@@ -52,7 +52,7 @@ export type PassDeclaration = PassFiling & { readonly label: string }
 
 /** A family of passes whose labels all open with `prefix`, filed on one stage and block: passes
  *  whose labels carry what they work on (a chunk, a set, a kernel) and so cannot be listed. */
-export type PassFamilyDeclaration = PassFiling & { readonly prefix: string }
+type PassFamilyDeclaration = PassFiling & { readonly prefix: string }
 
 /** Declares a pass: the one place its label meets its stage and block. */
 export const definePass = (pass: PassDeclaration): PassDeclaration => Object.freeze(pass)

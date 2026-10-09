@@ -248,8 +248,6 @@ function createStageDeposits(options: {
   }
 }
 
-export type StageDeposits = ReturnType<typeof createStageDeposits>
-
 /**
  * The profile of an engine's images, one row of CPU bounds per image and the GPU readbacks that
  * describe images already past. The engine fills `row` as each bound ends (`steps` names them, in
