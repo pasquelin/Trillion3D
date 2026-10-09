@@ -31,18 +31,17 @@ import { DEFORMATION_PASS } from '../deformation/pass.ts'
  */
 export type GpuPassBlock = 'visibility' | 'materials' | 'other'
 
-/** A shadow page's GPU cost: choosing its casters, then drawing them. Sampling is in `lighting`. */
-type ShadowPart = 'cull' | 'raster'
-
-/** A pass's row: its stage and block, plus its shadow part when it serves shadow pages. */
-export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: ShadowPart]
+/** A pass's row: its stage and block. */
+export type PassRow = readonly [stage: string, block: GpuPassBlock]
 
 /**
- * Profile stage, comparison block and shadow part of each GPU pass, read from the label the pass
- * already carries. This is the only read of deposit labels: direct-light durations, the per-stage
- * profile and the blocks share it. Every pass the engine begins is named here
- * (`../gpu/timing/passLabels.test.ts` reads each label from the source): a label the table does
- * not name joins no stage and the block `other`, so it never swells a stage or a compared block.
+ * Profile stage and comparison block of each GPU pass, read from the label the pass already
+ * carries. This is the only read of deposit labels: direct-light durations, the per-stage profile
+ * and the blocks share it. The table names exactly the passes the engine begins, the virtual
+ * shadow maps' aside, which the Shadows stage reads by their prefix (`VSM_PASS_PREFIX`,
+ * `mapping.ts`); `../gpu/timing/passLabels.test.ts` reads each label from the source. A label the
+ * table does not name joins no stage and the block `other`, so it never swells a stage or a
+ * compared block.
  * The labels come from the label modules the passes read their own from (`passLabels.ts` and its
  * siblings), or are the pass's own words: an import of the passes would put them and their
  * shaders in the CDN core, ahead of the renderer's own chunk, which the page downloads beside the
@@ -51,19 +50,14 @@ export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: Shado
 export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   [DEFORMATION_PASS]: ['animations', 'other'],
   'Trillion3D compose roots': ['animations', 'other'],
+  'Trillion3D compose rows': ['animations', 'other'],
   'Trillion3D DAG selection': ['selection', 'visibility'],
   'Trillion3D DAG mask swap': ['selection', 'visibility'],
   [PARTITION_PASS]: ['partition', 'visibility'],
   [HIZ_PASS]: ['hiZ', 'visibility'],
-  'Trillion3D clear': ['geometry', 'visibility'],
   'Trillion3D visibility primary': ['geometry', 'visibility'],
   'Trillion3D visibility secondary': ['geometry', 'visibility'],
-  'Trillion3D small triangle binning': ['geometry', 'visibility'],
-  'Trillion3D small triangle raster': ['geometry', 'visibility'],
-  'Trillion3D hybrid visibility resolve': ['geometry', 'visibility'],
   // Compute raster (`../gpu/raster/raster.ts`, `../gpu/raster/resolve.ts`): it builds the same buffer.
-  'Trillion3D raster target and lists': ['geometry', 'visibility'],
-  'Trillion3D raster dispatch': ['geometry', 'visibility'],
   'Trillion3D raster binning': ['geometry', 'visibility'],
   'Trillion3D raster occluder depth': ['geometry', 'visibility'],
   'Trillion3D raster tested depth': ['geometry', 'visibility'],
@@ -88,9 +82,6 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D display mask': ['transparents', 'other'],
   'Trillion3D display filter': ['transparents', 'other'],
   [PARTICLE_DRAW_PASS]: ['transparents', 'other'],
-  'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
-  'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
-  'Trillion3D shadow occlusion': ['shadows', 'other', 'cull'],
   [LIGHT_TILES_PASS]: ['lightLists', 'other'],
   [BOUNCE_PASS]: ['bounce', 'other'],
   'Trillion3D bounce probe level clear': ['bounce', 'other'],
@@ -109,9 +100,5 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D direct present': ['present', 'other'],
   'Trillion3D view present': ['present', 'other'],
   'Trillion3D guides': ['present', 'other'],
-  'Trillion3D explicit capture': ['present', 'other'],
   'Trillion3D capture emission and occlusion': ['present', 'other'],
 })
-
-/** Shadow part of a pass, by its label. A pass that serves no shadow page is `other`. */
-export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other'

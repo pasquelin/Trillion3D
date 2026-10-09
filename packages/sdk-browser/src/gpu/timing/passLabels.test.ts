@@ -3,11 +3,13 @@
 // Every pass the engine begins is read here from the source: its descriptor, inline or declared
 // before the call in the same module, opens with its label, and that label — a literal, a constant
 // of a module, a template or a choice of them, or a parameter its callers fill — is a row of the
-// pass table, or a virtual shadow map pass by its prefix. A new pass without a label, or with one
-// the table does not name, fails this test, never the ranking nor the profile.
+// pass table, or a virtual shadow map pass by its prefix; and every row is the label of a pass the
+// engine begins. A new pass without a label, or with one the table does not name, fails this test,
+// never the ranking nor the profile; so does a row no pass carries any more.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { gpuPassStageOf } from '../../stage/mapping.ts'
+import { PASSES } from '../../stage/passTable.ts'
 import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 import { argumentSpans, descriptorsOf, modules } from './passSource.fixture.ts'
 import { UNREAD, labelsOf } from './passLabelValues.fixture.ts'
@@ -54,4 +56,14 @@ test('every label a pass begins with is a row of the pass table', () => {
       }
   assert.ok(read >= begun.length, `every pass's label was read (${read})`)
   assert.deepEqual(unnamed, [], 'a pass the table does not name is filed under no stage')
+})
+
+test('every row of the pass table is the label of a pass the engine begins', () => {
+  const carried = new Set(
+    begun.flatMap(({ file, text, descriptors }) =>
+      (descriptors ?? []).flatMap((open) => labelsOf(file, text, open)),
+    ),
+  )
+  const dead = Object.keys(PASSES).filter((label) => !carried.has(label))
+  assert.deepEqual(dead, [], 'a row no pass carries names nothing the profile can file')
 })

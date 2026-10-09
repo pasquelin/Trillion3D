@@ -28,7 +28,7 @@ test('each pass falls in the block its label names, and an unknown one stays out
 test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
     sample([
-      ['Trillion3D clear', 0.066],
+      ['Trillion3D partition', 0.066],
       ['Trillion3D DAG selection', 0.406],
       ['Trillion3D visibility primary', 1.148],
       ['Trillion3D HiZ', 0.099],

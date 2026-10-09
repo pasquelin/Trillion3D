@@ -1,7 +1,7 @@
 import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts'
 import type { StageAdd } from './profiler.ts'
 import { VSM_PASS_PREFIX } from './passLabels.ts'
-import { type GpuPassBlock, PASSES, gpuShadowPartOf } from './passTable.ts'
+import { type GpuPassBlock, PASSES } from './passTable.ts'
 
 export type { GpuPassBlock } from './passTable.ts'
 
@@ -96,13 +96,10 @@ export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
 
 /** The direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
-  const totals = gpuStageTotals(sample),
-    parts = gpuTotalsBy(sample, gpuShadowPartOf)
+  const totals = gpuStageTotals(sample)
   return {
     gpuLightListsMs: totals.get('lightLists') ?? null,
     gpuShadowsMs: totals.get('shadows') ?? null,
-    gpuShadowCullMs: parts.get('cull') ?? null,
-    gpuShadowRasterMs: parts.get('raster') ?? null,
     gpuLightingMs: totals.get('lighting') ?? null,
   }
 }
