@@ -132,4 +132,6 @@ export function encodeWebgpuVisibilityPasses(
     compute?.rest(encoder)
   }
   compute?.ids(encoder)
+  // Level 0 now holds every opaque pixel's depth: what the reflections' nearest mips reduce.
+  rt.run.depthDrawn = true
 }

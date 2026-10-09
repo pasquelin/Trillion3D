@@ -1,3 +1,4 @@
+import { reflectionLayout } from '../../reflections/gpu.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/index.ts'
 import {
@@ -125,8 +126,9 @@ export function stageDescriptors(
   depthWrite: boolean,
   mask?: GPUBindGroupLayout,
 ): GPURenderPipelineDescriptor[] {
+  // The reflection's group (`REFLECTION_GROUP`) behind the blend's, the display mask's last.
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, ...(mask ? [mask] : [])],
+    bindGroupLayouts: [layout, reflectionLayout(device), ...(mask ? [mask] : [])],
   })
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,

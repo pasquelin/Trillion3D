@@ -1,3 +1,4 @@
+import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { scissorTo } from './bounds.ts'
 import { createWaterFreeze } from './freeze.ts'
 import { createWaterDepthRestore } from './depthRestore.ts'
@@ -178,7 +179,8 @@ function encodeWaterFrame(
   scissorTo(composite, rect)
   composite.setPipeline(frame.composites.pick(key, lobed).at(!!filter, !!share))
   composite.setBindGroup(0, group)
-  if (filter) composite.setBindGroup(1, filter.maskGroup)
+  bindForwardReflection(composite, rt)
+  if (filter) composite.setBindGroup(2, filter.maskGroup)
   composite.draw(3)
   composite.end()
   return encoded

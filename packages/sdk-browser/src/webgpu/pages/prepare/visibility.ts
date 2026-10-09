@@ -1,3 +1,4 @@
+import { createReflectionPipelines } from '../../../reflections/gpu.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
 import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/index.ts'
@@ -63,6 +64,10 @@ async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     throw new Error('WEBGPU_HIZ_UNAVAILABLE')
   }
   rt.vis.gpuHiz = hiz
+  // The reflections march its level 0 and their nearest levels below it: their kernels come with
+  // it, or the scene is refused.
+  rt.vis.reflectionPipelines = await createReflectionPipelines(gpuDevice)
+  if (!rt.vis.reflectionPipelines) throw new Error('WEBGPU_REFLECTIONS_UNAVAILABLE')
   return hiz
 }
 

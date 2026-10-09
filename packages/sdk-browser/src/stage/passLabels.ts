@@ -68,6 +68,11 @@ export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1'
 export const BOUNCE_PASS = 'Trillion3D bounce v1'
 /** The clear of a probe level the bounce grows (`../bounce/probeStorage.ts`). */
 export const BOUNCE_PROBE_CLEAR_PASS = 'Trillion3D bounce probe level clear'
+/** The reflections' compute pass: the depth pyramid's nearest mips, then the opaque surfaces'
+ *  trace (`../reflections/frame.ts`). */
+export const REFLECTION_PASS = 'Trillion3D reflections'
+/** The radiance pyramid of the lit image, which the next image's reflections read. */
+export const REFLECTION_RADIANCE_PASS = 'Trillion3D reflection radiance'
 /** The deferred lighting pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting'
 /** The seed of the as-is share the temporal resolve reads (`../lighting/deferred/asIsShare.ts`). */
@@ -130,6 +135,8 @@ export const ENGINE_PASSES = [
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_PROBE_CLEAR_PASS, stage: 'bounce', block: 'other' }),
+  definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: DEFERRED_LIGHTING_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: AS_IS_SHARE_PASS, stage: 'antialiasing', block: 'other' }),

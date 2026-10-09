@@ -10,6 +10,7 @@ import { standardSurface } from '../../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts'
+import { reflectionBytes } from '../../../reflections/gpu.ts'
 import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts'
 import {
   MEASURE_HEIGHT,
@@ -40,7 +41,8 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height))
-    assert.equal(base, frameTargetBytes(width, height, true))
+    // The frame's targets, and the reflection's target and pyramids (`reflections/gpu.ts`).
+    assert.equal(base, frameTargetBytes(width, height, true) + reflectionBytes(width, height))
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
@@ -119,6 +121,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       allocatedSize: [32, 32],
       displaySize: [32, 32],
       surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
+      reflection: {},
       targetGrant: undefined,
     },
     vis: { visTexture: {} },
@@ -141,6 +144,7 @@ test('a frame drawn below the display costs its render targets and the display c
     hdrTexture: {},
     displayTexture: {},
     surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
+    reflection: {},
     feedbackTexture: {},
     allocatedSize: [32, 16],
     displaySize: [64, 32],

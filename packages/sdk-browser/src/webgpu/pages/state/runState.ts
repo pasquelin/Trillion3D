@@ -24,6 +24,7 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     lastCamera: undefined,
     gpuSelection: undefined,
     hizPyramidFresh: false,
+    depthDrawn: false,
     gpuMetricsReady: false,
     ...createWebgpuBudgetState(),
     deferredDrops: new Set(),

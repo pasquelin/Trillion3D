@@ -13,6 +13,7 @@ import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
+import { resolvedReflectionWgsl } from '../../reflections/wgsl.ts'
 /** The full-screen triangle's vertex stage (`FULLSCREEN_XY`), which every full-screen pass lists. */
 export const FULLSCREEN_VERTEX = wgslBlock(
   'FULLSCREEN_VERTEX',
@@ -78,7 +79,9 @@ const DIRECT_SURFACE_WGSL = wgslBlock(
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added. An unlit material shows its colour with no response to light, still seen through
- * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
+ * the fog; a diagnostic, normal or depth surface comes out as-is. What a lit surface reflects is
+ * the radiance the reflection trace wrote for its pixel (`resolvedReflection`,
+ * `../../reflections/wgsl.ts`). With `bounce`, bounced light:
  * probe irradiance multiplied by the pixel's diffuse albedo, added to the direct. It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is each program of a `key` (`contractCuts.ts`): `narrow` (#849), `unshadowed` (#1249),
@@ -95,6 +98,7 @@ export const contractLightingProgram = (
       STANDARD_LIGHTING_WGSL,
       directLightingWgsl(key),
       bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL,
+      resolvedReflectionWgsl(!key.lobeless),
       VIEW_WGSL,
       surfaceBindingsWgsl(),
       CONTRACT_BINDINGS_WGSL,

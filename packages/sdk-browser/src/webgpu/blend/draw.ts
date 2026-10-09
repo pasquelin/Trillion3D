@@ -1,3 +1,4 @@
+import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
 import { createBlendOverdraw } from './overdraw.ts'
@@ -63,7 +64,8 @@ export function drawBlendRuns(
     main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!
-  if (filter) pass.setBindGroup(1, filter.maskGroup)
+  bindForwardReflection(pass, rt)
+  if (filter) pass.setBindGroup(2, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
     pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))

@@ -3,6 +3,7 @@ import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, holds } from '../../../scene/surfaceBuffer.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop } from '../../transparent/transmission.ts'
+import { createScreenReflection } from '../../../reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -24,6 +25,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     !!gpu.surfaces &&
     holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
     // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
+    !!gpu.reflection &&
     !!vis.visTexture
   )
 }
@@ -155,6 +157,7 @@ export function buildTargets(
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = gpu.hdrTexture.createView()
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0)
+  gpu.reflection = createScreenReflection(device, width, height)
   // Temporal history follows the display size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height)
   gpu.targetBytes = allocationBytes

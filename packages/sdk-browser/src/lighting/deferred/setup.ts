@@ -18,6 +18,7 @@ import {
 } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
+import { REFLECTION_TARGET } from '../../reflections/wgsl.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -124,6 +125,8 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
     },
     // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
     VSM_MASK_TABLE_TARGET.layoutEntry(),
+    // The radiance the reflection trace wrote (`../../reflections/gpu.ts`).
+    REFLECTION_TARGET.layoutEntry(),
     {
       binding: VSM_MASK_TILES_BINDING,
       visibility: GPUShaderStage.FRAGMENT,
@@ -176,6 +179,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
+  // One texel of zero: what a resolve bound before its reflection target reads.
+  const reflection = device.createTexture({
+    label: 'Trillion3D empty reflection',
+    size: [1, 1],
+    format: 'rgba16float',
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
   return {
     ...vsm.views,
     tiles,
@@ -184,10 +194,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     probes: probes.createView({ dimension: '2d-array' }),
     proxy,
     receiver: receiver.resources,
+    reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
     emptyNormals: receiver.normals,
     dispose() {
       receiver.dispose()
+      reflection.destroy()
       vsm.destroy()
       tiles.destroy()
       transmittance.destroy()

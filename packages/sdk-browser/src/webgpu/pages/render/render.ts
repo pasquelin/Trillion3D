@@ -158,5 +158,6 @@ function resetFrameCounters(run: WebgpuPagesRuntime['run']) {
   run.frame++
   run.feedbackWritten = false
   run.hizPyramidFresh = false
+  run.depthDrawn = false
   run.gpuMetricsReady = false
 }

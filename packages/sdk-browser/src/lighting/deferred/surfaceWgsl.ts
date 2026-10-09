@@ -51,7 +51,8 @@ const SURFACE_TERMS = {
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
- *  where its flag says so, and the environment goes under their coat (`../direct/lobesWgsl.ts`) —
+ *  where its flag says so, and the environment and the reflection (`resolvedReflection`, its
+ *  program's) go under their coat (`../direct/lobesWgsl.ts`) —
  *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
  *  multiplication by one, which changes no bit. */
 export const contractSurfaceBody = (bounce: boolean) => {
@@ -86,7 +87,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
- var rgb=lit+ambient+emissive.rgb${sum};${CAMERA_FOG}
+ var rgb=lit+ambient+resolvedReflection(coord,base.rgb,base.a,normal.a,N,V)+emissive.rgb${sum};${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

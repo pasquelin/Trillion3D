@@ -16,6 +16,7 @@ import {
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { encodeBlend, prepareBlend } from './encodeBlend.ts'
+import { encodeReflectionRadiance, encodeReflections } from '../../../reflections/frame.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
@@ -43,6 +44,10 @@ export function encodeSurfaceLighting(
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs.
   const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
+  for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
+  // What every surface reflects: the opaque ones traced here, the resolve's input; the blends and
+  // the water read the same view inline.
+  encodeReflections(rt, encoder, inverseViewProj, cameraWorldArray)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -51,7 +56,6 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   )
-  for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
   gpu.deferred.setJitter(taa?.active ? taa.jitter : null, stochasticPhase(taa))
@@ -70,6 +74,8 @@ export function encodeSurfaceLighting(
   const filter = beginDisplayFilter(rt, device)
   encodeBlend(rt, device, encoder, true, blendRuns)
   drawParticles(rt, encoder, directTiles())
+  // The lit image whole, before its resolve: the next image's reflections read it.
+  encodeReflectionRadiance(rt, encoder)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view)

@@ -1,5 +1,6 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { shadowsUnsettled } from '../pages/state/lights.ts'
+import { reflectionsSettled } from '../../reflections/gpu.ts'
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -20,6 +21,7 @@ const REASONS = [
   'cutPending',
   'bounceProbes',
   'deforming',
+  'reflections',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -70,7 +72,8 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (services.cutPending.count) mask |= BIT.cutPending
   return mask
 }
-/** The temporal histories still advancing: bounce probes and deformation. */
+/** The temporal histories still advancing: bounce probes, deformation, and the reflections' radiance
+ *  image while it is not yet one of the view standing still (`reflectionsSettled`). */
 function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   const { vis, bounce } = rt
   let mask = 0
@@ -79,6 +82,8 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
     mask |= BIT.bounceProbes
   // Deformation advances its own temporal history; its answers serve `frame`'s update alone.
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
+  if (!reflectionsSettled(rt.gpu.reflection, !!rt.gpu.temporal?.frame.active))
+    mask |= BIT.reflections
   return mask
 }
 /**

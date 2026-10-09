@@ -1,3 +1,4 @@
+import { reflectionLayout } from '../../reflections/gpu.ts'
 import { waterSurfaceEntry, waterSurfaceTargets } from './surfaceTargets.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
@@ -85,7 +86,9 @@ export async function createWaterComposites(
           code: waterRoutedShader(key),
         }))
       : module
-    const bindGroupLayouts = filtered ? [layout, displayMaskLayout(device)] : [layout]
+    // The reflection's group (`REFLECTION_GROUP`), then the display mask's when routed.
+    const reflection = reflectionLayout(device)
+    const bindGroupLayouts = [layout, reflection, ...(filtered ? [displayMaskLayout(device)] : [])]
     return {
       layout: device.createPipelineLayout({ bindGroupLayouts }),
       vertex: { module: code, entryPoint: 'fullscreen' },

@@ -7,6 +7,7 @@ import type { Texture } from '../../../../../sdk-core/src/index.ts'
 import type { GpuPartition } from '../../../gpu/partition/types.ts'
 import { SHADE_UNIFORM_WORDS } from '../../../visibility/shader/request.ts'
 import type { GpuHiz } from '../../../gpu/hiz/hiz.ts'
+import type { ReflectionPipelines } from '../../../reflections/gpu.ts'
 import type { GpuRaster } from '../../../gpu/raster/raster.ts'
 import type { GpuDraw } from '../../../gpu/draw/draw.ts'
 import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts'
@@ -64,6 +65,8 @@ export interface WebgpuVisState {
    *  the image writes the layer. Never unset, as `asIsShown`. */
   emissiveAoShown: boolean
   gpuHiz: GpuHiz | undefined
+  /** The reflection's kernels (`../../../reflections/gpu.ts`), made with the Hi-Z. */
+  reflectionPipelines: ReflectionPipelines | undefined
   gpuRaster: GpuRaster | undefined
   visHizRestBack: GPURenderPipeline | undefined
   visHizRestNone: GPURenderPipeline | undefined
@@ -142,6 +145,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     writesEmissiveAo: true,
     emissiveAoShown: false,
     gpuHiz: undefined,
+    reflectionPipelines: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,
     visHizRestNone: undefined,

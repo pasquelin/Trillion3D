@@ -15,11 +15,13 @@ import { type ContractKey, variantLabel } from '../../lighting/deferred/contract
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
+import { REFLECTION_GROUP, forwardReflectionWgsl } from '../../reflections/wgsl.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
  *  `lobeless`, a scene whose blend carries an anisotropic or clear-coat lobe: its fragment sets
- *  them (`physicalWgsl.ts`), its lights, environment and bounce go through them, a fragment
+ *  them (`physicalWgsl.ts`), its lights, environment, bounce and reflection go through them, a
+ *  fragment
  *  without them summing the very same terms (`../../lighting/direct/lobesWgsl.ts`). */
 const blendProgram = (key: Partial<ContractKey>) => {
   const lobes = !key.lobeless
@@ -36,6 +38,7 @@ const blendProgram = (key: Partial<ContractKey>) => {
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
       blendSurfaceWgsl(lobes),
+      forwardReflectionWgsl(REFLECTION_GROUP, lobes),
       ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
       blendFragmentWgsl(lobes),
     ],
@@ -64,7 +67,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
     [
       blendRequestWgsl(lobes),
       DISPLAY_ROUTE_WGSL,
-      displayMaskWgsl(1),
+      displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
       ROUGHNESS_FLOOR,
       wireframeEdge,
@@ -96,7 +99,7 @@ ${BLEND_DIAGNOSTIC}
    shadowFootprint=blendShadowFootprint(in.view);
    shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);
    blendLobes(in,front,g,s,V,clamped);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+s.emissive;
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+surfaceReflection(rgb,m,clamped,s.N,V,in.view)+s.emissive;
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
@@ -105,7 +108,8 @@ ${BLEND_DIAGNOSTIC}
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);
  return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,s.alpha*r.keep),r.tint,r.add);
 }
-// A filtered image's pipelines read the display mask (group 1); every other one reads none.
+// The reflection's resources are group 1 (\`REFLECTION_GROUP\`); a filtered image's pipelines read
+// the display mask (group 2), every other one reads none.
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `,

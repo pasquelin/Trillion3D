@@ -32,6 +32,8 @@ function pixelOf(r: () => number, t: number) {
     declared: { lit: big(), specular: big() },
     bounce: big(),
     environment: big(),
+    reflected: big(),
+    weight: v3(0, 1),
     through: { color: v3(0, 4), coverage: r() < 0.3 ? u(0, 1) : 1 },
     fog: u(0, 1),
   }
@@ -48,7 +50,7 @@ function runner(text: string) {
   const { waterColor } = shaderRun<{ waterColor: Color }>(
     text.replace('textureLoad(emissiveAo,', 'textureLoad(emissiveAoTexture,'),
     // With the lobeless program's stand-ins (`WATER_LOBELESS_WGSL`, `lobeThrough`) and the marks.
-    ['waterColor', 'waterLobes', 'lobeThrough', 'volumeMarked', 'fresnelScalar'],
+    ['waterColor', 'waterLobes', 'lobeThrough', 'lobeReflection', 'volumeMarked', 'fresnelScalar'],
     {
       ...Object.fromEntries(textures.map((name) => [name, { name }])),
       textureLoad: ({ name }: { name: keyof Pixel['textures'] }) => pixel.textures[name],
@@ -72,6 +74,8 @@ function runner(text: string) {
       declaredLightingPair: () => pixel.declared,
       bounceLighting: () => (lit++, pixel.bounce),
       environmentLighting: () => pixel.environment,
+      reflectedRadiance: () => pixel.reflected,
+      reflectionWeight: () => pixel.weight,
       transmittedBackdrop: () => pixel.through,
       fogged: (color: number[]) => color.map((c) => c * pixel.fog + 0.25 * (1 - pixel.fog)),
     },
