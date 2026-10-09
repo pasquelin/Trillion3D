@@ -1,10 +1,14 @@
 /**
  * THE CHECK OF A TRANSFER'S PAGES: the bytes one request brought, checked against what each of its
  * pages announced — a page's file whole, or each range where it lies in the ranges read end to end
- * (`../cluster/verified.ts`) —, each check told to the diagnostics that listen.
+ * (`../cluster/verified.ts`) —, each check told to the diagnostics that listen. A page that
+ * announced nothing (`StreamPage.sha256`) is a file read whole, taken as it came.
  */
 import { verifiedRun } from '../cluster/verified.ts'
 import type { StreamContext, StreamPage } from './types.ts'
+
+/** What one page of a transfer lands with: its bytes, or why they were refused. */
+type Checked = { bytes?: Uint8Array; refused?: unknown }
 
 /** `buffer`, the bytes one request read for `pages`, checked against what each announced, each
  *  check told: each page's bytes to keep, or its refusal (`corruptObject`). */
@@ -12,10 +16,12 @@ export async function checkedPages(
   { emit }: StreamContext,
   pages: readonly StreamPage[],
   buffer: ArrayBuffer,
-) {
+): Promise<Checked[]> {
+  const [first] = pages
+  if (first.sha256 === undefined) return [{ bytes: new Uint8Array(buffer) }]
   const actualBytes = buffer.byteLength
   const run = pages.map(({ url, bytes, sha256, range }) => {
-    return { url, bytes, sha256, offset: range?.offset ?? 0 }
+    return { url, bytes, sha256: sha256!, offset: range?.offset ?? 0 }
   })
   const checked = await verifiedRun(run, buffer)
   checked.forEach(({ bytes, found }, at) => {

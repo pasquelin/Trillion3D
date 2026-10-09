@@ -154,11 +154,15 @@ test("a CPU total applies live to the world's page cache, the one every session 
   const pools = worldPools()
   const handle = budget(null, {}, pools)
   const page = new Uint8Array(MIB)
-  for (let i = 0; i < 8; i++) pools.pageCache.touch(`p${i}`, page)
+  const urls = Array.from({ length: 8 }, (_, i) => `p${i}`)
+  for (const url of urls) pools.pageCache.put(url, page)
   handle.cpu = 3 * MIB
   assert.equal(pools.pageCache.cpuBytes, 3 * MIB)
   // No session reads: pages leave oldest first, at once, not at the next scene load.
-  assert.deepEqual([...pools.pageCache.pages.keys()], ['p5', 'p6', 'p7'])
+  assert.deepEqual(
+    urls.filter((url) => pools.pageCache.page(url)),
+    ['p5', 'p6', 'p7'],
+  )
   // Every session the world opens — a reopen after a device loss among them — reads this cache.
   assert.equal(sessionPools(pools).pageCache, pools.pageCache)
   assert.equal(sessionPools(pools).pageCache, sessionPools(pools).pageCache)

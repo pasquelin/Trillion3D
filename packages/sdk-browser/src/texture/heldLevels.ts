@@ -1,6 +1,7 @@
 import {
   requestedLevelBytes,
   type TextureLevel,
+  type TextureLevelAddress,
   type TextureLevelReader,
   type TextureLevelRequest,
 } from './levelReader.ts'
@@ -15,7 +16,7 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts'
  * Cooked levels and block tile records, held long enough to cut tiles from them.
  *
  * A lossless tile is read in its whole level, decoded by the browser: a PNG is not cut by bytes. A
- * block tile is read alone, its record by one HTTP Range through its file's one reader
+ * block tile is read alone, its record by one HTTP Range through the page cache
  * (`levelReader.ts`, `texture/tileRecords.ts`). Levels and records stay, the least recently read
  * leaving first, in the store the reader names — that of the page cache the session reads through,
  * within its CPU total, a world's kept across a device loss (`texture/levelStore.ts`) — or, for a
@@ -29,7 +30,7 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts'
  * or a block answer that is not the record asked — is refused for good: reported once, never held,
  * never read again. Its tiles stay served by their coarse level, and the diagnostic says so.
  */
-export type LevelKey = TextureLevelRequest
+export type LevelKey = TextureLevelAddress
 
 /** Block bytes that are not the whole blocks their dimensions imply: a tile's record answered
  *  short or foreign, or a tail level (`webgpu/tile/writeBlocks.ts`). */
@@ -42,13 +43,14 @@ type Size = readonly [width: number, height: number]
 
 export type HeldLevels = {
   /** What the tile is cut from if it is there, marking it read — a lossless level, or a block
-   *  tile's record —; otherwise `undefined`, launching nothing. */
-  get(key: LevelKey, tx: number, ty: number): TextureLevel | undefined
-  /** Starts the read if it is neither there, nor in flight, nor held back by a failure, and fits
-   *  (the store's `room`, less the reads in flight); its bytes are reckoned and checked from the
-   *  level's dimensions, `size`. False when it cannot fit at all: nothing will come until room comes
-   *  back, and its tile stays at its coarser level. */
-  request(key: LevelKey, frame: number, size: Size, tx: number, ty: number): boolean
+   *  tile's record —, by its `levelId`; otherwise `undefined`, launching nothing. */
+  get(id: string): TextureLevel | undefined
+  /** Starts the read of `key`'s tile `tx`, `ty`, held under `id` (`levelId`), if it is neither
+   *  there, nor in flight, nor held back by a failure, and fits (the store's `room`, less the reads
+   *  in flight); its bytes are reckoned and checked from the level's dimensions, `size`. False when
+   *  it cannot fit at all: nothing will come until room comes back, and its tile stays at its
+   *  coarser level. */
+  request(key: LevelKey, id: string, frame: number, size: Size, tx: number, ty: number): boolean
   readonly inFlight: number
   readonly fetched: number
   readonly bytes: number
@@ -58,11 +60,17 @@ export type HeldLevels = {
 }
 
 // The format is in the key: a session that changes family mid-life reads the other file.
-const keyOf = ({ sha256, atlas, level, format }: LevelKey) =>
+/** The level file `level` names: the key its failures wait under. */
+const fileOf = ({ sha256, atlas, level, format }: LevelKey) =>
   `${sha256}/${atlas}/${level}/${format}`
-/** What `level` is held under: the whole level when lossless, else the tile `tx`, `ty`'s record. */
-const idOf = (level: LevelKey, tx: number, ty: number) =>
-  level.format === PREVIEW_LOSSLESS_FORMAT ? keyOf(level) : `${keyOf(level)}/${tx},${ty}`
+/** What `level` is held under, one string a tile asked: the whole level when lossless — its file
+ *  —, else the tile `tx`, `ty`'s record. */
+export function levelId(key: LevelKey, tx: number, ty: number) {
+  const { sha256, atlas, level, format } = key
+  return format === PREVIEW_LOSSLESS_FORMAT
+    ? fileOf(key)
+    : `${sha256}/${atlas}/${level}/${format}/${tx},${ty}`
+}
 
 export function createHeldLevels(options: {
   read: TextureLevelReader
@@ -71,8 +79,11 @@ export function createHeldLevels(options: {
   const { read } = options,
     store = read.store ?? createTextureLevelStore(textureLevelShare(DEFAULT_CACHED_BYTES)),
     pending = new Map<string, Promise<void>>(),
-    /** Each level file's failures in a row, by its key. */
-    failures = createReadFailures(),
+    /** Each level file's failures in a row, by its key: a record that is not the one asked is
+     *  refused for good. */
+    failures = createReadFailures({
+      retriable: (error) => !(error instanceof LevelBytesError) && retriableError(error),
+    }),
     // The cook the reader was made for: a read landing once the store holds another's keeps
     // nothing.
     key = read.store ? read.key : store.key
@@ -83,24 +94,25 @@ export function createHeldLevels(options: {
     reading = 0,
     fetched = 0
   return {
-    get: (level, tx, ty) => store.get(idOf(level, tx, ty)),
-    request(level, frame, size, tx, ty) {
-      const file = keyOf(level),
-        id = idOf(level, tx, ty)
-      if (store.has(id) || pending.has(id) || failures.blocked(file)) return true
+    get: (id) => store.get(id),
+    request(level, id, frame, size, tx, ty) {
+      if (store.has(id) || pending.has(id)) return true
+      const lossless = level.format === PREVIEW_LOSSLESS_FORMAT,
+        file = lossless ? id : fileOf(level)
+      if (failures.blocked(file)) return true
       if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()]
       // The record is reckoned where it is needed: a waiting tile asks every frame.
-      const record =
-          level.format === PREVIEW_LOSSLESS_FORMAT
-            ? undefined
-            : tileRecord(size[0], size[1], tx, ty),
+      const record = lossless ? undefined : tileRecord(size[0], size[1], tx, ty),
         bytes = record?.bytes ?? requestedLevelBytes(level, size)
       if (bytes > room) return false
       // The reads in flight hold their room: one that fits only once they have landed waits for
       // them, rather than landing to shed a level read for a tile not cut yet.
       if (reading + bytes > room) return true
       reading += bytes
-      const landing = read(record ? { ...level, range: record } : level)
+      const request: TextureLevelRequest = record
+        ? { ...level, kind: 'block', range: record }
+        : { ...level, kind: 'lossless' }
+      const landing = read(request)
         .then((texels) => {
           if (texels instanceof Uint8Array && texels.byteLength !== record?.bytes)
             throw new LevelBytesError(size, texels.byteLength)
@@ -109,7 +121,7 @@ export function createHeldLevels(options: {
           store.take(id, texels, key)
         })
         .catch((error: unknown) => {
-          failures.record(file, error, !(error instanceof LevelBytesError) && retriableError(error))
+          failures.record(file, error)
           options.onFailure(level, error)
         })
         .finally(() => {
@@ -156,9 +168,10 @@ export function readHeldLevel(
   ty = 0,
   roomFor: () => boolean = () => true,
 ): TextureLevel | 'waiting' | 'refused' {
-  const held = levels.get(key, tx, ty)
+  const id = levelId(key, tx, ty)
+  const held = levels.get(id)
   if (held) return held
   if (!roomFor()) return 'refused'
   if (levels.inFlight >= MAX_LEVEL_READS) return 'waiting'
-  return levels.request(key, frame, size, tx, ty) ? 'waiting' : 'refused'
+  return levels.request(key, id, frame, size, tx, ty) ? 'waiting' : 'refused'
 }

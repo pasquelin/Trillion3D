@@ -136,8 +136,8 @@ export async function loadModel(
     signal?: AbortSignal
     textureSource: 'host' | 'cache'
     onProgress?: (event: JobProgress) => void
-    /** The world's page cache: its one reader of each binary serves the model's world roots. */
-    pageCache?: PageCache
+    /** The world's page cache: the model's world roots are read through it, as every session's. */
+    pageCache: PageCache
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options
@@ -158,7 +158,7 @@ export async function loadModel(
         manifestUrl,
         textureSource,
         meter,
-        pageCache: options.pageCache,
+        worldRead: { cache: options.pageCache },
         onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },

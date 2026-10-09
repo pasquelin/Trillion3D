@@ -28,7 +28,14 @@ test('a block level is read as bytes at the address of its format', async () => 
   const reader = createTextureLevelReader(manifest, BASE, createPageCache())!
   const asked = serve(new Uint8Array(17 * 3 * 16))
   const range = { offset: 0, bytes: 816 }
-  const level = await reader({ sha256: SHA, atlas: 1, level: 1, format: 'bc7', range })
+  const level = await reader({
+    sha256: SHA,
+    atlas: 1,
+    level: 1,
+    format: 'bc7',
+    kind: 'block',
+    range,
+  })
   assert.equal(asked[0], `https://host/textures/v6/${SHA}/linear-1.bc7`)
   assert.ok(level instanceof Uint8Array)
   assert.equal(level.byteLength, 816)
@@ -50,6 +57,7 @@ test('a level with its own url is read there, not through the template', async (
     level: 0,
     format: 'png',
     url: '../../objects/aa.bin',
+    kind: 'lossless',
   })
   assert.equal(asked[0], 'https://host/objects/aa.bin')
   assert.ok(level)

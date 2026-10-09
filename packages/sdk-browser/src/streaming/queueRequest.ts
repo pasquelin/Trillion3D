@@ -2,20 +2,15 @@ import type { Job, StreamContext } from './types.ts'
 import { createJob } from './queueJob.ts'
 
 /** The page when the cache holds it (a hit, touched), nothing when it does not (a miss, counted). */
-export function answerFromCache(
-  context: StreamContext,
-  touch: (url: string, bytes: Uint8Array) => void,
-  url: string,
-) {
-  const { state, cache, emit } = context
-  const cached = cache.get(url)
+export function answerFromCache(context: StreamContext, url: string) {
+  const { state, store, emit } = context
+  const cached = store.touch(url)
   if (cached) {
     state.hits++
-    touch(url, cached)
     emit?.('page-cache-hit', 'Page already resident', () => ({
       version: 1,
       url,
-      resident: cache.size,
+      resident: store.pageCount,
     }))
     return cached
   }
@@ -23,7 +18,7 @@ export function answerFromCache(
   emit?.('page-cache-miss', 'Page missing from the cache', () => ({
     version: 1,
     url,
-    resident: cache.size,
+    resident: store.pageCount,
   }))
   return undefined
 }
@@ -43,7 +38,8 @@ export function jobFor(
     job = createJob(catalog.get(url)!, priority, state.order++)
     jobs.set(url, job)
     sync(url)
-    if (failures.waiting(url)) job.state = 'waiting'
+    // Refused for good, it was refused before any job: one held back now waits its turn.
+    if (failures.blocked(url)) job.state = 'waiting'
     else queue.push(job)
     return job
   }

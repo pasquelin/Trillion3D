@@ -7,7 +7,7 @@
  * failure is reported, never swallowed. There is no second loader and no second budget.
  */
 import { PREVIEW_LOSSLESS_FORMAT, type ImpostorMaps } from '../../../sdk-core/src/index.ts'
-import type { TextureLevel, TextureLevelRequest } from '../texture/levelReader.ts'
+import type { TextureLevel, TextureLevelAddress } from '../texture/levelReader.ts'
 import type { HeldLevels } from '../texture/heldLevels.ts'
 import { core } from './borrowed.ts'
 
@@ -32,14 +32,14 @@ export function loadImpostorAtlas(
   for (const name of MAP_NAMES) {
     const chain: TextureLevel[] = (atlas[name] = [])
     maps[name].levels.forEach(({ sha256, url, width, height }, level) => {
-      const request: TextureLevelRequest = {
+      const address: TextureLevelAddress = {
         sha256,
         atlas: 0,
         level,
         format: PREVIEW_LOSSLESS_FORMAT,
         url,
       }
-      const held = core.readHeldLevel(levels, request, frame, [width, height])
+      const held = core.readHeldLevel(levels, address, frame, [width, height])
       if (typeof held !== 'string') chain.push(held)
       else if (verdict !== 'refused') verdict = held
     })

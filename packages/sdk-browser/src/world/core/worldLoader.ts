@@ -12,8 +12,8 @@ import type { PageCache } from '../../streaming/pageCache.ts'
 export function worldModelLoader(
   ready: Promise<unknown>,
   signal: AbortSignal | undefined,
-  /** The world's page cache, whose one reader of each binary its models and sessions share. */
-  pageCache?: PageCache,
+  /** The world's page cache, which its models and sessions read through. */
+  pageCache: PageCache,
 ) {
   let models = 0
   return async (url: string, load: LoadOptions) => {

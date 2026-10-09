@@ -28,7 +28,7 @@ function down<T>({ items, before, put }: Heap<T>, at: number) {
  * THE ONE HEAP: a binary min-heap of `T` in the order `before` gives, each item's place told to
  * `placed` as it moves, so an item that keeps its place is taken out, or settles again once its key
  * changed, in O(log n) wherever it stands. The streamer's jobs (`sdk-browser/src/streaming/
- * queueOrder.ts`), the cache's eviction order (`cacheEvictionOrder.ts`), the failed reads' waits
+ * queueOrder.ts`), the host caches' entries (`cacheEntries.ts`), the failed reads' waits
  * (`failures.ts`), the places a search of the queue visits, a tile pool's victims
  * (`webgpu/tile/victimHeap.ts`) and the impostor roots waiting on the view (`sdk-core/src/impostor/
  * watch.ts`) are all this heap.

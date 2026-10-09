@@ -63,10 +63,10 @@ export function worldRecovered(
   runtime: { renew(cause: 'device-lost'): void },
   frames: { add(hook: () => void): () => void },
   notices: WorldNotices,
-  kept: { readonly pages: ReadonlyMap<string, unknown> },
+  kept: { readonly pageCount: number },
   lostAt: number,
 ) {
-  const keptPages = kept.pages.size
+  const keptPages = kept.pageCount
   runtime.renew('device-lost')
   const remove = frames.add(() => {
     remove()

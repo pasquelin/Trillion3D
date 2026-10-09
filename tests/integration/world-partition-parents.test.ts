@@ -18,6 +18,7 @@ import type { PlacementRows } from '../../packages/sdk-browser/src/placement/row
 import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts'
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts'
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
+import { createPageCache } from '../../packages/sdk-browser/src/streaming/pageCache.ts'
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
 import {
   createPartitionFrame,
@@ -36,7 +37,11 @@ test(
     t.after(() => rm(root, { recursive: true, force: true }))
     const pointer = await compiled(root, world(96, 'district'))
     machine(t, pointer)
-    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' })
+    const model = await loadModel(pointer.href, {
+      textureSource: 'host',
+      scope: 'full',
+      pageCache: createPageCache(),
+    })
     const [cells] = model.record.scene.partitions
     const streamer = createPageStreamer(cells.pages, model.record.base)
     // The camera stands where the middle of the district will be, 5 km from where it is.
@@ -107,7 +112,11 @@ test(
     t.after(() => rm(root, { recursive: true, force: true }))
     const pointer = await compiled(root, world(384, 'district'))
     machine(t, pointer)
-    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' })
+    const model = await loadModel(pointer.href, {
+      textureSource: 'host',
+      scope: 'full',
+      pageCache: createPageCache(),
+    })
     const [cells] = model.record.scene.partitions
     const streamer = createPageStreamer(cells.pages, model.record.base)
     // The camera stands where the middle of the district will be once it is four times smaller.

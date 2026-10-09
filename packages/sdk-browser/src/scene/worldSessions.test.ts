@@ -9,7 +9,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
-import { heldBy, opened, served, sha } from './worldRoots.fixture.ts'
+import { heldBy, modelRead, opened, served, sha } from './worldRoots.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 
 const turns = async (count = 4) => {
@@ -62,7 +62,15 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
   const { manifest, asked, release } = wholeOnRelease(t)
   const cache = createPageCache(),
     load = new AbortController()
-  const loading = openWorldRoots(manifest, 'http://world/', load.signal, undefined, true, { cache })
+  const loading = openWorldRoots(
+    manifest,
+    'http://world/',
+    { cache },
+    {
+      signal: load.signal,
+      whole: true,
+    },
+  )
   while (!asked.length) await turns(1) // the table read and checked: the binary asked
   load.abort()
   await assert.rejects(loading, { name: 'AbortError' })
@@ -74,7 +82,8 @@ test('a load let go while the whole binary downloads stops it: the page cache ke
 test("a page a closed session's engine asked is let go with its signal: it never waits on a bind", async (t) => {
   const { clusters, groups } = worldRootsDag()
   const { manifest } = served(t, { dag: { clusters, groups } })
-  const roots = (await openWorldRoots(manifest, 'http://world/'))! // a world's model: no session yet
+  // A world's model: no session yet.
+  const roots = (await openWorldRoots(manifest, 'http://world/', modelRead()))!
   const stream = await roots.stream()
   const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
   const engine = new AbortController()

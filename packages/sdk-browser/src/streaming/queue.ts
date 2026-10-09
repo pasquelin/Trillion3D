@@ -12,13 +12,13 @@ import { answerFromCache, dropQueued, jobFor } from './queueRequest.ts'
 export function createStreamingQueue(
   context: StreamContext,
   read: (jobs: readonly Job[], signal: AbortSignal) => Promise<Landed[]>,
-  touch: (url: string, bytes: Uint8Array) => void,
-  evict: () => void,
-  /** Marks a page's hold in the cache's eviction order when its transfer starts or ends. */
-  sync: (url: string) => void,
+  /** The session's side of the cache: its hold on a page follows its transfer (`sync`), a page
+   *  that leaves the catalogue leaves the cache (`drop`), and it evicts once a transfer settled. */
+  pages: { sync(url: string): void; drop(url: string): void; evict(): void },
 ) {
   const { state, abort, catalog, emit, abortError, failures, queue } = context
-  const { end, forget, keep, forgotten } = createQueueEnds(context, sync)
+  const { sync, evict } = pages
+  const { end, forget, keep, forgotten } = createQueueEnds(context, pages)
   const pump = createPump(context, { read, end, evict, forgotten })
   let owed = false
   const later = () => {
@@ -40,9 +40,9 @@ export function createStreamingQueue(
     if (requestSignal.aborted) return Promise.reject(requestSignal.reason ?? abortError())
     if (!catalog.has(url)) return Promise.reject(new Error('Unknown page ' + url))
     // A read that failed for good is refused at once (`failures.ts`).
-    const refused = failures.refusal(url)
-    if (refused) return Promise.reject(refused)
-    const cached = answerFromCache(context, touch, url)
+    const blocked = failures.blocked(url)
+    if (blocked?.final) return Promise.reject(blocked.error)
+    const cached = answerFromCache(context, url)
     if (cached) return Promise.resolve(cached)
     const job = jobFor(context, sync, url, priority)
     // Its owner's signal alone: the streamer's own ends every job at once (`pageStreamer.ts`).

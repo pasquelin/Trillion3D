@@ -108,7 +108,7 @@ test('a recovered world reopens its session and says the time to its first frame
     draw: () => [...hooks].forEach((hook) => hook()),
   }
   const cache = createPageCache()
-  cache.touch('kept.bin', new Uint8Array(4))
+  cache.put('kept.bin', new Uint8Array(4))
   let renewed = 0
   worldRecovered({ renew: () => renewed++ }, frames, notices, cache, performance.now() - 5)
   assert.equal(renewed, 1, 'the session reopens on the device granted again')

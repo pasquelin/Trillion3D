@@ -74,13 +74,12 @@ export function openExplorerPageSources(
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   // The one cache every reader of the session shares — its world's, kept across a device loss, or
-  // the session's own —: the texture levels are held beside its pages, their files read by its
-  // readers (`createTextureLevelReader`), and the scene's proxy is kept whole there
-  // (`createSceneProxyReader`). The session's own cache ends with it: its kept read is cancelled
-  // as the session closes.
+  // the session's own —: the texture levels are held beside its pages, their files read through
+  // it (`createTextureLevelReader`), and the scene's proxy is kept whole there
+  // (`createSceneProxyReader`). The session's own cache ends with it: emptied, its kept read
+  // cancelled, as the session closes.
   const pageCache = options.pageCache ?? createPageCache()
-  if (!options.pageCache)
-    signal?.addEventListener('abort', () => pageCache.keepOnly(), { once: true })
+  if (!options.pageCache) signal?.addEventListener('abort', () => pageCache.clear(), { once: true })
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
     cache: pageCache,
     signal,
@@ -92,7 +91,7 @@ export function openExplorerPageSources(
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
         ? diagnosticChannel.emit
         : undefined,
-    onStalled: ({ url, cause }) => stalled(`${url}: ${String(cause)}`, streamer.stats().failed),
+    onStalled: ({ key, cause }) => stalled(`${key}: ${String(cause)}`, streamer.stats().failed),
   })
   const preload = options.preload ?? 'visible'
   const sources = preloaded(pages, options, base, signal, progress).then((read) => ({

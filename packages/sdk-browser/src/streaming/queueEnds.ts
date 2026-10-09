@@ -3,8 +3,12 @@ import { manifestEntryBytes } from './manifestTables.ts'
 
 /** How a streamer's jobs end and its pages leave the catalogue: a page `forget` asks to drop
  *  while a job holds it leaves when that job ends (`end`), unless `keep` takes it back first. */
-export function createQueueEnds(context: StreamContext, sync: (url: string) => void) {
-  const { jobs, state, catalog, store, failures, abortError } = context
+export function createQueueEnds(
+  context: StreamContext,
+  pages: { sync(url: string): void; drop(url: string): void },
+) {
+  const { jobs, state, catalog, failures, abortError } = context
+  const { sync } = pages
   /** Pages `forget` asked to drop while a job held them. */
   const forgotten = new Set<string>()
   /** A page leaves the catalogue with its bytes, and with its failure unless its wait runs:
@@ -12,7 +16,7 @@ export function createQueueEnds(context: StreamContext, sync: (url: string) => v
   const drop = (url: string) => {
     if (!catalog.delete(url)) return
     failures.leaves(url)
-    store.drop(url)
+    pages.drop(url)
     state.tableBytes -= manifestEntryBytes(url)
   }
   /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. After

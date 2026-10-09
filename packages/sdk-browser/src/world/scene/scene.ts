@@ -8,8 +8,7 @@ import { prepareMathBatch } from '../../page/decode/batch/batchState.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
-import { openWorldRoots } from '../../scene/worldRoots.ts'
-import type { PageQueue } from '../../streaming/types.ts'
+import { openWorldRoots, type WorldRead } from '../../scene/worldRoots.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
@@ -22,9 +21,9 @@ import { hostWorldPlacements } from '../../host/world/placements.ts'
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
-  /** The session's queue the scene loads through, its world roots bound to it; without one (a
-   *  world's model), they are read by the reader of `pageCache`. */
-  queue?: PageQueue
+  /** What the scene's world roots are read through: the session's queue it loads for, bound to
+   *  it, or — a world's model, before any session — its world's page cache. */
+  worldRead: WorldRead
 }
 
 /** What one prepared scene's load reads and reports through. */
@@ -70,9 +69,10 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
     }),
-    openWorldRoots(metadata, base, signal, options.meter, !tables.partition, {
-      queue: options.queue,
-      cache: options.pageCache,
+    openWorldRoots(metadata, base, options.worldRead, {
+      signal,
+      meter: options.meter,
+      whole: !tables.partition,
     }),
   ])
   if (skipBaked && metadata.textures)

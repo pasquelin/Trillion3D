@@ -84,7 +84,7 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
       flying--
       return respond()
     },
-    ({ url }) => void said.push(url),
+    ({ key }) => void said.push(key),
   )
   /** Frames every 250 ms until `end`, each after the waits over by then told their turn. */
   const frames = async (end: number, until = () => false) => {

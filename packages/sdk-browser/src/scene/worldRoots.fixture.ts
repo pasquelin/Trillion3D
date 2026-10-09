@@ -9,9 +9,13 @@ import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRe
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 import type { PageStreamerOptions } from '../streaming/types.ts'
 
 export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
+
+/** How a world's model reads its world roots before any session: through its page cache. */
+export const modelRead = () => ({ cache: createPageCache() })
 
 /** How `served` answers: the world it serves (the cook's fixture by default), its binary as the
  *  server holds it, whether the server ignores the Range, the world DAG its cook writes beside
@@ -71,9 +75,7 @@ export async function opened(t: TestContext, manifest: ClusterManifest, opening:
   const options = { workerCount: transfers, onStalled, maxTransferBytes }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
-  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter, whole, {
-    queue,
-  }))!
+  const roots = (await openWorldRoots(manifest, 'http://world/', { queue }, { meter, whole }))!
   return { roots, queue }
 }
 

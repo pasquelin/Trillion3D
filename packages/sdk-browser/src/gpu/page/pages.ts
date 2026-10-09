@@ -12,8 +12,7 @@ import {
   unloadPage,
 } from './cacheOps.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
-import { checked, ONE_REQUEST } from '../../cluster/checked.ts'
-import { createReadFailures } from '../../streaming/failures.ts'
+import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
@@ -140,25 +139,18 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   }
   return context
 }
-/** A page source that fetches pages over HTTP, by key, from `baseUrl`, one request a read. A page
- *  whose read failed is refused, no request sent, until its wait ends — or for good when another
- *  request would meet its failure again (`streaming/failures.ts`). It joins no reads: two loads of
- *  one page in flight send two requests. */
+/** A page source that fetches pages over HTTP, by key, from `baseUrl`, through a page streamer of
+ *  its own (`streaming/pageStreamer.ts`): each key read joins its one job, so two loads of one page
+ *  in flight send one request, and a page whose read failed waits its turn by the one failure
+ *  policy, its loads waiting on it — or is refused for good when another request would meet its
+ *  failure again (`streaming/failures.ts`). It announces nothing of a page: its bytes are taken as
+ *  the server sends them, and kept by the loads alone. */
 export function httpPageSource(baseUrl: string): PageSource {
-  const failures = createReadFailures()
+  const streamer = createPageStreamer([], baseUrl)
   return {
-    async read(key, signal) {
-      const blocked = failures.blocked(key)
-      if (blocked) throw blocked
-      try {
-        const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST)
-        const bytes = new Uint8Array(await response.arrayBuffer())
-        failures.passed(key)
-        return bytes
-      } catch (error) {
-        if (!signal?.aborted) failures.record(key, error)
-        throw error
-      }
+    read(key, signal, priority) {
+      streamer.admit([{ url: key, bytes: 0, kept: false }])
+      return streamer.readBytes(key, signal ?? streamer.signal, priority)
     },
   }
 }

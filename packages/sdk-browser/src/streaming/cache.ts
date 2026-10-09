@@ -2,37 +2,45 @@ import type { StreamContext } from './types.ts'
 import { createStreamingPins } from './streamingPins.ts'
 
 /** A session's side of the page cache: its budget, its holds and its evictions. `reserved` is what
- *  it takes off the total beside its pages; `holder` is what it hands `store.hold`. */
+ *  it takes off the total beside its pages; `holder` is what it hands `store.attach`. */
 export function createStreamingCache(context: StreamContext, reserved: () => number) {
-  const { store, cache, state, maxPages, pinned, jobs, emit, onEvict } = context
-  const touch = store.touch
+  const { store, state, maxPages, pinned, jobs, emit, onEvict } = context
   /** The page budget, read once per eviction: it sums the engine's tables, which the pages
    *  leaving do not move. */
   let budget = 0
-  const over = () => (!!maxPages && maxPages >= 1 && cache.size > maxPages) || store.bytes > budget
-  /** While this session holds the cache, the cache's eviction order keeps its holds: each pin or
-   *  transfer that starts or ends is marked there (`sync`). A session another one has replaced is
-   *  closing: it marks nothing, and evicts nothing — the session in place does, past its own holds. */
-  const owns = () => store.holds(holder)
+  const over = () =>
+    (!!maxPages && maxPages >= 1 && store.pageCount > maxPages) || store.bytes > budget
+  /** The pages this session holds in the cache: those the frame keeps and those in flight, one
+   *  hold each, whatever keeps it. */
+  const holding = new Set<string>()
+  /** `url`'s hold follows its pin and its transfer: taken when one starts, given back when both
+   *  ended. */
   const sync = (url: string) => {
-    if (!owns()) return
-    if (pinned.has(url) || jobs.has(url)) store.order.hold(url)
-    else store.order.release(url)
+    const wanted = pinned.has(url) || jobs.has(url)
+    if (wanted === holding.has(url)) return
+    if (wanted) {
+      holding.add(url)
+      store.acquire(url)
+    } else {
+      holding.delete(url)
+      store.release(url)
+    }
   }
-  /** Bytes no eviction may take: the pages the frame keeps and those in flight, the files kept
-   *  whole a read waits on. */
-  const heldBytes = () => store.order.heldBytes
-  const evictOne = (url: string) => {
-    // A file kept whole (`PageCache.reader`) leaves by the same order, but it is no page.
-    if (!cache.has(url)) return store.drop(url)
+  /** The page at `url` leaves the cache, its hold with it: taken again while the session still
+   *  pins or reads it. */
+  const drop = (url: string) => {
     store.drop(url)
+    holding.delete(url)
+    sync(url)
+  }
+  const evicted = (url: string) => {
     state.evictions++
     emit?.('page-cache-eviction', 'Page evicted from the LRU cache', () => ({
       version: 1,
       url,
       reason: 'capacity',
       drawDetached: false,
-      resident: cache.size,
+      resident: store.pageCount,
       residentBytes: store.bytes,
       maxPages: maxPages ?? null,
       maxCachedBytes: store.budgetBytes,
@@ -42,7 +50,7 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
   /** What is held beside the pages yields to those the frame keeps or reads, before any page
    *  leaves, so none is evicted that fits once it has gone: it never costs the image a page.
    *  The decoded texture levels first, the least recently read first — read again when a
-   *  tile asks and they fit —, then the kept file, read again after a device loss. A notice says
+   *  tile asks and they fit —, then the kept proxy, read again after a device loss. A notice says
    *  what each gave back. */
   const yielded = (phase: string, message: string, bytes: number) => {
     budget = store.budgetBytes
@@ -71,17 +79,19 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
       kept,
     )
   }
+  /** While this session reads through the cache, it evicts past what is held. A session another
+   *  one has replaced is closing: the session in place evicts. */
   const evict = () => {
-    if (!owns()) return
+    if (!store.attached(holder)) return
     budget = store.budgetBytes
     if (!over()) return
-    const held = heldBytes()
+    const held = store.heldBytes
     if (held > budget) yieldBeside(held)
-    if (!store.order.evict(over, evictOne) && over()) {
+    if (!store.evict(over, evicted) && over()) {
       state.admissionBlocked++
       emit?.('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
         version: 1,
-        resident: cache.size,
+        resident: store.pageCount,
         residentBytes: store.bytes,
         maxPages: maxPages ?? null,
         maxCachedBytes: store.budgetBytes,
@@ -97,7 +107,12 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
     state.reservedBytes = bytes
     evict()
   }
-  const holder = { reserved, held: heldBytes, evict }
+  /** The session's holds end with it: what it pinned or read stays cached for the next one. */
+  const close = () => {
+    for (const url of holding) store.release(url)
+    holding.clear()
+  }
+  const holder = { reserved, evict }
   const { retain, retainRanks } = createStreamingPins(context, sync, evict)
-  return { touch, evict, sync, holder, retain, retainRanks, reserve }
+  return { evict, sync, drop, close, holder, retain, retainRanks, reserve }
 }

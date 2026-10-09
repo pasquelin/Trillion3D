@@ -44,8 +44,9 @@ export interface StreamPage {
   url: string
   /** Its size. */
   bytes: number
-  /** Fingerprint of its bytes. */
-  sha256: string
+  /** Fingerprint of its bytes, which its read checks with its size; none for a page its source
+   *  announces nothing of (`httpPageSource`): its bytes are taken as its server sends them. */
+  sha256?: string
   /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the
    *  queue reads the ranges queued end to end in one file by one request (`queueRanges.ts`). */
   range?: { file: string; offset: number }
@@ -81,9 +82,9 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
-  /** Hears, once, a read that fails for good or first waits the longest: again only after it
-   *  landed. */
-  onStalled?: (failure: { url: string; cause: unknown }) => void
+  /** Hears, once, a read that fails for good or first waits the longest, by its page's url: again
+   *  only after it landed. */
+  onStalled?: (failure: { key: string; cause: unknown }) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
   maxCachedBytes?: number
@@ -111,9 +112,8 @@ export type Job = {
 export type StreamContext = {
   base: string
   catalog: Map<string, StreamPage>
-  /** The decoded-page cache the streamer reads through, and its pages. */
+  /** The decoded-page cache the streamer reads through. */
   store: PageCache
-  cache: PageCache['pages']
   jobs: Map<string, Job>
   queue: TransferQueue
   pinned: Set<string>

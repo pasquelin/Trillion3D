@@ -1,14 +1,15 @@
-// A server that ignores the Range answers the whole file: its download is the reader's, shared by
-// every range waiting on it, and stops only once none does. Landed, it is one entry of the page
-// cache among the pages, evicted as they are but never under a read. A texture level file is read
-// the same way, through the page cache's one reader of it.
+// A server that ignores the Range answers the whole file: its download is shared by every range
+// waiting on it, and stops only once none does. Landed, it is one entry of the page cache among
+// the pages, counted once and evicted as they are, never while a read waits on its download. A
+// texture level file is read the same way, through the page cache.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { rangedReader } from './ranged.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createTextureLevelReader } from '../texture/levelReader.ts'
-import { createHeldLevels } from '../texture/heldLevels.ts'
+import { createHeldLevels, levelId } from '../texture/heldLevels.ts'
 import { tileRecord, tiledLevelBytes } from '../texture/tileRecords.ts'
+
+const URL = 'http://cache/world.bin'
 
 /** A server sending the whole of `file` whatever the Range, its body held until `land`, cut off
  *  by the request's signal: the signals of the requests sent. */
@@ -36,46 +37,45 @@ function wholeServer(t: TestContext, file: Uint8Array) {
 
 test('the whole file a server sends outlives the read that asked it first: the others still read it', async (t) => {
   const { signals, land } = wholeServer(t, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
-  const read = rangedReader('http://cache/world.bin')
+  const cache = createPageCache()
   const [first, other] = [new AbortController(), new AbortController()]
-  const asked = read(0, 4, { signal: first.signal })
-  const still = read(4, 4, { signal: other.signal })
+  const asked = cache.readRange(URL, 0, 4, { signal: first.signal })
+  const still = cache.readRange(URL, 4, 4, { signal: other.signal })
   await new Promise(setImmediate)
   first.abort()
   await assert.rejects(asked, { name: 'AbortError' })
   assert.equal(signals[0].aborted, false, 'the download goes on for the other range')
   land()
   assert.deepEqual([...new Uint8Array(await still)], [5, 6, 7, 8])
-  assert.deepEqual([signals.length, read.held()], [1, 8], 'sent once, kept whole')
+  assert.deepEqual([signals.length, cache.bytes], [1, 8], 'sent once, kept whole')
 })
 
 test('the whole download stops once no range waits on it any more', async (t) => {
   const { signals, land } = wholeServer(t, new Uint8Array(8))
   t.after(land)
-  const read = rangedReader('http://cache/world.bin')
+  const cache = createPageCache()
   const asks = [new AbortController(), new AbortController()]
-  const reads = asks.map(({ signal }, at) => read(at * 4, 4, { signal }))
+  const reads = asks.map(({ signal }, at) => cache.readRange(URL, at * 4, 4, { signal }))
   await new Promise(setImmediate)
   asks.forEach((ask) => ask.abort())
   for (const each of reads) await assert.rejects(each, { name: 'AbortError' })
-  assert.equal(signals[0].aborted, true)
+  assert.deepEqual([signals[0].aborted, cache.bytes], [true, 0], 'stopped, nothing kept')
 })
 
 test('ranges asked at once before the server answered one send one request: never two whole files', async (t) => {
   const { signals, land } = wholeServer(t, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))
-  const read = rangedReader('http://cache/world.bin')
+  const cache = createPageCache()
   const gone = new AbortController()
-  const stopped = read(0, 4, { signal: gone.signal })
+  const stopped = cache.readRange(URL, 0, 4, { signal: gone.signal })
   await new Promise(setImmediate)
   gone.abort() // the whole download stops: the next ranges ask again
   await assert.rejects(stopped, { name: 'AbortError' })
-  const again = [read(0, 4), read(4, 4)]
+  const again = [cache.readRange(URL, 0, 4), cache.readRange(URL, 4, 4)]
   await new Promise(setImmediate)
   land()
   const [low, high] = await Promise.all(again)
   assert.deepEqual([...new Uint8Array(low), ...new Uint8Array(high)], [1, 2, 3, 4, 5, 6, 7, 8])
-  // Every byte of it copied out by the two ranges, the file is let go.
-  assert.deepEqual([signals.length, read.held()], [2, 0], 'one request after the stopped one')
+  assert.deepEqual([signals.length, cache.bytes], [2, 8], 'one request after the stopped one')
 })
 
 test("a range waiting on another's first answer lets go at once when its own asker does", async (t) => {
@@ -85,10 +85,10 @@ test("a range waiting on another's first answer lets go at once when its own ask
     await answered // the first answer, not come yet
     return new Response(new Uint8Array(8))
   })
-  const read = rangedReader('http://cache/world.bin')
-  const first = read(0, 4)
+  const cache = createPageCache()
+  const first = cache.readRange(URL, 0, 4)
   const gone = new AbortController()
-  const waiting = read(4, 4, { signal: gone.signal })
+  const waiting = cache.readRange(URL, 4, 4, { signal: gone.signal })
   await new Promise(setImmediate)
   gone.abort()
   await assert.rejects(waiting, { name: 'AbortError' }) // before the answer
@@ -103,38 +103,35 @@ test('a file kept whole is one entry among the pages, counted once: it leaves by
   )
   land()
   const cache = createPageCache(64)
-  const read = cache.reader('http://cache/world.bin')
-  assert.deepEqual([...new Uint8Array(await read(0, 4))], [0, 1, 2, 3])
-  assert.deepEqual([cache.bytes, cache.besideBytes, read.held()], [32, 0, 32], 'among the pages')
-  cache.touch('page.bin', new Uint8Array(48)) // used after the file
+  assert.deepEqual([...new Uint8Array(await cache.readRange(URL, 0, 4))], [0, 1, 2, 3])
+  assert.deepEqual([cache.bytes, cache.besideBytes, cache.file(URL)?.byteLength], [32, 0, 32])
+  cache.put('page.bin', new Uint8Array(48)) // used after the file
   cache.resize(64)
-  assert.deepEqual([cache.bytes, read.held(), cache.pages.has('page.bin')], [48, 0, true])
-  assert.deepEqual([...new Uint8Array(await read(4, 4))], [4, 5, 6, 7])
+  assert.deepEqual([cache.bytes, cache.file(URL), cache.pageCount], [48, undefined, 1])
+  assert.deepEqual([...new Uint8Array(await cache.readRange(URL, 4, 4))], [4, 5, 6, 7])
   assert.deepEqual(
-    [signals.length, cache.bytes, cache.pages.has('page.bin')],
-    [2, 32, false],
+    [signals.length, cache.bytes, cache.page('page.bin')],
+    [2, 32, undefined],
     'asked again, the file is the most recent: the page leaves for it',
   )
 })
 
-test('no eviction takes a file kept whole while a read waits on it: it leaves once that read is served', async (t) => {
-  const { land } = wholeServer(
+test('no eviction takes a download a read waits on: the read is served, the file then leaves by the budget', async (t) => {
+  const { signals, land } = wholeServer(
     t,
     Uint8Array.from({ length: 32 }, (_, i) => i),
   )
-  land()
   const cache = createPageCache(64)
-  const read = cache.reader('http://cache/world.bin')
-  await read(0, 4)
-  const waiting = read(4, 4) // held from the moment it is asked
-  cache.hold({ reserved: () => 0, held: () => 0, evict() {} })() // a session come and gone
-  cache.resize(16)
-  assert.deepEqual([cache.bytes, read.held()], [32, 32], 'over the total, yet held')
+  const waiting = cache.readRange(URL, 4, 4)
+  await new Promise(setImmediate)
+  cache.resize(16) // the file on its way would not fit
+  assert.equal(signals[0].aborted, false, 'its download goes on')
+  land()
   assert.deepEqual([...new Uint8Array(await waiting)], [4, 5, 6, 7])
-  assert.deepEqual([cache.bytes, read.held()], [0, 0], 'served, it leaves')
+  assert.deepEqual([signals.length, cache.bytes], [1, 0], 'served, it leaves: it does not fit')
 })
 
-test('a texture level a server sends whole is sent once, every tile record cut from it, then let go', async (t) => {
+test('a texture level a server sends whole is sent once, every tile record cut from it, its bytes counted once', async (t) => {
   const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
   const sent: (string | null)[] = []
   t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
@@ -148,16 +145,16 @@ test('a texture level a server sends whole is sent once, every tile record cut f
   const levels = createHeldLevels({ read, onFailure: assert.fail })
   const level = { sha256: 'c'.repeat(64), atlas: 0, level: 0, format: 'bc7' } as const
   const tiles = [0, 1, 2, 3].map((i) => [i & 1, i >> 1] as const)
-  for (const [tx, ty] of tiles) levels.request(level, 0, [256, 256], tx, ty)
+  for (const [tx, ty] of tiles) levels.request(level, levelId(level, tx, ty), 0, [256, 256], tx, ty)
   await levels.settled()
   assert.equal(sent.length, 1, 'one request: the others waited for its answer')
   for (const [tx, ty] of tiles) {
     const { offset, bytes } = tileRecord(256, 256, tx, ty)
-    assert.deepEqual(levels.get(level, tx, ty), file.subarray(offset, offset + bytes))
+    assert.deepEqual(levels.get(levelId(level, tx, ty)), file.subarray(offset, offset + bytes))
   }
-  // Every record copied out, the file is let go: its bytes are held once, by the records.
+  // The file is one entry among the pages, the records the levels' own: each counted once.
   assert.deepEqual(
     [cache.bytes, cache.besideBytes, levels.bytes],
-    [0, file.byteLength, file.byteLength],
+    [file.byteLength, file.byteLength, file.byteLength],
   )
 })

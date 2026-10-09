@@ -4,6 +4,7 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createReadFailures } from './failures.ts'
 import { eventually } from './eventually.fixture.ts'
 
 /** Waits till `streamer` reads nothing and queues nothing: every read it was asked landed, failed
@@ -25,7 +26,7 @@ function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: He
   })
   const pages = urls.map((url) => ({ url, bytes: 4, sha256: '' }))
   const streamer = createPageStreamer(pages, 'http://cache/', {
-    onStalled: ({ url }) => void said.push(url),
+    onStalled: ({ key }) => void said.push(key),
   })
   t.after(() => streamer.dispose())
   /** Its reads settled: landed, failed, or waiting their turn. */
@@ -191,6 +192,32 @@ test('a page forgotten while its read transfers ends with it, failed or not: nev
     await idle(streamer)
   }
   assert.deepEqual([sent, streamer.loading('a.bin'), streamer.stats().failed], [1, false, 0])
+})
+
+test('a failure is remembered while its key is asked again, and forgotten once it is not', (t) => {
+  const clock = { now: 0 }
+  t.mock.method(performance, 'now', () => clock.now)
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const ended: string[] = []
+  const failures = createReadFailures({ retriable: () => true, ended: (key) => ended.push(key) })
+  t.after(() => failures.clear())
+  const step = (ms: number) => {
+    clock.now += ms
+    t.mock.timers.tick(ms)
+  }
+  failures.record('a', 'busy')
+  assert.ok(failures.blocked('a'), 'held back while its wait runs')
+  step(500)
+  assert.deepEqual([ended, failures.blocked('a'), failures.count()], [['a'], undefined, 0])
+  failures.record('a', 'busy') // asked again once its wait ended, and failed again
+  step(500)
+  assert.ok(failures.blocked('a'), 'its tries count on: its second wait is twice the first')
+  step(500)
+  assert.equal(failures.blocked('a'), undefined)
+  step(8_000) // not asked again
+  failures.record('a', 'busy')
+  step(500)
+  assert.equal(failures.blocked('a'), undefined, 'forgotten: its tries start over')
 })
 
 async function sha(bytes: Uint8Array) {

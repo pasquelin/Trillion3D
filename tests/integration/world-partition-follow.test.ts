@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
+import { createPageCache } from '../../packages/sdk-browser/src/streaming/pageCache.ts'
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts'
 import { assertNoneMissing, followed } from './world-partition-follow.fixture.ts'
@@ -22,7 +23,11 @@ async function served(t: TestContext, gltf: ReturnType<typeof world>) {
   t.after(() => rm(root, { recursive: true, force: true }))
   const pointer = await compiled(root, gltf)
   machine(t, pointer)
-  return loadModel(pointer.href, { textureSource: 'host', scope: 'full' })
+  return loadModel(pointer.href, {
+    textureSource: 'host',
+    scope: 'full',
+    pageCache: createPageCache(),
+  })
 }
 
 test(

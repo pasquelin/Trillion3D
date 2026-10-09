@@ -4,16 +4,16 @@
  * binds or loads (`bundlePages`): the queue reads the ranges queued end to end in the binary by one
  * request (`../streaming/queueRanges.ts`). A bundle of no bytes is no page: its pages, none, are
  * known without a read. A world's model loads before any session: its pinned top, and its one cell
- * when it is not partitioned, are read then by the one reader of the binary its page cache holds
- * (`PageCache.reader`), each contiguous run by one range, the runs side by side, each bundle
- * checked as the queue checks it (`verifiedRun`).
+ * when it is not partitioned, are read then through its page cache (`PageCache.readRange`), each
+ * contiguous run by one range, the runs side by side, each bundle checked as the queue checks it
+ * (`verifiedRun`).
  */
 import {
   worldBundlePages,
   type WorldRoots,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
-import type { rangedReader } from '../cluster/ranged.ts'
+import type { ReadRange } from '../cluster/ranged.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
 import { verifiedRun } from '../cluster/verified.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
@@ -48,11 +48,11 @@ export async function readBundle(
   return worldBundlePages(table, bundle, read ?? new Uint8Array(0))
 }
 
-/** Bundles `[first, end)` of `table`'s binary at `url`, read by `read` (`rangedReader`) in one
- *  range `meter` counts, asked till `signal` — the load's — lets it go, each checked against its
- *  digest: their pages, bundle by bundle. */
+/** Bundles `[first, end)` of `table`'s binary at `url`, read by `read` (`PageCache.readRange`) in
+ *  one range `meter` counts, asked till `signal` — the load's — lets it go, each checked against
+ *  its digest: their pages, bundle by bundle. */
 export async function readSpan(
-  read: ReturnType<typeof rangedReader>,
+  read: ReadRange,
   url: string,
   table: WorldRoots,
   [first, end]: readonly [number, number],
@@ -63,7 +63,7 @@ export async function readSpan(
     last = bundles[bundles.length - 1]
   const from = bundles[0].offset,
     run = bundles.map((own, at) => ({ ...own, url: bundleUrl(url, first + at) }))
-  const bytes = await read(from, last.offset + last.bytes - from, { meter, signal })
+  const bytes = await read(url, from, last.offset + last.bytes - from, { meter, signal })
   const checked = await verifiedRun(run, bytes)
   return checked.map((own, at) => {
     if (!own.bytes) throw own.refused

@@ -10,7 +10,7 @@ import {
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import { heldBy, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
+import { heldBy, modelRead, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 
@@ -159,7 +159,7 @@ test('a page asked while its bundle transfers holds the bundle: its cell leaving
 
 test('a cell held before its world is bound waits for the bind, then reads', async (t) => {
   const { manifest, ranges, table } = served(t)
-  const roots = (await openWorldRoots(manifest, 'http://world/'))!
+  const roots = (await openWorldRoots(manifest, 'http://world/', modelRead()))!
   const queue = createPageStreamer([], 'http://world/')
   t.after(() => queue.dispose())
   const held = roots.hold(1)

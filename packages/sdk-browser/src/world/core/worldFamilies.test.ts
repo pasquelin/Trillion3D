@@ -7,6 +7,7 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { families } from '../../host/families.ts'
 import { frameWaits } from '../session/familyUse.ts'
 import { worldModelLoader } from './worldLoader.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import { Scene } from './scene.ts'
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts'
 
@@ -14,7 +15,7 @@ const turn = () => new Promise((wake) => setImmediate(wake))
 
 test('a host-led frame waits for a family on its way: nothing steps nor draws, then it draws once', async () => {
   const ready = Promise.resolve()
-  const scene = new Scene(worldModelLoader(ready, undefined))
+  const scene = new Scene(worldModelLoader(ready, undefined, createPageCache()))
   const { session } = sessionStandIn()
   const effects = new EffectChain()
   let drawn = 0,

@@ -13,6 +13,10 @@ import { sha256Hex } from './sha256Hex.ts'
 
 const TRANSFER = 64
 
+/** The pages of `urls` `cache` holds. */
+const held = (cache: ReturnType<typeof createPageCache>, urls: readonly string[]) =>
+  urls.filter((url) => cache.page(url))
+
 const open = (
   pages: StreamPage[],
   cache: ReturnType<typeof createPageCache>,
@@ -46,7 +50,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   assert.equal(fetchedBefore, wanted.length)
   // The device is lost: the session closes, and the world keeps its cache.
   before.dispose()
-  assert.equal(cache.pages.size, wanted.length, 'the pages outlive the session')
+  assert.equal(cache.pageCount, wanted.length, 'the pages outlive the session')
   // A device granted again: the new session reads the same pages, from the cache alone.
   const after = open(pages, cache)
   await after.request(wanted, { signal: after.signal })
@@ -92,14 +96,14 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   streamer.get('b.bin')
   cache.resize(reserved + 2 * 12)
   assert.deepEqual(evicted, ['c.bin', 'd.bin'])
-  assert.deepEqual([...cache.pages.keys()], ['a.bin', 'b.bin'])
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
   assert.ok(streamer.stats().cpuBytes <= cache.cpuBytes)
   streamer.dispose()
   // No session reads: a total set lower still applies, oldest first.
   cache.resize(reserved + 12)
-  assert.deepEqual([...cache.pages.keys()], ['a.bin', 'b.bin'], 'a session gone reserves nothing')
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'], 'a session gone reserves nothing')
   cache.resize(12)
-  assert.deepEqual([...cache.pages.keys()], ['b.bin'])
+  assert.deepEqual(held(cache, urls), ['b.bin'])
 })
 
 test("the engine's tables come out of the kept cache's total, beside the manifest and the queue", async () => {
@@ -110,7 +114,7 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   await streamer.request(urls, { signal: streamer.signal })
   streamer.retain(['a.bin'])
   streamer.reserve(() => 20)
-  assert.deepEqual([...cache.pages.keys()], ['a.bin'], 'twenty bytes reserved leave room for one')
+  assert.deepEqual(held(cache, urls), ['a.bin'], 'twenty bytes reserved leave room for one')
   streamer.dispose()
 })
 

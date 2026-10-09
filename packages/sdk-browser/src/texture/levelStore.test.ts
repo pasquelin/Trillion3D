@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createTextureLevelReader, type TextureLevelRequest } from './levelReader.ts'
-import { createHeldLevels } from './heldLevels.ts'
+import { createTextureLevelReader, type TextureLevelAddress } from './levelReader.ts'
+import { createHeldLevels, levelId, type HeldLevels } from './heldLevels.ts'
 import { tileRecord, tiledLevelBytes } from './tileRecords.ts'
 import { createPageCache, type PageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'
@@ -18,12 +18,17 @@ const fileBytes = (side: number) => tiledLevelBytes(side, side)
 /** Bytes of tile (0, 0)'s record in a `side`² block level file: what a session holds of it. */
 const recordBytes = (side: number) => tileRecord(side, side, 0, 0).bytes
 /** The level `level` of one texture, block-compressed or lossless. */
-const request = (level: number, format: 'bc7' | 'png' = 'bc7'): TextureLevelRequest => ({
+const request = (level: number, format: 'bc7' | 'png' = 'bc7'): TextureLevelAddress => ({
   sha256: 'b'.repeat(64),
   atlas: 1,
   level,
   format,
 })
+/** Asks tile (0, 0) of `key` of `side`² texels from `levels` at `frame`. */
+const askTile = (levels: HeldLevels, key: TextureLevelAddress, frame: number, side: number) =>
+  levels.request(key, levelId(key, 0, 0), frame, [side, side], 0, 0)
+/** Tile (0, 0) of `key`, if `levels` holds it. */
+const heldTile = (levels: HeldLevels, key: TextureLevelAddress) => levels.get(levelId(key, 0, 0))
 
 /** A session's levels of `format`, read by the explorer's reader through `cache` under the cook
  *  `key`, from a server that honours Range; `fetched` lists every level address it was asked. */
@@ -42,7 +47,7 @@ function session(cache: PageCache, key = 'k1', side = 1024, format: 'bc7' | 'png
   const levels = createHeldLevels({ read, onFailure: assert.fail })
   /** Asks tile (0, 0) of `level` at `frame`, and waits for what it read. */
   const ask = async (level: number, frame = 0) => {
-    levels.request(request(level, format), frame, [side, side], 0, 0)
+    askTile(levels, request(level, format), frame, side)
     await levels.settled()
   }
   return { levels, fetched, ask }
@@ -56,11 +61,11 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   await lost.ask(0)
   lost.levels.destroy()
   const reopened = session(cache)
-  assert.ok(reopened.levels.get(request(0), 0, 0) instanceof Uint8Array, 'held across the loss')
+  assert.ok(heldTile(reopened.levels, request(0)) instanceof Uint8Array, 'held across the loss')
   await reopened.ask(0, 1)
   assert.deepEqual([reopened.fetched, reopened.levels.fetched], [[], 0], '0 texture refetch')
   // A read in flight while another cook opens lands for nothing.
-  reopened.levels.request(request(1), 2, [1024, 1024], 0, 0)
+  askTile(reopened.levels, request(1), 2, 1024)
   session(cache, 'k2')
   await reopened.levels.settled()
   assert.equal(cache.levels.bytes, 0, "the first cook's levels left with it")
@@ -70,7 +75,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
 test('a level read by both sides of a device loss is counted once', async () => {
   const cache = createPageCache()
   const lost = session(cache)
-  lost.levels.request(request(0), 0, [1024, 1024], 0, 0)
+  askTile(lost.levels, request(0), 0, 1024)
   lost.levels.destroy()
   const reopened = session(cache)
   await reopened.ask(0)
@@ -108,7 +113,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   )
   for (let frame = 1; frame < 4; frame++) await ask(0, frame)
   assert.deepEqual(fetched, urls, 'a level that cannot fit is not read again')
-  assert.equal(levels.request(request(0), 4, [8, 8], 0, 0), false, 'refused, not waited for')
+  assert.equal(askTile(levels, request(0), 4, 8), false, 'refused, not waited for')
   streamer.dispose()
 })
 
@@ -133,7 +138,7 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
     const cap = (3 * 2 * MIB) / 4
     assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap])
     assert.equal(levels.bytes, bytes, 'the level read first left')
-    assert.ok(levels.get(request(1, 'png'), 0, 0), 'the one read last stays')
+    assert.ok(heldTile(levels, request(1, 'png')), 'the one read last stays')
   } finally {
     scope.createImageBitmap = decoder
   }

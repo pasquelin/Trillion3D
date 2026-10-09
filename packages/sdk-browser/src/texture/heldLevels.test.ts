@@ -5,9 +5,9 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import { createHeldLevels, readHeldLevel } from './heldLevels.ts'
-import type { TextureLevelReader, TextureLevelRequest } from './levelReader.ts'
+import type { TextureLevelAddress, TextureLevelReader } from './levelReader.ts'
 
-const level: TextureLevelRequest = { sha256: 'e'.repeat(64), atlas: 0, level: 0, format: 'bc7' }
+const level: TextureLevelAddress = { sha256: 'e'.repeat(64), atlas: 0, level: 0, format: 'bc7' }
 
 /** Held levels over a server refusing every read with HTTP `status`, the clock and its timers in
  *  the test's hands: when each read was sent, and the failures reported. */
