@@ -9,6 +9,7 @@ import { reflectedRadianceWgsl } from './wgsl.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
+type Lobe = { R: V3; T: V3; bands: number[]; widths: number[] }
 type ReflectionView = {
   viewProj: Mat
   inverseViewProj: Mat
@@ -56,7 +57,8 @@ export function reflectionRunner(
   const counter = { loads: 0, taps: [] as number[][] }
   const token = { depth: {}, pyramid: {}, radiance: {} }
   const run = shaderRun<{
-    reflectionSeen: (P: V3, N: V3, R: V3, alpha: number, lobe: number[]) => Seen
+    reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
+    reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
     reflectionMarch: (
       o: number[],
       d: number[],
@@ -67,16 +69,16 @@ export function reflectionRunner(
       Q: number[],
       hit: V3,
       P: V3,
-      R: V3,
       pixel: number,
-      alpha: number,
-      lobe: number[],
+      lobe: Lobe,
       toView: number[],
       surface: { pixel: number[]; plane: number[]; thickness: number },
     ) => { color: number[]; weight: number }
   }>(
     wgslModule(reflectedRadianceWgsl(1)),
     [
+      'reflectionLobeOf',
+      'reflectionBands',
       'reflectionSeen',
       'reflectionFootprint',
       'reflectionRadianceAt',
@@ -108,6 +110,12 @@ export function reflectionRunner(
       reflectionRadiance: token.radiance,
       reflectionSampler: {},
       ReflectionSeen: (color: number[], confidence: number) => ({ color, confidence }),
+      ReflectionLobe: (R: V3, T: V3, bands: number[], widths: number[]) => ({
+        R,
+        T,
+        bands,
+        widths,
+      }),
       ReflectionHit: (t: number, plane: number[], pixel: number[], iterations: number) => ({
         t,
         plane,

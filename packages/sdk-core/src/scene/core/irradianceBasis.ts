@@ -25,18 +25,24 @@ export function irradianceShader(coefficient: (k: number) => string, normal: str
 }
 
 /**
- * Radiance along the unit direction named `direction`, convolved with a zonal lobe: each
- * coefficient times its harmonic, band `l` scaled by the component `x`, `y` or `z` of the vector
- * named `bands` (the lobe's zonal moments, `reflectionBands`). Not clamped, as above.
+ * Radiance through a lobe of directions, as a shader expression: the lobe named `lobe` carries its
+ * centre `R`, its long axis `T` (unit, across `R`, or zero) and `bands` (`ReflectionLobe`,
+ * `reflectionLobeOf`). An order-2 radiance is a polynomial of degree two in the direction, so its
+ * mean over the lobe needs the lobe's first two moments alone: E[ω] = bands.x · R, and
+ * E[ωωᵀ] = E[z²] RRᵀ + σt² TTᵀ + σb² BBᵀ. Band 0 stays whole, band 1 is the harmonic at `R`
+ * times `bands.x`, and band 2 — traceless forms, which a frame's three axes sum to zero over — is
+ * the harmonic at `R` times `bands.y` plus the harmonic at `T` times `bands.z`. Not clamped, as
+ * above.
  */
-export function filteredRadianceShader(
-  coefficient: (k: number) => string,
-  direction: string,
-  bands: string,
-) {
-  return IRRADIANCE_TERMS.map(
-    (term, k) =>
-      `${coefficient(k)}*((${term.polynomial(direction)})*${term.basis}*${bands}.${k === 0 ? 'x' : k < 4 ? 'y' : 'z'})`,
+export function lobeRadianceShader(coefficient: (k: number) => string, lobe: string) {
+  const at = (term: (typeof IRRADIANCE_TERMS)[number], axis: string) =>
+    `(${term.polynomial(`${lobe}.${axis}`)})`
+  return IRRADIANCE_TERMS.map((term, k) =>
+    k === 0
+      ? `${coefficient(k)}*${term.basis}`
+      : k < 4
+        ? `${coefficient(k)}*(${at(term, 'R')}*${term.basis}*${lobe}.bands.x)`
+        : `${coefficient(k)}*((${at(term, 'R')}*${lobe}.bands.y+${at(term, 'T')}*${lobe}.bands.z)*${term.basis})`,
   ).join('+')
 }
 

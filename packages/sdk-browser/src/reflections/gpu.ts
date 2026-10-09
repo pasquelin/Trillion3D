@@ -45,7 +45,8 @@ const LIT_STANDARD_FLAG = 2
  * the opaque resolve weighs it (`resolvedReflectionWgsl`). A pixel past the trace's roughness reads
  * the environment alone, inside the same function. Its lobe is the one its lights read: where the
  * surface carries the physical lobes (`PHYSICAL_SURFACE_FLAG`), their direction, kept orthogonal to
- * the normal, and αt = mix(α, 1, strength²) along it (`setLobes`); else a round lobe of rough².
+ * the normal, and αt = mix(α, 1, strength²) along it (`setLobes`); else a round lobe of rough². Its
+ * field reads the bounce cascades the resolve reads (`bounce`, `probes`: zero while bounce is off).
  */
 export const TRACE_SHADER = wgslProgram(
   `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
@@ -53,6 +54,8 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(2) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
 @group(0) @binding(3) var<storage,read> directLights:DirectLights;
 @group(0) @binding(4) var traceLobes:texture_2d<u32>;
+@group(0) @binding(5) var<uniform> bounce:BounceGrid;
+@group(0) @binding(6) var probes:texture_2d_array<f32>;
 fn traceLobe(coord:vec2i,flags:u32,N:vec3f,rough:f32)->vec4f{
  let alpha=rough*rough;
  if((flags&${PHYSICAL_SURFACE_FLAG}u)==0u){return vec4f(0.0,0.0,0.0,alpha);}
@@ -240,6 +243,12 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       storage(2),
       { binding: 3, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 4, visibility: COMPUTE, texture: { sampleType: 'uint' } },
+      { binding: 5, visibility: COMPUTE, buffer: { type: 'uniform' } },
+      {
+        binding: 6,
+        visibility: COMPUTE,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
     ])
     const surroundingsLayout = layout([
       { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
@@ -360,10 +369,16 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     },
     /** The reflection group over each Hi-Z pyramid it was bound with (a view's). */
     groups: new WeakMap<GPUTexture, GPUBindGroup>(),
-    /** The trace's and the surroundings' groups, kept while their surfaces, light buffer and target
-     *  stay. */
+    /** The trace's and the surroundings' groups, kept while their surfaces, light buffer and probe
+     *  cascades stay. */
     trace: undefined as
-      | { surfaces: unknown; lights: GPUBuffer; group: GPUBindGroup; surroundings: GPUBindGroup }
+      | {
+          surfaces: unknown
+          lights: GPUBuffer
+          probes: GPUTextureView
+          group: GPUBindGroup
+          surroundings: GPUBindGroup
+        }
       | undefined,
     /** The pyramid build's groups, kept while the lit image stays. */
     build: undefined as { hdr: GPUTextureView; groups: GPUBindGroup[] } | undefined,
@@ -464,16 +479,24 @@ export function encodeReflectionTrace(
     lobes: GPUTextureView
     surfaces: unknown
     lights: GPUBuffer
+    bounceGrid: GPUBuffer
+    probes: GPUTextureView
   },
   depthGroup: GPUBindGroup,
   size: readonly [number, number],
 ) {
   let kept = reflection.trace
   const { device } = reflection
-  if (!kept || kept.surfaces !== inputs.surfaces || kept.lights !== inputs.lights)
+  if (
+    !kept ||
+    kept.surfaces !== inputs.surfaces ||
+    kept.lights !== inputs.lights ||
+    kept.probes !== inputs.probes
+  )
     kept = reflection.trace = {
       surfaces: inputs.surfaces,
       lights: inputs.lights,
+      probes: inputs.probes,
       group: device.createBindGroup({
         layout: pipelines.traceLayout,
         entries: [
@@ -482,6 +505,8 @@ export function encodeReflectionTrace(
           { binding: 2, resource: reflection.targetView },
           { binding: 3, resource: { buffer: inputs.lights } },
           { binding: 4, resource: inputs.lobes },
+          { binding: 5, resource: { buffer: inputs.bounceGrid } },
+          { binding: 6, resource: inputs.probes },
         ],
       }),
       surroundings: device.createBindGroup({

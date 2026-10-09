@@ -3,7 +3,8 @@ import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { DEG2RAD } from '../../../math/src/constants.ts'
 import { f0Of, ndotvClamped, splitSumTerm } from '../../../math/src/wgsl/lighting.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
-import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { probeFieldWgsl } from '../bounce/gridWgsl.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
 import { MODEL_FLAG } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
@@ -42,7 +43,7 @@ import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
  * read from its filtered pyramid (`gpu.ts`) over the reflected lobe's footprint there
  * (`reflectionFootprint`): an ellipse whose axes are 2 · hit distance · tan of the GGX lobe's
  * half-maximum angle (`reflectionConeTangent`) at the lobe's two widths, its long axis along the
- * lobe's stretched direction; the pyramid level is the short axis's, read smooth between and within
+ * lobe's (`ReflectionLobe`); the pyramid level is the short axis's, read smooth between and within
  * levels (`reflectionRadianceAt`), and up to `REFLECTION_TAPS` taps cover the long axis. Each read
  * is weighted by its depth (`reflectionDepthWeight`, bilateral): the depth the pyramid holds under
  * it must lie on the hit's surface — the hit pixel's plane carried to it, a thickness on either side,
@@ -51,10 +52,23 @@ import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
  * coverage (the image's alpha: 0 on the background); the share of the depth-weighted reads the image
  * covers multiplies the confidence.
  *
- * THE REFLECTION is mix(environment, hit radiance, confidence). The environment
- * (`reflectionEnvironment`) is what the diffuse lighting reads — its order-2 coefficients through the
- * GGX lobe of the roughness —, plus, in a scene that declares no light around it, the background the
- * view shows (`surroundings`, `gpu.ts`): a miss reads what is around the scene, never black.
+ * THE LOBE (`reflectionLobeOf`) is one ellipse of directions around `R` for both answers: its two
+ * widths — α = rough² across, and the material's αt along its long axis `T` (`reflectionLobe`) —
+ * set the screen footprint's two axes, and the same two widths filter the radiance field.
+ *
+ * THE REFLECTION is mix(field, hit radiance, confidence). The field (`reflectionField`) is the
+ * radiance the diffuse lighting reads, in order-2 harmonics: the environment's coefficients
+ * (`directLights.environment`), plus the bounce probes' where the cascades reach the point — what
+ * the scene's lit surfaces send, a probe ray that leaves the scene adding nothing, so the
+ * environment is the rest and alone where no probe answers —, plus, in a scene that declares no
+ * light around it, the background the view shows (`surroundings`, `gpu.ts`): a miss reads what is
+ * around the surface, never black. Each set of harmonics is read through the lobe exactly
+ * (`lobeRadianceShader`): an order-2 radiance is a polynomial of degree two in the direction, whose
+ * mean over the lobe takes its first two moments. Each axis keeps the moments of the round GGX lobe
+ * of its width (`reflectionBands`: band attenuations a₁, a₂) — its share of the mean cosine's
+ * deficit, (1 − a₁)/2, and its variance, σ² = (1 − a₂)/3 —, so with s the short axis and t the
+ * long one: band 1 × (a₁s + a₁t)/2 at `R`, band 2 × (2a₂s + a₂t)/3 at `R` plus × (a₂s − a₂t)/3 at
+ * `T`; a round lobe is the zonal convolution.
  *
  * Its weight is the engine's own split-sum term of the GGX lobe (`reflectionWeight`, the rectangle
  * lights' fitted magnitude and Fresnel share): the energy the lights' specular lobe leaves to the
@@ -154,17 +168,16 @@ export const REFLECTION_VIEW_BYTES = 288
 export const REFLECTION_VIEW_WRITTEN_BYTES = 272
 
 /**
- * The GGX lobe's zonal moments for an order-2 radiance field: with z = N·L, its normalized density
- * is z/(1 + k + (k − 1)z)², k = rough⁴; the zonal convolution multiplies bands 0, 1, 2 by E[1],
- * E[z], E[(3z² − 1)/2] — a geometric series below q = ¼ (its tail after twelve terms under 3e-7),
- * the closed form above.
+ * The round GGX lobe of width `alpha`, its zonal moments for an order-2 radiance field: with z =
+ * N·L, its normalized density is z/(1 + k + (k − 1)z)², k = α²; the zonal convolution multiplies
+ * bands 1 and 2 by a₁ = E[z] and a₂ = E[(3z² − 1)/2] (band 0 whole) — a geometric series below
+ * q = ¼ (its tail after twelve terms under 3e-7), the closed form above.
  */
 const REFLECTION_BANDS_WGSL = wgslBlock(
   'REFLECTION_BANDS_WGSL',
   [],
-  `fn reflectionBands(rough:f32)->vec3f{
- let r2=rough*rough;
- let k=max(r2*r2,1e-8);
+  `fn reflectionBands(alpha:f32)->vec2f{
+ let k=max(alpha*alpha,1e-8);
  let a=1.0+k;let b=k-1.0;let q=-b/a;
  var moments=vec3f(0.0);
  if(q<0.25){
@@ -183,21 +196,71 @@ const REFLECTION_BANDS_WGSL = wgslBlock(
   let j3=(h2-a*j2)/b;
   moments=vec3f(j1,j2,j3);
  }
- return vec3f(1.0,moments.y/moments.x,0.5*(3.0*moments.z/moments.x-1.0));
+ return vec2f(moments.y/moments.x,0.5*(3.0*moments.z/moments.x-1.0));
 }`,
 )
 
-/** The radiance around the scene seen along `R` through the GGX lobe of `rough`: the environment's
- *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
- *  and the uniform radiance the view's `surroundings` add, which every band-0 filter keeps whole. */
-export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
-  'REFLECTION_ENVIRONMENT_WGSL',
-  [REFLECTION_BANDS_WGSL, REFLECTION_VIEW_WGSL],
-  `fn reflectionEnvironment(R:vec3f,rough:f32)->vec3f{
- let bands=reflectionBands(rough);
- return max(vec3f(0.0),${filteredRadianceShader((k) => `directLights.environment[${k}].rgb`, 'R', 'bands')})+reflectionView.surroundings.rgb;
+/**
+ * The reflected lobe (see the head of this file): its centre `R`, its long axis `T` — the
+ * material's direction `lobe.xyz` across `R`, unit, zero on a round lobe —, the band factors its
+ * two widths give an order-2 radiance (`bands`: band 1 at `R`, band 2 at `R`, band 2 at `T`) and
+ * those widths (`widths`: α across, αt along `T`).
+ */
+const REFLECTION_LOBE_WGSL = wgslBlock(
+  'REFLECTION_LOBE_WGSL',
+  [REFLECTION_BANDS_WGSL],
+  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,widths:vec2f,}
+fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
+ let s=reflectionBands(alpha);
+ let t=reflectionBands(lobe.w);
+ let across=lobe.xyz-R*dot(lobe.xyz,R);
+ let T=across*inverseSqrt(max(dot(across,across),1e-30));
+ return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(alpha,lobe.w));
 }`,
 )
+
+/** The radiance around the scene through a lobe (`reflectionEnvironment`): the environment's
+ *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
+ *  and the uniform radiance the view's `surroundings` add, which every lobe keeps whole. */
+export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
+  'REFLECTION_ENVIRONMENT_WGSL',
+  [REFLECTION_LOBE_WGSL, REFLECTION_VIEW_WGSL],
+  `fn reflectionEnvironment(lobe:ReflectionLobe)->vec3f{
+ return max(vec3f(0.0),${lobeRadianceShader((k) => `directLights.environment[${k}].rgb`, 'lobe')})+reflectionView.surroundings.rgb;
+}`,
+)
+
+/** The bounce probes' radiance through a lobe, at a point of normal `N` (`reflectionProbes`): the
+ *  cascades' field (`probeFieldWgsl`), each probe's coefficients read through the lobe, never
+ *  negative. */
+const REFLECTION_PROBES_WGSL = wgslBlock(
+  'REFLECTION_PROBES_WGSL',
+  [
+    REFLECTION_LOBE_WGSL,
+    probeFieldWgsl(
+      'reflectionProbes',
+      'reflectionProbeLevel',
+      ',lobe:ReflectionLobe',
+      `max(vec3f(0.0),${lobeRadianceShader((k) => `probeAt(probe,${k}u).xyz`, 'lobe')})`,
+    ),
+  ],
+  '',
+)
+
+/**
+ * The radiance field a surface at `P`, of normal `N`, reflects through `lobe` (`reflectionField`,
+ * see the head of this file): the environment and the bounce probes. `probes` names a program that
+ * binds the cascades (`bounce`, `probes`); one that does not is the program of a session without
+ * bounce, where the probes' share is zero, and reads the environment alone.
+ */
+const reflectionFieldWgsl = (probes: boolean) =>
+  wgslBlock(
+    `reflectionFieldWgsl(${probes})`,
+    [REFLECTION_ENVIRONMENT_WGSL, ...(probes ? [REFLECTION_PROBES_WGSL] : [])],
+    `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
+ return reflectionEnvironment(lobe)${probes ? '+reflectionProbes(P,N,lobe)' : ''};
+}`,
+  )
 
 /** The bind group the reflection's resources take in every program that marches: the opaque
  *  trace's and the forward passes' (`forwardReflectionWgsl`). */
@@ -326,7 +389,7 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
 export const reflectionFootprintWgsl = (group: number) =>
   wgslBlock(
     `reflectionFootprintWgsl(${group})`,
-    [reflectionBindingsWgsl(group), REFLECTION_CONE_WGSL, clipToFramebuffer],
+    [reflectionBindingsWgsl(group), REFLECTION_CONE_WGSL, REFLECTION_LOBE_WGSL, clipToFramebuffer],
     `struct ReflectionTaps{color:vec4f,weight:f32,}
 struct ReflectionSurface{pixel:vec2f,plane:vec3f,thickness:f32,}
 fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
@@ -363,15 +426,14 @@ fn reflectionRadianceAt(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,shar
  reflectionLevelRead(sum,uv,below,share*(1.0-f),toView,surface);
  if(f>0.0){reflectionLevelRead(sum,uv,below+1.0,share*f,toView,surface);}
 }
-fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,R:vec3f,pixel:f32,alpha:f32,lobe:vec4f,toView:vec4f,surface:ReflectionSurface)->ReflectionTaps{
+fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,pixel:f32,lobe:ReflectionLobe,toView:vec4f,surface:ReflectionSurface)->ReflectionTaps{
  let reach=2.0*distance(hit,P)/max(pixel,1e-30);
- let short=max(reach*reflectionConeTangent(alpha),1.0);
- let long=max(reach*reflectionConeTangent(lobe.w),short);
+ let short=max(reach*reflectionConeTangent(lobe.widths.x),1.0);
+ let long=max(reach*reflectionConeTangent(lobe.widths.y),short);
  let taps=min(ceil(long/short),REFLECTION_TAPS);
  let width=max(short,long/REFLECTION_TAPS);
  let level=min(log2(width),reflectionView.radiance.z);
- let across=lobe.xyz-R*dot(lobe.xyz,R);
- let toward=clipToFramebuffer(reflectionView.radianceViewProj*vec4f(hit+across*pixel,1.0),reflectionView.radiance.xy).xy-Q;
+ let toward=clipToFramebuffer(reflectionView.radianceViewProj*vec4f(hit+lobe.T*pixel,1.0),reflectionView.radiance.xy).xy-Q;
  let span=(long-width)*toward*inverseSqrt(max(dot(toward,toward),1e-30));
  let texel=1.0/vec2f(textureDimensions(reflectionRadiance));
  var sum=ReflectionTaps(vec4f(0.0),0.0);
@@ -382,9 +444,9 @@ fn reflectionFootprint(Q:vec2f,hit:vec3f,P:vec3f,R:vec3f,pixel:f32,alpha:f32,lob
 }`,
   )
 
-/** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting along `R`
- *  through a lobe of width `alpha` and long axis `lobe` — the march, the hit, its footprint and its
- *  confidence (see the head of this file). */
+/** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
+ *  `lobe` — the march along its centre, the hit, its footprint and its confidence (see the head of
+ *  this file). */
 const reflectionSeenWgsl = (group: number) =>
   wgslBlock(
     `reflectionSeenWgsl(${group})`,
@@ -395,8 +457,9 @@ const reflectionSeenWgsl = (group: number) =>
       clipToFramebuffer,
     ],
     `struct ReflectionSeen{color:vec3f,confidence:f32,}
-fn reflectionSeen(P:vec3f,N:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->ReflectionSeen{
+fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  var seen=ReflectionSeen(vec3f(0.0),0.0);
+ let R=lobe.R;
  let size=reflectionView.screen.xy;
  let scale=reflectionView.screen.z;
  // One pixel off the surface along its normal: a ray never starts inside the depth it leaves.
@@ -433,7 +496,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->ReflectionSeen{
  // The hit's surface: its plane across the image, a thickness deep on either side.
  let slab=reflectionSlab(hit,thickness);
  let surface=ReflectionSurface(marched.pixel,marched.plane,0.5*(slab.y-slab.x));
- let taps=reflectionFootprint(Q,hit,P,R,w*scale,alpha,lobe,toView,surface);
+ let taps=reflectionFootprint(Q,hit,P,w*scale,lobe,toView,surface);
  if(!(taps.color.a>0.0)){return seen;}
  seen.color=taps.color.rgb/taps.color.a;
  seen.confidence=confidence*min(taps.color.a/taps.weight,1.0);
@@ -443,22 +506,23 @@ fn reflectionSeen(P:vec3f,N:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->ReflectionSeen{
 
 /**
  * `reflectedRadiance`: the radiance a surface at `P`, of normal `N` and roughness `rough`, seen
- * from `V`, reflects — the one function of every program (see the head of this file). `lobe` is the
- * lobe's long axis: its direction (`xyz`, any on a round lobe) and its α along it (`w`; rough² on a
- * round lobe), the material's anisotropic GGX parameters (`reflectionLobe`).
+ * from `V`, reflects — the one function of every program (see the head of this file), each of
+ * which binds the bounce cascades. `lobe` is the lobe's long axis: its direction (`xyz`, any on a
+ * round lobe) and its α along it (`w`; rough² on a round lobe), the material's anisotropic GGX
+ * parameters (`reflectionLobe`).
  */
 export const reflectedRadianceWgsl = (group: number) =>
   wgslBlock(
     `reflectedRadianceWgsl(${group})`,
-    [reflectionSeenWgsl(group), REFLECTION_ENVIRONMENT_WGSL, ROUGHNESS_FLOOR],
+    [reflectionSeenWgsl(group), reflectionFieldWgsl(true), ROUGHNESS_FLOOR],
     `fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
  let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
- let R=reflect(-V,N);
- let environment=reflectionEnvironment(R,r);
+ let ellipse=reflectionLobeOf(reflect(-V,N),r*r,lobe);
+ let field=reflectionField(P,N,ellipse);
  let trace=reflectionTraceWeight(r);
- if(trace==0.0||reflectionView.counts.x==0u||dot(N,V)<=0.0){return environment;}
- let seen=reflectionSeen(P,N,R,r*r,lobe);
- return mix(environment,seen.color,seen.confidence*trace);
+ if(trace==0.0||reflectionView.counts.x==0u||dot(N,V)<=0.0){return field;}
+ let seen=reflectionSeen(P,N,ellipse);
+ return mix(field,seen.color,seen.confidence*trace);
 }`,
   )
 
@@ -467,14 +531,15 @@ export const reflectedRadianceWgsl = (group: number) =>
  * at its roughness and N·V (`reflectionWeight`, the fitted magnitude and Fresnel share the rectangle
  * lights read, `ltcLookup`, in every lighting program), on its reflectance; a clear coat adds its own dielectric lobe on its
  * normal and roughness, the environment's, and lets the base through as it lets every other term
- * (`lobeReflection`). A program without lobes passes the base as it is. `reflectionLobe` is the
- * long axis of the lobe the lights read (`setLobes`): its direction and αt where the material is
- * anisotropic, a round lobe of rough² elsewhere.
+ * (`lobeReflection`), its field the base's (`reflectionField`, read at `P`; with the cascades where
+ * `probes`). A program without lobes passes the base as it is. `reflectionLobe` is the long axis of
+ * the lobe the lights read (`setLobes`): its direction and αt where the material is anisotropic, a
+ * round lobe of rough² elsewhere.
  */
-export const reflectionWeightWgsl = (lobes: boolean) =>
+export const reflectionWeightWgsl = (lobes: boolean, probes: boolean) =>
   wgslBlock(
-    `reflectionWeightWgsl(${lobes})`,
-    [REFLECTION_ENVIRONMENT_WGSL, splitSumTerm, f0Of, ndotvClamped, ROUGHNESS_FLOOR],
+    `reflectionWeightWgsl(${lobes}, ${probes})`,
+    [reflectionFieldWgsl(probes), splitSumTerm, f0Of, ndotvClamped, ROUGHNESS_FLOOR],
     `fn reflectionWeight(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
  return splitSumTerm(f0Of(rgb,metal),ltcLookup(clamp(rough,ROUGHNESS_FLOOR,1.0),ndotvClamped(N,V),1u));
 }
@@ -487,17 +552,19 @@ ${
  let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
  return vec4f(0.0,0.0,0.0,r*r);
 }
-fn lobeReflection(m:vec3f,V:vec3f)->vec3f{
+fn lobeReflection(m:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!lobes.on){return m;}
  var coat=vec3f(0.0);
  if(lobes.coat>0.0){
   let r=clamp(lobes.coatRough,ROUGHNESS_FLOOR,1.0);
-  coat=lobes.coat*reflectionEnvironment(reflect(-V,lobes.coatN),r)*reflectionWeight(vec3f(0.0),0.0,r,lobes.coatN,V);
+  let a=r*r;
+  let field=reflectionField(P,lobes.coatN,reflectionLobeOf(reflect(-V,lobes.coatN),a,vec4f(0.0,0.0,0.0,a)));
+  coat=lobes.coat*field*reflectionWeight(vec3f(0.0),0.0,r,lobes.coatN,V);
  }
  return m*lobes.through+coat;
 }`
     : `fn reflectionLobe(rough:f32)->vec4f{let r=clamp(rough,ROUGHNESS_FLOOR,1.0);return vec4f(0.0,0.0,0.0,r*r);}
-fn lobeReflection(m:vec3f,V:vec3f)->vec3f{return m;}`
+fn lobeReflection(m:vec3f,V:vec3f,P:vec3f)->vec3f{return m;}`
 }`,
   )
 
@@ -506,10 +573,10 @@ fn lobeReflection(m:vec3f,V:vec3f)->vec3f{return m;}`
 export const forwardReflectionWgsl = (group: number, lobes: boolean) =>
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes})`,
-    [reflectedRadianceWgsl(group), reflectionWeightWgsl(lobes)],
+    [reflectedRadianceWgsl(group), reflectionWeightWgsl(lobes, true)],
     `fn surfaceReflection(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!reflects()){return vec3f(0.0);}
- return lobeReflection(reflectedRadiance(P,N,V,rough,reflectionLobe(rough))*reflectionWeight(rgb,metal,rough,N,V),V);
+ return lobeReflection(reflectedRadiance(P,N,V,rough,reflectionLobe(rough))*reflectionWeight(rgb,metal,rough,N,V),V,P);
 }`,
   )
 
@@ -523,19 +590,20 @@ export const REFLECTION_TARGET = loadOnlyTarget(
 )
 
 /** The opaque resolve's binding of the reflection's view (`REFLECTION_VIEW_WGSL`), whose
- *  surroundings its coat reflects. */
+ *  surroundings its coat's field holds. */
 export const REFLECTION_VIEW_BINDING = 34
 
 /** The opaque resolve's reflection: the radiance the compute pass traced for its pixel, weighted
- *  as a forward program weighs its own (`reflectionWeightWgsl`). */
-export const resolvedReflectionWgsl = (lobes: boolean) =>
+ *  as a forward program weighs its own (`reflectionWeightWgsl`); `probes`, the program binds the
+ *  bounce cascades. */
+export const resolvedReflectionWgsl = (lobes: boolean, probes: boolean) =>
   wgslBlock(
-    `resolvedReflectionWgsl(${lobes})`,
-    [REFLECTION_VIEW_WGSL, reflectionWeightWgsl(lobes)],
+    `resolvedReflectionWgsl(${lobes}, ${probes})`,
+    [REFLECTION_VIEW_WGSL, reflectionWeightWgsl(lobes, probes)],
     `${REFLECTION_TARGET.wgsl}
 @group(0) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
-fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
+fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!reflects()){return vec3f(0.0);}
- return lobeReflection(textureLoad(reflectionTarget,coord).rgb*reflectionWeight(rgb,metal,rough,N,V),V);
+ return lobeReflection(textureLoad(reflectionTarget,coord).rgb*reflectionWeight(rgb,metal,rough,N,V),V,P);
 }`,
   )

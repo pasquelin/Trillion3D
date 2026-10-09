@@ -151,7 +151,9 @@ test('the view uniform carries the pixel scale, the held image, the display and 
 })
 
 test('nothing a reflection reads turns with the frame: no seed, no frame rank, no history', () => {
-  const text = wgslModule(reflectedRadianceWgsl(1))
+  // The code, not the declarations: the bounce grid it shares with the diffuse declares the probe
+  // update's frame counters, which nothing here reads.
+  const text = wgslModule(reflectedRadianceWgsl(1)).replace(/struct \w+\{[^}]*\}/g, '')
   for (const name of ['jitter', 'frame', 'seed', 'noise', 'history', 'random', 'hash'])
     assert.doesNotMatch(text, new RegExp(`\\b${name}\\b`, 'i'), name)
 })

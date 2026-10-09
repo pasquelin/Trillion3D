@@ -13,7 +13,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * is exactly zero where no probe sees the point, which forbids a leak through a wall.
  *
  * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
- * Indirect specular is not part of this term, and its absence is declared rather than guessed.
+ * Indirect specular is not part of this term: the reflection reads the same probes through its
+ * lobe (`reflectionField`, `../reflections/wgsl.ts`).
  */
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(

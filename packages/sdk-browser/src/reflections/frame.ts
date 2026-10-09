@@ -1,6 +1,9 @@
 import { REFLECTION_PASS, REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
-import { wantsContractLighting } from '../webgpu/pages/prepare/lightResources.ts'
+import {
+  directLightResources,
+  wantsContractLighting,
+} from '../webgpu/pages/prepare/lightResources.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import { clearValueOf } from '../../../sdk-core/src/world/math/packedColour.ts'
 import { srgbToLinear } from '../../../math/src/color/color.ts'
@@ -24,7 +27,7 @@ const WHITE = 254.5 / 255
  * pyramid's nearest layer once the visibility drew the whole depth (`GpuHiz.encodeNearest`: the
  * Hi-Z's build, which only the readers of the whole depth read, built in their first pass), then
  * the surroundings and the opaque surfaces' trace into the reflection target the resolve reads,
- * when the image is lit. `inverseViewProjection` and `camera` are the lighting's own, `direct` the
+ * when the image is lit, its field read from the bounce cascades the resolve reads. `inverseViewProjection` and `camera` are the lighting's own, `direct` the
  * parameters its resolve reads (`encodeDirectLights`: the exposure and the display curve's rank).
  */
 export function encodeReflections(
@@ -53,17 +56,22 @@ export function encodeReflections(
     },
   })
   const surfaces = gpu.surfaces,
-    traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer
+    deferred = gpu.deferred,
+    traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
   const open = reflectionPass.begin(encoder)
   if (run.depthDrawn) hiz.encodeNearest(open)
   if (traced) {
     const views = surfaces.views()
+    // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
+    const contract = directLightResources(rt)
     const inputs = {
       flags: views[3],
       normals: views[1],
       lobes: surfaces.lobesView,
       surfaces,
       lights: lights.buffer!,
+      bounceGrid: contract.bounceGrid ?? deferred!.placeholders.bounceGrid,
+      probes: contract.probes ?? deferred!.placeholders.probes,
     }
     const group = reflectionGroup(reflection, depth)
     encodeReflectionTrace(open.pass, reflection, pipelines, inputs, group, gpu.targetSize)

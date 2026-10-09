@@ -61,10 +61,10 @@ export const WATER_COLOR_WGSL = wgslBlock(
   // What the surface reflects, traced once: weighed on its colour for the lit share, on a null
   // albedo for the specular share, as the lights are.
   let reflected=reflectedRadiance(P,Nv,V,rough,reflectionLobe(rough));
-  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+lobeReflection(reflected*reflectionWeight(base.rgb,metal,rough,Nv,V),V)+emissiveAo.rgb;}
+  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+lobeReflection(reflected*reflectionWeight(base.rgb,metal,rough,Nv,V),V,P)+emissiveAo.rgb;}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the dielectric
   // specular lobe stays.
-  specular=declared.specular+lobeReflection(reflected*reflectionWeight(vec3f(0.0),0.0,rough,Nv,V),V);
+  specular=declared.specular+lobeReflection(reflected*reflectionWeight(vec3f(0.0),0.0,rough,Nv,V),V,P);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,

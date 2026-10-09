@@ -87,7 +87,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
- var rgb=lit+ambient+resolvedReflection(coord,base.rgb,base.a,normal.a,N,V)+emissive.rgb${sum};${CAMERA_FOG}
+ var rgb=lit+ambient+resolvedReflection(coord,base.rgb,base.a,normal.a,N,V,P)+emissive.rgb${sum};${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

@@ -1,6 +1,6 @@
 // The engine side of the reflection proof: a synthetic still frame — a mirror floor and an emissive
 // quad standing on it, seen by an infinite reversed perspective — laid in the engine's own inputs
-// (the surface flags and normals, the Hi-Z level 0, the lit image), then the engine's kernels run on
+// (the surface flags and normals, the Hi-Z level 0, the lit image, no bounce), then the engine's kernels run on
 // it as an image runs them: the depth pyramid the trace marches (`gpu/hiz`, as the visibility builds
 // it), the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
 // radiance pyramid of the lit image. Twice: two consecutive still images, whose reflection targets
@@ -14,6 +14,8 @@ import {
   writeReflectionView,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
+import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
+import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createSceneLightContractBuffer } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
@@ -67,11 +69,18 @@ export function run() {
       format: 'rgba32uint',
       usage: GPUTextureUsage.TEXTURE_BINDING,
     })
+    // No bounce: the cascades' empty grid, whose field is zero, and an atlas of one probe.
+    const bounceGrid = device.createBuffer({
+      size: BOUNCE_GRID_BYTES,
+      usage: GPUBufferUsage.UNIFORM,
+    })
+    const probes = emptyAtlas(device, 'mirror proof probes', PROBE_TEXELS)
     const views = {
       flags: flags.createView(),
       normals: normals.createView(),
       lobes: lobes.createView(),
     }
+    const field = { bounceGrid, probes: probes.createView({ dimension: '2d-array' }) }
     const image = (radiance: boolean) => {
       writeReflectionView(reflection, {
         viewProjection: scene.viewProjection,
@@ -87,7 +96,7 @@ export function run() {
       // The visibility's builds once the depth is drawn: its farthest layer, then its nearest.
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
-      const inputs = { ...views, surfaces: views, lights }
+      const inputs = { ...views, ...field, surfaces: views, lights }
       const group = reflectionGroup(reflection, depth)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, [size, size])
       pass.end()
@@ -116,6 +125,8 @@ export function run() {
     result.size = size
     reflection.dispose()
     lights.destroy()
+    bounceGrid.destroy()
+    probes.destroy()
     hiz.dispose()
     for (const made of partition) made.destroy()
     for (const made of [flags, normals, hdr, lobes]) made.destroy()

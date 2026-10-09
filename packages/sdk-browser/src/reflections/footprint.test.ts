@@ -53,7 +53,11 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
         const P = [0, 1, 2].map((k) => eye[k] + d[k] * front.t) as V3
         if (Math.abs(P[2] - sheet.high[2]) > 1e-9) continue
         const R: V3 = [d[0], d[1], -d[2]]
-        const seen = scene.reflectionSeen(P, [0, 0, 1], R, 0.01, [0, 0, 0, 0.01])
+        const seen = scene.reflectionSeen(
+          P,
+          [0, 0, 1],
+          scene.reflectionLobeOf(R, 0.01, [0, 0, 0, 0.01]),
+        )
         if (!(seen.confidence > 0)) continue
         hits++
         const Q = seen.color
@@ -107,11 +111,19 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
   /** The footprint's taps from `P`, two metres or more from the hit, of `alpha` and `lobe`. */
   const taps = (P: V3, alpha: number, lobe: number[]) => {
     read.length = 0
-    const sum = run.reflectionFootprint(Q, hit, P, R, pixel, alpha, lobe, [0, 0, 320, 180], {
-      pixel: [0, 0],
-      plane: [0, 0, 0],
-      thickness: 1,
-    })
+    const sum = run.reflectionFootprint(
+      Q,
+      hit,
+      P,
+      pixel,
+      run.reflectionLobeOf(R, alpha, lobe),
+      [0, 0, 320, 180],
+      {
+        pixel: [0, 0],
+        plane: [0, 0, 0],
+        thickness: 1,
+      },
+    )
     return { mean: sum.color.map((v) => v / sum.weight), taps: [...read] }
   }
   const axis = (distance: number, alpha: number) =>
