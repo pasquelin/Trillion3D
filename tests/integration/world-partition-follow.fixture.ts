@@ -43,7 +43,7 @@ export async function served(t: TestContext, prefix: string, gltf: ReturnType<ty
  *  primed as a session opened now primes them. */
 export async function primed(model: LoadedModel, eye: readonly number[]) {
   const [cells] = model.record.scene.partitions
-  const streamer = createPageStreamer(cells.pages, model.record.base)
+  const streamer = createPageStreamer(cells.pages, model.record.base, { cache: createPageCache() })
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
   camera.position.set(eye[0], eye[1], eye[2])
   camera.updateMatrixWorld()

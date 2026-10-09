@@ -67,9 +67,12 @@ export type PageQueue = PageCatalogue & {
   readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
   readonly signal: AbortSignal
 }
-/** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
- *  manifest tables and its transfer queue; every member has a default. */
+/** How a page streamer reads (`createPageStreamer`): through `cache`, its owner's, which reserves
+ *  its manifest tables and its transfer queue beside its pages; every other member has a
+ *  default. */
 export interface PageStreamerOptions {
+  /** The page cache it reads through, its owner's: it outlives the streamer. */
+  cache: PageCache
   /** Cancels every read once aborted. */
   signal?: AbortSignal
   /** Reads running at once; 8 by default. */
@@ -85,9 +88,6 @@ export interface PageStreamerOptions {
   /** Hears, once, a read that fails for good or first waits the longest, by its page's url: again
    *  only after it landed. */
   onStalled?: (failure: { key: string; cause: unknown }) => void
-  /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
-   *  reserved on top; 256 MiB by default. */
-  maxCachedBytes?: number
 }
 export type Job = {
   url: string

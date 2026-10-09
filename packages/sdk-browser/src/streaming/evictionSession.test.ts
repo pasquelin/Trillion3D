@@ -2,7 +2,7 @@
 // recently used pages past the sessions' pins, until the pages fit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createPageStreamerWith } from './pageStreamer.ts'
+import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
 import { servedPages } from './servedPages.fixture.ts'
@@ -23,7 +23,7 @@ test('random pins, reads and totals: the session evicts the least recently used 
     const draw = random(seed)
     const cache = createPageCache(reserved + urls.length * PAGE)
     const evicted: string[] = []
-    const streamer = createPageStreamerWith(pages, 'http://cache/', {
+    const streamer = createPageStreamer(pages, 'http://cache/', {
       cache,
       workerCount: 2,
       onEvict: (url) => evicted.push(url),
@@ -77,7 +77,7 @@ test('two sessions over one cache: what either pins stays, the strictest bound e
   const { pages } = await servedPages(urls)
   const cache = createPageCache(2 * (manifestTableBytes(pages) + TRANSFER) + 3 * PAGE)
   const open = (maxPages?: number) =>
-    createPageStreamerWith(pages, 'http://cache/', {
+    createPageStreamer(pages, 'http://cache/', {
       cache,
       maxPages,
       workerCount: 1,

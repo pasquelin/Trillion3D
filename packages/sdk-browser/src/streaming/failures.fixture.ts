@@ -2,6 +2,7 @@
 // what the failure policy's tests read (`failures.test.ts`, `failureLife.test.ts`).
 import type { TestContext } from 'node:test'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { eventually } from './eventually.fixture.ts'
 
 /** Waits till `streamer` reads nothing and queues nothing: every read it was asked landed, failed
@@ -23,6 +24,7 @@ export function refusing(t: TestContext, status: number, urls = ['a.bin'], heade
   })
   const pages = urls.map((url) => ({ url, bytes: 4, sha256: '' }))
   const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
     onStalled: ({ key }) => void said.push(key),
   })
   t.after(() => streamer.dispose())

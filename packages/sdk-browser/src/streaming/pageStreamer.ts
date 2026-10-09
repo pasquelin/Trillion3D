@@ -7,7 +7,6 @@ import { createReadFailures } from './failures.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
-import { createPageCache, type PageCache } from './pageCache.ts'
 import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
 import { createReadWatch } from './readWatch.ts'
 import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
@@ -15,26 +14,20 @@ import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
  *  end to end would stand still on it (`queueRanges.ts`). */
 const listed = (page: StreamPage) => !(page.range && page.bytes === 0)
 
-/** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
- *  its last consumer leaves; one already transferring is allowed to land in the cache.
- *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
- *  eviction, so a caller keeps its displayed cover by retaining it. */
-export const createPageStreamer = (
+/** Bounded, prioritized and deduplicated reads through `options.cache`, the page cache its owner
+ *  keeps (`pageCache.ts`). A request still waiting in the queue is dropped once its last consumer
+ *  leaves; one already transferring is allowed to land in the cache. The cache is a
+ *  least-recently-used set bounded by both entries and bytes; pinned entries survive eviction, so a
+ *  caller keeps its displayed cover by retaining it. */
+export function createPageStreamer(
   pages: readonly StreamPage[],
   base: string,
-  options?: PageStreamerOptions,
-) => createPageStreamerWith(pages, base, options)
-/** `createPageStreamer` reading through `options.cache`, a world's kept cache (`pageCache.ts`). */
-export function createPageStreamerWith(
-  pages: readonly StreamPage[],
-  base: string,
-  options: PageStreamerOptions & { cache?: PageCache } = {},
+  options: PageStreamerOptions,
 ) {
-  const { cache: kept, signal, maxPages, onEvict, onDiagnostic, maxCachedBytes } = options
+  const { cache: store, signal, maxPages, onEvict, onDiagnostic } = options
   const { workerCount = 8, maxTransferBytes = 8 * MIB } = options
   const catalog = new Map(pages.filter(listed).map((page) => [page.url, page]))
-  const store = kept ?? createPageCache(maxCachedBytes),
-    jobs = new Map<string, Job>(),
+  const jobs = new Map<string, Job>(),
     queue = createTransferQueue()
   const pinned = new Set<string>(),
     abort = new AbortController()
@@ -95,8 +88,6 @@ export function createPageStreamerWith(
   }
   dropForeign(pages)
   streaming.open()
-  // A cache of its own holds `maxCachedBytes` of pages, the session's reserve on top.
-  if (!kept) store.resize(store.cpuBytes + store.reservedBytes)
   emit?.('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
     version: 1,
     pages: catalog.size,
@@ -133,6 +124,8 @@ export function createPageStreamerWith(
     },
     getBytes: (url: string) => store.touch(url),
     has: (url: string) => store.page(url) !== undefined,
+    /** Whether the catalogue names `url`: a page `admit` took and `forget` has not let go. */
+    catalogued: (url: string) => catalog.has(url),
     loading: (url: string) => jobs.has(url),
     /** Whether a read of `url` is refused for good: another request would meet its failure again.
      *  One that may pass is never refused: it waits its turn, its askers waiting on it. */
@@ -200,9 +193,8 @@ export function createPageStreamerWith(
       abort.abort(abortError())
       jobs.clear()
       queue.clear()
+      // The cache is its owner's, for the next session.
       streaming.close()
-      // A kept cache is its owner's, for the next session; one of the streamer's own leaves now.
-      if (!kept) store.clear()
       pinned.clear()
       failures.clear()
     },

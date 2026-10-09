@@ -1,7 +1,7 @@
 import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createPageStreamerWith } from './pageStreamer.ts'
+import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
 import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts'
@@ -22,7 +22,7 @@ const open = (
   cache: ReturnType<typeof createPageCache>,
   base = 'http://cache/',
 ) =>
-  createPageStreamerWith(pages, base, {
+  createPageStreamer(pages, base, {
     cache,
     workerCount: 1,
     maxTransferBytes: TRANSFER,
@@ -84,7 +84,7 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
   const reserved = manifestTableBytes(pages) + TRANSFER
   const cache = createPageCache(reserved + 4 * 12)
   const evicted: string[] = []
-  const streamer = createPageStreamerWith(pages, 'http://cache/', {
+  const streamer = createPageStreamer(pages, 'http://cache/', {
     cache,
     workerCount: 1,
     onEvict: (url) => evicted.push(url),
@@ -118,12 +118,8 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   streamer.dispose()
 })
 
-test("a streamer's own cache leaves with it; a kept one stays, minus pages cooked again", async () => {
+test('a kept cache outlives its streamer, minus pages cooked again', async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin'])
-  const own = open(pages, undefined as never)
-  await own.request(['a.bin'], { signal: own.signal })
-  own.dispose()
-  assert.equal(own.has('a.bin'), false)
   const kept = createPageCache()
   const first = open(pages, kept)
   await first.request(['a.bin', 'b.bin'], { signal: first.signal })

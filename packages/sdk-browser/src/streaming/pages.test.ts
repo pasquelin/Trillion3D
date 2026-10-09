@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
 
 /** Three verified pages served whole, two workers, room for two resident pages. */
@@ -17,13 +18,13 @@ async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
       { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
     ],
     'http://cache/',
-    { workerCount: 2, maxPages: 2, onEvict },
+    { cache: createPageCache(), workerCount: 2, maxPages: 2, onEvict },
   )
 }
 
 test('streamer fetches only requested pages and counts hits', async () => {
   const { pages, fetched } = await servedPages(['a.bin', 'b.bin'])
-  const streamer = createPageStreamer(pages, 'http://cache/')
+  const streamer = createPageStreamer(pages, 'http://cache/', { cache: createPageCache() })
   await streamer.request(['a.bin'], { signal: streamer.signal })
   assert.deepEqual(fetched, ['http://cache/a.bin'])
   assert.equal(streamer.get('a.bin')?.[0], 1)
@@ -64,7 +65,9 @@ test('the bootstrap reader verifies pages and shares in-flight requests', async 
     attempts++
     return new Response(bytes)
   }
-  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 12, sha256: sha }], 'http://cache/')
+  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 12, sha256: sha }], 'http://cache/', {
+    cache: createPageCache(),
+  })
   try {
     const [a, b] = await Promise.all([
       streamer.read('a.bin', streamer.signal),
@@ -95,7 +98,7 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
   const streamer = createPageStreamer(
     [{ url: 'a.bin', bytes: 12, sha256: 'unused' }],
     'http://cache/',
-    { signal: controller.signal },
+    { cache: createPageCache(), signal: controller.signal },
   )
   try {
     const job = streamer.read('a.bin', streamer.signal)
@@ -124,6 +127,7 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   const evicted: string[] = []
   // Budget of two pages: the third arrival must reclaim the slot of an unpinned one.
   const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
     workerCount: 1,
     maxPages: 2,
     onEvict: (url) => evicted.push(url),
@@ -143,21 +147,4 @@ test('an identical pin list resets nothing, a list that changes resets everythin
   await streamer.request(['b.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['b.bin', 'a.bin'])
   streamer.dispose()
-})
-
-test('a streamer of its own holds `maxCachedBytes` of pages beside its reservations, and empties at dispose', async () => {
-  const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin'])
-  const evicted: string[] = []
-  // Room for two 12-byte pages, whatever the manifest tables and the transfer queue reserve.
-  const streamer = createPageStreamer(pages, 'http://cache/', {
-    workerCount: 1,
-    onEvict: (url) => evicted.push(url),
-    maxCachedBytes: 24,
-  })
-  await streamer.request(['a.bin', 'b.bin', 'c.bin'], { signal: streamer.signal })
-  assert.deepEqual(evicted, ['a.bin'])
-  assert.equal(streamer.stats().maxCachedBytes, 24)
-  assert.equal(streamer.stats().residentBytes, 24)
-  streamer.dispose()
-  assert.equal(streamer.has('c.bin'), false)
 })

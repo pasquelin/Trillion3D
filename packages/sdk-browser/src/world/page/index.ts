@@ -25,10 +25,13 @@ export interface PageStreamer {
  */
 export const page = {
   /**
-   * A page source that reads pages over HTTP from `baseUrl`.
+   * A page source that reads pages over HTTP from `baseUrl`; `dispose` cancels its reads.
    * @param baseUrl - The address pages are read against.
    */
-  httpSource: (baseUrl: string): WorldPageSource => ({ ...httpPageSource(baseUrl), baseUrl }),
+  httpSource: (baseUrl: string): WorldPageSource & { dispose(): void } => ({
+    ...httpPageSource(baseUrl),
+    baseUrl,
+  }),
   /**
    * Describes how a model's pages are fetched: from which source, by how many workers.
    * @param p - The page source, and how many workers fetch at once.

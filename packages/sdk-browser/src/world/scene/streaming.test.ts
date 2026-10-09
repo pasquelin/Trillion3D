@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Engine } from '../../engine/types.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import { createExplorerStreaming } from './streaming.ts'
 
@@ -19,6 +20,7 @@ test('a page the server refuses for good is told to the host once: never again b
     [{ url: 'gone.bin', bytes: 4, sha256: '' }],
     'http://cache/',
     {
+      cache: createPageCache(),
       onStalled: () => void events.push('stalled'), // the read layer's one report
     },
   )

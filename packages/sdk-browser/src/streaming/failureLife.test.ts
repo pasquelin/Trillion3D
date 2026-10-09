@@ -3,6 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { createReadFailures } from './failures.ts'
 import { eventually } from './eventually.fixture.ts'
 import { idle, refusing } from './failures.fixture.ts'
@@ -44,7 +45,9 @@ test('a page forgotten while its read transfers ends with it, failed or not: nev
     await gate
     return new Response('', { status: 503 })
   })
-  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 4, sha256: '' }], 'http://cache/')
+  const streamer = createPageStreamer([{ url: 'a.bin', bytes: 4, sha256: '' }], 'http://cache/', {
+    cache: createPageCache(),
+  })
   t.after(() => streamer.dispose())
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   await eventually(() => sent === 1) // under way

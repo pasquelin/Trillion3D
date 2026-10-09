@@ -2,7 +2,7 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
-import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
+import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 import { worldRootsOf } from '../../scene/worldRoots.ts'
@@ -80,7 +80,7 @@ export function openExplorerPageSources(
   // cancelled, as the session closes.
   const pageCache = options.pageCache ?? createPageCache()
   if (!options.pageCache) signal?.addEventListener('abort', () => pageCache.clear(), { once: true })
-  const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
+  const streamer = createPageStreamer([...pages, ...geometryPages, ...bundles], base, {
     cache: pageCache,
     signal,
     workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,

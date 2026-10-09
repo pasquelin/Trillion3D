@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuPageCache, httpPageSource } from '../gpu/page/pages.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
 import { eventually } from './eventually.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from './priority.ts'
@@ -15,6 +16,7 @@ test('two GPU loads of one page in flight read it by its one job: one transfer',
   const { pages, fetched } = await servedPages(['a.bin'])
   const heard: string[] = []
   const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
     onDiagnostic: ({ phase }) => heard.push(phase),
   })
   const source = {
@@ -76,6 +78,7 @@ test('a view read joining a prefetch in flight is counted and raises it', async 
     return served(url, init)
   }
   const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
     workerCount: 1,
     maxTransferBytes: 12,
   })

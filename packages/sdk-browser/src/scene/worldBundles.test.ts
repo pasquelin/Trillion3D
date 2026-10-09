@@ -12,6 +12,7 @@ import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecor
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { heldBy, modelOpened, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 type Dag = ReturnType<typeof worldRootsDag>
 
@@ -159,7 +160,7 @@ test('a page asked while its bundle transfers holds the bundle: its cell leaving
 test('a cell held before its world is bound waits for the bind, then reads', async (t) => {
   const { manifest, ranges, table } = served(t)
   const roots = (await modelOpened(manifest))!
-  const queue = createPageStreamer([], 'http://world/')
+  const queue = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   t.after(() => queue.dispose())
   const held = roots.hold(1)
   await new Promise(setImmediate)
@@ -172,7 +173,7 @@ test("a hold under way as its session's queue closes reads in the next session's
   const { roots, queue, ranges, table, land } = await heldAt(t, 2)
   const held = roots.hold(1) // bundles 2 and 3, one read, under way
   await eventually(() => ranges.length === 2)
-  const next = createPageStreamer([], 'http://world/')
+  const next = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   queue.dispose() // the device is lost: its session closes
   land()
   roots.bind(next) // the next session

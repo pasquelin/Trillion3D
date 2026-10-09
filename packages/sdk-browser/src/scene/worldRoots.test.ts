@@ -12,7 +12,7 @@ import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 import { heldBy, modelOpened, opened, rangeOf, served } from './worldRoots.fixture.ts'
-import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
@@ -56,6 +56,7 @@ test('the top read at open and a bundle a cell holds are refused alike, naming t
   const expected = (bundle: number) => world.table.bundles[bundle].sha256
   const refusals: string[] = []
   const queue = createPageStreamer([], 'http://world/', {
+    cache: createPageCache(),
     onDiagnostic: ({ phase, context }) =>
       phase === 'page-retry' && refusals.push(String((context as { error: string }).error)),
   })
@@ -91,7 +92,7 @@ test("a server that ignores the Range is read whole once through the page cache:
   // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole, one entry.
   assert.equal(cache.bytes, bin.byteLength, 'counted once')
   for (const cell of [1, 2]) {
-    const session = createPageStreamerWith([], 'http://world/', { cache })
+    const session = createPageStreamer([], 'http://world/', { cache })
     roots.bind(session)
     await roots.hold(cell)
     session.dispose() // the device is lost: the next session reads on

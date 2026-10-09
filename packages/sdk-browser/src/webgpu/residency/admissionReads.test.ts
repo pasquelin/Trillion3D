@@ -7,6 +7,7 @@ import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
 import { run, world } from './admissionReads.fixture.ts'
 import { readGeometryAhead } from '../row/pageSlots.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import { servedPages } from '../../streaming/servedPages.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 
@@ -91,7 +92,10 @@ test('a job that throws still drops the reads it started', async () => {
 
 test('the admission joins the read under way; the job drops what nobody joined', async () => {
   const { pages, fetched } = await servedPages(['g0.bin', 'g1.bin', 'g2.bin'])
-  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    workerCount: 1,
+  })
   const geometryUrls = new Map([0, 1, 2].map((i) => [`p${i}`, `g${i}.bin`]))
   const readAhead = readGeometryAhead(geometryUrls, (url, signal) =>
     streamer.readBytes(url, signal ?? streamer.signal),
@@ -127,7 +131,10 @@ test('the lower tiers read ahead at prefetch priority, the camera at its own', a
 test('a prefetch read waits behind the camera until an admission joining it raises it', async () => {
   // One worker: g0 transfers; the tier's g1 and g2 wait behind a visible g3, until g2 is demanded.
   const { pages, fetched } = await servedPages(['g0.bin', 'g1.bin', 'g2.bin', 'g3.bin'])
-  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    workerCount: 1,
+  })
   const readAhead = readGeometryAhead(
     new Map([1, 2].map((i) => [`p${i}`, `g${i}.bin`])),
     (url, signal, priority) => streamer.readBytes(url, signal ?? streamer.signal, priority),

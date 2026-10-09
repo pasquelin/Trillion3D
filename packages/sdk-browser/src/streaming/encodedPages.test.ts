@@ -6,6 +6,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
 import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
 import { sha256Hex } from './sha256Hex.ts'
 
 const ENCODINGS = {
@@ -31,6 +32,7 @@ test('a page sent brotli, gzip or as is reads the same bytes, sized and fingerpr
   const streamer = createPageStreamer(
     urls.map((url) => ({ url, bytes: page.byteLength, sha256 })),
     base,
+    { cache: createPageCache() },
   )
   try {
     for (const url of urls)

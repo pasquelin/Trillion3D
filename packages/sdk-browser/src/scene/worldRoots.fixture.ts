@@ -8,7 +8,7 @@ import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
-import { createPageStreamer, createPageStreamerWith } from '../streaming/pageStreamer.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import type { PageStreamerOptions } from '../streaming/types.ts'
 
@@ -21,7 +21,7 @@ export async function modelOpened(
   opening: { signal?: AbortSignal; meter?: ByteMeter; whole?: boolean } = {},
   cache = createPageCache(),
 ) {
-  const queue = createPageStreamerWith([], 'http://world/', { cache, signal: opening.signal })
+  const queue = createPageStreamer([], 'http://world/', { cache, signal: opening.signal })
   try {
     return await openWorldRoots(manifest, 'http://world/', queue, opening)
   } finally {

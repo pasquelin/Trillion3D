@@ -10,6 +10,7 @@ import { createEviction, type EvictionOrder } from './eviction.ts'
 import { placementOf } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 export type { ResidentPage } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
@@ -135,17 +136,23 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
   return context
 }
 /** A page source that fetches pages over HTTP, by key, from `baseUrl`, through a page streamer of
- *  its own (`streaming/pageStreamer.ts`): each key read joins its one job, so two loads of one page
- *  in flight send one request, and a page whose read failed waits its turn by the one failure
- *  policy, its loads waiting on it — or is refused for good when another request would meet its
- *  failure again (`streaming/failures.ts`). It announces nothing of a page: its bytes are taken as
- *  the server sends them, and kept by the loads alone. */
-export function httpPageSource(baseUrl: string): PageSource {
-  const streamer = createPageStreamer([], baseUrl)
+ *  its own over a page cache of its own (`streaming/pageStreamer.ts`): each key read joins its one
+ *  job, so two loads of one page in flight send one request, and a page whose read failed waits its
+ *  turn by the one failure policy, its loads waiting on it — or is refused for good when another
+ *  request would meet its failure again (`streaming/failures.ts`). It announces nothing of a page:
+ *  its bytes are taken as the server sends them, and kept by the loads alone. A key is catalogued
+ *  by its first read. `dispose` cancels its reads and empties its cache. */
+export function httpPageSource(baseUrl: string): PageSource & { dispose(): void } {
+  const cache = createPageCache()
+  const streamer = createPageStreamer([], baseUrl, { cache })
   return {
     read(key, signal, priority) {
-      streamer.admit([{ url: key, bytes: 0, kept: false }])
+      if (!streamer.catalogued(key)) streamer.admit([{ url: key, bytes: 0, kept: false }])
       return streamer.readBytes(key, signal ?? streamer.signal, priority)
+    },
+    dispose() {
+      streamer.dispose()
+      cache.clear()
     },
   }
 }

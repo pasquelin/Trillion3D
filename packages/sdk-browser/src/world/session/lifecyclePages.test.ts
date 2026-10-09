@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import type { JobProgress } from '../../../../sdk-core/src/index.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { createExplorerLifecycle } from './lifecycle.ts'
 
@@ -16,7 +17,7 @@ async function lackingPages(missing: string[], pinned: string[] = [], resident =
   const sha256 = await sha256Hex(bytes.buffer)
   globalThis.fetch = async () => new Response(bytes, { status: 200 })
   const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({ url, bytes: 4, sha256 }))
-  const streamer = createPageStreamer(pages, 'http://cache/')
+  const streamer = createPageStreamer(pages, 'http://cache/', { cache: createPageCache() })
   await streamer.request(resident, { signal: streamer.signal })
   const accepted: string[] = []
   const backend = {

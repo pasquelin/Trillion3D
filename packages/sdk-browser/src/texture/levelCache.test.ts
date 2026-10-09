@@ -9,7 +9,7 @@ import { tileRecord } from './tileRecords.ts'
 import { tiledLevelBytes } from './tileRecords.fixture.ts'
 import { createPageCache, type PageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'
-import { createPageStreamerWith } from '../streaming/pageStreamer.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
@@ -86,7 +86,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   await ask(0)
   assert.equal(levels.bytes, 64, 'held while no session reserves its room')
   const { pages, fetched } = await servedPages(urls)
-  const streamer = createPageStreamerWith(pages, 'http://cache/', { cache, maxTransferBytes: 64 })
+  const streamer = createPageStreamer(pages, 'http://cache/', { cache, maxTransferBytes: 64 })
   streamer.retain(urls)
   await streamer.request(urls, { signal: streamer.signal })
   const { evictions, admissionBlocked } = streamer.stats()

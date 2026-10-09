@@ -12,7 +12,7 @@ import { loadClusterManifest } from '../../scene/manifestLoad.ts'
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import type { PageCache } from '../../streaming/pageCache.ts'
-import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
+import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
@@ -156,7 +156,7 @@ export async function loadModel(
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` })
   // The model reads its world roots through a queue of its own over the world's page cache, as a
   // session reads through its own: let go once the model is read.
-  const queue = createPageStreamerWith([], base, { cache: options.pageCache, signal })
+  const queue = createPageStreamer([], base, { cache: options.pageCache, signal })
   const [scene, imported] = await Promise.all([
     loadPreparedScene(
       {

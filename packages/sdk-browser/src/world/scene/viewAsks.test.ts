@@ -4,6 +4,7 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../../streaming/eventually.fixture.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
@@ -23,7 +24,10 @@ async function served(t: TestContext, status: number, count = 1) {
     return new Response(status === 200 ? body.slice() : '', { status })
   })
   const pages = Array.from({ length: count }, (_, i) => ({ url: `p${i}.bin`, bytes: 4, sha256 }))
-  const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(),
+    workerCount: 1,
+  })
   t.after(() => streamer.dispose())
   return { streamer, sent, release }
 }
