@@ -24,7 +24,6 @@ import {
   ZERO_DIRECT,
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
-import { LIGHTING_RECEIVER_BINDING } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../../packages/sdk-browser/src/vsm/transmissionWgsl.ts'
@@ -33,26 +32,10 @@ import {
   VSM_MASK_TILES_BINDING,
 } from '../../../packages/sdk-browser/src/vsm/projectionMaskTable.ts'
 import { RESIDENT_PROXY_BINDING } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts'
-import { RECEIVER_BINDINGS } from '../../../packages/sdk-browser/src/visibility/shader/receiverOffsetWgsl.ts'
-import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts'
-import { PHYSICAL_LOBES_BINDING } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
-import {
-  REFLECTION_TARGET_BINDING,
-  REFLECTION_VIEW_BINDING,
-} from '../../../packages/sdk-browser/src/reflections/weight.ts'
+import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-
-/** The resolve's bindings the harness never reads: the surfaces, the receiver offset's, the
- *  subsurface, the lobes and the reflection, which its entries set by hand or leave. */
-const UNREAD = new Set([
-  ...RECEIVER_BINDINGS.map((_, i) => LIGHTING_RECEIVER_BINDING + i),
-  SUBSURFACE_BINDING,
-  PHYSICAL_LOBES_BINDING,
-  REFLECTION_TARGET_BINDING,
-  REFLECTION_VIEW_BINDING,
-])
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
  *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with

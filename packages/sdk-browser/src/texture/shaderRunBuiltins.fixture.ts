@@ -2,6 +2,7 @@
 // JavaScript double precision.
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
+import { SCALAR } from './shaderRunOperators.fixture.ts'
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>
@@ -39,24 +40,6 @@ export const each =
   }
 
 const n = (value: Scalar) => Number(value)
-const SCALAR: Record<string, (a: number, b: number) => Scalar> = {
-  '+': (a, b) => a + b,
-  '-': (a, b) => a - b,
-  '*': (a, b) => a * b,
-  '/': (a, b) => a / b,
-  '%': (a, b) => a % b,
-  '<': (a, b) => a < b,
-  '>': (a, b) => a > b,
-  '<=': (a, b) => a <= b,
-  '>=': (a, b) => a >= b,
-  '==': (a, b) => a === b,
-  '!=': (a, b) => a !== b,
-  '>>': (a, b) => a >>> b,
-  '<<': (a, b) => (a << b) >>> 0,
-  '&': (a, b) => (a & b) >>> 0,
-  '|': (a, b) => (a | b) >>> 0,
-  '^': (a, b) => (a ^ b) >>> 0,
-}
 
 /** A binary operator: a matrix times a vector, otherwise component-wise. */
 function $b(op: string, a: Value, b: Value): Value {
