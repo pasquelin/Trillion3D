@@ -31,8 +31,12 @@ export type TextureLevelRequest = TextureLevelAddress & {
    *  is read whole. */
   range?: { offset: number; bytes: number }
 }
-/** Where the levels read are held: the page cache, among its entries (`PageCache.level`). */
-export type TextureLevelStore = Pick<PageCache, 'level' | 'keepLevel' | 'roomBytes' | 'levelBytes'>
+/** Where the levels read are held: the page cache, among its entries (`PageCache.level`), each
+ *  held there by its asker while it must not leave (`acquire`, `release`, then `fit`). */
+export type TextureLevelStore = Pick<
+  PageCache,
+  'level' | 'keepLevel' | 'roomBytes' | 'levelBytes' | 'acquire' | 'release' | 'fit'
+>
 /** A function that fetches one baked texture level, the store its levels are held in and the cook
  *  it was made for (`heldLevels.ts`). */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {

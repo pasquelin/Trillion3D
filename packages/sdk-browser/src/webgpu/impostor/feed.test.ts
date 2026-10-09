@@ -22,7 +22,7 @@ const mapsOf = (mesh: number): ImpostorMaps => {
 const ATLAS_BYTES = 3 * 8 * 8 * 4
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function feedOf(room: number, refuse?: Parameters<typeof fakeDevice>[0]) {
+function feedOf(room: number, refuse?: Parameters<typeof fakeDevice>[0], hostBytes?: number) {
   const gpu = fakeDevice(refuse)
   const asked: string[] = [],
     failed: string[] = []
@@ -30,7 +30,8 @@ function feedOf(room: number, refuse?: Parameters<typeof fakeDevice>[0]) {
     asked.push(url!)
     return { width: 8, height: 8, close() {} } as ImageBitmap
   }
-  const reader = Object.assign(read, { store: createPageCache(), key: 'k' }) as TextureLevelReader
+  const store = createPageCache(hostBytes)
+  const reader = Object.assign(read, { store, key: 'k' }) as TextureLevelReader
   const feed = createImpostorFeed(gpu.device, {} as GPUBindGroupLayout, reader, {
     room: () => room,
     landed: () => undefined,
@@ -44,7 +45,7 @@ function feedOf(room: number, refuse?: Parameters<typeof fakeDevice>[0]) {
     await settle()
     return feed.group(mesh, mapsOf(mesh), frame)
   }
-  return { gpu, feed, asked, failed, resident }
+  return { gpu, feed, asked, failed, resident, store }
 }
 
 test('within the room, the atlas drawn least recently leaves for a new one', async () => {
@@ -105,4 +106,28 @@ test('an atlas the device refused is not asked again while the feed holds as muc
   assert.deepEqual(failed, ['gpu-out-of-memory'], 'the device was asked once')
   assert.equal(asked(), once, 'no texture of mesh 1 asked again')
   assert.equal(feed.bytes, ATLAS_BYTES)
+})
+
+test('an atlas past the host room is never read, refused once; one made lets its levels go', async () => {
+  const small = feedOf(ATLAS_BYTES, undefined, ATLAS_BYTES - 1)
+  for (const frame of [0, 1, 2]) assert.equal(await small.resident(1, frame), undefined)
+  assert.deepEqual(small.asked, [], 'nothing read: its levels would evict one another')
+  assert.deepEqual(small.failed, ['impostor-atlas-past-host-room'], 'said once')
+  const fits = feedOf(ATLAS_BYTES, undefined, ATLAS_BYTES)
+  assert.ok(await fits.resident(1, 0))
+  assert.deepEqual(
+    [fits.store.levelBytes, fits.store.heldBytes],
+    [ATLAS_BYTES, 0],
+    'copied, let go',
+  )
+})
+
+test('a mesh the last frame did not ask lets its levels go', async () => {
+  const { feed, store } = feedOf(ATLAS_BYTES)
+  feed.group(1, mapsOf(1), 0)
+  await settle()
+  assert.ok(store.heldBytes > 0, 'its landed levels held while it gathers them')
+  feed.group(2, mapsOf(2), 1)
+  feed.group(2, mapsOf(2), 2)
+  assert.equal(store.heldBytes, 0)
 })

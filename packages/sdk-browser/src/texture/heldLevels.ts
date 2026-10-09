@@ -16,6 +16,11 @@
  * (`streaming/failures.ts`), which says when it is asked again, if ever; a record answered short or
  * foreign is refused for good. Its tile stays served by its coarse level meanwhile. The failures
  * live with the reader, one per level or record asked at most.
+ *
+ * An asker that asks the same levels every frame and needs them all at once — an impostor atlas
+ * (`impostor/atlas.ts`) — builds their asks once (`ask`), holds them in the cache while it gathers
+ * them (`hold`), so a level landing never evicts another of its set, and lets them go once it is
+ * done (`letGo`).
  */
 import {
   bitmapBytes,
@@ -39,6 +44,13 @@ export class LevelBytesError extends Error {
 type Size = readonly [width: number, height: number]
 /** Hears a read its asker launched that failed. */
 export type LevelFailed = (address: TextureLevelAddress, error: unknown) => void
+/** A whole level as an asker keeps it from one frame to the next (`HeldLevels.ask`): its address,
+ *  its size, and what it is held under, built once. */
+export type LevelAsk = {
+  readonly address: TextureLevelAddress
+  readonly size: Size
+  readonly id: string
+}
 
 /** Cooked-level reads in flight at most: beyond that, a level waits for the next image. */
 const MAX_LEVEL_READS = 6
@@ -97,6 +109,34 @@ function createHeldLevels(read: TextureLevelReader) {
       })
     pending.set(id, landing)
   }
+  /** `read`, `id` the level's: what it is held under. */
+  const readId = (
+    id: string,
+    address: TextureLevelAddress,
+    size: Size,
+    failed: LevelFailed,
+    tx: number,
+    ty: number,
+    roomFor: () => boolean,
+  ): TextureLevel | 'waiting' | 'refused' => {
+    const held = store.level(id)
+    if (held) return held
+    if (!roomFor()) return 'refused'
+    if (pending.has(id) || failures.blocked(id) || pending.size >= MAX_LEVEL_READS) return 'waiting'
+    // The record is reckoned where it is needed: a waiting tile asks every frame.
+    const range =
+        address.format === PREVIEW_LOSSLESS_FORMAT
+          ? undefined
+          : tileRecord(size[0], size[1], tx, ty),
+      bytes = range?.bytes ?? bitmapBytes(size[0], size[1]),
+      room = store.roomBytes
+    if (bytes > room) return 'refused'
+    // The reads in flight hold their room: one that fits only once they have landed waits for
+    // them, rather than landing to evict a level read for a tile not cut yet.
+    if (reading + bytes > room) return 'waiting'
+    launch(id, range ? { ...address, range } : address, size, bytes, failed)
+    return 'waiting'
+  }
   return {
     /**
      * What a tile is cut from — the lossless level `address` names, or the block tile `tx`, `ty`'s
@@ -112,24 +152,34 @@ function createHeldLevels(read: TextureLevelReader) {
       tx = 0,
       ty = 0,
       roomFor: () => boolean = always,
-    ): TextureLevel | 'waiting' | 'refused' {
-      const lossless = address.format === PREVIEW_LOSSLESS_FORMAT,
-        id = levelId(key, address, lossless, tx, ty),
-        held = store.level(id)
-      if (held) return held
-      if (!roomFor()) return 'refused'
-      if (pending.has(id) || failures.blocked(id) || pending.size >= MAX_LEVEL_READS)
-        return 'waiting'
-      // The record is reckoned where it is needed: a waiting tile asks every frame.
-      const range = lossless ? undefined : tileRecord(size[0], size[1], tx, ty),
-        bytes = range?.bytes ?? bitmapBytes(size[0], size[1]),
-        room = store.roomBytes
-      if (bytes > room) return 'refused'
-      // The reads in flight hold their room: one that fits only once they have landed waits for
-      // them, rather than landing to evict a level read for a tile not cut yet.
-      if (reading + bytes > room) return 'waiting'
-      launch(id, range ? { ...address, range } : address, size, bytes, failed)
-      return 'waiting'
+    ) {
+      const id = levelId(key, address, address.format === PREVIEW_LOSSLESS_FORMAT, tx, ty)
+      return readId(id, address, size, failed, tx, ty, roomFor)
+    },
+    /** The ask of the level `address` names, `size` texels wide and high, as `read` asks it at
+     *  tile 0, 0 — a lossless level whole —, built once. */
+    ask: (address: TextureLevelAddress, size: Size): LevelAsk => ({
+      address,
+      size,
+      id: levelId(key, address, address.format === PREVIEW_LOSSLESS_FORMAT, 0, 0),
+    }),
+    /** `read` of a level asked before (`ask`), no string built. */
+    readAsked: ({ id, address, size }: LevelAsk, failed: LevelFailed) =>
+      readId(id, address, size, failed, 0, 0, always),
+    /** Whether the read of `ask` failed for good: no request will be sent for it again. */
+    failedForGood: ({ id }: LevelAsk) => failures.blocked(id)?.state === 'refused',
+    /** Holds `asks` in the cache, landed or not, until `letGo`: no eviction takes them. */
+    hold(asks: readonly LevelAsk[]) {
+      for (const { id } of asks) store.acquire(id)
+    },
+    /** Lets `asks` held go (`hold`): they leave by last use from now on. */
+    letGo(asks: readonly LevelAsk[]) {
+      for (const { id } of asks) store.release(id)
+      store.fit()
+    },
+    /** Bytes a level landing may take in the cache (`PageCache.roomBytes`). */
+    get room() {
+      return store.roomBytes
     },
     /** Tells `landed` each level that lands from now on; returns what stops it. */
     watch(landed: () => void) {
