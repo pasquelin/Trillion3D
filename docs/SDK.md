@@ -381,7 +381,7 @@ strength), `clearcoatMap` (R), `clearcoatRoughnessMap` (G) and `clearcoatNormalM
 (`clearcoatNormalScale`), each map at its native size with its own filters, wrap, transform and UV
 channel, read as linear data. The second UV channel (`TEXCOORD_1`) is read from the compiled
 geometry page or from the source geometry; a geometry without one reads the first. The coat lies
-over every light, the environment, bounced light and reflections, on an opaque surface as on a
+over every light, the environment and bounced light, on an opaque surface as on a
 blended or a transmissive one — whose transmitted light passes under it; a rectangle light
 stretches its specular lobe along the anisotropy.
 

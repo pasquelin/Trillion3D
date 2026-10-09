@@ -100,12 +100,9 @@
       "temporal antialiasing": "antialiasing temporal",
       "HDR composition + present": "komposisi HDR + tampil",
       "deferred lighting": "pencahayaan tertunda",
-      "reflection source": "sumber pantulan",
       "HiZ pyramid": "piramida HiZ",
       "light tiles": "ubin cahaya",
-      "texture mips": "mip tekstur",
-      "reflection radiance mips": "mip radiansi pantulan",
-      "reflection depth bounds mips": "mip batas kedalaman pantulan"
+      "texture mips": "mip tekstur"
     },
     "failure": {
       "title": "Contoh ini berhenti karena sebuah kesalahan",

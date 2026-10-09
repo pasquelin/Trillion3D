@@ -100,12 +100,9 @@
       "temporal antialiasing": "khử răng cưa theo thời gian",
       "HDR composition + present": "tổng hợp HDR + hiển thị",
       "deferred lighting": "chiếu sáng trì hoãn",
-      "reflection source": "nguồn phản chiếu",
       "HiZ pyramid": "kim tự tháp HiZ",
       "light tiles": "ô ánh sáng",
-      "texture mips": "mip kết cấu",
-      "reflection radiance mips": "mip độ rọi phản chiếu",
-      "reflection depth bounds mips": "mip giới hạn độ sâu phản chiếu"
+      "texture mips": "mip kết cấu"
     },
     "failure": {
       "title": "Ví dụ này đã dừng vì một lỗi",

@@ -5031,7 +5031,7 @@
     "summary": "La raíz de la escena de un mundo: se le añaden objetos, se carga en ella un modelo compilado, y lo que llena la imagen detrás de ellos es `background`.",
     "members": {
       "isScene": "Siempre `true`: distingue la raíz de la escena de cualquier otro objeto.",
-      "environment": "Una imagen del entorno que reflejan las superficies brillantes; `null` para ninguna.",
+      "environment": "Una imagen del entorno; `null` para ninguna.",
       "background": "Lo que llena la imagen detrás de cada objeto: un color, o `null` para el predeterminado. Un cambio se muestra en el siguiente fotograma, conservando la sesión: un color nuevo asignado aquí, o el actual escrito con sus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Una escritura directa de `.r`, `.g` o `.b` no se detecta: vuelve a asignar `background` después. Una imagen, o cualquier valor sin `getHex`, se rechaza (`UNSUPPORTED_SCENE_UPDATE`): ninguna ruta la dibuja.",
       "fog": "Niebla sobre cada superficie, opaca o transparente; `null`, el valor por defecto, para ninguna, sin coste. `{ color, near, far }` funde los objetos en `color` de `near` a `far`, distancias desde la cámara; `{ color, density }` se espesa `density` por unidad de distancia; añade `heightFalloff` (y `baseHeight`, 0 por defecto) y se posa en el suelo, aclarándose por encima de `baseHeight` — dividida por e cada `1 / heightFalloff` unidades hacia arriba. Un cambio se ve en la imagen siguiente: una niebla nueva dada aquí, o su color escrito con sus métodos. Una escritura directa de `near`, `far`, `density`... no se oye: vuelve a dar `fog` después. Una niebla fuera de rango — `far` no más allá de `near`, una densidad negativa — se rechaza (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Se llama antes de dibujar la escena; ninguno por defecto.",
@@ -5131,7 +5131,7 @@
       "ids": "El nombre de la luz de cada plaza.",
       "count": "Cuántas luces.",
       "epoch": "Aumentado cuando cambia el conjunto de luces.",
-      "transportEpoch": "Se incrementa con la época, salvo por un cambio solo de la niebla o solo de una porción de sombra: la niebla es un término del rayo de vista y una porción es donde se direccionan los mapas de una luz, ninguno es transporte de luz, así que lo que guarda en caché la luz transportada (las sondas de rebote, el historial de los reflejos) lo conserva.",
+      "transportEpoch": "Se incrementa con la época, salvo por un cambio solo de la niebla o solo de una porción de sombra: la niebla es un término del rayo de vista y una porción es donde se direccionan los mapas de una luz, ninguno es transporte de luz, así que lo que guarda en caché la luz transportada (las sondas de rebote) lo conserva.",
       "environment": "El entorno de la escena.",
       "lightingView": "Vista solicitada por el host, tal cual: `auto` mientras no haya pedido nada.",
       "unlit": "Verdadero cuando la imagen debe salir en albedo puro, sin luz. Es el comportamiento por defecto mientras no se declare ninguna luz: una escena sin fuente no tiene nada que iluminar, y una imagen negra no ayudaría a ningún banco de pruebas de geometría. En cuanto existe una luz, la iluminación real toma el relevo — salvo que el host haya pedido explícitamente la vista de diagnóstico.",

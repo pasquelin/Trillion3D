@@ -100,12 +100,9 @@
       "temporal antialiasing": "zamansal kenar yumuşatma",
       "HDR composition + present": "HDR birleştirme + sunum",
       "deferred lighting": "ertelenmiş aydınlatma",
-      "reflection source": "yansıma kaynağı",
       "HiZ pyramid": "HiZ piramidi",
       "light tiles": "ışık karoları",
-      "texture mips": "doku mipleri",
-      "reflection radiance mips": "yansıma parlaklık mipleri",
-      "reflection depth bounds mips": "yansıma derinlik sınırı mipleri"
+      "texture mips": "doku mipleri"
     },
     "failure": {
       "title": "Bu örnek bir hata yüzünden durdu",

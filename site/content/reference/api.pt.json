@@ -2768,7 +2768,7 @@
     "summary": "A raiz da cena de um mundo: objetos são adicionados a ela, um modelo compilado é carregado nela, e o que preenche a imagem por trás deles é `background`.",
     "members": {
       "isScene": "Sempre `true`: distingue a raiz da cena de qualquer outro objeto.",
-      "environment": "Uma imagem dos arredores que superfícies brilhantes refletem; `null` para nenhuma.",
+      "environment": "Uma imagem dos arredores; `null` para nenhuma.",
       "background": "O que preenche a imagem atrás de cada objeto: uma cor, ou `null` para o padrão. Uma mudança aparece no quadro seguinte, mantendo a sessão: uma nova cor atribuída aqui, ou a atual escrita pelos seus métodos (`set`, `setRGB`, `setHex`, `setHSL`...). Uma escrita direta de `.r`, `.g` ou `.b` não é detetada: atribua `background` de novo depois. Uma imagem, ou qualquer valor sem `getHex`, é recusada (`UNSUPPORTED_SCENE_UPDATE`): nenhum caminho a desenha.",
       "fog": "Névoa sobre cada superfície, opaca ou transparente; `null`, o padrão, para nenhuma, sem custo. `{ color, near, far }` esvai os objetos em `color` de `near` a `far`, distâncias a partir da câmera; `{ color, density }` se adensa `density` por unidade de distância; acrescente `heightFalloff` (e `baseHeight`, 0 por padrão) e ela assenta no chão, rareando acima de `baseHeight` — dividida por e a cada `1 / heightFalloff` unidades para cima. Uma mudança aparece no quadro seguinte: uma névoa nova dada aqui, ou sua cor escrita pelos seus métodos. Uma escrita direta de `near`, `far`, `density`... não é ouvida: dê `fog` de novo depois. Uma névoa fora do intervalo — `far` não além de `near`, uma densidade negativa — é recusada (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Chamado antes de a cena ser desenhada; nenhum por padrão.",
@@ -2831,7 +2831,7 @@
       "ids": "O nome da luz de cada slot.",
       "count": "Quantas luzes.",
       "epoch": "Incrementado quando o conjunto de luzes muda.",
-      "transportEpoch": "Incrementado com a época, exceto por uma mudança só da névoa ou só de uma fatia de sombra: a névoa é um termo do raio de visão e uma fatia é onde os mapas de uma luz são endereçados, nenhum dos dois é transporte de luz, então o que guarda em cache a luz transportada (as sondas de ressalto, o histórico dos reflexos) o mantém.",
+      "transportEpoch": "Incrementado com a época, exceto por uma mudança só da névoa ou só de uma fatia de sombra: a névoa é um termo do raio de visão e uma fatia é onde os mapas de uma luz são endereçados, nenhum dos dois é transporte de luz, então o que guarda em cache a luz transportada (as sondas de ressalto) o mantém.",
       "environment": "O ambiente da cena.",
       "lightingView": "Visão pedida pelo host, como está: `auto` enquanto ele não pediu nada.",
       "unlit": "Verdadeiro quando a imagem precisa sair como albedo bruto, sem luz. Esse é o comportamento padrão enquanto nenhuma luz é declarada: uma cena sem fonte não tem nada para iluminar, e uma imagem preta não ajudaria nenhum benchmark de geometria. Assim que uma luz existe, a iluminação real assume o controle — a menos que o host tenha pedido explicitamente a visão de diagnóstico.",

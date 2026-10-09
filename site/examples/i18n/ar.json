@@ -100,12 +100,9 @@
       "temporal antialiasing": "تنعيم زمني",
       "HDR composition + present": "تركيب HDR + عرض",
       "deferred lighting": "إضاءة مؤجلة",
-      "reflection source": "مصدر الانعكاسات",
       "HiZ pyramid": "هرم HiZ",
       "light tiles": "مربعات الضوء",
-      "texture mips": "مستويات mip للخامات",
-      "reflection radiance mips": "مستويات mip لإشعاع الانعكاسات",
-      "reflection depth bounds mips": "مستويات mip لحدود عمق الانعكاسات"
+      "texture mips": "مستويات mip للخامات"
     },
     "failure": {
       "title": "توقف هذا المثال بسبب خطأ",

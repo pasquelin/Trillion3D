@@ -100,12 +100,9 @@
       "temporal antialiasing": "时间抗锯齿",
       "HDR composition + present": "HDR 合成 + 呈现",
       "deferred lighting": "延迟光照",
-      "reflection source": "反射源",
       "HiZ pyramid": "HiZ 金字塔",
       "light tiles": "灯光分块",
-      "texture mips": "纹理 mip",
-      "reflection radiance mips": "反射辐射 mip",
-      "reflection depth bounds mips": "反射深度边界 mip"
+      "texture mips": "纹理 mip"
     },
     "failure": {
       "title": "这个示例因为一个错误停下了",

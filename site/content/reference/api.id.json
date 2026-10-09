@@ -2852,7 +2852,7 @@
     "summary": "Root scene sebuah dunia: objek ditambahkan ke sana, sebuah model terkompilasi dimuat ke sana, dan yang mengisi gambar di belakangnya adalah `background`.",
     "members": {
       "isScene": "Selalu `true`: membedakan root scene dari objek lain.",
-      "environment": "Sebuah gambar lingkungan yang dipantulkan permukaan mengkilap; `null` untuk tidak ada.",
+      "environment": "Sebuah gambar lingkungan; `null` untuk tidak ada.",
       "background": "Yang mengisi gambar di belakang setiap objek: sebuah warna, atau `null` untuk bawaan. Perubahan tampil pada bingkai berikutnya, sesi tetap dipertahankan: warna baru yang diatur di sini, atau warna yang ada ditulis lewat metodenya (`set`, `setRGB`, `setHex`, `setHSL`...). Penulisan langsung ke `.r`, `.g`, atau `.b` tidak terdengar: atur ulang `background` sesudahnya. Gambar, atau nilai apa pun tanpa `getHex`, ditolak (`UNSUPPORTED_SCENE_UPDATE`): tidak ada jalur yang menggambarnya.",
       "fog": "Kabut di atas setiap permukaan, buram maupun transparan; `null`, bawaannya, berarti tanpa kabut, tanpa biaya. `{ color, near, far }` memudarkan objek ke `color` dari `near` hingga `far`, jarak dari kamera; `{ color, density }` menebal `density` per satuan jarak; tambahkan `heightFalloff` (dan `baseHeight`, bawaannya 0) dan kabut menempel di tanah, menipis di atas `baseHeight` — dibagi e setiap `1 / heightFalloff` satuan ke atas. Perubahan tampak di bingkai berikutnya: kabut baru yang diberikan di sini, atau warnanya yang ditulis lewat metodenya. Penulisan langsung `near`, `far`, `density`... tidak terdengar: berikan `fog` lagi sesudahnya. Kabut di luar rentang — `far` tidak melewati `near`, kerapatan negatif — ditolak (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Dipanggil sebelum adegan digambar; tidak ada secara bawaan.",
@@ -2915,7 +2915,7 @@
       "ids": "Nama cahaya tiap slot.",
       "count": "Berapa banyak cahaya.",
       "epoch": "Dinaikkan saat set cahaya berubah.",
-      "transportEpoch": "Dinaikkan bersama epoch, kecuali oleh perubahan kabut saja atau irisan bayangan saja: kabut adalah suku sinar pandang dan irisan adalah tempat peta cahaya dialamatkan, keduanya bukan transpor cahaya, sehingga yang menyimpan cahaya terangkut di cache (probe pantulan, riwayat refleksi) mempertahankannya.",
+      "transportEpoch": "Dinaikkan bersama epoch, kecuali oleh perubahan kabut saja atau irisan bayangan saja: kabut adalah suku sinar pandang dan irisan adalah tempat peta cahaya dialamatkan, keduanya bukan transpor cahaya, sehingga yang menyimpan cahaya terangkut di cache (probe pantulan) mempertahankannya.",
       "environment": "Lingkungan scene itu.",
       "lightingView": "View yang diminta host, apa adanya: `auto` selama tidak meminta apa pun.",
       "unlit": "Benar saat gambar harus keluar sebagai albedo mentah, tanpa cahaya. Ini perilaku bawaan selama tidak ada cahaya yang dideklarasikan: sebuah scene tanpa sumber tidak punya apa pun untuk disinari, dan sebuah gambar hitam tidak akan membantu benchmark geometri apa pun. Begitu ada sebuah cahaya, pencahayaan sungguhan mengambil alih — kecuali host secara eksplisit meminta tampilan diagnostik.",

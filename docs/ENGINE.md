@@ -46,7 +46,7 @@ One WebGPU image is one command buffer, encoded in this order:
 | Material surfaces, one pass per class                     | `webgpu/core/materialPasses.ts`                                              |
 | Impostor cards                                            | `webgpu/impostor/`                                                           |
 | Light buffer, bounce, light grid, virtual shadow maps     | `webgpu/pages/render/encodeLights.ts`                                        |
-| Deferred resolve and reflections                          | `lighting/deferred/deferred.ts`, `reflections/frame.ts`                      |
+| Deferred resolve                                          | `lighting/deferred/deferred.ts`                                              |
 | Transparents, water, particles                            | `webgpu/pages/render/encodeBlend.ts`                                         |
 | Temporal resolve                                          | `taa/frame.ts`                                                               |
 | Effect chain                                              | `webgpu/pages/render/encodeEffects.ts`                                       |
@@ -105,8 +105,7 @@ shadowed or rectangular light runs a program built without that code
 Dynamic, off by default: irradiance probes in nested cascades trace rays against the resident
 proxy the compiler writes ([FORMAT.md](FORMAT.md)), under a budget in milliseconds (`bounce/`). The
 probes and the environment share one basis
-(`sdk-core/scene/core/irradianceBasis.ts`). Mirrors and rough reflections trace the screen
-(`reflections/`), falling back to the proxy and the probes when bounce is on.
+(`sdk-core/scene/core/irradianceBasis.ts`).
 
 ## Fog
 
@@ -170,15 +169,15 @@ stages mapped in `stage/mapping.ts`; CPU and GPU times are never added.
 
 The target: dynamic global illumination, reflections and shadows at desktop-class cost, on the web,
 in software, within the host's byte budgets ([SDK.md](SDK.md#memory-budgets)). One model lights
-every surface: direct light, shadows, bounce and reflections are summed in linear radiance, fogged,
+every surface: direct light, shadows and bounce are summed in linear radiance, fogged,
 then tone-mapped and encoded to sRGB once, at composition.
 
-| Stage                                                | Where                                           |
-| ---------------------------------------------------- | ----------------------------------------------- |
-| Temporal antialiasing, exact at rest                 | [Temporal antialiasing](#temporal-antialiasing) |
-| Stochastic direct light over a light grid            | [Direct lighting](#direct-lighting)             |
-| Shadows                                              | [SHADOWS.md](SHADOWS.md)                        |
-| Probes, proxy rays, screen traces, rough reflections | [Light that bounces](#light-that-bounces)       |
+| Stage                                     | Where                                           |
+| ----------------------------------------- | ----------------------------------------------- |
+| Temporal antialiasing, exact at rest      | [Temporal antialiasing](#temporal-antialiasing) |
+| Stochastic direct light over a light grid | [Direct lighting](#direct-lighting)             |
+| Shadows                                   | [SHADOWS.md](SHADOWS.md)                        |
+| Probes and proxy rays                     | [Light that bounces](#light-that-bounces)       |
 
 ## Rules across files
 

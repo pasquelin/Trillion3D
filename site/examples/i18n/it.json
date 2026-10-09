@@ -100,12 +100,9 @@
       "temporal antialiasing": "antialiasing temporale",
       "HDR composition + present": "composizione HDR + presentazione",
       "deferred lighting": "illuminazione differita",
-      "reflection source": "sorgente dei riflessi",
       "HiZ pyramid": "piramide HiZ",
       "light tiles": "tile di luce",
-      "texture mips": "mip delle texture",
-      "reflection radiance mips": "mip della radianza dei riflessi",
-      "reflection depth bounds mips": "mip dei limiti di profondità dei riflessi"
+      "texture mips": "mip delle texture"
     },
     "failure": {
       "title": "Questo esempio si è fermato per un errore",

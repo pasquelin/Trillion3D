@@ -5031,7 +5031,7 @@
     "summary": "La radice della scena di un mondo: vi si aggiungono oggetti, vi si carica un modello compilato, e ciò che riempie l'immagine dietro di essi è `background`.",
     "members": {
       "isScene": "Sempre `true`: distingue la radice della scena da qualsiasi altro oggetto.",
-      "environment": "Un'immagine dell'ambiente riflessa dalle superfici brillanti; `null` per nessuna.",
+      "environment": "Un'immagine dell'ambiente; `null` per nessuna.",
       "background": "Ciò che riempie l’immagine dietro ogni oggetto: un colore, o `null` per quello predefinito. Una modifica appare al fotogramma successivo, mantenendo la sessione: un nuovo colore assegnato qui, o quello attuale scritto con i suoi metodi (`set`, `setRGB`, `setHex`, `setHSL`...). Una scrittura diretta di `.r`, `.g` o `.b` non viene rilevata: riassegna `background` dopo. Un’immagine, o qualsiasi valore senza `getHex`, viene rifiutata (`UNSUPPORTED_SCENE_UPDATE`): nessun percorso la disegna.",
       "fog": "Nebbia su ogni superficie, opaca o trasparente; `null`, il predefinito, per nessuna, senza costo. `{ color, near, far }` sfuma gli oggetti in `color` da `near` a `far`, distanze dalla telecamera; `{ color, density }` si infittisce di `density` per unità di distanza; aggiungi `heightFalloff` (e `baseHeight`, 0 per impostazione predefinita) e si posa a terra, diradandosi sopra `baseHeight` — divisa per e ogni `1 / heightFalloff` unità verso l’alto. Un cambiamento si vede al fotogramma successivo: una nuova nebbia impostata qui, o il suo colore scritto con i suoi metodi. Una scrittura diretta di `near`, `far`, `density`... non viene sentita: reimposta `fog` dopo. Una nebbia fuori intervallo — `far` non oltre `near`, una densità negativa — è rifiutata (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Chiamato prima che la scena venga disegnata; nessuno per impostazione predefinita.",
@@ -5131,7 +5131,7 @@
       "ids": "Il nome della luce di ogni posto.",
       "count": "Quante luci.",
       "epoch": "Incrementato quando cambia l'insieme delle luci.",
-      "transportEpoch": "Incrementato con l'epoca, tranne che per una modifica della sola nebbia o della sola fetta d'ombra: la nebbia è un termine del raggio di vista e una fetta è dove si indirizzano le mappe di una luce, nessuno dei due è trasporto di luce, quindi ciò che mette in cache la luce trasportata (le sonde di rimbalzo, la cronologia dei riflessi) lo conserva.",
+      "transportEpoch": "Incrementato con l'epoca, tranne che per una modifica della sola nebbia o della sola fetta d'ombra: la nebbia è un termine del raggio di vista e una fetta è dove si indirizzano le mappe di una luce, nessuno dei due è trasporto di luce, quindi ciò che mette in cache la luce trasportata (le sonde di rimbalzo) lo conserva.",
       "environment": "L'ambiente della scena.",
       "lightingView": "Vista richiesta dall'host, così com'è: `auto` finché non ha richiesto nulla.",
       "unlit": "Vero quando l'immagine deve uscire in albedo grezzo, senza luce. È il comportamento predefinito finché nessuna luce è dichiarata: una scena senza sorgente non ha nulla da illuminare, e un'immagine nera non aiuterebbe nessun banco di prova di geometria. Non appena esiste una luce, la vera illuminazione prende il sopravvento — salvo che l'host abbia richiesto esplicitamente la vista di diagnostica.",

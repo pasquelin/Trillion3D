@@ -109,21 +109,18 @@ A shader fragment that several programs share is a declaration too, a `wgslBlock
 written, its dependencies the library declarations and the fragments it uses. A template
 interpolates parameters only — numbers, layout constants, binding indices, names —, never another
 fragment's text. A fragment is named `X_WGSL` or `xWgsl(…)`; an expression or a statement a body
-splices is named otherwise (`FULLSCREEN_XY`, `MIRROR_TERM`). A factory `xWgsl(…)` that takes a
+splices is named otherwise (`FULLSCREEN_XY`, `CAMERA_FOG`). A factory `xWgsl(…)` that takes a
 provider, a function the fragment calls, lists it, and the assembler refuses a program holding two
 of its variants. Only a whole program calls `wgslProgram` (or `wgslModule`), which writes the
 program's own directives (`enable …;`) first; a declaration spliced into a template as text throws
-when the module is read. A program others extend — the lit program at the screen's mirror radiance
-(`withScreenReflections`), the blend module with the water's stage (`blendShader`) — takes what it
-gains as a parameter and is assembled with it.
+when the module is read. A program others extend — the blend module with the water's stage
+(`blendShader`) — takes what it gains as a parameter and is assembled with it.
 
-A function or constant a fragment calls but its host provides — `mipRead` of a cell reduction,
-`reflectionDepthAt` and `reflectionSize` of the screen walks, `vsmPoolLoad` of the shadow-map
-sampling, `mirrorRadiance` of the mirror term, `INF` of the projected bound — is a declaration
-under that name, which the fragment takes as a parameter and lists: a missing provider fails when
-the program is written, and two providers of one name are refused, never left to the shader
-compiler: the error names the path through the dependents by which each came and the first line
-where the two texts differ.
+A function or constant a fragment calls but its host provides — `vsmPoolLoad` of the shadow-map
+sampling, `INF` of the projected bound — is a declaration under that name, which the fragment takes
+as a parameter and lists: a missing provider fails when the program is written, and two providers of
+one name are refused, never left to the shader compiler: the error names the path through the
+dependents by which each came and the first line where the two texts differ.
 The parts of one program — the DAG selection's `DAG_*_WGSL` fragments, which call one another and
 the structures of the program's own text — list the shared declarations they call, and the program
 lists every part.

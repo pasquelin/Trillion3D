@@ -100,12 +100,9 @@
       "temporal antialiasing": "временное сглаживание",
       "HDR composition + present": "композиция HDR + вывод",
       "deferred lighting": "отложенное освещение",
-      "reflection source": "источник отражений",
       "HiZ pyramid": "пирамида HiZ",
       "light tiles": "тайлы света",
-      "texture mips": "мипы текстур",
-      "reflection radiance mips": "MIP-уровни яркости отражений",
-      "reflection depth bounds mips": "MIP-уровни границ глубины отражений"
+      "texture mips": "мипы текстур"
     },
     "failure": {
       "title": "Этот пример остановился из-за ошибки",

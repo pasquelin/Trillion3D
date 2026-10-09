@@ -100,12 +100,9 @@
       "temporal antialiasing": "テンポラルアンチエイリアス",
       "HDR composition + present": "HDR 合成 + 表示",
       "deferred lighting": "ディファードライティング",
-      "reflection source": "反射ソース",
       "HiZ pyramid": "HiZ ピラミッド",
       "light tiles": "ライトタイル",
-      "texture mips": "テクスチャ mip",
-      "reflection radiance mips": "反射ラジアンスの mip",
-      "reflection depth bounds mips": "反射深度境界の mip"
+      "texture mips": "テクスチャ mip"
     },
     "failure": {
       "title": "この例はエラーで止まりました",

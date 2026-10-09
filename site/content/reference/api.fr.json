@@ -5039,7 +5039,7 @@
     "summary": "La racine de la scène d’un monde : on y ajoute des objets, on y charge un modèle compilé, et ce qui remplit l’image derrière eux est `background`.",
     "members": {
       "isScene": "Toujours `true` : distingue la racine de la scène de tout autre objet.",
-      "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
+      "environment": "Une image de l’environnement ; `null` pour aucune.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
       "fog": "Un brouillard sur chaque surface, opaque ou transparente ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Appelé avant que la scène soit dessinée ; aucun par défaut.",
@@ -5139,7 +5139,7 @@
       "ids": "Le nom de la lumière de chaque place.",
       "count": "Combien de lumières.",
       "epoch": "Augmenté quand l’ensemble des lumières change.",
-      "transportEpoch": "Incrémenté avec l’époque, sauf par un changement du seul brouillard ou de la seule tranche d’ombre : le brouillard est un terme du rayon de vue et une tranche l’endroit où les cartes d’une lumière sont adressées, ni l’un ni l’autre n’étant du transport de lumière, de sorte que ce qui met en cache la lumière transportée (les sondes de rebond, l’historique des réflexions) le conserve.",
+      "transportEpoch": "Incrémenté avec l’époque, sauf par un changement du seul brouillard ou de la seule tranche d’ombre : le brouillard est un terme du rayon de vue et une tranche l’endroit où les cartes d’une lumière sont adressées, ni l’un ni l’autre n’étant du transport de lumière, de sorte que ce qui met en cache la lumière transportée (les sondes de rebond) le conserve.",
       "environment": "L’environnement de la scène.",
       "lightingView": "Vue demandée par l’hôte, telle quelle : `auto` tant qu’il n’a rien demandé.",
       "unlit": "Vrai quand l’image doit sortir en albédo brut, sans lumière. C’est le comportement par défaut tant qu’aucune lumière n’est déclarée : une scène sans source n’a rien à éclairer, et une image noire n’aiderait aucun banc d’essai de géométrie. Dès qu’une lumière existe, le vrai éclairage prend le relais — sauf si l’hôte a demandé explicitement la vue de diagnostic.",

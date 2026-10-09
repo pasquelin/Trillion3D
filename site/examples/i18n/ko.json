@@ -100,12 +100,9 @@
       "temporal antialiasing": "시간적 안티에일리어싱",
       "HDR composition + present": "HDR 합성 + 표시",
       "deferred lighting": "지연 조명",
-      "reflection source": "반사 소스",
       "HiZ pyramid": "HiZ 피라미드",
       "light tiles": "조명 타일",
-      "texture mips": "텍스처 밉",
-      "reflection radiance mips": "반사 휘도 mip",
-      "reflection depth bounds mips": "반사 깊이 경계 mip"
+      "texture mips": "텍스처 밉"
     },
     "failure": {
       "title": "이 예제는 오류로 멈췄어",

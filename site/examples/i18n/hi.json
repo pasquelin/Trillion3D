@@ -100,12 +100,9 @@
       "temporal antialiasing": "कालिक एंटीएलियासिंग",
       "HDR composition + present": "HDR संयोजन + प्रदर्शन",
       "deferred lighting": "विलंबित प्रकाश",
-      "reflection source": "प्रतिबिंब स्रोत",
       "HiZ pyramid": "HiZ पिरामिड",
       "light tiles": "प्रकाश टाइलें",
-      "texture mips": "टेक्सचर mips",
-      "reflection radiance mips": "परावर्तन रेडिएंस mips",
-      "reflection depth bounds mips": "परावर्तन गहराई सीमा mips"
+      "texture mips": "टेक्सचर mips"
     },
     "failure": {
       "title": "यह उदाहरण एक गड़बड़ी पर रुक गया",

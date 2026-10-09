@@ -5031,7 +5031,7 @@
     "summary": "Die Wurzel der Szene einer Welt: man fügt ihr Objekte hinzu, lädt darin ein kompiliertes Modell, und das, was das Bild hinter ihnen füllt, ist `background`.",
     "members": {
       "isScene": "Immer `true`: unterscheidet die Szenenwurzel von jedem anderen Objekt.",
-      "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
+      "environment": "Ein Umgebungsbild; `null` für keines.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "fog": "Nebel auf jeder Fläche, deckend oder transparent; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
       "onBeforeRender": "Wird aufgerufen, bevor die Szene gezeichnet wird; standardmäßig keiner.",
@@ -5131,7 +5131,7 @@
       "ids": "Der Name des Lichts an jedem Platz.",
       "count": "Wie viele Lichter.",
       "epoch": "Erhöht, wenn sich die Lichtmenge ändert.",
-      "transportEpoch": "Wird mit der Epoche erhöht, außer durch eine Änderung allein des Nebels oder allein einer Schattenkachel: Nebel ist ein Term des Sichtstrahls und eine Kachel der Ort, an dem die Karten eines Lichts adressiert werden, beides kein Lichttransport, daher behält, was transportiertes Licht zwischenspeichert (die Bounce-Sonden, der Verlauf der Reflexionen), es bei.",
+      "transportEpoch": "Wird mit der Epoche erhöht, außer durch eine Änderung allein des Nebels oder allein einer Schattenkachel: Nebel ist ein Term des Sichtstrahls und eine Kachel der Ort, an dem die Karten eines Lichts adressiert werden, beides kein Lichttransport, daher behält, was transportiertes Licht zwischenspeichert (die Bounce-Sonden), es bei.",
       "environment": "Die Umgebung der Szene.",
       "lightingView": "Vom Host angeforderte Ansicht, unverändert: `auto`, solange er nichts angefordert hat.",
       "unlit": "Wahr, wenn das Bild in rohem Albedo ausgegeben werden muss, ohne Licht. Das ist das Standardverhalten, solange kein Licht deklariert ist: eine Szene ohne Quelle hat nichts zu beleuchten, und ein schwarzes Bild würde keinem Geometrie-Prüfstand helfen. Sobald ein Licht existiert, übernimmt die echte Beleuchtung — außer der Host hat explizit die Diagnoseansicht angefordert.",
