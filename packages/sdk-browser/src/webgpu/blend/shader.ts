@@ -15,7 +15,8 @@ import { type ContractKey, variantLabel } from '../../lighting/deferred/contract
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
-import { REFLECTION_GROUP, forwardReflectionWgsl } from '../../reflections/wgsl.ts'
+import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
+import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -94,7 +95,7 @@ ${BLEND_DIAGNOSTIC}
   if((flags&${itemFlags.FLAG_LIT}u)!=0u){
    let m=clamp(s.metal,0.0,1.0);
    let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
-   surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
+   surfaceModel=select(select(${surfaceModel.MODEL_FLAG.physical}u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    thinSubsurface=s.subsurface;
    shadowFootprint=blendShadowFootprint(in.view);
    shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);

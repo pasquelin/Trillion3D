@@ -28,8 +28,9 @@ export const SURFACE_MODEL = {
 } as const
 /** Bits of the page row's flags word that carry the model; below them, the material flags. */
 export const MODEL_SHIFT = 17
-/** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
-export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const
+/** Surface-buffer flags of the lit models: the physical one, the only one with a specular lobe (a
+ *  reflection is traced for it alone), and the two the resolve shades apart. */
+export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5 } as const
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3
