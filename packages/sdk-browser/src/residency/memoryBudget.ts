@@ -45,8 +45,10 @@ const NOTHING_HELD: ActiveGpuMemory = Object.freeze({
  * (`ActiveGpuMemory.cutTables`), and each pool is at its floor where a scene's
  * passes its default — a pool is raised to its floor by its own rule (`geometryPoolFor`,
  * `admittedPools`). The frame at full resolution is thus never what the pools leave: it is funded
- * before them, on any canvas, and follows it; only what else is live beside them, past what the
- * shares leave unused, presses them.
+ * before them, on any canvas, and follows it; so is what else is live beside them past that share
+ * (`ActiveGpuMemory.frameTargets`): the total by default never falls under what the session holds,
+ * so no allocation of its frames is refused for it, and the pools stay at their defaults. Only a
+ * total the page sets presses them.
  */
 export function defaultGpuBudget(
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
@@ -57,7 +59,7 @@ export function defaultGpuBudget(
     BOUNCE_PROBE_BYTES +
     (active.cutTables ?? 0) +
     Math.max(effectTargetReserve(canvas), active.effectTargets) +
-    active.frameShare +
+    Math.max(active.frameShare, active.frameTargets) +
     Math.max(DEFAULT_GEOMETRY_POOL_BUDGET, active.geometryMinimum) +
     Math.max(DEFAULT_TEXTURE_POOL_BUDGET, active.textureMinimum)
   )
