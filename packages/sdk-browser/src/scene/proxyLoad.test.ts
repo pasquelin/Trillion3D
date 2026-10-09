@@ -43,9 +43,9 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
   assert.equal(requests, 1)
   assert.equal(cache.keptBytes, bytes.byteLength + triangles * 40 + instances * 128)
   assert.equal(first.data.triangles.byteLength, triangles * 36)
-  const uncached = createSceneProxyReader(descriptor, 'https://example.test/', undefined)!
-  assert.equal((await uncached()).data, (await uncached()).data)
-  assert.equal(requests, 2, 'one read and expansion without a world cache, too')
+  const own = createSceneProxyReader(descriptor, 'https://example.test/', createPageCache())!
+  assert.equal((await own()).data, (await own()).data)
+  assert.equal(requests, 2, "one read and expansion in a session's own cache, too")
   const changed = createSceneProxyReader(
     { ...descriptor, errorMetres: 9 },
     'https://example.test/',

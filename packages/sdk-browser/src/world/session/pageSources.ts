@@ -73,9 +73,14 @@ export function openExplorerPageSources(
       : clamp(flatPages, 8192, DEFAULT_CACHED_PAGES))
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
-  // Its world's, kept across a device loss, or the session's own: the texture levels are held
-  // beside its pages, their files read by its readers (`createTextureLevelReader`).
+  // The one cache every reader of the session shares — its world's, kept across a device loss, or
+  // the session's own —: the texture levels are held beside its pages, their files read by its
+  // readers (`createTextureLevelReader`), and the scene's proxy is kept whole there
+  // (`createSceneProxyReader`). The session's own cache ends with it: its kept read is cancelled
+  // as the session closes.
   const pageCache = options.pageCache ?? createPageCache()
+  if (!options.pageCache)
+    signal?.addEventListener('abort', () => pageCache.keepOnly(), { once: true })
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
     cache: pageCache,
     signal,
