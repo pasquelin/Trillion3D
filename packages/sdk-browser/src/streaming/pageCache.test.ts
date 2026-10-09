@@ -184,3 +184,17 @@ test('a kept page is served only as the file it was read as: its fingerprint, un
     'the same file is not fetched again',
   )
 })
+
+test('the page bound takes pages alone: an older level or file stays', () => {
+  const cache = createPageCache(MIB)
+  const evicted: string[] = []
+  cache.open({ maxPages: 1, evicted: (url) => void evicted.push(url) }, 0)
+  cache.keepLevel('level', new Uint8Array(4))
+  cache.keepFile('file', new ArrayBuffer(4))
+  cache.put('a', new Uint8Array(4))
+  cache.put('b', new Uint8Array(4))
+  cache.fit()
+  assert.deepEqual(evicted, ['a'])
+  assert.deepEqual([cache.pageCount, cache.levelBytes], [1, 4])
+  assert.ok(cache.level('level') && cache.file('file') && cache.page('b'))
+})

@@ -30,6 +30,9 @@ type KeptRead = { kind: 'proxy'; read: Promise<ArrayBuffer>; abort: AbortControl
 /** The tier of the scene's proxy: it leaves only once no page, file or level that may leave is left
  *  (`cacheEntries.ts`). Every other entry is of tier 0, by last use alone. */
 const SCENE_TIER = 1
+/** The lane of the pages (`cacheEntries.ts`): the page bound takes them alone, every other entry
+ *  in lane 0. */
+const PAGE_LANE = 1
 
 const checkBytes = (bytes: number) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET')
@@ -49,8 +52,8 @@ const checkBytes = (bytes: number) => {
  * they change (`open`), the cache keeping their sum, and takes holds on the pages it pins or
  * reads; the entries hold the rest (`budgetBytes`). The cache alone evicts, once its entries
  * exceed the budget: an entry someone holds never, then the pages, files and levels least recently
- * used, the proxy last. A level needs no room of its own: it takes what eviction can free
- * (`roomBytes`), as a page does.
+ * used, the proxy last; past the fewest pages a session allows, the pages alone. A level needs no
+ * room of its own: it takes what eviction can free (`roomBytes`), as a page does.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes)
@@ -62,16 +65,19 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     levelBytes = 0,
     /** The key the scene's proxy is kept under, while one is. */
     proxy: string | undefined
-  const entries = createCacheEntries<Held>((held, key) => {
-    if (held.kind === 'page') pages--
-    else if (held.kind === 'level') {
-      levelBytes -= textureLevelBytes(held.level)
-      closeTextureLevel(held.level)
-    } else if (held.kind === 'proxy') {
-      held.abort.abort(new DOMException('Kept file released', 'AbortError'))
-      if (proxy === key) proxy = undefined
-    }
-  })
+  const entries = createCacheEntries<Held>(
+    (held, key) => {
+      if (held.kind === 'page') pages--
+      else if (held.kind === 'level') {
+        levelBytes -= textureLevelBytes(held.level)
+        closeTextureLevel(held.level)
+      } else if (held.kind === 'proxy') {
+        held.abort.abort(new DOMException('Kept file released', 'AbortError'))
+        if (proxy === key) proxy = undefined
+      }
+    },
+    (held) => (held.kind === 'page' ? PAGE_LANE : 0),
+  )
   /** The fewest pages a session lets the cache hold; none bounds them by default. */
   const pageBound = () => {
     let most = Infinity
@@ -79,18 +85,22 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       if (maxPages && maxPages >= 1) most = Math.min(most, maxPages)
     return most
   }
-  /** Evicts what no one holds, the lowest tier and the least recently used first, while the
-   *  entries exceed the budget — read once: the entries leaving do not move it — or the pages
-   *  their bound. Each page that leaves is told to every session; an eviction that takes nothing
-   *  while over is told too. */
+  /** Each page that leaves is told to every session. */
+  const told = (key: string, held: Held) => {
+    if (held.kind === 'page') for (const session of sessions) session.evicted?.(key)
+  }
+  /** Evicts what no one holds, the lowest tier and the least recently used first: the pages alone
+   *  while they exceed their bound — no other entry lowers their count —, then any entry while the
+   *  entries exceed the budget — read once: the entries leaving do not move it. An eviction that
+   *  takes nothing while over is told every session. */
   const fit = () => {
     const budget = cache.budgetBytes,
       most = pageBound()
     const over = () => entries.bytes > budget || pages > most
     if (!over()) return
-    const count = entries.evict(over, (key, held) => {
-      if (held.kind === 'page') for (const session of sessions) session.evicted?.(key)
-    })
+    const count =
+      entries.evict(() => pages > most, told, PAGE_LANE) +
+      entries.evict(() => entries.bytes > budget, told)
     if (!count && over()) for (const session of sessions) session.blocked?.()
   }
   const cache = {
