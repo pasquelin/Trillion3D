@@ -96,7 +96,7 @@ export async function createDeferredLighting(
      *  one can light it, else nothing (`contractVariants.ts`). */
     awaited: (direct: DirectLightResources) =>
       variants.awaited(bounceOf(direct), !!direct.narrow, cutsIn(direct)),
-    /** Draws the lighting; returns the passes drawn (`lightPass`). */
+    /** Draws the lighting (`lightPass`). */
     light: lightPass(state),
     /** True once the frame's program composes the chain's last bloom in (#963); the first call
      *  compiles what it needs, and `fail` hears why it cannot. */
@@ -161,7 +161,7 @@ function programBind(
   }
 }
 
-/** The lighting's `light`: draws the lighting; returns the passes drawn (#1157). */
+/** The lighting's `light`: draws the lighting, one pass. */
 function lightPass(state: LightingState) {
   return (encoder: GPUCommandEncoder, target: GPUTextureView) => {
     const { active, drawn } = state
@@ -178,7 +178,6 @@ function lightPass(state: LightingState) {
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    return 1
   }
 }
 

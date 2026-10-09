@@ -32,15 +32,15 @@ const multiply3 = (a: readonly number[], b: readonly number[]) =>
     return a[row] * b[col * 3] + a[3 + row] * b[col * 3 + 1] + a[6 + row] * b[col * 3 + 2]
   })
 
-/** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
- *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
- *  image, so none is changed alone. */
 /** The filmic curve's rational fit, `(c(c + a) − b) / (c(d·c + e) + f)`. */
 const ACES_FIT = { a: 0.0245786, b: 0.000090537, d: 0.983729, e: 0.432951, f: 0.238081 }
 const ACES_INPUT = [0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777]
 const ACES_OUTPUT = [
   1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602,
 ]
+/** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
+ *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
+ *  image, so none is changed alone. */
 export const ACES = {
   exposure: wgslF32(0.6),
   input: wgslMatrix3(ACES_INPUT),
@@ -54,10 +54,6 @@ export const ACES = {
   denominator: `c*(${ACES_FIT.d}*c+${ACES_FIT.e})+${ACES_FIT.f}`,
 }
 
-/** The log-domain curve. declared: a conversion to the BT.2020 primaries and back, an inset and an
- *  outset matrix, the log2 range in EV and a sixth-degree contrast fit over `c`, `c2 = c²`,
- *  `c4 = c⁴`, set together as one look. Sensitivity: each number shapes the tone and the colour of
- *  the whole image, so none is changed alone. */
 const AGX_TO_WIDE = [0.6274, 0.0691, 0.0164, 0.3293, 0.9195, 0.088, 0.0433, 0.0113, 0.8956]
 const AGX_TO_NARROW = [1.6605, -0.1246, -0.0182, -0.5876, 1.1329, -0.1006, -0.0728, -0.0083, 1.1187]
 const AGX_INSET = [
@@ -69,6 +65,10 @@ const AGX_OUTSET = [
   1.157823702216272, -0.11060664309660294, -0.016493938717834573, -0.016493938717834257,
   1.2519364065950405,
 ]
+/** The log-domain curve. declared: a conversion to the BT.2020 primaries and back, an inset and an
+ *  outset matrix, the log2 range in EV and a sixth-degree contrast fit over `c`, `c2 = c²`,
+ *  `c4 = c⁴`, set together as one look. Sensitivity: each number shapes the tone and the colour of
+ *  the whole image, so none is changed alone. */
 export const AGX = {
   toWide: wgslMatrix3(AGX_TO_WIDE),
   toNarrow: wgslMatrix3(AGX_TO_NARROW),

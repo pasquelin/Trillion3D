@@ -85,13 +85,12 @@ const materialOf = (device: GPUDevice, format: GPUTextureFormat, weighted: boole
   return { layout, pipeline: pipelines.of({ srgb, weighted }) }
 }
 
-const pipelineOf = (device: GPUDevice, { format, weighted }: MipKey) =>
-  materialOf(device, format, weighted).pipeline
-
 /** Compiles off the thread, before any texture reduces with them, the pipelines of `keys` on
  *  `device`'s shared cache; resolves once all have. */
 const prepareMipPipelines = (device: GPUDevice, keys: readonly MipKey[]) =>
-  Promise.all(keys.map((key) => pipelineOf(device, key).prepare())).then(() => {})
+  Promise.all(
+    keys.map(({ format, weighted }) => materialOf(device, format, weighted).pipeline.prepare()),
+  ).then(() => {})
 
 /** The atlases a host texture's working texture reduces into (`../webgpu/tile/scratch.ts`). */
 type HostKind = 'color' | 'data'

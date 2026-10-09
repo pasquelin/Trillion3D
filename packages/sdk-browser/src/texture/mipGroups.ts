@@ -46,7 +46,7 @@ const probe: unknown[] = []
 
 /** The views of `texture`'s first `count` mip levels, one a level, in `format` when given
  *  (`levelView`). */
-const levelViews = (
+export const levelViews = (
   texture: GPUTexture,
   count = texture.mipLevelCount,
   format?: GPUTextureFormat,

@@ -69,7 +69,8 @@ export function encodeSurfaceLighting(
     direct,
     taaSampledRank(rt),
   )
-  run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView)
+  gpu.deferred.light(encoder, gpu.hdrView)
+  run.gpuDrawCalls++
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
   encodeBlend(rt, device, encoder, true, blendRuns)
