@@ -3,8 +3,9 @@
  * (`queueRanges.ts`), read by one HTTP Range through the page cache every load and session reads
  * through (`PageCache.readRange`: a server that ignores the Range answers the whole file, kept as
  * one entry of the cache among the pages, evicted as they are). Each page is checked against what
- * it announced (`fetchAttempt.ts`), counted, and kept in the cache. One request, never retried
- * here: what fails waits its turn (`failures.ts`), and that wait is the retry.
+ * it announced (`fetchAttempt.ts`), counted, and kept in the cache unless its askers keep it
+ * (`StreamPage.kept`). One request, never retried here: what fails waits its turn
+ * (`failures.ts`), and that wait is the retry.
  */
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { Job, StreamContext, StreamPage } from './types.ts'
@@ -68,7 +69,7 @@ export function createStreamingFetcher(context: StreamContext) {
     return landed.map((own, at) => {
       if (!own.bytes) return { cause: own.refused }
       const page = pages[at]
-      store.put(page.url, own.bytes, page.sha256)
+      if (page.kept !== false) store.put(page.url, own.bytes, page.sha256)
       state.bytesRead += own.bytes.byteLength
       state.loaded++
       return { bytes: own.bytes }

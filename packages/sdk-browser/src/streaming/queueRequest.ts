@@ -59,7 +59,7 @@ export function jobFor(
 /** `job`'s last asker left: queued, or waiting its turn after a failure, it is dropped. A page
  *  under way is paid for and lands, every page alike: a view that asks it again meanwhile — a
  *  camera turning back, a cell held again — joins its read rather than starting it anew, and the
- *  cache keeps it for a later ask. */
+ *  cache keeps it for a later ask unless its askers keep it (`StreamPage.kept`). */
 export function dropQueued(
   context: StreamContext,
   url: string,
