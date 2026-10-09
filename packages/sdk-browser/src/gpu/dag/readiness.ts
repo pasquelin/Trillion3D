@@ -27,11 +27,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
   const r: Readiness = {
     packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
-    pageWorlds: new Uint32Array(
-      packed.pageCones.buffer,
-      packed.pageCones.byteOffset,
-      packed.pageCount,
-    ),
+    pageWorlds: packed.pageWorlds,
     ...{ blank: new Map(), worlds: [] },
     // Sized for the packing's placements, the live ones and those a growth appends (`append`).
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),

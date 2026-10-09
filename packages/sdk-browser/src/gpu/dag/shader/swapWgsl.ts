@@ -45,7 +45,7 @@ fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
  if(s>=held){return;}
  let entry=flagAt(candBase()+s);
  if(save!=REGION_NONE&&s<cap){out.pages[savedAt(save)+1u+s]=entry;}
- setFlag(views[0u].queueCap+entry,0u);
+ atomicAnd(&work[drawMaskWord(entry)],~drawBit(entry));
 }
 /** The region \`swapRegions\` names second back as the drawn journal, its pages' draw flags set and its dispatch
  *  argument as its appends would leave it (\`openSlice\`): the next cut clears it as its own. The
@@ -60,6 +60,6 @@ fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
   atomicStore(&work[drawnGroups()],grid.x);
   atomicStore(&work[drawnGroups()+1u],grid.y);
  }
- if(s<count){let entry=out.pages[savedAt(v)+1u+s];setFlag(views[0u].queueCap+entry,1u);setFlag(candBase()+s,entry);}
+ if(s<count){let entry=out.pages[savedAt(v)+1u+s];atomicOr(&work[drawMaskWord(entry)],drawBit(entry));setFlag(candBase()+s,entry);}
 }`,
 )

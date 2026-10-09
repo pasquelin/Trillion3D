@@ -1,7 +1,7 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -34,7 +34,8 @@ fn selected(i:u32)->bool{
  let cluster=entries[i];
  if(cluster==${TRANSPARENT_NONE}u){return false;}
  if(occluded[i]!=0u){return false;}
- return selectionMask[uni.selectionOffset+cluster]!=0u;
+ // The cut's draw mask, a bit a packed page (\`../../gpu/dag/shader/compactWgsl.ts\`).
+ return bitAt(selectionMask[uni.selectionOffset+bitWord(cluster)],cluster)!=0u;
 }
 @compute @workgroup_size(64)
 fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -76,5 +77,5 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  instances[groupOffsets[group]+rank]=i;
 }
 `,
-  [FLAT_INDEX_WGSL, ceilDiv],
+  [FLAT_INDEX_WGSL, ceilDiv, bitWord, bitAt],
 )

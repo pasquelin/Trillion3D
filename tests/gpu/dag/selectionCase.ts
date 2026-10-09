@@ -19,12 +19,14 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { readoutRow } from '../../../packages/sdk-browser/src/gpu/dag/bufferTable.ts'
-import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import {
+  dagFlagShape,
+  flagShapeWords,
+} from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import { worldBufferWords } from '../../../packages/sdk-browser/src/gpu/dag/worldBuffer.fixture.ts'
 import {
   childBase,
@@ -96,7 +98,7 @@ function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),
-    flagsWords: dagFlagsWords(dagQueueWords(packed), packed.pageCount),
+    flagsWords: flagShapeWords(dagFlagShape(packed)),
     /** `out` with the staged requests behind the readout, for a list of `listCap` ranks, then the
      *  open counts the placements hold. */
     outBytes: readoutRow(listCap, 0, HELD_SLOTS).size,

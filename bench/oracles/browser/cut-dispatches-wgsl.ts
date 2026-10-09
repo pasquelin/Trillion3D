@@ -45,7 +45,7 @@ fn resetCounters(){
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
- flags[uni.queueCap+flags[candBase()+s]]=0u;
+ let e=flags[candBase()+s];atomicAnd(&work[drawMaskWord(e)],~drawBit(e));
 }
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children in the
  *  opposite queue, or its pages in the candidate list when it is a leaf. */
@@ -61,7 +61,7 @@ fn levelStep(src:u32,s:u32){
   if(projected(node.maxParentError,node.sphere,e,stretchOf(w),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
  }
  if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
- spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
+ pairAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,w);
 }
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
@@ -87,7 +87,7 @@ const SHIPPED_SHIMS = ['queueBase', 'candBase', 'rootOf', 'markOf', 'pageBaseOf'
 const BEFORE_SHIMS = `${[...SHIPPED_SHIMS, 'putEntry', 'tooCoarse'].map(shippedFn).join('\n')}
 fn descend(src:u32,node:CullNode,w:u32){
  if(node.childCount>0u){pairAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount,w);return;}
- spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
+ pairAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,w);
 }
 `
 

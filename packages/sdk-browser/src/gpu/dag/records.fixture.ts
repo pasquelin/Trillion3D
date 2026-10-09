@@ -28,13 +28,24 @@ export type DagRecords = {
   hotInts: Uint32Array
   cold: Float32Array
   coldInts: Uint32Array
-  /** First cold record in `cold`, behind the working table and the residency bits. */
+  /** First cold record in `cold`, behind the residency bits, the pool's list and the keys. */
   coldAt: number
   recordShift: Uint32Array
   rootBases: Uint32Array
+  pageWorlds: Uint32Array
 }
 export function dagRecords(
-  packed: Pick<PackedDag, 'clusters' | 'pageCones' | 'pageCount' | 'recordShift' | 'rootBases'>,
+  packed: Pick<
+    PackedDag,
+    | 'clusters'
+    | 'pageCones'
+    | 'pageCount'
+    | 'recordCount'
+    | 'keyCount'
+    | 'recordShift'
+    | 'rootBases'
+    | 'pageWorlds'
+  >,
 ): DagRecords {
   const { clusters, pageCones } = packed
   return {
@@ -42,14 +53,15 @@ export function dagRecords(
     hotInts: new Uint32Array(clusters.buffer, clusters.byteOffset, clusters.length),
     cold: pageCones,
     coldInts: new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length),
-    coldAt: coldBase(packed.pageCount),
+    coldAt: coldBase(packed),
     recordShift: packed.recordShift,
     rootBases: packed.rootBases,
+    pageWorlds: packed.pageWorlds,
   }
 }
 
-/** The page's placement: its word in the working table. */
-export const worldOf = (r: DagRecords, i: number) => r.coldInts[i]
+/** The page's placement, as the host keeps it: the kernels read it from the entry carrying it. */
+export const worldOf = (r: DagRecords, i: number) => r.pageWorlds[i]
 /** The record the page reads: its index plus its placement's shift, wrapping as the u32 add does. */
 const recordOf = (r: DagRecords, i: number) => (i + r.recordShift[worldOf(r, i)]) >>> 0
 const coldOf = (r: DagRecords, i: number) => r.coldAt + recordOf(r, i) * COLD_WORDS

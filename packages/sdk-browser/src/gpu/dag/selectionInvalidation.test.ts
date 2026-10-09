@@ -62,14 +62,16 @@ test('unchanged uniforms skip a second GPU dispatch', async () => {
 
 test('the resident mask recomputes for residency changes with an unchanged camera', async () => {
   const { fixture, dag, uniforms, gpu, selection } = await wideSelection()
-  const mask = () =>
-    [
-      ...new Uint32Array(
-        (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
-      ).slice(selection.maskOffset, selection.maskOffset + dag.pageCount),
-    ]
-      .flatMap((flag, id) => (flag ? [dag.pageUrlOf(id)] : []))
+  // The draw mask, a bit a page (`shader/compactWgsl.ts`).
+  const mask = () => {
+    const words = new Uint32Array(
+      (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
+    ).subarray(selection.maskOffset)
+    return Array.from({ length: dag.pageCount }, (_, id) => id)
+      .filter((id) => (words[id >>> 5] & (1 << (id & 31))) !== 0)
+      .map((id) => dag.pageUrlOf(id))
       .sort()
+  }
   selection.updateResidency(
     Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
   )

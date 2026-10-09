@@ -116,7 +116,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  ouvreTotaux(lid);
  let s=flatIndex(id,n,64u);
  if(s<liveCount()){
-  let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
+  let entry=liveAt(s);let i=entryIndex(entry);let w=liveWorld(s);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
   if(inRange(w)){
   deformReach=reachOf(w);
@@ -124,17 +124,16 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   let clusterFlags=clusterAt(r).flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives.
-  let word=flagAt(coneCache(i));
+  let word=liveCone(s);
   if((word&CONE_REJECTED)==0u){
    // The rule on the two comparisons \`dagWanted\` made this frame, on the same projections — no
    // matrix product, no projection, no sphere read again.
    draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
   noteImage(r,clusterFlags,draw);
-  let drawn=select(0u,1u,draw);
-  setFlag(views[0u].queueCap+i,drawn);
-  // Drawn count of this page's block, held here rather than reread later page by page.
-  if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
+  // Drawn count of this page's block, held here rather than reread later page by page; its bit is
+  // the draw mask every reader takes (\`compactWgsl.ts\`).
+  if(draw){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
  }}
  verseTotaux(lid);
 }

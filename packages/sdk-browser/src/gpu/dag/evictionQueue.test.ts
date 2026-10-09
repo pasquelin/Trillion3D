@@ -8,7 +8,7 @@ import { createGpuDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
 import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import * as L from './layout.ts'
-import { listEvictions } from './evict.fixture.ts'
+import { listEvictions, pageKeys } from './evict.fixture.ts'
 
 /** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
 async function residentCut(leaves = 256) {
@@ -19,7 +19,8 @@ async function residentCut(leaves = 256) {
   const selection = await createGpuDagSelection(gpu.device, packed)
   assert.ok(selection)
   selection.updateResidency(new Uint32Array(packed.pageCount).fill(1))
-  const keys = new Uint32Array(packed.pageCones.buffer).subarray(L.keyBase(packed.pageCount))
+  const { keyWordOf } = pageKeys(packed),
+    keys = Uint32Array.from({ length: packed.pageCount }, (_, page) => keyWordOf(page))
   const cut = async () => {
     selection.dispatch(scene.uni)
     const result = await selection.flush()
@@ -66,10 +67,11 @@ test('the queue lists what the pool holds, whatever the rule reads, and no more'
 })
 
 test('the mirror ranks finer first, then older first, and skips the pages used now', () => {
-  // Pages 0..3: level 1 used at 1, level 0 used at 6, level 0 used at 1, level 0 used now.
-  const keys = Uint32Array.from([1 << KEY_PAGE_BITS, 1, 2, 3]),
-    stampOf = (page: number) => [1, 6, 1, 9][page]
-  const order = listEvictions({ pool: [0, 1, 2, 3], keys, stampOf, now: 9, cap: 8 })
+  // Keys 0..3, canonical pages 0..3: level 1 used at 1, level 0 used at 6, level 0 used at 1,
+  // level 0 used now.
+  const keyWords = Uint32Array.from([1 << KEY_PAGE_BITS, 1, 2, 3]),
+    stampOf = (key: number) => [1, 6, 1, 9][key]
+  const order = listEvictions({ pool: [0, 1, 2, 3], keyWords, stampOf, now: 9, cap: 8 })
   assert.deepEqual(order, [2, 1, 0])
 })
 

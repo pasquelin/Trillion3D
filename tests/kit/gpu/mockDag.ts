@@ -53,6 +53,12 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
   const intsAt = (at: number) =>
     Uint32Array.from({ length: worldCount }, (_, w) => frameInts[primitiveWordAt(w) + at])
   const rootNodes = intsAt(1)
+  // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
+  // kernels read it from the entries that carry it, the double walks the pages.
+  const pageWorlds = new Uint32Array(pageCount).fill(0xffffffff),
+    firsts = intsAt(4),
+    counts = intsAt(6)
+  for (let w = 0; w < worldCount; w++) pageWorlds.fill(w, firsts[w], firsts[w] + counts[w])
   return {
     kind: 'dag',
     clusters: floats(byBinding.get(DAG_BINDING.clusters)!.data),
@@ -74,7 +80,10 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     entryCount: views[viewWord('queueCap')] / 2,
     worldCount,
     pageCount,
-    recordCount: 0,
+    recordCount: views[viewWord('recordCount')],
+    keyCount: views[viewWord('keyCount')],
+    candCount: views[viewWord('candCap')],
+    pageWorlds,
     rootCount: worldCount,
     pageUrlOf: () => undefined,
     cutLinks: [],

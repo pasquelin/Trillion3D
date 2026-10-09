@@ -38,10 +38,7 @@ test('a call site reading its own group for the finer one is caught', () => {
 })
 
 test('a residency read one word off the uploaded bits is caught', () => {
-  const shifted = edited(
-    'coldAt(views[0u].clusterCount+bitWord(i))',
-    'coldAt(views[0u].clusterCount+bitWord(i)+1u)',
-  )
+  const shifted = edited('coldAt(bitWord(i))', 'coldAt(bitWord(i)+1u)')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, shifted)), FAULT)
 })
 

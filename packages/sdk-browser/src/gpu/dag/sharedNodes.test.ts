@@ -13,7 +13,7 @@ import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { residentFlags } from './layout.fixture.ts'
-import { childBase, residentBase } from './layout.ts'
+import { childBase, coldBase, residentBase, selectionListCap } from './layout.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
@@ -112,4 +112,18 @@ test('the cut over shared nodes is each placement cut alone, page for page, resi
     }
   }
   assert.ok(drawn > 0, 'no page drawn: the proof covers nothing')
+})
+
+test('the cold table holds no word per page: residency bits, then what each record and key holds', () => {
+  const one = packDagSelection(field(1))
+  for (const count of [100, 1000]) {
+    const packed = packDagSelection(field(count))
+    // What the placements past the first add: their pages' residency bits, a tree slot each, and
+    // the pool's list, as long as the readout's cap (`selectionListCap`), the view's bound.
+    const pool = 4 * (selectionListCap(packed.pageCount) - selectionListCap(one.pageCount))
+    const bytes = packed.pageCones.byteLength - one.pageCones.byteLength - pool,
+      pages = packed.pageCount - one.pageCount
+    assert.ok(bytes / pages < 1, `${count} placements: ${bytes / pages} bytes a page`)
+    assert.ok(coldBase(packed) - coldBase(one) <= Math.ceil(pages / 16) + 2 + pool / 4, `${count}`)
+  }
 })

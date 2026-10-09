@@ -112,6 +112,9 @@ export function writeDagUniforms(
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
   ints[W('heldBase')] = held.base
   ints[W('heldMask')] = held.mask
+  ints[W('candCap')] = packed.candCount
+  ints[W('recordCount')] = packed.recordCount
+  ints[W('keyCount')] = packed.keyCount
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)

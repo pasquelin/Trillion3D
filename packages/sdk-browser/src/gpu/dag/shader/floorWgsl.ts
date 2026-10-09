@@ -34,6 +34,9 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS
   return {
     base,
+    /** The draw mask, a bit a page, behind the block counts and offsets (`compactWgsl.ts`): what
+     *  the draw, the raster and the blended pass read of the cut. */
+    drawMask: 2 * blockCount,
     /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
     liveCounter: base,
     liveGroups: base + 1,

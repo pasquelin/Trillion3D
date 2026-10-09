@@ -6,7 +6,7 @@ import { type TableSplit, splitTable, flagSectionStart, flagCuts } from './split
 import { coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { dagQueueWords } from './flagSections.ts'
+import { dagFlagShape, type FlagShape } from './flagSections.ts'
 
 /** How a camera cut lays its tables: `flagCuts`, the flag sections each part of
  *  `flags` after the first starts at (`flagSectionStart`). */
@@ -20,50 +20,26 @@ export type DagSplit = {
 /** Bytes of one element of each table the kernel reads by record: a `Cluster`, a `CullNode`, a
  *  word. */
 export const ELEMENT_BYTES = { clusters: CLUSTER_WORDS * 4, nodes: DAG_NODE_FLOATS * 4, cold: 4 }
-/** The draw mask's section: what a reader outside the kernel binds. */
-export const MASK_SECTION = 1
-
-/** Words of each part of a `flags` of `words` in all, cut at `cuts`. */
-export function flagPartWords(
-  cuts: readonly number[],
-  queueCap: number,
-  pageCount: number,
-  words: number,
-) {
-  const starts = [0, ...cuts.map((s) => Math.min(words, flagSectionStart(s, queueCap, pageCount)))]
+/** Words of each part of a `flags` of `shape`, `words` in all, cut at `cuts`. */
+export function flagPartWords(cuts: readonly number[], shape: FlagShape, words: number) {
+  const starts = [0, ...cuts.map((s) => Math.min(words, flagSectionStart(s, shape)))]
   return starts.map((start, k) => (starts[k + 1] ?? words) - start)
 }
 
-/** The part of a `flags` cut at `cuts` that holds section `section`, and its first word there. */
-export function flagLocation(
-  cuts: readonly number[],
-  section: number,
-  queueCap: number,
-  pageCount: number,
-) {
-  const part = cuts.filter((s) => s <= section).length
-  const start = part ? flagSectionStart(cuts[part - 1], queueCap, pageCount) : 0
-  return { part, word: flagSectionStart(section, queueCap, pageCount) - start }
-}
-
-/**
- * The split of a camera cut on this device. The flag sections are cut on queues of the larger of
- * the node count and the primitive count, never smaller than the camera's own.
- */
+/** The split of a camera cut on this device, its flags cut at its sections (`dagFlagShape`). */
 export function dagSplit(
   limits: Parameters<typeof storageBufferCap>[0],
-  packed: { pageCount: number; nodeCount: number; worldCount: number; entryCount?: number },
+  packed: Parameters<typeof dagFlagShape>[0],
   sizes: { clusters: number; nodes: number; cold: number },
 ): DagSplit {
   const cap = storageBufferCap(limits),
     table = (name: keyof typeof ELEMENT_BYTES) =>
       splitTable(ceilDiv(sizes[name], ELEMENT_BYTES[name]), ELEMENT_BYTES[name], cap)
-  const queueCap = dagQueueWords(packed)
   return {
     clusters: table('clusters'),
     nodes: table('nodes'),
     cold: table('cold'),
-    flagCuts: flagCuts(queueCap, packed.pageCount, cap),
+    flagCuts: flagCuts(dagFlagShape(packed), cap),
   }
 }
 

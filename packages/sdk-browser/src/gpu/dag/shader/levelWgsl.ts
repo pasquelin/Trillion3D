@@ -52,14 +52,19 @@ import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
  *  and zeroes `(L+2) % …`, which it neither reads nor writes. Three is the smallest
  *  count that makes those three indices distinct. */
 export const LEVEL_QUEUES = 3
+/** Words of the candidate list and of the live list, for one entry of each: two, then three
+ *  (`liveWgsl.ts`). */
+export const CAND_LIVE_WORDS = 5
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
   [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL],
-  `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
+  `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].candCap*${CAND_LIVE_WORDS}u,0u,q==0u);}
 /** Entries a queue holds: two words each, the node then the placement that reads it. */
 fn queueEntries()->u32{return views[0u].queueCap/2u;}
-fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
+/** The candidates behind queue 0, two words each, the page then its placement: \`candCap\` of them,
+ *  the previous frame's drawn journal — a word a page — in the same words (\`swapWgsl.ts\`). */
+fn candBase()->u32{return views[0u].queueCap;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
 /** Queue \`q\`'s group count, x then y, which a level past the first dispatches on (\`armWgsl.ts\`). */
 fn queueGroups(q:u32)->u32{return listGroups(3u+q);}
@@ -77,13 +82,14 @@ fn pageBaseOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].x);}
 fn heldByOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+7u].y);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
- *  pulling it afterwards (\`openSlice\`). What passes the list's capacity is dropped and said
- *  (\`dropWork\`). */
-fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
+ *  pulling it afterwards (\`openSlice\`). \`stride\` words an entry, the page then — two words — its
+ *  placement \`w\`; past the list's \`cap\` entries, nothing is written and it is said (\`dropWork\`). */
+fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,stride:u32,cap:u32,w:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
-  if(at+k>=views[0u].clusterCount){dropWork();return;}
-  setFlag(base+at+k,packEntry(vi,first+k));
+  if(at+k>=cap){dropWork();return;}
+  setFlag(base+stride*(at+k),packEntry(vi,first+k));
+  if(stride>1u){setFlag(base+stride*(at+k)+1u,w);}
   if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
  }
 }
@@ -101,7 +107,7 @@ fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
 }
 /** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
 fn putEntry(base:u32,s:u32,entry:u32,w:u32){setFlag(base+2u*s,entry);setFlag(base+2u*s+1u,w);}
-fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
+fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u,1u,2u*views[0u].candCap,0u);}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
  *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
@@ -158,7 +164,7 @@ fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
  *  placement's first —, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode,w:u32){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount,w);return;}
- spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount);
+ spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,2u,views[0u].candCap,w);
 }
 /** Pass 0: without a tree, queue 0 holds one root per slot, so a range's dispatch reads its own
  *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch

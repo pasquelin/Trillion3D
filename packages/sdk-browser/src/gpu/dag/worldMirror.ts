@@ -38,11 +38,7 @@ function mirrorState(packed: WorldPacked) {
     pageEnd: pageBase + pageCount,
     clusterOf,
     flags: new Uint32Array(packed.pageCount),
-    pageWorlds: new Uint32Array(
-      packed.pageCones.buffer,
-      packed.pageCones.byteOffset,
-      packed.pageCount,
-    ),
+    pageWorlds: packed.pageWorlds,
     /** The placement drawing each object, -1 when none, and the object each placement draws. */
     placementOf: new Int32Array(clusterOf.length).fill(-1),
     objectOf: new Int32Array(packed.worldCount).fill(-1),

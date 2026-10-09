@@ -38,29 +38,30 @@ test('a table past one binding splits in parts the device binds at once, instead
       `${name}: its parts past WebGPU's eight bindings, the session is refused by name`,
     )
   }
-  // The readout and `work` — a quarter of a byte a page (`dagWorkLayout`) — fit, flags do not.
-  const tiny = { maxStorageBufferBindingSize: 9216, maxBufferSize: 1 << 20 }
+  // The readout and `work` — a quarter of a byte a page (`dagWorkLayout`) — fit, flags do not: the
+  // live list, three words an entry, is their widest section (`liveWgsl.ts`).
+  const tiny = { maxStorageBufferBindingSize: 12288, maxBufferSize: 1 << 20 }
   assert.equal(
     dagDeviceRefusal({ ...tiny, maxStorageBuffersPerShaderStage: 16 }, dag()),
     undefined,
     'flags in parts of whole sections',
   )
   const section = { maxStorageBufferBindingSize: 2048, maxStorageBuffersPerShaderStage: 64 }
-  assert.match(dagDeviceRefusal(section, dag())?.buffer ?? '', /^flags/, 'a page section past')
+  assert.match(dagDeviceRefusal(section, dag())?.buffer ?? '', /^flags/, 'a list section past')
 })
 
-test('`work` holds no word per page: a binding past one page section holds the cut (#1483)', () => {
-  // 4,000 bytes a page section of `flags`, and each kept list's ranks; `work` held both lists'
-  // ranks, 8,516 bytes, and refused this binding.
-  const limits = { maxStorageBufferBindingSize: 5000, maxStorageBuffersPerShaderStage: 64 }
+test('`work` holds no word per page: a binding past one list section holds the cut (#1483)', () => {
+  // 12,000 bytes the live list of `flags`, 4,000 each kept list's ranks; `work` held both lists'
+  // ranks, 8,516 bytes, and would refuse a binding of 5,000.
+  const limits = { maxStorageBufferBindingSize: 12000, maxStorageBuffersPerShaderStage: 64 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(dag(), limits).rows
   assert.ok(rows.work.size < 1000, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
   assert.deepEqual([rows.ranks0.size, rows.ranks1.size], [4000, 4000], 'a word a page each')
   assert.match(
-    dagDeviceRefusal({ ...limits, maxStorageBufferBindingSize: 3996 }, dag())?.buffer ?? '',
+    dagDeviceRefusal({ ...limits, maxStorageBufferBindingSize: 11996 }, dag())?.buffer ?? '',
     /^flags/,
-    'one page word past the binding is the ceiling',
+    'one live word past the binding is the ceiling',
   )
 })
 

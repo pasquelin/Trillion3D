@@ -6,8 +6,9 @@ import { bitLength } from '../../../../../math/src/wgsl/integer.ts'
 /**
  * `dagListEvictions`: the eviction queue behind the drawn list (`evictionWord`, `../layout.ts`), a
  * count then canonical pages (`../evict.ts`, `listEvictions` its mirror). One workgroup, the
- * counting sort of `dagSortRequests` without staging: a sweep of the pool's list counts each rank,
- * `placeRanks` places them, a second sweep scatters the highest ranks, at most `EVICTION_BURST`.
+ * counting sort of `dagSortRequests` without staging: a sweep of the pool's list — its content
+ * keys — counts each rank, `placeRanks` places them, a second sweep scatters the highest ranks, each
+ * as its key's canonical page, at most `EVICTION_BURST`.
  */
 export const DAG_EVICT_WGSL = wgslBlock(
   'DAG_EVICT_WGSL',
@@ -15,10 +16,10 @@ export const DAG_EVICT_WGSL = wgslBlock(
   `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
 /** Word \`k\` of the eviction queue in \`out.pages\`: 0 its count, \`HEAD+j\` its entry \`j\`. */
 fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
-/** Rank of canonical page \`i\` in the queue, \`RANKS\` when this cut read it. Integer only, as
+/** Rank of content key \`k\` in the queue, \`RANKS\` when this cut read it. Integer only, as
  *  \`evictionRank\`. */
-fn evictRank(i:u32,now:u32)->u32{
- let key=coldAt(keyBase()+i);let used=flagAt(lastUseAt(i));
+fn evictRank(k:u32,now:u32)->u32{
+ let key=keyWordOf(k);let used=flagAt(lastUseAt(k));
  if(used==now){return RANKS;}
  let level=key>>${KEY_PAGE_BITS}u;
  let age=min(bitLength(now-used),${EVICT_AGES - 1}u);
@@ -29,10 +30,10 @@ fn evictRank(i:u32,now:u32)->u32{
 fn sweepPool(lane:u32,now:u32,scatter:bool){
  let base=poolBase();let n=coldAt(base);
  for(var j=lane;j<n;j+=SORT_LANES){
-  let i=coldAt(base+1u+j);let rank=evictRank(i,now);
+  let k=coldAt(base+1u+j);let rank=evictRank(k,now);
   if(rank>=RANKS||(scatter&&atomicLoad(&rankPlace[rank])>=${EVICTION_BURST}u)){continue;}
   let at=atomicAdd(&rankPlace[rank],1u);
-  if(scatter&&at<${EVICTION_BURST}u){out.pages[evictAt(HEAD+at)]=i;}
+  if(scatter&&at<${EVICTION_BURST}u){out.pages[evictAt(HEAD+at)]=keyWordOf(k)&KEY_PAGE;}
  }
 }
 @compute @workgroup_size(SORT_LANES)

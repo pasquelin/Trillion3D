@@ -1,8 +1,9 @@
+import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
-import { compactDrawnPages } from './globals.ts'
+import { compactDrawnPages, drawMask, maskBit } from './globals.ts'
 import { TRANSPARENT_STAGES } from './mockComputeBlend.ts'
 import { words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -11,7 +12,7 @@ import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
-import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+
 import {
   residentFlags,
   writeTriangleTotals,
@@ -85,7 +86,7 @@ export function simulateComputeDispatch(
     const mask = maskBytes ? words(maskBytes) : undefined
     const filtered =
       uni[4] && mask
-        ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0)
+        ? source.filter((_, i) => maskBit(mask, uni[5], itemInts[i * DRAW_ITEM_U32 + 2]))
         : source
     const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
     words(byBinding.get(5)!.data).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
@@ -111,9 +112,8 @@ export function simulateComputeDispatch(
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
-      byBinding.get(DAG_BINDING.flags)!.data,
+      byBinding.get(DAG_BINDING.work)!.data,
       byBinding.get(DAG_BINDING.out)!.data,
-      dagQueueWords(dag),
       dag.pageCount,
     )
   if (stage !== 'dagMask') return
@@ -140,11 +140,10 @@ export function simulateComputeDispatch(
   const rootNodes = dag.rootNodes.map((_, w) => frames[primitiveWordAt(w) + 1])
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
   mockEvictions(byBinding, dag).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])])
-  // `dagMask` posts a draw flag for every drawn page: `dagDrawScatter` compacts them.
-  const flags = words(byBinding.get(DAG_BINDING.flags)!.data)
-  const mask = dagQueueWords(dag)
-  flags.fill(0, mask, mask + dag.pageCount)
-  for (const id of result.drawablePageIds ?? []) flags[mask + id] = 1
+  // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
+  const mask = drawMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
+  mask.fill(0, 0, bitWords(dag.pageCount))
+  for (const id of result.drawablePageIds ?? []) mask[id >>> 5] |= 1 << (id & 31)
   const ints = words(byBinding.get(DAG_BINDING.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel

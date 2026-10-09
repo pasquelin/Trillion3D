@@ -134,19 +134,26 @@ export const OUT_COUNT = 0,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
   OUT_AHEAD_PLACED = 7
 
-/** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
- *  (`../../page/cut/readiness.ts`, `ready`). */
-export const residentBase = (pageCount: number) => pageCount
+/** First residency word: the cut rule's `resident(c)` (`../../page/cut/readiness.ts`, `ready`). A page
+ *  names its placement in the entries that carry it (`shader/levelWgsl.ts`), never in a word of its
+ *  own. */
+export const residentBase = (_pageCount: number) => 0
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
 export const residentWords = (pageCount: number) => bitWords(Math.max(0, pageCount))
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount)
-/** First word of the pool's list: its count, then a canonical page per held slot (`poolList.ts`). */
+/** First word of the pool's list: its count, then a content key per held slot (`poolList.ts`). */
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
-/** First word of the key column, one per page: its content key (`evict.ts`). */
-export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount)
-/** First cold record, behind the bit sets, the pool's list and the key column. */
-export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount)
+/** First word of the record keys, one per unique record: the content key it reads (`evict.ts`). */
+export const recordKeyBase = (pageCount: number) =>
+  poolBase(pageCount) + 1 + selectionListCap(pageCount)
+/** What the cold table is laid out for: its pages, unique records and content keys. */
+type ColdShape = { pageCount: number; recordCount: number; keyCount: number }
+/** First word of the key words, one per content key: its canonical page and its coarsest level. */
+export const keyWordBase = (shape: Omit<ColdShape, 'keyCount'>) =>
+  recordKeyBase(shape.pageCount) + Math.max(1, shape.recordCount)
+/** First cold record, behind the bit sets, the pool's list, the record keys and the key words. */
+export const coldBase = (shape: ColdShape) => keyWordBase(shape) + Math.max(1, shape.keyCount)
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,

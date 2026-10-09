@@ -3,7 +3,6 @@ import { DAG_SELECTION_SHADER, dagSelectionWgsl } from './shader.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { dagPartCounts, type DagSplit } from '../split.ts'
 import { type TableSplit } from '../splitFlags.ts'
-import { PAGE_SECTIONS } from '../flagSections.ts'
 
 /** Part `part` of `table`: the table itself for the first, the part's own binding after. */
 const partName = (table: string, part: number) => (part ? `${table}${part}` : table)
@@ -21,8 +20,7 @@ function equalParts(fn: string, table: string, type: string, { per, parts }: Tab
  *  bases (`queueBase`, `../split.ts` `flagSectionStart`), so a camera cut and a light cut of other queue
  *  capacities share one text. */
 function flagParts(cuts: readonly number[]) {
-  const P = PAGE_SECTIONS
-  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s<=${P}u){return views[0u].queueCap+(s-1u)*views[0u].clusterCount;}return queueBase(s-${P}u);}`
+  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s==1u){return candBase();}if(s==2u){return liveBase();}return queueBase(s-2u);}`
   const at = (part: number) => (part ? `i-flagSection(${cuts[part - 1]}u)` : 'i')
   let read = '',
     write = ''

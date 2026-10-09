@@ -32,12 +32,12 @@ export const DAG_COMPACT_WGSL = wgslBlock(
   [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL],
   `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
 fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,BLOCK);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
 /** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
- *  flag, set by \`dagMask\` with the flag itself, cleared by \`dagPrepare\` with the block count. */
+ *  flag — THE draw mask, the one the draw, the raster and the blended pass read —, set by \`dagMask\`,
+ *  cleared by \`dagPrepare\` with the block count, and by a swap from its journal (\`swapWgsl.ts\`). */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
@@ -65,7 +65,7 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let s=flatIndex(id,n,64u);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
- let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}
+ let i=entryIndex(liveAt(s));if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
  // Rank in the block: the drawn pages before \`i\`, read off the block's mask — the sum of the
  // same 0/1 flags, in one or two words instead of up to sixty-three. A page of the block's second
  // half counts the whole first word too.

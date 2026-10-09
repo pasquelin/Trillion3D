@@ -20,8 +20,10 @@ import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts'
-import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import {
+  dagFlagShape,
+  flagShapeWords,
+} from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts'
@@ -41,6 +43,8 @@ interface PackedBefore {
   nodes: BufferSource
   nodeCount: number
   entryCount: number
+  candCount: number
+  keyCount: number
   worldStretch: Float32Array
   rootNodes: Uint32Array
   recordShift: Uint32Array
@@ -96,7 +100,7 @@ export function resourcesBefore(
     },
     // Sized by the shipped rule: the shipped stages address words past the frozen two queues —
     // each page's last use sits behind a third (`lastUseWgsl.ts`).
-    flags: { buffer: storage(Math.max(16, dagFlagsWords(dagQueueWords(packed), pageCount) * 4)) },
+    flags: { buffer: storage(Math.max(16, flagShapeWords(dagFlagShape(packed)) * 4)) },
     // The shipped `dagWanted` stages the camera's requests behind the drawn list, where the
     // shipped `dagSortRequests` reads them (`gpu/dag/shader/snapshotWgsl.ts`).
     out: { buffer: storage(stagedOutputBytes(selectionListCap(pageCount))) },

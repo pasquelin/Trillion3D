@@ -1,4 +1,5 @@
-import { PAGE_SECTIONS, FLAG_SECTIONS } from './flagSections.ts'
+import { FLAG_SECTIONS, type FlagShape } from './flagSections.ts'
+import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
@@ -23,27 +24,30 @@ export function splitTable(count: number, bytes: number, cap: number): TableSpli
   return { per, parts: ceilDiv(count, per) }
 }
 
-/** First word of section `s` of a `flags` of `queueCap` per queue over `pageCount` pages: the
- *  kernel's `queueBase` and page bases, as `shader/splitWgsl.ts` states them in WGSL. */
-export function flagSectionStart(s: number, queueCap: number, pageCount: number) {
+/** First word of section `s` of a `flags` of `shape`: the kernel's `queueBase` and list bases, as
+ *  `shader/splitWgsl.ts` states them in WGSL. */
+export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) {
   if (s === 0) return 0
-  if (s <= PAGE_SECTIONS) return queueCap + (s - 1) * pageCount
-  return (s - PAGE_SECTIONS) * queueCap + PAGE_SECTIONS * pageCount
+  if (s === 1) return queueWords
+  if (s === 2) return queueWords + 2 * candCap
+  return (s - 2) * queueWords + CAND_LIVE_WORDS * candCap
 }
 
-/** Words of section `s`: a queue's `queueCap`, or one per page. */
-const sectionWords = (s: number, queueCap: number, pageCount: number) =>
-  (s >= 1 && s <= PAGE_SECTIONS) || s === FLAG_SECTIONS - 1 ? pageCount : queueCap
+/** Words of section `s`: a queue's, a list's, or the last uses, a word a content key. */
+function sectionWords(s: number, shape: FlagShape) {
+  if (s === 1) return 2 * shape.candCap
+  if (s === 2) return 3 * shape.candCap
+  return s === FLAG_SECTIONS - 1 ? shape.keyCount : shape.queueWords
+}
 
-/** The sections a `flags` of `queueCap` per queue over `pageCount` pages starts parts at, first
- *  fit: each part as many whole sections as one binding of `cap` bytes holds. A section is never
- *  cut, so the draw mask and the drawn log each lie in one part; one past the binding is a part of
- *  its own, which the fit rule refuses. */
-export function flagCuts(queueCap: number, pageCount: number, cap: number) {
+/** The sections a `flags` of `shape` starts parts at, first fit: each part as many whole sections
+ *  as one binding of `cap` bytes holds. A section is never cut, so each list and the drawn log lie
+ *  in one part; one past the binding is a part of its own, which the fit rule refuses. */
+export function flagCuts(shape: FlagShape, cap: number) {
   const cuts: number[] = []
-  let words = sectionWords(0, queueCap, pageCount)
+  let words = sectionWords(0, shape)
   for (let s = 1; s < FLAG_SECTIONS; s++) {
-    const own = sectionWords(s, queueCap, pageCount)
+    const own = sectionWords(s, shape)
     if ((words + own) * 4 > cap) {
       cuts.push(s)
       words = own

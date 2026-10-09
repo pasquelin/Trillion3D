@@ -21,7 +21,6 @@ import type { createDagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './worldMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
-import { keyBase } from './layout.ts'
 import { writeParts } from './split.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
@@ -259,19 +258,16 @@ export async function flushRuntime(
   return last?.worldRevision === state.worldRevision ? last.result : null
 }
 
-/** What `appendDagRoots` wrote, sent: the appended pages' placement words and content keys, their
- *  primitives' frame rows, worlds and origins, and the placement tree's nodes and member words they
- *  joined. Nothing else of the tables moved: their nodes are their primitives', already there. */
+/** What `appendDagRoots` wrote, sent: the appended placements' frame rows, worlds and origins, and
+ *  the placement tree's nodes and member words they joined. Nothing else of the tables moved: their
+ *  nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
     cones = packed.pageCones
   const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
     bytes > 0 &&
     writeParts(device, target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
-  const [p0, p1] = added.pages,
-    [w0, w1] = added.worlds
-  send(coldParts, cones, p0 * 4, (p1 - p0) * 4)
-  send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
+  const [w0, w1] = added.worlds
   const tree = packed.placementTree,
     [m0, m1] = added.tree.members
   // The tree nodes joined, in the run writer's ranges.

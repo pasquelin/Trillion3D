@@ -3,7 +3,8 @@ import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/da
 import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import type { MockDraw } from './mockEncoder.ts'
 import { words } from './mockBuffers.ts'
-import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
 const STORAGE_OFFSET_ALIGN = 256
@@ -67,37 +68,39 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
  * increasing order, like the kernels of `../../../packages/sdk-browser/src/gpu/dag/shader/compactWgsl.ts`. It extends the sample, behind the
  * wanted pages, in the same buffer.
  */
-export function compactDrawnPages(
-  flagBytes: Uint8Array,
-  outBytes: Uint8Array,
-  queueWords: number,
-  pageCount: number,
-) {
-  const marks = words(flagBytes),
+export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, pageCount: number) {
+  const marks = drawMask(workBytes, pageCount),
     out = words(outBytes)
   const head = SELECTION_HEADER_WORDS,
     base = head + pageCount
   let found = 0
-  for (let id = 0; id < pageCount; id++) if (marks[queueWords + id]) out[base + head + found++] = id
+  for (let id = 0; id < pageCount; id++) if (drawn(marks, id)) out[base + head + found++] = id
   out[base] = found
 }
 
+/** The cut's draw mask in its `work` words, a bit a page (`compactWgsl.ts`), and page `id`'s bit. */
+export const drawMask = (workBytes: Uint8Array, pageCount: number) =>
+  words(workBytes).subarray(dagWorkLayout(ceilDiv(Math.max(1, pageCount), 64)).drawMask)
+const drawn = (mask: Uint32Array, id: number) => (mask[id >>> 5] & (1 << (id & 31))) !== 0
+/** Page `id`'s bit of the draw mask at word `offset` of `words` (`compactWgsl.ts`). */
+export const maskBit = (words: Uint32Array, offset: number, id: number) =>
+  drawn(words.subarray(offset), id)
+
 /**
- * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: behind queue 0 of the cut
- * buffer, `flags[dagQueueWords(packed) + id]`. That is the selection the image draws, whichever raster consumes it — hardware by
+ * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: the draw mask's bits in the
+ * cut's `work` (`drawMask`). That is the selection the image draws, whichever raster consumes it — hardware by
  * its indirect commands, or compute in place under the `raster-compute` variant — and not a past
  * image's sample.
  */
 export function drawnPageIds(
   buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,
-  packed: Parameters<typeof dagQueueWords>[0] & { pageCount: number },
+  packed: { pageCount: number },
 ) {
-  const queueWords = dagQueueWords(packed),
-    { pageCount } = packed
-  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags')
-  if (!buffer) throw new Error('Trillion3D DAG flags buffer absent')
-  const marks = words(buffer.data)
+  const { pageCount } = packed
+  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG work')
+  if (!buffer) throw new Error('Trillion3D DAG work buffer absent')
+  const marks = drawMask(buffer.data, pageCount)
   const ids: number[] = []
-  for (let id = 0; id < pageCount; id++) if (marks[queueWords + id]) ids.push(id)
+  for (let id = 0; id < pageCount; id++) if (drawn(marks, id)) ids.push(id)
   return ids
 }

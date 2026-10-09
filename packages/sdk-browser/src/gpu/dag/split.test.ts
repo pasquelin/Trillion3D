@@ -1,9 +1,9 @@
 // A cut's tables past one binding split in parts bound at once: every section of `flags`
-// stays whole in one part, so the draw mask keeps one buffer and one offset, and
+// stays whole in one part, so each list keeps one buffer and one offset, and
 // a host write lands in the part that holds each of its bytes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MASK_SECTION, flagLocation, flagPartWords, writeParts } from './split.ts'
+import { flagPartWords, writeParts } from './split.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { flagCuts, flagSectionStart, splitTable } from './splitFlags.ts'
@@ -15,31 +15,31 @@ test('a table splits in parts of as many whole elements as one binding holds', (
   assert.deepEqual(splitTable(3, 96, 64), { per: 1, parts: 3 }, 'one element past: refused later')
 })
 
-test("the sections are the kernel's: queue 0, four page sections, the queues, the last use", () => {
-  const [queueCap, pageCount] = [7, 100]
-  assert.equal(FLAG_SECTIONS, 1 + 4 + LEVEL_QUEUES)
-  assert.equal(flagSectionStart(MASK_SECTION, queueCap, pageCount), queueCap, 'the draw mask')
+test("the sections are the kernel's: queue 0, the two lists, the queues, the last use", () => {
+  const shape = { queueWords: 14, candCap: 100, keyCount: 30 }
+  assert.equal(FLAG_SECTIONS, 1 + 2 + LEVEL_QUEUES)
+  assert.equal(flagSectionStart(1, shape), 14, 'the candidates, behind queue 0')
+  assert.equal(flagSectionStart(2, shape), 14 + 2 * 100, 'the live list, behind them')
   assert.equal(
-    flagSectionStart(FLAG_SECTIONS - 1, queueCap, pageCount),
-    queueCap * LEVEL_QUEUES + 4 * pageCount,
+    flagSectionStart(FLAG_SECTIONS - 1, shape),
+    14 * LEVEL_QUEUES + 5 * 100,
     'the last use, behind the last queue (`lastUseAt`)',
   )
 })
 
 test('flags cut between whole sections, each part within the binding, all words kept', () => {
-  const [queueCap, pageCount, cap] = [10, 1000, 4096]
-  const cuts = flagCuts(queueCap, pageCount, cap)
-  const words = dagFlagsWords(queueCap, pageCount)
-  const parts = flagPartWords(cuts, queueCap, pageCount, words)
-  assert.deepEqual(cuts, [2, 3, 4, 7])
+  const shape = { queueWords: 20, candCap: 300, keyCount: 700 },
+    cap = 4096
+  const cuts = flagCuts(shape, cap)
+  const words = dagFlagsWords(shape.queueWords, shape.candCap, shape.keyCount)
+  const parts = flagPartWords(cuts, shape, words)
+  assert.deepEqual(cuts, [2, 5])
   assert.ok(parts.every((part) => part * 4 <= cap))
   assert.equal(
     parts.reduce((a, b) => a + b),
     words,
   )
-  assert.deepEqual(flagCuts(queueCap, pageCount, words * 4), [], 'held whole: no cut')
-  const mask = flagLocation(cuts, MASK_SECTION, queueCap, pageCount)
-  assert.deepEqual(mask, { part: 0, word: queueCap }, 'the mask: one part, one offset')
+  assert.deepEqual(flagCuts(shape, words * 4), [], 'held whole: no cut')
 })
 
 test('a host write spanning two parts lands in each at its own offset', () => {

@@ -79,12 +79,12 @@ export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(
  * residency reads `isResident(i)` and `childResident(i)` on the bit sets the host uploaded into the
  * cold buffer, and the rule itself. Only the projection is the model's: its screen errors are
  * passed where the kernel projects. `dagWanted` keeps the rule's two comparisons in the page's cone
- * word (`setFlag(coneCache(i),…);`), then `dagMask`'s `let all=…;` and `draw=drawsCompared(…);`
- * decide on that word.
+ * word, in its live entry (`liveAppend(entry,w,…);`), then `dagMask`'s `draw=drawsCompared(…);`
+ * decides on that word.
  */
 export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) {
   const camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
-    word = /\bsetFlag\(coneCache\(i\),([^;]+)\);/.exec(source)
+    word = /\bliveAppend\(entry,w,([^;]+)\);/.exec(source)
   if (!camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask')
   return kernelBackend(dag, threshold, (packed) => {
     const cold = new Uint32Array(

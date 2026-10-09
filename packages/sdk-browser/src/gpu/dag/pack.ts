@@ -11,8 +11,8 @@ import {
 import { baseOpen, linksFor } from '../../page/cut/links.ts'
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
-import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts'
-import { KEY_PAGE_MAX, canonicalPage, writeKeyColumn } from './evict.ts'
+import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyWordBase, recordKeyBase } from './layout.ts'
+import { KEY_PAGE_MAX, keyCount, writeKeyTables } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
 import {
@@ -248,7 +248,8 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
   )
   const worldSources = [...roots]
   if (tree) packPlacementTree({ ...p, worldSources }, tree)
-  const { clusters, pageCones, cold, linkBase } = recordTables(roots, p, records, size.pages, plan)
+  const tables = recordTables(roots, p, records, size.pages, plan),
+    { clusters, pageCones, cold, linkBase } = tables
   return {
     kind: 'dag',
     clusters,
@@ -266,9 +267,12 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     worldCount: size.worlds,
     pageCount: size.pages,
     recordCount: records.count,
+    keyCount: tables.keyCount,
+    candCount: size.pages,
+    pageWorlds: p.pageWorlds,
     recordShift: p.recordShift,
     rootCount: p.rootClusters,
-    pageUrlOf: pageUrlReader(worldSources, p.cutLinks, pageCones, p.live),
+    pageUrlOf: pageUrlReader(worldSources, p.cutLinks, p.pageWorlds, p.live),
     cutLinks: p.cutLinks,
     live: p.live,
     ...(room && { shared }),
@@ -284,9 +288,10 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
 /**
  * The hot records and the cold table of a packing of `pages` pages. The hot record only holds what
  * all five passes of a frame reread; the owner node and the cone go to the cold, which the open
- * pass alone reads. Residency bits follow the working table: one word for thirty-two pages,
- * written by delta. The tree's order rides behind the cold records: what its groups name their
- * members by; the placements' links to the world DAG follow it (`worldLinks.ts`).
+ * pass alone reads. The cold table opens on the residency bits, one word for thirty-two pages,
+ * written by delta, then the pool's list, then a content key per unique record and a word per key
+ * (`evict.ts`): no word per page. The tree's order rides behind the cold records: what its groups
+ * name their members by; the placements' links to the world DAG follow it (`worldLinks.ts`).
  */
 function recordTables(
   roots: readonly DagRoot[],
@@ -296,18 +301,20 @@ function recordTables(
   { tree, world, worlds }: ReturnType<typeof packPlan>,
 ) {
   const recordSlots = Math.max(1, records.count),
-    coldAt = coldBase(pages)
+    keys = keyCount(roots),
+    shape = { pageCount: pages, recordCount: records.count, keyCount: keys },
+    coldAt = coldBase(shape)
   // The tree's order behind the cold records, for every member slot.
   const members = coldAt + recordSlots * COLD_WORDS,
     linkBase = members + (tree?.capacity ?? 0)
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
     pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
     cold = new Uint32Array(pageCones.buffer)
-  cold.set(p.pageWorlds)
   if (tree) cold.set(tree.order, (tree.members = members))
-  writeKeyColumn(roots, cold, keyBase(pages))
+  const at = { recordKey: recordKeyBase(pages), keyWord: keyWordBase(shape) }
+  writeKeyTables(roots, p, cold, at)
   records.finish(clusters, pageCones, coldAt)
-  return { clusters, pageCones, cold, linkBase }
+  return { clusters, pageCones, cold, linkBase, keyCount: keys }
 }
 
 /** The live ranges `appendDagRoots` filled: pages and placements `[from, to)` — no node: an
@@ -335,24 +342,19 @@ export function appendDagRoots(
   if (!shared || !live || !fitsRoom(packed, roots, shared)) return undefined
   const from = { ...live },
     words = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset),
-    keyAt = keyBase(packed.pageCount),
     tree = packed.placementTree,
     batch: number[] = []
   const p: Packing = {
     ...packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
-    pageWorlds: words.subarray(0, packed.pageCount),
     live,
     shared,
     rootClusters: packed.rootCount,
   }
   for (const root of roots) {
-    const first = shared.firstOf.get(root.pages)!,
-      pageBase = live.pages
+    // Its records are its template's, and their keys with them (`writeKeyTables`).
+    const first = shared.firstOf.get(root.pages)!
     placeRoot(p, root, live.worlds, () => first.recordBase)
-    // Each page's content key is its template page's canonical one (`writeKeyColumn`).
-    for (let k = 0; k < root.pages.length; k++)
-      words[keyAt + pageBase + k] = canonicalPage(words[keyAt + first.pageBase + k])
     const sizes = levelSizesOf(cullingOf(root, shared), shared),
       shift = tree?.depth ?? 0
     for (let level = 0; level < sizes.length; level++)
@@ -434,10 +436,9 @@ export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[],
 function pageUrlReader(
   roots: readonly DagRoot[],
   cutLinks: readonly DagCutLinks[],
-  pageCones: Float32Array,
+  worldOfPage: Uint32Array,
   live: { readonly pages: number },
 ) {
-  const worldOfPage = new Uint32Array(pageCones.buffer, pageCones.byteOffset)
   return (page: number) => {
     if (!(page >= 0 && page < live.pages)) return undefined
     const w = worldOfPage[page]

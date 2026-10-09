@@ -76,7 +76,8 @@ export const drawShader = (layerSlots: number) => {
 fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
 fn selected(item:DrawItem)->bool{
  if(uni.selectionEnabled==0u){return true;}
- return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
+ // The cut's draw mask, a bit a packed page (\`../dag/shader/compactWgsl.ts\`).
+ return bitAt(selectionMask[uni.selectionOffset+bitWord(item.selectionIndex)],item.selectionIndex)!=0u;
 }
 /** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}

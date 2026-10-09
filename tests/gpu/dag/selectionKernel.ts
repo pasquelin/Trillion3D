@@ -22,7 +22,6 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
-import { dagQueueWords } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
 
 export type { SelectionCase } from './selectionCase.ts'
 
@@ -118,13 +117,8 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     const header = SELECTION_HEADER_WORDS
     const out = await readBuffer(device, buffers.out.buffer, 0, (header + packed.pageCount) * 4)
     const work = await readBuffer(device, buffers.work.buffer, 0, at.work.words * 4)
-    // Draw flags, one per page, behind the descent queue (`dagQueueWords`, two words an entry).
-    const flags = await readBuffer(
-      device,
-      buffers.flags.buffer,
-      dagQueueWords(packed) * 4,
-      packed.pageCount * 4,
-    )
+    // The draw mask, a bit a page in `work` (`compactWgsl.ts`).
+    const drawBits = work.subarray(at.work.drawMask)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
     const requests = Array.from(out.subarray(header, header + count))
     // The staged pairs, page then priority, in the order the threads won the counter.
@@ -146,7 +140,9 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       overflow: out[OUT_FLAGS],
       selectedTriangles: out[OUT_SELECTED_TRIANGLES],
       transparentTriangles: out[OUT_TRANSPARENT_TRIANGLES],
-      drawn: [...flags.keys()].filter((page) => flags[page]),
+      drawn: Array.from({ length: packed.pageCount }, (_, page) => page).filter(
+        (page) => (drawBits[page >>> 5] & (1 << (page & 31))) !== 0,
+      ),
       candidates: work[at.work.candCounter],
       live: work[at.work.liveCounter],
     }

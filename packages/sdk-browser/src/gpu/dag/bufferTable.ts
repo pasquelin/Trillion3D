@@ -1,10 +1,9 @@
 import { storageBufferCap } from '../../residency/pools.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
-import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { HELD_SLOT_WORDS } from './heldOpen.ts'
-import { dagQueueWords } from './flagSections.ts'
+import { dagFlagShape, flagShapeWords, type FlagShape } from './flagSections.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
@@ -51,13 +50,13 @@ export function cameraCutBuffers(
     PackedDag,
     'pageCount' | 'nodeCount' | 'worldCount' | 'clusters' | 'nodes' | 'pageCones'
   > &
-    Partial<Pick<PackedDag, 'entryCount'>>,
+    Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'keyCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
     workLayout = dagWorkLayout(blockCount)
-  const queueWords = dagQueueWords(packed),
-    flagWords = dagFlagsWords(queueWords, packed.pageCount)
+  const shape = dagFlagShape(packed),
+    flagWords = flagShapeWords(shape)
   const split = dagSplit(limits, packed, {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
@@ -87,14 +86,7 @@ export function cameraCutBuffers(
       split.cold,
       ELEMENT_BYTES.cold,
     ),
-    flags: flagRows(
-      'Trillion3D DAG flags',
-      split.flagCuts,
-      queueWords,
-      packed.pageCount,
-      flagWords,
-      true,
-    ),
+    flags: flagRows('Trillion3D DAG flags', split.flagCuts, shape, flagWords, true),
   }
   return {
     blockCount,
@@ -121,16 +113,16 @@ const ranksRow = (l: number, pageCount: number): DagBufferRow => ({
   size: Math.max(16, pageCount * 4),
 })
 
-/** The rows of a `flags` of `words` cut at `cuts` (`split.ts`); a camera's are copy sources. */
+/** The rows of a `flags` of `shape`, `words` in all, cut at `cuts` (`split.ts`); a camera's are copy
+ *  sources. */
 function flagRows(
   label: string,
   cuts: readonly number[],
-  queueCap: number,
-  pageCount: number,
+  shape: FlagShape,
   words: number,
   copySource?: true,
 ): DagBufferRow[] {
-  const sizes = flagPartWords(cuts, queueCap, pageCount, words)
+  const sizes = flagPartWords(cuts, shape, words)
   return sizes.map((part, k) => ({
     label: k ? `${label} ${k}` : label,
     size: Math.max(16, part * 4),

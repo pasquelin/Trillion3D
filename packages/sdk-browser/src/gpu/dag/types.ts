@@ -126,6 +126,13 @@ export type PackedDag = {
   shared?: DagPackShared
   /** Unique records behind the `pageCount` pages. */
   recordCount: number
+  /** Content keys behind the records, one per page address (`evict.ts`). */
+  keyCount: number
+  /** What the candidate and live lists hold at most (`shader/levelWgsl.ts`). */
+  candCount: number
+  /** Each page's placement, on the host alone: the kernels read it from the entries that carry
+   *  it. */
+  pageWorlds: Uint32Array
   /** Per placement, what its page index adds to reach its record, as a wrapping u32. */
   recordShift: Uint32Array
   rootCount: number
