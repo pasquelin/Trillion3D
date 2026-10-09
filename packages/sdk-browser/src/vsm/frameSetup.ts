@@ -174,6 +174,11 @@ export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
   return !frustumExcludesSphere(planes, x, y, z, reach)
 }
 
+/** Whether the frame shadows `l`: it casts, and a lit point of the frame is in reach of it
+ *  (`vsmLightSeen`). What the maps, their tables and the mask are sized by: the view's lights, never
+ *  the world's. */
+export const vsmShadowed = (l: VsmFrameLight) => l.light.castsShadow && (l.visible ?? true)
+
 /** Where each light's maps landed this frame. */
 export interface VsmLightAllocation {
   id: string
@@ -532,7 +537,7 @@ export function planVirtualShadowFrame(
   cache.scheduleFarLights()
   const casting = castingScratch
   casting.length = 0
-  for (const l of lights) if (l.light.castsShadow && (l.visible ?? true)) casting.push(l)
+  for (const l of lights) if (vsmShadowed(l)) casting.push(l)
   clipmapScratch.length = 0
   localScratch.length = 0
   setupDirectionalLights(state, casting, camera, viewport, mobilityOf)

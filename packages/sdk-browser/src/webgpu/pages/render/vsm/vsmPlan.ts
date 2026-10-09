@@ -16,6 +16,7 @@ import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
 import {
+  castingCount,
   directionalCount,
   ensureMask,
   fullMapsFor,
@@ -42,9 +43,15 @@ const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
 const LISTS = new WeakMap<WebgpuPagesRuntime, { plan: VsmFrameLight[]; reserve: VsmFrameLight[] }>()
 
 /** The light store as the frame plan reads it, into `lights`: every declared light, at its slot.
- *  Seen from `cam`, a local light no lit point of the frame is in reach of is not `visible`
- *  (`vsmLightSeen`): it costs no map, no page and no projection, and its cache waits unreferenced. */
-function frameLights(rt: WebgpuPagesRuntime, which: 'plan' | 'reserve', cam?: EngineCamera) {
+ *  Seen from `cam` — the plan's, else the last image's —, a local light no lit point of the frame
+ *  is in reach of is not `visible` (`vsmLightSeen`): it costs no map, no page, no projection and no
+ *  room in the tables or the mask, and its cache waits unreferenced. Before any image no local
+ *  light is seen yet: the first plan grows the set for those its camera sees. */
+function frameLights(
+  rt: WebgpuPagesRuntime,
+  which: 'plan' | 'reserve',
+  cam = rt.run.lastCamera ? rt.run.gate.cam : undefined,
+) {
   let lists = LISTS.get(rt)
   if (!lists) LISTS.set(rt, (lists = { plan: [], reserve: [] }))
   const lights = lists[which]
@@ -57,14 +64,13 @@ function frameLights(rt: WebgpuPagesRuntime, which: 'plan' | 'reserve', cam?: En
     if (!light) continue
     const entry = (lights[count++] ??= { light, visible: true })
     entry.light = light
-    entry.visible = !planes || vsmLightSeen(light, planes)
+    entry.visible = planes ? vsmLightSeen(light, planes) : light.kind === 'directional'
   }
   lights.length = count
   return lights
 }
 
-/** Lights the frame's plan shadows (`castingCount`), counted on the store: none while it is
- *  unlit. */
+/** Lights the store holds that cast: none while it is unlit. */
 export function castingLights(rt: WebgpuPagesRuntime) {
   const { store } = rt.lights
   let count = 0
@@ -73,6 +79,11 @@ export function castingLights(rt: WebgpuPagesRuntime) {
       if (store.light(store.ids[slot])?.castsShadow) count++
   return count
 }
+
+/** Lights the frame shadows (`castingCount`), seen from the last image (`frameLights`): what its
+ *  mask is funded and made for. None while the store is unlit. */
+const shadowedLights = (rt: WebgpuPagesRuntime) =>
+  castingLights(rt) && castingCount(frameLights(rt, 'reserve'))
 
 /**
  * WHAT THE VIRTUAL SHADOW MAPS ASK OF THE GPU BUDGET beside what they hold (`shadowHeldBytes`), at
@@ -85,7 +96,7 @@ export function castingLights(rt: WebgpuPagesRuntime) {
  */
 export function vsmAskedBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
   const { vsm } = rt.lights,
-    casting = castingLights(rt)
+    casting = shadowedLights(rt)
   if (!casting) return 0
   return vsm ? maskGrowth(vsm, width, height, casting) : maskBytes(width, height, casting)
 }
@@ -119,7 +130,7 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
  *  and made by the same lights. Tentative: refused, the plan asks it again (`reserveProjection`). */
 export function makeVsmMask(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vsm } = rt.lights,
-    casting = castingLights(rt)
+    casting = shadowedLights(rt)
   if (!vsm || !casting) return
   const [width, height] = rt.gpu.allocatedSize
   try {

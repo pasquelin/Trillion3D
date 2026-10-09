@@ -31,6 +31,7 @@ import {
   type VsmFrameLight,
   type VsmFramePlan,
   type VsmFrameState,
+  vsmShadowed,
 } from '../../../../vsm/frameSetup.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
@@ -43,6 +44,7 @@ import { releaseVsmProjection, vsmProjectionHeldBytes } from '../../../../vsm/pr
 import {
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_MAX_LIGHTS,
+  VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_TILE_FORMAT,
   vsmProjectionTiles,
 } from '../../../../vsm/projectionWgsl.ts'
@@ -148,22 +150,23 @@ export interface EngineVsm {
 const mapsOf = (kind: VsmFrameLight['light']['kind']) =>
   kind === 'directional' ? CLIPMAP_LEVELS : kind === 'point' ? 6 : kind === 'spot' ? 1 : 0
 
-/** Full maps the frame's casting lights need, with room for the unreferenced entries the cache
- *  keeps ten frames, rounded to whole page-table rows: one row at least, which holds a sun and
- *  six more maps with that room. */
+/** Full maps a set is first made for: its suns' clipmap levels, with room for the unreferenced
+ *  entries the cache keeps ten frames, rounded to whole page-table rows — one row at least, which
+ *  holds a sun and six more maps with that room. A local light takes a full map only while its
+ *  view asks finer than one page (`localLight.ts`), else a single-page slot, whose ids the tables
+ *  reserve: the full maps a frame plans follow the lights near its eye, never those it sees, and
+ *  the plan grows the tables to them in the same frame (`planVirtualShadowFrame`, `grow`). */
 export function fullMapsFor(lights: readonly VsmFrameLight[]) {
   let maps = 0
-  for (const { light } of lights) {
-    if (!light.castsShadow) continue
-    maps += mapsOf(light.kind)
-  }
+  for (const entry of lights)
+    if (vsmShadowed(entry) && entry.light.kind === 'directional') maps += CLIPMAP_LEVELS
   return wholeTableRows(2 * maps + 16)
 }
 
-/** The frame's lights that cast a shadow: the mask takes a layer per four of them. */
+/** The frame's lights it shadows (`vsmShadowed`): the mask takes a layer per four of them. */
 export function castingCount(lights: readonly VsmFrameLight[]) {
   let count = 0
-  for (const { light } of lights) if (light.castsShadow) count++
+  for (const entry of lights) if (vsmShadowed(entry)) count++
   return count
 }
 
@@ -172,9 +175,10 @@ export function castingCount(lights: readonly VsmFrameLight[]) {
 export function renderViewBound(lights: readonly VsmFrameLight[]) {
   let views = 0,
     mips = 0
-  for (const { light } of lights) {
-    if (!light.castsShadow) continue
-    const maps = mapsOf(light.kind)
+  for (const entry of lights) {
+    if (!vsmShadowed(entry)) continue
+    const { light } = entry,
+      maps = mapsOf(light.kind)
     views += maps
     mips += light.kind === 'directional' ? maps : maps * VSM_MIPS
   }
@@ -183,7 +187,7 @@ export function renderViewBound(lights: readonly VsmFrameLight[]) {
 
 export function directionalCount(lights: readonly VsmFrameLight[]) {
   let count = 0
-  for (const { light } of lights) if (light.castsShadow && light.kind === 'directional') count++
+  for (const entry of lights) if (vsmShadowed(entry) && entry.light.kind === 'directional') count++
   return Math.max(1, count)
 }
 
@@ -344,8 +348,10 @@ export function unshadowLights(store: WebgpuPagesRuntime['lights']['store']) {
   for (let slot = 0; slot < store.count; slot++) store.assignSlice(slot, -1)
 }
 
-/** The mask array's layers for `lights` shadowed lights: one per four, one at least. */
-export const maskLayersFor = (lights: number) => workgroupCount(lights, VSM_PROJECTION_MAX_LIGHTS)
+/** The mask array's layers for `lights` shadowed lights: one per four, one at least, and no more
+ *  than the projection's one pass reads (`VSM_PROJECTION_MAX_PASS_LIGHTS`, `vsmProject.ts`). */
+export const maskLayersFor = (lights: number) =>
+  workgroupCount(Math.min(lights, VSM_PROJECTION_MAX_PASS_LIGHTS), VSM_PROJECTION_MAX_LIGHTS)
 
 const maskDescriptor = (width: number, height: number, layers: number) => ({
   label: 'vsm.engine.shadowMask',
