@@ -75,10 +75,10 @@ const RESOLVE_POOL = wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32
 
 /**
  * Where a point is read in a virtual shadow map (`vsmLocate`) — directional or local, one page-table
- * lookup with a coarser-level fallback — at a point `P` of normal `N`, for VSM id `id`: what the
- * blended surfaces' and the water's filtered read and the opaque resolve's transmission read start
- * from. The point is moved along its normal by the normal bias length. The origin shift is the
- * pass's eye (`shadowCamera`), in single precision.
+ * lookup with a coarser-level fallback — for VSM id `id`: what the blended surfaces' and the water's
+ * filtered read and the opaque resolve's transmission read start from, at a point `P` of unit
+ * normal `N` moved along it by the normal bias length (`vsmReceiverFromEye`). The origin shift is
+ * the pass's eye (`shadowCamera`), in single precision.
  */
 const vsmConsumerWgsl = (
   b: VsmConsumerBindings,
@@ -111,41 +111,32 @@ fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
  let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
  return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
 }
-/** Where a point is read: its sample \`sm\` — invalid where no page holds the point, nothing
- *  mapped at any level — of map level \`handle\`, a sun's clipmap level (\`clipmap\`) or a local
- *  light's map; the unit normal \`N\`, the receiver from the eye and in the map's shifted frame,
- *  and its depth there. */
-struct VsmLocated{sm:VsmMapRead,handle:VsmHandle,clipmap:bool,N:vec3f,fromEye:vec3f,fromMap:vec3f,depth:f32,}
-fn vsmLocate(id:u32,directional:bool,P:vec3f,Nin:vec3f)->VsmLocated{
- var at:VsmLocated;
- at.N=normalize(Nin);
+/** Where a receiver \`fromEye\` (\`vsmReceiverFromEye\`) is read in map \`id\`: its sample \`sm\` —
+ *  invalid where no page holds the point, nothing mapped at any level —; the level \`requested\`,
+ *  a sun's clipmap level (\`clipmap\`), whose sample may fall back to a coarser one (\`sm.handle\`),
+ *  or a local light's map; the receiver in the map's shifted frame and its depth there. */
+struct VsmLocated{sm:VsmMapRead,requested:VsmHandle,clipmap:bool,fromMap:vec3f,depth:f32,}
+fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
- at.fromEye=vsmReceiverFromEye(P,at.N);
  ${byShadowKind(
    kinds,
    `  let h=vsmHandleFromIdDirectional(id);
   let base=vsmProjectionOf(h);
-  let d2=vsmDistanceSqToOrigin(base,at.fromEye,shiftHigh,shiftLow);
+  let d2=vsmDistanceSqToOrigin(base,fromEye,shiftHigh,shiftLow);
   let level=i32(floor(vsmSampledLevel(base,d2)));
   let index=max(0,level-base.mapLevel);
-  at.clipmap=true;
-  if(index>=base.levelsLeft){return at;}
-  at.handle=vsmHandleOffset(h,index);
-  let pd=vsmProjectionOf(at.handle);
-  at.fromMap=at.fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
-  let uvz=pd.shiftedToMapUv*vec4f(at.fromMap,1.0);
-  at.depth=uvz.z;
-  at.sm=vsmReadClipmap(at.handle,uvz.xy);
-  return at;`,
+  if(index>=base.levelsLeft){return VsmLocated(vsmEmptyRead(),h,true,vec3f(0.0),0.0);}
+  let requested=vsmHandleOffset(h,index);
+  let pd=vsmProjectionOf(requested);
+  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
+  let uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
+  return VsmLocated(vsmReadClipmap(requested,uvz.xy),requested,true,fromMap,uvz.z);`,
    ` var h=vsmHandleFromId(id);
  var pd=vsmProjectionOf(h);
- at.fromMap=at.fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
- if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(at.fromMap)));pd=vsmProjectionOf(h);}
- let uvz=perspectiveDivide(pd.shiftedToMapUv*vec4f(at.fromMap,1.0));
- at.handle=h;
- at.depth=uvz.z;
- at.sm=vsmReadMap(h,uvz.xy,pd.finestMip);
- return at;`,
+ let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
+ if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
+ let uvz=perspectiveDivide(pd.shiftedToMapUv*vec4f(fromMap,1.0));
+ return VsmLocated(vsmReadMap(h,uvz.xy,pd.finestMip),h,false,fromMap,uvz.z);`,
  )}
 }`,
   )
@@ -303,11 +294,13 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
 }
 /** Light \`light\`'s share at \`P\`, normal \`N\`, of map \`id\`: the located sample's taps; 1 where
  *  no page holds the point. */
-fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
- let at=vsmLocate(id,isSun(light),P,N);
+fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
+ let N=normalize(Nin);
+ let fromEye=vsmReceiverFromEye(P,N);
+ let at=vsmLocate(id,isSun(light),fromEye);
  if(!at.sm.valid){return 1.0;}
- let lit=vsmFilterTaps(at.handle,at.sm,at.depth,vsmConsumerSlope(at.handle,at.sm,at.fromMap,at.N),at.clipmap);
- if(lit>0.0){shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,at.fromEye,shadowCamera,at.clipmap);}
+ let lit=vsmFilterTaps(at.requested,at.sm,at.depth,vsmConsumerSlope(at.requested,at.sm,at.fromMap,N),at.clipmap);
+ if(lit>0.0){shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,fromEye,shadowCamera,at.clipmap);}
  return lit;
 }`,
 )
@@ -418,9 +411,10 @@ fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory)
  *  where its physical page holds a translucent slice: elsewhere all the light passes, as
  *  \`shadowFactor\` set it, at the lookup's cost alone on the pages no pane covers. */
 fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,N:vec3f){
- let at=vsmLocate(id,directional,P,N);
+ let fromEye=vsmReceiverFromEye(P,normalize(N));
+ let at=vsmLocate(id,directional,fromEye);
  if(!vsmTransmissionPaned(at.sm)){return;}
- shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,at.fromEye,shadowCamera,at.clipmap);
+ shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,fromEye,shadowCamera,at.clipmap);
 }
 /** Light \`channel\`'s factor: its 8-bit lane of layer channel / 4 (\`vsmMaskCode\`), decoded — 1, the
  *  decode of a lane 0, where its tile stored no such layer, which is then not read. The layer's

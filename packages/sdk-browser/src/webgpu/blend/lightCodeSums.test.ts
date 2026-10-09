@@ -24,7 +24,6 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
   'directIncidence',
-  'localLightReaches',
   'rangeWindow',
   'isSun',
   'isSunKind',

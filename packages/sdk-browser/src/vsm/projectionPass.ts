@@ -98,26 +98,40 @@ interface VsmProjectionInputs {
   receiver?: GPUTextureView
 }
 
-type VsmProjectionLightType = 'directional' | 'point' | 'spot' | 'rect'
-
-/** One light of the pass (its shader parameters and its virtual shadow map id). */
-export interface VsmProjectionLight {
-  type: VsmProjectionLightType
+/** What every light of the pass holds. */
+interface VsmProjectionLightCommon {
   /** The light's VSM id: first clipmap level (directional), the map (spot) or face 0 (point, rect). */
   mapId: number
   /** Direction the light travels (directional), the cone axis (spot), the emitting face normal
    *  (rect). Unit vector, world. Turned into the direction towards the light. */
   direction: ArrayLike<number>
-  /** World position (double), local lights. */
-  position?: ArrayLike<number>
-  /** The light's range (m), local lights: the lighting's (\`localLightReaches\`), none past it. */
-  radius?: number
   /** The source's size: its radius in metres for a local light, the sine of its angular radius
-   *  for a directional one. */
+   *  for a directional one; absent, a point source. */
   sourceRadius?: number
-  /** A spot's cone half-angle (radians), which a spot holds (`SceneLight.coneAngle`). */
-  coneAngle?: number
 }
+
+/** Where a local light stands and how far it reaches. */
+interface VsmProjectionReach {
+  /** World position (double). */
+  position: ArrayLike<number>
+  /** The light's range (m), the lighting's (`localLightReaches`): it lights nothing past it. */
+  radius: number
+}
+
+/** One light of the pass (its shader parameters and its virtual shadow map id): a sun, which
+ *  reaches every point; a point or a rectangle; a spot, which holds its cone. */
+export type VsmProjectionLight = VsmProjectionLightCommon &
+  (
+    | { type: 'directional' }
+    | ({ type: 'point' | 'rect' } & VsmProjectionReach)
+    | ({
+        type: 'spot'
+        /** The cone's half-angle (radians), `SceneLight.coneAngle`. */
+        coneAngle: number
+      } & VsmProjectionReach)
+  )
+
+type VsmProjectionLightType = VsmProjectionLight['type']
 
 /** Whether the projection votes by subgroup (`voteWgsl`): exact at any subgroup size, the workgroup
  *  counter taking over in a group where a half spans several subgroups — always, where the adapter
@@ -259,18 +273,18 @@ function writeLightRecord(
   shift: Float64Array,
 ) {
   const d = light.direction
-  const p = light.position ?? ORIGIN
+  const p = light.type === 'directional' ? ORIGIN : light.position
   f[o] = p[0] + shift[0]
   f[o + 1] = p[1] + shift[1]
   f[o + 2] = p[2] + shift[2]
-  f[o + 3] = light.radius ?? 0
+  f[o + 3] = light.type === 'directional' ? 0 : light.radius
   // The record's direction points towards the light.
   f[o + 4] = -d[0]
   f[o + 5] = -d[1]
   f[o + 6] = -d[2]
   f[o + 7] = light.sourceRadius ?? 0
   // The cone's cosine as the lighting packs it: −2, which no direction's cosine reaches, off a spot.
-  f[o + 8] = light.type === 'spot' ? Math.cos(light.coneAngle!) : -2
+  f[o + 8] = light.type === 'spot' ? Math.cos(light.coneAngle) : -2
   i[o + 9] = light.mapId | 0
   u[o + 10] = KIND[light.type]
 }

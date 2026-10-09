@@ -23,22 +23,21 @@ import {
 import { seeded } from './planFrames.fixture.ts'
 
 test('the box test never drops a light a pixel of the tile is in, even with the roundings against it', () => {
-  // The pixel's distance two units low (it takes the light more readily), the box's two units
-  // high: the reach still holds every light a pixel is in.
+  // The pixel's squared distance as binary32 rounds it, the box's square root two units high (it
+  // takes the light less readily): the reach still holds every light a pixel is in.
   const ulp = (x: number) => 2 ** (Math.floor(Math.log2(Math.abs(x))) - 23)
-  const root = (units: number) => (x: number) => {
+  const high = (x: number) => {
     const r = f(Math.sqrt(x))
-    return r + units * ulp(r)
+    return r + 2 * ulp(r)
   }
-  const squared = (v: V3) => f(f(f(v[0] * v[0]) + f(v[1] * v[1])) + f(v[2] * v[2]))
-  const run = (lights: Light[], roots: object) =>
+  const run = (lights: Light[], roots: object = {}) =>
     shaderRun<{
       vsmLightParticipates: (k: number, info: Pixel['info'], p: V3) => boolean
       vsmLightMayReachTile: (k: number, lo: V3, hi: V3, unbounded: boolean) => boolean
       vsmOrderedKey: (x: V3) => V3
       vsmOrderedValue: (k: V3) => V3
     }>(CODE, NAMES.slice(6, 14), {
-      // The float tests in binary32, as a GPU runs them, the distances' roots against them.
+      // The float tests in binary32, as a GPU runs them, the box's root against them.
       ...F32_SCOPE,
       ...SCOPE,
       VSM_PROJECTION_KINDS: 0,
@@ -64,8 +63,8 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
       pixels.map((p) => p.shifted),
       kind === 'corner' ? pixels[0].shifted : undefined,
     )
-    const pixel = run(lights, { length: (v: V3) => root(-2)(squared(v)) }),
-      box = run(lights, { sqrt: root(2) })
+    const pixel = run(lights),
+      box = run(lights, { sqrt: high })
     // The box from the shipped keys: the greatest key and the greatest complement.
     const keys = pixels.map((p) => words.vsmOrderedKey(p.shifted))
     const hi = words.vsmOrderedValue([0, 1, 2].map((i) => Math.max(...keys.map((k) => k[i]))) as V3)

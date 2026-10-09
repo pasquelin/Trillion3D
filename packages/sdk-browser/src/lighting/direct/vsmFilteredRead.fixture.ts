@@ -115,6 +115,15 @@ export function run<T>(world: World, names: string[], extra: object = {}, source
       depthBias,
     }),
     VsmFilterTexel: (physical: V, centre: V) => ({ physical, centre }),
+    VsmLocated: (
+      sm: object,
+      requested: { id: number },
+      clipmap: boolean,
+      fromMap: V,
+      depth: number,
+    ) => ({ sm, requested, clipmap, fromMap, depth }),
+    // No page holds the point: the located read's sample past a sun's last level.
+    vsmEmptyRead: () => ({ valid: false }),
     vsmTexelsAtLevel: (mip: number) => LEVEL >> mip,
     vsmHandleOffset: (h: { id: number }, offset: number) => ({ ...h, id: h.id + offset }),
     vsmTableEntryOf: (h: { id: number }, mip: number, page: V) => `${h.id}:${mip}:${page}`,

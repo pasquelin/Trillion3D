@@ -128,9 +128,8 @@ export interface VsmFrameLight {
   visible?: boolean
 }
 
-/** Relative room above what the lighting's f32 range test (`localLightReaches`,
- *  `distance>=range`) and the light's f32 position round: a few roundings of 2⁻²⁴ each, far below
- *  2⁻¹⁶. */
+/** Relative room above what the lighting's f32 range test (`directIncidence`, `distance>=range`)
+ *  and the light's f32 position round: a few roundings of 2⁻²⁴ each, far below 2⁻¹⁶. */
 const F32_ROOM = 2 ** -16
 const seenClip = new Float64Array(16)
 /** The words of a next-data image, made once an image (`planVirtualShadowFrame`). */

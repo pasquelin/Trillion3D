@@ -10,22 +10,23 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 export const TILE_STRIDE_WORDS = 2
 
 /**
- * Whether a local light reaches a point at `offset` from it (its centre minus the point): within
- * its `range`; for a rectangle (`rect`), in front of its face, `forward` the direction it emits
- * along; else within a spot's cone of cosine `cosEdge` around `forward`, −2 for a light with none.
- * False only where the light's energy is exactly zero (`rangeWindow`, a spot's fade, a rectangle's
- * back): a point no comparison orders, not finite, is reached, left to the terms. Its lit set: the
- * shadow passes test it at their own points, never a narrower one.
+ * Whether a local light may light a point at `offset` from it (its centre minus the point): the
+ * shadow passes' test, at their own points, of where the lighting gives it energy — `directIncidence`
+ * and `rectView`, zero past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
+ * `cosEdge` around `forward` (its fade), and on a rectangle's (`rect`) back, `forward` the direction
+ * it emits along. No divide: the range on the squared distance, the cone against the distance
+ * scaled by its cosine, tested only for a light that has one — `cosEdge` is −2 for any other, which
+ * no cosine reaches. A point no comparison orders (NaN) is reached, left to the lighting.
  */
 export const localLightReaches = wgslFn(
   'localLightReaches',
   [],
   `fn localLightReaches(offset:vec3f,range:f32,cosEdge:f32,forward:vec3f,rect:bool)->bool{
- let distance=length(offset);
- if(distance>=range){return false;}
+ let lengthSquared=dot(offset,offset);
+ if(lengthSquared>range*range){return false;}
  if(rect){return !(dot(offset,forward)>=0.0);}
- let L=offset/max(distance,1e-6);
- return !(dot(-L,forward)<=cosEdge);
+ if(cosEdge<-1.0){return true;}
+ return !(dot(-offset,forward)<=cosEdge*sqrt(lengthSquared));
 }`,
 )
 
@@ -39,7 +40,7 @@ export const localLightReaches = wgslFn(
 export const directLightWgsl = (slots?: number) =>
   wgslBlock(
     `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL, localLightReaches],
+    [RECT_LIGHT_WGSL],
     `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
@@ -84,18 +85,17 @@ fn rangeWindow(distance:f32,range:f32)->f32{
  let ratio=distance/range;
  return pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
 }
-/** Normalized direction toward the light and attenuation; zero where the light does not reach
- *  the point (\`localLightReaches\`). A punctual light's: a rectangle has no one direction
- *  (\`rectIrradiance\`). */
+/** Normalized direction toward the light and attenuation; w at zero when the point is out of
+ *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // A directional light has neither position nor range: the same irradiance at every point, never
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
  // The contract has already normalized it.
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
- let range=light.positionRange.w;
- if(!localLightReaches(offset,range,light.directionCone.w,light.directionCone.xyz,false)){return vec4f(0.0);}
  let distance=length(offset);
+ let range=light.positionRange.w;
+ if(distance>=range){return vec4f(0.0);}
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.
  var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);

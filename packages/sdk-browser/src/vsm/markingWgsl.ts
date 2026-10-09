@@ -22,7 +22,7 @@ import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './proje
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
-import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { DIRECT_LIGHT_WGSL, localLightReaches } from '../lighting/direct/lightWgsl.ts'
 import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts'
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
@@ -584,6 +584,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
       VIEW_WGSL,
       vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout),
       DIRECT_LIGHT_WGSL,
+      localLightReaches,
       TILE_SLICE_WGSL,
       pixelCellWgsl(),
       VSM_PROJECTION_DATA_READ_WGSL,

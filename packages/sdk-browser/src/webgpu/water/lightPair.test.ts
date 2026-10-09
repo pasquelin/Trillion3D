@@ -27,14 +27,7 @@ const SINGLE = wgslModule(
   STANDARD_LIGHTING_WGSL,
 )
 const K = wgslConstants(WATER)
-const SHARED = [
-  'directIncidence',
-  'localLightReaches',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
-]
+const SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
 const SHADING = [
   'lobeSurface',
   'surfaceLight',

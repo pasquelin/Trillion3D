@@ -22,7 +22,6 @@ const LOOP = [
   'sliceLighting',
   'declaredLight',
   'directIncidence',
-  'localLightReaches',
   'rangeWindow',
   'isSun',
   'isSunKind',

@@ -33,7 +33,6 @@ const NAMES = [
   'sliceLighting',
   'declaredLight',
   'directIncidence',
-  'localLightReaches',
   'rangeWindow',
   'isSun',
   'isSunKind',

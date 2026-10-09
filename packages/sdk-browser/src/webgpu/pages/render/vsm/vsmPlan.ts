@@ -175,15 +175,17 @@ export function projectionLight(light: SceneLight, firstId: number): VsmProjecti
       // A sun without its own disk takes the engine's published one.
       sourceRadius: Math.sin(light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius),
     }
-  return {
-    type: light.kind === 'spot' ? 'spot' : 'point',
+  // A shadowed point or spot holds its position and range, a spot its cone (`validateSceneLight`).
+  const local = {
     mapId: firstId,
     direction,
-    position: light.position,
-    radius: light.range,
+    position: light.position!,
+    radius: light.range!,
     sourceRadius: light.emitterRadius ?? 0,
-    coneAngle: light.coneAngle,
   }
+  return light.kind === 'spot'
+    ? { ...local, type: 'spot', coneAngle: light.coneAngle! }
+    : { ...local, type: 'point' }
 }
 
 /**

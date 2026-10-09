@@ -29,7 +29,6 @@ const SINGLE = wgslModule(
 const K = wgslConstants(LOBED)
 const SHARED = [
   'directIncidence',
-  'localLightReaches',
   'rangeWindow',
   'isSun',
   'isSunKind',

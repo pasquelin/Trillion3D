@@ -320,7 +320,7 @@ fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{
  return kinds==${VSM_PROJECTION_KINDS_DIRECTIONAL}u||(kinds!=${VSM_PROJECTION_KINDS_LOCAL}u&&light.kind==LIGHT_KIND_DIRECTIONAL);
 }
 /** The region test: whether light k shades the pixel at all (in the view rect, a lit surface,
- *  reached by the light — \`localLightReaches\`, the lighting's own test —, not back-facing). */
+ *  where the lighting gives the light energy — \`localLightReaches\` —, not back-facing). */
 fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool{
  if(!info.valid){return false;}
  let light=vsmView.lights[k];
@@ -342,11 +342,11 @@ const VSM_TILE_REACH:f32=1.015625;
  * to the device, and a directional light any tile; a local light is tested on its sphere alone,
  * the cone and the faces left to the pixels. The box's nearest point is no farther from the
  * centre than any of its pixels, axis by axis: a subtraction is correctly rounded, hence
- * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distance
- * and its square root then round within a few units in the last place of a pixel's distance,
- * which the reach's 1/64 holds many times over. A box whose squared distance to the centre is
- * under the smallest normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it, whatever the device does with
- * subnormals.
+ * monotonic, so each axis's difference is at most the pixel's own, exactly; the squared distances
+ * — a pixel's, against its range squared — and the box's square root then round within a few
+ * units in the last place, which the reach's 1/64 holds many times over. A box whose squared
+ * distance to the centre is under the smallest normal f32 (\`FLOAT32_MIN_NORMAL\`) holds it,
+ * whatever the device does with subnormals.
  */
 fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
  let light=vsmView.lights[k];
