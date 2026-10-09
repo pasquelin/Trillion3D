@@ -53,10 +53,13 @@ export function createCacheEntries<V, K = string>(
 ) {
   const entries = new Map<K, CacheEntry<V, K>>()
   type Heap = ReturnType<typeof createHeap<CacheEntry<V, K>>>
-  /** The heap of each lane, made as its first entry comes. */
+  /** The heap of each lane, made with the first entry of a lane at or past it. */
   const heaps: Heap[] = []
-  const heapOf = (lane: number) =>
-    (heaps[lane] ??= createHeap<CacheEntry<V, K>>(before, (entry, at) => (entry.slot = at)))
+  const heapOf = (lane: number) => {
+    while (heaps.length <= lane)
+      heaps.push(createHeap<CacheEntry<V, K>>(before, (entry, at) => (entry.slot = at)))
+    return heaps[lane]
+  }
   let next = 0,
     bytes = 0,
     heldBytes = 0,
@@ -68,10 +71,10 @@ export function createCacheEntries<V, K = string>(
   }
   /** The first entry that may leave — of `lane`, or of every lane. */
   const first = (lane?: number) => {
-    if (lane !== undefined) return heaps[lane]?.items[0]
+    if (lane !== undefined) return lane < heaps.length ? heaps[lane].items[0] : undefined
     let found: CacheEntry<V, K> | undefined
     for (const heap of heaps) {
-      const top = heap?.items[0]
+      const top = heap.items[0]
       if (top && (!found || before(top, found))) found = top
     }
     return found
@@ -192,7 +195,7 @@ export function createCacheEntries<V, K = string>(
     clear() {
       for (const { key, value } of entries.values()) if (value !== undefined) left(value, key)
       entries.clear()
-      for (const heap of heaps) heap?.clear()
+      for (const heap of heaps) heap.clear()
       bytes = heldBytes = size = 0
     },
   }
