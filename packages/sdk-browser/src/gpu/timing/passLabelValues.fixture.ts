@@ -16,8 +16,8 @@ const MAX_DEPTH = 8
 
 /** The callers' values of parameter `index` of the function or constructor declared at `at`. */
 function callerValues(file: string, text: string, at: number, index: number, depth: number) {
-  const declaration = text.slice(at)
-  const fn = /^function\*?\s+(\w+)/.exec(declaration)?.[1]
+  const head = text.slice(at)
+  const fn = /^function\*?\s+(\w+)/.exec(head)?.[1]
   const owner = fn ?? [...text.slice(0, at).matchAll(/\bclass\s+(\w+)/g)].at(-1)?.[1]
   if (!owner) return [UNREAD]
   const call = fn
@@ -89,17 +89,17 @@ function nameValues(file: string, text: string, expr: string, at: number, depth:
         )
       : [UNREAD]
   }
-  const declarations = [
+  const enclosing = [
     ...text.slice(0, at).matchAll(/(?:\bfunction\*?\s+\w+\s*|\bconstructor\s*)\(/g),
   ].reverse()
-  for (const declaration of declarations) {
-    const params = argumentsOf(text, declaration.index + declaration[0].length - 1)
+  for (const opening of enclosing) {
+    const params = argumentsOf(text, opening.index + opening[0].length - 1)
     const index = params.findIndex((param) =>
       new RegExp(String.raw`^\s*(?:(?:private|public|protected|readonly)\s+)*${name}\b`).test(
         param,
       ),
     )
-    if (index >= 0) return callerValues(file, text, declaration.index, index, depth)
+    if (index >= 0) return callerValues(file, text, opening.index, index, depth)
   }
   return [UNREAD]
 }
