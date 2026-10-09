@@ -95,8 +95,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     viewProj,
   )
   pass.end()
-  reflection.settle.drawn()
-  if (!reflection.settle.verified) reflection.settle.copy(encoder)
+  reflection.settle.image(encoder, reflection.tiles.args)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

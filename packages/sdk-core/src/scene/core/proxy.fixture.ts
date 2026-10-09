@@ -38,22 +38,12 @@ export function ownedProxy(): SceneProxy {
 }
 
 /**
- * A `side`×`side` floor of small tilted triangles, one metre high at most, one owner and source node each, in a
- * four-wide tree of `leaf`-triangle leaves over their Morton order: a real, deep proxy tree.
- * Its boxes and quantized children come from the engine's own refit at the bind pose.
+ * The proxy of `triangles` (nine floats each, one owner and one source node each) in a four-wide
+ * tree of `leaf`-triangle leaves over their order: its boxes and quantized children come from the
+ * engine's own refit at the bind pose.
  */
-export function floorProxy(side: number, leaf: number): SceneProxy {
-  const count = side * side,
-    triangles = new Float32Array(count * 9)
-  for (let t = 0; t < count; t++) {
-    let x = 0,
-      y = 0
-    for (let bit = 0; bit < 16; bit++) {
-      x |= ((t >> (2 * bit)) & 1) << bit
-      y |= ((t >> (2 * bit + 1)) & 1) << bit
-    }
-    triangles.set([x, y, 0, x + 0.9, y, 0, x, y + 0.9, 0.9], t * 9)
-  }
+export function trianglesProxy(triangles: Float32Array, leaf: number): SceneProxy {
+  const count = triangles.length / 9
   const children: number[][] = []
   const node = (first: number, end: number): number => {
     const index = children.length,
@@ -101,6 +91,25 @@ export function floorProxy(side: number, leaf: number): SceneProxy {
     instances: count,
     data,
   }
+}
+
+/**
+ * A `side`×`side` floor of small tilted triangles, one metre high at most, one owner and source node each, in a
+ * four-wide tree of `leaf`-triangle leaves over their Morton order: a real, deep proxy tree.
+ */
+export function floorProxy(side: number, leaf: number): SceneProxy {
+  const count = side * side,
+    triangles = new Float32Array(count * 9)
+  for (let t = 0; t < count; t++) {
+    let x = 0,
+      y = 0
+    for (let bit = 0; bit < 16; bit++) {
+      x |= ((t >> (2 * bit)) & 1) << bit
+      y |= ((t >> (2 * bit + 1)) & 1) << bit
+    }
+    triangles.set([x, y, 0, x + 0.9, y, 0, x, y + 0.9, 0.9], t * 9)
+  }
+  return trianglesProxy(triangles, leaf)
 }
 
 /**

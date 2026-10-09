@@ -14,7 +14,7 @@ import {
   radianceLayouts,
   radianceLevels,
 } from './radiance.ts'
-import { RADIANCE_HASH_BYTES, createRadianceSettle } from './settle.ts'
+import { RADIANCE_HASH_BYTES, SAMPLE_BYTES, createRadianceSettle } from './settle.ts'
 import {
   BEGIN_SHADER,
   TRACE_SHADER,
@@ -109,7 +109,8 @@ export function reflectionBytes(width: number, height: number) {
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
-    RADIANCE_HASH_BYTES * 4
+    RADIANCE_HASH_BYTES +
+    SAMPLE_BYTES * 3
   )
 }
 
@@ -120,12 +121,13 @@ export function reflectionBytes(width: number, height: number) {
  * whose surroundings the GPU writes — and the writer of the rest of it.
  */
 export function createScreenReflection(device: GPUDevice, width: number, height: number) {
-  // `COPY_SRC` serves only the proof tools, which reread the target; no frame copies it.
+  // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
+  // no frame copies it.
   const target = device.createTexture({
     label: 'Trillion3D reflection',
     size: [width, height],
     format: REFLECTION_FORMAT,
-    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC,
+    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
   })
   const uniform = device.createBuffer({
     label: 'Trillion3D reflection view',

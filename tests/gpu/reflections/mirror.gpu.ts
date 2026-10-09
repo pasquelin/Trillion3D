@@ -42,3 +42,29 @@ test('a still mirror reflects the same bits twice, the quad where the mirror put
   ])
     assert.deepEqual(rgb(px, py), [0, 0, 0], `${px},${py}`)
 })
+
+test('a mirror coat over a rough base is sharp at its analytic pixel', async () => {
+  const page = (await loadPage(
+    resolve(import.meta.dirname, 'mirrorPage.ts'),
+    'reflectionCoat',
+  )) as typeof import('./mirrorPage.ts')
+  const result = await runOnDawn(page.runCoat, undefined)
+  assert.equal(result.error, undefined, result.error)
+  assert.deepEqual(result.errors, [])
+  const { size, quad } = MIRROR
+  const at = (words: number[], x: number, y: number) =>
+    [0, 1, 2].map((c) => fromHalf(words[(y * size + x) * 4 + c]))
+  // What the coat adds at a pixel: the coated target less the bare one.
+  const added = (x: number, y: number) =>
+    at(result.coated!, x, y).map((v, c) => v - at(result.bare!, x, y)[c])
+  const [px, py] = reflectedPixel(0, 0)
+  const centre = added(px, py)
+  // The coat's mirror image of the quad: the quad's colour, weighed by the dielectric lobe's share
+  // (a few percent), at the pixel the mirror puts it.
+  assert.ok(centre[0] > 0.02, `the coat adds ${centre} at the quad's image`)
+  assert.ok(Math.abs(centre[1] / centre[0] - quad[1] / quad[0]) < 0.05, `the quad's hue ${centre}`)
+  // Sharp: ten pixels off the quad's image, beyond its edge, the coat adds next to nothing.
+  const [qx] = reflectedPixel(0.5, 0)
+  const outside = added(Math.min(qx + 10, size - 1), py)
+  assert.ok(outside[0] < 0.1 * centre[0], `the coat adds ${outside} off the quad's image`)
+})

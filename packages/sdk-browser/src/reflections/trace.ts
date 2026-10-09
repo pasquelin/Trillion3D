@@ -210,7 +210,8 @@ export const createTraceTiles = (device: GPUDevice, width: number, height: numbe
   args: device.createBuffer({
     label: 'Trillion3D reflection tile count',
     size: TRACE_ARGS_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+    // Its count is copied to the settle sample (`settle.ts`).
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_SRC,
   }),
   list: device.createBuffer({
     label: 'Trillion3D reflection tiles',
