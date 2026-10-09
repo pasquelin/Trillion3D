@@ -4,7 +4,10 @@
 // reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit.
 import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
-import { packHizPyramid } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+import {
+  packHizPyramid,
+  packWholeFarthest,
+} from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
 import { pyramidBytes } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.ts'
 import {
   HIZ_CULL_FARTHEST,
@@ -79,19 +82,19 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
     }
     draw(occluders, (open) => hiz.encodePyramid(open))
     draw(finished, (open) => hiz.encodeNearest(open))
-    const { texels, offsets } = pyramidBytes(width, height)
+    const { texels } = pyramidBytes(width, height)
     const cull = await readLayer(device, pyramid.pyramid, HIZ_CULL_FARTHEST, texels)
     const whole = await readLayer(device, pyramid.pyramid, HIZ_WHOLE_FARTHEST, texels)
     const bits = (packed: Float32Array) => new Uint32Array(packed.buffer)
     const expectCull = bits(packHizPyramid(rowsOf(occluders, width, height)).data)
-    const expectWhole = bits(packHizPyramid(rowsOf(finished, width, height)).data)
+    const expectWhole = bits(packWholeFarthest(rowsOf(finished, width, height)).data)
     const label = `${width}×${height}`
     let wrong = 0
     for (let i = 0; i < texels; i++) if (cull[i] !== expectCull[i]) wrong++
     if (wrong)
       mismatches.push(`${label}: ${wrong} culling texels differ from the occluders' pyramid`)
     wrong = 0
-    for (let i = offsets[1] ?? texels; i < texels; i++) if (whole[i] !== expectWhole[i]) wrong++
+    for (let i = 0; i < texels; i++) if (whole[i] !== expectWhole[i]) wrong++
     if (wrong) mismatches.push(`${label}: ${wrong} texels differ from the finished depth's pyramid`)
     hiz.dispose()
   }

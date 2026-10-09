@@ -40,6 +40,15 @@ export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHi
   return { data, sizes, offsets }
 }
 
+/** The finished depth's farthest layer for the depth `level0`, packed as the nearest build writes
+ *  it: the farthest pyramid of the depth from level 1 up, level 0 — the depth texture itself —
+ *  left at zero. */
+export function packWholeFarthest(level0: readonly (readonly number[])[]) {
+  const packed = packHizPyramid(level0)
+  packed.data.fill(0, 0, packed.offsets[1] ?? packed.data.length)
+  return packed
+}
+
 /** The farthest layer of the pyramid texture holding `packed` (`pyramidTexture.ts`): its words, a
  *  depth's bits each, row after row of `hizTextureSize`, zero past the last texel. */
 export function hizFarthestLayer(packed: Float32Array) {
