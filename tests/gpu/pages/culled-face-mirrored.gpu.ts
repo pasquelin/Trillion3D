@@ -10,7 +10,7 @@
 // multiplied by `sign(det)` is refuted here: the raw orientation that accused the cone ignores the
 // face swap, and every gap between it and the engine's draw is a mirror.
 //
-//   node bench/dawn/proofs.ts tests/gpu/pages/culled-face-reflection.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/pages/culled-face-mirrored.gpu.ts
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'

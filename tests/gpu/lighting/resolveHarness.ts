@@ -90,8 +90,6 @@ fn drawn(@builtin(global_invocation_id) id:vec3u){
  *  \`isoAniso\`, the anisotropic lobe at a strength whose αt rounds to α, along a tangent of the
  *  normal: the isotropic lobe written in the anisotropic form. */
 const LOBE_ENTRIES_WGSL = `
-// The harness lights no mirror term: the coat's (\`lobeMirror\`) reads none.
-fn surfaceMirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{return vec3f(0.0);}
 fn lobeSample(s:Sample)->vec3f{
  return contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,vec2f(${SAMPLE_PIXEL.join(',')}),0u,cellShadowed(0u));
 }

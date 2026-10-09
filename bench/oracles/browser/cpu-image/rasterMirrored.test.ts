@@ -5,7 +5,7 @@
 // cone rejection drops, which was read as a cone defect.
 //
 // Two opposite-winding triangles, placed in the plane z = 0 and separated on screen: the
-// reflection `scale(1,1,-1)` leaves them in the same place and only changes orientation. The
+// mirror `scale(1,1,-1)` leaves them in the same place and only changes orientation. The
 // shown face must then flip from one to the other, for a front material as for a back one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -57,14 +57,14 @@ function drawnTriangles(matrix: G.Matrix4, side: number) {
 }
 
 const DIRECT = new G.Matrix4()
-const REFLECTION = new G.Matrix4().makeScale(1, 1, -1)
+const MIRROR = new G.Matrix4().makeScale(1, 1, -1)
 
-test('the reflection is the one the engine recognises, the direct transform is not', () => {
+test('the mirror is the one the engine recognises, the direct transform is not', () => {
   assert.equal(matrixWindingCw(DIRECT.elements), false)
-  assert.equal(matrixWindingCw(REFLECTION.elements), true)
+  assert.equal(matrixWindingCw(MIRROR.elements), true)
 })
 
-test('without reflection, the shown face is the pre-batch one: triangle 0 for front', () => {
+test('without a mirror, the shown face is the pre-batch one: triangle 0 for front', () => {
   const face = drawnTriangles(DIRECT, G.FRONT_SIDE)
   assert.deepEqual([...face.keys()], [0], 'front material: only the direct triangle is written')
   assert.ok((face.get(0) ?? 0) > 100, `expected coverage, saw ${face.get(0)}`)
@@ -72,32 +72,32 @@ test('without reflection, the shown face is the pre-batch one: triangle 0 for fr
   assert.deepEqual([...back.keys()], [1], 'back material: only the reverse triangle is written')
 })
 
-test('under reflection, the dropped face is the other one, as for WebGPU pipelines', () => {
-  const face = drawnTriangles(REFLECTION, G.FRONT_SIDE)
+test('under a mirror, the dropped face is the other one, as for WebGPU pipelines', () => {
+  const face = drawnTriangles(MIRROR, G.FRONT_SIDE)
   assert.deepEqual(
     [...face.keys()],
     [1],
-    'reflection swaps the shown face; without that the cone dropped what the CPU drew',
+    'a mirror swaps the shown face; without that the cone dropped what the CPU drew',
   )
-  const back = drawnTriangles(REFLECTION, G.BACK_SIDE)
+  const back = drawnTriangles(MIRROR, G.BACK_SIDE)
   assert.deepEqual([...back.keys()], [0], 'and it swaps it for a back material too')
 })
 
-test('reflection only changes the face choice, never the coverage', () => {
+test('a mirror only changes the face choice, never the coverage', () => {
   const direct = drawnTriangles(DIRECT, G.FRONT_SIDE)
-  const reflected = drawnTriangles(REFLECTION, G.FRONT_SIDE)
+  const mirrored = drawnTriangles(MIRROR, G.FRONT_SIDE)
   assert.equal(
     direct.get(0),
-    reflected.get(1),
+    mirrored.get(1),
     'the two triangles overlap on screen: same pixel count on both sides',
   )
 })
 
-test('a double-sided material ignores reflection and keeps both triangles', () => {
-  for (const matrix of [DIRECT, REFLECTION])
+test('a double-sided material ignores a mirror and keeps both triangles', () => {
+  for (const matrix of [DIRECT, MIRROR])
     assert.deepEqual(
       [...drawnTriangles(matrix, G.DOUBLE_SIDE).keys()].sort(),
       [0, 1],
-      'no face is dropped, with or without reflection',
+      'no face is dropped, with or without a mirror',
     )
 })

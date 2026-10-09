@@ -1,6 +1,6 @@
 // The hardware raster under the engine's face state: the `cullMode: 'back'` of the pages
 // pipelines and the `frontFace` that `windingCw` picks (`webgpu/pages/render/winding.ts`) —
-// winding reversed under a reflection. One fragment counter per case: the faces the engine draws,
+// winding reversed under a mirror. One fragment counter per case: the faces the engine draws,
 // the ground truth a cut decision is held against.
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../kit/onDawn.ts'

@@ -1,4 +1,4 @@
-// The reflection rule is now written only once: `matrixWindingCw` replaces
+// The mirror rule is now written only once: `matrixWindingCw` replaces
 // `matrix.determinant() < 0` on the 4x4 of the lit CPU raster and blend pass.
 //
 // BOTH VERDICTS COMPARED, word for word:

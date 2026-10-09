@@ -1,5 +1,5 @@
 // Defect 6's cases (`inverseTranspose3`, DAG selection kernel): geometry, camera, raw orientation
-// and CPU decision, shared by its proof, defect 10's (`pages/culled-face-reflection.gpu.ts`) and
+// and CPU decision, shared by its proof, defect 10's (`pages/culled-face-mirrored.gpu.ts`) and
 // the engine's own draw (`engineDraws.ts`).
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'

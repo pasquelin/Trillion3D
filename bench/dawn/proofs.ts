@@ -62,13 +62,6 @@ export const EXCLUDED = new Map<string, [string, string]>([
     [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 ulp)'],
   ],
   [
-    'reflections/screen-mirror',
-    [
-      REGRESSION,
-      'TODO: since 7e41da11f0 flush does not await targets made aside (a render-then-flush loop never draws); since badf03022f the analytic mirror reflection is black',
-    ],
-  ],
-  [
     'vsm/camera-stop',
     [
       REGRESSION,

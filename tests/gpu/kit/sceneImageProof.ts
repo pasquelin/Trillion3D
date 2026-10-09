@@ -30,7 +30,7 @@ export async function image(
  * many again for what lands while the view settles (a page, a tile, its targets), which restarts
  * that average.
  */
-export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
+const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
 
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count
  *  rendered before it. `onFrame` sees every image, the held one included, before the hold ends the
