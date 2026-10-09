@@ -61,13 +61,14 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   )
-  // 715 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 722 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
-  // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore and
-  // WorldQualityOptions.
-  assert.equal(inventory.exports.length, 715)
+  // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
+  // WorldQualityOptions and ModelScene; and the page cache a streamer reads through,
+  // `createPageCache` with its contract (PageCache, CacheSession, ReadRange, RangeAsk, ByteMeter).
+  assert.equal(inventory.exports.length, 722)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -135,12 +136,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The minified bytes of a bundle of `multiplyMatrix4Batch` alone, through each entry: the engine
   // core, its node writes noted in their journal and its stage labels, the screen reflections and
-  // the image effects among them; the package, with the machine-independent quaternion normalisation and arc trigonometry;
-  // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
-  // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
-  // entry's camera projections read `length2` from the vector module, whose lazy init it starts;
-  // its transform tree grows by the one growth rule (`resized`).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_242)
+  // the image effects among them, the shadow casters' gone since no pass fed it; the package, with
+  // the machine-independent quaternion normalisation and arc trigonometry; its browser condition.
+  // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
+  // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
+  // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
+  // grows by the one growth rule (`resized`).
+  assert.equal(baseline.outputFiles[0].contents.length, 3_195)
   assert.equal(proposed.outputFiles[0].contents.length, 1_450)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_183)
   assert.ok(
