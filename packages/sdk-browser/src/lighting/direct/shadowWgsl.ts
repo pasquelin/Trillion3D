@@ -152,12 +152,14 @@ fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  * else the coarser page the table points to, read at the texel holding the centre — as the sample
  * falls back. The translucent casters' transmission is the sample's, at the receiver, once,
  * wherever a texel lets the opaque light through. Needs the consumer read (`vsmConsumerWgsl`) and
- * the light code.
+ * the light code. Each kind of map `kinds` holds has its own taps (`vsmFilterKindWgsl`), the one a
+ * light reads chosen once, before them, as `byShadowKind` chooses its located read.
  */
-const VSM_SHADOW_READ_WGSL = wgslBlock(
-  'VSM_SHADOW_READ_WGSL',
-  [pow2FromExponent],
-  `
+const vsmShadowReadWgsl = (kinds: ShadowKinds) =>
+  wgslBlock(
+    `vsmShadowReadWgsl(${shadowKindsLabel(kinds)})`,
+    kinds.local ? [pow2FromExponent] : [],
+    `
 /** The optimal slope bias's terms: the receiver plane's depth slope per texel of the
  *  sample's level (xy), the bias cap (z) and the level's scale to \`requested\` (w). */
 fn vsmConsumerSlope(requested:VsmHandle,sm:VsmMapRead,twPos:vec3f,N:vec3f)->vec4f{
@@ -181,32 +183,6 @@ fn vsmFilterOwnPage(requested:VsmHandle,sm:VsmMapRead)->VsmFilterPage{
  if(offset>0){let t=vsmLevelToLevelOf(requested,offset);depthInverse=t.depthInverse;depthBias=t.bias.z;}
  return VsmFilterPage(1u,sm.poolTexel>>vec2u(VSM_LOG2_PAGE),(sm.mapTexelXY>>vec2u(VSM_LOG2_PAGE))*VSM_PAGE_TEXELS,1.0,vec2f(0.0),depthInverse,depthBias);
 }
-/** Page \`page\` of the level \`sm\` was read at, through the page table. */
-fn vsmFilterPage(requested:VsmHandle,sm:VsmMapRead,page:vec2u,clipmap:bool)->VsmFilterPage{
- let e=vsmTableEntryAtOffset(vsmTableEntryOf(sm.handle,sm.mipLevel,page));
- if(!e.anyLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
- if(!clipmap){
-  // A lamp's coarser mip has its depth's scale; the finer entry holds that mip's page.
-  return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/pow2FromExponent(i32(e.coarserLevels)),vec2f(0.0),1.0,0.0);
- }
- let own=i32(sm.handle.id)-i32(requested.id);
- if(e.thisLevelMapped){
-  var depthInverse=1.0;var depthBias=0.0;
-  if(own>0){let t=vsmLevelToLevelOf(requested,own);depthInverse=t.depthInverse;depthBias=t.bias.z;}
-  return VsmFilterPage(1u,e.physicalAddress,page*VSM_PAGE_TEXELS,1.0,vec2f(0.0),depthInverse,depthBias);
- }
- // A clipmap's coarser level is a map of its own: its page, then its entry.
- let coarsePage=vsmCoarserLevelPage(page,sm.handle,e.coarserLevels);
- let c=vsmTableEntryAtOffset(vsmTableEntryOf(vsmHandleOffset(sm.handle,i32(e.coarserLevels)),0u,coarsePage));
- if(!c.thisLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
- let texel=vsmLevelToLevelOf(sm.handle,i32(e.coarserLevels));
- let depth=vsmLevelToLevelOf(requested,own+i32(e.coarserLevels));
- return VsmFilterPage(2u,c.physicalAddress,coarsePage*VSM_PAGE_TEXELS,texel.scale,texel.bias.xy*f32(VSM_LEVEL0_TEXELS),depth.depthInverse,depth.bias.z);
-}
-fn vsmFilterPageOf(requested:VsmHandle,sm:VsmMapRead,page:vec2u,home:vec2u,own:VsmFilterPage,clipmap:bool)->VsmFilterPage{
- if(all(page==home)){return own;}
- return vsmFilterPage(requested,sm,page,clipmap);
-}
 /** Where block texel (\`x\`, \`y\`) of the read level is read in \`page\`: its physical texel, and its
  *  centre in texels of the read level — a coarser page's own texel's, which its bias measures from. */
 struct VsmFilterTexel{physical:vec2u,centre:vec2f,}
@@ -218,11 +194,69 @@ fn vsmFilterTexelAt(page:VsmFilterPage,x:u32,y:u32)->VsmFilterTexel{
  }
  return VsmFilterTexel(page.physical*VSM_PAGE_TEXELS+(at&vec2u(VSM_PAGE_TEXEL_MASK)),centre);
 }
+${kinds.sun ? vsmFilterKindWgsl('Sun') : ''}${kinds.local ? vsmFilterKindWgsl('Local') : ''}
+/** Light \`light\`'s share at \`P\`, normal \`N\`, of map \`id\`: the located sample's taps; 1 where
+ *  no page holds the point. */
+fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
+ let N=normalize(Nin);
+ let fromEye=vsmReceiverFromEye(P,N);
+ let directional=isSun(light);
+ let at=vsmLocate(id,directional,fromEye);
+ if(!at.sm.valid){return 1.0;}
+ let slope=vsmConsumerSlope(at.requested,at.sm,at.fromMap,N);
+ ${byShadowKind(
+   kinds,
+   '  return vsmShadowLit(at,fromEye,vsmFilterTapsSun(at.requested,at.sm,at.depth,slope));',
+   ' return vsmShadowLit(at,fromEye,vsmFilterTapsLocal(at.requested,at.sm,at.depth,slope));',
+ )}
+}
+/** The share \`lit\` the taps give the located read \`at\`, with its translucent casters'
+ *  transmission wherever light passes. */
+fn vsmShadowLit(at:VsmLocated,fromEye:vec3f,lit:f32)->f32{
+ if(lit>0.0){shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,fromEye,shadowCamera,at.clipmap);}
+ return lit;
+}`,
+  )
+
+/** A clipmap level's page off the sample's (\`vsmFilterPage\`): its own where mapped, else the
+ *  coarser level's. */
+const CLIPMAP_PAGE = ` let own=i32(sm.handle.id)-i32(requested.id);
+ if(e.thisLevelMapped){
+  var depthInverse=1.0;var depthBias=0.0;
+  if(own>0){let t=vsmLevelToLevelOf(requested,own);depthInverse=t.depthInverse;depthBias=t.bias.z;}
+  return VsmFilterPage(1u,e.physicalAddress,page*VSM_PAGE_TEXELS,1.0,vec2f(0.0),depthInverse,depthBias);
+ }
+ // A clipmap's coarser level is a map of its own: its page, then its entry.
+ let coarsePage=vsmCoarserLevelPage(page,sm.handle,e.coarserLevels);
+ let c=vsmTableEntryAtOffset(vsmTableEntryOf(vsmHandleOffset(sm.handle,i32(e.coarserLevels)),0u,coarsePage));
+ if(!c.thisLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
+ let texel=vsmLevelToLevelOf(sm.handle,i32(e.coarserLevels));
+ let depth=vsmLevelToLevelOf(requested,own+i32(e.coarserLevels));
+ return VsmFilterPage(2u,c.physicalAddress,coarsePage*VSM_PAGE_TEXELS,texel.scale,texel.bias.xy*f32(VSM_LEVEL0_TEXELS),depth.depthInverse,depth.bias.z);`
+
+/** A lamp's page off the sample's (\`vsmFilterPage\`): its coarser mip has its depth's scale, and
+ *  the finer entry holds that mip's page. */
+const LAMP_PAGE = ` return VsmFilterPage(select(2u,1u,e.thisLevelMapped),e.physicalAddress,(page>>vec2u(e.coarserLevels))*VSM_PAGE_TEXELS,1.0/pow2FromExponent(i32(e.coarserLevels)),vec2f(0.0),1.0,0.0);`
+
+/** The filtered read's functions of one kind of map (\`vsmShadowReadWgsl\`), named for it: \`Sun\`, a
+ *  clipmap level's, \`Local\`, a lamp's — the page a texel off the sample's is read in, and the taps
+ *  through it, which choose no kind in their loop. */
+const vsmFilterKindWgsl = (kind: 'Sun' | 'Local') => `
+/** Page \`page\` of the level \`sm\` was read at, through the page table. */
+fn vsmFilterPage${kind}(requested:VsmHandle,sm:VsmMapRead,page:vec2u)->VsmFilterPage{
+ let e=vsmTableEntryAtOffset(vsmTableEntryOf(sm.handle,sm.mipLevel,page));
+ if(!e.anyLevelMapped){return VsmFilterPage(0u,vec2u(0u),vec2u(0u),1.0,vec2f(0.0),1.0,0.0);}
+${kind === 'Sun' ? CLIPMAP_PAGE : LAMP_PAGE}
+}
+fn vsmFilterPageOf${kind}(requested:VsmHandle,sm:VsmMapRead,page:vec2u,home:vec2u,own:VsmFilterPage)->VsmFilterPage{
+ if(all(page==home)){return own;}
+ return vsmFilterPage${kind}(requested,sm,page);
+}
 /** The filtered read around sample \`sm\` of a map requested at \`requested\`, for a receiver at depth
  *  \`z\`, receiver plane \`slope\` (\`vsmConsumerSlope\`): the share of the light the opaque casters
  *  let through. The texels are compared first, a bit a texel: a block all in shadow reads 0, one
  *  all lit 1, exactly, and only the others weigh the taps. */
-fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:bool)->f32{
+fn vsmFilterTaps${kind}(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f)->f32{
  let p=sm.mapTexelPos;
  // The block's first texel: each tap's lower texel lies one or two past it.
  let origin=vec2i(floor(p-0.5))-vec2i(1);
@@ -253,7 +287,7 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
   // The two to four pages the block spans, one at a time: each translated once, its texels read in it.
   for(var k=0u;k<span.x*span.y;k++){
    let s=vec2u(k%span.x,k/span.x);
-   let rec=vsmFilterPageOf(requested,sm,pageLo+s,home,own,clipmap);
+   let rec=vsmFilterPageOf${kind}(requested,sm,pageLo+s,home,own);
    if(rec.kind==0u){continue;}
    let lo=select(vec2i(0),split,s==vec2u(1u));let hi=select(split,vec2i(4),s==vec2u(1u));
    let inverse=rec.depthInverse;
@@ -291,19 +325,7 @@ fn vsmFilterTaps(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f,clipmap:boo
   }
  }
  return lit/total;
-}
-/** Light \`light\`'s share at \`P\`, normal \`N\`, of map \`id\`: the located sample's taps; 1 where
- *  no page holds the point. */
-fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
- let N=normalize(Nin);
- let fromEye=vsmReceiverFromEye(P,N);
- let at=vsmLocate(id,isSun(light),fromEye);
- if(!at.sm.valid){return 1.0;}
- let lit=vsmFilterTaps(at.requested,at.sm,at.depth,vsmConsumerSlope(at.requested,at.sm,at.fromMap,N),at.clipmap);
- if(lit>0.0){shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,fromEye,shadowCamera,at.clipmap);}
- return lit;
-}`,
-)
+}`
 
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
@@ -342,7 +364,7 @@ export const directShadowWgsl = (
         pool: resolveTransmission === null,
         kinds,
       }),
-      resolveTransmission === null ? VSM_SHADOW_READ_WGSL : vsmMaskWgsl(maskBinding),
+      resolveTransmission === null ? vsmShadowReadWgsl(kinds) : vsmMaskWgsl(maskBinding),
     ],
     `
 var<private> shadowFootprint:f32=0.0;

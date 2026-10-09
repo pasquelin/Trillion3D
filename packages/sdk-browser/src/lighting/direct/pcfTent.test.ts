@@ -1,4 +1,4 @@
-// The filtered read's tap weights (`vsmFilterTaps`) are the tent max(0, 1 − |q − k|) written with
+// The filtered read's tap weights (`vsmFilterKindWgsl`) are the tent max(0, 1 − |q − k|) written with
 // its two differences, not floor and fraction compared per column: q − (k − 1) is the exact
 // fraction on the upper column, (k + 1) − q rounds the same real 1 − f once on the lower, every
 // other column clamps to +0. Run in f32 over every f32 coordinate a stride apart.

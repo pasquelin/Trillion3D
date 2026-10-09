@@ -2,7 +2,7 @@ import { GOLDEN_ANGLE, QUARTER_PI } from '../../../../math/src/constants.ts'
 import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 /** The PCF's taps, in texels around the read point: the filtered read of a blended surface and of
- *  the water (`shadowWgsl.ts`, `vsmFilterTaps`). Each lies within a texel of the read point on
+ *  the water (`shadowWgsl.ts`, `vsmFilterKindWgsl`). Each lies within a texel of the read point on
  *  either axis, so the bilinear footprints of all sixteen hold the 4 × 4 texels around it.
  *
  *  Four taps and their quarter turns, the texel grid's own symmetry: both axes and both senses of

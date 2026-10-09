@@ -4,10 +4,13 @@ import { Mat } from '../../texture/shaderRun.fixture.ts'
 import { type V, PAGE, LEVEL, MAP, mapped, World } from './vsmFilteredRead.fixture.ts'
 
 export const FILTER = [
-  'vsmFilterTaps',
+  'vsmFilterTapsSun',
+  'vsmFilterTapsLocal',
   'vsmFilterTexelAt',
-  'vsmFilterPage',
-  'vsmFilterPageOf',
+  'vsmFilterPageSun',
+  'vsmFilterPageLocal',
+  'vsmFilterPageOfSun',
+  'vsmFilterPageOfLocal',
   'vsmFilterOwnPage',
   'vsmConsumerSlopeBiasAt',
   'pow2FromExponent',
@@ -15,7 +18,9 @@ export const FILTER = [
   'testReset',
 ]
 export interface Filter {
-  vsmFilterTaps: (r: object, sm: object, z: number, slope: V, clipmap: boolean) => number
+  /** The taps through a clipmap level's pages, then through a lamp's. */
+  vsmFilterTapsSun: (r: object, sm: object, z: number, slope: V) => number
+  vsmFilterTapsLocal: (r: object, sm: object, z: number, slope: V) => number
   testTransmission: () => V
   testReset: () => void
 }
@@ -117,6 +122,7 @@ export function sunWorld(stored: number, depthAt: (t: V) => number = () => store
 /** The whole read and what it calls (`sunWorld`). */
 export const SUN_READ = [
   'vsmShadowRead',
+  'vsmShadowLit',
   'vsmLocate',
   'vsmReceiverFromEye',
   'vsmConsumerSlope',

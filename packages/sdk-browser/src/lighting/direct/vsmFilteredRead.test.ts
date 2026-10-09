@@ -33,7 +33,7 @@ test('a receiver at one depth over a level of one depth reads exactly 0 or 1', (
     for (const p of POSITIONS) {
       f.testReset()
       // Reversed depth: a receiver above the level is nearer the light, its depth the larger.
-      const lit = f.vsmFilterTaps(REQUESTED, pagedSample(p), above ? 0.6 : 0.4, FLAT, true)
+      const lit = f.vsmFilterTapsSun(REQUESTED, pagedSample(p), above ? 0.6 : 0.4, FLAT)
       assert.equal(lit, above ? 1 : 0, `${p} ${above}`)
       assert.deepEqual(f.testTransmission(), [1, 1, 1])
     }
@@ -50,7 +50,7 @@ test("a straight edge gives develop's tap coverage, across pages too", () => {
     const world = pagedWorld((t) => (edge(t) ? 0.4 : 0.6))
     const f = run<Filter>(world, FILTER)
     for (const p of [...POSITIONS, [766.9, 700.2], [769.1, 1023.2], [700.3, 698.8]]) {
-      const lit = f.vsmFilterTaps(REQUESTED, pagedSample(p), 0.5, FLAT, true)
+      const lit = f.vsmFilterTapsSun(REQUESTED, pagedSample(p), 0.5, FLAT)
       const want = developCoverage(p, edge)
       assert.ok(Math.abs(lit - want) < 1e-12, `${p}: ${lit} against ${want}`)
     }
@@ -66,13 +66,13 @@ test('a tap off the sample’s page reads the neighbouring page, translated once
   const f = run<Filter>(world, FILTER)
   const p = [6 * PAGE - 0.7, 7 * PAGE + 40.3]
   const sm = sample(p, [20, 2])
-  const lit = f.vsmFilterTaps(REQUESTED, sm, 0.5, FLAT, true)
+  const lit = f.vsmFilterTapsSun(REQUESTED, sm, 0.5, FLAT)
   assert.ok(Math.abs(lit - developCoverage(p, (t) => t[0] < 6 * PAGE)) < 1e-12, `${lit}`)
   assert.ok(lit > 0.2 && lit < 0.9)
   assert.deepEqual(world.lookups, [`${MAP}:0:6,7`], 'one translation, of the neighbour alone')
   // Away from any edge, no page is translated.
   world.lookups = []
-  f.vsmFilterTaps(REQUESTED, sample([5 * PAGE + 64.2, 7 * PAGE + 64.8], [20, 2]), 0.5, FLAT, true)
+  f.vsmFilterTapsSun(REQUESTED, sample([5 * PAGE + 64.2, 7 * PAGE + 64.8], [20, 2]), 0.5, FLAT)
   assert.deepEqual(world.lookups, [])
 })
 
@@ -92,7 +92,7 @@ test('a neighbour page only a coarser level holds is read there; one nothing hol
     world.set(MAP + 1, 0, coarsePage, mapped([30, 3]))
     world.depth = (physical) => (Math.floor(physical[0] / PAGE) === 30 ? stored : 0.4)
     const f = run<Filter>(world, FILTER)
-    const lit = f.vsmFilterTaps(REQUESTED, sample(p, [20, 2]), 0.5, FLAT, true)
+    const lit = f.vsmFilterTapsSun(REQUESTED, sample(p, [20, 2]), 0.5, FLAT)
     assert.ok(Math.abs(lit - want) < 1e-12, `${stored}: ${lit} against ${want}`)
     assert.deepEqual(world.lookups, [`${MAP}:0:6,7`, `${MAP + 1}:0:${coarsePage}`])
   }
@@ -100,7 +100,7 @@ test('a neighbour page only a coarser level holds is read there; one nothing hol
   world.set(MAP, 0, [5, 7], mapped([20, 2]))
   world.depth = () => 0.6
   const f = run<Filter>(world, FILTER)
-  const lit = f.vsmFilterTaps(REQUESTED, sample(p, [20, 2]), 0.5, FLAT, true)
+  const lit = f.vsmFilterTapsSun(REQUESTED, sample(p, [20, 2]), 0.5, FLAT)
   assert.ok(Math.abs(lit - (1 - coverageRight)) < 1e-12, 'the unmapped page’s texels light')
 })
 
@@ -116,7 +116,7 @@ test("a lamp's neighbour page held by a coarser mip reads that mip's texel", () 
   }
   const f = run<Filter>(world, FILTER)
   const p = [10 * PAGE - 0.3, 4 * PAGE + 70.6]
-  const lit = f.vsmFilterTaps(REQUESTED, sample(p, [1, 1], 2), 0.5, FLAT, false)
+  const lit = f.vsmFilterTapsLocal(REQUESTED, sample(p, [1, 1], 2), 0.5, FLAT)
   assert.ok(Math.abs(lit - developCoverage(p, (t) => t[0] < 10 * PAGE)) < 1e-12, `${lit}`)
   // Texels 1280..1281 of mip 2 fall in texel 640 of mip 3, page 5's first: local 0.
   for (const [x, y] of reads) {

@@ -26,7 +26,7 @@ test('each texel takes its own receiver-plane bias: a tilted receiver never shad
   const world = pagedWorld(plane)
   const f = run<Filter>(world, FILTER)
   const sm = pagedSample(p)
-  assert.equal(f.vsmFilterTaps(REQUESTED, sm, 0.5, slope, true), 1)
+  assert.equal(f.vsmFilterTapsSun(REQUESTED, sm, 0.5, slope), 1)
   // One bias for the whole footprint — the sample texel's — shadows the plane's rising side.
   const centre = sm.mapTexelXY.map((t, a) => t + 0.5 - p[a])
   const one = Math.min(2 * Math.max(0, slope[0] * centre[0] + slope[1] * centre[1]), slope[2])
@@ -84,7 +84,7 @@ test('the blended and water passes read the taps; the opaque resolve its mask, a
     blend = wgslModule(directShadowWgsl(18))
   assert.doesNotMatch(resolve, /vsmShadowRead|vsmFilterTaps|vsmPool0/)
   assert.match(blend, /return vsmShadowRead\(u32\(slice\)>>6u,light,P,N\);/)
-  assert.match(functionText(blend, 'vsmShadowRead'), /vsmFilterTaps\(/)
+  assert.match(functionText(blend, 'vsmShadowRead'), /vsmFilterTapsSun\(.*vsmFilterTapsLocal\(/s)
 })
 
 test('every read is its own: no state is kept from one light to the next', () => {
