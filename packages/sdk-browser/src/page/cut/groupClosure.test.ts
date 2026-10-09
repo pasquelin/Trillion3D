@@ -20,7 +20,7 @@ const n = dag.pages.length
 /** The layout's per-placement tables: placement 0 owns packed `[0, n)`, placement 1 `[n, 2n)`. */
 const placement = {
   baseOfRoot: Int32Array.from([0, n]),
-  rootOfPacked: Int32Array.from({ length: 2 * n }, (_, i) => (i < n ? 0 : 1)),
+  packedCount: 2 * n,
 }
 
 /** The pages page `p` of placement 0 closes over, by the definition. */

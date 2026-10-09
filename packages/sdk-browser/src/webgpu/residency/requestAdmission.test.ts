@@ -24,7 +24,7 @@ function gpuCut() {
     [root],
     {
       baseOfRoot: Int32Array.from([0]),
-      rootOfPacked: Int32Array.from([...pages, ...loose], (_, i) => (i < pages.length ? 0 : -1)),
+      packedCount: pages.length,
     },
     [...pages, ...loose],
   )
@@ -157,11 +157,7 @@ test('a page the image keeps is pinned once it arrives', () => {
     getCache: () => cache as never,
     getFrame: () => 0,
     updatePins: () => pins(cache as never, [], 0, () => {}),
-    closure: createGroupClosure(
-      [],
-      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
-      cut.packed,
-    ),
+    closure: createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, cut.packed),
     ensureResident: Object.assign(async () => {}, { revision: () => 0, touchLower() {} }),
     markLost() {},
     traceEnabled: false,

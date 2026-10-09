@@ -4,6 +4,7 @@ import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/world
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './mockBuffers.ts'
 import { worldsAtEye } from './mockWorldPose.ts'
+import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
 
@@ -54,11 +55,13 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     Uint32Array.from({ length: worldCount }, (_, w) => frameInts[primitiveWordAt(w) + at])
   const rootNodes = intsAt(1)
   // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
-  // kernels read it from the entries that carry it, the double walks the pages.
-  const pageWorlds = new Uint32Array(pageCount).fill(0xffffffff),
+  // kernels read it from the entries that carry it, the double indexes the placements.
+  const ranks: number[] = [],
     firsts = intsAt(4),
     counts = intsAt(6)
-  for (let w = 0; w < worldCount; w++) pageWorlds.fill(w, firsts[w], firsts[w] + counts[w])
+  for (let w = 0; w < worldCount; w++)
+    for (let page = firsts[w]; page < firsts[w] + counts[w]; page++) ranks[page] = w
+  const pageIndex = indexOfRanks(ranks, worldCount)
   return {
     kind: 'dag',
     clusters: floats(byBinding.get(DAG_BINDING.clusters)!.data),
@@ -84,7 +87,7 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     recordCount: views[viewWord('recordCount')],
     keyCount: views[viewWord('keyCount')],
     candCount: views[viewWord('candCap')],
-    pageWorlds,
+    pageIndex,
     rootCount: worldCount,
     pageUrlOf: () => undefined,
     cutLinks: [],

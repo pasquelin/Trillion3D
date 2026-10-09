@@ -56,7 +56,7 @@ export function placement() {
     root,
     parentsOf: createPageParents(
       [root],
-      { baseOfRoot: Int32Array.from([0]), rootOfPacked: Int32Array.from([0]) },
+      { baseOfRoot: Int32Array.from([0]), packedCount: 1 },
       () => 0,
     ),
   }

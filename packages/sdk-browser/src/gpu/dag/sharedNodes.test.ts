@@ -149,3 +149,13 @@ test('a cut’s flags hold a view’s reach, its queues and lists, never a word 
     assert.ok(flagShapeWords(shape) <= bound, `${count} placements: within the reach`)
   }
 })
+
+test('the packing holds no host table of a word per page: a page names its placement by the index', () => {
+  const packed = packDagSelection(field(1000))
+  for (const [name, value] of Object.entries(packed))
+    if (ArrayBuffer.isView(value) && name !== 'pageCones')
+      assert.ok(value.byteLength < packed.pageCount, `${name}: ${value.byteLength} B`)
+  // The cold table is the GPU's: its residency bits, a bit a page, and its records'.
+  assert.ok(packed.pageCones.byteLength < packed.pageCount, 'pageCones')
+  assert.equal(packed.pageIndex.baseOfRoot.length, packed.worldCount)
+})

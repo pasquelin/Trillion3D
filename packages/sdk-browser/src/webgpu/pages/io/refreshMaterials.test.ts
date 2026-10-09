@@ -116,7 +116,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
       selectionRoots: [{ world: new G.Matrix4() }],
       placement: {
         baseOfRoot: Int32Array.from([0]),
-        rootOfPacked: Int32Array.from([0]),
+        packedCount: 1,
       },
     },
     run: { gate: { movedInPlace() {} } },

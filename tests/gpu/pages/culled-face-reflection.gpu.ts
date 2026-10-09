@@ -32,7 +32,11 @@ function cpuDraws(lit: Case) {
     attributes: geometry.attributes,
     material: FRONT,
   }
-  const locations = { roots: rootsOf(lit), packed: [0], rootOfPacked: Int32Array.of(0) }
+  const locations = {
+    roots: rootsOf(lit),
+    packed: [0],
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: 1 },
+  }
   return rasterVisibility([page], locations, view, RASTER_VIEWPORT).ids.some((id) => id !== 0)
 }
 

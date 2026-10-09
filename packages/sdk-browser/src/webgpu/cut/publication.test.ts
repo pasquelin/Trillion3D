@@ -82,7 +82,7 @@ function banc(capturing = false) {
       selectionRoots: [root],
       placement: {
         baseOfRoot: Int32Array.from([0]),
-        rootOfPacked: Int32Array.from(packedPages, () => 0),
+        packedCount: packedPages.length,
       },
       rows: { watchTouched: () => {}, pageIndexOf: () => undefined },
     },
@@ -99,11 +99,7 @@ function banc(capturing = false) {
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
-    createGroupClosure(
-      [],
-      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
-      packedPages,
-    ),
+    createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packedPages),
     { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
   )
   /** The view adopts `asked` and `drawn`, as its readback; the same object again for `same`. */

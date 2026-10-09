@@ -9,6 +9,7 @@ import type { CullingLinks } from '../../page/cut/links.ts'
 import type { PlacementTree } from './placementTree.ts'
 import type { PackedWorld } from './worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
+import type { PlacementIndex } from '../../page/selection/placements.ts'
 
 /** The view one run of the kernel serves: the camera's uniforms. */
 export type DagViewUniforms = SelectionUniforms
@@ -128,9 +129,9 @@ export type PackedDag = {
    *  a view's reach, grown when a cut passes one (`queueGrowth.ts`). */
   candCount: number
   queueEntries: number
-  /** Each page's placement, on the host alone: the kernels read it from the entries that carry
-   *  it. */
-  pageWorlds: Uint32Array
+  /** Each placement's first page, on the host alone: what names a page's placement
+   *  (`rootOfPacked`); the kernels read it from the entries that carry it. */
+  pageIndex: PlacementIndex
   /** Per placement, what its page index adds to reach its record, as a wrapping u32. */
   recordShift: Uint32Array
   rootCount: number

@@ -22,7 +22,7 @@ function placements(count: number) {
   })) as unknown as ClusterRoot<PageRec>[]
   const placement = {
     baseOfRoot: Int32Array.from({ length: count }, (_, r) => r * n),
-    rootOfPacked: Int32Array.from({ length: count * n }, (_, id) => Math.floor(id / n)),
+    packedCount: count * n,
   }
   const packed = roots.flatMap((root) => root.pages)
   return createGroupClosure(roots, placement, packed)

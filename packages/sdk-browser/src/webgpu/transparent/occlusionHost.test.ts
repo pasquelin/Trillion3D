@@ -25,7 +25,7 @@ function runtime() {
     rows: { tableEpoch: 3 },
     recordOf: (page: number) => recs[page],
     selectionRoots: [{ world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } }],
-    placement: { rootOfPacked: Int32Array.of(0, 0, 0, 0) },
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: 4 },
   }
   const rt = { blendState, layout } as unknown as WebgpuPagesRuntime
   return { rt, blendState, recs, sent, unculled }

@@ -20,6 +20,7 @@ import { boundListCap } from './mockDag.ts'
 import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { dagFlagShape } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */
@@ -40,7 +41,10 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
     stamp(used: Iterable<number>) {
       const now = ++work[frame]
       for (const page of used)
-        flags[stamps + recordKeys[(page + packed.recordShift[packed.pageWorlds[page]]) >>> 0]] = now
+        flags[
+          stamps +
+            recordKeys[(page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0]
+        ] = now
     },
     /** The queue behind the drawn list, at most `EVICTION_BURST` entries. */
     list() {

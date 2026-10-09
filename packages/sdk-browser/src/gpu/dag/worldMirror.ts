@@ -22,6 +22,7 @@ import type { PackedDag } from './types.ts'
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 type WorldPacked = PackedDag & Required<Pick<PackedDag, 'world'>>
 type Mirror = ReturnType<typeof mirrorState>
@@ -38,7 +39,7 @@ function mirrorState(packed: WorldPacked) {
     pageEnd: pageBase + pageCount,
     clusterOf,
     flags: new Uint32Array(packed.pageCount),
-    pageWorlds: packed.pageWorlds,
+    pageIndex: packed.pageIndex,
     /** The placement drawing each object, -1 when none, and the object each placement draws. */
     placementOf: new Int32Array(clusterOf.length).fill(-1),
     objectOf: new Int32Array(packed.worldCount).fill(-1),
@@ -82,7 +83,7 @@ function rowPage(m: Mirror, scene: ArrayLike<number>, page: number) {
     return
   }
   if (!write(m, page, scene[page] ? 1 : 0)) return
-  const object = m.objectOf[m.pageWorlds[page]]
+  const object = m.objectOf[rootOfPacked(m.pageIndex, page)]
   if (object >= 0) m.dirty.add(object)
 }
 

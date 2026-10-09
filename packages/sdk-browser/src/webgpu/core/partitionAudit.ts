@@ -2,7 +2,7 @@ import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/parti
 import { visLayerTop } from '../visibility/uniforms.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * What an image sent to the GPU partition, and what the partition wrote of it, row by row.
@@ -74,7 +74,7 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
     const root = rootOf(
       rt.layout.selectionRoots,
-      rt.layout.placement.rootOfPacked[table.packedPageIndex[row]],
+      rootOfPacked(rt.layout.placement, table.packedPageIndex[row]),
     )
     pageCornersInto(corners, row * BOX_CORNER_VALUES, rec, root.world, root.reach)
   }

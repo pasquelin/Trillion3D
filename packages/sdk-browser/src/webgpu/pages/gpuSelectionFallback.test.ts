@@ -129,7 +129,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     locations = {
       roots,
       packed: pages.map((_, i) => i),
-      rootOfPacked: new Int32Array(pages.length),
+      placement: { baseOfRoot: Int32Array.of(0), packedCount: pages.length },
     }
   const expected = rasterVisibilityIds(pages, locations, engineCamera(cam), [32, 32])
   const observed = backendVisibilityIds(backend.rasterView())

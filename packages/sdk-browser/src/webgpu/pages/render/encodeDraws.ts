@@ -17,6 +17,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
+import { rootOfPacked } from '../../../page/selection/placements.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -97,7 +98,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
           rec,
           rootOf(
             rt.layout.selectionRoots,
-            rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]],
+            rootOfPacked(rt.layout.placement, rows.packedPageIndex[row]),
           ).world,
           cam,
           viewport,

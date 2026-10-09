@@ -12,6 +12,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 const ROWS = 1000,
   MODEL_ROWS = [3, 4, 400, 401, 402, 997]
@@ -67,9 +68,7 @@ function scene() {
     layout: {
       rows,
       selectionRoots: [model, terrain],
-      placement: {
-        rootOfPacked: Int32Array.from({ length: ROWS }, (_, p) => (p < MODEL_ROWS.length ? 0 : 1)),
-      },
+      placement: { baseOfRoot: Int32Array.of(0, MODEL_ROWS.length), packedCount: ROWS },
     },
     run: {
       noOccluderHistory: false,
@@ -93,7 +92,7 @@ function scene() {
         out,
         row,
         rows.packedRecs[row],
-        rt.layout.selectionRoots[rt.layout.placement.rootOfPacked[page]],
+        rt.layout.selectionRoots[rootOfPacked(rt.layout.placement, page)],
         ready[page] === 1,
         childReady[page] === 1,
       )

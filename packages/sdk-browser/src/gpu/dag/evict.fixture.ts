@@ -3,6 +3,7 @@ import { sortStaged, stagedPage, stagedRequest } from './request.fixture.ts'
 import { EVICT_LEVELS, EVICT_AGES, KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import { keyWordBase, recordKeyBase } from './layout.ts'
 import type { PackedDag } from './types.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** CPU mirror of `dagListEvictions`: the pool's listed content keys (`poolList.ts`) not stamped
  *  `now`, by `evictionRank` through `sortStaged`, the first `cap`, each as its canonical page;
@@ -31,7 +32,7 @@ export function pageKeys(packed: PackedDag) {
   const recordKeys = cold.subarray(recordKeyBase(packed.pageCount)),
     keyWords = cold.subarray(keyWordBase(packed))
   const keyOf = (page: number) =>
-    recordKeys[(page + packed.recordShift[packed.pageWorlds[page]]) >>> 0]
+    recordKeys[(page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0]
   return { keyOf, keyWords, keyWordOf: (page: number) => keyWords[keyOf(page)] }
 }
 

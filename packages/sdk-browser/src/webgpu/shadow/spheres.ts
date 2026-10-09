@@ -9,6 +9,7 @@ import { forEachDirtyRun } from '../row/dirty.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
@@ -112,7 +113,7 @@ function packLocalBoxes(rt: WebgpuPagesRuntime, out: Uint32Array, from: number, 
       out.fill(0, base, base + LOCAL_BOX_WORDS)
       continue
     }
-    const root = rootOf(selectionRoots, placement.rootOfPacked[rows.packedPageIndex[row]]),
+    const root = rootOf(selectionRoots, rootOfPacked(placement, rows.packedPageIndex[row])),
       { min, max } = rowBox(rec),
       reach = rowGrowth(rec, root.reach)
     boxCenter(localScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2])
@@ -161,13 +162,8 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   const spheres = rt.lights.spheres!
   ;(spheres.writing ??= []).push(from, to)
   const { rows, selectionRoots, placement } = rt.layout
-  packClusterSpheres(
-    rows.packedRecs,
-    selectionRoots,
-    spheres.packed,
-    from,
-    to,
-    (row) => placement.rootOfPacked[rows.packedPageIndex[row]],
+  packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, to, (row) =>
+    rootOfPacked(placement, rows.packedPageIndex[row]),
   )
   uploadLocalBoxes(rt, from, to)
   // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.

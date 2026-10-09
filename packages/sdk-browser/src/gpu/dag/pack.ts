@@ -1,6 +1,8 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
+
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
@@ -32,6 +34,9 @@ import {
   treeNodeCount,
 } from './placementTree.ts'
 
+/** The first page of a placement the room holds and no root filled: past every page. */
+const ROOM_BASE = 0x7fffffff
+
 type Culling = NonNullable<DagRoot['culling']>
 
 /** Room a packing keeps past its live pages, queue entries (`nodes`: a placement's node each) and
@@ -54,7 +59,7 @@ type Packing = Pick<
   'nodes' | 'worlds' | 'worldStretch' | 'rootNodes' | 'rootBases' | 'mark' | 'recordShift'
 > & {
   nodeInts: Uint32Array
-  pageWorlds: Uint32Array
+  pageIndex: PlacementIndex
   cutLinks: DagCutLinks[]
   live: NonNullable<PackedDag['live']>
   shared: PackShared
@@ -128,10 +133,11 @@ function placeRoot(
   if (!p.shared.firstOf.has(root.pages))
     p.shared.firstOf.set(root.pages, { pageBase, recordBase: base })
   p.recordShift[w] = (base - pageBase) >>> 0
-  p.pageWorlds.fill(w, pageBase, pageBase + count)
+  p.pageIndex.baseOfRoot[w] = pageBase
   for (const rec of root.pages)
     if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) p.rootClusters++
   p.live.pages += count
+  p.pageIndex.packedCount = p.live.pages
   p.live.entries += nodeCount
   p.live.worlds = w + 1
 }
@@ -180,7 +186,8 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
   return {
     nodes,
     nodeInts: new Uint32Array(nodes.buffer),
-    pageWorlds: new Uint32Array(capacity.pages).fill(NONE),
+    // Each placement's first page; the room past the live ones names no page (`rootOfPacked`).
+    pageIndex: { baseOfRoot: new Int32Array(worldSlots).fill(ROOM_BASE), packedCount: 0 },
     worlds: new Float32Array(worldSlots * 16),
     worldStretch: new Float32Array(worldSlots),
     recordShift: new Uint32Array(worldSlots),
@@ -281,10 +288,10 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     candCount: clampLowWins(size.pages, 1, CANDIDATES_START),
     // Queue 0 holds a root slot a placement without a tree (`dagPrepare`): never fewer.
     queueEntries: clamp(plan.worlds, QUEUE_ENTRIES_START, plan.entries),
-    pageWorlds: p.pageWorlds,
+    pageIndex: p.pageIndex,
     recordShift: p.recordShift,
     rootCount: p.rootClusters,
-    pageUrlOf: pageUrlReader(worldSources, p.cutLinks, p.pageWorlds, p.live),
+    pageUrlOf: pageUrlReader(worldSources, p.cutLinks, p.pageIndex),
     cutLinks: p.cutLinks,
     live: p.live,
     ...(room && { shared }),
@@ -448,12 +455,10 @@ export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[],
 function pageUrlReader(
   roots: readonly DagRoot[],
   cutLinks: readonly DagCutLinks[],
-  worldOfPage: Uint32Array,
-  live: { readonly pages: number },
+  pageIndex: PlacementIndex,
 ) {
   return (page: number) => {
-    if (!(page >= 0 && page < live.pages)) return undefined
-    const w = worldOfPage[page]
-    return roots[w]?.pages[page - cutLinks[w].pageBase]?.url
+    const w = rootOfPacked(pageIndex, page)
+    return w < 0 ? undefined : roots[w]?.pages[page - cutLinks[w].pageBase]?.url
   }
 }

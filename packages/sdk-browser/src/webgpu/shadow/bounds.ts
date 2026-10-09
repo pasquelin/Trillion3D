@@ -1,6 +1,5 @@
 import { boxEmpty } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
@@ -9,6 +8,11 @@ import { mobilityRows } from './rowBuffers.ts'
 import { forEachDirtyRun, type RowRunVisitor } from '../row/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import { growClusterBox } from './spheres.ts'
+import {
+  rootOfPacked,
+  type PlacementIndex,
+  type Placements,
+} from '../../page/selection/placements.ts'
 
 export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
 
@@ -46,7 +50,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     device,
     worldOf: (rank) => selectionRoots[rank].world.elements,
     placementOf: (row) =>
-      rows.packedRecs[row] ? placement.rootOfPacked[rows.packedPageIndex[row]] : -1,
+      rows.packedRecs[row] ? rootOfPacked(placement, rows.packedPageIndex[row]) : -1,
     push: (first, count) =>
       source.device.queue.writeBuffer(
         lights.mobilityRows!,
@@ -153,7 +157,7 @@ export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
 export function noteResidenceChange(
   lights: WebgpuLightState,
   roots: Placements,
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   packed: number,
   rec: PageRec,
   moving?: boolean,
@@ -161,7 +165,7 @@ export function noteResidenceChange(
 ) {
   const { store, changes } = lights
   if (!store.count) return
-  const rank = rootOfPacked[packed] ?? -1
+  const rank = rootOfPacked(placement, packed) ?? -1
   const onlyMoving = moving ?? recordMoves(lights, rank)
   const { box, min, max } = changeBoxes[+onlyMoving]
   boxEmpty(box, 0)

@@ -4,6 +4,7 @@ import { createCutReadiness, type CutReadiness } from './readiness.ts'
 import { linksFor } from './links.ts'
 import { createSparseInts } from './sparseInts.ts'
 import type { PageRecord } from './state.fixture.ts'
+import { rootOfPacked } from '../selection/placements.ts'
 
 type Root = ClusterRoot<PageRecord>
 /** A primitive: the `pages` its placements share, the key of its readiness. */
@@ -134,7 +135,7 @@ export function createHeldResidency<T extends PageRecord>(
     /** The pool names the packed rank of a record whose residency may have moved. */
     moved(packed: number, rec: PageRecord) {
       if (!placement) return
-      const rank = placement.rootOfPacked[packed],
+      const rank = rootOfPacked(placement, packed),
         root = routes[rank],
         held = root && states.get(root.pages)
       if (!held || !held.routed) return

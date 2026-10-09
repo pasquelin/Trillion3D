@@ -7,6 +7,7 @@ import { NODE_OPEN } from './nodeLayout.ts'
 import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
@@ -27,7 +28,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
   const r: Readiness = {
     packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
-    pageWorlds: packed.pageWorlds,
+    pageIndex: packed.pageIndex,
     ...{ blank: new Map(), worlds: [] },
     // Sized for the packing's placements, the live ones and those a growth appends (`append`).
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
@@ -42,18 +43,18 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
       heldOpen.set(r.w, at, own)
     },
   }
-  const { worlds, pageWorlds } = r
+  const { worlds, pageIndex } = r
   // Nothing is resident yet: each placement reads its nodes' own counts, the DAG's.
   for (const links of packed.cutLinks) worlds.push(blankOf(r, links))
   return {
     /** The rule's `resident(c)` and `resident(childGroup(c))` of packed page `page`; a page no
      *  placement holds — room a growth has not filled — is neither. */
     isReady(page: number) {
-      const at = pageWorlds[page]
+      const at = rootOfPacked(pageIndex, page)
       return !!worlds[at]?.isReady(page - packed.cutLinks[at].pageBase)
     },
     isChildReady(page: number) {
-      const at = pageWorlds[page]
+      const at = rootOfPacked(pageIndex, page)
       return !!worlds[at]?.isChildReady(page - packed.cutLinks[at].pageBase)
     },
     /** The placements a growth appended (`appendDagRoots`), up to `packed.cutLinks`' end: each
@@ -82,7 +83,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
 type Readiness = {
   packed: PackedDag
   nodeInts: Uint32Array
-  pageWorlds: Uint32Array
+  pageIndex: PlacementIndex
   /** A placement holds its own state only while one of its pages is resident: otherwise it reads
    *  its primitive's state with nothing resident, one shared by every placement of the primitive
    *  (an instance reads its primitive's pages, it holds none). The heap thus follows what is
@@ -141,7 +142,7 @@ function settle(r: Readiness) {
 }
 
 function set(r: Readiness, page: number, value: boolean) {
-  const at = r.pageWorlds[page]
+  const at = rootOfPacked(r.pageIndex, page)
   if (!value && !r.held[at]) return
   if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.add(at)
 }

@@ -74,7 +74,7 @@ function scatteredScene() {
       // Every packed rank names the one placement.
       placement: {
         baseOfRoot: Int32Array.of(0),
-        rootOfPacked: Int32Array.from({ length: ROWS }, () => 0),
+        packedCount: ROWS,
       },
     },
     run: { noOccluderHistory: false, movedWorlds: createSortedKeys() },

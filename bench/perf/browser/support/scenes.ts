@@ -21,7 +21,7 @@ const roots = [{ world: new G.Matrix4() }]
 export const located = (count: number): PageLocations => ({
   roots,
   packed: Array.from({ length: count }, () => 0),
-  rootOfPacked: Int32Array.of(0),
+  placement: { baseOfRoot: Int32Array.of(0), packedCount: 1 },
 })
 
 type Placed = { matrix: G.Matrix4; placementIndex: number }

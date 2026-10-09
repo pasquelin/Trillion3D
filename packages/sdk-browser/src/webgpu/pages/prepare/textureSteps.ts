@@ -90,7 +90,7 @@ export function tileStreamerFor(
           rt.lights,
           rt.layout.rows,
           rt.layout.selectionRoots,
-          rt.layout.placement.rootOfPacked,
+          rt.layout.placement,
           slots,
         )
       },

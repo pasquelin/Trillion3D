@@ -10,6 +10,7 @@ import { screenErrorRatio } from '../../diagnostic/colors.ts'
 import { clusterHash } from '../../visibility/buffer.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 import type { createWebgpuBlendState } from './state.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>
 
@@ -24,7 +25,7 @@ export function writeBlendDiagnostic(
   blendState: BlendState,
   packedPages: PageList,
   roots: readonly ClusterRoot<PageRec>[],
-  rootOfPacked: Int32Array,
+  placement: PlacementIndex,
   diagnostic: DiagnosticMode,
   cam: EngineCamera | undefined,
   viewport: readonly [number, number],
@@ -53,7 +54,12 @@ export function writeBlendDiagnostic(
       diagnostic === 'screen-error' && cam
         ? Math.round(
             screenErrorRatio(
-              projectedPageError(rec, rootOf(roots, rootOfPacked[page]).world, cam, viewport),
+              projectedPageError(
+                rec,
+                rootOf(roots, rootOfPacked(placement, page)).world,
+                cam,
+                viewport,
+              ),
               diagnosticPixelError,
             ) * 127,
           )

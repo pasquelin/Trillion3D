@@ -22,6 +22,7 @@ import {
   HOT_SPHERE,
   coldBase,
 } from './layout.ts'
+import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 export type DagRecords = {
   hot: Float32Array
@@ -32,7 +33,7 @@ export type DagRecords = {
   coldAt: number
   recordShift: Uint32Array
   rootBases: Uint32Array
-  pageWorlds: Uint32Array
+  pageIndex: PlacementIndex
 }
 export function dagRecords(
   packed: Pick<
@@ -44,7 +45,7 @@ export function dagRecords(
     | 'keyCount'
     | 'recordShift'
     | 'rootBases'
-    | 'pageWorlds'
+    | 'pageIndex'
   >,
 ): DagRecords {
   const { clusters, pageCones } = packed
@@ -56,12 +57,12 @@ export function dagRecords(
     coldAt: coldBase(packed),
     recordShift: packed.recordShift,
     rootBases: packed.rootBases,
-    pageWorlds: packed.pageWorlds,
+    pageIndex: packed.pageIndex,
   }
 }
 
 /** The page's placement, as the host keeps it: the kernels read it from the entry carrying it. */
-export const worldOf = (r: DagRecords, i: number) => r.pageWorlds[i]
+export const worldOf = (r: DagRecords, i: number) => rootOfPacked(r.pageIndex, i)
 /** The record the page reads: its index plus its placement's shift, wrapping as the u32 add does. */
 const recordOf = (r: DagRecords, i: number) => (i + r.recordShift[worldOf(r, i)]) >>> 0
 const coldOf = (r: DagRecords, i: number) => r.coldAt + recordOf(r, i) * COLD_WORDS

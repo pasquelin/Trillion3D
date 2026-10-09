@@ -35,7 +35,7 @@ lumieres.store.add({
 export async function lignesConsommateursBrowser() {
   const { list, roots, ranks } = enregistrements
   // Each record is placed by its original rank.
-  const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i)
+  const placement = { baseOfRoot: Int32Array.from(roots, (_, i) => i), packedCount: roots.length }
   const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }))
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3)
   // The compared subject is the projection of a vertex, not the read of a convention: the
@@ -80,7 +80,7 @@ export async function lignesConsommateursBrowser() {
       parElement((r: (typeof list)[number], i) => {
         target = boxes[i]
         target.length = 0
-        noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r)
+        noteResidenceChange(lumieres, roots, placement, ranks.get(r) ?? 0, r)
         return target
       }),
     ),

@@ -3,7 +3,7 @@ import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { packPageCorners } from '../visibility/corners.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
-import { rootOf } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
 
 type Table = NonNullable<WebgpuPagesRuntime['blendState']['table']>
@@ -89,7 +89,7 @@ function packEntries(rt: WebgpuPagesRuntime, table: Table, from: number, to: num
       packed.fill(0, base, base + CORNER_VALUES)
       continue
     }
-    const root = rootOf(selectionRoots, placement.rootOfPacked[page])
+    const root = rootOf(selectionRoots, rootOfPacked(placement, page))
     packPageCorners(packed, base, rec, root.world, root.reach)
     if (neverCulled(rec.material)) setBit(bits, entry)
   }

@@ -3,6 +3,7 @@ import { keyWordBase, poolBase, recordKeyBase, selectionListCap } from './layout
 import { canonicalPage } from './evict.ts'
 import type { PackedDag } from './types.ts'
 import { writeParts, type DagParts } from './split.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
@@ -24,7 +25,7 @@ export function createDagPoolList(
     [recordKeys, keyWords] = [recordKeyBase(packed.pageCount), keyWordBase(packed)]
   /** Page `page`'s content key, read through its record (`layout.ts`), and key `k`'s page. */
   const keyOf = (page: number) =>
-      words[recordKeys + ((page + packed.recordShift[packed.pageWorlds[page]]) >>> 0)],
+      words[recordKeys + ((page + packed.recordShift[rootOfPacked(packed.pageIndex, page)]) >>> 0)],
     pageOf = (k: number) => canonicalPage(words[keyWords + k])
   /** Each listed page's entry, 1 for the first. */
   const entry = createSparseInts()

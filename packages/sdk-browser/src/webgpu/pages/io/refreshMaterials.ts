@@ -66,7 +66,7 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
       rt.lights,
       rt.layout.rows,
       rt.layout.selectionRoots,
-      rt.layout.placement.rootOfPacked,
+      rt.layout.placement,
       new Set(surfaces),
     )
   }

@@ -80,7 +80,7 @@ test('the placement tables the group closure and page parents hold follow a grow
       held = layout.placement
     await scaleDown(session)
     assert.equal(layout.placement, held, 'the same tables, rewritten in place')
-    assert.equal(held.rootOfPacked.length, layout.packedPages.length, 'every instance ranked')
+    assert.equal(held.packedCount, layout.packedPages.length, 'every instance ranked')
     assert.equal(held.baseOfRoot.length, layout.selectionRoots.length, 'every root based')
   } finally {
     session.dispose()

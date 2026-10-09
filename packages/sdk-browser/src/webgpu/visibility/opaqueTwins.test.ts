@@ -87,7 +87,7 @@ async function drawn(rest: boolean, compacted = false) {
         })),
         packedPageIndex: [0, 1, 2, 3],
       },
-      placement: { rootOfPacked: [0, 0, 0, 0] },
+      placement: { baseOfRoot: Int32Array.of(0), packedCount: 4 },
       selectionRoots: [{ world: new G.Matrix4() }],
     },
   } as unknown as WebgpuPagesRuntime

@@ -13,6 +13,7 @@ import {
   PAGE_INFO_STRIDE,
 } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { rootOfPacked } from '../page/selection/placements.ts'
 
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
 export const DEFORM_VERTEX_WORDS = 11
@@ -149,7 +150,7 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
     const at = row * (PAGE_INFO_STRIDE / 4),
       output = rec.deformationOutput,
       // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
-      record = deformation?.rowWord(placement.rootOfPacked[rows.packedPageIndex[row]]) ?? 0
+      record = deformation?.rowWord(rootOfPacked(placement, rows.packedPageIndex[row])) ?? 0
     if (record === ints[at + PAGE_DEFORM_WORD] && !output?.pool) continue
     ints[at + PAGE_DEFORM_WORD] = record
     if (output?.pool) writeRowDeformation(ints, at, output, 0)

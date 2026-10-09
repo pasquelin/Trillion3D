@@ -55,7 +55,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
     selectionRoots: [{ world: new G.Matrix4() }],
     // Both rows draw a page of the one placement: their packed ranks name root 0.
-    placement: { baseOfRoot: Int32Array.of(0), rootOfPacked: Int32Array.of(0, 0) },
+    placement: { baseOfRoot: Int32Array.of(0), packedCount: 2 },
   }
   const rt = { layout, vis: { drawLayerSlots: 3 } } as unknown as WebgpuPagesRuntime
   const hold = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined)
