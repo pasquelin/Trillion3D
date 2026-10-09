@@ -1,12 +1,10 @@
 import {
   createCameraFrame,
   IDENTITY_MATRIX4,
-  orthographicProjection,
-  perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
 } from '../../../sdk-core/src/index.ts'
-import { drawnView } from '../../../math/src/projection/camera.ts'
+import { opticsProjection } from '../../../sdk-core/src/world/camera/referenceProjection.ts'
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
@@ -58,7 +56,6 @@ export type OrthographicBox = {
   /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
   fitAspect?: boolean
 }
-const seen = new Float64Array(4)
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
@@ -111,15 +108,12 @@ export function createEngineCamera(): EngineCamera {
  * frustum far plane); it enters no depth.
  */
 export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): EngineCamera {
-  into.near = optics.near
-  into.far = optics.far
-  into.fov = optics.fov
-  into.aspect = optics.aspect
-  const box = optics.orthographic
-  if (box) {
-    const [x, y, w, h] = drawnView(box, optics.aspect, optics.zoom || 1, seen)
-    orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far)
-  } else perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom)
+  const { fov, aspect, near, far, zoom, orthographic: box } = optics
+  into.near = near
+  into.far = far
+  into.fov = fov
+  into.aspect = aspect
+  opticsProjection(into.projection, fov, aspect, near, far, zoom, box)
   applyViewTile(into.projection, optics.viewTile)
   updateCameraFrame(into, into.projection, into.world, into.far)
   // The render frame is set here, in the same pass: what leaves in single precision will read
