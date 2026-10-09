@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings } from './mapping.ts'
 import { WEBGPU_STAGES } from './passDeclaration.ts'
-import { DEFERRED_LIGHTING_PASS } from './passLabels.ts'
+import { DEFERRED_LIGHTING_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
 import { summarizeTimestamps } from '../gpu/timing/sample.ts'
 import { gpuPassBlockTotals } from '../gpu/core/passBlocks.ts'
@@ -16,10 +16,10 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 test('overlapping spans count once: no stage, shadow stage or block total passes the image', () => {
   const ms = (value: number) => BigInt(value * 1e6)
   const timed: [string, number, number][] = [
-    ['vsm.render.cull 0', 1, 9],
-    ['vsm.transmission.clear', 3, 31],
-    ['vsm.transmission.bin', 5, 34],
-    ['vsm.transmission.resolve', 7, 35],
+    [`${VSM_PASS_PREFIX}render.cull 0`, 1, 9],
+    [`${VSM_PASS_PREFIX}transmission.clear`, 3, 31],
+    [`${VSM_PASS_PREFIX}transmission.bin`, 5, 34],
+    [`${VSM_PASS_PREFIX}transmission.resolve`, 7, 35],
     [DEFERRED_LIGHTING_PASS, 6, 37],
   ]
   const entries = timed.map(([name], i) => ({ slot: i * 2, name, part: 0 }))

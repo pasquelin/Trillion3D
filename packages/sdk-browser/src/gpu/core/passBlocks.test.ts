@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
 import { gpuPassBlockOf, gpuPassBlockTotals } from './passBlocks.ts'
+import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 
 const sample = (
   passes: Array<[string, number | null]>,
@@ -21,7 +22,7 @@ test('each pass falls in the block its label names, and an unknown one stays out
   assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
   assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
-  assert.equal(gpuPassBlockOf('vsm.pass'), 'other')
+  assert.equal(gpuPassBlockOf(`${VSM_PASS_PREFIX}pass`), 'other')
   assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), undefined)
 })
 

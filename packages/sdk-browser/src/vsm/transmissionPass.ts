@@ -1,7 +1,7 @@
 /**
  * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,
- * in one compute pass, `vsm.transmission`:
+ * in one compute pass, `TRANSMISSION_LABEL`:
  *
  *   the clear (a redrawn slice stamped, a redrawn or freed slice's blocks given back)
  *   → the bin (candidates, then per chunk of blended rows the opaque raster's cull, each command's
@@ -111,6 +111,10 @@ import {
   vsmTransmissionRegions,
   type VsmTransmissionCaps,
 } from './transmissionLayout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+
+/** What the transmission's pass, pipes and buffers are labelled under. */
+const TRANSMISSION_LABEL = `${VSM_PASS_PREFIX}transmission`
 
 /** Blended candidates a chunk takes: its page list holds this many times the pool's pages. */
 const CHUNK_ROWS = 64
@@ -203,7 +207,7 @@ function vsmTransmissionWanted(
 function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmissionCaps) {
   const storage = (label: string, bytes: number, extra = 0) =>
     device.createBuffer({
-      label: `vsm.transmission.${label}`,
+      label: `${TRANSMISSION_LABEL}.${label}`,
       size: bytes,
       usage: vsmRenderStorage() | extra,
     })
@@ -222,12 +226,12 @@ function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmis
     GPUBufferUsage.COPY_SRC,
   )
   const args = device.createBuffer({
-    label: 'vsm.transmission.args',
+    label: `${TRANSMISSION_LABEL}.args`,
     size: VSM_TRANSMISSION_ARGS_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
   })
   const uniform = device.createBuffer({
-    label: 'vsm.transmission.frame',
+    label: `${TRANSMISSION_LABEL}.frame`,
     size: VSM_TRANSMISSION_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
@@ -279,7 +283,7 @@ export function createVsmTransmission(
   const feedback = createVsmReadbackRing(
     device,
     {
-      label: 'vsm.transmission.feedback',
+      label: `${TRANSMISSION_LABEL}.feedback`,
       bytes: VSM_TRANSMISSION_FEEDBACK_BYTES,
       count: 2,
       eager: true,
@@ -437,7 +441,7 @@ function transmissionGroupTables(layout: VsmLayout) {
 function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
   const groups = transmissionGroupTables(layout)
   const pipe = (name: string, code: string, entry: string, tables: GPUBindGroupLayoutEntry[][]) =>
-    vsmComputePipe(device, `vsm.transmission.${name}`, code, entry, tables)
+    vsmComputePipe(device, `${TRANSMISSION_LABEL}.${name}`, code, entry, tables)
   const resolveCode = vsmTransmissionResolveWgsl(layout)
   return {
     clear: pipe('clear', vsmTransmissionClearWgsl(layout), 'vsmTransmissionClear', groups.clear),
@@ -473,12 +477,12 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
     ...vsmChunkKernels(
       device,
       layout,
-      'vsm.transmission',
+      TRANSMISSION_LABEL,
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
     slots,
-    passes: vsmChunkPasses('vsm.transmission', slots),
+    passes: vsmChunkPasses(TRANSMISSION_LABEL, slots),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -512,7 +516,7 @@ interface BinPlan {
 }
 
 /** The transmission's one compute pass: its clear, its bin and its resolve. */
-const TRANSMISSION_PASS: GPUComputePassDescriptor = { label: 'vsm.transmission' }
+const TRANSMISSION_PASS: GPUComputePassDescriptor = { label: TRANSMISSION_LABEL }
 
 /**
  * Clears, bins and resolves the transmission slices this frame redraws. Between `encodeVsmRender`
@@ -800,7 +804,7 @@ function binLists(
   scene: VsmRenderScene,
   plan: BinPlan,
 ) {
-  const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
+  const { params, views, counts, args } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
   vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }

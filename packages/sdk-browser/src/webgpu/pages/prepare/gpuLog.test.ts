@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuLog } from './gpuLog.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
+import { VSM_PROJECTION_PASS } from '../../../vsm/projectionPass.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const device = {
@@ -21,9 +22,9 @@ const sample = (frame: number, extra: object = {}) =>
     frameMsReason: null,
     pairs: { valid: 3, unwritten: 0, invalid: 0 },
     passes: [
-      { name: 'vsm.projection', gpuMs: 7.5, ownMs: 7.14 },
+      { name: VSM_PROJECTION_PASS, gpuMs: 7.5, ownMs: 7.14 },
       { name: 'taa', gpuMs: 1 },
-      { name: 'vsm.projection', gpuMs: 0.5, ownMs: 0.5 },
+      { name: VSM_PROJECTION_PASS, gpuMs: 0.5, ownMs: 0.5 },
     ],
     ...extra,
   }) as unknown as GpuTimingSample
@@ -61,7 +62,7 @@ test('the device once, then a line every 60 images: passes, sizes, the dispatch'
   assert.equal(
     lines[1],
     '[T3D-GPU] frame 12 gpu 15.25 ms pairs valid 3 unwritten 0 invalid 0 drawn 1440x900 display 2880x1800 projection 180x113 groups' +
-      ' = 1440x904 = 1301760 px | vsm.projection 7.64 taa 1.00',
+      ` = 1440x904 = 1301760 px | ${VSM_PROJECTION_PASS} 7.64 taa 1.00`,
   )
   assert.match(lines[2], /^\[T3D-GPU\] frame 72 /)
   assert.match(lines[3], /^\[T3D-GPU\] frame 133 /)

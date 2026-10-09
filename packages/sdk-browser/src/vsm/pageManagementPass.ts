@@ -38,6 +38,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { vsmWriteChangedSlots } from './writeChanged.ts'
 import type { VsmLayout } from './layout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -300,7 +301,7 @@ export function encodeVsmPageMapping(
   // The indirect dispatch args, 1D, in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
 
-  const pass = encoder.beginComputePass({ label: 'vsm.pageMapping' })
+  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}pageMapping` })
   // Update cached or newly invalidated pages against the new requests.
   run(ctx, res, pass, 'sortPool', SLOT_MAIN, maxGroups)
   // The available pages compacted, the newly empty ones at their end: allocated before the pages
@@ -331,7 +332,7 @@ export function encodeVsmAfterRaster(
   encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.tileArgs, 0, 16)
-  const pass = encoder.beginComputePass({ label: 'vsm.afterRaster' })
+  const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}afterRaster` })
   run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN, maxGroups)
   bind(ctx, res, pass, 'mergeStatic', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.mergeArgs, 0)

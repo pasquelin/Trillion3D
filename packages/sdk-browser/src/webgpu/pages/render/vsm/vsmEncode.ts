@@ -18,10 +18,11 @@ import {
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { encodeVsmInvalidations } from '../../../../vsm/invalidationPass.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
+import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
 import { encodeVsmProjection, encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
 
 /** The page marking's one compute pass (`markingPass.ts`). */
-const MARKING_PASS: GPUComputePassDescriptor = { label: 'vsm.marking' }
+const MARKING_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}marking` }
 const forwardZViewToClip = new Float32Array(16)
 
 /** What a set's frames rebuild in place (`frameScratch`): the per-page entries and their bins, the

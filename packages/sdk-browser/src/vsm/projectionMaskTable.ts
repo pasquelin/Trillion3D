@@ -14,6 +14,7 @@ import { preparedComputePipeline, started } from '../lighting/deferred/fullscree
 import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts'
 import { loadOnlyTarget, loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
 export const VSM_MASK_TABLE_BINDING = 21
@@ -80,7 +81,7 @@ export function createVsmMaskTable(device: GPUDevice) {
     fill() {
       if (filled) return
       const encoder = device.createCommandEncoder({ label })
-      const pass = encoder.beginComputePass({ label: 'vsm.maskTable' })
+      const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}maskTable` })
       pass.setPipeline(pipeline.get())
       pass.setBindGroup(0, group)
       pass.dispatchWorkgroups(1)

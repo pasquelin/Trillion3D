@@ -91,6 +91,10 @@ import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
+
+/** What the raster's passes, pipes and lists are labelled under. */
+const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
 interface VsmRenderCamera {
@@ -256,7 +260,7 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
   const candidates = vsmComputePipe(
     device,
-    'vsm.render.candidates',
+    `${RENDER_LABEL}.candidates`,
     vsmRenderCandidatesWgsl(),
     'vsmRenderCandidates',
     [
@@ -270,7 +274,7 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   )
   return {
     candidates,
-    ...vsmChunkKernels(device, layout, 'vsm.render', vsmRenderCullWgsl(layout)),
+    ...vsmChunkKernels(device, layout, RENDER_LABEL, vsmRenderCullWgsl(layout)),
   }
 }
 
@@ -297,7 +301,7 @@ export function vsmRasterPipe(
   const held = byCode.get(code)
   if (held) return held
   const layout1 = device.createBindGroupLayout({
-    label: 'vsm.render.raster1',
+    label: `${RENDER_LABEL}.raster1`,
     entries: [
       vsmBufferEntry(0, GPUShaderStage.VERTEX, 'read-only-storage'),
       ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, layout, GPUShaderStage.VERTEX),
@@ -308,9 +312,9 @@ export function vsmRasterPipe(
       ),
     ],
   })
-  const module = device.createShaderModule({ label: 'vsm.render.raster', code })
+  const module = device.createShaderModule({ label: `${RENDER_LABEL}.raster`, code })
   const prepared = preparedPipeline(device, {
-    label: 'vsm.render.raster',
+    label: `${RENDER_LABEL}.raster`,
     layout: device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] }),
     vertex: { module, entryPoint: 'vsmRenderVs' },
     fragment: { module, entryPoint: 'vsmRenderFs', targets: [] },
@@ -358,7 +362,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
     slots,
-    passes: vsmChunkPasses('vsm.render', slots),
+    passes: vsmChunkPasses(RENDER_LABEL, slots),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -727,7 +731,7 @@ const renderSizes =
 
 /** The raster's dummy target (`context`): one page of depth. */
 const renderTarget = () => ({
-  label: 'vsm.render.dummyTarget',
+  label: `${RENDER_LABEL}.dummyTarget`,
   size: [VSM_PAGE_TEXELS, VSM_PAGE_TEXELS],
   format: VSM_RENDER_TARGET_FORMAT,
   usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -1074,7 +1078,7 @@ export function encodeVsmRender(
   if (!size) return { chunks: 0, chunkRows, roomLimited }
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
-  const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, 'vsm.render', size)
+  const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
   vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows }, chosen)
   vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)

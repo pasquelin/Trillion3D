@@ -37,6 +37,10 @@ const rowOf = ({ stage, block }: PassFiling): PassRow =>
 
 const ROWS = new Map(DECLARED_PASSES.map((pass) => [pass.label, rowOf(pass)]))
 const FAMILIES = [VSM_PASSES].map((family) => ({ prefix: family.prefix, row: rowOf(family) }))
+/** The row each undeclared label read so far took by prefix, `null` for none: a frame's chunked
+ *  labels come back every frame. Emptied past `FOUND_LABELS`, so no run of labels grows it. */
+const found = new Map<string, PassRow | null>()
+const FOUND_LABELS = 1024
 
 /**
  * Profile stage and comparison block of a GPU pass, read from the label it carries: its declared
@@ -45,8 +49,10 @@ const FAMILIES = [VSM_PASSES].map((family) => ({ prefix: family.prefix, row: row
  * declaration names has no row: it joins no stage and no block, so it never swells either.
  */
 export function passRowOf(label: string): PassRow | undefined {
-  const row = ROWS.get(label)
-  if (row) return row
-  for (const family of FAMILIES) if (label.startsWith(family.prefix)) return family.row
-  return undefined
+  const known = ROWS.get(label) ?? found.get(label)
+  if (known !== undefined) return known ?? undefined
+  const row = FAMILIES.find(({ prefix }) => label.startsWith(prefix))?.row ?? null
+  if (found.size === FOUND_LABELS) found.clear()
+  found.set(label, row)
+  return row ?? undefined
 }

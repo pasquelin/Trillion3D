@@ -47,6 +47,7 @@ import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -143,22 +144,19 @@ export function vsmInvalidationPhaseFromShadowBoxes(
 
 // ---- GPU ------------------------------------------------------------------------------------
 
+/** The invalidation's pass, and its pipe. */
+const INVALIDATION_LABEL = `${VSM_PASS_PREFIX}invalidateInstancePages`
+
 /** The invalidation's pipe for `layout` (`vsmComputePipe`): made once a device and source. */
 export function vsmInvalidationPipe(device: GPUDevice, layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
-  return vsmComputePipe(
-    device,
-    'vsm.invalidateInstancePages',
-    vsmInvalidationWgsl(layout),
-    'vsmStaleBoxes',
+  return vsmComputePipe(device, INVALIDATION_LABEL, vsmInvalidationWgsl(layout), 'vsmStaleBoxes', [
+    vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
     [
-      vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
-      [
-        vsmBufferEntry(0, C, 'uniform'),
-        ...[1, 2].map((binding) => vsmBufferEntry(binding, C, 'read-only-storage')),
-      ],
+      vsmBufferEntry(0, C, 'uniform'),
+      ...[1, 2].map((binding) => vsmBufferEntry(binding, C, 'read-only-storage')),
     ],
-  )
+  ])
 }
 
 interface Pipe {
@@ -345,7 +343,7 @@ function dispatchPhase(
   device.queue.writeBuffer(slot.params, 0, paramsImage)
 
   const p = pipe(device, res)
-  const pass = encoder.beginComputePass({ label: 'vsm.invalidateInstancePages' })
+  const pass = encoder.beginComputePass({ label: INVALIDATION_LABEL })
   pass.setPipeline(p.pipe.pipeline)
   pass.setBindGroup(0, vsmPerFrameSet(p.tables, res, tablesGroup, p))
   pass.setBindGroup(

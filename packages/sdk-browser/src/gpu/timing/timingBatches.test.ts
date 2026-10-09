@@ -4,6 +4,7 @@ import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts'
 import { createGpuTiming } from './timing.ts'
 import { QUERY_COUNT, TIMED_PASSES } from './queries.ts'
 import { VSM_TIMED_PASSES } from './vsmPasses.ts'
+import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
 
 // The virtual shadow maps' frame: its passes (`vsmPasses.ts`). The frame of the most chunks it is
 // timed over is timed whole, so its shadow milliseconds are published; one past the
@@ -17,7 +18,7 @@ const frameOf = async (vsmPasses: number) => {
   selection.finish()
   const frame = timer.createEncoder(1)
   const pass = (label: string) => frame.beginComputePass({ label }).end()
-  for (let k = 0; k < vsmPasses; k++) pass('vsm.pass')
+  for (let k = 0; k < vsmPasses; k++) pass(`${VSM_PASS_PREFIX}pass`)
   for (let k = 0; k < 200; k++) pass('lighting')
   frame.finish()
   const values = new BigUint64Array(f.buffers[1].getMappedRange())

@@ -55,6 +55,7 @@ import {
   type VsmResources,
 } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {
@@ -412,6 +413,9 @@ function projectionState(res: VsmResources) {
   return s
 }
 
+/** The projection's pass, and its pipelines. */
+export const VSM_PROJECTION_PASS = `${VSM_PASS_PREFIX}projection`
+
 /** The key of the pipeline every pass can run: all kinds, many lights (`pipelineFor`). */
 const TWIN = 0
 
@@ -420,7 +424,7 @@ const projectionDescriptor = (
   p: Pick<Pipelines, 'module' | 'layout'>,
   key: number,
 ): GPUComputePipelineDescriptor => ({
-  label: 'vsm.projection',
+  label: VSM_PROJECTION_PASS,
   layout: p.layout,
   compute: {
     module: p.module,
@@ -648,7 +652,7 @@ export function encodeVirtualShadowProjection(
 
   const vsmGroup = vsmPerFrameSet(p.vsmGroups, res, tablesGroup, p)
   const passGroup = passGroupFor(device, state, p, inputs)
-  const pass = encoder.beginComputePass({ label: 'vsm.projection' })
+  const pass = encoder.beginComputePass({ label: VSM_PROJECTION_PASS })
   pass.setPipeline(pipelineFor(p, lights))
   pass.setBindGroup(0, vsmGroup)
   pass.setBindGroup(1, passGroup.group)
