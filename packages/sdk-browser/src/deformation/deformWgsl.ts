@@ -9,7 +9,7 @@ import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
 import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
-import { WAVE_TERMS_WGSL } from './waveTermsWgsl.ts'
+import { WAVE_TERMS } from './waveTermsWgsl.ts'
 
 /**
  * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
@@ -83,7 +83,7 @@ fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  for(var i=0u;i<count;i++){
   let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];
   let amplitude=positions[b+3u];let lateral=positions[b+4u];let phase=positions[b+5u];
-  ${WAVE_TERMS_WGSL}
+  ${WAVE_TERMS}
  }
  return select(d,normalize(n),normal);
 }

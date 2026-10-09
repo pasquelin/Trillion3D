@@ -35,7 +35,7 @@ ${comment(doc, ' * ')}
  * \`phase\`) at the point \`p\`, adding the displacement to \`d\` and taking the normal's terms from
  * \`n\`.
  */
-export const WAVE_TERMS_WGSL = \`${lines.join('')}\`
+export const WAVE_TERMS = \`${lines.join('')}\`
 `
 }
 

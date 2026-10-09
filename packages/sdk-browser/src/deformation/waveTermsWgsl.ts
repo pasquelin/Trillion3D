@@ -12,4 +12,4 @@
  * `phase`) at the point `p`, adding the displacement to `d` and taking the normal's terms from
  * `n`.
  */
-export const WAVE_TERMS_WGSL = `let f=k*(dx*p.x+dz*p.z)-phase;let c=cos(f);let s=sin(f);d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);`
+export const WAVE_TERMS = `let f=k*(dx*p.x+dz*p.z)-phase;let c=cos(f);let s=sin(f);d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);`
