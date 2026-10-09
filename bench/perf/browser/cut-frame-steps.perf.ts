@@ -84,7 +84,7 @@ async function flight(frames: number, still: boolean) {
       if (rt.run.coverageBudgetLimited !== (requestedCount > slots || keepCount > slots))
         fault = `frame ${f}: the admission verdict is not its counts'`
     }
-    const row = rt.timing.cpuProfile.row
+    const row = rt.timing.profiler.row
     for (const step of Object.keys(STEPS) as Step[])
       durations[step].push(STEPS[step].reduce((sum, at) => sum + row[at], 0))
     await flushWebgpuPages(rt)
