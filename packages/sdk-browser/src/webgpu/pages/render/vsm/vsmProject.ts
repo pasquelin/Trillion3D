@@ -8,6 +8,7 @@ import {
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
 import { taaRenderProjection } from '../../../../taa/frame.ts'
+import { stochasticPhase } from '../../../../taa/frameState.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
@@ -107,7 +108,7 @@ export function encodeVsmProjection(
       bufferWidth: gpu.allocatedSize[0],
       bufferHeight: gpu.allocatedSize[1],
       camera,
-      frameIndex: run.frame,
+      frameIndex: stochasticPhase(rt.gpu.temporal?.frame),
       mask: mask.view,
       maskTiles: mask.tilesView,
       receiver,

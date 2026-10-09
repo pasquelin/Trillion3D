@@ -4,12 +4,6 @@ import { mapRead } from '../gpu/core/periodicReadback.ts'
 export const RADIANCE_HASH_BYTES = 16
 /** Bytes of a sample: the hash, then the count of tiles the trace listed that image. */
 export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 4
-/** The images drawn after the last busy one that the lit image has to repeat in: past them the view
- *  is settled as it stands. A lit image that never repeats — shadows that speckle from one image to
- *  the next, a particle that does not stop — has no fixed point to wait for, and the reflections of
- *  it are as converged as they will be; one that repeats does so within a few images, the
- *  reflection of the screen being a geometric series of a share under one. */
-const SETTLE_IMAGES = 16
 /** Samples in flight at most: an image's copy waits for none, the oldest of the ring is reused. */
 const SAMPLES = 3
 
@@ -87,8 +81,10 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
  * The view is settled once an image after the last one drawn for another reason — `busy` marks the
  * image about to be drawn for the lighting's, the cut's, the pages' own pending work — has the
  * hash of the image before it (`verified`): both images lie after the last change, so the lit
- * image is final and the next image reflects what this one did; or, `SETTLE_IMAGES` images after
- * it, whatever the hashes say. No image is ever sampled once the view is settled.
+ * image is final and the next image reflects what this one did. A still view's lit image is
+ * deterministic — the shadows' noise turns with the temporal accumulation's phase alone
+ * (`stochasticPhase`) —, so it repeats within a few images, the reflection of the screen being a
+ * geometric series of a share under one. No image is ever sampled once the view is settled.
  */
 export function createRadianceSettle(device: GPUDevice) {
   const hash = device.createBuffer({
@@ -117,10 +113,9 @@ export function createRadianceSettle(device: GPUDevice) {
     busy() {
       busy = images + 1
     },
-    /** Whether an image after the last busy one has the lit image of the one before it, or
-     *  `SETTLE_IMAGES` images came after it. */
+    /** Whether an image after the last busy one has the lit image of the one before it. */
     get verified() {
-      return equal > busy || images >= busy + SETTLE_IMAGES
+      return equal > busy
     },
     /** The image is submitted: its copies are mapped. */
     submitted: samples.submitted,
