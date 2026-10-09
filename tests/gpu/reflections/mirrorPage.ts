@@ -1,18 +1,19 @@
 // The engine side of the reflection proof: a synthetic still frame — a mirror floor and an emissive
 // quad standing on it, seen by an infinite reversed perspective — laid in the engine's own inputs
-// (the surface flags and normals, the Hi-Z level 0, the lit image), then the engine's reflection
-// kernels run on it as an image runs them (`reflections/frame.ts`): the depth the trace marches, the
-// view uniform, the surroundings and the opaque trace, then the radiance pyramid of the lit image. Twice:
-// two consecutive still images, whose reflection targets are read back to the bit.
+// (the surface flags and normals, the Hi-Z level 0, the lit image), then the engine's kernels run on
+// it as an image runs them: the depth pyramid the trace marches (`gpu/hiz`, as the visibility builds
+// it), the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
+// radiance pyramid of the lit image. Twice: two consecutive still images, whose reflection targets
+// are read back to the bit.
 import {
   createReflectionPipelines,
   createScreenReflection,
   encodeRadiancePyramid,
-  encodeReflectionDepth,
   encodeReflectionTrace,
   reflectionGroup,
   writeReflectionView,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
+import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
 import { createSceneLightContractBuffer } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
@@ -38,9 +39,15 @@ export function run() {
     const flags = texture('r8uint', sampled)
     const normals = texture('rgba16float', sampled)
     const hdr = texture('rgba16float', sampled)
-    // The Hi-Z level 0 as the visibility leaves it: the image's depth.
-    const level0 = texture('r32float', sampled)
-    const depth = { level0, level0View: level0.createView() }
+    // The engine's depth pyramid, its level 0 as the visibility leaves it: the image's depth.
+    const hiz = await createGpuHiz(device, size, size, 1)
+    if (!hiz) throw new Error('the Hi-Z kernels do not build')
+    // The partition's tested boxes and state, which the pyramid's group names: none tested here.
+    const partition = [0, 1].map(() =>
+      device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
+    )
+    hiz.attach(partition[0], partition[1])
+    const depth = hiz.depth()!
     const write = (target: GPUTexture, data: ArrayBufferView<ArrayBuffer>, texel: number) =>
       device.queue.writeTexture({ texture: target }, data, { bytesPerRow: size * texel }, [
         size,
@@ -49,7 +56,7 @@ export function run() {
     write(flags, scene.flags, 1)
     write(normals, halves(scene.normals), 8)
     write(hdr, halves(scene.radiance), 8)
-    write(level0, scene.depth, 4)
+    write(hiz.level0, scene.depth, 4)
     const lights = createSceneLightContractBuffer(device, createSceneLightStore())
     const reflection = createScreenReflection(device, size, size)
     const inverse = new Float64Array(16)
@@ -77,7 +84,9 @@ export function run() {
       })
       const encoder = device.createCommandEncoder()
       const pass = encoder.beginComputePass()
-      encodeReflectionDepth(pass, reflection, pipelines, depth)
+      // The visibility's builds once the depth is drawn: its farthest layer, then its nearest.
+      hiz.encodePyramid({ pass })
+      hiz.encodeNearest({ pass })
       const inputs = { ...views, surfaces: views, lights }
       const group = reflectionGroup(reflection, depth)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, [size, size])
@@ -107,6 +116,8 @@ export function run() {
     result.size = size
     reflection.dispose()
     lights.destroy()
-    for (const made of [flags, normals, hdr, level0, lobes]) made.destroy()
+    hiz.dispose()
+    for (const made of partition) made.destroy()
+    for (const made of [flags, normals, hdr, lobes]) made.destroy()
   })
 }

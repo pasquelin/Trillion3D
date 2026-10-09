@@ -7,8 +7,12 @@ export type GpuHiz = {
   level0: GPUTexture
   level0View: GPUTextureView
   flags: GPUBuffer
-  /** The build of the drawn pyramid, as dispatches of the frame's compute pass. */
+  /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the occluders'
+   *  —, as dispatches of the frame's compute pass. */
   encodePyramid(open: OpenPass): void
+  /** The build of its nearest layer — each pixel's plane, each cell's nearest — once level 0 holds
+   *  the whole depth, as dispatches of the open compute pass. */
+  encodeNearest(open: OpenPass): void
   /**
    * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the
    * pyramid — it reads `flags` — so the bind group only knows them here. Without this call,
@@ -20,9 +24,13 @@ export type GpuHiz = {
   /** Pyramid mips, offset and width: what the partition reads to express a screen
    *  rectangle in texels of the mip that covers it exactly. */
   levels(): Array<{ offset: number; width: number }>
-  /** The pyramid buffer itself, which the transparent occlusion test walks with
-   *  the `levels()` table. It changes identity on every target resize. */
-  pyramidBuffer(): GPUBuffer | undefined
+  /** The pyramid texture's view, whose farthest layer the partition's cull and the transparent
+   *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
+  pyramidView(): GPUTextureView | undefined
+  /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0, the
+   *  pyramid and its levels uniform, in that order; `pyramid` names the drawn view's pyramid, which
+   *  a reader's bind group follows. */
+  depth(): HizDepth | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, and the CPU does
@@ -53,6 +61,12 @@ export type GpuHiz = {
    */
   swap(next: HizPyramid | undefined): HizPyramid | undefined
   dispose(): void
+}
+
+/** The resources of `GpuHiz.depth`. */
+export type HizDepth = {
+  pyramid: GPUTexture
+  resources: [GPUTextureView, GPUTextureView, GPUBufferBinding]
 }
 
 /** One view's pyramid, at that view's size, held by the view while another is drawn. */

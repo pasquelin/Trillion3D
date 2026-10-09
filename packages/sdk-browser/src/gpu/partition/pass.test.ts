@@ -6,11 +6,11 @@ import assert from 'node:assert/strict'
 import { createGpuPartition } from './factory.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { recordingEncoder } from '../../../../../tests/kit/gpu/usageScope.ts'
-import { buffer, frame } from './partition.fixture.ts'
+import { buffer, frame, view } from './partition.fixture.ts'
 
 test('the frame clears nothing from the encoder: its first dispatch zeroes what the kernels count', async () => {
   const { device } = fakeDevice()
-  let pyramid: GPUBuffer | undefined = buffer('pyramid')
+  let pyramid: GPUTextureView | undefined = view('pyramid')
   const partition = (await createGpuPartition(device, 4096, {
     items: buffer('items'),
     flags: buffer('flags'),
@@ -54,7 +54,7 @@ test('rows past one dimension of a dispatch run in rows of 65,535 groups (`dispa
     flags: buffer('flags'),
     restBits: buffer('rest'),
     slotUsed: { ...buffer('slots'), size: 4 * 300 },
-    pyramid: () => buffer('pyramid'),
+    pyramid: () => view('pyramid'),
   }))!
   partition.beginFrame({ clearBuffer() {} } as unknown as GPUCommandEncoder, frame(rows))
   const { encoder, calls } = recordingEncoder()

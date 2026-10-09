@@ -23,7 +23,7 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
     partition = vis.gpuPartition
   if (!hiz || !partition || !table || !compaction?.encode || !table.length) return
   blendState.occlusion = await createTransparentOcclusion(device, table.capacity, {
-    pyramid: () => hiz.pyramidBuffer(),
+    pyramid: () => hiz.pyramidView(),
     uniforms: partition.uniforms,
     occluded: compaction.occludedBuffer,
   })

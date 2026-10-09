@@ -12,7 +12,9 @@ import { evaluateHizReduce } from './oracle.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
 
 // The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
-// states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
+// states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`: of the farthest
+// layer, or of the nearest (`Scene.nearest`), whose level 0 the texture's texels stand for — each
+// pixel's plane corner, which `hizSource` returns there — and is not copied.
 const SLOT_WORDS = HIZ_SLOT_WORDS
 
 /** The tests' seeded random, the lcg32 sequence: the same on every run. */
@@ -38,6 +40,8 @@ export type Scene = {
   maxLevels: number
   /** One origin per pyramid, or none: the camera's single pyramid from texel zero. */
   origins?: Array<[number, number]>
+  /** The nearest layer's build (`HIZ_NEAREST_BUILD`): the maximum, level 0 not copied. */
+  nearest?: boolean
 }
 
 export function layout(scene: Scene) {
@@ -52,30 +56,44 @@ const texel = (scene: Scene, z: number, x: number, y: number) => {
   return scene.texture[(oy + y) * scene.textureWidth + ox + x]
 }
 
-/** The copy of level 0, then the oracle's reduction of each mip from the one above. */
+/** The copy of level 0 — the farthest layer's —, then the oracle's reduction of each mip from the
+ *  one above; the nearest layer reduces level 0 as the texture holds it, and writes none. */
 export function buildBefore(scene: Scene, pyramid: Float32Array) {
   const { sizes, offsets, count, stride } = layout(scene)
+  const nearest = !!scene.nearest
   for (let z = 0; z < count; z++) {
+    const level0 = new Float32Array(scene.width * scene.height)
     for (let y = 0; y < scene.height; y++)
-      for (let x = 0; x < scene.width; x++)
-        pyramid[z * stride + y * scene.width + x] = texel(scene, z, x, y)
+      for (let x = 0; x < scene.width; x++) level0[y * scene.width + x] = texel(scene, z, x, y)
+    if (!nearest) pyramid.set(level0, z * stride)
     for (let i = 0; i < sizes.length - 1 && i + 1 < scene.maxLevels; i++) {
       const [w, h] = sizes[i],
-        src = pyramid.subarray(z * stride + offsets[i], z * stride + offsets[i] + w * h)
-      pyramid.set(evaluateHizReduce(src, w, h).data, z * stride + offsets[i + 1])
+        src = i
+          ? pyramid.subarray(z * stride + offsets[i], z * stride + offsets[i] + w * h)
+          : level0
+      pyramid.set(evaluateHizReduce(src, w, h, nearest).data, z * stride + offsets[i + 1])
     }
   }
 }
 
-/** `hizFar4`: the farthest of a clamped 2 × 2 square, in the per-level order. */
-function far4(v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) {
-  let far = v00
-  if (dx) far = Math.min(far, v10)
+/** `hizBound4`: the bound of a clamped 2 × 2 square, in the per-level order — the farthest, or
+ *  the nearest. */
+function bound4(
+  bound: (a: number, b: number) => number,
+  v00: number,
+  v10: number,
+  v01: number,
+  v11: number,
+  dx: number,
+  dy: number,
+) {
+  let reduced = v00
+  if (dx) reduced = bound(reduced, v10)
   if (dy) {
-    far = Math.min(far, v01)
-    if (dx) far = Math.min(far, v11)
+    reduced = bound(reduced, v01)
+    if (dx) reduced = bound(reduced, v11)
   }
-  return far
+  return reduced
 }
 
 /** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. */
@@ -90,8 +108,15 @@ function workgroup(
   const dst = (k: number) => u.subarray(8 + 4 * k, 12 + 4 * k)
   const z = wg[2],
     at = a + z * g
+  const bound = scene.nearest ? Math.max : Math.min
+  const far4 = (v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) =>
+    bound4(bound, v00, v10, v01, v11, dx, dy)
   const source = (x: number, y: number) =>
-    a !== 0 ? pyramid[at + y * b + x] : (pyramid[at + y * b + x] = texel(scene, z, x, y))
+    a !== 0
+      ? pyramid[at + y * b + x]
+      : scene.nearest
+        ? texel(scene, z, x, y)
+        : (pyramid[at + y * b + x] = texel(scene, z, x, y))
   const far = new Float32Array(S * S)
   for (let lane = 0; lane < S * S; lane++) {
     const x = wg[0] * S + (lane % S),

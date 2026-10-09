@@ -15,17 +15,10 @@ import { length3 } from '../../../math/src/vector/vector.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
-import type { GpuHiz } from '../gpu/hiz/types.ts'
+import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
+import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import {
-  REFLECTION_DEPTH_SHADER,
-  REFLECTION_FIELD_ENTRIES,
-  REFLECTION_NEAREST_ENTRIES,
-  createReflectionDepth,
-  encodeReflectionDepthField,
-  reflectionDepthBytes,
-  reflectionDepthGroups,
-} from './depth.ts'
-import {
+  REFLECTION_DEPTH_BINDING,
   REFLECTION_GROUP,
   REFLECTION_VIEW_BYTES,
   REFLECTION_VIEW_WGSL,
@@ -77,8 +70,7 @@ fn traceReflections(@builtin(global_invocation_id) id:vec3u){
  var radiance=vec3f(0.0);
  let flags=textureLoad(traceFlags,coord,0).r;
  if((flags&${SURFACE_MODEL_MASK}u)==${LIT_STANDARD_FLAG}u){
-  let field=textureLoad(reflectionDepth,coord,0);
-  let P=reflectionWorldAt(vec2f(id.xy)+vec2f(0.5),bitcast<f32>(field.x));
+  let P=reflectionWorldAt(vec2f(id.xy)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
   let normal=textureLoad(traceNormals,coord,0);
   let N=normalize(normal.xyz);
   let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
@@ -178,8 +170,8 @@ const storage = (binding: number): GPUBindGroupLayoutEntry => ({
 })
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
- *  depth field and its nearest levels, the radiance pyramid and its sampler, read by compute and
- *  fragment stages. */
+ *  radiance pyramid and its sampler, then the depth pyramid (`hizDepthEntries`), read by compute
+ *  and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -190,16 +182,15 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
         visibility,
         buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES },
       },
-      { binding: 1, visibility, texture: { sampleType: 'uint' } },
-      { binding: 2, visibility, texture: { sampleType: 'unfilterable-float' } },
-      { binding: 3, visibility, texture: { sampleType: 'float' } },
-      { binding: 4, visibility, sampler: { type: 'filtering' } },
+      { binding: 1, visibility, texture: { sampleType: 'float' } },
+      { binding: 2, visibility, sampler: { type: 'filtering' } },
+      ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
     ],
   })
 })
 
-/** The reflection's kernels — the depth field and its nearest levels, the surroundings, the opaque
- *  trace, the radiance pyramid's two — compiled once a device under one validation scope. */
+/** The reflection's kernels — the surroundings, the opaque trace, the radiance pyramid's two —
+ *  compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
     const trace = device.createShaderModule({
@@ -214,15 +205,9 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
       label: 'Trillion3D reflection radiance',
       code: RADIANCE_SHADER,
     })
-    const depth = device.createShaderModule({
-      label: 'Trillion3D reflection depth',
-      code: REFLECTION_DEPTH_SHADER,
-    })
-    for (const made of [trace, surroundings, radiance, depth])
+    for (const made of [trace, surroundings, radiance])
       if (await shaderFailed(made)) return undefined
     const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-    const fieldLayout = layout(REFLECTION_FIELD_ENTRIES)
-    const nearestLayout = layout(REFLECTION_NEAREST_ENTRIES)
     const traceLayout = layout([
       { binding: 0, visibility: COMPUTE, texture: { sampleType: 'uint' } },
       { binding: 1, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
@@ -251,34 +236,21 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
         layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
         compute: { module: made, entryPoint },
       })
-    const [
-      tracePipeline,
-      surroundingsPipeline,
-      firstPipeline,
-      downPipeline,
-      fieldPipeline,
-      nearestPipeline,
-    ] = await Promise.all([
+    const [tracePipeline, surroundingsPipeline, firstPipeline, downPipeline] = await Promise.all([
       stage(trace, 'traceReflections', [traceLayout, reflectionLayout(device)]),
       stage(surroundings, 'reflectionSurroundings', [surroundingsLayout]),
       stage(radiance, 'radianceFirst', [firstLayout]),
       stage(radiance, 'radianceDown', [downLayout]),
-      stage(depth, 'reflectionField', [fieldLayout]),
-      stage(depth, 'reflectionNearest', [nearestLayout]),
     ])
     return {
       traceLayout,
       surroundingsLayout,
       firstLayout,
       downLayout,
-      fieldLayout,
-      nearestLayout,
       tracePipeline,
       surroundingsPipeline,
       firstPipeline,
       downPipeline,
-      fieldPipeline,
-      nearestPipeline,
     }
   }),
 )
@@ -289,7 +261,7 @@ const radianceLevels = (width: number, height: number) =>
   Math.min(REFLECTION_RADIANCE_LEVELS, mipLevelCountFor(width, height))
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid, the depth it marches and its two uniforms. */
+ *  radiance pyramid and its two uniforms; the depth it marches is the Hi-Z's. */
 export function reflectionBytes(width: number, height: number) {
   const size: GPUExtent3D = [width, height]
   return (
@@ -299,7 +271,6 @@ export function reflectionBytes(width: number, height: number) {
       format: REFLECTION_FORMAT,
       mipLevelCount: radianceLevels(width, height),
     })! +
-    reflectionDepthBytes(width, height) +
     REFLECTION_VIEW_BYTES +
     16
   )
@@ -307,8 +278,8 @@ export function reflectionBytes(width: number, height: number) {
 
 /**
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance pyramid
- * of its last lit image, the depth it marches (`depth.ts`), the view uniform — whose surroundings
- * the GPU writes — and the drawn size the pyramid's copy reads, the sampler. `held` is what the
+ * of its last lit image, the view uniform — whose surroundings the GPU writes — and the drawn size
+ * the pyramid's copy reads, the sampler. `held` is what the
  * pyramid holds: whether it holds an image of this view, and the view-projection and drawn size
  * that image was drawn with — the next image reprojects its hits with them.
  */
@@ -345,7 +316,6 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     minFilter: 'linear',
     mipmapFilter: 'linear',
   })
-  const depth = createReflectionDepth(device, width, height)
   const level = (at: number) => radiance.createView({ baseMipLevel: at, mipLevelCount: 1 })
   return {
     device,
@@ -356,8 +326,6 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     /** Each level of the pyramid alone, which its build writes then reads. */
     radianceLevels: Array.from({ length: levels }, (_, at) => level(at)),
     levels,
-    /** The depth field and its nearest levels (`depth.ts`). */
-    depth,
     uniform,
     drawn,
     sampler,
@@ -372,9 +340,8 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
        *  it reads the view it is drawn from (`reflectionsSettled`). */
       still: false,
     },
-    /** The reflection group and the depth's build from each Hi-Z level 0 it was bound with (a
-     *  view's). */
-    groups: new WeakMap<GPUTexture, { group: GPUBindGroup; build: GPUBindGroup[] }>(),
+    /** The reflection group over each Hi-Z pyramid it was bound with (a view's). */
+    groups: new WeakMap<GPUTexture, GPUBindGroup>(),
     /** The trace's and the surroundings' groups, kept while their surfaces, light buffer and target
      *  stay. */
     trace: undefined as
@@ -385,7 +352,6 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
     dispose() {
       target.destroy()
       radiance.destroy()
-      depth.destroy()
       uniform.destroy()
       drawn.destroy()
     },
@@ -393,65 +359,27 @@ export function createScreenReflection(device: GPUDevice, width: number, height:
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
-/** The Hi-Z level 0 a reflection's depth is built from: a view's pyramid's (`GpuHiz`). */
-export type ReflectionDepth = Pick<GpuHiz, 'level0' | 'level0View'>
-
-/** The groups of `reflection` over the Hi-Z level 0 `depth`, made once a level 0: the reflection
- *  group, and the build of its depth from it (`depth.ts`). */
-function depthGroups(
-  reflection: ScreenReflection,
-  pipelines: Pick<ReflectionPipelines, 'fieldLayout' | 'nearestLayout'> | undefined,
-  depth: ReflectionDepth,
-) {
-  const kept = reflection.groups.get(depth.level0)
-  if (kept && (kept.build.length || !pipelines)) return kept
+/** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), made
+ *  once a pyramid. */
+export function reflectionGroup(reflection: ScreenReflection, depth: HizDepth) {
+  const kept = reflection.groups.get(depth.pyramid)
+  if (kept) return kept
   const { device } = reflection
-  const made = {
-    group:
-      kept?.group ??
-      device.createBindGroup({
-        label: 'Trillion3D reflection',
-        layout: reflectionLayout(device),
-        entries: [
-          { binding: 0, resource: { buffer: reflection.uniform } },
-          { binding: 1, resource: reflection.depth.fieldView },
-          { binding: 2, resource: reflection.depth.nearestView },
-          { binding: 3, resource: reflection.radianceView },
-          { binding: 4, resource: reflection.sampler },
-        ],
-      }),
-    build: pipelines
-      ? reflectionDepthGroups(
-          device,
-          { field: pipelines.fieldLayout, nearest: pipelines.nearestLayout },
-          depth.level0View,
-          reflection.depth,
-        )
-      : [],
-  }
-  reflection.groups.set(depth.level0, made)
-  return made
-}
-
-/** The reflection group of `reflection` over the Hi-Z level 0 `depth`. */
-export const reflectionGroup = (reflection: ScreenReflection, depth: ReflectionDepth) =>
-  depthGroups(reflection, undefined, depth).group
-
-/** The depth a reflection marches, from `depth`, the image's whole depth, in the open compute
- *  `pass`. */
-export function encodeReflectionDepth(
-  pass: GPUComputePassEncoder,
-  reflection: ScreenReflection,
-  pipelines: ReflectionPipelines,
-  depth: ReflectionDepth,
-) {
-  const { build } = depthGroups(reflection, pipelines, depth)
-  encodeReflectionDepthField(
-    pass,
-    { field: pipelines.fieldPipeline, nearest: pipelines.nearestPipeline },
-    build,
-    reflection.depth,
-  )
+  const group = device.createBindGroup({
+    label: 'Trillion3D reflection',
+    layout: reflectionLayout(device),
+    entries: [
+      { binding: 0, resource: { buffer: reflection.uniform } },
+      { binding: 1, resource: reflection.radianceView },
+      { binding: 2, resource: reflection.sampler },
+      ...depth.resources.map((resource, k) => ({
+        binding: REFLECTION_DEPTH_BINDING + k,
+        resource,
+      })),
+    ],
+  })
+  reflection.groups.set(depth.pyramid, group)
+  return group
 }
 
 /** What an image tells its reflection view (`writeReflectionView`). */
@@ -463,7 +391,7 @@ export type ReflectionFrame = {
   camera: ArrayLike<number>
   /** The drawn size. */
   size: readonly [number, number]
-  /** Whether the depth pyramid holds this image's depth. */
+  /** Whether the depth pyramid holds this image's whole depth. */
   depthDrawn: boolean
   /** The background as the display shows it, in linear, the exposure and the display curve's
    *  rank: what the surroundings are made from (`SURROUNDINGS_SHADER`). */
@@ -628,8 +556,9 @@ export function bindForwardReflection(
   pass: GPURenderPassEncoder,
   { gpu, vis }: { gpu: { reflection?: ScreenReflection }; vis: { gpuHiz?: GpuHiz } },
 ) {
-  if (gpu.reflection && vis.gpuHiz)
-    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(gpu.reflection, vis.gpuHiz))
+  const depth = vis.gpuHiz?.depth()
+  if (gpu.reflection && depth)
+    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(gpu.reflection, depth))
 }
 
 /**

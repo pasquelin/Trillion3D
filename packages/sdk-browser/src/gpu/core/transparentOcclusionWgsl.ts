@@ -11,8 +11,8 @@ import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
  *
  * This is the SAME rule as the opaques', to the letter: the same conservative projection
  * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
- * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the Hi-Z pyramid the
- * frame just built. Nothing is proper to transparents except what fidelity requires:
+ * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
+ * the Hi-Z pyramid the frame just built. Nothing is proper to transparents except what fidelity requires:
  *
  *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry, and at
  *    least the layer the transparent passes draw on (`TRANSPARENT_DEPTH_LAYER`). A cluster does
@@ -31,7 +31,7 @@ import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 export function transparentOcclusionShader(entryCount: number) {
   return wgslProgram(
     `@group(0) @binding(0) var<storage, read> corners:array<f32>;
-@group(0) @binding(1) var<storage, read> pyramid:array<f32>;
+@group(0) @binding(1) var hizPyramid:texture_2d_array<u32>;
 @group(0) @binding(2) var<storage, read_write> occluded:array<u32>;
 @group(0) @binding(3) var<uniform> uni:Uni;
 @group(0) @binding(4) var<storage, read> unculled:array<u32>;

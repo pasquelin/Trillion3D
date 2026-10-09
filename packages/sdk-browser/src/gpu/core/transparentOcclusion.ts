@@ -2,7 +2,6 @@ import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
-import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
@@ -14,7 +13,7 @@ export type TransparentOcclusion = NonNullable<
 /** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built,
  *  the uniform the partition wrote for it, and the compact's verdict buffer. */
 export type TransparentOcclusionSources = {
-  pyramid: () => GPUBuffer | undefined
+  pyramid: () => GPUTextureView | undefined
   uniforms: GPUBuffer
   occluded: GPUBuffer
 }
@@ -90,7 +89,7 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   unculled: GPUBuffer
   /** The pyramid changes identity on every target resize: the bind group follows it, and a
    *  frame without a pyramid encodes nothing rather than reading a dead buffer. */
-  bound: GPUBuffer | undefined
+  bound: GPUTextureView | undefined
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
   groups: number
@@ -114,13 +113,24 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
 
 /** The test's layout and pipeline; undefined when its module fails. */
 async function occlusionPipeline(device: GPUDevice, entryCount: number) {
-  const layout = bounceLayout(device, [
-    'read-only-storage',
-    'read-only-storage',
-    'storage',
-    'uniform',
-    'read-only-storage',
-  ])
+  const buffer = (binding: number, type: GPUBufferBindingType): GPUBindGroupLayoutEntry => ({
+    binding,
+    visibility: GPUShaderStage.COMPUTE,
+    buffer: { type },
+  })
+  const layout = device.createBindGroupLayout({
+    entries: [
+      buffer(0, 'read-only-storage'),
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        texture: { sampleType: 'uint', viewDimension: '2d-array' },
+      },
+      buffer(2, 'storage'),
+      buffer(3, 'uniform'),
+      buffer(4, 'read-only-storage'),
+    ],
+  })
   const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) })
   if (await shaderFailed(module)) return undefined
   const pipeline = await buildComputePipeline(device, {
@@ -153,13 +163,16 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
   }
   if (pyramid !== o.bound || !o.bindGroup) {
     o.bound = pyramid
-    o.bindGroup = bounceGroup(o.device, o.layout, [
-      o.corners,
-      pyramid,
-      sources.occluded,
-      sources.uniforms,
-      o.unculled,
-    ])
+    o.bindGroup = o.device.createBindGroup({
+      layout: o.layout,
+      entries: [
+        { binding: 0, resource: { buffer: o.corners } },
+        { binding: 1, resource: pyramid },
+        { binding: 2, resource: { buffer: sources.occluded } },
+        { binding: 3, resource: { buffer: sources.uniforms } },
+        { binding: 4, resource: { buffer: o.unculled } },
+      ],
+    })
   }
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
   pass.setPipeline(o.pipeline)

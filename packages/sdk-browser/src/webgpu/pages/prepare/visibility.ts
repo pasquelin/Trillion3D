@@ -64,8 +64,8 @@ async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     throw new Error('WEBGPU_HIZ_UNAVAILABLE')
   }
   rt.vis.gpuHiz = hiz
-  // The reflections march its level 0 and their nearest levels below it: their kernels come with
-  // it, or the scene is refused.
+  // The reflections march its pyramid, the whole depth: their kernels come with it, or the scene
+  // is refused.
   rt.vis.reflectionPipelines = await createReflectionPipelines(gpuDevice)
   if (!rt.vis.reflectionPipelines) throw new Error('WEBGPU_REFLECTIONS_UNAVAILABLE')
   return hiz
@@ -84,7 +84,7 @@ async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz
     flags: hiz.flags,
     restBits: gpuDraw.restBitsBuffer,
     slotUsed: gpuDraw.slotUsedBuffer,
-    pyramid: () => vis.gpuHiz?.pyramidBuffer(),
+    pyramid: () => vis.gpuHiz?.pyramidView(),
   })
   if (!partition) throw new Error('WEBGPU_PARTITION_UNAVAILABLE')
   vis.gpuPartition = partition

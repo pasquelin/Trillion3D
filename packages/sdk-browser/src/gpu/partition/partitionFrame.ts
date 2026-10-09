@@ -27,7 +27,7 @@ export type Partition = {
   device: GPUDevice
   allocated: Allocated
   inputs: PartitionSources
-  buffers: Allocated & Omit<PartitionSources, 'pyramid'> & { pyramid: GPUBuffer }
+  buffers: Allocated & Omit<PartitionSources, 'pyramid'> & { pyramid: GPUTextureView }
   layouts: GPUBindGroupLayout[]
   pipelines: GPUComputePipeline[]
   /** Each kernel's group on the buffers of the moment, in `KERNELS` order. */

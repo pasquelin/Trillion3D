@@ -1,4 +1,5 @@
 import { REFLECTION_PASS, REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
+import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import { wantsContractLighting } from '../webgpu/pages/prepare/lightResources.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import { clearValueOf } from '../../../sdk-core/src/world/math/packedColour.ts'
@@ -6,19 +7,22 @@ import { srgbToLinear } from '../../../math/src/color/color.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import {
   encodeRadiancePyramid,
-  encodeReflectionDepth,
   encodeReflectionTrace,
   reflectionGroup,
   writeReflectionView,
 } from './gpu.ts'
+
+/** The reflections' compute pass, opened by the first of its dispatches. */
+const reflectionPass = new LazyComputePass(REFLECTION_PASS)
 
 /** The half byte below white the background's display value is held under: the display shows
  *  1 only at an infinite radiance, and no byte tells the two apart. */
 const WHITE = 254.5 / 255
 
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — the
- * depth the reflections march, from the Hi-Z's level 0 once the visibility drew the depth, then
+ * The image's reflections, before its lighting: the view uniform, then one compute pass — the depth
+ * pyramid's nearest layer once the visibility drew the whole depth (`GpuHiz.encodeNearest`: the
+ * Hi-Z's build, which only the readers of the whole depth read, built in their first pass), then
  * the surroundings and the opaque surfaces' trace into the reflection target the resolve reads,
  * when the image is lit. `inverseViewProjection` and `camera` are the lighting's own, `direct` the
  * parameters its resolve reads (`encodeDirectLights`: the exposure and the display curve's rank).
@@ -33,8 +37,9 @@ export function encodeReflections(
   const { gpu, vis, run, lights } = rt,
     reflection = gpu.reflection,
     pipelines = vis.reflectionPipelines,
-    hiz = vis.gpuHiz
-  if (!reflection || !pipelines || !hiz) return
+    hiz = vis.gpuHiz,
+    depth = hiz?.depth()
+  if (!reflection || !pipelines || !hiz || !depth) return
   writeReflectionView(reflection, {
     viewProjection: viewProj,
     inverseViewProjection,
@@ -49,9 +54,8 @@ export function encodeReflections(
   })
   const surfaces = gpu.surfaces,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer
-  if (!run.depthDrawn && !traced) return
-  const pass = encoder.beginComputePass({ label: REFLECTION_PASS })
-  if (run.depthDrawn) encodeReflectionDepth(pass, reflection, pipelines, hiz)
+  const open = reflectionPass.begin(encoder)
+  if (run.depthDrawn) hiz.encodeNearest(open)
   if (traced) {
     const views = surfaces.views()
     const inputs = {
@@ -61,10 +65,10 @@ export function encodeReflections(
       surfaces,
       lights: lights.buffer!,
     }
-    const group = reflectionGroup(reflection, hiz)
-    encodeReflectionTrace(pass, reflection, pipelines, inputs, group, gpu.targetSize)
+    const group = reflectionGroup(reflection, depth)
+    encodeReflectionTrace(open.pass, reflection, pipelines, inputs, group, gpu.targetSize)
   }
-  pass.end()
+  reflectionPass.end()
 }
 
 /** The background `0xrrggbb` as the display shows it, in linear, held below white (`WHITE`). */

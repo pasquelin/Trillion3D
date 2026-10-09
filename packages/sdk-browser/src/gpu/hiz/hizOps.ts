@@ -25,6 +25,9 @@ export type HizState = HizPipelines & {
   /** Every word the kernels read: the drawn pyramid's build passes from word zero
    *  (`hizBuildWords`), the test's slot behind them (`hizTestSlot`). */
   image: Uint32Array<ArrayBuffer>
+  /** The drawn pyramid's levels uniform (`hizLevelWords`), which the readers of the whole depth
+   *  bind (`GpuHiz.depth`). */
+  levelTable: GPUBuffer
   /** Until `attach`, the bind group points at this idle buffer, which nothing reads. */
   idle: GPUBuffer
   buffers: GPUBuffer[]
@@ -56,7 +59,7 @@ export function bindHiz(h: HizState) {
   h.bindGroup = at.group = h.device.createBindGroup({
     layout: h.layout,
     entries: [
-      { binding: 0, resource: { buffer: at.pyramid } },
+      { binding: 0, resource: at.pyramidView },
       { binding: 1, resource: at.level0View },
       { binding: 2, resource: { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 } },
       { binding: 3, resource: { buffer: h.bounds } },
@@ -79,10 +82,11 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
 }
 
 /** The drawn pyramid's build words, from word zero: of each pass's slot, the words its struct
- *  holds that changed go up, as a whole compare at 256 bytes sends them. */
-function sendHizBuild(h: HizState, { passes, words }: Pyramid['drawn']) {
+ *  holds that changed go up, as a whole compare at 256 bytes sends them; and its levels uniform. */
+function sendHizBuild(h: HizState, { passes, words, levelWords }: Pyramid['drawn']) {
   h.image.set(words, 0)
   vsmWriteChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, passes.length)
+  h.device.queue.writeBuffer(h.levelTable, 0, levelWords)
 }
 
 /** Verdict flags for `rows` rows, made now and put in place by `commit` (`GpuHiz.growFlags`). */

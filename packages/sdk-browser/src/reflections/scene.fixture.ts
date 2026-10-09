@@ -1,11 +1,15 @@
-// The reflection's shipped WGSL over synthetic views, for its tests: the depth a march reads, built
-// by the shipped kernels (`depth.ts`) from any depth image (`depthField`); a camera and opaque boxes
-// rasterized into a reversed depth, beside an exact ray cast of the same boxes; and the shipped
-// `reflectionSeen` and march run in JavaScript over them (`reflectionRunner`).
+// The reflection's shipped WGSL over synthetic views, for its tests: the depth pyramid a march
+// reads, built from any depth image (`depthField`) by the Hi-Z build's own first pass and the
+// Hi-Z oracle's reductions; a camera and opaque boxes rasterized into a reversed depth, beside an
+// exact ray cast of the same boxes; and the shipped `reflectionSeen` and march run in JavaScript
+// over them (`reflectionRunner`).
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import { REFLECTION_DEPTH_SHADER } from './depth.ts'
+import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
+import { pyramidBytes } from '../gpu/hiz/oracle.ts'
+import { HIZ_NEAREST, HIZ_ROW, hizLevelWords } from '../gpu/hiz/pyramidTexture.ts'
+import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 
 export type V3 = [number, number, number]
@@ -147,69 +151,89 @@ export function rasterize(view: Camera, boxes: Box[]) {
   return { depth, shown }
 }
 
+const WORD = new Float32Array(1),
+  BITS = new Uint32Array(WORD.buffer)
+/** A depth as the pyramid holds it: its `f32` bits. */
+const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
+
 /**
- * The depth a march reads of the `width × height` depth image `depth`, built by the shipped kernels
- * texel by texel, each the first time a march reads it (and the finer texels it covers before it):
- * the field's two words at a pixel (`fieldAt`), a nearest level's texel (`nearestAt`, level 1 at 0)
- * and the levels' sizes.
+ * The depth pyramid a march reads of the `width × height` depth image `depth`, at the packed
+ * indices the Hi-Z lays (`pyramidBytes`), each texel made the first time a march reads it (and the
+ * finer ones it covers before it): level 0 of the nearest layer by the shipped build's first pass
+ * (`hizSource`, its plane's slopes and nearest corner), the coarser texels of both layers by the
+ * oracle's reductions (`hizReduceCeil`, `hizReduceNearestCeil`). `word` is the texel the shipped
+ * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform.
  */
 export function depthField(width: number, height: number, depth: ArrayLike<number>) {
-  const field = new Uint32Array(width * height * 2)
-  const sizes: number[][] = []
-  for (let w = Math.max(1, width >> 1), h = Math.max(1, height >> 1); ; w >>= 1, h >>= 1) {
-    sizes.push([Math.max(1, w), Math.max(1, h)])
-    if (w <= 1 && h <= 1) break
-  }
-  const texels = sizes.map(([w, h]) => new Float64Array(w * h).fill(NaN))
-  /** The levels being made, the innermost last. */
-  const making: number[] = []
-  const token = { fieldSource: {}, field: {}, nearestOut: {}, finer: {} }
-  const at = () => making[making.length - 1]
-  const run = shaderRun<{
-    reflectionField: (id: number[]) => void
-    reflectionNearest: (id: number[]) => void
+  const { sizes, offsets, texels } = pyramidBytes(width, height)
+  const made = [0, 1].map(() => new Float64Array(texels).fill(NaN))
+  const slopes = new Uint32Array(width * height)
+  const level0 = {}
+  const build = shaderRun<{
+    hizSource: (at: number, origin: number[], x: number, y: number) => number
   }>(
-    REFLECTION_DEPTH_SHADER,
+    HIZ_SHADER,
     [
-      'reflectionField',
-      'reflectionNearest',
-      'span',
-      'reflectionFieldTexel',
-      'fieldDepth',
+      'hizSource',
+      'hizPlaneNearest',
+      'hizDepthAt',
       'surfaceSlopeOf',
+      'hizLayer',
+      'hizLoad',
+      'hizTexel',
     ],
     {
-      ...token,
-      textureDimensions: (t: object) =>
-        t === token.fieldSource ? [width, height] : sizes[t === token.finer ? at() - 1 : at()],
-      textureLoad: (t: object, p: number[]) => {
-        if (t === token.fieldSource) return [depth[p[1] * width + p[0]]]
-        return [nearestAt(at() - 1, p)]
-      },
-      textureStore: (t: object, p: number[], value: number[]) => {
-        if (t === token.field) field.set([value[0], value[1]], (p[1] * width + p[0]) * 2)
-        else texels[at()][p[1] * sizes[at()][0] + p[0]] = value[0]
-      },
+      [HIZ_NEAREST_BUILD]: true,
+      uni: { a: 0, b: width, c: height },
+      level0,
+      textureLoad: (_: object, p: number[]) => [Math.fround(depth[p[1] * width + p[0]])],
+      hizPut: (i: number, _: number, word: number) => void (slopes[i] = word),
     },
   )
-  function nearestAt(level: number, cell: number[]) {
-    const index = cell[1] * sizes[level][0] + cell[0]
-    if (Number.isNaN(texels[level][index])) {
-      making.push(level)
-      ;(level ? run.reflectionNearest : run.reflectionField)([cell[0], cell[1], 0])
-      making.pop()
+  /** The texel at `x, y` of `level` of `layer`, as a depth. */
+  function cell(layer: number, level: number, x: number, y: number): number {
+    const at = offsets[level] + y * sizes[level][0] + x
+    if (Number.isNaN(made[layer][at])) {
+      if (level === 0)
+        made[layer][at] = layer
+          ? Math.fround(build.hizSource(0, [0, 0], x, y))
+          : Math.fround(depth[y * width + x])
+      else {
+        const [w, h] = sizes[level - 1],
+          square: number[][] = []
+        for (let v = 2 * y; v < Math.min(2 * y + 2, h); v++) {
+          const row: number[] = []
+          for (let u = 2 * x; u < Math.min(2 * x + 2, w); u++)
+            row.push(cell(layer, level - 1, u, v))
+          square.push(row)
+        }
+        made[layer][at] = Math.fround((layer ? hizReduceNearestCeil : hizReduceCeil)(square)[0][0])
+      }
     }
-    return texels[level][index]
+    return made[layer][at]
   }
+  const words = hizLevelWords(sizes, offsets)
   return {
     width,
     height,
-    sizes,
-    nearestAt,
-    fieldAt(p: number[]) {
-      nearestAt(0, [Math.min(p[0] >> 1, sizes[0][0] - 1), Math.min(p[1] >> 1, sizes[0][1] - 1)])
-      return [field[(p[1] * width + p[0]) * 2], field[(p[1] * width + p[0]) * 2 + 1]]
+    levels: {
+      level: Array.from({ length: words.length / 4 }, (_, k) => [
+        ...words.subarray(k * 4, k * 4 + 4),
+      ]),
     },
+    /** The word at texel `p` of `layer`: a depth's bits, or a pixel's slopes. */
+    word(p: number[], layer: number) {
+      const i = p[1] * HIZ_ROW + p[0]
+      let level = 0
+      while (level + 1 < sizes.length && offsets[level + 1] <= i) level++
+      const [w] = sizes[level],
+        x = (i - offsets[level]) % w,
+        y = Math.floor((i - offsets[level]) / w)
+      if (layer === HIZ_NEAREST && level === 0) return (cell(layer, 0, x, y), slopes[i])
+      return bitsOf(cell(layer, level, x, y))
+    },
+    /** The depth level 0 holds at `p`. */
+    depthAt: (p: number[]) => Math.fround(depth[p[1] * width + p[0]]),
   }
 }
 export type DepthField = ReturnType<typeof depthField>
@@ -251,7 +275,8 @@ export function viewOf(
  * The shipped reflection functions over the depth `depth` and the view uniform `reflectionView`:
  * a read of the radiance image gives, as its colour, the point it reads and the level,
  * `[x, y, level, 1]` — the footprint's reads average them, their weights' sum one —; `counter`
- * counts the depth reads and lists the reads; `overrides` stand in for shipped functions.
+ * counts the cells the march reads (one load of the nearest layer each: a cell's nearest, or a
+ * pixel's slopes) and lists the reads; `overrides` stand in for shipped functions.
  */
 export function reflectionRunner(
   depth: DepthField,
@@ -259,7 +284,7 @@ export function reflectionRunner(
   overrides: object = {},
 ) {
   const counter = { loads: 0, taps: [] as number[][] }
-  const token = { depth: {}, nearest: {}, radiance: {} }
+  const token = { depth: {}, pyramid: {}, radiance: {} }
   const run = shaderRun<{
     reflectionSeen: (P: V3, N: V3, R: V3, alpha: number, lobe: number[]) => Seen
     reflectionMarch: (o: number[], d: number[], end: number) => { t: number; depth: number }
@@ -281,8 +306,12 @@ export function reflectionRunner(
       'reflectionRadianceAt',
       'reflectionLevelRead',
       'reflectionMarch',
-      'reflectionPixel',
-      'reflectionBounds',
+      'hizPlane',
+      'hizCell',
+      'hizLevelCount',
+      'hizFarthest',
+      'hizNearest',
+      'hizTexel',
       'reflectionScreenEnd',
       'reflectionSlabBack',
       'reflectionToEye',
@@ -294,22 +323,18 @@ export function reflectionRunner(
     ].filter((name) => !(name in overrides)),
     {
       reflectionView,
-      reflectionDepth: token.depth,
-      reflectionDepthLevels: token.nearest,
+      hizDepth: token.depth,
+      hizPyramid: token.pyramid,
+      hizLevels: depth.levels,
       reflectionRadiance: token.radiance,
       reflectionSampler: {},
       ReflectionSeen: (color: number[], fade: number) => ({ color, fade }),
       ReflectionHit: (t: number, at: number) => ({ t, depth: at }),
-      textureNumLevels: () => depth.sizes.length,
-      textureDimensions: (t: object, level = 0) =>
-        t === token.depth
-          ? [depth.width, depth.height]
-          : t === token.nearest
-            ? depth.sizes[level]
-            : [reflectionView.radiance[0], reflectionView.radiance[1]],
-      textureLoad: (t: object, cell: number[], level: number) => {
-        counter.loads++
-        return t === token.depth ? depth.fieldAt(cell) : [depth.nearestAt(level, cell)]
+      textureDimensions: () => [reflectionView.radiance[0], reflectionView.radiance[1]],
+      textureLoad: (t: object, cell: number[], layer: number) => {
+        if (t === token.depth) return [depth.depthAt(cell)]
+        if (layer === HIZ_NEAREST) counter.loads++
+        return [depth.word(cell, layer)]
       },
       textureSampleLevel: (_: unknown, __: unknown, uv: number[], level: number) => {
         const tap = [

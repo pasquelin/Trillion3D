@@ -1,6 +1,7 @@
 /**
- * The Hi-Z references the tests and the CPU oracles hold the engine to: a nested-array pyramid,
- * its footprint read and the occlusion verdict.
+ * The Hi-Z references the tests and the CPU oracles hold the engine to: a nested-array pyramid of
+ * either layer — the farthest the occlusion reads, the nearest the readers of the whole depth read
+ * —, its footprint read and the occlusion verdict.
  */
 
 /**
@@ -12,8 +13,12 @@
  */
 export const HIZ_NOTHING = Number.NEGATIVE_INFINITY
 
-/** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed depth). */
-export function hizReduceCeil(depth: readonly (readonly number[])[]): number[][] {
+/** One ceil-2×2 reduction of `depth` by `bound`, each square's texels in reading order. */
+function reduceCeil(
+  depth: readonly (readonly number[])[],
+  bound: (a: number, b: number) => number,
+  start: number,
+): number[][] {
   const height = depth.length
   const width = height > 0 ? depth[0].length : 0
   if (width === 0 || depth.some((row) => row.length !== width)) {
@@ -23,10 +28,10 @@ export function hizReduceCeil(depth: readonly (readonly number[])[]): number[][]
   for (let startRow = 0; startRow < height; startRow += 2) {
     const row: number[] = []
     for (let startCol = 0; startCol < width; startCol += 2) {
-      let candidate = Infinity
+      let candidate = start
       for (let r = startRow; r < Math.min(startRow + 2, height); r++) {
         for (let c = startCol; c < Math.min(startCol + 2, width); c++) {
-          candidate = Math.min(candidate, depth[r][c])
+          candidate = bound(candidate, depth[r][c])
         }
       }
       row.push(candidate)
@@ -36,11 +41,24 @@ export function hizReduceCeil(depth: readonly (readonly number[])[]): number[][]
   return result
 }
 
-/** Full ceil-2×2 pyramid. Level 0 is the source depth; the last level is 1×1. */
-export function hizBuildPyramid(depth: readonly (readonly number[])[]): number[][][] {
+/** Conservative Hi-Z pyramid reduction: FARTHEST depth of a 2×2 quad (minimum value in reversed depth). */
+export const hizReduceCeil = (depth: readonly (readonly number[])[]) =>
+  reduceCeil(depth, Math.min, Infinity)
+
+/** The nearest layer's reduction: NEAREST depth of a 2×2 quad (maximum value in reversed depth),
+ *  what a ray in front of a cell passes everything under. */
+export const hizReduceNearestCeil = (depth: readonly (readonly number[])[]) =>
+  reduceCeil(depth, Math.max, -Infinity)
+
+/** Full ceil-2×2 pyramid by `reduce` (the farthest by default). Level 0 is the source depth; the
+ *  last level is 1×1. */
+export function hizBuildPyramid(
+  depth: readonly (readonly number[])[],
+  reduce = hizReduceCeil,
+): number[][][] {
   const levels: number[][][] = [depth.map((row) => [...row])]
   while (levels[levels.length - 1].length > 1 || levels[levels.length - 1][0].length > 1) {
-    levels.push(hizReduceCeil(levels[levels.length - 1]))
+    levels.push(reduce(levels[levels.length - 1]))
   }
   return levels
 }

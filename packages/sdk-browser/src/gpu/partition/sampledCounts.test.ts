@@ -166,7 +166,7 @@ test('the partition copies its counters on the frame that counted, and only then
   // A frame from 40 to 44 has no pyramid: it runs no kernel, counts nothing, and its sample waits.
   const partition = (await createGpuPartition(device, 4, {
     ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r'), slotUsed: buffer('s') },
-    pyramid: () => (at < 40 || at > 44 ? buffer('pyramid') : undefined),
+    pyramid: () => (at < 40 || at > 44 ? ({} as GPUTextureView) : undefined),
   }))!
   const copies: number[] = []
   const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} }

@@ -52,15 +52,18 @@ test('with no boxes attached the test encodes nothing; once attached it dispatch
 })
 
 test('GPU Hi-Z allocates only the current pyramid and releases it on resize', async () => {
-  const { device, buffers, destroyed } = fakeDevice()
+  const { device, buffers, textures, destroyed } = fakeDevice()
   const hiz = await createGpuHiz(device, 16, 16, 4)
   assert.ok(hiz)
-  assert.equal(buffers.length, 4)
-  const firstPyramid = buffers[3]
+  const pyramids = () => textures.filter((texture) => texture.label === 'Trillion3D Hi-Z pyramid')
+  assert.equal(pyramids().length, 1)
+  const [firstPyramid] = pyramids()
   assert.equal(hiz.resize(device, 32, 32), true)
   assert.ok(destroyed.includes(firstPyramid))
+  assert.equal(pyramids().length, 2)
   hiz.dispose()
   assert.ok(buffers.every((buffer) => destroyed.includes(buffer)))
+  assert.ok(pyramids().every((pyramid) => destroyed.includes(pyramid)))
 })
 
 test('each view keeps its own pyramid: a switch allocates nothing and finds its size back', async () => {

@@ -12,6 +12,8 @@ import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
+import { HIZ_FARTHEST, HIZ_FORMAT, HIZ_NEAREST, HIZ_TEXEL_WGSL } from './pyramidTexture.ts'
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -21,7 +23,11 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  */
 export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] {
   return [
-    { binding: 0, visibility: COMPUTE, buffer: { type: 'storage' } },
+    {
+      binding: 0,
+      visibility: COMPUTE,
+      storageTexture: { access: 'read-write', format: HIZ_FORMAT, viewDimension: '2d-array' },
+    },
     { binding: 1, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
     {
       binding: 2,
@@ -35,32 +41,60 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
 }
 
 /** Group 1, the test's alone: the page table, whose Hi-Z slot word tells a row that has no
- *  verdict (never culled). The pyramid kernels bind group 0 only, the page pyramids included. */
+ *  verdict (never culled). The pyramid kernels bind group 0 only. */
 export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
   { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
 ]
 
+/** The override that makes `buildHiz` the build of the nearest layer (`createHizPipelines`). */
+export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
+
 /**
- * The Hi-Z kernels: the pyramid build and the test. The test receives no count or bytes from the
- * CPU: it reads the box count and writes its own reject counters into the state the GPU
- * partition holds, and the boxes are those the partition packed in the same submission. No value
- * is inferred there: a verdict is written, or the row stays at zero.
+ * THE DEPTH PYRAMID: the engine's one hierarchy of the image's depth, in one texture of two layers
+ * (`pyramidTexture.ts`) at the packed indices of `pyramidBytes` — each level the ceiling half of
+ * the one before it, so a texel of level `l` covers exactly the pixels `[x·2^l, (x+1)·2^l)` of the
+ * image, clipped to it. Reverse-Z throughout.
  *
- * The build reduces `HIZ_PASS_LEVELS` mips per dispatch through workgroup memory (`buildHiz`):
- * each thread reads one 2 × 2 square of the source level and the workgroup reduces its 8 × 8
- * results down to one texel, each level the farthest of four taken in the same order as a
- * per-level reduction, so every mip holds the same value. The first pass reads the level-0
- * texture itself: it copies each texel into the pyramid — the tests and the next image's cull
- * read level 0 there — and reduces level 1 from the texels it just read, never rereading the
- * copy. It also builds several pyramids in one dispatch, one per `z`: `uni.g` is then the stride
- * between two pyramids and each one's level 0 starts at the texel its `bounds` entry names — the
- * several pyramids at once. The camera's `g` is zero: one pyramid, from
- * texel zero.
+ *  - the FARTHEST layer: level 0 a copy of the depth, each coarser texel the farthest — the
+ *    MINIMUM — of the four below it. Built mid-frame (`encodePyramid`) from the depth the
+ *    occluders drew, the only depth there is before the test of the rest — an image that tests
+ *    nothing builds it from its whole depth. The depth only comes nearer after it, so what hides a
+ *    box there hides it in the finished image, and a cell's farthest there is at or behind the
+ *    finished one's: a bound every reader can trust. The occlusion test below, the partition's
+ *    main-pass cull and the transparent test read it; the readers of the whole depth read its
+ *    coarser levels, and level 0 in its own texture, which then holds the depth whole.
+ *  - the NEAREST layer: level 0 each pixel's plane through its depth — its two slopes in depth per
+ *    pixel, the slope rule of every depth reader (`surfaceSlopeOf`), relative to its depth so
+ *    that two halves keep them at every distance —, each coarser texel the nearest — the MAXIMUM —
+ *    of the four below it, level 1 of the nearest corner of each pixel's plane, half the slopes'
+ *    sum in front of its depth. Built once the whole depth is drawn (`encodeNearest`), for the
+ *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel.
+ *
+ * Per image of N pixels: the farthest build reads level 0 once and writes 4N/3 words, the nearest
+ * reads nine texels of level 0 a pixel — its plane's neighbours, cached — and writes 4N/3; the
+ * texture holds 2 × 4N/3 words, padded to a whole row of `HIZ_ROW`.
+ *
+ * Both are one kernel, `buildHiz`, specialized by `HIZ_NEAREST_BUILD`. It reduces
+ * `HIZ_PASS_LEVELS` mips per dispatch through workgroup memory: each thread reads one 2 × 2
+ * square of the source level and the workgroup reduces its 8 × 8 results down to one texel, each
+ * level the bound of four taken in the same order as a per-level reduction, so every mip holds the
+ * same value. The first pass reads the level-0 texture itself: the farthest build copies each
+ * texel into the pyramid — the tests and the next image's cull read level 0 there —, the nearest
+ * build writes each pixel's slopes, and both reduce level 1 from the texels they just read, never
+ * rereading the copy. It also builds several pyramids in one dispatch, one per `z`: `uni.g` is then
+ * the stride between two pyramids and each one's level 0 starts at the texel its `bounds` entry
+ * names. The camera's `g` is zero: one pyramid, from texel zero.
+ *
+ * The test receives no count or bytes from the CPU: it reads the box count and writes its own
+ * reject counters into the state the GPU partition holds, and the boxes are those the partition
+ * packed in the same submission. No value is inferred there: a verdict is written, or the row
+ * stays at zero.
  */
 export const HIZ_SHADER = wgslProgram(
-  `struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
+  `override ${HIZ_NEAREST_BUILD}:bool=false;
+struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
-@group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
+@group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
 @group(0) @binding(3) var<storage, read> bounds:array<Bounds>;
@@ -68,42 +102,73 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 var<workgroup> hizTile:array<f32,${S ** 2}>;
-/** A texel of the pass's source level at \`at\`: the level-0 texture, copied into the pyramid on
- *  the way, when the source sits at offset zero; else the level the previous pass wrote. */
+/** The word at packed index \`i\` of \`layer\`, as a depth; one written there. */
+fn hizLoad(i:u32,layer:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),layer).r);}
+fn hizPut(i:u32,layer:u32,word:u32){textureStore(hizPyramid,hizTexel(i),layer,vec4u(word,0u,0u,0u));}
+/** What the test reads (\`pyramidHides\`): the farthest layer. */
+fn hizFarthest(i:u32)->f32{return hizLoad(i,${HIZ_FARTHEST}u);}
+/** The layer this build writes. */
+fn hizLayer()->u32{return select(${HIZ_FARTHEST}u,${HIZ_NEAREST}u,${HIZ_NEAREST_BUILD});}
+/** The depth at \`q\` of the level-0 square from \`origin\`, clamped to it. */
+fn hizDepthAt(origin:vec2i,q:vec2i)->f32{
+ return textureLoad(level0,origin+clamp(q,vec2i(0),vec2i(vec2u(uni.b,uni.c))-vec2i(1)),0).r;
+}
+/** The nearest corner of the plane of the pixel \`q\` of depth \`z\`, its slopes written at \`i\`
+ *  of the nearest layer: relative to its depth, two halves; the corner from the halves the readers
+ *  unpack (\`hizPlane\`), so that a level-1 bound holds every plane a reader sees. */
+fn hizPlaneNearest(i:u32,origin:vec2i,q:vec2i,z:f32)->f32{
+ let x=vec2i(1,0);let y=vec2i(0,1);
+ let slopes=vec2f(
+  surfaceSlopeOf(z,hizDepthAt(origin,q-x),hizDepthAt(origin,q+x),hizDepthAt(origin,q-x*2),hizDepthAt(origin,q+x*2)),
+  surfaceSlopeOf(z,hizDepthAt(origin,q-y),hizDepthAt(origin,q+y),hizDepthAt(origin,q-y*2),hizDepthAt(origin,q+y*2)));
+ let word=pack2x16float(select(vec2f(0.0),slopes/z,z>0.0));
+ hizPut(i,${HIZ_NEAREST}u,word);
+ let s=unpack2x16float(word)*z;
+ return z+0.5*(abs(s.x)+abs(s.y));
+}
+/** A texel of the pass's source level at \`at\`: when the source sits at offset zero, the level-0
+ *  texture — copied into the farthest layer on the way, or its plane written into the nearest —;
+ *  else the level the previous pass wrote. */
 fn hizSource(at:u32,origin:vec2i,x:u32,y:u32)->f32{
  let i=at+y*uni.b+x;
- if(uni.a!=0u){return pyramid[i];}
- let depth=textureLoad(level0,origin+vec2i(i32(x),i32(y)),0).r;
- pyramid[i]=depth;
+ if(uni.a!=0u){return hizLoad(i,hizLayer());}
+ let q=vec2i(i32(x),i32(y));
+ let depth=textureLoad(level0,origin+q,0).r;
+ if(${HIZ_NEAREST_BUILD}){return hizPlaneNearest(i,origin,q,depth);}
+ hizPut(i,${HIZ_FARTHEST}u,bitcast<u32>(depth));
  return depth;
 }
-/** The farthest of a 2 × 2 square read clamped to its level: the right column counts when \`dx\`
- *  is 1, the bottom row when \`dy\` is 1, in the order of the per-level reduction.
- *  Reverse-Z: the FARTHEST is the MINIMUM. */
-fn hizFar4(v00:f32,v10:f32,v01:f32,v11:f32,dx:u32,dy:u32)->f32{
- var far=v00;
- if(dx!=0u){far=min(far,v10);}
+/** The bound of two depths: reverse-Z, the farthest is the MINIMUM, the nearest the MAXIMUM. */
+fn hizBound(a:f32,b:f32)->f32{
+ if(${HIZ_NEAREST_BUILD}){return max(a,b);}
+ return min(a,b);
+}
+/** The bound of a 2 × 2 square read clamped to its level: the right column counts when \`dx\`
+ *  is 1, the bottom row when \`dy\` is 1, in the order of the per-level reduction. */
+fn hizBound4(v00:f32,v10:f32,v01:f32,v11:f32,dx:u32,dy:u32)->f32{
+ var bound=v00;
+ if(dx!=0u){bound=hizBound(bound,v10);}
  if(dy!=0u){
-  far=min(far,v01);
-  if(dx!=0u){far=min(far,v11);}
+  bound=hizBound(bound,v01);
+  if(dx!=0u){bound=hizBound(bound,v11);}
  }
- return far;
+ return bound;
 }
 @compute @workgroup_size(${S}, ${S})
 fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
  // uni: a the source level's offset, b × c its size, d the levels this pass writes (dst), g the
  // stride between two pyramids.
- let z=wg.z;let at=uni.a+z*uni.g;
+ let z=wg.z;let at=uni.a+z*uni.g;let layer=hizLayer();
  var origin=vec2i(0);
  if(uni.a==0u&&uni.g!=0u){origin=vec2i(bounds[z].minX,bounds[z].minY);}
  let x=wg.x*${S}u+lid.x;let y=wg.y*${S}u+lid.y;let x0=x*2u;let y0=y*2u;
- var far=0.0;
+ var bound=0.0;
  if(x0<uni.b&&y0<uni.c){
   let dx=select(0u,1u,x0+1u<uni.b);let dy=select(0u,1u,y0+1u<uni.c);
-  far=hizFar4(hizSource(at,origin,x0,y0),hizSource(at,origin,x0+dx,y0),hizSource(at,origin,x0,y0+dy),hizSource(at,origin,x0+dx,y0+dy),dx,dy);
-  if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}
+  bound=hizBound4(hizSource(at,origin,x0,y0),hizSource(at,origin,x0+dx,y0),hizSource(at,origin,x0,y0+dy),hizSource(at,origin,x0+dx,y0+dy),dx,dy);
+  if(uni.d>0u){hizPut(uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x,layer,bitcast<u32>(bound));}
  }
- hizTile[lid.y*${S}u+lid.x]=far;
+ hizTile[lid.y*${S}u+lid.x]=bound;
  // Each further level halves the threads at work; the one the tile holds is read, then replaced.
  var side=${S}u;
  for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){
@@ -115,12 +180,12 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
   if(live){
    let i=lid.y*${2 * S}u+lid.x*2u;
    let dx=select(0u,1u,tx*2u+1u<src.y);let dy=select(0u,1u,ty*2u+1u<src.z);
-   far=hizFar4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);
+   bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);
   }
   workgroupBarrier();
   if(live){
-   hizTile[lid.y*${S}u+lid.x]=far;
-   pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;
+   hizTile[lid.y*${S}u+lid.x]=bound;
+   hizPut(dst.x+z*uni.g+ty*dst.y+tx,layer,bitcast<u32>(bound));
   }
  }
 }
@@ -151,5 +216,12 @@ fn testBox(i:u32){
  }
 }
 `,
-  [PAGE_INFO_STRUCT_WGSL, FLAT_INDEX_WGSL, STATE_TALLY_WGSL, HIZ_HIDES_WGSL],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    FLAT_INDEX_WGSL,
+    STATE_TALLY_WGSL,
+    HIZ_HIDES_WGSL,
+    HIZ_TEXEL_WGSL,
+    SURFACE_SLOPE_WGSL,
+  ],
 )

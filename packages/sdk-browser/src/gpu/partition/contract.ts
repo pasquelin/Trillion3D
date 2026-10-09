@@ -117,8 +117,8 @@ export const PARTITION_BINDING = {
   uniforms: 8,
   pyramid: 9,
 } as const
-/** What each kernel binds: a stage may bind eight storage buffers, and the two together would
- *  need nine, so each layout names only the buffers its entry point reads or writes. */
+/** What each kernel binds: each layout names only the resources its entry point reads or
+ *  writes. */
 export const PARTITION_KERNEL_BINDINGS = {
   clearRows: ['restBits', 'slotUsed', 'state', 'uniforms'],
   projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],

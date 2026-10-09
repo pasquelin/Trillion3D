@@ -7,6 +7,7 @@ import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradia
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
 import { MODEL_FLAG } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
+import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE.
@@ -16,11 +17,13 @@ import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
  * and the water inline in their fragment stage. It reads three things of the view: its depth, the
  * previous lit image of the same view, and the radiance around the scene.
  *
- * The depth is a field of slabs (`depth.ts`). A pixel holds its centre's depth, the surface runs
- * through it on its plane (the slope rule of every depth reader, `surfaceSlopeOf`), and the slab
- * behind that plane is `REFLECTION_THICKNESS` of the view's height deep at its distance: what the
- * image cannot see behind a surface is taken to be that thick. Coarser cells bound the slabs they
- * cover (`reflectionBounds`: their nearest, and their farthest once the pyramid keeps one). A ray
+ * The depth is the engine's depth pyramid (`../gpu/hiz/shader.ts`), read as a field of slabs
+ * (`hizDepthWgsl`). A pixel holds its depth, the surface runs through it on its plane (`hizPlane`:
+ * the slopes the pyramid keeps at its level 0), and the slab behind that plane is
+ * `REFLECTION_THICKNESS` of the view's height deep at its distance: what the image cannot see
+ * behind a surface is taken to be that thick. A coarser cell bounds the slabs it covers
+ * (`hizCell`): its farthest depth, of the depth the occluders drew — at or behind the whole
+ * depth's, so a cell is never passed for less than it holds —, and the nearest of its planes. A ray
  * leaves the surface one pixel off it along its normal and is marched in screen space from its own
  * pixel (`reflectionMarch`): past a cell it lies in front of, one level coarser; past a cell whose
  * every slab it lies behind; else one level finer, down to a pixel, where the segment it spans there
@@ -184,18 +187,19 @@ export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
  *  trace's and the forward passes' (`forwardReflectionWgsl`). */
 export const REFLECTION_GROUP = 1
 
-/** The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the depth
- *  it marches — the field, then its nearest levels (`depth.ts`) —, the radiance pyramid and its
- *  trilinear sampler. */
+/** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`). */
+export const REFLECTION_DEPTH_BINDING = 3
+
+/** The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
+ *  radiance pyramid and its trilinear sampler, then the depth it marches, the engine's pyramid
+ *  (`hizDepthWgsl`). */
 export const reflectionBindingsWgsl = (group: number) =>
   wgslBlock(
     `reflectionBindingsWgsl(${group})`,
-    [REFLECTION_VIEW_WGSL],
+    [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING)],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
-@group(${group}) @binding(1) var reflectionDepth:texture_2d<u32>;
-@group(${group}) @binding(2) var reflectionDepthLevels:texture_2d<f32>;
-@group(${group}) @binding(3) var reflectionRadiance:texture_2d<f32>;
-@group(${group}) @binding(4) var reflectionSampler:sampler;`,
+@group(${group}) @binding(1) var reflectionRadiance:texture_2d<f32>;
+@group(${group}) @binding(2) var reflectionSampler:sampler;`,
   )
 
 /**
@@ -224,28 +228,20 @@ fn reflectionSlabBack(q:vec2f,z:f32)->f32{
 /**
  * The march (see the head of this file) of `o + d·t`, `o` in pixels and reversed depth, `t` from 0
  * to `end` (`reflectionScreenEnd`: the image's edge, or the ray's far end). A cell's bounds are its
- * farthest and nearest depths: a pixel's plane over the pixel (`reflectionPixel`, its depth and
- * slopes); a coarser cell's nearest slab, and the background's 0 as its farthest until the pyramid
- * keeps one (`reflectionBounds`). Moving away, a ray in front of a cell goes no farther than that
- * cell's nearest depth before it looks finer. The hit is the first point of a pixel's segment
- * inside its slab — its entry, where it crosses the plane, or where it comes out of the slab's back
- * —, returned as its `t` and the plane's depth there (`ReflectionHit`); `t` -1 on a miss: past
- * `end`, past the steps, or on the background.
+ * farthest and nearest depths: a pixel's plane over the pixel (`hizPlane`, its depth and slopes); a
+ * coarser cell's, as the pyramid keeps them (`hizCell`). Moving away, a ray in front of a cell goes
+ * no farther than that cell's nearest depth before it looks finer. Behind a cell, it is passed when
+ * it lies behind the back of the farthest slab the cell can hold: the farthest depth's slab, its
+ * back taken at the cell's point nearest the image's centre, where a slab is deepest — a ray behind
+ * it is behind every slab of the cell. The hit is the first point of a pixel's segment inside its
+ * slab — its entry, where it crosses the plane, or where it comes out of the slab's back —,
+ * returned as its `t` and the plane's depth there (`ReflectionHit`); `t` -1 on a miss: past `end`,
+ * past the steps, or on the background.
  */
 export const REFLECTION_MARCH_WGSL = wgslBlock(
   'REFLECTION_MARCH_WGSL',
   [REFLECTION_CONSTANTS_WGSL, REFLECTION_GEOMETRY_WGSL],
   `struct ReflectionHit{t:f32,depth:f32,}
-fn reflectionPixel(cell:vec2i)->vec3f{
- let last=vec2i(textureDimensions(reflectionDepth))-vec2i(1);
- let texel=textureLoad(reflectionDepth,clamp(cell,vec2i(0),last),0);
- let z=bitcast<f32>(texel.x);
- return vec3f(z,unpack2x16float(texel.y)*z);
-}
-fn reflectionBounds(cell:vec2i,level:i32)->vec2f{
- let last=vec2i(textureDimensions(reflectionDepthLevels,level-1))-vec2i(1);
- return vec2f(0.0,textureLoad(reflectionDepthLevels,clamp(cell,vec2i(0),last),level-1).r);
-}
 fn reflectionScreenEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
  let toward=select(-o,size-o,d>vec2f(0.0));
  let t=select(vec2f(REFLECTION_FAR),toward/d,abs(d)>vec2f(1e-6));
@@ -257,7 +253,7 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
  let side=select(vec2f(0.0),vec2f(1.0),ahead);
  let nudge=select(vec2f(-REFLECTION_NUDGE),vec2f(REFLECTION_NUDGE),ahead);
- let top=i32(textureNumLevels(reflectionDepthLevels));
+ let top=hizLevelCount()-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
  var t=min(first.x,first.y);
  var level=0;
@@ -269,10 +265,10 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
   var pixel=vec3f(0.0);
   var bounds:vec2f;
   if(level==0){
-   pixel=reflectionPixel(vec2i(cell));
+   pixel=hizPlane(vec2i(cell));
    let extent=0.5*(abs(pixel.y)+abs(pixel.z));
    bounds=vec2f(pixel.x-extent,pixel.x+extent);
-  }else{bounds=reflectionBounds(vec2i(cell),level);}
+  }else{bounds=hizCell(vec2i(cell),level);}
   let exits=((cell+side)*size+nudge-o.xy)*inv;
   let across=min(exits.x,exits.y);
   if(p.z>bounds.y){
@@ -282,7 +278,8 @@ fn reflectionMarch(o:vec3f,d:vec3f,end:f32)->ReflectionHit{
   }
   let q=o+d*across;
   if(level>0){
-   if(bounds.x>0.0&&max(p.z,q.z)<reflectionSlabBack((cell+vec2f(0.5))*size,bounds.x)){t=across;}
+   let deepest=clamp(0.5*reflectionView.screen.xy,cell*size,(cell+vec2f(1.0))*size);
+   if(bounds.x>0.0&&max(p.z,q.z)<reflectionSlabBack(deepest,bounds.x)){t=across;}
    else{level-=1;}
    continue;
   }

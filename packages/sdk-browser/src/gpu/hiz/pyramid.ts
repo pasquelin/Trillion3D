@@ -1,21 +1,23 @@
 import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { pyramidBytes } from './oracle.ts'
-import type { HizPyramid } from './types.ts'
+import type { HizDepth, HizPyramid } from './types.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { HIZ_FORMAT, hizLevelWords, hizTextureBytes, hizTextureSize } from './pyramidTexture.ts'
 
 /** The label of a pyramid's level 0, the one texture it holds. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel, and its packed mips. */
+ *  texel a pixel, and its two layers of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
-  width * height * 4 + pyramidBytes(width, height).bytes
+  width * height * 4 + hizTextureBytes(pyramidBytes(width, height).texels)
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE
 
 /**
- * The build passes of `count` pyramids, one per `z`, as dispatches of the open compute `pass`:
+ * The build passes of `count` pyramids, one per `z`, as dispatches of the open compute `pass`, by
+ * `buildPipeline` — the farthest layer's or the nearest's (`HIZ_NEAREST_BUILD`):
  * consecutive dispatches inside a pass already see each other's writes. Build pass `i` reads
  * uniform slot `i`, bound at `slots[i]` (`UniformSlots.offset`).
  */
@@ -36,9 +38,9 @@ export function encodeHizPyramid(
 
 /**
  * The build and the test of a pyramid over the `width × height` drawn in its level 0: its passes,
- * their uniform words and offsets in `slots` (`hizUniformSlots`), and its mips with their offset
- * and width, a function of that size alone. The packed mips of a smaller size fit in the buffer of
- * a larger one.
+ * their uniform words and offsets in `slots` (`hizUniformSlots`), its mips with their offset and
+ * width, and the levels uniform its readers take (`hizLevelWords`), a function of that size alone.
+ * The packed mips of a smaller size fit in the texture of a larger one.
  */
 export function pyramidLayout(width: number, height: number, slots: UniformSlots) {
   const { sizes, offsets } = pyramidBytes(width, height),
@@ -50,22 +52,28 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
     slots: passes.map((_, i) => slots.offset(i)),
     words: hizBuildWords(sizes, offsets, passes, slots.stride),
     levels: sizes.map((size, level) => ({ offset: offsets[level], width: size[0] })),
+    levelWords: hizLevelWords(sizes, offsets),
   }
 }
 
 export type Pyramid = HizPyramid & {
   level0: GPUTexture
   level0View: GPUTextureView
-  pyramid: GPUBuffer
+  /** The two layers of packed mips (`pyramidTexture.ts`), and their one view: written by the
+   *  build as storage, read by the others as a texture. */
+  pyramid: GPUTexture
+  pyramidView: GPUTextureView
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group, and the `attach` generation it was made for. */
   group?: GPUBindGroup
   bindings?: number
+  /** What its readers of the whole depth bind (`GpuHiz.depth`), made at the first ask. */
+  depth?: HizDepth
 }
 
-/** One view's pyramid at `width × height`: its level 0 and its packed mips, its build's uniform
- *  words laid in `slots`. */
+/** One view's pyramid at `width × height`: its level 0 and its two layers of packed mips, its
+ *  build's uniform words laid in `slots`. */
 export function allocPyramid(
   device: GPUDevice,
   usage: number,
@@ -79,10 +87,13 @@ export function allocPyramid(
     format: 'r32float',
     usage,
   })
-  const pyramid = device.createBuffer({
+  // `COPY_DST` serves only the proof tools, which lay a pyramid of their own; no frame copies.
+  const pyramid = device.createTexture({
     label: 'Trillion3D Hi-Z pyramid',
-    size: pyramidBytes(width, height).bytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    size: hizTextureSize(pyramidBytes(width, height).texels),
+    format: HIZ_FORMAT,
+    usage:
+      GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
   })
   return {
     width,
@@ -90,6 +101,7 @@ export function allocPyramid(
     level0,
     level0View: level0.createView(),
     pyramid,
+    pyramidView: pyramid.createView({ dimension: '2d-array' }),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()

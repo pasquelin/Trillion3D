@@ -3,16 +3,16 @@ import type { PartitionCountsFrame } from './counters.ts'
 import type { PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 
-/** Buffers the partition uses but does not own: those of the draw compact, the Hi-Z test's
+/** Resources the partition uses but does not own: the draw compact's buffers, the Hi-Z test's
  *  verdict buffer, which it rereads to feed the occluder history, and the pyramid the previous
- *  image left, which its main-pass cull reads. The pyramid is asked for on every image because
- *  a target resize gives it a new identity; `undefined` once the Hi-Z is gone. */
+ *  image left, whose farthest layer its main-pass cull reads. The pyramid is asked for on every
+ *  image because a target resize gives it a new identity; `undefined` once the Hi-Z is gone. */
 export type PartitionSources = {
   items: GPUBuffer
   flags: GPUBuffer
   restBits: GPUBuffer
   slotUsed: GPUBuffer
-  pyramid: () => GPUBuffer | undefined
+  pyramid: () => GPUTextureView | undefined
 }
 
 /** What the last frame sent the kernel, copied: the exact input of its projection. */

@@ -9,6 +9,7 @@ import {
   hizFootprintFar,
   hizOccluded,
   hizReduceCeil,
+  hizReduceNearestCeil,
 } from './oracles.fixture.ts'
 
 test('a background hole prevents any rejection: reduction keeps the farthest', () => {
@@ -79,4 +80,21 @@ test('hiz empty or out of range footprint does not occlude', () => {
   assert.equal(hizFootprintFar(pyramid, 2, 2, 2, 3, 0), HIZ_NOTHING)
   assert.equal(hizOccluded(0.1, hizFootprintFar(pyramid, 2, 2, 2, 3, 0)), false)
   assert.equal(hizOccluded(0.1, hizFootprintFar(pyramid, 0, 0, 0, 2, 0)), false)
+})
+
+test('the nearest layer keeps the nearest of a quad, its last odd column too, up to one texel', () => {
+  const depth = [
+    [0.8, 0.7, 0],
+    [0.6, 0.5, 0.4],
+    [0.3, 0.2, 0.1],
+  ]
+  assert.deepEqual(hizReduceNearestCeil(depth), [
+    [0.8, 0.4],
+    [0.3, 0.1],
+  ])
+  const pyramid = hizBuildPyramid(depth, hizReduceNearestCeil)
+  assert.deepEqual(pyramid[0], depth)
+  assert.deepEqual(pyramid.at(-1), [[0.8]])
+  // A background hole lowers no nearest: a ray in front of the cell passes every plane of it.
+  assert.deepEqual(hizReduceNearestCeil([[0, 0.3]]), [[0.3]])
 })

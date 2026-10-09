@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HIZ_SHADER } from './shader.ts'
+import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
 
 /** The deepest pyramid the camera builds (`uniforms.ts`, the passes' default). */
@@ -9,12 +9,11 @@ import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscr
 import { hizLevelSizes } from './levelSizes.ts'
 
 // The reference pyramid build is a copy of the level-0 texture then one dispatch per mip, each
-// reading the level above from the buffer. `buildHiz` reads the texture once, copies it on the
+// reading the level above from the pyramid. `buildHiz` reads the texture once, copies it on the
 // way and reduces four mips per dispatch through workgroup memory. Below, both transcribed line by
-// line,
-// driven by the uniform words the host really writes, must leave the pyramid buffer identical
-// bit for bit — every texel written, no other — on random sizes, capped mip counts, several
-// pyramids per dispatch, and NaN, ±0, ±Inf depths.
+// line, driven by the uniform words the host really writes, must leave the pyramid identical bit
+// for bit — every texel written, no other — on random sizes, capped mip counts, several pyramids
+// per dispatch, and NaN, ±0, ±Inf depths: the farthest layer, and the nearest, its maximum.
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN]
 
@@ -39,7 +38,7 @@ function scene(rand: () => number, hostile: boolean): Scene {
       )
     : undefined
   const maxLevels = rand() < 0.2 ? pick(6) : HIZ_MAX_LEVELS
-  return { texture, textureWidth, width, height, maxLevels, origins }
+  return { texture, textureWidth, width, height, maxLevels, origins, nearest: rand() < 0.5 }
 }
 
 function assertSamePyramid(s: Scene, rand: () => number, label: string) {
@@ -74,14 +73,15 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
     [1920, 1080, HIZ_MAX_LEVELS],
     [300, 200, 2],
   ]
-  for (const [width, height, maxLevels] of sizes) {
-    const texture = Float32Array.from({ length: width * height }, () => rand())
-    assertSamePyramid(
-      { texture, textureWidth: width, width, height, maxLevels },
-      rand,
-      `${width}×${height}`,
-    )
-  }
+  for (const [width, height, maxLevels] of sizes)
+    for (const nearest of [false, true]) {
+      const texture = Float32Array.from({ length: width * height }, () => rand())
+      assertSamePyramid(
+        { texture, textureWidth: width, width, height, maxLevels, nearest },
+        rand,
+        `${width}×${height}${nearest ? ', nearest' : ''}`,
+      )
+    }
   // 1080p: twelve mips in three dispatches, where the per-level build took twelve.
   assert.deepEqual(
     hizBuildPasses(hizLevelSizes(1920, 1080)).map(({ source, levels }) => [source, levels]),
@@ -102,11 +102,13 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
-    'if(uni.a!=0u){return pyramid[i];}',
-    'if(uni.d>0u){pyramid[uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x]=far;}',
+    'if(uni.a!=0u){return hizLoad(i,hizLayer());}',
+    `if(${HIZ_NEAREST_BUILD}){return hizPlaneNearest(i,origin,q,depth);}`,
+    'if(uni.d>0u){hizPut(uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x,layer,bitcast<u32>(bound));}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
-    `far=hizFar4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
-    'pyramid[dst.x+z*uni.g+ty*dst.y+tx]=far;',
+    `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
+    'hizPut(dst.x+z*uni.g+ty*dst.y+tx,layer,bitcast<u32>(bound));',
+    `if(${HIZ_NEAREST_BUILD}){return max(a,b);}`,
   ])
     assert.ok(build.includes(line), line)
   assert.equal(build.match(/workgroupBarrier\(\);/g)?.length, 2, 'read, barrier, write, barrier')

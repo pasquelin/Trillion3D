@@ -58,7 +58,7 @@ function partitionState(
   made: Pick<Partition, 'layouts' | 'pipelines'>,
   allocated: Partition['allocated'],
   inputs: PartitionSources,
-  pyramid: GPUBuffer,
+  pyramid: GPUTextureView,
 ): Partition {
   // The pyramid changes identity on every target resize: the projection's group follows it,
   // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.

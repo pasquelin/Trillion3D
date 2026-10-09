@@ -1,4 +1,4 @@
-import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './shader.ts'
+import { HIZ_NEAREST_BUILD, HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './shader.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
@@ -6,8 +6,9 @@ import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { HIZ_SLOT_WORDS } from './uniforms.ts'
 
 /**
- * The two Hi-Z kernels, build and test, compiled under one device validation scope, once a device:
- * every pyramid of the device shares them, so a pyramid made later compiles nothing.
+ * The Hi-Z kernels — the build of each layer, one kernel specialized (`HIZ_NEAREST_BUILD`), and the
+ * test — compiled under one device validation scope, once a device: every pyramid of the device
+ * shares them, so a pyramid made later compiles nothing.
  */
 export const createHizPipelines = oncePerDevice((device) =>
   validated(device, async () => {
@@ -17,16 +18,17 @@ export const createHizPipelines = oncePerDevice((device) =>
     const module = device.createShaderModule({ code: HIZ_SHADER })
     if (await shaderFailed(module)) return undefined
     const pagesLayout = device.createBindGroupLayout({ entries: HIZ_TEST_PAGES_ENTRIES })
-    const stage = (entryPoint: string, groups = [layout]) =>
+    const stage = (entryPoint: string, groups = [layout], constants?: Record<string, number>) =>
       buildComputePipeline(device, {
         layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
-        compute: { module, entryPoint },
+        compute: { module, entryPoint, ...(constants && { constants }) },
       })
-    const [buildPipeline, testPipeline] = await Promise.all([
+    const [buildPipeline, nearestPipeline, testPipeline] = await Promise.all([
       stage('buildHiz'),
+      stage('buildHiz', [layout], { [HIZ_NEAREST_BUILD]: 1 }),
       stage('testHiz', [layout, pagesLayout]),
     ])
-    return { layout, pagesLayout, buildPipeline, testPipeline }
+    return { layout, pagesLayout, buildPipeline, nearestPipeline, testPipeline }
   }),
 )
 

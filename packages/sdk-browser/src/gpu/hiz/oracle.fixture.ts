@@ -1,13 +1,24 @@
-import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
+import {
+  hizBuildPyramid,
+  hizReduceCeil,
+  hizReduceNearestCeil,
+} from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { pyramidBytes } from './oracle.ts'
+import { hizTextureSize } from './pyramidTexture.ts'
 import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts'
 import type { HizPyramid } from '../../hiz/types.ts'
 import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts'
 
-/** One ceil-2×2 min reduction of a packed level: the farthest of each square, the engine's depth
- *  being reversed. */
-export function evaluateHizReduce(src: Float32Array, srcWidth: number, srcHeight: number) {
-  const reduced = hizReduceCeil(rowsOf(src, srcWidth, srcHeight))
+/** One ceil-2×2 reduction of a packed level: the farthest of each square (the minimum, the
+ *  engine's depth being reversed), or, `nearest`, the nearest (the maximum). */
+export function evaluateHizReduce(
+  src: Float32Array,
+  srcWidth: number,
+  srcHeight: number,
+  nearest = false,
+) {
+  const reduce = nearest ? hizReduceNearestCeil : hizReduceCeil
+  const reduced = reduce(rowsOf(src, srcWidth, srcHeight))
   const height = reduced.length,
     width = height ? reduced[0].length : 0
   const data = new Float32Array(Math.max(1, width * height))
@@ -27,6 +38,15 @@ export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHi
     for (let y = 0; y < level.length; y++) data.set(level[y], base + y * w)
   }
   return { data, sizes, offsets }
+}
+
+/** The farthest layer of the pyramid texture holding `packed` (`pyramidTexture.ts`): its words, a
+ *  depth's bits each, row after row of `hizTextureSize`, zero past the last texel. */
+export function hizFarthestLayer(packed: Float32Array) {
+  const { width, height } = hizTextureSize(packed.length)
+  const words = new Uint32Array(width * height)
+  words.set(new Uint32Array(packed.buffer, packed.byteOffset, packed.length))
+  return { words, width, height }
 }
 
 /** Same rejection as `hizRejects` (mip-selected inclusive footprint, near clips never hide). */

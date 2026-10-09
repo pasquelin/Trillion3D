@@ -7,11 +7,13 @@ import {
   wgslTextureBindings,
 } from '../core/wgslBindings.fixture.ts'
 
-test('the Hi-Z layout entries are the bindings its shader declares, buffers and texture', () => {
+test('the Hi-Z layout entries are the bindings its shader declares, buffers and textures', () => {
   const entries = hizBindEntries(256)
   const buffers = entries.filter((entry) => entry.buffer)
   assert.deepEqual(entryBufferBindings(buffers), wgslBufferBindings(HIZ_SHADER))
-  const textures = entries.filter((entry) => entry.texture).map((entry) => entry.binding)
+  const textures = entries
+    .filter((entry) => entry.texture || entry.storageTexture)
+    .map((entry) => entry.binding)
   assert.deepEqual(textures, wgslTextureBindings(HIZ_SHADER))
   assert.equal(buffers.length + textures.length, entries.length, 'every entry is checked')
 })

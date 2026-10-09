@@ -10,7 +10,8 @@ import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
  * silhouette makes the first a jump that the background beyond does not continue —; of two such
  * sides, the straighter; none when neither side continues (a wire, a bar, a far part one pixel
  * wide). The one rule of every reader of a depth's plane: the shadow level's unjittered centre
- * below, and where a reflected ray meets a pixel (`../../reflections/wgsl.ts`).
+ * below, and the plane the depth pyramid keeps at each pixel, where a reflected ray meets it
+ * (`../../gpu/hiz/shader.ts`).
  */
 export const SURFACE_SLOPE_WGSL = wgslBlock(
   'SURFACE_SLOPE_WGSL',

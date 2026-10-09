@@ -32,8 +32,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   gpuSelection: GpuSelection | undefined
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean
-  /** Level 0 of the Hi-Z holds this image's whole opaque depth: the depth field, which a
-   *  reflection marches, can be built from it (`../../visibility/passes.ts`). */
+  /** Level 0 of the Hi-Z holds this image's whole opaque depth: the pyramid's nearest layer,
+   *  which the reflections march, can be built from it (`../../../reflections/frame.ts`). */
   depthDrawn: boolean
   gpuMetricsReady: boolean
   deferredDrops: Set<string>

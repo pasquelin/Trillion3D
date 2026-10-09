@@ -21,8 +21,8 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   assert.equal(checkSurfaceSize(device, 1024, 1024), MIB * 33, 'targets follow resolution')
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 + 8 + 16,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, odd levels at ceil dimensions; the 1×1 thin transmission and lobes',
+    9 * 57 + 9 * 4 + (9 + 4 + 1) * 4 * 2 + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made, its two layers, odd levels at ceil dimensions; the 1×1 thin transmission and lobes',
   )
 })
 
