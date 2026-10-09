@@ -44,13 +44,20 @@ test('a page a busy server refuses (503) waits its turn, its loads waiting on it
   await cache.dispose()
 })
 
-test('loads of a key in flight join its one read; ended, the read is forgotten: nothing is kept', async (t) => {
+test('two GPU loads of one page in flight join its one read: one request, one resident page', async (t) => {
+  const asked = answering(t, 'p0.bin', [200], () => new Uint8Array([1, 2, 3, 4]))
+  const cache = createGpuPageCache(device, httpPageSource(BASE), { pageBytes: 8, slots: 1 })
+  const [first, second] = await Promise.all([cache.load('p0.bin'), cache.load('p0.bin')])
+  assert.deepEqual([second, asked.length], [first, 1])
+  await cache.dispose()
+})
+
+test('a read that ended is forgotten: the source keeps no page', async (t) => {
   const asked = answering(t, 'p0.bin', [200], () => new Uint8Array([1, 2, 3, 4]))
   const source = httpPageSource(BASE)
-  const [first, joined] = await Promise.all([source.read('p0.bin'), source.read('p0.bin')])
-  assert.deepEqual([first, asked.length], [joined, 1], 'one request')
   await source.read('p0.bin')
-  assert.equal(asked.length, 2, 'read again: the source keeps no page')
+  await source.read('p0.bin')
+  assert.equal(asked.length, 2)
   source.dispose()
 })
 

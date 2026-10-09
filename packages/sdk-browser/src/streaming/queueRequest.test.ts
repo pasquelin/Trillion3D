@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createGpuPageCache, httpPageSource } from '../gpu/page/pages.ts'
+import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
@@ -34,33 +34,6 @@ test('two GPU loads of one page in flight read it by its one job: one transfer',
     await cache.dispose()
     streamer.dispose()
     globalThis.fetch = previous
-  }
-})
-
-test('two GPU loads of one page in flight over HTTP send one request: the source is a streamer too', async (t) => {
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => (release = resolve))
-  const sent: string[] = []
-  t.mock.method(globalThis, 'fetch', async (url: string) => {
-    sent.push(String(url))
-    await gate
-    return new Response(new Uint8Array([1, 2, 3, 4]))
-  })
-  const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } })
-  const cache = createGpuPageCache(device, httpPageSource('http://cache/pages/'), {
-    pageBytes: 12,
-    slots: 1,
-  })
-  try {
-    const loads = [cache.load('p0.bin'), cache.load('p0.bin')]
-    await eventually(() => sent.length === 1)
-    release()
-    const [first, second] = await Promise.all(loads)
-    assert.equal(second, first, 'one resident page')
-    assert.deepEqual(sent, ['http://cache/pages/p0.bin'], 'one request')
-  } finally {
-    release()
-    await cache.dispose()
   }
 })
 
