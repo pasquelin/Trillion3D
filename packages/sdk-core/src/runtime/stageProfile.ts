@@ -79,7 +79,6 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   geometry: 'Geometry',
   coplanar: 'Coplanar layers',
   shadows: 'Shadows',
-  shadowCasters: 'Shadow casters (the light cut)',
   lightLists: 'Light lists',
   bounce: 'Bounce (irradiance probes)',
   reflections: 'Screen reflections',
