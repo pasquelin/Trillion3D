@@ -1,12 +1,7 @@
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
-import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { PageResidency } from '../../gpu/core/selection.ts'
-
-/** The bits of a page's `readable` byte (`createRowPageState`). */
-const HAS_ROW = 2,
-  READ = 1
 
 /**
  * WHAT THE ROW CACHE KNOWS OF EACH PACKED PAGE, held for the pages that carry something alone: the
@@ -25,30 +20,13 @@ export function createRowPageState(
     blend = createSparseInts(),
     flags = createSparseInts(),
     offsets = new Map<string, number>()
-  /** A byte a page up to the largest one that held a row: `HAS_ROW` while it holds one, `READ` too
-   *  while the cut reads it resident — its flag up —, what the row demand reads per id at each
-   *  readback with no probe (`rowDemand.ts`). */
-  let readable = new Uint8Array(0)
-  const follow = (at: number) => {
-    const row = rows.get(at) > 0
-    const value = row ? HAS_ROW | (flags.get(at) > 0 ? READ : 0) : 0
-    if (at >= readable.length) {
-      if (!value) return
-      readable = resized(readable, at + 1)
-    }
-    readable[at] = value
-  }
   const page = {
     /** The visibility row `page` draws from, -1 none. */
     rowOf: (at: number) => rows.get(at) - 1,
-    setRowOf(at: number, row: number) {
-      rows.set(at, row + 1)
-      follow(at)
-    },
+    setRowOf: (at: number, row: number) => void rows.set(at, row + 1),
     /** No page holds a visibility row any more: the table is rebuilt (`slotOps.ts`). */
     clearRows() {
       rows.clear()
-      readable.fill(0)
     },
     /** The casters' row the blended `page` casts from, -1 none (`blendCasters.ts`). */
     blendRowOf: (at: number) => blend.get(at) - 1,
@@ -56,14 +34,11 @@ export function createRowPageState(
     clearBlendRows: () => blend.clear(),
     /** `page`'s residency flag, as the cut reads it. */
     residentFlag: (at: number) => flags.get(at),
-    setResidentFlag(at: number, value: number) {
-      flags.set(at, value)
-      follow(at)
-    },
+    setResidentFlag: (at: number, value: number) => void flags.set(at, value),
     /** Whether the cut reads `page` resident: a row of its own, and its flag up. */
-    readsResident: (at: number) => ((readable[at] ?? 0) & READ) !== 0,
-    /** Whether `page` holds a visibility row, read with no probe. */
-    hasRow: (at: number) => ((readable[at] ?? 0) & HAS_ROW) !== 0,
+    readsResident: (at: number) => rows.get(at) > 0 && flags.get(at) > 0,
+    /** Whether `page` holds a visibility row. */
+    hasRow: (at: number) => rows.get(at) > 0,
     /** The pool slot, in words, `address` holds, -1 none (`../residency/mirror.ts`). */
     addressOffset: (address: string) => offsets.get(address) ?? -1,
     setAddressOffset(address: string, words: number) {
@@ -86,7 +61,7 @@ export function createRowPageState(
     } satisfies PageResidency,
     /** Bytes of the three maps: what the rows and the resident instances hold, never the pages. */
     get pageStateBytes() {
-      return rows.byteLength + blend.byteLength + flags.byteLength + readable.byteLength
+      return rows.byteLength + blend.byteLength + flags.byteLength
     },
   }
   return page
