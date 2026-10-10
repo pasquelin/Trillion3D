@@ -110,10 +110,11 @@ export function createTouchedRows() {
     flush(update: (rows: PlacementRows, from: number, to: number) => void) {
       for (const [link, set] of touched) {
         const rows = Uint32Array.from(set).sort()
-        for (let first = 0, last = 0; first < rows.length; first = last + 1) {
-          last = first
+        for (let first = 0; first < rows.length;) {
+          let last = first
           while (rows[last + 1] === rows[last] + 1) last++
           update(link.placements!, rows[first], rows[last])
+          first = last + 1
         }
       }
       touched.clear()

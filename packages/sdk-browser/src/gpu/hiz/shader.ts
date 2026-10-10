@@ -54,7 +54,7 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
 export const HIZ_TEST_ARGS_ENTRIES: GPUBindGroupLayoutEntry[] = [computeBufferEntry(1, 'storage')]
 
 /** Threads of the test's workgroup. */
-export const HIZ_TEST_WORKGROUP = 64
+const HIZ_TEST_WORKGROUP = 64
 
 /** Bytes of the test's dispatch arguments. */
 export const HIZ_TEST_ARGS_BYTES = 12

@@ -36,7 +36,7 @@ const run = (async () => {
 const verdictsOf = async (source: string) =>
   (await run).verdicts.filter(({ name }) => name === source)
 
-test('every DAG selection stage compiles and validates on the GPU, ', async () => {
+test('every DAG selection stage compiles and validates on the GPU', async () => {
   const verdicts = await verdictsOf('shipped')
   assert.equal(verdicts.length, 2)
   assert.deepEqual(
