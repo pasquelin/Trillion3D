@@ -3,7 +3,7 @@ import type { CutDelta, IdDelta } from '../cut/delta.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'
 import { createHeldKeys } from '../cut/heldKeys.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createCoverHolders } from './coverHolders.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
 
@@ -32,7 +32,7 @@ export function createWebgpuResidencySets(options: {
 }) {
   const { tracking, bootstrapKey, packedPages } = options
   const { keyCount, keyOf, wanted, wantedPages } = tracking
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(recordOf(id)!)

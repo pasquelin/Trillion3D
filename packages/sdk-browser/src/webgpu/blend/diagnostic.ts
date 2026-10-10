@@ -8,7 +8,7 @@ import {
 } from '../../page/selection/selection.ts'
 import { screenErrorRatio } from '../../diagnostic/colors.ts'
 import { clusterHash } from '../../visibility/buffer.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { createWebgpuBlendState } from './state.ts'
 import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 

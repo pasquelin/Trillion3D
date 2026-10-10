@@ -4,7 +4,7 @@ import { ROW_ID_BASE_WORD, ROW_OFFSET_WORD, packedRowBase, restampHizSlot } from
 import { writeRowDeformation } from '../../deformation/slotLayout.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
 type Writer = ReturnType<typeof createPageRowWriter>
@@ -18,7 +18,7 @@ type Writer = ReturnType<typeof createPageRowWriter>
 export function createWebgpuRowWriters(rows: Rows, packedPages: PageList, writePageRow: Writer) {
   const rowWords = PAGE_INFO_STRIDE / 4
   const state = { changed: false }
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
 
   /** Posts page `page` at rank `row`: the row is written, therefore declared dirty, by the writer. */

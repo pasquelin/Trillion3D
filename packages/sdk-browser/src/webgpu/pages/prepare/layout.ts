@@ -11,7 +11,7 @@ import { boundTableRows, ROW_STEP, VIEW_ROWS } from '../../row/tableRows.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
 import type { BoxTransformLot } from '../../../page/decode/batch/batchRuntime.ts'
 import { postPackedBases } from '../../../page/selection/placements.ts'
-import { createPackedPages, createPageCatalogue } from './catalogue.ts'
+import { createPackedPages, createPageCatalogue } from '../../../page/selection/catalogue.ts'
 import { createPackedInstances } from '../../row/instances.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>

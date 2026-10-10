@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { PageList } from '../pages/prepare/catalogue.ts'
+import type { PageList } from '../../page/selection/catalogue.ts'
 import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import type { createWebgpuRowState } from './state.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'

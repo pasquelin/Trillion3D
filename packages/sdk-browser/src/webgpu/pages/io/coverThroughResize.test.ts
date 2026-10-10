@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setWebgpuMemoryBudgets } from './memory.ts'
 import { coarseSession } from './memoryGrowth.fixture.ts'
-import { createPageCatalogue } from '../prepare/catalogue.ts'
+import { createPageCatalogue } from '../../../page/selection/catalogue.ts'
 
 test('the root cover draws through a pool resize and the row growth that follows', async () => {
   const { rt, draw, drawn, dispose } = await coarseSession()

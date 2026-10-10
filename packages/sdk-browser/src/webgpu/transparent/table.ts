@@ -2,7 +2,7 @@ import { alignUp, workgroupCount } from '../../../../math/src/scalar/integers.ts
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
@@ -101,7 +101,7 @@ export function createTransparentTable(
   packedPages: PageList,
   items: readonly BlendGpuItem[],
 ) {
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
   const paged = items.filter((item) => item.paged)
   const { orders, length } = itemOrders(roots, paged)
