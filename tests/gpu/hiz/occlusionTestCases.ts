@@ -41,7 +41,7 @@ function occlusionCase(name: string, hole: boolean, clipsNear: boolean, expected
   // A background hole, at the far plane: nothing behind it can be rejected.
   if (hole) depth[HEIGHT - 1][WIDTH - 1] = DEPTH_CLEAR
   const packed = packHizPyramid(depth)
-  const { data, sizes, offsets } = packed
+  const { sizes, offsets } = packed
   const [width, height] = sizes[LEVEL]
   return {
     name,

@@ -74,7 +74,7 @@ export function encodeVsmProjection(
   projected: VsmProjectionLight[],
   views: GPUTextureView[],
 ) {
-  const { lights, gpu, run } = rt
+  const { lights, gpu } = rt
   const [width, height] = gpu.targetSize
   const store = lights.store
   const reads = Math.min(plan.lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS)

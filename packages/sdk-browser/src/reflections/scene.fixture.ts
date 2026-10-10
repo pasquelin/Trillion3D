@@ -6,11 +6,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { HIZ_NEAREST } from '../gpu/hiz/pyramidTexture.ts'
 import { depthField, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import {
-  reflectionLightViewWgsl,
-  REFLECTION_GROUP,
-  REFLECTION_VIEW_AT as AT,
-} from './viewLayout.ts'
+import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
 import { slabWords } from './slab.fixture.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
