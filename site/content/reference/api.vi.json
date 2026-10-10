@@ -2407,7 +2407,6 @@
       "cache": "Bộ nhớ đệm trang mà nó đọc qua, của chủ nó: sống lâu hơn bộ đọc.",
       "signal": "Hủy mọi lượt đọc khi bị dừng.",
       "workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
-      "maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
       "onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
@@ -4590,9 +4589,10 @@
   },
   "createGpuPageCache": {
     "summary": "Ranh giới cấp phát/hàng đợi WebGPU.",
-    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp: mỗi lần tải đọc trang của nó từ `source` (`reader.ts`), nguồn này gộp các lần đọc của một trang đang chạy và cho biết khi nào một lần đọc thất bại được yêu cầu lại. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó.",
+    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp: mỗi lần tải đọc trang của nó từ `source` (`reader.ts`), nguồn này gộp các lần đọc của một trang đang chạy và cho biết khi nào một lần đọc thất bại được yêu cầu lại. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. Việc đổi kích thước giữ các trang của `cover` trước bất kỳ trang ghim nào.",
     "parameters": {
       "options.homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "options.cover": "Địa chỉ của lớp phủ gốc: việc đổi kích thước giữ chúng trước bất kỳ trang nào khác.",
       "options": "Bộ nhớ đệm trang GPU được định cỡ ra sao và báo cáo về đâu (`createGpuPageCache`).",
       "options.pageBytes": "Số byte của một ô: bội số của bốn.",
       "options.slots": "Số ô mà hồ chứa giữ.",
@@ -4605,6 +4605,7 @@
       "pageBytes": "Số byte của một ô: bội số của bốn.",
       "slots": "Số ô mà vùng chứa giữ.",
       "homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "cover": "Địa chỉ của lớp phủ gốc: việc đổi kích thước giữ chúng trước bất kỳ trang nào khác.",
       "onDiagnostic": "Nghe những gì bộ nhớ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
     }
   },
@@ -4615,9 +4616,6 @@
       "keyAt": "Khóa ở hạng `at`, nạn nhân đầu tiên ở 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Cách một trang đã tải được ghim: `'held'` đứng trước các ghim thường khi đổi kích thước, nếu không là `'pinned'`."
-  },
   "createJob": {
     "summary": "Không có bộ đếm giờ, DOM, hệ thống tệp hay giao diện người dùng."
   },
@@ -4626,13 +4624,12 @@
   },
   "createPageStreamer": {
     "summary": "Các lần đọc có giới hạn, ưu tiên và không trùng lặp qua `options.cache`, bộ nhớ đệm trang mà chủ của nó giữ (`pageCache.ts`).",
-    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi cả số mục lẫn số byte; các mục được ghim sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách giữ nó lại.",
+    "description": "Một yêu cầu vẫn còn chờ trong hàng đợi bị loại bỏ ngay khi người tiêu thụ cuối cùng của nó rời đi; một yêu cầu đã đang trong quá trình truyền được phép đáp xuống bộ nhớ đệm. Bộ nhớ đệm là một tập hợp ít-được-dùng-gần-đây-nhất bị giới hạn bởi số byte; một trang có chủ sở hữu (`pin`, `retainRanks`) sống sót qua việc loại bỏ, nên một bên gọi giữ được ảnh bìa đang hiển thị của mình bằng cách ghim nó.",
     "parameters": {
       "options": "Cách một bộ đọc trang đọc (`createPageStreamer`): qua `cache`, bộ nhớ đệm của chủ nó, nơi dành chỗ cho các bảng manifest và hàng đợi truyền bên cạnh các trang; mỗi thành phần khác đều có giá trị mặc định.",
       "options.cache": "Bộ nhớ đệm trang mà nó đọc qua, của chủ nó: sống lâu hơn bộ đọc.",
       "options.signal": "Hủy mọi lượt đọc khi bị dừng.",
       "options.workerCount": "Số lượt đọc chạy cùng lúc; mặc định 8.",
-      "options.maxPages": "Số trang tối đa giữ cùng lúc; khi vắng thì chỉ giới hạn theo byte.",
       "options.onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
@@ -6277,6 +6274,7 @@
       "source": "Nơi các trang được đọc.",
       "options": "Số byte mỗi trang, và bao nhiêu khe.",
       "options.homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "options.cover": "Địa chỉ của lớp phủ gốc: việc đổi kích thước giữ chúng trước bất kỳ trang nào khác.",
       "options.pageBytes": "Số byte của một ô: bội số của bốn.",
       "options.slots": "Số ô mà hồ chứa giữ.",
       "options.onDiagnostic": "Nghe những gì bộ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
@@ -7841,10 +7839,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Một phiên đọc qua bộ nhớ đệm: số trang nhiều nhất nó để bộ nhớ đệm giữ, và ai nghe một trang bị loại ra, hay một lần loại bỏ không tìm thấy gì để lấy.",
+    "summary": "Một phiên đọc qua bộ nhớ đệm: ai nghe một trang bị loại ra, hay một lần loại bỏ không tìm thấy gì để lấy.",
     "description": "Phần nó dành ra khỏi tổng, nó báo cho chỗ mà nó mở (`open`) mỗi khi phần đó thay đổi.",
     "members": {
-      "maxPages": "Số trang nhiều nhất phiên để bộ nhớ đệm giữ; mặc định không giới hạn.",
       "evicted": "Được gọi với url của một trang khi bộ nhớ đệm loại nó ra.",
       "blocked": "Được gọi khi một lần loại bỏ vượt ngân sách không tìm thấy gì để lấy."
     }
@@ -7908,6 +7905,6 @@
   },
   "createPageCache": {
     "summary": "BỘ NHỚ ĐỆM MÁY CHỦ DUY NHẤT: các byte của mọi trang và gói đã đọc, của mọi tệp mà máy chủ trả nguyên vẹn thay cho một khoảng (`readRange`), của mọi mức kết cấu đã giải mã và bản ghi ô khối (`level`), và của proxy thường trú của cảnh (`keep`), như một tập mục, MỘT ngân sách và MỘT cơ chế loại bỏ (`cacheEntries.ts`), so với tổng CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Chủ của nó giữ nó qua các phiên: một thế giới trao cùng một bộ nhớ đệm cho mọi phiên nó mở, nên một phiên mở lại — trên thiết bị được cấp lại sau khi mất, hoặc trên một cảnh đã thay đổi — đọc từ đây những gì phiên trước đã tải, và không tải gì mà nó đang giữ. Mỗi phiên đọc qua nó dành chỗ cho các bảng manifest, hàng đợi truyền và các bảng của engine (`manifestTableBytes`, `maxTransferBytes`, `reserve` của bộ đọc), được báo khi chúng thay đổi (`open`), bộ nhớ đệm giữ tổng của chúng, và giữ các trang mà nó ghim hoặc đọc; các mục giữ phần còn lại (`budgetBytes`). Chỉ bộ nhớ đệm loại bỏ, khi các mục của nó vượt ngân sách: không bao giờ một mục có người đang giữ, rồi các trang, tệp và mức lâu nhất không được dùng, proxy sau cùng; vượt quá số trang ít nhất mà một phiên cho phép thì chỉ các trang. Một mức không cần chỗ riêng: nó lấy những gì việc loại bỏ có thể giải phóng (`roomBytes`), như một trang."
+    "description": "Chủ của nó giữ nó qua các phiên: một thế giới trao cùng một bộ nhớ đệm cho mọi phiên nó mở, nên một phiên mở lại — trên thiết bị được cấp lại sau khi mất, hoặc trên một cảnh đã thay đổi — đọc từ đây những gì phiên trước đã tải, và không tải gì mà nó đang giữ. Mỗi phiên đọc qua nó dành chỗ cho các bảng manifest, hàng đợi truyền và các bảng của engine (`manifestTableBytes`, `maxTransferBytes`, `reserve` của bộ đọc), được báo khi chúng thay đổi (`open`), bộ nhớ đệm giữ tổng của chúng, và giữ các trang mà nó ghim hoặc đọc; các mục giữ phần còn lại (`budgetBytes`). Chỉ bộ nhớ đệm loại bỏ, khi các mục của nó vượt ngân sách: không bao giờ một mục có người đang giữ, rồi các trang, tệp và mức lâu nhất không được dùng, proxy sau cùng. Một mức không cần chỗ riêng: nó lấy những gì việc loại bỏ có thể giải phóng (`roomBytes`), như một trang."
   }
 }

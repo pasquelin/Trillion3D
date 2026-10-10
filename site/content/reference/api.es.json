@@ -1152,9 +1152,10 @@
   },
   "createGpuPageCache": {
     "summary": "Frontera de asignación y cola WebGPU.",
-    "description": "Los bytes de las páginas y la regla los proporciona el host: cada carga lee su página de `source` (`reader.ts`), que une las lecturas de una página en curso y dice cuándo se vuelve a pedir una fallida. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir. `pin(key, 'held')` conserva una página antes que las fijadas ordinarias en `resize(slots)`, que ya no acepta un conjunto held. Volver a fijarla de forma ordinaria mantiene ese nivel; `unpin(key)` lo elimina.",
+    "description": "Los bytes de las páginas y la regla los proporciona el host: cada carga lee su página de `source` (`reader.ts`), que une las lecturas de una página en curso y dice cuándo se vuelve a pedir una fallida. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir. Un redimensionado conserva las páginas de `cover` antes que cualquier página fijada.",
     "parameters": {
       "options.homes": "El lugar propio de cada página, tomado mientras `slots` contienen todo el catálogo (`homes.ts`).",
+      "options.cover": "Las direcciones de la cobertura raíz: un redimensionado las conserva antes que cualquier otra página.",
       "options": "Cómo se dimensiona una caché de páginas GPU y dónde informa (`createGpuPageCache`).",
       "options.pageBytes": "Los bytes de una ranura: un múltiplo de cuatro.",
       "options.slots": "Cuántas ranuras contiene el pool.",
@@ -1167,6 +1168,7 @@
       "pageBytes": "Los bytes de una ranura: un múltiplo de cuatro.",
       "slots": "Cuántas ranuras contiene el depósito.",
       "homes": "El lugar propio de cada página, tomado mientras `slots` contienen todo el catálogo (`homes.ts`).",
+      "cover": "Las direcciones de la cobertura raíz: un redimensionado las conserva antes que cualquier otra página.",
       "onDiagnostic": "Escucha lo que la caché informa: su disposición, las cargas canceladas y los rechazos."
     }
   },
@@ -1177,9 +1179,6 @@
       "keyAt": "La clave en el rango `at`, la primera víctima en 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Cómo se fija una página cargada: `'held'` por delante de las fijaciones ordinarias al redimensionar, si no `'pinned'`."
-  },
   "createJob": {
     "summary": "Sin temporizador, sin DOM, sin archivos ni interfaz."
   },
@@ -1188,13 +1187,12 @@
   },
   "createPageStreamer": {
     "summary": "Lecturas acotadas, por prioridad y sin duplicado, a través de `options.cache`, la caché de páginas que guarda su propietario (`pageCache.ts`).",
-    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado tanto en entradas como en bytes; las entradas fijadas sobreviven al desalojo, así que un llamador conserva su cobertura mostrada reteniéndola.",
+    "description": "Una solicitud que todavía espera en cola se descarta cuando su último consumidor se va; una solicitud ya en tránsito puede llegar a la caché. La caché es un conjunto «menos recientemente usado» acotado en bytes; una página con dueño (`pin`, `retainRanks`) sobrevive al desalojo, así que un llamador conserva su cobertura mostrada fijándola.",
     "parameters": {
       "options": "Cómo lee un lector de páginas (`createPageStreamer`): a través de `cache`, el de su propietario, que reserva sus tablas de manifiesto y su cola de transferencia junto a sus páginas; cada otro miembro tiene un valor por defecto.",
       "options.cache": "La caché de páginas a través de la cual lee, la de su propietario: sobrevive al lector.",
       "options.signal": "Cancela todas las lecturas una vez abortado.",
       "options.workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
-      "options.maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
       "options.onEvict": "Escucha cada página que sale de la caché.",
       "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "options.onDiagnostic": "Escucha cada paso de cada lectura.",
@@ -4374,6 +4372,7 @@
       "source": "De dónde se leen las páginas.",
       "options": "Bytes por página, y cuántos emplazamientos.",
       "options.homes": "El lugar propio de cada página, tomado mientras `slots` contienen todo el catálogo (`homes.ts`).",
+      "options.cover": "Las direcciones de la cobertura raíz: un redimensionado las conserva antes que cualquier otra página.",
       "options.pageBytes": "Los bytes de una ranura: un múltiplo de cuatro.",
       "options.slots": "Cuántas ranuras contiene el pool.",
       "options.onDiagnostic": "Oye lo que informa la caché: su disposición, las cargas canceladas y los rechazos."
@@ -4512,7 +4511,6 @@
       "cache": "La caché de páginas a través de la cual lee, la de su propietario: sobrevive al lector.",
       "signal": "Cancela todas las lecturas una vez abortado.",
       "workerCount": "Lecturas que se ejecutan a la vez; 8 por defecto.",
-      "maxPages": "Máximo de páginas retenidas a la vez; limitado solo por bytes si falta.",
       "onEvict": "Escucha cada página que sale de la caché.",
       "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "onDiagnostic": "Escucha cada paso de cada lectura.",
@@ -7840,10 +7838,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Una sesión que lee a través de la caché: el máximo de páginas que deja tener a la caché, y quién se entera de una página desalojada, o de un desalojo que no encontró nada que tomar.",
+    "summary": "Una sesión que lee a través de la caché: quién se entera de una página desalojada, o de un desalojo que no encontró nada que tomar.",
     "description": "Lo que reserva del total se lo dice al puesto que abre (`open`) cada vez que cambia.",
     "members": {
-      "maxPages": "El máximo de páginas que la sesión deja tener a la caché; sin tope por defecto.",
       "evicted": "Se llama con la url de una página cuando la caché la desaloja.",
       "blocked": "Se llama cuando un desalojo por encima del presupuesto no encontró nada que tomar."
     }
@@ -7907,6 +7904,6 @@
   },
   "createPageCache": {
     "summary": "LA ÚNICA CACHÉ DEL ANFITRIÓN: los bytes de cada página y paquete leídos, de cada archivo que un servidor respondió entero en lugar de un rango (`readRange`), de cada nivel de textura decodificado y registro de tesela en bloques (`level`), y del proxy residente de la escena (`keep`), como un solo conjunto de entradas, UN presupuesto y UN desalojo (`cacheEntries.ts`), frente al total de CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último; por encima del mínimo de páginas que permite una sesión, solo las páginas. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
+    "description": "Su propietario la guarda de una sesión a otra: un mundo entrega la misma a cada sesión que abre, así que una sesión reabierta — en un dispositivo concedido de nuevo tras una pérdida, o sobre una escena que cambió — lee de aquí lo que la anterior obtuvo, y no obtiene nada de lo que ella tiene. Cada sesión que lee a través de ella reserva sus tablas de manifiesto, su cola de transferencia y las tablas del motor (`manifestTableBytes`, `maxTransferBytes`, el `reserve` del lector), comunicadas a medida que cambian (`open`), con la caché guardando su suma, y toma retenciones sobre las páginas que fija o lee; las entradas tienen el resto (`budgetBytes`). Solo la caché desaloja, una vez que sus entradas superan el presupuesto: nunca una entrada que alguien retiene, luego las páginas, archivos y niveles usados hace más tiempo, el proxy el último. Un nivel no necesita espacio propio: toma lo que el desalojo puede liberar (`roomBytes`), como una página."
   }
 }

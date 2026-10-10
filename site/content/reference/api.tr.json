@@ -2739,7 +2739,6 @@
       "cache": "Üzerinden okuduğu sayfa önbelleği, sahibininki: akıştan daha uzun yaşar.",
       "signal": "İptal edildiğinde tüm okumaları durdurur.",
       "workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
-      "maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
       "onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "onDiagnostic": "Her okumanın her adımını duyar.",
@@ -5676,9 +5675,10 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU tahsis/kuyruk sınırı.",
-    "description": "Sayfa baytları ve politika host tarafından sağlanır: her yükleme sayfasını `source` (`reader.ts`) üzerinden okur; bu kaynak süren bir sayfa okumalarını birleştirir ve başarısız bir okumanın ne zaman yeniden isteneceğini söyler. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır.",
+    "description": "Sayfa baytları ve politika host tarafından sağlanır: her yükleme sayfasını `source` (`reader.ts`) üzerinden okur; bu kaynak süren bir sayfa okumalarını birleştirir ve başarısız bir okumanın ne zaman yeniden isteneceğini söyler. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. Yeniden boyutlandırma, `cover` sayfalarını sabitlenmiş her sayfadan önce korur.",
     "parameters": {
       "options.homes": "Her sayfanın kendi yeri, `slots` tüm kataloğu tuttuğu sürece alınır (`homes.ts`).",
+      "options.cover": "Kök kapsamanın adresleri: yeniden boyutlandırma bunları diğer her sayfadan önce korur.",
       "options": "Bir GPU sayfa önbelleğinin nasıl boyutlandırıldığı ve nereye bildirdiği (`createGpuPageCache`).",
       "options.pageBytes": "Bir yuvanın bayt sayısı: dörtün katı.",
       "options.slots": "Havuzun kaç yuva tuttuğu.",
@@ -5691,6 +5691,7 @@
       "pageBytes": "Bir yuvanın baytları: dördün katı.",
       "slots": "Havuzun kaç yuva tuttuğu.",
       "homes": "Her sayfanın kendi yeri, `slots` tüm kataloğu tuttuğu sürece alınır (`homes.ts`).",
+      "cover": "Kök kapsamanın adresleri: yeniden boyutlandırma bunları diğer her sayfadan önce korur.",
       "onDiagnostic": "Önbelleğin bildirdiklerini dinler: düzeni, iptal edilen yüklemeler ve retler."
     }
   },
@@ -5701,9 +5702,6 @@
       "keyAt": "`at` sırasındaki anahtar; ilk kurban 0'da."
     }
   },
-  "PagePinTier": {
-    "summary": "Yüklenen bir sayfanın nasıl sabitlendiği: yeniden boyutlandırmada sıradan sabitlemelerin önünde `'held'`, aksi halde `'pinned'`."
-  },
   "createJob": {
     "summary": "Zamanlayıcı, DOM, dosya sistemi ya da UI yok."
   },
@@ -5712,13 +5710,12 @@
   },
   "createPageStreamer": {
     "summary": "Sahibinin tuttuğu sayfa önbelleği `options.cache` üzerinden sınırlı, önceliklendirilmiş ve tekilleştirilmiş okumalar (`pageCache.ts`).",
-    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, hem girdiler hem de baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sabitlenmiş girdiler tahliyeden kurtulur, bu yüzden bir çağıran, onu tutarak görüntülenen kapsamasını korur.",
+    "description": "Kuyrukta hâlâ bekleyen bir istek, son tüketicisi ayrılır ayrılmaz düşürülür; zaten aktarılmakta olan birinin önbelleğe inmesine izin verilir. Önbellek, baytlarla sınırlanmış, en son kullanılan en az olan bir kümedir; sahibi olan bir sayfa (`pin`, `retainRanks`) tahliyeden kurtulur, bu yüzden bir çağıran, onu sabitleyerek görüntülenen kapsamasını korur.",
     "parameters": {
       "options": "Bir sayfa akışının nasıl okuduğu (`createPageStreamer`): sahibinin önbelleği olan `cache` üzerinden; bu önbellek sayfalarının yanında bildirim tablolarını ve aktarım kuyruğunu ayırır; diğer her üyenin varsayılan değeri vardır.",
       "options.cache": "Üzerinden okuduğu sayfa önbelleği, sahibininki: akıştan daha uzun yaşar.",
       "options.signal": "İptal edildiğinde tüm okumaları durdurur.",
       "options.workerCount": "Aynı anda çalışan okumalar; varsayılan 8.",
-      "options.maxPages": "Aynı anda tutulan en fazla sayfa; yoksa yalnızca baytlarla sınırlanır.",
       "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "options.onDiagnostic": "Her okumanın her adımını duyar.",
@@ -7417,6 +7414,7 @@
       "source": "Sayfaların nereden okunduğu.",
       "options": "Sayfa başına bayt, ve kaç slot.",
       "options.homes": "Her sayfanın kendi yeri, `slots` tüm kataloğu tuttuğu sürece alınır (`homes.ts`).",
+      "options.cover": "Kök kapsamanın adresleri: yeniden boyutlandırma bunları diğer her sayfadan önce korur.",
       "options.pageBytes": "Bir yuvanın bayt sayısı: dörtün katı.",
       "options.slots": "Havuzun kaç yuva tuttuğu.",
       "options.onDiagnostic": "Önbelleğin bildirdiklerini dinler: yerleşimini, iptal edilen yüklemeleri ve reddedilenleri."
@@ -7840,10 +7838,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Önbellek üzerinden okuyan bir oturum: önbelleğin tutmasına izin verdiği en çok sayfa ve tahliye edilen bir sayfayı ya da alacak hiçbir şey bulamayan bir tahliyeyi kimin duyduğu.",
+    "summary": "Önbellek üzerinden okuyan bir oturum: tahliye edilen bir sayfayı ya da alacak hiçbir şey bulamayan bir tahliyeyi kimin duyduğu.",
     "description": "Toplamdan ayırdığını, her değiştiğinde açtığı yere (`open`) bildirir.",
     "members": {
-      "maxPages": "Oturumun önbelleğin tutmasına izin verdiği en çok sayfa; varsayılan olarak sınır yok.",
       "evicted": "Önbellek bir sayfayı tahliye ederken sayfanın url'siyle çağrılır.",
       "blocked": "Bütçeyi aşan bir tahliye alacak hiçbir şey bulamadığında çağrılır."
     }
@@ -7907,6 +7904,6 @@
   },
   "createPageCache": {
     "summary": "TEK ANA BİLGİSAYAR ÖNBELLEĞİ: okunan her sayfanın ve paketin, bir sunucunun aralık yerine bütün olarak yanıtladığı her dosyanın (`readRange`), çözülmüş her doku seviyesinin ve blok karo kaydının (`level`) ve sahnenin yerleşik vekilinin (`keep`) baytları; tek bir girdi kümesi, TEK bütçe ve TEK tahliye olarak (`cacheEntries.ts`), CPU toplamına karşı (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Sahibi onu oturumlar boyunca tutar: bir dünya açtığı her oturuma aynısını verir; böylece yeniden açılan bir oturum — bir kayıptan sonra yeniden verilen bir cihazda ya da değişen bir sahnede — sonuncusunun getirdiğini buradan okur ve onun tuttuğu hiçbir şeyi getirmez. Onun üzerinden okuyan her oturum bildirim tablolarını, aktarım kuyruğunu ve motorun tablolarını (`manifestTableBytes`, `maxTransferBytes`, akışın `reserve`'ü) ayırır, değiştikçe bildirilir (`open`), önbellek bunların toplamını tutar; ve sabitlediği ya da okuduğu sayfalar üzerinde tutmalar alır; girdiler gerisini tutar (`budgetBytes`). Yalnızca önbellek tahliye eder, girdileri bütçeyi aştığında: birinin tuttuğu bir girdiyi asla, sonra en uzun süredir kullanılmayan sayfaları, dosyaları ve seviyeleri, vekili en son; bir oturumun izin verdiği en az sayfa sayısının ötesinde yalnızca sayfaları. Bir seviyenin kendi yerine ihtiyacı yoktur: tahliyenin boşaltabileceğini alır (`roomBytes`), bir sayfa gibi."
+    "description": "Sahibi onu oturumlar boyunca tutar: bir dünya açtığı her oturuma aynısını verir; böylece yeniden açılan bir oturum — bir kayıptan sonra yeniden verilen bir cihazda ya da değişen bir sahnede — sonuncusunun getirdiğini buradan okur ve onun tuttuğu hiçbir şeyi getirmez. Onun üzerinden okuyan her oturum bildirim tablolarını, aktarım kuyruğunu ve motorun tablolarını (`manifestTableBytes`, `maxTransferBytes`, akışın `reserve`'ü) ayırır, değiştikçe bildirilir (`open`), önbellek bunların toplamını tutar; ve sabitlediği ya da okuduğu sayfalar üzerinde tutmalar alır; girdiler gerisini tutar (`budgetBytes`). Yalnızca önbellek tahliye eder, girdileri bütçeyi aştığında: birinin tuttuğu bir girdiyi asla, sonra en uzun süredir kullanılmayan sayfaları, dosyaları ve seviyeleri, vekili en son. Bir seviyenin kendi yerine ihtiyacı yoktur: tahliyenin boşaltabileceğini alır (`roomBytes`), bir sayfa gibi."
   }
 }
