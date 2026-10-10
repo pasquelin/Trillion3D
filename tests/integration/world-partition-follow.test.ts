@@ -1,4 +1,4 @@
-// #404: the synthetic worlds of `world-partition.test.ts`, compiled by this checkout's native
+// #404: the synthetic worlds of `world-partition.fixture.ts`, compiled by this checkout's native
 // compiler and read whole as a world reads them (`loadModel`), their cells followed by the
 // session's per-frame step (`world-partition-follow.fixture.ts`): a zoom out to 0.5 and a parent
 // scaled down leave no object missing, the rows grown in place, no session reopened.
