@@ -95,6 +95,10 @@ export function createCacheEntries<V, K = string>(left: (value: V, key: K) => vo
     get heldCount() {
       return size - heap.size
     },
+    /** The entry that leaves first — the lowest tier, the least recently touched —, none held. */
+    get first(): Readonly<CacheEntry<V, K>> | undefined {
+      return heap.items[0]
+    },
     /** The entry at `key`, its value absent while it is only held; nothing is marked. */
     entry: (key: K): Readonly<CacheEntry<V, K>> | undefined => entries.get(key),
     /** The value at `key`, marked used last. */

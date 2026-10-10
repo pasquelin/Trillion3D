@@ -40,18 +40,13 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
    *  back at its last touch's place. */
   const leastRecent = (accept: Accept): ResidentPage | NoVictim => {
     let page: ResidentPage | undefined
-    const peek = (top: ResidentPage) => ((page = top), false)
-    for (;;) {
-      recent.evict(peek)
-      const top = page as ResidentPage | undefined
-      if (!top || accept(top)) break
-      aside.add(top.key)
-      recent.acquire(top.key)
-      page = undefined
+    for (page = recent.first?.value; page && !accept(page); page = recent.first?.value) {
+      aside.add(page.key)
+      recent.acquire(page.key)
     }
     for (const key of aside) recent.release(key)
     aside.clear()
-    return (page as ResidentPage | undefined) ?? 'all-pages-pinned'
+    return page ?? 'all-pages-pinned'
   }
 
   const inOrder = (order: EvictionOrder): ((accept: Accept) => ResidentPage | NoVictim) => {
