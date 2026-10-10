@@ -6,8 +6,13 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { HIZ_NEAREST } from '../gpu/hiz/pyramidTexture.ts'
 import { depthField, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
-import { reflectionSlab } from './viewWrite.ts'
+import {
+  reflectionLightViewWgsl,
+  REFLECTION_GROUP,
+  REFLECTION_VIEW_AT as AT,
+} from './viewLayout.ts'
+import type { HeldImage } from './radiance.ts'
+import { createReflectionViewWriter } from './viewWrite.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
@@ -22,6 +27,24 @@ type ReflectionView = {
   proxy: number[]
   surroundings: number[]
 }
+/** The slab words the shipped writer stages for the view-projection `m` of an image of `size`
+ *  (`reflectionSlab` behind `createReflectionViewWriter`). */
+function slabWords(m: ArrayLike<number>, size: readonly [number, number]) {
+  let written = new Float32Array(0)
+  const device = {
+    queue: {
+      writeBuffer: (_: unknown, __: number, words: Float32Array) => (written = words.slice()),
+    },
+  } as unknown as GPUDevice
+  const held = { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false }
+  createReflectionViewWriter(device, {} as GPUBuffer)(
+    { viewProjection: m, size, depthDrawn: true, proxyError: 0 },
+    held as HeldImage,
+    1,
+  )
+  return [...written.subarray(AT.slab, AT.slab + 4)]
+}
+
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
  *  depth's own) and the deferred lighting's (`View`: the pixel's world point, the eye, the drawn
  *  size). */
@@ -31,14 +54,13 @@ export function viewOf(
   inverse: Iterable<number>,
   eye: number[],
   size: number[],
-  scale: number,
 ): Views {
   return {
     reflectionView: {
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
       radiance: [size[0], size[1], Math.ceil(Math.log2(Math.max(size[0], size[1]))), 0],
-      slab: reflectionSlab([...m], scale),
+      slab: slabWords(m as ArrayLike<number>, [size[0], size[1]]),
       traced: [1, 0, 0, 0],
       proxy: [0, 0, 0, 0],
       surroundings: [0, 0, 0, 0],
@@ -176,7 +198,7 @@ export function reflectionRunner(
 export function sceneFromDepth(view: Camera, depth: ArrayLike<number>) {
   return [
     depthField(view.width, view.height, depth),
-    viewOf(view.m, view.inverse, [...view.eye, 1], [view.width, view.height], view.scale),
+    viewOf(view.m, view.inverse, [...view.eye, 1], [view.width, view.height]),
   ] as const
 }
 

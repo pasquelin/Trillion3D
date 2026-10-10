@@ -6,7 +6,7 @@ import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
 import {
   HIZ_NEAREST,
-  HIZ_ROW,
+  hizTextureSize,
   HIZ_WHOLE_FARTHEST,
   hizLevelWords,
 } from '../gpu/hiz/pyramidTexture.ts'
@@ -30,6 +30,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
   const made = Array.from({ length: HIZ_WHOLE_FARTHEST + 1 }, () =>
     new Float64Array(texels).fill(NaN),
   )
+  const row = hizTextureSize(texels).width
   const slopes = new Uint32Array(width * height)
   const level0 = {}
   const build = shaderRun<{
@@ -90,7 +91,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
     },
     /** The word at texel `p` of `layer`: a depth's bits, or a pixel's slopes. */
     word(p: number[], layer: number) {
-      const i = p[1] * HIZ_ROW + p[0]
+      const i = p[1] * row + p[0]
       let level = 0
       while (level + 1 < sizes.length && offsets[level + 1] <= i) level++
       const [w] = sizes[level],

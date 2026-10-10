@@ -22,7 +22,7 @@ export type ReflectionFrame = {
  *  point, `z_c = a · w_view + b`, and the clip `w` is `c · w_view + e`: under a perspective (`c`
  *  not zero) the depth is `A + B / w`, with `A = a / c` the depth at an infinite distance; under
  *  an orthographic projection a pixel spans `scale · |a|` of depth, at every distance. */
-export function reflectionSlab(m: ArrayLike<number>, scale: number) {
+function reflectionSlab(m: ArrayLike<number>, scale: number) {
   const gradientZ = [m[2], m[6], m[10]],
     gradientW = [m[3], m[7], m[11]]
   const perspective = gradientW.some((component) => component !== 0)

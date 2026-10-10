@@ -7,17 +7,17 @@ import { perspectiveSlope } from '../../../packages/math/src/projection/camera.t
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { castBoxes, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import {
-  REFLECTION_EDGE,
-  REFLECTION_STEP_CAP,
-  REFLECTION_THICKNESS,
-} from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import { reflectionConstant } from '../../../packages/sdk-browser/src/reflections/constants.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { openRig } from './rig.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
+/** The march's tuned constants as the shaders read them. */
+const EDGE = reflectionConstant('REFLECTION_EDGE'),
+  STEP_CAP = reflectionConstant('REFLECTION_STEP_CAP'),
+  THICKNESS = reflectionConstant('REFLECTION_THICKNESS')
 const EYE: V3 = [0, 6, 4]
 /** Where the eye looks: down onto the floor at 31°, so that the mirror rays drift across the screen. */
 const TARGET: V3 = [0, 0, -6]
@@ -110,12 +110,12 @@ export function run() {
       const hit = castBoxes(origins[p], mirrors[p], boxes)
       const point: V3 = [0, 1, 2].map((c) => origins[p][c] + mirrors[p][c] * hit.t) as V3
       const [hx, hy] = view.project(point)
-      const border = REFLECTION_EDGE * HEIGHT
+      const border = EDGE * HEIGHT
       if (hx <= border || hy <= border || hx >= WIDTH - border || hy >= HEIGHT - border)
         return false
       if (
         Math.abs(hx - (p % WIDTH) - 0.5) + Math.abs(hy - Math.floor(p / WIDTH) - 0.5) >=
-        REFLECTION_STEP_CAP / 2
+        STEP_CAP / 2
       )
         return false
       for (let v = -3; v <= 3; v++)
@@ -142,7 +142,7 @@ export function run() {
         const block = Math.floor(shown[at] / 6)
         if (shown[at] < 0 || !isThin(block)) continue
         const surface = view.near / frame.depth[at]
-        if (w <= surface * (1 + 1.5 * REFLECTION_THICKNESS * view.scale)) return false
+        if (w <= surface * (1 + 1.5 * THICKNESS * view.scale)) return false
         behind = true
       }
       return behind

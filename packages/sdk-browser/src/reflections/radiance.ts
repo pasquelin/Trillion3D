@@ -279,7 +279,7 @@ const radianceThreads = (drawn: number, level: number, extent: number) =>
 
 /** The workgroups of the dispatch that makes level `level` of an image drawn `size`, in a pyramid
  *  of `extent`. */
-export const radianceGroups = (
+const radianceGroups = (
   size: readonly [number, number],
   level: number,
   extent: readonly [number, number],

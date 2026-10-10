@@ -4,7 +4,38 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
-import { radianceGroups } from './radiance.ts'
+import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
+
+/** The workgroups the shipped build dispatches for the first two levels of an image of `size`: the
+ *  dispatch of `encodeRadiancePyramid` over a pyramid of three levels, recorded. */
+function firstDispatch(size: [number, number]) {
+  const dispatched: number[][] = []
+  const pass = {
+    setPipeline() {},
+    setBindGroup() {},
+    dispatchWorkgroups: (...groups: number[]) => dispatched.push(groups),
+  }
+  const inputs = { hdr: {}, view: {}, hash: {} } as unknown as RadianceInputs
+  const pipelines = {} as Parameters<typeof encodeRadiancePyramid>[3]
+  const pyramid = {
+    levels: 3,
+    texture: { width: size[0], height: size[1] },
+    held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
+    // The groups the build keeps while its inputs stay (`buildGroups`): the roll's and the first's.
+    build: { key: [inputs.hdr, inputs.view, inputs.hash, pipelines], groups: [{}], roll: {} },
+  } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+  encodeRadiancePyramid(
+    pass as unknown as GPUComputePassEncoder,
+    {} as GPUDevice,
+    pyramid,
+    pipelines,
+    inputs,
+    size,
+    new Float64Array(16),
+  )
+  // The roll is one workgroup; the first dispatch follows it.
+  return dispatched[1]
+}
 
 const sum = (img: Image) => img.texels.reduce((s, t) => s.map((v, c) => v + t[c]), [0, 0, 0, 0])
 const close = (a: number[], b: number[], tolerance: number) =>
@@ -72,7 +103,7 @@ test('the dispatch makes every texel of levels 0 to 2 of an image of any width, 
     const source = image(width, height, (x, y) => [x * 0.01, y * 0.01, 1, 1])
     const { copy, coarser, coarsest } = radianceKernels([width, height, 0, 0]).first(
       source,
-      radianceGroups([width, height], 2, [width, height]),
+      firstDispatch([width, height]),
     )
     for (const [level, img] of [copy, coarser, coarsest].entries()) {
       const missing = img.texels.findIndex((texel) => !(texel[3] > 0))

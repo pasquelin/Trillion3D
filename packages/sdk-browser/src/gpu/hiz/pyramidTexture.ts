@@ -23,7 +23,7 @@ import { HIZ_MAX_LEVELS } from './uniforms.ts'
 export const HIZ_FORMAT: GPUTextureFormat = 'r32uint'
 /** Texels of one row of the pyramid texture, a power of two: the index splits by mask and shift. */
 const HIZ_ROW_SHIFT = 13
-export const HIZ_ROW = 1 << HIZ_ROW_SHIFT
+const HIZ_ROW = 1 << HIZ_ROW_SHIFT
 /** The layers of the pyramid texture, and their count. */
 export const HIZ_CULL_FARTHEST = 0
 export const HIZ_NEAREST = 1

@@ -6,7 +6,7 @@
 // within its bound, the iterations of the screen distance covered (`reflectionBudget`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_THICKNESS } from './constants.ts'
+import { reflectionConstant } from './constants.fixture.ts'
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 
@@ -14,7 +14,7 @@ import { depthField } from './depthField.fixture.ts'
  *  the eye. */
 function flatView(width: number, height: number) {
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  return viewOf(identity, identity, [0, 0, 1, 0], [width, height], 2 / height)
+  return viewOf(identity, identity, [0, 0, 1, 0], [width, height])
 }
 
 /** The shipped march over the depth image `depth`, `width × height`. */
@@ -56,7 +56,7 @@ const falling = (x0: number, x1: number, y: number, x: number, z: number, fall: 
 // depth, 4 pixels are 0.125 of depth.
 const W = 128,
   H = 64,
-  SLAB = (REFLECTION_THICKNESS * 2) / H
+  SLAB = (reflectionConstant('REFLECTION_THICKNESS') * 2) / H
 
 test('a ray stops where it crosses a depth, its own pixel never', () => {
   // A wall one pixel wide at x = 80 over a far floor; the ray crosses its depth in its pixel.

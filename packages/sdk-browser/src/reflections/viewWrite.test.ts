@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT as AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
-import { createReflectionViewWriter, reflectionSlab } from './viewWrite.ts'
+import { createReflectionViewWriter } from './viewWrite.ts'
 
 test('the view uniform carries the pixel scale, the held image, the slab and whether the screen traces', () => {
   // An infinite reversed perspective of 60° vertically, the eye at the origin.
@@ -55,15 +55,33 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
 })
 
 test("the slab follows the projection: a perspective's depth at infinity, an orthographic one's step", () => {
+  const slab = (viewProjection: number[], size: readonly [number, number]) => {
+    let words = new Float32Array(0)
+    const device = {
+      queue: { writeBuffer: (_: unknown, __: number, w: Float32Array) => (words = w.slice()) },
+    } as unknown as GPUDevice
+    const held: HeldImage = {
+      valid: false,
+      viewProjection: new Float64Array(16),
+      size: [0, 0],
+      still: false,
+    }
+    createReflectionViewWriter(device, {} as GPUBuffer)(
+      { viewProjection, size, depthDrawn: true, proxyError: 0 },
+      held,
+      1,
+    )
+    return [...words.slice(AT.slab, AT.slab + 4)]
+  }
   // A finite reversed perspective, near 0.1 and far 100: z = n(f − w) / (w(f − n)) = A + B / w.
   const n = 0.1,
     far = 100
   const finite = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, n / (far - n), -1, 0, 0, (n * far) / (far - n), 0]
-  const [scale, atInfinity, step, perspective] = reflectionSlab(finite, 0.002)
-  assert.equal(scale, 0.002)
-  assert.ok(Math.abs(atInfinity - -n / (far - n)) < 1e-12, `${atInfinity}`)
+  const [scale, atInfinity, step, perspective] = slab(finite, [1000, 500])
+  assert.equal(scale, Math.fround(0.004))
+  assert.ok(Math.abs(atInfinity - -n / (far - n)) < 1e-6, `${atInfinity}`)
   assert.deepEqual([step, perspective], [0, 1])
   // An orthographic projection: its depth spans `scale · |∇z|` for a pixel's thickness.
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1]
-  assert.deepEqual(reflectionSlab(identity, 0.5), [0.5, 0, 1, 0])
+  assert.deepEqual(slab(identity, [10, 4]), [0.5, 0, 1, 0])
 })
