@@ -3799,8 +3799,6 @@
       "zoomSpeed": "枢轴类控制器:滚轮和捏合缩放的速度;默认为 1。",
       "autoForward": "仅限飞行模式:不按任何键时以 `movementSpeed` 向前飞行,按 W 加速,按 S 减速至停止。",
       "autoUpdate": "世界的循环是否在每一帧、在 `world.beforeFrame` 钩子之前调用 `update`。设为 `false` 后,这一步就交给页面负责,由页面从这样的钩子中调用 `update`,想以多高的频率、拆成多少子步骤积分都可以;此时世界自身绝不会推进它。",
-      "colliders": "仅角色模式:身体会与之碰撞的网格——单个对象或一个列表,包括它们的所有后代——或者为 `null`。设置它们时,会根据当前世界空间中的三角形构建一棵静态三角形树:对三角形进行一次遍历,构建复杂度为 `O(T log T)`,每个三角形约占用 52 字节。目前还不会读取已编译的模型:请改用普通网格。 `CharacterCollision`(物理引擎的世界,任何能回答 `resolveCapsule` 和 `groundBelow` 的对象)会被原样使用。",
-      "rebuildColliders": "仅角色模式:在碰撞体移动或改变之后,重建碰撞树。 `CharacterCollision` 本身就是一个世界,会原样传递。",
       "velocity": "仅角色模式:身体速度的一份拷贝,单位为米每秒;其他模式下为零。",
       "onGround": "仅角色模式:双脚是否在地面上;其他控制器中为 `false`。",
       "stride": "仅角色模式:步态相位,弧度,一只脚在 0 处落地,另一只在 π 处落地;其他模式下为 0。",
@@ -3946,7 +3944,7 @@
   },
   "WorldControls": {
     "summary": "页面用鼠标和键盘操纵摄像机的各种方式,或者 `'none'`。",
-    "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与 `world.controls.colliders` 碰撞——然后透过其双眼观看。`'fly'` 和 `'firstPerson'` 以 `world.controls.movementSpeed` 移动,以 `world.controls.lookSpeed` 旋转。"
+    "description": "`'firstPerson'` 移动摄像机;`'character'` 移动身体——具有质量、重力、跳跃能力,并与世界的物理碰撞——然后透过其双眼观看。`'fly'` 和 `'firstPerson'` 以 `world.controls.movementSpeed` 移动,以 `world.controls.lookSpeed` 旋转。"
   },
   "WorldFrameMetrics": {
     "summary": "主机从引擎复制的一帧图像的指标,以及页面由它们组合读取的两个值;路径不计数之处为 `null`。",
@@ -6714,47 +6712,16 @@
       "time": "自世界开始以来的秒数,取该帧的时间(`worldFrameGrid.ts`)。"
     }
   },
-  "Capsule": {
-    "summary": "针对三角形树的**直立胶囊体**:角色身体的窄相位判定形状。",
-    "description": "胶囊体立在 `feet`(其底部球体的最低点)之上,由从 `feet + radius` 到 `feet + height - radius` 的竖直线段周围 `radius` 距离以内的所有点组成。一次遍历会找到与该线段距离小于 `radius` 的所有三角形,并把每一个重叠一次性交给 `push`(`CapsuleContact`)。调用方会移动 `feet`;该遍历中的下一个三角形是相对于移动后的胶囊体测量的,因此在角落相遇的两面墙都能在一次遍历中处理完。",
-    "members": {
-      "feet": "最低点,世界空间;`push` 会移动它。",
-      "radius": "身体的半径,单位为米。",
-      "height": "从脚到头顶的高度,单位为米;至少是半径的两倍。"
-    }
-  },
-  "CapsuleContact": {
-    "summary": "胶囊体与某个表面的一次重叠。",
-    "description": "数组会被复用:push 只在调用期间读取它们。",
-    "members": {
-      "normal": "从表面指向胶囊体的单位方向:即出口方向。",
-      "surface": "表面自身的单位法线,从胶囊体一侧看到的。当胶囊体接触到一条棱或一个角时,它与 `normal` 不同:它表明该棱属于哪个面。",
-      "point": "表面上的接触点,世界空间。",
-      "depth": "沿 `normal` 方向,胶囊体嵌入表面内部的深度,> 0。"
-    }
-  },
-  "CapsulePush": {
-    "summary": "响应一次接触,通常是通过把胶囊体的 `feet` 从中移开。"
-  },
   "CharacterCameraControls": {
-    "summary": "**透过其双眼看到的角色**:一个具有质量的身体,会行走、奔跑、跳跃、下落,并以一个直立胶囊体的形式与世界的三角形碰撞。",
-    "description": "指针像第一人称视角那样转动头部(`look.ts`)。按键以 `KeyboardEvent.code` 为准,因此任何键盘布局下都是同一批按键:W/S 或上下方向键前后行走,A/D 或左右方向键横向移动,Shift 冲刺,空格跳跃。身体不会瞬间启动或停止:它会在 `responseTime` 内积累速度,在 `stopTime` 内刹车,但不会快过地面摩擦允许鞋底施加的推力,所以停下时在石头上会滑一小段,在冰上会滑很远,在空中保持动量,在 `gravity` 下上升、在 `fallGravity` 下下落,能爬上不超过 `stepHeight` 的台阶,沿墙滑动,并能站在坡度不超过 `maxSlope` 的地面上(`sdk-core/src/collision/characterBody.ts`)。摄像机就是眼睛,位于脚部之上 `eyeHeight` 处,会随脚步以 `headBob` 上下晃动,并在着地时以 `landingDip` 下沉(`sdk-core/src/collision/characterEye.ts`);这两者都只是叠加在身体每一步之后的眼睛位置上,绝不会去移动身体本身。若某个宿主自行移动摄像机,则应把身体静止地传送到那里。一个静止的角色——落地、没有速度、没有按键、也没有残留的下沉——不会发出任何事件,因此场景会保持静止。",
+    "summary": "**透过其双眼看到的角色**:一个具有质量的身体,会行走、奔跑、跳跃、下落,并以一个直立胶囊体的形式与世界物理中的物体碰撞。",
+    "description": "指针像第一人称视角那样转动头部(`look.ts`)。按键以 `KeyboardEvent.code` 为准,因此任何键盘布局下都是同一批按键:W/S 或上下方向键前后行走,A/D 或左右方向键横向移动,Shift 冲刺,空格跳跃。身体不会瞬间启动或停止:它会在 `responseTime` 内积累速度,在 `stopTime` 内刹车,但不会快过地面摩擦允许鞋底施加的推力,所以停下时在石头上会滑一小段,在冰上会滑很远,在空中保持动量,在 `gravity` 下上升、在 `fallGravity` 下下落,能爬上不超过 `stepHeight` 的台阶,沿墙滑动,并能站在坡度不超过 `maxSlope` 的地面上(`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`)。摄像机就是眼睛,位于脚部之上 `eyeHeight` 处,会随脚步以 `headBob` 上下晃动,并在着地时以 `landingDip` 下沉(`sdk-core/src/collision/characterEye.ts`);这两者都只是叠加在身体每一步之后的眼睛位置上,绝不会去移动身体本身。若某个宿主自行移动摄像机,则应把身体静止地传送到那里。一个静止的角色——落地、没有速度、没有按键、也没有残留的下沉——不会发出任何事件,因此场景会保持静止。",
     "members": {
       "velocity": "身体的速度,单位为米每秒。实时值:`[x, y, z]`,y 朝上。",
       "onGround": "双脚是否在地面上。",
       "stride": "步态相位,弧度,范围 [0, 2π):一只脚在 0 处落地,另一只在 π 处落地。",
       "onLand": "落地时调用,参数是向下的速度(米每秒):用于音效、震动。",
       "onJump": "身体因跳跃离开地面时调用。",
-      "collision": "身体与之碰撞的对象——世界的碰撞体,或者通过相同接触点接入的物理后端世界(`CharacterCollision`)。为 `null` 时,身体会保持出发时的高度行走,永不下落。",
       "update": "推进 `delta` 秒的生命;返回摄像机是否发生了变化,变化时会发出 `change`。"
-    }
-  },
-  "CharacterCollision": {
-    "summary": "**角色与其所碰撞的世界之间的接触点。**",
-    "description": "角色身体(`characterBody.ts`)从不读取三角形:它把自己的胶囊体分成不超过其半径长度的若干段来移动,每移动一段之后就询问胶囊体与什么发生了重叠、哪个方向是出口;而行走者则会询问它脚下的地面在哪里。除此之外的一切——速度、重力、台阶、坡度、跳跃——都属于身体自身。物理后端通过实现这个接口,就可以把角色放进自己的世界:它根据自身的形状和粗筛结果来回答重叠查询,而身体则照常在其上行走。默认实现是 `triangleCollision`,即静态三角形树。",
-    "members": {
-      "resolveCapsule": "找出 `capsule` 与什么发生了重叠,并对每一次重叠依次调用 `push(contact)`(`CapsuleContact`:出口方向、表面、接触点、深度)。`push` 会移动 `capsule.feet`;某些实现会基于移动后的胶囊体来测量接下来的每一次重叠,因此角落可以在一次调用中处理完。返回是否发生过任何重叠。",
-      "groundBelow": "把胶囊体底部的球体沿正下方向下移动,最多移动 `depth` 的距离,返回到达 `accepts` 所接受的表面之前(取这类支撑中最高的那一个)所走过的距离;如果胶囊体已经陷入其中、必须向上移动,则返回负值。若什么都没有则返回 `null`。`capsule.feet` 保持原位不动。`accepts` 会把每个候选接触当作接触来看待:`point`,从该点指向球心的 `normal`,以及朝上一面的 `surface`。"
     }
   },
   "HeadSettings": {
@@ -6772,24 +6739,6 @@
       "locked": "指针是否被锁定在视角上。",
       "lock": "把指针锁定到视角上。",
       "unlock": "释放指针。"
-    }
-  },
-  "TriangleCollision": {
-    "summary": "默认的碰撞世界:一棵静态三角形树。",
-    "members": {
-      "tree": "可供查询的那棵树:它的 `triangleCount` 和 `bytes` 就是世界的开销。"
-    }
-  },
-  "TriangleTree": {
-    "summary": "世界三角形上的一个包围体层级结构,以盒子查询: `triangleCollision` 和 `capsulePass` 背后的粗筛阶段。",
-    "description": "由 `buildTriangleTree` 构建一次,此后只读。",
-    "members": {
-      "triangles": "每个三角形九个数——三个顶点——按叶子顺序排列。",
-      "bounds": "每个节点: 最小 xyz、最大 xyz。",
-      "links": "每个节点: 叶子的第一个三角形,或内部节点的右子节点(左子节点紧跟其父节点)。",
-      "counts": "每个节点: 叶子的三角形数,内部节点为 0。",
-      "bytes": "树占用的字节数。",
-      "triangleCount": "树持有的三角形数。"
     }
   },
   "world.beforeFrame": {

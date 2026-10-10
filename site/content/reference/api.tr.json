@@ -472,28 +472,6 @@
   "CapabilityTier": {
     "summary": "Bir makinenin motorun ne kadarını çalıştırabileceği: her şeyi, azaltılmış bir seti, ya da temelleri."
   },
-  "Capsule": {
-    "summary": "Bir üçgen ağacına karşı DİK BİR KAPSÜL: karakter gövdesinin dar aşaması.",
-    "description": "Kapsül `feet` üzerinde durur — alt küresinin en düşük noktası — ve `feet + radius`'tan `feet + height - radius`'a olan dikey parçanın `radius` içindeki her noktadır. Bir geçiş, o parçaya `radius`'tan daha yakın olan her üçgeni bulur ve her çakışmayı bir kerede `push`'a verir (`CapsuleContact`). Çağıran `feet`'i hareket ettirir; geçişin bir sonraki üçgeni hareket ettirilmiş kapsülden ölçülür, bu yüzden bir köşede buluşan iki duvarın ikisi de tek bir geçişte bırakılır.",
-    "members": {
-      "feet": "En düşük nokta, dünya uzayı; `push` onu hareket ettirir.",
-      "radius": "Gövdenin yarıçapı, metre cinsinden.",
-      "height": "Ayaklardan başın tepesine yükseklik, metre cinsinden; en az iki yarıçap."
-    }
-  },
-  "CapsuleContact": {
-    "summary": "Bir kapsül ve bir yüzeyin bir çakışması.",
-    "description": "Diziler yeniden kullanılır: bir push onları yalnızca çağrı sırasında okur.",
-    "members": {
-      "normal": "Yüzeyden kapsüle doğru birim yön: çıkış yolu.",
-      "surface": "Kapsül tarafındaki, yüzeyin kendisinin birim normali. Kapsül bir kenara ya da köşeye dokunduğunda `normal`'dan farklıdır: o kenarın hangi yüze ait olduğunu söyler.",
-      "point": "Yüzeyin dokunulan noktası, dünya uzayı.",
-      "depth": "Kapsülün `normal` boyunca yüzeyin ne kadar içinde olduğu, > 0."
-    }
-  },
-  "CapsulePush": {
-    "summary": "Genellikle kapsülün `feet`'ini dışına hareket ettirerek bir temasa yanıt verir."
-  },
   "CaptureSize": {
     "summary": "Bir çekimin piksel cinsinden boyutu.",
     "members": {
@@ -513,24 +491,15 @@
     "summary": "Bir kontrolcü kamerayı hareket ettirdiğinde çağrılan bir fonksiyon."
   },
   "CharacterCameraControls": {
-    "summary": "Gözlerinden görülen bir KARAKTER: yürüyen, koşan, zıplayan ve düşen, kütlesi olan ve dünyanın üçgenleriyle dik bir kapsül olarak çarpışan bir gövde.",
-    "description": "İşaretçi, birinci şahıstaki gibi başı çevirir (`look.ts`). Tuşlar, her klavye düzeninin aynı tuşları çalması için `KeyboardEvent.code`'a göre: W/S ya da yukarı ve aşağı oklar ileri ve geri yürür, A/D ya da yan oklar yana kayar, Shift koşar, Boşluk zıplar. Gövde bir anda başlamaz ya da durmaz: `responseTime` üzerinden hız kazanır ve `stopTime` üzerinden frenler, ama zemininin sürtünmesinin bir tabanın itmesine izin verdiğinden asla daha hızlı değil; bu yüzden bir duruş taşta biraz, buzda çok kayar, havada momentumunu korur, `gravity` altında yükselir ve `fallGravity` altında düşer, `stepHeight`'a kadar çıkıntılara tırmanır, duvarlar boyunca kayar ve `maxSlope`'a kadar eğimlerde durur (`sdk-core/src/collision/characterBody.ts`). Kamera gözdür, ayakların `eyeHeight` üzerinde, `headBob` ile adımla sallanır ve bir inişte `landingDip` ile dalar (`sdk-core/src/collision/characterEye.ts`); ikisi de gövdenin adımından sonra gözün üzerine biner ve gövdeyi asla hareket ettirmez. Kamerayı kendisi hareket ettiren bir host, gövdeyi oraya, dinlenme halinde ışınlar. Sabit bir karakter — yerde, hızsız, tuşsuz, kalan dalışı olmayan — hiçbir şey yaymaz, bu yüzden sahne sabit kalır.",
+    "summary": "Gözlerinden görülen bir KARAKTER: yürüyen, koşan, zıplayan ve düşen, kütlesi olan ve dünya fiziğinin cisimleriyle dik bir kapsül olarak çarpışan bir gövde.",
+    "description": "İşaretçi, birinci şahıstaki gibi başı çevirir (`look.ts`). Tuşlar, her klavye düzeninin aynı tuşları çalması için `KeyboardEvent.code`'a göre: W/S ya da yukarı ve aşağı oklar ileri ve geri yürür, A/D ya da yan oklar yana kayar, Shift koşar, Boşluk zıplar. Gövde bir anda başlamaz ya da durmaz: `responseTime` üzerinden hız kazanır ve `stopTime` üzerinden frenler, ama zemininin sürtünmesinin bir tabanın itmesine izin verdiğinden asla daha hızlı değil; bu yüzden bir duruş taşta biraz, buzda çok kayar, havada momentumunu korur, `gravity` altında yükselir ve `fallGravity` altında düşer, `stepHeight`'a kadar çıkıntılara tırmanır, duvarlar boyunca kayar ve `maxSlope`'a kadar eğimlerde durur (`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`). Kamera gözdür, ayakların `eyeHeight` üzerinde, `headBob` ile adımla sallanır ve bir inişte `landingDip` ile dalar (`sdk-core/src/collision/characterEye.ts`); ikisi de gövdenin adımından sonra gözün üzerine biner ve gövdeyi asla hareket ettirmez. Kamerayı kendisi hareket ettiren bir host, gövdeyi oraya, dinlenme halinde ışınlar. Sabit bir karakter — yerde, hızsız, tuşsuz, kalan dalışı olmayan — hiçbir şey yaymaz, bu yüzden sahne sabit kalır.",
     "members": {
       "velocity": "Gövdenin saniyede metre cinsinden hızı, canlı: `[x, y, z]`, y yukarı.",
       "onGround": "Ayakların bir zeminde olup olmadığı.",
       "stride": "Radyan cinsinden adım fazı, [0, 2π)'de: bir ayak 0'da vurur, diğeri π'de.",
       "onLand": "Saniyede metre cinsinden aşağı hızla, inişte çağrılır: bir ses, bir sarsıntı.",
       "onJump": "Gövde bir zıplamada yerden ayrıldığında çağrılır.",
-      "collision": "Gövdenin neyle çarpıştığı — dünyanın çarpışma nesneleri, ya da aynı ek yeri üzerinden bir fizik backend'inin dünyası (`CharacterCollision`). `null`, gövdenin durduğu yerde düz yürür, asla düşmez.",
       "update": "`delta` saniye yaşar; kameranın hareket edip etmediğini döndürür, ve ettiğinde `change` yayar."
-    }
-  },
-  "CharacterCollision": {
-    "summary": "BİR KARAKTER İLE ÇARPIŞTIĞI DÜNYA ARASINDAKİ EK YERİ.",
-    "description": "Karakter gövdesi (`characterBody.ts`) asla üçgen okumaz: kapsülünü yarıçapından daha kısa parçalarda hareket ettirir ve her birinden sonra, kapsülün neyle çakıştığını ve hangi yönden çıkılacağını sorar; ve bir yürüyücü, ayaklarının altındaki zeminin nerede olduğunu sorar. Geri kalan her şey — hız, yer çekimi, basamaklar, eğimler, zıplamalar — gövdenin kendisine aittir. Bir fizik backend'i, bir karakteri kendi dünyasına koymak için bu arayüzü uygular: çakışmayı kendi şekillerinden ve geniş aşamasından yanıtlar, ve gövde onların üzerinde değişmeden yürür. Varsayılan uygulama, `triangleCollision`'ın statik üçgen ağacıdır.",
-    "members": {
-      "resolveCapsule": "`capsule`'ın neyle çakıştığını bulur ve her çakışma için bir kerede `push(contact)`'ı çağırır (`CapsuleContact`: çıkış yolu, yüzey, dokunulan nokta, derinlik). `push`, `capsule.feet`'i hareket ettirir; bir uygulama, bir sonraki her çakışmayı hareket ettirilmiş kapsülden ölçer, bu yüzden bir köşe tek bir çağrıda bırakılır. Herhangi bir şeyin çakışıp çakışmadığını döndürür.",
-      "groundBelow": "Kapsülün alt küresini dosdoğru aşağı, en fazla `depth` kadar indirir, ve `accepts`'in kabul ettiği bir yüzeye ilk kez dayanmadan önce ne kadar gittiğini döndürür — bu şekildeki en yüksek destek. Kapsül zaten içine battığında ve yükselmesi gerektiğinde negatif. Hiçbiri olmadığında `null`. `capsule.feet` olduğu yerde bırakılır. `accepts`, her aday temasını bir temas olarak görür: `point`, noktadan kürenin merkezine `normal`, yukarı dönük yüz `surface`."
     }
   },
   "Clip": {
@@ -4339,24 +4308,6 @@
       "getMidpoint": "Üç köşenin ortası."
     }
   },
-  "TriangleCollision": {
-    "summary": "Varsayılan çarpışma dünyası: statik bir üçgen ağacı.",
-    "members": {
-      "tree": "Yanıtların geldiği ağaç: `triangleCount`'u ve `bytes`'ı dünyanın maliyetidir."
-    }
-  },
-  "TriangleTree": {
-    "summary": "Dünyanın üçgenleri üzerinde bir sınırlayıcı hacim hiyerarşisi, kutuyla sorgulanır: `triangleCollision` ve `capsulePass`'in arkasındaki geniş faz.",
-    "description": "`buildTriangleTree` tarafından bir kez inşa edilir, sonrasında salt okunur.",
-    "members": {
-      "triangles": "Üçgen başına dokuz sayı — üç köşe — yaprak sırasına göre.",
-      "bounds": "Düğüm başına: min xyz, max xyz.",
-      "links": "Düğüm başına: bir yaprağın ilk üçgeni, veya iç düğümün sağ çocuğu (sol çocuk ebeveyninin hemen ardından gelir).",
-      "counts": "Düğüm başına: bir yaprağın üçgen sayısı, iç düğüm için 0.",
-      "bytes": "Ağacın tuttuğu bayt sayısı.",
-      "triangleCount": "Ağacın tuttuğu üçgenler."
-    }
-  },
   "Trillion3dTool": {
     "summary": "LLM'ler için genel Trillion3D araç tanımı.",
     "members": {
@@ -4773,8 +4724,6 @@
       "follow": "Dünyanın kamerası değişti: kontrolcü onu takip eder.",
       "dispose": "Kontrolcüyü durdurur ve dinleyicilerini canvas'tan kaldırır.",
       "autoUpdate": "Dünyanın döngüsünün, `world.beforeFrame` kancalarından önce, her kareden önce `update`'i çağırıp çağırmadığı. `false`, adımı, böyle bir kancadan `update`'i çağıran, entegre ettiği alt adımlar üzerinden ne sıklıkta olursa olsun çağıran sayfaya verir; dünya o zaman onu asla ilerletmez.",
-      "colliders": "Yalnızca karakter: gövdenin çarpıştığı meshler — bir nesne ya da bir liste, torunları dahil — ya da `null`. Bunları ayarlamak, şu anda durdukları şekliyle dünya-uzayı üçgenlerinden statik bir üçgen ağacı inşa eder: üçgenler üzerinde bir geçiş ve bir `O(T log T)` inşası, üçgen başına yaklaşık 52 bayt tutulur. Derlenmiş modeller henüz okunmaz: onlar için basit bir mesh yer tutucusu verin. Bir `CharacterCollision` — bir fizik motorunun dünyası, `resolveCapsule` ve `groundBelow` sorularını yanıtlayan her şey — olduğu gibi kullanılır.",
-      "rebuildColliders": "Yalnızca karakter: çarpışma nesneleri hareket ettikten ya da değiştikten sonra, çarpışma ağacını yeniden inşa eder. Bir `CharacterCollision` kendi dünyasıdır ve değiştirilmeden aktarılır.",
       "velocity": "Yalnızca karakter: gövdenin saniyede metre cinsinden hızı, bir kopya; aksi halde sıfır.",
       "onGround": "Yalnızca karakter: ayakların bir zeminde olup olmadığı; başka herhangi bir kontrolcü için `false`.",
       "stride": "Yalnızca karakter: radyan cinsinden adım fazı, bir ayak 0'da ve π'de vurur; aksi halde 0.",
@@ -4896,7 +4845,7 @@
   },
   "WorldControls": {
     "summary": "Bir sayfanın kamerayı fare ve klavyeyle yönetebileceği yollar, ya da `'none'`.",
-    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, `world.controls.colliders` ile çarpışmalar — hareket ettirir ve gözlerinden bakar. `'fly'` ve `'firstPerson'`, `world.controls.movementSpeed` hızında hareket eder ve `world.controls.lookSpeed` hızında döner."
+    "description": "`'firstPerson'` bir kamerayı hareket ettirir; `'character'` bir gövdeyi — kütle, yer çekimi, zıplamalar, dünya fiziğiyle çarpışmalar — hareket ettirir ve gözlerinden bakar. `'fly'` ve `'firstPerson'`, `world.controls.movementSpeed` hızında hareket eder ve `world.controls.lookSpeed` hızında döner."
   },
   "WorldFrameMetrics": {
     "summary": "Ana makinenin motordan kopyaladığı biçimiyle bir görselin ölçümleri ve bir sayfanın bunlardan birleştirerek okuduğu iki değer; yolun saymadığı yerde `null`.",

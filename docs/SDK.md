@@ -313,18 +313,17 @@ the three with a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
 
 **The character's body.** `'character'` moves an upright capsule with an adult's values
 (`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
-each a setting of `world.controls`. Without physics it collides with the static triangles of
-`world.controls.colliders` (meshes, built into a triangle tree once), or walks level where it
-stands. With physics on ([PHYSICS.md](PHYSICS.md)) it is the physics' virtual character in its
-worker: it climbs steps and slopes, rides a moving platform, pushes dynamic bodies with at most
-`pushStrength` newtons and is pushed back; `colliders` is unused (give the level
-`mesh.physics = 'static'`), and the feet are drawn at the bodies' time.
+each a setting of `world.controls`. Its body is the physics' virtual character in its worker
+([PHYSICS.md](PHYSICS.md)), so the world needs `physics: true`: it climbs steps and slopes, rides
+a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed back,
+and the level is whatever carries `mesh.physics = 'static'`. The feet are drawn at the bodies' time.
+Until the physics runs the character stands where it was put and hears no key.
 
-Both read one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over `stopTime`,
-jumps with a coyote time and a jump buffer, and no ground speed changing faster than a rubber sole's
-grip allows, `μ g` (the geometric mean of the sole's and the ground's frictions; without physics,
-stone). The triangle body drops a stall past 0.25 s (`MAX_CHARACTER_DELTA`); the physics' takes at
-most four steps a frame (`MAX_CATCH_UP_STEPS`): a slower page shows slow motion, never a jump.
+The body reads one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
+`stopTime`, jumps with a coyote time and a jump buffer, and no ground speed changing faster than a
+rubber sole's grip allows, `μ g` (the geometric mean of the sole's and the ground's frictions). The
+physics takes at most four steps a frame (`MAX_CATCH_UP_STEPS`): a slower page shows slow motion,
+never a jump.
 
 **Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` (`throttle`, `brake`, `steer`,
 `handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
