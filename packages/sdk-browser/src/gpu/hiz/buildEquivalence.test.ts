@@ -12,8 +12,7 @@ import { hizLevelSizes } from './levelSizes.ts'
 // reading the level above from the pyramid. `buildHiz` reads the texture once, copies it on the
 // way and reduces four mips per dispatch through workgroup memory. Below, both transcribed line by
 // line, driven by the uniform words the host really writes, must leave the pyramid identical bit
-// for bit — every texel written, no other — on random sizes, capped mip counts, several pyramids
-// per dispatch, and NaN, ±0, ±Inf depths: the culling layer, and the nearest, its maximum, beside the
+// for bit — every texel written, no other — on random sizes, capped mip counts, and NaN, ±0, ±Inf depths: the culling layer, and the nearest, its maximum, beside the
 // finished depth's farthest layer.
 
 const SPECIALS = [0, -0, 1, Infinity, -Infinity, Number.NaN]
@@ -22,24 +21,11 @@ function scene(rand: () => number, hostile: boolean): Scene {
   const pick = (n: number) => 1 + Math.floor(rand() * n)
   const width = rand() < 0.2 ? pick(3) : pick(140),
     height = rand() < 0.2 ? pick(3) : pick(140)
-  const pages = rand() < 0.3 ? pick(3) : 0
-  const textureWidth = width + (pages ? pick(20) : 0),
-    textureHeight = height + (pages ? pick(20) : 0)
-  const texture = Float32Array.from({ length: textureWidth * textureHeight }, () =>
+  const texture = Float32Array.from({ length: width * height }, () =>
     hostile && rand() < 0.05 ? SPECIALS[Math.floor(rand() * SPECIALS.length)] : rand(),
   )
-  const origins = pages
-    ? Array.from(
-        { length: pages },
-        () =>
-          [
-            Math.floor(rand() * (textureWidth - width + 1)),
-            Math.floor(rand() * (textureHeight - height + 1)),
-          ] as [number, number],
-      )
-    : undefined
   const maxLevels = rand() < 0.2 ? pick(6) : HIZ_MAX_LEVELS
-  return { texture, textureWidth, width, height, maxLevels, origins, nearest: rand() < 0.5 }
+  return { texture, width, height, maxLevels, nearest: rand() < 0.5 }
 }
 
 function assertSamePyramid(s: Scene, rand: () => number, label: string) {
@@ -85,7 +71,7 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
     for (const nearest of [false, true]) {
       const texture = Float32Array.from({ length: width * height }, () => rand())
       assertSamePyramid(
-        { texture, textureWidth: width, width, height, maxLevels, nearest },
+        { texture, width, height, maxLevels, nearest },
         rand,
         `${width}×${height}${nearest ? ', nearest' : ''}`,
       )
@@ -111,11 +97,11 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return hizLoadBound(i);}',
-    `if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,origin,q,depth),depth);}`,
-    'if(uni.d>0u){hizPutBound(uni.dst[0].x+z*uni.g+y*uni.dst[0].y+x,bound);}',
+    `if(${HIZ_NEAREST_BUILD}){return vec2f(hizPlaneNearest(i,q,depth),depth);}`,
+    'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
-    'hizPutBound(dst.x+z*uni.g+ty*dst.y+tx,bound);',
+    'hizPutBound(dst.x+ty*dst.y+tx,bound);',
     `if(${HIZ_NEAREST_BUILD}){return vec2f(max(a.x,b.x),min(a.y,b.y));}`,
   ])
     assert.ok(build.includes(line), line)

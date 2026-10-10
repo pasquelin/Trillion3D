@@ -7,6 +7,7 @@ import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.
 import {
   packHizPyramid,
   packWholeFarthest,
+  hizPackedFrom,
 } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
 import { pyramidBytes } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.ts'
 import {
@@ -23,9 +24,15 @@ export type WholeFarthestCase = { width: number; height: number; seed: number }
 const rowsOf = (depth: Float32Array, width: number, height: number) =>
   Array.from({ length: height }, (_, y) => Array.from(depth.subarray(y * width, (y + 1) * width)))
 
-/** One layer of the pyramid texture, read back: its words, `texels` of them. */
-async function readLayer(device: GPUDevice, texture: GPUTexture, layer: number, texels: number) {
-  const { width, height } = hizTextureSize(texels)
+/** One layer of the pyramid texture, read back: its words. */
+async function readLayer(
+  device: GPUDevice,
+  texture: GPUTexture,
+  layer: number,
+  size: { first: number; upper: number },
+) {
+  const { width, height } = hizTextureSize(size)
+  const texels = width * height
   const pitch = alignUp(width * 4, 256)
   const target = device.createBuffer({
     size: pitch * height,
@@ -82,9 +89,13 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
     }
     draw(occluders, (open) => hiz.encodePyramid(open))
     draw(finished, (open) => hiz.encodeNearest(open))
-    const { texels } = pyramidBytes(width, height)
-    const cull = await readLayer(device, pyramid.pyramid, HIZ_CULL_FARTHEST, texels)
-    const whole = await readLayer(device, pyramid.pyramid, HIZ_WHOLE_FARTHEST, texels)
+    const size = pyramidBytes(width, height),
+      { texels } = size
+    const layers = []
+    for (let layer = 0; layer < 3; layer++)
+      layers.push(await readLayer(device, pyramid.pyramid, layer, size))
+    const cull = hizPackedFrom(layers, HIZ_CULL_FARTHEST, size)
+    const whole = hizPackedFrom(layers, HIZ_WHOLE_FARTHEST, size)
     const bits = (packed: Float32Array) => new Uint32Array(packed.buffer)
     const expectCull = bits(packHizPyramid(rowsOf(occluders, width, height)).data)
     const expectWhole = bits(packWholeFarthest(rowsOf(finished, width, height)).data)

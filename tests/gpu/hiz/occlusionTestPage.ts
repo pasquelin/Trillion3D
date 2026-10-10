@@ -17,7 +17,7 @@ import {
   HIZ_FORMAT,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
-import { hizFarthestLayer } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+import { hizLayerWords } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { BOX_NEAREST, type OcclusionCase } from './occlusionTestCases.ts'
 
@@ -74,17 +74,18 @@ export async function testOcclusion(cases: OcclusionCase[]) {
     device.queue.writeBuffer(state, 0, counters)
     // The case's pyramid laid in the farthest layer of the engine's pyramid texture.
     const pyramid = device.createTexture({
-      size: hizTextureSize(sample.pyramid.length),
+      size: hizTextureSize(sample.packed),
       format: HIZ_FORMAT,
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
     })
-    const layer = hizFarthestLayer(sample.pyramid)
-    device.queue.writeTexture(
-      { texture: pyramid, origin: [0, 0, HIZ_CULL_FARTHEST] },
-      layer.words,
-      { bytesPerRow: layer.width * 4 },
-      [layer.width, layer.height, 1],
-    )
+    const layers = hizLayerWords(sample.packed, HIZ_CULL_FARTHEST)
+    for (const [slice, words] of layers.layers)
+      device.queue.writeTexture(
+        { texture: pyramid, origin: [0, 0, slice] },
+        words,
+        { bytesPerRow: layers.width * 4 },
+        [layers.width, layers.height, 1],
+      )
     const group = device.createBindGroup({
       layout,
       entries: [

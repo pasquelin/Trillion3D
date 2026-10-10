@@ -4,6 +4,7 @@
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
+import { HIZ_MAX_LEVELS } from '../gpu/hiz/uniforms.ts'
 import {
   HIZ_NEAREST,
   hizTextureSize,
@@ -26,15 +27,16 @@ const bitsOf = (value: number) => ((WORD[0] = value), BITS[0])
  * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform.
  */
 export function depthField(width: number, height: number, depth: ArrayLike<number>) {
-  const { sizes, offsets, texels } = pyramidBytes(width, height)
+  const layout = pyramidBytes(width, height)
+  const { sizes, offsets, texels, first, upper } = layout
   const made = Array.from({ length: HIZ_WHOLE_FARTHEST + 1 }, () =>
     new Float64Array(texels).fill(NaN),
   )
-  const row = hizTextureSize(texels).width
+  const row = hizTextureSize(layout).width
   const slopes = new Uint32Array(width * height)
   const level0 = {}
   const build = shaderRun<{
-    hizSource: (at: number, origin: number[], x: number, y: number) => number[]
+    hizSource: (at: number, x: number, y: number) => number[]
   }>(
     HIZ_SHADER,
     [
@@ -45,11 +47,13 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
       'surfaceSlopeOf',
       'hizLayer',
       'hizLoad',
+      'hizIn',
+      'hizSlice',
       'hizTexel',
     ],
     {
       [HIZ_NEAREST_BUILD]: true,
-      uni: { a: 0, b: width, c: height },
+      uni: { a: 0, b: width, c: height, upper },
       level0,
       textureLoad: (_: object, p: number[]) => [Math.fround(depth[p[1] * width + p[0]])],
       hizPut: (i: number, _: number, word: number) => void (slopes[i] = word),
@@ -62,7 +66,7 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
       if (level === 0)
         made[layer][at] =
           layer === HIZ_NEAREST
-            ? Math.fround(build.hizSource(0, [0, 0], x, y)[0])
+            ? Math.fround(build.hizSource(0, x, y)[0])
             : Math.fround(depth[y * width + x])
       else {
         const [w, h] = sizes[level - 1],
@@ -80,18 +84,29 @@ export function depthField(width: number, height: number, depth: ArrayLike<numbe
     }
     return made[layer][at]
   }
-  const words = hizLevelWords(sizes, offsets)
+  /** The bound a texel of a slice holds, and its natural packed index. */
+  function bound(p: number[], slice: number) {
+    const at = p[1] * row + p[0]
+    const layer = slice === HIZ_WHOLE_FARTHEST ? Math.floor(at / upper) : slice
+    return { layer, i: slice === HIZ_WHOLE_FARTHEST ? first + (at - layer * upper) : at }
+  }
+  const words = hizLevelWords(sizes, offsets, layout)
   return {
     width,
     height,
     levels: {
-      level: Array.from({ length: words.length / 4 }, (_, k) => [
+      level: Array.from({ length: HIZ_MAX_LEVELS }, (_, k) => [
         ...words.subarray(k * 4, k * 4 + 4),
       ]),
+      count: [...words.subarray(HIZ_MAX_LEVELS * 4)],
     },
-    /** The word at texel `p` of `layer`: a depth's bits, or a pixel's slopes. */
-    word(p: number[], layer: number) {
-      const i = p[1] * row + p[0]
+    /** Which bound the texel `p` of `slice` holds. */
+    layerOf: (p: number[], slice: number) => bound(p, slice).layer,
+    /** The word at texel `p` of the slice `slice` of the texture: a depth's bits, or a pixel's
+     *  slopes. A level 0 lies in its own slice, the coarser levels of the three bounds in the
+     *  last, one after the other (`hizRoute`). */
+    word(p: number[], slice: number) {
+      const { layer, i } = bound(p, slice)
       let level = 0
       while (level + 1 < sizes.length && offsets[level + 1] <= i) level++
       const [w] = sizes[level],

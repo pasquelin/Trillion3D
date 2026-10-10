@@ -1,5 +1,6 @@
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { texel, type Scene } from './buildScene.fixture.ts'
+import { HIZ_UPPER } from './pyramidTexture.ts'
 
 // `buildHiz`, one workgroup of it, transcribed line by line (`buildTranscripts.fixture.ts`).
 
@@ -23,20 +24,27 @@ function bound4(
   return reduced
 }
 
-/** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. */
+/** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. The
+ *  arrays hold the packed levels in natural order (`pyramidBytes`), `first` texels at level 0: the
+ *  passes' indices, in the culling layer's routing (`hizRoute`), are put back in it. */
 export function workgroup(
   scene: Scene,
   u: Uint32Array,
+  first: number,
   pyramid: Float32Array,
   whole: Float32Array,
   wg: number[],
   tile: Float32Array,
   tileWhole: Float32Array,
 ) {
-  const [a, b, c, d, g] = u
-  const dst = (k: number) => u.subarray(8 + 4 * k, 12 + 4 * k)
-  const z = wg[2],
-    at = a + z * g
+  const [rawA, b, c, d] = u
+  const natural = (index: number) => (index >= HIZ_UPPER ? index - HIZ_UPPER + first : index)
+  const a = natural(rawA)
+  const dst = (k: number) => {
+    const [offset, w, h] = u.subarray(8 + 4 * k, 11 + 4 * k)
+    return [natural(offset), w, h]
+  }
+  const at = a
   const bound = scene.nearest ? Math.max : Math.min
   const far4 = (v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) =>
     bound4(bound, v00, v10, v01, v11, dx, dy)
@@ -45,8 +53,8 @@ export function workgroup(
     a !== 0
       ? [pyramid[at + y * b + x], scene.nearest ? whole[at + y * b + x] : pyramid[at + y * b + x]]
       : scene.nearest
-        ? [texel(scene, z, x, y), texel(scene, z, x, y)]
-        : [(pyramid[at + y * b + x] = texel(scene, z, x, y)), texel(scene, z, x, y)]
+        ? [texel(scene, x, y), texel(scene, x, y)]
+        : [(pyramid[at + y * b + x] = texel(scene, x, y)), texel(scene, x, y)]
   const far = new Float32Array(S * S),
     farWhole = new Float32Array(S * S)
   for (let lane = 0; lane < S * S; lane++) {
@@ -62,8 +70,8 @@ export function workgroup(
       far[lane] = far4(s[0][0], s[1][0], s[2][0], s[3][0], dx, dy)
       farWhole[lane] = bound4(Math.min, s[0][1], s[1][1], s[2][1], s[3][1], dx, dy)
       if (d > 0) {
-        pyramid[dst(0)[0] + z * g + y * dst(0)[1] + x] = far[lane]
-        if (scene.nearest) whole[dst(0)[0] + z * g + y * dst(0)[1] + x] = farWhole[lane]
+        pyramid[dst(0)[0] + y * dst(0)[1] + x] = far[lane]
+        if (scene.nearest) whole[dst(0)[0] + y * dst(0)[1] + x] = farWhole[lane]
       }
     }
     tile[lane] = far[lane]
@@ -100,8 +108,8 @@ export function workgroup(
         ty = wg[1] * side + Math.floor(lane / S)
       tile[lane] = far[lane]
       tileWhole[lane] = farWhole[lane]
-      pyramid[offset + z * g + ty * dstW + tx] = far[lane]
-      if (scene.nearest) whole[offset + z * g + ty * dstW + tx] = farWhole[lane]
+      pyramid[offset + ty * dstW + tx] = far[lane]
+      if (scene.nearest) whole[offset + ty * dstW + tx] = farWhole[lane]
     }
   }
 }
