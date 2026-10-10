@@ -6,6 +6,7 @@ import { lazyDiagnostic } from './engineDiagnostic.ts'
 import type { EngineDiagnostic } from '../engine/types.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
+import { manifestTableBytes } from '../streaming/manifestTables.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 
 test('with no listener there is no emitter: a call builds neither its detail nor its closure', () => {
@@ -40,8 +41,8 @@ test('a streamer with no listener reads, hits and evicts; one with a listener he
   const phases: string[] = []
   for (const onDiagnostic of [undefined, (d: EngineDiagnostic) => void phases.push(d.phase)]) {
     const streamer = createPageStreamer(pages, 'http://diag/', {
-      cache: createPageCache(),
-      maxPages: 1,
+      cache: createPageCache(manifestTableBytes(pages) + 64 + 12),
+      maxTransferBytes: 64,
       onDiagnostic,
     })
     // One read after the other: `b` lands last, so it is the one kept and read again as a hit.

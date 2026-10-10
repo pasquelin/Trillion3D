@@ -24,7 +24,7 @@ type Inputs = {
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session
   const { manifestUrl, metadataUrl, base, source, pageSources } = inputs
-  const { pages, cacheCap } = pageSources
+  const { pages } = pageSources
   const batchCompute = prepareMathBatch(options.mathPath ?? 'auto')
   canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio)
   canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio)
@@ -40,7 +40,6 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     detail: diagnosticChannel.detail,
     limits: {
       maxResidentPages: options.maxResidentPages ?? null,
-      maxCachedPages: cacheCap,
       pageFetchWorkers: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
       geometryPoolBytes: options.geometryPoolBytes ?? null,
       texturePoolBytes: options.texturePoolBytes ?? null,

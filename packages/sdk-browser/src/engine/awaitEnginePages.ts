@@ -5,7 +5,7 @@ type PageEngine = Pick<Engine, 'render' | 'pendingUrls' | 'flush'>
 
 /** Explicit loading/capture preparation, outside the measured render loop. `image: false` waits
  *  for the pages alone: no flush reads the image back. Once the cut is read, `load` hears the pages
- *  it lacks — none, when the frames drawn before the wait read them all —, before `pageUrls` moves. */
+ *  it lacks — none, when the frames drawn before the wait read them all —, before the pins move. */
 export async function awaitEnginePages(
   backend: PageEngine,
   camera: HostCamera,

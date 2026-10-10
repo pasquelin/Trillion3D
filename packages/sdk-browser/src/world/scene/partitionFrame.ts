@@ -131,6 +131,8 @@ export function createPartitionFrame(inputs: Inputs) {
       decodePage,
       failed: (url: string) => streamer.failed(url),
       request,
+      pin: streamer.pin,
+      unpin: streamer.unpin,
       admit: streamer.admit,
       forget: streamer.forget,
       update: (...range: Parameters<Engine['updatePlacements']>) =>

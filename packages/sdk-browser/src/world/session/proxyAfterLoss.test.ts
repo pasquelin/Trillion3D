@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { base, keptProxy, openSession, servedScene } from './proxySession.fixture.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { manifestTableBytes } from '../../streaming/manifestTables.ts'
+import { retained } from '../../streaming/retained.fixture.ts'
 
 const proxyUrl = `${base}proxy.bin`
 
@@ -163,7 +164,7 @@ test('a CPU total too small for the proxy beside the pages a frame keeps: the pr
   const pageCache = createPageCache(cpu)
   const session = await openSession(metadata, pageCache, { maxPageTransferBytes: transfer })
   const kept = urls.slice(0, 4)
-  session.streamer.retain(kept)
+  retained(session.streamer, urls)(kept)
   await session.streamer.request(urls, { signal: session.streamer.signal })
   const lit = await session.context.readSceneProxy!()
   assert.equal(lit.triangles, 1, 'the bounce still gets its proxy')

@@ -1,8 +1,7 @@
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 
 /** One entry of a cache: its key, its value — absent while it is only held, before it lands —, its
- *  bytes, how many hold it, its tier, its last touch, its lane, and its place in its lane's heap,
- *  −1 out of it. */
+ *  bytes, how many hold it, its tier, its last touch, and its place in the heap, −1 out of it. */
 type CacheEntry<V, K> = {
   readonly key: K
   value: V | undefined
@@ -10,7 +9,6 @@ type CacheEntry<V, K> = {
   holds: number
   tier: number
   stamp: number
-  lane: number
   slot: number
 }
 
@@ -24,9 +22,6 @@ const before = <V, K>(a: CacheEntry<V, K>, b: CacheEntry<V, K>) =>
  * on the GPU (`impostor/feed.ts`): one map of refcounted entries, and the heap of those no one
  * holds, the lowest tier first and, within a tier, the least recently touched first. Each cache
  * weighs them against its own budget: `evict` takes the first while its owner says it is over.
- * A cache whose bound counts one kind of entry alone — the host cache's pages — puts each kind in a
- * lane of its own (`laneOf`), one heap a lane: `evict` takes the first of every lane, or of one
- * lane alone, by the same order, so a bound on one kind never takes another.
  *
  * Each touch stamps its entry with a counter that only grows: the stamps are the recency order. An
  * entry's tier, set with its value, says what leaves before it whatever their touches: a tier above
@@ -41,43 +36,23 @@ const before = <V, K>(a: CacheEntry<V, K>, b: CacheEntry<V, K>) =>
  *   settle, O(log n), no allocation;
  * - `set`, `drop`, `acquire`, `release`: one heap insertion or removal at most, O(log n);
  * - `evict`: O(log n) per entry it takes, plus one `over()` per entry and one to stop, whatever
- *   the entries held: none is ever looked at; one look per lane to find the first;
+ *   the entries held: none is ever looked at;
  * - `bytes`, `heldBytes`, `size`: running totals, O(1) to read.
  *
  * Keys are strings — a page's address — unless the cache names another kind: a number keys an
  * entry without building a string on a lookup.
  */
-export function createCacheEntries<V, K = string>(
-  left: (value: V, key: K) => void = () => {},
-  laneOf: (value: V) => number = () => 0,
-) {
+export function createCacheEntries<V, K = string>(left: (value: V, key: K) => void = () => {}) {
   const entries = new Map<K, CacheEntry<V, K>>()
-  type Heap = ReturnType<typeof createHeap<CacheEntry<V, K>>>
-  /** The heap of each lane, made with the first entry of a lane at or past it. */
-  const heaps: Heap[] = []
-  const heapOf = (lane: number) => {
-    while (heaps.length <= lane)
-      heaps.push(createHeap<CacheEntry<V, K>>(before, (entry, at) => (entry.slot = at)))
-    return heaps[lane]
-  }
+  const heap = createHeap<CacheEntry<V, K>>(before, (entry, at) => (entry.slot = at))
   let next = 0,
     bytes = 0,
     heldBytes = 0,
     size = 0
   const unheap = (entry: CacheEntry<V, K>) => {
     if (entry.slot < 0) return
-    heaps[entry.lane].take(entry.slot)
+    heap.take(entry.slot)
     entry.slot = -1
-  }
-  /** The first entry that may leave — of `lane`, or of every lane. */
-  const first = (lane?: number) => {
-    if (lane !== undefined) return lane < heaps.length ? heaps[lane].items[0] : undefined
-    let found: CacheEntry<V, K> | undefined
-    for (const heap of heaps) {
-      const top = heap.items[0]
-      if (top && (!found || before(top, found))) found = top
-    }
-    return found
   }
   /** `entry`'s value leaves, its bytes with it, told to `left`; the entry stays. */
   const vacate = (entry: CacheEntry<V, K>) => {
@@ -98,7 +73,7 @@ export function createCacheEntries<V, K = string>(
   const entryOf = (key: K) => {
     let entry = entries.get(key)
     if (!entry) {
-      entry = { key, value: undefined, bytes: 0, holds: 0, tier: 0, stamp: -1, lane: 0, slot: -1 }
+      entry = { key, value: undefined, bytes: 0, holds: 0, tier: 0, stamp: -1, slot: -1 }
       entries.set(key, entry)
     }
     return entry
@@ -124,20 +99,15 @@ export function createCacheEntries<V, K = string>(
       if (entry?.value === undefined) return undefined
       if (entry.stamp !== next - 1) {
         entry.stamp = next++
-        if (entry.slot >= 0) heaps[entry.lane].settle(entry.slot)
+        if (entry.slot >= 0) heap.settle(entry.slot)
       }
       return entry.value
     },
-    /** Puts `value`, `weight` bytes, at `key` as the most recently used of its `tier`, in its lane,
-     *  in place of any value there: its holds stay. */
+    /** Puts `value`, `weight` bytes, at `key` as the most recently used of its `tier`, in place of
+     *  any value there: its holds stay. */
     set(key: K, value: V, weight: number, tier = 0) {
-      const entry = entryOf(key),
-        lane = laneOf(value)
+      const entry = entryOf(key)
       if (entry.value !== undefined) vacate(entry)
-      if (entry.lane !== lane) {
-        unheap(entry)
-        entry.lane = lane
-      }
       entry.value = value
       entry.bytes = weight
       entry.tier = tier
@@ -145,8 +115,8 @@ export function createCacheEntries<V, K = string>(
       bytes += weight
       size++
       if (entry.holds > 0) heldBytes += weight
-      else if (entry.slot >= 0) heaps[lane].settle(entry.slot)
-      else heapOf(lane).push(entry)
+      else if (entry.slot >= 0) heap.settle(entry.slot)
+      else heap.push(entry)
     },
     /** `key`'s value now weighs `weight` bytes. */
     resize(key: K, weight: number) {
@@ -171,19 +141,18 @@ export function createCacheEntries<V, K = string>(
       if (!entry || entry.holds === 0 || --entry.holds > 0) return
       if (entry.value === undefined) return void entries.delete(key)
       heldBytes -= entry.bytes
-      heapOf(entry.lane).push(entry)
+      heap.push(entry)
     },
     /** `key` leaves, value and holds alike. */
     drop(key: K) {
       const entry = entries.get(key)
       if (entry) remove(entry)
     },
-    /** Takes the first value no one holds — lowest tier, least recently used —, of `lane` alone
-     *  when one is named, while `over(it)`, each told to `evicted` once it left. Returns how many
-     *  left. */
-    evict(over: (oldest: V) => boolean, evicted?: (key: K, value: V) => void, lane?: number) {
+    /** Takes the first value no one holds — lowest tier, least recently used — while `over(it)`,
+     *  each told to `evicted` once it left. Returns how many left. */
+    evict(over: (oldest: V) => boolean, evicted?: (key: K, value: V) => void) {
       let count = 0
-      for (let entry = first(lane); entry && over(entry.value!); entry = first(lane)) {
+      for (let entry = heap.items[0]; entry && over(entry.value!); entry = heap.items[0]) {
         const value = entry.value!
         remove(entry)
         evicted?.(entry.key, value)
@@ -195,7 +164,7 @@ export function createCacheEntries<V, K = string>(
     clear() {
       for (const { key, value } of entries.values()) if (value !== undefined) left(value, key)
       entries.clear()
-      for (const heap of heaps) heap.clear()
+      heap.clear()
       bytes = heldBytes = size = 0
     },
   }

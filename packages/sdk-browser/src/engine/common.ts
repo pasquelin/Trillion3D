@@ -42,7 +42,6 @@ export const DEFAULT_FOV = 55,
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
-  DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28
 /**
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon

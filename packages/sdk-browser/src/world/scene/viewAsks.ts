@@ -15,31 +15,21 @@ type Ask = {
  * url the next frame asks again keeps its read — lifted once it turns visible —, one it no longer
  * asks is let go, so the queue drops it while it waits, its failure's wait included. A frame waits
  * on the reads it asks, whether they are new or on their way since an earlier frame. One asked
- * again after its read settled — its page evicted before it was taken — is read again only once a
- * frame went by with no page evicted, nor any since (`stats().evictions`): while the cache has no room, it would
- * be read for nothing, and read again by every frame.
+ * again after its read settled finds its page gone from the cache — the plan pins the pages it
+ * asks until they are taken (`../../partition/planPins.ts`) —: it is read again.
  *
  * Cost: O(u) a frame for the u urls it asks, O(a) for the a asks it ends; nothing per landing.
  */
-export function createViewAsks(
-  queue: Pick<PageQueue, 'readBytes'> & { stats?: () => { evictions: number } },
-) {
+export function createViewAsks(queue: Pick<PageQueue, 'readBytes'>) {
   const asks = new Map<string, Ask>()
-  const evictions = () => queue.stats?.().evictions ?? 0
-  let frame = 0,
-    /** The evictions counted at the last frame's end, and at the one before. */
-    endedAt = evictions(),
-    endedBefore = endedAt
-  /** Whether the cache evicted nothing over the last frame, nor since: room for a page read again. */
-  const roomy = () => endedAt === endedBefore && evictions() === endedAt
+  let frame = 0
   return {
     /** Asks `urls` at `priority` in the frame under way: their landings, settled either way. */
     ask(urls: readonly string[], priority: number) {
       const reads: Promise<void>[] = []
       for (const url of urls) {
         let own = asks.get(url)
-        const again = !!own?.settled
-        if (!own || (again && roomy()) || priority < own.priority) {
+        if (!own || own.settled || priority < own.priority) {
           const stop = new AbortController()
           const ask: Ask = { stop, priority, read: Promise.resolve(), settled: false, frame }
           const settle = () => void (ask.settled = true)
@@ -49,8 +39,7 @@ export function createViewAsks(
           asks.set(url, (own = ask))
         }
         own.frame = frame
-        // A read held back waits on nothing: the frame is drawn again once a page lands.
-        if (!own.settled || !again) reads.push(own.read)
+        reads.push(own.read)
       }
       return reads
     },
@@ -62,8 +51,6 @@ export function createViewAsks(
           asks.delete(url)
         }
       frame++
-      endedBefore = endedAt
-      endedAt = evictions()
     },
   }
 }

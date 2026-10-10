@@ -1,10 +1,9 @@
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
+import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import { createIndexViews } from '../../streaming/indexView.ts'
+import { asIndices } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
@@ -30,7 +29,6 @@ async function preloaded(
     progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
     return indices
   }
-  const asIndices = createIndexViews()
   const urls = pages.map((page) => page.url)
   await streamer.request(urls, {
     signal: streamer.signal,
@@ -58,17 +56,7 @@ export function openExplorerPageSources(
   stalled: Stalled = () => {},
 ) {
   const { pages, geometryPages, pageIdByUrl } = indexManifestPages(metadata)
-  const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse')
-  // What the streamer keeps in cache; the WebGPU engine holds its own pool in bytes. A cluster DAG
-  // keeps twice its bundles; a flat cache the pages the view may read, within the default ceiling.
   const bundles = indexManifestBundles(metadata)
-  const flatPages =
-    options.maxResidentPages ?? Math.max(1024, exactPages.length * (options.replicaCount ?? 1))
-  const cacheCap =
-    options.maxCachedPages ??
-    (bundles.length > 0
-      ? Math.max(8192, bundles.length * 2)
-      : clamp(flatPages, 8192, DEFAULT_CACHED_PAGES))
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   // The one cache every reader of the session shares — its world's, kept across a device loss, or
@@ -82,7 +70,6 @@ export function openExplorerPageSources(
     cache: pageCache,
     signal,
     workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
-    maxPages: cacheCap,
     onEvict: (url) => engine()?.dropPage(url),
     maxTransferBytes: options.maxPageTransferBytes,
     onDiagnostic:
@@ -93,7 +80,7 @@ export function openExplorerPageSources(
   })
   const preload = options.preload ?? 'visible'
   const sources = preloaded(streamer, pages, preload, progress).then((indices) => ({
-    ...{ pages, geometryPages, pageIdByUrl, preload, cacheCap, streamer, pageCache, indices },
+    ...{ pages, geometryPages, pageIdByUrl, preload, streamer, pageCache, indices },
   }))
   return { streamer, sources }
 }

@@ -22,6 +22,22 @@ test('the cells a camera needs are asked nearest first, then placed on rows once
   assert.ok(updates.length >= 2, 'the session is told which rows were written')
 })
 
+test('the plan pins the files it asks until their decodes are taken, then lets them go', async () => {
+  const { cells, bytes } = await sizedWhole(world())
+  const { port, held, pinned } = io(bytes)
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  const cellFiles = ['far.json', 'near.json'].map(cellUrl)
+  assert.deepEqual(
+    cellFiles.map((url) => pinned.get(url)),
+    [1, 1],
+    'asked and not yet read: pinned, whatever the cache does meanwhile',
+  )
+  cellFiles.forEach((url) => held.add(url))
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  assert.equal(cells.stats().held, 2)
+  assert.deepEqual([...pinned.values()], new Array(pinned.size).fill(0), 'all taken: none pinned')
+})
+
 test('a row holds the world matrix the engine composes for the same node under its parent', async () => {
   const { cells, links, core, bytes, node } = await sizedWhole(world())
   const { port, held } = io(bytes)

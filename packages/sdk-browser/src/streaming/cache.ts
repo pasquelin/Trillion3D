@@ -7,7 +7,7 @@ import { createStreamingPins } from './streamingPins.ts'
  *  each time it moves; the cache evicts (`PageCache.fit`), and tells the session each page that
  *  left. */
 export function createStreamingCache(context: StreamContext) {
-  const { store, state, maxPages, pinned, jobs, emit, onEvict, maxTransferBytes } = context
+  const { store, state, pinned, jobs, emit, onEvict, maxTransferBytes } = context
   /** The pages this session holds in the cache: those the frame keeps and those in flight, one
    *  hold each, whatever keeps it. */
   const holding = new Set<string>()
@@ -40,7 +40,6 @@ export function createStreamingCache(context: StreamContext) {
       drawDetached: false,
       resident: store.pageCount,
       residentBytes: store.bytes,
-      maxPages: maxPages ?? null,
       maxCachedBytes: store.budgetBytes,
     }))
     onEvict?.(url)
@@ -51,7 +50,6 @@ export function createStreamingCache(context: StreamContext) {
       version: 1,
       resident: store.pageCount,
       residentBytes: store.bytes,
-      maxPages: maxPages ?? null,
       maxCachedBytes: store.budgetBytes,
       pinned: pinned.size,
       loading: state.active,
@@ -60,7 +58,7 @@ export function createStreamingCache(context: StreamContext) {
   const evict = store.fit
   /** What the session reserves off the cache's total beside its pages. */
   const reserved = () => state.tableBytes + maxTransferBytes + state.engineBytes
-  const session = { maxPages, evicted, blocked }
+  const session = { evicted, blocked }
   let seat: ReturnType<PageCache['open']> | undefined
   const told = () => seat?.reserve(reserved())
   /** The catalogue's tables grew by `bytes`, or shrank (`manifestTables.ts`). */
@@ -85,6 +83,6 @@ export function createStreamingCache(context: StreamContext) {
     seat?.leave()
     seat = undefined
   }
-  const { retain, retainRanks } = createStreamingPins(context, sync, evict)
-  return { evict, sync, drop, tables, open, close, retain, retainRanks, reserve }
+  const { pin, unpin, retainRanks } = createStreamingPins(context, sync, evict)
+  return { evict, sync, drop, tables, open, close, pin, unpin, retainRanks, reserve }
 }

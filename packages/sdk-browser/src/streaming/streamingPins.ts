@@ -1,41 +1,37 @@
 import type { HostRetentionDelta, StreamContext } from './types.ts'
 
-/** The pages a frame keeps (`pinned`), set from an address list (`retain`) or a rank delta
- *  (`retainRanks`). Each pin that changes is told to `sync`, which marks it in the cache's
- *  eviction order, and the cache then evicts what no longer fits. */
+/** The pages the session keeps (`pinned`): each counted by its owners, the cells' frame and the
+ *  engine's rank delta. A page with an owner is held in the cache whatever its transfer; each pin
+ *  that comes or goes is told to `sync`, which marks it in the cache's eviction order, and the
+ *  cache then evicts what no longer fits. */
 export function createStreamingPins(
   context: StreamContext,
   sync: (url: string) => void,
   evict: () => void,
 ) {
   const { pinned, emit, catalog } = context
-  /** The next full membership, built beside the pins so that only the difference is applied. */
-  const next = new Set<string>()
-  const pin = (url: string) => {
-    pinned.add(url)
+  /** The pages the engine's rank delta pins: a page off the catalogue is no pin. */
+  const ranked = new Set<string>()
+  const add = (url: string) => {
+    if (!catalog.has(url)) return false
+    pinned.set(url, (pinned.get(url) ?? 0) + 1)
     sync(url)
-  }
-  const unpin = (url: string) => {
-    pinned.delete(url)
-    sync(url)
-  }
-  /**
-   * Addresses the frame keeps. The pinned set is a function of this one list and of the
-   * catalogue, which never moves: a list identical to the previous frame's therefore
-   * describes exactly the pins already set, and resetting them one by one would change none.
-   * The comparison is a pass of string identities, without hashing; reclaiming space is not
-   * skipped for all that — each finished transfer replays it on its side.
-   */
-  const retained: string[] = []
-  const same = (urls: readonly string[]) => {
-    if (urls.length !== retained.length) return false
-    for (let i = 0; i < urls.length; i++) if (retained[i] !== urls[i]) return false
     return true
   }
-  /** Emitter of the last rank delta applied, or `null` when pins come from
-   *  elsewhere — from an address list, or from another engine. The next delta then resets
-   *  full membership before following ranks again. */
-  let rankOwner: readonly string[] | null = null
+  const release = (url: string) => {
+    const owners = pinned.get(url)
+    if (!owners) return
+    if (owners > 1) pinned.set(url, owners - 1)
+    else pinned.delete(url)
+    sync(url)
+  }
+  /** One more owner of `url`'s page: its hold lasts till `unpin`. */
+  const pin = (url: string) => void add(url)
+  /** One owner of `url`'s page lets it go; the cache evicts what no longer fits. */
+  const unpin = (url: string) => {
+    release(url)
+    evict()
+  }
   /** Pins published as counts: `added` and `removed` are not lists copied each
    *  frame, but what the applied delta just added and removed. */
   const emitRetain = (requested: number, added: number, removed: number) =>
@@ -47,27 +43,6 @@ export function createStreamingPins(
       added,
       removed,
     }))
-  /** Reset full membership: pins are exactly the `urls` known to the catalogue. */
-  const resetPins = (urls: Iterable<string>, requested: number) => {
-    next.clear()
-    for (const url of urls) if (catalog.has(url)) next.add(url)
-    // Only the pins that change are marked: a list that moves little moves the order little.
-    let added = 0,
-      removed = 0
-    for (const url of pinned)
-      if (!next.has(url)) {
-        unpin(url)
-        removed++
-      }
-    for (const url of next)
-      if (!pinned.has(url)) {
-        pin(url)
-        added++
-      }
-    evict()
-    emitRetain(requested, added, removed)
-    return true
-  }
   /** URLs designated by ranks in `urls`; a rank off the table designates nothing. */
   function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: number) {
     for (let i = 0; i < count; i++) {
@@ -75,41 +50,28 @@ export function createStreamingPins(
       if (url !== undefined) yield url
     }
   }
-  const retain = (urls: readonly string[]) => {
-    if (rankOwner === null && same(urls)) return false
-    rankOwner = null
-    retained.length = urls.length
-    for (let i = 0; i < urls.length; i++) retained[i] = urls[i]
-    return resetPins(urls, urls.length)
-  }
-  /**
-   * Pins by rank delta. The common case only touches what moved; a frame that keeps the
-   * same set touches nothing at all. Resume after another emitter resets full membership
-   * once, then continues by delta.
-   */
+  /** Pins by rank delta: only what moved is touched, a frame that keeps the same set touches
+   *  nothing at all. */
   const retainRanks = (delta: HostRetentionDelta) => {
-    const { urls, entered, exited } = delta
-    if (rankOwner !== urls) {
-      rankOwner = urls
-      retained.length = 0
-      const { held, heldCount } = delta
-      return resetPins(rankUrls(urls, held, heldCount), heldCount)
-    }
     if (!delta.enteredCount && !delta.exitedCount) return false
-    let removed = 0
+    const { urls, entered, exited } = delta
+    let removed = 0,
+      added = 0
     for (let i = 0; i < delta.exitedCount; i++) {
       const url = urls[exited[i]]
-      if (url !== undefined && pinned.has(url)) {
+      if (url !== undefined && ranked.delete(url)) {
         removed++
-        unpin(url)
+        release(url)
       }
     }
-    const before = pinned.size
     for (const url of rankUrls(urls, entered, delta.enteredCount))
-      if (catalog.has(url) && !pinned.has(url)) pin(url)
+      if (!ranked.has(url) && add(url)) {
+        ranked.add(url)
+        added++
+      }
     evict()
-    emitRetain(delta.heldCount, pinned.size - before, removed)
+    emitRetain(delta.heldCount, added, removed)
     return true
   }
-  return { retain, retainRanks }
+  return { pin, unpin, retainRanks }
 }

@@ -6,7 +6,7 @@ import { createTransferQueue } from './queueRanges.ts'
 import { createReadFailures } from './failures.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { createStreamingCache } from './cache.ts'
-import { createIndexViews } from './indexView.ts'
+import { asIndices } from './indexView.ts'
 import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
 import { createReadWatch } from './readWatch.ts'
 import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
@@ -17,19 +17,19 @@ const listed = (page: StreamPage) => !(page.range && page.bytes === 0)
 /** Bounded, prioritized and deduplicated reads through `options.cache`, the page cache its owner
  *  keeps (`pageCache.ts`). A request still waiting in the queue is dropped once its last consumer
  *  leaves; one already transferring is allowed to land in the cache. The cache is a
- *  least-recently-used set bounded by both entries and bytes; pinned entries survive eviction, so a
- *  caller keeps its displayed cover by retaining it. */
+ *  least-recently-used set bounded by bytes; a page with an owner (`pin`, `retainRanks`) survives
+ *  eviction, so a caller keeps its displayed cover by pinning it. */
 export function createPageStreamer(
   pages: readonly StreamPage[],
   base: string,
   options: PageStreamerOptions,
 ) {
-  const { cache: store, signal, maxPages, onEvict, onDiagnostic } = options
+  const { cache: store, signal, onEvict, onDiagnostic } = options
   const { workerCount = 8, maxTransferBytes = 8 * MIB } = options
   const catalog = new Map(pages.filter(listed).map((page) => [page.url, page]))
   const jobs = new Map<string, Job>(),
     queue = createTransferQueue()
-  const pinned = new Set<string>(),
+  const pinned = new Map<string, number>(),
     abort = new AbortController()
   // A wait over: a job waiting is queued again by the queue below, made once this is; the failure
   // of a page no longer catalogued leaves.
@@ -75,12 +75,12 @@ export function createPageStreamer(
   const emit = lazyDiagnostic(onDiagnostic)
   const abortError = () => new DOMException('Page request cancelled', 'AbortError')
   const context: StreamContext = {
-    ...{ base, catalog, store, jobs, queue, pinned, failures, abort, limit, maxPages },
+    ...{ base, catalog, store, jobs, queue, pinned, failures, abort, limit },
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
   }
   const { read: transfer, roundTrip } = createStreamingFetcher(context)
   const streaming = createStreamingCache(context)
-  const { retain, retainRanks, reserve } = streaming
+  const { pin, unpin, retainRanks, reserve } = streaming
   /** A kept page held under a page's name as another file leaves before its first read. */
   const dropForeign = (admitted: readonly StreamPage[]) => {
     for (const page of admitted) if (store.foreign(page)) streaming.drop(page.url)
@@ -91,7 +91,6 @@ export function createPageStreamer(
     version: 1,
     pages: catalog.size,
     workerCount: limit,
-    maxPages: maxPages ?? null,
     maxTransferBytes,
     maxCachedBytes: store.budgetBytes,
     cpuBudgetBytes: store.cpuBytes,
@@ -100,7 +99,6 @@ export function createPageStreamer(
   const reads = createStreamingQueue(context, transfer, streaming)
   const { forget, keep } = reads
   const { read, watch } = createReadWatch(reads.subscribe)
-  const asIndices = createIndexViews()
   const readBytes = (url: string, signal: AbortSignal, priority = 0) => {
     state.requested++
     return read(url, signal, priority)
@@ -138,9 +136,11 @@ export function createPageStreamer(
     /** The streamer's life, aborted once it is disposed or its owner's signal aborts: the signal
      *  of a read its session owns. */
     signal: abort.signal,
-    retain,
     reserve,
-    /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
+    /** One more owner of `url`'s page: kept in the cache until `unpin` lets it go. */
+    pin,
+    unpin,
+    /** The engine's pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
     /** Hears every page read, whoever asks it, until the returned stop runs (`readWatch.ts`). */
     watch,
@@ -173,8 +173,8 @@ export function createPageStreamer(
         resident: store.pageCount,
         residentBytes: store.bytes,
         maxCachedBytes: store.budgetBytes,
-        /** CPU bytes held (manifest tables, transfers, the cache's entries). */
-        cpuBytes: state.tableBytes + state.activeBytes + store.bytes,
+        /** CPU bytes held (manifest tables, transfers, the engine's tables, the cache's entries). */
+        cpuBytes: state.tableBytes + state.activeBytes + state.engineBytes + store.bytes,
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
         /** Reads that failed and do not pass now: waiting their turn, or refused for good. */

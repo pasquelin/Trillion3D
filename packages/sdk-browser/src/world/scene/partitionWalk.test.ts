@@ -56,6 +56,8 @@ function grid(side: number) {
     getBytes: (url: string) => bodies.get(url),
     failed: () => false,
     request: async () => {},
+    pin() {},
+    unpin() {},
     admit() {},
     forget() {},
   } as unknown as ReturnType<typeof createPageStreamer>

@@ -11,6 +11,7 @@ import { createPageCache, type PageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
+import { retained } from '../streaming/retained.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
 import { MIB } from '../../../math/src/constants.ts'
@@ -87,7 +88,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   assert.equal(levels.bytes, 64, 'held while no session reserves its room')
   const { pages, fetched } = await servedPages(urls)
   const streamer = createPageStreamer(pages, 'http://cache/', { cache, maxTransferBytes: 64 })
-  streamer.retain(urls)
+  retained(streamer, urls)(urls)
   await streamer.request(urls, { signal: streamer.signal })
   const { evictions, admissionBlocked } = streamer.stats()
   assert.deepEqual([urls.every(streamer.has), evictions, admissionBlocked], [true, 0, 0])

@@ -97,7 +97,7 @@ function engineContext(
   lights: Awaited<ReturnType<typeof sessionLights>>,
 ): EngineContext {
   const { canvas, metadata, signal, diagnosticChannel, diagnose } = session
-  const { indices, streamer, cacheCap, pageCache } = inputs.pageSources
+  const { indices, streamer, pageCache } = inputs.pageSources
   // The world roots the scene's own manifest opened ride the context; their pages are read through
   // the one geometry reader, built here once.
   const worldRoots = inputs.worldRoots.find((hold) => hold.metadata === metadata)
@@ -114,7 +114,6 @@ function engineContext(
     associations: inputs.associations,
     textureIndices: inputs.textureIndices,
     signal,
-    maxCachedPages: cacheCap,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
     preparationStep: (step) => diagnose('engine-preparation-step', step, { kind: 'preparation' }),
     diagnosticDetail: diagnosticChannel.detail,

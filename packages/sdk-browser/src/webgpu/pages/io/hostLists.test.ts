@@ -1,12 +1,13 @@
-// The two lists the host asks the WebGPU engine after the render: same addresses as a string-set
-// dedup, and returned as-is while nothing they depend on has moved. The to-load page list does not
+// The two lists the host asks the WebGPU engine after the render (the pins as a rank delta): same
+// addresses as a string-set dedup, and returned as-is while nothing they depend on has moved. The to-load page list does not
 // walk the cut: the delta holds the set of pages waiting for their bytes, and that is what is read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { RequestStamps, type PageRec } from '../../../page/selection/selection.ts'
 import { createCutDelta } from '../../cut/delta.ts'
 import { createCutPending } from '../../cut/pending.ts'
-import { pageUrls, pendingUrls } from './hostApi.ts'
+import { createHostRankDelta } from '../../../streaming/hostRanks.ts'
+import { pendingUrls, retainedRanks } from './hostApi.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const rec = (url: string, requestIndex: number, chargee = true) =>
@@ -41,7 +42,6 @@ function banc() {
   const run = {
     desired,
     shown,
-    urlScratch: [] as string[],
     pendingScratch: [] as string[],
     hostPendingScratch: [] as string[],
     awaitedScratch: [] as PageRec[],
@@ -50,12 +50,16 @@ function banc() {
     cutEpoch: 0,
     pageArrayEpoch: 0,
     pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
-    urlsHeld: { epoch: -1, cut: -1, limited: false },
+    ranksHeld: { epoch: -1, cut: -1, limited: false },
   }
   const rt = {
     run,
     layout: { packedPages },
-    setup: { bootstrap, requestStamps: new RequestStamps(6) },
+    setup: {
+      bootstrap,
+      requestStamps: new RequestStamps(6),
+      hostRanks: createHostRankDelta(6, ['a', 'b', 'c', 'd', 'e', 'f']),
+    },
     services: { bootstrapState: { ready: true }, cutPending, residencySets: { wantedPages } },
   } as unknown as WebgpuPagesRuntime
   /** A cut published as the engine publishes it: by its delta, readers included. */
@@ -66,6 +70,12 @@ function banc() {
   }
   publie([1, 2, 3, 4])
   return { rt, run, publie, cutPending, packedPages }
+}
+
+/** The addresses the host pins after the image, in the order the ranks were met. */
+const pageUrls = (rt: WebgpuPagesRuntime) => {
+  const { urls, held, heldCount } = retainedRanks(rt)
+  return Array.from(held.subarray(0, heldCount), (rank) => urls[rank])
 }
 
 /** The reference rule, word for word: a string set, in encounter order. */

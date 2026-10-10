@@ -7,14 +7,7 @@ import { flushWebgpuPages } from './render/flush.ts'
 import { captureSurfaceView } from './io/surfaceCapture.ts'
 import { captureColorView } from './io/colorCapture.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
-import {
-  captureImage,
-  pageUrls,
-  pendingUrls,
-  rasterView,
-  retainedRanks,
-  syncResident,
-} from './io/hostApi.ts'
+import { captureImage, pendingUrls, rasterView, retainedRanks, syncResident } from './io/hostApi.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts'
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts'
@@ -143,7 +136,6 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     rasterView: () => rasterView(rt),
     pendingUrls: () => pendingUrls(rt),
-    pageUrls: () => pageUrls(rt),
     retainedRanks() {
       return retainedRanks(rt)
     },
