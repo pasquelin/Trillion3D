@@ -70,7 +70,7 @@ export interface WebgpuPagesRuntime {
   watchedSources: () => unknown[]
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices
-  /** POC: placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
+  /** Placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
   compose?: ComposeState
 }
 

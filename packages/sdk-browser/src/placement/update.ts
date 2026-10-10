@@ -38,7 +38,7 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
   return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[]
 }
 
-/** POC: the rank of the root that reads row `index` of `rows`, or -1 when none does. */
+/** The rank of the root that reads row `index` of `rows`, or -1 when none does. */
 export const rootRankOfRow = <T>(
   roots: readonly ClusterRoot<T>[],
   rows: PlacementRows,
