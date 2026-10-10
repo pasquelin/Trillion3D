@@ -26,7 +26,7 @@ export const PICK_SHIFT = floorLog2(FEEDBACK_EVERY) + 1
 /** The most tiles one image lists: more than a pool serves in an image, and the readback they make
  *  stays the same whatever the textures the scene wears. A tile past it speaks again at the next
  *  phase. */
-export const FEEDBACK_HITS = 16384
+const FEEDBACK_HITS = 16384
 
 /** The tiles an image asked, by feedback rank, each with the pixels that named it: the first
  *  `count` entries of `index` and `weight`. */
