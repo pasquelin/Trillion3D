@@ -48,6 +48,8 @@ test('the compaction says whether it ran: no rows, no slots or disposed, the ver
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
   })
   const compact = (await createGpuRestCompact(fake.device, {
+    state: buffer,
+    perRow: 4,
     instances: buffer,
     indirect: buffer,
     slotOffsets: buffer,
@@ -58,14 +60,15 @@ test('the compaction says whether it ran: no rows, no slots or disposed, the ver
     setBindGroup() {},
     setPipeline() {},
     dispatchWorkgroups: () => void dispatches++,
+    dispatchWorkgroupsIndirect: () => void dispatches++,
   } as unknown as GPUComputePassEncoder
   const open = { pass }
   assert.equal(compact.encode(open, 3, 0, buffer), false)
   assert.equal(compact.encode(open, 0, 5, buffer), false)
   assert.equal(dispatches, 0)
-  // Count, scan, scatter: three dispatches of the frame's pass, none of its own.
+  // Arguments, count, scan, scatter: four dispatches of the frame's pass, none of its own.
   assert.equal(compact.encode(open, 3, 5, buffer), true)
-  assert.equal(dispatches, 3)
+  assert.equal(dispatches, 4)
   compact.dispose()
   assert.equal(compact.encode(open, 3, 5, buffer), false)
 })

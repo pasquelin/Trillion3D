@@ -1,4 +1,10 @@
-import { HIZ_NEAREST_BUILD, HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './shader.ts'
+import {
+  HIZ_NEAREST_BUILD,
+  HIZ_SHADER,
+  HIZ_TEST_ARGS_ENTRIES,
+  HIZ_TEST_PAGES_ENTRIES,
+  hizBindEntries,
+} from './shader.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
@@ -18,19 +24,28 @@ export const createHizPipelines = oncePerDevice((device) =>
     const module = device.createShaderModule({ code: HIZ_SHADER })
     if (await shaderFailed(module)) return undefined
     const pagesLayout = device.createBindGroupLayout({ entries: HIZ_TEST_PAGES_ENTRIES })
+    const argsLayout = device.createBindGroupLayout({ entries: HIZ_TEST_ARGS_ENTRIES })
     const stage = (entryPoint: string, groups = [layout], constants?: Record<string, number>) =>
       buildComputePipeline(device, {
         layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
         compute: { module, entryPoint, ...(constants && { constants }) },
       })
-    const [buildPipeline, nearestPipeline, testPipeline] = await Promise.all([
+    const [buildPipeline, nearestPipeline, testPipeline, argsPipeline] = await Promise.all([
       stage('buildHiz'),
       stage('buildHiz', [layout], { [HIZ_NEAREST_BUILD]: 1 }),
       stage('testHiz', [layout, pagesLayout]),
+      stage('testHizArgs', [layout, argsLayout]),
     ])
-    return { layout, pagesLayout, buildPipeline, nearestPipeline, testPipeline }
+    return {
+      ...{ layout, pagesLayout, argsLayout },
+      ...{ buildPipeline, nearestPipeline, testPipeline, argsPipeline },
+    }
   }),
 )
+
+/** The group of the test's dispatch arguments (group 1 of `testHizArgs`). */
+export const hizArgsGroup = (device: GPUDevice, layout: GPUBindGroupLayout, args: GPUBuffer) =>
+  device.createBindGroup({ layout, entries: [{ binding: 1, resource: { buffer: args } }] })
 
 /** The test's page-table group (group 1), remade only when the table changes identity (it grows):
  *  one per pyramid, never in the device's shared pipelines, where two pyramids would remake it. */

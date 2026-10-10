@@ -54,6 +54,7 @@ test('the uniforms go up as the words that changed: build words, then the test s
       setPipeline() {},
       setBindGroup() {},
       dispatchWorkgroups() {},
+      dispatchWorkgroupsIndirect() {},
     } as unknown as GPUComputePassEncoder,
   }
   const slot = () => [...held().subarray(words.length, words.length + STRIDE_WORDS)]
@@ -109,6 +110,7 @@ test('a device aligning at 512 lays the build and test slots 512 bytes apart, th
     setBindGroup: (_: number, __: unknown, offsets?: readonly number[]) =>
       void (offsets && bound.push(offsets[0])),
     dispatchWorkgroups() {},
+    dispatchWorkgroupsIndirect() {},
   } as unknown as GPUComputePassEncoder
   hiz.encodePyramid({ pass })
   hiz.encodeTest(device, { pass }, 5, {} as GPUBuffer, true)

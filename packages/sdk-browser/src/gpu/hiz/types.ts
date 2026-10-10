@@ -33,8 +33,9 @@ export type GpuHiz = {
   depth(): HizDepth | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
-   * the pyramid's build in the same pass; their count lives in the state, and the CPU does
-   * not read it. `maxRows` bounds the dispatch — any drawable row may have been tested. Nothing is
+   * the pyramid's build in the same pass; their count lives in the state, the CPU does
+   * not read it, and the dispatch is sized by it (`testHizArgs`), not by the rows the table
+   * holds. `maxRows`, the table's drawable rows, bounds what the uniform declares. Nothing is
    * cleared first: the partition wrote every drawable row's verdict this frame (`classifyRows`),
    * `0` for an occluder, and the test rewrites each tested row's. `pages` is the page table: a row
    * whose Hi-Z slot is none (never culled) is kept and counts no reject. Rejects are counted only

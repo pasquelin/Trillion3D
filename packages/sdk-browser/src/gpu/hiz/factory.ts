@@ -1,7 +1,8 @@
 import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS_WORDS } from './pyramidTexture.ts'
-import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts'
+import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
+import { HIZ_TEST_ARGS_BYTES } from './shader.ts'
 import { TESTED_U32 } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
@@ -69,7 +70,12 @@ function hizState(
     size: HIZ_LEVELS_WORDS * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  buffers.push(uniforms, idle, flags, levels)
+  const testArgs = device.createBuffer({
+    label: 'Trillion3D Hi-Z test arguments',
+    size: HIZ_TEST_ARGS_BYTES,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+  })
+  buffers.push(uniforms, idle, flags, levels, testArgs)
   return {
     ...pipelines,
     device,
@@ -81,6 +87,8 @@ function hizState(
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.COPY_DST,
     pagesGroup: hizPagesGroup(device, pipelines.pagesLayout),
+    testArgs,
+    testArgsGroup: hizArgsGroup(device, pipelines.argsLayout, testArgs),
     uniforms,
     levelTable: levels,
     slots,

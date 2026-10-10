@@ -63,6 +63,8 @@ test('a device without compute does not mount compaction', async () => {
   const buffer = {} as GPUBuffer
   const { device } = fakeDevice({ compute: false })
   const made = await createGpuRestCompact(device, {
+    state: buffer,
+    perRow: 4,
     instances: buffer,
     indirect: buffer,
     slotOffsets: buffer,
@@ -71,27 +73,32 @@ test('a device without compute does not mount compaction', async () => {
   assert.equal(made, undefined)
 })
 
-// Behaviour 5: a slot of more tiles than one dimension of a dispatch holds runs them in rows up
-// y (`dispatchGrid`), the slot up z; the shipped flat rank ranks every in-range group's tile
-// once, a single row's as x did, and the groups past the tiles leave.
+// Behaviour 5: the count and scatter dispatches are sized on the GPU by the partition's tested
+// rows (`restArgs`, indirect), never by the rows the table holds; a slot of more tiles than one
+// dimension of a dispatch holds runs them in rows up y (`dispatchGrid`), the slot up z; the
+// shipped flat rank ranks every in-range group's tile once, a single row's as x did, and the
+// groups past the tiles leave.
 test('tiles past one dimension of a dispatch run in rows up y, each tile ranked once', async () => {
   const buffer = { size: 4 * 64 } as GPUBuffer
   const { device } = fakeDevice()
   const made = (await createGpuRestCompact(device, {
+    state: buffer,
+    perRow: 4,
     instances: buffer,
     indirect: buffer,
     slotOffsets: buffer,
     flags: buffer,
   }))!
   const tiles = 65_537,
-    calls: number[][] = []
+    calls: unknown[][] = []
   const pass = {
     setBindGroup() {},
     setPipeline() {},
     dispatchWorkgroups: (...xyz: number[]) => void calls.push(xyz),
+    dispatchWorkgroupsIndirect: (_: GPUBuffer, at: number) => void calls.push(['indirect', at]),
   } as unknown as GPUComputePassEncoder
   assert.ok(made.encode({ pass } as OpenPass, 3, tiles * 64, buffer))
-  assert.deepEqual(calls, [[65_535, 2, 3], [1], [65_535, 2, 3]])
+  assert.deepEqual(calls, [[1], ['indirect', 0], [1], ['indirect', 0]])
   const { flatIndex } = shaderRun<{
     flatIndex: (wg: number[], n: number[], lanes: number) => number
   }>(REST_COMPACT_SHADER, ['flatIndex'], {})
