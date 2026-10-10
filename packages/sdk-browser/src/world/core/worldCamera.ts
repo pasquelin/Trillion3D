@@ -12,8 +12,8 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
 
 /**
  * The ways a page can steer the camera with the mouse and keyboard, or `'none'`. `'firstPerson'`
- * moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with
- * `world.controls.colliders` — and looks through its eyes. `'fly'` and `'firstPerson'` move at
+ * moves a camera; `'character'` moves a body — mass, gravity, jumps, collisions with the
+ * world's physics — and looks through its eyes. `'fly'` and `'firstPerson'` move at
  * `world.controls.movementSpeed` and turn at `world.controls.lookSpeed`.
  */
 export type WorldControls =

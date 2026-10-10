@@ -11,10 +11,8 @@ import { gripOf } from './grip.ts'
 
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,
- * the jump it takes. Both collision backends read it — the triangle tree on the page
- * (`characterBody.ts`) and the virtual character of the physics worker
- * (`sdk-browser/src/physics/characterDriver.ts`) — so a character walks, jumps and brakes the
- * same whatever it collides with; only how the move meets the world differs.
+ * the jump it takes. The virtual character of the physics worker reads it
+ * (`sdk-browser/src/physics/characterDriver.ts`); only how the move meets the world is Jolt's.
  *
  * On the ground the velocity closes 95 % of its gap to the wished one in `responseTime` while a
  * key is held and in `stopTime` once none is, never faster than the floor lets it: a sole pushes

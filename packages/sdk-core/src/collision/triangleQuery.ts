@@ -61,7 +61,7 @@ function overlapsNode(
 
 /** Whether the box around triangle `at` of `triangles` — three corners, a NaN number skipped —
  *  meets `[min, max]`. */
-export function overlapsTriangle(
+function overlapsTriangle(
   triangles: Float32Array,
   at: number,
   min: ArrayLike<number>,
@@ -80,37 +80,12 @@ export function overlapsTriangle(
   return true
 }
 
-/**
- * The triangles of `tree` whose box meets `[min, max]` — each one's first number in
- * `tree.triangles` — in the order `forEachTriangleInBox` visits them, into `into.list` (grown when
- * full); returns their count. A node's box holds its triangles' boxes, so filtering this list by
- * `overlapsTriangle` against any box inside `[min, max]` gives that box's visit, in its order.
- */
-export function gatherTrianglesInBox(
-  tree: TriangleTree,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-  into: { list: Int32Array },
-) {
-  let count = 0
-  forEachTriangleInBox(tree, min, max, (at) => {
-    if (count === into.list.length) {
-      const grown = new Int32Array(2 * count)
-      grown.set(into.list)
-      into.list = grown
-    }
-    into.list[count++] = at
-  })
-  return count
-}
-
 const normal = new Float64Array(3)
 
 /**
  * Where the ray `o + t·d` crosses triangle `v[at..at+9]`: its parameter `t ≥ 0`, or `-1`. Either
  * face is crossed; a ray in the triangle's plane, or a degenerate triangle, crosses nothing. The
- * plane is met first, then the point is tested inside the edges (`insideTriangle`, the rule the
- * capsule's contacts read).
+ * plane is met first, then the point is tested inside the edges (`insideTriangle`).
  */
 function crossTriangle(
   o: ArrayLike<number>,

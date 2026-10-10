@@ -19,7 +19,6 @@ export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.
 export type { ByteMeter } from '../../sdk-browser/src/cluster/byteMeter.ts'
 export { createPageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
 export type { CacheSession, PageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
-export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
 export type {
   ChangeListener,
@@ -27,10 +26,6 @@ export type {
   PivotCameraControls,
 } from '../../sdk-browser/src/camera/controls/types.ts'
 export type { CharacterCameraControls } from '../../sdk-browser/src/camera/controls/characterControls.ts'
-export type {
-  CharacterCollision,
-  TriangleCollision,
-} from '../../sdk-core/src/collision/characterCollision.ts'
 export { ObjectPhysics } from '../../sdk-core/src/physics/objectPhysics.ts'
 export type {
   ContactEvent,
@@ -158,7 +153,6 @@ export type {
 export type { TexturePool } from '../../sdk-browser/src/webgpu/residency/memoryBudgets.ts'
 export type { TrackballCameraControls } from '../../sdk-browser/src/camera/controls/trackballControls.ts'
 export type { TransparentOcclusionAudit } from '../../sdk-browser/src/webgpu/transparent/occlusionAudit.ts'
-export type { TriangleTree } from '../../sdk-core/src/collision/triangleTree.ts'
 export { vehicle, Vehicle } from '../../sdk-core/src/physics/vehicle.ts'
 export type {
   VehicleDriver,

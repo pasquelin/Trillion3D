@@ -1,7 +1,6 @@
 /**
- * CLOSEST POINTS between a segment and a triangle, the query a capsule is built on: a capsule
- * is the set of points within `radius` of a segment, so it overlaps a triangle exactly when the
- * segment comes closer than `radius` to it.
+ * CLOSEST POINTS between a segment and a triangle: how near a segment comes to a triangle, the
+ * query the screen-error measure (`bench/runner/screenError/`) and the exact raycast read.
  *
  * The closest pair of a segment and a triangle is one of three things: the point where the
  * segment pierces the triangle (distance zero), an end of the segment against the inside of the
@@ -131,6 +130,6 @@ function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, ar
 
 /** The signed, unnormalised height of point `p[k..k+3]` above the plane through vertex `v[at]` of
  *  normal `n`: `(p − vertex) · n`. */
-export function heightAbove(p: Numbers, k: number, v: Numbers, at: number, n: Numbers) {
+function heightAbove(p: Numbers, k: number, v: Numbers, at: number, n: Numbers) {
   return dotScalar3(p[k] - v[at], p[k + 1] - v[at + 1], p[k + 2] - v[at + 2], n[0], n[1], n[2])
 }

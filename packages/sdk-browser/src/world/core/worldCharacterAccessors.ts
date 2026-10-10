@@ -57,7 +57,7 @@ export function characterSettingAccessors(
     },
     /** Character only: seconds the legs take to reach 95 % of the wished speed on the ground; 0.12 by
      *  default. The floor's friction bounds the start first: a sole pushes at most `μ g`, `μ` a
-     *  rubber sole's grip on the floor's `material.physics` (stone without physics), so a jog is
+     *  rubber sole's grip on the floor's `material.physics` (stone until the physics names one), so a jog is
      *  reached in 0.45 s on stone and 2.2 s on ice. */
     get responseTime() {
       return settings.responseTime

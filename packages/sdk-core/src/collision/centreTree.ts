@@ -3,7 +3,7 @@ import { selectByKey } from '../../../math/src/select.ts'
 
 /**
  * THE SHAPE OF A BOUNDING-VOLUME HIERARCHY over points — the centres of whatever it bounds —,
- * shared by the triangle tree of collisions (`../collision/triangleTree.ts`) and the transparent
+ * shared by the triangle tree of the exact raycast (`../collision/triangleTree.ts`) and the transparent
  * items' box tree (`sdk-browser/src/webgpu/blend/hierarchy.ts`). Each keeps its own boxes.
  *
  * Top-down: a node's entries are split near the median of their centres along the longest axis of
