@@ -11,8 +11,7 @@ import {
   REFLECTION_GROUP,
   REFLECTION_VIEW_AT as AT,
 } from './viewLayout.ts'
-import type { HeldImage } from './radiance.ts'
-import { createReflectionViewWriter } from './viewWrite.ts'
+import { slabWords } from './slab.fixture.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 
 type Seen = { color: number[]; confidence: number }
@@ -27,24 +26,6 @@ type ReflectionView = {
   proxy: number[]
   surroundings: number[]
 }
-/** The slab words the shipped writer stages for the view-projection `m` of an image of `size`
- *  (`reflectionSlab` behind `createReflectionViewWriter`). */
-function slabWords(m: ArrayLike<number>, size: readonly [number, number]) {
-  let written = new Float32Array(0)
-  const device = {
-    queue: {
-      writeBuffer: (_: unknown, __: number, words: Float32Array) => (written = words.slice()),
-    },
-  } as unknown as GPUDevice
-  const held = { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false }
-  createReflectionViewWriter(device, {} as GPUBuffer)(
-    { viewProjection: m, size, depthDrawn: true, proxyError: 0 },
-    held as HeldImage,
-    1,
-  )
-  return [...written.subarray(AT.slab, AT.slab + 4)]
-}
-
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
  *  depth's own) and the deferred lighting's (`View`: the pixel's world point, the eye, the drawn
  *  size). */
