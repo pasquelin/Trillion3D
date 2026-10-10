@@ -21,10 +21,6 @@ namespace trillion {
 
 namespace {
 
-enum ShapeKind : uint32_t { BOX = 0, SPHERE, CAPSULE, CYLINDER, TRIANGLES, HULL, COOKED, COMPOUND };
-/// Words of one compound part: `kind, a, b, c, px, py, pz, qx, qy, qz, qw` (layout.ts PART_WORDS).
-constexpr uint32_t PART_WORDS = 11;
-
 RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   uint64_t key = 0;
   uint32_t bits[3];

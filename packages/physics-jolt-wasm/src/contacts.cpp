@@ -33,7 +33,7 @@ bool pushEvent(uint32_t type, uint32_t a, uint32_t b, float impulse, Vec3 point)
 }
 
 void pushLeave(uint64_t key) {
-  if (!pushEvent(2, uint32_t(key >> 32), uint32_t(key), 0.0f, Vec3::sZero()))
+  if (!pushEvent(EVENT_END, uint32_t(key >> 32), uint32_t(key), 0.0f, Vec3::sZero()))
     world().leaving.push_back(key);
 }
 
@@ -154,7 +154,7 @@ void added(World &w, const ContactRecord &r) {
   uint32_t &pair = w.pairs[pairKey(r.a, r.b)];
   if (pair++ != 0) return;
   // An enter the buffer cannot take is counted, and its leave is never sent.
-  if (pushEvent(1, r.a, r.b, r.impulse, Vec3(r.point))) pair |= ENTERED;
+  if (pushEvent(EVENT_BEGIN, r.a, r.b, r.impulse, Vec3(r.point))) pair |= ENTERED;
   else ++w.dropped;
 }
 
@@ -176,7 +176,7 @@ void soft(World &w, const ContactRecord &r) {
   }
   uint32_t &pair = w.pairs[key];
   pair = 1;
-  if (pushEvent(1, r.a, r.b, r.impulse, Vec3(r.point))) pair |= ENTERED;
+  if (pushEvent(EVENT_BEGIN, r.a, r.b, r.impulse, Vec3(r.point))) pair |= ENTERED;
   else ++w.dropped;
 }
 

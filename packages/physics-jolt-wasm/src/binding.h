@@ -1,7 +1,7 @@
 // Flat, batched C API over Jolt Physics for the engine's physics worker. One `jolt_step` call per
 // fixed step reads a command buffer and writes a pose buffer and an event buffer; no per-object
-// wrapper crosses the boundary. The word layouts mirror `packages/sdk-core/src/physics/layout.ts`
-// (PHYSICS_LAYOUT_VERSION): change both together.
+// wrapper crosses the boundary. The word layouts are `packages/sdk-core/src/physics/layout.ts`
+// (PHYSICS_LAYOUT_VERSION), printed into `layout.h`.
 #pragma once
 
 #include <Jolt/Jolt.h>
@@ -14,6 +14,7 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 
+#include "layout.h"
 #include "pairIndex.h"
 
 #include <cstdint>
@@ -25,12 +26,6 @@ namespace trillion {
 /// Object layers: static geometry, moving bodies, decorative bodies (debris: they meet the static
 /// world only).
 enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
-
-/// Per-body flag bits carried by the ADD and FLAGS commands; ASLEEP, by ADD alone, adds it asleep.
-enum Flag : uint32_t { SENSOR = 1, CCD = 2, EVENTS = 4, HIDDEN = 8, ASLEEP = 16 };
-
-/// Error codes returned by `jolt_error` after a failed `jolt_step` (mirrored in layout.ts).
-enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
 
 struct Slot {
   JPH::BodyID id;
@@ -134,10 +129,6 @@ struct World {
 
 World &world();
 
-/// Word counts of one pose and one event record (layout.ts POSE_WORDS / EVENT_WORDS).
-constexpr uint32_t POSE_WORDS = 14;
-constexpr uint32_t EVENT_WORDS = 7;
-
 /// Executes `words` command words; returns false (with `world().error` set) on the first failure.
 bool runCommands(const uint32_t *words, uint32_t count);
 /// The page's leave for every pair a body being removed was in; its later removal is ignored.
@@ -163,8 +154,6 @@ uint32_t writePoses();
 void setView(View next);
 
 /// The character's commands and state (`character.cpp`, layout.ts).
-constexpr uint32_t CHARACTER = 13, CHARACTER_MOVE = 14;
-constexpr uint32_t CHARACTER_WORDS = 10, CHARACTER_MOVE_WORDS = 5, CHARACTER_STATE_WORDS = 9;
 /// Runs one character command; returns its word count.
 uint32_t characterCommand(const uint32_t *w);
 /// Moves the character by the velocity this step's CHARACTER_MOVE asked for, before the bodies.
@@ -174,8 +163,6 @@ void writeCharacter();
 
 /// The joints' commands (`joints.cpp`, layout.ts JOINT_WORDS); JOINT is followed by its kind's own
 /// words, their count in its word 7.
-constexpr uint32_t JOINT = 18, UNJOINT = 19, MOTOR = 20;
-constexpr uint32_t JOINT_WORDS = 33, UNJOINT_WORDS = 2, MOTOR_WORDS = 6;
 /// Runs one joint command; returns its word count.
 uint32_t jointCommand(const uint32_t *w);
 /// Takes out the joints of the body in slot `index`, before the body is removed.
@@ -188,8 +175,6 @@ void carryPaths();
 void breakJoints(float dt);
 
 /// The vehicles' commands (`vehicles.cpp`, vehicleLayout.ts); VEHICLE is followed by its wheels.
-constexpr uint32_t VEHICLE = 21, UNVEHICLE = 22, DRIVE = 23;
-constexpr uint32_t VEHICLE_WORDS = 38, UNVEHICLE_WORDS = 2, DRIVE_WORDS = 6;
 /// Runs one vehicle command; returns its word count.
 uint32_t vehicleCommand(const uint32_t *w);
 /// Takes out the vehicles on the body in slot `index`, before the body is removed.
@@ -201,7 +186,6 @@ void writeVehicles();
 
 /// The soft bodies' command (`soft.cpp`, softCommands.ts): its fixed words, then per vertex
 /// `SOFT_VERTEX_WORDS` (`words.h`), then its triangle corners, then a cooked body's settings bytes.
-constexpr uint32_t SOFT = 24, SOFT_WORDS = 22;
 /// Makes the soft body a SOFT command describes; false (with `world().error`) on a bad command.
 bool addSoft(const uint32_t *w);
 /// Moves the soft body in `slot` at once to `position` and `rotation`: its vertices carried

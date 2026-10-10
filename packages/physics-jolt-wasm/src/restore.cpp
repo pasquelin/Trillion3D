@@ -23,10 +23,6 @@ namespace {
 std::unordered_map<uint32_t, RefConst<Shape>> restored;
 std::vector<uint32_t> queries, hits;
 
-/// Words of one query (`kind, origin x, y, z, travel x, y, z, a, b, c, ignored`) and one hit
-/// (`engine id, fraction, point x, y, z, normal x, y, z`); layout.ts CAST_WORDS / HIT_WORDS.
-constexpr uint32_t CAST_WORDS = 11, HIT_WORDS = 8, MISS = 0xFFFFFFFFu;
-
 /// Every body but the one whose engine id a query names: the body it passes through.
 class IgnoredBody : public BodyFilter {
 public:

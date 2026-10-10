@@ -6,12 +6,11 @@
 
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
+#include "layout.h"
+
 #include <cstdint>
 
 namespace trillion {
-
-/// Words of RESTORE before its bytes (`op, handle, byteCount`), and of RELEASE (`op, handle`).
-constexpr uint32_t RESTORE_WORDS = 3, RELEASE_WORDS = 2;
 
 /// Restores the shape a RESTORE command carries; false (with `world().error`) when unreadable.
 bool restoreShape(const uint32_t *w);

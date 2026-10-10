@@ -23,7 +23,7 @@ import { createSessionHost } from './session/sessionHost.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { createSoftVertices } from './softVertices.ts'
 import { createSoftTick } from './recordTick.ts'
-import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts'
+import { SOFT_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 
 /** A scene whose bodies are written to `writer`, `softVertices` soft vertices allowed. */
 function sceneOf(softVertices: number, host = {} as PhysicsHost) {

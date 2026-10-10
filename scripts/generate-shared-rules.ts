@@ -2,7 +2,8 @@
 // here into the others: the wave model (`packages/sdk-core/src/fluids/waves.ts`, `waveRest.ts`)
 // into the GPU deformation's WGSL and the physics module's C++, and the coverage-preserving alpha
 // (`packages/sdk-browser/src/texture/coverageMath.ts`) into the mip chains' WGSL and the
-// compiler's Rust. The printer reads the source's own syntax tree and keeps every operation in its
+// compiler's Rust. The physics word layouts (`packages/sdk-core/src/physics/layout.ts`) go into the
+// physics module's C++ the same way. The printer reads the source's own syntax tree and keeps every operation in its
 // order, so each language computes what the source writes, operand for operand. `--check` (a gate
 // of `pnpm run validate`) fails when a printed file is not what its source prints today.
 import { spawnSync } from 'node:child_process'
@@ -10,6 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import prettier from 'prettier'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
+import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { ROOT } from './shared-rules/source.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
@@ -34,6 +36,7 @@ async function formatted(path: string, text: string) {
 const outputs: Record<string, () => string> = {
   'packages/sdk-browser/src/deformation/waveTermsWgsl.ts': waveTermsWgsl,
   'packages/physics-jolt-wasm/src/waveModel.h': waveModelHeader,
+  'packages/physics-jolt-wasm/src/layout.h': physicsLayoutHeader,
   'packages/sdk-browser/src/texture/coverageMathWgsl.ts': coverageWgsl,
   'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
 }

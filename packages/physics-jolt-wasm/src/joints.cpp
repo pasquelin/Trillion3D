@@ -23,13 +23,10 @@ namespace trillion {
 
 namespace {
 
-/// The engine id that names the world rather than a body (layout.ts MISS).
-constexpr uint32_t WORLD_BODY = 0xFFFFFFFFu;
-
 struct Joint {
   Ref<TwoBodyConstraint> constraint;
   /** The page's joint id (slot and generation), and the body slots it connects. */
-  uint32_t id = 0, a = WORLD_BODY, b = WORLD_BODY, kind = 0;
+  uint32_t id = 0, a = MISS, b = MISS, kind = 0;
   /** Newtons of pull past which it breaks; 0 never. */
   float breakForce = 0;
   /** Its axis on `a` and on `b`, in each body's frame: what matches a gear to its wheels' hinges. */
@@ -57,7 +54,7 @@ uint32_t pathVisits = 0, breakVisits = 0;
 /// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
 Frame frameOf(const uint32_t *w, uint32_t engine) {
   Vec3 point = vec3(w);
-  if (engine != WORLD_BODY) {
+  if (engine != MISS) {
     const Slot &slot = world().slots[engine & INDEX_MASK];
     point -= world().system->GetBodyInterfaceNoLock().GetShape(slot.id)->GetCenterOfMass();
   }
@@ -67,7 +64,7 @@ Frame frameOf(const uint32_t *w, uint32_t engine) {
 /// The body a joint end names, or the world when it names none (`BodyID()`); false when the slot
 /// holds no body (refused, or removed since): the joint is not made.
 bool bodyOf(uint32_t engine, BodyID &id) {
-  if (engine == WORLD_BODY) return (id = BodyID(), true);
+  if (engine == MISS) return (id = BodyID(), true);
   uint32_t index = engine & INDEX_MASK;
   const std::vector<Slot> &slots = world().slots;
   if (index >= slots.size() || !slots[index].used || slots[index].engine != engine || slots[index].soft)
@@ -130,19 +127,19 @@ Ref<TwoBodyConstraintSettings> settingsOf(uint32_t kind, const Frame &f1, const 
 /// Other kinds have no motor.
 void drive(Joint &joint, uint32_t mode, float target, float maxForce, uint32_t axis) {
   float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
-  EMotorState state = mode == VELOCITY ? EMotorState::Velocity : mode == POSITION ? EMotorState::Position : EMotorState::Off;
+  EMotorState state = mode == MOTOR_VELOCITY ? EMotorState::Velocity : mode == MOTOR_POSITION ? EMotorState::Position : EMotorState::Off;
   if (joint.kind == HINGE) {
     auto *hinge = static_cast<HingeConstraint *>(joint.constraint.GetPtr());
     hinge->GetMotorSettings().SetTorqueLimit(limit);
     hinge->SetMotorState(state);
-    if (mode == VELOCITY) hinge->SetTargetAngularVelocity(target);
-    else if (mode == POSITION) hinge->SetTargetAngle(target);
+    if (mode == MOTOR_VELOCITY) hinge->SetTargetAngularVelocity(target);
+    else if (mode == MOTOR_POSITION) hinge->SetTargetAngle(target);
   } else if (joint.kind == SLIDER) {
     auto *slider = static_cast<SliderConstraint *>(joint.constraint.GetPtr());
     slider->GetMotorSettings().SetForceLimit(limit);
     slider->SetMotorState(state);
-    if (mode == VELOCITY) slider->SetTargetVelocity(target);
-    else if (mode == POSITION) slider->SetTargetPosition(target);
+    if (mode == MOTOR_VELOCITY) slider->SetTargetVelocity(target);
+    else if (mode == MOTOR_POSITION) slider->SetTargetPosition(target);
   } else if (!driveAdvanced(joint.constraint.GetPtr(), joint.kind, state, target, limit, axis)) return;
   world().system->GetBodyInterfaceNoLock().ActivateConstraint(joint.constraint);
 }
@@ -202,7 +199,7 @@ void relinkGearsOn(const Joint &joint) {
 void file(uint32_t index, bool in) {
   const Joint &joint = joints[index];
   for (uint32_t slot : {joint.a, joint.b})
-    if (slot != WORLD_BODY) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
+    if (slot != MISS) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
   if (joint.kind == PATH) ends.mark(JointIndex::PATHS, index, in);
   if (joint.breakForce > 0 && std::isfinite(joint.breakForce)) ends.mark(JointIndex::BREAKABLE, index, in);
 }
@@ -238,8 +235,8 @@ void add(const uint32_t *w) {
   joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
   joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
   joint.axisA = f2.axis, joint.axisB = f1.axis;
-  joint.a = w[3] == WORLD_BODY ? WORLD_BODY : w[3] & INDEX_MASK;
-  joint.b = w[4] == WORLD_BODY ? WORLD_BODY : w[4] & INDEX_MASK;
+  joint.a = w[3] == MISS ? MISS : w[3] & INDEX_MASK;
+  joint.b = w[4] == MISS ? MISS : w[4] & INDEX_MASK;
   world().system->AddConstraint(joint.constraint);
   bodies.ActivateConstraint(joint.constraint);
   drive(joint, w[5], f32(w + 30), f32(w + 31), w[6]);

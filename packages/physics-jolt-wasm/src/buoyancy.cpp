@@ -20,7 +20,7 @@ namespace trillion {
 
 namespace {
 
-constexpr uint32_t HEADER_WORDS = 8, MAX_SLICES = 4;
+constexpr uint32_t MAX_SLICES = 4;
 
 /** A piece of a body: its shape, its transform from the body's centre of mass, its scale; a body
  *  of revolution's from `from` to `to` along its axis, measured here (`roundVolume.cpp`), any
@@ -111,7 +111,7 @@ uint32_t runBuoyancy(const uint32_t *w) {
   float density = f32(w + 2), linearDrag = f32(w + 3), angularDrag = f32(w + 4);
   Vec3 current = vec3(w + 5), gravity = world.system->GetGravity();
   const BodyLockInterfaceNoLock &locks = world.system->GetBodyLockInterfaceNoLock();
-  const uint32_t *plane = w + HEADER_WORDS, *end = plane + count * PLANE_WORDS;
+  const uint32_t *plane = w + BUOYANCY_WORDS, *end = plane + count * PLANE_WORDS;
   // A body's records are consecutive: its pieces' volumes are summed, and since every push is
   // along gravity, their sum at the volume-weighted centre is each piece pushed at its own.
   while (plane < end) {
@@ -153,7 +153,7 @@ uint32_t runBuoyancy(const uint32_t *w) {
     body->ApplyBuoyancyImpulse(volume, submerged, centre, factor, linearDrag, angularDrag, current,
                                gravity, world.dt);
   }
-  return HEADER_WORDS + count * PLANE_WORDS;
+  return BUOYANCY_WORDS + count * PLANE_WORDS;
 }
 
 }  // namespace trillion
@@ -189,12 +189,12 @@ uint32_t jolt_water_query(float top, float sliceLength) {
       AABox box = local.Transformed(com * piece.local);
       Vec3 centre = box.GetCenter(), half = box.GetExtent();
       float floats[4] = {centre.GetX(), centre.GetZ(), half.GetX(), half.GetZ()};
-      uint32_t words[trillion::PIECE_WORDS] = {engine, i | count << 16};
+      uint32_t words[trillion::WATER_PIECE_WORDS] = {engine, i | count << 16};
       std::memcpy(words + 2, floats, sizeof(floats));
-      trillion::pieces.insert(trillion::pieces.end(), words, words + trillion::PIECE_WORDS);
+      trillion::pieces.insert(trillion::pieces.end(), words, words + trillion::WATER_PIECE_WORDS);
     }
   }
-  return uint32_t(trillion::pieces.size() / trillion::PIECE_WORDS);
+  return uint32_t(trillion::pieces.size() / trillion::WATER_PIECE_WORDS);
 }
 
 uint32_t *jolt_water_pieces() { return trillion::pieces.data(); }
