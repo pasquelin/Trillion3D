@@ -51,10 +51,11 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     assert.equal(pages.length, 2, 'the table regrown by copy into a buffer of its new size')
     assert.equal(pages[1].size, pageTables.color.bytes)
     assert.equal(labelled('texture pages data').length, 2, 'the data ranks moved behind it')
-    // The counters and their two readbacks, made again at the new count; the reduction's own
-    // uniform, made once on a device with compute (every device, #1483), is no counter.
-    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('reduce'))
-    assert.equal(counters.length, 6, 'the feedback counts the 21 new ranks')
+    // The counters, their list and its two readbacks, made again at the new count; the reduction's
+    // and the gather's uniforms, made once on a device with compute (every device, #1483), are no
+    // counter.
+    const counters = labelled('texture feedback').filter(({ label }) => !label!.includes('uniform'))
+    assert.equal(counters.length, 8, 'the feedback counts the 21 new ranks')
     groups.length = 0
     backend.render(camera())
     const naming = groups.filter((group) =>

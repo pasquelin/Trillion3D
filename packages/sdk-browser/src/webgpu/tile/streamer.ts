@@ -106,7 +106,6 @@ export function createWebgpuTileStreamer(options: {
       let served = 0,
         waiting = 0,
         bytes = 0,
-        index = 0,
         stop = false,
         encoder: GPUCommandEncoder | undefined
       colorChanged.clear()
@@ -114,9 +113,10 @@ export function createWebgpuTileStreamer(options: {
         (encoder ??= device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
       const wanted = requests.take(frame),
         at = requests.frame
-      counters.worked = wanted.length > 0
-      for (; index < wanted.length && !stop; index++) {
-        const request = wanted[index]
+      counters.worked = wanted.to > wanted.from
+      let index = wanted.from
+      for (; index < wanted.to && !stop; index++) {
+        const request = wanted.list[index]
         let verdict: ReturnType<typeof sources.serve> = 'waiting'
         try {
           verdict = sources.serve(request.atlas, request.key, at, open)
@@ -134,7 +134,7 @@ export function createWebgpuTileStreamer(options: {
       }
       sources.endPass(encoder, at)
       flushAll()
-      requests.defer(wanted, index)
+      requests.defer(index)
       counters.served += served
       counters.deferred = requests.deferred
       counters.pending = waiting + requests.deferred
@@ -156,14 +156,14 @@ export function createWebgpuTileStreamer(options: {
       return (found & HEADERS_SWITCHED) !== 0
     },
     /** An image's feedback leaves with it: the target where its pixels posted their requests — when a
-     *  pass wrote it — is reduced to counters for the phase, copied to their readback then zeroed. */
+     *  pass wrote it — is reduced to counters for the phase, the tiles it counted listed and copied to their readback. */
     publishRequests(
       encoder: GPUCommandEncoder,
       target: GPUTextureView | undefined,
       size: [number, number],
       every: boolean,
     ) {
-      if (target) reduce?.encode(encoder, target, feedback.buffer, size, feedback.phaseWord(every))
+      if (target) reduce?.encode(encoder, target, feedback, size, feedback.phaseWord(every))
       feedback.encode(encoder)
     },
     /** False on a device without a compute stage: no pixel asks for a tile. */

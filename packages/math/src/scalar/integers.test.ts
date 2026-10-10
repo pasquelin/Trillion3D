@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { mipSize, nextPow2, uniqueSortedInPlace } from './integers.ts'
 import { setBit } from './bits.ts'
 import { testBit } from './bits.fixture.ts'
-import { firstTrue, lastTrue } from './search.ts'
+import { firstTrue, lastAtMost, lastTrue } from './search.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {
   for (let k = 1; k <= 32; k++) {
@@ -36,6 +36,20 @@ test('nextPow2 outside its domain: 1 up to 1, NaN for NaN, a throw past 2^32', (
   for (const v of [-Infinity, -5, -0, 0, 2 ** -1074, 0.5, 1]) assert.equal(nextPow2(v), 1, `${v}`)
   assert.ok(Number.isNaN(nextPow2(NaN)))
   for (const v of [2 ** 32 + 1, 2 ** 50 + 1, Infinity]) assert.throws(() => nextPow2(v), RangeError)
+})
+
+test('lastAtMost is lastTrue over a sorted array, with repeats and either end', () => {
+  for (let length = 1; length <= 9; length++)
+    for (let seed = 0; seed < 20; seed++) {
+      const sorted: number[] = []
+      for (let i = 0, value = seed % 3; i < length; i++) sorted.push((value += (seed * i) % 3))
+      for (let value = -1; value <= sorted[length - 1] + 1; value++)
+        assert.equal(
+          lastAtMost(sorted, value),
+          lastTrue(0, length - 1, (i) => sorted[i] <= value),
+          `${sorted} at ${value}`,
+        )
+    }
 })
 
 test('lastTrue and firstTrue: the searches they replace, every edge and empty range', () => {
