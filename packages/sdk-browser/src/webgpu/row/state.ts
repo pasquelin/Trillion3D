@@ -51,16 +51,12 @@ export function createWebgpuRowState(
       if (row >= 0) dirtyRows.markWords(row)
     },
     clearDirty: dirtyRows.clear,
-    get dirtyMarks() {
-      return dirtyRows.marks
+    /** How many rows are dirty. */
+    get dirtyCount() {
+      return dirtyRows.count
     },
-    /** First and last dirty rows: the span that bounds every mark. */
-    get dirtyFrom() {
-      return dirtyRows.span.from
-    },
-    get dirtyTo() {
-      return dirtyRows.span.to
-    },
+    /** The runs of neighbouring dirty rows, in order, the rows past `last` left out. */
+    forEachDirtyRun: dirtyRows.forEachRun,
     /** Row writes since the table was made (`rowsMoved`). */
     get rowWrites() {
       return dirtyRows.writes

@@ -58,7 +58,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (services.residency.busy) mask |= BIT.residencyBusy
   if (
     rows.rowsChanged ||
-    rows.dirtyTo >= rows.dirtyFrom ||
+    rows.dirtyCount > 0 ||
     rows.rowsEpoch !== rows.tableEpoch ||
     rows.rowsDenied
   )

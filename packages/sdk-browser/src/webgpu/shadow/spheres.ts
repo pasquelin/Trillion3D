@@ -5,7 +5,6 @@ import { boxCenter, transformHalfExtent } from '../../../../math/src/geometry/bo
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { forEachDirtyRun } from '../row/dirty.ts'
 import { CLUSTER_SPHERE_FLOATS, clusterSpheres } from './rowBuffers.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
@@ -184,13 +183,7 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 export function uploadClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const spheres = ensureClusterSpheres(rt, device),
     { rows } = rt.layout
-  forEachDirtyRun(
-    rows.dirtyMarks,
-    rows.dirtyFrom,
-    Math.min(rows.dirtyTo, spheres.rows - 1),
-    rt,
-    uploadSphereRun,
-  )
+  rows.forEachDirtyRun(rt, uploadSphereRun, spheres.rows - 1)
   // The runs it wrote, a new epoch when any: `vsm/rowPageBound.ts` re-bins those rows alone.
   if (spheres.writing) {
     spheres.written = { epoch: spheres.written.epoch + 1, runs: spheres.writing }

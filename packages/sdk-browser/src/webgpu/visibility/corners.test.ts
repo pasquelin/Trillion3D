@@ -1,6 +1,7 @@
 // A moved model forgets and sends its own rows, not the terrain rows between them. The
 // table must not keep one dirty interval: a model whose rows sit at both ends of the table would
 // drop the occlusion history of every row in between and send them all again, each image it moved.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts'
@@ -105,8 +106,9 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   const { rt, model, forgotten, corners, table, spheres, sum } = scatteredScene()
   assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
   const { rows } = rt.layout
-  // The span still bounds the marks: first and last rows of the model.
-  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997])
+  // The runs reach the first and last rows of the model.
+  const dirty = runsOf(rows.forEachDirtyRun)
+  assert.deepEqual([dirty[0][0], dirty.at(-1)![1]], [3, 997])
   uploadClusterSpheres(rt, rt.gpu.device!)
   uploadRowCorners(rt)
   uploadDirtyRows(rt)
@@ -115,8 +117,7 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent')
   assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent')
   assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()))
-  assert.equal(rows.dirtyTo, -1, 'every mark consumed')
-  assert.equal(rows.dirtyMarks.indexOf(1), -1)
+  assert.equal(rows.dirtyCount, 0, 'every mark consumed')
   // A still image: nothing marked, nothing forgotten, nothing sent.
   uploadRowCorners(rt)
   uploadDirtyRows(rt)

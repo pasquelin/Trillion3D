@@ -1,5 +1,6 @@
 // The row table grows in place. Its visibility rows keep their ranks and words; the blended
 // casters' rows move behind the new visibility rows.
+import { runsOf } from './dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuRowSync } from './sync.ts'
@@ -28,7 +29,10 @@ test('caster rows follow blendFirst after a grow, and the visibility rows keep t
   assert.equal(rows.packedRecs[3], pages[1])
   assert.equal(rows.packedRecs[1], undefined, 'its old row is a free visibility row now')
   assert.ok(rows.pageTableInts![3 * STRIDE + ROW_FLAGS_WORD] & FLAG_BLEND_CASTER)
-  assert.equal(rows.dirtyMarks[3], 1, 'the caster row is uploaded again')
+  assert.ok(
+    runsOf(rows.forEachDirtyRun).some(([from, to]) => from <= 3 && 3 <= to),
+    'the caster row is uploaded again',
+  )
   assert.equal(casters.used, 1)
 })
 
@@ -37,8 +41,7 @@ test('a grown table marks every row dirty, and the rows past the old table are e
   const { rows } = mount(pages, 0)
   rows.clearDirty()
   rows.grow(4, 0)
-  assert.equal(rows.dirtyFrom, 0)
-  assert.equal(rows.dirtyTo, 3)
+  assert.deepEqual(runsOf(rows.forEachDirtyRun), [[0, 3]])
   assert.deepEqual(Array.from(rows.rowPageIndex), [-1, -1, -1, -1])
   assert.equal(rows.pageTableFloats!.length, 4 * STRIDE)
   assert.equal(rows.packedRecs.length, 4)
