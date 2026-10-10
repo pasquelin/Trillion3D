@@ -13,9 +13,6 @@ import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 export function page(metrics: Record<string, unknown>): Page {
   return {
     evaluate: async () => ({
-      cpuFrameMs: [],
-      gpuFrameMs: [],
-      stageProfile: null,
       importedLights: null,
       witnessLights: null,
       movingNode: null,

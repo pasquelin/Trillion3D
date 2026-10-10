@@ -3,7 +3,6 @@
 // yet. Served under `/runner/` and imported by URL; only types come from the packages.
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { FluidsPayload, FluidsScene } from './fluids.ts'
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { posterCapture } from '../harness/measurePage.ts'
@@ -82,7 +81,7 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
 
 const nextFrame = () => new Promise<number>((done) => requestAnimationFrame(done))
 
-/** Builds the scene, waits for every body to be simulated, then measures `frames` frames. */
+/** Builds the scene, waits for every body to be simulated, then draws `warmup + frames` frames and captures the last. */
 export async function measureFluids({ sdkUrl, settings, captureFile, scene }: FluidsPayload) {
   const { width, height, warmup, frames, temporalAntialiasing } = settings
   const sdk = (await import(sdkUrl)) as Sdk
@@ -129,36 +128,12 @@ export async function measureFluids({ sdkUrl, settings, captureFile, scene }: Fl
       1800,
       () => `${stats().bodies} bodies, ${stats().active} awake`,
     )
-    const result = {
-      cpuFrameMs: [] as number[],
-      gpuFrameMs: [] as number[],
-      rafIntervalMs: [] as number[],
-      gpuPassSamples: [] as GpuPassTimings[],
-      physicsStepMs: [] as number[],
-      physicsMainMs: [] as number[],
-    }
-    let previous: number | null = null
     let drawn = 0
     // A WebGPU device lost mid-run reopens the session without an event on the canvas.
     const sessions = world.diagnostic.sessions
     const total = warmup + frames
-    const remove = world.onFrame(({ time, metrics: frame }) => {
-      if (++drawn <= warmup) return
-      // The interval between two frames the world's loop drew: the frame envelope.
-      const now = time * 1000
-      if (previous !== null) result.rafIntervalMs.push(now - previous)
-      previous = now
-      result.cpuFrameMs.push(frame.cpuFrameMs)
-      const sample = frame.gpuPassMs
-      // The device is sampled every few frames: one reading per sampled frame, not per drawn frame.
-      if (sample && sample.frame !== result.gpuPassSamples.at(-1)?.frame) {
-        result.gpuPassSamples.push(sample)
-        if (typeof frame.gpuFrameMs === 'number') result.gpuFrameMs.push(frame.gpuFrameMs)
-      }
-      const { stepMs, mainMs } = stats()
-      result.physicsStepMs.push(stepMs)
-      result.physicsMainMs.push(mainMs)
-      if (drawn === total) remove()
+    const remove = world.onFrame(() => {
+      if (++drawn === total) remove()
     })
     // The world's loop draws one frame per display frame: 600 more (ten seconds) is a stopped loop.
     await until(
@@ -171,8 +146,8 @@ export async function measureFluids({ sdkUrl, settings, captureFile, scene }: Fl
     if (world.diagnostic.sessions !== sessions)
       lost.push(`session reopened: ${world.diagnostic.error?.code ?? 'device lost'}`)
     const size = { width: canvas.width, height: canvas.height, dpr: devicePixelRatio }
-    // A context lost mid-run that threw nothing still voids the numbers: the row says so.
-    return { ...result, bodies: stats().bodies, size, lost }
+    // A context lost mid-run that threw nothing still voids the capture: the row says so.
+    return { bodies: stats().bodies, size, lost }
   } finally {
     world.dispose()
     canvas.remove()

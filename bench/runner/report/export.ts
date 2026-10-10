@@ -128,7 +128,7 @@ export function exportReport(source: string, output: string, id: string): Campai
           canvas: data.canvas ?? null,
           settings: publicData(raw.settings ?? {}) as Record<string, unknown>,
           errors: errors || Boolean(data.gpuIncidents?.length),
-          gpuMethod: data.stageProfile?.gpuMethod ?? null,
+          gpuMethod: null,
           witness: series.sides?.[`${side}-aa`] ? toWitness(series.witnessAA) : null,
           difference: toWitness(series.beforeAfterDiff),
           differencePair:

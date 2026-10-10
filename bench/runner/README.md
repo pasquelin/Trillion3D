@@ -4,10 +4,11 @@ Two benches, one per question:
 
 - **Frame time: the GPU bench on Dawn** (`bench/dawn/`). The engine draws a site page in Node on
   this machine's GPU through Dawn, the WebGPU implementation Chrome runs, with no browser, playing a
-  scenario identical frame for frame. It is the timing bench.
+  scenario identical frame for frame. It is the one bench that times, and its `--ab` the one that
+  compares two checkouts' times.
 - **Images and witnesses: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
   the system Chrome: the engine against the witness libraries, image proofs, the screen error of
-  what is drawn, and the published reports.
+  what is drawn, and the published reports. It reads no time.
 
 How the acceptance session uses them, batch by batch:
 [the recette skill](../../skills/t3d-recette/SKILL.md). The measurement rules (same input and
@@ -68,6 +69,29 @@ own page, alternating A B / B A for the rounds, and gives the mean difference wi
 interval and a verdict — gain, loss, or noise. The proofs, their discovery rule and what is
 excluded: [docs/TESTS.md](../../docs/TESTS.md#gpu-proofs-on-dawn).
 
+The tools beside it, each a command of its own under the same lock:
+
+    node bench/dawn/laws/sweep.ts <law>[,<law>…] [--repeat 1] [--only <x,…>] [-- <run options>]
+    node bench/dawn/laws/cook.ts world <count> | object
+    node bench/dawn/laws/table.ts <law> <report.json>…
+    node bench/dawn/model/run.ts <report.json> --machine <machine.json> [--segment <name>]
+    node bench/dawn/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
+    node bench/dawn/waterCost.ts [--runs 4] [--frames 120] [--compare-engine-root <checkout>]
+
+- **The scale laws** (`laws/`): how the frame grows with the world's objects, the runtime, the
+  pixels, the lights and the distance. `sweep.ts` runs each point of a law (`laws/points.ts`) as a
+  bench run of one generated scene family (`laws/world.html`) and prints the law's table, per point
+  the frame, the passes and the counters, per column the exponent it grows with. `cook.ts` makes the
+  scenes first with this checkout's native compiler (`.mesure/out/law-scenes/`, deleted once the
+  numbers are reported); `table.ts` prints a table again from its points' merged reports.
+- **The cost model** (`model/`): `run.ts` sets a measured frame (a bench report) against the floor
+  of each pass on this machine's measured rates and ranks the passes by the milliseconds above their
+  floor. The shares no counter holds (covered pixels, shadowed lights, rough reflection, placements)
+  are given as flags, and a share too large only lowers a floor.
+- **Single costs**: `anisotropyCost.ts` draws a floor with detail at every texel at a grazing angle
+  per anisotropy and prints the p50 GPU time of its images; `waterCost.ts` reads the water's cost
+  with and without it (`tests/gpu/water/waterCostPage.ts`), raw evidence, never a verdict.
+
 ## The Chrome harness
 
 One command, no server to start by hand: Playwright and esbuild are development dependencies,
@@ -75,12 +99,10 @@ Chrome is the system browser, assets live under `.mesure/assets/` ([Assets](#ass
 
     node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
          --views overview,ground,street --images 60 --pixelError 0,1
-    node bench/runner/campaign.ts [--out .mesure/out/global] [--scene a,b] [--only name,…] [--list]
 
 A flag a command never reads (misspelt, or naming a side the run does not measure) stops it with
-`unknown flag: --<name>` before any build or browser. `campaign.ts` runs every isolating line on
-each reference scene into `<out>/<scene>/<name>/` and skips a run that already holds a
-`measure.json`.
+`unknown flag: --<name>` before any build or browser. The run reads no time: a frame's cost, and
+the comparison of two builds' times, are the GPU bench's (`bench/dawn/`).
 
 ### Flags
 
@@ -107,7 +129,6 @@ with two engines they are the union of both sides' needs.
 | `--antialiasing on\|off` | `on` | TAA jitter and accumulation |
 | `--scale[-<side>] <s>` | display | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA |
 | `--reference` | off | class-2 image proof against the [reference image](#reference-images)³ |
-| `--profile on\|off` / `--profile-frames` | `on` / 120 | per-stage timing over the trailing measured frames; `off` for the beauty verdict |
 | `--lights N` | 0 | contract point lights (`lighting/lamps.ts`); without `--lights` or `--sun` the engine renders unlit albedo |
 | `--shadows on\|off` / `--moving-light` / `--intensity N` / `--range F` | `on` / off / 40 / 0.75 | shadow casting; the first light circles; light intensity; each light's range in grid cells |
 | `--sun` | off | directional sun with its virtual shadow maps |
@@ -138,16 +159,15 @@ with two engines they are the union of both sides' needs.
    fixed pose what is retained is free. The cut hash may differ between sides with no image change
    (asynchronous readback, one frame late).
 
-Every run first probes browser limits (`harness/limits.ts`): WebGPU `timestamp-query` and the
-adapter's limits past the defaults (`limits` in `measure.json`). Shadow pages report `pagesPending`, `maxWaitMs` and
-`occludersKept` in the profile; how the maps are drawn is [docs/SHADOWS.md](../../docs/SHADOWS.md).
+Every run first probes browser limits (`harness/limits.ts`): the WebGPU
+adapter's limits past the defaults (`limits` in `measure.json`). How the shadow maps are drawn is
+[docs/SHADOWS.md](../../docs/SHADOWS.md).
 
 ## The witnesses
 
 A witness is a comparison backend pitted against the engine on one side
 (`--engine-before three-nu|three-lod`). The SDK never mounts one. The Three.js witnesses are pages of their own, on Three's WebGPU
-renderer (`witness/threeRenderer.ts`): GPU time per frame from its timestamp queries, the capture
-read back from the GPU.
+renderer (`witness/threeRenderer.ts`): the capture read back from the GPU.
 
 - `three-nu`: Three.js alone, every mesh every frame (`witness/threeBarePage.ts`).
 - `three-lod`: Three.js with a three-level `THREE.LOD` per mesh simplified by meshoptimizer at load
@@ -160,16 +180,14 @@ units (`witness/threeLights.ts`): linear colour, radiometric intensity, `distanc
 view, never a black frame.
 
 Witnesses cast **no shadows** and `bounce` renders the lit view: run fidelity campaigns
-`--shadows off` on both sides. The camera path advances once per `requestAnimationFrame` on both sides:
-`rafIntervalMs` is the moving-frame envelope, `cpuFrameMs` the engine's synchronous submission; the
-two are never added.
+`--shadows off` on both sides. The camera path advances once per `requestAnimationFrame` on both
+sides.
 
 ## Outputs
 
 In `--out` (gitignored): `measure.json`, `resume.md`, and per view, threshold and side `.png`,
-`.coupe.txt` and a metrics line — `rafIntervalMs`, `cpuFrameMs` p50/p95, `gpuFrameMs`
-p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system
-load — plus the A/A check (a side run twice) and the before/after delta per channel. A capture whose
+`.coupe.txt` and a metrics line — selected and unrendered triangles, Hi-Z counters, selection
+hash, page budget — plus the A/A check (a side run twice) and the before/after image delta per channel. A capture whose
 every pixel is RGB 0 is refused by name (`black-capture`, exit code 1): its deltas read "black
 capture", never 0 px. `null` means unmeasured, never inferred.
 
@@ -188,10 +206,7 @@ All read on **one frame**, the measured loop's last (`series[].sides[].recordedF
 | `uncoveredTriangles` | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value |
 | `hiZ` | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count |
 
-**Per-stage cost** (`series[].sides[].stageProfile`): per stage CPU and GPU p50/p95 (never summed),
-shadow metrics, device timing method, profiling overhead. **CPU bounds**
-(`series[].sides[].cpuBounds`, `explorer.cpuSteps()` over the profile's window): p50/p95/max per
-named bound (`gateMs`, `worldMs`, `selectionDispatchMs`, …) and the slowest rows. **GPU memory**:
+**GPU memory** (`series[].sides[].metrics`):
 allocated VRAM per side and view as registered by the device wrapper, in three categories (texture
 atlas, geometry pool, render targets) and the top labelled allocations
 (`metrics.gpuAllocatedByLabel`).
@@ -315,11 +330,6 @@ tree. A row passes when the cut held, no browser error, both directions sampled 
 checkout. The compiler-side measure of quantization alone:
 `packages/asset-compiler-rust/src/geometry_page_quant/screen/`.
 
-    node bench/runner/counts/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
-
-A floor with detail at every texel at a grazing angle, drawn on Dawn under the bench lock per
-anisotropy; prints the p50 GPU time per image.
-
     node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views <names>]
 
 A synthetic open city (`lighting/lightTileCity.ts`) ray-cast from five views; each covered pixel
@@ -327,28 +337,17 @@ walks its light-grid cell's list, built by the grid oracle
 (`bench/oracles/browser/gpuLightGridOracle.ts`): lights listed, lights reaching the pixel, and
 `missed` (0 when lists stay image-exact). Untimed: its cost table is a model, never a frame time.
 
-    node bench/runner/feedback/feedbackTargetAb.ts --scene sponza,alpha-blend-mode-test \
-      --rebuild-cache alpha-blend-mode-test --images 120
-
-A texture-feedback target A/B/A at a fixed pose, 2496×1404 DPR 1, TAA on: requested and served mips
-in centre and periphery patches, whole and per surface kind. The verdict needs 12 GPU samples per
-leg, 0 px A/A and A/B, identical geometry and tile residency and the expected target-byte delta.
-Output under `.mesure/out/39-feedback-ab/` unless `--out`.
-
 **Deformation.** `a-character-that-walks`, `a-shape-that-morphs`, `a-crowd-of-characters`
 (`?count=1`, 10, 100) and `additive-poses` expose `deformationCase.world` and `setTime(seconds)`.
 `witness/deformationWitness.ts` evaluates the same public glTF's first clip in the witness;
 `captureDeformationWitness` posts its pixels through the capture transport for `imageDiff`.
-`witness/deformationEnvelope.ts` keeps 120 frames after 30 warmup per crowd count: CPU frame time,
-GPU deformation time, geometry allocation, VRAM bytes; no GPU timestamps means `null`.
 
 ## Published reports
 
 Measurement, export and site build are separate; rebuilding the portal never launches Chrome.
 
-1. Run `node bench/runner/campaign.ts --out .mesure/out/<campaign>` on a built engine. Resuming
-   needs the same arguments, repository state, built JavaScript, asset manifest, browser version and
-   machine, and an error-free measurement; a mismatch refuses to overwrite evidence.
+1. Run `node bench/runner/bench.ts … --out .mesure/out/<campaign>/<name>` once per run on a built
+   engine; the export reads every `measure.json` under the campaign's folder.
 2. Export: `node bench/runner/summary/summaryGlobal.ts --from .mesure/out/<campaign> --to
    .mesure/out/<campaign>-report --id <campaign>` (defaults: `.mesure/out/global`,
    `<from>/report-data`, `current`).

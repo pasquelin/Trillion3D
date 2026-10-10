@@ -1,4 +1,4 @@
-// Page of the water-cost measure (`bench/runner/waterCost.ts`), run only when
+// Page of the water-cost measure (`bench/dawn/waterCost.ts`), run only when
 // invoked: no engine optimisation, no pass timing reconstruction.
 import type {
   EngineDiagnostic,

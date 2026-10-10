@@ -13,7 +13,6 @@ import {
   scenesOf,
 } from './scene.ts'
 import { catalogueScenes } from './assetsCatalogue.ts'
-import { CAMPAIGN } from '../campaign.ts'
 import { parseArgs } from '../harness/options.ts'
 
 test('the reference scenes are the public ones, the cut first and the mirror next', () => {
@@ -59,11 +58,4 @@ test('applySceneFlag sets the derived cache on sides that do not have one', () =
 test('scenesOf reads --scene a,b and ignores valueless flag', () => {
   assert.deepEqual(scenesOf(parseArgs(['--scene', 'a,b'])), ['a', 'b'])
   assert.equal(sceneOf('/x/flight-helmet-derived'), 'flight-helmet')
-})
-
-test('the campaign carries the Three LOD witness and the moving reference', () => {
-  const noms = CAMPAIGN.map(([n]) => n)
-  assert.ok(noms.includes('three-lod'))
-  assert.ok(noms.includes('three-nu'))
-  assert.ok(noms.includes('mobile'))
 })

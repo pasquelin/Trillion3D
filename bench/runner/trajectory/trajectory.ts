@@ -42,7 +42,6 @@ async function main() {
     throw new Error('use --cache for the identical cache on both sides')
   if (settings.movingLight || settings.movingNode || settings.livePools)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets')
-  settings.stageProfile = false
   const named = flags.get('scene')
   const cache = resolveCache(flags.get('cache') ?? sceneDerived(named ?? DEFAULT_SCENE, ASSETS))!
   // A `--cache` alone names its scene: the evidence never records Sponza for another cache.

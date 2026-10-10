@@ -21,7 +21,6 @@ import { startServer, type Capture } from '../../../tests/kit/server/staticServe
 import { readStreet } from '../street/street.ts'
 import { benchLights } from '../lighting/lamps.ts'
 import { oracleBuilt } from './oracleCompare.ts'
-import { machineLoad } from '../summary/summary.ts'
 import { runView } from './oracleView.ts'
 import type { OracleSettings, OracleView } from './oracleView.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
@@ -102,14 +101,12 @@ async function main() {
     command: string
     head: string
     settings: typeof settings
-    load: { before: number[]; after?: number[] }
     views: OracleView[]
   } = {
     startedAt: new Date().toISOString(),
     command: `node bench/runner/references/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     settings,
-    load: { before: machineLoad() },
     views: [],
   }
   try {
@@ -167,7 +164,6 @@ async function main() {
     await browser.close()
     server.close()
   }
-  report.load.after = machineLoad()
   await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1))
   console.log(JSON.stringify(report, null, 1))
   if (report.views.some((view) => view.error)) process.exitCode = 1

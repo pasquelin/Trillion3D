@@ -17,10 +17,7 @@ import { OCEAN } from '../../../packages/sdk-core/src/fluids/waves.fixture.ts'
 import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water.fixture.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
-import { distribution, machineLoad } from '../summary/summary.ts'
 import { isEngine } from '../harness/sideOptions.ts'
-import { passesGpu } from '../series/seriesPasses.ts'
-import { p50p95, passes } from '../summary/summaryPasses.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
 import { withGpuIncidents } from '../series/seriesPage.ts'
 import type { Side } from '../harness/sideOptions.ts'
@@ -88,7 +85,6 @@ async function fluidsRow(
   out: string,
   captures: Map<string, Capture>,
 ) {
-  const loadAtStart = machineLoad()
   const result = await withGpuIncidents(page, () =>
     page.evaluate(
       async ({ module, o }) => ((await import(module)) as typeof FluidsPage).measureFluids(o),
@@ -101,16 +97,9 @@ async function fluidsRow(
   return {
     side: payload.side,
     bodiesSimulated: result.bodies,
-    cpuFrameMs: distribution(result.cpuFrameMs),
-    gpuFrameMs: distribution(result.gpuFrameMs),
-    rafIntervalMs: distribution(result.rafIntervalMs),
-    passesGpu: passesGpu(result.gpuPassSamples),
-    physicsStepMs: distribution(result.physicsStepMs),
-    physicsMainMs: distribution(result.physicsMainMs),
     canvas: result.size,
     png: capture ? payload.captureFile : null,
     gpuIncidents: result.lost.length ? result.lost : null,
-    load: { start: loadAtStart, end: machineLoad() },
   }
 }
 export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>>
@@ -132,28 +121,19 @@ export async function runFluids(
   return rows
 }
 
-/** The fluids rows in `resume.md`, p50 / p95 in milliseconds, then each side's GPU passes and
- *  machine load; nothing without a fluids run. */
+/** The fluids rows in `resume.md`: each side's canvas, bodies and GPU incidents; nothing without a
+ *  fluids run. */
 export function fluidsLines(rows: FluidsRow[] | undefined) {
   if (!rows?.length) return []
   return [
     '## Fluids scene',
     '',
-    '| side | canvas | bodies | CPU frame | GPU frame | rAF interval | physics step (worker) | physics (page) |',
-    '|---|---|---|---|---|---|---|---|',
+    '| side | canvas | bodies | GPU incidents |',
+    '|---|---|---|---|',
     ...rows.map((r) => {
       const { width, height, dpr } = r.canvas
-      const ms = [r.cpuFrameMs, r.gpuFrameMs, r.rafIntervalMs, r.physicsStepMs, r.physicsMainMs]
-      return `| ${[r.side, `${width}×${height} @${dpr}`, r.bodiesSimulated, ...ms.map(p50p95)].join(' | ')} |`
+      return `| ${[r.side, `${width}×${height} @${dpr}`, r.bodiesSimulated, r.gpuIncidents?.join(', ') ?? 'none'].join(' | ')} |`
     }),
     '',
-    ...rows.flatMap((r) => [
-      `### ${r.side}: GPU passes`,
-      '',
-      ...passes(r.passesGpu),
-      ...(r.gpuIncidents ? [`- GPU incidents: ${r.gpuIncidents.join(', ')}`] : []),
-      `- Machine load at start ${r.load.start.join(' ')}, at end ${r.load.end.join(' ')}`,
-      '',
-    ]),
   ]
 }
