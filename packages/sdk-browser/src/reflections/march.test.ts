@@ -1,11 +1,12 @@
 // The reflection's hierarchical march, shipped WGSL run as JavaScript (`scene.fixture.ts`) over
-// depth images in an orthographic view: a hit where the ray crosses a depth, through a gap, on a
-// depth thinner than a pixel, on a pixel's plane, never on the pixel centres a ray skims in front
-// of, never in the pixel it leaves, a miss behind a depth it never crossed or in front of
-// everything — each within its bound.
+// depth images in an orthographic view: a hit where the ray crosses a surface's front, or enters its
+// slab through the side of a pixel, through a gap, on a depth thinner than a pixel, on a pixel's
+// plane, never on the pixel centres a ray skims in front of, never in the pixel it leaves; a ray
+// behind a slab passes behind it and goes on to what lies past; a miss in front of everything — each
+// within its bound, the iterations of the screen distance covered (`reflectionBudget`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { reflectionConstant } from './shaderParts.fixture.ts'
+import { reflectionConstant } from './constants.fixture.ts'
 import { reflectionRunner, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 
@@ -13,7 +14,7 @@ import { depthField } from './depthField.fixture.ts'
  *  the eye. */
 function flatView(width: number, height: number) {
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  return viewOf(identity, identity, [0, 0, 1, 0], [width, height], 2 / height)
+  return viewOf(identity, identity, [0, 0, 1, 0], [width, height])
 }
 
 /** The shipped march over the depth image `depth`, `width × height`. */
@@ -25,18 +26,20 @@ function marcher(width: number, height: number, depth: (x: number, y: number) =>
   const run = reflectionRunner(field, flatView(width, height))
   const size = [width, height]
   return {
-    /** The iterations the march may take over this image. */
-    bound: reflectionConstant('REFLECTION_ITERATIONS_PER_LEVEL') * field.levels.level[0][3],
-    /** Where the ray from `o` along `d` stops on the screen, or undefined: a miss. */
+    /** Where the ray from `o` along `d` stops on the screen, or undefined: a miss; the cells it
+     *  read, and the iterations it may take. */
     hit(o: number[], d: number[]) {
       run.counter.loads = 0
-      const { t, plane } = run.reflectionMarch(
-        o,
-        d,
-        run.reflectionScreenEnd(o.slice(0, 2), d.slice(0, 2), size),
-      )
+      const end = run.reflectionScreenEnd(o.slice(0, 2), d.slice(0, 2), size)
+      const { t, plane, into } = run.reflectionMarch(o, d, end)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
-      return { at, depth: plane[0], loads: run.counter.loads }
+      return {
+        at,
+        depth: plane[0],
+        into,
+        loads: run.counter.loads,
+        bound: run.reflectionBudget(d, end, field.levels.level[0][3]),
+      }
     },
   }
 }
@@ -48,21 +51,27 @@ const falling = (x0: number, x1: number, y: number, x: number, z: number, fall: 
   d: [x1 - x0, 0, -fall * (x1 - x0)],
 })
 
-// Reversed depth: 1 at the near plane, 0 at infinity. The background reads 0.
+// Reversed depth: 1 at the near plane, 0 at infinity. The background reads 0. A surface is a slab
+// of `REFLECTION_THICKNESS` pixels of footprint: in this view a pixel is 2 / H wide and so is its
+// depth, 4 pixels are 0.125 of depth.
 const W = 128,
-  H = 64
+  H = 64,
+  SLAB = (reflectionConstant('REFLECTION_THICKNESS') * 2) / H
 
 test('a ray stops where it crosses a depth, its own pixel never', () => {
   // A wall one pixel wide at x = 80 over a far floor; the ray crosses its depth in its pixel.
   const march = marcher(W, H, (x) => (x === 80 ? 0.5 : 0.1))
   const { o, d } = falling(20, 120, 30, 80, 0.5, 0.01)
-  const { at, loads } = march.hit(o, d)
+  const { at, loads, into } = march.hit(o, d)
   assert.ok(at, 'hit')
   assert.ok(at[0] >= 80 && at[0] < 81, `on the wall's pixel: ${at[0]}`)
-  // A ray that crossed the depth in the pixel before the wall stops where it crossed it.
+  assert.equal(into, 0, 'from its front')
+  // A ray that crosses the depth just before the wall enters the wall's slab through the side of
+  // its pixel, and stops where it enters.
   const before = falling(20, 120, 30, 79.3, 0.5, 0.01)
   const earlier = march.hit(before.o, before.d)
-  assert.ok(earlier.at && earlier.at[0] >= 79 && earlier.at[0] < 80, `${earlier.at?.[0]}`)
+  assert.ok(earlier.at && earlier.at[0] >= 80 && earlier.at[0] < 80.01, `${earlier.at?.[0]}`)
+  assert.ok(earlier.into > 0 && earlier.into < 0.1, `${earlier.into} into the slab`)
   // A ray leaving its own surface: the origin's pixel is never its hit.
   const own = marcher(W, H, (x) => (x === 20 ? 0.5 : 0.1)).hit([20.5, 30.5, 0.5], [100, 0, 0])
   assert.equal(own.at, undefined)
@@ -98,10 +107,40 @@ test('a ray passes a one-pixel gap in a wall and stops at the depth behind it', 
   assert.ok(hit.at && hit.at[0] >= 70 && hit.at[0] < 71)
 })
 
-test('a ray behind a depth it never crossed passes behind it: a miss, none on the depth behind', () => {
-  // The first wall stands 0.3 in front of the ray; the wall behind it is at the ray's depth.
-  const march = marcher(W, H, (x) => (x === 60 ? 0.8 : x === 90 ? 0.5 : 0.1))
-  assert.equal(march.hit([20.5, 30.5, 0.5], [100, 0, 0]).at, undefined)
+test('a ray behind a slab passes behind it, and meets what lies within its thickness past it', () => {
+  // The first wall stands 0.3 in front of the ray, thicker than its slab: the ray is behind it.
+  const behind = (second: number) =>
+    marcher(W, H, (x) => (x === 60 ? 0.8 : x === 90 ? second : 0.1))
+  assert.ok(0.8 - 0.5 > SLAB)
+  // The wall past it is behind the ray too: nothing in the way.
+  assert.equal(behind(0.3).hit([20.5, 30.5, 0.5], [100, 0, 0]).at, undefined)
+  // The wall past it stands inside the ray's thickness: the ray enters its slab through the side.
+  const inside = behind(0.5 + SLAB / 2).hit([20.5, 30.5, 0.5], [100, 0, 0])
+  assert.ok(inside.at && inside.at[0] >= 90 && inside.at[0] < 90.01, `${inside.at?.[0]}`)
+  assert.ok(Math.abs(inside.into - 0.5) < 1e-3, `${inside.into} into the slab`)
+  // One whose slab the ray is past is no hit.
+  assert.equal(behind(0.5 + 1.2 * SLAB).hit([20.5, 30.5, 0.5], [100, 0, 0]).at, undefined)
+})
+
+test('a pole and a fence in front of a wall let the ray through, a box deeper than the slab stops it', () => {
+  // The ray runs a hair behind the depth of a wall, 0.3 behind a one-pixel pole (x = 50) and a
+  // fence of four pixels (x = 60..63); the wall stands at x = 100, within the ray's thickness.
+  const scene = (box: boolean) =>
+    marcher(W, H, (x) => {
+      if (x === 50 || (x >= 60 && x < 64)) return 0.8
+      if (box && x >= 70 && x < 90) return 0.75
+      return x === 100 ? 0.5 + SLAB / 4 : 0.1
+    })
+  const through = scene(false).hit([20.5, 30.5, 0.5], [100, 0, 0])
+  assert.ok(through.at && through.at[0] >= 100 && through.at[0] < 101, `${through.at?.[0]}`)
+  // A box whose front lies within the ray's thickness (0.25 in front of it, deeper than the slab,
+  // 20 pixels of it): the ray is behind the slab of every pixel of its front, and passes behind it
+  // too — the slab is the surface's thickness, not the volume's.
+  assert.ok(0.75 - 0.5 > SLAB)
+  assert.ok(scene(true).hit([20.5, 30.5, 0.5], [100, 0, 0]).at)
+  // The same box in front of the ray's own depth, crossed from its front, stops it.
+  const front = scene(true).hit([20.5, 30.5, 1.2], [100, 0, -0.8])
+  assert.ok(front.at && front.at[0] >= 76 && front.at[0] < 77, `${front.at?.[0]}`)
 })
 
 test('a ray moving away meets a depth where its own depth reaches it', () => {
@@ -128,31 +167,32 @@ test('a ray skimming a surface seen edge-on never stops on the centres it passes
   assert.ok(at && Math.abs(at[2] - plane(y)) < 1e-6, `${at}`)
 })
 
-test('a ray across a wide image finds a far one-pixel depth within its step bound', () => {
-  const march = marcher(640, 360, (x, y) => (x === 600 && y === 330 ? 0.5 : 0.05))
+test('a ray across a wide image finds a far one-pixel depth within its iteration bound', () => {
+  const march = marcher(640, 360, (x, y) => (x === 150 && y === 90 ? 0.5 : 0.05))
   const scale = 1.05
-  const { at, loads } = march.hit(
+  const { at, loads, bound } = march.hit(
     [20.5, 10.5, 0.5 + 0.1 / scale],
-    [(600.5 - 20.5) * scale, (330.5 - 10.5) * scale, -0.1],
+    [(150.5 - 20.5) * scale, (90.5 - 10.5) * scale, -0.1],
   )
   assert.ok(at, 'hit')
-  assert.deepEqual([Math.floor(at[0]), Math.floor(at[1])], [600, 330])
-  assert.ok(loads <= march.bound, `${loads} reads`)
+  assert.deepEqual([Math.floor(at[0]), Math.floor(at[1])], [150, 90])
+  assert.ok(loads <= bound, `${loads} reads of ${bound}`)
 })
 
-test('a ray that skims a plane for the whole image runs out of its bound: a miss', () => {
-  // A plane tilted 0.0008 a row, the ray parallel to it a pixel and a half above: no cell of the
-  // pyramid bounds it away from the plane (they keep the farthest height, not the tilt).
+test('a ray that skims a tilted plane for the whole image stays within its bound, a miss', () => {
+  // A plane tilted 0.0008 a row, the ray parallel to it a pixel and a half above: the cells of
+  // the pyramid bound it away from the plane only where their tilt allows, and the pixels below
+  // are crossed one by one — the bound of the screen distance covers them.
   const slope = 0.0008
   const march = marcher(640, 360, (_, y) => 0.1 + slope * y)
-  const { at, loads } = march.hit([20.5, 100.5, 0.1 + slope * 102], [500, 0, 0])
+  const { at, loads, bound } = march.hit([20.5, 100.5, 0.1 + slope * 102], [200, 0, 0])
   assert.equal(at, undefined)
-  assert.equal(loads, march.bound)
+  assert.ok(loads <= bound, `${loads} reads of ${bound}`)
 })
 
-test('a ray in front of everything leaves the screen: a miss, within its step bound', () => {
+test('a ray in front of everything leaves the screen: a miss, within its bound', () => {
   const march = marcher(W, H, (x) => (x < 64 ? 0.2 : 0.1))
-  const { at, loads } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
+  const { at, loads, bound } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
   assert.equal(at, undefined)
-  assert.ok(loads <= march.bound)
+  assert.ok(loads <= bound)
 })

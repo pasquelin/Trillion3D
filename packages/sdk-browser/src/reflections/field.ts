@@ -64,7 +64,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 /** The radiance around the scene through a lobe (`reflectionEnvironment`): the environment's
  *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
  *  and the uniform radiance the view's `surroundings` add, which every lobe keeps whole. */
-const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
+export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
   [REFLECTION_LOBE_WGSL, REFLECTION_VIEW_WGSL],
   `fn reflectionEnvironment(lobe:ReflectionLobe)->vec3f{
@@ -72,10 +72,13 @@ const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
 }`,
 )
 
-/** The bounce probes' radiance through a lobe, at a point of normal `N` (`reflectionProbes`): the
- *  cascades' field (`probeFieldWgsl`), each probe's coefficients read through the lobe, never
- *  negative. */
-const REFLECTION_PROBES_WGSL = wgslBlock(
+/**
+ * The bounce probes' radiance through a lobe, at a point of normal `N`
+ * (`reflectionProbesGathered`): the cascades' field (`probeFieldWgsl`), each probe's coefficients
+ * read through the lobe, never negative — its mean in `xyz` and the weight of the probes that
+ * answered in `w`, at most one, which is the confidence of the field stage.
+ */
+export const REFLECTION_PROBES_WGSL = wgslBlock(
   'REFLECTION_PROBES_WGSL',
   [
     REFLECTION_LOBE_WGSL,
@@ -88,25 +91,3 @@ const REFLECTION_PROBES_WGSL = wgslBlock(
   ],
   '',
 )
-
-/**
- * The radiance field a surface at `P`, of normal `N`, reflects through `lobe` (`reflectionField`):
- * the radiance the diffuse lighting reads, in order-2 harmonics — the environment's coefficients
- * (`directLights.environment`), plus the bounce probes' where the cascades reach the point (what
- * the scene's lit surfaces send; a probe ray that leaves the scene adds nothing, so the
- * environment is the rest, and alone where no probe answers), plus the background a scene without
- * light around it shows (`surroundings`, `trace.ts`): a miss reads what is around the surface,
- * never black. Each set of harmonics is read through the lobe exactly (`lobeRadianceShader`): an
- * order-2 radiance is a polynomial of degree two in the direction, whose mean over the lobe takes
- * its first two moments. `probes` names a program that
- * binds the cascades (`bounce`, `probes`); one that does not is the program of a session without
- * bounce, where the probes' share is zero, and reads the environment alone.
- */
-export const reflectionFieldWgsl = (probes: boolean) =>
-  wgslBlock(
-    `reflectionFieldWgsl(${probes})`,
-    [REFLECTION_ENVIRONMENT_WGSL, ...(probes ? [REFLECTION_PROBES_WGSL] : [])],
-    `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
- return reflectionEnvironment(lobe)${probes ? '+reflectionProbes(P,N,lobe)' : ''};
-}`,
-  )

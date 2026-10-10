@@ -48,12 +48,38 @@ export const UNCOUNTED = [
   'the CPU: the recette timed it at 1.8 ms p50 on this case',
 ]
 
-/** Texel reads and writes of the Hi-Z pyramid of a `width` × `height` depth (`hizLevelSizes`): the
- *  copy of level 0, then four reads and one write a texel of every coarser level. */
-export const hizAccesses = (width: number, height: number) =>
-  hizLevelSizes(width, height)
+/** The texels of the Hi-Z pyramid of a `width` × `height` depth at level 0 and in its coarser
+ *  levels (`hizLevelSizes`). */
+export const hizLevelTexels = (width: number, height: number) => ({
+  first: width * height,
+  upper: hizLevelSizes(width, height)
     .slice(1)
-    .reduce((total, [w, h]) => total + 5 * w * h, 2 * width * height)
+    .reduce((total, [w, h]) => total + w * h, 0),
+})
+
+/** Texels the nearest layer's build reads of a pixel's plane: its depth and four along each axis
+ *  (`hizPlaneNearest`). */
+const PLANE_READS = 9
+
+/** Texel reads and writes of the culling layer's build of the Hi-Z pyramid of a `width` × `height`
+ *  depth, mid-frame (`pyramidTexture.ts`): the copy of level 0, then four reads and a write a
+ *  coarser texel. */
+export const hizCullAccesses = (width: number, height: number) => {
+  const { first, upper } = hizLevelTexels(width, height)
+  return 2 * first + 5 * upper
+}
+
+/** Those of the build of its nearest layer and of the finished depth's farthest, once the depth is
+ *  drawn: `PLANE_READS` reads and a write a pixel for the slopes, and four reads and a write a
+ *  coarser texel of each of the two bounds. */
+export const hizNearestAccesses = (width: number, height: number) => {
+  const { first, upper } = hizLevelTexels(width, height)
+  return (PLANE_READS + 1) * first + 2 * 5 * upper
+}
+
+/** Those of the whole pyramid, its three layers. */
+export const hizAccesses = (width: number, height: number) =>
+  hizCullAccesses(width, height) + hizNearestAccesses(width, height)
 
 /** The bench's 200 lamps over the atrium's footprint (`benchLights`), as the grid sees them. */
 export function atriumBenchLamps(): Light[] {

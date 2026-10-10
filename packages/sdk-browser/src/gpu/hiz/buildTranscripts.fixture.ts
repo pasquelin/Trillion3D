@@ -1,23 +1,25 @@
 import { encodeHizPyramid } from './pyramid.ts'
-import { pyramidBytes } from './oracle.ts'
 import {
   HIZ_BUILD_SIDE as S,
-  HIZ_PASS_LEVELS,
   HIZ_SLOT_WORDS,
   hizBuildPasses,
   hizBuildWords,
   hizUniformSlots,
 } from './uniforms.ts'
+import { workgroup } from './buildKernel.fixture.ts'
+import { layout, texel, type Scene } from './buildScene.fixture.ts'
 import { evaluateHizReduce } from './oracle.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
 
 // The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
-// states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`: of the farthest
-// layer, or of the nearest (`Scene.nearest`), whose level 0 the texture's texels stand for — each
-// pixel's plane corner, which `hizSource` returns there — and is not copied.
+// states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`: of the culling
+// farthest layer, or of the nearest (`Scene.nearest`), whose level 0 the texture's texels stand
+// for — each pixel's plane corner, which `hizSource` returns there — and is not copied; the nearest
+// build also writes the finished depth's farthest layer, from level 1 (`whole`).
 const SLOT_WORDS = HIZ_SLOT_WORDS
 
 /** The tests' seeded random, the lcg32 sequence: the same on every run. */
+export { layout, type Scene } from './buildScene.fixture.ts'
 export { lcgRandom as lcg } from '../../../../math/src/sequence/random.ts'
 
 /** A compute pass that records each dispatch as its uniform slot's first word, then its grid. */
@@ -32,144 +34,37 @@ function recordingPass() {
   return { pass, dispatches }
 }
 
-export type Scene = {
-  texture: Float32Array
-  textureWidth: number
-  width: number
-  height: number
-  maxLevels: number
-  /** One origin per pyramid, or none: the camera's single pyramid from texel zero. */
-  origins?: Array<[number, number]>
-  /** The nearest layer's build (`HIZ_NEAREST_BUILD`): the maximum, level 0 not copied. */
-  nearest?: boolean
-}
-
-export function layout(scene: Scene) {
-  const { sizes, offsets, texels: words } = pyramidBytes(scene.width, scene.height)
-  const count = scene.origins?.length ?? 1
-  const stride = scene.origins ? words : 0
-  return { sizes, offsets, count, stride, words: words * count }
-}
-
-const texel = (scene: Scene, z: number, x: number, y: number) => {
-  const [ox, oy] = scene.origins ? scene.origins[z] : [0, 0]
-  return scene.texture[(oy + y) * scene.textureWidth + ox + x]
-}
-
-/** The copy of level 0 — the farthest layer's —, then the oracle's reduction of each mip from the
- *  one above; the nearest layer reduces level 0 as the texture holds it, and writes none. */
-export function buildBefore(scene: Scene, pyramid: Float32Array) {
-  const { sizes, offsets, count, stride } = layout(scene)
+/** The copy of level 0 — the culling layer's —, then the oracle's reduction of each mip from the
+ *  one above; the nearest layer reduces level 0 as the texture holds it, and writes none, while
+ *  `whole` takes the farthest of the same depth from level 1 up. */
+export function buildBefore(scene: Scene, pyramid: Float32Array, whole: Float32Array) {
+  const { sizes, offsets } = layout(scene)
   const nearest = !!scene.nearest
-  for (let z = 0; z < count; z++) {
-    const level0 = new Float32Array(scene.width * scene.height)
-    for (let y = 0; y < scene.height; y++)
-      for (let x = 0; x < scene.width; x++) level0[y * scene.width + x] = texel(scene, z, x, y)
-    if (!nearest) pyramid.set(level0, z * stride)
-    for (let i = 0; i < sizes.length - 1 && i + 1 < scene.maxLevels; i++) {
-      const [w, h] = sizes[i],
-        src = i
-          ? pyramid.subarray(z * stride + offsets[i], z * stride + offsets[i] + w * h)
-          : level0
-      pyramid.set(evaluateHizReduce(src, w, h, nearest).data, z * stride + offsets[i + 1])
-    }
-  }
-}
-
-/** `hizBound4`: the bound of a clamped 2 × 2 square, in the per-level order — the farthest, or
- *  the nearest. */
-function bound4(
-  bound: (a: number, b: number) => number,
-  v00: number,
-  v10: number,
-  v01: number,
-  v11: number,
-  dx: number,
-  dy: number,
-) {
-  let reduced = v00
-  if (dx) reduced = bound(reduced, v10)
-  if (dy) {
-    reduced = bound(reduced, v01)
-    if (dx) reduced = bound(reduced, v11)
-  }
-  return reduced
-}
-
-/** One `buildHiz` workgroup: S × S lanes, the barriers as phases, stale workgroup memory kept. */
-function workgroup(
-  scene: Scene,
-  u: Uint32Array,
-  pyramid: Float32Array,
-  wg: number[],
-  tile: Float32Array,
-) {
-  const [a, b, c, d, g] = u
-  const dst = (k: number) => u.subarray(8 + 4 * k, 12 + 4 * k)
-  const z = wg[2],
-    at = a + z * g
-  const bound = scene.nearest ? Math.max : Math.min
-  const far4 = (v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) =>
-    bound4(bound, v00, v10, v01, v11, dx, dy)
-  const source = (x: number, y: number) =>
-    a !== 0
-      ? pyramid[at + y * b + x]
-      : scene.nearest
-        ? texel(scene, z, x, y)
-        : (pyramid[at + y * b + x] = texel(scene, z, x, y))
-  const far = new Float32Array(S * S)
-  for (let lane = 0; lane < S * S; lane++) {
-    const x = wg[0] * S + (lane % S),
-      y = wg[1] * S + Math.floor(lane / S),
-      x0 = x * 2,
-      y0 = y * 2
-    far[lane] = 0
-    if (x0 < b && y0 < c) {
-      const dx = x0 + 1 < b ? 1 : 0,
-        dy = y0 + 1 < c ? 1 : 0
-      far[lane] = far4(
-        source(x0, y0),
-        source(x0 + dx, y0),
-        source(x0, y0 + dy),
-        source(x0 + dx, y0 + dy),
-        dx,
-        dy,
-      )
-      if (d > 0) pyramid[dst(0)[0] + z * g + y * dst(0)[1] + x] = far[lane]
-    }
-    tile[lane] = far[lane]
-  }
-  for (let k = 1, side = S >> 1; k < Math.min(d, HIZ_PASS_LEVELS); k++, side >>= 1) {
-    const [, w, h] = dst(k - 1),
-      [offset, dstW, dstH] = dst(k)
-    const live: number[] = []
-    for (let lane = 0; lane < S * S; lane++) {
-      const lx = lane % S,
-        ly = Math.floor(lane / S),
-        tx = wg[0] * side + lx,
-        ty = wg[1] * side + ly
-      if (!(lx < side && ly < side && tx < dstW && ty < dstH)) continue
-      const i = ly * 2 * S + lx * 2,
-        dx = tx * 2 + 1 < w ? 1 : 0,
-        dy = ty * 2 + 1 < h ? 1 : 0
-      far[lane] = far4(tile[i], tile[i + dx], tile[i + dy * S], tile[i + dy * S + dx], dx, dy)
-      live.push(lane)
-    }
-    // workgroupBarrier(): every read of the level is done before any lane overwrites the tile.
-    for (const lane of live) {
-      const tx = wg[0] * side + (lane % S),
-        ty = wg[1] * side + Math.floor(lane / S)
-      tile[lane] = far[lane]
-      pyramid[offset + z * g + ty * dstW + tx] = far[lane]
+  const level0 = new Float32Array(scene.width * scene.height)
+  for (let y = 0; y < scene.height; y++)
+    for (let x = 0; x < scene.width; x++) level0[y * scene.width + x] = texel(scene, x, y)
+  if (!nearest) pyramid.set(level0, 0)
+  for (let i = 0; i < sizes.length - 1 && i + 1 < scene.maxLevels; i++) {
+    const [w, h] = sizes[i],
+      src = i ? pyramid.subarray(offsets[i], offsets[i] + w * h) : level0
+    pyramid.set(evaluateHizReduce(src, w, h, nearest).data, offsets[i + 1])
+    if (nearest) {
+      const farther = i ? whole.subarray(offsets[i], offsets[i] + w * h) : level0
+      whole.set(evaluateHizReduce(farther, w, h).data, offsets[i + 1])
     }
   }
 }
 
 /** `buildHiz` driven by the uniform words and the dispatches the host really encodes. */
-export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => number) {
-  const { sizes, offsets, count, stride } = layout(scene)
+export function buildAfter(
+  scene: Scene,
+  pyramid: Float32Array,
+  whole: Float32Array,
+  rand: () => number,
+) {
+  const { sizes, routed, first, upper } = layout(scene)
   const passes = hizBuildPasses(sizes, scene.maxLevels)
-  const words = hizBuildWords(sizes, offsets, passes, uniformStride(), stride)
+  const words = hizBuildWords(sizes, routed, passes, uniformStride(), upper)
   const { pass, dispatches } = recordingPass()
   encodeHizPyramid(
     pass,
@@ -177,16 +72,15 @@ export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => numb
     {} as GPUComputePipeline,
     passes,
     passes.map((_, i) => hizUniformSlots().offset(i)),
-    count,
   )
-  for (const [at, gx, gy, gz] of dispatches) {
+  for (const [at, gx, gy] of dispatches) {
     const u = words.subarray(at, at + SLOT_WORDS)
-    for (let z = 0; z < gz; z++)
-      for (let y = 0; y < gy; y++)
-        for (let x = 0; x < gx; x++) {
-          // Whatever workgroup memory holds: an exact kernel never reads a texel it did not write.
-          const tile = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8)
-          workgroup(scene, u, pyramid, [x, y, z], tile)
-        }
+    for (let y = 0; y < gy; y++)
+      for (let x = 0; x < gx; x++) {
+        // Whatever workgroup memory holds: an exact kernel never reads a texel it did not write.
+        const tile = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8)
+        const tileWhole = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8)
+        workgroup(scene, u, first, pyramid, whole, [x, y], tile, tileWhole)
+      }
   }
 }

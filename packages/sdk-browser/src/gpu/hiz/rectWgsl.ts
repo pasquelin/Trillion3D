@@ -62,7 +62,7 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  * most 2×2 texels: a coarse texel is the minimum of every finer texel under it, so when the coarse
  * texels hide the box, every texel of the footprint does — rejected in at most four reads. Else
  * the footprint itself decides. An empty rectangle, or one wider than the kernel, never hides.
- * They read the pyramid's farthest layer through `hizFarthest`, the host's: the sampled read
+ * They read the pyramid's farthest layer through `hizCullFarthest`, the host's: the sampled read
  * (`HIZ_READ_WGSL`), or the build's own in the kernel that builds it (`shader.ts`).
  */
 export const HIZ_HIDES_WGSL = wgslBlock(
@@ -72,7 +72,7 @@ export const HIZ_HIDES_WGSL = wgslBlock(
 fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32)->bool{
  for(var y=y0;y<=y1;y++){
   for(var x=x0;x<=x1;x++){
-   if(!(nearest<hizFarthest(offset+u32(y)*width+u32(x)))){return false;}
+   if(!(nearest<hizCullFarthest(offset+u32(y)*width+u32(x)))){return false;}
   }
  }
  return true;

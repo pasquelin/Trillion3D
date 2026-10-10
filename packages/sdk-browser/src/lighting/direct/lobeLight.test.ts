@@ -58,7 +58,7 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
       ab = u(0.05, 1)
     const lobes = {
       on: true,
-      strength,
+      skewed: strength > 0,
       T,
       B: [N[1] * T[2] - N[2] * T[1], N[2] * T[0] - N[0] * T[2], N[0] * T[1] - N[1] * T[0]],
       coat,
@@ -142,7 +142,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
     const facing = f(Math.max(fdot(N, V), f(1e-4)))
     Object.assign(lobes, {
       on: true,
-      strength,
+      skewed: true,
       T,
       B,
       coat,

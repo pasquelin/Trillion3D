@@ -1,7 +1,9 @@
 /**
  * The Hi-Z references the tests and the CPU oracles hold the engine to: a nested-array pyramid of
- * either layer — the farthest the occlusion reads, the nearest the readers of the whole depth read
- * —, its footprint read and the occlusion verdict.
+ * any layer — the farthest the occlusion reads (`hizReduceCeil`, of the occluders' depth), the
+ * nearest the readers of the whole depth read (`hizReduceNearestCeil`), and the farthest of the
+ * finished depth they bound a cell with (`hizReduceCeil` again, of the other image) —, its
+ * footprint read and the occlusion verdict.
  */
 
 /**

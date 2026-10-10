@@ -6,12 +6,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { coneWgsl, reflectionConstant } from './shaderParts.fixture.ts'
-
-const REFLECTION_TAPS = reflectionConstant('REFLECTION_TAPS')
+import { REFLECTION_CONE_WGSL } from './footprint.ts'
+import { reflectionConstant } from './constants.fixture.ts'
 import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
 import { camera, castBoxes, type Box, type V3 } from './boxes.fixture.ts'
+
+const TAPS = reflectionConstant('REFLECTION_TAPS')
 
 /**
  * A sheet standing over a plank on a slab, the sheet a blended surface outside the depth — a pane
@@ -85,7 +86,7 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
   const read: number[][] = []
   const run = reflectionRunner(
     depthField(1, 1, [0]),
-    viewOf(view.m, view.inverse, [...view.eye, 1], [320, 180], view.scale),
+    viewOf(view.m, view.inverse, [...view.eye, 1], [320, 180]),
     {
       reflectionRadianceAt: (
         sum: { get: () => { color: number[]; weight: number } },
@@ -102,7 +103,7 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
     },
   )
   const { reflectionConeTangent } = shaderRun<{ reflectionConeTangent: (a: number) => number }>(
-    wgslModule(coneWgsl()),
+    wgslModule(REFLECTION_CONE_WGSL),
     ['reflectionConeTangent'],
     {},
   )
@@ -145,13 +146,13 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
     const { mean, taps: reads } = taps([0, 1, 2], alpha, [1, 0, 0, stretch])
     const short = axis(2, alpha),
       long = axis(2, stretch)
-    assert.equal(reads.length, Math.min(Math.ceil(long / short), REFLECTION_TAPS), `${stretch}`)
+    assert.equal(reads.length, Math.min(Math.ceil(long / short), TAPS), `${stretch}`)
     assert.ok(
       reads.every((tap) => Math.abs(tap[1] - Q[1]) < 1e-9),
       'along x',
     )
     assert.ok(Math.abs(mean[0] - Q[0]) < 1e-9 && Math.abs(mean[1] - Q[1]) < 1e-9, `${mean}`)
-    const width = Math.max(short, long / REFLECTION_TAPS)
+    const width = Math.max(short, long / TAPS)
     assert.ok(Math.abs(mean[2] - Math.log2(width)) < 1e-9, `${stretch}: ${mean[2]}`)
     // The taps span the long axis less one tap's width, evenly.
     const xs = reads.map((tap) => tap[0]).sort((p, q) => p - q)

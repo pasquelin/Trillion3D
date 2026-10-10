@@ -53,39 +53,60 @@ export function radianceKernels(drawn: number[]) {
   const run = shaderRun<{
     radianceFill: (lane: number, wg: number[], bounds: number[]) => void
     radianceSum: (lid: number[], wg: number[]) => void
-    radianceCopy: (c: number[]) => void
-  }>(RADIANCE_SHADER, ['radianceFill', 'radianceSum', 'radianceCopy', 'radianceTent', 'tent'], {
-    ...binding,
-    halves: {},
-    tile,
-    reflectionView: { screen: drawn },
-    textureDimensions: (t: object) => [of(t).width, of(t).height],
-    textureLoad: (t: object, p: number[]) => of(t).texels[p[1] * of(t).width + p[0]],
-    textureSampleLevel: (t: object, _: unknown, uv: number[]) => bilinear(of(t), uv),
-    textureStore: (t: object, p: number[], value: number[]) => {
-      of(t).texels[p[1] * of(t).width + p[0]] = value
+    radianceCopy: (c: number[]) => number[]
+  }>(
+    RADIANCE_SHADER,
+    [
+      'radianceFill',
+      'radianceSum',
+      'radianceCopy',
+      'radianceTent',
+      'tent',
+      'radianceHash',
+      'radianceMix',
+    ],
+    {
+      ...binding,
+      halves: {},
+      tile,
+      view: { viewport: drawn },
+      textureDimensions: (t: object) => [of(t).width, of(t).height],
+      textureLoad: (t: object, p: number[]) => of(t).texels[p[1] * of(t).width + p[0]],
+      textureSampleLevel: (t: object, _: unknown, uv: number[]) => bilinear(of(t), uv),
+      textureStore: (t: object, p: number[], value: number[]) => {
+        of(t).texels[p[1] * of(t).width + p[0]] = value
+      },
     },
-  })
-  /** The workgroups over `groups` a side, each as the device runs it; `copy` the first kernel's. */
+  )
+  /** The workgroups over `groups` a side, each as the device runs it; `copy` the first kernel's,
+   *  which also folds the image into its hash: the sum of its threads', two words. */
   const dispatch = (groups: number[], bounds: number[], copy: boolean) => {
+    const hash = [0, 0]
     for (let y = 0; y < groups[1]; y++)
       for (let x = 0; x < groups[0]; x++) {
         for (let lane = 0; lane < 64; lane++) run.radianceFill(lane, [x, y], bounds)
         for (let lane = 0; lane < 64; lane++) {
           const lid = [lane % 8, Math.floor(lane / 8)]
           run.radianceSum(lid, [x, y])
-          if (copy) run.radianceCopy([x * 8 + lid[0], y * 8 + lid[1]])
+          if (copy) {
+            const sum = run.radianceCopy([x * 8 + lid[0], y * 8 + lid[1]])
+            hash[0] = (hash[0] + sum[0]) >>> 0
+            hash[1] = (hash[1] + sum[1]) >>> 0
+          }
         }
       }
+    return hash
   }
   return {
-    first(source: Image) {
+    /** The first kernel over `source`, in `groups` workgroups a side (the shipped dispatch,
+     *  `radianceGroups`, else whole). */
+    first(source: Image, groups = [Math.ceil(source.width / 32), Math.ceil(source.height / 32)]) {
       io.finer = source
       io.copy = blank(source.width, source.height)
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(source.width >> 2, source.height >> 2)
-      dispatch([Math.ceil(source.width / 32), Math.ceil(source.height / 32)], drawn, true)
-      return { copy: io.copy, coarser: io.coarser, coarsest: io.coarsest }
+      const hash = dispatch(groups, drawn, true)
+      return { copy: io.copy, coarser: io.coarser, coarsest: io.coarsest, hash }
     },
     down(source: Image) {
       io.finer = source

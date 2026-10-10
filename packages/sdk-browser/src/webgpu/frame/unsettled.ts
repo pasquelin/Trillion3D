@@ -72,8 +72,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (services.cutPending.count) mask |= BIT.cutPending
   return mask
 }
-/** The temporal histories still advancing: bounce probes, deformation, and the reflections' radiance
- *  image while it is not yet one of the view standing still (`reflectionsSettled`). */
+/** The temporal histories still advancing: bounce probes and deformation. */
 function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   const { vis, bounce } = rt
   let mask = 0
@@ -82,16 +81,22 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
     mask |= BIT.bounceProbes
   // Deformation advances its own temporal history; its answers serve `frame`'s update alone.
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
-  if (!reflectionsSettled(rt.gpu.reflection, !!rt.gpu.temporal?.frame.active))
-    mask |= BIT.reflections
   return mask
 }
 /**
  * Pending work that can change the frame. Read without allocation by hold and the barrier; the
- * hold names the `frame` it is about to draw, whose update then reuses what was read.
+ * hold names the `frame` it is about to draw, whose update then reuses what was read. The
+ * reflections' own bit is the last: while anything else is pending the image about to be drawn is
+ * drawn for it, and the reflections can settle only on images after it (`reflectionsSettled`,
+ * `RadianceSettle`).
  */
 export function unsettledMask(rt: WebgpuPagesRuntime, frame?: number) {
-  return runMask(rt) | loadMask(rt) | historyMask(rt, frame)
+  const other = runMask(rt) | loadMask(rt) | historyMask(rt, frame),
+    { reflection } = rt.gpu
+  if (other) reflection?.settle.busy()
+  return reflectionsSettled(reflection, !!rt.gpu.temporal?.frame.active)
+    ? other
+    : other | BIT.reflections
 }
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>

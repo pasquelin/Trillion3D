@@ -1,64 +1,75 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { f0Of, ndotvClamped, splitSumTerm } from '../../../math/src/wgsl/lighting.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
-import { MODEL_FLAG } from '../scene/surfaceModel.ts'
+import { DIELECTRIC_F0, ndotvClamped } from '../../../math/src/wgsl/lighting.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
+import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
+import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { reflectionFieldWgsl } from './field.ts'
-import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 
 /**
- * What a lit surface keeps of the radiance it reflects. `reflectionWeight` is the engine's
- * split-sum term of its GGX lobe at its roughness and N·V (the fitted magnitude and Fresnel share
- * the rectangle lights read, `ltcLookup`, in every lighting program), on its reflectance.
- * `reflectionCoat` is a clear coat's own dielectric lobe on its normal and roughness, the
- * environment's — its field the base's (`reflectionField`, read at `P`; with the cascades where
- * `probes`) —, zero without a coat; `reflectionShare` the reflected radiance `reflected` weighed,
- * let through the coat as every other term is (`lobeThrough`), and the coat's added. `reflects` is
- * whether the surface model has a specular lobe, and `reflectionLobe` the long axis of the lobe the
- * lights read (`setLobes`): its direction and αt where the material is anisotropic, a round lobe
- * of rough² elsewhere. A program without lobes has no coat and a round lobe.
+ * What a lit surface keeps of the radiance it reflects, and how it traces it. `reflectionWeight`
+ * is the engine's split-sum term of its GGX lobe at its roughness and N·V (the fitted magnitude and
+ * Fresnel share the rectangle lights read, `ltcSplitSum`, in every lighting program), on its
+ * reflectance `f0`: `f0Of` of its colour and metalness, a dielectric's on a coat, the water's own.
+ * `reflectionTrace` is what its lobes reflect, the radiance of each traced once (`Reflected`): the
+ * base lobe's, along the lobe the lights read (`reflectionLobe`: the long axis `setLobes` left —
+ * its direction and αt where the material is anisotropic, a round lobe elsewhere), and, where the
+ * surface carries a clear coat, the coat's own dielectric lobe on its normal and roughness — a
+ * second `reflectedRadiance`, only where the coat is above zero. `reflectionShare` is the traced
+ * radiance weighed on a reflectance, the base let through the coat as every other term is
+ * (`lobeThrough`), and the coat's added; `reflectedShare` traces and weighs on one reflectance. A
+ * program without lobes has no coat and a round lobe.
  */
-const reflectionWeightWgsl = (lobes: boolean, probes: boolean) =>
+export const reflectionShareWgsl = (group: number, lobes: boolean) =>
   wgslBlock(
-    `reflectionWeightWgsl(${lobes}, ${probes})`,
-    [reflectionFieldWgsl(probes), splitSumTerm, f0Of, ndotvClamped, ROUGHNESS_FLOOR],
-    `fn reflectionWeight(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
- return splitSumTerm(f0Of(rgb,metal),ltcLookup(clamp(rough,ROUGHNESS_FLOOR,1.0),ndotvClamped(N,V),1u));
-}
-fn reflects()->bool{return surfaceModel==${MODEL_FLAG.physical}u;}
-fn reflectionShare(reflected:vec3f,coat:vec3f,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
- return reflected*reflectionWeight(rgb,metal,rough,N,V)*lobeThrough()+coat;
+    `reflectionShareWgsl(${group}, ${lobes})`,
+    [reflectedRadianceWgsl(group), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
+    `struct Reflected{base:vec3f,coat:vec3f,}
+fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
+ return ltcSplitSum(f0,lobeRoughness(rough),ndotvClamped(N,V));
 }
 ${
   lobes
     ? `fn reflectionLobe(rough:f32)->vec4f{
- if(lobes.on&&lobes.strength>0.0){return vec4f(lobes.T,lobes.at);}
- let r=clamp(rough,ROUGHNESS_FLOOR,1.0);
- return vec4f(0.0,0.0,0.0,r*r);
+ if(lobes.on){return vec4f(lobes.T,lobes.at);}
+ return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
 }
-fn reflectionCoat(V:vec3f,P:vec3f)->vec3f{
- if(!lobes.on||lobes.coat<=0.0){return vec3f(0.0);}
- let r=clamp(lobes.coatRough,ROUGHNESS_FLOOR,1.0);
- let a=r*r;
- let field=reflectionField(P,lobes.coatN,reflectionLobeOf(reflect(-V,lobes.coatN),a,vec4f(0.0,0.0,0.0,a)));
- return lobes.coat*field*reflectionWeight(vec3f(0.0),0.0,r,lobes.coatN,V);
+fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32)->Reflected{
+ var traced=Reflected(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),vec3f(0.0));
+ if(lobes.on&&lobes.coat>0.0){
+  traced.coat=reflectedRadiance(P,lobes.coatN,V,lobes.coatRough,vec4f(0.0,0.0,0.0,lobeAlpha(lobes.coatRough)));
+ }
+ return traced;
+}
+fn reflectionShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
+ var share=traced.base*reflectionWeight(f0,rough,N,V)*lobeThrough();
+ if(lobes.on&&lobes.coat>0.0){share+=lobes.coat*traced.coat*reflectionWeight(DIELECTRIC_F0,lobes.coatRough,lobes.coatN,V);}
+ return share;
 }`
-    : `fn reflectionLobe(rough:f32)->vec4f{let r=clamp(rough,ROUGHNESS_FLOOR,1.0);return vec4f(0.0,0.0,0.0,r*r);}
-fn reflectionCoat(V:vec3f,P:vec3f)->vec3f{return vec3f(0.0);}`
+    : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}
+fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32)->Reflected{
+ return Reflected(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),vec3f(0.0));
+}
+fn reflectionShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
+ return traced.base*reflectionWeight(f0,rough,N,V);
+}`
+}
+fn reflectedShare(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
+ return reflectionShare(reflectionTrace(P,N,V,rough),f0,rough,N,V);
 }`,
   )
 
 /** A forward program's reflection (blend, water), inline in its fragment stage, its resources in
- *  bind group `group`: `surfaceReflection` the blend's, `reflectedRadiance` traced here, weighed
- *  and coated as the opaque resolve's (`reflectionShare`). */
+ *  bind group `group`: `surfaceReflection` the blend's, traced here and weighed on the reflectance
+ *  `f0` as the opaque trace's is (`reflectedShare`); the water traces once (`reflectionTrace`)
+ *  and weighs the one trace on two reflectances (`reflectionShare`). */
 export const forwardReflectionWgsl = (group: number, lobes: boolean) =>
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes})`,
-    [reflectedRadianceWgsl(group), reflectionWeightWgsl(lobes, true)],
-    `fn surfaceReflection(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!reflects()){return vec3f(0.0);}
- return reflectionShare(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),reflectionCoat(V,P),rgb,metal,rough,N,V);
+    [reflectionShareWgsl(group, lobes), surfaceReflects],
+    `fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
+ if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
+ return reflectedShare(f0,rough,N,V,P);
 }`,
   )
 
@@ -71,21 +82,14 @@ export const REFLECTION_TARGET = loadOnlyTarget(
   'reflectionTarget',
 )
 
-/** The opaque resolve's binding of the reflection's view (`REFLECTION_VIEW_WGSL`), whose
- *  surroundings its coat's field holds. */
-export const REFLECTION_VIEW_BINDING = 34
-
-/** The opaque resolve's reflection: the radiance the compute pass traced for its pixel, weighed as
- *  a forward program weighs its own (`reflectionShare`); `probes`, the program binds the bounce
- *  cascades. */
-export const resolvedReflectionWgsl = (lobes: boolean, probes: boolean) =>
-  wgslBlock(
-    `resolvedReflectionWgsl(${lobes}, ${probes})`,
-    [REFLECTION_VIEW_WGSL, reflectionWeightWgsl(lobes, probes)],
-    `${REFLECTION_TARGET.wgsl}
-@group(0) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
-fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- if(!reflects()){return vec3f(0.0);}
- return reflectionShare(textureLoad(reflectionTarget,coord).rgb,reflectionCoat(V,P),rgb,metal,rough,N,V);
+/** The opaque resolve's reflection: the share the compute pass traced for its pixel, weighed and
+ *  coated there (`reflectedShare`), added as it is. */
+export const resolvedReflectionWgsl = wgslBlock(
+  'resolvedReflectionWgsl',
+  [surfaceReflects],
+  `${REFLECTION_TARGET.wgsl}
+fn resolvedReflection(coord:vec2i)->vec3f{
+ if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
+ return textureLoad(reflectionTarget,coord).rgb;
 }`,
-  )
+)

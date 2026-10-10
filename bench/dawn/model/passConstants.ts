@@ -3,7 +3,12 @@
 // that counts it.
 import { RECEIVER_TARGET_BYTES } from '../../../packages/sdk-browser/src/visibility/shader/receiverTargetWgsl.ts'
 import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
-import { hizAccesses } from '../../runner/counts/frameBudgetRates.ts'
+import {
+  hizCullAccesses,
+  hizLevelTexels,
+  hizNearestAccesses,
+} from '../../runner/counts/frameBudgetRates.ts'
+import { REFLECTION_SIDE } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import type { Work } from './floor.ts'
 
 export type Frame = {
@@ -16,7 +21,8 @@ export type Frame = {
   L: number
   /** The share of covered pixels a shadowed light reaches, on average over the L. */
   reach: number
-  rough: number
+  /** The share of P that reflects: a surface with a specular lobe (`surfaceReflects`). */
+  reflecting: number
 }
 
 /** Where a pass's constants come from: a file of the repository and a symbol it holds — a name
@@ -84,15 +90,44 @@ export const TILE_ID_BYTES = 4
 /** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
 export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
-/** The rough reflections: a ray a 2×2 block, at least six fetches each. */
-export const REFLECTION_BLOCK = 4,
-  TRACE_FETCHES = 6
+/** The reflection's march of a reflecting pixel (`reflectionMarch`): its iterations, 16 on average
+ *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
+ *  the finished depth's farthest and the nearest, or at level 0 the depth and the slopes —, two
+ *  texels. The model counts the mean; what a pass takes above it holds the tail. */
+export const MARCH_ITERATIONS = 16,
+  MARCH_FETCHES = 2
+/** What a reflecting pixel's trace reads besides its march: its flags, base colour, depth and
+ *  normal (`TRACE_SHADER`); at the hit, three depths for its normal (`reflectionHitNormal`) and one
+ *  for the depth weight of the footprint (`reflectionDepthWeight`), then the radiance pyramid's four
+ *  bilinear taps of a coarse level (`reflectionLevelColor`, at least one tap of the footprint); its
+ *  8 bytes written (`REFLECTION_FORMAT`). */
+export const TRACE_LOADS = 4,
+  HIT_LOADS = 3 + 1,
+  HIT_TAPS = 4,
+  TRACE_BYTES = 8
+/** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written
+ *  as level 0, the coarser levels written beside; the odd levels filled by four bilinear taps a
+ *  texel over a tile with a texel of halo each side (`radianceFill`), the even ones summed in
+ *  workgroup memory. */
+export const RADIANCE_BYTES = 8,
+  RADIANCE_TAPS = 4,
+  RADIANCE_HALO = ((2 * REFLECTION_SIDE + 2) / (2 * REFLECTION_SIDE)) ** 2
+
+/** The size of a P-pixel 16:9 image. */
+const sizeOf = (P: number) => {
+  const w = Math.round(Math.sqrt(P * (16 / 9)))
+  return [w, Math.round(P / w)] as const
+}
+/** Texel reads and writes, for a P-pixel image, of the Hi-Z pyramid's culling layer build
+ *  (`hizCullAccesses`) and of its nearest layer and the finished depth's farthest
+ *  (`hizNearestAccesses`). */
+export const hizCullTexels = (P: number) => hizCullAccesses(...sizeOf(P))
+export const hizNearestTexels = (P: number) => hizNearestAccesses(...sizeOf(P))
+/** Texels of the coarser levels of a P-pixel image's pyramid, and of the radiance pyramid's odd
+ *  levels (a quarter of the image, and a sixteenth of that again, and so on). */
+export const coarserTexels = (P: number) => hizLevelTexels(...sizeOf(P)).upper
+export const oddLevelTexels = (P: number) => (P / 4) * (16 / 15)
+
 /** The composition: the HDR read, the capture and the canvas written. */
 export const COMPOSE_READ = 8,
   COMPOSE_WRITE = 2 * 4
-
-/** Texel reads and writes of the Hi-Z pyramid of a P-pixel 16:9 image (`hizAccesses`). */
-export const hizTexels = (P: number) => {
-  const w = Math.round(Math.sqrt(P * (16 / 9)))
-  return hizAccesses(w, Math.round(P / w))
-}

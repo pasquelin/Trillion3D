@@ -1,27 +1,34 @@
 import { fieldLayout } from '../webgpu/blend/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
+import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
 /**
  * The reflection's view (`ReflectionView`, `writeReflectionView`), its fields in one table, in
- * order: the depth's view-projection and its inverse, the view-projection the radiance pyramid's
- * image was drawn with, the eye (`w` 0 under an orthographic camera, its direction then), the drawn
- * size and the world size of a pixel at a unit clip `w` (`screen.z`), the radiance image's drawn
- * size and its top level (`radiance.z`), whether the screen is traced this image (`counts.x`: the
- * depth pyramid holds this image's depth and the radiance pyramid an earlier image of this view)
- * and the display curve's rank (`counts.y`), the background as the display shows it, in linear,
- * and the exposure (`display`), and the radiance around the scene a miss adds to the environment's
- * (`surroundings`, written on the GPU from them).
+ * order: what the reflection knows of the view beyond the deferred lighting's own (`View`: the
+ * pixel's world point, the eye, the drawn size, the exposure, the display curve and the background
+ * are read there, from the one uniform every pass of the image reads).
+ *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
+ *    radiance pyramid's image was drawn with;
+ *  - `radiance`, the radiance image's drawn size and its top level (`z`);
+ *  - `slab`, the geometry of a surface's thickness (`reflectionBack`): the world size of a pixel at
+ *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
+ *    spans under an orthographic projection (`z`), and whether the projection is a perspective
+ *    (`w`);
+ *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
+ *    depth and the radiance pyramid an earlier image of this view);
+ *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
+ *    off its normal;
+ *  - `surroundings`, the radiance around the scene a miss adds to the environment's, written on the
+ *    GPU from the background, the exposure and the display curve (`BEGIN_SHADER`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
-  ['inverseViewProj', 'mat4x4f'],
   ['radianceViewProj', 'mat4x4f'],
-  ['camera', 'vec4f'],
-  ['screen', 'vec4f'],
   ['radiance', 'vec4f'],
-  ['counts', 'vec4u'],
-  ['display', 'vec4f'],
+  ['slab', 'vec4f'],
+  ['traced', 'vec4u'],
+  ['proxy', 'vec4f'],
   ['surroundings', 'vec4f'],
 ] as const)
 
@@ -40,14 +47,33 @@ export const REFLECTION_GROUP = 1
 /** The binding from which the reflection group holds the depth pyramid (`hizDepthEntries`). */
 export const REFLECTION_DEPTH_BINDING = 3
 
-/** The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
- *  radiance pyramid and its trilinear sampler, then the depth it marches, the engine's pyramid
- *  (`hizDepthWgsl`). */
+/** The binding of the deferred lighting's view in the reflection group (`View`). */
+export const REFLECTION_LIGHT_VIEW_BINDING = 6
+/** The binding of the proxy's surface cache in the reflection group (`bounce/surface.ts`). */
+export const REFLECTION_SURFACE_BINDING = 7
+
+/**
+ * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
+ * radiance pyramid and its trilinear sampler, the depth it marches, the engine's pyramid
+ * (`hizDepthWgsl`), and the radiance the resident proxy's surfaces hold (`surface`, the cache the
+ * bounce sweeps). The program names the deferred lighting's view (`view`, the pixel's world point
+ * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
+ * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
+ */
 export const reflectionBindingsWgsl = (group: number) =>
   wgslBlock(
     `reflectionBindingsWgsl(${group})`,
-    [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING)],
+    [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(1) var reflectionRadiance:texture_2d<f32>;
-@group(${group}) @binding(2) var reflectionSampler:sampler;`,
+@group(${group}) @binding(2) var reflectionSampler:sampler;
+@group(${group}) @binding(${REFLECTION_SURFACE_BINDING}) var surface:texture_2d<f32>;`,
+  )
+
+/** The deferred lighting's view in the reflection group, for a program that has none of its own. */
+export const reflectionLightViewWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionLightViewWgsl(${group})`,
+    [VIEW_WGSL],
+    `@group(${group}) @binding(${REFLECTION_LIGHT_VIEW_BINDING}) var<uniform> view:View;`,
   )

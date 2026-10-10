@@ -4,7 +4,7 @@ import {
   hizReduceNearestCeil,
 } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { pyramidBytes } from './oracle.ts'
-import { hizTextureSize } from './pyramidTexture.ts'
+import { HIZ_WHOLE_FARTHEST, hizTextureSize } from './pyramidTexture.ts'
 import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts'
 import type { HizPyramid } from '../../hiz/types.ts'
 import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts'
@@ -29,7 +29,7 @@ export function evaluateHizReduce(
 /** Pack level-0 rows into the full ceil-max pyramid used by the GPU kernel. */
 export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHiz {
   const levels = hizBuildPyramid(level0)
-  const { sizes, offsets, texels } = pyramidBytes(level0[0].length, level0.length)
+  const { sizes, offsets, texels, first, upper } = pyramidBytes(level0[0].length, level0.length)
   const data = new Float32Array(texels)
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i],
@@ -37,16 +37,52 @@ export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHi
       base = offsets[i]
     for (let y = 0; y < level.length; y++) data.set(level[y], base + y * w)
   }
-  return { data, sizes, offsets }
+  return { data, sizes, offsets, first, upper }
 }
 
-/** The farthest layer of the pyramid texture holding `packed` (`pyramidTexture.ts`): its words, a
- *  depth's bits each, row after row of `hizTextureSize`, zero past the last texel. */
-export function hizFarthestLayer(packed: Float32Array) {
-  const { width, height } = hizTextureSize(packed.length)
-  const words = new Uint32Array(width * height)
-  words.set(new Uint32Array(packed.buffer, packed.byteOffset, packed.length))
-  return { words, width, height }
+/** The finished depth's farthest layer for the depth `level0`, packed as the nearest build writes
+ *  it: the farthest pyramid of the depth from level 1 up, level 0 — the depth texture itself —
+ *  left at zero. */
+export function packWholeFarthest(level0: readonly (readonly number[])[]) {
+  const packed = packHizPyramid(level0)
+  packed.data.fill(0, 0, packed.offsets[1] ?? packed.data.length)
+  return packed
+}
+
+/** The words of the pyramid texture's layers (`pyramidTexture.ts`) that hold the bound `packed`
+ *  (`layer`'s, its texels as depths): the layer's own level 0, when it has one, and the share of the
+ *  last layer its coarser levels take (`hizRoute`). Each is a full layer, row after row of
+ *  `hizTextureSize`, zero elsewhere. */
+export function hizLayerWords(packed: PackedHiz, layer: number) {
+  const split = packed
+  const size = hizTextureSize(split)
+  const bits = new Uint32Array(packed.data.buffer, packed.data.byteOffset, packed.data.length)
+  const layers = new Map<number, Uint32Array<ArrayBuffer>>()
+  if (layer !== HIZ_WHOLE_FARTHEST)
+    layers.set(
+      layer,
+      Uint32Array.from({ length: size.width * size.height }, (_, i) => bits[i] ?? 0).fill(
+        0,
+        split.first,
+      ),
+    )
+  const last = new Uint32Array(size.width * size.height)
+  last.set(bits.subarray(split.first), layer * split.upper)
+  layers.set(HIZ_WHOLE_FARTHEST, last)
+  return { ...size, layers }
+}
+
+/** The packed pyramid of the bound `layer` (`hizLayerWords`) read back from the texture's layers
+ *  `layers`, level 0 of the whole bound zero. */
+export function hizPackedFrom(
+  layers: readonly Uint32Array[],
+  layer: number,
+  { first, upper }: { first: number; upper: number },
+) {
+  const words = new Uint32Array(first + upper)
+  if (layer !== HIZ_WHOLE_FARTHEST) words.set(layers[layer].subarray(0, first))
+  words.set(layers[HIZ_WHOLE_FARTHEST].subarray(layer * upper, layer * upper + upper), first)
+  return words
 }
 
 /** Same rejection as `hizRejects` (mip-selected inclusive footprint, near clips never hide). */
@@ -62,6 +98,9 @@ export type PackedHiz = {
   data: Float32Array<ArrayBuffer>
   sizes: Array<[number, number]>
   offsets: number[]
+  /** The texels at level 0 and in the coarser levels (`pyramidBytes`). */
+  first: number
+  upper: number
 }
 
 function rowsOf(data: Float32Array, width: number, height: number) {

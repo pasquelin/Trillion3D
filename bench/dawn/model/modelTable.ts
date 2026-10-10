@@ -11,7 +11,7 @@ import { PASSES, type Frame } from './passes.ts'
 /** The frame a bench report measured: its sizes and counters, with what no counter says. */
 export function frameOf(
   report: BenchReport,
-  given: { cover: number; reach: number; rough: number; placements: number },
+  given: { cover: number; reach: number; reflecting: number; placements: number },
 ): Frame {
   const engine = report.engine as Record<string, number | null | undefined>
   const display = report.bench.display as { width: number; height: number }
@@ -24,7 +24,7 @@ export function frameOf(
     N: given.placements,
     L: engine.shadowVsmLights ?? 0,
     reach: given.reach,
-    rough: given.rough,
+    reflecting: given.reflecting,
   }
 }
 

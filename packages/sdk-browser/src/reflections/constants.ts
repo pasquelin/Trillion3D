@@ -2,16 +2,22 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { DEG2RAD } from '../../../math/src/constants.ts'
 
-/** Iterations a level of the depth pyramid pays the march: a ray crosses at most two cells of each
- *  level climbing and two descending, and each refused ascent is one more — eight a level, `levels
- *  × 8` in all. A ray that skims a surface the pyramid's bounds cannot clear (they hold the
- *  farthest height of a cell, not its tilt) needs more: it is a miss. */
-const REFLECTION_ITERATIONS_PER_LEVEL = 8
-/** The image border, a fraction of its height, over which a hit fades into the environment. */
+/** The image border, a fraction of its height, over which a hit fades into the next stage. */
 const REFLECTION_EDGE = 1 / 16
 /** The taps of a footprint along its long axis at most: past that ratio of its axes, the level is
  *  the long axis's share of a tap. */
 const REFLECTION_TAPS = 5
+/** The screen distance, in pixels (the L1 length of the ray on the image), a ray is marched over at
+ *  most: its iterations are bounded by it (`reflectionBudget`), and the screen's confidence fades
+ *  over its second half, so that the next stage carries what lies farther. */
+const REFLECTION_STEP_CAP = 256
+/** The thickness of a surface the march assumes, in pixels of its footprint: a ray behind a pixel's
+ *  surface by more passes behind it and goes on (a pole, a fence), by less is inside it and hits.
+ *  The same thickness at every depth and under every projection (`reflectionBack`). */
+const REFLECTION_THICKNESS = 4
+/** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
+ *  8-bit channel of a radiance of one. */
+const REFLECTION_EPSILON = 2 ** -11
 
 /**
  * The constants of the reflection's shaders. `REFLECTION_NUDGE` takes a ray past a cell boundary: four
@@ -23,9 +29,11 @@ const REFLECTION_TAPS = 5
 export const REFLECTION_CONSTANTS_WGSL = wgslBlock(
   'REFLECTION_CONSTANTS_WGSL',
   [],
-  `const REFLECTION_ITERATIONS_PER_LEVEL:u32=${REFLECTION_ITERATIONS_PER_LEVEL}u;
-const REFLECTION_EDGE:f32=${wgslF32(REFLECTION_EDGE)};
+  `const REFLECTION_EDGE:f32=${wgslF32(REFLECTION_EDGE)};
 const REFLECTION_TAPS:f32=${wgslF32(REFLECTION_TAPS)};
+const REFLECTION_STEP_CAP:f32=${wgslF32(REFLECTION_STEP_CAP)};
+const REFLECTION_THICKNESS:f32=${wgslF32(REFLECTION_THICKNESS)};
+const REFLECTION_EPSILON:f32=${wgslF32(REFLECTION_EPSILON)};
 const REFLECTION_HALF_MAXIMUM:f32=${wgslF32(Math.SQRT2)};
 const REFLECTION_CONE_LIMIT:f32=${wgslF32(Math.tan(40 * DEG2RAD))};
 const REFLECTION_NUDGE:f32=${wgslF32(2 ** -8)};

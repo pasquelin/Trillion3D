@@ -83,6 +83,7 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
       coatNdotV = Math.max(dot(set.coatN, V), 1e-4)
     const lobes = {
       ...set,
+      skewed: set.strength > 0,
       through: 1 - set.coat * (0.04 + 0.96 * grazing ** 5),
       at,
       ab: alpha,
@@ -115,7 +116,7 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     const off = pairOf(LOBED, { on: false }, [...PAIR, ...LOBE])
     const nothing = pairOf(
       LOBED,
-      { on: true, strength: 0, coat: 0, coatRough: 0.5, coatN: N, through: 1 },
+      { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: N, through: 1 },
       [...PAIR, ...LOBE],
     )
     for (const slice of [

@@ -32,9 +32,9 @@ const LOOP = [
   ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 const LOBED = [...LOOP, 'lobeLight', 'anisotropicLobe']
-/** Lobes off, and on with nothing: no strength, no coat, a coat that lets everything through. */
+/** Lobes off, and on with nothing: no skew, no coat, a coat that lets everything through. */
 const OFF = { on: false }
-const NOTHING = { on: true, strength: 0, coat: 0, coatRough: 0.5, coatN: [0, 0, 1], through: 1 }
+const NOTHING = { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: [0, 0, 1], through: 1 }
 
 test('the lobed blend program sums a fragment without lobes as the lobeless one, bit for bit', () => {
   const r = random(2207),

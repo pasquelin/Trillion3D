@@ -145,6 +145,7 @@ export const builtins = {
   vec4u: vector(4, (x) => int(x) >>> 0),
   bitcast_u32: toBits,
   bitcast_vec3u: toBits,
+  bitcast_vec4u: toBits,
   bitcast_f32: toFloat,
   f32: each(float),
   i32: each(int),

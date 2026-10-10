@@ -14,7 +14,7 @@
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
 import { signedToUnit3 } from '../../../math/src/wgsl/reals.ts'
 
@@ -36,6 +36,14 @@ export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5 } as const
 export const AS_IS_FLAG = 3
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
 export const SURFACE_MODEL_MASK = 7
+/** Whether a surface of surface-buffer flags `flags` reflects: the physical model alone has a
+ *  specular lobe, the one rule of the opaque trace (the flags it reads) and the forward programs
+ *  (their `surfaceModel`, the flag itself). */
+export const surfaceReflects = wgslFn(
+  'surfaceReflects',
+  [],
+  `fn surfaceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u;}`,
+)
 /** The r8 surface target's high bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128
 /** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`

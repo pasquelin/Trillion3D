@@ -8,7 +8,7 @@ import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
 import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
 import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
+import { f0Of, fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
 
 /** A water pixel's colour and coverage (`compositeWgsl.ts`): the transmitted backdrop, the
  *  declared lights' specular and the reflection, and the surface's lit share, composed as glTF
@@ -18,6 +18,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
   'WATER_COLOR_WGSL',
   [
     fresnelScalar,
+    f0Of,
     ROUGHNESS_FLOOR,
     WATER_UNPACK_WGSL,
     WORLD_AT_WGSL,
@@ -42,7 +43,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
  // we look from, else refraction would go the wrong way and Fresnel turn black.
  shadowFootprint=waterShadowFootprint(pixel.xy,fragZ,P);
  shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
- let V=waterViewDirection(P);
+ let V=viewToEye(P);
  let Nv=waterFacing(normal.xyz,V);
  let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
  let metal=clamp(base.a,0.0,1.0);
@@ -58,14 +59,13 @@ export const WATER_COLOR_WGSL = wgslBlock(
   waterLobes(vol,coord,Nv,V,rough,select(-1.0,1.0,dot(normal.xyz,V)>0.0));
   // One walk of the declared lights, two sums: the surface's, and the null albedo's below.
   let declared=declaredLightingPair(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ);
-  // What the surface reflects, traced once, and its coat, read once: weighed on its colour for the
-  // lit share, on a null albedo for the specular share, as the lights are.
-  let reflected=reflectedRadiance(P,Nv,V,rough,reflectionLobe(rough));
-  let coat=reflectionCoat(V,P);
-  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+reflectionShare(reflected,coat,base.rgb,metal,rough,Nv,V)+emissiveAo.rgb;}
-  // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the dielectric
-  // specular lobe stays.
-  specular=declared.specular+reflectionShare(reflected,coat,vec3f(0.0),0.0,rough,Nv,V);
+  // What the surface reflects, its lobes traced once: weighed on its colour for the lit share, on
+  // the volume's reflectance for the specular share, as the Fresnel term above is.
+  let traced=reflectionTrace(P,Nv,V,rough);
+  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V)+emissiveAo.rgb;}
+  // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the specular
+  // lobe stays.
+  specular=declared.specular+reflectionShare(traced,vec3f(vol.f0),rough,Nv,V);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,

@@ -47,7 +47,7 @@ export function encodeSurfaceLighting(
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // What every surface reflects: the opaque ones traced here, the resolve's input; the blends and
   // the water read the same view inline.
-  encodeReflections(rt, encoder, inverseViewProj, cameraWorldArray, direct)
+  encodeReflections(rt, encoder)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
