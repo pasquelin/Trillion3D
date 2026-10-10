@@ -7,6 +7,7 @@ import {
   TESTED_U32,
   UNIFORM_U32,
 } from './contract.ts'
+import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
 
 /**
  * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
@@ -72,13 +73,14 @@ const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = 
  *  buffers, and the pyramid texture whose farthest layer it reads. */
 export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKernel) {
   return device.createBindGroupLayout({
-    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
-      binding: PARTITION_BINDING[name],
-      visibility: GPUShaderStage.COMPUTE,
-      ...(name === 'pyramid'
-        ? { texture: { sampleType: 'uint', viewDimension: '2d-array' } as const }
-        : { buffer: { type: BINDING_TYPE[name] } }),
-    })),
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) =>
+      name === 'pyramid'
+        ? computeTextureEntry(PARTITION_BINDING[name], {
+            sampleType: 'uint',
+            viewDimension: '2d-array',
+          })
+        : computeBufferEntry(PARTITION_BINDING[name], BINDING_TYPE[name]),
+    ),
   })
 }
 

@@ -1,4 +1,4 @@
-import { COMPUTE } from '../core/computeBindings.ts'
+import { computeBufferEntry } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
@@ -43,19 +43,18 @@ import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  * `@binding(6)` while `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
-  const lecture = { type: 'read-only-storage' } as const
-  const ecriture = { type: 'storage' } as const
-  return [
-    { binding: 0, visibility: COMPUTE, buffer: lecture },
-    { binding: 1, visibility: COMPUTE, buffer: { type: 'uniform' } },
-    { binding: 2, visibility: COMPUTE, buffer: ecriture },
-    { binding: 3, visibility: COMPUTE, buffer: ecriture },
-    { binding: 4, visibility: COMPUTE, buffer: ecriture },
-    { binding: 5, visibility: COMPUTE, buffer: ecriture },
-    { binding: 6, visibility: COMPUTE, buffer: lecture },
-    { binding: 7, visibility: COMPUTE, buffer: lecture },
-    { binding: 8, visibility: COMPUTE, buffer: lecture },
+  const types: GPUBufferBindingType[] = [
+    'read-only-storage',
+    'uniform',
+    'storage',
+    'storage',
+    'storage',
+    'storage',
+    'read-only-storage',
+    'read-only-storage',
+    'read-only-storage',
   ]
+  return types.map((type, binding) => computeBufferEntry(binding, type))
 }
 
 export const drawShader = (layerSlots: number) => {
