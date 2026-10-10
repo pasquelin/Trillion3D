@@ -12,10 +12,9 @@ export function evictResident(
   page: ResidentPage,
   reason: 'capacity' | 'explicit-unload' | 'resize',
 ) {
-  const { resident, pins, state } = context
+  const { resident, state } = context
   resident.delete(page.key)
-  pins.delete(page.key)
-  context.held.delete(page.key)
+  if (context.eviction.isPinned(page.key)) context.changes.unpinned(page.key)
   context.eviction.left(page.key)
   context.changes.left(page.key)
   state.evictions++

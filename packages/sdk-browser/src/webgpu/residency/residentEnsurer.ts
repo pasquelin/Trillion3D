@@ -123,7 +123,7 @@ async function ensurePass(
       elapsedMs: performance.now() - started,
     }),
     // Bounded probe of the pinned set: it has the size of the cut, not of the queue.
-    pinned: s.tracking.traceKeys('pins', s.tracking.pinned),
+    pinned: run.cache.stats().pinned,
   }))
   return run.missing === 0 && s.getCache() === run.cache && s.lower.held(run.cache)
 }

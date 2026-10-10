@@ -43,6 +43,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     tracking,
     bootstrapKey,
     requests: residencySets.requests,
+    pinned: (key) => !!rt.gpu.cache?.isPinned(tracking.pageCatalog[key]),
   })
   // The roots the world's held cells add to the cover, followed for the backend's life.
   coverHeldRoots(rt, residencySets, room)

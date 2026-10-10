@@ -27,27 +27,15 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     return key
   }
   /**
-   * The three sets the residency path carries from one image to the next. They are dense sets, not
+   * The sets the residency path carries from one image to the next. They are dense sets, not
    * per-image rebuilds: an image that changes no page touches none of them.
    * `wanted` is what the upload queue still has to fetch, `wantedPages` the record it fetches each key
-   * by; `keep` is what the image forbids the cache to reclaim; `pinned` is what the cache actually
-   * holds pinned for it.
+   * by; `keep` is what the image forbids the cache to reclaim. The pages the cache holds pinned
+   * are the cache's to say (`GpuPageCache.isPinned`).
    */
   const wantedPages: PageRec[] = []
   const wanted = createDenseKeySet(wantedPages)
   const keep = createDenseKeySet()
-  const pinned = createDenseKeySet()
-  /**
-   * Keys something outside the residency path unpinned — a host page drop. The pin step drains this
-   * and puts back the ones the image still keeps, so a dropped page that comes back is pinned again.
-   */
-  const unpinned: number[] = []
-  const markPinned = (key: number) => {
-    pinned.add(key)
-  }
-  const unmarkPinned = (key: number) => {
-    if (pinned.remove(key)) unpinned.push(key)
-  }
   return {
     pageCatalog,
     pageCatalogIds,
@@ -58,10 +46,6 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     wanted,
     wantedPages,
     keep,
-    pinned,
-    unpinned,
-    markPinned,
-    unmarkPinned,
     ...createTraceSamples(pageCatalog, pageRefs),
   }
 }

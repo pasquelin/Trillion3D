@@ -87,7 +87,6 @@ export function slotPlacement(
   { free, quarters, split }: SlotLayout,
   eviction: Eviction,
   resident: ReadonlyMap<string, ResidentPage>,
-  pins: ReadonlySet<string>,
 ): Placement {
   const quarterBytes = quarterBytesOf(pageBytes)
   const quarterOf = (page: ResidentPage) =>
@@ -119,7 +118,7 @@ export function slotPlacement(
   }
   /** Whether every page of split `slot` may leave: none pinned. */
   const unpinned = (slot: number) => {
-    for (const key of split.get(slot) ?? []) if (pins.has(key)) return false
+    for (const key of split.get(slot) ?? []) if (eviction.isPinned(key)) return false
     return true
   }
   /** A place of `quarter` size, taken; `victims` already gone from the layout. */

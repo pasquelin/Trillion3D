@@ -177,12 +177,8 @@ async function setGeometryBudget(
     // The root cover keeps its place before any other page: the pool never goes below it, and a
     // cut can only be completed from it.
     const evicted = await gpu.cache.resize(pool.slots)
-    // A pinned page that has just been evicted: the pin trace knows, and the pin step puts it back
-    // in the queue if the image still keeps it — the path of a host page drop.
-    for (const url of evicted) {
-      const key = setup.tracking.pageCatalogIds.get(url)
-      if (key !== undefined) setup.tracking.unmarkPinned(key)
-    }
+    // A pinned page that has just been evicted is told by the cache: the pin step puts it back in
+    // the queue if the image still keeps it.
     evictedPages = evicted.length
   }
   if (pool) setup.geometryPool = declared(pool)

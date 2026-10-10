@@ -124,7 +124,6 @@ export type {
 } from '../../sdk-core/src/physics/jointOptions.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export type { PageHome, PageHomes } from '../../sdk-browser/src/gpu/page/homes.ts'
-export type { PagePinTier } from '../../sdk-browser/src/gpu/page/load.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts'
 export type { PathRun } from '../../sdk-browser/src/camera/path.ts'

@@ -10,12 +10,12 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
 /** A cache of `slots` slots of 64 bytes whose page `small k` is 16 bytes, `big k` 64. */
-function pool(slots: number) {
+function pool(slots: number, cover: readonly string[] = []) {
   const { device: gpu, copies } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async (key: string) => new Uint8Array(key.startsWith('big') ? 64 : 12) },
-    { pageBytes: 64, slots },
+    { pageBytes: 64, slots, cover: new Set(cover) },
   )
   return { cache, copies }
 }
@@ -25,7 +25,7 @@ test('small pages take quarters: four a slot, each at its own offset, pinned as 
   const keys = Array.from({ length: 8 }, (_, k) => `small ${k}`)
   for (const key of keys) {
     await cache.load(key)
-    cache.pin(key, 'held')
+    cache.pin(key)
   }
   const offsets = keys.map((key) => cache.get(key)!.offset)
   assert.deepEqual(
@@ -52,12 +52,12 @@ test('a whole page takes the slot of small pages none of which is pinned, never 
 })
 
 test('a resize lays the quarters out again: what it keeps keeps its bytes, the rest leaves', async () => {
-  const { cache, copies } = pool(3)
+  const { cache, copies } = pool(3, ['big 1', 'small 2'])
   for (const key of ['small 0', 'big 0', 'small 1', 'small 2', 'big 1']) await cache.load(key)
-  cache.pin('big 1', 'held')
-  cache.pin('small 2', 'held')
+  cache.pin('big 1')
+  cache.pin('small 2')
   const evicted = await cache.resize(1)
-  // One slot: the held big page first; the held small page has no quarter left, nor the rest.
+  // One slot: the covering big page first; the covering small page has no quarter left, nor the rest.
   assert.ok(cache.get('big 1'))
   assert.equal(cache.get('big 1')!.offset, 0)
   assert.deepEqual(evicted.sort(), ['big 0', 'small 0', 'small 1', 'small 2'])

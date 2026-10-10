@@ -25,8 +25,8 @@ export type GpuPageContext = {
   homes?: PageHomes
   buffer: GPUBuffer
   resident: Map<string, ResidentPage>
-  pins: Set<string>
-  held: Set<string>
+  /** The root cover's pages: a pool never goes below them (`resize.ts`). */
+  cover: ReadonlySet<string>
   abort: AbortController
   state: {
     pending: Promise<unknown>

@@ -18,7 +18,7 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * what the image draws, which the cache must not reclaim under it. The root cover counts its
  * holders per key (`bootstrapKey`): the session holds its roots from open, and each cell held adds
  * a holder to the roots it alone needs (`holdCover`); a key is covered while it has one — kept,
- * pinned in the held tier and never weighed by the budget. The cut arrives as a DELTA of
+ * pinned and never weighed by the budget. The cut arrives as a DELTA of
  * each view's GPU readback, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
  * walks: the desired set itself, unless the page budget forces the coarser subset the admission
@@ -148,8 +148,7 @@ export function createWebgpuResidencySets(options: {
         askedKeys.byteLength +
         drawnKeys.byteLength +
         wanted.byteLength +
-        cover.byteLength +
-        tracking.pinned.byteLength
+        cover.byteLength
       )
     },
     /** Changes whenever `accepts` may answer differently. */

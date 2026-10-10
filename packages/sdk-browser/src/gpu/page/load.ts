@@ -5,8 +5,8 @@ import { refusedStatus } from '../../cluster/checked.ts'
 /** A load that failed leaves the next ones their turn. */
 const ignore = () => {}
 
-/** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
- *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its
+/** `pinned` pins the page inside the queued operation: no resize queued behind the load runs between
+ *  its arrival and its pin, so a pinned page is never ranked as an unpinned one. `priority` is its
  *  read's. A page absent at the request is read at once — reads overlap, uploads stay in order —,
  *  its bytes left unused when the page is resident by its turn; a page resident at the request is
  *  read only if it left by its turn. A failure fails the load, and its source says when the page
@@ -17,7 +17,7 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   return function load(
     key: string,
     signal?: AbortSignal,
-    tier?: PagePinTier,
+    pinned?: boolean,
     priority?: number,
   ): Promise<ResidentPage> {
     const abortListener =
@@ -40,7 +40,7 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
     const job: Load = {
       key,
       signal,
-      tier,
+      pinned,
       priority,
       abortListener,
       requestStarted,
@@ -61,14 +61,12 @@ const readOf = (
   priority: number | undefined,
 ) => reader.read(key, signal ? AbortSignal.any([signal, abort.signal]) : abort.signal, priority)
 
-/** How a loaded page is pinned: `'held'` ahead of ordinary pins on a resize, else `'pinned'`. */
-export type PagePinTier = 'held' | 'pinned'
-type Pin = (key: string, tier: PagePinTier) => void
+type Pin = (key: string) => void
 /** One load as its queued operation reads it. */
 type Load = {
   key: string
   signal: AbortSignal | undefined
-  tier: PagePinTier | undefined
+  pinned: boolean | undefined
   priority: number | undefined
   abortListener: (() => void) | undefined
   requestStarted: number
@@ -78,9 +76,9 @@ type Load = {
 
 /** The load's turn in the queue: the resident page, or the bytes read, checked and committed. */
 async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<ResidentPage> {
-  const { resident, state, check, pins } = context
+  const { resident, state, check, eviction } = context
   const { report, emit, now } = context.reader
-  const { key, tier, signal, abortListener } = job
+  const { key, pinned, signal, abortListener } = job
   const queueStarted = now()
   try {
     check(signal)
@@ -91,7 +89,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     }))
     const existing = residentHit(context, key)
     if (existing) {
-      if (tier) pin(key, tier)
+      if (pinned) pin(key)
       return existing
     }
     emit?.('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
@@ -109,7 +107,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       placeOf(context, key, bytes.byteLength),
       job.requestStarted,
     )
-    if (tier) pin(key, tier)
+    if (pinned) pin(key)
     return page
   } catch (error) {
     emit?.('gpu-page-error', 'GPU load failed', () => ({
@@ -119,7 +117,7 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
       aborted: signal?.aborted === true || context.abort.signal.aborted,
       error: String(error),
       resident: resident.size,
-      pinned: pins.size,
+      pinned: eviction.pinnedCount,
     }))
     throw error
   } finally {
@@ -171,14 +169,14 @@ function checkRoom(context: GpuPageContext, key: string, bytes: Uint8Array) {
 function placeOf(context: GpuPageContext, key: string, bytes: number) {
   const place = context.placement.slotFor(key, bytes)
   if (typeof place === 'string') {
-    const { resident, slots, pins } = context
+    const { resident, slots, eviction } = context
     context.reader.emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
       version: 1,
       key,
       reason: place,
       resident: resident.size,
       slots,
-      pinned: pins.size,
+      pinned: eviction.pinnedCount,
     }))
     throw new Error('ALL_PAGES_PINNED')
   }

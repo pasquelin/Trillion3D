@@ -38,19 +38,18 @@ test('the page pool shrinks while keeping its pages: copy, move, eviction of the
   assert.deepEqual(slots, [-1, -1, -1, 4], 'word offset of slot 2')
 })
 
-test('the held cover keeps its place before every pinned page, and no held page is evicted', async () => {
+test('the root cover keeps its place before every pinned page, and no covering page is evicted', async () => {
   const { device: gpu } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
-    { pageBytes: 8, slots: 4 },
+    { pageBytes: 8, slots: 4, cover: new Set(['root']) },
   )
   for (const key of ['root', 'a', 'b', 'c']) await cache.load(key)
   // Everything the image draws is pinned; the root cover is the oldest of all.
   for (const key of ['root', 'a', 'b', 'c']) cache.pin(key)
-  cache.pin('root', 'held')
   const evicted = await cache.resize(2)
-  assert.deepEqual(evicted.sort(), ['a', 'b'], 'pinned pages go before the held cover')
+  assert.deepEqual(evicted.sort(), ['a', 'b'], 'pinned pages go before the root cover')
   assert.ok(cache.get('root'), 'the cover survives')
   assert.ok(cache.get('c'), 'and the most recent pinned page with it')
 })
@@ -78,36 +77,48 @@ test('a page outside the pool is moved into a free slot rather than evicted, and
   assert.equal(cache.get('b')!.slot, 3)
 })
 
-test('held pins survive ordinary repinning, release with unpin, and leave no tier after eviction', async () => {
+test('a covering page is kept through pins and unpins, and a pinned one counts once', async () => {
+  const { device } = fakeDevice({ limits: LIMITS })
+  const cache = createGpuPageCache(
+    device,
+    { read: async () => new Uint8Array(8) },
+    { pageBytes: 8, slots: 3, cover: new Set(['root']) },
+  )
+  for (const key of ['root', 'a', 'b']) await cache.load(key)
+  cache.pin('root')
+  cache.pin('root')
+  cache.pin('a')
+  cache.pin('b')
+  assert.equal(cache.unpinnedSlots(), 0, 'a page pinned twice counts once')
+  assert.equal(cache.unload('root'), false)
+  await cache.resize(2)
+  assert.ok(cache.get('root'), 'the cover is kept before the pinned page')
+  cache.unpin('root')
+  assert.equal(cache.unpinnedSlots(), 1)
+  cache.unpin('b')
+  await cache.resize(1)
+  assert.ok(cache.get('root'), 'unpinned, the cover still ranks first')
+})
+
+test('a pinned page a resize evicts is told once to whoever keeps pins', async () => {
   const { device } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 3 },
   )
-  for (const key of ['root', 'a', 'b']) await cache.load(key)
-  cache.pin('root', 'held')
-  cache.pin('root')
+  for (const key of ['a', 'b', 'c']) await cache.load(key)
   cache.pin('a')
   cache.pin('b')
-  assert.equal(cache.unpinnedSlots(), 0, 'a held page counts once')
-  assert.equal(cache.unload('root'), false)
-  await cache.resize(2)
-  assert.ok(cache.get('root'))
-  cache.unpin('root')
-  assert.equal(cache.unpinnedSlots(), 1)
-  await cache.resize(1)
-  assert.equal(cache.get('root'), undefined)
-  cache.unpin('b')
-  await cache.load('root')
-  await cache.resize(2)
-  await cache.load('new')
-  await cache.resize(1)
-  assert.equal(cache.get('root'), undefined, 'the reloaded page is not still held')
-  assert.ok(cache.get('new'))
+  const evicted = await cache.resize(1)
+  assert.deepEqual(evicted.sort(), ['a', 'c'], 'the newer pinned page keeps the one place')
+  const told: string[] = []
+  cache.takeUnpinned((key) => told.push(key))
+  cache.takeUnpinned((key) => told.push(key))
+  assert.deepEqual(told, ['a'], 'the pinned page that left, once; the unpinned one is no pin lost')
 })
 
-test('a page loaded held is held on arrival: a resize queued behind its load keeps it', async () => {
+test('a page loaded pinned is pinned on arrival: a resize queued behind its load keeps it', async () => {
   const { device } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     device,
@@ -116,8 +127,8 @@ test('a page loaded held is held on arrival: a resize queued behind its load kee
   )
   // Nothing is awaited: the resize runs behind the four loads, before any caller could pin.
   const loads = [
-    cache.load('root', undefined, 'held'),
-    cache.load('cover', undefined, 'held'),
+    cache.load('root', undefined, true),
+    cache.load('cover', undefined, true),
     cache.load('a'),
     cache.load('b'),
   ]

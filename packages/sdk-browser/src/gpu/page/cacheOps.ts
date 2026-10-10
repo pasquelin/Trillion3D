@@ -26,7 +26,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     }))
     return false
   }
-  if (context.pins.has(key)) {
+  if (context.eviction.isPinned(key)) {
     emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
       version: 1,
       key,
@@ -53,6 +53,7 @@ export function pageCacheStats(context: GpuPageContext) {
     bytesRead: state.bytesRead,
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,
+    pinned: context.eviction.pinnedCount,
     physicalVramBytes: null,
   }
 }
@@ -70,8 +71,6 @@ export function disposePageCache(context: GpuPageContext) {
   state.disposed = true
   context.abort.abort()
   resident.clear()
-  context.pins.clear()
-  context.held.clear()
   context.eviction.clear()
   state.pending = state.pending
     .catch(() => {})

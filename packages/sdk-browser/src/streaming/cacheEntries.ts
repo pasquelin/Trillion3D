@@ -37,7 +37,7 @@ const before = <V, K>(a: CacheEntry<V, K>, b: CacheEntry<V, K>) =>
  * - `set`, `drop`, `acquire`, `release`: one heap insertion or removal at most, O(log n);
  * - `evict`: O(log n) per entry it takes, plus one `over()` per entry and one to stop, whatever
  *   the entries held: none is ever looked at;
- * - `bytes`, `heldBytes`, `size`: running totals, O(1) to read.
+ * - `bytes`, `heldBytes`, `size`, `heldCount`: running totals, O(1) to read.
  *
  * Keys are strings — a page's address — unless the cache names another kind: a number keys an
  * entry without building a string on a lookup.
@@ -90,6 +90,10 @@ export function createCacheEntries<V, K = string>(left: (value: V, key: K) => vo
     /** Bytes of the values someone holds: no eviction takes them. */
     get heldBytes() {
       return heldBytes
+    },
+    /** Entries holding a value that someone holds: those the heap does not. */
+    get heldCount() {
+      return size - heap.size
     },
     /** The entry at `key`, its value absent while it is only held; nothing is marked. */
     entry: (key: K): Readonly<CacheEntry<V, K>> | undefined => entries.get(key),

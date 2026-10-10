@@ -14,13 +14,15 @@ export function createImageRelevance(options: {
   tracking: Tracking
   bootstrapKey: Uint8Array
   requests: (key: number) => boolean
+  /** Whether the cache holds the page of `key` pinned. */
+  pinned: (key: number) => boolean
 }) {
-  const { tracking, bootstrapKey, requests } = options
-  const { keep, pinned } = tracking
+  const { tracking, bootstrapKey, requests, pinned } = options
+  const { keep } = tracking
   return (recs: readonly PageRec[]) => {
     for (let i = 0; i < recs.length; i++) {
       const key = tracking.keyOf(recs[i])
-      if (bootstrapKey[key] || keep.has(key) || pinned.has(key) || requests(key)) return true
+      if (bootstrapKey[key] || keep.has(key) || pinned(key) || requests(key)) return true
     }
     return false
   }

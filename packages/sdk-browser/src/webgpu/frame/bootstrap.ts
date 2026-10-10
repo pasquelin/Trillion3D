@@ -116,9 +116,9 @@ async function readMissing(options: BootstrapOptions) {
  * and the cache's own queue keeps the uploads in order and bounded.
  */
 async function pinCover(options: BootstrapOptions) {
-  const { pages, tracking, signal, getCache, isLost } = options
+  const { pages, signal, getCache, isLost } = options
   const loads = pages.map((page) => {
-    const job = getCache()!.load(pageAddress(page), signal, 'held')
+    const job = getCache()!.load(pageAddress(page), signal, true)
     job.catch(() => {})
     return job
   })
@@ -127,6 +127,5 @@ async function pinCover(options: BootstrapOptions) {
     if (isLost()) throw new Error('WEBGPU_LOST')
     // Held on arrival, inside the cache's queue: a resize queued meanwhile cannot evict it.
     await loads[i]
-    tracking.markPinned(tracking.keyOf(pages[i]))
   }
 }

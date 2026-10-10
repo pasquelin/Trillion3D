@@ -1,7 +1,7 @@
 // The root cover counts its holders: the session holds its roots from open, a held cell adds a
 // holder to the roots it alone needs. A page joins the cover with its first holder — kept, out of
 // what the budget weighs, its address listed — and leaves with its last; the queue loads it before
-// any other page, in the held tier. The session's holders never move.
+// any other page, pinned on arrival. The session's holders never move.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { keysOf, rec, world } from './sets.fixture.ts'
@@ -55,7 +55,7 @@ test('a page the cut asks for leaves the queue while covered, and comes back onc
   assert.ok(keysOf(w.tracking.wanted).has(asked), 'asked for by the cut again')
 })
 
-test('the queue loads the pages a holder brought before its own, in the held tier', async () => {
+test('the queue loads the pages a holder brought before its own, pinned on arrival', async () => {
   const pages = ['queued', 'held'].map(pageOf)
   const tracking = createWebgpuPageTracking(pages)
   const bootstrapKey = new Uint8Array(tracking.keyCount)
@@ -71,7 +71,7 @@ test('the queue loads the pages a holder brought before its own, in the held tie
   })
   await ensure([pages[0]], 1, 1)
   assert.deepEqual([...cache.resident.keys()], ['held'], 'the cover first: the pool is full')
-  assert.ok(cache.held.has('held'), 'held on arrival')
+  assert.ok(cache.pins.has('held'), 'pinned on arrival')
   assert.deepEqual(
     sets.coverMissing((page) => !!cache.get(page.url)),
     [],

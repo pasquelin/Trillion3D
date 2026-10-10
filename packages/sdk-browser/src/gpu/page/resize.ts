@@ -1,6 +1,7 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { ledgerReplacing } from '../core/deviceLedger.ts'
 import { evictResident } from './commit.ts'
+import type { Eviction } from './eviction.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { heldHomes, type PageHomes } from './homes.ts'
 import {
@@ -39,24 +40,25 @@ export const createPageBuffer = (
 
 const byRecency = (a: ResidentPage, b: ResidentPage) => b.generation - a.generation
 
-/** The resident pages, ranked only when some must leave: the `held` cover first, then the pinned
+/** The resident pages, ranked only when some must leave: the root cover first, then the pinned
  *  pages, then by recency. A pool that keeps everything has no rank to compute. */
 function rankedPages(
   resident: ReadonlyMap<string, ResidentPage>,
   slots: number,
-  pins: ReadonlySet<string>,
-  held: ReadonlySet<string>,
+  eviction: Eviction,
+  cover: ReadonlySet<string>,
 ): ResidentPage[] {
   const pages = [...resident.values()]
   if (pages.length <= slots) return pages
   const buckets: ResidentPage[][] = [[], [], []]
-  for (const page of pages) buckets[held.has(page.key) ? 2 : pins.has(page.key) ? 1 : 0].push(page)
+  for (const page of pages)
+    buckets[cover.has(page.key) ? 2 : eviction.isPinned(page.key) ? 1 : 0].push(page)
   return buckets.reverse().flatMap((bucket) => bucket.sort(byRecency))
 }
 
 /**
  * The pool changes size WITHOUT losing what it holds. The pages that matter most keep a place, wherever they
- * were: the `held` cover first — the root cover, which a pool never goes below —, then the pinned
+ * were: the root cover first — which a pool never goes below —, then the pinned
  * pages, then the most recent. A page whose slot survives is copied on the GPU in the same place;
  * one whose slot disappears takes a slot left free — by the new size or by a page that ranks
  * below it — and the rest is evicted. A pool that comes to hold the whole catalogue moves every
@@ -66,7 +68,7 @@ function rankedPages(
  * them on its side.
  */
 export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
-  const { device, pageBytes, resident, pins, held } = context
+  const { device, pageBytes, resident } = context
   const from = heldHomes(context.homes, context.slots),
     to = heldHomes(context.homes, slots)
   // Both hold the whole catalogue: every page keeps its home, in the buffer it is in.
@@ -125,7 +127,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     }
     context.placement = homePlacement(to, to.homes.size - resident.size)
   } else {
-    const pages = rankedPages(resident, slots, pins, held)
+    const pages = rankedPages(resident, slots, context.eviction, context.cover)
     // The first `slots` pages stay; those already inside the new pool keep their slot, the
     // others take the slots the rest leaves free.
     const occupied = new Uint8Array(slots)
@@ -140,7 +142,7 @@ export function resizeGpuPages(context: GpuPageContext, slots: number): string[]
     // Every displaced page has a free slot: the pool keeps at most `slots` pages.
     displaced.forEach((page, i) => move(page, free[i], free[i] * pageBytes))
     free.splice(0, displaced.length)
-    context.placement = slotPlacement(pageBytes, wholeSlots(free), context.eviction, resident, pins)
+    context.placement = slotPlacement(pageBytes, wholeSlots(free), context.eviction, resident)
   }
   device.queue.submit([encoder.finish()])
   context.buffer.destroy()
@@ -161,11 +163,11 @@ function repackPages(
   leave: (page: ResidentPage) => void,
   move: (page: ResidentPage, slot: number, offset: number) => void,
 ) {
-  const { pageBytes, resident, pins, held } = context
+  const { pageBytes, resident } = context
   const quarterBytes = quarterBytesOf(pageBytes)
   const layout: SlotLayout = wholeSlots([])
   const { free, quarters, split } = layout
-  const pages = rankedPages(resident, slots * SLOT_SPLIT, pins, held)
+  const pages = rankedPages(resident, slots * SLOT_SPLIT, context.eviction, context.cover)
   let cursor = 0,
     open = -1,
     taken = SLOT_SPLIT
@@ -187,5 +189,5 @@ function repackPages(
   for (let quarter = taken; open >= 0 && quarter < SLOT_SPLIT; quarter++)
     quarters.add(open * SLOT_SPLIT + quarter)
   for (let slot = cursor; slot < slots; slot++) free.push(slot)
-  context.placement = slotPlacement(pageBytes, layout, context.eviction, resident, pins)
+  context.placement = slotPlacement(pageBytes, layout, context.eviction, resident)
 }

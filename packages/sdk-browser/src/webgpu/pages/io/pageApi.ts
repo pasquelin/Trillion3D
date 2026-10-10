@@ -67,7 +67,7 @@ export function acceptPage(
     clusters: recs.length,
     bootstrap: recs.some((rec) => bootstrapKey[tracking.keyOf(rec)] > 0),
     wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
-    pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
+    pinned: recs.some((rec) => rt.gpu.cache?.isPinned(pageAddress(rec))),
   }))
 }
 
@@ -88,7 +88,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     )
     return
   }
-  const pinned = recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
+  const pinned = recs.some((rec) => gpu.cache?.isPinned(pageAddress(rec))),
     wanted = recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec)))
   if (pinned || wanted) {
     run.deferredDrops.add(url)
@@ -118,8 +118,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     touchInstances(rows, rec)
     const address = pageAddress(rec)
     sourceBytes.delete(address)
-    gpu.cache?.unload?.(address)
-    tracking.unmarkPinned(tracking.keyOf(rec))
+    gpu.cache?.unload(address)
   }
   diag.traceDiagnostic('page-dropped', 'CPU/GPU page released', () => ({
     frame: run.frame,

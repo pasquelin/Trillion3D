@@ -36,9 +36,7 @@ function runtime(instances = [7]) {
       sourceBytes: new Map(),
       tracking: {
         keyOf: () => 0,
-        pinned: new Set(),
         wanted: new Set(),
-        unmarkPinned: () => {},
       },
       bootstrapKey: new Uint8Array(64),
     },
