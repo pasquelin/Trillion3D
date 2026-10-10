@@ -4,7 +4,6 @@ import type {
   CameraPose,
   MathPathMode,
   PreparationProgress,
-  ScreenErrorVariant,
 } from '../../../../sdk-core/src/index.ts'
 import type { EngineDiagnostic, EngineFactory, DiagnosticDetail } from '../../engine/types.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
@@ -149,9 +148,5 @@ export interface MeasuredWorldOptions {
    *  for a campaign; `'wasm'` falls back on `'js'` where the module is missing, and says so
    *  in the metrics. */
   mathPath?: MathPathMode
-  /** A measurement experiment (`../../../../sdk-core/src/lod/screenErrorVariant.ts`): the cluster
-   *  screen-error metric. `'certifiee'` by default, the certified bound; `'reference'` the plain
-   *  projection `ε·stretch·f/depth`, CPU and GPU to the same result to f32. */
-  screenError?: ScreenErrorVariant
   logInterval?: number
 }

@@ -52,7 +52,7 @@ async function main() {
     flags.set(`cache-${name}`, cache)
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings)
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`
-    if (!isEngine(side.engine) || side.variant || side.errorMetric)
+    if (!isEngine(side.engine) || side.variant)
       throw new Error('trajectory requires the standard WebGPU engine on both sides')
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`)
     return side

@@ -1178,13 +1178,6 @@
         "적응형 — `pixelError: 2`, `adaptivePixelError(base, speed, radius)`에 의해 카메라 속도에 따라 상승합니다. 정지된 화면에서는 기준값을 유지합니다."
       ]
     },
-    "ScreenErrorVariant": {
-      "description": "컷이 임계값과 비교할 때 클러스터 오차의 어떤 투영을 사용하는가. 페이지 전체가 공유하는 모듈 상태로, CPU 측 지표가 읽으며, 셰이더가 컴파일될 때 선택 셰이더에 인라인됩니다. 벤치의 양쪽은 각자 자신의 페이지에서 실행됩니다. 공식의 공개 출처: Karis, Stubbe, Wihlidal, SIGGRAPH 2021, \"Advances in Real-Time Rendering in Games\".",
-      "values": [
-        "우리 쪽(기본값): 오차를 절대 과소평가하지 않는 상한.",
-        "공개된 공식. 비교 벤치용."
-      ]
-    },
     "MathPathMode": {
       "description": "배치가 어느 경로에서 실행되는가. `auto`는 실측으로 판정합니다: 조정기는 각 쪽에서 요소당 나노초의 이동 중앙값을 유지하며, 그 우위가 연속된 실행 이후 전환됩니다. JS가 기준이자 대체 경로입니다. `MATH_PATH_CONTRACT`가 공개 보고서의 버전을 관리합니다.",
       "values": [

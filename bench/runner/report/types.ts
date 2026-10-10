@@ -114,7 +114,6 @@ export interface Row {
   liveTuning: LiveTuning | null
   network: NetworkBytes | null
   variant: string | null
-  errorMetric: string
   selectedTriangles: number | null
   uncoveredTriangles: number | null
   drawnTriangles: number | null
@@ -167,7 +166,6 @@ interface SideIdentity {
   cache: string | null
   engine: string
   variant: string | null
-  errorMetric: string
   assetKey?: string
   buildHash?: string
 }

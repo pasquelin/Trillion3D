@@ -3,7 +3,6 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { SideBase } from './dists.ts'
-import type { ScreenErrorVariant } from '../../../packages/sdk-core/src/index.ts'
 import type { TextureCompression } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { WEBGPU_ENGINE_ID } from '../../../packages/sdk-browser/src/engine/factory.ts'
@@ -32,13 +31,12 @@ export const isEngine = (engine: EngineDescriptor) => engine.id === WEBGPU_ENGIN
 
 /**
  * A side ready to run: `equipSide` turns a `SideBase` into one of these by filling `engine`,
- * `variant` and `errorMetric`, which every measurement afterward reads as present.
+ * and `variant`, which every measurement afterward reads as present.
  */
 export interface Side extends SideBase {
   engine: EngineDescriptor
   variant: string | null
   compression: TextureCompression | null
-  errorMetric: ScreenErrorVariant | null
   /** The fraction of the display per axis the WebGPU frame is drawn at before the temporal resolve
    *  reconstructs it (`renderScale`); `null` leaves the engine's, the display. */
   renderScale: number | null
@@ -91,12 +89,6 @@ export function equipSide(
     'astc',
     'none',
   ]) as TextureCompression | null
-  // Screen error metric (EXPERIMENT): `certifiee` is our bound, `reference` the standard
-  // external projection; `null` leaves ours.
-  equipped.errorMetric = sideChoice(flags, side.name, 'error-metric', [
-    'certifiee',
-    'reference',
-  ]) as ScreenErrorVariant | null
   equipped.renderScale = scaleOf(flags, side.name, equipped.engine)
   return equipped
 }
@@ -139,7 +131,6 @@ export const sideReport = (side: Side) =>
       engine: side.engine.id,
       variant: side.variant,
       compression: side.compression,
-      errorMetric: side.errorMetric ?? 'certifiee',
       scale: side.renderScale,
     },
   ] as const

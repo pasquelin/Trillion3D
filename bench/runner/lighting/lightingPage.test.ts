@@ -102,7 +102,6 @@ async function mesurer(
     instances: 1,
     stageProfile: false,
     variant: null,
-    errorMetric: null,
     trace: false,
     bounce: false,
     importedLights: true,

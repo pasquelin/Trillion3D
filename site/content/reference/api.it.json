@@ -4951,10 +4951,6 @@
   "readCameraWorld": {
     "summary": "Copia la camera dell'host nella camera del motore, antenati risolti."
   },
-  "referenceScreenError": {
-    "summary": "Errore su schermo della variante `reference`: `(error × stretch) × focal / w`, infinito quando il centro non raggiunge il piano vicino; `w` è il peso di clip della profondità del centro, la profondità stessa con una proiezione prospettica (`perspective` = 1) e 1 con una ortografica (0, `screenErrorBound.ts`).",
-    "description": "Riflesso WGSL in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, stessi operandi e stesso ordine, in f32. Il chiamante ha già trattato un errore nullo o infinito."
-  },
   "removeTransformNode": {
     "summary": "Rimuove `node` e tutti i suoi discendenti; i loro indici verranno riutilizzati.",
     "description": "Per staccare un sottoalbero mantenendolo, `reparentTransformNode(tree, node, -1)`."
@@ -5262,12 +5258,6 @@
     "summary": "Errore sullo schermo certificato di un cluster (C4): un limite superiore, in pixel, dello spostamento sullo schermo di qualsiasi punto di una sfera mosso al massimo di ε, sotto proiezione in prospettiva, fuori asse incluso.",
     "description": "Sistema di riferimento della vista: l'occhio all'origine, che guarda verso −z, profondità d = −z; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). La primitiva passa in vista tramite un'applicazione affine di allungamento massimo s: la sfera dell'oggetto (c, r) è nella sfera di vista (C, ρ = r·s), uno spostamento dell'oggetto di al massimo ε diventa uno spostamento Δ di al massimo δ = ε·s. 1. Un punto P = (x, y, d) della sfera va in P' = P + Δ, di profondità d' = d + Δd. Con q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. L'applicazione Δ ↦ Δxy − q·Δd ha norma √(1 + |q|²) (autovalori di I + q·qᵀ: 1 e 1 + |q|²); quindi, qualunque sia la direzione di Δ — perpendicolare all'asse, in profondità verso la camera o allontanandosi, obliqua —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Sulla sfera: d ≥ m = −C_z − ρ, la profondità minima; |(x, y)| ≤ ℓ + ρ, dove ℓ = |(C_x, C_y)| è la distanza del centro dall'asse di vista; quindi |q| ≤ (ℓ + ρ)/m, e d' ≥ m − δ. 3. Se m − δ > near (quindi > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Altrimenti la sfera, o uno dei suoi punti spostati, raggiunge il piano vicino: l'infinito, che raffina. Monotonia del taglio: m è l'infimo della profondità sulla sfera e ℓ + ρ il supremo della distanza dall'asse; una sfera contenuta in un'altra annuncia quindi meno, un errore più grande di più. Lungo il raggio (C → k·C, k > 1, profondità del centro C_d > 0), (kℓ + ρ)/(k·C_d − ρ) e 1/(k·C_d − ρ − δ) decrescono: l'errore annunciato decresce con la distanza. I due limiti del passo 2 provengono da due punti diversi della sfera: E è stretto per una piccola sfera, largo quando la sfera sfiora il piano vicino lontano dall'asse (`screenErrorDisplacement.test.ts`). UNA CAMERA, UNA FORMULA. `perspective` è il peso clip-w della camera: un punto alla profondità di vista d ha w = perspective·d + (1 − perspective) — 1 per una proiezione in prospettiva (w = d, tutto quanto sopra), 0 per una proiezione ortografica (w = 1: q = 0, e uno spostamento muove il pixel di f·δ qualunque sia la profondità). Il limite si scrive su w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), raggiungendosi il piano vicino quando w_{m−δ} ≤ p·near. A p = 1 ogni operazione è quella di sopra, bit per bit (un prodotto per 1 e una somma con 0 sono esatti). Nessuna protezione qui: il chiamante ha già trattato un errore nullo, infinito o non valido. Una profondità o una distanza dall'asse non finita dà l'infinito. L'ordine delle operazioni, (δ·f)/m poi un fattore √/(m − δ) ≥ 1, mantiene il risultato arrotondato al di sopra della soglia minima `errorFloorAt` di sdk-browser. Riflesso WGSL: `projected` di `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, stessi operandi, stesso ordine."
   },
-  "screenErrorVariant": {
-    "summary": "La variante in vigore."
-  },
-  "ScreenErrorVariant": {
-    "summary": "Come si misura l'errore su schermo di un cluster: il limite dimostrato, o la formula semplice."
-  },
   "SDK_VERSION": {
     "summary": "La versione del pacchetto di questo motore."
   },
@@ -5287,10 +5277,6 @@
   },
   "setNodeScale": {
     "summary": "Allunga un nodo di un albero di trasformazioni di `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Imposta la variante per l'intera pagina.",
-    "description": "`null`/`undefined` ripristina la nostra: nessuna sessione la eredita."
   },
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."

@@ -2970,9 +2970,6 @@
   "SceneToneMapping": {
     "summary": "引擎所知道的一种显示曲线的名称。"
   },
-  "ScreenErrorVariant": {
-    "summary": "一个簇的屏幕误差是如何被度量的：采用经过证明的上界，还是采用朴素公式。"
-  },
   "ShadowFrameMetrics": {
     "summary": "一帧的光照与阴影计数器,按职责从 `FrameMetrics` 中拆分出来。",
     "description": "`FrameMetrics` 通过 `extends` 继承了它们:消费者看到的公开契约(`sdk-core/index.ts`)不受影响,这些字段依然是 `FrameMetrics` 的直接属性。",
@@ -6437,10 +6434,6 @@
   "readCameraWorld": {
     "summary": "把宿主摄像机复制到引擎摄像机中,祖先节点已解析完毕。"
   },
-  "referenceScreenError": {
-    "summary": "`reference` 变体的屏幕误差：`(error × stretch) × focal / w`，当中心到不了近平面时为无穷大；`w` 是中心深度对应的裁剪权重，在透视投影下就是该深度本身（`perspective` = 1），在正交投影下为 1（对应 0，见 `screenErrorBound.ts`）。",
-    "description": "在 `packages/sdk-browser/src/gpu/dag/shader/error.ts` 中有对应的 WGSL 镜像实现,操作数和顺序完全相同,只是精度为 f32。调用者已经处理过误差为零或无穷大的情况。"
-  },
   "removeTransformNode": {
     "summary": "移除 `node` 及其所有后代;它们的索引之后会被重新使用。",
     "description": "要在保留某个子树的同时将其分离,可使用 `reparentTransformNode(tree, node, -1)`。"
@@ -6470,9 +6463,6 @@
     "summary": "一个簇经过认证的屏幕误差(C4):在透视投影下(包括离轴情形),一个球上任意一点被最多移动 ε 之后,其在屏幕上位移量的一个像素单位上界。",
     "description": "视图坐标系:眼睛位于原点,朝向 −z 方向看,深度 d = −z;像素坐标为 (f_x·x/d, f_y·y/d),f = max(f_x, f_y)。该图元通过一个最大拉伸倍数为 s 的仿射映射进入视图空间:物体空间的球 (c, r) 对应视图空间中的球 (C, ρ = r·s),物体空间中最多为 ε 的位移,变为视图空间中最多为 δ = ε·s 的位移。1. 球上一点 P = (x, y, d) 变为 P' = P + Δ,深度为 d' = d + Δd。令 q = (x, y)/d,则:π(P') − π(P) = f·(Δxy − q·Δd)/d'。映射 Δ ↦ Δxy − q·Δd 的范数为 √(1 + |q|²)(这是 I + q·qᵀ 的特征值:1 和 1 + |q|²);因此,无论 Δ 的方向如何——垂直于视轴、沿深度方向朝向或远离摄像机、还是倾斜方向——都有 |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'。2. 在这个球上:d ≥ m = −C_z − ρ,即最小深度;|(x, y)| ≤ ℓ + ρ,其中 ℓ = |(C_x, C_y)| 是球心到视轴的距离;由此可得 |q| ≤ (ℓ + ρ)/m,以及 d' ≥ m − δ。3. 如果 m − δ > near(因而也 > 0):E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ))。否则,这个球(或其某个偏移后的点)已经到达近平面:结果为无穷大,这是一个更精确的结论。裁切的单调性:m 是该球上深度的下确界,ℓ + ρ 是到视轴距离的上确界;因此一个包含在另一个球内部的球,给出的误差不会更大,而一个更大的球给出的误差不会更小。沿着射线方向(C → k·C,k > 1,球心深度 C_d > 0),(kℓ + ρ)/(k·C_d − ρ) 和 1/(k·C_d − ρ − δ) 都在减小:因此给出的误差会随距离增大而减小。第 2 步中的两个界分别来自球上两个不同的点:对于一个很小的球,E 是紧的;而当这个球在远离视轴的地方擦过近平面时,E 就变得比较松。(参见 `screenErrorDisplacement.test.ts`)。**一台摄像机,一个公式。** `perspective` 是摄像机的裁剪 w 权重:处于视图深度 d 的一个点,其 w = perspective·d + (1 − perspective)——透视投影下为 1(此时 w = d,以上全部成立),正交投影下为 0(此时 w = 1:q = 0,一次位移无论深度如何都会让像素移动 f·δ)。这个上界是针对 w 写出的:E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}),当 w_{m−δ} ≤ p·near 时即到达近平面。当 p = 1 时,每一步运算都与上面完全一致,逐位相同(乘以 1 和加上 0 都是精确运算)。这里没有做任何保护性判断:调用者已经处理过误差为空、无穷大或无效的情况。深度或到视轴的距离若不是有限值,结果为无穷大。运算顺序——先算 (δ·f)/m,再乘以一个 √/(m − δ) ≥ 1 的因子——保证了舍入后的结果不会低于 sdk-browser 中 `errorFloorAt` 给出的下限。WGSL 镜像实现:见 `packages/sdk-browser/src/gpu/dag/shader/shader.ts` 中的 `projected`,操作数和顺序完全相同。"
   },
-  "screenErrorVariant": {
-    "summary": "当前生效的变体。"
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`。",
     "description": "重新启用它时无需再标记任何东西：与其合成结果不同的局部矩阵已经带有 `NODE_TRS_DIRTY`，由 `setNodeLocalMatrix` 或某个姿态设置器设置。无论哪种情况，该节点都会被列出：它的局部矩阵的生成方式变了。"
@@ -6489,10 +6479,6 @@
   },
   "setNodeScale": {
     "summary": "把变换树中的一个节点按 `(x, y, z)` 缩放。"
-  },
-  "setScreenErrorVariant": {
-    "summary": "为整个页面设置该变体。",
-    "description": "`null`/`undefined` 会恢复为我们自己的实现:任何会话都不会继承之前的设置。"
   },
   "side": {
     "summary": "一个表面绘制哪些面:采用引擎自有的 `Side` 术语(`contracts/material.ts`)。"

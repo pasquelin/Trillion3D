@@ -117,7 +117,7 @@ with two engines they are the union of both sides' needs.
 | `--instances N` | 1 | 1, 4, 9 or 12 grid copies; "geometry (MB)" = page cache plus vertex buffers |
 | `--math-path auto\|js\|wasm` | `auto` | batch maths path; `auto` lets the governor measure. "Batch Math Path" table per side and operation |
 | `--isolation on\|off` | `off` | COOP/COEP on the harness server: a cross-origin isolated page |
-| `--variant[-<side>]`, `--error-metric[-<side>]` | none | a diagnostic variant; the screen-error metric (`certifiee` or `reference`) |
+| `--variant[-<side>]` | none | a diagnostic variant |
 | `--gaze-network` | off | counts the bytes Chrome transferred instead of timing ([gaze/GAZE_NETWORK.md](gaze/GAZE_NETWORK.md)) |
 | `--visible` | off | a real window; headless caps display at 60 Hz on macOS |
 | `--geometry-pool` / `--texture-pool <MiB>` | 512 MiB each | [Measuring another scene](#measuring-another-scene) |

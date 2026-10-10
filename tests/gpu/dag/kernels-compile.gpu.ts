@@ -1,6 +1,5 @@
 // Every stage of the DAG selection kernel compiles and validates on the machine's device:
-// the text the engine compiles (`shader.ts`, the normal cone and the cut kernels it feeds) under
-// each screen-error variant (`withScreenErrorVariant`, as `pipeline.ts` renders it), then the
+// the text the engine compiles (`shader.ts`, the normal cone and the cut kernels it feeds), then the
 // engine's own stages (`createDagStages`) with and without the `SPLIT` override. The Node gate only
 // parses the text; here the GPU's own WGSL compiler reads it. The proof can fail: a copy with a
 // WGSL syntax error in the cone, and one with a type error, must each be refused.
@@ -8,8 +7,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
-import { withScreenErrorVariant } from '../../../packages/sdk-browser/src/gpu/dag/shader/error.ts'
-import { SCREEN_ERROR_VARIANTS } from '../../../packages/sdk-core/src/lod/screenErrorVariants.ts'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import type { KernelText } from './kernelsCompilePage.ts'
 
@@ -26,12 +23,7 @@ const SOURCES = {
   'syntax error': edited(CONE, 'let d=dot(axisWorld,view)'),
   'type error': edited(CONE, 'let d:u32=dot(axisWorld,view);'),
 }
-const texts: KernelText[] = Object.entries(SOURCES).flatMap(([source, code]) =>
-  SCREEN_ERROR_VARIANTS.map((variant) => ({
-    name: `${source} ${variant}`,
-    code: withScreenErrorVariant(code, variant),
-  })),
-)
+const texts: KernelText[] = Object.entries(SOURCES).map(([name, code]) => ({ name, code }))
 
 // One device for every text: both tests read the same run.
 const run = (async () => {
@@ -42,11 +34,11 @@ const run = (async () => {
   return runOnDawn(page.compileKernels, texts)
 })()
 const verdictsOf = async (source: string) =>
-  (await run).verdicts.filter(({ name }) => name.startsWith(`${source} `))
+  (await run).verdicts.filter(({ name }) => name === source)
 
-test('every DAG selection stage compiles and validates on the GPU, in every variant', async () => {
+test('every DAG selection stage compiles and validates on the GPU, ', async () => {
   const verdicts = await verdictsOf('shipped')
-  assert.equal(verdicts.length, SCREEN_ERROR_VARIANTS.length * 2)
+  assert.equal(verdicts.length, 2)
   assert.deepEqual(
     verdicts.filter(({ errors }) => errors.length),
     [],

@@ -35,7 +35,6 @@ const reading = (): ReportRecord => ({
   identicalCut: null,
   image: null,
   data: {
-    errorMetric: 'certifiee',
     cpuFrameMs: { p50: 4, p95: 4 },
     gpuFrameMs: { p50: 8, p95: 8 },
   },
@@ -94,7 +93,7 @@ test('comparison admits only its declared variable and separates GPU and synchro
     b: ReportRecord = {
       ...reading(),
       id: 'b',
-      data: { errorMetric: 'certifiee', cpuFrameMs: ms(3) },
+      data: { cpuFrameMs: ms(3) },
     }
   assert.deepEqual(comparison(a, b, 'cpu'), {
     status: 'descriptive',
@@ -130,15 +129,4 @@ test('resume requires identical campaign identity and completed error-free measu
     { errors: [{ kind: 'pageerror' as const, message: 'failed' }] },
   ])
     assert.equal(canResume({ ...raw, ...changed }, 'a'), false)
-})
-
-test('comparison rejects different or missing geometric error definitions', () => {
-  const a = reading()
-  const metrics: ('reference' | null | undefined)[] = ['reference', null, undefined]
-  for (const errorMetric of metrics) {
-    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, errorMetric } }
-    const result = comparison(a, b, 'cpu')
-    assert.equal(result.delta, null)
-    assert.ok(result.reasons?.includes('errorMetric'))
-  }
 })

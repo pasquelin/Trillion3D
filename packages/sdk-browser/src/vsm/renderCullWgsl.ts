@@ -128,7 +128,7 @@ struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii
 fn vsmRenderMainPixels(lod:vec4f,low:vec4f,radius:f32)->f32{
  let delta=(lod.xyz-params.eyeHigh)+(low.xyz-params.eyeLow);
  let v=vec3f(dot(params.viewRow0.xyz,delta),dot(params.viewRow1.xyz,delta),dot(params.viewRow2.xyz,delta));
- return projectedBound(lod.w,v,radius,1.0,params.focal,params.near,params.perspective,false);
+ return projectedBound(lod.w,v,radius,1.0,params.focal,params.near,params.perspective);
 }
 /** A caster row's candidate flags, from its mobility word and deformation output: cached as dynamic
  *  while its placement moves, and deforming — its pages invalidated as it draws them —

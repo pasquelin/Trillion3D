@@ -37,7 +37,7 @@ const french = (names: Iterable<string>) => [...names].filter((name) => frenchWo
 test('no flag a harness reads, and no flag of a campaign line, is named in French', () => {
   const names = new Set(harnessSources().flatMap((text) => NAMED.flatMap((p) => captures(text, p))))
   // The scan sees the flags, not an empty set: one of each way of naming them.
-  for (const known of ['views', 'geometry-pool-live', 'error-metric', 'target', 'from', 'list'])
+  for (const known of ['views', 'geometry-pool-live', 'target', 'from', 'list'])
     assert.ok(names.has(known), known)
   assert.deepEqual(french(names), [])
 })

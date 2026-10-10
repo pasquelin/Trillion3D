@@ -4951,10 +4951,6 @@
   "readCameraWorld": {
     "summary": "Kopiert die Host-Kamera in die Engine-Kamera, Vorfahren aufgelöst."
   },
-  "referenceScreenError": {
-    "summary": "Bildschirmfehler der Variante `reference`: `(error × stretch) × focal / w`, unendlich, wenn der Mittelpunkt die Nahebene nicht erreicht; `w` ist das Clip-Gewicht der Tiefe des Mittelpunkts, die Tiefe selbst unter einer perspektivischen Projektion (`perspective` = 1) und 1 unter einer orthografischen (0, `screenErrorBound.ts`).",
-    "description": "WGSL-Spiegel in `packages/sdk-browser/src/gpu/dag/shader/error.ts`, dieselben Operanden und dieselbe Reihenfolge, in f32. Der Aufrufer hat einen Fehler von null oder unendlich bereits behandelt."
-  },
   "removeTransformNode": {
     "summary": "Entfernt `node` und alle seine Nachkommen; ihre Indizes werden wiederverwendet.",
     "description": "Um einen Teilbaum abzuhängen und dabei zu behalten: `reparentTransformNode(tree, node, -1)`."
@@ -5262,12 +5258,6 @@
     "summary": "Zertifizierter Bildschirmfehler eines Clusters (C4): eine Obergrenze, in Pixeln, der Bildschirmverschiebung jedes Punktes einer Kugel, der um höchstens ε bewegt wird, unter perspektivischer Projektion, außeraxial eingeschlossen.",
     "description": "Sichtbezugssystem: das Auge am Ursprung, das zu −z schaut, Tiefe d = −z; Pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). Die Primitive geht durch eine affine Abbildung maximaler Streckung s in die Sicht über: die Objektkugel (c, r) liegt in der Sichtkugel (C, ρ = r·s), eine Objektverschiebung von höchstens ε wird zu einer Verschiebung Δ von höchstens δ = ε·s. 1. Ein Punkt P = (x, y, d) der Kugel geht in P' = P + Δ über, mit Tiefe d' = d + Δd. Mit q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. Die Abbildung Δ ↦ Δxy − q·Δd hat die Norm √(1 + |q|²) (Eigenwerte von I + q·qᵀ: 1 und 1 + |q|²); also gilt, unabhängig von der Richtung von Δ — senkrecht zur Achse, in der Tiefe zur Kamera oder von ihr weg, schräg —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Auf der Kugel: d ≥ m = −C_z − ρ, die Mindesttiefe; |(x, y)| ≤ ℓ + ρ, wobei ℓ = |(C_x, C_y)| die Entfernung des Zentrums zur Sichtachse ist; also |q| ≤ (ℓ + ρ)/m, und d' ≥ m − δ. 3. Wenn m − δ > near (also > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Sonst erreicht die Kugel, oder einer ihrer verschobenen Punkte, die Nahebene: unendlich, was verfeinert. Monotonie des Schnitts: m ist das Infimum der Tiefe auf der Kugel und ℓ + ρ das Supremum der Entfernung zur Achse; eine in einer anderen enthaltene Kugel meldet also weniger, ein größerer Fehler mehr. Entlang des Strahls (C → k·C, k > 1, Tiefe des Zentrums C_d > 0) nehmen (kℓ + ρ)/(k·C_d − ρ) und 1/(k·C_d − ρ − δ) ab: der gemeldete Fehler nimmt mit der Entfernung ab. Die beiden Grenzen von Schritt 2 kommen von zwei verschiedenen Punkten der Kugel: E ist eng für eine kleine Kugel, locker, wenn die Kugel die Nahebene fern der Achse streift (`screenErrorDisplacement.test.ts`). EINE KAMERA, EINE FORMEL. `perspective` ist das Clip-w-Gewicht der Kamera: ein Punkt bei Sichttiefe d hat w = perspective·d + (1 − perspective) — 1 für eine perspektivische Projektion (w = d, alles Obige), 0 für eine orthografische Projektion (w = 1: q = 0, und eine Verschiebung bewegt das Pixel um f·δ unabhängig von der Tiefe). Die Grenze wird über w geschrieben: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), wobei die Nahebene erreicht ist, wenn w_{m−δ} ≤ p·near. Bei p = 1 ist jede Operation die von oben, bitgenau (ein Produkt mit 1 und eine Summe mit 0 sind exakt). Keine Absicherung hier: der Aufrufer hat einen null, unendlichen oder ungültigen Fehler bereits behandelt. Eine nicht endliche Tiefe oder Achsenentfernung ergibt unendlich. Die Reihenfolge der Operationen, (δ·f)/m dann ein Faktor √/(m − δ) ≥ 1, hält das Ergebnis über dem Mindestwert `errorFloorAt` von sdk-browser gerundet. WGSL-Spiegelung: `projected` von `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, dieselben Operanden, dieselbe Reihenfolge."
   },
-  "screenErrorVariant": {
-    "summary": "Die geltende Variante."
-  },
-  "ScreenErrorVariant": {
-    "summary": "Wie der Bildschirmfehler eines Clusters gemessen wird: die bewiesene Schranke oder die einfache Formel."
-  },
   "SDK_VERSION": {
     "summary": "Die Version des Pakets dieser Engine."
   },
@@ -5287,10 +5277,6 @@
   },
   "setNodeScale": {
     "summary": "Streckt einen Knoten eines Transformationsbaums um `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Legt die Variante für die ganze Seite fest.",
-    "description": "`null`/`undefined` setzt unsere zurück: keine Sitzung erbt sie."
   },
   "SHADOW_PAGE": {
     "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."

@@ -3510,9 +3510,6 @@
   "SceneToneMapping": {
     "summary": "Motorun bildiği bir ekran eğrisinin adı."
   },
-  "ScreenErrorVariant": {
-    "summary": "Bir kümenin ekran hatasının nasıl ölçüldüğü: kanıtlanmış sınırla ya da düz formülle."
-  },
   "ShadowFrameMetrics": {
     "summary": "Sorumluluğa göre `FrameMetrics`'ten ayrılmış, bir karenin aydınlatma ve gölge sayaçları.",
     "description": "`FrameMetrics` bunları `extends` ile devralır: tüketiciler tarafından görülen herkese açık sözleşme (`sdk-core/index.ts`) değişmez, bu alanlar `FrameMetrics`'in doğrudan özellikleri olarak kalır.",
@@ -7547,10 +7544,6 @@
   "readPagedManifest": {
     "summary": "`root` altındaki manifesto; sayfaları ve ek dosyaları `read` ile yan yana okunur — tarayıcıda `fetchVerified`, her birini onu adlandıran boyut ve parmak iziyle kanıtlar: kökün alanları, başlığınkiler ve her ağ sayfasının ilkelleri sırayla (`decodeManifestBinary`)."
   },
-  "referenceScreenError": {
-    "summary": "`reference` varyantının ekran hatası: `(error × stretch) × focal / w`, merkez yakın düzleme ulaşmadığında sonsuz; `w` merkezin derinliğinin klip ağırlığıdır, perspektif izdüşümde derinliğin kendisi (`perspective` = 1) ve ortografikte 1 (0, `screenErrorBound.ts`).",
-    "description": "`packages/sdk-browser/src/gpu/dag/shader/error.ts`deki WGSL yansıması, aynı işlenenler ve aynı sıra, f32'ye. Çağıran sıfır ya da sonsuz hatayı zaten ele almıştır."
-  },
   "removeTransformNode": {
     "summary": "`node`'u ve tüm torunlarını kaldırır; indeksleri yeniden kullanılacaktır.",
     "description": "Bir alt ağacı korurken ayırmak için, `reparentTransformNode(tree, node, -1)`."
@@ -7580,9 +7573,6 @@
     "summary": "Bir cluster'ın (C4) sertifikalı ekran hatası: eksen dışı dahil, perspektif izdüşüm altında en fazla ε kadar hareket ettirilen bir kürenin herhangi bir noktasının ekrandaki yer değiştirmesinin, piksel cinsinden bir üst sınırı.",
     "description": "Görünüm çerçevesi: göz başlangıç noktasında, −z'ye doğru bakıyor, derinlik d = −z; piksel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). Primitif, en fazla s gerilmeli afin bir haritayla görünüme gider: nesne küresi (c, r), görünüm topunda (C, ρ = r·s) oturur, en fazla ε'lik bir nesne yer değiştirmesi, en fazla δ = ε·s'lik bir Δ yer değiştirmesi olur. 1. Topun bir P = (x, y, d) noktası, derinliği d' = d + Δd olan P' = P + Δ'ye gider. q = (x, y)/d ile: π(P') − π(P) = f·(Δxy − q·Δd)/d'. Δ ↦ Δxy − q·Δd haritasının normu √(1 + |q|²)'dir (I + q·qᵀ'nin özdeğerleri: 1 ve 1 + |q|²); bu yüzden, Δ'nın yönü ne olursa olsun — eksene dik, derinlikte kameraya doğru ya da uzağa, eğik —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Topta: d ≥ m = −C_z − ρ, minimum derinlik; |(x, y)| ≤ ℓ + ρ, burada ℓ = |(C_x, C_y)| merkezin görünüm eksenine mesafesidir; dolayısıyla |q| ≤ (ℓ + ρ)/m, ve d' ≥ m − δ. 3. Eğer m − δ > near (dolayısıyla > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Aksi halde top, ya da yer değiştirmiş noktalarından biri, yakın düzleme ulaşır: inceltilen sonsuzluk. Kesit tekdüzeliği: m, topun derinliğinin infimumudur ve ℓ + ρ eksene mesafenin supremumudur; başka birinin içindeki bir top bu yüzden daha azını bildirir, daha büyük bir hata daha fazlasını. Işın boyunca (C → k·C, k > 1, merkez derinliği C_d > 0), (kℓ + ρ)/(k·C_d − ρ) ve 1/(k·C_d − ρ − δ) azalır: bildirilen hata mesafeyle azalır. Adım 2'nin iki sınırı topun iki farklı noktasından gelir: E küçük bir küre için sıkıdır, top yakın düzlemi eksenden uzakta sıyırdığında gevşektir (`screenErrorDisplacement.test.ts`). TEK KAMERA, TEK FORMÜL. `perspective`, kameranın clip-w ağırlığıdır: görünüm derinliği d'deki bir nokta, w = perspective·d + (1 − perspective)'e sahiptir — perspektif bir izdüşüm için 1 (w = d, yukarıdakilerin hepsi), ortografik için 0 (w = 1: q = 0, ve bir yer değiştirme, derinlik ne olursa olsun pikseli f·δ kadar hareket ettirir). Sınır w üzerinden yazılır: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), w_{m−δ} ≤ p·near olduğunda yakın düzleme ulaşılmış olur. p = 1'de her işlem yukarıdakiyle aynıdır, bit bit (1 ile bir çarpım ve 0 ile bir toplam tamdır). Burada koruma yok: çağıran sıfır, sonsuz ya da geçersiz bir hatayı zaten ele almıştır. Sonlu olmayan bir derinlik ya da eksene mesafe sonsuzluk verir. İşlem sırası, (δ·f)/m sonra bir √/(m − δ) ≥ 1 faktörü, yuvarlanmış sonucu sdk-browser'ın `errorFloorAt` tabanının üzerinde tutar. WGSL aynası: `packages/sdk-browser/src/gpu/dag/shader/shader.ts`'in `projected`'ı, aynı işlenenler, aynı sıra."
   },
-  "screenErrorVariant": {
-    "summary": "Yürürlükteki varyant."
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
     "description": "Yeniden etkinleştirirken işaretlenecek başka bir şey yok: bileşiminden farklı bir yerel matris zaten `NODE_TRS_DIRTY` taşır, `setNodeLocalMatrix` ya da bir poz ayarlayıcısı tarafından ayarlanmış. Her iki durumda da düğüm listelenir: yerel matrisinin nasıl yapıldığı değişti."
@@ -7599,10 +7589,6 @@
   },
   "setNodeScale": {
     "summary": "Bir dönüşüm ağacının bir düğümünü `(x, y, z)` kadar gerer."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Tüm sayfa için varyantı ayarlar.",
-    "description": "`null`/`undefined` bizimkini geri yükler: hiçbir oturum devralmaz."
   },
   "side": {
     "summary": "Bir yüzeyin hangi yüzleri çizdiği: motorun kendi `Side` kelimeleri (`contracts/material.ts`)."

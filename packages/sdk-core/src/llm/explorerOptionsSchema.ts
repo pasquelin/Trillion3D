@@ -1,5 +1,4 @@
 import type { JsonSchemaObject } from './types.ts'
-import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
 
 /**
@@ -95,13 +94,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       default: 'auto',
       description:
         "Execution path for batch mathematical operations: 'auto' (automatic governor arbitration), 'js', or 'wasm' (WebAssembly).",
-    },
-    screenError: {
-      type: 'string',
-      enum: SCREEN_ERROR_VARIANTS,
-      default: 'certifiee',
-      description:
-        "Screen-space error metric: 'certifiee' (rigorous bounded formula) or 'reference' (external projection formula).",
     },
     textureSource: {
       type: 'string',

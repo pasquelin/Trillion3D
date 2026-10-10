@@ -3054,9 +3054,6 @@
   "SceneToneMapping": {
     "summary": "Tên của một đường cong hiển thị mà bộ máy biết."
   },
-  "ScreenErrorVariant": {
-    "summary": "Cách sai số màn hình của một cụm được đo: cận đã được chứng minh, hoặc công thức đơn giản."
-  },
   "ShadowFrameMetrics": {
     "summary": "Các bộ đếm ánh sáng và bóng đổ của một khung hình, tách khỏi `FrameMetrics` theo trách nhiệm.",
     "description": "`FrameMetrics` kế thừa chúng qua `extends`: hợp đồng công khai mà các bên tiêu thụ thấy (`sdk-core/index.ts`) không đổi, các trường này vẫn là thuộc tính trực tiếp của `FrameMetrics`.",
@@ -6412,10 +6409,6 @@
   "readCameraWorld": {
     "summary": "Sao chép camera của ứng dụng chủ vào camera của bộ máy, các tổ tiên đã được giải quyết."
   },
-  "referenceScreenError": {
-    "summary": "Sai số màn hình của biến thể `reference`: `(error × stretch) × focal / w`, vô hạn khi tâm không chạm đến mặt phẳng gần; `w` là trọng số clip của độ sâu tâm, chính độ sâu đó dưới một phép chiếu phối cảnh (`perspective` = 1) và 1 dưới một phép chiếu trực giao (0, `screenErrorBound.ts`).",
-    "description": "Bản sao WGSL trong `packages/sdk-browser/src/gpu/dag/shader/error.ts`, cùng toán hạng và cùng thứ tự, đến f32. Bên gọi đã xử lý một sai số bằng không hoặc vô hạn."
-  },
   "removeTransformNode": {
     "summary": "Xóa `node` và tất cả hậu duệ của nó; chỉ số của chúng sẽ được tái sử dụng.",
     "description": "Để tách rời một cây con trong khi vẫn giữ nó, dùng `reparentTransformNode(tree, node, -1)`."
@@ -6445,9 +6438,6 @@
     "summary": "Sai số màn hình đã được chứng thực của một cụm (C4): một giới hạn trên (majorant), tính bằng pixel, của độ dịch chuyển trên màn hình của bất kỳ điểm nào của một hình cầu bị di chuyển nhiều nhất ε, dưới phép chiếu phối cảnh, kể cả lệch trục.",
     "description": "Khung nhìn: mắt tại gốc tọa độ, nhìn về hướng −z, độ sâu d = −z; pixel (f_x·x/d, f_y·y/d), f = max(f_x, f_y). Đối tượng nguyên thủy đi vào khung nhìn qua một ánh xạ affine với độ giãn tối đa s: hình cầu đối tượng (c, r) nằm trong quả cầu khung nhìn (C, ρ = r·s), một độ dịch chuyển đối tượng nhiều nhất ε trở thành một độ dịch chuyển Δ nhiều nhất δ = ε·s. 1. Một điểm P = (x, y, d) của quả cầu đi đến P' = P + Δ, có độ sâu d' = d + Δd. Với q = (x, y)/d: π(P') − π(P) = f·(Δxy − q·Δd)/d'. Ánh xạ Δ ↦ Δxy − q·Δd có chuẩn √(1 + |q|²) (các trị riêng của I + q·qᵀ: 1 và 1 + |q|²); vì vậy, dù hướng của Δ là gì — vuông góc với trục, theo chiều sâu về phía camera hay ra xa, xiên —, |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'. 2. Trên quả cầu: d ≥ m = −C_z − ρ, độ sâu tối thiểu; |(x, y)| ≤ ℓ + ρ, trong đó ℓ = |(C_x, C_y)| là khoảng cách từ tâm đến trục khung nhìn; do đó |q| ≤ (ℓ + ρ)/m, và d' ≥ m − δ. 3. Nếu m − δ > near (do đó > 0): E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Nếu không, quả cầu, hoặc một trong các điểm đã dịch chuyển của nó, chạm đến mặt phẳng gần: vô hạn, thứ tinh chỉnh thêm. Tính đơn điệu của việc cắt: m là cận dưới đúng (infimum) của độ sâu trên quả cầu và ℓ + ρ là cận trên đúng (supremum) của khoảng cách đến trục; do đó một quả cầu chứa trong một quả cầu khác công bố ít hơn, một sai số lớn hơn thì nhiều hơn. Dọc theo tia (C → k·C, k > 1, độ sâu tâm C_d > 0), (kℓ + ρ)/(k·C_d − ρ) và 1/(k·C_d − ρ − δ) giảm dần: sai số được công bố giảm theo khoảng cách. Hai cận của bước 2 đến từ hai điểm khác nhau của quả cầu: E chặt cho một hình cầu nhỏ, lỏng khi quả cầu chạm sượt mặt phẳng gần xa khỏi trục (`screenErrorDisplacement.test.ts`). MỘT CAMERA, MỘT CÔNG THỨC. `perspective` là trọng số clip-w của camera: một điểm ở độ sâu khung nhìn d có w = perspective·d + (1 − perspective) — 1 cho một phép chiếu phối cảnh (w = d, tất cả những gì ở trên), 0 cho một phép chiếu trực giao (w = 1: q = 0, và một độ dịch chuyển di chuyển pixel bởi f·δ bất kể độ sâu). Cận được viết trên w: E = f·δ·√(w_m² + (p·(ℓ + ρ))²) / (w_m·w_{m−δ}), với mặt phẳng gần bị chạm tới khi w_{m−δ} ≤ p·near. Tại p = 1 mọi phép toán đều giống như ở trên, từng bit một (một tích với 1 và một tổng với 0 là chính xác). Không có bảo vệ nào ở đây: bên gọi đã xử lý một sai số null, vô hạn hoặc không hợp lệ. Một độ sâu hoặc khoảng cách đến trục không hữu hạn cho ra vô hạn. Thứ tự phép toán, (δ·f)/m rồi đến một hệ số √/(m − δ) ≥ 1, giữ kết quả đã làm tròn ở trên sàn `errorFloorAt` của sdk-browser. Bản sao WGSL: `projected` của `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, cùng toán hạng, cùng thứ tự."
   },
-  "screenErrorVariant": {
-    "summary": "Biến thể đang có hiệu lực."
-  },
   "setNodeAutoUpdate": {
     "summary": "`matrixAutoUpdate`.",
     "description": "Không còn gì khác để đánh dấu khi bật lại nó: một ma trận cục bộ khác với phép tổng hợp của nó đã mang `NODE_TRS_DIRTY`, được đặt bởi `setNodeLocalMatrix` hoặc bởi một bộ thiết lập tư thế. Dù thế nào node cũng được liệt kê: cách tạo ma trận cục bộ của nó đã thay đổi."
@@ -6464,10 +6454,6 @@
   },
   "setNodeScale": {
     "summary": "Kéo giãn một node của một cây biến đổi theo `(x, y, z)`."
-  },
-  "setScreenErrorVariant": {
-    "summary": "Đặt biến thể cho toàn bộ trang.",
-    "description": "`null`/`undefined` khôi phục về biến thể của chúng ta: không phiên làm việc nào kế thừa."
   },
   "side": {
     "summary": "Những mặt nào một bề mặt vẽ: các từ `Side` của riêng bộ máy (`contracts/material.ts`)."

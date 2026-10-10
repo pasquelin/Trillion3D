@@ -1,6 +1,5 @@
 import { clipWeight } from '../../../math/src/projection/camera.ts'
 import { plainLength2 } from '../../../math/src/vector/vector.ts'
-import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts'
 
 /**
  * Certified screen error of a cluster (C4): a majorant, in pixels, of the on-screen displacement of
@@ -50,9 +49,6 @@ export function screenErrorBound(
   near: number,
   perspective = 1,
 ): number {
-  // EXPERIMENT switch (`screenErrorVariant.ts`), read here for the whole CPU selection.
-  if (screenErrorVariant() !== 'certifiee')
-    return referenceScreenError(error, stretch, depth, focal, near, perspective)
   // Rust mirror, to the bits (`screenErrorBits.json`): `projected_error_at` of
   // `packages/page-codec-wasm/src/cut_error.rs`.
   const reach = radius * stretch,
