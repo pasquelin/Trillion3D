@@ -35,7 +35,7 @@ import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibili
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
-import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
+import { GATHER_WGSL, REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts'
 import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
 import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
@@ -156,6 +156,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,
   REDUCE_WGSL,
+  GATHER_WGSL,
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER: waterCompositeShader(),
   WATER_ROUTED: waterRoutedShader(),
