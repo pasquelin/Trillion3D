@@ -18,10 +18,11 @@ test('the bench lamps over the atrium: 200 on a grid two metres up, a range of 0
   assert.ok(Math.abs(lamps[0].radius - 0.75 * Math.hypot(30.6 / 20, 14.6 / 10)) < 1e-5)
 })
 
-test('the Hi-Z pyramid: the copy of level 0, then four reads and a write a coarser texel', () => {
-  assert.equal(hizAccesses(1, 1), 2)
-  assert.equal(hizAccesses(4, 4), 32 + 5 * 4 + 5)
-  assert.equal(hizAccesses(3, 1), 6 + 5 * 2 + 5)
+test('the Hi-Z pyramid: three layers, a level 0 each of the first two, the coarser levels of all', () => {
+  // The culling copy and the slopes' nine reads and write: 12 a pixel; a coarser texel, 15.
+  assert.equal(hizAccesses(1, 1), 12)
+  assert.equal(hizAccesses(4, 4), 12 * 16 + 15 * (4 + 1))
+  assert.equal(hizAccesses(3, 1), 12 * 3 + 15 * (2 + 1))
 })
 
 test('every stage has its rows, each its count at its rate, the frame their sum', () => {

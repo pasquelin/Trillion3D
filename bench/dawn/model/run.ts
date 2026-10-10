@@ -1,10 +1,10 @@
 // The frame's cost model set against a measured frame: each pass's floor on this machine's rates,
 // its time, the ratio and the milliseconds above the floor, ranked.
 //   node bench/dawn/model/run.ts <report.json> --machine <machine.json> [--segment <name>]
-//     [--cover 1] [--reach 1] [--rough 0] [--placements 0]
+//     [--cover 1] [--reach 1] [--reflecting 0] [--placements 0]
 // `report.json`: a bench run's merged report (`.mesure/out/bench-gpu/*.json`); `machine.json`: the
 // machine a run measured and kept (`../machine.ts`, `~/.trillion3d/machine/`). What no counter of the report says — the covered share of
-// the pixels, the share a shadowed light reaches, the rough-reflective share, the placements the
+// the pixels, the share a shadowed light reaches, the reflecting share, the placements the
 // cut walks — is given; a floor taken from a share too large is lower, never higher.
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
@@ -19,7 +19,7 @@ const { positionals, values } = parseArgs({
     segment: { type: 'string' },
     cover: { type: 'string', default: '1' },
     reach: { type: 'string', default: '1' },
-    rough: { type: 'string', default: '0' },
+    reflecting: { type: 'string', default: '0' },
     placements: { type: 'string', default: '0' },
   },
 })
@@ -30,7 +30,7 @@ const machine = JSON.parse(readFileSync(values.machine, 'utf8')) as Machine
 const frame = frameOf(report, {
   cover: Number(values.cover),
   reach: Number(values.reach),
-  rough: Number(values.rough),
+  reflecting: Number(values.reflecting),
   placements: Number(values.placements),
 })
 console.log(modelText(modelRows(report, frame, machine, values.segment), frame))
