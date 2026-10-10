@@ -242,6 +242,8 @@ export interface VsmMarkingFrame {
   fullMapCount: number
   singlePageMapCount: number
   perPage: VsmPerPageBins
+  /** The camera's kind as the engine knows it, never a matrix test (`projectionPass.ts`). */
+  perspective: boolean
   /** Absent: no pixel marking (pixel page marking off). */
   view?: VsmMarkingView
 }
@@ -394,8 +396,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     const v = frame.view
     if (v) {
       copyMatrix4(f, v.viewToClip)
-      // From the f32 matrix just written, the one the shader holds; a perspective by its M[3][3].
-      vsmWriteDepthFromDeviceZ(f, 16, f, f[15] < 1)
+      vsmWriteDepthFromDeviceZ(f, 16, f, frame.perspective)
       for (let k = 0; k < 3; k++) writeSplitDouble(f, 20 + k, 24 + k, v.originShift[k])
       u[28] = v.viewRectMin[0]
       u[29] = v.viewRectMin[1]

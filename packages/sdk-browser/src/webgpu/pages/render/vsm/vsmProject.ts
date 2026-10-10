@@ -7,25 +7,22 @@ import {
 } from '../../../../vsm/projectionPass.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
-import { taaRenderProjection } from '../../../../taa/frame.ts'
 import { stochasticPhase } from '../../../../taa/frameState.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask, maskLayersFor, type EngineVsm } from './engineVsm.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
 
-/** The projection the raster drew this image with, the TAA jitter in it (`taaRenderProjection`):
- *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
- *  reconstructs it with the jittered projection (#1363). */
-const rasterProjection = new Float64Array(16)
-
-/** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the shadow
+/** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the projection
+ *  the raster drew this image with (the TAA jitter in it, `taaRenderProjection`: the depth the
+ *  marking and the projection reconstruct each pixel from was drawn jittered, #1363), the shadow
  *  maps and their plan. */
 export interface VsmFrame {
   rt: WebgpuPagesRuntime
   device: GPUDevice
   encoder: GPUCommandEncoder
   cam: EngineCamera
+  projection: Float64Array
   vsm: EngineVsm
   plan: NonNullable<EngineVsm['plan']>
 }
@@ -70,7 +67,7 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
  *  still counted —: every light then reads no shadow (`planVsmFrame` assigns −1), so no pixel
  *  reads the mask, and a pass of no light would store no texel of it. True when it ran. */
 export function encodeVsmProjection(
-  { rt, device, encoder, cam, vsm, plan }: VsmFrame,
+  { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
   projected: VsmProjectionLight[],
   views: GPUTextureView[],
 ) {
@@ -92,7 +89,7 @@ export function encodeVsmProjection(
   const receiver = gpu.surfaces!.receiverView
   const camera = {
     view: cam.view,
-    projection: taaRenderProjection(rt, cam, rasterProjection),
+    projection,
     perspective: cam.perspective === 1,
   }
   encodeVirtualShadowProjection(

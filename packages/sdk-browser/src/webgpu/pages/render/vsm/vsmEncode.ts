@@ -8,6 +8,7 @@ import {
   type VsmMarkingFrame,
   type VsmPerPageFrame,
 } from '../../../../vsm/markingPass.ts'
+import { taaRenderProjection } from '../../../../taa/frame.ts'
 import { vsmWriteChanged } from '../../../../vsm/writeChanged.ts'
 import {
   encodeVsmPageMapping,
@@ -24,6 +25,8 @@ import { encodeVsmProjection, encodeVsmRaster, type VsmFrame } from './vsmProjec
 /** The page marking's one compute pass (`markingPass.ts`). */
 const MARKING_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}marking` }
 const forwardZViewToClip = new Float32Array(16)
+/** This image's render projection, the TAA jitter in it (`taaRenderProjection`). */
+const renderProjection = new Float64Array(16)
 
 /** What a set's frames rebuild in place (`frameScratch`): the per-page entries and their bins, the
  *  suns' ids and the lights the projection reads. */
@@ -93,7 +96,15 @@ export function encodeVsmFrame(
     options: { stats: vsm.countersOn },
   }
   if (vsm.countersOn) encoder.clearBuffer(res.stats)
-  const frame: VsmFrame = { rt, device, encoder, cam, vsm, plan }
+  const frame: VsmFrame = {
+    rt,
+    device,
+    encoder,
+    cam,
+    projection: taaRenderProjection(rt, cam, renderProjection),
+    vsm,
+    plan,
+  }
   const views = encodeVsmMarking(frame, scratch, perPage, pmFrame)
   encodeVsmRaster(frame)
   encodeVsmAfterRaster(encoder, res, pmFrame)
@@ -104,7 +115,7 @@ export function encodeVsmFrame(
  *  then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
  *  and the light ids go up only where they changed. */
 function encodeVsmMarking(
-  { rt, device, encoder, cam, vsm, plan }: VsmFrame,
+  { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
   scratch: FrameScratch,
   perPage: ReturnType<typeof vsmCachePerPageBins>,
   pmFrame: VsmPageManagementFrame,
@@ -129,6 +140,7 @@ function encodeVsmMarking(
     fullMapCount: plan.fullMapCount,
     singlePageMapCount: plan.singlePageMapCount,
     perPage,
+    perspective: cam.perspective === 1,
     view:
       lights.buffer && tiles
         ? {
@@ -143,7 +155,7 @@ function encodeVsmMarking(
             sunMapCount: directional,
             viewRectMin: [0, 0],
             viewSize: [width, height],
-            viewToClip: vsmForwardZViewToClip(cam.projection, forwardZViewToClip),
+            viewToClip: vsmForwardZViewToClip(projection, forwardZViewToClip),
             originShift: [-cam.eye[0], -cam.eye[1], -cam.eye[2]],
           }
         : undefined,
