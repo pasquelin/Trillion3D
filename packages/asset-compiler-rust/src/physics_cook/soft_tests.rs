@@ -32,10 +32,10 @@ fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
 }
 // Behaviour: the cloth's vertices weigh the area each holds at 0.2 kg/m², its pins nothing, and
 // its settings cook to the same bytes twice, the golden ones (`TRILLION3D_WRITE_GOLDEN` rewrites
-// them); the cook's vertex stride is the worker's (`words.h`).
+// them); the cook's vertex stride is the worker's (`layout.h`).
 #[test]
 fn a_cloth_cooks_to_the_golden_settings() {
-    let words = include_str!("../../../physics-jolt-wasm/src/words.h");
+    let words = include_str!("../../../physics-jolt-wasm/src/layout.h");
     assert!(words.contains(&format!("SOFT_VERTEX_WORDS = {W};")));
     let (pos, triangles) = cloth();
     let pinned = declared("cloth", &[6.0, 8.0]);

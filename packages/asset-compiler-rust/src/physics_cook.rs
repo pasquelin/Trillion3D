@@ -62,7 +62,7 @@ pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
 /// Name of the product beside the manifest.
 pub const PHYSICS_FILE: &str = "physics.json";
 /// Words of each soft body vertex, `x, y, z, mass`: the worker's and the builder's stride
-/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/words.h`).
+/// (`SOFT_VERTEX_WORDS`, `packages/physics-jolt-wasm/src/layout.h`).
 const SOFT_VERTEX_WORDS: usize = 4;
 
 /// The collision of one primitive (`cut::cook_primitive`), or `{"refused": reason}` when the engine
