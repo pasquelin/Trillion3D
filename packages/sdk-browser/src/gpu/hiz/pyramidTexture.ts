@@ -35,7 +35,7 @@ export const HIZ_WHOLE_FARTHEST = 2
 const HIZ_LAYERS = 3
 /** The flag of an index into the coarser levels, which lie in the last layer (`hizRoute`); the
  *  bits under it are the word's linear index. */
-export const HIZ_UPPER = 2 ** 28
+const HIZ_UPPER = 2 ** 28
 
 /** The words a layer of the pyramid texture holds for a pyramid of `first` texels at level 0 and
  *  `upper` in its coarser levels: the first layers hold level 0, the last the coarser levels of the

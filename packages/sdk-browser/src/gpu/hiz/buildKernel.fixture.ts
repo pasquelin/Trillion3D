@@ -1,6 +1,6 @@
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { texel, type Scene } from './buildScene.fixture.ts'
-import { HIZ_UPPER } from './pyramidTexture.ts'
+import { hizRoute } from './pyramidTexture.ts'
 
 // `buildHiz`, one workgroup of it, transcribed line by line (`buildTranscripts.fixture.ts`).
 
@@ -38,7 +38,9 @@ export function workgroup(
   tileWhole: Float32Array,
 ) {
   const [rawA, b, c, d] = u
-  const natural = (index: number) => (index >= HIZ_UPPER ? index - HIZ_UPPER + first : index)
+  /** The flag of the routed indices of the coarser levels: where `hizRoute` puts the first of them. */
+  const flag = hizRoute(first, 1, 0, { first, upper: 0 })
+  const natural = (index: number) => (index >= flag ? index - flag + first : index)
   const a = natural(rawA)
   const dst = (k: number) => {
     const [offset, w, h] = u.subarray(8 + 4 * k, 11 + 4 * k)
