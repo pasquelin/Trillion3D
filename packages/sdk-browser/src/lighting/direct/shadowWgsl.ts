@@ -108,8 +108,8 @@ fn vsmPageTableLoad(i:u32)->u32{return vsmPageTable[i];}
  *  the distance and the pixel's angular size. */
 fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
  let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let inverseTangent=1.0/max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
+ return (P-shadowCamera)+N*vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,inverseTangent);
 }
 /** Where a receiver \`fromEye\` (\`vsmReceiverFromEye\`) is read in map \`id\`: its sample \`sm\` —
  *  invalid where no page holds the point, nothing mapped at any level —; the level \`requested\`,

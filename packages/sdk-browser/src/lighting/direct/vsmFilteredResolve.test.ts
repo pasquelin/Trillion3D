@@ -18,6 +18,7 @@ const RESOLVE_READ = [
   'vsmTransmissionRead',
   'vsmLocate',
   'vsmReceiverFromEye',
+  'vsmNormalOffsetLength',
   'testTransmission',
 ]
 type Resolve = { shadowFactor: (...a: unknown[]) => number; testTransmission: () => V }

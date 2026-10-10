@@ -246,7 +246,7 @@ fn vsmCameraDistance(v:vec3f)->f32{
 /** The normal bias length at a position (0.02 cm floor = VSM_NORMAL_OFFSET_FLOOR). */
 fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
  let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
- return max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera/vsmView.halfFovTangents.z);
+ return vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,vsmView.halfFovTangents.z);
 }
 /** The scene depth at a buffer UV: its nearest texel, clamped to the buffer. */
 fn vsmSampleSceneDepth(uv:vec2f)->f32{

@@ -125,6 +125,7 @@ export const SUN_READ = [
   'vsmShadowLit',
   'vsmLocate',
   'vsmReceiverFromEye',
+  'vsmNormalOffsetLength',
   'vsmConsumerSlope',
   ...FILTER,
 ]

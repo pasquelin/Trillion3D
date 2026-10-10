@@ -386,5 +386,12 @@ const LIGHT_KIND_SPOT:u32=${VSM_LIGHT_KIND_SPOT}u;
 const VSM_GROUP_WIDTH:u32=${VSM_GROUP_WIDTH}u;
 const VSM_CM_PER_UNIT:f32=${VSM_CM_PER_UNIT}.0;
 const VSM_NORMAL_OFFSET_FLOOR:f32=${VSM_NORMAL_OFFSET_FLOOR};
+/** The normal bias length of a receiver \`distance\` from the eye (along the view axis under an
+ *  orthographic camera): \`normalBias\` times the distance over the inverse tangent of the half
+ *  field of view (1 under an orthographic camera), held to the floor (0.02 cm). The one rule of the
+ *  projection and of the lighting that reads a shadow map. */
+fn vsmNormalOffsetLength(normalBias:f32,distance:f32,inverseTangent:f32)->f32{
+ return max(VSM_NORMAL_OFFSET_FLOOR,normalBias*distance/inverseTangent);
+}
 `,
 )
