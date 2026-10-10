@@ -8,7 +8,6 @@ import { assertReport } from '../../../site/app/reports/model/contract.ts'
 import { comparison } from '../../../site/app/reports/model/compare.ts'
 import { metricValue } from '../../../site/app/reports/model/metrics.ts'
 import type { ReportRecord } from '../../../site/app/reports/model/types.ts'
-import type { Report as MeasureReport } from './types.ts'
 const reading = (): ReportRecord => ({
   id: 'a',
   runId: 'run-a',

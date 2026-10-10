@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './assets/scene.ts'
+import { DEFAULT_SCENE, sceneOf } from './assets/scene.ts'
 import {
   ENGINES,
   engineOf,
