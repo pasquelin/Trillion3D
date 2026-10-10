@@ -33,7 +33,11 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
   /** The order each page a lower tier touched was touched under. */
   const lower = new Map<string, number>()
   let epoch = 0
-  const unpinned = (key: string) => (isPinned(key) ? undefined : resident.get(key))
+  /** The unpinned resident page `key` when `accept` takes it. */
+  const free = (key: string, accept: Accept) => {
+    const page = isPinned(key) ? undefined : resident.get(key)
+    return page && accept(page) ? page : undefined
+  }
 
   /** The heap's top that `accept` takes, or why none is. It stays in the heap, for the eviction of
    *  its page to drop; each the heap offered before it that `accept` refused is held aside, and put
@@ -55,10 +59,6 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
     let at = 0,
       lateAt = 0
     return (accept) => {
-      const free = (key: string) => {
-        const page = unpinned(key)
-        return page && accept(page) ? page : undefined
-      }
       while (at < order.count) {
         const key = order.keyAt(at++)
         const page = resident.get(key)
@@ -68,11 +68,11 @@ export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
         else return page
       }
       for (const key of held) {
-        const page = free(key)
+        const page = free(key, accept)
         if (page) return page
       }
       while (lateAt < late.length) {
-        const page = free(late[lateAt++])
+        const page = free(late[lateAt++], accept)
         if (page) return page
       }
       return 'eviction-queue-spent'

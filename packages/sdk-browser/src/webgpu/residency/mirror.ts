@@ -53,7 +53,7 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
       else if (offsetWords < 0 && was) journalResident--
       setOffsets(key, offsetWords)
     }
-    const resident = cache.stats().residentPages
+    const resident = cache.residentPages
     if (journalResident === resident) return
     engineDiagnostic('gpu-residency-mirror-rebuilt', 'Residency mirror rebuilt from the cache', {
       frame: getFrame(),

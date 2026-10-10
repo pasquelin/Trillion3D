@@ -107,7 +107,7 @@ export function followQueue(q: QueueRun) {
         q.items.filter((rec) => !!getCache()?.get(pageAddress(rec))),
       ),
       queueDepth: q.items.length,
-      residentPages: getCache()?.stats().residentPages ?? null,
+      residentPages: getCache()?.residentPages ?? null,
     }))
   if (q.running) return
   q.running = true
@@ -160,7 +160,7 @@ async function runJob(q: QueueRun, at: { jobFrame: number; jobId: number; queued
       // The requested set is sampled by a bounded probe, and what the cache holds of it is the
       // count it already holds: filtering the whole set walked it twice more.
       pages: tracking.traceKeys('job', tracking.wanted),
-      residentPages: getCache()?.stats().residentPages ?? null,
+      residentPages: getCache()?.residentPages ?? null,
       queueWaitMs: started - queuedAt,
       cpuWorkIncluded: true,
       gpuQueueWaitIncluded: false,

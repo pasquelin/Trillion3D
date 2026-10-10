@@ -64,6 +64,10 @@ export function createGpuPageCache(
     evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
+    /** How many pages are resident now. */
+    get residentPages() {
+      return resident.size
+    },
     get residencyRevision() {
       return state.generation + state.evictions
     },

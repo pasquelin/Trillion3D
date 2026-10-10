@@ -53,13 +53,23 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   }
 }
 
+/** `signal` joined with the pool's dispose, made once for a signal that many loads share. */
+const joined = new WeakMap<AbortSignal, WeakMap<AbortSignal, AbortSignal>>()
+function cancelledBy(signal: AbortSignal, dispose: AbortSignal) {
+  let own = joined.get(signal)
+  if (!own) joined.set(signal, (own = new WeakMap()))
+  let both = own.get(dispose)
+  if (!both) own.set(dispose, (both = AbortSignal.any([signal, dispose])))
+  return both
+}
+
 /** `key`'s read, cancelled by `signal` or by the pool's dispose. */
 const readOf = (
   { abort, reader }: GpuPageContext,
   key: string,
   signal: AbortSignal | undefined,
   priority: number | undefined,
-) => reader.read(key, signal ? AbortSignal.any([signal, abort.signal]) : abort.signal, priority)
+) => reader.read(key, signal ? cancelledBy(signal, abort.signal) : abort.signal, priority)
 
 type Pin = (key: string) => void
 /** One load as its queued operation reads it. */
