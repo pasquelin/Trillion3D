@@ -16,13 +16,14 @@ import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/sha
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 
 /** A list of `count` pages of `pages`, a few repeated, from `seed`. */
 function drawList(count: number, pages: number, seed: number) {
-  let x = seed >>> 0
-  const next = () => (x = (Math.imul(x, 1664525) + 1013904223) >>> 0)
-  const list = Array.from({ length: count }, () => next() % pages)
-  for (let k = 0; k < count >>> 4; k++) list[next() % count] = list[next() % count]
+  const random = mulberry32(seed)
+  const below = (bound: number) => Math.floor(random() * bound)
+  const list = Array.from({ length: count }, () => below(pages))
+  for (let k = 0; k < count >>> 4; k++) list[below(count)] = list[below(count)]
   return list
 }
 
