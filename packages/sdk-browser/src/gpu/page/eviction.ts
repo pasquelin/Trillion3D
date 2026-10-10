@@ -21,9 +21,9 @@ export type NoVictim = 'all-pages-pinned' | 'eviction-queue-spent'
  * the host caches' one heap (`streaming/cacheEntries.ts`): a page is an entry, its pin a hold, so
  * the heap holds only the unpinned pages, the least recently loaded or touched on top. Before any
  * order, the victim is that top, in O(log n) whatever is pinned. Once a GPU cut published an
- * order: its next resident, unpinned page the arrival may take, each entry passed once — one pinned
- * or refused when passed waits in `held` for its unpin; one a lower tier touched since the last order (`touched`) goes in
- * `late`, taken after every other —, never a page it leaves out.
+ * order: its next resident, unpinned page the arrival may take, each entry passed once — one
+ * pinned or refused when passed waits in `held` for its unpin, and one a lower tier touched since
+ * the last order (`touched`) in `late`, taken after every other —, never a page it leaves out.
  */
 export function createEviction(resident: ReadonlyMap<string, ResidentPage>) {
   const recent = createCacheEntries<ResidentPage>()

@@ -71,9 +71,9 @@ export function createWebgpuResidencySets(options: {
   const cover = createCoverHolders({
     ...{ holders: bootstrapKey, keyOf, requested, keep },
   })
-  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0
+  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   const enqueue = (key: number, page?: PageRec) => {
     if (!wanted.add(key, page)) return
     acceptedRevision++
