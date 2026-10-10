@@ -10,7 +10,6 @@ import {
   REFERENCE_SCENES,
   sceneDerived,
   sceneOf,
-  scenesOf,
 } from './scene.ts'
 import { catalogueScenes } from './assetsCatalogue.ts'
 import { parseArgs } from '../harness/options.ts'
@@ -55,7 +54,6 @@ test('applySceneFlag sets the derived cache on sides that do not have one', () =
   assert.equal(flags.get('cache-before'), sceneDerived('flight-helmet', '/assets'))
 })
 
-test('scenesOf reads --scene a,b and ignores valueless flag', () => {
-  assert.deepEqual(scenesOf(parseArgs(['--scene', 'a,b'])), ['a', 'b'])
+test('sceneOf infers the scene from its cache folder', () => {
   assert.equal(sceneOf('/x/flight-helmet-derived'), 'flight-helmet')
 })

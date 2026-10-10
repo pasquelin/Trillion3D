@@ -25,10 +25,10 @@ const config: KnipConfig = {
         'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
-        'packages/**/*.test.ts',
-        // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
-        // by `node --test`, are entries by rule. Any other script is dead.
-        'scripts/**/*.test.ts',
+        // Every unit test runs by `node --test`: an entry by rule.
+        '{packages,bench,tests,scripts,site/examples/kit}/**/*.test.ts',
+        // The scripts `package.json` and the workflows run are found by knip itself. Any other
+        // script is dead.
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).
@@ -82,11 +82,9 @@ const config: KnipConfig = {
         'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
-        // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case
-        // probes), the page modules they load by path, and the public-API fixtures
-        // the type-check test compiles by path. Kit, support and fixture helpers are not entries: an
-        // export no test imports is reported.
-        'tests/**/*.test.ts',
+        // The GPU proofs (render proofs and kebab-case probes), the page modules they load by path,
+        // and the public-API fixtures the type-check test compiles by path. Kit, support and fixture
+        // helpers are not entries: an export no test imports is reported.
         'tests/gpu/**/*.gpu.ts',
         'tests/gpu/**/*.chrome.ts',
         'tests/gpu/**/*Page.ts',

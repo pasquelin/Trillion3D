@@ -18,7 +18,7 @@ export const FLUIDS_SCENE = 'fluids'
 /** Whether a scene reads a compiled cache. */
 export const readsCache = (scene: string) => scene !== FLUIDS_SCENE
 
-/** The scenes the campaign plays, in this order, as soon as their cache is there. */
+/** The scenes the engine's reference images are drawn on, in this order. */
 export const REFERENCE_SCENES = ['sponza', 'normal-tangent-mirror-test']
 
 /** What the report must say of a scene, and that a reading does not carry. */
@@ -38,13 +38,6 @@ export const sceneDerived = (scene: string, assets: string = ASSETS) =>
 
 const cachePret = (scene: string, assets: string) =>
   existsSync(join(sceneDerived(scene, assets), 'native/full/manifest.json'))
-
-/** Scenes of a campaign: `--scene a,b`, otherwise the references whose cache is ready. */
-export function scenesOf(flags: Map<string, string>, assets: string = ASSETS) {
-  const raw = flags.get('scene')
-  if (raw && raw !== 'true') return raw.split(',').filter(Boolean)
-  return REFERENCE_SCENES.filter((scene) => cachePret(scene, assets))
-}
 
 /** `--scene nom` sets the assets cache on each side that does not have its own. */
 export function applySceneFlag(flags: Map<string, string>, assets: string = ASSETS) {
