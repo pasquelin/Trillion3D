@@ -34,6 +34,10 @@ constexpr uint32_t ASLEEP_BIT = 2147483648u;
 /// Error codes returned by `jolt_error` after a failed `jolt_step` (layout.ts MODULE_ERROR).
 enum Error : uint32_t { NONE = 0, BODY_LIMIT = 1, UNKNOWN_BODY = 2, BAD_SHAPE = 3, BAD_COMMAND = 4 };
 
+/// A body's engine id: its slot in the low bits, the slot's generation above (layout.ts BODY_INDEX),
+/// so a record naming a body that left is never read as the one that took its slot.
+constexpr uint32_t INDEX_MASK = 16777215u;
+
 /// A query's miss and the id of no body (layout.ts MISS).
 constexpr uint32_t MISS = 4294967295u;
 

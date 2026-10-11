@@ -17,6 +17,7 @@ import {
 import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
+import { MIB } from '../../../../math/src/constants.ts'
 
 /**
  * RAW TEXELS TURNED ON THE GPU as their host texture asks (#362): rows reversed under `flipY` — the
@@ -31,7 +32,7 @@ import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
  */
 /** Bytes the staging ring holds at most: device memory bounded whatever the picture (8 MiB for a
  *  1080p frame, 32 MiB a load for an 8K picture's 256 MiB). */
-const TURN_RING_BYTES = 32 << 20
+const TURN_RING_BYTES = 32 * MIB
 
 /** The device's one turn program: its layout, and its pipeline compiled off the thread before the
  *  first picture turns (`prepareTexelTurn`), else at once where it is used. */

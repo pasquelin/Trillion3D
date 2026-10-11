@@ -4,10 +4,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setDissect } from '../../../bench/dawn/dissectHooks.ts'
-import { installGpu } from '../../../bench/dawn/device.ts'
 import { stepsOf, type Variant } from '../../../bench/dawn/dissectReport.ts'
 import { cutsOf, hashOf } from '../../../bench/dawn/shaderCuts.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
+import { openBenchDevice } from '../kit/benchDevice.ts'
 
 const loop = (n: number, from: string) =>
   `for (var i = 0u; i < ${n}u; i++) { ${from} = fract(${from} * 1.7 + 0.31) + sin(${from}); }`
@@ -29,9 +29,7 @@ test(
   { timeout: 240_000 },
   async () => {
     const { steps } = await runOnDawn(async () => {
-      const gpu = installGpu({ limits: null, featuresOff: [] })
-      const adapter = (await navigator.gpu.requestAdapter())!
-      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] })
+      const { gpu, device } = await openBenchDevice()
       const out = device.createBuffer({ size: 1 << 20, usage: GPUBufferUsage.STORAGE })
       const hash = hashOf(KERNEL)
       const cuts = cutsOf(KERNEL).map((c) => c.name)

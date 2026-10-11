@@ -10,8 +10,8 @@ import { createFrameGateCore } from '../../../frame/gateCore.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'
 
 const VIEWPORT: [number, number] = [800, 600]
 
@@ -82,7 +82,6 @@ test('invalidateOccluderHistory drops the occluder history', () => {
 // A moved model rewrites its own rows, not the scene's. The table's age must not advance on
 // every move: that would write every row, every corner and every transparent corner again, and
 // drop the whole scene's occlusion history, each image a model moved.
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** A root of `count` clusters, all placed by the same world. */
 function root(name: string, count: number, transparent = false): ClusterRoot<PageRec> {

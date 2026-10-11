@@ -6,15 +6,15 @@
 // runs `bench/dawn/proofs.ts --chrome`), never at a merge, and open Chrome under the machine's bench
 // lock — shared with the run that started them, taken by a proof run on its own.
 import assert from 'node:assert/strict'
-import { relative, resolve, sep } from 'node:path'
+import { relative } from 'node:path'
 import { takeBenchLock } from '../../../bench/dawn/lock.ts'
 import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/harness/chrome.ts'
 import { ENGINES, resolveMounts } from '../../../bench/runner/harness/options.ts'
 import { startServer } from '../../kit/server/staticServer.ts'
 import type { Mount } from '../../../scripts/static-server.ts'
+import { REPOSITORY_ROOT, posixPath } from '../../../scripts/repository-files.ts'
 
 /** The repository, whose files the page imports by their path. */
-const ROOT = resolve(import.meta.dirname, '../../..')
 
 /** The page a proof opens. `webgpu: false` removes `navigator.gpu` before any script runs: a
  *  machine without WebGPU, changed where the engine reads it and nowhere else. `mounts` serve
@@ -47,7 +47,11 @@ export async function inChrome<R>(
   if (!locked) takeBenchLock(`Chrome proof ${process.argv[1] ?? ''}`)
   locked = true
   const { server, port } = await startServer({
-    mounts: [...mounts, ...resolveMounts(ROOT, []), { prefix: '/', dir: ROOT }],
+    mounts: [
+      ...mounts,
+      ...resolveMounts(REPOSITORY_ROOT, []),
+      { prefix: '/', dir: REPOSITORY_ROOT },
+    ],
   })
   try {
     const browser = await launchChrome({ headless: true, args: ENGINES.webgpu.flags })
@@ -61,7 +65,7 @@ export async function inChrome<R>(
       const errors: string[] = []
       tab.on('pageerror', (error) => errors.push(error.message))
       await tab.goto(`http://127.0.0.1:${port}/`)
-      const url = `/${relative(ROOT, page).split(sep).join('/')}`
+      const url = `/${posixPath(relative(REPOSITORY_ROOT, page))}`
       const answer = await tab.evaluate(
         async ({ url, method, argument }: Call) => (await import(url))[method](argument),
         { url, method, argument },

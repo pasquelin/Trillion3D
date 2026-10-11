@@ -104,6 +104,10 @@ constexpr uint32_t ASLEEP_BIT = ${layout.ASLEEP_BIT}u;
 /// Error codes returned by \`jolt_error\` after a failed \`jolt_step\` (layout.ts MODULE_ERROR).
 enum Error : uint32_t { ${errors.join(', ')} };
 
+/// A body's engine id: its slot in the low bits, the slot's generation above (layout.ts BODY_INDEX),
+/// so a record naming a body that left is never read as the one that took its slot.
+constexpr uint32_t INDEX_MASK = ${layout.BODY_INDEX}u;
+
 /// A query's miss and the id of no body (layout.ts MISS).
 constexpr uint32_t MISS = ${layout.MISS}u;
 

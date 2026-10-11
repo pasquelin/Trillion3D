@@ -4,6 +4,7 @@
 // ran in no time (`empty`): a lost timer says nothing of its pass.
 
 import type { PassWork } from './passWorkHooks.ts'
+import { coveredLength } from '../../packages/math/src/sequence/span.ts'
 
 /** What a pass's timestamps say. `ok`: a span. `empty`: stamps of no length, or none and no work
  *  encoded (the driver writes no timestamp for a pass that dispatched nothing): a real zero.
@@ -37,18 +38,6 @@ export type FrameGpu = {
 /** A span of fewer ms than this is empty: Dawn's timestamps tick at 1 ns, a real pass takes more. */
 const EMPTY_MS = 0.0005
 
-/** The union of `[begin, end]` spans, in their unit. */
-export function unionOf(spans: readonly [number, number][]) {
-  let total = 0,
-    reach = -Infinity
-  for (const [begin, end] of [...spans].sort((a, b) => a[0] - b[0])) {
-    if (end <= reach) continue
-    total += end - Math.max(begin, reach)
-    reach = end
-  }
-  return total
-}
-
 /** The passes `stamps` (ns, two per pass, in encoding order) time. Pure: the same stamps give the
  *  same passes. A pass's own share is its span less what the passes before it in that order already
  *  covered — the engine's own rule (`packages/sdk-browser/src/gpu/timing/sample.ts`), so the bench's
@@ -81,7 +70,12 @@ export function readPasses(
   })
   for (const pass of read)
     pass.beginMs = Number.isNaN(pass.beginMs) ? pass.beginMs : pass.beginMs - first
-  const unionMs = unionOf(spans)
+  const unionMs = coveredLength(
+    spans,
+    ([begin]) => begin,
+    ([, end]) => end,
+    0,
+  )
   const windowMs = spans.length ? covered - first : 0
   return { passes: read, unionMs, gapMs: Math.max(0, windowMs - unionMs), windowMs, complete }
 }

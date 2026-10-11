@@ -1,4 +1,4 @@
-import { COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 
 /** Group-0 binding of each buffer the expansion kernel reads, under its WGSL name. */
@@ -34,16 +34,13 @@ const STORAGE_TYPES: Record<Exclude<keyof typeof EXPAND_BINDING, 'uni'>, GPUBuff
  */
 export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
   const entries: GPUBindGroupLayoutEntry[] = [
-    {
-      binding: EXPAND_BINDING.uni,
-      visibility: COMPUTE,
-      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNI_WORDS * 4 },
-    },
-    ...Object.entries(STORAGE_TYPES).map(([name, type]) => ({
-      binding: EXPAND_BINDING[name as keyof typeof STORAGE_TYPES],
-      visibility: COMPUTE,
-      buffer: { type },
-    })),
+    computeUniformEntry(EXPAND_BINDING.uni, {
+      hasDynamicOffset: true,
+      minBindingSize: UNI_WORDS * 4,
+    }),
+    ...Object.entries(STORAGE_TYPES).map(([name, type]) =>
+      computeBufferEntry(EXPAND_BINDING[name as keyof typeof STORAGE_TYPES], type),
+    ),
   ]
   return entries.sort((a, b) => a.binding - b.binding)
 }

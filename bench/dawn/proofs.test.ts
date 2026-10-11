@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, sep } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitPaths } from '../../scripts/git-paths.ts'
 import {
@@ -19,9 +19,9 @@ import {
   proofArgs,
   proofName,
 } from './proofs.ts'
+import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
 
-const ROOT = join(import.meta.dirname, '..', '..')
-const at = (path: string) => join(ROOT, path)
+const at = (path: string) => join(REPOSITORY_ROOT, path)
 /** The two targets, by how their proofs' names end. */
 const SUFFIXES = [PROOF_SUFFIX, CHROME_SUFFIX]
 
@@ -37,11 +37,11 @@ test('each proof exists, in an engine area folder, under the name the convention
 
 // A module under `tests/gpu` that no file names never runs: a page or a case set left behind.
 test('no module under tests/gpu is left behind: each is named by another file', async () => {
-  const modules = readdirSync(at(PROOFS), { recursive: true, encoding: 'utf8' })
-    .map((file) => file.split(sep).join('/'))
+  const modules = filesUnder(at(PROOFS))
+    .map((file) => posixPath(relative(at(PROOFS), file)))
     .filter((file) => /\.(ts|mts)$/.test(file) && !SUFFIXES.some((end) => file.endsWith(end)))
     .filter((file) => !file.endsWith('.test.ts'))
-  const tracked = (await gitPaths(['ls-files', '-z'], ROOT)).filter((f) =>
+  const tracked = (await gitPaths(['ls-files', '-z'], REPOSITORY_ROOT)).filter((f) =>
     /\.(mjs|ts|mts)$/.test(f),
   )
   const texts = new Map<string, string>(tracked.map((f) => [f, readFileSync(at(f), 'utf8')]))

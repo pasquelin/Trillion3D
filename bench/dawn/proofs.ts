@@ -12,14 +12,11 @@
 // not run, and nothing says so. What cannot run here is declared below with its reason — excluded
 // out loud, never in silence.
 import { spawnSync } from 'node:child_process'
-import { readdirSync } from 'node:fs'
-import { join, sep } from 'node:path'
+import { join, relative } from 'node:path'
 import { isUnitTest } from '../../scripts/unit-tests.ts'
 import { entryPath, underNodeTest } from '../core/entryPoint.ts'
 import { LOCK_OWNER, takeBenchLock } from './lock.ts'
-
-/** The repository, which proof paths are relative to. */
-const ROOT = join(import.meta.dirname, '..', '..')
+import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
 
 /** Where the proofs live, one folder per engine area; `kit/` holds what they share. */
 export const PROOFS = 'tests/gpu'
@@ -83,8 +80,8 @@ export const EXCLUDED = new Map<string, [string, string]>([
 /** Every proof on disk ending in `suffix`, excluded ones included, as repository paths: the
  *  folder's reference. */
 export function listProofFiles(suffix = PROOF_SUFFIX) {
-  return readdirSync(join(ROOT, PROOFS), { recursive: true, encoding: 'utf8' })
-    .map((file) => file.split(sep).join('/'))
+  return filesUnder(join(REPOSITORY_ROOT, PROOFS))
+    .map((file) => posixPath(relative(join(REPOSITORY_ROOT, PROOFS), file)))
     .filter((file) => file.endsWith(suffix))
     .sort()
     .map((file) => `${PROOFS}/${file}`)
@@ -153,7 +150,7 @@ export async function runProofs(args = process.argv.slice(2)) {
   // The proofs open the GPU under this run's lock (`installProofGpu`), never beside it.
   const result = spawnSync(process.execPath, proofArgs(targets, suffix), {
     stdio: 'inherit',
-    cwd: ROOT,
+    cwd: REPOSITORY_ROOT,
     env: { ...process.env, [LOCK_OWNER]: String(process.pid) },
   })
   if (result.error) throw result.error

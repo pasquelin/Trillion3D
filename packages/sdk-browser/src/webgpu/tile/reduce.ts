@@ -15,6 +15,11 @@ import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feed
 import { GATHER_WGSL, GATHER_WORKGROUP, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../../gpu/core/computeBindings.ts'
 
 export type WebgpuTileReduce = {
   /** Encodes reduction of the target into the feedback's counters and list, for the image's phase,
@@ -36,17 +41,17 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
   if (typeof device.createComputePipeline !== 'function') return undefined
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'uint' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      computeTextureEntry(0, 'uint'),
+      computeBufferEntry(1, 'storage'),
+      computeUniformEntry(2),
+      computeBufferEntry(3, 'storage'),
     ],
   })
   const gatherLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      computeBufferEntry(0, 'storage'),
+      computeBufferEntry(1, 'storage'),
+      computeUniformEntry(2),
     ],
   })
   const pipeline = started(

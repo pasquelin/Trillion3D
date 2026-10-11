@@ -277,7 +277,7 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
       [
         [
           ...entries(VSM_CLEAR_SPECS),
-          computeUniformEntry(3, true),
+          computeUniformEntry(3, { hasDynamicOffset: true }),
           ...clears[set].map((_, n) => computeBufferEntry(4 + n, 'storage')),
         ],
       ],

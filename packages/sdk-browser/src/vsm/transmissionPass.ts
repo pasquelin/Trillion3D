@@ -39,7 +39,7 @@ import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
-import { createVsmReadbackRing } from './readbackRing.ts'
+import { createReadbackRing as createVsmReadbackRing } from '../gpu/core/readbackRing.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import {

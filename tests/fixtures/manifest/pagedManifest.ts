@@ -1,8 +1,8 @@
 // A manifest laid out as the compiler pages it (`compiler_manifest_pages.rs`), in memory: the root
 // `clusters.json` holds, and every page and column file under it by name.
-import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
 import { MANIFEST_BINARY_VERSION } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import { TEMPLATES } from './manifestBinary.ts'
@@ -16,10 +16,10 @@ export const EMPTY = '0'.repeat(168)
 export function pagedManifest(manifest: ClusterManifest, index = false, cut = false) {
   const files = new Map<string, Uint8Array<ArrayBuffer>>()
   const put = (bytes: Uint8Array<ArrayBuffer>, extension: string) => {
-    const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const url = `manifest-page-${sha256}.${extension}`
+    const digest = sha256(bytes)
+    const url = `manifest-page-${digest}.${extension}`
     files.set(url, bytes)
-    return { sha256, bytes: bytes.byteLength, url }
+    return { sha256: digest, bytes: bytes.byteLength, url }
   }
   const slot = (body: object) => {
     const page = put(new TextEncoder().encode(JSON.stringify(body)), 'json')

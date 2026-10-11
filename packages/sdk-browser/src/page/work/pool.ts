@@ -1,31 +1,23 @@
 import { besideModule, startModuleWorker } from '../../host/besideModule.ts'
+import { createPendingAnswers, workerRefusal } from '../../host/pendingAnswers.ts'
 import {
   PAGE_TASK_PROTOCOL,
   type PageTaskAnswer,
   type PageTaskRequest,
 } from '../../../../sdk-core/src/page/taskContracts.ts'
 
-type Waiting = {
-  request: PageTaskRequest
-  transfer: ArrayBuffer[]
-  settle: (answer: PageTaskAnswer) => void
-}
-const workerError = (id: number): PageTaskAnswer => ({
-  protocol: PAGE_TASK_PROTOCOL,
-  id,
-  ok: false,
-  code: 'PAGE_TASK_WORKER',
-  message: 'PAGE_TASK_WORKER',
-})
+type Waiting = { request: PageTaskRequest; transfer: ArrayBuffer[] }
+const workerError = (id: number): PageTaskAnswer =>
+  workerRefusal(PAGE_TASK_PROTOCOL, 'PAGE_TASK_WORKER', id)
 
-/** A pool's workers and the work they hold: idle, all, queued, in flight by request id. */
+/** A pool's workers and the work they hold: idle, all, queued, and the answers owed. */
 type Pool = {
   readonly size: number
   readonly source: URL | string
   readonly idle: Worker[]
   readonly all: Worker[]
   readonly queue: Waiting[]
-  readonly pending: Map<number, Waiting>
+  readonly answers: ReturnType<typeof createPendingAnswers<PageTaskAnswer>>
   alive: boolean
   retired: boolean
 }
@@ -34,11 +26,10 @@ type Pool = {
 function breakPool(pool: Pool) {
   if (!pool.alive) return
   pool.alive = false
-  const lost = [...pool.pending.values(), ...pool.queue.splice(0)]
-  pool.pending.clear()
+  pool.queue.length = 0
   pool.idle.length = 0
   for (const worker of pool.all.splice(0)) worker.terminate()
-  for (const waiting of lost) waiting.settle(workerError(waiting.request.id))
+  pool.answers.refuseAll()
 }
 
 /** A retired pool's step: the work it was given before retiring — queued included — goes on to
@@ -46,14 +37,12 @@ function breakPool(pool: Pool) {
 function drain(pool: Pool) {
   pump(pool)
   for (const worker of pool.idle.splice(0)) worker.terminate()
-  if (!pool.pending.size && !pool.queue.length) breakPool(pool)
+  if (!pool.answers.size) breakPool(pool)
 }
 
 function receive(pool: Pool, worker: Worker, answer: PageTaskAnswer) {
-  const waiting = pool.pending.get(answer.id)
-  pool.pending.delete(answer.id)
   pool.idle.push(worker)
-  waiting?.settle(answer)
+  pool.answers.answer(answer)
   if (pool.retired) drain(pool)
   else pump(pool)
 }
@@ -69,11 +58,10 @@ function spawn(pool: Pool) {
 
 /** Hands the queued work to idle workers, starting one while the pool has room. */
 function pump(pool: Pool) {
-  const { queue, idle, all, pending } = pool
+  const { queue, idle, all } = pool
   while (pool.alive && queue.length && (idle.length || all.length < pool.size)) {
     const waiting = queue.shift()!
     const worker = idle.pop() ?? spawn(pool)
-    pending.set(waiting.request.id, waiting)
     try {
       worker.postMessage(waiting.request, waiting.transfer)
     } catch {
@@ -100,7 +88,7 @@ export function createPageWorkPool(size: number) {
   const pool: Pool = {
     size,
     source: besideModule('pageWorker', import.meta.url),
-    ...{ idle: [], all: [], queue: [], pending: new Map() },
+    ...{ idle: [], all: [], queue: [], answers: createPendingAnswers(workerError) },
     alive: true,
     retired: false,
   }
@@ -122,7 +110,8 @@ export function createPageWorkPool(size: number) {
       }
       if (!pool.alive || pool.retired) return Promise.resolve(workerError(request.id))
       return new Promise<PageTaskAnswer>((resolve) => {
-        pool.queue.push({ request, transfer: [source], settle: resolve })
+        pool.answers.expect(request.id, resolve)
+        pool.queue.push({ request, transfer: [source] })
         pump(pool)
       })
     },

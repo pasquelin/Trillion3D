@@ -1,17 +1,14 @@
 import { besideModule, startModuleWorker } from '../../host/besideModule.ts'
+import { createPendingAnswers, workerRefusal } from '../../host/pendingAnswers.ts'
 import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
 import type {
   PageIntegrationAnswer,
   PageIntegrationRequest,
 } from '../../../../sdk-core/src/index.ts'
 
-const workerError = (id: number, url: string): PageIntegrationAnswer => ({
-  protocol: PAGE_INTEGRATION_PROTOCOL,
-  id,
-  ok: false,
+const workerError = (id: number, url = ''): PageIntegrationAnswer => ({
+  ...workerRefusal(PAGE_INTEGRATION_PROTOCOL, 'PAGE_INTEGRATION_WORKER', id),
   url,
-  code: 'PAGE_INTEGRATION_WORKER',
-  message: 'PAGE_INTEGRATION_WORKER',
 })
 
 /**
@@ -30,7 +27,7 @@ const workerError = (id: number, url: string): PageIntegrationAnswer => ({
  */
 export function createPageIntegrationLane() {
   const lane: Lane = {
-    pending: new Map(),
+    answers: createPendingAnswers(workerError),
     worker: undefined,
     alive: true,
     nextId: 1,
@@ -56,7 +53,7 @@ export function createPageIntegrationLane() {
 /** What a lane holds: the answers awaited, its worker, whether it runs, the next request's id,
  *  and its startup. */
 type Lane = {
-  pending: Map<number, (answer: PageIntegrationAnswer) => void>
+  answers: ReturnType<typeof createPendingAnswers<PageIntegrationAnswer>>
   worker: Worker | undefined
   alive: boolean
   nextId: number
@@ -66,21 +63,15 @@ type Lane = {
 function breakLane(lane: Lane) {
   if (!lane.alive) return
   lane.alive = false
-  const lost = [...lane.pending.entries()]
-  lane.pending.clear()
   lane.worker?.terminate()
   lane.worker = undefined
-  for (const [id, settle] of lost) settle(workerError(id, ''))
+  lane.answers.refuseAll()
 }
 
 function spawn(lane: Lane, source: ReturnType<typeof besideModule>) {
   const spawned = startModuleWorker(source)
-  spawned.onmessage = (event: MessageEvent) => {
-    const answer = event.data as PageIntegrationAnswer
-    const settle = lane.pending.get(answer.id)
-    lane.pending.delete(answer.id)
-    settle?.(answer)
-  }
+  spawned.onmessage = (event: MessageEvent) =>
+    lane.answers.answer(event.data as PageIntegrationAnswer)
   const broken = () => breakLane(lane)
   spawned.onerror = broken
   spawned.onmessageerror = broken
@@ -98,7 +89,7 @@ function submit(lane: Lane, url: string, words: number, specs: ArrayBuffer | nul
   const { worker } = lane
   if (!lane.alive || !worker) return Promise.resolve(workerError(request.id, url))
   return new Promise<PageIntegrationAnswer>((resolve) => {
-    lane.pending.set(request.id, resolve)
+    lane.answers.expect(request.id, resolve)
     try {
       worker.postMessage(request, specs ? [specs] : [])
     } catch {

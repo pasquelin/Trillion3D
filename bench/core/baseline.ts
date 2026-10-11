@@ -2,9 +2,10 @@
 // timing is only valid on the machine that recorded it. Each row is retrieved by the key pair
 // measurement/case, never by its source file: multiple benchmarks measure the same file.
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { RACINE, baselinePath, dossierBaselines } from './paths.ts'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { baselinePath, dossierBaselines } from './paths.ts'
 import type { Measurement } from '../../site/examples/kit/measureTypes.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 /** One stored baseline row, keyed by measurement/case pair. */
 interface BaselineRow {
@@ -37,7 +38,7 @@ export function commitCourant() {
   if (commitMemoire === undefined) {
     try {
       commitMemoire = execFileSync('git', ['rev-parse', 'HEAD'], {
-        cwd: RACINE,
+        cwd: REPOSITORY_ROOT,
         encoding: 'utf8',
       }).trim()
     } catch {
@@ -52,7 +53,7 @@ export function chargeBaseline(domaine: string): BaselineFile | null {
   const path = baselinePath(domaine)
   if (!existsSync(path)) return null
   try {
-    const lue = JSON.parse(readFileSync(path, 'utf8')) as BaselineFile
+    const lue = readJson(path) as BaselineFile
     return lue?.version === 3 ? lue : null
   } catch {
     return null

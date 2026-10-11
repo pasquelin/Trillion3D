@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { readFile, realpath, stat } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { parseAssetManifest, type Asset, type Evidence } from './asset-license-manifest.ts'
+import { readJson } from './repository-files.ts'
 
 type Finding = { kind: 'technical' | 'policy' | 'review'; code: string }
 /** Only the documented repository criteria are evaluated; no authenticity or legal certification. */
@@ -94,7 +95,7 @@ async function auditAsset(root: string, asset: Asset, digests: Digests): Promise
 /** Paths are relative to the manifest; symlinks cannot extend its evidence root. */
 export async function auditAssetManifest(file: string) {
   const root = await realpath(dirname(resolve(file)))
-  const assets = parseAssetManifest(JSON.parse(await readFile(file, 'utf8')))
+  const assets = parseAssetManifest(readJson(file))
   const digests: Digests = new Map()
   const results: AssetAudit[] = []
   for (const asset of assets) results.push(await auditAsset(root, asset, digests))

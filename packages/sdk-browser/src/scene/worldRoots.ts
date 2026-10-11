@@ -40,6 +40,7 @@ import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
 import { createWorldObjects } from './worldObjects.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
+import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): a partitioned world opens them at load,
@@ -49,7 +50,7 @@ type WorldStream = {
   dag: ReturnType<typeof worldRootDag>
   superRoots: Float64Array | undefined
   /** Who is told the pages a bundle read landed beside the one asked (`worldPageServer`). */
-  landed: Set<(addresses: readonly string[]) => void>
+  landed: ReturnType<typeof createListeners<[addresses: readonly string[]]>>
 }
 
 type Announced = { bytes: number; sha256: string }
@@ -79,8 +80,7 @@ function worldStream(
     if (stream) return stream
     const { worldPageServer, worldRootPages } = await families.worldStream.load()
     const records = dag && readWorldRootsDag(await read(dag))
-    const landed = new Set<(addresses: readonly string[]) => void>()
-    const tell = (addresses: readonly string[]) => landed.forEach((watcher) => watcher(addresses))
+    const landed = createListeners<[addresses: readonly string[]]>()
     return (stream ??= {
       landed,
       dag: worldRootDag(
@@ -90,7 +90,7 @@ function worldStream(
       // An object root's cell is its object's (`origin`, the table's rank).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
-      source: worldPageServer(table, pages, tell),
+      source: worldPageServer(table, pages, landed.emit),
     })
   }
   return {

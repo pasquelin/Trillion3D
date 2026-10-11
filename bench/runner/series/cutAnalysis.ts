@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readCacheManifest } from '../assets/cacheManifest.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 const shaOf = (id: string) =>
   String(id)
@@ -42,7 +43,7 @@ function indexPages(manifest: ClusterManifest): Map<string, PageInfo> {
 /** Mesh names of a glTF, indexed like `primitives[].mesh`. */
 function meshNames(gltfPath: string): string[] {
   if (!existsSync(gltfPath)) return []
-  const meshes = (JSON.parse(readFileSync(gltfPath, 'utf8')).meshes ?? []) as { name?: string }[]
+  const meshes = (readJson(gltfPath).meshes ?? []) as { name?: string }[]
   return meshes.map((m, i) => m.name || `mesh ${i}`)
 }
 

@@ -6,7 +6,6 @@
 // refuses while a translation is left behind. An English change the translations do not need (a
 // typo) is accepted by name, `--accept <entry>…`, in the committed record's diff.
 // `pnpm run check:translations`.
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -19,6 +18,7 @@ import {
   REFERENCE_TRANSLATIONS,
   englishReferenceTexts,
 } from './i18n-keys.ts'
+import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
 
 /** Each entry's hash, by entry then by language: `{ 'examples:water': { en: 'a1b2c3d4' } }`. */
 type Hashes = Record<string, Record<string, string>>
@@ -27,9 +27,7 @@ const RECORD = new URL('../site/content/i18n/translation-sources.json', import.m
 
 /** A short hash of an entry's text, `-` for an entry a language lacks. */
 export const hashOf = (value: unknown) =>
-  value === undefined
-    ? '-'
-    : createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 8)
+  value === undefined ? '-' : sha256(JSON.stringify(value)).slice(0, 8)
 
 /** The entries of one language: `(entry, text)` for each. */
 function entriesOf(code: string): [string, unknown][] {

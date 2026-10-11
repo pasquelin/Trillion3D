@@ -43,6 +43,11 @@ export type {
   TerminalProgress,
   TerminalProgressOptions,
 } from './compiler/contracts.ts'
+import {
+  DEFAULT_RAM_BUDGET_MB,
+  DEFAULT_THREADS,
+  DEFAULT_TRIANGLE_BUDGET,
+} from '../../sdk-core/src/contracts/compilerAbi.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
 export { reviewCutouts } from './cutout/review.mts'
 /**
@@ -59,7 +64,7 @@ export async function prepare(
   input: string,
   output: string,
   scope: AssetScope = DEFAULT_SCOPE,
-  budget = 150000,
+  budget = DEFAULT_TRIANGLE_BUDGET,
   options?: PrepareOptions,
 ): Promise<CompilationResult> {
   if (typeof options?.resourceBaseUrl !== 'string' || !options.resourceBaseUrl)
@@ -69,8 +74,8 @@ export async function prepare(
     output,
     scope,
     String(budget),
-    String(options.threads ?? 2),
-    String(options.ramBudgetMb ?? 256),
+    String(options.threads ?? DEFAULT_THREADS),
+    String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
     options.resourceBaseUrl,
     options.simplification ?? 'none',
   ]
@@ -150,11 +155,17 @@ export async function createCompilationJob(
   return createJob(
     id,
     ({ signal, progress }) =>
-      prepare(input, output, options.scope ?? DEFAULT_SCOPE, options.triangleBudget ?? 150000, {
-        ...options,
-        signal,
-        onProgress: (event) => progress({ ...event, phase: event.phase ?? event.event }),
-      }),
+      prepare(
+        input,
+        output,
+        options.scope ?? DEFAULT_SCOPE,
+        options.triangleBudget ?? DEFAULT_TRIANGLE_BUDGET,
+        {
+          ...options,
+          signal,
+          onProgress: (event) => progress({ ...event, phase: event.phase ?? event.event }),
+        },
+      ),
     { signal: options.signal, telemetry: options.telemetry },
   )
 }

@@ -12,6 +12,7 @@ import {
 import { validating } from './validation.ts'
 import { bundleMaker } from './fakeBundles.ts'
 import { fakeEncoder } from './fakeEncoder.ts'
+import { errorScopes } from './fakeWebgpuDevice.ts'
 
 export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts'
 
@@ -130,11 +131,7 @@ export function fakeDevice({
     }),
     createBindGroup: (d: GPUBindGroupDescriptor) => (bindGroups.push(d), d),
     createRenderBundleEncoder: bundles.make,
-    pushErrorScope: () => void scopes.push(null),
-    popErrorScope: async () => {
-      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
-      return scopes.pop() ?? null
-    },
+    ...errorScopes(scopes),
     createCommandEncoder: () => fakeEncoder(copies, textureCopies),
     queue: {
       writeBuffer(

@@ -4,7 +4,6 @@
 // the timer pays for it. Likewise, each loop is in the function where the engine holds it —
 // a loop written inline in the lap slows the others, at strictly identical work.
 import { orderBlendPasses } from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts'
-import { itemKept } from '../../../../packages/sdk-browser/src/webgpu/blend/hierarchyCull.ts'
 import {
   expandBlendPlan,
   cpuModel,
@@ -30,6 +29,7 @@ import {
   classementReference,
   encodeReference,
 } from '../../../oracles/browser/transparent-orders.ts'
+import { hasBit } from '../../../../packages/math/src/scalar/bits.ts'
 
 /** What the encode loop counted on the last lap: read by the sample, not by the lap. */
 let counts = 0
@@ -53,7 +53,7 @@ function callCount(blendState: BenchSide['blendState']) {
   let encodes = 0
   for (let slot = 0; slot < count; slot++) {
     const rank = slotOwns[slot]
-    if (rank < 0 || itemKept(keep, planItem(seeds[own[rank]]))) encodes++
+    if (rank < 0 || hasBit(keep, planItem(seeds[own[rank]]))) encodes++
   }
   return encodes
 }

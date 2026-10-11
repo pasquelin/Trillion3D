@@ -1,5 +1,6 @@
 import { claimGpuDevice } from '../../../gpu/core/deviceOwners.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { log } from '../../../diagnostic/log.ts'
 
 /**
  * The one place that declares the device lost, whatever reported it — the device's own `lost`
@@ -34,7 +35,7 @@ export function markWebgpuLost(
   gpu.presenter = undefined
   if (!cause) return true
   run.lostCause = `${cause.reason}: ${cause.message}`
-  console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`)
+  log.error(`WebGPU device lost (${cause.reason}): ${cause.message}`)
   diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause })
   return true
 }
@@ -75,7 +76,7 @@ function deviceCauseAfter(
   const { run } = rt
   if (!run.lostCause || reason === 'destroyed') return
   run.lostCause += `; then the device, ${reason}: ${message}`
-  console.error(`[trillion3d] WebGPU device lost after the error (${reason}): ${message}`)
+  log.error(`WebGPU device lost after the error (${reason}): ${message}`)
 }
 
 /** A preparation stops once the backend is closed (`AbortError`: cancelled) or its device lost. */

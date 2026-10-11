@@ -1,3 +1,5 @@
+import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
+
 /** Two queries: the blend pass, then the transmission pass. A pass that is not encoded leaves
  *  its query at zero, which the resolve writes itself. */
 const QUERIES = 2,
@@ -15,10 +17,9 @@ type OverdrawCounts = {
 }
 
 /** Reads the mapped resolve of an image of `pixels` into `counts`: the two passes' fragments. */
-function readCounts(read: GPUBuffer, counts: OverdrawCounts, pixels: number) {
-  const values = new BigUint64Array(read.getMappedRange())
+function readCounts(mapped: ArrayBuffer, counts: OverdrawCounts, pixels: number) {
+  const values = new BigUint64Array(mapped)
   const fragments = Number(values[0]) + Number(values[1])
-  read.unmap()
   counts.blendedFragments = fragments
   counts.imagePixels = pixels
   counts.meanOverdrawThousandths = pixels ? Math.round((fragments / pixels) * 1000) : 0
@@ -41,12 +42,7 @@ export function createBlendOverdraw(device: GPUDevice) {
     size: BYTES,
     usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
   })
-  const read = device.createBuffer({
-    label: 'Trillion3D overdraw readback',
-    size: BYTES,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
-  let pending = false,
+  let pixelsOfImage = 0,
     encoded = false
   const counts: OverdrawCounts = {
     blendedFragments: 0,
@@ -54,6 +50,11 @@ export function createBlendOverdraw(device: GPUDevice) {
     meanOverdrawThousandths: 0,
     readings: 0,
   }
+  const ring = createReadbackRing(
+    device,
+    { label: 'Trillion3D overdraw readback', bytes: BYTES, count: 1 },
+    (mapped) => readCounts(mapped, counts, pixelsOfImage),
+  )
   return {
     set,
     /** Opens the pass query: zero for blend, one for transmission. */
@@ -66,30 +67,23 @@ export function createBlendOverdraw(device: GPUDevice) {
     /** After the pass ends: resolves the queries, and copies one only when none is in flight. */
     after(encoder: GPUCommandEncoder) {
       encoder.resolveQuerySet(set, 0, QUERIES, resolve, 0)
-      if (pending) return
+      const read = ring.take()
+      if (!read) return
       encoder.copyBufferToBuffer(resolve, 0, read, 0, BYTES)
       encoded = true
     },
     /** Once the frame is submitted: fetches the count when it comes back, never waiting for it. */
     pull(pixels: number) {
-      if (!encoded || pending) return counts
+      if (!encoded) return counts
       encoded = false
-      pending = true
-      read
-        .mapAsync(GPUMapMode.READ)
-        .then(() => readCounts(read, counts, pixels))
-        .catch(() => {
-          /* A lost frame or a released device cancels the read: the last count stays. */
-        })
-        .finally(() => {
-          pending = false
-        })
+      pixelsOfImage = pixels
+      ring.submitted()
       return counts
     },
     dispose() {
       set.destroy()
       resolve.destroy()
-      read.destroy()
+      ring.destroy()
     },
   }
 }

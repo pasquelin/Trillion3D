@@ -1,4 +1,5 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 
 /** What a transparent pass has to be able to draw without compiling: the blending modes of the
  *  scene's surfaces, the share targets a frame binds, and whether display layers can be on. */
@@ -21,10 +22,11 @@ export function createReach(first: {
     shares: new Set([first.share]),
     filtered: first.filtered,
   }
-  const listeners = new Set<() => Promise<unknown>>()
+  const changes = createListeners<[]>()
   return {
     state,
-    onChange: (listener: () => Promise<unknown>) => void listeners.add(listener),
+    onChange: (listener: () => Promise<unknown>) =>
+      void changes.subscribe(() => void listener().catch(() => undefined)),
     /** Widens the set by what a frame or a change of the plan now asks for. */
     reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }) {
       const before = state.modes.size + state.shares.size + +state.filtered
@@ -33,7 +35,7 @@ export function createReach(first: {
       if (next.filtered) state.filtered = true
       if (state.modes.size + state.shares.size + +state.filtered === before) return
       // A compile that fails leaves the frame its own synchronous one.
-      for (const listener of listeners) listener().catch(() => undefined)
+      changes.emit()
     },
   }
 }

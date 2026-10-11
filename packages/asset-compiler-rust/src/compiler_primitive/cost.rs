@@ -10,9 +10,10 @@
 //! charged by `plan_buffers`, and so is what one worker holds whatever the scene (`WORKER_BYTES`).
 use super::*;
 use crate::coplanar::ClusterPlane;
-use crate::dag::{DagCluster, DAG_CLUSTER_TRIANGLES};
+use crate::dag::DagCluster;
 use crate::geometry_page_cells::Cell;
 use crate::physics_cook::TILE_TRIANGLES;
+use crate::shared_math::abi::DAG_CLUSTER_TRIANGLES;
 use std::mem::size_of;
 
 #[cfg(test)]

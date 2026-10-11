@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * THE OPEN COUNTS A PLACEMENT HOLDS OF ITS OWN, beside its primitive's shared nodes.
@@ -31,8 +32,8 @@ const HELD_PROBES = 32
  *  `bytes` when given — half a readout binding (`resources.ts`): a table it cannot hold whole
  *  leaves more counts at their node's, never a list short. */
 export const heldOpenSlots = (entries: number, bytes = Infinity) => {
-  let slots = 1
-  while (slots < 2 * Math.max(1, entries) && 2 * slots * HELD_SLOT_WORDS * 4 <= bytes) slots *= 2
+  let slots = nextPow2(2 * Math.max(1, entries))
+  while (slots > 1 && slots * HELD_SLOT_WORDS * 4 > bytes) slots /= 2
   return slots
 }
 

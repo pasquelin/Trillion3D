@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_format::SOURCE_FORMAT_VERSION;
 
 pub(super) fn unsplit_material(material: Option<&Value>) -> bool {
     let Some(material) = material else {

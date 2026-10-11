@@ -2,15 +2,14 @@
  *  steps of `buildSite` a changed file is read by run again, then every open page reloads. */
 import { readFileSync, watch } from 'node:fs'
 import type { ServerResponse } from 'node:http'
-import { resolve, sep } from 'node:path'
+import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createDocsServer, DOCS_PORT } from './serve.ts'
 import { inHead } from './measurement.ts'
 import { buildSite, SITE_OUTPUT, SITE_STEPS } from './site.ts'
 import { ignoredPaths } from '../git-paths.ts'
 import { contentType, listen } from '../static-server.ts'
-
-const ROOT = resolve(import.meta.dirname, '../..')
+import { REPOSITORY_ROOT, posixPath } from '../repository-files.ts'
 
 /** The event stream an open page listens on. Only this server adds it, to the pages it serves:
  *  the built tree never holds it (checked by `scripts/docs/measurement.test.ts`). */
@@ -91,7 +90,7 @@ export async function followSite(root: string, out: string, port = 0) {
   const watchers = FOLLOWED.map((folder) =>
     watch(resolve(root, folder), { recursive: true }, (_, name) => {
       if (!name) return
-      changed.add(`${folder}/${name.split(sep).join('/')}`)
+      changed.add(`${folder}/${posixPath(name)}`)
       building ??= rebuild()
     }),
   )
@@ -109,6 +108,6 @@ export async function followSite(root: string, out: string, port = 0) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await buildSite()
-  const { port } = await followSite(ROOT, SITE_OUTPUT, DOCS_PORT)
+  const { port } = await followSite(REPOSITORY_ROOT, SITE_OUTPUT, DOCS_PORT)
   console.log(`Learning portal, following its sources: http://127.0.0.1:${port}`)
 }

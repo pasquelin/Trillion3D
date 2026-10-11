@@ -8,6 +8,7 @@ import { sample } from '../../../sdk-core/src/world/animation/sample.ts'
 import { AHEAD_HEADER, AHEAD_QUESTION, type AheadMessage } from './animationAhead.ts'
 import { bindSampler } from './batchAnimation.ts'
 import { loadMathBatch, mathBatchWasm } from '../page/decode/batch/batchState.ts'
+import { type WorkerScope } from '../host/workerScope.ts'
 
 /**
  * Entry point of the animation worker (`animationAhead.ts`): it holds the clips the main thread
@@ -17,15 +18,8 @@ import { loadMathBatch, mathBatchWasm } from '../page/decode/batch/batchState.ts
  * the buffer then sent back, transferred. Messages that arrive before the module is loaded wait
  * for it, in order.
  *
- * A dedicated worker's scope is not typed by the repository's DOM library; the minimal shape
- * this file needs is declared here, as `pageWorker.ts` does.
  */
-type AnimationWorkerScope = {
-  onmessage: ((event: { data: unknown }) => void) | null
-  postMessage(message: unknown, transfer: ArrayBuffer[]): void
-}
-
-const scope = globalThis as unknown as AnimationWorkerScope
+const scope = globalThis as unknown as WorkerScope
 /** The clips received, by id, with how many samplers play them. */
 const clips = new Map<number, { tracks: Track[]; users: number }>()
 /** The samplers bound, by id; `null` for one whose clip does not pack. */

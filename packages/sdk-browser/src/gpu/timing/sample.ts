@@ -7,7 +7,8 @@ import {
 import type { TimingPart } from './encoder.ts'
 import type { ImageSpan } from './timeline.ts'
 import type { Stale } from './slotMemory.ts'
-import { coveredNs, envelope, setOwnShares } from './spans.ts'
+import { envelope, setOwnShares } from './spans.ts'
+import { coveredLength } from '../../../../math/src/sequence/span.ts'
 
 export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void) {
   return (sample: GpuTimingSample) => {
@@ -104,7 +105,18 @@ export function summarizeTimestamps(
   // spans cover — not `frameMs`, which also holds the host time between two submissions. Two
   // submissions the device overlaps cover their overlap once: never a sum of the spans, which would
   // pass `frameMs` and leave a negative host gap.
-  const submittedMs = whole && nanosecondsToMs(Number(coveredNs(spans)))
+  const submittedMs =
+    whole &&
+    nanosecondsToMs(
+      Number(
+        coveredLength(
+          spans,
+          (span) => span.beginNs,
+          (span) => span.endNs,
+          0n,
+        ),
+      ),
+    )
   const hostGapMs = frameMs === null || submittedMs === null ? null : frameMs - submittedMs
   // The image's two ends on the device timeline, whole or none: a truncated image's last timed
   // pass is not its last, a pass whose pair cannot be read may be, and the idle to the next image

@@ -9,16 +9,16 @@
  * with every fix and a group of the same modules cannot come back under a line nobody removed.
  * `--write-baseline` prints the groups the tree holds, for that shrinking.
  */
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ringKey } from './check-cycles.ts'
+import { readJson } from './repository-files.ts'
 
 const BASELINE = 'scripts/check-cycles-baseline.json'
 
 /** The group names `root` allows today; an absent or unreadable file allows none. */
 export const readBaseline = (root: string): string[] => {
   try {
-    return JSON.parse(readFileSync(join(root, BASELINE), 'utf8')) as string[]
+    return readJson(join(root, BASELINE)) as string[]
   } catch {
     return []
   }

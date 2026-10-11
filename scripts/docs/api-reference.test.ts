@@ -15,7 +15,8 @@ import type { PortalEntry } from '../../site/content/model.ts'
 import { API_FILES } from '../generate-api-reference.ts'
 import { assertUntracked } from '../git-paths.ts'
 import { repositoryFiles } from '../repository-files.ts'
-import { apiProgram, entryModules, PUBLIC_ENTRIES, ROOT } from '../sdk-api-model.ts'
+import { apiProgram, entryModules, PUBLIC_ENTRIES } from '../sdk-api-model.ts'
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 
 const api = entriesIn('en').filter((entry) => !LEARN_SECTIONS.includes(entry.section))
 const ids = new Set(api.map((entry) => entry.id))
@@ -100,5 +101,5 @@ test('a destructured parameter is named in the signatures, never by its placehol
 })
 
 test('the generated API files are never tracked: git ignores them, every reader writes them', () => {
-  assertUntracked(Object.values(API_FILES), ROOT)
+  assertUntracked(Object.values(API_FILES), REPOSITORY_ROOT)
 })

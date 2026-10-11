@@ -25,6 +25,7 @@ import {
 } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
 import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts'
 import { compiled, machine, type world } from './world-partition.fixture.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 /** `gltf` compiled under a folder of its own named from `prefix`, served and read whole. */
 export async function served(t: TestContext, prefix: string, gltf: ReturnType<typeof world>) {
@@ -120,7 +121,7 @@ export async function assertNoneMissing(
     reach = cellReach(camera)
   let near = 0
   for (const { url } of await cellRecords(cells.pages)) {
-    const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'))
+    const body = readJson(fileURLToPath(url))
     for (const { translation } of body.nodes) {
       const [x, y, z] = place(translation)
       if (length3(x - eye.x, y - eye.y, z - eye.z) > reach) continue

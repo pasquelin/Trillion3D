@@ -10,20 +10,14 @@
 //! (one at least), where its values start, its width, its kind (`QUATERNION` bit, interpolation in
 //! the bits above) and where its sample starts in `out`. A quaternion track is four wide.
 
+use crate::anim_layout::{ARC_VALUES, CUBIC, QUATERNION, STEP, TRACK_WORDS};
 use trillion3d_math::js::clamp01;
 use trillion3d_math::quaternion::{normalize, slerp_arc, slerp_weights};
 use trillion3d_math::scalar::{hermite, hermite_basis, mix, remap};
 
-/// Words describing one track.
-pub const TRACK_WORDS: usize = 6;
-/// Numbers of one track's arc: the key it starts at (−1: none yet), its side, angle and sine.
-pub const ARC_VALUES: usize = 4;
-/// Kind bit: the track holds rotations.
-pub const QUATERNION: u32 = 1;
-/// Interpolation, in the kind's bits above the first: a line, the earlier key, glTF's spline.
+/// Interpolation, in the kind's bits above the first: a line (`STEP` and `CUBIC` are in
+/// `anim_layout`).
 pub const LINEAR: u32 = 0;
-pub const STEP: u32 = 1 << 1;
-pub const CUBIC: u32 = 2 << 1;
 const INTERPOLATION: u32 = 3 << 1;
 
 /// Every track of `tracks` (`TRACK_WORDS` words each) sampled at `t`: its key kept in `keys`, its

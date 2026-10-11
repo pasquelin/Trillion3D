@@ -17,6 +17,7 @@
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { carryCellsMoved } from '../partition/rowCells.ts'
+import { grownLength } from '../../../math/src/sequence/resized.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -47,9 +48,8 @@ export function createPlacementRows(capacity: number): PlacementRows {
   }
 }
 
-/** The capacity a table holding `held` entries grows to when it needs `needed`: twice as large at
- *  least, so growing one entry at a time grows it a logarithmic number of times. */
-export const grownCapacity = (held: number, needed: number) => Math.max(needed, held * 2)
+/** The capacity a table holding `held` entries grows to when it needs `needed` (`grownLength`). */
+export const grownCapacity = grownLength
 
 /** A larger buffer for `needed` rows (`grownCapacity`): `before`'s rows copied first, the new
  *  ones parked. */

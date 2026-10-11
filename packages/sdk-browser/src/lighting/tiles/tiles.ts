@@ -10,6 +10,7 @@ import { storageBufferCap } from '../../residency/pools.ts'
 import { LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
+import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
 const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
@@ -51,10 +52,10 @@ export async function createGpuLightTiles(device: GPUDevice) {
   const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER')
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      computeUniformEntry(0),
+      computeBufferEntry(1, 'read-only-storage'),
+      computeBufferEntry(2, 'storage'),
+      computeBufferEntry(3, 'storage'),
     ],
   })
   const uniform = device.createBuffer({

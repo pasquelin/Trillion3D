@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { cacheFingerprint, differences } from './compiler-hashes.ts'
+import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
 
 /** A cache as the compiler lays it out, under `key`, with one page of `page` bytes and a manifest
  *  that reports the run's time, whether it found a cutout sheet, the threads
@@ -61,11 +61,10 @@ test('the fingerprint compares the cooked bytes and names the file that differs'
 /** A cache whose `physics.json` names one collider object of `shape` bytes, beside a page. */
 function physicsCache(shape: string): string {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-hashes-'))
-  const sha = (text: string) => createHash('sha256').update(text).digest('hex')
   mkdirSync(join(root, 'native/objects'), { recursive: true })
-  writeFileSync(join(root, 'native/objects', `${sha(shape)}.bin`), shape)
-  writeFileSync(join(root, 'native/objects', `${sha('page')}.bin`), 'page')
-  const physics = { colliders: [{ tiles: [{ url: `../../objects/${sha(shape)}.bin` }] }] }
+  writeFileSync(join(root, 'native/objects', `${sha256(shape)}.bin`), shape)
+  writeFileSync(join(root, 'native/objects', `${sha256('page')}.bin`), 'page')
+  const physics = { colliders: [{ tiles: [{ url: `../../objects/${sha256(shape)}.bin` }] }] }
   writeFileSync(join(root, 'native/physics.json'), JSON.stringify(physics))
   return root
 }

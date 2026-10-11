@@ -2,7 +2,8 @@
 // here into the others: the wave model (`packages/sdk-core/src/fluids/waves.ts`, `waveRest.ts`)
 // into the GPU deformation's WGSL and the physics module's C++, and the coverage-preserving alpha
 // (`packages/sdk-browser/src/texture/coverageMath.ts`) into the mip chains' WGSL and the
-// compiler's Rust. The physics word layouts (`packages/sdk-core/src/physics/layout.ts`) go into the
+// compiler's Rust, and the compiler's formats and limits, the animation tracks' layout and the
+// family refusal's public code (`shared-rules/abi.ts`). The physics word layouts (`packages/sdk-core/src/physics/layout.ts`) go into the
 // physics module's C++ the same way. The printer reads the source's own syntax tree and keeps every operation in its
 // order, so each language computes what the source writes, operand for operand. `--check` (a gate
 // of `pnpm run validate`) fails when a printed file is not what its source prints today.
@@ -10,22 +11,23 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import prettier from 'prettier'
+import { animationLayoutRust, compilerAbiRust, familyLoadFailedId } from './shared-rules/abi.ts'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
-import { ROOT } from './shared-rules/source.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */
 async function formatted(path: string, text: string) {
   if (path.endsWith('.ts')) {
-    const config = await prettier.resolveConfig(join(ROOT, path))
-    return prettier.format(text, { ...config, filepath: join(ROOT, path) })
+    const config = await prettier.resolveConfig(join(REPOSITORY_ROOT, path))
+    return prettier.format(text, { ...config, filepath: join(REPOSITORY_ROOT, path) })
   }
   if (path.endsWith('.rs')) {
     const done = spawnSync('rustfmt', ['--edition', '2021'], {
       input: text,
       encoding: 'utf8',
-      cwd: join(ROOT, dirname(path)),
+      cwd: join(REPOSITORY_ROOT, dirname(path)),
     })
     if (done.status !== 0) throw new Error(`rustfmt refused ${path}:\n${done.stderr}`)
     return done.stdout
@@ -39,13 +41,16 @@ const outputs: Record<string, () => string> = {
   'packages/physics-jolt-wasm/src/layout.h': physicsLayoutHeader,
   'packages/sdk-browser/src/texture/coverageMathWgsl.ts': coverageWgsl,
   'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
+  'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
+  'packages/page-codec-wasm/src/anim_layout.rs': animationLayoutRust,
+  'packages/sdk-browser/src/host/familyLoadFailedId.ts': familyLoadFailedId,
 }
 
 const stale: string[] = []
 for (const [path, print] of Object.entries(outputs)) {
   const text = await formatted(path, print())
-  if (!process.argv.includes('--check')) writeFileSync(join(ROOT, path), text)
-  else if (readFileSync(join(ROOT, path), 'utf8') !== text) stale.push(path)
+  if (!process.argv.includes('--check')) writeFileSync(join(REPOSITORY_ROOT, path), text)
+  else if (readFileSync(join(REPOSITORY_ROOT, path), 'utf8') !== text) stale.push(path)
 }
 if (stale.length)
   throw new Error(

@@ -19,7 +19,8 @@ export const vsmBufferEntry = (
 export const vsmDynamicUniformEntry = (
   binding: number,
   minBindingSize: number,
-): GPUBindGroupLayoutEntry => computeUniformEntry(binding, true, minBindingSize)
+): GPUBindGroupLayoutEntry =>
+  computeUniformEntry(binding, { hasDynamicOffset: true, minBindingSize })
 
 /** A compute pipeline and the layouts of its groups: `prepared` compiles it off the thread (the
  *  prepare step awaits it, `prepareVsmPipelines`); `pipeline`, read where it is bound, is the one

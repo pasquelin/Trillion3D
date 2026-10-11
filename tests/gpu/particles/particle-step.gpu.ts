@@ -22,6 +22,7 @@ import {
 import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }
 
@@ -32,13 +33,10 @@ async function step({ words, staged, capacity, runs }: Steps) {
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device } = gpu
   const folds = [false, ...(device.features.has('subgroups') ? [true] : [])]
-  const { COMPUTE } = GPUShaderStage
   const slots = ['uniform', 'read-only-storage', 'storage', 'storage', 'storage'] as const
   const [layout, boundLayout] = [4, 5].map((count) =>
     device.createBindGroupLayout({
-      entries: slots
-        .slice(0, count)
-        .map((type, binding) => ({ binding, visibility: COMPUTE, buffer: { type } })),
+      entries: slots.slice(0, count).map((type, binding) => computeBufferEntry(binding, type)),
     }),
   )
   const { UNIFORM, STORAGE, INDIRECT, COPY_DST, COPY_SRC, MAP_READ } = GPUBufferUsage

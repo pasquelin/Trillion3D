@@ -55,7 +55,10 @@ import {
   vsmTransmissionContextBytes,
   type VsmTransmission,
 } from '../../../../vsm/transmissionPass.ts'
-import { createVsmReadbackRing, type VsmReadbackRing } from '../../../../vsm/readbackRing.ts'
+import {
+  createReadbackRing as createVsmReadbackRing,
+  type ReadbackRing as VsmReadbackRing,
+} from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
 import {
   VSM_SUN_FINEST_LEVEL,

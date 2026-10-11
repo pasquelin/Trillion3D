@@ -4,18 +4,17 @@ import { execFileSync } from 'node:child_process'
 import { loadavg } from 'node:os'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve, relative, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { runOnDawn } from '../../tests/gpu/kit/onDawn.ts'
 import { takeBenchLock } from './lock.ts'
 import type { run, WaterCostOptions } from '../../tests/gpu/water/waterCostPage.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 type Reading = Awaited<ReturnType<typeof run>>
 
-const root = fileURLToPath(new URL('../../', import.meta.url))
 const { values } = parseArgs({
   options: {
-    'engine-root': { type: 'string', default: root },
+    'engine-root': { type: 'string', default: REPOSITORY_ROOT },
     'compare-engine-root': { type: 'string' },
     out: { type: 'string', default: '.mesure/out/232-water-baseline' },
     runs: { type: 'string', default: '4' },
@@ -33,10 +32,10 @@ const runs = positive(values.runs, 'runs'),
 const warmup = positive(values.warmup, 'warmup')
 if (runs < 3 || frames < 90) throw new Error('At least 3 runs and 90 frames required')
 const engineRoot = resolve(values['engine-root']),
-  out = resolve(root, values.out)
+  out = resolve(REPOSITORY_ROOT, values.out)
 if (
-  !relative(resolve(root, '.mesure/out'), out) ||
-  relative(resolve(root, '.mesure/out'), out).startsWith('..')
+  !relative(resolve(REPOSITORY_ROOT, '.mesure/out'), out) ||
+  relative(resolve(REPOSITORY_ROOT, '.mesure/out'), out).startsWith('..')
 )
   throw new Error('Output must be a child of .mesure/out')
 const git = (cwd: string, ...args: string[]) =>
@@ -51,7 +50,7 @@ const engines = await Promise.all(
     path,
     commit: git(path, 'rev-parse', 'HEAD'),
     dirty: git(path, 'status', '--porcelain'),
-    run: await waterCostRun(root, path),
+    run: await waterCostRun(REPOSITORY_ROOT, path),
   })),
 )
 // One control pair per repeat: baseline on/off, or visible water on two engine revisions.
@@ -85,8 +84,8 @@ const report = {
   displayMode: 'dawn-node',
   displayCapHz: null,
   engines: engines.map(({ path, commit, dirty }) => ({ path, commit, dirty })),
-  fixtureCommit: git(root, 'rev-parse', 'HEAD'),
-  fixtureDirty: git(root, 'status', '--porcelain'),
+  fixtureCommit: git(REPOSITORY_ROOT, 'rev-parse', 'HEAD'),
+  fixtureDirty: git(REPOSITORY_ROOT, 'status', '--porcelain'),
   started: new Date().toISOString(),
   loadBefore: loadavg(),
   runs,

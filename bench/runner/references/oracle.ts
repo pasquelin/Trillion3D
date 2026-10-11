@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import { launchChrome } from '../harness/chrome.ts'
 import * as options from '../harness/options.ts'
@@ -25,8 +25,8 @@ import { runView } from './oracleView.ts'
 import type { OracleSettings, OracleView } from './oracleView.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
 import { measureOutput } from '../../core/paths.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..')
 const args = process.argv.slice(2)
 // Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
 const flags = options.parseArgs(args)
@@ -52,7 +52,7 @@ async function main() {
   if (!cache) throw new Error('--cache is required: the compiled cache derived directory')
   const source = resolve(flag('source', ''))
   if (!existsSync(source)) throw new Error(`--source not found: ${source}`)
-  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`')
+  if (!oracleBuilt(REPOSITORY_ROOT)) throw new Error('oracle missing: run `pnpm run build:native`')
   const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)))
   const settings: OracleSettings = {
     width: number('width', 160),
@@ -84,12 +84,16 @@ async function main() {
   const views = flag('views', 'overview').split(',')
   flags.refuseUnread()
   await mkdir(out, { recursive: true })
-  const sides = options.resolveSides({ after, root: ROOT })
+  const sides = options.resolveSides({ after, root: REPOSITORY_ROOT })
   const side = sides[0]
   side.cache = cache
   const manifestUrl = `/cache/${side.name}/native/full/manifest.json`
   side.manifestUrl = manifestUrl
-  const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null)
+  const mounts = options.resolveMounts(
+    REPOSITORY_ROOT,
+    sides,
+    resources ? resolve(resources) : null,
+  )
   const captures = new Map<string, Capture>()
   const { server, port } = await startServer({ mounts, captures })
   const browser = await launchChrome({
@@ -105,7 +109,9 @@ async function main() {
   } = {
     startedAt: new Date().toISOString(),
     command: `node bench/runner/references/oracle.ts ${args.join(' ')}`,
-    head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    head: execFileSync('git', ['-C', REPOSITORY_ROOT, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim(),
     settings,
     views: [],
   }
@@ -156,7 +162,7 @@ async function main() {
           step,
           out,
           captures,
-          root: ROOT,
+          root: REPOSITORY_ROOT,
         }),
       )
     }

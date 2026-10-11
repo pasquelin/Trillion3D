@@ -1,6 +1,7 @@
 //! Raw ABI of the animation sampler (`anim.rs`): byte offsets in linear memory, as `wasm_math.rs`.
 
-use crate::anim::{sample_tracks, ARC_VALUES, TRACK_WORDS};
+use crate::anim::sample_tracks;
+use crate::anim_layout::{ARC_VALUES, TRACK_WORDS};
 
 /// Samples the `n` tracks described at `tracks` at time `t`, from the packed `data` (`data_len`
 /// floats), keeping each track's key at `keys` and arc at `arcs`, its numbers written at `out`

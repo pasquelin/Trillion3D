@@ -9,6 +9,10 @@ type Typed =
   | Float32Array
   | Float64Array
 
+/** The one growth rule of a count: `length` entries at least, and twice `old` — a list grown one
+ *  entry at a time is copied a logarithmic number of times. */
+export const grownLength = (old: number, length: number) => Math.max(length, old * 2)
+
 /**
  * The one growth rule of a list or a table held in a typed array: `old` itself when it holds
  * `length` entries already; else a new array of the same kind, at least `length` entries and at
@@ -18,7 +22,7 @@ type Typed =
  */
 export function resized<T extends Typed>(old: T, length: number, fill = 0): T {
   if (old.length >= length) return old
-  const next = new (old.constructor as new (length: number) => T)(Math.max(length, old.length * 2))
+  const next = new (old.constructor as new (length: number) => T)(grownLength(old.length, length))
   next.set(old)
   if (fill !== 0) next.fill(fill, old.length)
   return next

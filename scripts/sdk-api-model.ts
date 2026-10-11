@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import prettier from 'prettier'
 import ts from 'typescript'
-import { repositoryFiles } from './repository-files.ts'
+import { repositoryFiles, posixPath } from './repository-files.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-export const ROOT = resolve(import.meta.dirname, '..')
 export const ENTRIES = {
   core: 'packages/sdk-core/src/index.ts',
   browser: 'packages/sdk-browser/src/index.ts',
@@ -40,13 +40,15 @@ function exportKind(symbol: ts.Symbol, checker: ts.TypeChecker): ExportKind {
 function definingModule(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
   const file = target.declarations?.[0]?.getSourceFile().fileName
-  return file ? relative(ROOT, file) : 'unknown'
+  return file ? relative(REPOSITORY_ROOT, file) : 'unknown'
 }
 
 let program: ts.Program | undefined
 const buildApiProgram = (old?: ts.Program) =>
   ts.createProgram(
-    [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)].map((file) => join(ROOT, file)),
+    [...Object.values(ENTRIES), ...Object.values(PUBLIC_ENTRIES)].map((file) =>
+      join(REPOSITORY_ROOT, file),
+    ),
     {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.NodeNext,
@@ -78,7 +80,7 @@ export function entryModules(
   const checker = program.getTypeChecker()
   // `Object.entries` always widens object keys to `string`: the entry names are `ExportEntry`.
   return (Object.entries(entries) as [ExportEntry, string][]).map(([entry, file]) => {
-    const source = program.getSourceFile(join(ROOT, file))
+    const source = program.getSourceFile(join(REPOSITORY_ROOT, file))
     const module = source && checker.getSymbolAtLocation(source)
     if (!module) throw new Error(`Cannot resolve ${file}`)
     return [entry, module]
@@ -100,7 +102,7 @@ export function analyzeEntries(): ExportRow[] {
         entries: [],
         identity: checker
           .getFullyQualifiedName(target)
-          .replace(`${ROOT.replaceAll('\\', '/')}/`, ''),
+          .replace(`${posixPath(REPOSITORY_ROOT)}/`, ''),
       }
       row.entries.push(entry)
       rows.set(key, row)
@@ -111,7 +113,7 @@ export function analyzeEntries(): ExportRow[] {
   )
 }
 
-export function consumerImports(root = ROOT): Map<string, Set<string>> {
+export function consumerImports(root = REPOSITORY_ROOT): Map<string, Set<string>> {
   const consumers = new Map<string, Set<string>>()
   const found = repositoryFiles(root)
   if (!found) throw new Error('Not a Git repository.')
@@ -151,7 +153,7 @@ function addConsumer(consumers: Map<string, Set<string>>, name: string, file: st
  * command line, fails instead when the file on disk differs from what would be written.
  */
 export async function writeGenerated(path: string, content: string): Promise<void> {
-  const absolute = join(ROOT, path)
+  const absolute = join(REPOSITORY_ROOT, path)
   const prettierConfig = await prettier.resolveConfig(absolute)
   const formatted = await prettier.format(content, { ...prettierConfig, filepath: absolute })
   mkdirSync(dirname(absolute), { recursive: true })

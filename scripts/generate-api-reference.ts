@@ -3,10 +3,9 @@
 // TSDoc; and the export inventory. `pnpm install` writes them, every reader rewrites them first
 // when a source is newer. The translations, `api.<language>.json`, are the translators' alone.
 import { statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { repositoryFiles } from './repository-files.ts'
-
-const ROOT = resolve(import.meta.dirname, '..')
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** Where the reference and the inventory are written. */
 export const API_FILES = {
@@ -19,7 +18,8 @@ export const API_SOURCES = /\.(?:[cm]?[jt]sx?)$/
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`
 
-const modified = (file: string) => statSync(join(ROOT, file), { throwIfNoEntry: false })?.mtimeMs
+const modified = (file: string) =>
+  statSync(join(REPOSITORY_ROOT, file), { throwIfNoEntry: false })?.mtimeMs
 
 /** Whether both files are newer than every source file of the repository: the declarations they
  *  read, the consumers the inventory names, their generators. */

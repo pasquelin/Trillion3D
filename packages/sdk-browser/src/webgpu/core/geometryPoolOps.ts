@@ -12,6 +12,7 @@ import { copyPoolStores, createPoolStores, releasePoolStores } from './geometryP
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /** The lists of the normal atlas, written again at a growth. */
 const ATLAS_LISTS: readonly PoolList[] = ['normal', 'uv1']
@@ -74,8 +75,7 @@ const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: numbe
 function ensure(p: Pool, need: number) {
   const { device, used, size } = p
   if (used + need <= size) return true
-  let next = size
-  while (next < used + need) next *= 2
+  const next = size * nextPow2((used + need) / size)
   const wider = floatsOf(p, next)
   if (!poolFits(wider, device.limits)) return false
   const made = createPoolStores(device, wider),

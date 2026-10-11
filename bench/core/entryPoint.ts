@@ -1,10 +1,10 @@
 // Which run a process is: the file it was started with, relative to the repository, and whether
 // `node --test` runs it — what decides whether a GPU or a browser may start from it.
 import { realpathSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { relative } from 'node:path'
+import { REPOSITORY_ROOT, posixPath } from '../../scripts/repository-files.ts'
 
 /** The repository, which entry paths are relative to. */
-const REPOSITORY = join(import.meta.dirname, '..', '..')
 
 /** The entry file, resolved and relative to the repository; `null` with none: `node -e`,
  *  `--eval`, `--print`, stdin, the REPL. */
@@ -12,7 +12,7 @@ export function entryPath(entry: string | undefined): string | null {
   if (!entry || process.execArgv.some((flag) => /^(-e|-p|--eval|--print)(=|$)/.test(flag)))
     return null
   try {
-    return relative(REPOSITORY, realpathSync(entry)).split(sep).join('/')
+    return posixPath(relative(REPOSITORY_ROOT, realpathSync(entry)))
   } catch {
     return null
   }

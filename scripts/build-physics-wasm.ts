@@ -8,12 +8,11 @@
 // `git submodule update --init` first.
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SOURCE = join(ROOT, 'packages', 'physics-jolt-wasm')
-const OUTPUT = join(ROOT, 'packages', 'sdk-browser', 'src', 'physics')
+const SOURCE = join(REPOSITORY_ROOT, 'packages', 'physics-jolt-wasm')
+const OUTPUT = join(REPOSITORY_ROOT, 'packages', 'sdk-browser', 'src', 'physics')
 
 if (!existsSync(join(SOURCE, 'JoltPhysics', 'Jolt', 'Jolt.h')))
   throw new Error('Jolt submodule missing.\nRun: git submodule update --init')
@@ -23,7 +22,7 @@ for (const [name, threads] of [
   ['joltPhysics', 'OFF'],
   ['joltPhysicsThreads', 'ON'],
 ] as const) {
-  const build = join(ROOT, 'target', 'physics-jolt-wasm', name)
+  const build = join(REPOSITORY_ROOT, 'target', 'physics-jolt-wasm', name)
   execFileSync(
     'emcmake',
     ['cmake', '-G', 'Ninja', '-S', SOURCE, '-B', build, '-DCMAKE_BUILD_TYPE=Distribution'].concat(

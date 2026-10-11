@@ -1,18 +1,16 @@
-// The ring the shadow maps' late readbacks share (`readbackRing.ts`): a buffer a frame, none while
+// The ring the late readbacks share (`readbackRing.ts`): a buffer a frame, none while
 // all are in flight, read in place once mapped, and a copy never submitted taken over.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createVsmReadbackRing } from './readbackRing.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { createReadbackRing } from './readbackRing.ts'
 
 const settled = () => new Promise((resolve) => setImmediate(resolve))
 
 test('a buffer maps after its submit, is read in place and returns to the ring', async () => {
   const { device, buffers } = fakeDevice()
   const seen: ArrayBuffer[] = []
-  const ring = createVsmReadbackRing(device, { label: 'r', bytes: 16, count: 2 }, (m) =>
-    seen.push(m),
-  )
+  const ring = createReadbackRing(device, { label: 'r', bytes: 16, count: 2 }, (m) => seen.push(m))
   const a = ring.take()!
   ring.submitted()
   const b = ring.take()!
@@ -28,11 +26,7 @@ test('a buffer maps after its submit, is read in place and returns to the ring',
 
 test('a copy whose frame was never submitted is taken over, not leaked', () => {
   const { device, buffers } = fakeDevice()
-  const ring = createVsmReadbackRing(
-    device,
-    { label: 'r', bytes: 4, count: 2, eager: true },
-    () => {},
-  )
+  const ring = createReadbackRing(device, { label: 'r', bytes: 4, count: 2, eager: true }, () => {})
   assert.equal(buffers.length, 2, 'eager: made at once')
   const first = ring.take()
   assert.equal(ring.take(), first)
@@ -42,7 +36,7 @@ test('a copy whose frame was never submitted is taken over, not leaked', () => {
 test('a read that throws still returns its buffer to the ring', () => {
   const { device, buffers } = fakeDevice()
   let reads = 0
-  const ring = createVsmReadbackRing(device, { label: 'r', bytes: 4, count: 1 }, () => {
+  const ring = createReadbackRing(device, { label: 'r', bytes: 4, count: 1 }, () => {
     reads++
     throw new Error('read failed')
   })

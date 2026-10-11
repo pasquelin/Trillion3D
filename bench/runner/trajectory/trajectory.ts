@@ -17,9 +17,9 @@ import { benchLights } from '../lighting/lamps.ts'
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts'
 import type { captureTrajectory } from './trajectoryPage.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 async function main() {
-  const root = resolve(import.meta.dirname, '../../..')
   const { flags, settings, out, resources } = readOptions(
     [
       '--engine',
@@ -30,7 +30,7 @@ async function main() {
       'cache',
       ...process.argv.slice(2),
     ],
-    root,
+    REPOSITORY_ROOT,
   )
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60))
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError')
@@ -47,7 +47,7 @@ async function main() {
   // A `--cache` alone names its scene: the evidence never records Sponza for another cache.
   const scene = named ?? sceneOf(cache)
   const sides = names.map((name) => {
-    const dist = resolve(flags.get(name) ?? join(root, 'dist'))
+    const dist = resolve(flags.get(name) ?? join(REPOSITORY_ROOT, 'dist'))
     flags.set(`cache-${name}`, cache)
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings)
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`
@@ -76,13 +76,13 @@ async function main() {
     errors: [] as string[],
   }
   // Refuse to overwrite goldens or previous evidence.
-  const outputPath = relative(join(root, '.mesure/out'), out)
+  const outputPath = relative(join(REPOSITORY_ROOT, '.mesure/out'), out)
   if (!outputPath || outputPath.startsWith('..'))
     throw new Error('--out must be under .mesure/out/')
   await mkdir(dirname(out), { recursive: true })
   await mkdir(out, { recursive: false })
   const { server, port } = await startServer({
-    mounts: resolveMounts(root, sides, resources),
+    mounts: resolveMounts(REPOSITORY_ROOT, sides, resources),
     captures,
     isolation: settings.isolation,
   })

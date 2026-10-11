@@ -1,4 +1,4 @@
-import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { FLAG_BLEND_CASTER, FLAG_MASK } from '../../../visibility/buffer.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
@@ -14,7 +14,6 @@ import {
 
 const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
   EVERYWHERE_MAX = [FAR_VALUE, FAR_VALUE, FAR_VALUE]
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** The rows whose shadow reads their colour map's alpha: a cutout's, and a blended caster's. */
 const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER
 
@@ -138,3 +137,4 @@ export {
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts'
+import { ROW_WORDS } from '../../../visibility/types.ts'

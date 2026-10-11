@@ -10,19 +10,20 @@ export const computeBufferEntry = (
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, buffer: { type } })
 
 /** A uniform buffer binding at `binding` in a layout, seen by `visibility` (the compute stage by
- *  default): read at a dynamic offset when `hasDynamicOffset`, of at least `minBindingSize` bytes
- *  when given. */
+ *  default): read at a dynamic offset when `hasDynamicOffset`, `minBindingSize` bytes at least. */
 export const computeUniformEntry = (
   binding: number,
-  hasDynamicOffset = false,
-  minBindingSize?: number,
+  {
+    hasDynamicOffset,
+    minBindingSize,
+  }: { hasDynamicOffset?: boolean; minBindingSize?: number } = {},
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({
   binding,
   visibility,
   buffer: {
     type: 'uniform',
-    ...(hasDynamicOffset ? { hasDynamicOffset } : {}),
+    ...(hasDynamicOffset === undefined ? {} : { hasDynamicOffset }),
     ...(minBindingSize === undefined ? {} : { minBindingSize }),
   },
 })

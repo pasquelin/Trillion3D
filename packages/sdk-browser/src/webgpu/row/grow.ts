@@ -1,9 +1,8 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { createDirtyRows } from './dirty.ts'
 import type { createWebgpuRowState } from './state.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** `from` copied into the head of `to`, the rest of `to` set to `fill`. */
 function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {

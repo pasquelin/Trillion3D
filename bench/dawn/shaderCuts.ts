@@ -6,7 +6,7 @@
 // compiler cannot prove dead, so what lies above survives — then returns. `-> value` after the
 // name returns that value from an entry that gives one. The repository is never changed: a variant
 // is made in memory, when the engine creates the module.
-import { createHash } from 'node:crypto'
+import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts'
 
 /** One cut point: its name, its line (0-based), what keeps the work above it alive, and the value
  *  the entry returns there. */
@@ -35,4 +35,4 @@ export function cutAt(code: string, name: string) {
 }
 
 /** A short stable hash of a shader's text: the same code, the same name, in any process. */
-export const hashOf = (code: string) => createHash('sha256').update(code).digest('hex').slice(0, 8)
+export const hashOf = (code: string) => sha256(code).slice(0, 8)

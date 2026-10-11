@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { publierRapport } from './publishReport.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 test('a campaign replaces the one report, keeps the portal entry, and validates evidence before copying', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'))
@@ -34,15 +35,13 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
     writeFileSync(join(source, 'source.json'), '{}')
     assert.equal(publierRapport(source, dest), join(dest, 'reports/test'))
     assert.equal(readFileSync(join(dest, 'index.html'), 'utf8'), 'portal')
-    assert.equal(JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8'))[0].id, 'test')
+    assert.equal(readJson(join(dest, 'reports/index.json'))[0].id, 'test')
     assert.throws(() => publierRapport(source, dest), /already published/)
     writeFileSync(join(source, 'report.json'), JSON.stringify({ ...report, id: 'next' }))
     assert.equal(publierRapport(source, dest), join(dest, 'reports/next'))
     assert.equal(existsSync(join(dest, 'reports/test')), false, 'the previous campaign is gone')
     assert.deepEqual(
-      JSON.parse(readFileSync(join(dest, 'reports/index.json'), 'utf8')).map(
-        (item: { id: string }) => item.id,
-      ),
+      readJson(join(dest, 'reports/index.json')).map((item: { id: string }) => item.id),
       ['next'],
     )
   } finally {
@@ -52,8 +51,8 @@ test('a campaign replaces the one report, keeps the portal entry, and validates 
 
 test('the published campaign has every image it references, each stored once', () => {
   const reports = resolve(import.meta.dirname, '../../../site/reports')
-  const [{ id }] = JSON.parse(readFileSync(join(reports, 'index.json'), 'utf8'))
-  const report = JSON.parse(readFileSync(join(reports, id, 'report.json'), 'utf8'))
+  const [{ id }] = readJson(join(reports, 'index.json'))
+  const report = readJson(join(reports, id, 'report.json'))
   for (const { image } of report.records as { image: string | null }[])
     if (image) assert.ok(existsSync(join(reports, id, image)), image)
   const images = join(reports, id, 'images')

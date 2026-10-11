@@ -2,7 +2,7 @@
 // into an attachment, how many threads it launches a ms, what a pass, a dispatch and a barrier cost.
 // A pass's floor is its bytes over these rates, its threads over the launch rate: the time it
 // could not beat on this GPU, whatever its shader.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { spread } from './summary.ts'
@@ -26,6 +26,8 @@ import {
   TRIANGLE_SIDE,
   WORK_THREADS,
 } from './machineWork.ts'
+import { readJson } from '../../scripts/repository-files.ts'
+import { validationScope } from '../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
 /** Changes when a kernel does: a machine file of another version is measured again. */
 const MACHINE_VERSION = 3
@@ -111,16 +113,10 @@ export function machineFrom(adapter: string, ms: Record<string, number>, date: s
 
 /** Measures the machine on the engine's device: every kernel, its commands uncounted. */
 export async function measureMachine(gpu: BenchGpu, device: GPUDevice, adapter: string) {
-  device.pushErrorScope('validation')
-  let made: ReturnType<typeof createKernels>
-  try {
-    made = gpu.quiet(() => createKernels(gpu, device))
-  } catch (error) {
-    await device.popErrorScope()
-    throw error
-  }
+  const { value: made, error: refused } = await validationScope(device, () =>
+    gpu.quiet(() => createKernels(gpu, device)),
+  )
   const { kernels, destroy } = made
-  const refused = await device.popErrorScope()
   if (refused) {
     destroy()
     throw new Error(`BENCH_MACHINE: ${refused.message}`)
@@ -148,7 +144,7 @@ export async function machineFor(
   const file = fileOf(adapter)
   if (!recalibrate && existsSync(file)) {
     try {
-      const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
+      const kept = readJson(file) as Machine
       const young = Date.now() - Date.parse(kept.date) < MAX_AGE_DAYS * 86_400_000
       if (kept.version === MACHINE_VERSION && young) return kept
     } catch {

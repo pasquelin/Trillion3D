@@ -106,6 +106,6 @@ pub fn cut_demand(
     };
     CutDemand {
         threshold,
-        budget: share.max(crate::dag::DAG_CLUSTER_TRIANGLES),
+        budget: share.max(crate::shared_math::abi::DAG_CLUSTER_TRIANGLES),
     }
 }

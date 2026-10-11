@@ -49,14 +49,7 @@ export function triangleNormal(out: Float64Array, v: Numbers, at: number) {
 
 /** Whether a point of the triangle's plane lies on the inner side of all three edges, the
  *  sides being read against the triangle's normal `n` as `triangleNormal` wrote it. */
-export function insideTriangle(
-  x: number,
-  y: number,
-  z: number,
-  v: Numbers,
-  at: number,
-  n: Numbers,
-) {
+function insideTriangle(x: number, y: number, z: number, v: Numbers, at: number, n: Numbers) {
   for (let e = 0; e < 3; e++) {
     const from = at + 3 * e,
       to = at + 3 * ((e + 1) % 3)

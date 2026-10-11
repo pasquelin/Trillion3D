@@ -1,5 +1,6 @@
 import { nanosecondsToMs } from './types.ts'
 import type { ImageSpan } from './timeline.ts'
+import { addedLength } from '../../../../math/src/sequence/span.ts'
 
 // The span arithmetic of an image's timestamps (`sample.ts`): each pass's own share, the time a set
 // of spans covers, and their envelope. Spans the device overlaps count once.
@@ -16,28 +17,9 @@ import type { ImageSpan } from './timeline.ts'
 export function setOwnShares(timed: { pass: { ownMs: number }; begin: bigint; end: bigint }[]) {
   let covered = 0n
   for (const { pass, begin, end } of timed) {
-    pass.ownMs = nanosecondsToMs(Number(addedNs(begin, end, covered)))
+    pass.ownMs = nanosecondsToMs(Number(addedLength(begin, end, covered, 0n)))
     if (end > covered) covered = end
   }
-}
-
-/** What a span adds to the time already covered up to `reach`: the part of it past `reach`, ns. */
-function addedNs(begin: bigint, end: bigint, reach: bigint) {
-  const from = begin > reach ? begin : reach
-  return end > from ? end - from : 0n
-}
-
-/** The time `spans` cover, ns: spans the device overlaps count once. */
-export function coveredNs(spans: ImageSpan[]) {
-  let covered = 0n,
-    reach = 0n
-  for (const { beginNs, endNs } of [...spans].sort((a, b) =>
-    a.beginNs < b.beginNs ? -1 : a.beginNs > b.beginNs ? 1 : 0,
-  )) {
-    covered += addedNs(beginNs, endNs, reach)
-    if (endNs > reach) reach = endNs
-  }
-  return covered
 }
 
 /** The earliest beginning to the latest end of `spans`, or `null` for none. */

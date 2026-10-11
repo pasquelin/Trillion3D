@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { writeGarden } from './garden-source.ts'
-const root = resolve(import.meta.dirname, '../..')
+import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
 
 interface GardenGltf {
   nodes: unknown[]
@@ -25,18 +25,18 @@ test('the published original garden matches its deterministic source generator',
     for (const file of ['garden.gltf', 'garden.bin']) {
       assert.deepEqual(
         await readFile(join(temporary, file)),
-        await readFile(join(root, 'tests/fixtures/scenes/kinetic-garden/source', file)),
+        await readFile(join(REPOSITORY_ROOT, 'tests/fixtures/scenes/kinetic-garden/source', file)),
       )
     }
-    const gltf = JSON.parse(await readFile(join(temporary, 'garden.gltf'), 'utf8')) as GardenGltf
+    const gltf = readJson(join(temporary, 'garden.gltf')) as GardenGltf
     const triangles = gltf.meshes.reduce(
       (total, mesh) => total + gltf.accessors[mesh.primitives[0].attributes.POSITION].count / 3,
       0,
     )
     assert.equal(triangles, 35840)
     assert.equal(gltf.nodes.length, 11)
-    const base = join(root, 'tests/fixtures/scenes/kinetic-garden/cache/native/full')
-    const pointer = JSON.parse(await readFile(join(base, 'manifest.json'), 'utf8')) as CachePointer
+    const base = join(REPOSITORY_ROOT, 'tests/fixtures/scenes/kinetic-garden/cache/native/full')
+    const pointer = readJson(join(base, 'manifest.json')) as CachePointer
     const { manifest } = await readCacheManifest(base)
     assert.equal(manifest.sourceTriangles, triangles)
     assert.equal(manifest.formatVersion, pointer.formatVersion)

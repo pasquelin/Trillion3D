@@ -16,6 +16,8 @@ export function assertVisibilityPageTriangles(triangles: number, page?: string) 
   return triangles
 }
 export const PAGE_INFO_STRIDE = 272
+/** Words of a page-table row, `PAGE_INFO_STRIDE` bytes. */
+export const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** Deformation metadata follows the physical-material block; all offsets are u32 words. */
 export const PAGE_DEFORM_WORD = 64,
   PAGE_DEFORM_COUNT_WORD = 65,

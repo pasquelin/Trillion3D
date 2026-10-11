@@ -1,16 +1,14 @@
 // The rule printer's source (`../generate-shared-rules.ts`): a rule's module parsed, its functions
 // and numeric constants, each with its leading documentation.
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import ts from 'typescript'
 import type { Constant } from './printer.ts'
-
-export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 
 /** The module at `path`, parsed. */
 function moduleOf(path: string) {
-  const text = readFileSync(join(ROOT, path), 'utf8')
+  const text = readFileSync(join(REPOSITORY_ROOT, path), 'utf8')
   return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true)
 }
 

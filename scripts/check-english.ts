@@ -4,10 +4,11 @@
 // must stay excepted. A count above `scripts/english-baseline.json` fails; one below is
 // written there, to be committed. `pnpm run check:english`; `--write` records today's counts.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { FRENCH_EXCEPTIONS, FRENCH_WORDS } from './french-words.ts'
-import { repositoryFiles } from './repository-files.ts'
+import { repositoryFiles, readJson } from './repository-files.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 const SOURCE = /\.(?:[cm]?ts|tsx|rs|wgsl)$/
 /** The files that hold French words on purpose: the list, and the test that plants them. */
@@ -78,23 +79,22 @@ export function ratchet(baseline: Record<string, number>, counts: Record<string,
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const root = resolve(import.meta.dirname, '..')
-  const tracked = repositoryFiles(root)
+  const tracked = repositoryFiles(REPOSITORY_ROOT)
   if (!tracked) throw new Error('Not a Git repository.')
   const found = frenchByFile(
     new Map(
       tracked
         .filter((file) => SOURCE.test(file))
-        .map((file): [string, string] => [file, readFileSync(join(root, file), 'utf8')]),
+        .map((file): [string, string] => [file, readFileSync(join(REPOSITORY_ROOT, file), 'utf8')]),
     ),
   )
   const counts = countByUnit(found)
-  const path = join(root, BASELINE)
+  const path = join(REPOSITORY_ROOT, BASELINE)
   const write = () => writeFileSync(path, `${JSON.stringify(counts, null, 2)}\n`)
   if (process.argv.includes('--write')) write()
   else {
     if (!existsSync(path)) throw new Error(`No ${BASELINE}: record it with \`--write\`.`)
-    const baseline = JSON.parse(readFileSync(path, 'utf8')) as Record<string, number>
+    const baseline = readJson(path) as Record<string, number>
     const { risen, fallen } = ratchet(baseline, counts)
     for (const unit of risen) {
       console.error(`${unit}: ${counts[unit]} French words, ${baseline[unit] ?? 0} allowed:`)

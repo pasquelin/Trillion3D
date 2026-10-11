@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { linkLocalFiles } from './local-files.ts'
 import { linkSkills } from './skills-link.ts'
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** The primary worktree, which `git worktree list` always prints first. */
 function primaryWorktree(): string | undefined {
   const list = execFileSync('git', ['worktree', 'list', '--porcelain'], {
-    cwd: root,
+    cwd: REPOSITORY_ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
@@ -20,24 +18,24 @@ function primaryWorktree(): string | undefined {
 
 try {
   const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-    cwd: root,
+    cwd: REPOSITORY_ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   }).trim()
-  if (resolve(top) === root)
-    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root })
+  if (resolve(top) === REPOSITORY_ROOT)
+    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: REPOSITORY_ROOT })
   // A linked worktree starts without the files `.gitignore` keeps local — personal assistant
   // settings and graph artefacts. It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.
   const primary = primaryWorktree()
   // Every clone runs the company the same way: its tracked skills and agents are aliased into the
   // local `.claude/` of the primary checkout, which linked worktrees then share.
-  if (primary !== undefined && resolve(primary) === root) {
-    const skills = linkSkills(root)
+  if (primary !== undefined && resolve(primary) === REPOSITORY_ROOT) {
+    const skills = linkSkills(REPOSITORY_ROOT)
     if (skills.length) console.log(`Company skills linked: ${skills.length}`)
   }
   if (primary !== undefined) {
-    const linked = linkLocalFiles(root, primary)
+    const linked = linkLocalFiles(REPOSITORY_ROOT, primary)
     if (linked.length) console.log(`Local files linked from ${primary}: ${linked.join(', ')}`)
   }
 } catch {

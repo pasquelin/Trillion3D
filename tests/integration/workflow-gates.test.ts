@@ -4,8 +4,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const repo = new URL('../../', import.meta.url)
 const env = {
   ...process.env,
   GIT_AUTHOR_NAME: 'gate',
@@ -32,11 +32,11 @@ function makeRepo() {
   const work = join(root, 'work')
   execFileSync('git', ['init', '-q', '--bare', remote])
   execFileSync('git', ['init', '-q', '-b', 'develop', work])
-  cpSync(new URL('.githooks/', repo), join(work, '.githooks'), {
+  cpSync(join(REPOSITORY_ROOT, '.githooks/'), join(work, '.githooks'), {
     recursive: true,
     verbatimSymlinks: true,
   })
-  cpSync(new URL('scripts/hooks/', repo), join(work, 'scripts/hooks'), { recursive: true })
+  cpSync(join(REPOSITORY_ROOT, 'scripts/hooks/'), join(work, 'scripts/hooks'), { recursive: true })
   ok(work, 'config', 'core.hooksPath', '.githooks')
   ok(work, 'remote', 'add', 'origin', remote)
   localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"')
@@ -117,13 +117,13 @@ test('a failing tool-installed hook still stops git, and pre-push hands it the r
 })
 
 test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
-  const hooks = new URL('.githooks/', repo)
+  const hooks = join(REPOSITORY_ROOT, '.githooks/')
   for (const name of readdirSync(hooks)) {
     const lines = readFileSync(new URL(name, hooks), 'utf8').trimEnd().split('\n')
     assert.equal(lines[0], '#!/bin/sh', name)
     assert.equal(lines.length, 2, `${name} is more than a shim`)
     const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '')
     assert.ok(script?.[1], `${name} does not run a scripts/hooks script`)
-    assert.ok(existsSync(new URL(script[1], repo)), `${script[1]} is missing`)
+    assert.ok(existsSync(join(REPOSITORY_ROOT, script[1])), `${script[1]} is missing`)
   }
 })

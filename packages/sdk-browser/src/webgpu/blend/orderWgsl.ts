@@ -1,4 +1,4 @@
-import { COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
 import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
@@ -94,18 +94,13 @@ const B = ORDER_BINDING
 /** Group-0 layout entries of the order kernel, read from the names above: the uniform at its
  *  dynamic offset, then its five storage buffers. */
 export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
-  const storage = (type: GPUBufferBindingType) => ({ visibility: COMPUTE, buffer: { type } })
   return [
-    {
-      binding: B.uni,
-      visibility: COMPUTE,
-      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: ORDER_UNI_WORDS * 4 },
-    },
-    { binding: B.plan, ...storage('storage') },
-    { binding: B.keyed, ...storage('read-only-storage') },
-    { binding: B.frame, ...storage('read-only-storage') },
-    { binding: B.sorted, ...storage('storage') },
-    { binding: B.placed, ...storage('storage') },
+    computeUniformEntry(B.uni, { hasDynamicOffset: true, minBindingSize: ORDER_UNI_WORDS * 4 }),
+    computeBufferEntry(B.plan, 'storage'),
+    computeBufferEntry(B.keyed, 'read-only-storage'),
+    computeBufferEntry(B.frame, 'read-only-storage'),
+    computeBufferEntry(B.sorted, 'storage'),
+    computeBufferEntry(B.placed, 'storage'),
   ]
 }
 

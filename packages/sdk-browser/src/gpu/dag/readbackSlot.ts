@@ -5,6 +5,7 @@ import { coarsenAfter, type Coarsening } from './coarsening.ts'
 import type { Limits } from './deviceListCap.ts'
 import type { FlagShape } from './flagSections.ts'
 import { grownFlagShape } from './queueGrowth.ts'
+import { mapStaging } from '../core/readbackRing.ts'
 
 /** Where a slot's lists lie and what they are read into: the bytes copied, the drawn list's first
  *  word, the cap of the list they were cut on, the slot's arrays, and the word of the admission
@@ -51,7 +52,7 @@ export async function readDagSlot(
   land?: (words: ArrayBuffer, parsed: SelectionResult | null, retried: boolean) => void,
 ) {
   try {
-    await slot.mapAsync(GPUMapMode.READ)
+    await mapStaging(slot)
   } catch (cause) {
     throw new SlotMapRefused('DAG_SLOT_MAP_REFUSED', { cause })
   }

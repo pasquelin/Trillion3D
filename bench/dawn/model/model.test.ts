@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
@@ -11,6 +12,7 @@ import {
   cutResources,
   witnessEncoder,
 } from '../../../packages/sdk-browser/src/gpu/dag/encode.fixture.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
 const MACHINE = {
@@ -100,11 +102,10 @@ test('a measured frame ranks its passes by the milliseconds above their floor', 
 })
 
 test('every source a pass cites holds its symbol, and its formula the bytes its work counts', () => {
-  const root = new URL('../../../', import.meta.url)
   const missing = PASSES.flatMap((p) =>
     p.sources
       .filter(({ path, symbol }) => {
-        const file = new URL(path, root)
+        const file = join(REPOSITORY_ROOT, path)
         if (!existsSync(file)) return true
         const text = readFileSync(file, 'utf8')
         return path.endsWith('.md')

@@ -7,12 +7,12 @@ import type { BlendGpuItem } from './state.ts'
 import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { planItem, planPipeline } from './plan.ts'
-import { itemKept } from './hierarchyCull.ts'
 import { routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/lightResources.ts'
 import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -79,7 +79,7 @@ export function drawBlendRuns(
       item: BlendGpuItem | undefined
     if (own >= 0) {
       const entry = seeds[ownSeeds[own]]
-      if (!itemKept(blendState.keepPacked, planItem(entry))) continue
+      if (!hasBit(blendState.keepPacked, planItem(entry))) continue
       pipelineRank = planPipeline(entry)
       item = items[planItem(entry)]
     }

@@ -1,12 +1,11 @@
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { cpus, totalmem, platform, arch, release, hostname } from 'node:os'
 import { join } from 'node:path'
-const digest = (data: string) => createHash('sha256').update(data).digest('hex')
+import { readJson } from '../../../scripts/repository-files.ts'
+import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 export function measurementProvenance() {
   return {
     machine: {
-      id: digest(hostname()),
+      id: sha256(hostname()),
       cpu: cpus()[0]?.model ?? null,
       cores: cpus().length,
       memoryBytes: totalmem(),
@@ -19,6 +18,6 @@ export function measurementProvenance() {
   }
 }
 export function assetIdentity(cache: string) {
-  const manifest = JSON.parse(readFileSync(join(cache, 'native/full/manifest.json'), 'utf8'))
-  return manifest.key ?? digest(JSON.stringify(manifest))
+  const manifest = readJson(join(cache, 'native/full/manifest.json'))
+  return manifest.key ?? sha256(JSON.stringify(manifest))
 }

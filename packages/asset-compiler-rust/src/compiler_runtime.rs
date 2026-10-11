@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_format::SOURCE_FORMAT_VERSION;
 #[path = "compressed/mod.rs"]
 pub(super) mod compressed;
 

@@ -4,7 +4,7 @@
 use crate::golden::{f64s, ordinary, run, Twin, Value, HOSTILE_F64};
 use crate::matrix::{multiply_matrix4_one, MATRIX_VALUES};
 
-fn twins() -> [Twin; 5] {
+fn twins() -> [Twin; 6] {
     [
         Twin {
             file: "matrix4_product",
@@ -55,6 +55,7 @@ fn twins() -> [Twin; 5] {
             cases: sin_cases,
             compute: |v| f64s(&[crate::trig::sin(v[0].f64())]),
         },
+        crate::golden_ray_triangle::twin(),
         Twin {
             file: "quaternion_normalize",
             name: "quaternion_normalize",

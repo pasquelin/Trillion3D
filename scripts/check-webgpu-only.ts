@@ -7,7 +7,7 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { repositoryFiles } from './repository-files.ts'
+import { repositoryFiles, REPOSITORY_ROOT } from './repository-files.ts'
 
 const join = (...pieces: string[]) => pieces.join('')
 const GL = join('g', 'l')
@@ -91,7 +91,7 @@ function contentHits(path: string, file: string): Hit[] {
 export function glHits(directory?: string): Hit[] {
   const files = repositoryFiles(directory)
   if (!files) throw new Error('Not a Git repository.')
-  const root = directory ?? resolve(import.meta.dirname, '..')
+  const root = directory ?? REPOSITORY_ROOT
   const hits: Hit[] = []
   for (const file of files) {
     for (const found of file.matchAll(glPattern())) hits.push({ file, line: 0, match: found[0] })

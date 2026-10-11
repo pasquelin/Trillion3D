@@ -51,48 +51,29 @@ const empty = (): PartitionCountsFrame => ({
 export function createPartitionCounters(device: GPUDevice) {
   const counted = empty()
   let sampledFrame = -1
-  const reader = createGpuPeriodicReadback((mapped) => {
-    const words = new Uint32Array(mapped)
-    counted.frame = sampledFrame
-    counted.occluders = words[ST_OCCLUDERS]
-    counted.tested = words[ST_TESTED]
-    counted.rejected = words[ST_REJECTED]
-    counted.oversized = words[ST_OVERSIZED]
-    counted.testedTriangles = words[ST_TESTED_TRIANGLES]
-    counted.rejectedTriangles = words[ST_REJECTED_TRIANGLES]
-    counted.oversizedTriangles = words[ST_OVERSIZED_TRIANGLES]
-    counted.historyOccluders = words[ST_HISTORY_OCCLUDERS]
-    counted.withdrawn = words[ST_WITHDRAWN]
-  })
-
-  /** Sample buffer, made on the first sampled frame and never once per frame. */
-  const ensure = () => {
-    if (reader.buffer) return true
-    if (typeof device.createBuffer !== 'function') return false
-    try {
-      const buffer = device.createBuffer({
-        label: 'Trillion3D partition counts readback',
-        size: STATE_WORDS * 4,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      })
-      if (typeof buffer.mapAsync !== 'function' || typeof buffer.getMappedRange !== 'function') {
-        buffer.destroy()
-        return false
-      }
-      reader.adopt(buffer)
-      return true
-    } catch {
-      return false
-    }
-  }
+  const reader = createGpuPeriodicReadback(
+    device,
+    { label: 'Trillion3D partition counts readback', bytes: STATE_WORDS * 4 },
+    (mapped) => {
+      const words = new Uint32Array(mapped)
+      counted.frame = sampledFrame
+      counted.occluders = words[ST_OCCLUDERS]
+      counted.tested = words[ST_TESTED]
+      counted.rejected = words[ST_REJECTED]
+      counted.oversized = words[ST_OVERSIZED]
+      counted.testedTriangles = words[ST_TESTED_TRIANGLES]
+      counted.rejectedTriangles = words[ST_REJECTED_TRIANGLES]
+      counted.oversizedTriangles = words[ST_OVERSIZED_TRIANGLES]
+      counted.historyOccluders = words[ST_HISTORY_OCCLUDERS]
+      counted.withdrawn = words[ST_WITHDRAWN]
+    },
+  )
 
   return {
-    due: (frame: number) => reader.due(frame) && ensure(),
+    due: reader.due,
     encodeCopy(encoder: GPUCommandEncoder, state: GPUBuffer, frame: number) {
-      if (!reader.buffer) return
       sampledFrame = frame
-      reader.copy(encoder, state, 0, STATE_WORDS * 4)
-      reader.sampled(frame)
+      if (reader.copy(encoder, state, 0, STATE_WORDS * 4)) reader.sampled(frame)
     },
     submitted: reader.submitted,
     counts: () => (reader.ready ? counted : undefined),

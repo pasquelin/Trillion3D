@@ -22,6 +22,7 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
+import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
 export type { SelectionCase } from './selectionCase.ts'
 
@@ -143,8 +144,8 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       overflow: out[OUT_FLAGS],
       selectedTriangles: out[OUT_SELECTED_TRIANGLES],
       transparentTriangles: out[OUT_TRANSPARENT_TRIANGLES],
-      drawn: Array.from({ length: packed.pageCount }, (_, page) => page).filter(
-        (page) => (drawBits[page >>> 5] & (1 << (page & 31))) !== 0,
+      drawn: Array.from({ length: packed.pageCount }, (_, page) => page).filter((page) =>
+        hasBit(drawBits, page),
       ),
       candidates: work[at.work.candCounter],
       live: work[at.work.liveCounter],

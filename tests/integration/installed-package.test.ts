@@ -14,8 +14,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NAMES_THREE } from './engine-without-three-lists.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
-const repo = new URL('../../', import.meta.url)
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 /** What `pnpm pack --json` prints: one archive descriptor on older pnpm, an array on newer ones. */
@@ -25,7 +25,7 @@ interface PackEntry {
 
 function pack(directory: string): string | undefined {
   const output = execFileSync(pnpm, ['pack', '--json', '--pack-destination', directory], {
-    cwd: repo,
+    cwd: REPOSITORY_ROOT,
     encoding: 'utf8',
   })
   const result = JSON.parse(output) as PackEntry | PackEntry[]
@@ -74,9 +74,7 @@ test('the packed distribution is self-contained at its declared boundaries', () 
     )
 
     execFileSync('tar', ['-xzf', archive, '-C', root])
-    const manifest = JSON.parse(
-      readFileSync(join(root, 'package/package.json'), 'utf8'),
-    ) as PackageManifest
+    const manifest = readJson(join(root, 'package/package.json')) as PackageManifest
     assert.equal(manifest.scripts?.preinstall, undefined)
     assert.equal(manifest.scripts?.prepare, undefined)
     assert.equal(manifest.sideEffects, false)
@@ -122,9 +120,7 @@ test('the packed package names no host library and a clean install pulls none', 
         NAMES_THREE.test(readFileSync(join(shipped, path), 'utf8')),
     )
     assert.deepEqual(naming, [], 'no shipped module or declaration imports the host library')
-    const manifest = JSON.parse(
-      readFileSync(join(shipped, 'package.json'), 'utf8'),
-    ) as PackageManifest
+    const manifest = readJson(join(shipped, 'package.json')) as PackageManifest
     for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies'] as const)
       assert.equal(manifest[field]?.three, undefined, `${field} names three`)
 
