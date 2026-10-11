@@ -42,40 +42,7 @@ export const STALE_DUPLICATE = 'stale duplicate'
  * a Dawn and a Chrome proof never share a name.
  * A `REGRESSION` entry is an open debt, not a waiver: it is removed by fixing the engine.
  */
-export const EXCLUDED = new Map<string, [string, string]>([
-  [
-    'placement/transparent-transform',
-    [
-      REGRESSION,
-      'TODO: since 2779442f37 the paged pass encodes the main class draw slot when every transparent row is out of view — an empty drawIndirect counted as a draw (the image is right)',
-    ],
-  ],
-  [
-    'vsm/camera-stop',
-    [
-      REGRESSION,
-      'TODO: speckles in the first still frame (7 to 10 pixels) the settled frame does not have — shadow code frozen for the clean-room pass',
-    ],
-  ],
-  [
-    'webgpu/page-tangents',
-    [
-      STALE_DUPLICATE,
-      'its unpaged twin scenes now compile paged (the compiler decides unpaged from the material alone); the recipe in bench/runner/scenes/tangentScenes.ts must be rewritten',
-    ],
-  ],
-  [
-    'taa/temporal-antialiasing',
-    [
-      STALE_DUPLICATE,
-      'hand-written 16 to 24 hold frames where the engine holds after taaStillFrames (66), and a new camera object per pan frame, which the engine reads as a view cut',
-    ],
-  ],
-  [
-    'partition/conservative-partition',
-    [SETUP, 'port to Dawn unfinished: its only run hung with a promise still pending'],
-  ],
-])
+export const EXCLUDED = new Map<string, [string, string]>([])
 
 /** Every proof on disk ending in `suffix`, excluded ones included, as repository paths: the
  *  folder's reference. */

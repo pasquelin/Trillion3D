@@ -146,11 +146,22 @@ async function admitWanted(
   // pins fill, none —, each still counted missing (`needsAdmit`).
   const covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec)), room) ?? []
   if (room <= 0 && (s.coverLacking?.() ?? 0) > 0) run.missing++
-  s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
+  // `wanted` is the queue itself: the cut asks more pages while a burst awaits its loads, and
+  // each load awaited one round trip alone would put the next page a round trip behind. The reads
+  // start again for the pages the queue gained, before the next page is admitted.
+  let ahead = -1
+  const readAhead = () => {
+    if (wanted.length === ahead) return
+    ahead = wanted.length
+    s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
+  }
+  readAhead()
   for (const rec of covering)
     if (needsAdmit(s, run, rec) && !(await admitOne(s, run, rec, landed))) return
-  for (let i = 0; i < wanted.length; i++)
+  for (let i = 0; i < wanted.length; i++) {
+    readAhead()
     if (needsAdmit(s, run, wanted[i]) && !(await admitOne(s, run, wanted[i], landed))) return
+  }
 }
 
 /** Whether the image still asks for `rec` — the queue or the root cover. */

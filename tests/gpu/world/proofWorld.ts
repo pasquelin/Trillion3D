@@ -20,12 +20,13 @@ export const SDK_URL = pathToFileURL(
 
 /** Renders `pose` (the current one without) and flushes, frame after frame, until the image is
  *  held: that frame's metrics, or `null` when it never is. A held frame waits for the pages its
- *  cut lacks (`cutPending`): no page wait of the host's is needed between two frames. */
+ *  cut lacks (`cutPending`): no page wait of the host's is needed between two frames — and none is
+ *  made: `flush` draws barrier images (`settlePose`) that are drawn for the pending work, which
+ *  keep the reflections' two consecutive lit images (`RadianceSettle`) from ever being verified. */
 export async function settle(world: MeasuredWorld, pose?: CameraPose) {
   for (let i = 0; i < SETTLE_FRAMES; i++) {
     await animationFrame()
     const metrics = world.render(pose)
-    await world.flush()
     // The engine's own metrics object, rewritten by every frame: copied while it is this one's.
     if (metrics.frameHeld) return { ...metrics }
   }

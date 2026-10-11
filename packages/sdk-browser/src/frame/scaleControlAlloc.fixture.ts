@@ -39,15 +39,21 @@ const prepare = new Function(
  *  allocation buffers, a few kilobytes either way on a loaded machine — weighs under a byte a run,
  *  while one object a run weighs sixteen at least. */
 export const SAMPLES = 10_000
+/** Bytes a measure may weigh and be accepted as settled: a byte a run, under the sixteen of the
+ *  least object. */
+const ALLOWED = SAMPLES
 /** Runs before a measure: enough for the optimiser to take the functions the run calls, as an
  *  engine that ran for some minutes has them. */
 const WARM = 30_000
 
 /** Rounds a measure takes, and the middle one: a round may also hold what a lower tier boxes,
  *  which only adds, or a collection, which only takes away; the median is neither. A loaded
- *  machine may leave the code in a lower tier for the first rounds: the rounds go on until the
- *  last `SETTLED` read alike — within `SETTLE_BYTES` of one another, the heap's own accounting
- *  noise —, `MOST_ROUNDS` at most, and the last `ROUNDS` are read. */
+ *  machine may leave the code in a lower tier for the first rounds, and a lower tier is as steady
+ *  as the optimised one: the rounds go on until the last `SETTLED` read alike — within
+ *  `SETTLE_BYTES` of one another, the heap's own accounting noise — AND the last `ROUNDS` weigh
+ *  under `ALLOWED`, the bytes a run may hold, `MOST_ROUNDS` at most: the code settled where it
+ *  creates nothing. A run that creates an object a frame never gets under it, whatever the rounds,
+ *  and the last `ROUNDS` are read. */
 const ROUNDS = 5,
   SETTLED = 3,
   MOST_ROUNDS = 25,
@@ -72,7 +78,10 @@ export function grown(
 ) {
   const measure = (body: (i: number) => void) => {
     const bytes: number[] = []
-    while (bytes.length < MOST_ROUNDS && !settled(bytes)) {
+    while (
+      bytes.length < MOST_ROUNDS &&
+      !(settled(bytes) && pick(bytes.slice(-ROUNDS)) < ALLOWED)
+    ) {
       for (let i = 0; i < WARM; i++) body(i)
       gc()
       for (const f of hot) prepare(f)

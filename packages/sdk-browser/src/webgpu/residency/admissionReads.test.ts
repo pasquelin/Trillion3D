@@ -152,3 +152,29 @@ test('a prefetch read waits behind the camera until an admission joining it rais
   assert.deepEqual(fetched, order)
   streamer.dispose()
 })
+
+test('pages the queue gains while the job awaits a load are read before they are admitted', async () => {
+  const pages = ['a', 'b', 'c', 'd'].map(pageOf)
+  const tracking = createWebgpuPageTracking(pages)
+  const queue = [pages[0], pages[1]]
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
+  const cache = lruCache(4),
+    load = cache.load,
+    log: string[] = []
+  cache.load = async (url: string) => {
+    log.push(`load ${url}`)
+    // The cut asks two more pages while the first load is awaited.
+    if (url === 'a') queue.push(pages[2], pages[3])
+    return load(url)
+  }
+  await createWebgpuResidentEnsurer({
+    ...ensurerOptions(tracking, cache),
+    prefetch: (page) => log.push(`read ${page.url}`),
+  })(queue, 1, 1)
+  // The second walk asks b again — a read still under way, which the queue's one job for the page
+  // joins — and reads the two gained pages.
+  assert.deepEqual(log, [
+    ...['read a', 'read b', 'load a'],
+    ...['read b', 'read c', 'read d', 'load b', 'load c', 'load d'],
+  ])
+})
