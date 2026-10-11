@@ -1,5 +1,15 @@
 import { validating } from './validation.ts'
 
+/** A device's error scopes, innermost last, each with the first error raised under it: `push` opens
+ *  one, `pop` closes the innermost and gives its error, and refuses with none open as WebGPU does. */
+export const errorScopes = (scopes: Array<object | null> = []) => ({
+  pushErrorScope: () => void scopes.push(null),
+  popErrorScope: async () => {
+    if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
+    return scopes.pop() ?? null
+  },
+})
+
 /**
  * A device as WebGPU writes one, around the members a test device provides: an `EventTarget` (a
  * test raises `uncapturederror` with `raise`), a `lost` that settles on `lose`, one stack of error
@@ -19,11 +29,7 @@ export function asWebgpuDevice(members: Record<string, unknown>) {
   const target = new EventTarget()
   const device = Object.assign(target, members, {
     lost,
-    pushErrorScope: () => void scopes.push(null),
-    popErrorScope: async () => {
-      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
-      return scopes.pop() ?? null
-    },
+    ...errorScopes(scopes),
   }) as unknown as Record<string, unknown>
   for (const key of Object.keys(members)) {
     const make = members[key]

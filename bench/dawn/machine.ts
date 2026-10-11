@@ -27,6 +27,7 @@ import {
   WORK_THREADS,
 } from './machineWork.ts'
 import { readJson } from '../../scripts/repository-files.ts'
+import { validationScope } from '../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
 /** Changes when a kernel does: a machine file of another version is measured again. */
 const MACHINE_VERSION = 3
@@ -112,16 +113,10 @@ export function machineFrom(adapter: string, ms: Record<string, number>, date: s
 
 /** Measures the machine on the engine's device: every kernel, its commands uncounted. */
 export async function measureMachine(gpu: BenchGpu, device: GPUDevice, adapter: string) {
-  device.pushErrorScope('validation')
-  let made: ReturnType<typeof createKernels>
-  try {
-    made = gpu.quiet(() => createKernels(gpu, device))
-  } catch (error) {
-    await device.popErrorScope()
-    throw error
-  }
+  const { value: made, error: refused } = await validationScope(device, () =>
+    gpu.quiet(() => createKernels(gpu, device)),
+  )
   const { kernels, destroy } = made
-  const refused = await device.popErrorScope()
   if (refused) {
     destroy()
     throw new Error(`BENCH_MACHINE: ${refused.message}`)

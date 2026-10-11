@@ -3,6 +3,7 @@
 import type { BenchGpu } from './device.ts'
 import { readBack } from './readBack.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
+import { validationScope } from '../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
 /** The calibration's work: one display of 4112 × 2294 pixels, 16 bytes read and 16 written each. */
 export const CALIBRATION_BYTES = 4112 * 2294 * 16
@@ -19,34 +20,37 @@ const CALIBRATION_WGSL = /* wgsl */ `
 
 /** The calibration on the engine's device, its commands uncounted; throws if the device refuses it. */
 export async function createCalibration(gpu: BenchGpu, device: GPUDevice) {
-  device.pushErrorScope('validation')
-  const made = gpu.quiet(() => {
-    const usage = GPUBufferUsage
-    const set = device.createQuerySet({ type: 'timestamp', count: 2 })
-    const resolved = device.createBuffer({ size: 16, usage: usage.QUERY_RESOLVE | usage.COPY_SRC })
-    const read = device.createBuffer({ size: 16, usage: usage.MAP_READ | usage.COPY_DST })
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: {
-        module: device.createShaderModule({ code: CALIBRATION_WGSL }),
-        entryPoint: 'main',
-      },
-    })
-    const halves = [0, 1].map(() => {
-      const inputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
-      const outputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
-      const bind = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inputs } },
-          { binding: 1, resource: { buffer: outputs } },
-        ],
+  const { value: made, error: refused } = await validationScope(device, () =>
+    gpu.quiet(() => {
+      const usage = GPUBufferUsage
+      const set = device.createQuerySet({ type: 'timestamp', count: 2 })
+      const resolved = device.createBuffer({
+        size: 16,
+        usage: usage.QUERY_RESOLVE | usage.COPY_SRC,
       })
-      return { inputs, outputs, bind }
-    })
-    return { set, resolved, read, pipeline, halves }
-  })
-  const refused = await device.popErrorScope()
+      const read = device.createBuffer({ size: 16, usage: usage.MAP_READ | usage.COPY_DST })
+      const pipeline = device.createComputePipeline({
+        layout: 'auto',
+        compute: {
+          module: device.createShaderModule({ code: CALIBRATION_WGSL }),
+          entryPoint: 'main',
+        },
+      })
+      const halves = [0, 1].map(() => {
+        const inputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
+        const outputs = device.createBuffer({ size: HALF_BYTES, usage: usage.STORAGE })
+        const bind = device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: { buffer: inputs } },
+            { binding: 1, resource: { buffer: outputs } },
+          ],
+        })
+        return { inputs, outputs, bind }
+      })
+      return { set, resolved, read, pipeline, halves }
+    }),
+  )
   if (refused) throw new Error(`BENCH_CALIBRATION: ${refused.message}`)
   const { set, resolved, read, pipeline, halves } = made
   const workgroups = ceilDiv(HALF_BYTES / 16, 256)
