@@ -39,7 +39,7 @@ async function bench() {
   let landed = 0
   const rt = {
     context: { metadata: { impostors: section }, readTextureLevel: reader },
-    vis: {},
+    vis: { visView: { label: 'ids' } },
     setup: { viewport: VIEWPORT, texturePoolBudget: 1 << 20 },
     layout: { selectionRoots: roots },
     diag: { diagnosticFailure: () => undefined },
@@ -102,7 +102,7 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   assert.equal(record[43], 1, 'the world radius R')
   const toClip = engineOf(200).viewProjection
   const { encoder, open, passes } = recordingEncoder()
-  // Visibility: identifier 0, depth and the pyramid's level 0, before the pyramid is built.
+  // Visibility: the card's identifier, depth and the pyramid's level 0, before the pyramid is built.
   viewProj.set(toClip)
   assert.equal(drawImpostorVisibility(rt, gpu.device, open('primary'), true), true)
   const vis = passes[0].pipeline as GPURenderPipelineDescriptor
@@ -113,14 +113,14 @@ test('a switched root draws its card in visibility and surfaces once its atlas l
   const cards = () =>
     gpu.writes.filter((write) => write.buffer.label === 'Trillion3D impostor cards')
   assert.equal(cards()[0]?.size, state.slots.used * CARD_FLOATS, 'the records go up whole once')
-  // Surfaces: where the depth is the card's own.
+  // Surfaces: where the identifier kept is the card's own, read by equality: no depth is compared.
   encodeImpostorCards(rt, encoder)
   const surfaces = passes[1]
   assert.equal(surfaces.label, IMPOSTOR_PASS)
   const pipeline = surfaces.pipeline as GPURenderPipelineDescriptor
   assert.equal(pipeline.vertex.entryPoint, 'card_vs')
-  assert.equal(pipeline.depthStencil?.depthCompare, 'greater-equal')
-  assert.equal(pipeline.depthStencil?.depthWriteEnabled, false)
+  assert.equal(pipeline.depthStencil, undefined, 'no depth, written or compared')
+  assert.ok(surfaces.groups[2], 'the identifiers the visibility stage kept')
   assert.equal(surfaces.groups[1], state.runs[0].group, "the mesh's atlas group")
   assert.deepEqual(
     surfaces.draws,

@@ -14,7 +14,7 @@ export function createImpostorPass(
   reader: TextureLevelReader,
   feedOptions: Parameters<typeof createImpostorFeed>[3],
 ) {
-  const { imageLayout, atlasLayout, pipeline, visPipeline } = cardPipelines(device)
+  const { imageLayout, atlasLayout, idsLayout, pipeline, visPipeline } = cardPipelines(device)
   const viewBuffer = device.createBuffer({
     label: 'Trillion3D impostor view',
     size: CARD_VIEW_FLOATS * 4,
@@ -26,6 +26,8 @@ export function createImpostorPass(
     buffer: undefined as unknown as GPUBuffer,
   }
   let cardBuffer: GPUBuffer | undefined
+  // The identifiers the visibility stage kept: a group for the view they are in, made again when it is.
+  let idsOf: { view: GPUTextureView; group: GPUBindGroup } | undefined
   return {
     pipeline,
     visPipeline,
@@ -53,6 +55,19 @@ export function createImpostorPass(
         })
       }
       return image
+    },
+    /** The group over the identifiers texture `view`, group 2 of the surface stage. */
+    idsGroup(view: GPUTextureView) {
+      if (idsOf?.view !== view)
+        idsOf = {
+          view,
+          group: device.createBindGroup({
+            label: 'Trillion3D impostor identifiers',
+            layout: idsLayout,
+            entries: [{ binding: 0, resource: view }],
+          }),
+        }
+      return idsOf.group
     },
     dispose() {
       this.feed.dispose()

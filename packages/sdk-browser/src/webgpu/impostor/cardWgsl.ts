@@ -12,11 +12,6 @@ export const CARD_VIEW_FLOATS = 40
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2
 
-/** The card's depth nudged toward the eye by one part in 2^20 when its surface is drawn: the
- *  visibility stage wrote the same depth, and the nudge keeps it the nearest even where two
- *  compilations of one formula round apart. Reversed Z: nearer is larger. */
-const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20
-
 /**
  * THE CARD PASS: the impostor drawn as a masked surface of the one lighting model, as the
  * reference draws an impostor in its base pass. Group 0 is the image's (view and the session's card
@@ -27,11 +22,12 @@ const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20
  * every pixel of it shares: the eye in object space, the mip, the three frames, their weights and
  * capture planes, the normal matrix. A card wholly past one side of the frustum emits no triangle.
  * Two stages draw it. In the visibility raster, before the Hi-Z pyramid, `card_vis_fs` writes
- * identifier 0 — no cluster: passes rebuilding a pixel from its triangle leave it — and the depth
- * where the mesh's surface would be (the depth offset), into the depth and the pyramid's level 0,
- * so a card occludes as its mesh. After the material passes, `card_fs` writes its surface where its
- * depth is the one kept, so the lighting, the shadows and every later pass read it as they read a
- * cluster.
+ * the card's identifier (`VIS_CARD_BASE | slot`: a row past every table, which each pass rebuilding a
+ * pixel from its triangle leaves) and the depth where the mesh's surface would be (the depth
+ * offset), into the depth and the pyramid's level 0, so a card occludes as its mesh. After the
+ * material passes, `card_fs` writes its surface where the identifier kept is its own — an integer
+ * the visibility stage wrote, which no rounding of a depth formula reaches —, so the lighting, the
+ * shadows and every later pass read it as they read a cluster.
  */
 export const cardPassWgsl = () =>
   wgslProgram(
@@ -47,6 +43,8 @@ struct Card{world:mat4x4f,low:vec4f,inverse:mat4x4f,shape:vec4f,pivot:vec4f}
 @group(1) @binding(1) var impostorNormalDepth:texture_2d<f32>;
 @group(1) @binding(2) var impostorOrm:texture_2d<f32>;
 @group(1) @binding(3) var impostorSampler:sampler;
+/** The surface stage's alone: the identifiers the visibility stage kept. */
+@group(2) @binding(0) var cardIds:texture_2d<u32>;
 /** The card's world translation at the eye: the high words' difference, then the low words'. */
 fn cardOrigin(c:Card)->vec3f{return (c.world[3].xyz-view.eyeHigh.xyz)+(c.low.xyz-view.eyeLow.xyz);}
 /** Corner \`k\` of a card centred at \`centre\` (at the eye), counter-clockwise from the lower left:
@@ -112,23 +110,27 @@ fn cardPixel(in:CardVary)->CardPixel{
  let clip=view.viewProj*vec4f(worldMatrix3(c.world)*(b.point+c.pivot.xyz)+cardOrigin(c),1.0);
  return CardPixel(b,clip.z/clip.w);
 }
+/** The identifier of card slot \`slot\`'s pixels. */
+fn cardId(slot:u32)->u32{return ${core.VIS_CARD_BASE}u|slot;}
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_fs(in:CardVary)->CardVis{
  let px=cardPixel(in);
- return CardVis(0u,px.depth);
+ return CardVis(cardId(in.card),px.depth);
 }
 struct CardVisHiz{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_hiz_fs(in:CardVary)->CardVisHiz{
  let px=cardPixel(in);
- return CardVisHiz(0u,px.depth,px.depth);
+ return CardVisHiz(cardId(in.card),px.depth,px.depth);
 }
-struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@builtin(frag_depth) depth:f32}
+struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32}
 @fragment fn card_fs(in:CardVary)->CardOut{
+ // Where this card was the nearest the visibility stage kept: its identifier is there, whole.
+ if(textureLoad(cardIds,vec2i(in.clip.xy),0).r!=cardId(in.card)){discard;}
  let px=cardPixel(in);let b=px.blend;
  let n=normalize(mat3x3f(in.n0,in.n1,in.n2)*b.normal);
  let ao=b.orm.x;
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
- return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
+ return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag);
 }`,
     [IMPOSTOR_CARD_WGSL, tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
   )
