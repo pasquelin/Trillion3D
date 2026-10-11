@@ -69,7 +69,11 @@ function blendItemOf(
     idx = copy.geometry.getIndex()
   if (!attr || !idx) return undefined
   const paged = !!copy.userData.pagedBlend
-  const source = placementDeformation(copy.placement, copy.userData.sourceMesh ?? {}, capacities)
+  const source = placementDeformation(
+    copy.placement,
+    copy.userData.drawSource?.node ?? {},
+    capacities,
+  )
   const pooled = !paged && !!deformedOf(source.mesh, copy, copy.matrix, source.capacity)
   // A paged primitive whose clusters carry quantized geometry pages reads every attribute from
   // them, in place in the page cache (`../../visibility/shader/pageGeometryWgsl.ts`): it owns no
@@ -99,7 +103,7 @@ function blendItemOf(
     count: paged ? 0 : idx.count,
     matrix: copy.matrix,
     placement: copy.placement,
-    sourceMesh: copy.userData.sourceMesh,
+    drawSource: copy.userData.drawSource,
     sourceGeometry: copy.geometry,
     worldBox: blendWorldBox(copy, pooled),
     bounds: undefined as Float64Array | undefined,

@@ -11,10 +11,10 @@ test('followHostVisibility: null while no root flips, the flipped roots union on
   const [a, b, c] = [new Object3D(), new Object3D(), new Object3D()]
   // Each stands for a mesh, which casts unless set otherwise.
   for (const node of [a, b, c]) node.castShadow = true
-  const roots = [a, b, c].map((sourceMesh, i) => ({
-    pages: [{ sourceMesh }],
+  const roots = [a, b, c].map((node, i) => ({
+    pages: [{ drawSource: { node } }],
     worldBox: BOXES.subarray(i * 6, i * 6 + 6),
-  })) as unknown as ClusterRoot<{ sourceMesh: Object3D }>[]
+  })) as unknown as ClusterRoot<{ drawSource: { node: Object3D } }>[]
   const parked: [number, boolean][] = []
   const none = { entries: [], sourceOf: () => undefined }
   const follow = () =>

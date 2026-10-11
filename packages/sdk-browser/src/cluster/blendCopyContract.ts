@@ -11,7 +11,8 @@
  */
 
 import type { Primitive } from '../../../sdk-core/src/index.ts'
-import type { HostAttribute, HostMesh } from '../host/resources.ts'
+import type { HostAttribute } from '../host/resources.ts'
+import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { PlacementOf } from '../placement/rows.ts'
@@ -42,5 +43,5 @@ export type BlendCopy = {
   renderOrder: number
   /** Set by the engine itself: the source mesh the copy stands for, whether it is paged, and
    *  whether its pages carry quantized geometry it reads in place. */
-  readonly userData: { pagedBlend?: boolean; pageGeometry?: boolean; sourceMesh?: HostMesh }
+  readonly userData: { pagedBlend?: boolean; pageGeometry?: boolean; drawSource?: DrawSource }
 }

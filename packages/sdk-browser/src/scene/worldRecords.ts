@@ -35,10 +35,11 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 import { meshes } from './meshes.ts'
 import { primitiveFinder } from './primitiveLookup.ts'
-import { meshSurface } from '../page/surface.ts'
+import { sourceSurface } from '../page/surface.ts'
+import { drawSourceOf, type DrawSource } from '../page/selection/drawSource.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
-export type WorldWearer = { mesh: HostMesh; surface: PageSurface }
+export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
 
 /** The world DAG as the stream reads it (`worldRootDag`). */
 type WorldDagSource = NonNullable<ReturnType<typeof worldRootDag>>
@@ -75,10 +76,10 @@ function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: 
     // A root its cell holds joins the cover with the cell, never at open (`PageRec.holder`).
     ...(page.holder !== undefined && { holder: page.holder }),
     depthLayer: 0,
-    attributes: wearer.mesh.geometry.attributes,
+    attributes: wearer.drawSource.attributes,
     material: wearer.surface,
     transparent: false,
-    sourceMesh: wearer.mesh,
+    drawSource: wearer.drawSource,
     renderOrder: order,
   }
 }
@@ -157,7 +158,8 @@ export function worldWearers(
     const primitive = primitives[rank],
       mesh = primitive && byPrimitive.get(primitive)
     if (!mesh) return undefined
-    const surface = meshSurface(mesh)
-    return drawsBlended(primitive, surface) ? undefined : { mesh, surface }
+    const source = drawSourceOf(mesh),
+      surface = sourceSurface(source)
+    return drawsBlended(primitive, surface) ? undefined : { drawSource: source, surface }
   }
 }

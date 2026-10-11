@@ -47,9 +47,9 @@ function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
   for (const { world, placement, pages } of roots) {
     const rec = pages[0]
-    if (!rec?.transparent || !rec.sourceMesh || pagedBlendCopies.has(world)) continue
+    if (!rec?.transparent || !rec.drawSource?.node || pagedBlendCopies.has(world)) continue
     const copy = createBlendCopyRecord(
-      rec.sourceMesh,
+      rec.drawSource.node,
       rec.renderOrder,
       world,
       rec.material,

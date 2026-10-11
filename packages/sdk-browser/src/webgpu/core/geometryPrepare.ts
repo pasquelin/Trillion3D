@@ -47,7 +47,7 @@ export function prepareWebgpuGeometry(
 ) {
   const sourced = new Map<HostAttributes, boolean>()
   for (const rec of allPages)
-    if (!rec.geometryPage) sourced.set(rec.attributes, rec.sourceMesh?.geometry.usage === 'dynamic')
+    if (!rec.geometryPage) sourced.set(rec.attributes, !!rec.drawSource?.dynamic)
   const whole = wholePool(items, deformation, pooledOutputs(allPages))
   for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false)
   let vertices = 0,

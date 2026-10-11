@@ -41,7 +41,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   // source mesh, and the mesh itself only as the identity the record stands for.
   const record = collected.blendCopies[0]
   assert.equal(record.geometry, geometry)
-  assert.equal(record.userData.sourceMesh, mesh)
+  assert.equal(record.userData.drawSource?.node, mesh)
   assert.equal(record.surface.transmission, 1)
   geometry.dispose()
   material.dispose()

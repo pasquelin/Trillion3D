@@ -1,5 +1,5 @@
 import { BOX_VALUES, type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
-import { meshSurface, type PageSurface } from '../surface.ts'
+import { sourceSurface, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
@@ -14,6 +14,7 @@ import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { PageRec, ClusterRoot } from './types.ts'
 import { placementsOf, type Placed } from '../../placement/roots.ts'
 import type { HostMesh } from '../../host/resources.ts'
+import { drawSourceOf, type DrawSource } from './drawSource.ts'
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
@@ -34,12 +35,12 @@ export const drawsBlended = (
 ) => drawsCopies(primitive, surface) || pagesBlend(primitive, surface)
 /** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
  *  (#572) is its own collection, and moves class with the open's records (#837). */
-const collected = new WeakSet<object>()
+const collected = new WeakSet<DrawSource>()
 
 /** One primitive drawn by pages: its source mesh, the surface it wears, its records and shape —
  *  shared by every placement. */
 type Drawn = {
-  mesh: HostMesh
+  source: DrawSource
   primitive: Primitive
   surface: PageSurface
   pages: PageRec[]
@@ -49,7 +50,7 @@ type Drawn = {
 /** One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by its
  *  own depth, and a row's copy is skipped while the row is parked. */
 function blendCopiesOf(
-  { mesh, primitive, surface }: Omit<Drawn, 'pages' | 'shape'>,
+  { mesh, primitive, surface }: { mesh: HostMesh; primitive: Primitive; surface: PageSurface },
   placed: readonly Placed[],
   order: number,
   copies: BlendCopy[],
@@ -77,7 +78,7 @@ function coverBootstrap({ pages, shape }: Drawn, covered: Set<PageRec>, bootstra
 /** One root per placement of a primitive drawn by pages: its world and box, the primitive's
  *  nodes, bounds and links shared by all. */
 function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<PageRec>[]) {
-  const { mesh, primitive, surface, pages, shape } = drawn,
+  const { source, primitive, surface, pages, shape } = drawn,
     { structure, culling } = shape
   const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links }
   for (const { world, parked, placement } of placed) {
@@ -100,7 +101,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       mark:
         withShadowless(
           spriteMark(surface),
-          placement ? rowShadowless(placement) : !mesh.castShadow,
+          placement ? rowShadowless(placement) : !source.castShadow,
         ) || undefined,
     }
     refreshRootBox(root)
@@ -109,14 +110,16 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
 }
 
 /** Whether `alpha` moves the surface a record wears, or gives it another. */
-const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
-  !!mesh &&
-  (isAssignment(alpha) ? alpha.meshes.has(mesh) : alpha.surfaces.includes(mesh.material as object))
+const wears = ({ drawSource: source }: PageRec, alpha: AlphaChange) =>
+  !!source &&
+  (isAssignment(alpha)
+    ? !!source.node && alpha.meshes.has(source.node)
+    : alpha.surfaces.includes(source.declaration as object))
 
 /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
  *  written: the family a collection gives the class `alpha.to`, or the one it has. */
 const blendOf = (rec: PageRec, alpha: AlphaChange) =>
-  wears(rec, alpha) && collected.has(rec.sourceMesh!) ? alpha.to === 'blend' : rec.transparent
+  wears(rec, alpha) && collected.has(rec.drawSource!) ? alpha.to === 'blend' : rec.transparent
 
 /** The open's assignment, run again once a material moved into or out of blended inside the
  *  session (#846): each record takes `blendOf`; true when one moved. */
@@ -161,22 +164,23 @@ export function collectClusterPages(
     const placed = placementsOf(association, () => worlds.of(mesh))
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
-    const surface = meshSurface(mesh)
+    const source = drawSourceOf(mesh, association),
+      surface = sourceSurface(source)
     if (drawsCopies(primitive, surface)) {
       blendCopiesOf({ mesh, primitive, surface }, placed, order++, blendCopies)
       continue
     }
     const template = templates.pagesOf(primitive)
-    collected.add(mesh)
+    collected.add(source)
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     // ONE record per primitive page (#1235), shared by every placement of this source object: its
     // world, its row and its packed rank are the layout's, never a field here.
-    const pages = createPageRecords(primitive, template, mesh, surface, transparent, order)
+    const pages = createPageRecords(primitive, template, source, surface, transparent, order)
     for (const rec of pages) allPages.push(rec)
     // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages)
-    const drawn: Drawn = { mesh, primitive, surface, pages, shape }
+    const drawn: Drawn = { source, primitive, surface, pages, shape }
     coverBootstrap(drawn, covered, bootstrap)
     rootsOf(drawn, placed, roots)
     order++

@@ -63,7 +63,7 @@ function objectOfRoot(context: EngineContext, root: ClusterRoot<PageRec>) {
     rec = root.pages[0]
   if (!objects || !placement || root.parked || !rec || rec.transparent) return -1
   const at = rowCell(placement.rows, placement.index),
-    association = rec.sourceMesh && context.associations.get(rec.sourceMesh)
+    association = rec.drawSource?.node && context.associations.get(rec.drawSource.node)
   if (!at || association?.meshes === undefined) return -1
   const primitive = association.primitives ?? 0
   return objects.objectOf(at.cell, at.node, association.meshes, primitive)

@@ -13,7 +13,8 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
 import { createSessionDeformation } from './session.ts'
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'
-import { meshSurface } from '../page/surface.ts'
+import { sourceSurface } from '../page/surface.ts'
+import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { wholeDeformationPool } from './wholePool.ts'
 import { emptyGeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
@@ -40,7 +41,7 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const a = new Mesh(g, surface),
     b = new Mesh(g, surface)
   const copies = [a, b].map((mesh) => {
-    const copy = createBlendCopyRecord(mesh, 0, mesh.matrixWorld, meshSurface(mesh))
+    const copy = createBlendCopyRecord(mesh, 0, mesh.matrixWorld, sourceSurface(drawSourceOf(mesh)))
     copy.deformation = { joints: [], targets: [4] }
     return copy
   })

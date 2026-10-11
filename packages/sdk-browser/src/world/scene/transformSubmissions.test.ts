@@ -70,7 +70,7 @@ function banc() {
     lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime
   const camera = G.perspectiveCamera()
-  const drawn = [{ sourceMesh: node }]
+  const drawn = [{ drawSource: { node } }]
   /** One loop frame: the gate decides to hold, then stores what it just produced. */
   const frame = () => {
     const held = gate.enterFrame({}, camera, {}, undefined, source, drawn)

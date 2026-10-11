@@ -45,7 +45,7 @@ test('an index page and a deformation tail are read inside their own home', () =
       ({
         url: 'a',
         geometryPage: { url: 'a', vertexCount: 3 },
-        sourceMesh: { morphTargetInfluences: [0] },
+        drawSource: { node: { morphTargetInfluences: [0] }, dynamic: false },
       }) as unknown as PageRec,
   )
   const widths = new Map([['a', 16]])

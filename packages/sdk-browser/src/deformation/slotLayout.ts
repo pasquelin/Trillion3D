@@ -102,12 +102,12 @@ export function deformationSlotBytes(
   let bytes = sourceBytes
   for (const page of pages) {
     delete page.deformationOutput
-    const mesh = page.sourceMesh
+    const mesh = page.drawSource?.node
     if (
       !mesh?.skeleton &&
       !mesh?.morphTargetInfluences?.length &&
       !mesh?.waves &&
-      mesh?.geometry?.usage !== 'dynamic' &&
+      !page.drawSource?.dynamic &&
       !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | FLAG_SKIN | FLAG_MORPH)) &&
       ![...(rootOf.get(page)?.placement?.rows.sourceModels ?? [])].some((source) => source.waves)
     )

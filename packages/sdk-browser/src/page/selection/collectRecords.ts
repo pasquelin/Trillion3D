@@ -2,7 +2,7 @@ import type { Primitive } from '../../../../sdk-core/src/index.ts'
 import { quantizationErrorOf } from './helpers.ts'
 import type { Template } from './template.ts'
 import type { PageRec } from './types.ts'
-import type { HostMesh } from '../../host/resources.ts'
+import type { DrawSource } from './drawSource.ts'
 import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
 import { OPEN_CONE } from '../cone/cone.ts'
 
@@ -21,7 +21,7 @@ function widened(bounds: number[], sign: number, slack: number) {
 export function createPageRecords(
   primitive: Primitive,
   template: Template,
-  mesh: HostMesh,
+  drawSource: DrawSource,
   surface: PageSurface,
   transparent: boolean,
   order: number,
@@ -60,10 +60,10 @@ export function createPageRecords(
       streamUrl: streamed?.url,
       streamOffset: streamed?.offset,
       depthLayer: page.depthLayer ?? 0,
-      attributes: mesh.geometry.attributes,
+      attributes: drawSource.attributes,
       material: surface,
       transparent,
-      sourceMesh: mesh,
+      drawSource,
       // A flat cut has no tree: transparent pages recover their draw order from the source rank,
       // recorded for every class, since a page may turn blended in the session.
       sourceOrder: template.sourceOrder[pageIndex],

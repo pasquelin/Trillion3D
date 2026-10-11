@@ -1,5 +1,6 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
-import type { HostAttributes, HostMesh } from '../../host/resources.ts'
+import type { HostAttributes } from '../../host/resources.ts'
+import type { DrawSource } from './drawSource.ts'
 import type { PageSurface } from '../surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../cone/cone.ts'
@@ -63,7 +64,8 @@ export type PageRec = {
    *  on the way to the image takes it from here and nothing else. */
   material: PageSurface
   transparent?: boolean
-  sourceMesh?: HostMesh
+  /** What the page is drawn from: its attributes, declaration and node (`./drawSource.ts`). */
+  drawSource?: DrawSource
   /** GPU deformation output (#357): in this page's cache slot, in words from its start; or, for a
    *  page drawn from the float pool (`pool`), one block of its geometry's vertices in that pool,
    *  `from` its first float, shared by every page of its geometry and placement

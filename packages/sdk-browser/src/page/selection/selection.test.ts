@@ -22,7 +22,7 @@ test('clustered blend pages retain their source and only select the intersecting
   assert.equal(allPages.length, 2)
   for (const page of allPages) {
     assert.equal(page.transparent, true)
-    assert.equal(page.sourceMesh, fixture.mesh)
+    assert.equal(page.drawSource?.node, fixture.mesh)
   }
   const selected = selectVisiblePages(roots, engineCamera(camera()), {
     pixelError: 100,

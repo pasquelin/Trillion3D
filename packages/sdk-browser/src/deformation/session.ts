@@ -30,9 +30,9 @@ export function createSessionDeformation(
   }
   const frame = createDeformationFrame([
     ...roots.map((root) =>
-      deformedEntry(root.pages[0]?.sourceMesh as DeformedMesh | undefined, root, root.world),
+      deformedEntry(root.pages[0]?.drawSource?.node as DeformedMesh | undefined, root, root.world),
     ),
-    ...copies.map((copy) => deformedEntry(copy.userData.sourceMesh, copy, copy.matrix)),
+    ...copies.map((copy) => deformedEntry(copy.userData.drawSource?.node, copy, copy.matrix)),
   ])
   let base = 0
   /** Each root's placement rank by the world it reads: what a transparent item knows it by. */

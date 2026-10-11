@@ -58,7 +58,7 @@ const plans = new WeakMap<DeformationFrame, { roots: number; groups: Group[] }>(
 /** A page `PageRec.moved` may bound: a leaf — no coarser form stands for it, it stands for none,
  *  so no level of a cut reads another's bounds —, of a geometry no rewrite bounds. */
 const boundable = (rec: PageRec) =>
-  (rec.level ?? 0) === 0 && rec.parentError == null && rec.sourceMesh?.geometry.usage !== 'dynamic'
+  (rec.level ?? 0) === 0 && rec.parentError == null && !rec.drawSource?.dynamic
 
 /** The record sets of `roots` every placement of which the waves alone move, their pages all
  *  boundable: the sets `PageRec.moved` bounds for every placement that reads it. */

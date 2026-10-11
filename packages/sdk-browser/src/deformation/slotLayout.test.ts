@@ -9,7 +9,7 @@ const page = (url: string, count: number, deformed = true) =>
   ({
     url,
     geometryPage: { url, vertexCount: count },
-    sourceMesh: deformed ? { morphTargetInfluences: [0] } : { geometry: { usage: 'static' } },
+    drawSource: { node: deformed ? { morphTargetInfluences: [0] } : {}, dynamic: false },
   }) as unknown as PageRec
 
 test('shared compressed slots reserve disjoint outputs for every deformed placement', () => {

@@ -14,6 +14,7 @@ import {
 } from './scan.ts'
 import { nodeWrites, nodesWrittenSince } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
@@ -30,8 +31,8 @@ export type WatchedSources = ReadonlyArray<unknown>
 
 /** Source node of an entry, when it names one. */
 function sourceOf(entry: unknown) {
-  const shaped = entry as { sourceMesh?: Object3D } | undefined | null
-  return shaped ? shaped.sourceMesh : undefined
+  const shaped = entry as { drawSource?: DrawSource } | undefined | null
+  return shaped?.drawSource?.node
 }
 
 /** The source node of an entry with its chain, and the bones that deform it with theirs: a bone's

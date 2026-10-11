@@ -12,12 +12,11 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
 /** The node a root comes from: its first page's mesh. */
-export const rootSource = <T extends { sourceMesh?: Object3D }>(root: ClusterRoot<T>) =>
-  root.pages[0]?.sourceMesh
+export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(root: ClusterRoot<T>) =>
+  root.pages[0]?.drawSource?.node
 
 /** The node a see-through draw comes from. */
-export const blendSource = (item: { sourceMesh?: unknown }) =>
-  item.sourceMesh as Object3D | undefined
+export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
@@ -76,7 +75,10 @@ const moved = new Float64Array(BOX_VALUES),
  * `under`, when given, names the roots and the see-through draws to read — those under the nodes
  * the host flipped —, the others standing as they are.
  */
-export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
+export function followHostVisibility<
+  T extends { drawSource?: { node?: Object3D } },
+  S extends SeeThrough,
+>(
   roots: readonly ClusterRoot<T>[],
   seeThrough: {
     entries: readonly S[]
@@ -110,8 +112,8 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
   for (let k = 0; k < count; k++) {
     const rank = ranks ? ranks[k] : k,
       root = roots[rank],
-      source = rootSource(root)
-    if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue
+      node = rootSource(root)
+    if (root.placement || !node || !markShadowless(root, !node.castShadow)) continue
     flipped(rank, root)
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
   }

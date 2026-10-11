@@ -1,4 +1,5 @@
 import type { HostMesh } from '../host/resources.ts'
+import { drawSourceOf } from '../page/selection/drawSource.ts'
 import type { BlendCopy } from './blendCopyContract.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
@@ -43,6 +44,6 @@ export function createBlendCopyRecord(
     placement,
     frustumCulled: !!source.frustumCulled,
     renderOrder,
-    userData: { sourceMesh: mesh },
+    userData: { drawSource: drawSourceOf(mesh) },
   }
 }

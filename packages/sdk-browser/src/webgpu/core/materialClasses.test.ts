@@ -21,9 +21,9 @@ test('the three material classes take the three paths the engine has for them', 
     collected.roots.map((root) => root.pages[0].transparent),
     [false, true],
   )
-  assert.equal(collected.roots[0].pages[0].sourceMesh, meshes[0], 'the cut-out stays opaque')
+  assert.equal(collected.roots[0].pages[0].drawSource?.node, meshes[0], 'the cut-out stays opaque')
   assert.equal(collected.blendCopies.length, 1, 'only transmission leaves the DAG')
-  assert.equal(collected.blendCopies[0].userData.sourceMesh, meshes[2])
+  assert.equal(collected.blendCopies[0].userData.drawSource?.node, meshes[2])
   assert.equal(isTransmissive(meshes[2].material), true)
   assert.equal(isTransmissive(meshes[1].material), false, 'a plain blend does not transmit')
 })

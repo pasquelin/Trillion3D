@@ -81,8 +81,8 @@ export async function scene(
   // One entry per refresh: the alpha change it carried, `undefined` for values alone.
   const refreshes: (AlphaChange | undefined)[] = []
   // One page record per mesh, as the open collects them: the glass one drawn blended.
-  const pages = [...associations.keys()].map((sourceMesh, at) => ({
-    sourceMesh,
+  const pages = [...associations.keys()].map((node, at) => ({
+    drawSource: { node },
     transparent: at === 5,
   })) as unknown as PageRec[]
   const backend = {

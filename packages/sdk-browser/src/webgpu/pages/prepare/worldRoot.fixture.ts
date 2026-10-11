@@ -40,7 +40,7 @@ export async function scene(t: TestContext, alone = false) {
 
 /** A placement's root: one opaque page of `mesh`, at row 0 of `rows`. */
 export function placed(mesh: unknown, rows = createPlacementRows(2)) {
-  const page = { url: 'object', sourceMesh: mesh, transparent: false, renderOrder: 3 }
+  const page = { url: 'object', drawSource: { node: mesh }, transparent: false, renderOrder: 3 }
   return {
     world: { elements: new Float64Array(16) },
     pages: [page],

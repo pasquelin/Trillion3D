@@ -1,5 +1,5 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
-import type { HostMesh } from '../../host/resources.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
@@ -49,7 +49,7 @@ export type BlendGpuItem = {
   /** True while the host hides the source mesh or one of its ancestors: skipped as a parked
    *  row's item is (`placement/hidden.ts`). */
   hidden?: boolean
-  sourceMesh?: HostMesh
+  drawSource?: DrawSource
   sourceGeometry: Geometry
   /** World box of the item, six bounds flat (`packages/math/src/geometry/box.ts`); absent, the item is not rejected. */
   bounds?: Float64Array
