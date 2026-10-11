@@ -1,7 +1,7 @@
 //! The reference decoder of the equivalence harness (`unpack_tests.rs`): every field read at
 //! random, the first corner out of range refusing. Version 5 reads a vertex's position through its
 //! link, the one line the plain decoder lacks: the link rule itself is proved by the frozen
-//! digests of the compiler's harness (`geometry_page_positions_tests.rs`) and of
+//! digests of the compiler's harness (`tests/geometry_page/positions.rs`) and of
 //! `positions.test.ts`.
 
 use super::*;

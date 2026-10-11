@@ -1,5 +1,5 @@
 import { linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
-import { perspectiveBary } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { perspectiveBary } from './math.ts'
 import { attr2, barycentric, sampleLinear, sampleMap } from './math.ts'
 import { shadeLit } from './lighting.ts'
 import type { VisibilityFrame } from './frame.ts'

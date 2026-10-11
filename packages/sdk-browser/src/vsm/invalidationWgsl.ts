@@ -101,13 +101,6 @@ fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
  if(i<arrayLength(&vsmMappedRects)){bounds=vsmMappedRects[i];}
  return vec4u(max(pagesRect.xy,bounds.xy),min(pagesRect.zw,bounds.zw));
 }
-/** Whether any valid page overlaps the page rect. */
-fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pagesRectIn:vec4u,askedMarks:u32,fineCaster:bool)->bool{
- if(any(pagesRectIn.zw<pagesRectIn.xy)){return false;}
- let wantedMarks=askedMarks|select(0u,VSM_PAGE_FINE,fineCaster);
- let entryCell=vsmTableEntryOf(h,mipLevel,pagesRectIn.xy);
- return vsmMarksMatch(vsmRectMarks(entryCell.tableXY,pagesRectIn),wantedMarks);
-}
 /** Whether an instance is cached as static: its view is cached and its box does not move. */
 fn vsmCachesAsStatic(inst:VsmInvalidationInstance,viewUncached:bool)->bool{
  return !viewUncached&&(inst.flags&VSM_BOX_MOVING)==0u;

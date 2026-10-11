@@ -39,12 +39,8 @@ import {
   VSM_RENDER_PAIR_BYTES,
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
-import {
-  vsmBufferEntry,
-  vsmComputePipe,
-  vsmDynamicUniformEntry,
-  type VsmComputePipe,
-} from './passKit.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { madeTextureBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -203,7 +199,7 @@ const contexts = new WeakMap<VsmResources, Ctx>()
 
 /** The parameters' binding: the chunk's slot, by dynamic offset. */
 export const vsmRenderParamsEntry = (binding: number) =>
-  vsmDynamicUniformEntry(binding, VSM_RENDER_PARAMS_BYTES)
+  computeUniformEntry(binding, true, VSM_RENDER_PARAMS_BYTES)
 
 /** The cull (`cullCode`), expand and argument kernels, labelled under `label`: pipes made once a
  *  device and source (`vsmComputePipe`), so a pass whose kernel is another's shares its pipe — the
@@ -227,22 +223,26 @@ export function vsmChunkKernels(
     vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, C),
     [
       P(0),
-      vsmBufferEntry(1, C, 'read-only-storage'),
-      vsmBufferEntry(2, C, 'read-only-storage'),
-      vsmBufferEntry(3, C, 'storage'),
-      vsmBufferEntry(4, C, 'storage'),
+      computeBufferEntry(1, 'read-only-storage', C),
+      computeBufferEntry(2, 'read-only-storage', C),
+      computeBufferEntry(3, 'storage', C),
+      computeBufferEntry(4, 'storage', C),
     ],
   ])
   const expand = pipe('expand', vsmRenderExpandWgsl(layout), 'vsmRenderExpand', [
     vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, C),
     [
       P(0),
-      vsmBufferEntry(1, C, 'read-only-storage'),
-      vsmBufferEntry(2, C, 'storage'),
-      vsmBufferEntry(3, C, 'storage'),
+      computeBufferEntry(1, 'read-only-storage', C),
+      computeBufferEntry(2, 'storage', C),
+      computeBufferEntry(3, 'storage', C),
     ],
   ])
-  const argsEntries = [P(0), vsmBufferEntry(1, C, 'storage'), vsmBufferEntry(2, C, 'storage')]
+  const argsEntries = [
+    P(0),
+    computeBufferEntry(1, 'storage', C),
+    computeBufferEntry(2, 'storage', C),
+  ]
   const args = (entryPoint: string) => pipe('args', VSM_RENDER_ARGS_WGSL, entryPoint, [argsEntries])
   return {
     cull,
@@ -266,9 +266,9 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
     [
       [
         vsmRenderParamsEntry(0),
-        ...[1, 2, 3, 4].map((b) => vsmBufferEntry(b, C, 'read-only-storage')),
-        vsmBufferEntry(5, C, 'storage'),
-        vsmBufferEntry(6, C, 'storage'),
+        ...[1, 2, 3, 4].map((b) => computeBufferEntry(b, 'read-only-storage', C)),
+        computeBufferEntry(5, 'storage', C),
+        computeBufferEntry(6, 'storage', C),
       ],
     ],
   )
@@ -303,7 +303,7 @@ export function vsmRasterPipe(
   const layout1 = device.createBindGroupLayout({
     label: `${RENDER_LABEL}.raster1`,
     entries: [
-      vsmBufferEntry(0, GPUShaderStage.VERTEX, 'read-only-storage'),
+      computeBufferEntry(0, 'read-only-storage', GPUShaderStage.VERTEX),
       ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, layout, GPUShaderStage.VERTEX),
       ...vsmBindGroupLayoutEntries(
         VSM_RENDER_RASTER_FRAGMENT_SPECS,

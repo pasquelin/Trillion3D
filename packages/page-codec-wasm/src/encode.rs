@@ -4,9 +4,11 @@
 pub mod cells;
 pub mod deformation;
 mod skin;
+pub mod vertices;
 
-use cells::{first_use, grids, localise, stored_positions, Grids};
+use cells::{grids, Grids};
 use deformation::{join, page_deformation, write, Deformation};
+use vertices::{first_use, localise, stored_positions};
 
 use crate::triangles::Spans;
 use crate::writer::BitWriter;

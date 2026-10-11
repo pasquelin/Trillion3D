@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
 import { META, META_WORDS, REQUEST, REQUEST_WORDS } from '../../wasm/encodeAbi.ts'
@@ -160,7 +161,7 @@ export function encodeGeometryPage(
 
 /** The page the encoder holds, `bytes` long, copied out of the module's memory. */
 function take(module: SdkWasm, bytes: number) {
-  const out: Arena | null = reserveArena(module, [{ type: 'u32', length: Math.ceil(bytes / 4) }])
+  const out: Arena | null = reserveArena(module, [{ type: 'u32', length: ceilDiv(bytes, 4) }])
   if (!out) throw memoryRefused()
   try {
     module.encode_page_take(out.blocks()[0].offset)

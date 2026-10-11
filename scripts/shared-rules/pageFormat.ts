@@ -64,7 +64,7 @@ export function pageFormatTs() {
     ...exported(deform, ['FLAG_SKIN', 'FLAG_MORPH']),
   ]
   const items = [
-    ...exported(page, ['MAGIC', 'VERSION', 'HEADER_WORDS', 'MAX_VERTICES']),
+    ...exported(page, ['MAGIC', 'VERSION', 'HEADER_WORDS']),
     ...flags,
     ...exported(deform, ['MAX_JOINT_BITS', 'MAX_MORPH_TARGETS', 'MORPH_WORDS']),
     ...exported(triangles, ['TRIANGLE_BLOCK', 'BLOCK_CORNERS', 'WIDTH_BITS', 'MAX_WIDTH']),

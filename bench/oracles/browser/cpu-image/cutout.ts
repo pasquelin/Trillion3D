@@ -3,7 +3,8 @@ import {
   surfaceOpacity,
   type PageSurface,
 } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { perspectiveBary, mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { perspectiveBary } from './math.ts'
 import { textureRgba, type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { HostAttributes } from '../../../../packages/sdk-browser/src/host/resources.ts'
 import { lineDash } from './line.ts'

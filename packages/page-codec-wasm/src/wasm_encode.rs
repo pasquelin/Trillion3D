@@ -107,15 +107,15 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
             floats(r[request::WEIGHTS], count).to_vec(),
         ));
     }
-    let table = core::slice::from_raw_parts(
-        r[request::TARGETS] as *const u32,
-        r[request::TARGET_COUNT] as usize * 2,
-    );
-    for target in table.chunks(2) {
-        deformation.targets.push(MorphTarget {
-            position: floats(target[0], vertices * 3).to_vec(),
-            normal: (target[1] != 0).then(|| floats(target[1], vertices * 3).to_vec()),
-        });
+    let targets = r[request::TARGET_COUNT] as usize;
+    if targets != 0 {
+        let table = core::slice::from_raw_parts(r[request::TARGETS] as *const u32, targets * 2);
+        for target in table.chunks(2) {
+            deformation.targets.push(MorphTarget {
+                position: floats(target[0], vertices * 3).to_vec(),
+                normal: (target[1] != 0).then(|| floats(target[1], vertices * 3).to_vec()),
+            });
+        }
     }
     let exponents = (
         r[request::POSITION_EXPONENT] as i32,

@@ -182,5 +182,5 @@ Joints, weights, morph deltas and simulation-source IDs behind a geometry page's
 `primitives[].deformation` bounds their reach.
 
 - Flags: `FLAG_SKIN`, `FLAG_MORPH` (`codec/deform.rs`), `FLAG_SOFT_SOURCE` (`codec/lib.rs`).
-- Writes `rust/geometry_page_deform.rs:page_deformation`; reads
+- Writes `codec/encode/deformation.rs:page_deformation`; reads
   `browser/page/codec/geometryPageDeform.ts:readDeformation`, `browser/deformation/softSource.ts:cookedSoftSource`.

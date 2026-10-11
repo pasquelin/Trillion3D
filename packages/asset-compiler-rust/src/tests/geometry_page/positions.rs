@@ -160,7 +160,7 @@ fn cases() -> Vec<(String, Mesh, i32)> {
 
 /// The outcome of every case with every position stored, in order: name, digest or refusal, page
 /// bytes.
-const DEVELOP: &str = include_str!("geometry_page_positions_develop.tsv");
+const DEVELOP: &str = include_str!("positions_develop.tsv");
 
 // Behaviour: every case decodes to the words a page storing every position decodes it to, or is
 // refused alike, in no more page bytes; the flat-shaded pages, their positions stored once, in

@@ -1,25 +1,10 @@
 /**
- * What the shadow maps' compute passes share: a buffer binding's layout entries, the compute
+ * What the shadow maps' compute passes share: the compute
  * pipeline of a WGSL source described once a device and compiled the engine's one way
  * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
  * the maths package's (`packages/math/src/scalar`).
  */
-import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
-
-/** A buffer binding of `type` at `binding`, seen by `visibility`. */
-export const vsmBufferEntry = (
-  binding: number,
-  visibility: GPUShaderStageFlags,
-  type: GPUBufferBindingType,
-) => computeBufferEntry(binding, type, visibility)
-
-/** A compute uniform binding at `binding` read at a dynamic offset: one slot of `minBindingSize`
- *  bytes of a buffer of slots. */
-export const vsmDynamicUniformEntry = (
-  binding: number,
-  minBindingSize: number,
-): GPUBindGroupLayoutEntry => computeUniformEntry(binding, true, minBindingSize)
 
 /** A compute pipeline and the layouts of its groups: `prepared` compiles it off the thread (the
  *  prepare step awaits it, `prepareVsmPipelines`); `pipeline`, read where it is bound, is the one

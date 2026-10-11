@@ -1,4 +1,4 @@
-//! The quantizers dispatched at run time (`shared_math::wide`) write the bits their baseline
+//! The quantizers dispatched at run time (`wide`) write the bits their baseline
 //! copy writes: on an x86-64 processor with AVX2 the public entry points run the AVX2 copy, the
 //! bodies called directly the SSE2 one.
 

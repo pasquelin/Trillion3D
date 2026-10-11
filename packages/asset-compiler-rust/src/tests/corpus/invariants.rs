@@ -162,7 +162,7 @@ pub(super) fn check_pages(built: &Built, label: &str) {
         .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
         let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20)
             .unwrap_or_else(|e| panic!("{label}: decode level {}: {e:?}", cluster.level));
-        crate::geometry_page_tests::codec::verify(
+        crate::tests::geometry_page::codec::verify(
             &page,
             &cluster.indices,
             positions,

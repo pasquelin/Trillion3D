@@ -21,8 +21,6 @@ export const GEOMETRY_PAGE_FORMAT_VERSION = 7
  */
 export const CLUSTER_HEADER_WORDS = 25
 
-export const MAX_VERTICES = 65535
-
 /**
  * Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
  * and the morph targets (`deform.rs`).

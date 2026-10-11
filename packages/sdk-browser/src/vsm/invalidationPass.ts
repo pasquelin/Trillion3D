@@ -17,7 +17,8 @@
  * (`VsmLightCache.updateCommon`), so the map is set up uncached
  * (VSM_MAP_UNCACHED) and its next map drops VSM_NEXT_KEEPS_PAGES; the collector skips such entries.
  */
-import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
+import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { vsmBufferGroup, vsmEnsureBuffer } from './renderPass.ts'
 import {
   type VsmCacheManager,
@@ -163,8 +164,8 @@ export function vsmInvalidationPipe(device: GPUDevice, layout: VsmLayout) {
   return vsmComputePipe(device, INVALIDATION_LABEL, vsmInvalidationWgsl(layout), 'vsmStaleBoxes', [
     vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
     [
-      vsmBufferEntry(0, C, 'uniform'),
-      ...[1, 2].map((binding) => vsmBufferEntry(binding, C, 'read-only-storage')),
+      computeBufferEntry(0, 'uniform', C),
+      ...[1, 2].map((binding) => computeBufferEntry(binding, 'read-only-storage', C)),
     ],
   ])
 }

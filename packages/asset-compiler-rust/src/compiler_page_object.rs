@@ -1,6 +1,12 @@
 use super::*;
 use crate::dag::DagCluster;
 use trillion3d_page_codec::encode::deformation::{Deformation, MorphTarget};
+use trillion3d_page_codec::encode::EncodeError;
+impl From<EncodeError> for CompilerError {
+    fn from(error: EncodeError) -> Self {
+        Self::new(error.code, error.message)
+    }
+}
 /// Geometry codec metadata; header magic and sidecar version gate every page.
 pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
