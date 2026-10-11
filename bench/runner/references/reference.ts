@@ -7,7 +7,7 @@
 // them wins), drawn by the engine's reference mode and written with the commit that drew them.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { Page } from 'playwright'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
@@ -26,26 +26,26 @@ import {
 } from './referenceStore.ts'
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { readStreet } from '../street/street.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..')
 const git = (...args: string[]) =>
-  execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim()
+  execFileSync('git', ['-C', REPOSITORY_ROOT, ...args], { encoding: 'utf8' }).trim()
 
 /** One scene: its poses drawn in reference mode, the record written under `<dir>/<scene>/`, the
  *  images under `<images>/<scene>/`. */
 async function referenceScene(argv: string[], scene: string, dir: string, images: string) {
   const { flags, settings, views } = options.readOptions(
     [...REFERENCE_ARGS, ...argv, '--scene', scene],
-    ROOT,
+    REPOSITORY_ROOT,
   )
   const { sides, after } = options.equipSides(flags, settings)
   flags.refuseUnread()
   const [side] = sides
-  Object.assign(side, options.resolveSides({ after, root: ROOT })[0])
+  Object.assign(side, options.resolveSides({ after, root: REPOSITORY_ROOT })[0])
   const manifest = options.assetsManifest(scene, !side.cache)
   side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : manifest
   const captures = new Map<string, Capture>()
-  const mounts = options.resolveMounts(ROOT, sides, null)
+  const mounts = options.resolveMounts(REPOSITORY_ROOT, sides, null)
   const { server, port } = await startServer({ port: settings.port, mounts, captures })
   const view = {
     url: `http://127.0.0.1:${port}/`,

@@ -14,8 +14,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NAMES_THREE } from './engine-without-three-lists.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const repo = new URL('../../', import.meta.url)
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
 /** What `pnpm pack --json` prints: one archive descriptor on older pnpm, an array on newer ones. */
@@ -25,7 +25,7 @@ interface PackEntry {
 
 function pack(directory: string): string | undefined {
   const output = execFileSync(pnpm, ['pack', '--json', '--pack-destination', directory], {
-    cwd: repo,
+    cwd: REPOSITORY_ROOT,
     encoding: 'utf8',
   })
   const result = JSON.parse(output) as PackEntry | PackEntry[]

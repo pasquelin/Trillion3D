@@ -12,20 +12,20 @@ import { dirname, join } from 'node:path'
 import prettier from 'prettier'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
-import { ROOT } from './shared-rules/source.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */
 async function formatted(path: string, text: string) {
   if (path.endsWith('.ts')) {
-    const config = await prettier.resolveConfig(join(ROOT, path))
-    return prettier.format(text, { ...config, filepath: join(ROOT, path) })
+    const config = await prettier.resolveConfig(join(REPOSITORY_ROOT, path))
+    return prettier.format(text, { ...config, filepath: join(REPOSITORY_ROOT, path) })
   }
   if (path.endsWith('.rs')) {
     const done = spawnSync('rustfmt', ['--edition', '2021'], {
       input: text,
       encoding: 'utf8',
-      cwd: join(ROOT, dirname(path)),
+      cwd: join(REPOSITORY_ROOT, dirname(path)),
     })
     if (done.status !== 0) throw new Error(`rustfmt refused ${path}:\n${done.stderr}`)
     return done.stdout
@@ -44,8 +44,8 @@ const outputs: Record<string, () => string> = {
 const stale: string[] = []
 for (const [path, print] of Object.entries(outputs)) {
   const text = await formatted(path, print())
-  if (!process.argv.includes('--check')) writeFileSync(join(ROOT, path), text)
-  else if (readFileSync(join(ROOT, path), 'utf8') !== text) stale.push(path)
+  if (!process.argv.includes('--check')) writeFileSync(join(REPOSITORY_ROOT, path), text)
+  else if (readFileSync(join(REPOSITORY_ROOT, path), 'utf8') !== text) stale.push(path)
 }
 if (stale.length)
   throw new Error(

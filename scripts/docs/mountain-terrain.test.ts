@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 import { assertSourceReproduced, publishedManifest } from './gallery-scene.ts'
 import { mountainTerrain, terrainHeight } from './mountain-terrain/model.ts'
 import { writeMountainTerrain } from './mountain-terrain/write.ts'
-const root = resolve(import.meta.dirname, '../..'),
-  published = resolve(root, 'tests/fixtures/scenes/mountain-terrain')
+import { REPOSITORY_ROOT } from '../repository-files.ts'
+const published = resolve(REPOSITORY_ROOT, 'tests/fixtures/scenes/mountain-terrain')
 
 test('mountain terrain is deterministic with deep relief, strata, and a river', () => {
   const first = mountainTerrain(),

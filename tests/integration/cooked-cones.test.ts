@@ -16,15 +16,14 @@ import { sceneDocument } from '../../packages/sdk-browser/src/scene/tables.ts'
 import { joinedCorners, withPlaced } from '../kit/reference/placedVertices.ts'
 import type { PreparedSceneTables } from '../../packages/sdk-core/src/scene/core/tableContracts.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
-
-const root = new URL('../../', import.meta.url)
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 /** The bytes of `file`, alone in their `ArrayBuffer`. */
 const bytesOf = (file: string) => new Uint8Array(readFileSync(file)).buffer
 
 /** Every page of the scene cache whose pointer is `pointer`, and how many of them disagree. */
 async function checkScene(pointer: string) {
-  const { dir, manifest } = await readCacheManifest(dirname(fileURLToPath(new URL(pointer, root))))
+  const { dir, manifest } = await readCacheManifest(dirname(join(REPOSITORY_ROOT, pointer)))
   const tables = JSON.parse(
     readFileSync(join(dir, 'scene-tables.json'), 'utf8'),
   ) as PreparedSceneTables

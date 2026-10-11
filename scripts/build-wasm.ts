@@ -7,14 +7,14 @@
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { WASM_CRATE } from './native-crates.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const MANIFEST = join(ROOT, WASM_CRATE.path, 'Cargo.toml')
+const MANIFEST = join(REPOSITORY_ROOT, WASM_CRATE.path, 'Cargo.toml')
 const TARGET = 'wasm32-unknown-unknown'
 const KERNELS = join('sdk-browser', 'src', 'wasm')
-const OUTPUTS = [join(ROOT, 'packages', KERNELS), join(ROOT, 'dist', KERNELS)]
+const OUTPUTS = [join(REPOSITORY_ROOT, 'packages', KERNELS), join(REPOSITORY_ROOT, 'dist', KERNELS)]
 const MODULE_NAME = 'kernels.wasm'
 
 function rustc(...args: string[]): string {
@@ -89,7 +89,7 @@ function main(): void {
     CARGO_ENCODED_RUSTFLAGS: [
       '-C',
       'target-feature=+simd128,-relaxed-simd',
-      `--remap-path-prefix=${ROOT}=.`,
+      `--remap-path-prefix=${REPOSITORY_ROOT}=.`,
     ].join('\x1f'),
   }
 

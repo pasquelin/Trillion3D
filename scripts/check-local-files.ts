@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** Check the index too: force-adding an ignored file must not bypass the policy. */
 export function trackedIgnoredFiles(root: string): string[] {
@@ -14,7 +14,7 @@ export function trackedIgnoredFiles(root: string): string[] {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const files = trackedIgnoredFiles(resolve(import.meta.dirname, '..'))
+  const files = trackedIgnoredFiles(REPOSITORY_ROOT)
   if (files.length) {
     console.error(`Ignored files must stay untracked:\n${files.join('\n')}`)
     process.exitCode = 1

@@ -1,12 +1,12 @@
 // A bench scenario: the same situation on every run, frame for frame — keys held, drags, the
 // measurer's orbit, wheel turns, camera poses, or the events a person played recorded frame by
 // frame (`recorder.js`) — in named segments, each measured and optionally captured on its own.
-import { readFileSync } from 'node:fs'
 import { lerp } from '../../packages/math/src/scalar/reals.ts'
 import type { World } from '../../packages/sdk-browser/src/index.ts'
 import { WORLD_SCENARIO } from './worldScenario.ts'
 import type { BenchBrowser } from './dom.ts'
 import { TAU } from '../../packages/math/src/constants.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 /** A point on the canvas as shares of its width and height, so a scenario plays at any size. */
 type At = [x: number, y: number]
@@ -67,7 +67,7 @@ const SCENARIOS: Record<string, Scenario> = {
 /** The scenario `name` means: a built-in one, or a JSON file. */
 export function readScenario(name: string): Scenario {
   if (SCENARIOS[name]) return SCENARIOS[name]
-  const scenario = JSON.parse(readFileSync(name, 'utf8')) as Scenario
+  const scenario = readJson(name) as Scenario
   if (!Array.isArray(scenario.segments) || !scenario.segments.every((s) => s.frames > 0))
     throw new Error(`BENCH_SCENARIO: ${name} names no segments of frames`)
   return scenario

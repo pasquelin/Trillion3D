@@ -1,20 +1,13 @@
 #!/usr/bin/env node
 // Stage a campaign's evidence as the site's one report, replacing the one before; no network use.
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { assertReport } from '../../../site/app/reports/model/contract.ts'
 import { parseArgs } from '../harness/options.ts'
 import { measureOutput } from '../../core/paths.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 export function publierRapport(source: string, dest: string): string {
-  const report = assertReport(JSON.parse(readFileSync(join(source, 'report.json'), 'utf8')))
+  const report = assertReport(readJson(join(source, 'report.json')))
   const reports = join(dest, 'reports'),
     folder = join(reports, report.id)
   if (existsSync(folder)) throw new Error('Campaign already published; use a new campaign ID')

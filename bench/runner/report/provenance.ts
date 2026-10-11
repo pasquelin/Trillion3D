@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { cpus, totalmem, platform, arch, release, hostname } from 'node:os'
 import { join } from 'node:path'
+import { readJson } from '../../../scripts/repository-files.ts'
 const digest = (data: string) => createHash('sha256').update(data).digest('hex')
 export function measurementProvenance() {
   return {
@@ -19,6 +19,6 @@ export function measurementProvenance() {
   }
 }
 export function assetIdentity(cache: string) {
-  const manifest = JSON.parse(readFileSync(join(cache, 'native/full/manifest.json'), 'utf8'))
+  const manifest = readJson(join(cache, 'native/full/manifest.json'))
   return manifest.key ?? digest(JSON.stringify(manifest))
 }

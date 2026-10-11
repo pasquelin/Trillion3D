@@ -9,12 +9,11 @@
  */
 import { build, type Plugin } from 'esbuild'
 import { relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { emittedOf } from './engine-dist.ts'
+import { REPOSITORY_ROOT, posixPath } from './repository-files.ts'
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const packages = resolve(root, 'packages')
-const outdir = resolve(root, 'dist/witnesses')
+const packages = resolve(REPOSITORY_ROOT, 'packages')
+const outdir = resolve(REPOSITORY_ROOT, 'dist/witnesses')
 
 /** An engine source, resolved from a witness, becomes the address of its emitted file under `dist/`. */
 const engineInDist: Plugin = {
@@ -23,14 +22,14 @@ const engineInDist: Plugin = {
     bundler.onResolve({ filter: /^\.\.?\// }, ({ path, resolveDir }) => {
       const target = resolve(resolveDir, path)
       if (!target.startsWith(packages + sep)) return undefined
-      const address = relative(outdir, emittedOf(target)).split(sep).join('/')
+      const address = posixPath(relative(outdir, emittedOf(target)))
       return { path: address.startsWith('.') ? address : `./${address}`, external: true }
     })
   },
 }
 
 await build({
-  absWorkingDir: root,
+  absWorkingDir: REPOSITORY_ROOT,
   entryPoints: { measurement: 'bench/witnesses/measurement.ts' },
   outdir,
   bundle: true,

@@ -1,26 +1,16 @@
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, resolve } from 'node:path'
 import { transform } from 'esbuild'
 import { compile, type Config } from 'tailwindcss'
+import { filesUnder } from '../repository-files.ts'
 
 const require = createRequire(import.meta.url)
 const SOURCE_EXTENSIONS = new Set(['.html', '.ts', '.tsx'])
 const TOKEN = /[!@A-Za-z0-9_:[\]().,%/#-]+/g
 
-async function sourceFiles(directory: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const files = await Promise.all(
-    entries
-      .sort((left, right) => left.name.localeCompare(right.name))
-      .map(async (entry): Promise<string[]> => {
-        const path = resolve(directory, entry.name)
-        if (entry.isDirectory()) return sourceFiles(path)
-        return SOURCE_EXTENSIONS.has(extname(entry.name)) ? [path] : []
-      }),
-  )
-  return files.flat()
-}
+const sourceFiles = (directory: string) =>
+  filesUnder(directory).filter((path) => SOURCE_EXTENSIONS.has(extname(path)))
 
 /** The sources, under the root, scanned for class names: a folder's HTML and TypeScript files. */
 export const STYLE_SOURCES = [

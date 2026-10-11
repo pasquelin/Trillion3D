@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { manifest } from '../../../tests/fixtures/manifest/manifestBinary.ts'
 import { writePagedManifest } from '../../../tests/fixtures/manifest/pagedManifest.ts'
 import { cacheHoldsBlend } from './cacheManifest.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 /** A cache folder as the compiler publishes it: the pointer, then the paged manifest it names. */
 async function cache(t: test.TestContext, pass: string) {
@@ -20,7 +21,7 @@ async function cache(t: test.TestContext, pass: string) {
 
 test('a transparent primitive is found through the pages, the root listing none', async (t) => {
   const full = await cache(t, 'clustered-blend')
-  const root = JSON.parse(await readFile(join(full, 'k/clusters.json'), 'utf8'))
+  const root = readJson(join(full, 'k/clusters.json'))
   assert.equal(root.primitives, undefined, 'the root holds no primitive')
   assert.equal(await cacheHoldsBlend(full), true)
   assert.equal(await cacheHoldsBlend(await cache(t, 'exact-clusters')), false)

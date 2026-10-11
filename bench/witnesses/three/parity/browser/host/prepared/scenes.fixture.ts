@@ -8,6 +8,7 @@ import type { Object3D } from '../../../../../../../packages/sdk-core/src/world/
 import * as K from './sceneKinds.fixture.ts'
 import { sceneCacheFiles } from '../../../../../../../tests/kit/scenes/caches.ts'
 import { decodingImages } from '../../../../../../../packages/sdk-browser/src/host/prepared/decodedImages.fixture.ts'
+import { readJson } from '../../../../../../../scripts/repository-files.ts'
 
 const repository = new URL('../../../../../../../', import.meta.url)
 
@@ -16,7 +17,7 @@ export async function caches() {
   const found: URL[] = []
   for (const file of await sceneCacheFiles('manifest.json')) {
     const pointer = new URL(file, repository)
-    const { url } = JSON.parse(await readFile(pointer, 'utf8')) as { url: string }
+    const { url } = readJson(pointer) as { url: string }
     found.push(new URL('./', new URL(url, pointer)))
   }
   return found

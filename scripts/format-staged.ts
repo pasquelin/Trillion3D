@@ -1,15 +1,13 @@
 // The pre-commit hook's formatting (`scripts/hooks/pre-commit.ts`): the staged files `format:check`
 // reads are written formatted and staged again, so a commit never carries a format the CI refuses.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { formatPattern } from './changed-steps.ts'
 import { NATIVE_CRATES } from './native-crates.ts'
+import { runChecked } from './run.ts'
 
 const git = (...args: string[]) =>
   execFileSync('git', args, { encoding: 'utf8' }).split('\n').filter(Boolean)
-const run = (command: string, args: string[]) => {
-  const done = spawnSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32' })
-  if (done.status !== 0) throw new Error(`${command} ${args.join(' ')} failed`)
-}
+const run = (command: string, args: string[]) => runChecked(command, args, { inherit: true })
 
 const staged = git('diff', '--cached', '--name-only', '--diff-filter=ACMR')
 const prettier = staged.filter((file) => formatPattern.test(file))

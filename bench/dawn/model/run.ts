@@ -6,11 +6,11 @@
 // machine a run measured and kept (`../machine.ts`, `~/.trillion3d/machine/`). What no counter of the report says — the covered share of
 // the pixels, the share a shadowed light reaches, the reflecting share, the placements the
 // cut walks — is given; a floor taken from a share too large is lower, never higher.
-import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import type { BenchReport } from '../merge.ts'
 import type { Machine } from '../machine.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -25,8 +25,8 @@ const { positionals, values } = parseArgs({
 })
 if (!positionals[0] || !values.machine)
   throw new Error('usage: node bench/dawn/model/run.ts <report.json> --machine <machine.json>')
-const report = JSON.parse(readFileSync(positionals[0], 'utf8')) as BenchReport
-const machine = JSON.parse(readFileSync(values.machine, 'utf8')) as Machine
+const report = readJson(positionals[0]) as BenchReport
+const machine = readJson(values.machine) as Machine
 const frame = frameOf(report, {
   cover: Number(values.cover),
   reach: Number(values.reach),

@@ -23,9 +23,9 @@ import { ASSETS, sceneDerived } from './scene.ts'
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts'
 import { fetchModels } from './assetsFetch.ts'
 import { TRIANGLE_BUDGET, requireNativeCompiler } from '../../../scripts/native-compiler.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
-const ROOT = resolve(import.meta.dirname, '../../..')
-const CLI = join(ROOT, 'dist/sdk-node/src/cli/cli.mjs')
+const CLI = join(REPOSITORY_ROOT, 'dist/sdk-node/src/cli/cli.mjs')
 
 /**
  * What a compile job is given of the machine, read off the machine and never chosen by hand:
@@ -67,7 +67,10 @@ function compile(scene: string, budget: ReturnType<typeof machineBudget>) {
     String(budget.ramMb),
     'qem-endpoints',
   ]
-  const run = spawnSync('node', args, { cwd: ROOT, stdio: ['ignore', 'inherit', 'inherit'] })
+  const run = spawnSync('node', args, {
+    cwd: REPOSITORY_ROOT,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  })
   if (run.error) throw run.error
   if (run.status !== 0) throw new Error(`compiling ${scene} failed (${run.status})`)
 }

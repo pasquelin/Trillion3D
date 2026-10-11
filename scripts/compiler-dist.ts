@@ -11,13 +11,13 @@
  */
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join, parse, resolve } from 'node:path'
+import { join, parse } from 'node:path'
 import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts'
 import { rustHost, rustTool } from './build-wasm.ts'
 import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts'
+import { REPOSITORY_ROOT, posixPath } from './repository-files.ts'
 
-const ROOT = resolve(import.meta.dirname, '..')
-const CRATE = join(ROOT, 'packages/asset-compiler-rust')
+const CRATE = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust')
 /** The Rust target of this machine, which the build names so that the flags reach no build script. */
 const TARGET = rustHost()
 /**
@@ -27,10 +27,8 @@ const TARGET = rustHost()
  */
 const TARGETS =
   process.platform === 'win32'
-    ? join(process.env.RUNNER_TEMP ?? parse(ROOT).root, 't3d')
+    ? join(process.env.RUNNER_TEMP ?? parse(REPOSITORY_ROOT).root, 't3d')
     : join(CRATE, 'target')
-/** A path as the flags carry it: forward slashes, which every platform's toolchain reads. */
-const slashed = (path: string) => path.replaceAll('\\', '/')
 
 /**
  * Builds the compiler with `flags` added to this target's own (`.cargo/config.toml`: Cargo joins
@@ -59,16 +57,16 @@ if (!output || !compilerPackage(process.platform, process.arch))
 const profiles = join(TARGETS, 'pgo', TARGET)
 rmSync(profiles, { recursive: true, force: true })
 mkdirSync(profiles, { recursive: true })
-compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${slashed(profiles)}`]))
+compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${posixPath(profiles)}`]))
 const merged = join(profiles, 'merged.profdata')
 execFileSync(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], { stdio: 'inherit' })
-const compiler = build('dist', [`-Cprofile-use=${slashed(merged)}`])
+const compiler = build('dist', [`-Cprofile-use=${posixPath(merged)}`])
 const record: HashRecord = {
   compiler: platform,
   bytes: statSync(compiler).size,
   files: referenceHashes(compiler),
 }
-const shipped = join(ROOT, 'packages/compiler', platform, 'bin')
+const shipped = join(REPOSITORY_ROOT, 'packages/compiler', platform, 'bin')
 mkdirSync(shipped, { recursive: true })
 copyFileSync(compiler, join(shipped, compilerFileName(process.platform)))
 writeFileSync(output, `${JSON.stringify(record, null, 2)}\n`)

@@ -13,9 +13,9 @@ import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts'
 import { buildPortal } from './build-portal.ts'
 import { buildRuntime } from './build-runtime.ts'
 import { buildStyles, STYLE_SOURCES } from './build-styles.ts'
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 
-const ROOT = resolve(import.meta.dirname, '../..')
-export const SITE_OUTPUT = resolve(ROOT, 'dist/site')
+export const SITE_OUTPUT = resolve(REPOSITORY_ROOT, 'dist/site')
 
 /** The one public address of the site: its canonical link and its crawler rules derive from it,
  * and the deployment checks the address the built page declares. */
@@ -170,7 +170,7 @@ async function copyStatics(source: string, out: string, published = false) {
 /** Builds the site from `root` into `out`, every step unless `steps` names some; only the
  * deployed build is `published`, and carries the audience measurement (`measurement.ts`). */
 export async function buildSite(
-  root = ROOT,
+  root = REPOSITORY_ROOT,
   out = SITE_OUTPUT,
   published = false,
   steps = SITE_STEPS,
@@ -183,6 +183,6 @@ export async function buildSite(
 }
 
 /** The files of the built site git tracks: always none, since CI builds it from the sources. */
-export function trackedOutput(root = ROOT, out = SITE_OUTPUT) {
+export function trackedOutput(root = REPOSITORY_ROOT, out = SITE_OUTPUT) {
   return gitPathsSync(['ls-files', '-z', '--', relative(root, out)], root)
 }

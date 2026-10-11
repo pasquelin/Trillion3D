@@ -14,16 +14,16 @@ import { Stryker } from '@stryker-mutator/core'
 import { mutationMarkdown, mutationTargets, summarizeMutation } from './mutation-summary.ts'
 import { localFileGlobs, repositoryFiles } from './repository-files.ts'
 import { isUnitTest } from './unit-tests.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 const PACKAGES = ['packages/math/src/', 'packages/sdk-core/src/']
-const root = resolve(import.meta.dirname, '..')
 const { values } = parseArgs({
   options: {
     out: { type: 'string', default: '.mesure/out/mutation' },
     mutate: { type: 'string', multiple: true },
   },
 })
-const out = resolve(root, values.out!)
+const out = resolve(REPOSITORY_ROOT, values.out!)
 const testFiles = (repositoryFiles() ?? []).filter(
   (file) => isUnitTest(file) && PACKAGES.some((prefix) => file.startsWith(prefix)),
 )
@@ -32,8 +32,11 @@ mkdirSync(out, { recursive: true })
 // The sandbox is a copy without `.git`: a test reading the index (the Jolt pin of `joltCommit.test.ts`)
 // reads this checkout's.
 process.env.GIT_DIR = resolve(
-  root,
-  execFileSync('git', ['rev-parse', '--git-dir'], { cwd: root, encoding: 'utf8' }).trim(),
+  REPOSITORY_ROOT,
+  execFileSync('git', ['rev-parse', '--git-dir'], {
+    cwd: REPOSITORY_ROOT,
+    encoding: 'utf8',
+  }).trim(),
 )
 
 /** One Stryker run of `files`; `full`, every file reaching a mutant runs against it. */
@@ -84,7 +87,7 @@ const killers = new Map(again.map((mutant) => [key(mutant), mutant.killedBy ?? [
 const summary = summarizeMutation(
   first.map((mutant) => ({
     ...mutant,
-    fileName: relative(root, resolve(mutant.fileName)),
+    fileName: relative(REPOSITORY_ROOT, resolve(mutant.fileName)),
     killedBy: [...(mutant.killedBy ?? []), ...(killers.get(key(mutant)) ?? [])],
   })),
   testFiles,
@@ -100,4 +103,4 @@ const kills = [...summary.kills].map(([file, count]) => `${count}\t${file}`)
 writeFileSync(join(out, 'summary.md'), mutationMarkdown(summary))
 writeFileSync(join(out, 'survivors.md'), `${detail.join('\n')}\n`)
 writeFileSync(join(out, 'kills.tsv'), `${kills.join('\n')}\n`)
-process.stdout.write(`${mutationMarkdown(summary)}\nReports: ${relative(root, out)}/\n`)
+process.stdout.write(`${mutationMarkdown(summary)}\nReports: ${relative(REPOSITORY_ROOT, out)}/\n`)

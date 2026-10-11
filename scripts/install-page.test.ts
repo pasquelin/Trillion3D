@@ -1,10 +1,11 @@
+import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import test from 'node:test'
 import { DEFAULT_LANGUAGE, LANGUAGES } from '../site/content/i18n/dictionary.ts'
 import { codeBlocks, installPageHtml, repositoryLinks, walkthrough } from './install-page.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const root = new URL('../', import.meta.url)
 const english = await installPageHtml(DEFAULT_LANGUAGE)
 
 test('the Install page installs, compiles, draws and names its two headers', () => {
@@ -35,7 +36,7 @@ test('every language gives English its commands and its links', async () => {
 
 test('every repository link of the page exists', () => {
   const links = repositoryLinks(english)
-  for (const path of links) assert.ok(existsSync(new URL(path, root)), `${path} exists`)
+  for (const path of links) assert.ok(existsSync(join(REPOSITORY_ROOT, path)), `${path} exists`)
   assert.ok(links.includes('LICENSE'))
 })
 

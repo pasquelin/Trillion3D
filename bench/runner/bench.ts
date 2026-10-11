@@ -8,7 +8,6 @@
 // records machine load at each series boundary. Caller judges if the machine was quiet.
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
 import type { Page } from 'playwright'
 import { onFreshPage } from './harness/chrome.ts'
 import * as options from './harness/options.ts'
@@ -27,15 +26,15 @@ import { runFluids } from './fluids/fluids.ts'
 import { readLimits } from './harness/limits.ts'
 import { againstReference, sceneReference } from './references/referenceProof.ts'
 import type { Report, RunContext, Series } from './report/types.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..')
 const {
   settings,
   views,
   out: OUT,
   flags,
   resources,
-} = options.readOptions(process.argv.slice(2), ROOT)
+} = options.readOptions(process.argv.slice(2), REPOSITORY_ROOT)
 const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: null }
 
 async function main() {
@@ -45,7 +44,7 @@ async function main() {
   // Every option is read by now: a misspelt or retired flag stops the run before any build.
   flags.refuseUnread()
   await mkdir(OUT, { recursive: true })
-  const dists = options.resolveSides({ after, before, root: ROOT })
+  const dists = options.resolveSides({ after, before, root: REPOSITORY_ROOT })
   for (const side of sides)
     Object.assign(
       side,
@@ -66,13 +65,15 @@ async function main() {
     side.sourceUrl = side.engine.source === 'gltf' ? options.sceneGltf(scene) : null
   }
   const captures = new Map<string, Capture>()
-  const mounts = options.resolveMounts(ROOT, sides, resources)
+  const mounts = options.resolveMounts(REPOSITORY_ROOT, sides, resources)
 
   const report: Report = {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
-    head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    head: execFileSync('git', ['-C', REPOSITORY_ROOT, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim(),
     scene,
     engine: settings.engine,
     pathVersion: options.PATH_VERSION,

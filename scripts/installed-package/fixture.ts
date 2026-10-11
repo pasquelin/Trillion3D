@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Metafile } from 'esbuild'
 import type { Bundle, Run, Write } from './contracts.ts'
+import { readJson } from '../repository-files.ts'
 
 /** One child-process invocation the installed-package proof made, kept for the failure report. */
 interface LogEntry {
@@ -97,7 +98,7 @@ export function createInstalledFixture(root: string): InstalledFixture {
 
   function installedVersion(name: string): string {
     return (
-      JSON.parse(readFileSync(join(root, 'node_modules', name, 'package.json'), 'utf8')) as {
+      readJson(join(root, 'node_modules', name, 'package.json')) as {
         version: string
       }
     ).version
@@ -119,7 +120,7 @@ export function createInstalledFixture(root: string): InstalledFixture {
       ],
       fixture,
     )
-    return JSON.parse(readFileSync(join(fixture, `${name}-meta.json`), 'utf8')) as Metafile
+    return readJson(join(fixture, `${name}-meta.json`)) as Metafile
   }
 
   return { fixture, logs, run, write, bundle, installedVersion }

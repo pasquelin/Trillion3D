@@ -2,7 +2,7 @@
 // into an attachment, how many threads it launches a ms, what a pass, a dispatch and a barrier cost.
 // A pass's floor is its bytes over these rates, its threads over the launch rate: the time it
 // could not beat on this GPU, whatever its shader.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { spread } from './summary.ts'
@@ -26,6 +26,7 @@ import {
   TRIANGLE_SIDE,
   WORK_THREADS,
 } from './machineWork.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 /** Changes when a kernel does: a machine file of another version is measured again. */
 const MACHINE_VERSION = 3
@@ -148,7 +149,7 @@ export async function machineFor(
   const file = fileOf(adapter)
   if (!recalibrate && existsSync(file)) {
     try {
-      const kept = JSON.parse(readFileSync(file, 'utf8')) as Machine
+      const kept = readJson(file) as Machine
       const young = Date.now() - Date.parse(kept.date) < MAX_AGE_DAYS * 86_400_000
       if (kept.version === MACHINE_VERSION && young) return kept
     } catch {

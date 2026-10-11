@@ -8,11 +8,12 @@
  * Nothing is published without `--publish`, which the workflow passes only on `main` with the
  * repository variable `NPM_PUBLISH` set to `true`; no command here reads or prints a token.
  */
-import { spawnSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Run } from './installed-package/contracts.ts'
 import { packRelease, publishRelease } from './release-packages.ts'
+import { runChecked } from './run.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 const [step, folder] = process.argv.slice(2)
 if ((step !== 'pack' && step !== 'publish') || !folder)
@@ -21,23 +22,13 @@ const out = resolve(folder)
 /** A command whose output is the run's record: npm's list of each archive's files goes to the log. */
 const run =
   (inherit: boolean): Run =>
-  (command, args, cwd, environment) => {
-    const result = spawnSync(command, args, {
-      cwd,
-      env: environment,
-      encoding: 'utf8',
-      stdio: inherit ? 'inherit' : 'pipe',
-    })
-    if (result.error) throw result.error
-    if (result.status !== 0)
-      throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${result.stderr}`)
-    return result.stdout ?? ''
-  }
+  (command, args, cwd, env) =>
+    runChecked(command, args, { cwd, env, inherit })
 
 if (step === 'pack') {
   mkdirSync(out, { recursive: true })
   const release = packRelease({
-    root: resolve(import.meta.dirname, '..'),
+    root: REPOSITORY_ROOT,
     out,
     run: run(false),
     pnpm: 'pnpm',

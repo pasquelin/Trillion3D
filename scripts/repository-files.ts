@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, readdirSync, type PathLike } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { gitPathsSync } from './git-paths.ts'
 import { localPaths } from './local-files.ts'
 
-const root = resolve(import.meta.dirname, '..')
+/** The repository's root folder, the one place every script, bench and test reads it from. */
+export const REPOSITORY_ROOT = resolve(import.meta.dirname, '..')
 
 /** The TypeScript source folders of the packages, each its own namespace for the gates that read them. */
 export const SOURCE_UNITS = [
@@ -27,7 +28,7 @@ export const isTestModule = (file: string) =>
   file.endsWith('.rs') ? TEST_RS.test(file) : TEST_TS.test(file)
 
 /** Shared tools inspect maintained files, never ignored personal files. */
-export function repositoryFiles(directory = root): string[] | null {
+export function repositoryFiles(directory = REPOSITORY_ROOT): string[] | null {
   if (!existsSync(resolve(directory, '.git'))) return null
   return [
     ...new Set(
@@ -40,7 +41,7 @@ export function repositoryFiles(directory = root): string[] | null {
 
 /** The `.gitignore` local paths as globs: a bare name at any depth, a path from the root. */
 export const localFileGlobs = (): string[] =>
-  localPaths(root).map((path) => (path.includes('/') ? path : `**/${path}`))
+  localPaths(REPOSITORY_ROOT).map((path) => (path.includes('/') ? path : `**/${path}`))
 
 /**
  * The maintained sources a gate reads, as path -> text, from the extensions it names.
@@ -51,7 +52,7 @@ export const localFileGlobs = (): string[] =>
  */
 export function sourceFilesOf(
   extensions: RegExp,
-  directory = root,
+  directory = REPOSITORY_ROOT,
   keep: (file: string) => boolean = () => true,
 ): Map<string, string> {
   const tracked = repositoryFiles(directory)
@@ -62,3 +63,24 @@ export function sourceFilesOf(
       .map((file): [string, string] => [file, readFileSync(resolve(directory, file), 'utf8')]),
   )
 }
+
+/** The JSON document at `path`. */
+export const readJson = (path: PathLike) => JSON.parse(readFileSync(path, 'utf8'))
+
+/** Every file under `directory`, depth first and sorted by name within a folder; a path for which
+ *  `skip(path, name)` holds is left out, a folder with it. */
+export function filesUnder(
+  directory: string,
+  skip: (path: string, name: string) => boolean = () => false,
+): string[] {
+  return readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const path = join(directory, entry.name)
+      if (skip(path, entry.name)) return []
+      return entry.isDirectory() ? filesUnder(path, skip) : [path]
+    })
+}
+
+/** `path` with forward slashes, the spelling of the repository's relative paths on every platform. */
+export const posixPath = (path: string) => path.replaceAll('\\', '/')

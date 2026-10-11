@@ -12,8 +12,7 @@
  * rule 2). The default model is the morphing cube of the examples, a 2-unit cube at the origin.
  */
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { launchChrome } from '../bench/runner/harness/chrome.ts'
 import { drawnShare } from './docs/examples/capture.ts'
@@ -22,6 +21,7 @@ import { codeBlocks, installPageHtml, walkthrough } from './install-page.ts'
 import { createInstalledFixture, packArchive } from './installed-package/fixture.ts'
 import { packPlatformPackages } from './installed-package/platforms.ts'
 import { listen, staticServer } from './static-server.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** The CDN the page's `importmap` names, and where the fixture server plays it. */
 const CDN = 'https://cdn.jsdelivr.net/npm/trillion3d/'
@@ -31,12 +31,14 @@ const DRAWN = 0.01
 /** The summed channel distance from the canvas's corner at which a pixel counts as drawn. */
 const DRAWN_DISTANCE = 24
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const { values } = parseArgs({
   options: {
     model: {
       type: 'string',
-      default: join(root, 'site/assets/examples/animated-morph-cube/source/AnimatedMorphCube.glb'),
+      default: join(
+        REPOSITORY_ROOT,
+        'site/assets/examples/animated-morph-cube/source/AnimatedMorphCube.glb',
+      ),
     },
   },
 })
@@ -44,7 +46,7 @@ const windows = process.platform === 'win32'
 const [pnpm, npm, npx] = ['pnpm', 'npm', 'npx'].map((name) => (windows ? `${name}.cmd` : name))
 // The page is read before the clean folder is made: a page missing a step leaves no folder behind.
 const { commands, page, headers } = walkthrough(codeBlocks(await installPageHtml('en')))
-const { fixture, logs, run } = createInstalledFixture(root)
+const { fixture, logs, run } = createInstalledFixture(REPOSITORY_ROOT)
 // The compiler comes from the installed platform package, never from a variable of this shell.
 const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env
 
@@ -91,10 +93,12 @@ try {
   run(pnpm, ['run', 'build'])
   run(pnpm, ['run', 'build:native'])
   const binary = currentCompilerExecutable(undefined, {})
-  const { filename: archive } = packArchive(run, pnpm, root, fixture)
+  const { filename: archive } = packArchive(run, pnpm, REPOSITORY_ROOT, fixture)
   // The platform packages' pnpm `overrides`, one `"name": "file:archive"` line each under an
   // `overrides:` header (that exact text of `packPlatformPackages`), are npm's too.
-  const [, ...lines] = packPlatformPackages({ root, fixture, run, pnpm, binary }).trim().split('\n')
+  const [, ...lines] = packPlatformPackages({ root: REPOSITORY_ROOT, fixture, run, pnpm, binary })
+    .trim()
+    .split('\n')
   const overrides = JSON.parse(`{${lines.join(',')}}`) as Record<string, string>
   const app = join(fixture, 'app')
   mkdirSync(join(app, 'public'), { recursive: true })

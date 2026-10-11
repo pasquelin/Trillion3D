@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RACINE } from '../core/paths.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 const git = (root: string, ...args: string[]) =>
   execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim()
@@ -17,7 +17,7 @@ export type EngineRoot = { root: string; commit: string; subject: string; dirty:
  * engine and the site that differ from it. A run on a dirty checkout is refused unless `dirtyOk`.
  */
 export function engineRoot(dir: string | undefined, dirtyOk: boolean): EngineRoot {
-  const root = resolve(dir ?? RACINE)
+  const root = resolve(dir ?? REPOSITORY_ROOT)
   if (!existsSync(join(root, 'packages', 'sdk-browser', 'src', 'index.ts')))
     throw new Error(`BENCH_ENGINE: ${root} holds no engine (packages/sdk-browser/src/index.ts)`)
   const dirty = git(root, 'status', '--porcelain', '--', 'packages', 'site')

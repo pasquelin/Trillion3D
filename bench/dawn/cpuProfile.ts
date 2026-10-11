@@ -3,7 +3,7 @@
 import { Session } from 'node:inspector/promises'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { RACINE } from '../core/paths.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 type CallFrame = { functionName: string; url: string; lineNumber: number }
 type ProfileNode = { id: number; callFrame: CallFrame; children?: number[] }
@@ -16,7 +16,7 @@ export type FunctionTime = { name: string; where: string; selfMs: number; totalM
 /** Where a call frame's function lies, relative to the repository, with its line. */
 function where({ url, lineNumber }: CallFrame) {
   if (!url) return ''
-  const path = url.startsWith('file:') ? relative(RACINE, fileURLToPath(url)) : url
+  const path = url.startsWith('file:') ? relative(REPOSITORY_ROOT, fileURLToPath(url)) : url
   return `${path}:${lineNumber + 1}`
 }
 

@@ -4,11 +4,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { SCENE_ROOTS, manifestUrlOf } from '../kit/scenes/caches.ts'
+import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url))
-const PROOFS = join(ROOT, 'tests/gpu')
+const PROOFS = join(REPOSITORY_ROOT, 'tests/gpu')
 /** A string literal, a path or a URL, that starts under a scene root. */
 const SCENE_PATH = new RegExp(`['"\`]/?((?:${SCENE_ROOTS.join('|')})/[^'"\`$]+)`, 'g')
 

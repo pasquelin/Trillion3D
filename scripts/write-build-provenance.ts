@@ -1,28 +1,21 @@
 import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
-import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { resolve, relative, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { filesUnder, posixPath } from './repository-files.ts'
 
 export async function fingerprintBuild(
   directory: string,
 ): Promise<{ hash: string; modules: Record<string, string> }> {
-  const files: string[] = []
-  async function visit(folder: string): Promise<void> {
-    for (const entry of await readdir(folder, { withFileTypes: true })) {
-      const path = resolve(folder, entry.name)
-      if (entry.isDirectory()) await visit(path)
-      else if (
-        /\.(m?js)$/.test(entry.name) &&
-        basename(path) !== 'buildProvenance.js' &&
-        !entry.name.includes('.test.')
-      )
-        files.push(path)
-    }
-  }
-  await visit(directory)
+  const files = filesUnder(directory).filter(
+    (path) =>
+      /\.(m?js)$/.test(path) &&
+      basename(path) !== 'buildProvenance.js' &&
+      !basename(path).includes('.test.'),
+  )
   const modules: Record<string, string> = {}
   for (const file of files.sort())
-    modules[relative(directory, file).replaceAll('\\', '/')] = sha256(await readFile(file))
+    modules[posixPath(relative(directory, file))] = sha256(await readFile(file))
   return { hash: sha256(JSON.stringify(modules)), modules }
 }
 

@@ -12,8 +12,7 @@ import {
   requireNativeCompiler,
   TRIANGLE_BUDGET,
 } from './native-compiler.ts'
-
-const ROOT = resolve(import.meta.dirname, '..')
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** A scene folder, relative to the root, holding `source` and the `cache` compiled from it. */
 export interface CookedScene extends Pick<
@@ -65,13 +64,13 @@ export const COOKED_SCENES: Record<string, CookedScene> = {
 }
 
 /** The source folder of `scene`, absolute. */
-export const sourceOf = ({ directory }: CookedScene, root = ROOT) =>
+export const sourceOf = ({ directory }: CookedScene, root = REPOSITORY_ROOT) =>
   resolve(root, directory, 'source')
 
 /** Whether `manifest`, under `site/`, is in the cache of a scene `compile:caches` cooks, and exists
  *  once that cache is compiled: a checkout without the compiler (a documentation-only run) has
  *  none. */
-export function isCookedManifest(manifest: string, root = ROOT): boolean {
+export function isCookedManifest(manifest: string, root = REPOSITORY_ROOT): boolean {
   const path = `site/${manifest}`
   const scene = Object.values(COOKED_SCENES).find((cooked) =>
     path.startsWith(`${cooked.directory}/${cacheOf(cooked)}/`),
@@ -84,9 +83,9 @@ export function isCookedManifest(manifest: string, root = ROOT): boolean {
 
 /** Written beside a compiled cache: the options it was compiled with and the source files it
  *  read, so a file removed or renamed since, which no timestamp shows, makes it stale. */
-const stampPath = (scene: CookedScene, root = ROOT) =>
+const stampPath = (scene: CookedScene, root = REPOSITORY_ROOT) =>
   resolve(root, scene.directory, cacheOf(scene), 'compiled-with.json')
-const stampOf = (scene: CookedScene, root = ROOT) => {
+const stampOf = (scene: CookedScene, root = REPOSITORY_ROOT) => {
   const { source, simplification = 'none' } = scene
   const files = readdirSync(sourceOf(scene, root), { recursive: true }).map(String).sort()
   return JSON.stringify({ source, simplification, budget: TRIANGLE_BUDGET, files })
@@ -105,7 +104,7 @@ function compilerTime(): number | null {
 /** Compiles the cache of `scene` again, from nothing, and stamps it. */
 export function compileCache(scene: CookedScene): void {
   const { directory, ...compile } = scene
-  const cwd = resolve(ROOT, directory),
+  const cwd = resolve(REPOSITORY_ROOT, directory),
     cache = cacheOf(scene)
   rmSync(resolve(cwd, cache), { recursive: true, force: true })
   compileFullCache({ cwd, ...compile, cache })
@@ -115,7 +114,11 @@ export function compileCache(scene: CookedScene): void {
 
 /** Whether the cache of `scene` is missing, compiled with other options, or older than a file of
  *  its source or than the compiler built at `compiled`. */
-export function isStale(scene: CookedScene, root = ROOT, compiled = compilerTime()): boolean {
+export function isStale(
+  scene: CookedScene,
+  root = REPOSITORY_ROOT,
+  compiled = compilerTime(),
+): boolean {
   const stamp = stampPath(scene, root)
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== stampOf(scene, root)) return true
   const since = statSync(stamp).mtimeMs
@@ -131,7 +134,7 @@ export const TEST_SCENES = Object.values(COOKED_SCENES).filter(({ directory }) =
  *  names what it left and goes on, for a caller that may read none of them. */
 export function compileSiteCaches(required = true, scenes = Object.values(COOKED_SCENES)): void {
   const compiled = compilerTime()
-  const stale = scenes.filter((scene) => isStale(scene, ROOT, compiled))
+  const stale = scenes.filter((scene) => isStale(scene, REPOSITORY_ROOT, compiled))
   if (!stale.length) return
   try {
     requireNativeCompiler()

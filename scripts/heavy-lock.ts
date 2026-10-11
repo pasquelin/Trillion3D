@@ -1,15 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import {
-  linkSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { linkSync, mkdirSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { readJson } from './repository-files.ts'
 
 // The heavy local steps (a test run, `build`, `build:docs`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
@@ -50,7 +43,7 @@ function alive(pid: number): boolean {
 
 function holder(path: string): { pid: number; step: string; cwd: string } | undefined {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'))
+    return readJson(path)
   } catch {
     return undefined
   }

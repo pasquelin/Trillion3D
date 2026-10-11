@@ -2,14 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { messageOf, type CatalogueMessage } from '../packages/sdk-node/src/messages/catalogue.mts'
+import { REPOSITORY_ROOT, readJson } from './repository-files.ts'
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const RUST = join(ROOT, 'packages/asset-compiler-rust/src')
-const NODE = join(ROOT, 'packages/sdk-node/src')
+const RUST = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust/src')
+const NODE = join(REPOSITORY_ROOT, 'packages/sdk-node/src')
 const catalogueMessages = (
-  JSON.parse(readFileSync(join(NODE, 'messages/messages.json'), 'utf8')) as {
+  readJson(join(NODE, 'messages/messages.json')) as {
     messages: CatalogueMessage[]
   }
 ).messages
@@ -65,7 +64,7 @@ test('every code emitted by the Rust sources is in the catalogue', () => {
   for (const path of files(RUST, isRustSource))
     for (const [, code] of withoutTests(readFileSync(path, 'utf8')).matchAll(CODE_LITERAL))
       if (!NOT_MESSAGES.has(code) && !messageOf(code))
-        missing.add(`${code} (${relative(ROOT, path)})`)
+        missing.add(`${code} (${relative(REPOSITORY_ROOT, path)})`)
   assert.deepEqual([...missing], [])
 })
 
@@ -76,7 +75,7 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
   const problems: string[] = []
   for (const path of files(NODE, isNodeSource)) {
     const text = readFileSync(path, 'utf8')
-    const where = relative(ROOT, path)
+    const where = relative(REPOSITORY_ROOT, path)
     if (/\bnew (?:Type)?Error\(/.test(text)) problems.push(`bare error in ${where}`)
     for (const [, code] of text.matchAll(named))
       if (!messageOf(code)) problems.push(`${code} (${where})`)
@@ -85,7 +84,10 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
 })
 
 test("the browser runtime's family refusal carries its catalogue code", () => {
-  const loader = readFileSync(join(ROOT, 'packages/sdk-browser/src/host/onDemand.ts'), 'utf8')
+  const loader = readFileSync(
+    join(REPOSITORY_ROOT, 'packages/sdk-browser/src/host/onDemand.ts'),
+    'utf8',
+  )
   const id = /FAMILY_LOAD_FAILED_ID = '([^']+)'/.exec(loader)?.[1]
   assert.equal(id, messageOf('FAMILY_LOAD_FAILED')?.id)
 })

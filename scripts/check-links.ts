@@ -6,12 +6,12 @@ import { decodeLinkComponent as decode } from '../site/content/uri.ts'
 // heading anchor or an explicit id/name. Runtime routes (/api/...) are
 // reported separately, never checked. Same behavior as the retired
 // scripts/check-links.py, so `pnpm run check:links` needs no Python.
-import { repositoryFiles } from './repository-files.ts'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { repositoryFiles, filesUnder } from './repository-files.ts'
+import { readFileSync, statSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
-const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'tests/assets'])
 
 type LinkError = [file: string, target: string, reason: 'missing file' | 'missing anchor']
@@ -27,25 +27,12 @@ function findMarkdownFiles(root: string): string[] {
   const maintained = repositoryFiles(root)
   if (maintained)
     return maintained.filter((file) => file.endsWith('.md')).map((file) => join(root, file))
-  const results: string[] = []
-  const walk = (dir: string) => {
-    let entries
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      const full = join(dir, entry.name)
-      // Name alone is not enough: an exclusion can carry a path (`tests/assets`), and corpus
-      // outside the repo must not be traversed under the pretext that it is named `assets`.
-      if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue
-      if (entry.isDirectory()) walk(full)
-      else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full)
-    }
-  }
-  walk(root)
-  return results
+  // Name alone is not enough: an exclusion can carry a path (`tests/assets`), and corpus
+  // outside the repo must not be traversed under the pretext that it is named `assets`.
+  return filesUnder(
+    root,
+    (path, name) => excludedDirs.has(name) || excludedDirs.has(relative(root, path)),
+  ).filter((file) => file.endsWith('.md'))
 }
 
 // Strip fenced code blocks (``` or ~~~, 3+ marks) so links inside samples never count.
@@ -116,7 +103,10 @@ interface LocalLink {
 }
 
 /** Every link of the repository's Markdown prose: the local ones resolved, the runtime routes apart. */
-export function markdownLinks(root = sdkRoot): { local: LocalLink[]; runtime: RuntimeRoute[] } {
+export function markdownLinks(root = REPOSITORY_ROOT): {
+  local: LocalLink[]
+  runtime: RuntimeRoute[]
+} {
   const local: LocalLink[] = []
   const runtime: RuntimeRoute[] = []
   for (const file of findMarkdownFiles(root)) {
@@ -156,7 +146,7 @@ export function checkLinks(root: string): CheckLinksResult {
 }
 
 function main(): void {
-  const result = checkLinks(sdkRoot)
+  const result = checkLinks(REPOSITORY_ROOT)
   console.log(JSON.stringify(result, null, 2))
   process.exitCode = result.errors.length ? 1 : 0
 }

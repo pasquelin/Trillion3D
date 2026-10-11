@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import type { Metafile } from 'esbuild'
 import { evidenceSummary, installedEvidence } from './installed-package/evidence.ts'
 import {
@@ -22,14 +22,15 @@ import {
   type PackageJson,
   packArchive,
 } from './installed-package/fixture.ts'
+import { REPOSITORY_ROOT } from './repository-files.ts'
 
 /** Whether the fixture's virtual store holds any version of the host library. */
 const installedThree = (fixture: string) =>
   readdirSync(join(fixture, 'node_modules/.pnpm')).some((name) => /^three@|_three@/.test(name))
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const { fixture, logs, run, write, bundle, installedVersion } = createInstalledFixture(root)
+const { fixture, logs, run, write, bundle, installedVersion } =
+  createInstalledFixture(REPOSITORY_ROOT)
 // `--archives <folder>`: the six archives of a release (`scripts/release.ts pack`) installed
 // as the registry would serve them, nothing built here; the compiler proved is the one they carry.
 const archivesAt = process.argv.indexOf('--archives')
@@ -49,10 +50,12 @@ try {
     run(pnpm, ['run', 'build:native'])
     built = currentCompilerExecutable(undefined, {})
   }
-  const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, root, fixture)
+  const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, REPOSITORY_ROOT, fixture)
   const archive = join(fixture, basename(packed.filename)) // where the CDN proof unpacks it
   if (release) writeFileSync(archive, readFileSync(packed.filename))
-  const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson
+  const source = JSON.parse(
+    readFileSync(join(REPOSITORY_ROOT, 'package.json'), 'utf8'),
+  ) as PackageJson
   // The consumer installs the package alone: it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
   const dependencies: Record<string, string> = { [source.name]: `file:${archive}` }
@@ -81,7 +84,7 @@ try {
     'pnpm-workspace.yaml',
     release
       ? platformOverrides(release.archives.slice(0, -1))
-      : packPlatformPackages({ root, fixture, run, pnpm, binary: built }),
+      : packPlatformPackages({ root: REPOSITORY_ROOT, fixture, run, pnpm, binary: built }),
   )
   run(pnpm, ['install', '--frozen-lockfile=false'], fixture)
   // A release's compiler, found from the installed package as its CLI finds it: absent, or not
@@ -156,7 +159,7 @@ try {
     fixture,
     packageName: source.name,
     browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/src/index.js',
-    bundler: join(root, 'node_modules/.bin/esbuild'),
+    bundler: join(REPOSITORY_ROOT, 'node_modules/.bin/esbuild'),
     run,
   }
   const browserRun = proveBrowser ? await proveInstalledBrowserModes(browserOptions) : null

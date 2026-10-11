@@ -14,10 +14,11 @@
 // morph target, so the images of a pair can be compared pixel for pixel
 // (`tests/gpu/webgpu/page-tangents.gpu.ts`).
 // =====================================================================================
-import { cpSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { ASSETS } from '../assets/scene.ts'
 import { sceneGltfFile } from '../assets/assetsCatalogue.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 /** The public scene all four are derived from. */
 const TANGENT_SOURCE = 'normal-tangent-mirror-test'
@@ -98,7 +99,7 @@ function writeTangentScenes() {
   const from = join(ASSETS, TANGENT_SOURCE)
   const file = sceneGltfFile(from)
   if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets/assets.ts first`)
-  const source = JSON.parse(readFileSync(join(from, file), 'utf8')) as Gltf
+  const source = readJson(join(from, file)) as Gltf
   for (const { surface, path, scene } of TANGENT_SCENES) {
     const to = join(ASSETS, scene)
     cpSync(from, to, { recursive: true, filter: (name) => !name.endsWith('.gltf') })

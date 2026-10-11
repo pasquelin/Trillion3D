@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import {
   existsSync,
-  readFileSync,
   readdirSync,
   mkdirSync,
   writeFileSync,
@@ -13,6 +12,7 @@ import { sceneNote } from '../assets/scene.ts'
 import { assertReport, REPORT_VERSION } from '../../../site/app/reports/model/contract.ts'
 import type { Report as CampaignReport } from '../../../site/app/reports/model/types.ts'
 import type { Report as BenchReport } from './types.ts'
+import { readJson } from '../../../scripts/repository-files.ts'
 
 type ReportRun = CampaignReport['runs'][number]
 type ReportRecord = CampaignReport['records'][number]
@@ -89,7 +89,7 @@ export function exportReport(source: string, output: string, id: string): Campai
       })
       continue
     }
-    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<BenchReport>
+    const raw = readJson(file) as Partial<BenchReport>
     if (!Array.isArray(raw.series)) throw new Error(`Invalid measurement: ${file}`)
     const sourcePath = `sources/${runId}.json`
     writeFileSync(join(output, sourcePath), JSON.stringify(publicData(raw)) + '\n')

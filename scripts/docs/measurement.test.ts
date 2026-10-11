@@ -3,8 +3,7 @@ import assert from 'node:assert/strict'
 import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { MEASUREMENT_TAG, withMeasurement } from './measurement.ts'
-
-const root = resolve(import.meta.dirname, '../..')
+import { REPOSITORY_ROOT } from '../repository-files.ts'
 
 test('the tag is added before the head closes, indented inside it', () => {
   const page = '<!doctype html>\n<html>\n  <head>\n    <title>x</title>\n  </head>\n</html>\n'
@@ -35,7 +34,7 @@ test('every page of the sources can carry the measurement', async () => {
       else if (entry.name.endsWith('.html')) pages.push(path)
     }
   }
-  await walk(resolve(root, 'site'))
+  await walk(resolve(REPOSITORY_ROOT, 'site'))
 
   assert.ok(pages.length > 30, `the site has ${pages.length} pages`)
   const missing: string[] = []
