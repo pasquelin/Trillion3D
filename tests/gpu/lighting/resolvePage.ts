@@ -9,6 +9,7 @@
  * frame has none of its own (`lighting/deferred/program.ts`). A binding the layout gains and this
  * page does not know fails by its number, never as a drifted copy.
  */
+import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSceneLightStore, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import {
   createSceneLightContractBuffer,
@@ -140,7 +141,16 @@ export async function run(scenes: ResolveScene[]) {
     uploadSceneLights(device, lights)
     // One tile: the view is one tile wide and high, every sample at its pixel, at its rank.
     const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)]
-    view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, 0, false, direct, scene.rank ?? 0)
+    view.write(
+      new Float32Array(16),
+      [0, 0, 0, 1],
+      16,
+      16,
+      clearValueOf(0),
+      false,
+      direct,
+      scene.rank ?? 0,
+    )
     const samples = storage(new Float32Array(scene.samples))
     const count = scene.samples.length / SAMPLE_FLOATS
     const sums: Record<string, number[]> = {}

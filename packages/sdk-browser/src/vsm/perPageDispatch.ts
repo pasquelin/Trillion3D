@@ -17,7 +17,7 @@ import {
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
 import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
 import type { VsmResources } from './resources.ts'
-import { vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
@@ -86,7 +86,7 @@ export class VsmPerPageDispatcher {
   }
 
   /** This frame's `all` bins (ids already in `res.perPageIds`); the slots that changed go up by
-   *  queue write, before this frame's submit (`vsmWriteChangedSlots`). */
+   *  queue write, before this frame's submit (`writeChangedSlots`). */
   setBins(bins: readonly VsmPerPageBin[]) {
     const { args, slots } = this
     for (let b = 0; b < slots.count; b++) {
@@ -95,7 +95,7 @@ export class VsmPerPageDispatcher {
       if (b < bins.length) vsmWritePerPageBinArgs(args, at, bins[b], b)
       else args.fill(0, at, at + slots.words)
     }
-    vsmWriteChangedSlots(this.device, this.params, args, slots)
+    writeChangedSlots(this.device, this.params, args, slots)
     this.bins = bins
   }
 

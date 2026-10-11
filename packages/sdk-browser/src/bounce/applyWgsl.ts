@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -37,7 +38,7 @@ fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
 /** Bounce application at the deferred-resolve bindings, and its two measurement views. */
 export const BOUNCE_APPLY_WGSL = wgslBlock(
   'BOUNCE_APPLY_WGSL',
-  [bounceApplyWgsl(11, 12)],
+  [bounceApplyWgsl(DEFERRED_BINDINGS.bounceGrid, DEFERRED_BINDINGS.probes)],
   `
 /** True when the host asked for the indirect-irradiance diagnostic view, and that view only. */
 fn bounceOnly()->bool{return bounce.reach.y>0.5;}

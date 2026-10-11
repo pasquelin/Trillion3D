@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
@@ -8,7 +9,7 @@ import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
-export const LIGHTING_RECEIVER_BINDING = 23
+export const LIGHTING_RECEIVER_BINDING = DEFERRED_BINDINGS.receiver
 
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =

@@ -36,7 +36,7 @@ import {
 import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
-import { vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import type { VsmLayout } from './layout.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
@@ -230,7 +230,7 @@ function writeParams(
   }
   // What changed of the slots' structs, in one write: never the padding, never more writes than
   // the whole slots sent.
-  vsmWriteChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
+  writeChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
 }
 
 function bind(

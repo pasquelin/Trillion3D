@@ -1,3 +1,4 @@
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { readOnly } from '../webgpu/core/bindLayout.ts'
 import * as layer from './layers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
@@ -80,9 +81,23 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
   })
 }
 
-/** Uniform bytes: two matrices, two quadruplets, the nine weights in three, then the render grid,
- *  the jitter, the eye, the scene's exposure, the camera's parallax and the flicker rates. */
-export const TAA_VIEW_BYTES = 304
+/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order: two matrices, two quadruplets, the nine
+ *  weights in three, then the render grid, the jitter, the eye, the scene's exposure, the
+ *  camera's parallax and the flicker rates. */
+export const TAA_VIEW = fieldLayout('TaaView', [
+  ['prevViewProj', 'mat4x4f'],
+  ['invViewProj', 'mat4x4f'],
+  ['viewport', 'vec4f'],
+  ['params', 'vec4f'],
+  ['weights', 'array<vec4f,3>'],
+  ['render', 'vec4f'],
+  ['jitter', 'vec4f'],
+  ['eye', 'vec4f'],
+  ['tsr', 'vec4f'],
+  ['parallax', 'vec4f'],
+  ['moire', 'vec4f'],
+] as const)
+export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
 /**
  * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
@@ -103,11 +118,7 @@ export const TAA_VIEW_BYTES = 304
  * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
  * width in the world at a clip w of one (`shadingStill`).
  */
-const TAA_VIEW_WGSL = wgslBlock(
-  'TAA_VIEW_WGSL',
-  [],
-  `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`,
-)
+const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 
 export const BINDINGS_WGSL = wgslBlock(
   'BINDINGS_WGSL',

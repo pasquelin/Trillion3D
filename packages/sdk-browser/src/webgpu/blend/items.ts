@@ -14,7 +14,7 @@ import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
 import { FLAG_HAS_TANGENT, frameNormalScaleY } from '../../visibility/buffer.ts'
 import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
-import { fieldLayout } from './fieldLayout.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**

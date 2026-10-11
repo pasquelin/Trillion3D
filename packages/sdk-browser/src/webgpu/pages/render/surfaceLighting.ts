@@ -6,7 +6,7 @@ import { finishVsmFrame } from './vsm/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts'
 import { stochasticPhase } from '../../../taa/frameState.ts'
-import { encodeEffects } from './encodeEffects.ts'
+import { composedImage, encodeEffects } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import {
   directLightResources,
@@ -64,7 +64,7 @@ export function encodeSurfaceLighting(
     cameraWorldArray,
     width,
     height,
-    run.clearColor,
+    clear,
     raw,
     direct,
     taaSampledRank(rt),
@@ -83,7 +83,7 @@ export function encodeSurfaceLighting(
   const effects = encodeEffects(rt, device, encoder, accumulated)
   const composed =
     asIs && blendShare && !accumulated
-      ? { ...(effects ?? { color: gpu.hdrView }), share: blendShare.view }
+      ? composedImage(effects?.color ?? gpu.hdrView, blendShare.view, effects?.bloom)
       : effects
   // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen.
   const guided = guidesShown(rt),

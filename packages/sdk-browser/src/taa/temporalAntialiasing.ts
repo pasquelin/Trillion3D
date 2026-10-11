@@ -1,6 +1,7 @@
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { MOIRE_FORMAT, SHARE_FORMAT, createTaaResolves, resolveTargetUsage } from './resolve.ts'
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts'
 import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts'
 import { createPlacementMotion, type MotionRoot } from './motion.ts'
@@ -64,8 +65,9 @@ export async function createTemporalAntialiasing(
   let width = 0,
     height = 0,
     /** Target read on the next frame: the other is written. */
-    read = 0,
-    bound: TaaInputs | undefined
+    read = 0
+  /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`). */
+  const identity = createWebgpuBindIdentity()
   /** Where the last ordinary frame started: what a convergence frame replays. */
   const saved = createTaaCheckpoint()
   const dropTargets = () => {
@@ -141,7 +143,6 @@ export async function createTemporalAntialiasing(
           share: target(`Trillion3D TAA as-is share ${i}`, SHARE_FORMAT),
         })
       }
-      bound = undefined
       return true
     },
     /** Encode the pass, its uniform written first: reads `inputs.current` and history, writes the
@@ -159,8 +160,10 @@ export async function createTemporalAntialiasing(
       const resolve = twin || quiet || set[kind]
       filterHistory.follow(inputs.filter, width, height)
       const { layout } = resolve
-      if (!bound || INPUTS.some((key) => bound![key] !== inputs[key])) {
-        bound = { ...inputs }
+      const { next } = identity
+      next[0] = layout
+      for (let i = 0; i < INPUTS.length; i++) next[1 + i] = inputs[INPUTS[i]]
+      if (identity.moved() || !groups[0]) {
         for (let i = 0; i < 2; i++) {
           const entries = taaGroupEntries(
             inputs,
@@ -201,7 +204,6 @@ export async function createTemporalAntialiasing(
       motion.dispose()
       uniform.destroy()
       noReactive.destroy()
-      bound = undefined
       this.inputs = {} as TaaInputs
     },
   }

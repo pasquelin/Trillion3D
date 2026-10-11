@@ -20,7 +20,7 @@ import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
-import { vsmWriteChangedCopy } from './writeChanged.ts'
+import { writeChangedCopy } from '../gpu/core/writeChanged.ts'
 import {
   bufferBytes,
   frameBufferSizes,
@@ -251,8 +251,8 @@ export function growVsmTables(
   const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })
   for (const member of CARRIED_MEMBERS) {
     encoder.copyBufferToBuffer(res.prev[member], 0, prev[member], 0, res.prev[member].size)
-    // An upload that sends only what changed (`vsmWriteChanged`) knows what the copy holds.
-    vsmWriteChangedCopy(res.prev[member], prev[member])
+    // An upload that sends only what changed (`writeChanged`) knows what the copy holds.
+    writeChangedCopy(res.prev[member], prev[member])
   }
   device.queue.submit([encoder.finish()])
   for (const b of made.tables) b.destroy()

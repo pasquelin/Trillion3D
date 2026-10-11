@@ -1,16 +1,16 @@
-// What `vsmWriteChanged` sends: only the words that changed, the buffer then holding the whole
+// What `writeChanged` sends: only the words that changed, the buffer then holding the whole
 // image; past the coalescer's cap the narrowest steps are joined, never the unused ids between a
 // table's single-page and full maps' records.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
-  vsmWriteChanged,
-  vsmWriteChangedCopy,
-  vsmWriteChangedRecords,
-  vsmWriteChangedSlots,
+  writeChanged,
+  writeChangedCopy,
+  writeChangedRecords,
+  writeChangedSlots,
 } from './writeChanged.ts'
-import { uniformSlots } from '../residency/pools.ts'
+import { uniformSlots } from '../../residency/pools.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -28,17 +28,17 @@ test('only the changed words go up, the buffer holding the image; the hole is ne
   // 40 records far apart below 8192 words, then one past the 8192-id hole.
   for (let k = 0; k < 40; k++) image[k * 128] = k + 1
   image[8192 * 4 + 1] = 7
-  vsmWriteChanged(device, buffer, image, 0, words)
+  writeChanged(device, buffer, image, 0, words)
   assert.ok(writes.length <= 32, `${writes.length} writes`)
   const sent = writes.reduce((sum, w) => sum + (w.size ?? 0), 0)
   assert.ok(sent < 40 * 128 + 64, `${sent} words sent, not the hole`)
   replayWrites(held.buffer, writes)
   assert.deepEqual(held, image)
   // A still image sends nothing; one word changed sends one word.
-  vsmWriteChanged(device, buffer, image, 0, words)
+  writeChanged(device, buffer, image, 0, words)
   assert.equal(writes.length, 0)
   image[5] = 9
-  vsmWriteChanged(device, buffer, image, 0, words)
+  writeChanged(device, buffer, image, 0, words)
   assert.deepEqual(
     writes.map((w) => [w.offset, w.size]),
     [[20, 1]],
@@ -51,17 +51,17 @@ test('a buffer copied from another holds its words: the next write sends what di
   const target = device.createBuffer({ label: 'grown', size: 128 * 4, usage: copies() })
   const image = new Uint32Array(128)
   image.fill(3, 0, 64)
-  vsmWriteChanged(device, source, image, 0, 64)
+  writeChanged(device, source, image, 0, 64)
   // The GPU copy: the target holds the source's words, then zeros.
   const gpu = new Uint32Array(128)
   gpu.fill(3, 0, 64)
-  vsmWriteChangedCopy(source, target)
+  writeChangedCopy(source, target)
   writes.length = 0
   // A frame whose image puts zeros where the copy left threes: each goes up.
   const next = new Uint32Array(128)
   next.fill(3, 0, 32)
   next[100] = 5
-  vsmWriteChanged(device, target, next, 0, 128)
+  writeChanged(device, target, next, 0, 128)
   replayWrites(gpu.buffer, writes)
   assert.deepEqual(gpu, next)
 })
@@ -83,8 +83,8 @@ test('a sparse table compared on the records it may have changed sends what a wh
     for (const id of ids) image.set([1, id, id + 1, id + 2], id * 4)
     const touched = [...new Set([...held, ...ids])].sort((x, y) => x - y)
     held = ids
-    vsmWriteChanged(whole.device, a, image, 0, words)
-    vsmWriteChangedRecords(records.device, b, image, touched, touched.length, 4)
+    writeChanged(whole.device, a, image, 0, words)
+    writeChangedRecords(records.device, b, image, touched, touched.length, 4)
     replayWrites(replayed.buffer, records.writes.splice(0))
     replayWrites(sent.buffer, whole.writes.splice(0))
     assert.deepEqual(replayed, image, 'the buffer holds the image')
@@ -117,9 +117,9 @@ test('uniform slots go up by their words: as a whole compare at 256 bytes, never
   for (const frame of frames) {
     const narrow = slotsOf(64, frame),
       image = slotsOf(256, frame)
-    vsmWriteChanged(whole.device, a, narrow, 0, narrow.length)
-    vsmWriteChangedSlots(slots.device, b, narrow, uniformSlots(undefined, 8, 32))
-    vsmWriteChangedSlots(wide.device, c, image, uniformSlots(at1024, 8, 32))
+    writeChanged(whole.device, a, narrow, 0, narrow.length)
+    writeChangedSlots(slots.device, b, narrow, uniformSlots(undefined, 8, 32))
+    writeChangedSlots(wide.device, c, image, uniformSlots(at1024, 8, 32))
     const shape = (w: typeof whole.writes) => w.map((x) => [x.offset, x.dataOffset, x.size])
     assert.deepEqual(shape(slots.writes.splice(0)), shape(whole.writes.splice(0)))
     for (const w of wide.writes)
@@ -147,7 +147,7 @@ test('slots a whole write once sent go up in one write at 256 bytes, the changed
   // then a single word, then none.
   for (const words of [[0, 5 * 64 + 7], [2 * 64 + 4], []]) {
     for (const k of words) image[k]++
-    vsmWriteChangedSlots(device, buffer, image, layout, 0, 6, 'one')
+    writeChangedSlots(device, buffer, image, layout, 0, 6, 'one')
     assert.equal(writes.length, words.length ? 1 : 0)
     for (const w of writes) assert.ok(w.size! <= 6 * 64, 'never past the whole slots')
     if (words.length) assert.equal(writes[0].offset, words[0] * 4, 'from the first changed word')
@@ -157,7 +157,7 @@ test('slots a whole write once sent go up in one write at 256 bytes, the changed
   // Slots [2, 4) alone: one write within them.
   image[3 * 64 + 1] = 9
   image[0] = 7
-  vsmWriteChangedSlots(device, buffer, image, layout, 2, 4, 'one')
+  writeChangedSlots(device, buffer, image, layout, 2, 4, 'one')
   assert.deepEqual(
     writes.map((w) => [w.offset, w.size]),
     [[(3 * 64 + 1) * 4, 1]],

@@ -3,7 +3,7 @@ import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import { CACHED, cachePasses } from './shadeCachePasses.ts'
 import { heldSwitch } from '../../host/heldSwitch.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
-import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
+import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import {
   MARK_TILE,
@@ -128,8 +128,8 @@ function layFor(
   c.height = pixelHeight
   header[SHADE_CACHE_ROWS_WORD] = rows
   header[SHADE_CACHE_CAPACITY_WORD] = capacity
-  // The words that changed; a new buffer is held as its zeros (`vsmWriteChanged`).
-  vsmWriteChanged(c.device, c.buffer, header, SHADE_CACHE_ROWS_WORD, SHADE_CACHE_CAPACITY_WORD + 1)
+  // The words that changed; a new buffer is held as its zeros (`writeChanged`).
+  writeChanged(c.device, c.buffer, header, SHADE_CACHE_ROWS_WORD, SHADE_CACHE_CAPACITY_WORD + 1)
 }
 
 function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {

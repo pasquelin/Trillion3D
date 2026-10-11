@@ -7,7 +7,6 @@ import { encodeWebgpuVisibilityPasses } from '../../visibility/passes.ts'
 import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encoder.ts'
 import { encodeComposedRows } from '../../../placement/gpuCompose.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
-import { followDirtyRows } from './encodeDraws.ts'
 import { followLobes } from '../prepare/lobesTarget.ts'
 import {
   encodeEmptySurfaces,
@@ -43,11 +42,6 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const idsView = vis.visView,
     depthTarget = gpu.depthView
   const [width, height] = gpu.targetSize
-  // Row words, spheres, mobility and corners follow only the row table: this image's dirty rows.
-  // An image with no visibility row sends them too: the blended casters' rows, behind, still feed
-  // its shadows, and rows left dirty would keep the frame from being held.
-  timing.encodeCounts.itemsUploaded = 0
-  followDirtyRows(rt, device)
   encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))
   followLobes(rt) // Every image's, one of transmissive lobed surfaces alone too.
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget)

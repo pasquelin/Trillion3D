@@ -1,3 +1,4 @@
+import { SHADE_UNIFORM } from './uniformLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
   InvT3,
@@ -14,11 +15,7 @@ import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
  */
 
 /** The surface resolve's uniform: its camera, viewport and page count. */
-export const SHADE_UNI_WGSL = wgslBlock(
-  'SHADE_UNI_WGSL',
-  [],
-  `struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,depthRamp:vec4f,}`,
-)
+export const SHADE_UNI_WGSL = wgslBlock('SHADE_UNI_WGSL', [], SHADE_UNIFORM.wgsl)
 
 /** A clip position on the resolve's framebuffer: pixels, then the depth. */
 export const FRAMEBUFFER_WGSL = wgslBlock(

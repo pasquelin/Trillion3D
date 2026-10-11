@@ -8,7 +8,7 @@ import {
   type VsmMarkingFrame,
   type VsmPerPageFrame,
 } from '../../../../vsm/markingPass.ts'
-import { vsmWriteChanged } from '../../../../vsm/writeChanged.ts'
+import { writeChanged } from '../../../../gpu/core/writeChanged.ts'
 import {
   encodeVsmPageMapping,
   encodeVsmAfterRaster,
@@ -117,12 +117,12 @@ function encodeVsmMarking(
   for (const light of plan.lights)
     if (light.kind === 'directional') suns[directional++] = light.firstId
   if (directional === 0) suns[0] = 0
-  vsmWriteChanged(device, vsm.directionalIds, suns, 0, Math.max(directional, 1))
+  writeChanged(device, vsm.directionalIds, suns, 0, Math.max(directional, 1))
   if (vsm.lightIds.size < vsm.lightIdsData.byteLength) {
     vsm.lightIds.destroy()
     vsm.lightIds = lightIdsBuffer(device, vsm.lightIdsData.byteLength)
   }
-  vsmWriteChanged(device, vsm.lightIds, vsm.lightIdsData, 0, vsm.lightIdsData.length)
+  writeChanged(device, vsm.lightIds, vsm.lightIdsData, 0, vsm.lightIdsData.length)
   const views = gpu.surfaces!.views()
   const tiles = lights.tiles?.buffer
   const markingFrame: VsmMarkingFrame = {

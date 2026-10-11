@@ -60,7 +60,6 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     transparentCandidates: blendState.blendGpu.length,
     transparentListed: blendState.visibleBlend.length,
     transparentEncodedDraws: run.blendDrawCalls,
-    transparentSelectMs: timing.transparentSelectMs,
     transparentPrepareMs: timing.transparentPrepareMs,
     transparentDrawMs: timing.transparentDrawMs,
     transparentSpanUploadBytes: timing.transparentSpanUploadBytes,

@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { DIELECTRIC_F0, ndotvClamped } from '../../../math/src/wgsl/lighting.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
@@ -74,7 +75,7 @@ export const forwardReflectionWgsl = (group: number, lobes: boolean) =>
   )
 
 /** The opaque resolve's binding of the reflection target the compute pass wrote (`trace.ts`). */
-export const REFLECTION_TARGET_BINDING = 33
+export const REFLECTION_TARGET_BINDING = DEFERRED_BINDINGS.reflection
 /** The reflection target, read by load alone by the opaque resolve. */
 export const REFLECTION_TARGET = loadOnlyTarget(
   REFLECTION_TARGET_BINDING,

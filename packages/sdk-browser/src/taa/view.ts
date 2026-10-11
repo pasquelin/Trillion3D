@@ -2,12 +2,13 @@ import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import { taaWeightTable } from './weights.ts'
-import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
+import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
 
-const anchored = new Float64Array(16),
+const T = TAA_VIEW.at,
+  anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4),
   /** Filter weights for each of the eight native jitter ranks: they depend only on it. */
   weights = taaWeightTable()
@@ -32,10 +33,10 @@ function writeReprojection(
   eye: ArrayLike<number>,
   grid: readonly number[],
 ) {
-  matrixAtRenderOrigin(into, previous, eye, 0)
+  matrixAtRenderOrigin(into, previous, eye, T.prevViewProj)
   matrixAtRenderOrigin(anchored, current, eye)
-  into.set(invertMatrix4(anchored, anchored), 16)
-  writeGrid(into, 32, grid)
+  into.set(invertMatrix4(anchored, anchored), T.invViewProj)
+  writeGrid(into, T.viewport, grid)
 }
 
 /**
@@ -67,19 +68,19 @@ export function writeTaaView(
   writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display)
   // Share of the current image at the k-th quiet image: 1/k. A moving image's is its history's
   // own (`historyCap`, `shadingConfidence`), none here.
-  packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 0
-  packed[37] = state.hasHistory ? 1 : 0
-  packed[38] = moved ? 1 : 0
-  packed[39] = layers ? 1 : 0
-  packed.set(weights[state.sample % TAA_SAMPLES], 40)
-  writeGrid(packed, 52, render)
-  packed[56] = state.jitter[0]
-  packed[57] = state.jitter[1]
-  packed[58] = state.stillFrames > 0 ? 0 : 1
-  packed[59] = stochasticSlot(state)
-  packed.set(cam.eye, 60)
-  packed[63] = deformed ? 1 : 0
-  packed[64] = Math.max(exposure, 1e-6)
+  packed[T.params] = state.stillFrames > 0 ? 1 / state.stillFrames : 0
+  packed[T.params + 1] = state.hasHistory ? 1 : 0
+  packed[T.params + 2] = moved ? 1 : 0
+  packed[T.params + 3] = layers ? 1 : 0
+  packed.set(weights[state.sample % TAA_SAMPLES], T.weights)
+  writeGrid(packed, T.render, render)
+  packed[T.jitter] = state.jitter[0]
+  packed[T.jitter + 1] = state.jitter[1]
+  packed[T.jitter + 2] = state.stillFrames > 0 ? 0 : 1
+  packed[T.jitter + 3] = stochasticSlot(state)
+  packed.set(cam.eye, T.eye)
+  packed[T.eye + 3] = deformed ? 1 : 0
+  packed[T.tsr] = Math.max(exposure, 1e-6)
   // The last projection of the eye's move since: `previous · (lastEye − eye, 0)`, its three first
   // columns, which anchoring at the eye leaves as they are.
   const last = state.previousViewProjection,
@@ -87,10 +88,11 @@ export function writeTaaView(
     dx = state.previousEye[0] - eye[0],
     dy = state.previousEye[1] - eye[1],
     dz = state.previousEye[2] - eye[2]
-  for (let row = 0; row < 4; row++) packed[68 + row] = transformDirectionRow(last, row, dx, dy, dz)
-  packed[72] = FLICKER_COUNT_RATE
-  packed[73] = flickerParallax(display[0])
+  for (let row = 0; row < 4; row++)
+    packed[T.parallax + row] = transformDirectionRow(last, row, dx, dy, dz)
+  packed[T.moire] = FLICKER_COUNT_RATE
+  packed[T.moire + 1] = flickerParallax(display[0])
   // A render pixel's world width at a clip w of one: 2 / (projection x scale · render width).
-  packed[74] = 2 / ((Math.abs(cam.projection?.[0] ?? 1) || 1) * render[0])
+  packed[T.moire + 2] = 2 / ((Math.abs(cam.projection?.[0] ?? 1) || 1) * render[0])
   device.queue.writeBuffer(uniform, 0, packed)
 }

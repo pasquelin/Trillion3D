@@ -159,7 +159,7 @@ export function banc(panne?: 'envoi') {
     shown,
     desired,
     rt,
-    image: () => renderGpuCut(rt, camera, 0, 0, 0),
+    image: () => renderGpuCut(rt, camera, 0, 0),
     arrive: () => {
       page.array = new Uint32Array([0, 1, 2])
     },

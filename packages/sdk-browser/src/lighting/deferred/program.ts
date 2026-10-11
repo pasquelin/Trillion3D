@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_BINDING } from '../../scene/physicalLobes.ts'
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
@@ -228,8 +229,8 @@ function bindLight(
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
     ...surface.views().map((resource, binding) => ({ binding, resource })),
-    { binding: 4, resource: depth },
-    { binding: 5, resource: { buffer: bindings.uniform } },
+    { binding: DEFERRED_BINDINGS.depth, resource: depth },
+    { binding: DEFERRED_BINDINGS.view, resource: { buffer: bindings.uniform } },
   ]
   if (sources.direct) {
     if (!lights) throw new Error('the contract program binds no declared-light buffer')
@@ -248,8 +249,8 @@ function bindLight(
   }
   if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
-      { binding: 11, resource: { buffer: direct.bounceGrid } },
-      { binding: 12, resource: direct.probes },
+      { binding: DEFERRED_BINDINGS.bounceGrid, resource: { buffer: direct.bounceGrid } },
+      { binding: DEFERRED_BINDINGS.probes, resource: direct.probes },
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
   state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }
@@ -291,8 +292,8 @@ function contractEntries(
     ...receiverEntries(LIGHTING_RECEIVER_BINDING, r.receiver),
     { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
     { binding: PHYSICAL_LOBES_BINDING, resource: surface.lobesView },
-    { binding: 6, resource: { buffer: r.lights } },
-    { binding: 7, resource: { buffer: r.tiles } },
+    { binding: DEFERRED_BINDINGS.lights, resource: { buffer: r.lights } },
+    { binding: DEFERRED_BINDINGS.tiles, resource: { buffer: r.tiles } },
     { binding: CONTRACT_VSM_BINDINGS.pageTable, resource: { buffer: r.vsm.pageTable } },
     { binding: CONTRACT_VSM_BINDINGS.projectionData, resource: { buffer: r.vsm.projectionData } },
     { binding: CONTRACT_VSM_BINDINGS.uniforms, resource: { buffer: r.vsm.uniforms } },

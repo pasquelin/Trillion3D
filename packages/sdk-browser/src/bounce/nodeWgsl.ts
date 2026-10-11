@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import {
   PROXY_CHILD_WORDS,
@@ -18,7 +19,7 @@ export const PROXY_REVISION_WORD = 12
 export const PROXY_STEPS_WORD = PROXY_REVISION_WORD + 1
 
 /** Binding rank of the resident proxy in the deferred-resolution layout. */
-export const RESIDENT_PROXY_BINDING = 13
+export const RESIDENT_PROXY_BINDING = DEFERRED_BINDINGS.proxy
 
 /**
  * Declaration of the resident proxy at the binding slot the calling pass gives it. The three

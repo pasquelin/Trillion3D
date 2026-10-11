@@ -42,6 +42,7 @@
  * records), and `headers` (the page headers of the slices that changed). No global atomic is
  * issued per cell: the cells are counted in a slice's own group.
  */
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
@@ -114,7 +115,7 @@ const RECORDS_TEXEL = HEADER_TEXELS + VSM_TRANSMISSION_CHAIN / 4
 /** No block, no slice number, no list entry. */
 export const VSM_TRANSMISSION_NONE = 0xffffffff
 /** The resolve's binding of the memory: the old shadow requests' number, free since the VSM. */
-export const VSM_TRANSMISSION_RESOLVE_BINDING = 14
+export const VSM_TRANSMISSION_RESOLVE_BINDING = DEFERRED_BINDINGS.transmissionResolve
 /** Bytes of a command's header in the chunk's page list (row, map | mip | flags, first page, page
  *  count) and of one of its pages (slice key, virtual page). */
 export const VSM_TRANSMISSION_HEADER_BYTES = 16

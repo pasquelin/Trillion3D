@@ -1,4 +1,4 @@
-import { fieldLayout } from './fieldLayout.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**

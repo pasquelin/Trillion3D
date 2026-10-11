@@ -1,4 +1,4 @@
-import { fieldLayout } from '../webgpu/blend/fieldLayout.ts'
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'

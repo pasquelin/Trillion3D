@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
@@ -31,14 +32,20 @@ const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
  * resolve's own entries.
  */
 export function deferredLayoutEntries(direct: boolean, bounce = false, resolve = true) {
-  const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
+  const B = DEFERRED_BINDINGS
+  const texture = (binding: number, sampleType: GPUTextureSampleType) => ({
     binding,
     visibility: GPUShaderStage.FRAGMENT,
-    texture: {
-      sampleType: binding === 3 ? 'uint' : binding === 4 ? 'depth' : 'unfilterable-float',
-    },
-  }))
-  entries.push({ binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } })
+    texture: { sampleType },
+  })
+  const entries: GPUBindGroupLayoutEntry[] = [
+    texture(B.baseMetal, 'unfilterable-float'),
+    texture(B.normalRough, 'unfilterable-float'),
+    texture(B.emissiveAo, 'unfilterable-float'),
+    texture(B.flags, 'uint'),
+    texture(B.depth, 'depth'),
+    { binding: B.view, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+  ]
   if (direct) entries.push(...contractLayoutEntries())
   // The pool a non-mask read samples: the water composite's alone, the resolve reading the mask
   // (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
@@ -54,9 +61,9 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
   // storage buffer of the eight.
   if (bounce)
     entries.push(
-      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: B.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       {
-        binding: 12,
+        binding: B.probes,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
       },
@@ -68,8 +75,16 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
  *  the virtual shadow maps they read, the resident proxy and the shadow mask. */
 function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
   return [
-    { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-    { binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+    {
+      binding: DEFERRED_BINDINGS.lights,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    },
+    {
+      binding: DEFERRED_BINDINGS.tiles,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    },
     // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms,
     // and the pool's dynamic slice at the translucent depth's number.
     {
