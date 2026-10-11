@@ -24,12 +24,11 @@ test('a light holds its kind, colours, target, coefficients and numbers, nothing
 test('a light hears its colours and its target only while it is in a world; each is counted', () => {
   const light = new Light('directional')
   // The target's place already tells its own node: only the light's listener comes and goes.
-  const own = light.target.position._onChange
-  // Outside a world a colour notes the light itself, one listener for both colours.
-  const listeners = () => [light.color._onChange, light.groundColor._onChange]
-  const held = () => light.target.position._onChange === own
-  const [noted] = listeners()
-  assert.deepEqual([...listeners(), held()], [noted, noted, true])
+  const own = light.target.position._changes?.size ?? 0
+  // Outside a world a colour notes the light itself, one listener for each colour.
+  const listeners = () => [light.color._changes?.size, light.groundColor._changes?.size]
+  const held = () => (light.target.position._changes?.size ?? 0) === own
+  assert.deepEqual([...listeners(), held()], [1, 1, true])
   const from = nodeWrites()
   light.color.setRGB(0.5, 0, 0)
   const named: number[] = []
@@ -44,7 +43,7 @@ test('a light hears its colours and its target only while it is in a world; each
   light.target.position.x = 3
   assert.equal(heard.filter((node) => node === light).length, 3, 'each write reaches the world')
   scene.remove(light)
-  assert.deepEqual(listeners(), [noted, noted], 'left: the light noted alone, no chain')
+  assert.deepEqual(listeners(), [1, 1], 'left: the light noted alone')
   const [count, reached] = [nodeWrites(), heard.length]
   light.color.setRGB(0, 1, 1)
   light.intensity = 2

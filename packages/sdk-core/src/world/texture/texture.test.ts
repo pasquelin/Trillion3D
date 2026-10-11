@@ -7,7 +7,7 @@ import { wrap, filter, colorSpace } from '../constants/index.ts'
 test('textures classify image, sampling and placement edits and propagate vector changes', () => {
   const texture = new Texture({ width: 7, height: 11 })
   let writes = 0
-  texture._listeners.add(() => writes++)
+  texture._listeners.subscribe(() => writes++)
   assert.deepEqual([texture.width, texture.height], [7, 11])
   const sampling = texture.sampling
   texture.wrap = 'repeat'
@@ -127,7 +127,7 @@ test('offset replacement releases its previous vector and does not duplicate sub
 test('explicit revision bookkeeping and symbol metadata remain silent', () => {
   const texture = new Texture(null)
   let notifications = 0
-  texture._listeners.add(() => notifications++)
+  texture._listeners.subscribe(() => notifications++)
   texture.version = 5
   texture.sampling = 7
   texture.placement = 11
@@ -141,7 +141,7 @@ test('explicit revision bookkeeping and symbol metadata remain silent', () => {
 test('an explicit image upload request notifies once and false does not request an upload', () => {
   const texture = new Texture(null)
   let notifications = 0
-  texture._listeners.add(() => notifications++)
+  texture._listeners.subscribe(() => notifications++)
   texture.needsUpdate = false
   assert.equal(texture.version, 0)
   assert.equal(notifications, 0)

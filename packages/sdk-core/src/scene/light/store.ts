@@ -1,5 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts'
-import { resized } from '../../../../math/src/sequence/resized.ts'
+import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
@@ -43,7 +43,7 @@ export function createSceneLightStore() {
     notTransport = 0
   /** Twice the room, content kept: N lights cost log N copies. */
   const grow = () => {
-    capacity = Math.max(capacity * 2, 32)
+    capacity = grownLength(capacity, 32)
     packed = resized(packed, baseOf(capacity))
     header = new Uint32Array(packed.buffer, 0, SCENE_LIGHT_HEADER_FLOATS)
     revision = resized(revision, capacity)

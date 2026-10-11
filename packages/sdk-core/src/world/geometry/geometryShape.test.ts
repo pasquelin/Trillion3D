@@ -90,7 +90,7 @@ test('loadVertices reads every deferred list: index, attributes and morph target
 
 test('dispose forgets the holders it had', () => {
   const g = new Geometry()
-  g._listeners.add(() => {})
+  g._listeners.subscribe(() => {})
   g.dispose()
   assert.equal(g._listeners.size, 0)
 })

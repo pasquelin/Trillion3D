@@ -1,3 +1,5 @@
+import { createListeners, type Listeners } from '../runtime/listeners.ts'
+
 /**
  * The one change channel every engine-owned value shares. A vector, a rotation or a colour held by
  * a scene object tells its owner when it is written, so a page that moves an object never has to
@@ -5,12 +7,12 @@
  * holds carries no listener, and a write then costs one null test.
  */
 export class Observed {
-  /** Called after every write; set by the owner, never by the page. */
-  _onChange: (() => void) | null = null
+  /** Who hears every write, once an owner listens (`listen`); never the page. */
+  _changes: Listeners | null = null
 
-  /** Tells the owner, when there is one. */
+  /** Tells the owners, when there are any. */
   protected _changed(): this {
-    this._onChange?.()
+    this._changes?.emit()
     return this
   }
 }
@@ -54,47 +56,13 @@ export class ObservedComponents extends Observed {
   }
 }
 
-/** The listeners chained on a value, and the one call that runs them in order. */
-const chains = new WeakMap<Observed, { call: () => void; listeners: (() => void)[] }>()
-
-/** Chains `listener` after whatever the value already notified, so two owners both hear it. A
- *  listener already chained is not chained twice. */
+/** Hears `value`'s writes after the ones it already tells, so two owners both hear it. A
+ *  listener already held is not held twice. */
 export function listen(value: Observed, listener: () => void) {
-  const current = value._onChange
-  if (current === listener) return
-  if (!current) {
-    value._onChange = listener
-    return
-  }
-  let chain = chains.get(value)
-  if (chain?.call !== current) {
-    const listeners = [current]
-    chain = {
-      listeners,
-      call: () => {
-        for (const heard of listeners) heard()
-      },
-    }
-    chains.set(value, chain)
-    value._onChange = chain.call
-  }
-  if (!chain.listeners.includes(listener)) chain.listeners.push(listener)
+  ;(value._changes ??= createListeners()).subscribe(listener)
 }
 
-/** Takes `listener` off the value, the other owners chained with it kept. */
+/** Takes `listener` off the value, the other owners kept. */
 export function unlisten(value: Observed, listener: () => void) {
-  const current = value._onChange
-  if (current === listener) {
-    value._onChange = null
-    return
-  }
-  const chain = chains.get(value)
-  if (chain?.call !== current) return
-  const at = chain.listeners.indexOf(listener)
-  if (at < 0) return
-  chain.listeners.splice(at, 1)
-  // One owner left: it hears the value straight again, and the chain is let go.
-  if (chain.listeners.length > 1) return
-  value._onChange = chain.listeners[0] ?? null
-  chains.delete(value)
+  value._changes?.unsubscribe(listener)
 }

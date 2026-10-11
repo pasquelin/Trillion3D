@@ -1,4 +1,5 @@
 import { Object3D } from './object3d.ts'
+import type { Listeners } from '../../runtime/listeners.ts'
 import { Geometry } from '../geometry/geometry.ts'
 import { Material } from '../material/material.ts'
 import type { Box3 } from '../math/box3.ts'
@@ -13,7 +14,7 @@ export type Primitive =
 
 /** What a mesh in a world hears: a holder whose changes it is told of, when the holder tells any
  *  (the engine's own surfaces tell nothing). */
-type Heard = { readonly _listeners?: Set<() => void> }
+type Heard = { readonly _listeners?: Listeners }
 
 /**
  * Shape and matter placed in the scene. Replacing either, or writing into either, reaches the
@@ -68,8 +69,8 @@ export class Mesh<M extends object = Material> extends Object3D {
     const heard = (this._heard ??= () => this.heard())
     const materials = Array.isArray(this._material) ? this._material : [this._material]
     for (const holder of [this._geometry, ...materials] as Heard[])
-      if (on) holder._listeners?.add(heard)
-      else holder._listeners?.delete(heard)
+      if (on) holder._listeners?.subscribe(heard)
+      else holder._listeners?.unsubscribe(heard)
   }
   /** Only a mesh in a world is heard: out of one, nothing it holds keeps a reference to it. */
   protected override linked(inWorld: boolean) {
