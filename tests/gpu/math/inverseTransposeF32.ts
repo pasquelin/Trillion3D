@@ -10,17 +10,15 @@
 // the same arithmetic, instead of each holding a copy.
 import { SINGULAR_DETERMINANT } from '../../../packages/math/src/matrix/singular.ts'
 import type { Vec3, Mat3 } from '../kit/vecTypes.ts'
+import { cross, dot } from './f32Vec3.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 
-export const f = Math.fround
-const cross = (a: Vec3, b: Vec3): Vec3 => [
-  f(f(a[1] * b[2]) - f(a[2] * b[1])),
-  f(f(a[2] * b[0]) - f(a[0] * b[2])),
-  f(f(a[0] * b[1]) - f(a[1] * b[0])),
+const divide = (a: Vec3, t: number): Vec3 => [
+  Math.fround(a[0] / t),
+  Math.fround(a[1] / t),
+  Math.fround(a[2] / t),
 ]
-const dot = (a: Vec3, b: Vec3): number => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]))
-const divide = (a: Vec3, t: number): Vec3 => [f(a[0] / t), f(a[1] / t), f(a[2] / t)]
 const magnitude = (a: Vec3): number => length3(a[0], a[1], a[2])
 export const unit = (a: Vec3): Vec3 => divide(a, magnitude(a))
 
@@ -90,7 +88,11 @@ const columns3 = (world: number[]): Mat3 => [
 /** `mat3x3f(cross(b,c),cross(c,a),cross(a,b)) * v`, in WGSL order: the adjugate's product. */
 function adjugateTimes([a, b, c]: Mat3, v: Vec3): Vec3 {
   const [x, y, z] = [cross(b, c), cross(c, a), cross(a, b)]
-  return [0, 1, 2].map((k) => f(f(f(x[k] * v[0]) + f(y[k] * v[1])) + f(z[k] * v[2])))
+  return [0, 1, 2].map((k) =>
+    Math.fround(
+      Math.fround(Math.fround(x[k] * v[0]) + Math.fround(y[k] * v[1])) + Math.fround(z[k] * v[2]),
+    ),
+  )
 }
 
 /** The form from BEFORE defects 6 and 9, in f32: an absolute `abs(det)<1e-20` on the raw 3×3. */
@@ -109,13 +111,16 @@ export function inverseTransposeBefore(m: Mat3, v: Vec3): Vec3 {
  * the `1/(det·t)` that would be ±∞ — the cross product of the transformed edges, to 1/t².
  */
 export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
-  const t = m.reduce((s, column) => f(s + column.reduce((k, x) => f(k + Math.abs(x)), 0)), 0)
+  const t = m.reduce(
+    (s, column) => Math.fround(s + column.reduce((k, x) => Math.fround(k + Math.abs(x)), 0)),
+    0,
+  )
   if (!(t > 0) || !Number.isFinite(t)) return [0, 0, 0]
   const n = m.map((column) => divide(column, t))
   const det = dot(n[0], cross(n[1], n[2]))
   const adjugate = adjugateTimes(n, v)
   if (!(Math.abs(det) > SINGULAR_DETERMINANT)) return adjugate
-  return divide(adjugate, f(det * t))
+  return divide(adjugate, Math.fround(det * t))
 }
 
 /** The kernel's `unitOrZero`: `normalize(v)`, but zero for a zero or non-finite vector. */

@@ -158,12 +158,15 @@ test('the planet reaches the engine and its rules alike through the length rule 
       assert.ok(Object.is(now.bands[index][k], value), `band ${index} word ${k}`),
     )
   })
-  const f = Math.fround
   old.candidates.forEach(({ d, r, slope }, k) => {
     const spot = now.candidates[k]
     d.forEach((value) => {
-      assert.equal(f(value * (spot.r - 0.01)), f(value * (r - 0.01)), `tree ${k}`)
-      assert.equal(f(value * spot.r), f(value * r), `rock ${k}`)
+      assert.equal(
+        Math.fround(value * (spot.r - 0.01)),
+        Math.fround(value * (r - 0.01)),
+        `tree ${k}`,
+      )
+      assert.equal(Math.fround(value * spot.r), Math.fround(value * r), `rock ${k}`)
     })
     // The controls: sea level −0.2 to 0.3 by 0.005, steepness 2 to 60 by 1.
     for (let s = -40; s <= 60; s++)
