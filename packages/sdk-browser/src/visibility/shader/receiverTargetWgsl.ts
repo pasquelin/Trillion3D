@@ -42,16 +42,23 @@ fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
 }`,
   )
 
+/** A pixel's shadow receiver: its shading-point offset and its triangle's plane. The one structure
+ *  of every writer (`receiverOffsetWgsl.ts`) and reader (`receiverTargetReadWgsl`). */
+export const SHADOW_RECEIVER_STRUCT_WGSL = wgslBlock(
+  'SHADOW_RECEIVER_STRUCT_WGSL',
+  [],
+  'struct ShadowReceiver{offset:vec3f,plane:vec3f,}',
+)
+
 /** The reader's `shadowReceiver(pixel)`, the decode's own result (`receiverOffsetWgsl.ts`): the
  *  pixel's texel (`shadowReceiverTexel`) decoded (`shadowReceiverOf`), each for a reader that loads
  *  the texel ahead of its decode. */
 export const receiverTargetReadWgsl = (group: number, binding: number) =>
   wgslBlock(
     `receiverTargetReadWgsl(${group}, ${binding})`,
-    [octDecode, unitToSigned2, pow2FromExponent],
+    [SHADOW_RECEIVER_STRUCT_WGSL, octDecode, unitToSigned2, pow2FromExponent],
     `
 @group(${group}) @binding(${binding}) var receiverTarget:texture_2d<u32>;
-struct ShadowReceiver{offset:vec3f,plane:vec3f,}
 fn shadowReceiverTexel(pixel:vec2i)->vec2u{return textureLoad(receiverTarget,pixel,0).xy;}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{return shadowReceiverOf(shadowReceiverTexel(vec2i(pixel)));}
 fn shadowReceiverOf(t:vec2u)->ShadowReceiver{

@@ -8,6 +8,7 @@ import {
   wireframeEdge,
 } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
+import { SHADOW_RECEIVER_OF_TRIANGLE_WGSL } from './receiverOffsetWgsl.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
@@ -123,13 +124,12 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
   // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
-  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): \`shadowReceiver\`'s
-  // arithmetic (\`receiverOffsetWgsl.ts\`), its point on the Phong surface and its triangle's plane.
+  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): the arithmetic the
+  // readers that decode the triangle themselves share (\`receiverOffsetWgsl.ts\`).
   if(HAS_VERTEX_NORMAL&&page.sprite.y==0.0&&page.lineWidth==0.0){
-   let lit=select(1.0,face,DOUBLE_SIDED);
-   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
-   rcvOffset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
-   rcvPlane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
+   let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
+   rcvOffset=receiver.offset;
+   rcvPlane=receiver.plane;
   }
   var N=unitOrZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
@@ -198,6 +198,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       perspectiveBarycentric,
       wireframeEdge,
       faceNormal,
+      SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
       unitToSigned3,
       ...(diagnostic ? [diagnostic] : []),
     ],
