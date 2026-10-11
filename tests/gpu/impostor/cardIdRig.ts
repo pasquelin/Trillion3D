@@ -1,6 +1,5 @@
 import { CARD_VIEW_FLOATS } from '../../../packages/sdk-browser/src/webgpu/impostor/cardWgsl.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { CARD_FLOATS } from '../../../packages/sdk-browser/src/impostor/cardSlots.ts'
 
 // The rig of the card identifier proof (`cardIdPage.ts`): the view, the records, the atlases, the readback.
@@ -121,21 +120,4 @@ export function half(bits: number) {
   if (exponent === 0) return sign * 2 ** -14 * (fraction / 1024)
   if (exponent === 31) return fraction ? NaN : sign * Infinity
   return sign * 2 ** (exponent - 15) * (1 + fraction / 1024)
-}
-
-/** `texture`, read whole: `SIDE × SIDE` texels of `bytes` bytes. */
-export async function readTexture(device: GPUDevice, texture: GPUTexture, bytes: number) {
-  const row = ceilDiv(SIDE * bytes, 256) * 256
-  const buffer = device.createBuffer({
-    size: row * SIDE,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  })
-  const encoder = device.createCommandEncoder()
-  encoder.copyTextureToBuffer({ texture }, { buffer, bytesPerRow: row }, [SIDE, SIDE])
-  device.queue.submit([encoder.finish()])
-  await buffer.mapAsync(GPUMapMode.READ)
-  const copy = new Uint8Array(buffer.getMappedRange().slice(0))
-  buffer.unmap()
-  buffer.destroy()
-  return { bytes: copy, row }
 }

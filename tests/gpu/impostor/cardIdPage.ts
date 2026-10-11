@@ -11,17 +11,10 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/impostor/pipelines.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
 import { VIS_CARD_BASE } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
+import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
-import {
-  DEPTH_SKEW,
-  SIDE,
-  atlasGroup,
-  cardRecords,
-  half,
-  readTexture,
-  viewUniform,
-} from './cardIdRig.ts'
+import { DEPTH_SKEW, SIDE, atlasGroup, cardRecords, half, viewUniform } from './cardIdRig.ts'
 
 /** What one pair of stages drew. */
 type Drawn = {
@@ -115,20 +108,18 @@ async function drawCards(
     readTexture(device, surfaces[0], 8),
     readTexture(device, surfaces[3], 1),
   ])
-  const at = (x: number, y: number, read: { row: number }, bytes: number) =>
-    y * read.row + x * bytes
+  const words = new Uint32Array(idBytes.buffer),
+    depths = new Float32Array(hizBytes.buffer),
+    view = new DataView(base.buffer)
   const out: Drawn = { ids: [], depth: [], colour: [], written: [] }
-  for (let y = 0; y < SIDE; y++)
-    for (let x = 0; x < SIDE; x++) {
-      out.ids.push(new Uint32Array(idBytes.bytes.buffer)[at(x, y, idBytes, 4) / 4])
-      out.depth.push(new Float32Array(hizBytes.bytes.buffer)[at(x, y, hizBytes, 4) / 4])
-      const view = new DataView(base.bytes.buffer)
-      const o = at(x, y, base, 8)
-      out.colour.push(
-        [0, 2, 4].map((k) => half(view.getUint16(o + k, true))) as [number, number, number],
-      )
-      out.written.push(flags.bytes[at(x, y, flags, 1)] !== 0)
-    }
+  for (let texel = 0; texel < SIDE * SIDE; texel++) {
+    out.ids.push(words[texel])
+    out.depth.push(depths[texel])
+    out.colour.push(
+      [0, 2, 4].map((k) => half(view.getUint16(texel * 8 + k, true))) as [number, number, number],
+    )
+    out.written.push(flags[texel] !== 0)
+  }
   return out
 }
 

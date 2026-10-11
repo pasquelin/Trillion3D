@@ -21,6 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/particles/drawWords.ts'
 import { particleTargets } from '../../../packages/sdk-browser/src/particles/particleTargets.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
+import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
@@ -130,21 +131,8 @@ async function draw(blends: Blend[]) {
         pass.drawIndexed(LIST.length, DISCS)
       }
       pass.end()
-      const reads = drawn.map((made) => {
-        const read = device.createBuffer({
-          size: 1024 * SIDE,
-          usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-        })
-        encoder.copyTextureToBuffer({ texture: made }, { buffer: read, bytesPerRow: 1024 }, [
-          SIDE,
-          SIDE,
-        ])
-        return read
-      })
       device.queue.submit([encoder.finish()])
-      await Promise.all(reads.map((read) => read.mapAsync(GPUMapMode.READ)))
-      images.push(reads.map((read) => new Uint8Array(read.getMappedRange().slice(0))))
-      for (const read of reads) read.unmap()
+      images.push(await Promise.all(drawn.map((made) => readTexture(device, made, 8))))
     }
   }
   const adapter = (await gpu.fermer()).court
