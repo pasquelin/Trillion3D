@@ -18,6 +18,7 @@ import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
 const SLOT_WORDS = 13
@@ -81,14 +82,13 @@ async function decodePages(pages: ClusterPage[]) {
   const { device } = gpu
   const { module, compilation } = await gpu.compile(CLUSTER_DECODING_SHADER)
   if (compilation.length) throw new Error(`the decode does not compile: ${compilation}`)
-  const read = { type: 'read-only-storage' } as const
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: read },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: read },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: read },
-      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: read },
+      computeBufferEntry(0, 'read-only-storage'),
+      computeBufferEntry(1, 'storage'),
+      computeBufferEntry(2, 'read-only-storage'),
+      computeBufferEntry(3, 'read-only-storage'),
+      computeBufferEntry(4, 'read-only-storage'),
     ],
   })
   const pipeline = device.createComputePipeline({

@@ -1,4 +1,9 @@
-import { COMPUTE, computeBufferEntry } from '../core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../core/computeBindings.ts'
 import {
   STATE_TALLY_WGSL,
   ST_REJECTED,
@@ -35,22 +40,18 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
       visibility: COMPUTE,
       storageTexture: { access: 'read-write', format: HIZ_FORMAT, viewDimension: '2d-array' },
     },
-    { binding: 1, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
-    {
-      binding: 2,
-      visibility: COMPUTE,
-      buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: uniformBytes },
-    },
-    { binding: 3, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
-    { binding: 4, visibility: COMPUTE, buffer: { type: 'storage' } },
-    { binding: 5, visibility: COMPUTE, buffer: { type: 'storage' } },
+    computeTextureEntry(1, 'unfilterable-float'),
+    computeUniformEntry(2, { hasDynamicOffset: true, minBindingSize: uniformBytes }),
+    computeBufferEntry(3, 'read-only-storage'),
+    computeBufferEntry(4, 'storage'),
+    computeBufferEntry(5, 'storage'),
   ]
 }
 
 /** Group 1, the test's alone: the page table, whose Hi-Z slot word tells a row that has no
  *  verdict (never culled). The pyramid kernels bind group 0 only. */
 export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
-  { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
+  computeBufferEntry(0, 'read-only-storage'),
 ]
 
 /** Group 1 of `testHizArgs`, beside the page table of `testHiz` (binding 0): the test's dispatch

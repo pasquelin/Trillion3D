@@ -37,6 +37,7 @@ import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
  *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with
@@ -85,12 +86,8 @@ export async function run(scenes: ResolveScene[]) {
   const layout = device.createBindGroupLayout({
     entries: [
       ...resolveEntries,
-      {
-        binding: SAMPLES_BINDING,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: 'read-only-storage' },
-      },
-      { binding: SUMS_BINDING, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      computeBufferEntry(SAMPLES_BINDING, 'read-only-storage'),
+      computeBufferEntry(SUMS_BINDING, 'storage'),
     ],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
