@@ -25,7 +25,8 @@ import { type WorkerScope } from '../host/workerScope.ts'
 
 const scope = globalThis as unknown as WorkerScope<
   ToPhysics,
-  FromPhysics | typeof JOLT_THREAD_LOADED
+  FromPhysics | typeof JOLT_THREAD_LOADED,
+  Transferable
 > & {
   location: { href: string }
 }
