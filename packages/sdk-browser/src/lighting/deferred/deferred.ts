@@ -10,7 +10,7 @@ import {
   type DeferredProgram,
   type DirectLightResources,
 } from './program.ts'
-import { ZERO_DIRECT, createDeferredView } from './view.ts'
+import { type ClearColor, ZERO_DIRECT, createDeferredView } from './view.ts'
 import {
   DEFERRED_LIGHTING_PASS,
   HDR_COMPOSITION_PASS,
@@ -121,7 +121,7 @@ function viewUpdate(state: LightingState, view: DeferredView) {
     camera: readonly number[],
     width: number,
     height: number,
-    clearColor: number,
+    clear: ClearColor,
     diagnostic: boolean,
     direct: ArrayLike<number> = ZERO_DIRECT,
     sampledRank = 0,
@@ -129,7 +129,7 @@ function viewUpdate(state: LightingState, view: DeferredView) {
     const raw = diagnostic || state.rawOutput
     state.drawn[0] = width
     state.drawn[1] = height
-    view.write(inverseViewProjection, camera, width, height, clearColor, raw, direct, sampledRank)
+    view.write(inverseViewProjection, camera, width, height, clear, raw, direct, sampledRank)
   }
 }
 
@@ -161,18 +161,25 @@ function programBind(
   }
 }
 
-/** The lighting's `light`: draws the lighting, one pass. */
+/** The lighting's `light`: draws the lighting, one pass; its descriptor is kept, its target named
+ *  again each image. */
 function lightPass(state: LightingState) {
-  return (encoder: GPUCommandEncoder, target: GPUTextureView) => {
+  const target: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  }
+  const descriptor: GPURenderPassDescriptor = {
+    label: DEFERRED_LIGHTING_PASS,
+    colorAttachments: [target],
+  }
+  return (encoder: GPUCommandEncoder, view: GPUTextureView) => {
     const { active, drawn } = state
     const group = active.lightGroup
     if (!group) throw new Error('SURFACE_NOT_BOUND')
-    const pass = encoder.beginRenderPass({
-      label: DEFERRED_LIGHTING_PASS,
-      colorAttachments: [
-        { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-      ],
-    })
+    target.view = view
+    const pass = encoder.beginRenderPass(descriptor)
     pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1)
     pass.setPipeline(active.light)
     pass.setBindGroup(0, group)
@@ -185,9 +192,23 @@ function lightPass(state: LightingState) {
  *  effect chain's, with the bloom blend it left; reading no as-is share when `asIs` says none is in
  *  the frame. */
 function composePass(state: LightingState) {
+  const target: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'clear',
+    storeOp: 'store',
+  }
+  const shown: GPURenderPassColorAttachment = { ...target }
+  const plain: GPURenderPassDescriptor = {
+    label: HDR_COMPOSITION_PASS,
+    colorAttachments: [target],
+  }
+  const presented: GPURenderPassDescriptor = {
+    label: HDR_PRESENT_PASS,
+    colorAttachments: [target, shown],
+  }
   return (
     encoder: GPUCommandEncoder,
-    target: GPUTextureView,
+    view: GPUTextureView,
     clear: GPUColor,
     presentation?: GPUTextureView,
     composed?: ComposedImage,
@@ -196,14 +217,13 @@ function composePass(state: LightingState) {
     const { active } = state
     const composition = active.composition(composed, asIs)
     if (!composition) throw new Error('SURFACE_NOT_BOUND')
-    const colorAttachments: GPURenderPassColorAttachment[] = [
-      { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
-    ]
-    if (presentation) colorAttachments.push({ ...colorAttachments[0], view: presentation })
-    const pass = encoder.beginRenderPass({
-      label: presentation ? HDR_PRESENT_PASS : HDR_COMPOSITION_PASS,
-      colorAttachments,
-    })
+    target.view = view
+    target.clearValue = clear
+    if (presentation) {
+      shown.view = presentation
+      shown.clearValue = clear
+    }
+    const pass = encoder.beginRenderPass(presentation ? presented : plain)
     const blend = composed?.bloom,
       { draw, present } = active.compositions.pipelines(composition.input, !!blend)
     pass.setPipeline(presentation ? present : draw)

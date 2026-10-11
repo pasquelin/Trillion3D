@@ -9,16 +9,17 @@
  * a rounding of ours.
  */
 
+import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
 import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts'
 import { loadOnlyTarget, loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
-/** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
-export const VSM_MASK_TABLE_BINDING = 21
+/** The opaque resolve's binding of the table (`lighting/deferred/bindings.ts`). */
+export const VSM_MASK_TABLE_BINDING = DEFERRED_BINDINGS.maskTable
 /** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
-export const VSM_MASK_TILES_BINDING = 29
+export const VSM_MASK_TILES_BINDING = DEFERRED_BINDINGS.maskTiles
 /** The resolve's binding of the table, read by load alone: its load returns the stored halves as a
  *  sampled one did. */
 export const VSM_MASK_TABLE_TARGET = loadOnlyTarget(

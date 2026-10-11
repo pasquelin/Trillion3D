@@ -1,3 +1,4 @@
+import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
@@ -38,10 +39,10 @@ export interface VsmConsumerBindings {
 /** The opaque resolve's and the water composite's numbers (the records', atlas, sampler and
  *  translucent depth). */
 export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
-  pageTable: 8,
-  projectionData: 9,
-  uniforms: 10,
-  pool: 19,
+  pageTable: DEFERRED_BINDINGS.pageTable,
+  projectionData: DEFERRED_BINDINGS.projectionData,
+  uniforms: DEFERRED_BINDINGS.uniforms,
+  pool: DEFERRED_BINDINGS.pool,
 }
 /** The bindings as a block name reads them, in their declared order. */
 export const vsmBindingsLabel = (b: VsmConsumerBindings) =>

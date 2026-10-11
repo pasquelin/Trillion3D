@@ -25,7 +25,7 @@ import {
 import { vsmProjectionWords, writeVsmProjectionData } from './projectionData.ts'
 import type { VsmResources } from './resources.ts'
 import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
-import { vsmWriteChanged, vsmWriteChangedRecords } from './writeChanged.ts'
+import { writeChanged, writeChangedRecords } from '../gpu/core/writeChanged.ts'
 import {
   VsmCacheManager,
   type VsmIdAllocator,
@@ -428,7 +428,7 @@ function allocateLightIds(state: VsmFrameState) {
 }
 
 /** The marking pass's input: every cache entry's projection data at its id, the single-page
- *  maps' records then the full maps', where they changed alone (`vsmWriteChanged`): a still view
+ *  maps' records then the full maps', where they changed alone (`writeChanged`): a still view
  *  and still lights send nothing. */
 function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   const { cache, resources, device } = state,
@@ -441,14 +441,8 @@ function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   const words = vsmProjectionWords(image),
     record = VSM_PROJECTION_RECORD_BYTES / 4,
     full = VSM_SINGLE_PAGE_MAP_SLOTS * record
-  vsmWriteChanged(
-    device,
-    resources.current.projectionData,
-    words,
-    0,
-    ids.singlePageMapCount * record,
-  )
-  vsmWriteChanged(
+  writeChanged(device, resources.current.projectionData, words, 0, ids.singlePageMapCount * record)
+  writeChanged(
     device,
     resources.current.projectionData,
     words,
@@ -464,7 +458,7 @@ let touchedIds = new Int32Array(64)
  *  records and takes this frame's: below the count, the words a whole write would send; those that
  *  changed go up. Only the records of the ids dropped or taken can change — the full maps' ids
  *  start past the single-page slots, so the table is wide and those few —: they alone are compared
- *  (`vsmWriteChangedRecords`). */
+ *  (`writeChangedRecords`). */
 function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   const { u, i } = nextMapWords(state.nextMapsImage),
     held = state.nextMapsHeld,
@@ -488,7 +482,7 @@ function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   state.nextMapsHeldCount = taken
   const touched = touchedIds.subarray(0, dropped + taken)
   const distinct = uniqueSortedInPlace(touched)
-  vsmWriteChangedRecords(
+  writeChangedRecords(
     state.device,
     state.resources.nextMaps,
     u,

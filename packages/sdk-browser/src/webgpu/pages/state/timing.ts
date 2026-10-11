@@ -18,9 +18,7 @@ type GpuCutMarks = Record<
   | 'tilesEnd'
   | 'blendStart'
   | 'cpuStart'
-  | 'lightsEnd'
   | 'adoptEnd'
-  | 'transparentSelectEnd'
   | 'admissionEnd'
   | 'queueEnd'
   | 'rowsEnd'
@@ -89,7 +87,6 @@ export interface WebgpuTimingState {
   lastCpuLogFrame: number
   cpuSample: Record<string, unknown> | undefined
   transparentEncodeMs: number
-  transparentSelectMs: number
   transparentPrepareMs: number
   transparentDrawMs: number
   transparentSpanUploadBytes: number
@@ -166,9 +163,7 @@ export function createWebgpuTimingState(
       tilesEnd: 0,
       blendStart: 0,
       cpuStart: 0,
-      lightsEnd: 0,
       adoptEnd: 0,
-      transparentSelectEnd: 0,
       admissionEnd: 0,
       queueEnd: 0,
       rowsEnd: 0,
@@ -181,7 +176,6 @@ export function createWebgpuTimingState(
     lastCpuLogFrame: -1,
     cpuSample: undefined,
     transparentEncodeMs: 0,
-    transparentSelectMs: 0,
     transparentPrepareMs: 0,
     transparentDrawMs: 0,
     transparentSpanUploadBytes: 0,

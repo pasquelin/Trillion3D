@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BLEND_ITEM_WGSL, BLEND_ITEM_WORDS } from './items.ts'
-import { fieldLayout } from './fieldLayout.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the item record table yields the shipped struct and its WGSL offsets', () => {

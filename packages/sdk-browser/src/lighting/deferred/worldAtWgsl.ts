@@ -1,3 +1,4 @@
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
 
@@ -7,11 +8,16 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  exposure, applied before the display curve; `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
  *  (`shadowJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */
-export const VIEW_WGSL = wgslBlock(
-  'VIEW_WGSL',
-  [],
-  'struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,jitter:vec4f,}',
-)
+export const VIEW_LAYOUT = fieldLayout('View', [
+  ['inverseViewProjection', 'mat4x4f'],
+  ['camera', 'vec4f'],
+  ['viewport', 'vec4f'],
+  ['background', 'vec4f'],
+  ['lightParams', 'vec4f'],
+  ['display', 'vec4f'],
+  ['jitter', 'vec4f'],
+] as const)
+export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of
  *  the depth buffer every fullscreen pass shares. \`viewToEye\` is the direction from a point to the
  *  eye (the view direction, \`camera.w\` 0, under an orthographic camera): the one reading of the

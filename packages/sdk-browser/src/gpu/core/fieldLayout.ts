@@ -8,6 +8,9 @@ const TYPES = {
   vec4f: [4, 4],
   vec4u: [4, 4],
   mat4x4f: [16, 4],
+  'array<vec4f,6>': [24, 4],
+  'array<vec4u,2>': [8, 4],
+  'array<vec4f,3>': [12, 4],
 } as const
 
 /** A struct's fields in one table, in order: each its name and its WGSL type. */

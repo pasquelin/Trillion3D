@@ -3,7 +3,7 @@ import type { GpuDraw } from './contract.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
-import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
+import { writeChanged } from '../core/writeChanged.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 
@@ -82,8 +82,8 @@ export function encodeDraw(
     d.bindGroup = drawBindGroup(d.device, d.layout, held, mask)
   }
   // Only the words that changed go up — most images change none; a grown table's new
-  // buffer is held as its zeros (`vsmWriteChanged`).
-  vsmWriteChanged(d.device, held.uniforms, uniData, 0, uniData.length)
+  // buffer is held as its zeros (`writeChanged`).
+  writeChanged(d.device, held.uniforms, uniData, 0, uniData.length)
   const pass = open.pass
   pass.setBindGroup(0, d.bindGroup)
   pass.setPipeline(d.countPipeline)

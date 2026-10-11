@@ -40,7 +40,7 @@ import type { VsmLayout } from './layout.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import {
   VSM_RENDER_ARGS_EXPAND,
@@ -544,7 +544,7 @@ export function encodeVsmTransmission(
   uniformImage[6] = regions.patches
   uniformImage[7] = plan?.within.size ? plan.cmds : 0
   uniformImage[8] = plan?.within.size ? plan.pairs : 0
-  vsmWriteChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
+  writeChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
 
   const groups = transmissionGroups(device, ctx, trans)
   // The encoder's clears first: the clear, the bin and the resolve are then one compute pass, each

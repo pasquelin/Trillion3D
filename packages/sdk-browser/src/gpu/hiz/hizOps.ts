@@ -1,7 +1,7 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
 import { HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
-import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
+import { writeChangedSlots } from '../core/writeChanged.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
@@ -85,7 +85,7 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
  *  holds that changed go up, as a whole compare at 256 bytes sends them; and its levels uniform. */
 function sendHizBuild(h: HizState, { passes, words, levelWords }: Pyramid['drawn']) {
   h.image.set(words, 0)
-  vsmWriteChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, passes.length)
+  writeChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, passes.length)
   h.device.queue.writeBuffer(h.levelTable, 0, levelWords)
 }
 
@@ -130,7 +130,7 @@ export function hizTest(
   const { passes, width: w, height: hh } = at.drawn,
     slot = passes.length
   hizTestSlot(image, slot * h.slots.strideWords, w, hh, rows, counting)
-  vsmWriteChangedSlots(queueDevice, h.uniforms, image, h.slots, slot, slot + 1)
+  writeChangedSlots(queueDevice, h.uniforms, image, h.slots, slot, slot + 1)
   // The compacted box count lives in the state: a kernel turns it into the dispatch's arguments,
   // which cover the tested boxes and no other row; the threads past the count leave at the first
   // test.

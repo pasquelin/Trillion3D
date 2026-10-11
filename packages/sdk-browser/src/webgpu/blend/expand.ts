@@ -21,7 +21,7 @@ import { blendExpandUniform } from './runs.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
-import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
+import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
@@ -120,7 +120,7 @@ function sendSteps(
   slots: UniformSlots,
 ) {
   if (words.length !== slots.bytes / 4) throw new Error(STEP_LAYOUT)
-  vsmWriteChangedSlots(device, buffer, words, slots, 0, slots.count, 'one')
+  writeChangedSlots(device, buffer, words, slots, 0, slots.count, 'one')
 }
 
 /** `words` of `source` — all of them by default — written from word `word` of `buffer`. */

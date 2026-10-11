@@ -5,6 +5,7 @@
 // the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
 // radiance pyramid of the lit image. Consecutive still images, whose reflection targets are read
 // back to the bit.
+import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import {
   createReflectionPipelines,
   createScreenReflection,
@@ -79,7 +80,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     [...frame.eye, 1],
     width,
     height,
-    frame.background ?? 0,
+    clearValueOf(frame.background ?? 0),
     false,
     direct,
     0,

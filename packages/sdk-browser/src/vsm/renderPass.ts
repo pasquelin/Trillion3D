@@ -48,7 +48,7 @@ import {
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { madeTextureBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import {
   createVsmRowBound,
   vsmBoundChunk,
@@ -769,7 +769,7 @@ export function vsmRenderFloorBytes(
 
 // The frame's scratch of the raster and the transmission's draw (one after the other, never
 // nested): their views, parameter slots and chunking, rewritten each frame (what reaches a buffer
-// is what `vsmWriteChanged` holds for it, per buffer).
+// is what `writeChanged` holds for it, per buffer).
 const viewList: number[] = []
 let viewWords = new Uint32Array(0)
 const paramsImage: VsmRenderParamsImage = {
@@ -878,7 +878,7 @@ function vsmEncodeChunks(
 }
 
 /** The parameter slots of `vsmChunking`, laid in `slots`, and the views `views` up to their
- *  buffers: each slot's words where they changed alone (`vsmWriteChangedSlots`). */
+ *  buffers: each slot's words where they changed alone (`writeChangedSlots`). */
 export function vsmWriteChunkParams(
   device: GPUDevice,
   camera: VsmRenderCamera,
@@ -890,11 +890,11 @@ export function vsmWriteChunkParams(
   const { chunks } = vsmChunking
   vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
   vsmRenderParams(camera, vsmChunking, paramsImage, slots)
-  vsmWriteChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
+  writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
   if (viewWords.length < views.length)
     viewWords = new Uint32Array(ensuredBytes(views.length * 4) / 4)
   for (let k = 0; k < views.length; k++) viewWords[k] = views[k]
-  vsmWriteChanged(device, viewsBuffer, viewWords, 0, views.length)
+  writeChanged(device, viewsBuffer, viewWords, 0, views.length)
 }
 
 /**

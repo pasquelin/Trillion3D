@@ -5,7 +5,7 @@ import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloo
 import { BLOOM_WGSL } from './bloomWgsl.ts'
 import { BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.ts'
 import { uniformSlots } from '../../residency/pools.ts'
-import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
+import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
 
@@ -132,7 +132,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     slot(last, full, sizes[0], radius, keep, glow)
     // What changed of the range's slots goes up in one write, as the whole range once did: never
     // the padding up to the device's alignment, never more writes.
-    vsmWriteChangedSlots(device, uniform!, packedWords, slots, first, last + 1, 'one')
+    writeChangedSlots(device, uniform!, packedWords, slots, first, last + 1, 'one')
   }
   const draw = (
     encoder: GPUCommandEncoder,

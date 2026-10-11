@@ -41,7 +41,7 @@ import {
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
+import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import {
   VSM_CLEAR_SPECS,
   VSM_COARSE_SPECS,
@@ -414,15 +414,15 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     u[36] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
     // A local map asks for its last mip's page: a far receiver always finds one.
     u[37] = 1
-    vsmWriteChanged(device, params, paramU32, 0, paramU32.length)
+    writeChanged(device, params, paramU32, 0, paramU32.length)
   }
 
   /** Per-bin args, written for both dispatchers. */
   function writePerPage(bins: VsmPerPageBins) {
     if (bins.ids.length > res.layout.mapSlots)
       throw new Error('VSM: per-page ids exceed res.perPageIds')
-    // The ids only when they changed: a new set's buffer starts zeroed (`vsmWriteChanged`).
-    vsmWriteChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
+    // The ids only when they changed: a new set's buffer starts zeroed (`writeChanged`).
+    writeChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
     // Every slot's words are written again: nothing is cleared first.
     const words = slots.strideWords
     for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
@@ -434,7 +434,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
         b,
       )
     }
-    vsmWriteChangedSlots(device, perPage, perPageData, slots)
+    writeChangedSlots(device, perPage, perPageData, slots)
   }
 
   /** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */

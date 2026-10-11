@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { contractLighting, gpuHarness } from './contractLighting.fixture.ts'
+
+const CLEAR = clearValueOf(0x204060)
 
 test('composition presents and preserves the capture target in one fullscreen draw', async () => {
   const h = gpuHarness(),
@@ -70,9 +73,9 @@ test('diagnostic composition retains the display-space flag and unbound calls fa
   )
   assert.equal(h.passes.length, 0)
   const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, true)
+  lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, true)
   assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 1, 0])
-  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false)
+  lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false)
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0])
   lighting.bind(h.surface, h.view(), h.view(), false)
   lighting.dispose()
@@ -88,10 +91,10 @@ test('the rank of a sampled image rides in the fourth viewport slot, zero withou
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device),
     matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false, [3, 2, 1, 1], 7)
+  lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false, [3, 2, 1, 1], 7)
   assert.deepEqual([...h.writes[0].slice(20, 24)], [800, 600, 0, 7])
   assert.deepEqual([...h.writes[0].slice(28, 32)], [3, 2, 1, 1])
-  lighting.update(matrix, [1, 2, 3], 800, 600, 0x204060, false)
+  lighting.update(matrix, [1, 2, 3], 800, 600, CLEAR, false)
   assert.deepEqual([...h.writes[1].slice(20, 24)], [800, 600, 0, 0])
   lighting.dispose()
 })

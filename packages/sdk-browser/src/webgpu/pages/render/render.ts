@@ -38,14 +38,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   } else if (holdWebgpuFrame(rt, gpuDevice)) return
   drawFrameInputs(rt, gpuDevice, pixelError, cam)
   const cpuStart = performance.now()
-  // No more scene light is packed per image: declared lamps live in a store that encoding only
-  // pushes to the GPU if its revision has moved (P6). The CPU "Lights" step is therefore zero
-  // because the work has disappeared, not because it is not measured.
-  const lightsEnd = cpuStart
   resetFrameCounters(run)
   // The impostor plan: the cards, and the card bit of the roots they replace, read by the cut.
   rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam)
-  renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)
+  renderGpuCut(rt, cam, pixelError, cpuStart)
 }
 
 /** The image's entry: the session checked, the grown placements joined, the scale paced and the

@@ -19,13 +19,11 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.tilesPumpMs] = pumped ?? NaN
   steps[CPU_STEP.worldMs] = m.blendStart - m.tilesEnd
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart
-  steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart
-  steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd
-  steps[CPU_STEP.transparentSelectMs] = timing.transparentSelectMs
+  steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.cpuStart
   steps[CPU_STEP.transparentPrepareMs] = timing.transparentPrepareMs
   steps[CPU_STEP.transparentDrawMs] = timing.transparentDrawMs
   steps[CPU_STEP.transparentEncodeMs] = timing.transparentEncodeMs
-  steps[CPU_STEP.admissionMs] = m.admissionEnd - m.transparentSelectEnd
+  steps[CPU_STEP.admissionMs] = m.admissionEnd - m.adoptEnd
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd
   steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd
@@ -34,11 +32,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   // Remaining encode excludes submit itself: the two steps never overlap.
   steps[CPU_STEP.encodeRestMs] = Math.max(
     0,
-    submitMs -
-      timing.lastPartitionMs -
-      timing.transparentSelectMs -
-      timing.transparentEncodeMs -
-      timing.lastQueueSubmitMs,
+    submitMs - timing.lastPartitionMs - timing.transparentEncodeMs - timing.lastQueueSubmitMs,
   )
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs
   steps[CPU_STEP.encodeSubmitMs] = submitMs
@@ -52,8 +46,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     submission: run.imageRevision,
     scope: 'backend-render-call',
     totalMs: m.cpuEnd - m.preStart,
-    lightsMs: m.lightsEnd - m.cpuStart,
-    selectionMs: m.selectionEnd - m.lightsEnd,
+    selectionMs: m.selectionEnd - m.cpuStart,
     residencyScheduleAndTargetsMs: m.encodeStart - m.selectionEnd,
     encodeSubmitMs: submitMs,
     transparentEncodeMs: timing.transparentEncodeMs,
