@@ -8,7 +8,6 @@ import {
   VSM_SUN_DEPTH_KEEP,
   VSM_SUN_DEPTH_SPAN,
   VSM_SUN_LEVEL_BIAS,
-  VSM_SUN_LEVEL_BIAS_MOVING,
   VSM_LOCAL_LEVEL_BIAS,
   VSM_LOCAL_LEVEL_BIAS_MOVING,
 } from './constants.ts'
@@ -23,34 +22,31 @@ test('the levels: 6 to 22, a radius of 2^(L+1) cm, coarse 15 to 18', () => {
     [config.firstLevel, config.lastLevel, config.coarseFrom, config.coarseTo],
     [6, 22, 15, 18],
   )
-  assert.ok(config.useCover, 'the directional receiver cover is on')
   assert.deepEqual([VSM_SUN_DEPTH_SPAN, VSM_SUN_DEPTH_KEEP], [1000, 0.9])
 })
 
-test("the sun's LOD bias is the clipmap level's, -1.5 at rest and moving; local lights keep 0 and 1", () => {
-  assert.deepEqual([VSM_SUN_LEVEL_BIAS, VSM_SUN_LEVEL_BIAS_MOVING], [-1.5, -1.5])
+test("the sun's LOD bias is the clipmap level's, -1.5; local lights keep 0 and 1", () => {
+  assert.equal(VSM_SUN_LEVEL_BIAS, -1.5)
   assert.deepEqual([VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING], [0, 1])
   const { config } = frame(new VsmCacheManager(), [0, 0, 0])
-  assert.deepEqual([config.levelBias, config.levelBiasMoving], [-1.5, -1.5])
+  assert.equal(config.levelBias, -1.5)
 })
 
-test("the clipmap's bias is max(0, -1.5 + the screen term), at rest and moving", () => {
+test("the clipmap's bias is max(0, -1.5 + the screen term)", () => {
   // Screen term: log2(0.5 / p[0] · 16384 / width), p[0] = 1 at 90°.
-  for (const width of [256, 1024, 1728, 2048, 2900, 3456, 4096, 16384])
-    for (const mobility of [0, 1]) {
-      const clipmap = createVsmClipmap(
-        new VsmCacheManager(),
-        SUN,
-        { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
-        { width, height: width },
-        mobility,
-      )
-      const expected = Math.max(0, -1.5 + Math.log2((0.5 * 16384) / width))
-      assert.ok(
-        Math.abs(clipmap.levelBias - expected) < 1e-6,
-        `width ${width}, mobility ${mobility}: ${clipmap.levelBias} against ${expected}`,
-      )
-    }
+  for (const width of [256, 1024, 1728, 2048, 2900, 3456, 4096, 16384]) {
+    const clipmap = createVsmClipmap(
+      new VsmCacheManager(),
+      SUN,
+      { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
+      { width, height: width },
+    )
+    const expected = Math.max(0, -1.5 + Math.log2((0.5 * 16384) / width))
+    assert.ok(
+      Math.abs(clipmap.levelBias - expected) < 1e-6,
+      `width ${width}: ${clipmap.levelBias} against ${expected}`,
+    )
+  }
   // The clamp holds the wide screens: 4096 px would ask -0.5, 3456 px about -0.25.
   assert.equal(frame(new VsmCacheManager(), [0, 0, 0], 4096).levelBias, 0)
   assert.equal(frame(new VsmCacheManager(), [0, 0, 0], 3456).levelBias, 0)
@@ -64,7 +60,6 @@ test("a frame drawn below the display keeps the display's clipmap: levels, bias 
       SUN,
       { view: VIEW, projection: PROJECTION, perspective: true, eye },
       viewport,
-      0,
     )
   const projectionData = (clipmap: VsmClipmap) =>
     clipmap.cacheEntry.mapCaches.map((entry) => entry.projectionData)

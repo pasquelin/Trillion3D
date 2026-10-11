@@ -37,7 +37,6 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
         { id: 'sun', direction },
         { view: VIEW, projection: PROJECTION, perspective: true, eye },
         { width: 1024, height: 1024 },
-        0,
       )
       for (const { projectionData } of clipmap.cacheEntry.mapCaches) {
         const m = Float32Array.from(projectionData.shiftedToMapUv)
@@ -102,7 +101,6 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
       { id: 'sun', direction: [0, -1, 0] },
       { view: VIEW, projection: scaled, perspective, eye: [0, 0, 0] },
       { width: 64, height: 64 },
-      0,
     ).cacheEntry.mapCaches[0].projectionData.shiftedToMapUv
   assert.notDeepEqual(level(false), level(true), 'the clipmap sizes its levels by the kind')
 })

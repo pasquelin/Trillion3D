@@ -2,7 +2,7 @@ import { RECEIVER_BINDINGS } from '../../visibility/shader/receiverOffsetWgsl.ts
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { bindingLayout, bindingResource, type ComputeBinding } from '../shadow/computePass.ts'
+import { bindingLayout, bindingResource, type ComputeBinding } from './computePass.ts'
 import { createFloatAtlas } from '../core/floatAtlas.ts'
 
 /** What the receiver offset reads (`receiverOffsetWgsl.ts`), in `RECEIVER_BINDINGS` order: the

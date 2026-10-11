@@ -69,7 +69,7 @@ export function earlyOutWorld(seed: number) {
   }
   const scope = {
     ...world.scope,
-    vsm: { ...world.scope.vsm, poolRowShift: ROW_SHIFT, traceReachSun: 1.5 },
+    vsm: { ...world.scope.vsm, poolRowShift: ROW_SHIFT },
     vsmPoolLoad: (t: number[]) => (reads.pool++, poolWord(seed, t[0], t[1])),
     vsmTileDepthsLoad: (k: number) => (reads.tiles++, tileDepth(k)),
   }

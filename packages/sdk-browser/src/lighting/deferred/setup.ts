@@ -13,11 +13,10 @@ import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import {
-  VSM_MASK_TABLE_TARGET,
   VSM_MASK_TILES_BINDING,
-  createVsmMaskTable,
-} from '../../vsm/projectionMaskTable.ts'
-import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
+  VSM_PROJECTION_MASK_FORMAT,
+  VSM_PROJECTION_TILE_FORMAT,
+} from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 
@@ -138,8 +137,6 @@ function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
       visibility: GPUShaderStage.FRAGMENT,
       texture: { sampleType: 'uint', viewDimension: '2d-array' },
     },
-    // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
-    VSM_MASK_TABLE_TARGET.layoutEntry(),
     // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
     {
@@ -261,7 +258,6 @@ function createVsmPlaceholders(device: GPUDevice) {
     format: VSM_PROJECTION_TILE_FORMAT,
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
-  const vsmMaskTable = createVsmMaskTable(device)
   return {
     views: {
       vsmPageTable,
@@ -270,15 +266,11 @@ function createVsmPlaceholders(device: GPUDevice) {
       vsmPool,
       vsmMask: arrayView(vsmMask),
       vsmMaskTiles: vsmMaskTiles.createView(),
-      /** The mask's decode table (`projectionMaskTable.ts`): `fill` before the first frame that
-       *  reads a mask is submitted. */
-      vsmMaskTable,
     },
     destroy() {
       for (const buffer of [vsmPageTable, vsmProjectionData, vsmUniforms, vsmPool]) buffer.destroy()
       vsmMask.destroy()
       vsmMaskTiles.destroy()
-      vsmMaskTable.texture.destroy()
     },
   }
 }

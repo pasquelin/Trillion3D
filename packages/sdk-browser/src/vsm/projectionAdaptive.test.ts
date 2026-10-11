@@ -8,7 +8,8 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { IDENTITY } from './pageWorld.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { VSM_TRACE_VOTE_AFTER, VSM_TRACE_RAYS_SUN } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_TRACE_RAYS_SUN } from './constants.ts'
+import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
@@ -25,7 +26,7 @@ function trace(hits: (i: number) => boolean, others: boolean, depth = 0.5) {
     vsmTraceSun: (...a: unknown[]) => { shadowFactor: number; rayCount: number }
   }>(CODE, ['vsmTraceSun', 'vsmEmptyTrace'], {
     vsmTraceSetupSun: () => ({
-      voteAfter: VSM_TRACE_VOTE_AFTER,
+      voteAfter: wgslConstants(VSM_CONSTANTS_WGSL).VSM_TRACE_VOTE_AFTER,
       rayCount: VSM_TRACE_RAYS_SUN,
       stepsPerRay: 8,
       slopeCapSetting: 5,
@@ -50,7 +51,6 @@ function trace(hits: (i: number) => boolean, others: boolean, depth = 0.5) {
       originShiftHigh: [0, 0, 0],
       originShiftLow: [0, 0, 0],
     },
-    vsm: { traceReachSun: 1.5 },
     vsmTexelsAtLevel: () => 16384,
     vsmSunDepthGradientUv: () => [0, 0],
     vsmSubtractHighLow: () => [0, 0, 0],

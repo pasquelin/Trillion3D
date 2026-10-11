@@ -76,9 +76,12 @@ test('a still image shades every light, a moving one a drawn subset that history
   assert.ok(rest.max <= 1, `still: an interior pixel differs by ${rest.max} from the plain image`)
 
   // Moving, the first image draws a subset of the lights in every pixel: the accumulated image
-  // moves away from the still one by more than a hundredth of a pixel could move it.
+  // moves away from the still one by more than rounding alone does (`rest`).
   const first = interiorGap(accumulated.first, still)
-  assert.ok(first.max >= 3, 'the moving image should shade a drawn subset of the lights')
+  assert.ok(
+    first.max > rest.max,
+    `the moving image should shade a drawn subset of the lights: ${first.max} levels from the still image, no more than the ${rest.max} of rounding`,
+  )
 
   // After the shake, the history has averaged the draws: the interior is back on the still image
   // within four levels on average and thirty-two at worst — the declared grain of a moving image,

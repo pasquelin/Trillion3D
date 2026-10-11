@@ -28,6 +28,9 @@ import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
 import { writeChanged, writeChangedRecords } from '../gpu/core/writeChanged.ts'
 import {
   VsmCacheManager,
+  advanceLightMobility,
+  newLightMobility,
+  type LightMobility,
   type VsmIdAllocator,
   type VsmNextMap,
   type VsmLightCache,
@@ -229,13 +232,13 @@ export interface VsmFrameState {
   ids: VsmMapIds
 }
 
-/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and the
- *  mobility factor this frame gave it: compared and rewritten in place, never rebuilt per frame. */
-interface VsmLightShape {
+/** A light's shape as last seen (its kind and numeric fields), the frame it was last seen and its
+ *  mobility (the one map of lights' memory): compared and rewritten in place, never rebuilt per
+ *  frame. */
+interface VsmLightShape extends LightMobility {
   kind: SceneLight['kind']
   values: Float64Array
   seen: number
-  mobility: number
 }
 const SHAPE_VALUES = 13
 
@@ -297,6 +300,8 @@ function putShape(v: Float64Array, k: number, x: number | undefined) {
 const castingScratch: VsmFrameLight[] = []
 const clipmapScratch: { light: SceneLight; clipmap: VsmClipmap }[] = []
 const localScratch: { light: SceneLight; setup: VsmLocalLightSetup }[] = []
+// The plan's lights, rebuilt in place: a plan lives until its frame ends.
+const allocationScratch: VsmLightAllocation[] = []
 
 /** True when a cache entry got no id this frame: the page table is short. */
 function anyUnallocated(cache: VsmCacheManager) {
@@ -312,30 +317,23 @@ function trackLightShapes(state: VsmFrameState, lights: readonly VsmFrameLight[]
     shapes = state.lightShapes
   for (const { light } of lights) {
     let shape = shapes.get(light.id)
+    // A new light is an update whatever its fields.
+    let updated = !shape
     if (!shape) {
       shape = {
-        kind: light.kind,
+        kind: '' as SceneLight['kind'],
         values: new Float64Array(SHAPE_VALUES).fill(Number.NaN),
         seen: 0,
-        mobility: 0,
+        ...newLightMobility(),
       }
       shapes.set(light.id, shape)
-      // A new light is an update whatever its fields.
-      shape.kind = '' as SceneLight['kind']
     }
     shape.seen = frame
-    shape.mobility = updateShape(shape, light) ? 1 : 0
+    updated = updateShape(shape, light) || updated
+    advanceLightMobility(shape, updated, frame)
   }
   cache.dropRemovedLights((id) => shapes.get(id)?.seen !== frame)
-  for (const [id, shape] of shapes)
-    if (shape.seen !== frame) {
-      shapes.delete(id)
-      cache.removeLightMobility(id)
-    }
-  for (const { light } of lights) {
-    const shape = shapes.get(light.id)!
-    shape.mobility = cache.updateLightMobility(light.id, shape.mobility === 1)
-  }
+  for (const [id, shape] of shapes) if (shape.seen !== frame) shapes.delete(id)
 }
 
 /** The directional lights' shadows: one clipmap each, into `clipmaps`. */
@@ -344,7 +342,6 @@ function setupDirectionalLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   for (const { light } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
@@ -353,7 +350,6 @@ function setupDirectionalLights(
       { id: light.id, direction: light.direction },
       camera,
       viewport,
-      mobilityOf(light.id),
     )
     clipmapScratch.push({ light, clipmap })
   }
@@ -394,7 +390,8 @@ function setupLocalLights(
 /** The id allocation: directional, local, then unreferenced entries. */
 function allocateLightIds(state: VsmFrameState) {
   const ids = state.ids.reset()
-  const allocations: VsmLightAllocation[] = []
+  const allocations = allocationScratch
+  allocations.length = 0
   for (const { light, clipmap } of clipmapScratch) {
     const entry = clipmap.cacheEntry
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
@@ -523,7 +520,7 @@ export function planVirtualShadowFrame(
   cache.frameStamp = state.frameStamp
   cache.poolPages = layout.poolPages
   trackLightShapes(state, lights)
-  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobility ?? 0
+  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobilityFactor ?? 0
   // The distant light refresh schedule.
   cache.scheduleFarLights()
   const casting = castingScratch
@@ -531,7 +528,7 @@ export function planVirtualShadowFrame(
   for (const l of lights) if (vsmShadowed(l)) casting.push(l)
   clipmapScratch.length = 0
   localScratch.length = 0
-  setupDirectionalLights(state, casting, camera, viewport, mobilityOf)
+  setupDirectionalLights(state, casting, camera, viewport)
   setupLocalLights(state, casting, camera, viewport, mobilityOf)
   const { ids, allocations } = allocateLightIds(state)
   const uniforms = frameUniforms(state, ids)

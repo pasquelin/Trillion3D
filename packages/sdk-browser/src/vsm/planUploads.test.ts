@@ -35,20 +35,22 @@
 // Retaken when the uniform block took 192 bytes for 208, the blended surfaces' one read leaving
 // no word for a read setting or the view's half-field tangent: the pressure bias in word 3, the
 // words past its old place closed up, their pads gone; every other buffer kept.
+// Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes
+// for 192): the mip offsets moved up twelve words; every other buffer kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'ff0738243f03fdd677621d43a50b809de6eb37d3941036a33707b581bc8d994d',
-    '022225b43a81d3bf09c39052230c116381077f9fc20644d4c784c4b73c8e8662',
-    '2d682cd02cc8ef82c026b9aeb505bdeac85ea89c32e62d59e19ad34fc04ea750',
+    'd7cfd953f61c8125ec63b84ab31e47ca5b80626949264f9da5a8226ef9d623c1',
+    '7348438683f5c6921031dd3c38604be28981edfb9d73ad34f31b5bb6177e03d0',
+    '7c56c84656ad5311d997fe4b21a430cdc4510a6ed1fa3f1a1ac4a8441b1e1ff7',
   ],
   2: [
-    '382cade8c265de3e6934e0ed80ff1705a386010b136606b97fbc81674063f073',
-    '6bea6cea5d182def4fb52972f95be14bff16ecb2a791524eb427897a789cfb24',
-    '0d249236ab4a7863261300cbae2ffb953b13ac22d62790165f30ffd680e3c6d8',
+    '27f03ebacd7be5a47813b08c1050d844e1392727cf9c0df75ea8c22a06a0060a',
+    'ceb41ce775f40a480ce8ef1b075030b1c685a202c437cf034ef3dc9b3e82ea3d',
+    '6b387dcb757c4b5a8d4d979ac86661a686ce5bb9375405c37cb3b868d9cfe89f',
   ],
 }
 

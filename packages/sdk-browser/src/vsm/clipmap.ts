@@ -32,11 +32,8 @@ import {
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
   VSM_SUN_LEVEL_BIAS,
-  VSM_SUN_LEVEL_BIAS_MOVING,
   VSM_UNIT_PER_CM,
-  VSM_COVER_SUN,
   VSM_LEVEL0_TEXELS,
-  vsmMovingBias,
 } from './constants.ts'
 import {
   vsmShadowUvMatrix,
@@ -135,8 +132,6 @@ interface VsmClipmapConfig {
   coarseFrom: number
   coarseTo: number
   levelBias: number
-  levelBiasMoving: number
-  useCover: boolean
 }
 
 /** A level's data, outputs in metres. */
@@ -181,8 +176,6 @@ const GLOBAL_CONFIG: Readonly<VsmClipmapConfig> = Object.freeze(
       coarseFrom: VSM_SUN_COARSE_FROM,
       coarseTo: VSM_SUN_COARSE_TO,
       levelBias: VSM_SUN_LEVEL_BIAS,
-      levelBiasMoving: VSM_SUN_LEVEL_BIAS_MOVING,
-      useCover: VSM_COVER_SUN,
     }
   })(),
 )
@@ -239,7 +232,6 @@ export function createVsmClipmap(
   light: VsmDirectionalLightInput,
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  movingShare: number,
 ): VsmClipmap {
   const config = GLOBAL_CONFIG
   const lightDirection = normalizeVector3OrZero(direction, light.direction, VSM_MIN_DIRECTION_SQ)
@@ -260,10 +252,7 @@ export function createVsmClipmap(
 
   let texelsPerPixel = f32(0.5 / projectionScaleX)
   texelsPerPixel = f32(texelsPerPixel * f32(VSM_LEVEL0_TEXELS / screenWidthPx))
-  let levelBias = f32(
-    vsmMovingBias(config.levelBias, config.levelBiasMoving, movingShare) +
-      Math.log2(texelsPerPixel),
-  )
+  let levelBias = f32(config.levelBias + Math.log2(texelsPerPixel))
   levelBias = f32(levelBias + (light.levelBias ?? 0))
   // Below 0 a receiver would read a level too small to reach it: a negative light bias sharpens
   // only until it has used up the screen term.
@@ -288,7 +277,7 @@ export function createVsmClipmap(
   const uncached = !cache.cacheEnabled
   const cacheEntry = cache.lightEntryFor(light.id, levelCount)
   cacheKey.firstLevel = firstLevel
-  cacheEntry.updateClipmap(cacheKey, uncached, config.useCover)
+  cacheEntry.updateClipmap(cacheKey, uncached)
 
   const clipmap = heldClipmap(cacheEntry)
   clipmap.light = light
@@ -396,7 +385,7 @@ function vsmClipmapProjectionData(
     if ((mapLevel >= config.coarseFrom && mapLevel <= config.coarseTo) || levelsAfterThis === 1)
       flags |= VSM_MAP_COARSE
   }
-  if (config.useCover) flags |= VSM_MAP_COVERAGE
+  flags |= VSM_MAP_COVERAGE
   flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
   out.lightKind = VSM_LIGHT_KIND_DIRECTIONAL
   out.lightRange = 0

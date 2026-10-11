@@ -23,7 +23,6 @@ export const DEFERRED_BINDINGS = {
   transmissionResolve: 14,
   transmittance: 18,
   pool: 19,
-  maskTable: 21,
   subsurface: 22,
   receiver: 23,
   maskTiles: 29,

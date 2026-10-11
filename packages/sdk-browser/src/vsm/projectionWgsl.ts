@@ -18,7 +18,7 @@
  *
  * LIGHTS. Every shadowed light of the frame in one dispatch, up to 64 (`vsmView.lights`): light k
  * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — the k of n rays its trace counted
- * missing (`vsmMaskCode`, decoded by `projectionMaskTable.ts`), 0 (= 1, lit) for the unused lanes
+ * missing (`vsmMaskCode`, decoded by `vsmMaskDecode`, `lighting/direct/shadowWgsl.ts`), 0 (= 1, lit) for the unused lanes
  * of the last layer —, each pixel's inputs read and reconstructed once for all of them. Each light
  * takes its own kind's trace; a pass of one kind, or of one light, runs a pipeline specialised to
  * it (`VSM_PROJECTION_KINDS`, `VSM_PROJECTION_ONE_LIGHT`).
@@ -53,7 +53,8 @@ import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
-import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
 import {
@@ -76,8 +77,6 @@ export const vsmProjectionTiles = (width: number, height: number) =>
   [vsmProjectionGroups(width), vsmProjectionGroups(height)] as const
 /** Lights per layer of the mask: four 8-bit lanes of an r32uint texel. */
 export const VSM_PROJECTION_MAX_LIGHTS = 4
-/** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
-export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
 /** Mask format: four lights' 8-bit lanes (`vsmMaskCode`). */
 export const VSM_PROJECTION_MASK_FORMAT: GPUTextureFormat = 'r32uint'
 /** Format of the mask's tile words: a texel per group, bit L where the group stored layer L. */
@@ -109,42 +108,9 @@ export const VSM_PROJECTION_BINDING = {
 /** Bind group of the shadow receiver target the resolve wrote (`receiverTargetWgsl.ts`), binding 0. */
 export const VSM_PROJECTION_RECEIVER_GROUP = 2
 
-/** Byte size of `VsmProjectionView` (uniform). */
-export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 48
-
-/**
- * The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) and the
- * lights. Offsets: 0 shiftedToClip, 64 shiftedToView,
- * 128 viewToClip, 192 clipToShifted, 256 originShiftHigh + frameIndex,
- * 272 originShiftLow + isOrtho, 288 shiftedEye + lightCount, 304 viewForward,
- * 320 depthFromDeviceZ, 336 screenRayScale, 352 halfFovTangents,
- * 368 viewPixels, 384 clipToBufferUv, 400 projectionRect, 416 lights[64] × 48.
- * Light: 0 shiftedPosition, 12 radius, 16 direction (towards the light), 28 sourceRadius,
- * 32 cosCone (a spot's cone, −2 for any other light), 36 mapId, 40 kind, 48 bytes with its tail.
- */
+/** The view uniform and the light kind the lights' records carry (`projectionView.ts`). */
 const PROJECTION_VIEW = /* wgsl */ `
-struct VsmProjectionView{
- shiftedToClip:mat4x4f,
- shiftedToView:mat4x4f,
- viewToClip:mat4x4f,
- clipToShifted:mat4x4f,
- originShiftHigh:vec3f,
- frameIndex:u32,
- originShiftLow:vec3f,
- isOrtho:u32,
- shiftedEye:vec3f,
- lightCount:u32,
- viewForward:vec3f,
- _pad0:u32,
- depthFromDeviceZ:vec4f,
- screenRayScale:vec4f,
- halfFovTangents:vec4f,
- viewPixels:vec4f,
- clipToBufferUv:vec4f,
- projectionRect:vec4i,
- lights:array<VsmProjectionLight,${VSM_PROJECTION_MAX_PASS_LIGHTS}>,
-}
-const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
+${VSM_PROJECTION_VIEW_STRUCT}
 `
 
 const bindingsWgsl = () => {
@@ -246,7 +212,7 @@ fn vsmCameraDistance(v:vec3f)->f32{
 /** The normal bias length at a position (0.02 cm floor = VSM_NORMAL_OFFSET_FLOOR). */
 fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
  let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
- return max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera/vsmView.halfFovTangents.z);
+ return vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,vsmView.halfFovTangents.z);
 }
 /** The scene depth at a buffer UV: its nearest texel, clamped to the buffer. */
 fn vsmSampleSceneDepth(uv:vec2f)->f32{
@@ -357,7 +323,7 @@ fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
- *  error times n ≤ 15 stays far under a half. Decoded by \`projectionMaskTable.ts\`. */
+ *  error times n ≤ 15 stays far under a half. Decoded by \`vsmMaskDecode\` (\`lighting/direct/shadowWgsl.ts\`). */
 fn vsmMaskCode(r:VsmTraceResult)->u32{
  if(r.rayCount==0u){return 0u;}
  return (r.rayCount<<4u)|u32(round(r.shadowFactor*f32(r.rayCount)));
@@ -578,24 +544,8 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
 }
 `
 
-/** Lanes, hence codes: 256 factors, four a texel. */
-export const VSM_MASK_TABLE_TEXELS = 64
-
-/** Fills the mask's decode table (`projectionMaskTable.ts`): code c's factor at texel c / 4,
- *  channel c % 4. */
-export const VSM_MASK_TABLE_WGSL = /* wgsl */ `
-@group(0) @binding(0) var table:texture_storage_2d<rgba16float,write>;
-/** Code \`c\`'s factor as the projection computes it (\`vsmTraceSun\`, \`vsmTraceLocal\`). */
-fn vsmMaskTableValue(c:u32)->f32{
- let rayCount=c>>4u;
- let missCount=c&15u;
- if(rayCount==0u){return 1.0;}
- return f32(missCount)/f32(rayCount);
-}
-@compute @workgroup_size(${VSM_MASK_TABLE_TEXELS}) fn vsmMaskTableFill(@builtin(local_invocation_index) t:u32){
- let c=4u*t;
- textureStore(table,vec2u(t,0u),vec4f(vsmMaskTableValue(c),vsmMaskTableValue(c+1u),vsmMaskTableValue(c+2u),vsmMaskTableValue(c+3u)));
-}`
+/** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
+export const VSM_MASK_TILES_BINDING = 29
 
 /** The whole module, for one layout (pool parts) and one vote variant. */
 export function vsmProjectionWgsl(

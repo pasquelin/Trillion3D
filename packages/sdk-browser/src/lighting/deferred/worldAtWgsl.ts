@@ -7,7 +7,7 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  (`../direct/lightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
  *  exposure, applied before the display curve; `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
- *  (`shadowJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */
+ *  (`viewJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],
   ['camera', 'vec4f'],

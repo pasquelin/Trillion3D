@@ -21,6 +21,7 @@
  * and UV quantities are unitless and unchanged.
  */
 import { VSM_NOISE_TILE } from './blueNoise.ts'
+import { VSM_PROJECTION_LIGHT_STRUCT } from './projectionView.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
@@ -151,10 +152,10 @@ fn vsmMarchTime(i:i32,stepCount:i32,time:vec2f)->f32{
 /** The ray count, samples per ray, extrapolation slope and dither scale of a trace. */
 struct VsmTraceSetup{voteAfter:i32,rayCount:i32,stepsPerRay:i32,slopeCapSetting:f32,ditherTexels:f32,}
 fn vsmTraceSetupSun()->VsmTraceSetup{
- return VsmTraceSetup(i32(vsm.traceVoteAfter),vsm.traceRaysSun,vsm.traceStepsSun,vsm.traceSlopeCapSun,vsm.traceDitherSun);
+ return VsmTraceSetup(VSM_TRACE_VOTE_AFTER,VSM_TRACE_RAYS_SUN,VSM_TRACE_STEPS_SUN,VSM_TRACE_SLOPE_CAP_SUN,VSM_TRACE_DITHER_SUN);
 }
 fn vsmTraceSetupLocal()->VsmTraceSetup{
- return VsmTraceSetup(i32(vsm.traceVoteAfter),vsm.traceRaysLocal,vsm.traceStepsLocal,vsm.traceSlopeCapLocal,vsm.traceDitherLocal);
+ return VsmTraceSetup(VSM_TRACE_VOTE_AFTER,VSM_TRACE_RAYS_LOCAL,VSM_TRACE_STEPS_LOCAL,VSM_TRACE_SLOPE_CAP_LOCAL,VSM_TRACE_DITHER_LOCAL);
 }
 /** Maps the unit square onto the unit disk, each square ring onto a circle: the unit direction
  *  and the radius (the ring). The ring is the larger coordinate; the angle runs over the eighth of
@@ -467,26 +468,18 @@ fn vsmReceiverPixelSize(pd:VsmProjectionData,sceneDepth:f32)->f32{
 fn vsmLocalRayReach(cosTheta:f32)->f32{
  // Declared: a local ray stops at three quarters of the way to the light, sooner off its axis.
  let sinTheta=sinFromCosUnclamped(cosTheta);
- return 0.75*saturate(1.5/(cosTheta+vsm.traceConeCot*sinTheta));
+ return 0.75*saturate(1.5/(cosTheta+VSM_TRACE_CONE_COT*sinTheta));
 }
 `,
   )
 
-/** A light of the projection, as its view uniform holds it (\`writeLightRecord\`, \`projectionPass.ts\`):
+/** A light of the projection, as its view uniform holds it (\`projectionView.ts\`):
  *  the traces' and the region test's (\`vsmLightParticipates\`). \`radius\` and \`cosCone\` are the
  *  lighting's range and cone (\`localLightReaches\`), \`direction\` points towards the light. */
 export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
   'VSM_TRACE_LIGHT_WGSL',
   [],
-  `struct VsmProjectionLight{
- shiftedPosition:vec3f,
- radius:f32,
- direction:vec3f,
- sourceRadius:f32,
- cosCone:f32,
- mapId:i32,
- kind:u32,
-}`,
+  VSM_PROJECTION_LIGHT_STRUCT,
 )
 
 /**
@@ -623,7 +616,7 @@ fn vsmTraceSun(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,shiftedPosition
    ditherUv=((0.5/f32(vsmTexelsAtLevel(0u)))*ditherHere*(eyeDistance*VSM_CM_PER_UNIT))/exp2(f32(pd.mapLevel)-pd.levelBias);
   }
   uvDepthSlope=vsmSunDepthGradientUv(pd,worldNormal);
-  rayLength=vsm.traceReachSun*eyeDistance;
+  rayLength=VSM_TRACE_REACH_SUN*eyeDistance;
   let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmView.originShiftHigh,vsmView.originShiftLow);
   originInMap=shiftedPosition+toMapShift;
   // The rays' spread on screen (\`vsmSunRaySpread\`), per unit of the depth an occluder lies above
@@ -701,8 +694,8 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   let pixelSizeHere=vsmReceiverPixelSize(pd,sceneDepth);
   let depthPerDistance=abs(pd.lightViewToClip[3][2]/dot(toLight,toLight));
   ditherUv=(settings.ditherTexels*pd.ditherTexels)*pixelSizeHere;
-  ditherSlopeCap=vsm.tracePlaneBiasCapLocal*ditherUv;
-  depthBiasCap=vsm.tracePlaneBiasCapLocal*pixelSizeHere*depthPerDistance;
+  ditherSlopeCap=VSM_TRACE_PLANE_BIAS_CAP_LOCAL*ditherUv;
+  depthBiasCap=VSM_TRACE_PLANE_BIAS_CAP_LOCAL*pixelSizeHere*depthPerDistance;
   basis=frameAround(coneAxis);
   let normalInFrame=intoFrame(basis,worldNormal);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;

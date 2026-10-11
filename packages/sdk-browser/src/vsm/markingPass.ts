@@ -21,8 +21,6 @@ import {
   VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_MIPS,
-  VSM_SUN_PAGE_MARGIN,
-  VSM_LOCAL_PAGE_MARGIN,
   VSM_MARK_STRIDE_X,
   VSM_MARK_STRIDE_Y,
   vsmWriteDepthFromDeviceZ,
@@ -217,7 +215,7 @@ export function vsmForwardZViewToClip(projection: ArrayLike<number>, out = new F
 // ---- Pass inputs -------------------------------------------------------------------------------
 
 /** What the per-pixel marking reads of the engine's frame (the shadow demand pass's inputs). */
-interface VsmMarkingView {
+export interface VsmMarkingView {
   depth: GPUTextureView
   normalRough: GPUTextureView
   flags: GPUTextureView
@@ -230,18 +228,20 @@ interface VsmMarkingView {
   /** The u32 ids of this view's directional (clipmap) maps. */
   sunMapIds: GPUBuffer
   sunMapCount: number
-  viewRectMin: readonly [number, number]
-  viewSize: readonly [number, number]
+  viewRectMin: [number, number]
+  viewSize: [number, number]
   /** The +z-forward view-to-clip (`vsmForwardZViewToClip`). */
   viewToClip: ArrayLike<number>
   /** The map view's origin shift (−camera position), double precision, split high/low. */
-  originShift: readonly [number, number, number]
+  originShift: [number, number, number]
 }
 
 export interface VsmMarkingFrame {
   fullMapCount: number
   singlePageMapCount: number
   perPage: VsmPerPageBins
+  /** The camera's kind as the engine knows it, never a matrix test (`projectionPass.ts`). */
+  perspective: boolean
   /** Absent: no pixel marking (pixel page marking off). */
   view?: VsmMarkingView
 }
@@ -348,6 +348,8 @@ export interface VsmMarking {
 }
 
 const DISPATCHERS = 2
+/** The marking's pixel stride, clamped to [1, 128] as the shader reads it (`VSM_MARK_STRIDE`). */
+const MARK_STRIDE = [clamp(VSM_MARK_STRIDE_X, 1, 128), clamp(VSM_MARK_STRIDE_Y, 1, 128)]
 /** The marking's groups over the tables of a frame set (`vsmPerFrameSet`), made as asked. */
 interface TableGroups {
   clear: Partial<Record<ClearSet, GPUBindGroup>>
@@ -394,26 +396,16 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     const v = frame.view
     if (v) {
       copyMatrix4(f, v.viewToClip)
-      // From the f32 matrix just written, the one the shader holds; a perspective by its M[3][3].
-      vsmWriteDepthFromDeviceZ(f, 16, f, f[15] < 1)
+      vsmWriteDepthFromDeviceZ(f, 16, f, frame.perspective)
       for (let k = 0; k < 3; k++) writeSplitDouble(f, 20 + k, 24 + k, v.originShift[k])
       u[28] = v.viewRectMin[0]
       u[29] = v.viewRectMin[1]
       u[30] = v.viewSize[0]
       u[31] = v.viewSize[1]
-      u[34] = v.sunMapCount
+      u[23] = v.sunMapCount
     }
-    f[23] = VSM_SUN_PAGE_MARGIN
-    f[27] = VSM_LOCAL_PAGE_MARGIN
-    // The pixel stride is clamped to [1, 128].
-    u[32] = clamp(VSM_MARK_STRIDE_X, 1, 128)
-    u[33] = clamp(VSM_MARK_STRIDE_Y, 1, 128)
-    // A pixel facing away from a light marks no page of it (its own back shadows it).
-    u[35] = 1
     // The number of page rects to clear.
-    u[36] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
-    // A local map asks for its last mip's page: a far receiver always finds one.
-    u[37] = 1
+    u[27] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
     writeChanged(device, params, paramU32, 0, paramU32.length)
   }
 
@@ -550,8 +542,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
       const v = frame.view
       if (v) {
-        const stridedX = ceilDiv(v.viewSize[0], paramU32[32]),
-          stridedY = ceilDiv(v.viewSize[1], paramU32[33])
+        const stridedX = ceilDiv(v.viewSize[0], MARK_STRIDE[0]),
+          stridedY = ceilDiv(v.viewSize[1], MARK_STRIDE[1])
         const pixels = pipes.pixels()
         groups.pixels ??= tablesGroup(PIXELS_LABEL, pixels, VSM_PIXELS_SPECS)
         dispatch(

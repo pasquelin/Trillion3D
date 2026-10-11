@@ -2,7 +2,7 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_PROGRAM } from './shaders.ts'
 import { createContractVariants, type LitPrograms } from './contractVariants.ts'
 import { cutsIn } from './contractCuts.ts'
-import { createDeferredPlaceholders, type DeferredPlaceholders } from './setup.ts'
+import { createDeferredPlaceholders } from './setup.ts'
 import {
   createDeferredProgram,
   type ComposedImage,
@@ -90,7 +90,7 @@ export async function createDeferredLighting(
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
     /** Select and lazily compile the active lighting program. */
-    bind: programBind(state, variants, placeholders),
+    bind: programBind(state, variants),
     settle: () => variants.settle(),
     /** What a frame lit with these resources waits for: the lit program's compile while no ready
      *  one can light it, else nothing (`contractVariants.ts`). */
@@ -134,11 +134,7 @@ function viewUpdate(state: LightingState, view: DeferredView) {
 }
 
 /** The lighting's `bind`: selects, and lazily compiles, the frame's program, and binds it. */
-function programBind(
-  state: LightingState,
-  variants: ContractVariants,
-  placeholders: DeferredPlaceholders,
-) {
+function programBind(state: LightingState, variants: ContractVariants) {
   return (
     surface: SurfaceBuffer,
     depth: GPUTextureView,
@@ -155,9 +151,6 @@ function programBind(
       unlit
     state.active = active
     active.bind(surface, depth, hdr, direct)
-    // A program reading a shadow mask: its decode table is filled, in its own submit, before
-    // this frame's (`projectionMaskTable.ts`).
-    if (active !== unlit && direct.vsmMask) placeholders.vsmMaskTable.fill()
   }
 }
 

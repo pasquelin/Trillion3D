@@ -35,14 +35,20 @@ import {
   vsmWriteDepthFromDeviceZ,
 } from './constants.ts'
 import {
+  VSM_PROJECTION_HEADER_WORDS,
+  VSM_PROJECTION_LIGHT_WORD,
+  VSM_PROJECTION_LIGHT_WORDS,
+  VSM_PROJECTION_MAX_PASS_LIGHTS,
+  VSM_PROJECTION_VIEW_BYTES,
+  VSM_PROJECTION_VIEW_WORD as W,
+} from './projectionView.ts'
+import {
   VSM_PROJECTION_BINDING,
   VSM_PROJECTION_KINDS_DIRECTIONAL,
   VSM_PROJECTION_KINDS_LOCAL,
   VSM_PROJECTION_MASK_FORMAT,
-  VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_RECEIVER_GROUP,
   VSM_PROJECTION_TILE_FORMAT,
-  VSM_PROJECTION_VIEW_BYTES,
   VSM_PROJECTION_VSM_SPECS,
   vsmProjectionGroups,
   vsmProjectionWgsl,
@@ -168,10 +174,6 @@ interface ViewWords {
 /** A light's position where it has none (a sun). */
 const ORIGIN = [0, 0, 0] as const
 
-/** The view's header and one light's record, in words (`VsmProjectionView`: 416 B, 48 B). */
-const HEADER_WORDS = 104,
-  LIGHT_WORDS = 12
-
 /** What the view's header is written from (`VsmProjectionInputs`). */
 type ViewInputs = Pick<
   VsmProjectionInputs,
@@ -208,62 +210,64 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
     s = scratch,
     eye = s.viewInverse,
     shift = s.shift
-  f.set(s.shiftedToClip, 0)
-  f.set(s.shiftedToView, 16)
-  f.set(s.viewToClip, 32)
-  f.set(s.clipToShifted, 48)
-  writeSplitDouble(f, 64, 68, shift[0])
-  writeSplitDouble(f, 65, 69, shift[1])
-  writeSplitDouble(f, 66, 70, shift[2])
-  u[67] = inputs.frameIndex >>> 0
+  f.set(s.shiftedToClip, W.shiftedToClip)
+  f.set(s.shiftedToView, W.shiftedToView)
+  f.set(s.viewToClip, W.viewToClip)
+  f.set(s.clipToShifted, W.clipToShifted)
+  for (let k = 0; k < 3; k++)
+    writeSplitDouble(f, W.originShiftHigh + k, W.originShiftLow + k, shift[k])
+  u[W.frameIndex] = inputs.frameIndex >>> 0
   // The camera's kind as the engine knows it, never a matrix test M[3][3] < 1: the projection's
   // jitter (`taaRenderProjection`) leaves rows 2 and 3 as they are, but the same projection
   // scaled as a homogeneous matrix (×0.25: M[3][3] = 0.25 for an orthographic one) would fail it.
   const perspective = inputs.camera.perspective
-  u[71] = perspective ? 0 : 1
-  f[72] = eye[12] + shift[0]
-  f[73] = eye[13] + shift[1]
-  f[74] = eye[14] + shift[2]
-  u[75] = count
+  u[W.isOrtho] = perspective ? 0 : 1
+  for (let k = 0; k < 3; k++) f[W.shiftedEye + k] = eye[12 + k] + shift[k]
+  u[W.lightCount] = count
   // The view's forward axis: its +Z (row 2 of shiftedToView).
-  f[76] = s.shiftedToView[2]
-  f[77] = s.shiftedToView[6]
-  f[78] = s.shiftedToView[10]
-  vsmWriteDepthFromDeviceZ(f, 80, s.viewToClip, perspective)
+  f[W.viewForward] = s.shiftedToView[2]
+  f[W.viewForward + 1] = s.shiftedToView[6]
+  f[W.viewForward + 2] = s.shiftedToView[10]
+  vsmWriteDepthFromDeviceZ(f, W.depthFromDeviceZ, s.viewToClip, perspective)
   writeScreenWords(view, inputs, s.viewToClip, perspective)
 }
 
-/** The header's screen words (84-103) from view-to-clip `v2c`. */
+/** The header's screen words (`screenRayScale` on) from view-to-clip `v2c`. */
 function writeScreenWords(
   { f, i }: ViewWords,
   { width, height, bufferWidth, bufferHeight }: ViewInputs,
   v2c: Float64Array,
   perspective: boolean,
 ) {
-  // The screen ray length multiplier (words 84-87, zero but where set) and the tangent and inverse
-  // tangent of the half field of view (88-91: clip-to-view [0][0], [1][1], view-to-clip [0][0],
-  // [1][1]); an orthographic view's are 1.
+  // The screen ray length multiplier (zero but where set) and the tangent and inverse tangent of
+  // the half field of view (clip-to-view [0][0], [1][1], view-to-clip [0][0], [1][1]); an
+  // orthographic view's are 1.
+  const ray = W.screenRayScale,
+    tangents = W.halfFovTangents
   if (perspective) {
-    f[84] = f[88] = 1 / v2c[0]
-    f[85] = f[89] = 1 / v2c[5]
-    f[90] = v2c[0]
-    f[91] = v2c[5]
-  } else f[86] = f[87] = f[88] = f[89] = f[90] = f[91] = 1
-  f[92] = width
-  f[93] = height
-  f[94] = 1 / width
-  f[95] = 1 / height
+    f[ray] = f[tangents] = 1 / v2c[0]
+    f[ray + 1] = f[tangents + 1] = 1 / v2c[5]
+    f[tangents + 2] = v2c[0]
+    f[tangents + 3] = v2c[5]
+  } else
+    f[ray + 2] = f[ray + 3] = f[tangents] = f[tangents + 1] = f[tangents + 2] = f[tangents + 3] = 1
+  const pixels = W.viewPixels
+  f[pixels] = width
+  f[pixels + 1] = height
+  f[pixels + 2] = 1 / width
+  f[pixels + 3] = 1 / height
   // The screen position scale and bias: NDC to the UV of the buffer the
   // view rect [0, size) sits in, as the screen ray samples the scene depth.
   const bw = bufferWidth ?? width,
     bh = bufferHeight ?? height
-  f[96] = width / bw / 2
-  f[97] = -height / bh / 2
-  f[98] = height / 2 / bh
-  f[99] = width / 2 / bw
-  // The projection rect: from (0, 0) (words 100-101, zero), its size.
-  i[102] = width
-  i[103] = height
+  const uv = W.clipToBufferUv
+  f[uv] = width / bw / 2
+  f[uv + 1] = -height / bh / 2
+  f[uv + 2] = height / 2 / bh
+  f[uv + 3] = width / 2 / bw
+  // The projection rect: from (0, 0) (zero), its size.
+  i[W.projectionRect + 2] = width
+  i[W.projectionRect + 3] = height
 }
 
 /** One light's record at word `o`, its position shifted by `shift`. */
@@ -275,19 +279,18 @@ function writeLightRecord(
 ) {
   const d = light.direction
   const p = light.type === 'directional' ? ORIGIN : light.position
-  f[o] = p[0] + shift[0]
-  f[o + 1] = p[1] + shift[1]
-  f[o + 2] = p[2] + shift[2]
-  f[o + 3] = light.type === 'directional' ? 0 : light.radius
-  // The record's direction points towards the light.
-  f[o + 4] = -d[0]
-  f[o + 5] = -d[1]
-  f[o + 6] = -d[2]
-  f[o + 7] = light.sourceRadius ?? 0
+  const L = VSM_PROJECTION_LIGHT_WORD
+  for (let k = 0; k < 3; k++) {
+    f[o + L.shiftedPosition + k] = p[k] + shift[k]
+    // The record's direction points towards the light.
+    f[o + L.direction + k] = -d[k]
+  }
+  f[o + L.radius] = light.type === 'directional' ? 0 : light.radius
+  f[o + L.sourceRadius] = light.sourceRadius ?? 0
   // The cone's cosine as the lighting packs it: −2, which no direction's cosine reaches, off a spot.
-  f[o + 8] = light.type === 'spot' ? Math.cos(light.coneAngle) : -2
-  i[o + 9] = light.mapId | 0
-  u[o + 10] = KIND[light.type]
+  f[o + L.cosCone] = light.type === 'spot' ? Math.cos(light.coneAngle) : -2
+  i[o + L.mapId] = light.mapId | 0
+  u[o + L.kind] = KIND[light.type]
 }
 
 /** Writes `VsmProjectionView` for these inputs and ≤ 64 lights into its staging words: its header
@@ -299,12 +302,17 @@ function writeVsmProjectionView(
   lights: readonly VsmProjectionLight[],
 ) {
   const count = Math.min(lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS),
-    words = HEADER_WORDS + LIGHT_WORDS * count
+    words = VSM_PROJECTION_HEADER_WORDS + VSM_PROJECTION_LIGHT_WORDS * count
   view.f.fill(0, 0, words)
   viewMatrices(inputs.camera)
   writeViewHeader(view, inputs, count)
   for (let k = 0; k < count; k++)
-    writeLightRecord(view, HEADER_WORDS + k * LIGHT_WORDS, lights[k], scratch.shift)
+    writeLightRecord(
+      view,
+      VSM_PROJECTION_HEADER_WORDS + k * VSM_PROJECTION_LIGHT_WORDS,
+      lights[k],
+      scratch.shift,
+    )
   return 4 * words
 }
 

@@ -16,7 +16,7 @@ import {
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
 import { PCF_TAPS } from './pcfTaps.ts'
-import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
+import { VSM_MASK_TILES_BINDING } from '../../vsm/projectionWgsl.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
@@ -109,8 +109,8 @@ fn vsmPageTableLoad(i:u32)->u32{return vsmPageTable[i];}
  *  the distance and the pixel's angular size. */
 fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
  let distanceToCamera=length(P-shadowCamera);
- let tangent=max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- return (P-shadowCamera)+N*max(VSM_NORMAL_OFFSET_FLOOR,vsm.normalBias*distanceToCamera*tangent);
+ let inverseTangent=1.0/max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
+ return (P-shadowCamera)+N*vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,inverseTangent);
 }
 /** Where a receiver \`fromEye\` (\`vsmReceiverFromEye\`) is read in map \`id\`: its sample \`sm\` —
  *  invalid where no page holds the point, nothing mapped at any level —; the level \`requested\`,
@@ -327,7 +327,7 @@ fn vsmFilterTaps${kind}(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f)->f3
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
  * A shadowed light's `params.y` is `firstVsmId · 64 + channel`, −1 without a shadow
- * (`encodeVsm.ts`). The opaque resolve reads the frame's traced shadow mask
+ * (`vsmEncode.ts`). The opaque resolve reads the frame's traced shadow mask
  * (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`, set by its shadow setup),
  * the light's channel, and the located sample (`vsmTransmissionRead`) for the translucent casters'
  * transmission alone. The blend and water passes read the filtered taps (`vsmShadowRead`).
@@ -389,10 +389,10 @@ fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
  if(dot(g,g)==0.0){return n;}
  return select(g,-g,dot(g,n)<0.0);
 }
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
+fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
  shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}
- if(!taps){return 0.0;}${read}
+ if(!facing){return 0.0;}${read}
 }`
 
 /** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
@@ -407,10 +407,18 @@ export type DirectShadowOptions = {
 const vsmMaskWgsl = (binding: number) =>
   wgslBlock(
     `vsmMaskWgsl(${binding})`,
-    [VSM_MASK_TABLE_READ_WGSL, byteOf],
+    [byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
+/** A lane's code to its factor (\`vsmMaskCode\`, \`vsm/projectionWgsl.ts\`): 1 where no ray was
+ *  traced, else the k of its n rays that missed, k / n by the projection's own expression, as the
+ *  half float the mask held. */
+fn vsmMaskDecode(code:u32)->f32{
+ let rayCount=code>>4u;
+ if(rayCount==0u){return 1.0;}
+ return unpack2x16float(pack2x16float(vec2f(f32(code&15u)/f32(rayCount),0.0))).x;
+}
 /** The resolve's pixel: the mask is read there; (−1, −1) in a pass that reads no mask. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
 /** The layer last loaded at \`vsmMaskPixel\` and its word: every light of a layer shares one load

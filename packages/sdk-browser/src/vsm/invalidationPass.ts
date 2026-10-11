@@ -105,6 +105,11 @@ function writeBox(
   return finite
 }
 
+/** The frame's phase, rebuilt in place: its boxes, its instances and the entries it walks. */
+let phaseBoxes = new Float64Array(0)
+const phaseInstances: VsmInstanceInvalidation[] = []
+const phaseEntries: VsmLightCache[] = []
+
 /**
  * The engine's moved world boxes (`plan.worldChanged` / `residencyChanged` / released
  * representation changes: each mover's box before AND after its move) as one invalidation phase,
@@ -119,9 +124,14 @@ export function vsmInvalidationPhaseFromShadowBoxes(
   source: VsmShadowBoxSource,
 ): VsmInvalidationPhase | null {
   if (!cache.acceptsInvalidations() || source.count === 0) return null
-  const boxes = new Float64Array(source.count * BOX_WORDS)
-  const instances: VsmInstanceInvalidation[] = []
-  const entries: VsmLightCache[] = []
+  // The phase is encoded in the frame that read it: its buffers are the frame's scratch.
+  if (phaseBoxes.length < source.count * BOX_WORDS)
+    phaseBoxes = new Float64Array(2 * source.count * BOX_WORDS)
+  const boxes = phaseBoxes
+  const instances = phaseInstances
+  instances.length = 0
+  const entries = phaseEntries
+  entries.length = 0
   for (const e of cache.entries.values()) if (e.mayHoldCachedPages()) entries.push(e)
   for (let b = 0; b < source.count; b++) {
     const { min, max, moving } = source.read(b)

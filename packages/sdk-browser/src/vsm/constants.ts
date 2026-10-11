@@ -1,6 +1,7 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
-import { lerp } from '../../../math/src/scalar/reals.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
+import { focalScale } from '../../../math/src/projection/camera.ts'
 
 /**
  * Virtual shadow map constants: layout, page and kernel sizes, and the defaults of the tunables.
@@ -76,7 +77,7 @@ export const VSM_FEEDBACK_POOL = 0
  */
 export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(7 * 4, 16) // 288
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
-export const VSM_UNIFORMS_BYTES = 192
+export const VSM_UNIFORMS_BYTES = 144
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `renderCullWgsl.ts`), one
  *  command and one pair (vec4u). */
@@ -214,8 +215,8 @@ export const VSM_POOL_PAGES = 2048
 /** Declared: how far past its page a marked point also marks the neighbouring page, directional /
  *  local, a fraction of a page (0.05 = 6.4 texels): a filter or a ray reaching across the page
  *  edge finds the page mapped. Larger marks more pages; 0 marks the point's page alone. */
-export const VSM_SUN_PAGE_MARGIN = 0.05
-export const VSM_LOCAL_PAGE_MARGIN = 0.05
+const VSM_SUN_PAGE_MARGIN = 0.05
+const VSM_LOCAL_PAGE_MARGIN = 0.05
 /** Declared: a caster whose radius covers fewer of the map's pixels than this is fine: it draws into
  *  the pages marked from pixels and not into coarse ones; dynamic / static casters. Larger keeps
  *  more small casters out of coarse pages (fewer redraws, their far shadow gone), smaller draws
@@ -226,11 +227,6 @@ export const VSM_DETAIL_PIXELS_STATIC = 1
  *  marking's reads; more may miss a page that only a few pixels see (the page margins catch most). */
 export const VSM_MARK_STRIDE_X = 2
 export const VSM_MARK_STRIDE_Y = 2
-/** Declared: whether a map's pages carry a receiver cover (which of a page's 8 × 8 cells hold a
- *  receiver), local / sun: a cached page is then redrawn for a moving caster only where it covers a
- *  receiver. On for the suns, whose pages span many receivers; off for the local maps. */
-export const VSM_COVER_LOCAL = false
-export const VSM_COVER_SUN = true
 
 // The traces. Declared, every one: they shape the contact and the penumbra and set its noise against
 // its cost. Moving any of them changes the image.
@@ -245,35 +241,32 @@ export const VSM_NORMAL_BIAS = 0.5 / 1000
 /** The least of that offset, 0.02 cm, near the eye. */
 const VSM_NORMAL_OFFSET_FLOOR = 0.02 * VSM_UNIT_PER_CM
 /** The rays after which a group whose lanes all hit (an umbra) stops. */
-export const VSM_TRACE_VOTE_AFTER = 1
+const VSM_TRACE_VOTE_AFTER = 1
 /** The rays a pixel traces and the samples each ray takes, local / sun: 7 × 8 at most a light. More
  *  rays smooth the penumbra (its noise falls as one over their root), more samples catch thinner
  *  occluders; each costs in proportion. */
-export const VSM_TRACE_RAYS_LOCAL = 7
-export const VSM_TRACE_STEPS_LOCAL = 8
+const VSM_TRACE_RAYS_LOCAL = 7
+const VSM_TRACE_STEPS_LOCAL = 8
 export const VSM_TRACE_RAYS_SUN = 7
 export const VSM_TRACE_STEPS_SUN = 8
-/** The rays a lane counts at most: its high nibble (`vsmMaskCode`). The ray count settings stop
- *  there (`world/core/worldSettings.ts`). */
-export const VSM_MASK_MAX_RAYS = (1 << 4) - 1
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
-export const VSM_TRACE_CONE_LIMIT = 0.03
+const VSM_TRACE_CONE_LIMIT = 0.03
 /** The steepest slope the march extends an occluder's surface with behind a sample, local (in the
  *  map's depth per unit of ray time) / sun (a depth per unit of ray time in the level's centimetre
  *  arithmetic, converted by `vsmSunRayBegin`).
  *  Steeper reaches further behind thin occluders, and over gaps. */
-export const VSM_TRACE_SLOPE_CAP_LOCAL = 0.05
-export const VSM_TRACE_SLOPE_CAP_SUN = 5
+const VSM_TRACE_SLOPE_CAP_LOCAL = 0.05
+const VSM_TRACE_SLOPE_CAP_SUN = 5
 /** The rays' start dither, in texels, local / sun: it hides the texel grid in the penumbra. More
  *  blurs it, 0 shows the texels. */
-export const VSM_TRACE_DITHER_LOCAL = 2
-export const VSM_TRACE_DITHER_SUN = 2
+const VSM_TRACE_DITHER_LOCAL = 2
+const VSM_TRACE_DITHER_SUN = 2
 /** The largest receiver-plane bias of a local ray, in texels of the dither: it keeps a grazing
  *  receiver off its own texels. */
-export const VSM_TRACE_PLANE_BIAS_CAP_LOCAL = 50
+const VSM_TRACE_PLANE_BIAS_CAP_LOCAL = 50
 /** A sun ray's length, in units of the receiver's distance to the eye. */
-export const VSM_TRACE_REACH_SUN = 1.5
+const VSM_TRACE_REACH_SUN = 1.5
 
 // Clipmap (levels are log2 centimetres). Declared: the finest level's radius is 2^7 cm = 1.28 m,
 // the coarsest's 2^23 cm = 83.9 km, the sun's shadow reach; the coarse pages are marked on the
@@ -287,12 +280,11 @@ export const VSM_SUN_COARSE_TO = 18
  *  receivers still cast. Larger, the depth precision of a texel drops in proportion. */
 export const VSM_SUN_DEPTH_SPAN = 1000
 /**
- * The sun's level bias, at rest and while the light moves. Each unit below 0 halves the
+ * The sun's level bias. Each unit below 0 halves the
  * clipmap texel; the clipmap still clamps the total, screen term included, to at least 0
  * (`createVsmClipmap`).
  */
 export const VSM_SUN_LEVEL_BIAS = -1.5
-export const VSM_SUN_LEVEL_BIAS_MOVING = -1.5
 /** Declared: a cached level stays valid while |ΔcentreZ| + radius <= 0.9 · cached depth radius: the
  *  tenth left is the margin before a caster leaves the depth range. */
 export const VSM_SUN_DEPTH_KEEP = 0.9
@@ -307,7 +299,6 @@ export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 // light unseen for 10 frames loses its maps, a placement still for 100 frames turns static; the
 // global resolution bias rises (coarser) fast past 85 % of the pool (half the gap a frame) and
 // falls slowly (a tenth) after 10 calm frames, by at most 2 levels.
-export const VSM_CACHE_ON = 1
 export const VSM_PAGE_KEEP_FRAMES = 1000
 export const VSM_LIGHT_KEEP_FRAMES = 10
 export const VSM_STILL_FRAMES = 100
@@ -330,6 +321,12 @@ export const VSM_PRESSURE_CALM_FRAMES = 10
 export function vsmMovingBias(stillBias: number, movingBias: number, movingShare: number) {
   const b = Math.max(stillBias, movingBias)
   return lerp(stillBias, b, movingShare)
+}
+
+/** A float as the f32 literal a shader reads: the f32's own decimal, which parses back to it. */
+const f32Literal = (x: number) => {
+  const text = String(Math.fround(x))
+  return /[.e]/.test(text) ? text : `${text}.0`
 }
 
 /** WGSL mirror of the constants every VSM shader needs. */
@@ -383,8 +380,31 @@ const VSM_PAGES_REQUESTED:u32=${VSM_PAGES_REQUESTED}u;
 const VSM_PAGE_LIST_COUNT:u32=${VSM_PAGE_LIST_COUNT}u;
 const LIGHT_KIND_DIRECTIONAL:u32=${VSM_LIGHT_KIND_DIRECTIONAL}u;
 const LIGHT_KIND_SPOT:u32=${VSM_LIGHT_KIND_SPOT}u;
+const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
 const VSM_GROUP_WIDTH:u32=${VSM_GROUP_WIDTH}u;
 const VSM_CM_PER_UNIT:f32=${VSM_CM_PER_UNIT}.0;
 const VSM_NORMAL_OFFSET_FLOOR:f32=${VSM_NORMAL_OFFSET_FLOOR};
+const VSM_TRACE_VOTE_AFTER:i32=${VSM_TRACE_VOTE_AFTER};
+const VSM_TRACE_CONE_COT:f32=${f32Literal(focalScale(VSM_TRACE_CONE_LIMIT))};
+const VSM_TRACE_RAYS_SUN:i32=${VSM_TRACE_RAYS_SUN};
+const VSM_TRACE_STEPS_SUN:i32=${VSM_TRACE_STEPS_SUN};
+const VSM_TRACE_SLOPE_CAP_SUN:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_SUN)};
+const VSM_TRACE_DITHER_SUN:f32=${f32Literal(VSM_TRACE_DITHER_SUN)};
+const VSM_TRACE_REACH_SUN:f32=${f32Literal(VSM_TRACE_REACH_SUN)};
+const VSM_TRACE_RAYS_LOCAL:i32=${VSM_TRACE_RAYS_LOCAL};
+const VSM_TRACE_STEPS_LOCAL:i32=${VSM_TRACE_STEPS_LOCAL};
+const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_LOCAL)};
+const VSM_TRACE_DITHER_LOCAL:f32=${f32Literal(VSM_TRACE_DITHER_LOCAL)};
+const VSM_TRACE_PLANE_BIAS_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_PLANE_BIAS_CAP_LOCAL)};
+const VSM_MARK_SUN_MARGIN:f32=${f32Literal(VSM_SUN_PAGE_MARGIN)};
+const VSM_MARK_LOCAL_MARGIN:f32=${f32Literal(VSM_LOCAL_PAGE_MARGIN)};
+const VSM_MARK_STRIDE:vec2u=vec2u(${clamp(VSM_MARK_STRIDE_X, 1, 128)}u,${clamp(VSM_MARK_STRIDE_Y, 1, 128)}u);
+/** The normal bias length of a receiver \`distance\` from the eye (along the view axis under an
+ *  orthographic camera): \`normalBias\` times the distance over the inverse tangent of the half
+ *  field of view (1 under an orthographic camera), held to the floor (0.02 cm). The one rule of the
+ *  projection and of the lighting that reads a shadow map. */
+fn vsmNormalOffsetLength(normalBias:f32,distance:f32,inverseTangent:f32)->f32{
+ return max(VSM_NORMAL_OFFSET_FLOOR,normalBias*distance/inverseTangent);
+}
 `,
 )

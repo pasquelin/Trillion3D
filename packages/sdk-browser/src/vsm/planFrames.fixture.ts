@@ -129,6 +129,7 @@ export function planFrames() {
     marking.encode(pass as unknown as GPUComputePassEncoder, {
       fullMapCount: plan.fullMapCount,
       singlePageMapCount: plan.singlePageMapCount,
+      perspective: true,
       perPage: vsmCachePerPageBins(state.cache, perPage),
     })
     encodeVsmRender(

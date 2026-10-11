@@ -9,7 +9,6 @@ import {
   VSM_LOCAL_LEVEL_BIAS,
   VSM_LOCAL_LEVEL_BIAS_MOVING,
   VSM_UNIT_PER_CM,
-  VSM_COVER_LOCAL,
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
   vsmMovingBias,
@@ -276,7 +275,7 @@ export function addVsmLocalLightShadow(
   shape[0] = isSpot ? 1 : 0
   shape[1] = radius
   shape[2] = outerCone
-  cacheEntry.updateLocal(localKey, lightOrigin, radius, forceInvalidate, VSM_COVER_LOCAL)
+  cacheEntry.updateLocal(localKey, lightOrigin, radius, forceInvalidate)
   if (isCachedFarLight && cacheEntry.scheduledFrame === (cache.frameStamp | 0))
     cacheEntry.invalidate()
 

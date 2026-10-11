@@ -3,8 +3,11 @@
 // samples through `contractLighting`, on a cell record of the light grid and its list in the pool
 // (`cellRecord`). The f32 sums are compared as bits: the narrow list, the wide list, a list past
 // `TILE_LIGHTS` and the walk over every light of the scene give the same sum, bit for bit, since a
-// light that misses a point adds an exact zero; and so do the programs a scene with no shadow
-// or no rectangle is lit by, the full one less code that never runs there.
+// light that misses a point adds an exact zero; so does the program a scene with no shadow is lit
+// by, the full one less code that never runs there. The program of a scene with no rectangle, and
+// the surface taken once a pixel, hold the very same operations in the same order (the text of the
+// one is the other's less a branch, or the hoisted term): the platform compiler contracts their
+// products as the registers it holds let it, and their sums agree to a few units in the last place (four at most, over the sixty lights of a sum).
 //
 //   node bench/dawn/proofs.ts tests/gpu/lighting/narrow-resolve.gpu.ts
 import test, { before } from 'node:test'
@@ -14,6 +17,7 @@ import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
 import type { ResolveScene } from './resolvePage.ts'
 import {
   assertSameBits,
+  assertWithinUlps,
   cellRecord,
   distance,
   resolveRandom,
@@ -123,10 +127,10 @@ test('the program with no shadow code sums what the full one does, bit for bit',
   assertSameBits(sums.unshadowed, sums.wide, 'no shadow code')
 })
 
-test('the program with no rectangle code sums what the full one does, bit for bit', () => {
-  assertSameBits(sums.rectless, sums.wide, 'no rectangle code')
+test('the program with no rectangle code sums what the full one does, to four units in the last place', () => {
+  assertWithinUlps(sums.rectless, sums.wide, 4, 'no rectangle code')
 })
 
-test('the surface taken once a pixel sums what each light taking it again does, bit for bit', () => {
-  assertSameBits(sums.wide, sums.perLight, 'the surface hoisted out of the light loop')
+test('the surface taken once a pixel sums what each light taking it again does, to four units in the last place', () => {
+  assertWithinUlps(sums.wide, sums.perLight, 4, 'the surface hoisted out of the light loop')
 })

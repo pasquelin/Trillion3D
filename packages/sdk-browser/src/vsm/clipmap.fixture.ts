@@ -16,7 +16,6 @@ export function frame(cache: VsmCacheManager, eye: number[], width = 1024) {
     SUN,
     { view: VIEW, projection: PROJECTION, perspective: true, eye },
     { width, height: width },
-    0,
   )
 }
 /** World metres → the clipmap's light space, centimetres. */

@@ -38,16 +38,14 @@ export const VSM_MARK_PIXELS_GROUP_XY = 8
 /** The group side of the per-page shaders. */
 export const VSM_PER_PAGE_GROUP_XY = 8
 /** Byte size of `VsmMarkingParams`. */
-export const VSM_MARKING_PARAMS_BYTES = 160
+export const VSM_MARKING_PARAMS_BYTES = 128
 
 /**
  * The marking passes' own parameters (the page marks generation, coarse marking and page rect
  * bounds scalars) and the map view.
- * Offsets: 0 viewToClip, 64 depthFromDeviceZ, 80 originShiftHigh,
- * 92 sunMarginPages, 96 originShiftLow, 108 localMarginPages,
- * 112 viewRectMin, 120 viewSize, 128 pixelStride, 136 sunMapCount,
- * 140 skipBackFaces, 144 rectsToClear, 148 coarseLocal,
- * 152 pad.
+ * Offsets: 0 viewToClip, 64 depthFromDeviceZ, 80 originShiftHigh, 92 sunMapCount,
+ * 96 originShiftLow, 108 rectsToClear, 112 viewRectMin, 120 viewSize. The margins, the pixel
+ * stride and the rest the marking never varies are constants of the shader (`constants.ts`).
  */
 const VSM_MARKING_PARAMS_WGSL = wgslBlock(
   'VSM_MARKING_PARAMS_WGSL',
@@ -57,17 +55,11 @@ struct VsmMarkingParams{
  viewToClip:mat4x4f,
  depthFromDeviceZ:vec4f,
  originShiftHigh:vec3f,
- sunMarginPages:f32,
+ sunMapCount:u32,
  originShiftLow:vec3f,
- localMarginPages:f32,
+ rectsToClear:u32,
  viewRectMin:vec2u,
  viewSize:vec2u,
- pixelStride:vec2u,
- sunMapCount:u32,
- skipBackFaces:u32,
- rectsToClear:u32,
- coarseLocal:u32,
- _pad:u32,
 }
 `,
 )
@@ -78,11 +70,10 @@ struct VsmMarkingParams{
 export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover'
 
 /** The tables one walk of the maps' pages clears, by the maps it walks: every map (`all`) — the
- *  request flags, the page table and flags, and a receiver cover that holds every map's —, and a
- *  receiver cover that holds the suns' alone, which walks the suns' maps (`directionalOnly`). */
+ *  request flags, the page table and flags —, and a receiver cover that holds the suns', which walks
+ *  the suns' maps (`directionalOnly`). */
 export function vsmMarkingClears(layout: VsmLayout) {
   const all: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks']
-  if (layout.coverMode === 'local') all.push('receiverCover')
   const directionalOnly: VsmClearTarget[] =
     layout.coverMode === 'directional' ? ['receiverCover'] : []
   return { all, directionalOnly }
@@ -360,8 +351,8 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
     vsmFillCover(o3);
    }
   }
- }else if(vsmMarking.coarseLocal!=0u||handle.isSinglePage){
-  // A single-page map, or a local map under coarse marking, asks for its last mip's page.
+ }else{
+  // A single-page map, or a local map (a far receiver always finds one), asks for its last mip's page.
   let entryCell=vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u));
   vsmRequestPage(entryCell,flags);
   if(pd.useCover){vsmFillCover(entryCell);}
@@ -515,9 +506,9 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  @builtin(num_workgroups) n:vec3u){
  // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
  let side=${VSM_MARK_PIXELS_GROUP_XY}u;
- let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,vsmMarking.pixelStride.x),side);
+ let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,VSM_MARK_STRIDE.x),side);
  let tile=flatIndex(group,n,1u);
- let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.pixelStride;
+ let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*VSM_MARK_STRIDE;
  let pixelPos=vsmMarking.viewRectMin+stridedPixel;
  if(any(pixelPos>=vsmMarking.viewRectMin+vsmMarking.viewSize)){return;}
  let coord=vec2i(pixelPos);
@@ -528,7 +519,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}
  let deviceZ=textureLoad(depth,coord,0);
  let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
- let backfaceCull=vsmMarking.skipBackFaces!=0u&&(surfaceFlags&${SUBSURFACE_FLAG}u)==0u;
+ let backfaceCull=(surfaceFlags&${SUBSURFACE_FLAG}u)==0u;
  // Position: the fragment position = pixel + 0.5, shifted from the view's own reconstruction.
  let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
  let svPosition=vec2f(pixelPos)+0.5;
@@ -538,8 +529,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));
  // Directional lights.
  {
-  let hasMargin=vsmMarking.sunMarginPages>0.0;
-  let marginOffset=vsmMarking.sunMarginPages*marginSide;
+  let hasMargin=VSM_MARK_SUN_MARGIN>0.0;
+  let marginOffset=VSM_MARK_SUN_MARGIN*marginSide;
   for(var index=0u;index<vsmMarking.sunMapCount;index++){
    let handle=vsmHandleFromId(vsmDirectionalLightIds[index]);
    let pd=vsmProjectionOf(handle);
@@ -551,8 +542,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  // Local lights, over the engine's light grid cell: lights without a VSM, single-page "distant"
  // lights and directional lights are skipped in the walk.
  {
-  let hasMargin=vsmMarking.localMarginPages>0.0;
-  let marginOffset=vsmMarking.localMarginPages*marginSide;
+  let hasMargin=VSM_MARK_LOCAL_MARGIN>0.0;
+  let marginOffset=VSM_MARK_LOCAL_MARGIN*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
   let cell=pixelCell(vec2f(localPosition)+0.5,deviceZ);
   if(cell==TILE_NO_SLICE){return;}
