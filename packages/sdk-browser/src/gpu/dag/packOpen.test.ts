@@ -9,7 +9,6 @@ import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
 import { createDagPoolList } from './poolList.ts'
-import type { DagRoot } from './types.ts'
 
 type Reads = { sphere: number; url: number; parentError: number }
 
