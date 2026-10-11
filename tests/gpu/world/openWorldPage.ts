@@ -20,6 +20,7 @@ import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { compileFullCache } from '../../../scripts/native-compiler.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { animationFrame } from '../kit/onDawn.ts'
 import { drawnPixels } from '../kit/sceneImageProof.ts'
 
@@ -96,7 +97,7 @@ function populate(world: ReturnType<typeof createWorld>) {
   sheet.morphTargetsRelative = true
   sheet.morphAttributes.position = [new BufferAttribute(lift, 3)]
   for (const mesh of scatter(sheet, paint(0xd0b040), 6, 0.1)) {
-    mesh.rotation.x = -Math.PI / 2
+    mesh.rotation.x = -HALF_PI
     mesh.morphTargetInfluences = [0.8]
   }
   // Meshes linked under a moved parent.
