@@ -53,7 +53,8 @@ import { FLOAT32_MIN_NORMAL } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
-import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
 import {
@@ -76,8 +77,6 @@ export const vsmProjectionTiles = (width: number, height: number) =>
   [vsmProjectionGroups(width), vsmProjectionGroups(height)] as const
 /** Lights per layer of the mask: four 8-bit lanes of an r32uint texel. */
 export const VSM_PROJECTION_MAX_LIGHTS = 4
-/** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
-export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
 /** Mask format: four lights' 8-bit lanes (`vsmMaskCode`). */
 export const VSM_PROJECTION_MASK_FORMAT: GPUTextureFormat = 'r32uint'
 /** Format of the mask's tile words: a texel per group, bit L where the group stored layer L. */
@@ -109,42 +108,9 @@ export const VSM_PROJECTION_BINDING = {
 /** Bind group of the shadow receiver target the resolve wrote (`receiverTargetWgsl.ts`), binding 0. */
 export const VSM_PROJECTION_RECEIVER_GROUP = 2
 
-/** Byte size of `VsmProjectionView` (uniform). */
-export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 48
-
-/**
- * The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) and the
- * lights. Offsets: 0 shiftedToClip, 64 shiftedToView,
- * 128 viewToClip, 192 clipToShifted, 256 originShiftHigh + frameIndex,
- * 272 originShiftLow + isOrtho, 288 shiftedEye + lightCount, 304 viewForward,
- * 320 depthFromDeviceZ, 336 screenRayScale, 352 halfFovTangents,
- * 368 viewPixels, 384 clipToBufferUv, 400 projectionRect, 416 lights[64] × 48.
- * Light: 0 shiftedPosition, 12 radius, 16 direction (towards the light), 28 sourceRadius,
- * 32 cosCone (a spot's cone, −2 for any other light), 36 mapId, 40 kind, 48 bytes with its tail.
- */
+/** The view uniform and the light kind the lights' records carry (`projectionView.ts`). */
 const PROJECTION_VIEW = /* wgsl */ `
-struct VsmProjectionView{
- shiftedToClip:mat4x4f,
- shiftedToView:mat4x4f,
- viewToClip:mat4x4f,
- clipToShifted:mat4x4f,
- originShiftHigh:vec3f,
- frameIndex:u32,
- originShiftLow:vec3f,
- isOrtho:u32,
- shiftedEye:vec3f,
- lightCount:u32,
- viewForward:vec3f,
- _pad0:u32,
- depthFromDeviceZ:vec4f,
- screenRayScale:vec4f,
- halfFovTangents:vec4f,
- viewPixels:vec4f,
- clipToBufferUv:vec4f,
- projectionRect:vec4i,
- lights:array<VsmProjectionLight,${VSM_PROJECTION_MAX_PASS_LIGHTS}>,
-}
-const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
+${VSM_PROJECTION_VIEW_STRUCT}
 `
 
 const bindingsWgsl = () => {

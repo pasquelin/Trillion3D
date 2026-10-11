@@ -7,11 +7,8 @@ import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
-import {
-  VSM_PROJECTION_MAX_PASS_LIGHTS,
-  VSM_PROJECTION_VIEW_BYTES,
-  vsmProjectionWgsl,
-} from './projectionWgsl.ts'
+import { vsmProjectionWgsl } from './projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
 import { vsmLayout } from './layout.ts'

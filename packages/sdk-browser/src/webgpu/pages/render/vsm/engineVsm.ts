@@ -44,10 +44,10 @@ import { releaseVsmProjection, vsmProjectionHeldBytes } from '../../../../vsm/pr
 import {
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_MAX_LIGHTS,
-  VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_TILE_FORMAT,
   vsmProjectionTiles,
 } from '../../../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { madeTextureBytes, textureBytesOf } from '../../../../gpu/core/textureBytes.ts'
 import {
   releaseVsmTransmission,

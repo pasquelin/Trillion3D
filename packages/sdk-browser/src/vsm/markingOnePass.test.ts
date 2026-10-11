@@ -73,6 +73,7 @@ test('the marking records into the pass it is given: its clears, rects and coars
   marking.encode(pass, {
     fullMapCount: 1,
     singlePageMapCount: 0,
+    perspective: true,
     perPage: {
       ids: new Uint32Array(2),
       all: [bin, none, none, none],
@@ -106,6 +107,7 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
   marking.encode(pass, {
     fullMapCount: 1,
     singlePageMapCount: 0,
+    perspective: true,
     perPage: { ids: new Uint32Array(20), all: bins, directionalOnly: bins },
   })
   const perPage = fake.buffers.find((b) => b.label === 'vsm.marking.perPage')!

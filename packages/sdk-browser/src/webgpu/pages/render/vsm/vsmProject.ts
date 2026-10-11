@@ -5,7 +5,7 @@ import {
   encodeVirtualShadowProjection,
   type VsmProjectionLight,
 } from '../../../../vsm/projectionPass.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
 import { stochasticPhase } from '../../../../taa/frameState.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'

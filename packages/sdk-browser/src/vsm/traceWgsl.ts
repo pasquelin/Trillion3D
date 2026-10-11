@@ -21,6 +21,7 @@
  * and UV quantities are unitless and unchanged.
  */
 import { VSM_NOISE_TILE } from './blueNoise.ts'
+import { VSM_PROJECTION_LIGHT_STRUCT } from './projectionView.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
@@ -472,21 +473,13 @@ fn vsmLocalRayReach(cosTheta:f32)->f32{
 `,
   )
 
-/** A light of the projection, as its view uniform holds it (\`writeLightRecord\`, \`projectionPass.ts\`):
+/** A light of the projection, as its view uniform holds it (\`projectionView.ts\`):
  *  the traces' and the region test's (\`vsmLightParticipates\`). \`radius\` and \`cosCone\` are the
  *  lighting's range and cone (\`localLightReaches\`), \`direction\` points towards the light. */
 export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
   'VSM_TRACE_LIGHT_WGSL',
   [],
-  `struct VsmProjectionLight{
- shiftedPosition:vec3f,
- radius:f32,
- direction:vec3f,
- sourceRadius:f32,
- cosCone:f32,
- mapId:i32,
- kind:u32,
-}`,
+  VSM_PROJECTION_LIGHT_STRUCT,
 )
 
 /**
