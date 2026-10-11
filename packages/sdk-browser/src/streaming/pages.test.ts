@@ -5,22 +5,32 @@ import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { manifestTableBytes } from './manifestTables.ts'
+import { retained } from './retained.fixture.ts'
 
-/** Three verified pages served whole, two workers, room for two resident pages. */
+const TRANSFER = 64,
+  PAGE = 12
+
+/** Three verified pages served whole, two workers, room for two resident pages: the cache's bytes
+ *  less the manifest tables and the transfer queue. */
 async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
   const sha = await sha256Hex(bytes.buffer)
   globalThis.fetch = async () => new Response(bytes, { status: 200 })
-  return createPageStreamer(
-    [
-      { url: 'a.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'b.bin', bytes: bytes.byteLength, sha256: sha },
-      { url: 'c.bin', bytes: bytes.byteLength, sha256: sha },
-    ],
-    'http://cache/',
-    { cache: createPageCache(), workerCount: 2, maxPages: 2, onEvict },
-  )
+  const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({
+    url,
+    bytes: bytes.byteLength,
+    sha256: sha,
+  }))
+  return createPageStreamer(pages, 'http://cache/', {
+    cache: createPageCache(manifestTableBytes(pages) + TRANSFER + 2 * PAGE),
+    workerCount: 2,
+    maxTransferBytes: TRANSFER,
+    onEvict,
+  })
 }
+
+const ALL = ['a.bin', 'b.bin', 'c.bin']
 
 test('streamer fetches only requested pages and counts hits', async () => {
   const { pages, fetched } = await servedPages(['a.bin', 'b.bin'])
@@ -38,7 +48,7 @@ test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
   const streamer = await twoOfThreeStreamer()
   await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
   assert.equal(streamer.stats().resident, 2)
-  streamer.retain(['a.bin'])
+  retained(streamer, ALL)(['a.bin'])
   await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.equal(streamer.has('a.bin'), true)
   assert.equal(streamer.has('c.bin'), true)
@@ -50,9 +60,29 @@ test('streamer notifies consumers when a page is evicted', async () => {
   const dropped: string[] = []
   const streamer = await twoOfThreeStreamer((url) => dropped.push(url))
   await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
-  streamer.retain(['a.bin'])
+  retained(streamer, ALL)(['a.bin'])
   await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.ok(dropped.includes('b.bin'))
+  streamer.dispose()
+})
+
+test('a page pinned before it lands survives a full budget of pinned pages until it is unpinned', async () => {
+  const evicted: string[] = []
+  const streamer = await twoOfThreeStreamer((url) => evicted.push(url))
+  streamer.pin('a.bin')
+  streamer.pin('b.bin')
+  await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
+  // An ahead page asked: pinned before its read lands, in a cache full of pinned pages.
+  streamer.pin('c.bin')
+  await streamer.request(['c.bin'], { signal: streamer.signal })
+  assert.deepEqual(evicted, [], 'the pinned pages are all held, the budget passed')
+  assert.equal(streamer.has('c.bin'), true)
+  // Pinned by a second owner: one letting go frees nothing.
+  streamer.pin('c.bin')
+  streamer.unpin('c.bin')
+  assert.equal(streamer.has('c.bin'), true)
+  streamer.unpin('c.bin')
+  assert.deepEqual(evicted, ['c.bin'], 'unpinned, it is the one the budget takes')
   streamer.dispose()
 })
 
@@ -115,41 +145,35 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
     globalThis.fetch = previous
   }
 })
-test('an identical pin list resets nothing, a list that changes resets everything', async () => {
+test('a rank delta that changes nothing moves no pin, one that changes follows', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
   const sha = await sha256Hex(bytes.buffer)
   globalThis.fetch = async () => new Response(bytes, { status: 200 })
-  const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({
-    url,
-    bytes: bytes.byteLength,
-    sha256: sha,
-  }))
+  const pages = ALL.map((url) => ({ url, bytes: bytes.byteLength, sha256: sha }))
   const evicted: string[] = []
   // Budget of two pages: the third arrival must reclaim the slot of an unpinned one.
   const streamer = createPageStreamer(pages, 'http://cache/', {
-    cache: createPageCache(),
+    cache: createPageCache(manifestTableBytes(pages) + TRANSFER + 2 * PAGE),
     workerCount: 1,
-    maxPages: 2,
+    maxTransferBytes: TRANSFER,
     onEvict: (url) => evicted.push(url),
   })
+  const retain = retained(streamer, ALL)
   await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
-  streamer.retain(['a.bin'])
-  // The same list, returned in the array the host reuses: pins do not move.
-  const scratch = ['a.bin']
-  streamer.retain(scratch)
+  retain(['a.bin'])
+  retain(['a.bin'])
   await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['b.bin'], 'the pinned page survived, the other did not')
   assert.equal(streamer.has('a.bin'), true)
   assert.equal(streamer.has('c.bin'), true)
-  // The list changes: pins follow, and the page no longer in the list becomes reclaimable.
-  scratch[0] = 'c.bin'
-  streamer.retain(scratch)
+  // The set changes: pins follow, and the page no longer in it becomes reclaimable.
+  retain(['c.bin'])
   await streamer.request(['b.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['b.bin', 'a.bin'])
   streamer.dispose()
 })
 
-test('pins reset from a list report what they added and removed, not their totals', async () => {
+test('a rank delta reports what it added and removed, not the totals', async () => {
   const { pages } = await servedPages(['a.bin', 'b.bin', 'c.bin'])
   const told: { added: number; removed: number }[] = []
   const streamer = createPageStreamer(pages, 'http://cache/', {
@@ -157,8 +181,9 @@ test('pins reset from a list report what they added and removed, not their total
     onDiagnostic: ({ phase, context }) =>
       phase === 'page-retain' && told.push(context as (typeof told)[number]),
   })
-  streamer.retain(['a.bin', 'b.bin'])
-  streamer.retain(['b.bin', 'c.bin'])
+  const retain = retained(streamer, ALL)
+  retain(['a.bin', 'b.bin'])
+  retain(['b.bin', 'c.bin'])
   assert.deepEqual(
     told.map(({ added, removed }) => [added, removed]),
     [

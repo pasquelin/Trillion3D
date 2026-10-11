@@ -29,7 +29,6 @@ const pageSources = {
     reserve: (bytes: number) => reserved.push(bytes),
   },
   pageCache: ownCache,
-  cacheCap: 1,
   preload: 'visible',
 } as never
 

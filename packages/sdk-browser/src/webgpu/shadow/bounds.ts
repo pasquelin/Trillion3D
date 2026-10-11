@@ -5,7 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
 import { mobilityRows } from './rowBuffers.ts'
-import { forEachDirtyRun, type RowRunVisitor } from '../row/dirty.ts'
+import type { RowRunVisitor } from '../row/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import { growClusterBox } from './spheres.ts'
 import {
@@ -128,7 +128,7 @@ export function uploadRowMobility(
 export function uploadDirtyRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { rows } = rt.layout
   uploadRowMobility(rt, device, 0, -1)
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, sourceOf(rt, device), mobilityRun)
+  rows.forEachDirtyRun(sourceOf(rt, device), mobilityRun)
 }
 
 /** Two flat world boxes and their halves, allocated once, that a change is declared with: the

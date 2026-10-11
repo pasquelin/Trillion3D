@@ -6,6 +6,7 @@ import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { manifestTableBytes } from './manifestTables.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { retained } from './retained.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 
 const TRANSFER = 64,
@@ -29,6 +30,7 @@ test('random pins, reads and totals: the session evicts the least recently used 
       onEvict: (url) => evicted.push(url),
       maxTransferBytes: TRANSFER,
     })
+    const retain = retained(streamer, urls)
     let pins: string[] = []
     /** The pages cached, least recently used first: the test's own model of the cache. */
     let order: string[] = []
@@ -55,7 +57,7 @@ test('random pins, reads and totals: the session evicts the least recently used 
       } else if (roll < 0.7) {
         pins = urls.filter(() => draw() < 0.2)
         expected = walk(order, cache.budgetBytes)
-        streamer.retain(pins)
+        retain(pins)
       } else {
         const total = reserved + Math.floor(draw() * urls.length) * PAGE
         expected = walk(order, total - reserved)
@@ -72,31 +74,30 @@ test('random pins, reads and totals: the session evicts the least recently used 
   }
 })
 
-test('two sessions over one cache: what either pins stays, the strictest bound evicts the rest', async () => {
+test('two sessions over one cache: what either pins stays', async () => {
   const urls = ['a.bin', 'b.bin', 'c.bin']
   const { pages } = await servedPages(urls)
-  const cache = createPageCache(2 * (manifestTableBytes(pages) + TRANSFER) + 3 * PAGE)
-  const open = (maxPages?: number) =>
+  const cache = createPageCache(2 * (manifestTableBytes(pages) + TRANSFER) + 2 * PAGE)
+  const open = () =>
     createPageStreamer(pages, 'http://cache/', {
       cache,
-      maxPages,
       workerCount: 1,
       maxTransferBytes: TRANSFER,
     })
-  // One page at most, all three pinned: they stay.
-  const before = open(1)
-  before.retain(urls)
+  const before = open()
+  const retainBefore = retained(before, urls)
+  retainBefore(urls)
   await before.request(urls, { signal: before.signal })
-  assert.deepEqual(held(cache, urls), urls)
+  assert.deepEqual(held(cache, urls), urls, 'all pinned: held past the budget')
   // The next session reads through the cache before the first one closes, and pins `b`. The first
-  // lets `b` and `c` go: `b` stays, held by the next, and `c` leaves for the first one's bound.
+  // lets `b` and `c` go: `b` stays, pinned by the next, and `c` leaves.
   const after = open()
-  after.retain(['b.bin'])
-  before.retain(['a.bin'])
+  const retainAfter = retained(after, urls)
+  retainAfter(['b.bin'])
+  retainBefore(['a.bin'])
   assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
-  // The first one closed, its bound goes with it: nothing more leaves.
   before.dispose()
-  after.retain([])
+  retainAfter([])
   assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
   after.dispose()
 })

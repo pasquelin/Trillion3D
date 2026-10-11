@@ -9,6 +9,7 @@ import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords, sendDrawItemWords } from './itemWords.ts'
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD } from '../row/pageRow.ts'
+import { runsOf } from '../row/dirty.fixture.ts'
 import { createDirtyRows } from '../row/dirty.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -28,13 +29,7 @@ function runtime(n: number, drawLayerSlots: number) {
       packedRecs,
       packedPageIndex: Int32Array.from({ length: n }, (_, i) => 100 + i),
       pageTableInts: new Uint32Array((Math.max(1, n) * PAGE_INFO_STRIDE) / 4),
-      dirtyMarks: dirty.marks,
-      get dirtyFrom() {
-        return dirty.span.from
-      },
-      get dirtyTo() {
-        return dirty.span.to
-      },
+      forEachDirtyRun: dirty.forEachRun,
     },
     selectionRoots: [{ world: new G.Matrix4() }],
     // Every row draws a page of the one placement: its packed ranks all name root 0.
@@ -63,17 +58,15 @@ function runtime(n: number, drawLayerSlots: number) {
   return { rt, layout, dirty, sent, image }
 }
 
-const pendingSpan = (hold: { pending: { span: { from: number; to: number } } }) => [
-  hold.pending.span.from,
-  hold.pending.span.to,
-]
+const pendingRuns = (hold: { pending: { forEachRun: Parameters<typeof runsOf>[0] } }) =>
+  runsOf(hold.pending.forEachRun)
 
 const noDraw = {} as GpuDraw
 
 test('the first image writes the four words of each row and declares them all to send', () => {
   const a = runtime(4, 3)
   const hold = a.image(2, noDraw)
-  assert.deepEqual(pendingSpan(hold), [0, 3])
+  assert.deepEqual(pendingRuns(hold), [[0, 3]])
   for (let row = 0; row < 4; row++) {
     const word = row * DRAW_ITEM_U32
     assert.equal(a.layout.drawItemWords[word], row, 'the row word is the rank')
@@ -91,7 +84,7 @@ test('only the dirty rows are rewritten: a row outside them keeps its words', ()
   a.layout.rows.packedPageIndex[1] = 888
   a.dirty.mark(5)
   const hold = a.image(2, noDraw)
-  assert.deepEqual(pendingSpan(hold), [5, 5], "the rows to send are the table's")
+  assert.deepEqual(pendingRuns(hold), [[5, 5]], "the rows to send are the table's")
   assert.equal(a.layout.drawItemWords[5 * DRAW_ITEM_U32 + 2], 999, 'the dirty row is rewritten')
   assert.equal(a.layout.drawItemWords[1 * DRAW_ITEM_U32 + 2], 101, 'the clean row is not')
 })
@@ -116,7 +109,7 @@ test('the rows to send accumulate until an image sends them, run by run', () => 
     'two runs, none of the rows between them',
   )
   assert.equal(a.rt.timing.encodeCounts.itemsUploaded, 2)
-  assert.ok(hold.pending.span.to < hold.pending.span.from, 'once sent, nothing is pending')
+  assert.equal(hold.pending.count, 0, 'once sent, nothing is pending')
 })
 
 test('a new layer ceiling, or a fresh compaction buffer, asks for the whole table again', () => {
@@ -128,7 +121,7 @@ test('a new layer ceiling, or a fresh compaction buffer, asks for the whole tabl
     a.image(2, noDraw)
     sendDrawItemWords(a.rt)
     const hold = a.image(couches, tampon)
-    assert.deepEqual(pendingSpan(hold), [0, 5], 'the whole table leaves, with no dirty row')
+    assert.deepEqual(pendingRuns(hold), [[0, 5]], 'the whole table leaves, with no dirty row')
   }
 })
 
@@ -142,7 +135,7 @@ test("a lower layer ceiling pinches each row's layer, like indirect draw", () =>
 test('no row: nothing is written and nothing is to send', () => {
   const a = runtime(0, 3)
   const hold = a.image(2, noDraw)
-  assert.ok(hold.pending.span.to < hold.pending.span.from, 'no row')
+  assert.equal(hold.pending.count, 0, 'no row')
 })
 
 test("a cutout row's bin word is its face mode's cutout bin, rewritten with the row", () => {

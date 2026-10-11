@@ -1,10 +1,11 @@
 import type { GpuPageContext } from './types.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
-  const { resident, pins, held, eviction, check, reader } = context
+  const { resident, eviction, check, reader } = context
   const { emit } = reader
   return {
-    pin(key: string, tier: 'held' | 'pinned' = 'pinned') {
+    /** Pins the resident page `key`, one hold of the eviction's heap. */
+    pin(key: string) {
       check()
       const page = resident.get(key)
       if (!page) {
@@ -15,18 +16,14 @@ export function createGpuPagePins(context: GpuPageContext) {
         }))
         throw new Error('PAGE_NOT_RESIDENT')
       }
-      const changed = !pins.has(key)
-      pins.add(key)
-      if (tier === 'held') held.add(key)
-      if (!changed) return
-      eviction.pinned(key)
+      if (!eviction.pin(key)) return
       emit?.('gpu-page-pin', 'GPU page pinned', () => ({
         version: 1,
         key,
         slot: page.slot,
         generation: page.generation,
-        changed,
-        pinned: pins.size,
+        changed: true,
+        pinned: eviction.pinnedCount,
       }))
     },
     /**
@@ -41,19 +38,20 @@ export function createGpuPagePins(context: GpuPageContext) {
     /** Places a load can take without evicting a pinned page: the free slots and quarters, and
      *  the unpinned pages' (`places.ts`). */
     unpinnedSlots() {
-      return context.placement.free + resident.size - pins.size
+      return context.placement.free + resident.size - eviction.pinnedCount
     },
+    /** Whether the page `key` is pinned. */
+    isPinned: eviction.isPinned,
+    /** Unpins `key`; true when it was pinned. */
     unpin(key: string) {
-      const changed = pins.delete(key)
-      held.delete(key)
-      if (!changed) return
-      eviction.unpinned(key)
+      if (!eviction.unpin(key)) return false
       emit?.('gpu-page-unpin', 'GPU pin removed', () => ({
         version: 1,
         key,
-        changed,
-        pinned: pins.size,
+        changed: true,
+        pinned: eviction.pinnedCount,
       }))
+      return true
     },
   }
 }

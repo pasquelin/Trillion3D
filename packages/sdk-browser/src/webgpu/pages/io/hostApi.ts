@@ -5,7 +5,7 @@ import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { defaultEngineCamera } from '../../../camera/world.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-export { pageUrls, pendingUrls, retainedRanks } from './hostLists.ts'
+export { pendingUrls, retainedRanks } from './hostLists.ts'
 
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the

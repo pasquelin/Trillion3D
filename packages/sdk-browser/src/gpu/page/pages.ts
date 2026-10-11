@@ -22,6 +22,8 @@ export type GpuPageCacheOptions = {
   slots: number
   /** Each page's own place, taken while `slots` hold the whole catalogue (`homes.ts`). */
   homes?: PageHomes
+  /** The root cover's addresses: a resize keeps them before any other page. */
+  cover?: ReadonlySet<string>
   /** Hears what the cache reports: its layout, cancelled loads and refusals. */
   onDiagnostic?: (d: EngineDiagnostic) => void
 }
@@ -29,9 +31,7 @@ export type GpuPageCacheOptions = {
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host: each load
  * reads its page from `source` (`reader.ts`), which joins the reads of a page in flight and says
  * when a failed one is asked again. Queue writes are ordered; dispose waits for in-flight submits
- * before destroy. `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`,
- * which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)`
- * removes it. */
+ * before destroy. A resize keeps the pages of `cover` before any pinned page. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
@@ -64,11 +64,17 @@ export function createGpuPageCache(
     evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
+    /** How many pages are resident now. */
+    get residentPages() {
+      return resident.size
+    },
     get residencyRevision() {
       return state.generation + state.evictions
     },
     /** Each key that arrived since the last call, told once, in order (`residencyLog.ts`). */
     takeArrivals: (visit: (key: string) => void) => context.changes.takeArrivals(visit),
+    /** Each pinned page that left since the last call, its pin with it, told once. */
+    takeUnpinned: (visit: (key: string) => void) => context.changes.takeUnpinned(visit),
     /** Moves the pending residency changes into the caller's arrays, then empties the log: one
      *  entry a key, its last place (`residencyLog.ts`). */
     drainResidencyChanges: (keys: string[], slots: number[]) => context.changes.drain(keys, slots),
@@ -113,10 +119,9 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     }
     signal?.throwIfAborted()
   }
-  const resident = new Map<string, ResidentPage>(),
-    pins = new Set<string>()
+  const resident = new Map<string, ResidentPage>()
   const ownHomes = heldHomes(homes, slots)
-  const eviction = createEviction(resident, pins)
+  const eviction = createEviction(resident)
   const placement = ownHomes
     ? homePlacement(ownHomes, ownHomes.homes.size)
     : slotPlacement(
@@ -124,7 +129,6 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
         wholeSlots(Array.from({ length: slots }, (_, slot) => slot)),
         eviction,
         resident,
-        pins,
       )
   const context: GpuPageContext = {
     device,
@@ -133,8 +137,7 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     homes,
     buffer,
     resident,
-    pins,
-    held: new Set<string>(),
+    cover: options.cover ?? new Set(),
     abort: new AbortController(),
     state,
     eviction,

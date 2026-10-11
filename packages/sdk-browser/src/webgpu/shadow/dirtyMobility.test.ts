@@ -1,5 +1,6 @@
 // The mobility words follow the table's dirty runs, not its span: two models moving at both
 // ends of the table write their own rows, and the GPU holds, word for word, what the span wrote.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadDirtyRowMobility, uploadRowMobility } from './bounds.ts'
@@ -62,7 +63,9 @@ test('the mobility words of a scattered change are its runs, and the words the s
   const sides = [span, runs]
   // The span's path, then the runs' path; each table's marks then consumed, as the image does.
   const upload = () => {
-    uploadRowMobility(span.rt, span.rt.gpu.device!, span.rows.dirtyFrom, span.rows.dirtyTo)
+    const dirty = runsOf(span.rows.forEachDirtyRun)
+    const [from, to] = dirty.length ? [dirty[0][0], dirty.at(-1)![1]] : [0, -1]
+    uploadRowMobility(span.rt, span.rt.gpu.device!, from, to)
     uploadDirtyRowMobility(runs.rt, runs.rt.gpu.device!)
     for (const { rows } of sides) rows.clearDirty()
   }

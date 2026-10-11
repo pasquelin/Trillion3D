@@ -45,8 +45,7 @@ export function settledRt() {
   }
   const rows = {
     rowsChanged: false,
-    dirtyTo: -1,
-    dirtyFrom: 0,
+    dirtyCount: 0,
     rowsEpoch: 1,
     tableEpoch: 1,
     rowsDenied: 0,

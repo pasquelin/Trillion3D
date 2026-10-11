@@ -23,7 +23,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
 export function createWebgpuPinUpdater(options: {
   tracking: Tracking
   sets: WebgpuResidencySets
-  /** Holders per key of the root cover: a page it holds is pinned in the held tier. */
+  /** Holders per key of the root cover: what the trace names. */
   bootstrapKey: Uint8Array
   deferredDrops: Set<string>
   /** Clusters each request carries: a deferred drop names the request, not the cluster. */
@@ -42,8 +42,9 @@ export function createWebgpuPinUpdater(options: {
   /** A held key the cache has not pinned yet: pinned now when the cache holds it, else waiting for
    *  its bytes — pinned as they arrive (`takeArrivals`), never asked of the cache again. */
   const want = (key: number) => {
-    if (tracking.pinned.has(key)) return
-    if (current?.get(tracking.pageCatalog[key])) pinKey(key)
+    const url = tracking.pageCatalog[key]
+    if (current.isPinned(url)) return
+    if (current.get(url)) pinKey(key)
     else {
       waiting.add(key)
       if (tracking.keep.has(key)) waitingKept.add(key)
@@ -51,9 +52,7 @@ export function createWebgpuPinUpdater(options: {
   }
   const pinKey = (key: number) => {
     const url = tracking.pageCatalog[key]
-    // A root-cover page evicted by a resize comes back in the held tier it had.
-    current.pin(url, bootstrapKey[key] > 0 ? 'held' : 'pinned')
-    tracking.markPinned(key)
+    current.pin(url)
     waiting.remove(key)
     waitingKept.remove(key)
     if (traceEnabled) added.push(url)
@@ -72,10 +71,9 @@ export function createWebgpuPinUpdater(options: {
   const unpin = (key: number) => {
     waiting.remove(key)
     waitingKept.remove(key)
-    if (!tracking.pinned.remove(key)) return false
     const url = tracking.pageCatalog[key]
+    if (!current.unpin(url)) return false
     if (traceEnabled) removed.push(url)
-    current.unpin(url)
     return true
   }
   /**
@@ -107,18 +105,17 @@ export function createWebgpuPinUpdater(options: {
       want(key)
     }
     entering.clear()
-    // A host page drop unpins behind this path's back; a key it still keeps goes back in the queue.
-    const notices = tracking.unpinned
-    for (let i = 0; i < notices.length; i++) {
-      const key = notices[i]
-      if (lastUse.holds(key)) want(key)
-    }
-    notices.length = 0
+    // A resize evicts pinned pages behind this path's back; a key it still keeps goes back in the
+    // queue.
+    cache.takeUnpinned((url) => {
+      const key = tracking.pageCatalogIds.get(url)
+      if (key !== undefined && lastUse.holds(key)) want(key)
+    })
     // The keys still waiting are pinned as their bytes arrive: each arrival is read once, never
     // the waiting keys, which a pool its pins fill could keep by the hundred thousand.
     cache.takeArrivals((url) => {
       const key = tracking.pageCatalogIds.get(url)
-      if (key !== undefined && waiting.has(key) && !tracking.pinned.has(key)) pinKey(key)
+      if (key !== undefined && waiting.has(key) && !cache.isPinned(url)) pinKey(key)
     })
     // What the image keeps and still misses is the pressure the window gives way to.
     const missing = waitingKept.count
@@ -142,7 +139,7 @@ export function createWebgpuPinUpdater(options: {
       frame,
       added: tracking.traceSet('pins.added', added),
       removed: tracking.traceSet('pins.removed', removed),
-      pinned: tracking.traceKeys('pins', tracking.pinned),
+      pinned: cache.stats().pinned,
       bootstrap: tracking.traceSet('pins.bootstrap', coverUrls(tracking, bootstrapKey)),
       wanted: tracking.traceKeys('pins.wanted', tracking.wanted),
       shown: tracking.traceRecs('pins.shown', shown),

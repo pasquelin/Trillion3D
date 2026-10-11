@@ -1152,9 +1152,10 @@
   },
   "createGpuPageCache": {
     "summary": "Frontière d’allocation et de file WebGPU.",
-    "description": "Les octets des pages et la règle sont fournis par l’hôte : chaque chargement lit sa page dans `source` (`reader.ts`), qui joint les lectures d’une page déjà en cours et dit quand une lecture échouée est redemandée. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime.",
+    "description": "Les octets des pages et la règle sont fournis par l’hôte : chaque chargement lit sa page dans `source` (`reader.ts`), qui joint les lectures d’une page déjà en cours et dit quand une lecture échouée est redemandée. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. Un redimensionnement conserve les pages de `cover` avant toute page épinglée.",
     "parameters": {
       "options.homes": "La place propre de chaque page, prise tant que `slots` contiennent tout le catalogue (`homes.ts`).",
+      "options.cover": "Les adresses de la couverture racine : un redimensionnement les conserve avant toute autre page.",
       "options": "Comment un cache de pages GPU est dimensionné et où il rapporte (`createGpuPageCache`).",
       "options.pageBytes": "Les octets d’un emplacement : un multiple de quatre.",
       "options.slots": "Combien d’emplacements le réservoir contient.",
@@ -1167,6 +1168,7 @@
       "pageBytes": "Les octets d’un emplacement : un multiple de quatre.",
       "slots": "Combien d’emplacements le réservoir contient.",
       "homes": "La place propre de chaque page, prise tant que `slots` contiennent tout le catalogue (`homes.ts`).",
+      "cover": "Les adresses de la couverture racine : un redimensionnement les conserve avant toute autre page.",
       "onDiagnostic": "Entend ce que le cache rapporte : sa disposition, les chargements annulés et les refus."
     }
   },
@@ -1177,9 +1179,6 @@
       "keyAt": "La clé au rang `at`, la première victime à 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Comment une page chargée est épinglée : `'held'` devant les épingles ordinaires lors d’un redimensionnement, sinon `'pinned'`."
-  },
   "createJob": {
     "summary": "Pas de minuterie, de DOM, de fichiers ni d’interface."
   },
@@ -1188,13 +1187,12 @@
   },
   "createPageStreamer": {
     "summary": "Lectures bornées, par priorité et sans doublon, par `options.cache`, le cache de pages que garde son propriétaire (`pageCache.ts`).",
-    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné à la fois en entrées et en octets ; les entrées épinglées survivent à l’éviction, donc un appelant garde sa couverture affichée en la retenant.",
+    "description": "Une demande qui attend encore en file est abandonnée quand son dernier consommateur s’en va ; une demande déjà en transfert peut arriver dans le cache. Le cache est un ensemble « le moins récemment utilisé » borné en octets ; une page qui a un propriétaire (`pin`, `retainRanks`) survit à l’éviction, donc un appelant garde sa couverture affichée en l’épinglant.",
     "parameters": {
       "options": "Comment un flux de pages lit (`createPageStreamer`) : par `cache`, celui de son propriétaire, qui réserve ses tables de manifeste et sa file de transfert à côté de ses pages ; chaque autre membre a une valeur par défaut.",
       "options.cache": "Le cache de pages par lequel il lit, celui de son propriétaire : il survit au flux.",
       "options.signal": "Annule toutes les lectures une fois interrompu.",
       "options.workerCount": "Lectures menées en même temps ; 8 par défaut.",
-      "options.maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
       "options.onEvict": "Entend chaque page qui quitte le cache.",
       "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
@@ -4382,6 +4380,7 @@
       "source": "Où les pages sont lues.",
       "options": "Octets par page, et combien d’emplacements.",
       "options.homes": "La place propre de chaque page, prise tant que `slots` contiennent tout le catalogue (`homes.ts`).",
+      "options.cover": "Les adresses de la couverture racine : un redimensionnement les conserve avant toute autre page.",
       "options.pageBytes": "Les octets d’un emplacement : un multiple de quatre.",
       "options.slots": "Combien d’emplacements le réservoir contient.",
       "options.onDiagnostic": "Entend ce que le cache rapporte : sa disposition, les chargements annulés et les refus."
@@ -4520,7 +4519,6 @@
       "cache": "Le cache de pages par lequel il lit, celui de son propriétaire : il survit au flux.",
       "signal": "Annule toutes les lectures une fois interrompu.",
       "workerCount": "Lectures menées en même temps ; 8 par défaut.",
-      "maxPages": "Nombre maximal de pages gardées à la fois ; borné par les octets seuls en son absence.",
       "onEvict": "Entend chaque page qui quitte le cache.",
       "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "onDiagnostic": "Entend chaque étape de chaque lecture.",
@@ -7789,10 +7787,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Une session qui lit par le cache : le plus de pages qu’elle laisse le cache tenir, et qui entend une page évincée, ou une éviction qui n’a rien trouvé à prendre.",
+    "summary": "Une session qui lit par le cache : qui entend une page évincée, ou une éviction qui n’a rien trouvé à prendre.",
     "description": "Ce qu’elle réserve sur le total, elle le dit à la place qu’elle ouvre (`open`) chaque fois que cela change.",
     "members": {
-      "maxPages": "Le plus de pages que la session laisse le cache tenir ; aucun plafond par défaut.",
       "evicted": "Appelé avec l’url d’une page quand le cache l’évince.",
       "blocked": "Appelé quand une éviction au-delà du budget n’a rien trouvé à prendre."
     }
@@ -7856,6 +7853,6 @@
   },
   "createPageCache": {
     "summary": "LE CACHE HÔTE UNIQUE : les octets de chaque page et de chaque paquet lus, de chaque fichier qu’un serveur a renvoyé entier au lieu d’une plage (`readRange`), de chaque niveau de texture décodé et de chaque fiche de tuile en blocs (`level`), et du proxy résident de la scène (`keep`), en un seul ensemble d’entrées, UN budget et UNE éviction (`cacheEntries.ts`), face au total CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Son propriétaire le garde d’une session à l’autre : un monde remet le même à chaque session qu’il ouvre, donc une session rouverte — sur un périphérique de nouveau accordé après une perte, ou sur une scène qui a changé — lit ici ce que la précédente a récupéré, et ne récupère rien de ce qu’il tient. Chaque session qui lit par lui réserve ses tables de manifeste, sa file de transfert et les tables du moteur (`manifestTableBytes`, `maxTransferBytes`, le `reserve` du flux), dites à mesure qu’elles changent (`open`), le cache gardant leur somme, et prend des prises sur les pages qu’elle épingle ou lit ; les entrées tiennent le reste (`budgetBytes`). Seul le cache évince, une fois que ses entrées dépassent le budget : jamais une entrée que quelqu’un tient, puis les pages, fichiers et niveaux les moins récemment utilisés, le proxy en dernier ; au-delà du plus petit nombre de pages qu’une session permet, les pages seules. Un niveau n’a pas besoin d’une place à lui : il prend ce que l’éviction peut libérer (`roomBytes`), comme une page."
+    "description": "Son propriétaire le garde d’une session à l’autre : un monde remet le même à chaque session qu’il ouvre, donc une session rouverte — sur un périphérique de nouveau accordé après une perte, ou sur une scène qui a changé — lit ici ce que la précédente a récupéré, et ne récupère rien de ce qu’il tient. Chaque session qui lit par lui réserve ses tables de manifeste, sa file de transfert et les tables du moteur (`manifestTableBytes`, `maxTransferBytes`, le `reserve` du flux), dites à mesure qu’elles changent (`open`), le cache gardant leur somme, et prend des prises sur les pages qu’elle épingle ou lit ; les entrées tiennent le reste (`budgetBytes`). Seul le cache évince, une fois que ses entrées dépassent le budget : jamais une entrée que quelqu’un tient, puis les pages, fichiers et niveaux les moins récemment utilisés, le proxy en dernier. Un niveau n’a pas besoin d’une place à lui : il prend ce que l’éviction peut libérer (`roomBytes`), comme une page."
   }
 }

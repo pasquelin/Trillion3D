@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
-import type { PageList } from '../pages/prepare/catalogue.ts'
+import type { PageList } from '../../page/selection/catalogue.ts'
 
 type Root = { readonly pages: readonly PageRec[] }
 /** One page of a primitive: the root ranks of the primitive's placements, shared by all its pages,

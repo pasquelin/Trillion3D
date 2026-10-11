@@ -41,7 +41,7 @@ test('feedback growth discards completed and in-flight counts from the previous 
   feedback.encode(device.createCommandEncoder())
   feedback.submitted()
   await feedback.settled()
-  assert.equal(feedback.take()?.length, 8)
+  assert.equal(feedback.take()?.index.length, 8, 'listing at most the ranks of its generation')
   feedback.grow(2)
   assert.equal(feedback.take(), undefined, 'completed counts are also invalidated')
   feedback.destroy()

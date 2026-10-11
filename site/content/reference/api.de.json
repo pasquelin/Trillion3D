@@ -1152,9 +1152,10 @@
   },
   "createGpuPageCache": {
     "summary": "Grenze für WebGPU-Zuweisung und Warteschlange.",
-    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt: Jedes Laden liest seine Seite aus `source` (`reader.ts`), das die Lesevorgänge einer bereits geladenen Seite zusammenführt und angibt, wann ein fehlgeschlagener erneut angefragt wird. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört. `pin(key, 'held')` behält eine Seite bei `resize(slots)` vor gewöhnlich angehefteten Seiten; resize akzeptiert keine held-Menge mehr. Erneutes gewöhnliches Anheften erhält diese Stufe; `unpin(key)` entfernt sie.",
+    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt: Jedes Laden liest seine Seite aus `source` (`reader.ts`), das die Lesevorgänge einer bereits geladenen Seite zusammenführt und angibt, wann ein fehlgeschlagener erneut angefragt wird. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört. Ein Resize behält die Seiten von `cover` vor jeder angehefteten Seite.",
     "parameters": {
       "options.homes": "Der eigene Platz jeder Seite, genommen, solange `slots` den ganzen Katalog halten (`homes.ts`).",
+      "options.cover": "Die Adressen der Wurzelabdeckung: Ein Resize behält sie vor jeder anderen Seite.",
       "options": "Wie ein GPU-Seitencache bemessen ist und wohin er berichtet (`createGpuPageCache`).",
       "options.pageBytes": "Die Bytes eines Slots: ein Vielfaches von vier.",
       "options.slots": "Wie viele Slots der Pool fasst.",
@@ -1167,6 +1168,7 @@
       "pageBytes": "Die Bytes eines Platzes: ein Vielfaches von vier.",
       "slots": "Wie viele Plätze der Pool hält.",
       "homes": "Der eigene Platz jeder Seite, genommen, solange `slots` den ganzen Katalog halten (`homes.ts`).",
+      "cover": "Die Adressen der Wurzelabdeckung: Ein Resize behält sie vor jeder anderen Seite.",
       "onDiagnostic": "Hört, was der Cache berichtet: seine Anordnung, abgebrochene Ladevorgänge und Ablehnungen."
     }
   },
@@ -1177,9 +1179,6 @@
       "keyAt": "Der Schlüssel auf Rang `at`, das erste Opfer bei 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Wie eine geladene Seite angeheftet wird: `'held'` vor gewöhnlichen Anheftungen bei einer Größenänderung, sonst `'pinned'`."
-  },
   "createJob": {
     "summary": "Kein Timer, kein DOM, keine Dateien, keine Oberfläche."
   },
@@ -1188,13 +1187,12 @@
   },
   "createPageStreamer": {
     "summary": "Begrenzte Lesevorgänge, nach Priorität und ohne Duplikat, über `options.cache`, den Seiten-Cache, den sein Besitzer hält (`pageCache.ts`).",
-    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt sowohl in Einträgen als auch in Bytes; angeheftete Einträge überleben die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Festhalten behält.",
+    "description": "Eine Anfrage, die noch in der Warteschlange wartet, wird verworfen, wenn ihr letzter Konsument geht; eine bereits im Transfer befindliche Anfrage kann im Cache ankommen. Der Cache ist eine „am längsten nicht genutzt“-Menge, begrenzt in Bytes; eine Seite mit einem Besitzer (`pin`, `retainRanks`) überlebt die Verdrängung, sodass ein Aufrufer seine angezeigte Abdeckung durch Anheften behält.",
     "parameters": {
       "options": "Wie ein Seiten-Streamer liest (`createPageStreamer`): über `cache`, den seines Besitzers, der neben seinen Seiten seine Manifest-Tabellen und seine Übertragungswarteschlange reserviert; jedes andere Mitglied hat einen Standardwert.",
       "options.cache": "Der Seiten-Cache, über den er liest, der seines Besitzers: Er überdauert den Streamer.",
       "options.signal": "Bricht jeden Lesevorgang ab, sobald es abgebrochen wird.",
       "options.workerCount": "Gleichzeitig laufende Lesevorgänge; standardmäßig 8.",
-      "options.maxPages": "Höchstzahl gleichzeitig gehaltener Seiten; ohne Angabe nur durch Bytes begrenzt.",
       "options.onEvict": "Hört jede Seite, die den Cache verlässt.",
       "options.maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "options.onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
@@ -4374,6 +4372,7 @@
       "source": "Woher die Seiten gelesen werden.",
       "options": "Bytes pro Seite, und wie viele Plätze.",
       "options.homes": "Der eigene Platz jeder Seite, genommen, solange `slots` den ganzen Katalog halten (`homes.ts`).",
+      "options.cover": "Die Adressen der Wurzelabdeckung: Ein Resize behält sie vor jeder anderen Seite.",
       "options.pageBytes": "Die Bytes eines Slots: ein Vielfaches von vier.",
       "options.slots": "Wie viele Slots der Pool fasst.",
       "options.onDiagnostic": "Hört, was der Cache meldet: sein Layout, abgebrochene Ladevorgänge und Ablehnungen."
@@ -4512,7 +4511,6 @@
       "cache": "Der Seiten-Cache, über den er liest, der seines Besitzers: Er überdauert den Streamer.",
       "signal": "Bricht jeden Lesevorgang ab, sobald es abgebrochen wird.",
       "workerCount": "Gleichzeitig laufende Lesevorgänge; standardmäßig 8.",
-      "maxPages": "Höchstzahl gleichzeitig gehaltener Seiten; ohne Angabe nur durch Bytes begrenzt.",
       "onEvict": "Hört jede Seite, die den Cache verlässt.",
       "maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
@@ -7789,10 +7787,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Eine Sitzung, die über den Cache liest: die meisten Seiten, die sie den Cache halten lässt, und wer von einer verdrängten Seite hört oder von einer Verdrängung, die nichts zu nehmen fand.",
+    "summary": "Eine Sitzung, die über den Cache liest: wer von einer verdrängten Seite hört oder von einer Verdrängung, die nichts zu nehmen fand.",
     "description": "Was sie vom Gesamtwert reserviert, teilt sie dem Platz, den sie öffnet (`open`), bei jeder Änderung mit.",
     "members": {
-      "maxPages": "Die meisten Seiten, die die Sitzung den Cache halten lässt; standardmäßig keine Grenze.",
       "evicted": "Wird mit der URL einer Seite aufgerufen, wenn der Cache sie verdrängt.",
       "blocked": "Wird aufgerufen, wenn eine Verdrängung über dem Budget nichts zu nehmen fand."
     }
@@ -7856,6 +7853,6 @@
   },
   "createPageCache": {
     "summary": "DER EINE HOST-CACHE: die Bytes jeder gelesenen Seite und jedes Bündels, jeder Datei, die ein Server ganz statt eines Bereichs beantwortet hat (`readRange`), jeder dekodierten Texturstufe und jedes Block-Kachel-Datensatzes (`level`) und des residenten Proxys der Szene (`keep`), als eine Menge von Einträgen, EIN Budget und EINE Verdrängung (`cacheEntries.ts`), gegen den CPU-Gesamtwert (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Sein Besitzer hält ihn über Sitzungen hinweg: Eine Welt übergibt denselben jeder Sitzung, die sie öffnet, sodass eine wieder geöffnete Sitzung — auf einem nach einem Verlust erneut gewährten Gerät oder auf einer geänderten Szene — von hier liest, was die letzte abgerufen hat, und nichts abruft, was er hält. Jede über ihn lesende Sitzung reserviert ihre Manifest-Tabellen, ihre Übertragungswarteschlange und die Tabellen der Engine (`manifestTableBytes`, `maxTransferBytes`, das `reserve` des Streamers), gemeldet, wie sie sich ändern (`open`), wobei der Cache ihre Summe hält, und nimmt Haltungen auf die Seiten, die sie anheftet oder liest; die Einträge halten den Rest (`budgetBytes`). Allein der Cache verdrängt, sobald seine Einträge das Budget überschreiten: nie einen Eintrag, den jemand hält, dann die am längsten unbenutzten Seiten, Dateien und Stufen, den Proxy zuletzt; über der kleinsten Seitenzahl, die eine Sitzung erlaubt, allein die Seiten. Eine Stufe braucht keinen eigenen Platz: Sie nimmt, was die Verdrängung freigeben kann (`roomBytes`), wie eine Seite."
+    "description": "Sein Besitzer hält ihn über Sitzungen hinweg: Eine Welt übergibt denselben jeder Sitzung, die sie öffnet, sodass eine wieder geöffnete Sitzung — auf einem nach einem Verlust erneut gewährten Gerät oder auf einer geänderten Szene — von hier liest, was die letzte abgerufen hat, und nichts abruft, was er hält. Jede über ihn lesende Sitzung reserviert ihre Manifest-Tabellen, ihre Übertragungswarteschlange und die Tabellen der Engine (`manifestTableBytes`, `maxTransferBytes`, das `reserve` des Streamers), gemeldet, wie sie sich ändern (`open`), wobei der Cache ihre Summe hält, und nimmt Haltungen auf die Seiten, die sie anheftet oder liest; die Einträge halten den Rest (`budgetBytes`). Allein der Cache verdrängt, sobald seine Einträge das Budget überschreiten: nie einen Eintrag, den jemand hält, dann die am längsten unbenutzten Seiten, Dateien und Stufen, den Proxy zuletzt. Eine Stufe braucht keinen eigenen Platz: Sie nimmt, was die Verdrängung freigeben kann (`roomBytes`), wie eine Seite."
   }
 }

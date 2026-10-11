@@ -8,6 +8,7 @@ import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts'
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts'
 import type { StreamPage } from './types.ts'
 import { servedPages } from './servedPages.fixture.ts'
+import { retained } from './retained.fixture.ts'
 import { dagPageUrls } from '../gpu/dag/pack.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 
@@ -91,7 +92,7 @@ test('a lower total applies at once, pages leaving by last use, pins kept', asyn
     maxTransferBytes: TRANSFER,
   })
   await streamer.request(urls, { signal: streamer.signal })
-  streamer.retain(['a.bin'])
+  retained(streamer, urls)(['a.bin'])
   // `b` read again: the least recently used is now `c`, then `d`.
   streamer.get('b.bin')
   cache.resize(reserved + 2 * 12)
@@ -112,7 +113,7 @@ test("the engine's tables come out of the kept cache's total, beside the manifes
   const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * 12)
   const streamer = open(pages, cache)
   await streamer.request(urls, { signal: streamer.signal })
-  streamer.retain(['a.bin'])
+  retained(streamer, urls)(['a.bin'])
   streamer.reserve(20)
   assert.deepEqual(held(cache, urls), ['a.bin'], 'twenty bytes reserved leave room for one')
   streamer.dispose()
@@ -183,18 +184,4 @@ test('a kept page is served only as the file it was read as: its fingerprint, un
     ['http://a/p.bin', 'http://b/p.bin', 'http://b/p.bin'],
     'the same file is not fetched again',
   )
-})
-
-test('the page bound takes pages alone: an older level or file stays', () => {
-  const cache = createPageCache(MIB)
-  const evicted: string[] = []
-  cache.open({ maxPages: 1, evicted: (url) => void evicted.push(url) }, 0)
-  cache.keepLevel('level', new Uint8Array(4))
-  cache.keepFile('file', new ArrayBuffer(4))
-  cache.put('a', new Uint8Array(4))
-  cache.put('b', new Uint8Array(4))
-  cache.fit()
-  assert.deepEqual(evicted, ['a'])
-  assert.deepEqual([cache.pageCount, cache.levelBytes], [1, 4])
-  assert.ok(cache.level('level') && cache.file('file') && cache.page('b'))
 })

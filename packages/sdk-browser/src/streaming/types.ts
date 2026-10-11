@@ -76,8 +76,6 @@ export interface PageStreamerOptions {
   signal?: AbortSignal
   /** Reads running at once; 8 by default. */
   workerCount?: number
-  /** Most pages held at once; bounded by bytes only when absent. */
-  maxPages?: number
   /** Hears each page that leaves the cache. */
   onEvict?: (url: string) => void
   /** Bytes the transfer queue may hold; 8 MiB by default. */
@@ -115,11 +113,11 @@ export type StreamContext = {
   store: PageCache
   jobs: Map<string, Job>
   queue: TransferQueue
-  pinned: Set<string>
+  /** The pages kept, each with its count of owners (`streamingPins.ts`). */
+  pinned: Map<string, number>
   failures: ReadFailures
   abort: AbortController
   limit: number
-  maxPages?: number
   maxTransferBytes: number
   onEvict?: (url: string) => void
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void

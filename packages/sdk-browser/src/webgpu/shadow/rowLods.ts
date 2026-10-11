@@ -1,5 +1,4 @@
 import { rootOf } from '../../page/selection/selection.ts'
-import { forEachDirtyRun } from '../row/dirty.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { rowBufferBytes } from './rowBuffers.ts'
@@ -59,11 +58,5 @@ export function uploadRowLods(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (casterSlots > 0) uploadRowLodRun(rt, 0, casterSlots - 1)
     return
   }
-  forEachDirtyRun(
-    rows.dirtyMarks,
-    rows.dirtyFrom,
-    Math.min(rows.dirtyTo, casterSlots - 1),
-    rt,
-    uploadRowLodRun,
-  )
+  rows.forEachDirtyRun(rt, uploadRowLodRun, casterSlots - 1)
 }

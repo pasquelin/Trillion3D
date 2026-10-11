@@ -11,6 +11,8 @@ export function createResidencyLog() {
   const known = new Set<string>()
   /** The keys that arrived since a reader last took them, kept once one asks. */
   let arrivals: string[] | undefined
+  /** The pinned pages that left, which no one unpinned, since a reader last took them. */
+  const unpinned = new Set<string>()
   return {
     /** `key`'s page now starts at `offset` bytes. */
     placed(key: string, offset: number) {
@@ -26,6 +28,16 @@ export function createResidencyLog() {
       arrivals ??= []
       for (let i = 0; i < arrivals.length; i++) visit(arrivals[i])
       arrivals.length = 0
+    },
+    /** `key`'s page left while pinned: its pin went with it. */
+    unpinned(key: string) {
+      unpinned.add(key)
+    },
+    /** Each pinned page that left since the last call, told once: what a reader that keeps pages
+     *  pinned puts back. */
+    takeUnpinned(visit: (key: string) => void) {
+      for (const key of unpinned) visit(key)
+      unpinned.clear()
     },
     /** `key`'s page left. */
     left(key: string) {

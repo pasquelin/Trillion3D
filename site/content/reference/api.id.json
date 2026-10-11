@@ -2407,7 +2407,6 @@
       "cache": "Cache halaman yang dipakainya untuk membaca, milik pemiliknya: ia hidup lebih lama daripada pembaca.",
       "signal": "Membatalkan setiap pembacaan setelah dihentikan.",
       "workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
-      "maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
       "onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
@@ -4590,9 +4589,10 @@
   },
   "createGpuPageCache": {
     "summary": "Batas alokasi/antrean WebGPU.",
-    "description": "Byte halaman dan kebijakannya disediakan host: setiap pemuatan membaca halamannya dari `source` (`reader.ts`), yang menggabungkan pembacaan halaman yang sedang berjalan dan menyatakan kapan pembacaan yang gagal diminta lagi. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. `pin(key, 'held')` mempertahankan halaman sebelum halaman yang disematkan biasa saat `resize(slots)`, yang tidak lagi menerima set held. Penyematan ulang biasa mempertahankan tingkat ini; `unpin(key)` menghapusnya.",
+    "description": "Byte halaman dan kebijakannya disediakan host: setiap pemuatan membaca halamannya dari `source` (`reader.ts`), yang menggabungkan pembacaan halaman yang sedang berjalan dan menyatakan kapan pembacaan yang gagal diminta lagi. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. Perubahan ukuran mempertahankan halaman `cover` sebelum halaman yang disematkan mana pun.",
     "parameters": {
       "options.homes": "Tempat sendiri setiap halaman, diambil selama `slots` memuat seluruh katalog (`homes.ts`).",
+      "options.cover": "Alamat penutup akar: perubahan ukuran mempertahankannya sebelum halaman lain mana pun.",
       "options": "Bagaimana cache halaman GPU diberi ukuran dan ke mana ia melapor (`createGpuPageCache`).",
       "options.pageBytes": "Byte satu slot: kelipatan empat.",
       "options.slots": "Berapa banyak slot yang dimuat pool.",
@@ -4605,6 +4605,7 @@
       "pageBytes": "Byte satu slot: kelipatan empat.",
       "slots": "Berapa banyak slot yang dimuat pool.",
       "homes": "Tempat sendiri setiap halaman, diambil selama `slots` memuat seluruh katalog (`homes.ts`).",
+      "cover": "Alamat penutup akar: perubahan ukuran mempertahankannya sebelum halaman lain mana pun.",
       "onDiagnostic": "Mendengar apa yang dilaporkan cache: tata letaknya, pemuatan yang dibatalkan, dan penolakan."
     }
   },
@@ -4615,9 +4616,6 @@
       "keyAt": "Kunci pada peringkat `at`, korban pertama di 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Bagaimana halaman yang dimuat disematkan: `'held'` di depan sematan biasa saat ukuran diubah, selain itu `'pinned'`."
-  },
   "createJob": {
     "summary": "Tanpa timer, DOM, sistem berkas atau UI."
   },
@@ -4626,13 +4624,12 @@
   },
   "createPageStreamer": {
     "summary": "Pembacaan terbatas, terprioritaskan dan tanpa duplikat melalui `options.cache`, cache halaman yang disimpan pemiliknya (`pageCache.ts`).",
-    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi baik oleh entri maupun byte; entri yang di-pin bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menahannya.",
+    "description": "Sebuah permintaan yang masih menunggu di antrean dijatuhkan begitu konsumen terakhirnya pergi; yang sudah dalam proses transfer diizinkan mendarat di cache. Cache-nya adalah sebuah set least-recently-used yang dibatasi oleh byte; halaman yang punya pemilik (`pin`, `retainRanks`) bertahan dari eviction, jadi sebuah pemanggil mempertahankan sampul yang ditampilkannya dengan menyematkannya.",
     "parameters": {
       "options": "Cara pembaca halaman membaca (`createPageStreamer`): melalui `cache`, milik pemiliknya, yang mencadangkan tabel manifes dan antrean transfernya di samping halamannya; setiap anggota lain punya nilai bawaan.",
       "options.cache": "Cache halaman yang dipakainya untuk membaca, milik pemiliknya: ia hidup lebih lama daripada pembaca.",
       "options.signal": "Membatalkan setiap pembacaan setelah dihentikan.",
       "options.workerCount": "Pembacaan yang berjalan bersamaan; bawaan 8.",
-      "options.maxPages": "Halaman terbanyak yang disimpan sekaligus; jika tidak ada, dibatasi oleh byte saja.",
       "options.onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
@@ -6277,6 +6274,7 @@
       "source": "Tempat halaman dibaca.",
       "options": "Byte per halaman, dan berapa banyak slot.",
       "options.homes": "Tempat sendiri setiap halaman, diambil selama `slots` memuat seluruh katalog (`homes.ts`).",
+      "options.cover": "Alamat penutup akar: perubahan ukuran mempertahankannya sebelum halaman lain mana pun.",
       "options.pageBytes": "Byte satu slot: kelipatan empat.",
       "options.slots": "Berapa banyak slot yang dimuat pool.",
       "options.onDiagnostic": "Mendengar apa yang dilaporkan cache: tata letaknya, pemuatan yang dibatalkan, dan penolakan."
@@ -7790,10 +7788,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Sebuah sesi yang membaca melalui cache: halaman terbanyak yang ia izinkan untuk ditahan cache, dan siapa yang mendengar halaman yang diusir, atau pengusiran yang tidak menemukan apa pun untuk diambil.",
+    "summary": "Sebuah sesi yang membaca melalui cache: siapa yang mendengar halaman yang diusir, atau pengusiran yang tidak menemukan apa pun untuk diambil.",
     "description": "Apa yang dicadangkannya dari total ia beritahukan kepada tempat yang dibukanya (`open`) setiap kali hal itu berubah.",
     "members": {
-      "maxPages": "Halaman terbanyak yang diizinkan sesi untuk ditahan cache; secara bawaan tanpa batas.",
       "evicted": "Dipanggil dengan url sebuah halaman saat cache mengusirnya.",
       "blocked": "Dipanggil saat pengusiran yang melampaui anggaran tidak menemukan apa pun untuk diambil."
     }
@@ -7857,6 +7854,6 @@
   },
   "createPageCache": {
     "summary": "SATU-SATUNYA CACHE HOST: byte setiap halaman dan bundel yang dibaca, setiap berkas yang dijawab utuh oleh server sebagai ganti sebuah rentang (`readRange`), setiap level tekstur terdekode dan catatan petak blok (`level`), dan proksi residen adegan (`keep`), sebagai satu himpunan entri, SATU anggaran dan SATU pengusiran (`cacheEntries.ts`), terhadap total CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "Pemiliknya menyimpannya antarsesi: sebuah dunia menyerahkan cache yang sama kepada setiap sesi yang dibukanya, sehingga sesi yang dibuka ulang — pada perangkat yang diberikan lagi setelah hilang, atau pada adegan yang berubah — membaca dari sini apa yang diambil sesi terakhir, dan tidak mengambil apa pun yang ditahannya. Setiap sesi yang membaca melaluinya mencadangkan tabel manifes, antrean transfer, dan tabel mesinnya (`manifestTableBytes`, `maxTransferBytes`, `reserve` milik pembaca), diberitahukan saat berubah (`open`), dengan cache menyimpan jumlahnya, dan mengambil penahanan atas halaman yang disematkan atau dibacanya; entri menahan sisanya (`budgetBytes`). Hanya cache yang mengusir, begitu entrinya melampaui anggaran: tidak pernah entri yang ditahan seseorang, lalu halaman, berkas, dan level yang paling lama tidak dipakai, proksi terakhir; melewati jumlah halaman paling sedikit yang diizinkan sebuah sesi, hanya halamannya. Sebuah level tidak perlu ruang sendiri: ia mengambil apa yang dapat dibebaskan pengusiran (`roomBytes`), seperti halaman."
+    "description": "Pemiliknya menyimpannya antarsesi: sebuah dunia menyerahkan cache yang sama kepada setiap sesi yang dibukanya, sehingga sesi yang dibuka ulang — pada perangkat yang diberikan lagi setelah hilang, atau pada adegan yang berubah — membaca dari sini apa yang diambil sesi terakhir, dan tidak mengambil apa pun yang ditahannya. Setiap sesi yang membaca melaluinya mencadangkan tabel manifes, antrean transfer, dan tabel mesinnya (`manifestTableBytes`, `maxTransferBytes`, `reserve` milik pembaca), diberitahukan saat berubah (`open`), dengan cache menyimpan jumlahnya, dan mengambil penahanan atas halaman yang disematkan atau dibacanya; entri menahan sisanya (`budgetBytes`). Hanya cache yang mengusir, begitu entrinya melampaui anggaran: tidak pernah entri yang ditahan seseorang, lalu halaman, berkas, dan level yang paling lama tidak dipakai, proksi terakhir. Sebuah level tidak perlu ruang sendiri: ia mengambil apa yang dapat dibebaskan pengusiran (`roomBytes`), seperti halaman."
   }
 }

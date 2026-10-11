@@ -50,7 +50,6 @@ export interface MeasuredWorldOptions {
    *  without loading the renderer family. Absent, the session loads that family. */
   engine?: EngineFactory
   maxResidentPages?: number
-  maxCachedPages?: number
   /** The decoded-page cache the session reads through, and the CPU total it counts against: the
    *  world's, kept across its sessions, so a session reopened fetches nothing it holds. Set by the
    *  world itself (its CPU total is `world.budget.cpu`); a session without one reads through a

@@ -2389,7 +2389,6 @@
       "cache": "O cache de páginas por meio do qual lê, o do seu dono: sobrevive ao leitor.",
       "signal": "Cancela todas as leituras quando abortado.",
       "workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
-      "maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
       "onEvict": "Ouve cada página que sai do cache.",
       "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "onDiagnostic": "Ouve cada passo de cada leitura.",
@@ -4617,9 +4616,10 @@
   },
   "createGpuPageCache": {
     "summary": "Fronteira de alocação/fila do WebGPU.",
-    "description": "Bytes de página e política são fornecidos pelo host: cada carregamento lê sua página de `source` (`reader.ts`), que junta as leituras de uma página em curso e diz quando uma leitura falhada é pedida de novo. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove.",
+    "description": "Bytes de página e política são fornecidos pelo host: cada carregamento lê sua página de `source` (`reader.ts`), que junta as leituras de uma página em curso e diz quando uma leitura falhada é pedida de novo. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. Um redimensionamento mantém as páginas de `cover` antes de qualquer página fixada.",
     "parameters": {
       "options.homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "options.cover": "Os endereços da cobertura raiz: um redimensionamento os mantém antes de qualquer outra página.",
       "options": "Como uma cache de páginas GPU é dimensionada e onde reporta (`createGpuPageCache`).",
       "options.pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
       "options.slots": "Quantos slots o pool comporta.",
@@ -4632,6 +4632,7 @@
       "pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
       "slots": "Quantos slots o pool contém.",
       "homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "cover": "Os endereços da cobertura raiz: um redimensionamento os mantém antes de qualquer outra página.",
       "onDiagnostic": "Ouve o que o cache reporta: o seu layout, os carregamentos cancelados e as recusas."
     }
   },
@@ -4642,9 +4643,6 @@
       "keyAt": "A chave na posição `at`, a primeira vítima em 0."
     }
   },
-  "PagePinTier": {
-    "summary": "Como uma página carregada é fixada: `'held'` à frente das fixações comuns num redimensionamento, senão `'pinned'`."
-  },
   "createJob": {
     "summary": "Sem timers, DOM, sistema de arquivos ou UI."
   },
@@ -4653,13 +4651,12 @@
   },
   "createPageStreamer": {
     "summary": "Leituras limitadas, priorizadas e deduplicadas, por meio de `options.cache`, o cache de páginas que o seu dono mantém (`pageCache.ts`).",
-    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado tanto por entradas quanto por bytes; entradas fixadas sobrevivem à remoção, então um chamador mantém sua cobertura exibida ao retê-la.",
+    "description": "Uma requisição ainda esperando na fila é descartada assim que seu último consumidor sai; uma já em transferência tem permissão de chegar ao cache. O cache é um conjunto de menos-recentemente-usado limitado por bytes; uma página com dono (`pin`, `retainRanks`) sobrevive à remoção, então um chamador mantém sua cobertura exibida ao fixá-la.",
     "parameters": {
       "options": "Como um leitor de páginas lê (`createPageStreamer`): por meio de `cache`, o do seu dono, que reserva as tabelas do manifesto e a fila de transferência ao lado das suas páginas; cada outro membro tem um valor padrão.",
       "options.cache": "O cache de páginas por meio do qual lê, o do seu dono: sobrevive ao leitor.",
       "options.signal": "Cancela todas as leituras quando abortado.",
       "options.workerCount": "Leituras executadas ao mesmo tempo; 8 por padrão.",
-      "options.maxPages": "Máximo de páginas mantidas de uma vez; limitado só por bytes quando ausente.",
       "options.onEvict": "Ouve cada página que sai do cache.",
       "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "options.onDiagnostic": "Ouve cada passo de cada leitura.",
@@ -6316,6 +6313,7 @@
       "source": "De onde as páginas são lidas.",
       "options": "Bytes por página, e quantos slots.",
       "options.homes": "O lugar próprio de cada página, tomado enquanto `slots` contêm todo o catálogo (`homes.ts`).",
+      "options.cover": "Os endereços da cobertura raiz: um redimensionamento os mantém antes de qualquer outra página.",
       "options.pageBytes": "Os bytes de um slot: um múltiplo de quatro.",
       "options.slots": "Quantos slots o pool comporta.",
       "options.onDiagnostic": "Ouve o que a cache reporta: o seu layout, os carregamentos cancelados e as recusas."
@@ -7789,10 +7787,9 @@
     }
   },
   "CacheSession": {
-    "summary": "Uma sessão que lê por meio do cache: o máximo de páginas que deixa o cache manter, e quem ouve uma página despejada, ou um despejo que nada encontrou para tomar.",
+    "summary": "Uma sessão que lê por meio do cache: quem ouve uma página despejada, ou um despejo que nada encontrou para tomar.",
     "description": "O que reserva do total, o comunica ao lugar que abre (`open`) cada vez que isso muda.",
     "members": {
-      "maxPages": "O máximo de páginas que a sessão deixa o cache manter; sem limite por padrão.",
       "evicted": "Chamado com a url de uma página quando o cache a despeja.",
       "blocked": "Chamado quando um despejo acima do orçamento nada encontrou para tomar."
     }
@@ -7856,6 +7853,6 @@
   },
   "createPageCache": {
     "summary": "O ÚNICO CACHE DO HOST: os bytes de cada página e pacote lidos, de cada arquivo que um servidor respondeu inteiro em vez de um intervalo (`readRange`), de cada nível de textura decodificado e registro de ladrilho em blocos (`level`), e do proxy residente da cena (`keep`), como um só conjunto de entradas, UM orçamento e UM despejo (`cacheEntries.ts`), face ao total de CPU (`cpuBytes`, `world.budget.cpu`).",
-    "description": "O seu dono o mantém de uma sessão para outra: um mundo entrega o mesmo a cada sessão que abre, por isso uma sessão reaberta — num dispositivo concedido de novo após uma perda, ou numa cena que mudou — lê daqui o que a anterior buscou, e não busca nada do que ele mantém. Cada sessão que lê por meio dele reserva as suas tabelas do manifesto, a sua fila de transferência e as tabelas do motor (`manifestTableBytes`, `maxTransferBytes`, o `reserve` do leitor), comunicadas à medida que mudam (`open`), com o cache guardando a sua soma, e toma retenções sobre as páginas que fixa ou lê; as entradas mantêm o resto (`budgetBytes`). Só o cache despeja, quando as suas entradas excedem o orçamento: nunca uma entrada que alguém retém, depois as páginas, arquivos e níveis usados há mais tempo, o proxy por último; acima do mínimo de páginas que uma sessão permite, só as páginas. Um nível não precisa de espaço próprio: toma o que o despejo pode liberar (`roomBytes`), como uma página."
+    "description": "O seu dono o mantém de uma sessão para outra: um mundo entrega o mesmo a cada sessão que abre, por isso uma sessão reaberta — num dispositivo concedido de novo após uma perda, ou numa cena que mudou — lê daqui o que a anterior buscou, e não busca nada do que ele mantém. Cada sessão que lê por meio dele reserva as suas tabelas do manifesto, a sua fila de transferência e as tabelas do motor (`manifestTableBytes`, `maxTransferBytes`, o `reserve` do leitor), comunicadas à medida que mudam (`open`), com o cache guardando a sua soma, e toma retenções sobre as páginas que fixa ou lê; as entradas mantêm o resto (`budgetBytes`). Só o cache despeja, quando as suas entradas excedem o orçamento: nunca uma entrada que alguém retém, depois as páginas, arquivos e níveis usados há mais tempo, o proxy por último. Um nível não precisa de espaço próprio: toma o que o despejo pode liberar (`roomBytes`), como uma página."
   }
 }

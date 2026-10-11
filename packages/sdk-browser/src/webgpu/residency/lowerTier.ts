@@ -132,22 +132,34 @@ export function createLowerPass(options: LowerPassOptions) {
     return tracking.wanted.has(key) || !!bootstrapKey[key] || !hasBytes(rec)
   }
   const pass: LowerPass = { ...options, skips }
+  /** What the last touch of the lower pages was made for: the reports of the tiers and the pool. */
+  let touchedReports = -1,
+    touchedCache: Cache | undefined
+  const reports = () => lowerTiers().reduce((sum, tier) => sum + tier.revision, 0)
   return {
     list: () => mergeLower(lowerTiers()),
-    load: (
+    load: async (
       lower: readonly PageRec[],
       cache: Cache,
       cameraWaiting: () => boolean,
       reads: AbortSignal,
-    ) => loadLowerTiers(pass, lower, cache, cameraWaiting, reads),
+    ) => {
+      touchedReports = reports()
+      touchedCache = cache
+      await loadLowerTiers(pass, lower, cache, cameraWaiting, reads)
+    },
     /** True when every lower tier page is held, or left to the camera: the tiers leave no work. */
     held: (cache: Cache) =>
       mergeLower(lowerTiers()).every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
     /** What a pass that finds nothing to do still does: the lower tiers' pages touched, so the
-     *  pool's order of eviction is the one a pass would have left. */
+     *  pool's order of eviction is the one a pass would have left — once for each report of the
+     *  tiers, a pass or a touch having made it already otherwise. */
     touch() {
-      const cache = getCache()
-      if (!cache) return
+      const cache = getCache(),
+        at = reports()
+      if (!cache || (touchedReports === at && touchedCache === cache)) return
+      touchedReports = at
+      touchedCache = cache
       for (const rec of mergeLower(lowerTiers()))
         if (!skips(rec)) cache.touch(pageAddress(rec), true)
     },

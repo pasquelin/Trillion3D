@@ -53,9 +53,9 @@ const cut = (whole: ArrayBuffer, offset: number, length: number) =>
  * and stopped once none does before it lands. Landed, it is cut for every range waiting on it and
  * is one entry of the page cache among the pages (`files`) when it fits the cache's room, evicted
  * by last use as they are, every range cut from it until then; a file past the room is let go at
- * once. Either way it is asked again by the next range once it left. Until an origin answered a range, one request of a file is
- * sent at a time and the ranges of that file asked meanwhile wait on its answer: the whole file is
- * downloaded once. A file is followed only while a read of it is under way: what it keeps once
+ * once. Either way it is asked again by the next range once it left. Until an origin answered a
+ * range, one request of a file is sent at a time and the ranges of that file asked meanwhile wait
+ * on its answer: the whole file is downloaded once. A file is followed only while a read of it is under way: what it keeps once
  * read is the cache's, and the origins that answer ranges are a few words.
  */
 export function createRangedReads(files: WholeFiles) {

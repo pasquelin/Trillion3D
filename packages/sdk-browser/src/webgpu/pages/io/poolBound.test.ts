@@ -40,7 +40,7 @@ async function stream(backend: Backend, each: (metrics: ReturnType<Backend['metr
     flush: (options) => backend.flush(options),
     metrics: () => backend.metrics(),
     pendingUrls: () => backend.pendingUrls(),
-    pageUrls: () => backend.pageUrls(),
+    retainedRanks: () => backend.retainedRanks(),
   })
   return backend.metrics().residentPages ?? 0
 }

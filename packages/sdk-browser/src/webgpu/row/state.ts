@@ -1,6 +1,6 @@
 import { createWebgpuRowJournal } from './journal.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { pageAddress } from './pageSlots.ts'
 import { flatInstances, type PackedInstances } from './instances.ts'
 import { createDirtyRows } from './dirty.ts'
@@ -51,16 +51,12 @@ export function createWebgpuRowState(
       if (row >= 0) dirtyRows.markWords(row)
     },
     clearDirty: dirtyRows.clear,
-    get dirtyMarks() {
-      return dirtyRows.marks
+    /** How many rows are dirty. */
+    get dirtyCount() {
+      return dirtyRows.count
     },
-    /** First and last dirty rows: the span that bounds every mark. */
-    get dirtyFrom() {
-      return dirtyRows.span.from
-    },
-    get dirtyTo() {
-      return dirtyRows.span.to
-    },
+    /** The runs of neighbouring dirty rows, in order, the rows past `last` left out. */
+    forEachDirtyRun: dirtyRows.forEachRun,
     /** Row writes since the table was made (`rowsMoved`). */
     get rowWrites() {
       return dirtyRows.writes

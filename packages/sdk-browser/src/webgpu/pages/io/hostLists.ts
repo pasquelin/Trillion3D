@@ -40,40 +40,11 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Addresses the host pins after the render: bootstrap coverage, what the image draws and what the
- * cut asks. The request-key rank is posted once and for all by the catalogue: two pages that share
- * a request share their rank, and dedup splits them by a stamp instead of hashing a hundred thousand
- * strings per image. Same addresses, same order, same length as a string set. And an image that
- * reread the sample already held reads three unchanged lists: it returns the one it yielded rather
- * than remaking it.
- */
-export function pageUrls(rt: WebgpuPagesRuntime) {
-  const { run } = rt,
-    { urlScratch } = run,
-    stamps = rt.setup.requestStamps,
-    held = run.urlsHeld
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited
-  )
-    return urlScratch
-  held.cut = run.cutEpoch
-  held.epoch = run.pageArrayEpoch
-  held.limited = run.coverageBudgetLimited
-  urlScratch.length = 0
-  stamps.begin()
-  stamps.mark(rt.setup.bootstrap, urlScratch)
-  stamps.mark(run.shown, urlScratch)
-  withClosure(retainedCut(rt), (list) => stamps.mark(list, urlScratch))
-  return urlScratch
-}
-
-/**
- * The same pins as `pageUrls`, stated as a rank delta: what entered and what left since the previous
- * image. No string, no key set, no allocation — three lists walked as integers, and the cache then
- * touches only what moved. An image that reread the sample already held does not even walk these
+ * Addresses the host pins after the render — bootstrap coverage, what the image draws and what the
+ * cut asks — stated as a rank delta: what entered and what left since the previous image. The
+ * request-key rank is posted once and for all by the catalogue: two pages that share a request
+ * share their rank. No string, no key set, no allocation — three lists walked as integers, and the
+ * cache then touches only what moved. An image that reread the sample already held does not even walk these
  * lists: it returns the empty delta.
  */
 export function retainedRanks(rt: WebgpuPagesRuntime) {

@@ -150,7 +150,7 @@ export function createRowDemand(
 }
 
 /** What the demand reads of the row table: each page's row, -1 none, and whether the cut reads it
- *  resident — read per id at each readback, with no probe (`pageState.ts`). */
+ *  resident — read per id at each readback, off the sparse maps (`pageState.ts`). */
 type DemandTable = {
   rowOf(page: number): number
   hasRow(page: number): boolean

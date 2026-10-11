@@ -25,6 +25,7 @@ import { createCellBoxes } from './boxes.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
+import { createPlanPins } from './planPins.ts'
 import { holdPriority, inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
@@ -54,11 +55,14 @@ export function createPartitionCells(inputs: Inputs) {
   const index = createCellIndex(partition.pages, base, boxes)
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>()
+  const pins = createPlanPins()
   const holds = createCellHolds(world)
   const rows = createCellPlacements(root, parents, meshes)
   const { held, touched } = rows
   const far = createFarCells(world, held)
   /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
+  const tookCells = new Set<number>(),
+    tookPages = new Set<number>()
   let waiting = 0,
     sized = -1,
     wanted = -1
@@ -119,6 +123,9 @@ export function createPartitionCells(inputs: Inputs) {
         /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
         failed(url: string): boolean
         request(urls: readonly string[], ahead: boolean): void
+        /** One more owner of the file at `url` in the cache, and one less (`PageStreamer.pin`). */
+        pin(url: string): void
+        unpin(url: string): void
         admit(pages: readonly StreamPage[]): void
         forget(urls: readonly string[]): void
         update(rows: PlacementRows, from: number, to: number): void
@@ -147,8 +154,14 @@ export function createPartitionCells(inputs: Inputs) {
       plan.leave.forEach(leave)
       io.forget(index.forgotten())
       waiting = 0
+      tookCells.clear()
+      tookPages.clear()
       let later = false
-      const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true)
+      const open = (page: IndexPage, body: PageBody) => (
+        io.admit(index.open(page, body)),
+        tookPages.add(page.id),
+        true
+      )
       const pageUrl = (page: IndexPage) => page.slot.url
       for (const ahead of [false, true]) {
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
@@ -158,11 +171,14 @@ export function createPartitionCells(inputs: Inputs) {
         later ||= !ahead && pages.some((page) => page.body)
         const list = ahead ? plan.ahead : plan.visible
         const placed = (cell: number, decoded: CellRows) =>
-          place(cell, decoded, { local, ahead }) || (waiting++, false)
+          (place(cell, decoded, { local, ahead }) && (tookCells.add(cell), true)) ||
+          (waiting++, false)
         later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later
       }
       pageDecodes.keep(plan.pages.visible, plan.pages.ahead)
       decodes.keep(plan.visible, plan.ahead)
+      pins.cells([plan.visible, plan.ahead], tookCells, cellUrl, io)
+      pins.pages([plan.pages.visible, plan.pages.ahead], tookPages, io)
       touched.flush(io.update)
       return later
     },

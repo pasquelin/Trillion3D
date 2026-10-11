@@ -3,7 +3,7 @@ import type { IdDelta } from './delta.ts'
 import { createDenseKeySet } from './denseKeys.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -27,7 +27,7 @@ export function createCutPending(
   /** The first packed rank of a record: one record serves many placements (#1235). */
   rankOf: (rec: PageRec) => number = () => -1,
 ) {
-  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  /** A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
   const records: PageRec[] = []
   const s: PendingState = {

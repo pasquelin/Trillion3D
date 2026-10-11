@@ -23,5 +23,5 @@ export function rootCoverOf(
     floorPages = new Set([...bootstrapUrls, ...children]).size
   const bootstrapKey = new Uint8Array(tracking.keyCount)
   for (const page of bootstrap) bootstrapKey[tracking.keyOf(page)] = 1
-  return { bootstrap, coverPages: bootstrapUrls.size, floorPages, bootstrapKey }
+  return { bootstrap, coverUrls: bootstrapUrls, floorPages, bootstrapKey }
 }

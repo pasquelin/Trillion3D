@@ -82,8 +82,7 @@ export function heldFrame() {
     layout: {
       rows: {
         rowsChanged: false,
-        dirtyFrom: 1,
-        dirtyTo: -1,
+        dirtyCount: 0,
         rowsEpoch: 1,
         tableEpoch: 1,
         rowsDenied: 0,

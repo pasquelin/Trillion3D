@@ -84,7 +84,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Array of the list returned to the host, for it alone: render tracking writes into the other, and
    *  a list held from one image to the next would not survive that sharing. */
   hostPendingScratch: string[]
-  urlScratch: string[]
   /** True when adoption reread the sample already held: `desired` and `shown` have not moved. */
   cutHeld: boolean
   /** Age of the cut's lists: rises as soon as an adoption rewrites them, rendered or not. What a
@@ -95,7 +94,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** What each list returned to the host describes: the state that produced it, or `-1` if it is to
    *  be remade. A list is kept only if everything it depends on is still that one. */
   pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean }
-  urlsHeld: { epoch: number; cut: number; limited: boolean }
   ranksHeld: { epoch: number; cut: number; limited: boolean }
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../../frame/gateCore.ts`. */

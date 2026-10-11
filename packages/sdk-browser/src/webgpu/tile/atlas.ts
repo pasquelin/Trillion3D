@@ -43,18 +43,9 @@ export function createWebgpuTileAtlas(
     views = lanes.views()
   }
   let evictions = 0,
-    refused = 0,
-    victimsFrame = -1
-  // Eviction victims, queued once per image and per lane, taken in order.
-  const victimsOf = (lane: Lane, frame: number) => {
-    if (victimsFrame !== frame) {
-      for (const each of lanes.lanes.values()) each.victims = each.pool.victims(frame)
-      victimsFrame = frame
-    }
-    return lane.victims
-  }
+    refused = 0
   const evict = (lane: Lane, frame: number) => {
-    const index = victimsOf(lane, frame).take()
+    const index = lane.pool.victim(frame)
     if (index === undefined) return undefined
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted)
     evictions++
@@ -140,7 +131,6 @@ export function createWebgpuTileAtlas(
         source: textures[0].source,
         retired: true,
       }
-      victimsFrame = -1
     },
     relayout,
     touch(key, frame) {
@@ -152,7 +142,7 @@ export function createWebgpuTileAtlas(
     },
     roomFor(slot, frame) {
       const lane = lanes.of(slot)
-      if (lane.pool.resident < lane.pool.tiles || victimsOf(lane, frame).length > 0) return true
+      if (lane.pool.resident < lane.pool.tiles || lane.pool.victim(frame) !== undefined) return true
       refused++
       return false
     },
@@ -189,7 +179,6 @@ export function createWebgpuTileAtlas(
         pools = lanes.pools()
       }
       evictions += result.evicted
-      victimsFrame = -1
       return result
     },
     destroy() {

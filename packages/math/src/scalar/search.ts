@@ -16,6 +16,19 @@ export function lastTrue(low: number, high: number, holds: (index: number) => bo
   return lo
 }
 
+/** The last index of `sorted`, increasing, whose value is at most `value`, 0 when none is: the
+ *  search of `lastTrue` over an array, with no closure. */
+export function lastAtMost(sorted: ArrayLike<number>, value: number) {
+  let lo = 0,
+    hi = sorted.length - 1
+  while (lo < hi) {
+    const mid = lo + Math.ceil((hi - lo) / 2)
+    if (sorted[mid] <= value) lo = mid
+    else hi = mid - 1
+  }
+  return lo
+}
+
 /** The first index of `[low, high]` where `holds` — false up to some index, true after — is true,
  *  `high` when none is, `low` when the range is empty (`high <= low`): `holds(high)` is never
  *  asked. The bounds are safe integers. The midpoint rounds down and is taken from `lo`,

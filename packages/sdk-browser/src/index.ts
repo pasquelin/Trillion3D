@@ -139,7 +139,6 @@ export {
   type ResidentPage,
 } from './gpu/page/pages.ts'
 export type { EvictionOrder } from './gpu/page/eviction.ts'
-export type { PagePinTier } from './gpu/page/load.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).

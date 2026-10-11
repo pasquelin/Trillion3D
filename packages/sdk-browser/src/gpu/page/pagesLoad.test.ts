@@ -72,7 +72,7 @@ test('a load of a resident page reads nothing; one that left by its turn reads i
   const read = async (key: string) => (reads.push(key), new Uint8Array([1, 2, 3, 4]))
   const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 })
   await cache.load('a')
-  await cache.load('a', undefined, 'pinned')
+  await cache.load('a', undefined, true)
   cache.unpin('a')
   assert.deepEqual(reads, ['a'], 'a repin of a resident page asks the source nothing')
   // `b` takes the only slot before the second load of `a` comes to its turn.

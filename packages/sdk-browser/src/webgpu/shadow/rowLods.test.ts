@@ -1,6 +1,7 @@
 // A moved model writes the detail of its own rows, not of the still rows between them. The
 // detail must not follow the table's one dirty span: two models moving at both ends of a table of
 // seven thousand rows would recompute and send every row of it, each image.
+import { runsOf } from '../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadRowLods } from './rowLods.ts'
@@ -120,7 +121,8 @@ test('a model scattered across the table writes the detail of its own rows, run 
   const terrainPage = rows.packedPageIndex[600]
   ready[terrainPage] = 0
   rows.markRowWords(600)
-  assert.deepEqual([rows.dirtyFrom, rows.dirtyTo], [3, 997])
+  const dirty = runsOf(rows.forEachDirtyRun)
+  assert.deepEqual([dirty[0][0], dirty.at(-1)![1]], [3, 997])
   uploadRowLods(rt, device)
   assert.deepEqual(
     writes.map(({ size }) => size! / ROW_LOD_FLOATS),

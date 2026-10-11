@@ -69,8 +69,6 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   >
   /** The pages the last cut asked for and the session holds no bytes of. */
   pendingUrls(): string[]
-  /** Every page the last cut asked for. */
-  pageUrls(): string[]
   /** Page pins as a difference of request ranks: what entered and left since the last image. */
   retainedRanks(): import('../streaming/types.ts').HostRetentionDelta
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
@@ -118,7 +116,6 @@ export interface EngineContext {
   readTextureLevel?: import('../texture/levelReader.ts').TextureLevelReader
   signal?: AbortSignal
   maxResidentPages?: number
-  maxCachedPages?: number
   pixelError?: number
   lodAdaptive?: boolean
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */

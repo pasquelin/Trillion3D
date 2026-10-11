@@ -8,7 +8,7 @@ import {
   type TilePlace,
 } from '../../texture/tiles.ts'
 import type { PoolLane } from '../../texture/blockFormats.ts'
-import { createVictimHeap, type VictimQueue } from './victimHeap.ts'
+import { createCacheEntries } from '../../streaming/cacheEntries.ts'
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -18,7 +18,8 @@ import { createVictimHeap, type VictimQueue } from './victimHeap.ts'
  *
  * The pool does not know what a tile carries: it holds, per place, a KEY the caller confides to
  * it, the last image that looked at it, and whether it is pinned. A texture's tail is pinned at
- * prepare; a streamed tile never is.
+ * prepare; a streamed tile never is. The places are entries of the engine's one LRU
+ * (`streaming/cacheEntries.ts`): the last image that looked at a place is its tier, a pin a hold.
  */
 export type WebgpuTilePool = {
   /** Its texture's label as the engine wrote it, before a session's tag. */
@@ -43,12 +44,11 @@ export type WebgpuTilePool = {
   keyOf(index: number): number
   lastUseOf(index: number): number
   pinnedOf(index: number): boolean
-  /** Unpinned tiles that neither `frame` nor the previous image looked at, least recently looked
-   *  at first, as a queue built once per image. A tile looked at on the previous image is very
-   *  likely looked at on this one: giving it up for another is asking for it again on the next — a
-   *  full pool would spin on itself every image. It refuses instead, and the coarse level holds;
-   *  that is the pool's age rule. */
-  victims(frame: number): VictimQueue
+  /** The unpinned tile, least recently looked at, that neither `frame` nor the previous image
+   *  looked at. A tile looked at on the previous image is very likely looked at on this one: giving
+   *  it up for another is asking for it again on the next — a full pool would spin on itself every
+   *  image. It refuses instead, and the coarse level holds; that is the pool's age rule. */
+  victim(frame: number): number | undefined
   /** Every occupied place, pinned included, in pool order. */
   occupied(): number[]
   placeOf(index: number): TilePlace
@@ -88,31 +88,24 @@ export function tilePoolTexture(options: TilePoolOptions) {
   }
 }
 
-/** What a pool knows of its places: per place, the key it holds — -1 free —, the last image that
- *  looked at it and whether it is pinned; the free places, and the image's eviction victims. */
+/** What a pool knows of its places: per place, the key it holds — -1 free —; the free places; and
+ *  the occupied ones as the LRU's entries, last use their tier, a pin a hold. */
 type Places = {
   tiles: number
   owner: Int32Array
-  lastUse: Uint32Array
-  pinned: Uint8Array
   /** Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
    *  rebuilt in one pass when an adopt has stale-dated it, at the next take. */
   free: number[]
   freeStale: boolean
-  resident: number
-  /** The image's eviction victims, ordered by last use then index, in one reused buffer. */
-  heap: ReturnType<typeof createVictimHeap>
+  recent: ReturnType<typeof createCacheEntries<number, number>>
 }
 
 const placesOf = (tiles: number): Places => ({
   tiles,
   owner: new Int32Array(tiles).fill(-1),
-  lastUse: new Uint32Array(tiles),
-  pinned: new Uint8Array(tiles),
   free: [],
   freeStale: true,
-  resident: 0,
-  heap: createVictimHeap(tiles),
+  recent: createCacheEntries<number, number>(),
 })
 
 function settle(places: Places) {
@@ -131,9 +124,8 @@ function taken({ owner }: Places, index: number) {
 
 function occupy(places: Places, index: number, key: number, frame: number, pin: boolean) {
   places.owner[index] = key
-  places.lastUse[index] = frame
-  places.pinned[index] = pin ? 1 : 0
-  places.resident++
+  places.recent.set(index, index, 0, frame)
+  if (pin) places.recent.acquire(index)
 }
 
 function acquire(places: Places, key: number, frame: number, pin: boolean) {
@@ -153,17 +145,13 @@ function adopt(places: Places, index: number, key: number, frame: number, pin: b
 function release(places: Places, index: number) {
   taken(places, index)
   places.owner[index] = -1
-  places.pinned[index] = 0
-  places.resident--
+  places.recent.drop(index)
   if (!places.freeStale) places.free.push(index)
 }
 
-function victims({ tiles, owner, pinned, lastUse, heap }: Places, frame: number) {
-  heap.clear()
-  for (let index = 0; index < tiles; index++)
-    if (owner[index] !== -1 && !pinned[index] && lastUse[index] < frame - 1)
-      heap.add(lastUse[index], index)
-  return heap.order()
+function victim({ recent }: Places, frame: number) {
+  const first = recent.first
+  return first && first.tier < frame - 1 ? first.key : undefined
 }
 
 function occupied({ tiles, owner }: Places) {
@@ -192,21 +180,22 @@ export function createWebgpuTilePool(
     bytes: layers * poolLayerBytes(texelBytes),
     tileBytes: perTile,
     get resident() {
-      return places.resident
+      return places.recent.size
     },
     get residentBytes() {
-      return places.resident * perTile
+      return places.recent.size * perTile
     },
     acquire: (key, frame, pin = false) => acquire(places, key, frame, pin),
     adopt: (index, key, frame, pin = false) => adopt(places, index, key, frame, pin),
     release: (index) => release(places, index),
     touch(index, frame) {
-      places.lastUse[taken(places, index)] = frame
+      taken(places, index)
+      if (places.recent.entry(index)!.tier !== frame) places.recent.set(index, index, 0, frame)
     },
     keyOf: (index) => places.owner[taken(places, index)],
-    lastUseOf: (index) => places.lastUse[taken(places, index)],
-    pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
-    victims: (frame) => victims(places, frame),
+    lastUseOf: (index) => places.recent.entry(taken(places, index))!.tier,
+    pinnedOf: (index) => places.recent.entry(taken(places, index))!.holds > 0,
+    victim: (frame) => victim(places, frame),
     occupied: () => occupied(places),
     placeOf,
     destroy() {

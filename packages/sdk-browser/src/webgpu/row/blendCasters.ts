@@ -6,7 +6,7 @@ import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
 type Writer = ReturnType<typeof createPageRowWriter>
@@ -41,7 +41,7 @@ export function createBlendCasterRows(
   const c: Casters = {
     ...{ rows, writePageRow, onCoverageChange },
     /** A packed rank back to its record: the one catalogue accessor
-     *  (`../pages/prepare/catalogue.ts`). */
+     *  (`../../page/selection/catalogue.ts`). */
     recordOf: createPageCatalogue(packedPages).recordOf,
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
     waiting: createSparseInts(),

@@ -2,7 +2,7 @@ import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
 import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { visBin } from '../pages/prepare/pipelineFor.ts'
-import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts'
+import { createDirtyRows, forEachRewrittenRun } from '../row/dirty.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
@@ -11,7 +11,7 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
  * coplanar layer and its triangles — are properties of the ROW, not of the image. A moving camera
  * changes none of them; only a page that arrives, leaves or changes rank does, and the row table
- * already marks those rows (`rows.dirtyMarks`).
+ * already marks those rows (`rows.forEachDirtyRun`).
  *
  * This witness therefore keeps the words from one image to the next and only accumulates, row by
  * row, the runs the GPU has not yet received. Along the way it holds the TOTAL of drawable-row
@@ -93,7 +93,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 /** Sends the pending rows' words to the compaction, run by run, then holds nothing pending. */
 export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
   const { pending } = rt.layout.itemWordsHold
-  forEachDirtyRun(pending.marks, pending.span.from, pending.span.to, rt, sendRun)
+  pending.forEachRun(rt, sendRun)
   pending.clear()
 }
 

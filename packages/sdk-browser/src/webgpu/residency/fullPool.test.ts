@@ -14,11 +14,11 @@ test('a pool its pins fill reads no page, image after image, until a pin is let 
   const cache = lruCache(2),
     loads: string[] = []
   const load = cache.load
-  cache.load = async (url: string, signal?: AbortSignal, tier?: 'held' | 'pinned') => (
+  cache.load = async (url: string, signal?: AbortSignal, pinned?: boolean) => (
     loads.push(url),
-    load(url, signal, tier)
+    load(url, signal, pinned)
   )
-  for (const page of pages.slice(0, 2)) await load(page.url, undefined, 'pinned')
+  for (const page of pages.slice(0, 2)) await load(page.url, undefined, true)
   const ensure = createWebgpuResidentEnsurer(ensurerOptions(tracking, cache))
   const asked = pages[2]
   tracking.wanted.add(tracking.keyOf(asked), asked)

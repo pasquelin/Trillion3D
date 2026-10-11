@@ -21,7 +21,9 @@ test('a key the pool takes is noted for each placement at its arrival, before an
       slots.push(words)
       resident = words >= 0 ? 1 : 0
     },
-    stats: () => ({ residentPages: resident }),
+    get residentPages() {
+      return resident
+    },
   }
   const mirror = createWebgpuResidencyMirror({
     table: {

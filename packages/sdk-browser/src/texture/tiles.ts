@@ -79,6 +79,9 @@ export type TileLayout = {
   last: number
   /** First table entry of each streamed level in the texture table. */
   offsets: number[]
+  /** Tile columns and rows of each streamed level. */
+  across: number[]
+  down: number[]
   /** Texture table entries: one per tile of each streamed level. */
   entries: number
 }
@@ -90,14 +93,18 @@ export function tileLayout(width: number, height: number): TileLayout {
   const tail = previewFirstLevel(width, height),
     last = previewLastLevel(width, height)
   if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE')
-  const offsets: number[] = []
+  const offsets: number[] = [],
+    across: number[] = [],
+    down: number[] = []
   let entries = 0
   for (let level = 0; level < tail; level++) {
     offsets.push(entries)
     const [tw, th] = tilesAt(width, height, level)
+    across.push(tw)
+    down.push(th)
     entries += tw * th
   }
-  return { width, height, tail, last, offsets, entries }
+  return { width, height, tail, last, offsets, across, down, entries }
 }
 
 /** A pool slot: tile column, row and layer. */

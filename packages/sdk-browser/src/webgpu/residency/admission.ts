@@ -33,7 +33,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined
-  tracking: Pick<Tracking, 'keyOf' | 'wanted' | 'markPinned'>
+  tracking: Pick<Tracking, 'keyOf' | 'wanted'>
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   isLost: () => boolean
@@ -56,11 +56,8 @@ export function createPageAdmission(options: {
     // next image, until a pin is let go. The caller stops as on a full pool.
     if (current().unpinnedSlots() <= 0) throw new Error('ALL_PAGES_PINNED')
     // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
-    await current().load(address, signal, held ? 'held' : undefined, priority)
-    if (held || tracking.wanted.has(key)) {
-      if (!held) current().pin(address)
-      tracking.markPinned(key)
-    }
+    await current().load(address, signal, held, priority)
+    if (!held && tracking.wanted.has(key)) current().pin(address)
   }
   const admit = async (rec: PageRec, priority?: number): Promise<number> => {
     const parents = parentsOf(rec)
