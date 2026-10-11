@@ -1,5 +1,5 @@
 import { computeBufferEntry } from '../core/computeBindings.ts'
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
@@ -132,17 +132,8 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
    if(lane==0u){writeCmd(slot,0u);}
    continue;
   }
-  var sum=0u;
-  for(var group=span.x;group<span.y;group++){sum=sum+groupCounts[group*${slots}u+slot];}
-  // Inclusive scan of the run totals over the lanes.
-  let inclusive=laneScan(lane,sum);
+  ${laneRunOffsets('group', 'span', 'lane', 'start+', `groupCounts[group*${slots}u+slot]`, `groupOffsets[group*${slots}u+slot]=cursor`)}
   let total=laneSums[63u];
-  var cursor=start+inclusive-sum;
-  for(var group=span.x;group<span.y;group++){
-   let entry=group*${slots}u+slot;
-   groupOffsets[entry]=cursor;
-   cursor=cursor+groupCounts[entry];
-  }
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;
   workgroupBarrier();

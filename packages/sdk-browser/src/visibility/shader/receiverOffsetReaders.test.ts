@@ -9,12 +9,7 @@ import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.
 import { integers } from '../../texture/integerVectors.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import {
-  FRAMEBUFFER_WGSL,
-  PIXEL_BARY_WGSL,
-  SHADE_UNI_WGSL,
-  VERTEX_NORMALS_WGSL,
-} from './pixelTriangleWgsl.ts'
+import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
@@ -53,10 +48,10 @@ test('the lighting calls one shared offset function and binds no offset target',
   // The resolve places its pixel with the very functions the offset calls: they cannot drift.
   const shared = wgslModule(receiverOffsetWgsl(0))
   for (const text of [
-    PIXEL_BARY_WGSL.text,
+    PIXEL_CORNERS_WGSL.text,
     perspectiveBarycentric.text,
-    VERTEX_NORMALS_WGSL.text,
-    FRAMEBUFFER_WGSL.text,
+    'fn transformedNormals(',
+    'fn framebuffer(',
     wgslSource(SHADE_UNI_WGSL),
   ]) {
     assert.ok(SHADE_SHADER.includes(text) && shared.includes(text), 'one shared placement text')

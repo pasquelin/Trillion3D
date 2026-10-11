@@ -1,6 +1,14 @@
 import { wgslConst, wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
 import { byteOf } from './integer.ts'
+import {
+  SRGB_DECODE_THRESHOLD,
+  SRGB_ENCODE_THRESHOLD,
+  SRGB_GAMMA,
+  SRGB_OFFSET,
+  SRGB_SCALE,
+  SRGB_SLOPE,
+} from '../color/color.ts'
 
 /**
  * Colours as the shaders read and write them: a byte or three bytes of a word as a unit value, a
@@ -46,8 +54,8 @@ export const linearToSrgb = wgslFn(
   'linearToSrgb',
   [],
   `fn linearToSrgb(c:vec3f)->vec3f{
- let curve=1.055*pow(max(c,vec3f(0.0)),vec3f(${wgslF32(1 / 2.4)}))-0.055;
- return select(curve,c*12.92,c<=vec3f(0.0031308));
+ let curve=${SRGB_SCALE}*pow(max(c,vec3f(0.0)),vec3f(${wgslF32(1 / SRGB_GAMMA)}))-${SRGB_OFFSET};
+ return select(curve,c*${SRGB_SLOPE},c<=vec3f(${SRGB_ENCODE_THRESHOLD}));
 }`,
 )
 
@@ -60,7 +68,7 @@ export const srgbToLinear = wgslFn(
   'srgbToLinear',
   [],
   `fn srgbToLinear(c:vec3f)->vec3f{
- let curve=pow((max(c,vec3f(0.0))+vec3f(0.055))/1.055,vec3f(2.4));
- return select(curve,c/12.92,c<=vec3f(0.04045));
+ let curve=pow((max(c,vec3f(0.0))+vec3f(${SRGB_OFFSET}))/${SRGB_SCALE},vec3f(${SRGB_GAMMA}));
+ return select(curve,c/${SRGB_SLOPE},c<=vec3f(${SRGB_DECODE_THRESHOLD}));
 }`,
 )

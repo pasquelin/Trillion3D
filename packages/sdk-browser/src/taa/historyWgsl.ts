@@ -3,6 +3,7 @@ import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent, hashUnit } from '../../../math/src/wgsl/sampling.ts'
 
 /** The samples a history read a display pixel or more away keeps beside the current one. */
@@ -71,12 +72,12 @@ fn pageOf(id:u32)->TaaPage{
  */
 export const HISTORY_TEXEL_WGSL = wgslBlock(
   'HISTORY_TEXEL_WGSL',
-  [hashUnit, clampToExtent],
+  [hashUnit, clampToExtent, GOLDEN_U32],
   `
 fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  let seed=(u32(coord.y)*65536u+u32(coord.x))*8u+u32(view.jitter.w);
- // 0x5bd1e995u: odd 32-bit constant with well-spread bits that flips the seed for the second coordinate, so it is decorrelated from the first; any odd value with well-spread bits would serve, this one is declared, not tuned.
- let offset=vec2f(hashUnit(seed),hashUnit(seed^0x5bd1e995u))*0.999-0.4995;
+ // The golden salt flips the seed for the second coordinate, so it is decorrelated from the first (historyTexel.test.ts).
+ let offset=vec2f(hashUnit(seed),hashUnit(seed^GOLDEN_U32))*0.999-0.4995;
  return clampToExtent(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(view.viewport.xy));
 }`,
 )

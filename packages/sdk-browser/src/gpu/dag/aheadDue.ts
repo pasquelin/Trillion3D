@@ -30,7 +30,7 @@ export const DAG_AHEAD_DUE_WGSL = wgslBlock(
  return boxPlaneDistance(p,bmin,bmax)/n;
 }
 fn aheadDue(w:u32,bmin:vec3f,bmax:vec3f)->f32{
- let skip=select(6u,FAR_PLANE,farless());
+ let skip=farSkipOf(vi);
  var due=0.0;
  for(var i=0u;i<6u;i++){
   if(i==skip){continue;}

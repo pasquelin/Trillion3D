@@ -1,6 +1,6 @@
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { PHYSICAL_RECORD_MASK } from '../types.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
+import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 import { PHYSICAL_ROW_RECORDS } from '../../webgpu/visibility/physicalTable.ts'
 import {
@@ -51,7 +51,7 @@ export const physicalCoreWgsl = (sampled: string) =>
   wgslBlock(
     `physicalCoreWgsl(${sampled})`,
     [
-      ROUGHNESS_FLOOR,
+      ORM_LAW_WGSL,
       unitOrZero,
       tangentFallback,
       vectorRejection,
@@ -106,7 +106,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  if(r.maps.y!=0u){coatSample=physicalSample(1u,r.maps.y);coat*=coatSample.r;}
  if(r.maps.z!=0u){
   if(r.maps.z!=r.maps.y||physicalChannel(1u)!=physicalChannel(2u)){coatSample=physicalSample(2u,r.maps.z);}
-  coatRough=clamp(r.lobes.w*coatSample.g,ROUGHNESS_FLOOR,1.0);
+  coatRough=ormRoughness(r.lobes.w,coatSample.g);
  }
  var direction=vec3f(0.0,0.0,1.0);
  var frame0:CotangentFrame;
@@ -133,7 +133,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
    frame=cotangentFrame(coatBase,e1,e2,m*c.d1,m*c.d2);
   }
   let f=screenFace*coatFace;
-  coatN=unitOrZero(frame.T*(f*n.x*r.coatNormalScale.x)+frame.B*(f*n.y*r.coatNormalScale.y)+coatBase*n.z);
+  coatN=bendNormal(coatBase,frame.T,frame.B,vec3f(f*n.x*r.coatNormalScale.x,f*n.y*r.coatNormalScale.y,n.z));
  }
  return PhysicalLobes(direction,coatN,strength,coat,coatRough);
 }

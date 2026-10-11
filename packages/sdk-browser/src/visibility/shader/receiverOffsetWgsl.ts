@@ -1,16 +1,11 @@
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { CLASS_FEATURE } from './classWords.ts'
-import {
-  FRAMEBUFFER_WGSL,
-  PIXEL_BARY_WGSL,
-  SHADE_UNI_WGSL,
-  VERTEX_NORMALS_WGSL,
-} from './pixelTriangleWgsl.ts'
+import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
-import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
-import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
-import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
+import { invTranspose3Prep, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 
@@ -29,12 +24,13 @@ import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
   'RECEIVER_OFFSET_FN_WGSL',
   [
-    FRAMEBUFFER_WGSL,
+    PIXEL_CORNERS_WGSL,
+    PAGE_SCREEN_WGSL,
     edgeFunction,
-    PIXEL_BARY_WGSL,
+    perspectiveBarycentric,
+    invTranspose3Prep,
     worldMatrix3,
     windingKept,
-    VERTEX_NORMALS_WGSL,
     faceNormal,
     SHADING_POINT_WGSL,
     unitOrZero,
@@ -50,23 +46,20 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||page.sprite.y!=0.0||page.lineWidth!=0.0){return none;}
  let h=pageHeader(page);
- let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
- let w0=page.world*vec4f(pagePosition(page,h,i0),1.0);let w1=page.world*vec4f(pagePosition(page,h,i1),1.0);let w2=page.world*vec4f(pagePosition(page,h,i2),1.0);
- let c0=uni.viewProj*w0;let c1=uni.viewProj*w1;let c2=uni.viewProj*w2;
- let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
- let area=edgeFunction(s1.xy,s2.xy,s0.xy);
- let bary=pixelBary(s0,s1,s2,c0,c1,c2,pixel,area);
- let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
  let world3=worldMatrix3(page.world);
+ let t=decodeCorners(page,h,pageTriangle(page,h,tri),invTranspose3Prep(world3));
+ let w0=t.w0;let w1=t.w1;let w2=t.w2;
+ let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;
+ let area=edgeFunction(s1.xy,s2.xy,s0.xy);
+ let bary=perspectiveBarycentric(s0,s1,s2,t.iw,pixel,area);
+ let screenFace=select(-1.0,1.0,area*t.p0.w*t.p1.w*t.p2.w<0.0);
  let face=screenFace*select(-1.0,1.0,windingKept(world3));
- let side=select(1.0,-1.0,(page.flags&256u)!=0u);
- let n=vertexNormals(page,h,corners,world3,side);
  let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
  // The side the shading lights: a two-sided surface seen from behind lights its back.
  let lit=select(1.0,face,(page.materialClass&${CLASS_FEATURE.DOUBLE_SIDED}u)!=0u);
  // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`).
  let plane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
- let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
+ let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,t.n0*lit,t.n1*lit,t.n2*lit);
  return ShadowReceiver(offset,unitOrZero(plane));
 }`,
 )

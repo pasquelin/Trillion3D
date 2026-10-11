@@ -20,7 +20,7 @@ import type { EngineCamera } from '../../camera/world.ts'
  * length and be orthogonal to 1e-4 in relative terms. Zero absolute tolerance: tiny scale
  * accepts no more deformation than unit scale. Zero, infinite, NaN 3×3 matrix, or zero column,
  * is non-conformal: cluster is retained.
- *  CPU mirror of `isConformal` (../../gpu/dag/shader/shader.ts): same normalization, same tolerances (`packages/math/src/geometry/cone.ts`).
+ *  CPU mirror of `isConformal` (../../gpu/dag/shader/coneWgsl.ts): same normalization, same tolerances (`packages/math/src/geometry/cone.ts`).
  *  Scale comes from `linearPartScale` (`packages/math/src/matrix/singular.ts`), same sum singularity rule uses:
  *  same 9 terms, same order, so exact same bits as before.
  */
@@ -89,7 +89,7 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, eye: Ar
 }
 
 /** Cluster cone culling, root context already initialized.
- *  CPU mirror of `coneRejectsBox` (../../gpu/dag/shader/shader.ts): same tolerances (`packages/math/src/geometry/cone.ts`), same
+ *  CPU mirror of `coneRejectsBox` (../../gpu/dag/shader/coneWgsl.ts): same tolerances (`packages/math/src/geometry/cone.ts`), same
  *  operands, two languages — text is unshared, rule is shared. */
 export function coneCullsPageWith(
   ctx: ConeContext,

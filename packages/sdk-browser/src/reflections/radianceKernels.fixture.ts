@@ -63,7 +63,7 @@ export function radianceKernels(drawn: number[]) {
       'radianceTent',
       'tent',
       'radianceHash',
-      'radianceMix',
+      'mixWord',
     ],
     {
       ...binding,

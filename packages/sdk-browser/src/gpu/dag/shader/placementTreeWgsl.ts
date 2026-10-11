@@ -2,6 +2,7 @@ import { TREE_GROUP } from '../placementTree.ts'
 import { CARD_ROOT } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
 
 /**
@@ -80,11 +81,7 @@ fn treeStep(src:u32,node:CullNode){
 }
 /** View \`v\`'s frustum test of a render-frame box, as \`outsideFrustum\` tests a primitive's: an
  *  infinite far plane (a NaN plane, \`farless\`) rejects nothing. */
-fn outsideView(v:u32,lo:vec3f,hi:vec3f)->bool{
- let skip=select(6u,FAR_PLANE,farlessOf(v));
- for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(views[v].planes[i],lo,hi)){return true;}}
- return false;
-}
+${outsidePlanesFn('outsideView', '', (i) => `views[v].planes[${i}]`)}
 /** A kept cell opens its groups, a kept group its placements, in the next queue. */
 fn descendTree(src:u32,node:CullNode){
  let first=select(node.firstChild,views[0u].nodeCount+node.firstChild,node.kind==TREE_GROUP);

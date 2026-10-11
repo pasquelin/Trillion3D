@@ -3,7 +3,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
-import { BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.ts'
+import { BLOOM_UNIFORM, BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.ts'
 import { uniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
@@ -108,13 +108,13 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
    *  read, radius, blend. */
   const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
     const base = index * slots.strideWords
-    packed[base] = 1 / out[0]
-    packed[base + 1] = 1 / out[1]
-    packed[base + 2] = 1 / read[0]
-    packed[base + 3] = 1 / read[1]
-    packed[base + 4] = radius
-    packed[base + 5] = keep
-    packed[base + 6] = glow
+    packed[base + BLOOM_UNIFORM.at.outTexel] = 1 / out[0]
+    packed[base + BLOOM_UNIFORM.at.outTexel + 1] = 1 / out[1]
+    packed[base + BLOOM_UNIFORM.at.inTexel] = 1 / read[0]
+    packed[base + BLOOM_UNIFORM.at.inTexel + 1] = 1 / read[1]
+    packed[base + BLOOM_UNIFORM.at.radius] = radius
+    packed[base + BLOOM_UNIFORM.at.keep] = keep
+    packed[base + BLOOM_UNIFORM.at.glow] = glow
   }
   /** Writes the `nth` bloom's range, its last slot at `last`, when its settings are not the ones
    *  it holds: a range depends only on them and on the size, whose change makes a new buffer. */

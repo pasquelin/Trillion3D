@@ -1,3 +1,4 @@
+import { boxUnion } from '../../../../math/src/geometry/box.ts'
 import { CULL_STRIDE } from './types.ts'
 import type { ClusterCut } from '../../page/selection/math.ts'
 import { BOUND_STRIDE, cullingBounds, HAS_ROOT, PARENT_SPHERE } from '../../page/cut/bounds.ts'
@@ -21,41 +22,29 @@ const LEAF_PAGES = 32,
   STRIDE = CULL_STRIDE,
   INF = Infinity
 
-type Built = { min: number[]; max: number[]; first: number; pages: number; children: Built[] }
+/** A node as it is built: its box, `[0..2]` min then `[3..5]` max as in the node layout, and its pages. */
+type Built = { box: Float64Array; first: number; pages: number; children: Built[] }
+
+const EMPTY_BOX = () => Float64Array.of(INF, INF, INF, -INF, -INF, -INF)
 
 function box(
   pages: ReadonlyArray<{ min?: number[]; max?: number[] }>,
   from: number,
   count: number,
 ) {
-  const min = [INF, INF, INF],
-    max = [-INF, -INF, -INF]
+  const out = EMPTY_BOX()
   for (let i = from; i < from + count; i++) {
     const rec = pages[i]
-    if (!rec.min || !rec.max) return { min: [-INF, -INF, -INF], max: [INF, INF, INF] }
-    expand(min, max, rec.min, rec.max)
+    if (!rec.min || !rec.max) return Float64Array.of(-INF, -INF, -INF, INF, INF, INF)
+    boxUnion(out, 0, rec.min[0], rec.min[1], rec.min[2], rec.max[0], rec.max[1], rec.max[2])
   }
-  return { min, max }
-}
-
-/** Expands `[min, max]` to the box `[childMin, childMax]`, axis by axis. */
-function expand(
-  min: number[],
-  max: number[],
-  childMin: ArrayLike<number>,
-  childMax: ArrayLike<number>,
-) {
-  for (let a = 0; a < 3; a++) {
-    if (childMin[a] < min[a]) min[a] = childMin[a]
-    if (childMax[a] > max[a]) max[a] = childMax[a]
-  }
+  return out
 }
 
 function merge(children: Built[]): Built {
-  const min = [INF, INF, INF],
-    max = [-INF, -INF, -INF]
-  for (const child of children) expand(min, max, child.min, child.max)
-  return { min, max, first: 0, pages: 0, children }
+  const out = EMPTY_BOX()
+  for (const { box: b } of children) boxUnion(out, 0, b[0], b[1], b[2], b[3], b[4], b[5])
+  return { box: out, first: 0, pages: 0, children }
 }
 
 /** Numbering by levels, root at rank zero: a node's `firstChild` is therefore contiguous. */
@@ -66,10 +55,7 @@ function emit(root: Built, count: number) {
   for (let at = 0; at < queue.length; at++) {
     const node = queue[at],
       base = at * STRIDE
-    for (let a = 0; a < 3; a++) {
-      nodes[base + a] = node.min[a]
-      nodes[base + 3 + a] = node.max[a]
-    }
+    nodes.set(node.box, base)
     nodes[base + 10] = -1
     nodes[base + 11] = node.children.length ? next : 0
     nodes[base + 12] = node.children.length
@@ -120,11 +106,9 @@ export function flatHierarchy(pages: readonly FlatPage[]) {
   let level: Built[] = []
   for (let first = 0; first < pages.length; first += LEAF_PAGES) {
     const count = Math.min(LEAF_PAGES, pages.length - first)
-    const { min, max } = box(pages, first, count)
-    level.push({ min, max, first, pages: count, children: [] })
+    level.push({ box: box(pages, first, count), first, pages: count, children: [] })
   }
-  if (!level.length)
-    level.push({ min: [0, 0, 0], max: [0, 0, 0], first: 0, pages: 0, children: [] })
+  if (!level.length) level.push({ box: new Float64Array(6), first: 0, pages: 0, children: [] })
   let total = level.length
   while (level.length > 1) {
     const up: Built[] = []

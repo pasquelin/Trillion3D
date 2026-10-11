@@ -1,6 +1,5 @@
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { tileDeclarations } from '../tile/wgsl.ts'
@@ -8,6 +7,7 @@ import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import * as itemFlags from '../../visibility/buffer.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
+import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
@@ -73,8 +73,8 @@ const blendFragmentWgsl = (lobes: boolean) =>
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
-      ROUGHNESS_FLOOR,
       wireframeEdge,
+      DIAGNOSTIC_PALETTE_WGSL,
     ],
     `fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;
@@ -93,17 +93,17 @@ ${BLEND_DIAGNOSTIC}
  // the opaque resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${itemFlags.FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
- let clamped=clamp(s.rough,ROUGHNESS_FLOOR,1.0);
+ let clamped=s.rough;
  if(!unlit){
   if((flags&${itemFlags.FLAG_LIT}u)!=0u){
-   let m=clamp(s.metal,0.0,1.0);
+   let m=s.metal;
    let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
    surfaceModel=select(select(${surfaceModel.MODEL_FLAG.physical}u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    thinSubsurface=s.subsurface;
    shadowFootprint=blendShadowFootprint(in.view);
    shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);
    blendLobes(in,front,g,s,V,clamped);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z)+bounceLighting(rgb,m,s.N,in.view,s.ao)*lobeThrough()+environmentLighting(rgb,m,s.N,s.ao)*lobeThrough()+surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view)+s.emissive;
+   rgb=litSurface(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z),bounceLighting(rgb,m,s.N,in.view,s.ao),environmentLighting(rgb,m,s.N,s.ao),surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view),s.emissive);
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
@@ -123,12 +123,12 @@ ${BLEND_DIAGNOSTIC}
  *  the screen error, in place of the lit surface. */
 const BLEND_DIAGNOSTIC = ` if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   if(s.alpha<=0.01){discard;}
-  var color=vec3f(0.204,0.827,0.6);
+  var color=diagnosticFlat();
   if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){
    let edge=wireframeEdge(in.bary,width);
-   color=mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge);
+   color=diagnosticWire(hashColor(in.tri),edge);
   }else if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTERS}u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
-  else if((flags&${itemFlags.FLAG_DIAGNOSTIC_LOD}u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
-  else if((flags&${itemFlags.FLAG_DIAGNOSTIC_SCREEN_ERROR}u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
+  else if((flags&${itemFlags.FLAG_DIAGNOSTIC_LOD}u)!=0u){color=diagnosticLevel((in.diagId&0x80000000u)!=0u);}
+  else if((flags&${itemFlags.FLAG_DIAGNOSTIC_SCREEN_ERROR}u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=diagnosticError(ratio);}
   return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
  }`

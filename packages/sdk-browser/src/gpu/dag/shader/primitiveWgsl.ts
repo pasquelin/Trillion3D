@@ -2,6 +2,7 @@ import { InvT3, invTranspose3Prep } from '../../../../../math/src/wgsl/inverseTr
 import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
+import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 
 /**
  * WHAT A CUT READS OF A PLACEMENT, made where it is read: no block is stored per placement beyond
@@ -39,11 +40,7 @@ fn planeOf(w:u32,v:u32,i:u32)->vec4f{
 }
 /** Frustum planes are brought into the primitive's space, so no box is ever transformed. GPU
  *  mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same
- *  corners, same sum. An infinite far plane is not tested (\`farlessOf\`): it rejects no box. */
-fn outsideFrustum(w:u32,v:u32,bmin:vec3f,bmax:vec3f)->bool{
- let skip=select(6u,FAR_PLANE,farlessOf(v));
- for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(planeOf(w,v,i),bmin,bmax)){return true;}}
- return false;
-}
+ *  corners, same sum. An infinite far plane is not tested (\`farSkipOf\`): it rejects no box. */
+${outsidePlanesFn('outsideFrustum', 'w:u32,', (i) => `planeOf(w,v,${i})`)}
 `,
 )

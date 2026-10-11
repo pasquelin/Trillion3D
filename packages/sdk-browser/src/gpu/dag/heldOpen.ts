@@ -1,4 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'
+import { mixWord } from '../../../../math/src/scalar/integers.ts'
 import { createSortedKeys, takeSorted } from '../../webgpu/cut/denseKeys.ts'
 
 /**
@@ -36,9 +38,7 @@ export const heldOpenSlots = (entries: number, bytes = Infinity) => {
 
 /** The home slot of (`w`, `node`) in a table of `mask + 1` slots: the shader's `heldHash`. */
 function heldHash(w: number, node: number, mask: number) {
-  let h = Math.imul(w ^ Math.imul(node, 0x9e3779b1), 0x85ebca77)
-  h ^= h >>> 13
-  return (h >>> 0) & mask
+  return mixWord(w ^ mixWord(node)) & mask
 }
 
 /** The host's table: the words the GPU reads, the entries each placement holds, and the slots and
@@ -178,9 +178,9 @@ export type HeldOpen = ReturnType<typeof createHeldOpen>
  *  slot. */
 export const DAG_HELD_OPEN_WGSL = wgslBlock(
   'DAG_HELD_OPEN_WGSL',
-  [],
+  [mixWordWgsl],
   `const HELD_PROBES:u32=${HELD_PROBES}u;
-fn heldHash(w:u32,node:u32)->u32{var h=(w^(node*0x9e3779b1u))*0x85ebca77u;h^=h>>13u;return h&views[0u].heldMask;}
+fn heldHash(w:u32,node:u32)->u32{return mixWord(w^mixWord(node))&views[0u].heldMask;}
 fn openOf(w:u32,node:u32,blank:u32)->u32{
  if(heldByOf(w)==0u){return blank;}
  var s=heldHash(w,node);

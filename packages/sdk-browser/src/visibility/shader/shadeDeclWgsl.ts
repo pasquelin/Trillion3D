@@ -1,5 +1,5 @@
 import { FULLSCREEN_X, FULLSCREEN_Y } from '../../gpu/shader/fullscreenTriangle.ts'
-import { PIXEL_BARY_WGSL, PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
+import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
@@ -74,7 +74,6 @@ export const SHADE_DECL_WGSL = wgslBlock(
     PAGE_NORMAL_WGSL,
     PAGE_UV1_WGSL,
     edgeFunction,
-    PIXEL_BARY_WGSL,
     UV_GRADIENTS_WGSL,
     TILE_POOL_WGSL,
     COLOR_SAMPLE_WGSL,

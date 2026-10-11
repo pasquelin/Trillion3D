@@ -1,4 +1,5 @@
 import { bindForwardReflection } from '../../reflections/gpu.ts'
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { scissorTo } from './bounds.ts'
 import { createWaterFreeze } from './freeze.ts'
 import { createWaterDepthRestore } from './depthRestore.ts'
@@ -200,7 +201,7 @@ function createWaterPasses() {
   const depth: GPURenderPassDepthStencilAttachment = {
     view: unnamed,
     depthLoadOp: 'clear',
-    depthClearValue: 0,
+    depthClearValue: DEPTH_CLEAR,
     depthStoreOp: 'store',
   }
   const word: GPURenderPassColorAttachment = {

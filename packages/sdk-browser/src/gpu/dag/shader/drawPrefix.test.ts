@@ -24,7 +24,7 @@ test('the drawable-page prefix scans the block totals with the shared lane scan'
   assert.equal(DAG_SELECTION_SHADER.split(LANE_SCAN_WGSL.text).length, 2, 'the lane scan, once')
   const kernel = prefixKernel()
   assert.match(kernel, /laneRun\(lane,count\)/, 'each lane owns a run of blocks')
-  assert.match(kernel, /laneScan\(lane,total\)-total/, 'an exclusive prefix per run')
+  assert.match(kernel, /laneScan\(lane,sum\)-sum/, 'an exclusive prefix per run')
   assert.doesNotMatch(kernel, /laneTotals|for\(var l=0u;l<lane;/, 'no serial walk over the lanes')
 })
 

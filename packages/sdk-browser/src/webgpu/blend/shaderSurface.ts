@@ -1,4 +1,5 @@
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
@@ -74,6 +75,7 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
     [
       unitOrZero,
       unitToSigned3,
+      ORM_LAW_WGSL,
       COTANGENT_FRAME_WGSL,
       BLEND_SURFACE_NORMAL_WGSL,
       BLEND_SHADOW_FOOTPRINT_WGSL,
@@ -104,10 +106,11 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  let face=select(-1.0,1.0,front);
  let alpha=blendAlpha(in,base);
  let rgb=in.color.xyz*base.xyz;
- var rough=in.pbr.x;var metal=in.pbr.y;var ao=1.0;
- if(in.maps.x!=0u){rough*=dataSample(in.maps.x,${uv},gradX,gradY,sampled).g;}
- if(in.maps.y!=0u){metal*=dataSample(in.maps.y,${uv},gradX,gradY,sampled).b;}
- if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,${uv},gradX,gradY,sampled).r-1.0);}
+ var roughTexel=1.0;var metalTexel=1.0;var aoTexel=1.0;
+ if(in.maps.x!=0u){roughTexel=dataSample(in.maps.x,${uv},gradX,gradY,sampled).g;}
+ if(in.maps.y!=0u){metalTexel=dataSample(in.maps.y,${uv},gradX,gradY,sampled).b;}
+ if(in.maps.w!=0u){aoTexel=dataSample(in.maps.w,${uv},gradX,gradY,sampled).r;}
+ let rough=ormRoughness(in.pbr.x,roughTexel);let metal=ormMetalness(in.pbr.y,metalTexel);let ao=ormOcclusion(in.alphaAo.y,aoTexel);
  if(in.maps.z!=0u){
   let mapN=unitToSigned3(dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz);
   // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
@@ -116,7 +119,7 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   var T=-frame.T;var B=-frame.B;
   if((flags&2048u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
   if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
-  N=unitOrZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
+  N=bendNormal(N,T,B,vec3f(mapN.x*in.pbr.z,mapN.y*in.pbr.w,mapN.z));
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,${uv},gradX,gradY,sampled).rgb;}

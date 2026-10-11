@@ -9,7 +9,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb, srgbToLinear } from '../../../math/src/color/color.ts'
-import { TONE_MAPPING_WGSL, TONE_UNMAPPING_WGSL } from './toneMappingWgsl.ts'
+import { DISPLAY_VALUE_WGSL, TONE_UNMAPPING_WGSL } from './toneMappingWgsl.ts'
 
 type Curve = (c: number[]) => number[]
 const run = shaderRun<{
@@ -19,7 +19,7 @@ const run = shaderRun<{
   neutralCurve: Curve
   toneUnmap: (y: number[], curve: number) => number[]
 }>(
-  wgslModule(TONE_MAPPING_WGSL, TONE_UNMAPPING_WGSL),
+  wgslModule(DISPLAY_VALUE_WGSL, TONE_UNMAPPING_WGSL),
   [
     'toneUnmap',
     'aces',

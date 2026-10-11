@@ -5,7 +5,11 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentBillboard } from '../../../../math/src/wgsl/basis.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PARTICLE_WORKGROUP, stepFoldWgsl } from './stepFoldWgsl.ts'
-import { perspectiveDivide, pixelToNdc } from '../../../../math/src/wgsl/projection.ts'
+import {
+  perspectiveDivide,
+  pixelToNdc,
+  transformHomogeneousPoint,
+} from '../../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
 
@@ -147,7 +151,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
 fn particle(in: Out) -> vec4f {
   let size = draw.drawn;
   let ndc = pixelToNdc(in.at.xy, size);
-  let scene = draw.unclip * vec4f(ndc, textureLoad(depth, vec2i(in.at.xy), 0), 1);
+  let scene = transformHomogeneousPoint(draw.unclip, vec3f(ndc, textureLoad(depth, vec2i(in.at.xy), 0)));
   let behind = distance(perspectiveDivide(scene), draw.eye) - distance(in.local, draw.eye);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > DIVISOR_FLOOR);
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
@@ -167,6 +171,7 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
     displayMaskWgsl(1),
     tangentBillboard,
     perspectiveDivide,
+    transformHomogeneousPoint,
     DIVISOR_FLOOR,
     pixelToNdc,
     unitToSigned2,

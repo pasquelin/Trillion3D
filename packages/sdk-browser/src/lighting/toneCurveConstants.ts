@@ -84,18 +84,37 @@ export const AGX = {
   contrast: '15.5*c4*c2-40.14*c4*c+31.96*c4-6.868*c2*c+0.4298*c2+0.1191*c-0.00232',
 }
 
-/** The filmic rational fit of `x = max(0, c − 0.004)`, display gamma included. */
+/** The display gamma the filmic curves carry, which a power takes back to linear before the sRGB
+ *  transfer (cineon, agx), and its inverse, for the curves' inverses. */
+export const GAMMA = 2.2
+
+/** The filmic rational fit of `x = max(0, c − 0.004)`, display gamma included:
+ *  `x(a·x + b) / (x(a·x + c) + d)`. */
+const CINEON_FIT = { a: 6.2, b: 0.5, c: 1.7, d: 0.06 }
 export const CINEON = {
   offset: wgslF32(0.004),
-  curve: '(x*(6.2*x+0.5))/(x*(6.2*x+1.7)+0.06)',
+  fit: CINEON_FIT,
+  curve: `(x*(${CINEON_FIT.a}*x+${CINEON_FIT.b}))/(x*(${CINEON_FIT.a}*x+${CINEON_FIT.c})+${CINEON_FIT.d})`,
 }
 
+/** The neutral operator's numbers: its toe below `toeKnee`, lifted by `offset` where it ends, its
+ *  knee, its shoulder from `shoulder` and its blend's `slope`. */
+const NEUTRAL_FIT = {
+  toeKnee: 0.08,
+  toeScale: 6.25,
+  offset: 0.04,
+  knee: 0.76,
+  shoulder: 0.52,
+  shoulderRange: 0.0576,
+  slope: 0.15,
+}
 /** The neutral operator: its toe below 0.08, its knee at 0.76, its shoulder. */
 export const NEUTRAL = {
-  toe: 'low<0.08',
-  toeOffset: 'low-6.25*low*low',
-  offset: wgslF32(0.04),
-  knee: wgslF32(0.76),
-  top: '1.0-0.0576/(peak-0.52)',
-  blend: '1.0-1.0/(0.15*(peak-top)+1.0)',
+  fit: NEUTRAL_FIT,
+  toe: `low<${NEUTRAL_FIT.toeKnee}`,
+  toeOffset: `low-${NEUTRAL_FIT.toeScale}*low*low`,
+  offset: wgslF32(NEUTRAL_FIT.offset),
+  knee: wgslF32(NEUTRAL_FIT.knee),
+  top: `1.0-${NEUTRAL_FIT.shoulderRange}/(peak-${NEUTRAL_FIT.shoulder})`,
+  blend: `1.0-1.0/(${NEUTRAL_FIT.slope}*(peak-top)+1.0)`,
 }

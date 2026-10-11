@@ -1,7 +1,7 @@
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts'
 import { HIZ_REJECTED_WGSL, ST_TESTED } from '../partition/contract.ts'
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
@@ -99,15 +99,7 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
  for(var n=0u;n<uni.restSlots;n++){
   let tiles=(sharedCount(lane,work[countWord(n)])+${REST_COMPACT_WORKGROUP - 1}u)/${REST_COMPACT_WORKGROUP}u;
   let span=laneRun(lane,tiles);
-  var sum=0u;
-  for(var t=span.x;t<span.y;t++){sum=sum+work[tileWord(n,t)];}
-  // Inclusive scan of the run totals over the lanes.
-  var cursor=laneScan(lane,sum)-sum;
-  for(var t=span.x;t<span.y;t++){
-   let kept=work[tileWord(n,t)];
-   work[tileWord(n,t)]=cursor;
-   cursor=cursor+kept;
-  }
+  ${laneRunOffsets('t', 'span', 'lane', '', 'work[tileWord(n,t)]', 'work[tileWord(n,t)]=cursor')}
   if(lane==0u){indirect[restSlotAt(n)*4u+1u]=laneSums[63u];}
   workgroupBarrier();
  }

@@ -11,7 +11,8 @@ import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
+import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
+import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { lecture, lectureDonnee, siCarte } from './maps.ts'
 import {
   AS_IS_FLAG,
@@ -85,7 +86,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    ['roughSample', 'rough'],
    ['metalSample', 'metal'],
  ])}
- let ao=1.0+page.aoIntensity*(aoSample.r-1.0);
+ let ao=ormOcclusion(page.aoIntensity,aoSample.r);
  var emissive=page.emissive.xyz;
  ${siCarte('emissive', `emissive*=${lecture('colorSample', 'emissive')}.rgb;`)}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
@@ -101,15 +102,15 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}
  if(uni.mode==${SHADE_MODE.wireframe}u){
   let edgeW=wireframeEdge(bary,width);
-  return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
+  return diagnosticSurface(diagnosticWire(hashColor(stableTriangleId(page.clusterHash,tri)),edgeW),request);
  }
  if(uni.mode==${SHADE_MODE.clusters}u){return diagnosticSurface(hashColor(page.clusterHash),request);}
- if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
- if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
+ if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(diagnosticFlat(),request);}
+ if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(diagnosticLevel(page.pad1>0.5),request);}
+ if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(diagnosticFlat(),request);}
+ if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(diagnosticError(ratio),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,ROUGHNESS_FLOOR,1.0);
+ var metal=ormMetalness(page.metalness,metalSample.z);var rough=ormRoughness(page.roughness,roughSample.y);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=worldMatrix3(page.world);
@@ -152,7 +153,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
    if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
-   N=unitOrZero(T*mapN.x+B*mapN.y+N*mapN.z);
+   N=bendNormal(N,T,B,mapN);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
@@ -188,7 +189,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       NORMAL_VIEW_COLOR_WGSL,
       EMISSIVE_AO_FLAG_WGSL,
       SHADE_DECL_WGSL,
-      ROUGHNESS_FLOOR,
+      ORM_LAW_WGSL,
+      DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,
       invTranspose3Apply,
       unitOrZero,

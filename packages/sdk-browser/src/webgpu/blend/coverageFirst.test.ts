@@ -50,6 +50,12 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'blendPhysicalBegin',
     'blendLobes',
     'lobeThrough',
+    'litSurface',
+    'ormRoughness',
+    'ormMetalness',
+    'ormOcclusion',
+    'lobeRoughness',
+    'bendNormal',
   ]
   const zero = (v: number[]) => v.map(() => 0)
   const lit = () => (counts.lights++, [0.25, 0.25, 0.25])

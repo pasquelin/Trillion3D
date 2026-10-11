@@ -1,3 +1,4 @@
+import { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { PROJECTION_SLACK_WGSL } from './projectionSlackWgsl.ts'
 import { DEPTH_GROW, SCREEN_SLACK_K } from '../partition/margins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
@@ -66,7 +67,7 @@ struct BoxProj{rect:vec4i,nearest:f32,clips:u32,}
  *  Reversed depth: moving closer to the eye is ADDING units, capped at the bits of 1. */
 fn biasedDepth(value:f32,layer:u32)->f32{
  if(layer==0u){return value;}
- let units=min(layer,15u)*16u;
+ let units=min(layer,${MAX_DEPTH_LAYER}u)*${DEPTH_LAYER_BIAS_UNITS}u;
  return bitcast<f32>(min(0x3f800000u,bitcast<u32>(value)+units));
 }
 fn projectBox(slot:u32,layer:u32)->BoxProj{
