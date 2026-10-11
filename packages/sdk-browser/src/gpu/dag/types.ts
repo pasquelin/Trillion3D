@@ -143,7 +143,7 @@ export type PackedDag = {
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
   /** The world DAG, when packed: its placement and its `origins`, which the cut's residency
-   *  mirrors (`worldMirror.ts`), and each placement's link to the world cluster that stands in for
+   *  mirrors (`residencyMirror.ts`), and each placement's link to the world cluster that stands in for
    *  it (`worldLinks.ts`). */
   world?: PackedWorld
   /** The cells and groups above the placements (`placementTree.ts`), when they take one. */

@@ -36,7 +36,7 @@ export const worldRootsPageAddress = (url: string, bundle: number, offset: numbe
  * bundle as its `holder`, and is `held` by it, joining the cover with its cell
  * (`webgpu/pages/prepare/worldRoot.ts`). With them, each cluster's `origin`, the placed object
  * whose own stream holds an object root's page, -1 for a super-root (the residency mirror reads
- * it, `gpu/dag/worldMirror.ts`); and the quantization displacement every band is raised by. A
+ * it, `gpu/dag/residencyMirror.ts`); and the quantization displacement every band is raised by. A
  * cluster out of its rank is refused, `WORLD_CLUSTER_RANK`, since the groups name clusters by rank.
  */
 export function worldRootPages(

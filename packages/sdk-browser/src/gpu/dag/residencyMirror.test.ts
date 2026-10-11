@@ -4,7 +4,7 @@
 // leaf exactly once: no hole, no double draw.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorldResidencyMirror } from './worldMirror.ts'
+import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'

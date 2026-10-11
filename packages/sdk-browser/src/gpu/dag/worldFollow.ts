@@ -6,7 +6,7 @@
  * records before the next cut, the moved ranks joined into writes by the cut's one run writer,
  * by their bytes (`split.ts`) — what is written follows the moves (`worldLinks.ts`) —, read
  * by the descent's gate, and the residency mirror reads the move at the next residency it hands
- * the cut (`worldMirror.ts`). A move with no residency change behind it is handed
+ * the cut (`residencyMirror.ts`). A move with no residency change behind it is handed
  * over before the next cut is encoded, on the rows' flags the cut last received: the object's
  * cluster turns out the frame its placement leaves, so its group's super-roots stand in at once.
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).

@@ -75,7 +75,7 @@ export function worldRootDag(
     structure,
     // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
     culling: flatHierarchy(pages),
-    // Each object root's placed object, which its residency mirrors (`gpu/dag/worldMirror.ts`).
+    // Each object root's placed object, which its residency mirrors (`gpu/dag/residencyMirror.ts`).
     origins,
     held,
   }

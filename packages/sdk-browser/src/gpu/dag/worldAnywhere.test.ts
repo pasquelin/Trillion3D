@@ -5,7 +5,7 @@
 // three cells of four objects packed between them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorldResidencyMirror } from './worldMirror.ts'
+import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { packDagSelection } from './pack.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'

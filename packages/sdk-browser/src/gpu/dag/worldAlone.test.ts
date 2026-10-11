@@ -12,7 +12,7 @@ import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
-import { createWorldResidencyMirror } from './worldMirror.ts'
+import { createWorldResidencyMirror } from './residencyMirror.ts'
 
 /** The scene with one lone object, the last, its world cluster, its copies, and the mirror. */
 function lone() {
