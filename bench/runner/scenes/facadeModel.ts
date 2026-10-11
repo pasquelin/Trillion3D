@@ -6,7 +6,7 @@
 // count; the bay — one storey tall, one bay wide — is the scene's unit, and every length is
 // counted in it. Two seeds give two different blocks with the same guarantees.
 
-import { mulberry32 } from '../../../site/examples/kit/random.ts'
+import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 
 /** The three ways a wall lays its texture coordinates out, one per wall around the block, and
  *  `per-brick`, asked for every wall at once: each cell of the bay's cut owns its four corners and

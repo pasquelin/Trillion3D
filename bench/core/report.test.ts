@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { baselinePath, fragmentPath, dossierBaselines } from './paths.ts'
+import { baselinePath, fragmentPath, BASELINES } from './paths.ts'
 
 const median = process.env.GATE_MEDIAN
 if (median !== undefined) {
@@ -51,7 +51,7 @@ if (median !== undefined) {
   }
 
   test('a case 30 % slower than its baseline fails; 20 % passes; no baseline says so', () => {
-    mkdirSync(dossierBaselines, { recursive: true })
+    mkdirSync(BASELINES, { recursive: true })
     writeFileSync(baselinePath(domaine), JSON.stringify(baseline))
     try {
       const slower = run(1.3)

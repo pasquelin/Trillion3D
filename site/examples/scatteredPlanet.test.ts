@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { math } from '../../packages/sdk-core/src/world/math/index.ts'
-import { seeded, valueNoise } from './kit/random.ts'
+import { lcgRandom } from '../../packages/math/src/sequence/random.ts'
+import { valueNoise } from './kit/random.ts'
 
 type Lengths = { unit: (v: number[]) => number[]; length: (v: number[]) => number }
 const direction = math.vector3()
@@ -117,7 +118,7 @@ function planet(L: Lengths) {
         for (const p of [polygon[0], polygon[k], polygon[k + 1]]) band.push(...p.slice(0, 6))
     })
   }
-  const next = seeded(3),
+  const next = lcgRandom(3),
     step = 0.004
   const candidates = Array.from({ length: 10000 }, () => {
     const y = next() * 2 - 1,

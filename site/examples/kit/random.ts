@@ -7,23 +7,16 @@
  */
 
 import { ease } from './opening.ts'
-import {
-  lcgRandom,
-  mulberry32 as mulberry32Sequence,
-} from '../../../packages/math/src/sequence/random.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { fract } from '../../../packages/math/src/scalar/reals.ts'
 import type { Families } from './engineTypes.ts'
 
 /** A sequence of numbers in [0, 1) from a seed. */
 export type Random = () => number
 
-/** The example pages' sequence: `lcgRandom`, a linear congruential step on 32-bit integers, so a
- *  seed always gives the same numbers. */
+/** The example pages' name for `lcgRandom` (`packages/math/src/sequence/random.ts`), a linear
+ *  congruential step on 32-bit integers, so a seed always gives the same numbers. */
 export const seeded: (seed: number) => Random = lcgRandom
-
-/** Mulberry32: a 32-bit sequence on integer arithmetic alone, so every machine draws the same
- *  numbers; the scenes modelled in code, the bench's facade and the correctness campaigns. */
-export const mulberry32: (seed: number) => Random = mulberry32Sequence
 
 /** The temple's scatter: a value in [0, 1) for `index` and channel `k`, the fraction of a scaled
  *  sine. */

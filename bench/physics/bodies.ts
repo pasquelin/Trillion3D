@@ -27,7 +27,7 @@ import {
 import { summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'
-import { seeded } from '../../site/examples/kit/random.ts'
+import { lcgRandom } from '../../packages/math/src/sequence/random.ts'
 import {
   runJoltThread,
   type JoltThreadStart,
@@ -70,7 +70,7 @@ function scene(count: number) {
     })
   }
   body(0, MOTION.static, [0, -1, 0], new Quaternion(), 0)
-  const next = seeded(11),
+  const next = lcgRandom(11),
     side = Math.ceil(Math.sqrt(count / 10)),
     turn = new Quaternion()
   for (let i = 0; i < count; i++) {

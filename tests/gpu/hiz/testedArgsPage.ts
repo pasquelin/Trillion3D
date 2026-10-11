@@ -17,11 +17,10 @@ import { laidPyramid } from './casePyramid.ts'
 import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readBuffer } from '../kit/computeReadback.ts'
-import { BOX_NEAREST, CASES } from './occlusionTestCases.ts'
+import { BOX_NEAREST, CASES, UNIFORM_BYTES } from './occlusionTestCases.ts'
 
 /** Rows the table holds, far more than the image tests. */
 const TABLE_ROWS = 20_000
-const UNIFORM_BYTES = 256
 
 export interface TestedArgsRun {
   adapter: string

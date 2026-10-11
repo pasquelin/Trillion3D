@@ -3,7 +3,7 @@
 // measurement/case, never by its source file: multiple benchmarks measure the same file.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { baselinePath, dossierBaselines } from './paths.ts'
+import { baselinePath, BASELINES } from './paths.ts'
 import type { Measurement } from '../../site/examples/kit/measureTypes.ts'
 import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
@@ -72,7 +72,7 @@ export function sauveBaseline(domaine: string, measurements: Measurement[]) {
       nsParElement: r.nsParElement ?? null,
     })),
   )
-  mkdirSync(dossierBaselines, { recursive: true })
+  mkdirSync(BASELINES, { recursive: true })
   writeFileSync(
     baselinePath(domaine),
     JSON.stringify(

@@ -14,10 +14,8 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { laidPyramid } from './casePyramid.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { BOX_NEAREST, type OcclusionCase } from './occlusionTestCases.ts'
+import { BOX_NEAREST, UNIFORM_BYTES, type OcclusionCase } from './occlusionTestCases.ts'
 
-/** Bytes of the test's uniform block, bound at a dynamic offset. */
-const UNIFORM_BYTES = 256
 /** Words of `Bounds` the cases fill: the rectangle, then these. */
 const NEAREST = 4,
   ROW_AND_CLIP = 5,
