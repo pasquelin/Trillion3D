@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
+import { SHADOW_VIEW_WGSL } from '../direct/shadowViewWgsl.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 
 /**
@@ -67,4 +68,13 @@ fn pixelFootprint(coord:vec2i,pixel:vec2f,z:f32,P:vec3f)->f32{
  let at=worldAt(centre,held);
  return length(worldAt(centre+vec2f(1.0,0.0),held)-at);
 }`,
+)
+
+/** The shadow read's view for a pixel at depth \`z\` whose footprint is \`footprint\`: the camera, the
+ *  image's width and the angle one pixel spans at the image centre's depth \`z\`. Requires \`view\`;
+ *  lists \`worldAt\` (\`WORLD_AT_WGSL\`). */
+export const SHADOW_VIEW_AT_WGSL = wgslBlock(
+  'SHADOW_VIEW_AT_WGSL',
+  [WORLD_AT_WGSL, SHADOW_VIEW_WGSL],
+  `fn shadowViewAt(footprint:f32,z:f32){shadowSetView(view.camera.xyz,view.viewport.x,footprint,worldAt(view.viewport.xy*0.5,z));}`,
 )

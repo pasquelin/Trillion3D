@@ -35,7 +35,7 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     // The mask's pixel first; the footprint, view and receiver only for the translucent casters' read.
     assert.ok(setup.includes('{\n vsmMaskAt(coord);\n if(vsmTranslucentCasters()){'))
     const translucent = setup.slice(setup.indexOf('if(vsmTranslucentCasters()){'))
-    for (const read of ['pixelFootprint(', 'shadowSetView(', 'shadowReceiver(pixel'])
+    for (const read of ['pixelFootprint(', 'shadowViewAt(', 'shadowReceiver(pixel'])
       assert.ok(translucent.includes(read), read)
     const flag = shader.slice(shader.indexOf('fn cellShadowed(')).split('\n')[0]
     assert.equal(flag.includes('TILE_SHADOWED'), shadowed, 'the flag, read with shadow code')
