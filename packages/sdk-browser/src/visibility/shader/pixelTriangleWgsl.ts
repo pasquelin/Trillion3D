@@ -16,7 +16,7 @@ import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
 export const SHADE_UNI_WGSL = wgslBlock('SHADE_UNI_WGSL', [], SHADE_UNIFORM.wgsl)
 
 /** A clip position on the resolve's framebuffer: pixels, then the depth. */
-export const FRAMEBUFFER_WGSL = wgslBlock(
+const FRAMEBUFFER_WGSL = wgslBlock(
   'FRAMEBUFFER_WGSL',
   [clipToFramebuffer],
   'fn framebuffer(clip:vec4f)->vec3f{return clipToFramebuffer(clip,uni.viewport);}',
@@ -31,7 +31,7 @@ export const FRAMEBUFFER_WGSL = wgslBlock(
  * invTranspose3Apply returns the transformed FACE normal: the three vertex normals fall on the same
  * direction, and interpolation keeps it.
  */
-export const VERTEX_NORMALS_WGSL = wgslBlock(
+const VERTEX_NORMALS_WGSL = wgslBlock(
   'VERTEX_NORMALS_WGSL',
   [invTranspose3Apply, unitOrZero],
   `fn transformedNormals(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,side:f32)->mat3x3f{

@@ -7,7 +7,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_ENVIRONMENT_WGSL } from './field.ts'
 import { BEGIN_SHADER } from './trace.ts'
-import { TONE_MAPPING_WGSL } from '../lighting/toneMappingWgsl.ts'
+import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
 
@@ -113,7 +113,7 @@ test('a scene with no light around it is surrounded by its background, as the di
   const environment = Array.from({ length: 9 }, () => [0, 0, 0, 0])
   const work = [7, 0, 0, 0]
   const run = shaderRun<{ reflectionBegin: () => void; aces: (c: number[]) => number[] }>(
-    BEGIN_SHADER + wgslModule(TONE_MAPPING_WGSL),
+    BEGIN_SHADER + wgslModule(DISPLAY_VALUE_WGSL),
     [
       'reflectionBegin',
       'toneUnmap',

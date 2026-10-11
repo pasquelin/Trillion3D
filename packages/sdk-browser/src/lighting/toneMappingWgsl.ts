@@ -31,7 +31,7 @@ const R = TONE_MAPPING_RANK
  *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
  * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are.
  */
-export const TONE_MAPPING_WGSL = wgslBlock(
+const TONE_MAPPING_WGSL = wgslBlock(
   'TONE_MAPPING_WGSL',
   [ACES_WGSL, maxChannel, minChannel],
   `fn cineonCurve(color:vec3f)->vec3f{
