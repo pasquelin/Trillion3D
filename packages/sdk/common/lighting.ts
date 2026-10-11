@@ -29,16 +29,6 @@ export type {
   ShadowViewpoint,
 } from '../../sdk-core/src/scene/light/contracts.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
-export {
-  PROXY_CHILD_WORDS,
-  PROXY_CHILDREN,
-  PROXY_NODE_FLOATS,
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-  SCENE_PROXY_HEADER_WORDS,
-  SCENE_PROXY_MAGIC,
-  SCENE_PROXY_VERSION,
-} from '../../sdk-core/src/contracts/proxy.ts'
 export type {
   SceneProxy,
   SceneProxyColumns,

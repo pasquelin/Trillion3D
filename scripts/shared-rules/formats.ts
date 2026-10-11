@@ -12,7 +12,7 @@ const COMPILER = 'packages/asset-compiler-rust/src'
  *  when they differ. */
 const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, string])[]])[] = [
   [
-    'manifest_binary.rs',
+    'manifest_binary/version.rs',
     ['MANIFEST_BINARY_VERSION', 'MANIFEST_BINARY_MAGIC', 'MANIFEST_BINARY_HEADER_WORDS'],
   ],
   [

@@ -1,7 +1,7 @@
 import { EngineError } from './cache.ts'
 import { IMPOSTOR_VERSION } from './writtenFormats.ts'
 
-export { IMPOSTOR_VERSION }
+export { IMPOSTOR_VERSION } from './writtenFormats.ts'
 
 /** One stored level of one atlas map: a lossless PNG object, one per content address. */
 export interface ImpostorLevel {

@@ -30,23 +30,12 @@ mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
+mod version;
 pub use digests::{digests, texture_digests, texture_levels, BakedLevels};
 use format::*;
 #[cfg(test)]
 use tests::split;
-
-/// Every version changes what a column means, so a reader refuses any version but its own; the
-/// history sits beside the reader (`sdk-core/src/manifest/binaryFormat.ts`). Version 8 adds the
-/// page dependencies of the streaming bundles, a count per bundle then the flat closed lists: a
-/// reader of version 7 would install a bundle before the bundles holding its parents. Version 9
-/// adds each page's normal cone (`trillion3d_page_codec::normal_cone`), a column a reader of version 8 lacks.
-/// Version 10 holds one manifest page's columns (`compiler_manifest_pages.rs`), the head's the
-/// previews alone. Version 11 adds the ETC2 family: its block column after ASTC's, and its layout
-/// word in each preview entry.
-pub const MANIFEST_BINARY_VERSION: u32 = 11;
-/// 'W','G','M','B' read as a little-endian u32.
-pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
-pub const MANIFEST_BINARY_HEADER_WORDS: usize = 4;
+pub use version::*;
 
 const PAGE_BOUNDS: usize = 0;
 const PAGE_SPHERE: usize = 1;

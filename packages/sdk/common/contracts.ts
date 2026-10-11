@@ -17,7 +17,6 @@ export type {
 export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/contracts/material.ts'
 export {
   assertImpostorSection,
-  IMPOSTOR_VERSION,
   impostorMeshBaked,
   validateImpostorSection,
 } from '../../sdk-core/src/contracts/impostor.ts'
@@ -45,6 +44,21 @@ export {
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts'
+export {
+  CUTOUT_SHEET_FILE,
+  CUTOUT_SHEET_VERSION,
+  IMPOSTOR_VERSION,
+  MANIFEST_BINARY_MAGIC,
+  MANIFEST_BINARY_VERSION,
+  PROXY_CHILD_WORDS,
+  PROXY_CHILDREN,
+  PROXY_NODE_FLOATS,
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+  SCENE_PROXY_HEADER_WORDS,
+  SCENE_PROXY_MAGIC,
+  SCENE_PROXY_VERSION,
+} from '../../sdk-core/src/contracts/writtenFormats.ts'
 export type {
   DagReport,
   DagStall,
