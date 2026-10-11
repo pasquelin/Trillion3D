@@ -215,8 +215,8 @@ export const VSM_POOL_PAGES = 2048
 /** Declared: how far past its page a marked point also marks the neighbouring page, directional /
  *  local, a fraction of a page (0.05 = 6.4 texels): a filter or a ray reaching across the page
  *  edge finds the page mapped. Larger marks more pages; 0 marks the point's page alone. */
-export const VSM_SUN_PAGE_MARGIN = 0.05
-export const VSM_LOCAL_PAGE_MARGIN = 0.05
+const VSM_SUN_PAGE_MARGIN = 0.05
+const VSM_LOCAL_PAGE_MARGIN = 0.05
 /** Declared: a caster whose radius covers fewer of the map's pixels than this is fine: it draws into
  *  the pages marked from pixels and not into coarse ones; dynamic / static casters. Larger keeps
  *  more small casters out of coarse pages (fewer redraws, their far shadow gone), smaller draws
@@ -241,34 +241,32 @@ export const VSM_NORMAL_BIAS = 0.5 / 1000
 /** The least of that offset, 0.02 cm, near the eye. */
 const VSM_NORMAL_OFFSET_FLOOR = 0.02 * VSM_UNIT_PER_CM
 /** The rays after which a group whose lanes all hit (an umbra) stops. */
-export const VSM_TRACE_VOTE_AFTER = 1
+const VSM_TRACE_VOTE_AFTER = 1
 /** The rays a pixel traces and the samples each ray takes, local / sun: 7 × 8 at most a light. More
  *  rays smooth the penumbra (its noise falls as one over their root), more samples catch thinner
  *  occluders; each costs in proportion. */
-export const VSM_TRACE_RAYS_LOCAL = 7
-export const VSM_TRACE_STEPS_LOCAL = 8
+const VSM_TRACE_RAYS_LOCAL = 7
+const VSM_TRACE_STEPS_LOCAL = 8
 export const VSM_TRACE_RAYS_SUN = 7
 export const VSM_TRACE_STEPS_SUN = 8
-/** The rays a lane counts at most: its high nibble (`vsmMaskCode`). */
-export const VSM_MASK_MAX_RAYS = (1 << 4) - 1
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
-export const VSM_TRACE_CONE_LIMIT = 0.03
+const VSM_TRACE_CONE_LIMIT = 0.03
 /** The steepest slope the march extends an occluder's surface with behind a sample, local (in the
  *  map's depth per unit of ray time) / sun (a depth per unit of ray time in the level's centimetre
  *  arithmetic, converted by `vsmSunRayBegin`).
  *  Steeper reaches further behind thin occluders, and over gaps. */
-export const VSM_TRACE_SLOPE_CAP_LOCAL = 0.05
-export const VSM_TRACE_SLOPE_CAP_SUN = 5
+const VSM_TRACE_SLOPE_CAP_LOCAL = 0.05
+const VSM_TRACE_SLOPE_CAP_SUN = 5
 /** The rays' start dither, in texels, local / sun: it hides the texel grid in the penumbra. More
  *  blurs it, 0 shows the texels. */
-export const VSM_TRACE_DITHER_LOCAL = 2
-export const VSM_TRACE_DITHER_SUN = 2
+const VSM_TRACE_DITHER_LOCAL = 2
+const VSM_TRACE_DITHER_SUN = 2
 /** The largest receiver-plane bias of a local ray, in texels of the dither: it keeps a grazing
  *  receiver off its own texels. */
-export const VSM_TRACE_PLANE_BIAS_CAP_LOCAL = 50
+const VSM_TRACE_PLANE_BIAS_CAP_LOCAL = 50
 /** A sun ray's length, in units of the receiver's distance to the eye. */
-export const VSM_TRACE_REACH_SUN = 1.5
+const VSM_TRACE_REACH_SUN = 1.5
 
 // Clipmap (levels are log2 centimetres). Declared: the finest level's radius is 2^7 cm = 1.28 m,
 // the coarsest's 2^23 cm = 83.9 km, the sun's shadow reach; the coarse pages are marked on the

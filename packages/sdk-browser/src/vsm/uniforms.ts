@@ -87,7 +87,7 @@ export function writeVsmUniforms(
   frame: VsmFrameUniforms,
   byteOffset = 0,
 ) {
-  const { u, i, f } = viewsOf(out, byteOffset)
+  const { u, f } = viewsOf(out, byteOffset)
   u[0] = frame.frameStamp >>> 0
   u[1] = frame.fullMapCount
   u[2] = frame.singlePageMapCount

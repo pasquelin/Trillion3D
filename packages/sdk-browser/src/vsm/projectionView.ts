@@ -2,6 +2,8 @@
 // its byte size all derive from the field lists below (`projectionPass.ts` writes, `projectionWgsl.ts`
 // and `traceWgsl.ts` declare). Scalars pack into the 16-byte row of the vector before them.
 
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+
 /** Words of a WGSL type of the view's fields. */
 const WORDS = { mat4x4f: 16, vec4f: 4, vec4i: 4, vec3f: 3, f32: 1, u32: 1, i32: 1 } as const
 type FieldType = keyof typeof WORDS
@@ -57,7 +59,7 @@ const structOf = (name: string, fields: readonly Field[], tail = '') =>
 
 /** Words of the header and of a light's record (a struct of 16-byte rows, its tail padded). */
 export const VSM_PROJECTION_HEADER_WORDS = wordsOf(HEADER)
-export const VSM_PROJECTION_LIGHT_WORDS = Math.ceil(wordsOf(LIGHT) / 4) * 4
+export const VSM_PROJECTION_LIGHT_WORDS = ceilDiv(wordsOf(LIGHT), 4) * 4
 /** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
 export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
 /** Byte size of `VsmProjectionView` (uniform). */
