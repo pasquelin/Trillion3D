@@ -11,13 +11,7 @@ import { LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts'
 import { lineDash } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts'
 import { floorMod } from '../../../../math/src/wgsl/reals.ts'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
-
-// The cut writes its pages with the SDK module; Node cannot fetch it by its URL, so the test hands
-// it the bytes, as the cones' test does.
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../wasm/kernels.wasm')))
+import '../../wasm/sdkWasm.fixture.ts'
 
 /** The depth layer of every page the world cuts from `drawn`. */
 async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {

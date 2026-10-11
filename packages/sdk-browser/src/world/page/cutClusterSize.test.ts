@@ -1,20 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import {
   DAG_CLUSTER_TRIANGLES,
   DAG_CLUSTER_VERTICES,
 } from '../../../../sdk-core/src/page/format.ts'
-import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
+import '../../wasm/sdkWasm.fixture.ts'
 import { cutDrawnTriangles } from './runtimeCut.ts'
 
 // The compiler's cluster size (`dag.rs`, printed into `sdk-core/src/page/format.ts`) is the run-time
 // cutter's: a page it writes holds at most that many triangles and vertices, and a dense mesh
 // fills them.
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../wasm/kernels.wasm')))
 
 test("the run-time cutter's clusters are the compiler's size", async () => {
   const drawn = drawnTriangles(geometry.sphere(1, 64, 32), 'triangles')!

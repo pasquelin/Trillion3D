@@ -1,16 +1,10 @@
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { assertGolden } from '../../../../math/src/golden.fixture.ts'
-import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
+import { sdkWasm as module } from '../../wasm/sdkWasm.fixture.ts'
 
 // The grid rules of a primitive as the SDK module exports them to the run-time cut
 // (`page-codec-wasm/src/wasm_encode.rs`), against the exponents the Rust rules wrote
 // (`page-codec-wasm/src/golden_tests/grid.rs`): hostile spans, the rules' documented cases, a sweep.
-const module = await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../wasm/kernels.wasm')),
-)
-if (!module) throw new Error('the SDK module does not instantiate')
 
 /** The finest grid of a span with no finite logarithm, as `finest_exponent` documents it: a NaN or
  *  a negative one 2^-23, a zero the finest, an infinite one the coarsest. */
