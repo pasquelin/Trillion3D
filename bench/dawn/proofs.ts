@@ -54,14 +54,6 @@ export const EXCLUDED = new Map<string, [string, string]>([
     ],
   ],
   [
-    'lighting/narrow-resolve',
-    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 to 3 ulp)'],
-  ],
-  [
-    'lighting/sampled-resolve',
-    [REGRESSION, 'TODO #1369: the rectless program is not bit-equal to the full one (1 ulp)'],
-  ],
-  [
     'vsm/camera-stop',
     [
       REGRESSION,
@@ -80,13 +72,6 @@ export const EXCLUDED = new Map<string, [string, string]>([
     [
       STALE_DUPLICATE,
       'hand-written 16 to 24 hold frames where the engine holds after taaStillFrames (66), and a new camera object per pan frame, which the engine reads as a view cut',
-    ],
-  ],
-  [
-    'lighting/sampled-lighting',
-    [
-      STALE_DUPLICATE,
-      'its moving-image threshold (max >= 3) already failed on develop; the threshold is unproven',
     ],
   ],
   [

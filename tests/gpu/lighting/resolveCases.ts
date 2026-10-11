@@ -71,3 +71,29 @@ export function assertSameBits(actual: number[], expected: number[], name: strin
     : ''
   assert.equal(apart.length, 0, `${name}: ${apart.length} of ${actual.length} words differ${first}`)
 }
+
+/** The ordered integer of an f32's bits: neighbouring floats are neighbouring integers, across zero. */
+const ordered = (bits: number) => (bits >= 0x80000000 ? 0x80000000 - bits : bits)
+
+/**
+ * Asserts two runs' sums are the same terms within `ulps` units in the last place: the programs
+ * compared hold the same operations in the same order (the text of the one is the other's less a
+ * branch that never runs, or its hoisted term), and the platform compiler contracts and orders the
+ * products of each as its register allocation lets it, which moves a sum by a unit of its last
+ * place. A sum that moved more is a term that changed.
+ */
+export function assertWithinUlps(actual: number[], expected: number[], ulps: number, name: string) {
+  assert.equal(actual.length, expected.length, `${name}: one run lacks sums`)
+  let apart = 0,
+    widest = 0
+  actual.forEach((word, i) => {
+    const gap = Math.abs(ordered(word) - ordered(expected[i]))
+    if (gap > ulps) apart++
+    widest = Math.max(widest, gap)
+  })
+  assert.equal(
+    apart,
+    0,
+    `${name}: ${apart} of ${actual.length} words differ by more than ${ulps} ulp (${widest})`,
+  )
+}
