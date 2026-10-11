@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts'
 import type { AtlasBindings } from '../core/bindLayout.ts'
 import {
@@ -98,10 +99,12 @@ const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
 const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
 const POOL_STEP:f32=1.0/${1 / POOL_STEP}.0;
-const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
-const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
-const PAGE_LEVELS:u32=${MAX_LEVELS}u;
-const PAGE_TRANSFORM:u32=${PAGE_TRANSFORM_WORD}u;
+${wgslConsts({
+  PAGE_HEADER: PAGE_HEADER_WORDS,
+  PAGE_SLOT: PAGE_SLOT_WORDS,
+  PAGE_LEVELS: MAX_LEVELS,
+  PAGE_TRANSFORM: PAGE_TRANSFORM_WORD,
+})}
 struct TileTap{uv:vec2f,layer:i32,}
 /** A normal map's Z from its X and Y, as the map stores them (0..1), for a two-channel lane. */
 fn rebuiltZ(xy:vec2f)->f32{let n=unitToSigned2(xy);return (sqrt(max(0.0,1.0-dot(n,n)))+1.0)*0.5;}

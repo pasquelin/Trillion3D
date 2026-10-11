@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import {
@@ -63,9 +64,11 @@ export const BOUNCE_NODE_WGSL = wgslBlock(
   'BOUNCE_NODE_WGSL',
   [byteOf],
   `
-const NODE_FLOATS:u32=${PROXY_NODE_FLOATS}u;
-const NODE_WORDS:u32=${PROXY_NODE_WORDS}u;
-const CHILD_WORDS:u32=${PROXY_CHILD_WORDS}u;
+${wgslConsts({
+  NODE_FLOATS: PROXY_NODE_FLOATS,
+  NODE_WORDS: PROXY_NODE_WORDS,
+  CHILD_WORDS: PROXY_CHILD_WORDS,
+})}
 struct Box{low:vec3f,high:vec3f,}
 struct ProxyChild{box:Box,offset:u32,count:u32,present:bool,owned:bool,}
 /** Tree nodes: zero when the cache carries none, hence a ray that hits nothing. */

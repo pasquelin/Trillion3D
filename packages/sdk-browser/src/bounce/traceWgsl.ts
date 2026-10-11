@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import {
   BOUNCE_SETTINGS,
   PROXY_CHILDREN,
@@ -31,10 +32,12 @@ export const BOUNCE_TRACE_WGSL = wgslBlock(
   'BOUNCE_TRACE_WGSL',
   [BOUNCE_NODE_WGSL, PROXY_OWNER_WGSL, rayInverseDirection, rayBoxEntry, rayTriangleDistance],
   `
-const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
-const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
-const CHILDREN:u32=${PROXY_CHILDREN}u;
-const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
+${wgslConsts({
+  LEAF_TRIANGLES: BOUNCE_SETTINGS.proxyLeafTriangles,
+  TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
+  CHILDREN: PROXY_CHILDREN,
+  STACK_DEPTH: BOUNCE_SETTINGS.traversalStack,
+})}
 struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
 /** The nearest triangle hit, or nothing. The direction is assumed normalized. */
 fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{

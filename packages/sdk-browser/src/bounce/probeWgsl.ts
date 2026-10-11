@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
@@ -71,8 +72,10 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
 @group(0) @binding(6) var surface:texture_2d<f32>;
-const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
-const WORKGROUP:u32=${BOUNCE_WORKGROUP}u;
+${wgslConsts({
+  RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
+  WORKGROUP: BOUNCE_WORKGROUP,
+})}
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};

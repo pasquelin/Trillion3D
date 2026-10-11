@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Physical page management kernels.
  *
@@ -112,11 +113,13 @@ const STAT_WGSL = wgslBlock(
   'STAT_WGSL',
   [],
   `
-const VSM_COUNT_WANTED:u32=${VSM_COUNT_WANTED}u;
-const VSM_COUNT_STATIC_KEPT:u32=${VSM_COUNT_STATIC_KEPT}u;
-const VSM_COUNT_DYNAMIC_KEPT:u32=${VSM_COUNT_DYNAMIC_KEPT}u;
-const VSM_COUNT_CLEARED:u32=${VSM_COUNT_CLEARED}u;
-const VSM_COUNT_GRANTED:u32=${VSM_COUNT_GRANTED}u;
+${wgslConsts({
+  VSM_COUNT_WANTED,
+  VSM_COUNT_STATIC_KEPT,
+  VSM_COUNT_DYNAMIC_KEPT,
+  VSM_COUNT_CLEARED,
+  VSM_COUNT_GRANTED,
+})}
 `,
 )
 

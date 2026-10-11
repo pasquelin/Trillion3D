@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Step 5, culling half: the per-page draw commands of the non-cluster raster, on the engine's
  * resident cluster rows (build of the per-page draw commands, page overlap, page cache, box cull
@@ -93,8 +94,10 @@ struct VsmRenderParams{
 struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,objectRadius:u32,pad1:u32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
-const VSM_RENDER_VIEW_DIRECTIONAL:u32=${VSM_RENDER_VIEW_DIRECTIONAL}u;
-const VSM_RENDER_COUNTS_HEAD:u32=${VSM_RENDER_COUNTS_HEAD}u;
+${wgslConsts({
+  VSM_RENDER_VIEW_DIRECTIONAL,
+  VSM_RENDER_COUNTS_HEAD,
+})}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
 `,
 )

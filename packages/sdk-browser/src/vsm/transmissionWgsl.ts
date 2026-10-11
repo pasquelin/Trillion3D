@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Coloured shadows through translucent casters on top of the virtual shadow maps: the plain VSM
  * casts no shadow from a translucent material, the engine does.
@@ -149,21 +150,23 @@ const frameWgsl = (layout: VsmLayout) => {
   return wgslBlock(
     `vsmTransmissionFrame(${P})`,
     [FRAME_STRUCT_WGSL, COUNTERS_WGSL, FLAT_INDEX_WGSL],
-    `const VSM_T_STAMPS:u32=${r.stamps}u;
-const VSM_T_FIRST:u32=${r.first}u;
-const VSM_T_COUNTS:u32=${r.counts}u;
-const VSM_T_PATCH:u32=${r.patchCounts}u;
-const VSM_T_KEYS:u32=${r.sliceKeys}u;
-const VSM_T_DIRTY:u32=${r.dirty}u;
-const VSM_T_ORDER:u32=${r.order}u;
-const VSM_T_KEY_COUNT:u32=${2 * P}u;
-const VSM_T_NONE:u32=${VSM_TRANSMISSION_NONE}u;
-const VSM_T_CELLS:u32=${CELL_COUNT}u;
-const VSM_T_CHAIN:u32=${VSM_TRANSMISSION_CHAIN}u;
-const VSM_T_BLOCK_TEXELS:u32=${VSM_TRANSMISSION_BLOCK_TEXELS}u;
-const VSM_T_RECORDS_TEXEL:u32=${RECORDS_TEXEL}u;
-const VSM_T_RECORD_WORDS:u32=${VSM_TRANSMISSION_RECORD_WORDS}u;
-const VSM_T_HEADER_ROWS:u32=${headerRows(P)}u;
+    `${wgslConsts({
+      VSM_T_STAMPS: r.stamps,
+      VSM_T_FIRST: r.first,
+      VSM_T_COUNTS: r.counts,
+      VSM_T_PATCH: r.patchCounts,
+      VSM_T_KEYS: r.sliceKeys,
+      VSM_T_DIRTY: r.dirty,
+      VSM_T_ORDER: r.order,
+      VSM_T_KEY_COUNT: 2 * P,
+      VSM_T_NONE: VSM_TRANSMISSION_NONE,
+      VSM_T_CELLS: CELL_COUNT,
+      VSM_T_CHAIN: VSM_TRANSMISSION_CHAIN,
+      VSM_T_BLOCK_TEXELS: VSM_TRANSMISSION_BLOCK_TEXELS,
+      VSM_T_RECORDS_TEXEL: RECORDS_TEXEL,
+      VSM_T_RECORD_WORDS: VSM_TRANSMISSION_RECORD_WORDS,
+      VSM_T_HEADER_ROWS: headerRows(P),
+    })}
 /** Where block \`b\`'s texel \`t\` lies in the readable memory. */
 fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}`,
   )
