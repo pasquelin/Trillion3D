@@ -1,8 +1,7 @@
 import { textureBytesOf } from './textureBytes.ts'
 
 /**
- * A target a fragment stage reads by load alone — the subsurface, the lobes, the shadow mask's
- * decode table —, bound as a read-only storage texture: `textureLoad` returns the stored values
+ * A target a fragment stage reads by load alone — the subsurface, the lobes —, bound as a read-only storage texture: `textureLoad` returns the stored values
  * exactly, and none of the sixteen sampled textures a stage is guaranteed is spent on it
  * (`../../lighting/deferred/setup.ts`). Its WGSL declaration of `name` at `binding`, and its layout
  * entry — the bind groups name `binding` by the caller's own constant —; the texture that backs it

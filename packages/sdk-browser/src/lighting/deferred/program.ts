@@ -9,7 +9,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
-import { VSM_MASK_TABLE_BINDING, VSM_MASK_TILES_BINDING } from '../../vsm/projectionMaskTable.ts'
+import { VSM_MASK_TILES_BINDING } from '../../vsm/projectionWgsl.ts'
 import { REFLECTION_TARGET_BINDING } from '../../reflections/weight.ts'
 import type { ComposeInput } from './shaders.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -299,7 +299,6 @@ function contractEntries(
     // The resident proxy as-is, no copy: its header says whether there is anything to trace.
     { binding: RESIDENT_PROXY_BINDING, resource: { buffer: r.proxy } },
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
-    { binding: VSM_MASK_TABLE_BINDING, resource: placeholders.vsmMaskTable.view },
     { binding: VSM_MASK_TILES_BINDING, resource: r.maskTiles },
     { binding: VSM_TRANSMISSION_RESOLVE_BINDING, resource: r.vsmTransmission },
     { binding: REFLECTION_TARGET_BINDING, resource: r.reflection },

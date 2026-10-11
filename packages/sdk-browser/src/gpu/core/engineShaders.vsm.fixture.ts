@@ -8,7 +8,7 @@ import {
 } from '../../vsm/markingWgsl.ts'
 import { vsmPageManagementKernels } from '../../vsm/pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from '../../vsm/physicalPagesWgsl.ts'
-import { VSM_MASK_TABLE_WGSL, vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
+import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
 import {
   VSM_RENDER_ARGS_WGSL,
   vsmRenderCandidatesWgsl,
@@ -43,7 +43,6 @@ export function vsmVariants() {
     VSM_RENDER_CULL: vsmRenderCullWgsl(layout),
     VSM_RENDER_EXPAND: vsmRenderExpandWgsl(layout),
     VSM_RENDER_ARGS_WGSL,
-    VSM_MASK_TABLE_WGSL,
     VSM_RENDER_RASTER: vsmRenderRasterWgsl(layout),
     VSM_TRANSMISSION_CANDIDATES: vsmTransmissionCandidatesWgsl(),
     VSM_TRANSMISSION_CLEAR: vsmTransmissionClearWgsl(layout),

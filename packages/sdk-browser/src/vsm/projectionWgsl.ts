@@ -18,7 +18,7 @@
  *
  * LIGHTS. Every shadowed light of the frame in one dispatch, up to 64 (`vsmView.lights`): light k
  * is the 8-bit lane k % 4 of the r32uint mask's layer k / 4 — the k of n rays its trace counted
- * missing (`vsmMaskCode`, decoded by `projectionMaskTable.ts`), 0 (= 1, lit) for the unused lanes
+ * missing (`vsmMaskCode`, decoded by `vsmMaskDecode`, `lighting/direct/shadowWgsl.ts`), 0 (= 1, lit) for the unused lanes
  * of the last layer —, each pixel's inputs read and reconstructed once for all of them. Each light
  * takes its own kind's trace; a pass of one kind, or of one light, runs a pipeline specialised to
  * it (`VSM_PROJECTION_KINDS`, `VSM_PROJECTION_ONE_LIGHT`).
@@ -357,7 +357,7 @@ fn vsmLightMayReachTile(k:u32,low:vec3f,high:vec3f,unbounded:bool)->bool{
 }
 /** Light k's 8-bit lane: 0 where no ray was traced (its factor 1), else its rays n (high nibble,
  *  n ≤ 15) and the k of them that missed (low nibble), recovered exactly from k/n: the division's
- *  error times n ≤ 15 stays far under a half. Decoded by \`projectionMaskTable.ts\`. */
+ *  error times n ≤ 15 stays far under a half. Decoded by \`vsmMaskDecode\` (\`lighting/direct/shadowWgsl.ts\`). */
 fn vsmMaskCode(r:VsmTraceResult)->u32{
  if(r.rayCount==0u){return 0u;}
  return (r.rayCount<<4u)|u32(round(r.shadowFactor*f32(r.rayCount)));
@@ -578,24 +578,8 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
 }
 `
 
-/** Lanes, hence codes: 256 factors, four a texel. */
-export const VSM_MASK_TABLE_TEXELS = 64
-
-/** Fills the mask's decode table (`projectionMaskTable.ts`): code c's factor at texel c / 4,
- *  channel c % 4. */
-export const VSM_MASK_TABLE_WGSL = /* wgsl */ `
-@group(0) @binding(0) var table:texture_storage_2d<rgba16float,write>;
-/** Code \`c\`'s factor as the projection computes it (\`vsmTraceSun\`, \`vsmTraceLocal\`). */
-fn vsmMaskTableValue(c:u32)->f32{
- let rayCount=c>>4u;
- let missCount=c&15u;
- if(rayCount==0u){return 1.0;}
- return f32(missCount)/f32(rayCount);
-}
-@compute @workgroup_size(${VSM_MASK_TABLE_TEXELS}) fn vsmMaskTableFill(@builtin(local_invocation_index) t:u32){
- let c=4u*t;
- textureStore(table,vec2u(t,0u),vec4f(vsmMaskTableValue(c),vsmMaskTableValue(c+1u),vsmMaskTableValue(c+2u),vsmMaskTableValue(c+3u)));
-}`
+/** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
+export const VSM_MASK_TILES_BINDING = 29
 
 /** The whole module, for one layout (pool parts) and one vote variant. */
 export function vsmProjectionWgsl(

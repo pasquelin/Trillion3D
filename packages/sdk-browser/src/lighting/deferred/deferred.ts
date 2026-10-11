@@ -155,9 +155,6 @@ function programBind(
       unlit
     state.active = active
     active.bind(surface, depth, hdr, direct)
-    // A program reading a shadow mask: its decode table is filled, in its own submit, before
-    // this frame's (`projectionMaskTable.ts`).
-    if (active !== unlit && direct.vsmMask) placeholders.vsmMaskTable.fill()
   }
 }
 

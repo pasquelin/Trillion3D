@@ -7,10 +7,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { VSM_MASK_TABLE_WGSL, vsmProjectionWgsl } from './projectionWgsl.ts'
-import { createVsmMaskTable, VSM_MASK_TABLE_READ_WGSL } from './projectionMaskTable.ts'
+import { wgslConstants } from '../texture/shaderRule.fixture.ts'
+import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { createDeferredPlaceholders } from '../lighting/deferred/setup.ts'
 import { VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL } from './constants.ts'
@@ -18,14 +17,24 @@ import { vsmLayout } from './layout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const f = Math.fround
+/** A factor through the rgba16float store the mask was: round to nearest even. */
+const halfOf = (x: number) => {
+  if (x === 0) return 0
+  const e = Math.max(Math.floor(Math.log2(x)), -14)
+  const step = 2 ** (e - 10)
+  const q = x / step
+  const r = Math.floor(q)
+  const d = q - r
+  return (d > 0.5 || (d === 0.5 && r % 2 === 1) ? r + 1 : r) * step
+}
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,
 })
 type Result = { shadowFactor: number; rayCount: number }
 const { vsmMaskCode } = shaderRun<{ vsmMaskCode: (r: Result) => number }>(CODE, ['vsmMaskCode'], {})
-const { vsmMaskTableValue } = shaderRun<{ vsmMaskTableValue: (c: number) => number }>(
-  VSM_MASK_TABLE_WGSL,
-  ['vsmMaskTableValue'],
+const { vsmMaskDecode } = shaderRun<{ vsmMaskDecode: (c: number) => number }>(
+  wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+  ['vsmMaskDecode'],
   {},
 )
 /** Every result a trace gives: no ray traced (factor 1), or k of n rays missed. */
@@ -40,20 +49,16 @@ test('a lane holds four bits of rays: every ray count the traces use fits', () =
   assert.ok(Math.max(VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL) <= 15)
 })
 
-test('the table computes a factor by the very expression the traces store', () => {
-  // The same f32 division of the same two counts on the same device: the same f32, then the same
-  // rgba16float store as the mask's.
+test('the decode computes a factor by the very expression the traces store, as a half float', () => {
   assert.equal(CODE.match(/shadowFactor=f32\(missCount\)\/f32\(rayCount\);/g)?.length, 2)
-  assert.match(VSM_MASK_TABLE_WGSL, /return f32\(missCount\)\/f32\(rayCount\);/)
-  assert.match(VSM_MASK_TABLE_WGSL, /texture_storage_2d<rgba16float,write>/)
 })
 
-test('every factor a trace stores codes to one byte the table turns back into it, bit for bit', () => {
+test('every factor a trace stores codes to one byte the table turns back into it, as the half float the mask held', () => {
   const codes = new Set<number>()
   for (const r of results()) {
     const code = vsmMaskCode(r)
     assert.ok(code >= 0 && code < 256 && Number.isInteger(code), `${code}`)
-    assert.equal(f(vsmMaskTableValue(code)), r.shadowFactor, `${r.shadowFactor} of ${r.rayCount}`)
+    assert.equal(vsmMaskDecode(code), halfOf(r.shadowFactor), `${r.shadowFactor} of ${r.rayCount}`)
     codes.add(code)
   }
   assert.equal(
@@ -64,7 +69,6 @@ test('every factor a trace stores codes to one byte the table turns back into it
 })
 
 test('four lanes in a word: each light reads its own; a layer its tile did not store is not read, and reads lit', () => {
-  const table = new Map<number, number>()
   const lanes = [0, (7 << 4) | 3, (1 << 4) | 1, (5 << 4) | 2]
   const word = lanes.reduce((w, code, k) => (w | (code << (8 * k))) >>> 0, 0)
   let loads = 0,
@@ -83,15 +87,18 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
     vsmMaskWord: 0,
     // As the pixel's setup leaves it (\`vsmMaskAt\`): the word unread.
     vsmMaskTile: K.VSM_MASK_TILE_UNREAD,
-    vsmMaskDecode: (code: number) => (table.set(code, 1), f(vsmMaskTableValue(code))),
   }
   const { vsmMaskFactor } = shaderRun<{ vsmMaskFactor: (channel: number) => number }>(
     resolve,
-    ['vsmMaskFactor', 'byteOf'],
+    ['vsmMaskFactor', 'vsmMaskDecode', 'byteOf'],
     scope,
   )
-  assert.deepEqual([0, 1, 2, 3].map(vsmMaskFactor), [1, f(f(3) / f(7)), 1, f(f(2) / f(5))])
-  assert.deepEqual([...table.keys()], lanes)
+  assert.deepEqual([0, 1, 2, 3].map(vsmMaskFactor), [
+    1,
+    halfOf(f(f(3) / f(7))),
+    1,
+    halfOf(f(f(2) / f(5))),
+  ])
   assert.equal(loads, 1, 'one load of the layer for its four lights')
   for (const channel of [4, 8, 63])
     assert.equal(vsmMaskFactor(channel), 1, `light ${channel}: its layer unstored, read lit`)
@@ -107,39 +114,6 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   assert.ok(resolve.includes('textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(3u),0).r'))
   assert.doesNotMatch(resolve, /textureNumLayers\(vsmShadowMask\)/)
   assert.match(resolve, /var vsmShadowMask:texture_2d_array<u32>;/)
-  assert.ok(resolve.includes(VSM_MASK_TABLE_READ_WGSL.text))
-})
-
-test('the table compiles off the frame from its creation, then fills once, by one group, in its own submit', async () => {
-  const { device } = fakeDevice()
-  const made: string[] = [],
-    dispatched: number[][] = [],
-    submitted: unknown[][] = []
-  const create = device.createComputePipeline.bind(device),
-    createAsync = device.createComputePipelineAsync.bind(device)
-  device.createComputePipeline = (d) => (made.push('at once'), create(d))
-  device.createComputePipelineAsync = (d) => (made.push('off the frame'), createAsync(d))
-  device.createCommandEncoder = () =>
-    ({
-      beginComputePass: () => ({
-        setPipeline() {},
-        setBindGroup() {},
-        dispatchWorkgroups: (...g: number[]) => void dispatched.push(g),
-        end() {},
-      }),
-      finish: () => 'table',
-    }) as unknown as GPUCommandEncoder
-  device.queue.submit = (buffers) => void submitted.push([...buffers])
-  const table = createVsmMaskTable(device)
-  assert.equal(table.texture.format, 'rgba16float')
-  assert.deepEqual([table.texture.width, table.texture.height], [64, 1])
-  await new Promise(setImmediate)
-  table.fill()
-  table.fill()
-  assert.deepEqual(made, ['off the frame'])
-  assert.deepEqual(dispatched, [[1]], 'once')
-  assert.deepEqual(submitted, [['table']], 'its own submit: no frame encoder dropped loses it')
-  assert.match(VSM_MASK_TABLE_WGSL, /@workgroup_size\(64\)/)
 })
 
 test('a device without compute pipelines still makes the lighting stand-ins: none compiled at once', () => {
