@@ -1,5 +1,6 @@
 import { giveReadback, takeReadback } from './heldReadback.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { mapStaging } from './readbackRing.ts'
 
 /**
  * The readbacks the proof tools and an explicit capture do, and that no frame does.
@@ -25,7 +26,7 @@ export async function readGpuBuffer(
     const encoder = device.createCommandEncoder({ label: 'Trillion3D buffer readback' })
     encoder.copyBufferToBuffer(source, 0, staging, 0, bytes)
     device.queue.submit([encoder.finish()])
-    await staging.mapAsync(GPUMapMode.READ)
+    await mapStaging(staging)
     const copy = new Uint32Array(staging.getMappedRange().slice(0))
     staging.unmap()
     return copy
@@ -82,7 +83,7 @@ export async function readGpuImage(
       { width, height, depthOrArrayLayers: 1 },
     )
     device.queue.submit([encoder.finish()])
-    await buffer.mapAsync(GPUMapMode.READ)
+    await mapStaging(buffer)
     signal?.throwIfAborted()
     const mapped = new Uint8Array(buffer.getMappedRange()),
       pixels = new Uint8Array(row * height)

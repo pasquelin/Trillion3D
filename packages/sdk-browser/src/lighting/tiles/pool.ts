@@ -25,19 +25,16 @@ export function createTileLightPool(device: GPUDevice) {
   // What the last sampled frame asked of the pool, its fields moved together when it returns.
   const sample = { reserved: 0, capacity: 0, overflowed: false }
   let asked = 0
-  const reader = createGpuPeriodicReadback((mapped) => {
-    const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4)
-    sample.reserved = reserved
-    sample.capacity = capacity
-    sample.overflowed = overflow !== 0
-    if (sample.overflowed) asked = Math.max(asked, Math.ceil(reserved * HEADROOM))
-  })
-  reader.adopt(
-    device.createBuffer({
-      label: 'Trillion3D light tile pool readback',
-      size: STATE_BYTES,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    }),
+  const reader = createGpuPeriodicReadback(
+    device,
+    { label: 'Trillion3D light tile pool readback', bytes: STATE_BYTES, eager: true },
+    (mapped) => {
+      const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4)
+      sample.reserved = reserved
+      sample.capacity = capacity
+      sample.overflowed = overflow !== 0
+      if (sample.overflowed) asked = Math.max(asked, Math.ceil(reserved * HEADROOM))
+    },
   )
   const state = device.createBuffer({
     label: 'Trillion3D light tile pool v1',
@@ -69,8 +66,7 @@ export function createTileLightPool(device: GPUDevice) {
     /** Encodes the copy of the state, after the pass that fills it, on a sampled frame. */
     sampleState(encoder: GPUCommandEncoder, frame: number) {
       if (!reader.due(frame)) return
-      reader.sampled(frame)
-      reader.copy(encoder, state, 0, STATE_BYTES)
+      if (reader.copy(encoder, state, 0, STATE_BYTES)) reader.sampled(frame)
     },
     /** Requests mapping of the sample, once the frame that copied it is submitted. */
     submitted: reader.submitted,

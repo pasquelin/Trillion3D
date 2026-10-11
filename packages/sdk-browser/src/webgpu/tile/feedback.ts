@@ -13,6 +13,7 @@
  */
 import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
+import { createReadbackRing, type ReadbackRing } from '../../gpu/core/readbackRing.ts'
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
@@ -64,8 +65,10 @@ export type WebgpuTileFeedback = {
 
 type Device = Pick<GPUDevice, 'createBuffer'>
 
+type MutableHits = { count: number; index: Uint32Array; weight: Uint32Array }
+
 export function createWebgpuTileFeedback(device: Device, entries: number): WebgpuTileFeedback {
-  /** One generation of buffers: `count` counters, the list, its two readbacks, and what came back. */
+  /** One generation of buffers: `count` counters, the list, its readbacks, and what came back. */
   const allocate = (count: number) => {
     const capacity = Math.min(count, FEEDBACK_HITS)
     const words = 1 + 2 * capacity
@@ -73,10 +76,36 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       listBytes = Math.max(16, words * 4)
     const buffer = (label: string, size: number, usage: number) =>
       device.createBuffer({ label, size, usage })
+    // The tiles that came back, one per readback buffer: nothing is allocated per image.
+    const held = new Map<GPUBuffer, { read: Uint32Array; hits: MutableHits }>()
+    const ring = createReadbackRing(
+      device,
+      { label: 'Trillion3D texture feedback readback', bytes: listBytes, count: 2, eager: true },
+      (mapped, staging) => {
+        let slot = held.get(staging)
+        if (!slot) {
+          const read = new Uint32Array(Math.max(4, words))
+          slot = {
+            read,
+            hits: {
+              count: 0,
+              index: read.subarray(1, 1 + capacity),
+              weight: read.subarray(1 + capacity, 1 + 2 * capacity),
+            },
+          }
+          held.set(staging, slot)
+        }
+        const view = new Uint32Array(mapped, 0, words)
+        const count = Math.min(view[0], capacity)
+        slot.read.set(view.subarray(0, 1 + count))
+        slot.read.set(view.subarray(1 + capacity, 1 + capacity + count), 1 + capacity)
+        slot.hits.count = count
+        latest = slot.hits
+      },
+    )
     return {
       count,
       capacity,
-      words,
       listBytes,
       buffer: buffer('Trillion3D texture feedback', bytes, GPUBufferUsage.STORAGE),
       list: buffer(
@@ -84,40 +113,20 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
         listBytes,
         GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       ),
-      staging: [0, 1].map((rank) =>
-        buffer(
-          `Trillion3D texture feedback readback ${rank}`,
-          listBytes,
-          GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-        ),
-      ),
-      // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
-      copied: [false, false],
-      busy: [false, false],
-      // The tiles that came back, one per readback buffer: nothing is allocated per image.
-      held: [0, 1].map(() => {
-        const read = new Uint32Array(Math.max(4, words))
-        return {
-          read,
-          hits: {
-            count: 0,
-            index: read.subarray(1, 1 + capacity),
-            weight: read.subarray(1 + capacity, 1 + 2 * capacity),
-          },
-        }
-      }),
+      ring,
     }
   }
+  let latest: FeedbackHits | undefined
   let gen = allocate(entries)
-  const inFlight = new Set<Promise<void>>()
-  let next = 0,
-    phase = 0,
+  // The rings of the generations grown past, until their last read has come back.
+  const retired = new Set<ReadbackRing>()
+  let phase = 0,
     pick = 0,
-    latest: FeedbackHits | undefined
+    encoded = false
   const destroy = () => {
     gen.buffer.destroy()
     gen.list.destroy()
-    for (const target of gen.staging) target.destroy()
+    gen.ring.destroy()
   }
   return {
     get buffer() {
@@ -133,59 +142,38 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       return gen.count
     },
     grow(ranks) {
+      const old = gen.ring
+      retired.add(old)
+      void old.settled().then(() => retired.delete(old))
       const next = allocate(ranks)
       destroy()
       gen = next
+      encoded = false
       latest = undefined
     },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),
     encode(encoder) {
-      const { busy, copied, list, staging, listBytes } = gen
-      if (busy[next] || copied[next]) return
-      encoder.copyBufferToBuffer(list, 0, staging[next], 0, listBytes)
-      encoder.clearBuffer(list, 0, 4)
-      copied[next] = true
+      if (encoded) return
+      const target = gen.ring.take()
+      if (!target) return
+      encoder.copyBufferToBuffer(gen.list, 0, target, 0, gen.listBytes)
+      encoder.clearBuffer(gen.list, 0, 4)
+      encoded = true
     },
     submitted() {
       phase = (phase + 1) % FEEDBACK_EVERY
       if (phase === 0) pick = (pick + 1) % PICK_CYCLE
-      const read = gen
-      if (!read.copied[next]) return
-      const rank = next,
-        target = read.staging[rank]
-      read.copied[rank] = false
-      read.busy[rank] = true
-      const mapped = target
-        .mapAsync(GPUMapMode.READ)
-        .then(() => {
-          // A read of a generation grown past counted the ranks before: dropped, never read.
-          if (read !== gen) return
-          const { read: words, hits } = read.held[rank]
-          const mapped = new Uint32Array(target.getMappedRange(), 0, read.words)
-          const count = Math.min(mapped[0], read.capacity)
-          words.set(mapped.subarray(0, 1 + count))
-          words.set(
-            mapped.subarray(1 + read.capacity, 1 + read.capacity + count),
-            1 + read.capacity,
-          )
-          target.unmap()
-          hits.count = count
-          latest = hits
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          read.busy[rank] = false
-          inFlight.delete(mapped)
-        })
-      inFlight.add(mapped)
-      next ^= 1
+      if (!encoded) return
+      encoded = false
+      gen.ring.submitted()
     },
     take() {
       const counts = latest
       latest = undefined
       return counts
     },
-    settled: () => Promise.all(inFlight).then(() => undefined),
+    settled: () =>
+      Promise.all([gen.ring, ...retired].map((ring) => ring.settled())).then(() => undefined),
     destroy,
   }
 }

@@ -29,7 +29,10 @@ import {
 } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
-import { createVsmReadbackRing, type VsmReadbackRing } from './readbackRing.ts'
+import {
+  createReadbackRing as createVsmReadbackRing,
+  type ReadbackRing as VsmReadbackRing,
+} from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 

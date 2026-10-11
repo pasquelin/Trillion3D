@@ -1,13 +1,11 @@
-import { mapRead } from '../gpu/core/periodicReadback.ts'
+import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 export const RADIANCE_HASH_BYTES = 16
 /** Bytes of a sample: the hash, then the count of tiles the trace listed that image. */
 export const SAMPLE_BYTES = RADIANCE_HASH_BYTES + 4
-/** Samples in flight at most: an image's copy waits for none, the oldest of the ring is reused. */
+/** Samples in flight at most: an image's copy waits for none, and takes none when all are in flight. */
 const SAMPLES = 3
-
-type Sample = { buffer: GPUBuffer; image: number; state: 'free' | 'copied' | 'mapping' }
 
 /**
  * The samples of the hash, read back without a wait: a ring of staging buffers, each filled by a
@@ -15,53 +13,28 @@ type Sample = { buffer: GPUBuffer; image: number; state: 'free' | 'copied' | 'ma
  * `answer` with the words it holds and the image they are of some frames later.
  */
 function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint32Array) => void) {
-  const ring: Sample[] = Array.from({ length: SAMPLES }, () => ({
-    buffer: device.createBuffer({
+  const ring = createReadbackRing(
+    device,
+    {
       label: 'Trillion3D reflection radiance hash sample',
-      size: SAMPLE_BYTES,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    }),
-    image: 0,
-    state: 'free',
-  }))
-  let disposed = false
+      bytes: SAMPLE_BYTES,
+      count: SAMPLES,
+      eager: true,
+    },
+    (mapped, _staging, image) => answer(image, new Uint32Array(mapped, 0, SAMPLE_BYTES / 4)),
+  )
   return {
     /** Copies the hash and the count of tiles into a free sample, for `image`. */
     copy(encoder: GPUCommandEncoder, hash: GPUBuffer, tiles: GPUBuffer, image: number) {
       // A copy still waiting for its submission is an abandoned image's: its commands never ran.
-      for (const stale of ring) if (stale.state === 'copied') stale.state = 'free'
-      const sample = ring.find((candidate) => candidate.state === 'free')
-      if (!sample || disposed) return
-      encoder.copyBufferToBuffer(hash, 0, sample.buffer, 0, RADIANCE_HASH_BYTES)
-      encoder.copyBufferToBuffer(tiles, 12, sample.buffer, RADIANCE_HASH_BYTES, 4)
-      sample.image = image
-      sample.state = 'copied'
+      const sample = ring.take(image)
+      if (!sample) return
+      encoder.copyBufferToBuffer(hash, 0, sample, 0, RADIANCE_HASH_BYTES)
+      encoder.copyBufferToBuffer(tiles, 12, sample, RADIANCE_HASH_BYTES, 4)
     },
     /** The image is submitted: its copies are mapped, and answer when the GPU has run them. */
-    submitted() {
-      for (const sample of ring) {
-        if (sample.state !== 'copied' || disposed) continue
-        sample.state = 'mapping'
-        Promise.resolve(sample.buffer.mapAsync(mapRead(), 0, SAMPLE_BYTES))
-          .then(() => {
-            if (!disposed)
-              answer(sample.image, new Uint32Array(sample.buffer.getMappedRange(0, SAMPLE_BYTES)))
-          })
-          .catch(() => {})
-          .finally(() => {
-            try {
-              sample.buffer.unmap()
-            } catch {
-              /* Destroyed by a dispose. */
-            }
-            sample.state = 'free'
-          })
-      }
-    },
-    dispose() {
-      disposed = true
-      for (const sample of ring) sample.buffer.destroy()
-    },
+    submitted: ring.submitted,
+    dispose: ring.destroy,
   }
 }
 
