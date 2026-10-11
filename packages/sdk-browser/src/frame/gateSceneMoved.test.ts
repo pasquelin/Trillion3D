@@ -114,7 +114,11 @@ test('a node the host reparented has the roots under it read, not every root; a 
   >[0]
   const gate = createFrameGateCore(1)
   gate.readScene(source, drawn)
-  assert.equal(gate.updateWorlds(world)?.reshaped, true, 'the first image reads every root')
+  assert.deepEqual(
+    gate.updateWorlds(world),
+    { reshaped: true, flipped: [] },
+    'the first image reads every root',
+  )
   gate.readScene(source, drawn)
   const moved: unknown[] = []
   new G.Group().add(mesh)
@@ -125,5 +129,5 @@ test('a node the host reparented has the roots under it read, not every root; a 
   assert.deepEqual(write && write.flipped, [mesh])
   mesh.destroy()
   gate.readScene(source, drawn)
-  assert.equal(gate.updateWorlds(world)?.reshaped, true)
+  assert.equal((gate.updateWorlds(world) || undefined)?.reshaped, true)
 })

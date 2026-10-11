@@ -6,12 +6,14 @@ import { Color, type ColorInput } from '../math/color.ts'
 import { listen, unlisten } from '../observed.ts'
 import type { Blending, Side } from '../constants/index.ts'
 
-/** The fields whose value is a colour: written through `Color`, whatever the page passes. */
-const COLOURS = new Set([
+/** The fields whose value is a colour: written through `Color`, whatever the page passes. Every
+ *  surface and table that carries a colour reads this list. */
+export const MATERIAL_COLOURS: ReadonlySet<string> = new Set([
   'color',
   'emissive',
   'specular',
   'sheenColor',
+  'specularColor',
   'attenuationColor',
   'subsurfaceColor',
 ])
@@ -102,7 +104,7 @@ export class Material {
   }
   private assign(key: string, value: unknown) {
     const current = this[key]
-    if (COLOURS.has(key) && !(value instanceof Color)) {
+    if (MATERIAL_COLOURS.has(key) && !(value instanceof Color)) {
       // A colour written as a value: into the held `Color`, or a new one heard like the others.
       if (current instanceof Color) current.set(value as ColorInput)
       else listen((this[key] = new Color(value as ColorInput)), this.heard)
@@ -111,7 +113,7 @@ export class Material {
     if (current !== value) this.release(key, current)
     this[key] = value
     // A colour or a texture this material holds is heard like the material itself.
-    if (COLOURS.has(key)) listen(value as Color, this.heard)
+    if (MATERIAL_COLOURS.has(key)) listen(value as Color, this.heard)
     const sampled = value as Heard | null
     if (sampled?.isTexture) sampled._listeners?.add(this.heard)
   }

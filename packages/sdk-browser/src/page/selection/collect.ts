@@ -1,14 +1,10 @@
-import {
-  BOX_VALUES,
-  boxTransform,
-  type ClusterManifest,
-  type Primitive,
-} from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES, type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
 import { meshSurface, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
 import { objects } from './helpers.ts'
+import { refreshRootBox } from './batchBoxes.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -85,15 +81,13 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
     { structure, culling } = shape
   const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links }
   for (const { world, parked, placement } of placed) {
-    const worldBox = new Float64Array(BOX_VALUES)
-    boxTransform(worldBox, 0, shape.local, 0, world.elements)
-    roots.push({
+    const root: ClusterRoot<PageRec> = {
       world,
       mesh: primitive.mesh,
       pages,
       // Nodes, their bounds and their links are the primitive's, shared by all its placements.
       culling: sharedCulling,
-      worldBox,
+      worldBox: new Float64Array(BOX_VALUES),
       localBox: shape.local,
       structure,
       // Every record has the manifest's `min` and `max` (the page contract): none is checked.
@@ -108,7 +102,9 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
           spriteMark(surface),
           placement ? rowShadowless(placement) : !mesh.castShadow,
         ) || undefined,
-    })
+    }
+    refreshRootBox(root)
+    roots.push(root)
   }
 }
 

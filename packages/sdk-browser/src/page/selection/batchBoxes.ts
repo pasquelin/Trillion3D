@@ -23,6 +23,14 @@ import type { ClusterRoot, PageRec } from './types.ts'
  * released or root count changed.
  */
 
+/** Root `root`'s world box, its local box at its world: what a root taken or moved reads again. */
+export function refreshRootBox(
+  root: Pick<ClusterRoot<PageRec>, 'world' | 'worldBox' | 'localBox'>,
+) {
+  if (root.worldBox && root.localBox)
+    boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements)
+}
+
 /** Batch when holding exactly `n` boxes, `null` otherwise: caller falls back box by box. */
 function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
   return lot?.holds(n) ? lot : null

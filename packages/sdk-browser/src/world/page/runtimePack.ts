@@ -1,4 +1,5 @@
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { drawnKind } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 import type { Recut } from './runtimeCut.ts'
 
 /** The words before the arrays: five lengths, whether the pages keep a cone, whether a blended
@@ -6,7 +7,7 @@ import type { Recut } from './runtimeCut.ts'
  * none, neither is ever 0 or less —, a deformation's influences and targets, then whether the
  * triangles are held. */
 const HEADER_WORDS = 16
-const drawnCones = (d: DrawnTriangles) => !d.lines && d.spriteRadius === undefined
+const drawnCones = (d: DrawnTriangles) => drawnKind(d) === 'faces'
 
 /** How a cut takes drawn triangles beside their content: the compiled primitive they `recut`, or
  * `held`, faces that move after the cut — a dynamic geometry's, a mesh the waves carry

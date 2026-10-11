@@ -1,11 +1,6 @@
-import {
-  BOX_VALUES,
-  boxEmpty,
-  boxIsEmpty,
-  boxTransform,
-  boxUnionBatch,
-} from '../../../sdk-core/src/index.ts'
+import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
+import { refreshRootBox } from '../page/selection/batchBoxes.ts'
 import type { PlacementRows } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
 
@@ -112,8 +107,7 @@ export function followPlacementRows<T>(
       flip?.(rank, root)
     }
     follow?.(rank)
-    if (root.worldBox && root.localBox)
-      boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements)
+    refreshRootBox(root)
     if (root.worldBox && !parked) boxUnionBatch(moved, root.worldBox, 1)
     // Its rows and box follow the row all the same; only a move, a show or hide, or a change of
     // casting stales shadow pages. One that moves as it flips is out of the static layer

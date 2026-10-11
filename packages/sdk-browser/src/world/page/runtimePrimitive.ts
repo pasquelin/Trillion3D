@@ -6,6 +6,7 @@ import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts
 import { cutPagesOffThread } from '../../page/work/host.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
+import { drawnBounds, type DrawnShape } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] }
@@ -16,9 +17,6 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
   urls.push(url)
   return { url, sha256, bytes: bytes.byteLength }
 }
-
-/** What the cut triangles are, beside faces (`DrawnTriangles`). */
-export type DrawnKind = { lines?: boolean; spriteRadius?: number }
 
 /** A dynamic primitive's held box: six numbers, the least corner then the greatest. */
 export type HeldBox = Float64Array
@@ -34,31 +32,21 @@ function restBounds(boxes: Float64Array, k: number) {
   return { min: [...box.subarray(0, 3)], max: [...box.subarray(3)], sphere: [...sphere] }
 }
 
-/** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
- *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
- *  holds the quad whichever way it turns, so a sprite is culled by that ball. */
-function bounds(page: PageCutPayload['pages'][number], radius: number | undefined) {
-  if (radius === undefined) return { min: page.min, max: page.max, sphere: page.sphere }
-  return {
-    min: [-radius, -radius, -radius],
-    max: [radius, radius, radius],
-    sphere: [0, 0, 0, radius],
-  }
-}
-
 /** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
  * With `boxes`, the primitive is dynamic: index pages alone, no geometry page and no normal
  *  cone — its vertices, read as floats from the host geometry, are rewritten in place —, each page
  *  bounded by its own corners where they were cut (`restBounds`). */
-export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Float64Array) {
+export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Float64Array) {
   const urls: string[] = []
   const held = !!boxes
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    ...(boxes ? restBounds(boxes, id) : bounds(page, kind.spriteRadius)),
+    ...(boxes
+      ? restBounds(boxes, id)
+      : (drawnBounds(kind) ?? { min: page.min, max: page.max, sphere: page.sphere })),
     role: 'exact',
     start: page.start,
     level: 0,
@@ -104,7 +92,7 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, boxes?: Flo
  */
 export async function cutRuntimePrimitive(
   packed: ArrayBuffer,
-  kind: DrawnKind,
+  kind: DrawnShape,
 ): Promise<RuntimePrimitive> {
   const deformation = runtimeDeformation(unpackDrawn(packed).drawn)
   const result = servePrimitive(await cutPagesOffThread(packed), kind)
