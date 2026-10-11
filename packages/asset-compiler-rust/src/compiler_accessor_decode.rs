@@ -63,10 +63,10 @@ impl Accessor<'_> {
     }
     pub(super) fn u32_at(&self, i: usize) -> Result<u32> {
         let b = self.bytes_at(i, 0)?;
+        if let Some(value) = index_value(self.component, b) {
+            return Ok(value);
+        }
         match self.component {
-            5121 => Ok(b[0] as u32),
-            5123 => Ok(u16::from_le_bytes([b[0], b[1]]) as u32),
-            5125 => Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]])),
             5126 => {
                 let value = f32::from_le_bytes([b[0], b[1], b[2], b[3]]);
                 if !value.is_finite()
@@ -100,20 +100,11 @@ impl Accessor<'_> {
             out.resize(self.count, 0);
         } else if self.width == 1 && self.stride == self.bytes && self.component != 5126 {
             let slice = self.packed_bytes(self.count, self.bytes)?;
-            match self.component {
-                5121 => out.extend(slice.iter().map(|&b| b as u32)),
-                5123 => {
-                    for chunk in slice.as_chunks::<2>().0 {
-                        out.push(u16::from_le_bytes([chunk[0], chunk[1]]) as u32);
-                    }
-                }
-                5125 => {
-                    for chunk in slice.as_chunks::<4>().0 {
-                        out.push(u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
-                    }
-                }
-                _ => {}
-            }
+            out.extend(
+                slice
+                    .chunks_exact(self.bytes)
+                    .filter_map(|chunk| index_value(self.component, chunk)),
+            );
         } else {
             for i in 0..self.count {
                 out.push(self.u32_at(i)?);
@@ -127,12 +118,8 @@ impl Accessor<'_> {
                     .values_bin
                     .get(vo..vo + self.bytes)
                     .ok_or_else(|| invalid("Sparse value out of bounds"))?;
-                let val = match self.component {
-                    5121 => b[0] as u32,
-                    5123 => u16::from_le_bytes([b[0], b[1]]) as u32,
-                    5125 => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-                    _ => return Err(invalid("Unsupported component")),
-                };
+                let val = index_value(self.component, b)
+                    .ok_or_else(|| invalid("Unsupported component"))?;
                 out[idx] = val;
             }
         }

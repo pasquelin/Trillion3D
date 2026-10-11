@@ -41,7 +41,7 @@ impl SceneOutput for Scene {
                     "plugin": crate::plugins::provenance(plugin), "path": source.to_string_lossy(),
                     "counts": self.counts, "meshes": self.meshes.len(),
                     "materials": self.materials.len(),
-                    "importMs": started.elapsed().as_secs_f64() * 1000.0,
+                    "importMs": crate::shared_math::elapsed_ms(started),
                 })
             },
         )?;

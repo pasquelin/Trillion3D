@@ -145,7 +145,7 @@ impl SceneOutput for Out {
                     "path": source.to_string_lossy(), "files": self.files, "counts": self.counts,
                     "meshes": self.meshes.len(), "materials": self.materials.len(),
                     "images": self.images.len(),
-                    "importMs": started.elapsed().as_secs_f64() * 1000.0,
+                    "importMs": crate::shared_math::elapsed_ms(started),
                 })
             },
         )?;
