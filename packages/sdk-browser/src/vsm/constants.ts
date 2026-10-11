@@ -1,6 +1,7 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
-import { lerp } from '../../../math/src/scalar/reals.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
+import { focalScale } from '../../../math/src/projection/camera.ts'
 
 /**
  * Virtual shadow map constants: layout, page and kernel sizes, and the defaults of the tunables.
@@ -76,7 +77,7 @@ export const VSM_FEEDBACK_POOL = 0
  */
 export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(7 * 4, 16) // 288
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
-export const VSM_UNIFORMS_BYTES = 192
+export const VSM_UNIFORMS_BYTES = 144
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `renderCullWgsl.ts`), one
  *  command and one pair (vec4u). */
@@ -324,6 +325,12 @@ export function vsmMovingBias(stillBias: number, movingBias: number, movingShare
   return lerp(stillBias, b, movingShare)
 }
 
+/** A float as the f32 literal a shader reads: the f32's own decimal, which parses back to it. */
+const f32Literal = (x: number) => {
+  const text = String(Math.fround(x))
+  return /[.e]/.test(text) ? text : `${text}.0`
+}
+
 /** WGSL mirror of the constants every VSM shader needs. */
 export const VSM_CONSTANTS_WGSL = wgslBlock(
   'VSM_CONSTANTS_WGSL',
@@ -379,6 +386,21 @@ const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
 const VSM_GROUP_WIDTH:u32=${VSM_GROUP_WIDTH}u;
 const VSM_CM_PER_UNIT:f32=${VSM_CM_PER_UNIT}.0;
 const VSM_NORMAL_OFFSET_FLOOR:f32=${VSM_NORMAL_OFFSET_FLOOR};
+const VSM_TRACE_VOTE_AFTER:i32=${VSM_TRACE_VOTE_AFTER};
+const VSM_TRACE_CONE_COT:f32=${f32Literal(focalScale(VSM_TRACE_CONE_LIMIT))};
+const VSM_TRACE_RAYS_SUN:i32=${VSM_TRACE_RAYS_SUN};
+const VSM_TRACE_STEPS_SUN:i32=${VSM_TRACE_STEPS_SUN};
+const VSM_TRACE_SLOPE_CAP_SUN:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_SUN)};
+const VSM_TRACE_DITHER_SUN:f32=${f32Literal(VSM_TRACE_DITHER_SUN)};
+const VSM_TRACE_REACH_SUN:f32=${f32Literal(VSM_TRACE_REACH_SUN)};
+const VSM_TRACE_RAYS_LOCAL:i32=${VSM_TRACE_RAYS_LOCAL};
+const VSM_TRACE_STEPS_LOCAL:i32=${VSM_TRACE_STEPS_LOCAL};
+const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_LOCAL)};
+const VSM_TRACE_DITHER_LOCAL:f32=${f32Literal(VSM_TRACE_DITHER_LOCAL)};
+const VSM_TRACE_PLANE_BIAS_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_PLANE_BIAS_CAP_LOCAL)};
+const VSM_MARK_SUN_MARGIN:f32=${f32Literal(VSM_SUN_PAGE_MARGIN)};
+const VSM_MARK_LOCAL_MARGIN:f32=${f32Literal(VSM_LOCAL_PAGE_MARGIN)};
+const VSM_MARK_STRIDE:vec2u=vec2u(${clamp(VSM_MARK_STRIDE_X, 1, 128)}u,${clamp(VSM_MARK_STRIDE_Y, 1, 128)}u);
 /** The normal bias length of a receiver \`distance\` from the eye (along the view axis under an
  *  orthographic camera): \`normalBias\` times the distance over the inverse tangent of the half
  *  field of view (1 under an orthographic camera), held to the floor (0.02 cm). The one rule of the

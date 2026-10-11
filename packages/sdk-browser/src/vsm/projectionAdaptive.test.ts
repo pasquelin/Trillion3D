@@ -50,7 +50,6 @@ function trace(hits: (i: number) => boolean, others: boolean, depth = 0.5) {
       originShiftHigh: [0, 0, 0],
       originShiftLow: [0, 0, 0],
     },
-    vsm: { traceReachSun: 1.5 },
     vsmTexelsAtLevel: () => 16384,
     vsmSunDepthGradientUv: () => [0, 0],
     vsmSubtractHighLow: () => [0, 0, 0],

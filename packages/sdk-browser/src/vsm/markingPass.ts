@@ -21,8 +21,6 @@ import {
   VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_MIPS,
-  VSM_SUN_PAGE_MARGIN,
-  VSM_LOCAL_PAGE_MARGIN,
   VSM_MARK_STRIDE_X,
   VSM_MARK_STRIDE_Y,
   vsmWriteDepthFromDeviceZ,
@@ -350,6 +348,8 @@ export interface VsmMarking {
 }
 
 const DISPATCHERS = 2
+/** The marking's pixel stride, clamped to [1, 128] as the shader reads it (`VSM_MARK_STRIDE`). */
+const MARK_STRIDE = [clamp(VSM_MARK_STRIDE_X, 1, 128), clamp(VSM_MARK_STRIDE_Y, 1, 128)]
 /** The marking's groups over the tables of a frame set (`vsmPerFrameSet`), made as asked. */
 interface TableGroups {
   clear: Partial<Record<ClearSet, GPUBindGroup>>
@@ -402,19 +402,10 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       u[29] = v.viewRectMin[1]
       u[30] = v.viewSize[0]
       u[31] = v.viewSize[1]
-      u[34] = v.sunMapCount
+      u[23] = v.sunMapCount
     }
-    f[23] = VSM_SUN_PAGE_MARGIN
-    f[27] = VSM_LOCAL_PAGE_MARGIN
-    // The pixel stride is clamped to [1, 128].
-    u[32] = clamp(VSM_MARK_STRIDE_X, 1, 128)
-    u[33] = clamp(VSM_MARK_STRIDE_Y, 1, 128)
-    // A pixel facing away from a light marks no page of it (its own back shadows it).
-    u[35] = 1
     // The number of page rects to clear.
-    u[36] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
-    // A local map asks for its last mip's page: a far receiver always finds one.
-    u[37] = 1
+    u[27] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
     vsmWriteChanged(device, params, paramU32, 0, paramU32.length)
   }
 
@@ -551,8 +542,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
       const v = frame.view
       if (v) {
-        const stridedX = ceilDiv(v.viewSize[0], paramU32[32]),
-          stridedY = ceilDiv(v.viewSize[1], paramU32[33])
+        const stridedX = ceilDiv(v.viewSize[0], MARK_STRIDE[0]),
+          stridedY = ceilDiv(v.viewSize[1], MARK_STRIDE[1])
         const pixels = pipes.pixels()
         groups.pixels ??= tablesGroup(PIXELS_LABEL, pixels, VSM_PIXELS_SPECS)
         dispatch(

@@ -60,7 +60,7 @@ const UNIFORM_FIELDS = fieldsOf(wgslSource(VSM_UNIFORMS_WGSL), 'VsmUniforms'),
 
 test('every field of the uniform block and of the projection record is read by a shader', () => {
   assert.ok(Object.keys(COMPOSED).length >= 140, 'every engine shader is checked')
-  assert.ok(UNIFORM_FIELDS.length >= 30 && RECORD_FIELDS.length >= 15 && RAW_FIELDS.length >= 15)
+  assert.ok(UNIFORM_FIELDS.length >= 18 && RECORD_FIELDS.length >= 15 && RAW_FIELDS.length >= 15)
   assert.deepEqual(unread(UNIFORM_FIELDS, texts(), ['vsm']), [])
   assert.deepEqual(unread(RAW_FIELDS, Object.values(COMPOSED), []), [])
   assert.deepEqual(unread(RECORD_FIELDS, texts(), []), [])

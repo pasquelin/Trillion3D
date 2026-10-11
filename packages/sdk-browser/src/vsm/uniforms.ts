@@ -10,22 +10,9 @@ import {
   VSM_MIPS,
   VSM_NORMAL_BIAS,
   VSM_SCREEN_RAY_SHARE,
-  VSM_TRACE_VOTE_AFTER,
-  VSM_TRACE_SLOPE_CAP_SUN,
-  VSM_TRACE_SLOPE_CAP_LOCAL,
-  VSM_TRACE_CONE_LIMIT,
-  VSM_TRACE_PLANE_BIAS_CAP_LOCAL,
-  VSM_TRACE_RAYS_SUN,
-  VSM_TRACE_RAYS_LOCAL,
-  VSM_TRACE_REACH_SUN,
-  VSM_TRACE_STEPS_SUN,
-  VSM_TRACE_STEPS_LOCAL,
-  VSM_TRACE_DITHER_SUN,
-  VSM_TRACE_DITHER_LOCAL,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
 import type { VsmLayout } from './layout.ts'
-import { focalScale } from '../../../math/src/projection/camera.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
@@ -55,18 +42,6 @@ struct VsmUniforms{
  detailPixelsDynamic:f32,
  normalBias:f32,
  screenRayShare:f32,
- traceVoteAfter:u32,
- traceConeCot:f32,
- traceRaysSun:i32,
- traceStepsSun:i32,
- traceSlopeCapSun:f32,
- traceDitherSun:f32,
- traceReachSun:f32,
- traceRaysLocal:i32,
- traceStepsLocal:i32,
- traceSlopeCapLocal:f32,
- traceDitherLocal:f32,
- tracePlaneBiasCapLocal:f32,
  markMipOffset:array<vec4u,2>,
  coverMipOffset:array<vec4u,2>,
 }
@@ -114,20 +89,8 @@ export function writeVsmUniforms(
   f[17] = VSM_DETAIL_PIXELS_DYNAMIC
   f[18] = VSM_NORMAL_BIAS
   f[19] = VSM_SCREEN_RAY_SHARE
-  u[20] = VSM_TRACE_VOTE_AFTER
-  f[21] = focalScale(VSM_TRACE_CONE_LIMIT)
-  i[22] = VSM_TRACE_RAYS_SUN
-  i[23] = VSM_TRACE_STEPS_SUN
-  f[24] = VSM_TRACE_SLOPE_CAP_SUN
-  f[25] = VSM_TRACE_DITHER_SUN
-  f[26] = VSM_TRACE_REACH_SUN
-  i[27] = VSM_TRACE_RAYS_LOCAL
-  i[28] = VSM_TRACE_STEPS_LOCAL
-  f[29] = VSM_TRACE_SLOPE_CAP_LOCAL
-  f[30] = VSM_TRACE_DITHER_LOCAL
-  f[31] = VSM_TRACE_PLANE_BIAS_CAP_LOCAL
   for (let m = 0; m < VSM_MIPS; m++) {
-    u[32 + m] = layout.markMipOffsets[m] ?? 0
-    u[40 + m] = layout.coverMipOffsets[m] ?? 0
+    u[20 + m] = layout.markMipOffsets[m] ?? 0
+    u[28 + m] = layout.coverMipOffsets[m] ?? 0
   }
 }
