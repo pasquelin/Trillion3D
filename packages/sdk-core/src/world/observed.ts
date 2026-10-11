@@ -1,4 +1,4 @@
-import { createListeners, type Listeners } from '../runtime/listeners.ts'
+import { createListeners } from '../runtime/listeners.ts'
 
 /**
  * The one change channel every engine-owned value shares. A vector, a rotation or a colour held by
@@ -8,7 +8,7 @@ import { createListeners, type Listeners } from '../runtime/listeners.ts'
  */
 export class Observed {
   /** Who hears every write, once an owner listens (`listen`); never the page. */
-  _changes: Listeners | null = null
+  _changes: ReturnType<typeof createListeners> | null = null
 
   /** Tells the owners, when there are any. */
   protected _changed(): this {

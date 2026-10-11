@@ -18,9 +18,8 @@ export function createListeners<Args extends unknown[] = []>() {
       heard.delete(listener)
     },
     emit(...args: Args) {
-      // The common holder has one listener: told directly, with no copy made for a write.
-      if (heard.size === 1) heard.values().next().value!(...args)
-      else for (const listener of [...heard]) listener(...args)
+      // The common holder has one listener: told in place, with no copy made for a write.
+      for (const listener of heard.size === 1 ? heard : [...heard]) listener(...args)
     },
     clear() {
       heard.clear()
