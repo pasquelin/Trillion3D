@@ -9,7 +9,7 @@ import {
   TAU,
 } from '../../packages/math/src/constants.ts'
 import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
-import { quantile } from '../../packages/math/src/scalar/quantile.ts'
+import { quantileOf } from '../../packages/math/src/scalar/quantile.ts'
 import { clamp } from '../../packages/math/src/scalar/reals.ts'
 import { alignUp } from '../../packages/math/src/scalar/integers.ts'
 import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
@@ -73,10 +73,10 @@ test('the byte units are the exact powers of two they were written as', () => {
 // 20th), the usual definition of a percentile.
 test('quantile is the nearest rank the benches now read', () => {
   const sorted = Array.from({ length: 20 }, (_, i) => i)
-  assert.equal(quantile(sorted, 0.95), 18)
-  assert.equal(quantile(sorted.slice(0, 19), 0.95), 18)
-  assert.equal(quantile(sorted.slice(0, 19), 0.5), 9)
-  assert.equal(quantile([3, 1, 2].sort(), 0.5), 2)
+  assert.equal(quantileOf(sorted, 0.95), 18)
+  assert.equal(quantileOf(sorted.slice(0, 19), 0.95), 18)
+  assert.equal(quantileOf(sorted.slice(0, 19), 0.5), 9)
+  assert.equal(quantileOf([3, 1, 2].sort(), 0.5), 2)
 })
 
 test('the turns the bench walks are the radians they were written as, bit for bit', () => {
@@ -146,7 +146,7 @@ test('the light tiles cut their rays by the engine slab test, as before to two u
 test('the p95 of a series is the nearest rank its clock read, at every length', () => {
   for (let n = 0; n <= 2000; n++) {
     const t = Array.from({ length: n }, (_, i) => i)
-    assert.equal(quantile(t, 0.95), t[Math.min(Math.ceil(n * 0.95) - 1, n - 1)], `${n} samples`)
+    assert.equal(quantileOf(t, 0.95), t[Math.min(Math.ceil(n * 0.95) - 1, n - 1)], `${n} samples`)
   }
 })
 
