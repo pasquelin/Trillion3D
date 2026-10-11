@@ -158,6 +158,6 @@ export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 's
       free--
     }
   }
-  stream.landed.add(take)
-  rt.signal.addEventListener('abort', () => stream.landed.delete(take), { once: true })
+  const leave = stream.landed.subscribe(take)
+  rt.signal.addEventListener('abort', leave, { once: true })
 }

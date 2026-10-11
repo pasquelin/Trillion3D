@@ -101,7 +101,7 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
     setup: { geometryUrls: new Map(['held', 'a', 'b', 'c', 'd', 'e'].map((url) => [url, url])) },
   }
   takeLandedPages(rt as unknown as Parameters<typeof takeLandedPages>[0])
-  for (const tell of hold.drawn!.landed) tell(['held', 'unknown', 'a', 'b', 'c'])
+  hold.drawn!.landed.emit(['held', 'unknown', 'a', 'b', 'c'])
   assert.deepEqual(loads, [
     ['a', undefined],
     ['b', undefined],
@@ -109,7 +109,7 @@ test('the pages a bundle read lands go to the free slots of the pool, unpinned, 
   // A load in flight takes the slot it lands in: a landed page counts it as taken.
   loads.length = 0
   inFlight = 1
-  for (const tell of hold.drawn!.landed) tell(['d', 'e'])
+  hold.drawn!.landed.emit(['d', 'e'])
   assert.deepEqual(loads, [['d', undefined]], 'one free slot, not two')
 })
 
