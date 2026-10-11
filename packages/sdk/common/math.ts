@@ -59,6 +59,7 @@ export {
 export type { CameraFrame } from '../../math/src/projection/camera.ts'
 export {
   clipPlanesFromMatrix,
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
