@@ -30,15 +30,8 @@ const VIEW_SHIFT = 27
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
   throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`)
 
-/**
- * Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`).
- *
- * It is the field table's own size (`../viewLayout.ts`), so a field added to the block moves the
- * stride with it.
- */
-export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
-export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4
+export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * VIEW_BLOCK_WORDS * 4
 /** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each — live count,
  *  live offset, drawn count —, then one word: zeroed by `dagPrepare`, read by no kernel since the
  *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */

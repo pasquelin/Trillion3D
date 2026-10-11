@@ -106,17 +106,16 @@ export const keptSnapshotWord = (listCap: number) =>
 export const KEPT_HEADER_WORDS = 2
 /** Word of `out` where region `v`'s saved drawn journal lies, behind the kept snapshot: its
  *  length, then `listCap` pages (`shader/swapWgsl.ts`); region 0 the main view's, one more a view
- *  drawn aside (`swap.ts`). */
-const savedJournalWord = (listCap: number, v: number) =>
+ *  drawn aside (`swap.ts`). Region `regions` is the word behind all of them, where the open counts
+ *  placements hold of their own lie (`heldOpen.ts`): written by the host alone, outside what the
+ *  frame copies. */
+export const savedJournalWord = (listCap: number, v: number) =>
   keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap + v * (1 + listCap)
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead, the kept
  *  snapshot and `regions` saved journals — none until a view is drawn aside: what the kernels
  *  write, more than the frame copies. */
 export const stagedOutputBytes = (listCap: number, regions = 0) =>
   savedJournalWord(listCap, regions) * 4
-/** Word of `out` where the open counts placements hold of their own lie (`heldOpen.ts`), behind its
- *  `regions` saved journals: written by the host alone, outside what the frame copies. */
-export const heldOpenWord = (listCap: number, regions: number) => savedJournalWord(listCap, regions)
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
  *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
  *  step with each region the readout gains. */

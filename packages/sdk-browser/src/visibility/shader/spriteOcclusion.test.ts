@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import type { HizPage } from '../../hiz/hiz.ts'
+import type { HizPage } from '../../hiz/types.ts'
 import { countUnoccluded, createHizCounts } from '../../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'

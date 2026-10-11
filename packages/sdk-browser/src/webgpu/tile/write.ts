@@ -1,5 +1,5 @@
+import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
 import {
-  levelSize,
   tailOffset,
   TILE_BORDER,
   TILE_PITCH,
@@ -112,7 +112,7 @@ export function writeTailFromBytes(
   levels: readonly Uint8Array[],
 ) {
   levels.forEach((pixels, rank) => {
-    const [width, height] = levelSize(size[0], size[1], tail + rank)
+    const [width, height] = previewLevelSize(size[0], size[1], tail + rank)
     if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES')
     writeRgba(queue, pool, tailOrigin(place, rank), pixels, width, height)
   })
@@ -128,7 +128,7 @@ export function copyTailFromTexture(
   last: number,
 ) {
   for (let level = tail; level <= last; level++) {
-    const [width, height] = levelSize(size[0], size[1], level)
+    const [width, height] = previewLevelSize(size[0], size[1], level)
     encoder.copyTextureToTexture(
       { texture: source, mipLevel: level, origin: [0, 0, 0] },
       { texture: pool, origin: tailOrigin(place, level - tail) },

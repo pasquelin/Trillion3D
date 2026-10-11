@@ -21,7 +21,7 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
  * more of the hierarchy is walked that frame, the cut is the same. The host keeps it, for the table
  * the row cache's growth makes (`resize`): what the view holds, never the placements.
  *
- * Three words a slot, in the readout behind its regions (`layout.ts`, `heldOpenWord`): the
+ * Three words a slot, in the readout behind its regions (`layout.ts`, `savedJournalWord`): the
  * placement plus one (zero, an empty slot), the node, the count.
  */
 export const HELD_SLOT_WORDS = 3

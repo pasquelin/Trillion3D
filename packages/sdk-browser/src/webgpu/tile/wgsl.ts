@@ -68,7 +68,7 @@ const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
  * remainder —, so what the material receives is the three-channel map it would have read from a
  * lossless lane.
  *
- * The host shader declares one `${k}Pool<lane>` per lane in `POOL_LANES` order — `colorPool0`,
+ * The host shader declares one `${k}Pool<lane>` per lane in `PREVIEW_LAYOUT_NAMES` order — `colorPool0`,
  * `colorPool1`, `colorPool2`, the same for `data` —, `mapsSampler`, `colorPages` and `dataPages`,
  * at the bindings `../core/bindEntries.ts` publishes.
  *

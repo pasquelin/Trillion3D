@@ -1,6 +1,6 @@
+import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import type { TileTexture } from './tileTexture.ts'
-import { levelSize } from '../../texture/tiles.ts'
 import { sourceSize } from '../../texture/pictureSize.ts'
 import { tailSlotOf, tileKeyOf } from './ids.ts'
 import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts'
@@ -36,7 +36,7 @@ export function copyLiveTexture(
     if (tailOf === undefined) {
       const { slot: owner, level, tx, ty } = tileKeyOf(id)
       if (owner !== slot) continue
-      const [width, height] = levelSize(layout.width, layout.height, level)
+      const [width, height] = previewLevelSize(layout.width, layout.height, level)
       copyTileFromTexture(
         encoder,
         pool.texture,

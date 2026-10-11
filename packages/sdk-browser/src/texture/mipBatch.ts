@@ -1,8 +1,9 @@
+import { previewLevelSize } from '../../../sdk-core/src/index.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
-import { levelSize, mipLevelCountFor } from './tiles.ts'
+import { mipLevelCountFor } from './tiles.ts'
 import { coveragePipelines, LEVEL_BIN_BYTES, pickGroup } from './coverageMips.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
@@ -113,7 +114,7 @@ function packBlocks(
   for (const { chain, levels, first, cutoff, bins = 0 } of places)
     for (let level = 0; level < levels; level++) {
       const at = (first + level) * words,
-        [width, height] = levelSize(chain.width, chain.height, Math.max(0, level - 1))
+        [width, height] = previewLevelSize(chain.width, chain.height, Math.max(0, level - 1))
       packed[at] = width
       packed[at + 1] = height
       packed[at + 2] = cutoff
