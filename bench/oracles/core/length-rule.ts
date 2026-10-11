@@ -1,5 +1,6 @@
 // The engine's expressions before the length rule (docs/MATHS.md "Lengths"), frozen word for
 // word: the oracles the length-rule sweeps hold the rewritten sites to, each at its f32 bits.
+// jscpd:ignore-start — a frozen copy, a wanted duplicate: the oracle must not share code with what it checks
 import type { TrackKind } from '../../../packages/sdk-core/src/world/animation/clip.ts'
 import { hypot2, hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { clamp, saturate } from '../../../packages/math/src/scalar/reals.ts'
@@ -139,3 +140,4 @@ function normalised(a: Float64Array, b: Float64Array, span: number, bend: number
   const least = Math.sqrt(near) - (bend * span * span) / 8
   return least > 0 && Math.hypot(...a) > 0 && Math.hypot(...b) > 0 ? speed / least : Infinity
 }
+// jscpd:ignore-end

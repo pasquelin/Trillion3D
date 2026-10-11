@@ -1,6 +1,7 @@
 // Oracle: `bench/oracles/browser/cpu-image/lighting.ts`, copied as-is. Hemispheric
 // lighting constants — sun direction, length, ground colour, sky colour — are recomputed
 // and reallocated every pixel, and channels go through temporary arrays.
+// jscpd:ignore-start — a frozen copy, a wanted duplicate: the oracle must not share code with what it checks
 import * as THREE from 'three'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { triangleAt } from './cpu-image/projection.ts'
@@ -188,3 +189,4 @@ export function referenceShadeLit(
       diffuse[c] * (hemi[c] * ao + direct) + spec[c] * direct + mat.emissive[c] * emissiveSample[c],
   )
 }
+// jscpd:ignore-end
