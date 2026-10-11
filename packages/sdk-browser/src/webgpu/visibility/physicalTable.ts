@@ -6,6 +6,7 @@ import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { extendSpan, type Span } from '../../../../math/src/sequence/span.ts'
 
 /** Words of one record (`physicalTableWgsl`, `../../visibility/shader/physicalWgsl.ts`): the four
  *  factors, the coat normal's two scales, the maps' UV channels, a pad, the four map slots. */
@@ -83,7 +84,7 @@ export function createPhysicalTable() {
     freed,
     reclaim: new FinalizationRegistry<number>((rank) => void freed.push(rank)),
     ints: new Uint32Array(PHYSICAL_RECORD_WORDS),
-    ...{ held: 0, epoch: 0, low: Infinity, high: -1, texture: undefined },
+    ...{ held: 0, epoch: 0, written: { from: Infinity, to: -1 }, texture: undefined },
   }
   const table = {
     view: undefined as GPUTextureView | undefined,
@@ -97,7 +98,7 @@ export function createPhysicalTable() {
     },
     /** Whether `upload` has records to send, or no texture yet. */
     get pending() {
-      return p.low <= p.high || !p.texture
+      return p.written.from <= p.written.to || !p.texture
     },
     /** The view the passes bind, its texture made or grown to hold every record, and the records
      *  written since the last upload sent up: their span of the first row alone, else their rows. */
@@ -122,11 +123,10 @@ type Records = {
   reclaim: FinalizationRegistry<number>
   ints: Uint32Array<ArrayBuffer>
   /** Ranks handed out so far (the table's height), the atlas slots' epoch, and the range of
-   *  records written since the last upload (`low > high`: none). */
+   *  records written since the last upload (`from > to`: none). */
   held: number
   epoch: number
-  low: number
-  high: number
+  written: Span
   texture: GPUTexture | undefined
 }
 
@@ -157,8 +157,7 @@ function write(p: Records, mat: VisMaterial, dataLayer: Layers) {
     p.ints = resized(p.ints, (rank + 1) * PHYSICAL_RECORD_WORDS)
   }
   if (writePhysicalRecord(p.ints, rank * PHYSICAL_RECORD_WORDS, mat, dataLayer)) {
-    p.low = Math.min(p.low, rank)
-    p.high = Math.max(p.high, rank)
+    extendSpan(p.written, rank)
   }
   return rank + 1
 }
@@ -178,9 +177,9 @@ function upload(p: Records, table: { view: GPUTextureView | undefined }, device:
       usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     })
     table.view = p.texture.createView()
-    if (p.held) [p.low, p.high] = [0, p.held - 1]
+    if (p.held) [p.written.from, p.written.to] = [0, p.held - 1]
   }
-  const { low, high } = p
+  const { from: low, to: high } = p.written
   if (low > high) return table.view!
   const first = Math.floor(low / PHYSICAL_ROW_RECORDS),
     last = Math.floor(high / PHYSICAL_ROW_RECORDS)
@@ -193,8 +192,8 @@ function upload(p: Records, table: { view: GPUTextureView | undefined }, device:
     { offset: first * ROW_BYTES + x * 16, bytesPerRow: ROW_BYTES },
     [width, last - first + 1],
   )
-  p.low = Infinity
-  p.high = -1
+  p.written.from = Infinity
+  p.written.to = -1
   return table.view!
 }
 export type PhysicalTable = ReturnType<typeof createPhysicalTable>
