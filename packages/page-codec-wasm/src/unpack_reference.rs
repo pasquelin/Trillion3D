@@ -6,10 +6,10 @@
 
 use super::*;
 use crate::bits::tests::random_field;
-use crate::triangles::{BLOCK, WIDTH_BITS};
+use crate::triangles::{TRIANGLE_BLOCK, WIDTH_BITS};
 use trillion3d_math::octahedral::oct_decode;
 
-const CORNERS: usize = 3 * BLOCK;
+const CORNERS: usize = 3 * TRIANGLE_BLOCK;
 
 fn random_vector<const N: usize>(out: &mut [u32], w: &[u32], at: [usize; N], q: &Quant<N>) {
     for c in 0..N {

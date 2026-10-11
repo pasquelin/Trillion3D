@@ -3,10 +3,7 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import {
-  worldRootsDag,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { heldBy, modelOpened, opened, served, sha } from './worldRoots.fixture.ts'

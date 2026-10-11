@@ -8,11 +8,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
-import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
 import type {
   PageAttribute,
   PageAttributes,
-} from '../../../packages/page-codec/src/pageAttributes.ts'
+} from '../../../packages/sdk-core/src/page/pageInput.ts'
 import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.fixture.ts'
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
@@ -46,7 +46,7 @@ function flatShaded(
       return [name, { itemSize, array: new Float32Array(values) }]
     }),
   )
-  const encoded = encodeGeometryPage(corners, flat, exponent),
+  const encoded = encodePage(corners, flat, exponent),
     words = new DataView(encoded.data.buffer, encoded.data.byteOffset)
   assert.ok(words.getUint32(88, true) < words.getUint32(8, true), 'positions stored once')
   return { encoded, indices: corners }

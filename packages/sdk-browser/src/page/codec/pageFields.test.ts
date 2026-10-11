@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { field } from './bits.ts'
+import { field } from './pageFields.ts'
 
 /** The `bits` bits at bit `at`, read one bit at a time: the format packs a field least significant
- *  bit first within a word and continues in the next word, which is what `Packer.push` writes
- *  (`pageGrids.ts`). An oracle that cannot be wrong in the same way as a shift and a mask. */
+ *  bit first within a word and continues in the next word, which is what the page writer (`writer.rs`)
+ *  writes. An oracle that cannot be wrong in the same way as a shift and a mask. */
 function bitAtATime(words: Uint32Array, at: number, bits: number) {
   let value = 0
   for (let b = 0; b < bits; b++) {

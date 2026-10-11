@@ -8,7 +8,7 @@ pub(super) struct Built {
     pub stalls: Vec<DagStall>,
     /// The arrays the pages read: the case's, then every vertex a solve placed (`dag::Grown`).
     pub positions: Vec<f32>,
-    pub attributes: Vec<geometry_page::Attribute>,
+    pub attributes: Vec<encode::Attribute>,
     /// Per placed vertex, the case's vertex it was solved from.
     pub origin: Vec<u32>,
 }
@@ -22,7 +22,7 @@ impl Built {
 /// normals and every texture set the pages carry.
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
-    let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
+    let carried: Vec<&encode::Attribute> = attributes.iter().collect();
     let (dag, _, _, stalls, grown) = build_dag_tallied(
         &case.positions,
         crate::dag::DagAttributes { carried: &carried },
@@ -63,7 +63,7 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
-    let carried: Vec<&geometry_page::Attribute> = built.attributes.iter().collect();
+    let carried: Vec<&encode::Attribute> = built.attributes.iter().collect();
     let normals = crate::dag::DagAttributes { carried: &carried }.normals();
     let quality = crate::dag::quality::check(&built.dag, &built.positions, normals);
     if let Err(refusal) = quality {
@@ -140,7 +140,7 @@ pub(super) fn check_roots(built: &Built, label: &str) {
 /// the page declares.
 pub(super) fn check_pages(built: &Built, label: &str) {
     let (positions, attributes) = (&built.positions, &built.attributes);
-    let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
+    let carried: Vec<&encode::Attribute> = attributes.iter().collect();
     let exponent = crate::geometry_page_quant::primitive_exponent(
         positions,
         built
@@ -152,17 +152,17 @@ pub(super) fn check_pages(built: &Built, label: &str) {
         crate::geometry_page_quant::tile::TILE_EXTENT_LOG2,
     );
     for cluster in &built.dag {
-        let encoded = geometry_page::encode(
+        let encoded = encode::encode(
             &cluster.indices,
             positions,
             &carried,
             exponent,
-            crate::geometry_page_quant::UV_EXPONENT,
+            trillion3d_page_codec::bits::grid::UV_EXPONENT,
         )
         .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
         let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20)
             .unwrap_or_else(|e| panic!("{label}: decode level {}: {e:?}", cluster.level));
-        crate::geometry_page::tests_codec::verify(
+        crate::geometry_page_tests::codec::verify(
             &page,
             &cluster.indices,
             positions,

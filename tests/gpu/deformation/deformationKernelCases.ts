@@ -3,8 +3,8 @@
 // between them. Every page-table word is named by the field `PageInfo` declares
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts'
-import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-browser/src/cluster/format.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,
@@ -46,7 +46,7 @@ const bits = (floats: Float32Array) => [
 
 export const REST = [0, 0, 0, 1, 0, 0, 0, 1, 0],
   MOVED = REST.map((c, i) => (i % 3 === 2 ? 2 : c))
-const page = encodeGeometryPage(
+const page = encodePage(
   [0, 1, 2],
   {
     POSITION: { array: REST, itemSize: 3 },

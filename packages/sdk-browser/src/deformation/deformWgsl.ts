@@ -1,5 +1,5 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts'
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
 import { DEFORM_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'

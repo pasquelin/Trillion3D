@@ -26,14 +26,15 @@ test('a changed reference value runs the golden tests that read it', () => {
   const sources: Record<string, string> = {
     'packages/page-codec-wasm/src/golden_tests/grid.rs': 'Twin {\n    file: "grid",',
     'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
-    'packages/page-codec/src/gridExponent.golden.test.ts': "assertGolden('grid', 'tile_log2'",
+    'packages/sdk-browser/src/world/page/cutGrid.golden.test.ts':
+      "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
   }
   assert.deepEqual(
     goldenChecks([file], Object.keys(sources), (path) => sources[path]),
     {
       crates: ['packages/page-codec-wasm'],
-      tests: ['packages/page-codec/src/gridExponent.golden.test.ts'],
+      tests: ['packages/sdk-browser/src/world/page/cutGrid.golden.test.ts'],
     },
   )
   assert.deepEqual(goldenChecks(['packages/math/src/index.ts'], Object.keys(sources)), {
@@ -83,7 +84,8 @@ test('several changed reference files read each candidate once', () => {
   const sources: Record<string, string> = {
     'packages/page-codec-wasm/src/golden_tests/grid.rs': 'Twin {\n    file: "grid",',
     'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
-    'packages/page-codec/src/gridExponent.golden.test.ts': "assertGolden('grid', 'tile_log2'",
+    'packages/sdk-browser/src/world/page/cutGrid.golden.test.ts':
+      "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
   }
   const reads: string[] = []

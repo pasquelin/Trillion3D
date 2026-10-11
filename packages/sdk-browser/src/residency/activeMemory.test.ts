@@ -10,10 +10,7 @@ import { TILES_PER_LAYER } from '../texture/tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
 import { DEFAULT_CPU_BUDGET, defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts'
 import type { ActiveGpuMemory } from './activeMemory.ts'
-import {
-  cellObjects,
-  worldRootsFixture,
-} from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { cellObjects, worldRootsFixture } from '../scene/worldRootsPages.fixture.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts'
 

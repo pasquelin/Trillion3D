@@ -1,8 +1,8 @@
 //! The texture deviation a reduction publishes, looked up on the triangles it replaced
 //! (`texture.rs`).
 use super::*;
-use crate::geometry_page::{Attribute as Carried, FLAG_UV};
 use texture::texture_deviation_above;
+use trillion3d_page_codec::encode::{Attribute as Carried, FLAG_UV};
 
 /// A flat 2 m brick of 3 x 3 vertices at `(x, 0, z)`, its texture the unit square, the centre's
 /// coordinate moved by `warp`; its 8 triangles and the 2 coarse ones spanning its corners.

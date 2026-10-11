@@ -1,9 +1,9 @@
 //! The root cover of one compiled primitive, kept where its DAG, its positions and the attributes
 //! its pages carry are all in hand: further on, its clusters exist only as cache objects.
 use crate::dag::{DagCluster, DagStrategy};
-use crate::geometry_page::Attribute;
 use crate::qem::compact_region;
 use serde_json::Value;
+use trillion3d_page_codec::encode::Attribute;
 
 /// One root cluster of a primitive: its triangles in the cover's own vertices, the error and the
 /// sphere it was published at, in object units, and the streaming bundle of the primitive that

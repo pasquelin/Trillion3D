@@ -20,7 +20,7 @@ use super::top::{held_by, refuse_over_budget};
 use super::*;
 use crate::compiler_primitive_bundle::index_bytes;
 use crate::dag::build_culling_bvh;
-use crate::geometry_page::Encoded;
+use trillion3d_page_codec::encode::Encoded;
 
 /// Packs `world`, checks that every page reaches the pinned top or a root its cell holds, refuses a
 /// top over `budget`, and returns the payload of the super-root bundles with the table and the DAG

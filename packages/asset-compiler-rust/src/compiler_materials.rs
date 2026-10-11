@@ -67,14 +67,14 @@ pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> boo
 /// pages too, and out of the DAG's seam weld: its seams are drawn by nobody, so they hold no
 /// group back.
 pub(super) fn carried_attributes<'a>(
-    attributes: &'a [geometry_page::Attribute],
+    attributes: &'a [encode::Attribute],
     material: Option<&Value>,
-) -> Vec<&'a geometry_page::Attribute> {
+) -> Vec<&'a encode::Attribute> {
     attributes
         .iter()
         .filter(|a| match a.flag {
-            geometry_page::FLAG_UV => material_reads_texcoord(material, 0),
-            geometry_page::FLAG_UV1 => material_reads_texcoord(material, 1),
+            encode::FLAG_UV => material_reads_texcoord(material, 0),
+            encode::FLAG_UV1 => material_reads_texcoord(material, 1),
             _ => true,
         })
         .collect()

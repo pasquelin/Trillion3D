@@ -10,7 +10,7 @@ import {
   FLAG_MASK,
   PHYSICAL_SECOND_UV,
 } from '../types.ts'
-import { FLAG_UV1 } from '../../cluster/format.ts'
+import { FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
 import { SPRITE_WGSL } from './spriteWgsl.ts'

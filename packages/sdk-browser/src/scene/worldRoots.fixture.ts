@@ -3,7 +3,7 @@
 import type { TestContext } from 'node:test'
 import { createHash } from 'node:crypto'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'

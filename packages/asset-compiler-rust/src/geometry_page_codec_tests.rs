@@ -1,12 +1,14 @@
-//! Shared decoder golden test: what `geometry_page::encode` writes, `trillion3d_page_codec`
+//! Shared decoder golden test: what `encode::encode` writes, `trillion3d_page_codec`
 //! re-reads — same triangles, every attribute within the grid's declared error, and two source
 //! vertices that quantize alike kept once.
 
-use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
-use crate::geometry_page_quant::UV_EXPONENT;
 use trillion3d_math::random::xorshift32;
 use trillion3d_page_codec as codec;
+use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 use trillion3d_page_codec::bits::pow2;
+use trillion3d_page_codec::encode::{
+    encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1,
+};
 
 /// A float in `[-scale, scale]`, with exact zeros and negative zeros sprinkled in.
 fn value(state: &mut u32, scale: f32) -> f32 {

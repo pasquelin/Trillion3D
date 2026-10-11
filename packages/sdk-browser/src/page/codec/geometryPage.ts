@@ -7,12 +7,11 @@ import {
   FLAG_UV,
   FLAG_UV1,
   BLOCK_CORNERS,
-} from '../../cluster/format.ts'
+} from '../../../../sdk-core/src/page/format.ts'
 import { blockRecord, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts'
 import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts'
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts'
-import { field } from '../../../../page-codec/src/bits.ts'
-import { dequant, octDecode } from '../../../../page-codec/src/pageGrids.ts'
+import { dequant, field, octDecode } from './pageFields.ts'
 
 /**
  * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the

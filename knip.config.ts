@@ -22,7 +22,6 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
-        'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
         // Every unit test runs by `node --test`: an entry by rule.

@@ -17,8 +17,8 @@
 //! within its error.
 use super::bounds::bounding_sphere;
 use crate::join::Join;
-use crate::shared_math::WordMap;
 use std::collections::BTreeMap;
+use trillion3d_page_codec::hash::WordMap;
 
 /// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
 /// its triangles: one root per part.

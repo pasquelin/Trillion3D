@@ -12,9 +12,9 @@
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
-use crate::shared_math::{word_map, WordMap, WordSet};
 use crate::{invalid, Result};
 use rayon::prelude::*;
+use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;

@@ -39,6 +39,21 @@ export type SdkWasm = {
     clusters: number,
     out: number,
   ): number
+  /** The page encoder of the run-time cut (`../page/codec/encodeGeometryPage.ts`): 0 written, the
+   *  page waiting for `encode_page_take`; 1 refused, its code in the answer block. */
+  encode_page(request: number, answer: number): number
+  encode_page_take(out: number): void
+  /** The grids of a primitive (`../world/page/cutGrid.ts`): NaN where nothing is known, `blended`
+   *  0 or 1. */
+  grid_tile_log2(scale: number): number
+  grid_position_exponent(
+    extent: number,
+    finestError: number,
+    blended: number,
+    tileLog2: number,
+  ): number
+  grid_uv_exponent(span: number, blended: number): number
+  grid_drawn_uv_exponent(span: number, blended: number): number
 }
 type WasmSource = BufferSource | (() => Promise<BufferSource>)
 
@@ -68,4 +83,12 @@ async function instantiate(source: WasmSource): Promise<SdkWasm | null> {
 export function prepareSdkWasm(source: WasmSource = resource): Promise<SdkWasm | null> {
   pending ??= instantiate(source)
   return pending
+}
+
+/** The module, or an error naming that the page encoder has nowhere to run: the run-time cut
+ *  writes its pages with it and has no second encoder. */
+export async function requireSdkWasm(): Promise<SdkWasm> {
+  const module = await prepareSdkWasm()
+  if (!module || typeof module.encode_page !== 'function') throw new Error('SDK_WASM_UNAVAILABLE')
+  return module
 }

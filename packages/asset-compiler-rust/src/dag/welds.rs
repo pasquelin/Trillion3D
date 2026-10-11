@@ -6,8 +6,8 @@ use super::charts::vertex_islands;
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
-use crate::geometry_page::Attribute as Carried;
 use crate::qem::Attribute;
+use trillion3d_page_codec::encode::Attribute as Carried;
 
 /// One entry per vertex of the level for each question the welds answer; the source's first,
 /// then every vertex a solved reduction placed.

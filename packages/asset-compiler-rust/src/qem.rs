@@ -1,9 +1,9 @@
 //! Region simplification for the cluster DAG: an adapter around the `meshopt` crate's simplifier,
 //! which ranks the collapses and measures the error; this module compacts the region, sets the vertex
 //! flags and attribute weights, and clamps the error to the region's extent.
-use crate::shared_math::word_map;
 use crate::{invalid, Result};
 use meshopt::{SimplifyOptions, VertexDataAdapter};
+use trillion3d_page_codec::hash::word_map;
 pub struct SimplifiedMesh {
     pub indices: Vec<u32>,
     pub error_object: f64,

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { packedRowBase } from './pageRow.ts'
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts'
-import { FLAG_COLOR, FLAG_UV } from '../../cluster/format.ts'
+import { FLAG_COLOR, FLAG_UV } from '../../../../sdk-core/src/page/format.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_HAS_COLOR,

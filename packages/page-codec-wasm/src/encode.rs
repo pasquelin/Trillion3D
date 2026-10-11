@@ -1,15 +1,43 @@
-pub(crate) use crate::geometry_page_cells::localise;
-use crate::geometry_page_cells::{first_use, grids, stored_positions, Grids};
-use crate::geometry_page_deform::{join, page_deformation, write, Deformation};
-use crate::{CompilerError, Result};
-use trillion3d_page_codec::triangles::Spans;
-use trillion3d_page_codec::writer::BitWriter;
-use trillion3d_page_codec::{Header, Layout};
-pub use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+//! The `WGP3` page encoder: the one that writes every page, the native compiler's and the
+//! run-time cut's (`wasm_encode.rs`), from the grids of `bits` and the streams of `triangles`,
+//! `positions` and `deform`.
+pub mod cells;
+pub mod deformation;
+mod skin;
+
+use cells::{first_use, grids, localise, stored_positions, Grids};
+use deformation::{join, page_deformation, write, Deformation};
+
+use crate::triangles::Spans;
+use crate::writer::BitWriter;
+use crate::{Header, Layout};
+pub use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+
+/// A refusal of the encoder: a stable code and what it says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EncodeError {
+    pub code: &'static str,
+    pub message: &'static str,
+}
+
+impl EncodeError {
+    pub const fn new(code: &'static str, message: &'static str) -> Self {
+        Self { code, message }
+    }
+}
+
+impl std::fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)
+    }
+}
+
+/// The encoder's result: a value or its refusal.
+pub type Result<T> = std::result::Result<T, EncodeError>;
 
 /// The glTF attributes a page may carry, in the order the page writes them: the name the
 /// document gives each, its width (a colour may also be three-wide) and its presence bit.
-pub(crate) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
+pub const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
     ("NORMAL", 3, FLAG_NORMAL),
     ("TEXCOORD_0", 2, FLAG_UV),
     ("TEXCOORD_1", 2, FLAG_UV1),
@@ -32,33 +60,12 @@ pub struct Encoded {
     pub header: Header,
 }
 
-#[cfg(test)]
-#[path = "geometry_page_batch_b_tests.rs"]
-mod tests_batch_b;
-
-#[cfg(test)]
-#[path = "geometry_page_codec_tests.rs"]
-pub(crate) mod tests_codec;
-
-#[cfg(test)]
-#[path = "geometry_page_codec_refusal_tests.rs"]
-mod tests_codec_refusal;
-
-#[cfg(test)]
-#[path = "geometry_page_grid_tests.rs"]
-mod tests_grid;
-
-#[cfg(test)]
-#[path = "geometry_page_positions_tests.rs"]
-mod tests_positions;
-
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
  * `position_exponent`, each stored once when the vertices repeat them (`stored_positions`), texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
  * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
-#[cfg(test)]
 pub fn encode(
     indices: &[u32],
     positions: &[f32],
@@ -80,7 +87,7 @@ pub fn encode_deformed(
     (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
-        return Err(CompilerError::new(
+        return Err(EncodeError::new(
             "INVALID_PAGE",
             "Invalid page triangle or position count",
         ));
@@ -96,7 +103,7 @@ pub fn encode_deformed(
             _ => false,
         };
         if !width_ok || attribute.values.len() != vertices * attribute.width {
-            return Err(CompilerError::new(
+            return Err(EncodeError::new(
                 "INVALID_PAGE_ATTRIBUTE",
                 "Page attribute count or layout is invalid",
             ));

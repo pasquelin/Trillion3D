@@ -4,7 +4,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'
 import { cellDependencies, worldBundlePages } from './worldRoots.ts'
-import { worldPage, worldRootsFixture } from './worldRoots.fixture.ts'
+import {
+  worldPage,
+  worldRootsFixture,
+} from '../../../sdk-browser/src/scene/worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots } from './worldRootsTable.ts'
 

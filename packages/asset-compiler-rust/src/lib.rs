@@ -5,10 +5,10 @@ pub mod coplanar;
 pub mod cutout;
 mod dag;
 mod eac_modifiers;
-mod geometry_page;
-mod geometry_page_cells;
 mod geometry_page_deform;
 mod geometry_page_quant;
+#[cfg(test)]
+mod geometry_page_tests;
 pub mod import;
 mod impostor;
 mod join;
@@ -39,6 +39,7 @@ use std::{
     },
     time::Instant,
 };
+use trillion3d_page_codec::encode;
 mod compiler_format;
 mod compiler_identity;
 pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE_FORMAT_VERSION};
@@ -81,6 +82,11 @@ impl Display for CompilerError {
     }
 }
 impl std::error::Error for CompilerError {}
+impl From<trillion3d_page_codec::encode::EncodeError> for CompilerError {
+    fn from(error: trillion3d_page_codec::encode::EncodeError) -> Self {
+        Self::new(error.code, error.message)
+    }
+}
 impl From<std::io::Error> for CompilerError {
     fn from(value: std::io::Error) -> Self {
         Self::new("IO_ERROR", value.to_string())

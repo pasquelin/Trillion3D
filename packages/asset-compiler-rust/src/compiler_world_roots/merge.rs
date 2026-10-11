@@ -5,8 +5,8 @@
 use super::place::Roots;
 use super::*;
 use crate::dag::{DagCluster, DagGroup};
-use crate::geometry_page::Attribute;
 use crate::qem::compact_region;
+use trillion3d_page_codec::encode::Attribute;
 
 /// Every cluster of the world, on one world-space vertex buffer and the attributes of `LAYOUT` on
 /// it — each empty while no build carries it, zero on a vertex whose build does not. Level 0 is

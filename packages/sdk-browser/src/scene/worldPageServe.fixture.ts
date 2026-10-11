@@ -1,4 +1,4 @@
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { worldPageServer } from './worldPageServe.ts'
 

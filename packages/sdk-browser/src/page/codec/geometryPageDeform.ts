@@ -7,9 +7,9 @@ import {
   MAX_JOINT_BITS,
   MAX_MORPH_TARGETS,
   MORPH_WORDS,
-} from '../../cluster/format.ts'
+} from '../../../../sdk-core/src/page/format.ts'
 import type { Quant } from './geometryPageHeader.ts'
-import { field } from '../../../../page-codec/src/bits.ts'
+import { field } from './pageFields.ts'
 
 /**
  * What a `WGP3` page carries for the GPU deformation stage, the mirror of the shared

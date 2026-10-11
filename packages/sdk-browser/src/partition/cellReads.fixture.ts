@@ -1,5 +1,5 @@
 import type { TestContext } from 'node:test'
-import { packBundles, worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { packBundles, worldPage } from '../scene/worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
 import type { TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'

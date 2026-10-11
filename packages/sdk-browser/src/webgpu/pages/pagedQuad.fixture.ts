@@ -1,5 +1,5 @@
 import * as G from '../../host/graph/graph.fixture.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
@@ -22,7 +22,7 @@ export type ClusterSpec = { corners: Uint32Array; attributes?: Attributes; paged
 export function pagedQuad(specs: readonly ClusterSpec[]) {
   const { geometry, material, mesh, source } = quadScene(G.basicSurface({ color: 0xff0000 }))
   const bytes = new Map<string, Uint8Array>(),
-    encoded: ReturnType<typeof encodeGeometryPage>[] = []
+    encoded: ReturnType<typeof encodePage>[] = []
   const pages = dagRoots(
     specs.map((spec, id) => {
       const page = {
@@ -35,7 +35,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         sha256: 'x',
       }
       if (spec.paged === false) return page
-      const geo = encodeGeometryPage(
+      const geo = encodePage(
         spec.corners,
         { POSITION: { itemSize: 3, array: POSITIONS }, ...spec.attributes },
         -6,

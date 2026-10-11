@@ -1,7 +1,6 @@
 //! Raw ABI of the normal cone (`normal_cone.rs`) for the pages the engine cuts at run time: byte
 //! offsets into `arena_alloc` reservations, like `wasm_math.rs`. The loader is
-//! `packages/sdk-browser/src/world/page/cutCones.ts`; the grids are the TypeScript twin's
-//! (`packages/page-codec/src/gridExponent.ts`), the same integers as `bits/grid.rs`.
+//! `packages/sdk-browser/src/world/page/cutCones.ts`.
 
 use crate::normal_cone::cluster_cones;
 

@@ -39,9 +39,6 @@
  *  Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
  *  ETC2 family, the third a device may sample; a version-10 reader would stride wrongly. */
 export const MANIFEST_BINARY_VERSION = 11
-/** The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
- *  it once and every page header opens with. */
-export const GEOMETRY_PAGE_FORMAT_VERSION = 7
 /** The codec geometry pages are written with. */
 export const GEOMETRY_PAGE_CODEC = 'quantized'
 /** 'W','G','M','B' read as a little-endian u32. */

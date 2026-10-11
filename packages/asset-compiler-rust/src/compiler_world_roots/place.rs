@@ -7,11 +7,11 @@
 use super::*;
 use crate::compiler_world::cofactor_direction;
 use crate::dag::tight::ball_of_balls;
-use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 use crate::proxy::{place, world_scale};
 use crate::shared_math::unit;
 use trillion3d_math::linear::determinant;
 use trillion3d_math::matrix::transform_point;
+use trillion3d_page_codec::encode::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 
 /// The attributes a world vertex may carry, in the order a page writes them, at the width a world
 /// page stores each: the page format's own.

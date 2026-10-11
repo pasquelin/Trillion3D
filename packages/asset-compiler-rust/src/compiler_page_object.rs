@@ -1,6 +1,6 @@
 use super::*;
 use crate::dag::DagCluster;
-use crate::geometry_page_deform::{Deformation, MorphTarget};
+use trillion3d_page_codec::encode::deformation::{Deformation, MorphTarget};
 /// Geometry codec metadata; header magic and sidecar version gate every page.
 pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
@@ -12,9 +12,9 @@ pub(super) fn page_attributes(
     p: &Value,
     count: usize,
     validated: &BTreeSet<usize>,
-) -> Result<Vec<geometry_page::Attribute>> {
+) -> Result<Vec<encode::Attribute>> {
     let mut attributes = Vec::new();
-    for &(name, width, flag) in &geometry_page::PAGE_ATTRIBUTES {
+    for &(name, width, flag) in &encode::PAGE_ATTRIBUTES {
         let Some(id) = p
             .get("attributes")
             .and_then(Value::as_object)
@@ -29,7 +29,7 @@ pub(super) fn page_attributes(
                 format!("{name} count or width differs from POSITION"),
             ));
         }
-        attributes.push(geometry_page::Attribute {
+        attributes.push(encode::Attribute {
             flag,
             width: a.width,
             values: a.collect_f32()?,
@@ -49,12 +49,12 @@ pub(super) use deform::page_deformation;
 pub(super) fn store_page(
     o: &Options,
     slice: &[u32],
-    (pos, page_attributes): (&[f32], &[&geometry_page::Attribute]),
+    (pos, page_attributes): (&[f32], &[&encode::Attribute]),
     deformed: (&Deformation, &[u32]),
     (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<(Value, bool)> {
     let exponents = (position_exponent, uv_exponent);
-    let encoded = geometry_page::encode_deformed(slice, pos, page_attributes, deformed, exponents)?;
+    let encoded = encode::encode_deformed(slice, pos, page_attributes, deformed, exponents)?;
     let digest = hash(&encoded.bytes);
     let target = object_path(o, &digest);
     let reused = object_intact(&target, &digest)?.is_some();
@@ -64,11 +64,7 @@ pub(super) fn store_page(
     Ok((geometry_record(&digest, &encoded, slice.len()), reused))
 }
 /// The `geometry` object of a page record: the packed page stored under `digest`.
-pub(crate) fn geometry_record(
-    digest: &str,
-    page: &geometry_page::Encoded,
-    indices: usize,
-) -> Value {
+pub(crate) fn geometry_record(digest: &str, page: &encode::Encoded, indices: usize) -> Value {
     let header = &page.header;
     json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
 }

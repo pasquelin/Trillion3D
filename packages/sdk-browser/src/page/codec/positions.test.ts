@@ -1,12 +1,13 @@
-// Equivalence harness of CMP-10 (#960, E0), on the reference encoder and the JavaScript decoder:
+// Equivalence harness of CMP-10 (#960, E0), on the page encoder and the JavaScript decoder:
 // a page that stores each position once decodes to the very bytes develop's page decoded to.
 // Develop's outcome of every case — the SHA-256 of the
 // decoded block, or the refusal — and its page bytes are frozen below, measured on develop
-// `a563999f0` with this same harness (`positions.fixture.ts`).
+// `a563999f0` with this same harness (`positions.fixture.ts`); the refusals carry the codes of the
+// encoder the compiler writes with.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts'
+import { encodePage } from './encodePage.fixture.ts'
+import { CLUSTER_HEADER_WORDS } from '../../../../sdk-core/src/page/format.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
 import { readGeometryPageHeader } from './geometryPageHeader.ts'
 import { cases, outcome } from './positions.fixture.ts'
@@ -53,10 +54,10 @@ const DEVELOP: [string, string, number][] = [
   ['random 38', 'f78f69addb45dc91', 1688],
   ['random 39', '043427e154c40fef', 8116],
   ['signed zeros', '127336cdcc2ae738', 208],
-  ['NaN position', 'PAGE_ATTRIBUTE_NONFINITE', 0],
-  ['+Inf position', 'PAGE_ATTRIBUTE_NONFINITE', 0],
-  ['-Inf position', 'PAGE_ATTRIBUTE_NONFINITE', 0],
-  ['empty', 'PAGE_TRIANGLES_INVALID', 0],
+  ['NaN position', 'INVALID_PAGE_ATTRIBUTE', 0],
+  ['+Inf position', 'INVALID_PAGE_ATTRIBUTE', 0],
+  ['-Inf position', 'INVALID_PAGE_ATTRIBUTE', 0],
+  ['empty', 'INVALID_PAGE', 0],
   ['65,535 vertices', '37e1a2b7c03c9364', 851864],
   ['65,538 vertices', 'PAGE_VERTEX_LIMIT', 0],
   ['widest range', '20228dfc9efe4e82', 124],
@@ -85,7 +86,7 @@ test('every page decodes to the block develop decoded, with only the format-7 he
 
 test('a flat-shaded page stores fewer positions than vertices; a stray link is refused', () => {
   const [, mesh] = cases().find(([name]) => name === '65,535 vertices')!
-  const { data } = encodeGeometryPage(mesh.indices, mesh.attributes, mesh.exponent)
+  const { data } = encodePage(mesh.indices, mesh.attributes, mesh.exponent)
   const { vertexCount, positionCount, linkBits, streams } = readGeometryPageHeader(data)
   assert.ok(positionCount < vertexCount, `${positionCount} positions for ${vertexCount} vertices`)
   assert.equal(decodeGeometryPage(data as Uint8Array, 1 << 28).vertexCount, vertexCount)

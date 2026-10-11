@@ -1,9 +1,9 @@
 //! Shared decoder refusals, on pages the encoder would never write, and encoder refusals on
 //! attributes no page may carry.
 
-use crate::geometry_page::{encode, Attribute, FLAG_NORMAL, FLAG_UV};
-use crate::geometry_page_quant::UV_EXPONENT;
 use trillion3d_page_codec as codec;
+use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_page_codec::encode::{encode, Attribute, FLAG_NORMAL, FLAG_UV};
 use trillion3d_page_codec::HEADER_BYTES;
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];

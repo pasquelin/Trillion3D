@@ -4,9 +4,9 @@
 //! that stores every position, with this same harness; the cases are flat-shaded and smooth
 //! random meshes, the signed zeros, NaN and infinities, the empty page and the largest one.
 
-use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
 use sha2::{Digest, Sha256};
+use trillion3d_page_codec::encode::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 
 /// A mesh on its source vertices: positions, then optional attributes, then triangles.
 struct Mesh {

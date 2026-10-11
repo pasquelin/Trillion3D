@@ -1,25 +1,31 @@
-//! Decoder of a `WGP3` geometry page — quantized cluster geometry —, exact mirror of
-//! `packages/sdk-browser/src/page/codec/geometryPage.ts` and of the WGSL routines of
-//! `packages/sdk-browser/src/cluster/decodeWgsl.ts`.
+//! The `WGP3` geometry page — quantized cluster geometry —: its format, its one encoder and its
+//! test decoder.
 //!
-//! The decoder serves the native compiler, which encodes with the format's own definitions
-//! (`bits.rs`) and proves that what it writes rereads identically. Refusals carry the same causes,
-//! in the same order, as the JavaScript decoder: a byte that passes here passes there, a byte that
-//! falls here falls there. The browser decodes no page on the CPU: the GPU reads them in place.
+//! The encoder (`encode.rs`) writes every page: the native compiler's, and, through the SDK's one
+//! WebAssembly module (`wasm_encode.rs`), the pages the engine cuts at run time. The format's
+//! constants (`lib.rs`, `bits.rs`, `deform.rs`, `triangles.rs`, `bits/grid.rs`) are printed into
+//! the TypeScript readers and the WGSL built from them by `scripts/generate-shared-rules.ts`: no
+//! other language holds a copy. The decoder (`unpack.rs`) is the compiler's round-trip test: what
+//! the compiler writes it rereads identically, with the same refusal causes, in the same order, as
+//! the public JavaScript decoder (`packages/sdk-browser/src/page/codec/geometryPage.ts`), whose
+//! WGSL twin (`packages/sdk-browser/src/cluster/decodeWgsl.ts`) is what the GPU reads in place.
 //!
 //! The keep-set, by build. The `rlib` is the native compiler's: the page codec and every kernel
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
 //! one shipped resource, one instantiation and one linear memory on the browser side), and it
-//! exports math kernels only — never the page decoder: the math-foundation batch kernels
-//! (`math.rs` and `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal
-//! cone of the pages the world cuts at run time (`normal_cone.rs`, ABI in `wasm_cone.rs`) and the
-//! animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
-//! `page.decode`, a chunk of its own the browser downloads on that call alone.
+//! exports the page encoder and the grid rules (`wasm_encode.rs`) with the math kernels, never
+//! the page decoder: the math-foundation batch kernels (`math.rs` and
+//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
+//! pages the world cuts at run time (`normal_cone.rs`, ABI in `wasm_cone.rs`) and the animation
+//! sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public `page.decode`, a
+//! chunk of its own the browser downloads on that call alone.
 pub mod anim;
 mod attributes;
 pub mod bits;
 pub mod cut_error;
 pub mod deform;
+pub mod encode;
+pub mod hash;
 pub mod math;
 pub mod min_ball;
 pub mod normal_cone;
@@ -31,7 +37,10 @@ mod wasm_anim;
 #[cfg(target_arch = "wasm32")]
 mod wasm_cone;
 #[cfg(target_arch = "wasm32")]
+mod wasm_encode;
+#[cfg(target_arch = "wasm32")]
 mod wasm_math;
+pub mod wide;
 pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};

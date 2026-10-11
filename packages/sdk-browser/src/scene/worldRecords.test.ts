@@ -3,7 +3,7 @@
 // a world no opaque mesh wears is not packed at all. On the cook's world fixture.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
+import { worldRootsDag } from './worldRootsPages.fixture.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { worldRootDag } from './worldSuperRoots.ts'

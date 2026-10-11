@@ -7,7 +7,7 @@
 import { Mat } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { FLAG_CLUSTER_PAGE } from '../types.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
@@ -62,7 +62,7 @@ export function scene() {
     normals: number[] = []
   const quantized = (vertices: number) => {
     const at = words.length
-    const page = encodeGeometryPage(
+    const page = encodePage(
       Array.from({ length: vertices * 3 }, (_, i) =>
         i < vertices ? i : Math.floor(random() * vertices),
       ),

@@ -12,10 +12,16 @@ import { fileURLToPath } from 'node:url'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4, IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/index.ts'
 import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
+import { prepareSdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
 
 const root = new URL('../../', import.meta.url)
+const loaded = await prepareSdkWasm(
+  readFileSync(new URL('packages/sdk-browser/src/wasm/kernels.wasm', root)),
+)
+if (!loaded) throw new Error('the SDK module does not instantiate')
+const module = loaded
 
 type GltfNode = {
   mesh?: number
@@ -84,7 +90,7 @@ async function checkScene(pointer: string) {
       finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
-    const exponent = positionGridExponent(extent, blended, inputs)
+    const exponent = positionGridExponent(module, extent, blended, inputs)
     if (exponent !== quantization.positionExponent)
       differences.push(
         `${pointer} mesh ${primitive.mesh} primitive ${primitive.primitive}: compiled ` +

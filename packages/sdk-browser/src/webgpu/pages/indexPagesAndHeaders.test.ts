@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { frontCamera } from '../../engine/pagesEngineScenes.fixture.ts'
-import { CLUSTER_PAGE_MAGIC } from '../../cluster/format.ts'
+import { CLUSTER_PAGE_MAGIC } from '../../../../sdk-core/src/page/format.ts'
 import {
   disposePagedQuad,
   pagedQuad,
