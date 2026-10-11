@@ -290,7 +290,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Köşe başına değerlerin tipli bir dizisi, köşe başına `itemSize` sayı: sayfa kodeğinin `PageAttribute`'u (`page-codec/pageAttributes.ts`), bir sayfanın içine yazdığıyla birlikte.",
+    "summary": "Köşe başına değerlerin tipli bir dizisi, köşe başına `itemSize` sayı: sayfa kodeğinin `PageAttribute`'u (`page/pageInput.ts`), bir sayfanın içine yazdığıyla birlikte.",
     "members": {
       "isBufferAttribute": "Her zaman `true`: bir buffer özniteliğini başka her şeyden ayırır.",
       "type": "Değerlerin nasıl bildirildiği; yarım hassasiyetli bir öznitelik float hassasiyetinde tutulur.",

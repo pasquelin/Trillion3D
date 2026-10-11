@@ -2,10 +2,9 @@
 //! decoder. The encoder (`encode.rs`) writes every page, the native compiler's and, through the
 //! SDK's one WebAssembly module (`wasm_encode.rs`), the run-time cut's. The constants of this
 //! file, `bits.rs`, `deform.rs`, `triangles.rs` and `bits/grid.rs` are printed into the
-//! TypeScript readers and the WGSL built from them by `scripts/generate-shared-rules.ts`. The
+//! TypeScript readers and the WGSL built from them (`scripts/generate-shared-rules.ts`). The
 //! decoder (`unpack.rs`) is the compiler's round-trip test, refusing as the public JavaScript
-//! decoder does (`packages/sdk-browser/src/page/codec/geometryPage.ts`), whose WGSL twin
-//! (`packages/sdk-browser/src/cluster/decodeWgsl.ts`) is what the GPU reads in place.
+//! decoder (`sdk-browser/src/page/codec/geometryPage.ts`) does; the GPU reads pages in WGSL.
 //!
 //! The keep-set, by build. The `rlib` is the native compiler's: the page codec and every kernel
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
@@ -45,6 +44,8 @@ pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
+/// The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
+/// it once and every page header opens with.
 pub const VERSION: u32 = 7;
 /// Twenty-five little-endian words open a page: counts, flags, the quantization records of the
 /// four vector attributes, the error, the bits of the corner stream, the count of distinct

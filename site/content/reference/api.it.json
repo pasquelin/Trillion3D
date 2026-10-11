@@ -586,7 +586,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Un array tipizzato di valori per vertice, `itemSize` numeri per vertice: il `PageAttribute` del codec di pagine (`page-codec/pageAttributes.ts`), con ciò che una pagina vi scrive.",
+    "summary": "Un array tipizzato di valori per vertice, `itemSize` numeri per vertice: il `PageAttribute` del codec di pagine (`page/pageInput.ts`), con ciò che una pagina vi scrive.",
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue un attributo di buffer da tutto il resto.",
       "type": "Come sono stati dichiarati i valori; un attributo in semi-float è mantenuto in precisione float.",

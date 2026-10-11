@@ -586,7 +586,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Ein typisiertes Array von Werten pro Scheitelpunkt, `itemSize` Zahlen pro Scheitelpunkt: das `PageAttribute` des Seiten-Codecs (`page-codec/pageAttributes.ts`), mit dem, was eine Seite hineinschreibt.",
+    "summary": "Ein typisiertes Array von Werten pro Scheitelpunkt, `itemSize` Zahlen pro Scheitelpunkt: das `PageAttribute` des Seiten-Codecs (`page/pageInput.ts`), mit dem, was eine Seite hineinschreibt.",
     "members": {
       "isBufferAttribute": "Immer `true`: unterscheidet ein Pufferattribut von allem anderen.",
       "type": "Wie die Werte deklariert wurden; ein Attribut in Halbfließkommazahlen wird in Fließkommagenauigkeit gehalten.",

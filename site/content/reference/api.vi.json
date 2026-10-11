@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Một mảng có kiểu chứa các giá trị theo từng đỉnh, `itemSize` số mỗi đỉnh: `PageAttribute` của bộ mã hóa trang (`page-codec/pageAttributes.ts`), cùng với những gì một trang ghi vào đó.",
+    "summary": "Một mảng có kiểu chứa các giá trị theo từng đỉnh, `itemSize` số mỗi đỉnh: `PageAttribute` của bộ mã hóa trang (`page/pageInput.ts`), cùng với những gì một trang ghi vào đó.",
     "members": {
       "isBufferAttribute": "Luôn là `true`: phân biệt một thuộc tính bộ đệm với bất cứ thứ gì khác.",
       "type": "Cách các giá trị được khai báo; một thuộc tính half-float được giữ ở độ chính xác float.",

@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Larik bertipe berisi nilai per-vertex, `itemSize` angka per vertex: `PageAttribute` milik codec halaman (`page-codec/pageAttributes.ts`), dengan apa yang ditulis sebuah halaman ke dalamnya.",
+    "summary": "Larik bertipe berisi nilai per-vertex, `itemSize` angka per vertex: `PageAttribute` milik codec halaman (`page/pageInput.ts`), dengan apa yang ditulis sebuah halaman ke dalamnya.",
     "members": {
       "isBufferAttribute": "Selalu `true`: membedakan sebuah atribut buffer dari yang lain.",
       "type": "Bagaimana nilainya dideklarasikan; sebuah atribut half-float disimpan pada presisi float.",

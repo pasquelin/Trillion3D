@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "頂点ごとの値を持つ型つき配列で、頂点あたり`itemSize`個の数値を持つ: ページコーデックの`PageAttribute`(`page-codec/pageAttributes.ts`)であり、ページがそこに何を書き込むかを表す。",
+    "summary": "頂点ごとの値を持つ型つき配列で、頂点あたり`itemSize`個の数値を持つ: ページコーデックの`PageAttribute`(`page/pageInput.ts`)であり、ページがそこに何を書き込むかを表す。",
     "members": {
       "isBufferAttribute": "常に`true`: 他の何かとバッファ属性を区別する。",
       "type": "値がどう宣言されたか。半精度浮動小数点の属性も単精度で保持される。",

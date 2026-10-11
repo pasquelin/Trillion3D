@@ -11,6 +11,10 @@
 
 export const CLUSTER_PAGE_MAGIC = 0x33504757
 
+/**
+ * The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
+ * it once and every page header opens with.
+ */
 export const GEOMETRY_PAGE_FORMAT_VERSION = 7
 
 /**

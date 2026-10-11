@@ -586,7 +586,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Un array tipado de valores por vértice, `itemSize` números por vértice: el `PageAttribute` del códec de páginas (`page-codec/pageAttributes.ts`), con lo que una página escribe en él.",
+    "summary": "Un array tipado de valores por vértice, `itemSize` números por vértice: el `PageAttribute` del códec de páginas (`page/pageInput.ts`), con lo que una página escribe en él.",
     "members": {
       "isBufferAttribute": "Siempre `true`: distingue un atributo de búfer de todo lo demás.",
       "type": "Cómo se declararon los valores; un atributo en semiflotantes se conserva en precisión flotante.",

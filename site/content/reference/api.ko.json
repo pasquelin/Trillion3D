@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "정점별 값을 담는 타입 배열로, 정점당 `itemSize`개의 숫자를 가진다: 페이지 코덱의 `PageAttribute`(`page-codec/pageAttributes.ts`)이며, 페이지가 여기에 무엇을 쓰는지를 나타낸다.",
+    "summary": "정점별 값을 담는 타입 배열로, 정점당 `itemSize`개의 숫자를 가진다: 페이지 코덱의 `PageAttribute`(`page/pageInput.ts`)이며, 페이지가 여기에 무엇을 쓰는지를 나타낸다.",
     "members": {
       "isBufferAttribute": "항상 `true`: 버퍼 속성을 다른 무엇과 구분한다.",
       "type": "값이 어떻게 선언되었는지; 반정밀도 속성도 단정밀도로 보관된다.",

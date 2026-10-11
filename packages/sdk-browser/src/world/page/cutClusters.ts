@@ -2,20 +2,19 @@
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { distanceSqVector3, distanceVector3 } from '../../../../math/src/vector/vector.ts'
 import { triangleArea } from '../../../../math/src/geometry/triangle.ts'
-
-/** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
- *  the compiler cuts (`docs/FORMAT.md`). */
-const CLUSTER_TRIANGLES = 128,
-  CLUSTER_VERTICES = 255
+import {
+  DAG_CLUSTER_TRIANGLES,
+  DAG_CLUSTER_VERTICES,
+} from '../../../../sdk-core/src/page/format.ts'
 
 /**
- * The squared diagonal of the least box that holds `CLUSTER_TRIANGLES` triangles of total area
- * `CLUSTER_TRIANGLES · area / count` side by side, the longest of them `longest` across: a square
+ * The squared diagonal of the least box that holds `DAG_CLUSTER_TRIANGLES` triangles of total area
+ * `DAG_CLUSTER_TRIANGLES · area / count` side by side, the longest of them `longest` across: a square
  * of that area, or a rectangle `longest` long when one triangle outreaches the square's side: the
  * extent a spatially compact cluster of these triangles reaches.
  */
 function compactSquared(count: number, area: number, longest: number) {
-  const held = (CLUSTER_TRIANGLES * area) / count,
+  const held = (DAG_CLUSTER_TRIANGLES * area) / count,
     side = Math.max(longest, Math.sqrt(held))
   return side ? side * side + (held / side) ** 2 : 0
 }
@@ -133,8 +132,8 @@ export function* clusters(
       Number(taken[a] !== cluster) +
       Number(taken[b] !== cluster && b !== a) +
       Number(taken[c] !== cluster && c !== a && c !== b)
-    const full = (t - start) / 3 >= CLUSTER_TRIANGLES,
-      ends = full || held + fresh > CLUSTER_VERTICES
+    const full = (t - start) / 3 >= DAG_CLUSTER_TRIANGLES,
+      ends = full || held + fresh > DAG_CLUSTER_VERTICES
     // A compact run also ends where its triangle would take it too far (`add`).
     if ((run ? run.add(a, b, c, ends || t === start) : ends) && t > start) {
       yield [start, t]

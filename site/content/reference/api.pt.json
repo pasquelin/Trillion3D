@@ -282,7 +282,7 @@
     }
   },
   "BufferAttribute": {
-    "summary": "Um array tipado de valores por vértice, `itemSize` números por vértice: o `PageAttribute` do codec de página (`page-codec/pageAttributes.ts`), com o que uma página escreve nele.",
+    "summary": "Um array tipado de valores por vértice, `itemSize` números por vértice: o `PageAttribute` do codec de página (`page/pageInput.ts`), com o que uma página escreve nele.",
     "members": {
       "isBufferAttribute": "Sempre `true`: distingue um atributo de buffer de qualquer outra coisa.",
       "type": "Como os valores foram declarados; um atributo de meia precisão é mantido em precisão float.",
