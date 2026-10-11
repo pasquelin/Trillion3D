@@ -1,9 +1,8 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError, PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { poolLayerBytes, poolLayerLimit, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import {
   laneCounts,
-  POOL_LANES,
   type AtlasLanes,
   type BlockChoice,
   type LaneCounts,
@@ -74,7 +73,7 @@ export function texturePoolFor(
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane))
   const atlas = (lanes: LaneCounts, kept: LaneCounts) => {
     const layers = laneCounts()
-    const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0))
+    const open = new Set(PREVIEW_LAYOUT_NAMES.filter((lane) => lanes[lane] > 0))
     // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
     for (const lane of open) layers[lane] = laneFloor(kept[lane], lanes[lane] > kept[lane])
     const floor = { ...layers }
@@ -85,7 +84,7 @@ export function texturePoolFor(
       budget = 0
     }
     // The remainder by weight; a lane served under its share gives the rest back to the others.
-    for (let round = 0; open.size && round < POOL_LANES.length; round++) {
+    for (let round = 0; open.size && round < PREVIEW_LAYOUT_NAMES.length; round++) {
       const weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane))
       const total = [...open].reduce((sum, lane) => sum + weight(lane), 0)
       const share = (lane: PoolLane) =>
@@ -103,7 +102,7 @@ export function texturePoolFor(
       if (!open.size) clamps.add('scene')
     }
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
-    for (const lane of POOL_LANES)
+    for (const lane of PREVIEW_LAYOUT_NAMES)
       if (layers[lane] > limit) {
         if (limit < Math.max(1, layersFor(kept[lane])))
           throw new Error(
@@ -117,7 +116,7 @@ export function texturePoolFor(
   const layers = { color: atlas(demand.color, tails.color), data: atlas(demand.data, tails.data) }
   const allocatedBytes = [layers.color, layers.data].reduce(
     (bytes, lanes) =>
-      bytes + POOL_LANES.reduce((sum, lane) => sum + lanes[lane] * layerBytes(lane), 0),
+      bytes + PREVIEW_LAYOUT_NAMES.reduce((sum, lane) => sum + lanes[lane] * layerBytes(lane), 0),
     0,
   )
   const clamp =

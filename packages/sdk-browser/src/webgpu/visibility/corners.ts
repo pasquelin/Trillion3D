@@ -1,6 +1,7 @@
 import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts'
 import { forEachRewrittenRun } from '../row/dirty.ts'
-import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
+import type { HizPage } from '../../hiz/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'

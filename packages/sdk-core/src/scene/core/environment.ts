@@ -40,6 +40,9 @@ export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK
 export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces'
 /** The exposure of a scene that declares no environment: radiance reaches the curve as it is. */
 export const DEFAULT_EXPOSURE = 1
+/** The exposure a scene's environment declares, or the default where it declares none. */
+export const environmentExposure = (environment: { exposure: number } | undefined) =>
+  environment ? environment.exposure : DEFAULT_EXPOSURE
 
 /** The light around a scene: exposure, display curve and light from every direction. */
 export interface SceneEnvironment {

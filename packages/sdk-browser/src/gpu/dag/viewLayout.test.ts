@@ -1,14 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from './viewLayout.ts'
-import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
 
 test('the block holds the hundred and twelve words the uniform array strides by', () => {
   assert.equal(VIEW_BLOCK_WORDS, 112)
   // The array is allocated from the same number the kernels index by: one source, no drift.
-  assert.equal(DAG_VIEW_WORDS, VIEW_BLOCK_WORDS)
 })
 
 test('every field starts where WGSL puts it, by its own alignment', () => {

@@ -1,7 +1,7 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
-import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
+import { PIXEL_FOOTPRINT_WGSL, SHADOW_VIEW_AT_WGSL } from './footprintWgsl.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
@@ -35,7 +35,7 @@ const SHADOW_SETUP_WGSL = wgslBlock(
  vsmMaskAt(coord);
  if(vsmTranslucentCasters()){
   shadowFootprint=pixelFootprint(coord,pixel.xy,z,P);
-  shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,z));
+  shadowViewAt(shadowFootprint,z);
   let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
  }
 }`,
@@ -64,6 +64,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
     [
       receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING),
       PIXEL_FOOTPRINT_WGSL,
+      SHADOW_VIEW_AT_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,
       SHADOW_SETUP_WGSL,
     ],

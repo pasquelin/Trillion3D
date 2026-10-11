@@ -34,18 +34,18 @@
  * data (vertex), 2.. pool slices × parts (fragment, atomic).
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { bitAt, bitIsSet, byteOf } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
-import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
   SHADOW_TILE_POOL_WGSL,
-  tileDeclarations,
+  materialDeclarations,
 } from '../webgpu/tile/wgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
@@ -62,15 +62,51 @@ export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
 /** The dummy attachment: one page. */
 export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
 
+/**
+ * What the opaque raster and the transmission bin share of a caster corner's projection on a VSM
+ * view: the world position of a row's vertex, composed as the shadow depth pass composes it; the
+ * translated world; the clip position, a sun level's corner in front of its near plane flattened
+ * onto it (the greatest depth an f32 holds below 1, 1 − 2^-24, the nearest the clip volume keeps
+ * strictly inside, so that no rounding of the clip test drops it; every receiver of the level lies
+ * at a depth of at most 1 behind it); and whether a triangle faces the light — toward
+ * −light-direction for an orthographic view (the reversed-Z clip z gradient), toward the light
+ * position (the shifted origin) for a perspective one — its counter-clockwise normal flipped by a
+ * mirroring placement, the main raster's \`windingCw\`.
+ */
+export const VSM_CASTER_PROJECTION_WGSL = wgslBlock(
+  'VSM_CASTER_PROJECTION_WGSL',
+  [PAGE_INFO_WGSL, PAGE_GEOMETRY_WGSL, VSM_PROJECTION_DATA_WGSL, matrixWindingCw, faceNormal],
+  `
+/** World position of a row's vertex, composed as the shadow depth pass composes it. */
+fn vsmRenderWorld(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{return (page.world*vec4f(pagePosition(page,h,vertex),1.0)).xyz;}
+/** The world position in the VSM view's translated world. */
+fn vsmRenderShifted(raw:VsmProjectionRecord,world:vec3f)->vec3f{return (world+raw.originShiftHigh)+raw.originShiftLow;}
+/** The clip position of a translated world point; \`flatten\` sends a point in front of the near plane onto it. */
+fn vsmRenderClip(raw:VsmProjectionRecord,shifted:vec3f,flatten:bool)->vec4f{
+ let m=raw.shiftedToMapUv*vec4f(shifted,1.0);
+ return select(m,vec4f(m.xy,${VSM_F32_BELOW_ONE},1.0),flatten&&m.z>m.w);
+}
+/** Whether the counter-clockwise triangle (a,b,c) of the row faces the VSM view \`raw\`; \`twA\` is \`a\` translated. */
+fn vsmRenderFacesLight(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
+ let mirrored=matrixWindingCw(page.world);
+ var n=faceNormal(a,b,c);
+ if(mirrored){n=-n;}
+ let uv=raw.shiftedToMapUv;
+ let isOrtho=raw.lightViewToClip[3][3]>=1.0;
+ // Toward the light: the clip z gradient (reversed Z, nearer = larger) for an orthographic view,
+ // the shifted origin (originShift = −light position) for a perspective one.
+ let toLight=select(-twA,vec3f(uv[0].z,uv[1].z,uv[2].z),isOrtho);
+ return dot(n,toLight)>0.0;
+}`,
+)
+
 export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
   wgslProgram(
     /* wgsl */ `
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${tileDeclarations(VIS_BINDINGS.color, 'color')}
-@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
+${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
 struct VsmRenderOut{
  @builtin(position) position:vec4f,
@@ -86,21 +122,10 @@ struct VsmRenderOut{
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
-/** World position of a row's vertex, composed as the shadow depth pass composes it. */
-fn vsmRenderWorld(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{return (page.world*vec4f(pagePosition(page,h,vertex),1.0)).xyz;}
 /** Whether the mesh cull mode keeps triangle (a,b,c) seen from the VSM view \`raw\`. */
 fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
  if((page.flags&${FLAG_DOUBLE}u)!=0u){return true;}
- let w=page.world;
- let mirrored=matrixWindingCw(w);
- var n=faceNormal(a,b,c);
- if(mirrored){n=-n;}
- let uv=raw.shiftedToMapUv;
- let isOrtho=raw.lightViewToClip[3][3]>=1.0;
- // Toward the light: the clip z gradient (reversed Z, nearer = larger) for an orthographic view,
- // the shifted origin (originShift = −light position) for a perspective one.
- let toLight=select(-twA,vec3f(uv[0].z,uv[1].z,uv[2].z),isOrtho);
- let front=dot(n,toLight)>0.0;
+ let front=vsmRenderFacesLight(page,raw,a,b,c,twA);
  let back=(page.flags&${FLAG_BACK}u)!=0u;
  return select(front,!front,back);
 }
@@ -118,27 +143,20 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  let a=vsmRenderWorld(page,h,tri.x);
  let b=vsmRenderWorld(page,h,tri.y);
  let c=vsmRenderWorld(page,h,tri.z);
- let shiftHigh=raw.originShiftHigh;let shiftLow=raw.originShiftLow;
- if(!vsmRenderFaceKept(page,raw,a,b,c,(a+shiftHigh)+shiftLow)){out.position=vsmRenderNan();return out;}
+ if(!vsmRenderFaceKept(page,raw,a,b,c,vsmRenderShifted(raw,a))){out.position=vsmRenderNan();return out;}
  let id=select(select(tri.z,tri.y,corner==1u),tri.x,corner==0u);
  let world=select(select(c,b,corner==1u),a,corner==0u);
  // Translated world of the VSM view, then its clip.
- let shifted=(world+shiftHigh)+shiftLow;
+ let shifted=vsmRenderShifted(raw,world);
  let isOrthoView=raw.lightViewToClip[3][3]>=1.0;
  out.fromEmitter=vec4f(shifted,select(raw.emitterSize,0.0,isOrthoView));
- let uvH=raw.shiftedToMapUv*vec4f(shifted,1.0);
- var z=uvH.z;var w=uvH.w;
- // A sun level's caster in front of its near plane is flattened onto it: the vertex takes the
- // greatest depth an f32 holds below 1, 1 − 2^-24, the nearest the clip volume (z ≤ w, w = 1)
- // keeps strictly inside, so that no rounding of the clip test drops it. Every receiver of the
- // level lies at a depth of at most 1 behind it.
- if(bitIsSet(pair.y,20u)&&z>w){z=${VSM_F32_BELOW_ONE};w=1.0;}
+ let clip=vsmRenderClip(raw,shifted,bitIsSet(pair.y,20u));
  // Clip scaled and biased onto the pair's page: virtual pixel x = u·W over the mip
  // (W = 16384 >> mip), page-local NDC over the 128-pixel viewport.
  let mipLevel=(pair.y>>16u)&7u;
  let s=f32(VSM_LEVEL0_TEXELS>>mipLevel)/f32(VSM_PAGE_TEXELS/2u);
  let vPage=vec2f(f32(byteOf(pair.z,0u)),f32(byteOf(pair.z,1u)));
- out.position=vec4f(uvH.x*s-w*(2.0*vPage.x+1.0),w*(2.0*vPage.y+1.0)-uvH.y*s,z,w);
+ out.position=vec4f(clip.x*s-clip.w*(2.0*vPage.x+1.0),clip.w*(2.0*vPage.y+1.0)-clip.y*s,clip.z,clip.w);
  // The fragment's cutout reads the UV of a masked row alone (\`maskKeep\`).
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageUv(page,h,id);}
  return out;
@@ -157,6 +175,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
 `,
     [
       PAGE_INFO_WGSL,
+      VSM_CASTER_PROJECTION_WGSL,
       SHADOW_TILE_POOL_WGSL,
       colorSampleWgsl(SHADOW_TILE_POOL_WGSL),
       maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)),
@@ -164,8 +183,6 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
-      matrixWindingCw,
-      faceNormal,
       PAGE_GEOMETRY_WGSL,
       byteOf,
       bitAt,

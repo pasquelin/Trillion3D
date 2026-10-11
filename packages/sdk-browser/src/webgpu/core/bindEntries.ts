@@ -55,7 +55,7 @@ export type SmallBindResources = AtlasResources & {
   selectionMask: GPUBuffer
 }
 
-/** The four entries of an atlas: one view per lane, in `POOL_LANES` order, and its page table. */
+/** The four entries of an atlas: one view per lane, in `PREVIEW_LAYOUT_NAMES` order, and its page table. */
 export const atlasEntries = (
   bindings: AtlasBindings,
   read: () => WebgpuTileStreamer['color'],

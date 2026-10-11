@@ -9,7 +9,7 @@ import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
 import {
   KEPT_HEADER_WORDS,
   SELECTION_HEADER_WORDS as HEAD,
-  heldOpenWord,
+  savedJournalWord,
   keptSnapshotWord,
 } from '../layout.ts'
 
@@ -38,6 +38,6 @@ test('the kept snapshot and the saved journals lie where the host lays them, a w
       assert.equal(k.keptAt(w) + HEAD, at + w, `list of ${cap}, kept word ${w}`)
     // Behind the regions the views aside save, the open counts the host writes (`heldOpen.ts`).
     for (const regions of [0, 1, 3])
-      assert.equal(k.savedAt(regions) + HEAD, heldOpenWord(cap, regions), `${regions} regions`)
+      assert.equal(k.savedAt(regions) + HEAD, savedJournalWord(cap, regions), `${regions} regions`)
   }
 })

@@ -1,3 +1,4 @@
+import { arrayView } from '../gpu/shadow/layers.ts'
 /**
  * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,
@@ -296,7 +297,7 @@ export function createVsmTransmission(
     caps,
     ...buffers,
     memory,
-    view: memory.createView({ dimension: '2d-array' }),
+    view: arrayView(memory),
     storageView: memory.createView({ dimension: '2d' }),
     full: 0,
     capped: false,

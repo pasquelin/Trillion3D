@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   bitAt,
@@ -35,8 +36,10 @@ const LANES = 8
 const CONSTANTS_WGSL = wgslBlock(
   'CONSTANTS_WGSL',
   [ceilDivWgsl],
-  `const MATERIAL_TILE_SIZE:u32=${MATERIAL_TILE_SIZE}u;
-const MATERIAL_TILE_SLOTS:u32=${MATERIAL_TILE_SLOTS}u;
+  `${wgslConsts({
+    MATERIAL_TILE_SIZE,
+    MATERIAL_TILE_SLOTS,
+  })}
 /** Tiles on a row of the image \`size\`: the dispatch's and the draw's one count. */
 fn materialTilesX(size:vec2u)->u32{return ceilDiv(size.x,MATERIAL_TILE_SIZE);}
 /** Where slot \`slot\`'s list starts in \`classTiles\`: the one layout the lists are written and read in. */

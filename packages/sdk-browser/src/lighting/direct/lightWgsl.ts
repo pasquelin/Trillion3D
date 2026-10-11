@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
@@ -51,8 +52,10 @@ const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 const GRID_SLICES:u32=${LIGHT_SETTINGS.gridSlices}u;
 const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
 /** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
-const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
-const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
+${wgslConsts({
+  TILE_LIGHTS: LIGHT_SETTINGS.tileLights,
+  TILE_STRIDE: TILE_STRIDE_WORDS,
+})}
 /** The count word's high bit: a light of the list holds a shadow slot. */
 const TILE_SHADOWED:u32=0x80000000u;
 const TILE_NO_SLICE:u32=0xffffffffu;

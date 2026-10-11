@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
 
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
@@ -146,7 +147,6 @@ export const UNI_VIEW = 0,
   UNI_ANCHOR_LOW = 36,
   UNI_SCALARS = 40,
   UNI_LEVELS = 52
-export const MAX_HIZ_LEVELS = 16
-export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2
+export const UNIFORM_U32 = UNI_LEVELS + HIZ_MAX_LEVELS * 2
 
 export { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'

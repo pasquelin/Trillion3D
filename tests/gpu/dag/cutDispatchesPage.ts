@@ -7,7 +7,7 @@
 // measured, never one kernel, and the variants alternate so thermal drift falls on both.
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
-import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { encodeBefore, resourcesBefore } from '../../../bench/oracles/browser/cut-dispatches.ts'
@@ -45,7 +45,7 @@ export async function measureDispatches(sweep: DispatchSweep) {
     shipped.layout,
     packed as unknown as Parameters<typeof resourcesBefore>[3],
   )
-  const block = new Float32Array(DAG_VIEW_WORDS)
+  const block = new Float32Array(VIEW_BLOCK_WORDS)
   writeDagUniforms(block, packed, uniforms, shipped.listCap)
   device.queue.writeBuffer(shipped.uniforms, 0, block)
   device.queue.writeBuffer(before.uniforms, 0, block)

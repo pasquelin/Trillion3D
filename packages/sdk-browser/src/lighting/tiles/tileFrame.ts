@@ -1,4 +1,4 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { inverseAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 
 const atOrigin = new Float64Array(16)
 /**
@@ -16,8 +16,8 @@ export function tileViewInverse(
   rows?: Float64Array,
 ) {
   for (let axis = 0; axis < 3; axis++) origin[axis] = Math.fround(eye[axis])
-  matrixAtRenderOrigin(atOrigin, viewProjection, origin)
+  inverseAtRenderOrigin(out, atOrigin, viewProjection, origin)
   // Column-major: row `r` is every fourth word from `r`.
   if (rows) for (let i = 0; i < 8; i++) rows[i] = atOrigin[(i >> 2) + 2 + (i & 3) * 4]
-  return invertMatrix4(out, atOrigin)
+  return out
 }

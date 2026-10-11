@@ -39,7 +39,12 @@ test('the lighting calls one shared offset function and binds no offset target',
   }
   // The resolve writes the receiver once for the projection (`receiverTargetWgsl.ts`), with the
   // very offset function the readers call.
-  assert.match(SHADE_SHADER, /rcvOffset=shadingPointOffset\(/, 'the resolve finds the receiver')
+  assert.match(SHADE_SHADER, /=shadowReceiverOfTriangle\(bary,/, 'the resolve finds the receiver')
+  assert.equal(
+    SHADE_SHADER.match(/\bfn shadowReceiverOfTriangle\(/g)?.length,
+    1,
+    'by the one function the readers call',
+  )
   assert.match(
     SHADE_SHADER,
     /storeReceiver\(pos\.xy,rcvOffset,rcvPlane\)/,

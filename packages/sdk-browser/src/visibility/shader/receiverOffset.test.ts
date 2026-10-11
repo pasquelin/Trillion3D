@@ -151,6 +151,7 @@ const HELPERS = [
   'transformedNormals',
   'unitOrZero',
   'shadingPointOffset',
+  'shadowReceiverOfTriangle',
   'worldMatrix3',
   'windingKept',
 ]

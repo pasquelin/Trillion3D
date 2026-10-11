@@ -4,13 +4,41 @@ import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   maskAlphaWgsl,
-  tileDeclarations,
+  materialDeclarations,
 } from '../../webgpu/tile/wgsl.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+
+/** The vertex stage of the hardware raster: `hiz` also drops a page whose slot the Hi-Z test rejected
+ *  (`HIZ_REJECTED_WGSL`), before a vertex reads a word of it. */
+const visVertex = (name: string, hiz: boolean) => {
+  const hizDrop = hiz
+    ? ' if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}\n'
+    : ''
+  return `@vertex fn ${name}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
+ var out:VSOut;
+ let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
+ let page=pages[pageIndex];
+ out.instance=pageIndex;out.tc=vec3f(0.0);
+${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let h=pageHeaderFor(page,pageSurfaceRead(page));
+ let id=hardwareCorner(page,h,corner);
+ if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let p=pagePosition(page,h,id);
+ let world=page.world*vec4f(p,1.0);
+ out.position=uni.viewProj*world;
+ if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
+ if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
+ out.id=page.packedBase|((corner/3u)&0xffu);
+ if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
+ if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
+ return out;
+}
+`
+}
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
@@ -25,9 +53,7 @@ ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
 ${PAGE_BINDING.uniforms}
-@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${tileDeclarations(VIS_BINDINGS.color, 'color')}
-@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
+${materialDeclarations()}
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
@@ -49,46 +75,7 @@ fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
  if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return HARDWARE_SKIP;}
  return corners[vertexIndex%3u];
 }
-@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
- var out:VSOut;
- let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
- let page=pages[pageIndex];
- out.instance=pageIndex;out.tc=vec3f(0.0);
- if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let h=pageHeaderFor(page,pageSurfaceRead(page));
- let id=hardwareCorner(page,h,corner);
- if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let p=pagePosition(page,h,id);
- let world=page.world*vec4f(p,1.0);
- out.position=uni.viewProj*world;
- if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
- if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
- out.id=page.packedBase|((corner/3u)&0xffu);
- if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
- if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
- return out;
-}
-@vertex fn vis_hiz_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
- var out:VSOut;
- let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
- let page=pages[pageIndex];
- out.instance=pageIndex;out.tc=vec3f(0.0);
- if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let h=pageHeaderFor(page,pageSurfaceRead(page));
- let id=hardwareCorner(page,h,corner);
- if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let p=pagePosition(page,h,id);
- let world=page.world*vec4f(p,1.0);
- out.position=uni.viewProj*world;
- if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
- if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
- out.id=page.packedBase|((corner/3u)&0xffu);
- if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
- if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
- return out;
-}
-struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
+${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 @fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
  var out:VisHizOut;
  let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);

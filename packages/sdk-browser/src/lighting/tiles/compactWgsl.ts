@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { LANE_SCAN_WGSL, laneRunSum, laneRunWalk } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -25,8 +26,10 @@ const SLICES = LIGHT_SETTINGS.gridSlices
 export const GRID_COMPACT_WGSL = wgslBlock(
   'GRID_COMPACT_WGSL',
   [LANE_SCAN_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
-  `const LANES:u32=${GRID_LANES}u;
-const CACHE:u32=${GRID_CACHE}u;
+  `${wgslConsts({
+    LANES: GRID_LANES,
+    CACHE: GRID_CACHE,
+  })}
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
 const EMPTY_RUN:u32=0xffffu;
 const FULL_RUN:u32=${(SLICES - 1) << 16}u;

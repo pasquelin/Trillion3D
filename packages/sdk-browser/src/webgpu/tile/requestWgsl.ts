@@ -1,13 +1,11 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts'
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE_MASK, PICK_SHIFT } from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { samplingReadWgsl } from './atlasReadWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-
-const STRIDE_MASK = FEEDBACK_STRIDE - 1
 
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
@@ -64,7 +62,7 @@ export const FEEDBACK_RULE_WGSL = wgslBlock(
 fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
 fn feedbackPhase(p:vec2f,word:u32)->bool{
  if(feedbackEvery(word)){return true;}
- return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
+ return ((u32(p.x)&${FEEDBACK_STRIDE_MASK}u)|((u32(p.y)&${FEEDBACK_STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
 }
 struct RequestPick{sel:u32,next:bool,along:u32,}
 fn pickOf(px:u32,choices:u32)->RequestPick{

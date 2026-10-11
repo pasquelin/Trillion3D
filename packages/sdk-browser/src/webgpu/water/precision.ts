@@ -4,13 +4,13 @@ import { boxTransform } from '../../../../sdk-core/src/index.ts'
 // Eight binary32 unit roundoffs cover WGSL division's allowed error as well as separate
 // multiply/add evaluation. Products/sums accumulate by gamma(n), not a fixed world-space epsilon.
 export const ROUND = 4 * FLOAT32_STEP
-const GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
+const ROUNDING_GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
 const FLUSH = 8 * 2 ** -126
 
 /** Include conversion, arithmetic and permitted subnormal flushing in a coordinate interval. */
 export function widenBox(box: Float64Array, distance = 0) {
   for (let axis = 0; axis < 3; axis++) {
-    const error = Math.max(Math.abs(box[axis]), Math.abs(box[axis + 3])) * GAMMA + FLUSH
+    const error = Math.max(Math.abs(box[axis]), Math.abs(box[axis + 3])) * ROUNDING_GAMMA + FLUSH
     box[axis] -= distance + error
     box[axis + 3] += distance + error
   }
@@ -37,7 +37,7 @@ export function encloseTransform(
     maximumW += Math.max(a, b)
     magnitudeW += Math.max(Math.abs(a), Math.abs(b))
   }
-  const errorW = GAMMA * magnitudeW + FLUSH
+  const errorW = ROUNDING_GAMMA * magnitudeW + FLUSH
   if (!(minimumW > errorW) || !Number.isFinite(maximumW)) return false
   boxTransform(out, 0, box, 0, matrix)
   for (let axis = 0; axis < 3; axis++) {
@@ -48,7 +48,8 @@ export function encloseTransform(
         Math.max(Math.abs(box[column]), Math.abs(box[column + 3]))
     if (!(magnitude < FLOAT32_MAX)) return false
     const bound = Math.max(Math.abs(out[axis]), Math.abs(out[axis + 3]))
-    error[axis] = (GAMMA * magnitude + FLUSH + bound * errorW) / (minimumW - errorW) + ROUND * bound
+    error[axis] =
+      (ROUNDING_GAMMA * magnitude + FLUSH + bound * errorW) / (minimumW - errorW) + ROUND * bound
     out[axis] -= error[axis]
     out[axis + 3] += error[axis]
   }

@@ -16,7 +16,8 @@ import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
 import { checked } from '../cluster/checked.ts'
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts'
 import { JOLT_THREAD_LOADED, joltWorkerPool, runJoltThread } from './joltThreads.ts'
-import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts'
+import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
+import { type FromPhysics, type ToPhysics } from './protocol.ts'
 import { createTickResults } from './tickResults.ts'
 import { createCharacterDriver } from './characterDriver.ts'
 import { createWaterStep } from './water.ts'
@@ -183,7 +184,7 @@ function post() {
 }
 
 async function start(message: Extract<ToPhysics, { type: 'start' }>) {
-  if (message.protocol !== PHYSICS_PROTOCOL)
+  if (message.protocol !== PHYSICS_LAYOUT_VERSION)
     throw new EngineError('PHYSICS_FAILED', 'Physics: protocol mismatch.')
   const response = await checked(message.wasm)
   const budget = message.budget

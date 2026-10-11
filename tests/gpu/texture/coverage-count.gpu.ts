@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import { LEVEL_BIN_BYTES } from '../../../packages/sdk-browser/src/texture/coverageMips.ts'
 import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
-import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
@@ -43,7 +43,7 @@ function countCases() {
   for (let n = 0; n < 12; n++)
     sizes.push([1 + Math.floor(next() * 300), 1 + Math.floor(next() * 300), Math.floor(next() * 3)])
   return sizes.map(([width, height, level], n): CountCase & { name: string } => {
-    const [w, h] = levelSize(width, height, Math.max(0, level - 1))
+    const [w, h] = previewLevelSize(width, height, Math.max(0, level - 1))
     // Flat transparent, flat opaque, or random alphas.
     const flat = [-1, 0, 255][n % 3]
     const texels = Uint8Array.from({ length: w * h * 4 }, () =>
@@ -57,7 +57,7 @@ function countCases() {
       texels,
       uniform,
       bytes: (level + 1) * LEVEL_BIN_BYTES,
-      dispatch: levelSize(width, height, level),
+      dispatch: previewLevelSize(width, height, level),
     }
   })
 }

@@ -1,4 +1,5 @@
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
+import { SHADOW_RECEIVER_STRUCT_WGSL } from './receiverTargetWgsl.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
@@ -21,6 +22,22 @@ import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
  * (`shadingPointOffset`). Zero where the resolve kept the triangle's point: the background, a
  * triangle past its page, a row without vertex normals, a sprite or a line.
  */
+/**
+ * The receiver of a pixel whose triangle is decoded: its barycentrics `bary` in the world corners
+ * `w0 w1 w2`, their vertex normals `n0 n1 n2` turned to the side `lit` (±1) the shading lights,
+ * the Phong projection of its point (`shadingPointOffset`) and the triangle's own plane, which the
+ * shadow bias follows (`shadowBiasNormal`), not normalised. The one arithmetic of the resolve, which
+ * writes the receiver target once, and of the readers that decode the triangle themselves.
+ */
+export const SHADOW_RECEIVER_OF_TRIANGLE_WGSL = wgslBlock(
+  'SHADOW_RECEIVER_OF_TRIANGLE_WGSL',
+  [SHADOW_RECEIVER_STRUCT_WGSL, SHADING_POINT_WGSL, faceNormal],
+  `fn shadowReceiverOfTriangle(bary:vec3f,w0:vec4f,w1:vec4f,w2:vec4f,n0:vec3f,n1:vec3f,n2:vec3f,lit:f32)->ShadowReceiver{
+ let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
+ return ShadowReceiver(shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit),faceNormal(w0.xyz,w1.xyz,w2.xyz));
+}`,
+)
+
 const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
   'RECEIVER_OFFSET_FN_WGSL',
   [
@@ -31,12 +48,10 @@ const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
     invTranspose3Prep,
     worldMatrix3,
     windingKept,
-    faceNormal,
-    SHADING_POINT_WGSL,
+    SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
     unitOrZero,
   ],
-  `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
-fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
+  `fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let none=ShadowReceiver(vec3f(0.0),vec3f(0.0));
  let id=textureLoad(vis,vec2i(i32(pixel.x),i32(pixel.y)),0).r;
  if(id==0u){return none;}
@@ -54,13 +69,10 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let bary=perspectiveBarycentric(s0,s1,s2,t.iw,pixel,area);
  let screenFace=select(-1.0,1.0,area*t.p0.w*t.p1.w*t.p2.w<0.0);
  let face=screenFace*select(-1.0,1.0,windingKept(world3));
- let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
  // The side the shading lights: a two-sided surface seen from behind lights its back.
  let lit=select(1.0,face,(page.materialClass&${CLASS_FEATURE.DOUBLE_SIDED}u)!=0u);
- // The triangle's own plane, which the shadow bias follows (\`shadowBiasNormal\`).
- let plane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
- let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,t.n0*lit,t.n1*lit,t.n2*lit);
- return ShadowReceiver(offset,unitOrZero(plane));
+ let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,t.n0,t.n1,t.n2,lit);
+ return ShadowReceiver(receiver.offset,unitOrZero(receiver.plane));
 }`,
 )
 

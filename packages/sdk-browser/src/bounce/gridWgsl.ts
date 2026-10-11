@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { PROBE_AT_WGSL } from './atlas.ts'
 import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
@@ -29,8 +30,10 @@ struct BounceGrid{
  frame:vec4u,
  levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
 }
-const PROBE_VECTORS:u32=${PROBE_FLOATS / 4}u;
-const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
+${wgslConsts({
+  PROBE_VECTORS: PROBE_FLOATS / 4,
+  CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels,
+})}
 /** The w lanes that carry a probe's state, slot by slot. */
 const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;

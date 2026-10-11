@@ -23,9 +23,21 @@ export function boxEmpty(out: Float64Array, o: number) {
   out[o + 5] = -Infinity
 }
 
+/** True when an upper bound falls below its lower bound; a NaN bound does not make it empty. */
+export function boundsAreEmpty(
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  return maxX < minX || maxY < minY || maxZ < minZ
+}
+
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
-  return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2]
+  return boundsAreEmpty(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5])
 }
 
 /** The centre of the box given by its six bounds, `(min + max) * 0.5` per axis, into `out` at
@@ -273,7 +285,7 @@ export function boxTransform(
     maxX = box[bo + 3],
     maxY = box[bo + 4],
     maxZ = box[bo + 5]
-  if (maxX < minX || maxY < minY || maxZ < minZ) {
+  if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
     out[o] = minX
     out[o + 1] = minY
     out[o + 2] = minZ

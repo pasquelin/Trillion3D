@@ -7,13 +7,8 @@ import {
 } from '../../../sdk-core/src/physics/index.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import {
-  PHYSICS_PROTOCOL,
-  resultWords,
-  type FromPhysics,
-  type PhysicsResults,
-  type ToPhysics,
-} from './protocol.ts'
+import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
+import { resultWords, type FromPhysics, type PhysicsResults, type ToPhysics } from './protocol.ts'
 import { createWorldPhysics } from './worldPhysics.ts'
 
 /** A worker faked in place of `Worker`: it keeps the command words the page sends it. */
@@ -109,7 +104,15 @@ export async function launchedWorker(
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, memoryBytes: 64 << 20, ...limits }
   const buffers = [0, 1].map(() => new ArrayBuffer(resultWords(budget) * 4))
   const step = PHYSICS_STEP
-  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads, step, buffers })
+  receive({
+    type: 'start',
+    protocol: PHYSICS_LAYOUT_VERSION,
+    wasm: 'x',
+    budget,
+    threads,
+    step,
+    buffers,
+  })
   return { sent, receive, budget, ready }
 }
 

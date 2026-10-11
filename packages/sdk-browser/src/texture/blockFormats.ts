@@ -66,8 +66,6 @@ export function chooseBlockFormat(
   return { block: undefined, reason: `the cache holds no chain kept in ${sampled.join(' or ')}` }
 }
 
-/** The lanes of an atlas, in the order the bindings and the shader's taps number them. */
-export const POOL_LANES = PREVIEW_LAYOUT_NAMES
 export type PoolLane = TextureLayout
 /** One number per lane — layers, tiles —, and one per atlas.
  *  @property lossless - Kept as plain pixels. @property rgba - In colour blocks.
@@ -81,7 +79,7 @@ export type AtlasLanes = {
   data: LaneCounts
 }
 export const laneCounts = (): LaneCounts =>
-  Object.fromEntries(POOL_LANES.map((lane) => [lane, 0])) as LaneCounts
+  Object.fromEntries(PREVIEW_LAYOUT_NAMES.map((lane) => [lane, 0])) as LaneCounts
 
 /** A tail as the sidecar carries it: RGBA8 levels, and the kept families' blocks. */
 export type TailBytes = Pick<TexturePreview, 'levels' | 'blocks'>
@@ -134,7 +132,8 @@ export function poolEncoding(block: TextureBlockFormat | undefined): PoolEncodin
     texelBytes: (lane) => (lane === 'lossless' || !block ? 4 : 1),
     levelFormat: (lane) => textureLevelFormat(block, lane),
     tailOf: (tail, lane) => (lane === 'lossless' || !block ? tail.levels : tail.blocks[block]),
-    tapOf: (lane) => (lane === 'two-channel' && block === 'astc' ? 3 : POOL_LANES.indexOf(lane)),
+    tapOf: (lane) =>
+      lane === 'two-channel' && block === 'astc' ? 3 : PREVIEW_LAYOUT_NAMES.indexOf(lane),
     fillLane: block ? 'rgba' : 'lossless',
   }
 }

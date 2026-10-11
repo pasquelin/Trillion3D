@@ -1,3 +1,4 @@
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { PROXY_GROUP_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { unorm8x3 } from '../../../math/src/wgsl/color.ts'
@@ -13,8 +14,10 @@ export const PROXY_OWNER_WGSL = wgslBlock(
   'PROXY_OWNER_WGSL',
   [unorm8x3, faceNormal],
   `
-const PROXY_POSED:u32=${PROXY_POSED_OWNER}u;
-const PROXY_GROUP_OWNED:u32=${PROXY_GROUP_OWNED}u;
+${wgslConsts({
+  PROXY_POSED: PROXY_POSED_OWNER,
+  PROXY_GROUP_OWNED,
+})}
 /** Visited nodes per ray: the built tree's bound plus every node a refit let into a ray. */
 fn proxySteps()->u32{return proxy.steps;}
 /** Owners a leaf triangle is tested under. A posed leaf's triangle is tested once as it stands

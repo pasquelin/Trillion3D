@@ -1,8 +1,9 @@
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { deviceMade } from '../../gpu/core/errorScope.ts'
 import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../../gpu/page/resize.ts'
 import { tilePoolTexture } from '../tile/pool.ts'
-import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts'
+import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { GeometryPool } from '../../residency/pools.ts'
 import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
@@ -132,7 +133,7 @@ export const textureProbe =
   (device: GPUDevice, encoding: PoolEncoding) =>
   (pool: TexturePool): Made => {
     const textures = (['color', 'data'] as const).flatMap((kind) =>
-      POOL_LANES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
+      PREVIEW_LAYOUT_NAMES.filter((lane) => pool.layers[kind][lane] > 0).map((lane) =>
         device.createTexture({
           ...tilePoolTexture({
             kind,
@@ -159,5 +160,5 @@ export async function probed<P>(granted: Promise<Granted<P, Made> | undefined>) 
 /** True when two texture pools hold the same layers in every lane: nothing to replace. */
 export const sameLayers = (a: TexturePool, b: TexturePool) =>
   (['color', 'data'] as const).every((kind) =>
-    POOL_LANES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
+    PREVIEW_LAYOUT_NAMES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
   )

@@ -94,6 +94,9 @@ export const GOLDEN_U32 = wgslConst(
   `const GOLDEN_U32:u32=0x${GOLDEN_WORD.toString(16)}u;`,
 )
 
+/** No slot: the index a lane holds when it names no entry of a table (all bits set). */
+export const NO_SLOT = wgslConst('NO_SLOT', [], 'const NO_SLOT:u32=0xffffffffu;')
+
 /** An eighth of a turn, π/4. */
 export const QUARTER_PI = wgslConst('QUARTER_PI', [], `const QUARTER_PI:f32=${wgslF32(QUARTER)};`)
 
