@@ -72,7 +72,7 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
  *  generator's text is on the list for one layout, and every generator they import must be. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
-  'webgpu/shadow/computePass.ts',
+  'webgpu/visibility/computePass.ts',
   'gpu/raster/resolve.ts',
   'texture/coverageMips.ts',
   'lighting/deferred/program.ts',

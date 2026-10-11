@@ -34,7 +34,7 @@ export const SURFACE_SLOPE_WGSL = wgslBlock(
  * where it lies, never from the sample the jitter drew. Requires `depth` and `view`; lists `worldAt`
  * (`WORLD_AT_WGSL`).
  *
- * The jitter moves the image by `view.jitter.xy` pixels (`shadowJitterWords`): the pixel's
+ * The jitter moves the image by `view.jitter.xy` pixels (`viewJitterWords`): the pixel's
  * unjittered centre lies there in this image. A receiver's plane has an NDC depth affine across
  * the screen — `1/w` is, and a projected depth is affine in `1/w` —, so its depth there is the
  * depth held, moved along the plane's slope (`surfaceSlopeOf`, above): on an axis no side

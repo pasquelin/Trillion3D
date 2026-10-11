@@ -6,7 +6,7 @@
  */
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { shadowJitterWords } from './jitterWords.ts'
+import { viewJitterWords } from './jitterWords.ts'
 
 const DEFERRED_VIEW_BYTES = 160
 /** First float of the view's `jitter` words (`VIEW_WGSL`). */
@@ -23,11 +23,11 @@ export function createDeferredView(device: GPUDevice) {
   })
   const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4)
   const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>
-    void shadowJitterWords(jitter, packed, JITTER_WORD, phase)
+    void viewJitterWords(jitter, packed, JITTER_WORD, phase)
   setJitter(null)
   return {
     buffer,
-    /** The TAA jitter of the next image `write` writes (`shadowJitterWords`). */
+    /** The TAA jitter of the next image `write` writes (`viewJitterWords`). */
     setJitter,
     /** `rawOutput` skips the display chain; `sampledRank` non-zero draws a subset of each
      *  pixel's lights (`../direct/lightSamplingWgsl.ts`); `direct` carries the contract lights, the
