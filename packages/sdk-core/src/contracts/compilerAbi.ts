@@ -1,6 +1,6 @@
 /**
  * What the compiler and the runtime both state, written once here and printed into the compiler's
- * Rust (`scripts/shared-rules/abi.ts`, `packages/asset-compiler-rust/src/shared_abi.rs`).
+ * Rust (`scripts/shared-rules/abi.ts`, `packages/asset-compiler-rust/src/shared_math/abi.rs`).
  */
 
 /** Triangles a cluster holds at most: the page format's cluster, the one the compiler cuts

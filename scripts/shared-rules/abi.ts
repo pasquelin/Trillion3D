@@ -15,7 +15,7 @@ import { header } from './statements.ts'
 
 const CATALOGUE = 'packages/sdk-node/src/messages/messages.json'
 
-/** The compiler's shared constants, `shared_abi.rs`. */
+/** The compiler's shared constants, `shared_math/abi.rs`. */
 export function compilerAbiRust() {
   return `${header(
     ['packages/sdk-core/src/contracts/base.ts', 'packages/sdk-core/src/contracts/compilerAbi.ts'],

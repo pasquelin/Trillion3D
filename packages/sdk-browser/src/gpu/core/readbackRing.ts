@@ -1,5 +1,5 @@
 /** `GPUMapMode.READ`, or its value where a test device leaves the enum empty. */
-export const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1
+const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1
 
 /** Maps `buffer`, or its range `offset` and `size`, for reading: held when the GPU has run the
  *  copies into it. The one mapping of a staging buffer that a caller awaits. */

@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { execFileSync } from 'node:child_process'
 import * as common from '../../packages/sdk/index.ts'
 import * as core from '../../packages/sdk-core/src/index.ts'
 import * as browser from '../../packages/sdk/browser.ts'
 import * as browserLegacy from '../../packages/sdk-browser/src/index.ts'
+import { readJson } from '../../scripts/repository-files.ts'
 
 test('the facade keeps canonical binding identity across environments', () => {
   assert.equal(common.LOD_QUALITY, core.LOD_QUALITY)
@@ -58,8 +58,8 @@ interface Inventory {
 }
 
 test('generated inventory and explicit facade files are current', async () => {
-  const inventory: Inventory = JSON.parse(
-    await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
+  const inventory: Inventory = readJson(
+    new URL('../../site/data/api-inventory.json', import.meta.url),
   )
   // 721 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world

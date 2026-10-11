@@ -41,7 +41,7 @@ const outputs: Record<string, () => string> = {
   'packages/physics-jolt-wasm/src/layout.h': physicsLayoutHeader,
   'packages/sdk-browser/src/texture/coverageMathWgsl.ts': coverageWgsl,
   'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
-  'packages/asset-compiler-rust/src/shared_abi.rs': compilerAbiRust,
+  'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
   'packages/page-codec-wasm/src/anim_layout.rs': animationLayoutRust,
   'packages/sdk-browser/src/host/familyLoadFailedId.ts': familyLoadFailedId,
 }

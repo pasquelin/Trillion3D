@@ -6,7 +6,7 @@ use super::*;
 use super::{decoded::decoded, world::world_dag};
 use crate::dag::{build_dag_tallied, DagAttributes, Grown};
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
-use crate::shared_abi::DAG_CLUSTER_TRIANGLES;
+use crate::shared_math::abi::DAG_CLUSTER_TRIANGLES;
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
 use trillion3d_math::vec3::{cross, dot, sub};
 

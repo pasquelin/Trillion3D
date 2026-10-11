@@ -45,9 +45,7 @@ test('package metadata exposes one environment-aware root', async () => {
   assert.equal(packageJson.devDependencies.three, '^0.174.0')
   assert.equal(packageJson.devDependencies['@types/three'], '^0.174.0')
   assert.ok(packageJson.files.includes('!dist/witnesses'), 'the witness entry stays unpublished')
-  const browserPackage = JSON.parse(
-    await readFile(resolve(REPOSITORY_ROOT, 'packages/sdk-browser/package.json'), 'utf8'),
-  )
+  const browserPackage = readJson(resolve(REPOSITORY_ROOT, 'packages/sdk-browser/package.json'))
   assert.equal(browserPackage.peerDependencies?.three, undefined)
   assert.equal(browserPackage.dependencies?.three, undefined)
   assert.equal(packageJson.scripts.preinstall, undefined)

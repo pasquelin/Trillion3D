@@ -1,4 +1,4 @@
-import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { appendSurfacesGltf } from './gltf.ts'
@@ -6,6 +6,7 @@ import { codeScenes } from './code-scenes.ts'
 import { fromGeometry, merge } from './mesh.ts'
 import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts'
 import type { GltfDocument } from './gltf-types.ts'
+import { readJson } from '../../repository-files.ts'
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
@@ -39,9 +40,7 @@ async function bust(models: string, directory: string) {
       }),
     ),
   )
-  const gltf: GltfDocument = JSON.parse(
-    await readFile(resolve(source, 'marble_bust_01_1k.gltf'), 'utf8'),
-  )
+  const gltf: GltfDocument = readJson(resolve(source, 'marble_bust_01_1k.gltf'))
   await appendSurfacesGltf(
     gltf,
     directory,

@@ -8,7 +8,7 @@ use super::*;
 use crate::dag::clusters::cluster_triangles;
 use crate::dag::{build_dag_from_roots, DagAttributes, DagCluster, DagGroup, Grown};
 use crate::geometry_page::Attribute;
-use crate::shared_abi::DAG_CLUSTER_TRIANGLES;
+use crate::shared_math::abi::DAG_CLUSTER_TRIANGLES;
 
 impl WorldDag {
     /// Every placed object still a root — alone in its material, or in a group whose reduction

@@ -1,6 +1,6 @@
 //! Format numbers of the compiler. The cache it writes and the source manifest it reads are two
 //! different formats and move on their own schedules; nothing may conflate them.
-use crate::shared_abi::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION};
+use crate::shared_math::abi::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION};
 use serde_json::Value;
 
 /// Format of a prepared source manifest the compiler reads. An input format, not an output one.

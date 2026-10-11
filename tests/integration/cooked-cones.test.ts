@@ -16,7 +16,7 @@ import { sceneDocument } from '../../packages/sdk-browser/src/scene/tables.ts'
 import { joinedCorners, withPlaced } from '../kit/reference/placedVertices.ts'
 import type { PreparedSceneTables } from '../../packages/sdk-core/src/scene/core/tableContracts.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
 
 /** The bytes of `file`, alone in their `ArrayBuffer`. */
 const bytesOf = (file: string) => new Uint8Array(readFileSync(file)).buffer
@@ -24,9 +24,7 @@ const bytesOf = (file: string) => new Uint8Array(readFileSync(file)).buffer
 /** Every page of the scene cache whose pointer is `pointer`, and how many of them disagree. */
 async function checkScene(pointer: string) {
   const { dir, manifest } = await readCacheManifest(dirname(join(REPOSITORY_ROOT, pointer)))
-  const tables = JSON.parse(
-    readFileSync(join(dir, 'scene-tables.json'), 'utf8'),
-  ) as PreparedSceneTables
+  const tables = readJson(join(dir, 'scene-tables.json')) as PreparedSceneTables
   // The document the session draws (`SCENE_FILE`).
   const { document, bufferUrl } = sceneDocument(tables, pathToFileURL(`${dir}/`).href)
   const geometryOf = preparedGeometries(document, async () => bytesOf(fileURLToPath(bufferUrl!)))

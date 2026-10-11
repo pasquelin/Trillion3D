@@ -22,7 +22,7 @@ import {
   type PackageJson,
   packArchive,
 } from './installed-package/fixture.ts'
-import { REPOSITORY_ROOT } from './repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from './repository-files.ts'
 
 /** Whether the fixture's virtual store holds any version of the host library. */
 const installedThree = (fixture: string) =>
@@ -53,9 +53,7 @@ try {
   const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, REPOSITORY_ROOT, fixture)
   const archive = join(fixture, basename(packed.filename)) // where the CDN proof unpacks it
   if (release) writeFileSync(archive, readFileSync(packed.filename))
-  const source = JSON.parse(
-    readFileSync(join(REPOSITORY_ROOT, 'package.json'), 'utf8'),
-  ) as PackageJson
+  const source = readJson(join(REPOSITORY_ROOT, 'package.json')) as PackageJson
   // The consumer installs the package alone: it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
   const dependencies: Record<string, string> = { [source.name]: `file:${archive}` }
@@ -149,8 +147,8 @@ try {
     Object.keys(bundles.types.outputs['types.js'].inputs).some((path) => path.includes(packageName))
   )
     throw new Error('type-only import was not erased')
-  const manifest = JSON.parse(
-    readFileSync(join(fixture, `node_modules/${source.name}/package.json`), 'utf8'),
+  const manifest = readJson(
+    join(fixture, `node_modules/${source.name}/package.json`),
   ) as ExportsManifest
   const runtimeProof = proveInstalledRuntime({ fixture, packageName, run, write, bundle })
   bundles.maths = runtimeProof.bundles.maths

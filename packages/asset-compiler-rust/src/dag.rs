@@ -12,7 +12,7 @@
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
-use crate::shared_abi::{DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_VERTICES};
+use crate::shared_math::abi::{DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_VERTICES};
 use crate::shared_math::{word_map, WordMap, WordSet};
 use crate::{invalid, Result};
 use rayon::prelude::*;

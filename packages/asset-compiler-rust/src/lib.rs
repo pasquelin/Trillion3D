@@ -20,7 +20,6 @@ pub mod physics_cook;
 pub mod plugins;
 pub mod proxy;
 mod qem;
-mod shared_abi;
 pub mod shared_math;
 pub mod texture_preview;
 mod topology;
@@ -42,11 +41,7 @@ use std::{
 };
 mod compiler_format;
 mod compiler_identity;
-pub use compiler_format::SOURCE_FORMAT_VERSION;
-pub use shared_abi::{
-    CLUSTERED_BLEND_FORMAT_VERSION, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS,
-    DEFAULT_TRIANGLE_BUDGET, FORMAT_VERSION,
-};
+pub use shared_math::abi::*;
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: absolute group QEM error weighing positions, normals and every
 /// texture set, clamped to the group's extent, raised to what each part it removes whole costs

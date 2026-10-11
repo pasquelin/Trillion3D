@@ -4,6 +4,7 @@
 //! same float ops, same order, same precision as original location.
 //! Site with detail difference stays local rather than aligned.
 
+pub(crate) mod abi;
 pub(crate) mod wide;
 
 use trillion3d_math::aabb::aabb_of;
