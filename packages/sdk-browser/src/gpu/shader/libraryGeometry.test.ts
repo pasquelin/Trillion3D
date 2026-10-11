@@ -19,6 +19,7 @@ import {
 } from '../../../../math/src/wgsl/geometry.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
+import { eachGolden } from '../../../../math/src/golden.fixture.ts'
 
 type V = number[]
 const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -175,4 +176,30 @@ test('the ray meets the triangle where the ray meets its plane inside its corner
     hits += Number(want < limit)
   }
   assert.ok(hits > 20, `hits met: ${hits}`)
+})
+
+test('the shader’s ray–triangle hit is the Rust twin’s, on the cases it can state', () => {
+  let hits = 0,
+    misses = 0
+  eachGolden('ray_triangle', 'ray_triangle', (v, out, line) => {
+    // The shader's range opens at 1e-4, and a NaN or an infinity has no stated outcome on a GPU.
+    if (v[15] !== 1e-4 || !v.every(Number.isFinite)) return
+    const limit = v[16]
+    const got = run.rayTriangleDistance(
+      v.slice(0, 3),
+      v.slice(3, 6),
+      v.slice(6, 9),
+      v.slice(9, 12),
+      v.slice(12, 15),
+      limit,
+    ) as number
+    if (out.length) {
+      near(got, out[0], line)
+      hits++
+    } else {
+      assert.equal(got, limit, line)
+      misses++
+    }
+  })
+  assert.ok(hits > 20 && misses > 20, `${hits} hits, ${misses} misses`)
 })

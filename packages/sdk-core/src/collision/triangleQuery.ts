@@ -1,7 +1,6 @@
 import { slabCut } from '../../../math/src/geometry/slab.ts'
-import { insideTriangle, triangleNormal } from './closest.ts'
-import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import type { TriangleTree } from './triangleTree.ts'
+import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
 
 /**
  * THE QUERIES OF A TRIANGLE TREE (`triangleTree.ts`): every triangle whose box meets a box, and
@@ -80,29 +79,6 @@ function overlapsTriangle(
   return true
 }
 
-const normal = new Float64Array(3)
-
-/**
- * Where the ray `o + t·d` crosses triangle `v[at..at+9]`: its parameter `t ≥ 0`, or `-1`. Either
- * face is crossed; a ray in the triangle's plane, or a degenerate triangle, crosses nothing. The
- * plane is met first, then the point is tested inside the edges (`insideTriangle`).
- */
-function crossTriangle(
-  o: ArrayLike<number>,
-  d: ArrayLike<number>,
-  v: ArrayLike<number>,
-  at: number,
-) {
-  if (triangleNormal(normal, v, at) === 0) return -1
-  const facing = dotVector3(normal, d)
-  if (facing === 0) return -1
-  const height =
-    normal[0] * (v[at] - o[0]) + normal[1] * (v[at + 1] - o[1]) + normal[2] * (v[at + 2] - o[2])
-  const t = height / facing
-  if (!(t >= 0)) return -1
-  return insideTriangle(o[0] + t * d[0], o[1] + t * d[1], o[2] + t * d[2], v, at, normal) ? t : -1
-}
-
 const span = new Float64Array(2)
 
 /** The parameter where the ray enters node box `at` of `bounds` (`slabCut`), or
@@ -144,8 +120,8 @@ export function nearestTriangleOnRay(
       continue
     }
     for (let t = links[node], end = t + counts[node]; t < end; t++) {
-      const crossed = crossTriangle(o, d, triangles, 9 * t)
-      if (crossed >= 0 && crossed < best) [best, found] = [crossed, 9 * t]
+      const crossed = rayTriangle(o, d, triangles, 9 * t, -Number.MIN_VALUE, best)
+      if (crossed < best) [best, found] = [crossed, 9 * t]
     }
   }
   return found < 0 ? null : { t: best, at: found }
