@@ -3,6 +3,7 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions } from '../harness/measureOptions.ts'
 import { explorerOptions } from '../harness/explorerPage.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
 
@@ -15,7 +16,7 @@ export async function runGazeNetwork(options: MeasureViewOptions) {
   document.body.append(canvas)
   const world = await sdk.openMeasuredWorld(canvas, explorerOptions(options, factory))
   for (const pose of options.poses!) {
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    await animationFrame()
     world.render(pose)
   }
 }

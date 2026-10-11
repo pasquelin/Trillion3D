@@ -14,6 +14,7 @@ import { createWitnessRenderer, readWitnessImage } from './threeRenderer.ts'
 import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
+import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov
@@ -99,7 +100,7 @@ export async function mesurerThree(
   for (let i = 0; i < options.warmup; i++) renderer.render(scene, camera)
   await renderer.waitForGPU()
   for (let i = 0; i < options.frames; i++) {
-    await new Promise<number>((done) => requestAnimationFrame(done))
+    await animationFrame()
     moveLight(i)
     poser(poseAt(i))
     renderer.render(scene, camera)
