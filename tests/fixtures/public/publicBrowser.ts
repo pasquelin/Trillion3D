@@ -12,6 +12,7 @@ import {
   type World,
   type WorldOptions,
 } from 'trillion3d'
+import { MIB } from '../../../packages/math/src/constants.ts'
 
 const pose: CameraPose = {
   position: [0, 1, 2],
@@ -19,7 +20,7 @@ const pose: CameraPose = {
   fov: 60,
 }
 const options: WorldOptions = { interactive: false }
-const budgets: MemoryBudgets = { geometryPoolBytes: 64 * 1024 * 1024 }
+const budgets: MemoryBudgets = { geometryPoolBytes: 64 * MIB }
 const clamp: PoolClamp = 'root-cover'
 const profiler = new EngineProfiler(60)
 export const readTelemetry = (): TelemetryReport => profiler.getReport()

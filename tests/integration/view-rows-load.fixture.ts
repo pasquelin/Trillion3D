@@ -17,6 +17,7 @@ import { mockGpu } from '../kit/gpu/mockGpu.ts'
 import { byteRange } from '../../scripts/static-server.ts'
 import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { EngineDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts'
+import { MIB } from '../../packages/math/src/constants.ts'
 
 /** The exit code of a process that ran out of memory, as a killed renderer's. */
 const OUT_OF_MEMORY = 137
@@ -38,7 +39,6 @@ const M2_LIMITS = {
   maxSamplersPerShaderStage: 16,
 }
 const [WIDTH, HEIGHT] = [1728 * 2, 1117 * 2]
-const MB = 1 << 20
 
 /** A canvas of the boss's case whose WebGPU context presents into a mock texture, and that
  *  grants no other context. */
@@ -74,7 +74,7 @@ async function openUnderCap(manifest: string, capMb: number) {
   let peak = 0
   const poll = () => {
     const { heapUsed, arrayBuffers } = process.memoryUsage()
-    peak = Math.max(peak, (heapUsed + arrayBuffers - deviceBytes()) / MB)
+    peak = Math.max(peak, (heapUsed + arrayBuffers - deviceBytes()) / MIB)
     if (peak <= capMb) return
     process.stdout.write(`${JSON.stringify({ outOfMemory: true, peakMb: Math.round(peak) })}\n`)
     process.exit(OUT_OF_MEMORY)
