@@ -9,11 +9,9 @@
 // main thread's (`packages/sdk-browser/src/animation/animationAhead.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { NodeDomWorker } from '../../oracles/browser/pageWorkNodeWorker.ts'
 import { quantileOf, summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
 import { sampleAhead } from '../../../packages/sdk-browser/src/animation/animationAhead.ts'
 import { countingSampler } from '../../../packages/sdk-browser/src/animation/animationAhead.fixture.ts'
@@ -23,9 +21,6 @@ import {
 } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
 import { FRAME, animationRigs } from './support/animationRigs.ts'
 
-await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../../packages/sdk-browser/src/wasm/kernels.wasm')),
-)
 const { sampler, counts: aheadCounts } = countingSampler((await lendAnimationSampler())!)
 lendActionSampler(sampler)
 

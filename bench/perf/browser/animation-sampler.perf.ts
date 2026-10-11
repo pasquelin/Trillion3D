@@ -2,19 +2,14 @@
 // playing mixer (`advanceMixers`, `packages/sdk-core/src/world/animation/mixer.ts`) with the
 // WebAssembly sampler the world lends them (`packages/sdk-browser/src/animation/batchAnimation.ts`),
 // against `AnimationMixer.update` on the same clips, on the rigs of `support/animationRigs.ts`.
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import * as THREE from 'three'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.ts'
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/animation/batchAnimation.ts'
 import { advanceMixers } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
 import { rapport } from '../../core/index.ts'
 import { duel } from '../../oracles/core/three-duel.ts'
 import { FRAME, NODES, animationRigs } from './support/animationRigs.ts'
 
-await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../../packages/sdk-browser/src/wasm/kernels.wasm')),
-)
 await lendAnimationSampler()
 
 const { scene, bones, bonesThree, mixersThree } = animationRigs()

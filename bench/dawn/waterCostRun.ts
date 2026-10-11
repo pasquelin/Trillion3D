@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { installProofGpu } from '../../tests/gpu/kit/onDawn.ts'
@@ -13,8 +12,6 @@ export async function waterCostRun(fixtureRoot: string, engineRoot: string) {
     pathToFileURL(resolve(fixtureRoot, 'tests/gpu/water/waterCostPage.ts')).href
   )) as typeof import('../../tests/gpu/water/waterCostPage.ts')
   const { webgpuPagesEngine } = await from('packages/sdk-browser/src/webgpu/pages/pages.ts')
-  const { prepareSdkWasm } = await from('packages/sdk-browser/src/wasm/sdkWasm.ts')
-  const bytes = await readFile(resolve(engineRoot, 'packages/sdk-browser/src/wasm/kernels.wasm'))
-  if (!(await prepareSdkWasm(bytes))) throw new Error('SDK WASM preload failed')
+  await from('packages/sdk-browser/src/wasm/sdkWasm.fixture.ts')
   return (options: WaterCostOptions) => measure(webgpuPagesEngine, options)
 }
