@@ -36,9 +36,11 @@ function drawRuns(
   pass: GPURenderPassEncoder,
   pipeline: GPURenderPipeline,
   image = state.pass.imageGroup(state.slots.used),
+  ids?: GPUBindGroup,
 ) {
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, image.group)
+  if (ids) pass.setBindGroup(2, ids)
   for (let r = 0; r < state.runCount; r++) {
     const run = state.runs[r]
     pass.setBindGroup(1, run.group)
@@ -49,7 +51,7 @@ function drawRuns(
 
 /**
  * The cards' visibility stage, drawn into the open primary visibility pass `pass` before the Hi-Z
- * pyramid is built: identifier 0, the depth where the mesh's surface would be, and the pyramid's
+ * pyramid is built: the card's identifier (`VIS_CARD_BASE | slot`), the depth where the mesh's surface would be, and the pyramid's
  * level 0 when `hiz`. It first sends the image's view — its render view-projection, jitter
  * included, and the camera's own, both at the eye, and the eye — and the card records written since
  * the last image, which the surface stage reads too. True when it drew.
@@ -103,20 +105,20 @@ export function encodeImpostorVisibilityPass(
 
 /**
  * The cards' surface stage, over the opaque surfaces the material passes wrote and before they are
- * lit: each card writes its surface where its depth is the one the visibility stage kept. An image
- * without cards encodes nothing.
+ * lit: each card writes its surface where the identifier the visibility stage kept is its own. An
+ * image without cards encodes nothing.
  */
 export function encodeImpostorCards(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const state = cardsOf(rt),
-    { surfaces, depthView } = rt.gpu
-  if (!state || !surfaces || !depthView) return
+    { surfaces } = rt.gpu,
+    { visView } = rt.vis
+  if (!state || !surfaces || !visView) return
   const draw = encoder.beginRenderPass({
     label: IMPOSTOR_PASS,
     colorAttachments: core.surfaceLoadAttachments(surfaces),
-    depthStencilAttachment: { view: depthView, depthReadOnly: true },
   })
   const [width, height] = rt.gpu.targetSize
   draw.setViewport(0, 0, width, height, 0, 1)
-  drawRuns(rt, state, draw, state.pass.pipeline)
+  drawRuns(rt, state, draw, state.pass.pipeline, undefined, state.pass.idsGroup(visView))
   draw.end()
 }

@@ -13,6 +13,7 @@
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
+import { MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'
 import { GraphSurface } from '../graph/surface.ts'
 import { type GraphTexture } from '../graph/texture.ts'
 import { hostSide } from '../../scene/materialSide.ts'
@@ -24,8 +25,6 @@ type Params = Record<string, unknown>
 
 /** The extension maps that hold colour, and are read in sRGB. */
 const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap'])
-/** The extension factors that are colours. */
-const COLOURS = new Set(['sheenColor', 'specularColor'])
 
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
@@ -80,7 +79,7 @@ function extensionParams(
     if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name))
     else if (name === 'clearcoatNormalScale')
       params[name] = new Vector2(value as number, value as number)
-    else if (COLOURS.has(name)) params[name] = linearColour(value as number[])
+    else if (MATERIAL_COLOURS.has(name)) params[name] = linearColour(value as number[])
     else params[name] = Array.isArray(value) ? [...value] : value
   }
   // A frame rebuilt from the triangle, on geometry without tangents, turns the second clear-coat

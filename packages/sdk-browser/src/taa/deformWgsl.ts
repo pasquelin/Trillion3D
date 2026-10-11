@@ -1,3 +1,4 @@
+import { NO_PAGE_ID } from './pageIdWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { planeBarycentric } from '../../../math/src/wgsl/barycentric.ts'
@@ -19,7 +20,7 @@ export const TAA_DEFORM_WGSL = wgslBlock(
 /** \`position\`, the homogeneous point of identifier \`id\` relative to the eye, where its surface
  *  stood in the last frame: untouched off a deformed row. */
 fn deformedPrevious(id:u32,position:vec4f)->vec4f{
- if(id==0u){return position;}
+ if(${NO_PAGE_ID}){return position;}
  let page=pages[(id>>8u)-1u];
  if(page.deformOutput==0u){return position;}
  let h=pageHeaderFor(page,false);let corners=pageTriangle(page,h,id&0xffu);

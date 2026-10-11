@@ -57,6 +57,20 @@ export async function hostBoundsLot(source: Object3D) {
   return n ? await createBoxTransformLot(n) : null
 }
 
+/** A host box written flat into `out` from `at`: its least corner, then its greatest. */
+export function readHostBox(
+  box: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } },
+  out: Float64Array,
+  at: number,
+) {
+  out[at] = box.min.x
+  out[at + 1] = box.min.y
+  out[at + 2] = box.min.z
+  out[at + 3] = box.max.x
+  out[at + 4] = box.max.y
+  out[at + 5] = box.max.z
+}
+
 /**
  * Union of the world bounds of `source` and its descendants into `into`, which must arrive empty
  * or already started. The world matrices are the transform tree's after one frame pass, which
@@ -74,14 +88,7 @@ export function hostWorldBounds(
   source.traverse((object) => {
     const box = localBoxOf(object as HostBoundedNode)
     if (!box) return
-    const out = union.boxes,
-      at = union.at
-    out[at] = box.min.x
-    out[at + 1] = box.min.y
-    out[at + 2] = box.min.z
-    out[at + 3] = box.max.x
-    out[at + 4] = box.max.y
-    out[at + 5] = box.max.z
+    readHostBox(box, union.boxes, union.at)
     union.pose(worlds.of(object).elements)
   })
   return union.ferme()

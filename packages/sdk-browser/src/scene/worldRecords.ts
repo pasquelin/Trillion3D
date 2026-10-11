@@ -11,7 +11,7 @@
  *    (`primitive`): every object of its build wears the same material, so the material's own
  *    textures draw it, at the texture coordinates the cook carried through its simplification;
  *  - a placed object's cluster has no page: its own placement draws it. Its record is never
- *    resident in the pool; its residency is mirrored from that placement (`gpu/dag/worldMirror.ts`).
+ *    resident in the pool; its residency is mirrored from that placement (`gpu/dag/residencyMirror.ts`).
  *
  * A super-root whose primitive draws blended, or that no mesh of the scene wears, is a record
  * without a page, as an object's is: it never draws, and the placements of that primitive are

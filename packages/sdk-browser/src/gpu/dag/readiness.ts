@@ -30,7 +30,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
     packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
     pageIndex: packed.pageIndex,
-    ...{ blank: new Map(), worlds: [] },
+    ...{ blank: new Map(), blankPages: new Map(), worlds: [] },
     // Sized for the packing's placements, the live ones and those a growth appends (`append`).
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
     dirty: new Set(),
@@ -48,6 +48,11 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
   // Nothing is resident yet: each placement reads its nodes' own counts, the DAG's.
   for (const links of packed.cutLinks) worlds.push(blankOf(r, links))
   return {
+    /** The packed pages of placement `w` that are ready with nothing resident, and those whose
+     *  children are: the same for every placement of a primitive, found once per shared state. */
+    blankPages(w: number) {
+      return blankPagesOf(r, w)
+    },
     /** The rule's `resident(c)` and `resident(childGroup(c))` of packed page `page`; a page no
      *  placement holds — room a growth has not filled — is neither. */
     isReady(page: number) {
@@ -91,6 +96,7 @@ type Readiness = {
    *  resident, never the placement count (#1235, #483 rule 6). */
   blank: Map<CullingLinks, Map<DagCutLinks['structure'], CutReadiness>>
   worlds: CutReadiness[]
+  blankPages: Map<CutReadiness, { ready: number[]; child: number[] }>
   held: Uint8Array
   heldCount: number
   /** Placements `set` touched since the last settle. */
@@ -110,6 +116,22 @@ function blankOf(r: Readiness, { structure, links }: DagCutLinks) {
   let shared = byStructure.get(structure)
   if (!shared) byStructure.set(structure, (shared = createCutReadiness(structure, links)))
   return shared
+}
+
+/** The pages of `w`'s shared blank state that read ready, as offsets from its first page. */
+function blankPagesOf(r: Readiness, w: number) {
+  const state = blankOf(r, r.packed.cutLinks[w])
+  let pages = r.blankPages.get(state)
+  if (!pages) {
+    const ready: number[] = [],
+      child: number[] = []
+    for (let page = 0; page < r.packed.cutLinks[w].pageCount; page++) {
+      if (state.isReady(page)) ready.push(page)
+      if (state.isChildReady(page)) child.push(page)
+    }
+    r.blankPages.set(state, (pages = { ready, child }))
+  }
+  return pages
 }
 
 function own(r: Readiness, at: number) {

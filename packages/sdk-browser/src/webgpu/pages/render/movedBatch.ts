@@ -3,7 +3,6 @@ import {
   BOX_VALUES,
   boxEmpty,
   boxIsEmpty,
-  boxTransform,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts'
 import { boxEquals } from '../../../../../math/src/geometry/box.ts'
@@ -12,7 +11,7 @@ import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedCl
 import { appendRootsUnder } from './movedNode.ts'
 import { chainShown } from '../../../host/world/rooted.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
+import { refreshRootBox, transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -145,8 +144,7 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
     if (!root.worldBox) continue
     // A node moved: each root under it moved, at the pose it now reads.
     promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0
-    if (root.localBox && !enLot)
-      boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements)
+    if (!enLot) refreshRootBox(root)
   }
   // Origin of the scene change: these subtrees' world matrices have just been rewritten. Only
   // poses moved — no node entered or left the scene — so the watched set is left as it stands

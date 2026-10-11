@@ -91,6 +91,8 @@ export function createHostSceneWatch() {
     writesRead = -1,
     // How many reads were made: a node is compared once a read.
     reads = 0,
+    // A watched node was destroyed since the last call (`takeDestroyed`).
+    destroyed = false,
     verdict: WatchVerdict = 0
   /** `state` compared with its node, once a read: a flip and a pose move noted each on its own. */
   const scanOnce = (state: NodeState) => {
@@ -100,7 +102,14 @@ export function createHostSceneWatch() {
       read = verdictOf(found)
     if (read === 'reshaped') verdict = read
     else if (read && !verdict) verdict = read
-    if (found & SCAN_RESHAPED) return
+    if (found & SCAN_RESHAPED) {
+      // A node destroyed has no subtree to read its roots in: every root is walked. One moved
+      // under another poses and shows the roots under it, they alone.
+      if (!state.node._alive) return void (destroyed = true)
+      flipped.push(state.node)
+      written.add(state.node)
+      return
+    }
     if (found & SCAN_FLIPPED) flipped.push(state.node)
     if (found & SCAN_POSED) written.add(state.node)
   }
@@ -153,6 +162,14 @@ export function createHostSceneWatch() {
         for (const state of states.values()) scanOnce(state)
       writesRead = to
       return verdict
+    },
+    /** Whether a scan found a watched node destroyed since the last call: the roots it drew are no
+     *  longer found under it, so the caller reads every root. A node reparented is not that: it is
+     *  taken as written and flipped, and the roots under it alone follow. */
+    takeDestroyed(): boolean {
+      const taken = destroyed
+      destroyed = false
+      return taken
     },
     /** The nodes the scans found shown, hidden, set to cast or not since the last call, each
      *  where it was flipped: what their roots follow, none other (`followHostVisibility`). */

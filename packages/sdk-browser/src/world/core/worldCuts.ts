@@ -7,6 +7,7 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
+import { drawnKind } from '../../../../sdk-core/src/world/geometry/drawnKind.ts'
 import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts'
 import { packDrawn } from '../page/runtimeCut.ts'
 import type { CutWay } from '../page/runtimePack.ts'
@@ -73,10 +74,15 @@ type Content = {
 
 async function readContent(drawn: DrawnTriangles, blended: boolean, cut: CutWay): Promise<Content> {
   const packed = packDrawn(drawn, blended, cut)
-  // Line quads are drawn widened and a sprite's quad turned to the camera: neither shares a
-  // resource with the same bytes read as faces.
-  const kind = drawn.lines ? 'lines:' : drawn.spriteRadius !== undefined ? 'sprite:' : ''
-  return { key: kind + (await sha256Hex(packed)), drawn, blended, cut, packed }
+  // A kind that is not faces shares no resource with the same bytes read as faces.
+  const kind = drawnKind(drawn)
+  return {
+    key: (kind === 'faces' ? '' : `${kind}:`) + (await sha256Hex(packed)),
+    drawn,
+    blended,
+    cut,
+    packed,
+  }
 }
 
 type Reading = { version: number; read: Promise<Content | null> }

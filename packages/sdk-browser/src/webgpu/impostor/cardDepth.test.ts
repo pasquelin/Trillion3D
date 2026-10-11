@@ -2,7 +2,7 @@
 // two singles a component and projects at the eye (`cardWgsl.ts`), each operation rounded to single
 // here as the GPU rounds it. Against the depth in double it stays within three units in the last
 // place, out to 10⁵ m — the matrix the CPU composed in double for each card (`toDraw · world`,
-// rounded once) within two —, far inside the surface stage's nudge of 2⁻²⁰ (16 of them).
+// rounded once) within two. That is the depth the card occludes by; the surface stage compares none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'

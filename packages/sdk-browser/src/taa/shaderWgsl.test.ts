@@ -75,7 +75,7 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // resolve read once for its tag.
   assert.match(
     TAA_REPROJECT_WGSL,
-    /if\(view\.params\.z!=0\.0&&id!=0u\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
+    /if\(view\.params\.z!=0\.0&&!\(id==0u\|\|id>=4278190080u\)\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
   )
   assert.doesNotMatch(TAA_REPROJECT_WGSL, /textureLoad\(ids/)
   assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec4f\(0\.0\);\}/)

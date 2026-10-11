@@ -105,3 +105,29 @@ test('a reshape then a move before the same image: the node the reshape brought 
   gate.readScene(source, list)
   assert.notEqual(gate.revisions.scene, revision, 'the write on the entered node is seen')
 })
+
+test('a node the host reparented has the roots under it read, not every root; a destroyed one every root', () => {
+  const { source, drawn } = scene()
+  const mesh = (drawn[0] as { sourceMesh: G.HostMesh }).sourceMesh
+  const world = { refresh() {} } as Parameters<
+    ReturnType<typeof createFrameGateCore>['updateWorlds']
+  >[0]
+  const gate = createFrameGateCore(1)
+  gate.readScene(source, drawn)
+  assert.deepEqual(
+    gate.updateWorlds(world),
+    { reshaped: true, flipped: [] },
+    'the first image reads every root',
+  )
+  gate.readScene(source, drawn)
+  const moved: unknown[] = []
+  new G.Group().add(mesh)
+  gate.readScene(source, drawn)
+  const write = gate.updateWorlds(world, (nodes) => moved.push(...nodes))
+  assert.equal(write && write.reshaped, false)
+  assert.deepEqual(moved, [mesh])
+  assert.deepEqual(write && write.flipped, [mesh])
+  mesh.destroy()
+  gate.readScene(source, drawn)
+  assert.equal((gate.updateWorlds(world) || undefined)?.reshaped, true)
+})

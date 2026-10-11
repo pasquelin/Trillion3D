@@ -2,7 +2,7 @@ import { meshes as objects } from '../../scene/meshes.ts'
 import type { HostBoundedNode } from '../../host/scene/graphNodes.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
-import { emptyWorldBox } from '../../host/world/bounds.ts'
+import { emptyWorldBox, readHostBox } from '../../host/world/bounds.ts'
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
@@ -81,8 +81,7 @@ export function pagesBounds(
     // The world matrix is the one the engine computed for this mesh, read once.
     const world = worlds.of(mesh).elements
     if (placed) {
-      const { min, max } = placed
-      union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at)
+      readHostBox(placed, union.boxes, union.at)
       union.pose(world)
       continue
     }

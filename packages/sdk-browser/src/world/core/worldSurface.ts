@@ -6,7 +6,10 @@
  * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
  * WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it is. Lines, points and sprites are unlit: they wear a basic surface.
  */
-import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
+import {
+  MATERIAL_COLOURS,
+  type Material,
+} from '../../../../sdk-core/src/world/material/material.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { hostSide } from '../../scene/materialSide.ts'
@@ -37,12 +40,9 @@ const FAMILY: Record<string, GraphSurfaceFamily> = {
   meshMatcap: 'matcap',
   meshDepth: 'depth',
 }
-/** Colours a family may carry, written in the linear working space both sides share. */
-const COLOURS = ['color', 'emissive', 'specular', 'subsurfaceColor']
-
 /** Writes the colours a surface has, its glow scaled by its intensity, and its shininess. */
 function writeColours(surface: GraphSurface, material: Material) {
-  for (const field of COLOURS) {
+  for (const field of MATERIAL_COLOURS) {
     const colour = material[field] as { r: number; g: number; b: number } | undefined
     const into = surface[field] as Color | undefined
     if (colour && into?.isColor) into.setRGB(colour.r, colour.g, colour.b)

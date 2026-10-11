@@ -3,10 +3,10 @@ import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts'
 import { texelFormatOf } from '../host/textureImport.ts'
-import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
+import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
 export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts'
-/** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
-export const VIS_MAX_PAGES = 0xfffffe
+/** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
+export const VIS_MAX_PAGES = VIS_CARD_ROWS - 1
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
 export function assertVisibilityPageTriangles(triangles: number, page?: string) {
   if (!Number.isInteger(triangles) || triangles < 0 || triangles > VIS_MAX_PAGE_TRIANGLES)

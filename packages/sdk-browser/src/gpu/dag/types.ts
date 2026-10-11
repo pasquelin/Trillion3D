@@ -73,12 +73,15 @@ export type DagCutLinks = {
 }
 /** What placing a root reads again for the next placement of its primitive (`pack.ts`): the
  *  hierarchy packing gives a page array without one, per node array its level sizes and bounds, and
- *  per page array its first placement's page base and record base. */
+ *  per page array its first placement's page base, record base, node array and root-cluster count. */
 export type DagPackShared = {
   flats: Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>
   levelSizesOf: Map<Float64Array, readonly number[]>
   boundsOf: Map<Float64Array, Float64Array>
-  firstOf: Map<DagRoot['pages'], { pageBase: number; recordBase: number }>
+  firstOf: Map<
+    DagRoot['pages'],
+    { pageBase: number; recordBase: number; nodes: Float64Array; rootClusters: number }
+  >
   /** Per node array, where its nodes lie in the node table — one copy for every placement of
    *  the primitive — and the node owning each of its pages there. */
   nodeBlocks: Map<Float64Array, { nodeBase: number; nodeCount: number; owner: Uint32Array }>
@@ -140,7 +143,7 @@ export type PackedDag = {
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
   /** The world DAG, when packed: its placement and its `origins`, which the cut's residency
-   *  mirrors (`worldMirror.ts`), and each placement's link to the world cluster that stands in for
+   *  mirrors (`residencyMirror.ts`), and each placement's link to the world cluster that stands in for
    *  it (`worldLinks.ts`). */
   world?: PackedWorld
   /** The cells and groups above the placements (`placementTree.ts`), when they take one. */

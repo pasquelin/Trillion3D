@@ -1,4 +1,5 @@
 import * as layer from './layers.ts'
+import { NO_PAGE_ID } from './pageIdWgsl.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
@@ -59,7 +60,7 @@ export const PAGE_OF_WGSL = wgslBlock(
   `
 struct TaaPage{identity:u32,animated:f32}
 fn pageOf(id:u32)->TaaPage{
- if(id==0u){return TaaPage(0u,0.0);}
+ if(${NO_PAGE_ID}){return TaaPage(0u,0.0);}
  let page=pages[(id>>8u)-1u];
  return TaaPage(page.placement+1u,select(0.0,1.0,(page.flags&${FLAG_DYNAMIC}u)!=0u&&page.deformOutput==0u));
 }`,

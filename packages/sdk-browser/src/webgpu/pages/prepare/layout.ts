@@ -77,7 +77,7 @@ export function askedTableRows(
  *  requests ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
-  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/worldMirror.ts`).
+  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/residencyMirror.ts`).
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The

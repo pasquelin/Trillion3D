@@ -47,7 +47,12 @@ export function createDagPoolList(
   }
   if (held) {
     writes = false
-    for (let page = 0; page < packed.pageCount; page++) if (held(page)) note(page, true)
+    // A page is listed for its key alone, the key's canonical page: those are asked, in page order,
+    // never the instances.
+    const canonical = [
+      ...new Set(Array.from({ length: packed.keyCount }, (_, k) => pageOf(k))),
+    ].sort((a, b) => a - b)
+    for (const page of canonical) if (held(page)) note(page, true)
     writes = true
     write(base, words[base] + 1)
   }

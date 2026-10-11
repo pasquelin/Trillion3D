@@ -2,6 +2,7 @@ import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import * as layer from './layers.ts'
 import { BINDINGS_WGSL, shareBindingsWgsl } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
+import { NO_PAGE_ID } from './pageIdWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
   CURRENT_SHARE_WGSL,
@@ -67,7 +68,7 @@ fn pointBefore(here:vec4f,id:u32)->vec4f{
  var position=here;
  // A deformed surface was elsewhere in the last frame: its point moves back first.
  if(view.eye.w!=0.0){position=deformedPrevious(id,position);}
- if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
+ if(view.params.z!=0.0&&!(${NO_PAGE_ID})){position=motion[placementOf(id)]*position;}
  return position;
 }
 fn previousProjected(position:vec4f)->vec4f{

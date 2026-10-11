@@ -14,7 +14,6 @@ export { openMeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorldTarget } from '../world/session/target.ts'
 export type { Engine, EngineFactory, MeasuredWorldOptions } from '../engine/types.ts'
-export { replicateInstances } from '../scene/replicateInstances.ts'
 export { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 export { attachParticles } from '../world/core/worldSession.ts'
 // The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).

@@ -44,6 +44,28 @@ export function updateResidencyBits(
   return count
 }
 
+/** Both bit sets with nothing resident, written whole: cleared, then per placement, the bits its shared
+ *  blank state raises (`readiness.blankPages`), the others already down. Costs the placements and
+ *  the bits raised, never a readiness query per page. */
+function writeBlankBits(
+  packed: PackedDag,
+  readiness: Pick<ReturnType<typeof createDagReadiness>, 'blankPages'>,
+  bits: Uint32Array,
+) {
+  const sets = [residentBase(packed.pageCount), childBase(packed.pageCount)]
+  bits.fill(0, sets[0], sets[0] + 2 * residentWords(packed.pageCount))
+  for (let w = 0; w < packed.cutLinks.length; w++) {
+    const { pageBase } = packed.cutLinks[w],
+      { ready, child } = readiness.blankPages(w)
+    ;[ready, child].forEach((offsets, set) => {
+      for (const offset of offsets) {
+        const page = pageBase + offset
+        bits[sets[set] + (page >>> 5)] |= 1 << (page & 31)
+      }
+    })
+  }
+}
+
 /** Where the open counts placements hold go: the readout's table and the placements' frame words
  *  (`heldOpen.ts`); a host with neither keeps them for the oracle alone. */
 type HeldTarget = {
@@ -99,9 +121,7 @@ export function createDagResidencyUpload(
   // Nothing is resident yet: both bit sets are written whole, once, from the readiness's state with
   // nothing resident; the node counts are the packing's own, uploaded with the nodes
   // (`packCullingNodes`). From then on only what moves is.
-  const words = new Int32Array(Math.max(1, residentWords(pageCount)))
-  for (const { values, base } of sets)
-    updateResidencyBits(values, pageCount, bits, base, undefined, words)
+  writeBlankBits(packed, readiness, bits)
   const whole = (target: DagParts, source: Float32Array, from: number, words: number) =>
     writeParts(
       device,
