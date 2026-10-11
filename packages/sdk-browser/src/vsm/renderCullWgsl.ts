@@ -76,7 +76,7 @@ export const VSM_RENDER_VIEW_DIRECTIONAL = 1
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold.
  */
-export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
+const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_WGSL',
   [],
   `
