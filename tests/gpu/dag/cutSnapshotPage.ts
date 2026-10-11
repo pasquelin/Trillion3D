@@ -6,7 +6,7 @@
 // `mapAsync`, read — where the engine double-buffers it: a frame's total work, not its stall.
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
-import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { quantileFloorOf } from '../../../packages/math/src/scalar/quantile.ts'
@@ -49,7 +49,7 @@ async function measure(
 ) {
   const cut = await createDagResources(device, packed)
   if (!cut) return undefined
-  const block = new Float32Array(DAG_VIEW_WORDS)
+  const block = new Float32Array(VIEW_BLOCK_WORDS)
   const setThreshold = (pixelError: number) => {
     writeDagUniforms(block, packed, { ...uniforms, pixelError }, cut.listCap)
     device.queue.writeBuffer(cut.uniforms, 0, block)

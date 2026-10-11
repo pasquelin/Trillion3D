@@ -3,7 +3,6 @@
 // recomputed at the anchor; missing Hi-Z levels default to offset 0 and width 1. The layout
 // comes from the contract, so the oracle does not drift in silence.
 import {
-  MAX_HIZ_LEVELS,
   UNIFORM_U32,
   UNI_ANCHOR,
   UNI_ANCHOR_LOW,
@@ -12,6 +11,7 @@ import {
   UNI_VIEW,
   UNI_VIEW_PROJ,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { HIZ_MAX_LEVELS } from '../../../packages/sdk-browser/src/gpu/hiz/uniforms.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 
 export function referenceSplitDouble(out: Float32Array, top: number, bas: number, value: number) {
@@ -45,17 +45,17 @@ export function referencePartitionUniform(frame: PartitionFrame, rows: number) {
       rows,
       frame.width,
       frame.height,
-      Math.min(frame.levels.length, MAX_HIZ_LEVELS),
+      Math.min(frame.levels.length, HIZ_MAX_LEVELS),
       frame.layerTop,
       frame.hasRest ? 1 : 0,
       frame.viewMoved ? 1 : 0,
     ],
     UNI_SCALARS,
   )
-  for (let level = 0; level < MAX_HIZ_LEVELS; level++) {
+  for (let level = 0; level < HIZ_MAX_LEVELS; level++) {
     const mip = frame.levels[level]
     u32[UNI_LEVELS + level] = mip ? mip.offset : 0
-    u32[UNI_LEVELS + MAX_HIZ_LEVELS + level] = mip ? mip.width : 1
+    u32[UNI_LEVELS + HIZ_MAX_LEVELS + level] = mip ? mip.width : 1
   }
   return u32
 }

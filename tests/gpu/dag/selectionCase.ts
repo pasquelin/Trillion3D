@@ -30,7 +30,7 @@ import {
 import { worldBufferWords } from '../../../packages/sdk-browser/src/gpu/dag/worldBuffer.fixture.ts'
 import {
   childBase,
-  heldOpenWord,
+  savedJournalWord,
   residentBase,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -107,7 +107,7 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
      *  open counts the placements hold. */
     outBytes: readoutRow(listCap, 0, heldSlots).size,
     /** Where those counts lie in `out`, in bytes, and their words. */
-    heldAt: heldOpenWord(listCap, 0) * 4,
+    heldAt: savedJournalWord(listCap, 0) * 4,
     heldWords: packed.heldOpen!.words,
     listCap,
     worldCount,

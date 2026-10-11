@@ -7,7 +7,7 @@ import {
   COVERAGE_SCALE_WGSL,
 } from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
 import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
-import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -80,7 +80,7 @@ export function encodeReferenceChain(
   const packed = new Uint32Array(levels * 64)
   for (let level = 0; level < levels; level++)
     packed.set(
-      [...levelSize(width, height, Math.max(0, level - 1)), cutoff, 0, width, height, level],
+      [...previewLevelSize(width, height, Math.max(0, level - 1)), cutoff, 0, width, height, level],
       level * 64,
     )
   device.queue.writeBuffer(uniforms, 0, packed)
@@ -135,7 +135,7 @@ export function encodeReferenceChain(
         dispatch([width, height])
       }
       pass.setBindGroup(0, countGroup(level, level - 1))
-      dispatch(levelSize(width, height, level))
+      dispatch(previewLevelSize(width, height, level))
       pass.setPipeline(choose)
       pass.dispatchWorkgroups(1)
       pass.end()
