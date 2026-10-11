@@ -2,7 +2,8 @@ import {
   environmentExposure,
   type SceneEnvironment,
 } from '../../../sdk-core/src/scene/core/environment.ts'
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts'
+import { matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts'
+import { inverseAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import { taaWeightTable } from './weights.ts'
@@ -38,8 +39,7 @@ function writeReprojection(
   grid: readonly number[],
 ) {
   matrixAtRenderOrigin(into, previous, eye, T.prevViewProj)
-  matrixAtRenderOrigin(anchored, current, eye)
-  into.set(invertMatrix4(anchored, anchored), T.invViewProj)
+  into.set(inverseAtRenderOrigin(anchored, anchored, current, eye), T.invViewProj)
   writeGrid(into, T.viewport, grid)
 }
 

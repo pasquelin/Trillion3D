@@ -1,6 +1,5 @@
-import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
-import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
+import { inverseAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { usedSlots } from './poolStates.ts'
 import { OVER } from '../webgpu/blend/equations.ts'
@@ -26,8 +25,7 @@ const [clip, unclip] = [new Float64Array(16), new Float64Array(16)]
 /** Writes `pool`'s draw words into `out` from the image's world `viewProj` and `eye`. */
 export function writeDrawWords(out: Float32Array, pool: ParticlePool, viewProj: Vec, eye: Vec) {
   const o = pool.origin
-  matrixAtRenderOrigin(clip, viewProj, o)
-  invertMatrix4(unclip, clip)
+  inverseAtRenderOrigin(unclip, clip, viewProj, o)
   out.set(clip, 0)
   out.set(unclip, 16)
   for (let i = 0; i < 3; i++) out[32 + i] = eye[i] - o[i]

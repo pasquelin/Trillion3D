@@ -1,4 +1,5 @@
 import { copyMatrix4, type NumberSink } from '../matrix/matrix4.ts'
+import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
 import { transformHomogeneousPoint } from '../vector/vector.ts'
 
 /**
@@ -59,6 +60,21 @@ export function matrixAtRenderOrigin<T extends NumberSink>(
 ) {
   copyMatrix4(out, m, at)
   return transformHomogeneousPoint(out, m, origin[0], origin[1], origin[2], at + 12)
+}
+
+/**
+ * Writes the inverse of `m · T(origin)` into `out`, the matrix at `origin` itself left in
+ * `anchored` (which may be `out`): what a pass that unprojects a pixel at a point referred to the
+ * render frame reads.
+ */
+export function inverseAtRenderOrigin(
+  out: Float64Array,
+  anchored: Float64Array,
+  m: ArrayLike<number>,
+  origin: ArrayLike<number>,
+) {
+  matrixAtRenderOrigin(anchored, m, origin)
+  return invertMatrix4(out, anchored)
 }
 
 /**
