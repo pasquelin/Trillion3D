@@ -3,7 +3,6 @@ import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOp
 import type * as PageCoupe from '../series/cutPage.ts'
 import type * as PageExplorateur from '../harness/explorerPage.ts'
 import type * as PageMeasure from '../harness/measurePage.ts'
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { MovingNode } from '../report/types.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 
@@ -12,7 +11,7 @@ import { TAU } from '../../../packages/math/src/constants.ts'
 // carries the same index signature.
 type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
 
-/** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */
+/** One view, one side, one threshold: the selected cut, the counters, the capture. */
 export async function measureView(options: MeasureViewOptions): Promise<MeasureViewResult> {
   const sdk = (await import(options.sdkUrl)) as SdkNamespace
   const coupe = (await import(`${options.modulesUrl}series/cutPage.ts`)) as typeof PageCoupe
@@ -30,9 +29,8 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const measure = (await import(
     `${options.modulesUrl}harness/measurePage.ts`
   )) as typeof PageMeasure
-  // Preparation, timed from the call to the return, and what it transferred on the network:
-  // resources the page already loaded are not counted, only those after.
-  const preparationStart = performance.now()
+  // What the preparation transferred on the network: resources the page already loaded are not
+  // counted, only those after.
   // The resource-timing buffer overflows at 250 by default; a scene loads tens of thousands,
   // and a full buffer stops recording without a word.
   performance.setResourceTimingBufferSize(1_000_000)
@@ -42,7 +40,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     onDiagnostic: diagnostics.onDiagnostic,
     ...reglages.explorerOptions(options, factory),
   })
-  const preparationMs = performance.now() - preparationStart
   // What the file brought, before any bench addition. A dist older than the light-import
   // batch has no such function: the measurement returns `null`, never an invented count.
   const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null
@@ -97,26 +94,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   }
   // In-session reservoir tuning, if requested, is measured on the already-resident cut.
   const liveTuning = await measure.reglerReservoirs(explorer, pose, options.livePools)
-  const cpuFrameMs: number[] = [],
-    rafIntervalMs: number[] = []
-  const gpu = measure.gpuReadings()
-  const gpuPassSamples: GpuPassTimings[] = []
-  const profileStart = Math.max(0, options.frames - options.profileFrames)
-  let last: ReturnType<typeof explorer.render> | null = null,
-    previousRaf: number | null = null
+  let last: ReturnType<typeof explorer.render> | null = null
   for (let i = 0; i < options.frames; i++) {
-    if (options.stageProfile && i === profileStart) explorer.resetStageProfile()
-    const now = await new Promise<number>((done) => requestAnimationFrame(done))
-    if (previousRaf !== null && i > 2) rafIntervalMs.push(now - previousRaf)
-    previousRaf = now
+    await new Promise<number>((done) => requestAnimationFrame(done))
     moveLight(i)
     moveNode(i)
     last = explorer.render(poseAt(i))
-    if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs)
-    const sample = last.gpuPassMs
-    gpu.push(last)
-    if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
-      gpuPassSamples.push(sample)
   }
   // A moving capture waits for its pose's pages as the still warmup does (#1016).
   if (poses) {
@@ -127,11 +110,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current
-  const stageProfile = options.stageProfile ? explorer.stageProfile() : null
-  // The engine's CPU bounds over the same window as the stage profile, read once, before the
-  // drain and the calm below file images of their own. A dist older than #80 has no such function.
-  const cpuBounds =
-    options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null
   // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
   const settleFrames = await measure.calmPose(explorer, capturePose)
@@ -150,19 +128,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   explorer.dispose()
   canvas.remove()
   return {
-    cpuFrameMs,
-    gpuFrameMs: gpu.gpuFrameMs,
-    gpuIdleMs: gpu.gpuIdleMs,
-    rafIntervalMs,
     importedLights,
     // The engine draws its own light store: no host places a copy of its lights.
     witnessLights: null,
     movingNode,
-    stageProfile,
-    gpuPassSamples,
     selection,
     metrics,
-    preparationMs,
     network,
     settleFrames,
     liveTuning,
@@ -171,7 +142,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
     dagWarnings: diagnostics.warnings,
-    cpuBounds,
     captureStatus: response.status,
   }
 }

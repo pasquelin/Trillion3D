@@ -6321,8 +6321,6 @@
       "enabled": "Si el controlador escucha el ratón y el teclado y mueve la cámara. `false` lo pausa — sin entrada, sin `update` — sin rehacerlo: velocidad, apoyo, zancada, orientación y giro se conservan, y `true` reanuda exactamente donde se detuvo.",
       "target": "El punto alrededor del cual gira un controlador de pivote.",
       "autoUpdate": "Si el bucle del mundo llama a `update` antes de cada fotograma, antes de los hooks de `world.beforeFrame`. `false` entrega el paso a la página, que llama a `update` desde uno de esos hooks, tan a menudo y con las subetapas que integre; el mundo entonces ya nunca lo hace.",
-      "colliders": "Solo personaje: las mallas con las que choca el cuerpo — un objeto o una lista, descendientes incluidos — o `null`. Asignarlas construye un árbol de triángulos estático a partir de sus triángulos en espacio mundo tal como están ahora: una pasada sobre los triángulos y una construcción `O(T log T)`, unos 52 bytes por triángulo. Los modelos compilados aún no se leen: dales una malla simple como sustituto. Un `CharacterCollision` — el mundo de un motor de física, cualquier cosa que responda a `resolveCapsule` y `groundBelow` — se usa tal cual.",
-      "rebuildColliders": "Solo personaje: reconstruye el árbol de colisión, después de que los colisionadores se hayan movido o cambiado. Un `CharacterCollision` es su propio mundo y se pasa sin cambios.",
       "velocity": "Solo personaje: la velocidad del cuerpo en metros por segundo, una copia; cero en otro caso.",
       "onGround": "Solo personaje: si los pies están sobre un suelo; `false` para cualquier otro controlador.",
       "update": "Integra un controlador guiado durante `delta` segundos; uno de pivote vuelve a leer su pose, y una órbita gira según `autoRotate`. Un controlador en pausa no hace nada.",
@@ -6504,7 +6502,7 @@
   },
   "WorldControls": {
     "summary": "Las formas en que una página puede dirigir la cámara con el ratón y el teclado, o `'none'`.",
-    "description": "`'firstPerson'` mueve una cámara; `'character'` mueve un cuerpo — masa, gravedad, saltos, colisiones con `world.controls.colliders` — y mira a través de sus ojos. `'fly'` y `'firstPerson'` se mueven a `world.controls.movementSpeed` y giran a `world.controls.lookSpeed`."
+    "description": "`'firstPerson'` mueve una cámara; `'character'` mueve un cuerpo — masa, gravedad, saltos, colisiones con la física del mundo — y mira a través de sus ojos. `'fly'` y `'firstPerson'` se mueven a `world.controls.movementSpeed` y giran a `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Las métricas de un fotograma tal como el host las copió del motor, y dos que una página lee compuestas a partir de ellas; `null` donde la ruta no cuenta.",
@@ -6728,47 +6726,16 @@
       "time": "Segundos desde que empezó el mundo, en el instante del fotograma (`worldFrameGrid.ts`)."
     }
   },
-  "Capsule": {
-    "summary": "UNA CÁPSULA VERTICAL contra un árbol de triángulos: la fase estrecha del cuerpo del personaje.",
-    "description": "La cápsula se apoya en `feet` — el punto más bajo de su esfera inferior — y es cada punto a menos de `radius` del segmento vertical que va de `feet + radius` a `feet + height - radius`. Una pasada encuentra cada triángulo más cercano que `radius` a ese segmento y entrega cada solapamiento a `push` de inmediato (`CapsuleContact`). Quien llama mueve `feet`; el siguiente triángulo de la pasada se mide desde la cápsula desplazada, así que dos paredes que se encuentran en una esquina se dejan ambas en una sola pasada.",
-    "members": {
-      "feet": "El punto más bajo, en espacio mundo; `push` lo mueve.",
-      "radius": "Radio del cuerpo, en metros.",
-      "height": "Altura desde los pies hasta la parte superior de la cabeza, en metros; al menos dos radios."
-    }
-  },
-  "CapsuleContact": {
-    "summary": "Un solapamiento entre una cápsula y una superficie.",
-    "description": "Los arrays se reutilizan: un push los lee solo durante la llamada.",
-    "members": {
-      "normal": "Dirección unitaria que sale de la superficie hacia la cápsula: el camino de salida.",
-      "surface": "Normal unitaria de la propia superficie, del lado de la cápsula. Difiere de `normal` cuando la cápsula toca una arista o una esquina: indica a qué cara pertenece esa arista.",
-      "point": "El punto tocado de la superficie, en espacio mundo.",
-      "depth": "Cuánto está la cápsula dentro de la superficie a lo largo de `normal`, > 0."
-    }
-  },
-  "CapsulePush": {
-    "summary": "Responde a un contacto, normalmente moviendo los `feet` de la cápsula fuera de él."
-  },
   "CharacterCameraControls": {
-    "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los triángulos del mundo como una cápsula vertical.",
-    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, nunca más rápido de lo que la fricción de su suelo deja empujar a una suela, así que una parada se desliza un poco sobre la piedra y lejos sobre el hielo, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-core/src/collision/characterBody.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
+    "summary": "UN PERSONAJE, visto a través de sus ojos: un cuerpo con masa que camina, corre, salta y cae, y choca con los cuerpos de la física del mundo como una cápsula vertical.",
+    "description": "El puntero gira la cabeza como en primera persona (`look.ts`). Las teclas, por `KeyboardEvent.code` para que cada distribución de teclado toque las mismas teclas: W/S o las flechas arriba y abajo caminan adelante y atrás, A/D o las flechas laterales se desplazan de lado, Mayús esprinta, Espacio salta. El cuerpo no arranca ni se detiene de golpe: gana velocidad y frena en `responseTime`, nunca más rápido de lo que la fricción de su suelo deja empujar a una suela, así que una parada se desliza un poco sobre la piedra y lejos sobre el hielo, conserva su impulso en el aire, cae bajo `gravity`, sube repisas hasta `stepHeight`, se desliza a lo largo de las paredes y se sostiene en pendientes hasta `maxSlope` (`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`). La cámara es el ojo, a `eyeHeight` sobre los pies. Un anfitrión que mueve la cámara él mismo teletransporta el cuerpo allí, en reposo. Un personaje quieto — en el suelo, sin velocidad, sin tecla — no emite nada, así que la escena permanece quieta.",
     "members": {
       "velocity": "La velocidad del cuerpo en metros por segundo, en vivo: `[x, y, z]`, y hacia arriba.",
       "onGround": "Si los pies están sobre un suelo.",
       "onLand": "Se llama al aterrizar con la velocidad de descenso, en metros por segundo: un sonido, una sacudida.",
       "onJump": "Se llama cuando el cuerpo deja el suelo en un salto.",
-      "collision": "Con qué choca el cuerpo — los colisionadores del mundo, o el mundo de un motor de física por la misma costura (`CharacterCollision`). `null` camina a nivel donde se encuentra el cuerpo, sin caer nunca.",
       "update": "Vive `delta` segundos; devuelve si la cámara se movió, y emite `change` cuando lo hizo.",
       "stride": "La fase de la zancada en radianes, en [0, 2π): un pie golpea en 0, el otro en π."
-    }
-  },
-  "CharacterCollision": {
-    "summary": "LA COSTURA ENTRE UN PERSONAJE Y EL MUNDO CON EL QUE CHOCA.",
-    "description": "El cuerpo del personaje (`characterBody.ts`) nunca lee triángulos: mueve su cápsula en partes más cortas que su radio y, tras cada una, pregunta qué solapa la cápsula y por dónde salir; y un caminante pregunta dónde está el suelo bajo sus pies. Todo lo demás — velocidad, gravedad, escalones, pendientes, saltos — es propio del cuerpo. Un motor de física implementa esta interfaz para poner un personaje en su mundo: responde al solapamiento desde sus propias formas y su propia fase amplia, y el cuerpo camina sobre ellas sin cambios. La implementación por defecto es el árbol de triángulos estático de `triangleCollision`.",
-    "members": {
-      "resolveCapsule": "Encuentra qué solapa `capsule` y llama a `push(contact)` para cada solapamiento, de inmediato (`CapsuleContact`: el camino de salida, la superficie, el punto tocado, la profundidad). `push` mueve `capsule.feet`; una implementación mide cada solapamiento siguiente desde la cápsula desplazada, así que una esquina se deja en una sola llamada. Devuelve si algo se solapaba.",
-      "groundBelow": "Baja la esfera inferior de la cápsula en línea recta hacia abajo, como máximo `depth`, y devuelve cuánto avanza antes de descansar por primera vez sobre una superficie que `accepts` acepta — el apoyo más alto de esos; negativo cuando la cápsula ya se hunde en él y debe subir. `null` cuando no hay ninguno. `capsule.feet` se deja donde estaba. `accepts` ve cada contacto candidato como un contacto: `point`, `normal` del punto al centro de la esfera, `surface` la cara vuelta hacia arriba."
     }
   },
   "HeadSettings": {
@@ -6786,24 +6753,6 @@
       "locked": "Si el puntero está bloqueado en la vista.",
       "lock": "Bloquea el puntero en la vista.",
       "unlock": "Libera el puntero."
-    }
-  },
-  "TriangleCollision": {
-    "summary": "El mundo de colisión por defecto: un árbol de triángulos estático.",
-    "members": {
-      "tree": "El árbol desde el que se responde: su `triangleCount` y sus `bytes` son el coste del mundo."
-    }
-  },
-  "TriangleTree": {
-    "summary": "Una jerarquía de volúmenes envolventes sobre los triángulos del mundo, consultada por caja: la fase amplia detrás de `triangleCollision` y `capsulePass`.",
-    "description": "Construido una vez por `buildTriangleTree`, de solo lectura después.",
-    "members": {
-      "triangles": "Nueve números por triángulo — tres esquinas — en orden de hoja.",
-      "bounds": "Por nodo: min xyz, max xyz.",
-      "links": "Por nodo: el primer triángulo de una hoja, o el hijo derecho de un nodo interno (el izquierdo sigue a su padre).",
-      "counts": "Por nodo: número de triángulos de una hoja, 0 para un nodo interno.",
-      "bytes": "Bytes que ocupa el árbol.",
-      "triangleCount": "Triángulos que contiene el árbol."
     }
   },
   "CanvasPoint": {

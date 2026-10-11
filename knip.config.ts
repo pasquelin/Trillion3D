@@ -25,10 +25,10 @@ const config: KnipConfig = {
         'packages/page-codec/src/geometryPage.ts',
         // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
-        'packages/**/*.test.ts',
-        // The scripts `package.json` and the workflows run are found by knip itself; the tests, run
-        // by `node --test`, are entries by rule. Any other script is dead.
-        'scripts/**/*.test.ts',
+        // Every unit test runs by `node --test`: an entry by rule.
+        '{packages,bench,tests,scripts,site/examples/kit}/**/*.test.ts',
+        // The scripts `package.json` and the workflows run are found by knip itself. Any other
+        // script is dead.
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).
@@ -49,7 +49,8 @@ const config: KnipConfig = {
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
-        'bench/runner/feedback/feedbackTargetAb.ts',
+        // The water and anisotropy costs on Dawn, launched by hand.
+        'bench/dawn/{waterCost,anisotropyCost}.ts',
         'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
@@ -66,31 +67,24 @@ const config: KnipConfig = {
         'bench/runner/harness/measurePage.ts',
         'bench/runner/fluids/fluidsPage.ts',
         // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
-        'bench/runner/witness/deformationEnvelope.ts',
         'bench/runner/witness/deformationWitness.ts',
-        'bench/runner/feedback/feedbackTargetPage.ts',
         'bench/runner/gaze/gazeNetworkPage.ts',
         'bench/runner/harness/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
         // pages; it re-exports the engine's measurement seam.
         'bench/witnesses/measurement.ts',
-        // Full campaign and its report, launched manually.
-        'bench/runner/campaign.ts',
+        // The report's export, launched manually.
         'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/counts/pageQuantization.ts',
         'bench/runner/references/oracle.ts',
-        'bench/runner/counts/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
-        'bench/runner/waterCost.ts',
         'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
         'bench/runner/perf/*.ts',
-        // Tests by rule: unit and integration tests, the GPU proofs (render proofs and kebab-case
-        // probes), the page modules they load by path, and the public-API fixtures
-        // the type-check test compiles by path. Kit, support and fixture helpers are not entries: an
-        // export no test imports is reported.
-        'tests/**/*.test.ts',
+        // The GPU proofs (render proofs and kebab-case probes), the page modules they load by path,
+        // and the public-API fixtures the type-check test compiles by path. Kit, support and fixture
+        // helpers are not entries: an export no test imports is reported.
         'tests/gpu/**/*.gpu.ts',
         'tests/gpu/**/*.chrome.ts',
         'tests/gpu/**/*Page.ts',
@@ -107,8 +101,6 @@ const config: KnipConfig = {
       paths: {
         '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
       },
-      // The harness server maps this browser URL to the page entry above.
-      ignoreUnresolved: ['/runner/feedback/feedbackTargetPage.ts'],
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.

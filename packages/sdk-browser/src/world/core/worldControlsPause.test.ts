@@ -2,9 +2,8 @@ import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { box } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { fixtureSurface } from '../../camera/controls/controls.fixture.ts'
+import { floorPhysics } from './characterSource.fixture.ts'
 import { worldControlsHandle } from './worldControlsHandle.ts'
 
 /** `world.controls` of `kind` over a fresh camera at `(0, y, 10)`, its frame requests counted. */
@@ -18,15 +17,13 @@ function handle(kind: 'character' | 'orbit', y = 0) {
     () => camera,
     surface.element,
     () => redraws++,
+    floorPhysics(),
   )
   return { camera, surface, controls, redraws: () => redraws }
 }
 
 test('`world.controls.enabled = false` pauses a jump mid-air, and `true` resumes it exactly', () => {
   const { camera, surface, controls } = handle('character', 1.64)
-  const floor = new Mesh(box(100, 1, 100))
-  floor.position.set(0, -0.5, 0)
-  controls.colliders = floor
   const live = (seconds: number) => {
     for (let t = 0; t < seconds - 1e-9; t += 1 / 60) controls.update(1 / 60)
   }

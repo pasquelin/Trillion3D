@@ -18,10 +18,8 @@ import { controlTargets, noVehicle, type CharacterSource } from './worldControlT
  * `minPitch` and `maxPitch` first person and the character, the turn speeds, the stick inputs,
  * `inputResponse`, `autoForward` and `pointerLook` flight, `rotateSpeed` and `zoomSpeed` the pivot controllers, the body,
  * speeds, jump and hooks the character — so a page may set them before or after it picks its
- * controller. The character's `colliders` are kept the same way: the triangle tree is built
- * once when they are set, handed to every character `kind` makes, and rebuilt only on
- * `rebuildColliders()`. With the world's physics on, the character's body is Jolt's and meets
- * the simulation's bodies instead (`physics` below). A cruising flight or a turning orbit moves on every frame, so the
+ * controller. The character's body is Jolt's, in the world's physics, and meets the
+ * simulation's bodies (`physics` below); until the physics runs it stands where it was put. A cruising flight or a turning orbit moves on every frame, so the
  * handle asks for the first one; a paused controller, or any other kind, leaves the scene
  * still.
  */

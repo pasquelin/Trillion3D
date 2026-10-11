@@ -73,6 +73,9 @@ export const PART_WORDS = 11
  */
 export const CAST_WORDS = 11
 export const HIT_WORDS = 8
+/** Words of RESTORE before its bytes (`op, handle, byteCount`), and of RELEASE (`op, handle`). */
+export const RESTORE_WORDS = 3
+export const RELEASE_WORDS = 2
 export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const
 export const MISS = 0xffffffff
 
@@ -108,6 +111,8 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const
  * past their break force and takes them out (`jolt_broken`).
  */
 export const JOINT_WORDS = 33
+export const UNJOINT_WORDS = 2
+export const MOTOR_WORDS = 6
 
 /** Per-body flag bits: sensor, continuous collision, events wanted, hidden (no pose), asleep (ADD). */
 export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16 } as const

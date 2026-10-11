@@ -20,29 +20,6 @@ export function oldToSpherical(out: Float64Array, offset: ArrayLike<number>) {
   return out
 }
 
-/** `driveTick`'s approach of `packages/sdk-core/src/collision/characterDrive.ts` as it was: the
- *  gap to the wished velocity `(tx, tz)` by `hypot2`, its integral over the tick `h` and what is
- *  left of it, `[dx, dz, vx, vz]` before the rest test. */
-export function oldDriveApproach(
-  vx: number,
-  vz: number,
-  tx: number,
-  tz: number,
-  h: number,
-  rate: number,
-  push: number,
-) {
-  const [gx, gz] = [vx - tx, vz - tz],
-    gap = hypot2(gx, gz)
-  const linear = gap > push / rate ? Math.min(h, (gap - push / rate) / push) : 0,
-    middle = linear > 0 ? gap - push * linear : gap,
-    decay = Math.exp(-rate * (h - linear)),
-    reach = rate > 0 ? (1 - decay) / rate : h - linear
-  const along = gap > 0 ? (((gap + middle) / 2) * linear + middle * reach) / gap : 0,
-    left = gap > 0 ? (middle * decay) / gap : 0
-  return [tx * h + gx * along, tz * h + gz * along, tx + gx * left, tz + gz * left]
-}
-
 /** `planeBasis` of `packages/sdk-core/src/scene/core/proxyDelta.ts` as it was: the normal by
  *  `Math.hypot` and three divisions. */
 function oldPlaneBasis(out: Float64Array, matrix: ArrayLike<number>, a: number, b: number) {

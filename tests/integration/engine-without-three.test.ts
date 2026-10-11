@@ -17,7 +17,7 @@ const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witness
  * written as a string is the one form the stripping hides, so it is looked for on the raw text.
  *
  * What it cannot see: a host material reached under another name. A host mesh's own field is
- * `material` (`WholeMesh`, `packages/sdk-browser/src/cluster/batchMesh.ts`); renaming it would be
+ * `material` (`HostMesh`, `packages/sdk-browser/src/host/resources.ts`); renaming it would be
  * renaming the host library's, and no file on the engine's page path, which holds the record,
  * reads it. The transparent copy, which was the one
  * contract to hand a host material out under that name, no longer declares one at all

@@ -15,7 +15,6 @@ namespace trillion {
 
 namespace {
 
-constexpr uint32_t ASLEEP_BIT = 0x80000000u;
 /** The bodies `place` has measured since the module started: a diagnostic, read by the tests only
  *  (`jolt_place_visits`), so its cost is counted, never timed. */
 uint32_t placeVisits = 0;

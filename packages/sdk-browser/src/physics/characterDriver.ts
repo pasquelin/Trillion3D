@@ -4,7 +4,7 @@ import {
   GROUND,
   OP,
 } from '../../../sdk-core/src/physics/index.ts'
-import { arc } from '../../../sdk-core/src/collision/characterMove.ts'
+import { arc } from '../../../sdk-core/src/collision/characterArc.ts'
 import {
   createDrive,
   driveAtRest,

@@ -11,7 +11,7 @@ import { residentFraction } from './poolFill.ts'
 export type { BenchSettings } from './benchSettings.ts'
 
 export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from '../trajectory/poses.ts'
-export { assetsManifest, sceneGltf, scenesOf } from '../assets/scene.ts'
+export { assetsManifest, sceneGltf } from '../assets/scene.ts'
 export { resolveSides, sdkEntryUrl } from './dists.ts'
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts'
 export { parseArgs } from './flags.ts'
@@ -134,11 +134,8 @@ export function readOptions(argv: string[], root: string) {
     height: number('height', 720),
     dpr,
     port: number('port', 0),
-    // `--profile off` replays the same series without per-stage timing: fidelity gate.
-    stageProfile: (flags.get('profile') ?? 'on') !== 'off',
     // A breakdown campaign puts "trace" details on BOTH sides, including the one without variants.
     trace: [...flags.keys()].some((name) => name === 'variant' || name.startsWith('variant-')),
-    profileFrames: number('profile-frames', 120),
     // `--textures cache`: the engine reads baked texture levels from cache; loader does not open source images.
     textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
     // `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles; without

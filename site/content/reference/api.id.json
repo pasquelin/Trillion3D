@@ -3903,7 +3903,7 @@
   },
   "WorldControls": {
     "summary": "Cara-cara sebuah halaman bisa mengarahkan kamera dengan mouse dan papan ketik, atau `'none'`.",
-    "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan `world.controls.colliders` — dan melihat lewat matanya. `'fly'` dan `'firstPerson'` bergerak pada `world.controls.movementSpeed` dan berputar pada `world.controls.lookSpeed`."
+    "description": "`'firstPerson'` menggerakkan sebuah kamera; `'character'` menggerakkan sebuah tubuh — massa, gravitasi, lompatan, tabrakan dengan fisika dunia — dan melihat lewat matanya. `'fly'` dan `'firstPerson'` bergerak pada `world.controls.movementSpeed` dan berputar pada `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Metrik sebuah gambar sebagaimana host menyalinnya dari mesin, dan dua yang dibaca halaman yang disusun darinya; `null` di mana jalur tidak menghitung.",
@@ -6737,7 +6737,6 @@
       "autoUpdate": "Apakah loop dunia memanggil `update` sebelum setiap bingkai, sebelum hook `world.beforeFrame`. `false` menyerahkan langkah ke halaman, yang memanggil `update` dari hook semacam itu, sesering dan lewat sub-langkah apa pun yang diintegrasikannya; dunia kemudian tidak pernah melangkahkannya.",
       "capsuleHeight": "Hanya character: tinggi tubuh, meter; 1,75 secara default.",
       "capsuleRadius": "Hanya character: jari-jari tubuh, meter; setengah lebar bahu (0,23 m) secara default.",
-      "colliders": "Hanya character: apa yang ditabrakkan tubuh, atau `null`. Mesh — satu objek atau sebuah daftar, keturunannya disertakan — membangun sebuah pohon segitiga statis dari segitiga ruang-dunianya sebagaimana berdiri sekarang: satu pass melewati segitiga dan sebuah build `O(T log T)`, sekitar 52 byte disimpan per segitiga. Model terkompilasi belum dibaca: berikan sebuah mesh sederhana sebagai pengganti untuk mereka. Sebuah `CharacterCollision` — dunia sebuah backend fisika, apa pun yang menjawab `resolveCapsule` dan `groundBelow` — dipakai apa adanya.",
       "coyoteTime": "Hanya character: detik setelah berjalan turun dari sebuah tepi sebuah lompatan masih diberikan; 0,1 secara default.",
       "eyeHeight": "Hanya character: tinggi kamera di atas kaki, meter; 1,64 secara default.",
       "fallGravity": "Hanya character: percepatan ke bawah saat jatuh, m/s²; 1,6 g secara default, jadi sebuah lompatan tidak melayang.",
@@ -6751,7 +6750,6 @@
       "onJump": "Hanya character: dipanggil saat tubuh meninggalkan tanah karena melompat; `null` secara default.",
       "onLand": "Hanya character: dipanggil saat mendarat dengan kecepatan ke bawah dalam m/s; `null` secara default.",
       "pitchInput": "Hanya flight: stick pitch dalam [-1, 1] (hidung ke atas), ditambahkan ke tombol panah; 0 secara default.",
-      "rebuildColliders": "Hanya character: membangun ulang pohon tabrakan, setelah collider bergerak atau berubah; sebuah `CharacterCollision` adalah dunianya sendiri dan diserahkan tanpa perubahan.",
       "responseTime": "Hanya character: detik yang dibutuhkan kaki untuk mencapai 95% kecepatan yang diinginkan, di tanah; 0,12 secara default. Gesekan lantai membatasi awal gerak lebih dulu: sol mendorong paling banyak `μ g`, `μ` cengkeraman sol karet pada `material.physics` lantai (batu tanpa fisika), sehingga lari santai tercapai dalam 0,45 s di batu dan 2,2 s di es.",
       "rollInput": "Hanya flight: stick roll dalam [-1, 1] (kiri), ditambahkan ke Q dan E; 0 secara default.",
       "sprintSpeed": "Hanya character: meter per detik dengan Shift ditahan; 6,5 secara default, kecepatan puncak orang dewasa tak terlatih.",
@@ -6893,47 +6891,16 @@
   "world.resetCpuSteps": {
     "summary": "Membuka sebuah jendela `cpuSteps()` baru."
   },
-  "Capsule": {
-    "summary": "SEBUAH KAPSUL TEGAK terhadap sebuah pohon segitiga: fase sempit tubuh karakter.",
-    "description": "Kapsul berdiri di `feet` — titik terendah bola bawahnya — dan adalah setiap titik dalam `radius` dari segmen vertikal dari `feet + radius` sampai `feet + height - radius`. Sebuah pass menemukan setiap segitiga lebih dekat dari `radius` ke segmen itu dan menyerahkan setiap tumpang tindih ke `push` sekaligus (`CapsuleContact`). Pemanggil memindahkan `feet`; segitiga berikutnya dari pass diukur dari kapsul yang dipindahkan, jadi dua dinding yang bertemu di sebuah sudut keduanya ditangani dalam satu pass.",
-    "members": {
-      "feet": "Titik terendah, ruang dunia; `push` memindahkannya.",
-      "radius": "Jari-jari tubuh, meter.",
-      "height": "Tinggi dari kaki ke atas kepala, meter; setidaknya dua jari-jari."
-    }
-  },
-  "CapsuleContact": {
-    "summary": "Satu tumpang tindih sebuah kapsul dan sebuah permukaan.",
-    "description": "Array-nya dipakai ulang: sebuah push membacanya hanya selama panggilan.",
-    "members": {
-      "normal": "Arah satuan keluar dari permukaan ke dalam kapsul: jalan keluar.",
-      "surface": "Normal satuan permukaan itu sendiri, di sisi kapsul. Berbeda dari `normal` saat kapsul menyentuh sebuah tepi atau sudut: ia mengatakan wajah mana yang dimiliki tepi itu.",
-      "point": "Titik permukaan yang disentuh, ruang dunia.",
-      "depth": "Seberapa jauh kapsul berada di dalam permukaan sepanjang `normal`, > 0."
-    }
-  },
-  "CapsulePush": {
-    "summary": "Menjawab satu kontak, biasanya dengan memindahkan `feet` kapsul keluar darinya."
-  },
   "CharacterCameraControls": {
-    "summary": "SEBUAH KARAKTER, dilihat lewat matanya: sebuah tubuh bermassa yang berjalan, berlari, melompat dan jatuh, dan bertabrakan dengan segitiga dunia sebagai sebuah kapsul tegak.",
-    "description": "Pointer memutar kepala seperti pada first person (`look.ts`). Tombol-tombolnya, berdasarkan `KeyboardEvent.code` jadi setiap tata letak keyboard memainkan tombol yang sama: W/S atau panah atas dan bawah berjalan maju dan mundur, A/D atau panah samping strafe, Shift berlari, Space melompat. Tubuh tidak mulai atau berhenti seketika: ia mengumpulkan kecepatan selama `responseTime` dan mengerem selama `stopTime`, tidak pernah lebih cepat daripada yang diizinkan gesekan lantainya bagi sol untuk mendorong, sehingga berhenti meluncur sedikit di batu dan jauh di es, mempertahankan momentumnya di udara, naik di bawah `gravity` dan jatuh di bawah `fallGravity`, memanjat tepian sampai `stepHeight`, meluncur sepanjang dinding dan berdiri di lereng sampai `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Kamera adalah mata, `eyeHeight` di atas kaki, mengangguk dengan langkah sebesar `headBob` dan menukik saat mendarat sebesar `landingDip` (`sdk-core/src/collision/characterEye.ts`); keduanya menumpang pada mata setelah langkah tubuh dan tidak pernah menggerakkan tubuh. Sebuah host yang menggerakkan kamera sendiri men-teleport tubuh ke sana, dalam keadaan diam. Sebuah karakter yang diam — di tanah, tanpa kecepatan, tanpa tombol, tanpa dip tersisa — tidak memancarkan apa pun, jadi scene tetap diam.",
+    "summary": "SEBUAH KARAKTER, dilihat lewat matanya: sebuah tubuh bermassa yang berjalan, berlari, melompat dan jatuh, dan bertabrakan dengan benda-benda fisika dunia sebagai sebuah kapsul tegak.",
+    "description": "Pointer memutar kepala seperti pada first person (`look.ts`). Tombol-tombolnya, berdasarkan `KeyboardEvent.code` jadi setiap tata letak keyboard memainkan tombol yang sama: W/S atau panah atas dan bawah berjalan maju dan mundur, A/D atau panah samping strafe, Shift berlari, Space melompat. Tubuh tidak mulai atau berhenti seketika: ia mengumpulkan kecepatan selama `responseTime` dan mengerem selama `stopTime`, tidak pernah lebih cepat daripada yang diizinkan gesekan lantainya bagi sol untuk mendorong, sehingga berhenti meluncur sedikit di batu dan jauh di es, mempertahankan momentumnya di udara, naik di bawah `gravity` dan jatuh di bawah `fallGravity`, memanjat tepian sampai `stepHeight`, meluncur sepanjang dinding dan berdiri di lereng sampai `maxSlope` (`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`). Kamera adalah mata, `eyeHeight` di atas kaki, mengangguk dengan langkah sebesar `headBob` dan menukik saat mendarat sebesar `landingDip` (`sdk-core/src/collision/characterEye.ts`); keduanya menumpang pada mata setelah langkah tubuh dan tidak pernah menggerakkan tubuh. Sebuah host yang menggerakkan kamera sendiri men-teleport tubuh ke sana, dalam keadaan diam. Sebuah karakter yang diam — di tanah, tanpa kecepatan, tanpa tombol, tanpa dip tersisa — tidak memancarkan apa pun, jadi scene tetap diam.",
     "members": {
       "velocity": "Kecepatan tubuh dalam meter per detik, langsung: `[x, y, z]`, y ke atas.",
       "onGround": "Apakah kaki berada di lantai.",
       "stride": "Fase langkah dalam radian, dalam [0, 2π): satu kaki melangkah pada 0, yang lain pada π.",
       "onLand": "Dipanggil saat mendarat dengan kecepatan ke bawah, dalam meter per detik: sebuah suara, sebuah goncangan.",
       "onJump": "Dipanggil saat tubuh meninggalkan tanah karena melompat.",
-      "collision": "Apa yang ditabrakkan tubuh — collider dunia, atau dunia backend fisika lewat celah yang sama (`CharacterCollision`). `null` berjalan rata di tempat tubuh berdiri, tidak pernah jatuh.",
       "update": "Menjalani `delta` detik; mengembalikan apakah kamera bergerak, dan memancarkan `change` saat ia bergerak."
-    }
-  },
-  "CharacterCollision": {
-    "summary": "CELAH ANTARA SEBUAH KARAKTER DAN DUNIA YANG DITABRAKKANNYA.",
-    "description": "Tubuh karakter (`characterBody.ts`) tidak pernah membaca segitiga: ia menggerakkan kapsulnya dalam bagian lebih pendek dari jari-jarinya dan, setelah masing-masing, menanyakan apa yang ditumpangi kapsul dan jalan keluarnya; dan seorang pejalan menanyakan di mana lantai di bawah kakinya. Segala sesuatu yang lain — kecepatan, gravitasi, langkah, lereng, lompatan — adalah milik tubuh itu sendiri. Sebuah backend fisika mengimplementasikan antarmuka ini untuk menempatkan sebuah karakter dalam dunianya: ia menjawab tumpang tindih dari bentuk dan fase luasnya sendiri, dan tubuh berjalan di atasnya tanpa perubahan. Implementasi default adalah pohon segitiga statis dari `triangleCollision`.",
-    "members": {
-      "resolveCapsule": "Menemukan apa yang ditumpangi `capsule` dan memanggil `push(contact)` untuk setiap tumpang tindih, sekaligus (`CapsuleContact`: jalan keluar, permukaan, titik yang disentuh, kedalaman). `push` memindahkan `capsule.feet`; sebuah implementasi mengukur setiap tumpang tindih berikutnya dari kapsul yang dipindahkan, jadi sebuah sudut ditangani dalam satu panggilan. Mengembalikan apakah ada yang tumpang tindih.",
-      "groundBelow": "Menurunkan bola bawah kapsul lurus ke bawah, paling banyak `depth`, dan mengembalikan seberapa jauh ia pergi sebelum pertama kali bertumpu pada sebuah permukaan yang diterima `accepts` — dukungan tertinggi semacam itu; negatif saat kapsul sudah tenggelam ke dalamnya dan harus naik. `null` saat tidak ada. `capsule.feet` dibiarkan di tempatnya. `accepts` melihat setiap sentuhan kandidat sebagai sebuah kontak: `point`, `normal` dari titik ke pusat bola, `surface` wajah yang menghadap ke atas."
     }
   },
   "HeadSettings": {
@@ -6951,24 +6918,6 @@
       "locked": "Apakah pointer terkunci ke tampilan.",
       "lock": "Mengunci pointer ke tampilan.",
       "unlock": "Membebaskan pointer."
-    }
-  },
-  "TriangleCollision": {
-    "summary": "Dunia tabrakan default: sebuah pohon segitiga statis.",
-    "members": {
-      "tree": "Pohon yang dijawab darinya: `triangleCount` dan `bytes`-nya adalah biaya dunia."
-    }
-  },
-  "TriangleTree": {
-    "summary": "Sebuah hierarki volume pembatas atas segitiga-segitiga dunia, dikueri dengan kotak: fase luas di balik `triangleCollision` dan `capsulePass`.",
-    "description": "Dibangun sekali oleh `buildTriangleTree`, hanya-baca setelahnya.",
-    "members": {
-      "triangles": "Sembilan angka per segitiga — tiga sudut — dalam urutan daun.",
-      "bounds": "Untuk setiap node: xyz minimum, xyz maksimum.",
-      "links": "Untuk setiap node: segitiga pertama dari sebuah daun, atau anak kanan dari node internal (yang kiri mengikuti induknya).",
-      "counts": "Untuk setiap node: jumlah segitiga sebuah daun, 0 untuk node internal.",
-      "bytes": "Byte yang disimpan pohon.",
-      "triangleCount": "Segitiga yang disimpan pohon."
     }
   },
   "world.physics": {

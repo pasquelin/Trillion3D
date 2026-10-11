@@ -9,7 +9,7 @@ import { QUARTER_PI } from '../../../math/src/constants.ts'
  * - STATURE 1.75 m, declared: stands for an adult's standing height, the body a level is drawn
  *   for; every body length below is a declared ratio of it, the share of the stature that the eye,
  *   the shoulders and the knee stand at. Sensitivity: every length is linear in it. The capsule,
- *   feet to head (`capsule.ts`), stops under a ceiling lower than the stature, the eye sits at
+ *   feet to head, stops under a ceiling lower than the stature, the eye sits at
  *   0.936 of it, and the step height decides which ledges are climbed: 10 % taller climbs 0.55 m.
  * - EYE HEIGHT 0.936 × stature = 1.64 m, declared: 0.936 stands for the share of the stature the
  *   eyes stand at, 0.11 m under the top of the head. Sensitivity: linear, the camera rides at
@@ -110,7 +110,7 @@ export interface CharacterSettings {
 
 /** The friction of a rubber sole, what a character's feet grip with (see FLOOR FRICTION). */
 export const SOLE_FRICTION = PHYSICS_MATERIALS.rubber.friction
-/** The friction of the floor a character stands on without physics: stone. */
+/** The friction of the floor a drive stands on until the physics names one: stone. */
 export const DECLARED_FLOOR = PHYSICS_MATERIALS.stone.friction
 
 const STATURE = 1.75,
@@ -173,3 +173,22 @@ export interface CharacterEvents {
   /** Left the ground on a jump. */
   onJump?(): void
 }
+
+/** What a character's controller drives: the world's physics makes the body that meets the
+ *  simulation. */
+export interface CharacterBody {
+  /** The lowest point of the capsule, as last moved. */
+  readonly feet: Float64Array
+  /** Metres per second. */
+  readonly velocity: Float64Array
+  readonly onGround: boolean
+  place(x: number, y: number, z: number): void
+  pressJump(): void
+  advance(delta: number, input: CharacterInput, events?: CharacterEvents): Float64Array
+  /** Releases what the body holds outside the page. */
+  dispose?(): void
+}
+
+/** Makes a character's body under `settings`, read live: how the world's physics hands the
+ *  controller its body (`world.controls` gives it). */
+export type CharacterBodyFactory = (settings: CharacterSettings) => CharacterBody

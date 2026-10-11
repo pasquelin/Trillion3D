@@ -4,10 +4,7 @@ import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { fixtureDrag, fixtureSurface } from '../../camera/controls/controls.fixture.ts'
 import { facing } from '../../camera/controls/steering.fixture.ts'
 import { worldControlsHandle } from './worldControlsHandle.ts'
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { box } from '../../../../sdk-core/src/world/geometry/basic.ts'
-import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts'
-import type { CapsuleContact } from '../../../../sdk-core/src/collision/capsule.ts'
+import { floorPhysics } from './characterSource.fixture.ts'
 
 test('`world.controls` hands its limits to the orbit it drives, and keeps them for the next', () => {
   const camera = new Camera('perspective')
@@ -92,7 +89,7 @@ test('`world.controls.autoForward` cruises flight alone, kept across kinds, and 
   controls.dispose()
 })
 
-test('`world.controls` as a character falls onto its colliders, walks, jumps, and rests still', () => {
+test('`world.controls` as a character falls onto the physics, walks, jumps, and rests still', () => {
   const camera = new Camera('perspective')
   camera.position.set(0, 3, 0)
   const surface = fixtureSurface(400)
@@ -102,10 +99,8 @@ test('`world.controls` as a character falls onto its colliders, walks, jumps, an
     () => camera,
     surface.element,
     () => redraws++,
+    floorPhysics(),
   )
-  const floor = new Mesh(box(100, 1, 100))
-  floor.position.set(0, -0.5, 0)
-  controls.colliders = floor
   const live = (seconds: number) => {
     for (let t = 0; t < seconds - 1e-9; t += 1 / 60) controls.update(1 / 60)
   }
@@ -114,7 +109,7 @@ test('`world.controls` as a character falls onto its colliders, walks, jumps, an
   assert.ok(Math.abs(camera.position.y - controls.eyeHeight) < 1e-6)
   surface.key('keydown', { code: 'KeyW' })
   live(1)
-  // A jog gathered in 0.45 s on the declared stone floor: 2.7 m in the first second.
+  // The body walks at the wished speed.
   assert.ok(camera.position.z < -2.5 && controls.velocity.z < -3, `walked to ${camera.position.z}`)
   surface.key('keyup', { code: 'KeyW' })
   live(2)
@@ -149,52 +144,25 @@ test('`world.controls` asks for a frame when a stick input is set on a still fli
   controls.dispose()
 })
 
-/** A physics backend's world reduced to its seam: an endless floor at y = 0. */
-function endlessFloor(): CharacterCollision & { asked: number } {
-  const contact: CapsuleContact = {
-    normal: new Float64Array([0, 1, 0]),
-    surface: new Float64Array([0, 1, 0]),
-    point: new Float64Array(3),
-    depth: 0,
-  }
-  const world = {
-    asked: 0,
-    resolveCapsule(capsule: { feet: Float64Array }, push: (contact: CapsuleContact) => void) {
-      world.asked++
-      if (capsule.feet[1] >= 0) return false
-      contact.point.set([capsule.feet[0], 0, capsule.feet[2]])
-      contact.depth = -capsule.feet[1]
-      push(contact)
-      return true
-    },
-    groundBelow(
-      capsule: { feet: Float64Array },
-      depth: number,
-      accepts: (contact: CapsuleContact) => boolean,
-    ) {
-      contact.point.set([capsule.feet[0], 0, capsule.feet[2]])
-      return capsule.feet[1] <= depth && accepts(contact) ? capsule.feet[1] : null
-    },
-  }
-  return world
-}
-
-test('`world.controls.colliders` takes a CharacterCollision as it is, and the body stands on it', () => {
+test('`world.controls` as a character stands where it was put until the physics runs', () => {
   const camera = new Camera('perspective')
   camera.position.set(0, 3, 0)
   const surface = fixtureSurface(400)
+  const physics = floorPhysics(false)
   const controls = worldControlsHandle(
     'character',
     () => camera,
     surface.element,
     () => {},
+    physics,
   )
-  const floor = endlessFloor()
-  controls.colliders = floor
-  assert.equal(controls.colliders, floor)
+  surface.key('keydown', { code: 'KeyW' })
+  for (let i = 0; i < 60; i++) controls.update(1 / 60)
+  assert.deepEqual([camera.position.y, camera.position.z], [3, 0], 'no body, no walk, no fall')
+  assert.equal(controls.onGround, false)
+  physics.start()
   for (let i = 0; i < 120; i++) controls.update(1 / 60)
-  assert.ok(floor.asked > 0, 'the world was asked')
   assert.equal(controls.onGround, true)
-  assert.ok(Math.abs(camera.position.y - controls.eyeHeight) < 1e-6, `eye at ${camera.position.y}`)
+  assert.ok(camera.position.z < 0, `walked to ${camera.position.z}`)
   controls.dispose()
 })

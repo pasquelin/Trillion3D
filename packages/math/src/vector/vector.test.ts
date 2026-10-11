@@ -29,7 +29,7 @@ test('length3: Pythagorean quadruples are exact, a zero is +0 and a NaN stays Na
 })
 
 test('length3 is the plain root of the squares summed left to right, not Math.hypot', () => {
-  // The triple of `page-codec-wasm/src/math_tests.rs`: `Math.hypot` rounds to …ac11, the plain
+  // The triple of `packages/math/rust/src/js_tests.rs`: `Math.hypot` rounds to …ac11, the plain
   // root one bit higher.
   const x = 0.4471859335899353,
     y = -0.1211518868803978,

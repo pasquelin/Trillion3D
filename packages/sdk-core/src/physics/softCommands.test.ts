@@ -6,8 +6,8 @@ import { OP } from './layout.ts'
 import { PHYSICS_STEP } from './options.ts'
 import { softBodyOf } from './soft.ts'
 import { writeSoft } from './softCommands.ts'
+import { SOFT_WORDS } from './softLayout.ts'
 import { softSettings } from './softSettings.ts'
-import { SOFT_WORDS } from './wire.fixture.ts'
 
 const one = { x: 1, y: 1, z: 1 }
 /** Each SOFT field's word, as `soft.cpp` reads it: the pose, scale, matter and compliances from

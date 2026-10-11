@@ -1,13 +1,13 @@
 // Water cost measure. Output is raw evidence, never an optimization verdict.
 import { waterCostRun } from './waterCostRun.ts'
 import { execFileSync } from 'node:child_process'
+import { loadavg } from 'node:os'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { runOnDawn } from '../../tests/gpu/kit/onDawn.ts'
-import { takeBenchLock } from '../dawn/lock.ts'
-import { machineLoad } from './summary/summary.ts'
+import { takeBenchLock } from './lock.ts'
 import type { run, WaterCostOptions } from '../../tests/gpu/water/waterCostPage.ts'
 
 type Reading = Awaited<ReturnType<typeof run>>
@@ -88,7 +88,7 @@ const report = {
   fixtureCommit: git(root, 'rev-parse', 'HEAD'),
   fixtureDirty: git(root, 'status', '--porcelain'),
   started: new Date().toISOString(),
-  loadBefore: machineLoad(),
+  loadBefore: loadavg(),
   runs,
   frames,
   warmup,
@@ -187,7 +187,7 @@ try {
   await writeFile(
     resolve(out, 'measurement.json'),
     JSON.stringify(
-      { ...report, spread, loadAfter: machineLoad(), ended: new Date().toISOString() },
+      { ...report, spread, loadAfter: loadavg(), ended: new Date().toISOString() },
       null,
       2,
     ) + '\n',

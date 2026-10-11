@@ -71,7 +71,6 @@ async function main() {
   const report: Report = {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
-    campaignIdentity: process.env.TRILLION3D_CAMPAIGN_IDENTITY ?? null,
     command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     scene,

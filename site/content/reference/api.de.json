@@ -6321,8 +6321,6 @@
       "enabled": "Ob der Controller auf Maus und Tastatur hört und die Kamera bewegt. `false` pausiert ihn — keine Eingabe, kein `update` —, ohne ihn neu zu erzeugen: Geschwindigkeit, Bodenkontakt, Schritt, Ausrichtung und Drehung bleiben erhalten, und `true` setzt genau dort fort, wo er stand.",
       "target": "Der Punkt, um den sich ein Drehpunkt-Controller dreht.",
       "autoUpdate": "Ob die Schleife der Welt `update` vor jedem Bild aufruft, vor den `world.beforeFrame`-Hooks. `false` überlässt den Schritt der Seite, die `update` aus einem solchen Hook aufruft, so oft und über so viele Teilschritte, wie sie integriert; die Welt macht ihn dann nie mehr.",
-      "colliders": "Nur Charakter: die Meshes, mit denen der Körper kollidiert — ein Objekt oder eine Liste, Nachkommen eingeschlossen — oder `null`. Sie zu setzen baut einen statischen Dreiecksbaum aus ihren Dreiecken im Weltraum, so wie sie jetzt stehen: ein Durchlauf über die Dreiecke und ein `O(T log T)`-Aufbau, etwa 52 Bytes pro Dreieck. Kompilierte Modelle werden noch nicht gelesen: gib ihnen ein einfaches Mesh als Platzhalter. Eine `CharacterCollision` — die Welt einer Physik-Engine, alles, was `resolveCapsule` und `groundBelow` beantwortet — wird unverändert verwendet.",
-      "rebuildColliders": "Nur Charakter: baut den Kollisionsbaum erneut, nachdem sich die Kollidierer bewegt oder geändert haben. Eine `CharacterCollision` ist ihre eigene Welt und wird unverändert weitergegeben.",
       "velocity": "Nur Charakter: die Geschwindigkeit des Körpers in Metern pro Sekunde, eine Kopie; sonst null.",
       "onGround": "Nur Charakter: ob die Füße auf einem Boden stehen; `false` für jeden anderen Controller.",
       "update": "Integriert einen gesteuerten Controller über `delta` Sekunden; ein Pivot-Controller liest seine Pose neu, und ein Orbit dreht um `autoRotate`. Ein pausierter Controller tut nichts.",
@@ -6504,7 +6502,7 @@
   },
   "WorldControls": {
     "summary": "Die Arten, wie eine Seite die Kamera mit Maus und Tastatur lenken kann, oder `'none'`.",
-    "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit `world.controls.colliders` — und blickt durch seine Augen. `'fly'` und `'firstPerson'` bewegen sich mit `world.controls.movementSpeed` und drehen sich mit `world.controls.lookSpeed`."
+    "description": "`'firstPerson'` bewegt eine Kamera; `'character'` bewegt einen Körper — Masse, Schwerkraft, Sprünge, Kollisionen mit der Physik der Welt — und blickt durch seine Augen. `'fly'` und `'firstPerson'` bewegen sich mit `world.controls.movementSpeed` und drehen sich mit `world.controls.lookSpeed`."
   },
   "WorldFrameMetrics": {
     "summary": "Die Messwerte eines Bildes, wie der Host sie von der Engine kopiert hat, und zwei daraus zusammengesetzte, die eine Seite liest; `null`, wo der Pfad nicht zählt.",
@@ -6728,47 +6726,16 @@
       "time": "Sekunden seit dem Beginn der Welt, zur Zeit des Bildes (`worldFrameGrid.ts`)."
     }
   },
-  "Capsule": {
-    "summary": "EINE AUFRECHTE KAPSEL gegen einen Dreiecksbaum: die enge Phase des Charakterkörpers.",
-    "description": "Die Kapsel steht auf `feet` — dem tiefsten Punkt ihrer unteren Kugel — und ist jeder Punkt innerhalb von `radius` des senkrechten Segments von `feet + radius` bis `feet + height - radius`. Ein Durchlauf findet jedes Dreieck, das näher als `radius` an diesem Segment liegt, und übergibt jede Überschneidung sofort an `push` (`CapsuleContact`). Der Aufrufer bewegt `feet`; das nächste Dreieck des Durchlaufs wird von der bewegten Kapsel aus gemessen, sodass zwei Wände, die sich in einer Ecke treffen, in einem Durchlauf beide verlassen werden.",
-    "members": {
-      "feet": "Der tiefste Punkt, im Weltraum; `push` bewegt ihn.",
-      "radius": "Radius des Körpers, in Metern.",
-      "height": "Höhe von den Füßen bis zur Kopfoberseite, in Metern; mindestens zwei Radien."
-    }
-  },
-  "CapsuleContact": {
-    "summary": "Eine Überschneidung zwischen einer Kapsel und einer Oberfläche.",
-    "description": "Die Arrays werden wiederverwendet: ein Push liest sie nur während des Aufrufs.",
-    "members": {
-      "normal": "Einheitsrichtung aus der Oberfläche in die Kapsel hinein: der Weg hinaus.",
-      "surface": "Einheitsnormale der Oberfläche selbst, auf der Seite der Kapsel. Sie unterscheidet sich von `normal`, wenn die Kapsel eine Kante oder eine Ecke berührt: sie sagt, zu welcher Fläche diese Kante gehört.",
-      "point": "Der berührte Punkt der Oberfläche, im Weltraum.",
-      "depth": "Wie weit die Kapsel entlang `normal` in der Oberfläche steckt, > 0."
-    }
-  },
-  "CapsulePush": {
-    "summary": "Beantwortet einen Kontakt, üblicherweise indem sie die `feet` der Kapsel daraus herausbewegt."
-  },
   "CharacterCameraControls": {
-    "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Dreiecken der Welt als aufrechte Kapsel kollidiert.",
-    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, nie schneller, als die Reibung seines Bodens eine Sohle schieben lässt, sodass ein Halt auf Stein ein wenig und auf Eis weit gleitet, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-core/src/collision/characterBody.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
+    "summary": "EIN CHARAKTER, gesehen durch seine Augen: ein Körper mit Masse, der geht, läuft, springt und fällt, und mit den Körpern der Weltphysik als aufrechte Kapsel kollidiert.",
+    "description": "Der Zeiger dreht den Kopf wie in der Ich-Perspektive (`look.ts`). Die Tasten, nach `KeyboardEvent.code`, damit jede Tastaturbelegung dieselben Tasten spielt: W/S oder die Pfeiltasten hoch und runter gehen vor und zurück, A/D oder die seitlichen Pfeiltasten schieben seitwärts, Umschalttaste sprintet, Leertaste springt. Der Körper startet und stoppt nicht sofort: er nimmt Fahrt auf über `responseTime` und bremst über `stopTime`, nie schneller, als die Reibung seines Bodens eine Sohle schieben lässt, sodass ein Halt auf Stein ein wenig und auf Eis weit gleitet, behält seinen Schwung in der Luft, steigt unter `gravity` und fällt unter `fallGravity`, klettert Kanten bis zu `stepHeight` hoch, gleitet an Wänden entlang und steht auf Hängen bis zu `maxSlope` (`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`). Die Kamera ist das Auge, `eyeHeight` über den Füßen, wippt mit dem Schritt um `headBob` und taucht bei der Landung ab um `landingDip` (`sdk-core/src/collision/characterEye.ts`); beide wirken auf das Auge nach dem Schritt des Körpers und bewegen nie den Körper selbst. Ein Host, der die Kamera selbst bewegt, teleportiert den Körper dorthin, in Ruhe. Ein ruhender Charakter — am Boden, ohne Geschwindigkeit, ohne Taste, kein Abtauchen übrig — sendet nichts, sodass die Szene ruhig bleibt.",
     "members": {
       "velocity": "Die Geschwindigkeit des Körpers in Metern pro Sekunde, live: `[x, y, z]`, y nach oben.",
       "onGround": "Ob die Füße auf einem Boden stehen.",
       "onLand": "Wird bei der Landung mit der Sinkgeschwindigkeit in Metern pro Sekunde aufgerufen: ein Ton, ein Rütteln.",
       "onJump": "Wird aufgerufen, wenn der Körper bei einem Sprung den Boden verlässt.",
-      "collision": "Womit der Körper kollidiert — den Kollidierern der Welt, oder der Welt eines Physik-Backends über dieselbe Schnittstelle (`CharacterCollision`). `null` geht eben dort, wo der Körper steht, und fällt nie.",
       "update": "Lebt `delta` Sekunden; gibt zurück, ob sich die Kamera bewegt hat, und sendet `change`, wenn das der Fall war.",
       "stride": "Die Phase des Schritts in Radiant, in [0, 2π): ein Fuß trifft bei 0 auf den Boden, der andere bei π."
-    }
-  },
-  "CharacterCollision": {
-    "summary": "DIE NAHTSTELLE ZWISCHEN EINEM CHARAKTER UND DER WELT, MIT DER ER KOLLIDIERT.",
-    "description": "Der Charakterkörper (`characterBody.ts`) liest nie Dreiecke: er bewegt seine Kapsel in Abschnitten, die kürzer sind als ihr Radius, und fragt nach jedem, was die Kapsel überschneidet und in welche Richtung hinaus; und ein Läufer fragt, wo der Boden unter seinen Füßen ist. Alles andere — Geschwindigkeit, Schwerkraft, Stufen, Hänge, Sprünge — gehört dem Körper selbst. Ein Physik-Backend implementiert diese Schnittstelle, um einen Charakter in seine Welt zu setzen: es beantwortet die Überschneidung aus seinen eigenen Formen und seiner eigenen Breitphase, und der Körper geht darauf unverändert. Die Standardimplementierung ist der statische Dreiecksbaum von `triangleCollision`.",
-    "members": {
-      "resolveCapsule": "Findet, was `capsule` überschneidet, und ruft für jede Überschneidung sofort `push(contact)` auf (`CapsuleContact`: der Weg hinaus, die Oberfläche, der berührte Punkt, die Tiefe). `push` bewegt `capsule.feet`; eine Implementierung misst jede nächste Überschneidung von der bewegten Kapsel aus, sodass eine Ecke in einem Aufruf verlassen wird. Gibt zurück, ob sich etwas überschnitten hat.",
-      "groundBelow": "Senkt die untere Kugel der Kapsel senkrecht nach unten, um höchstens `depth`, und gibt zurück, wie weit sie geht, bevor sie zum ersten Mal auf einer Oberfläche ruht, die `accepts` annimmt — die höchste solche Stütze; negativ, wenn die Kapsel bereits darin versinkt und aufsteigen muss. `null`, wenn es keine gibt. `capsule.feet` bleibt, wo es war. `accepts` sieht jede Kandidatenberührung als Kontakt: `point`, `normal` vom Punkt zum Mittelpunkt der Kugel, `surface` die nach oben gewandte Fläche."
     }
   },
   "HeadSettings": {
@@ -6786,24 +6753,6 @@
       "locked": "Ob der Zeiger an die Ansicht gesperrt ist.",
       "lock": "Sperrt den Zeiger an die Ansicht.",
       "unlock": "Gibt den Zeiger frei."
-    }
-  },
-  "TriangleCollision": {
-    "summary": "Die Standard-Kollisionswelt: ein statischer Dreiecksbaum.",
-    "members": {
-      "tree": "Der Baum, aus dem geantwortet wird: sein `triangleCount` und seine `bytes` sind die Kosten der Welt."
-    }
-  },
-  "TriangleTree": {
-    "summary": "Eine Bounding-Volume-Hierarchie über die Dreiecke der Welt, abgefragt per Box: die Broad Phase hinter `triangleCollision` und `capsulePass`.",
-    "description": "Einmal von `buildTriangleTree` gebaut, danach nur lesbar.",
-    "members": {
-      "triangles": "Neun Zahlen pro Dreieck — drei Ecken — in Blattreihenfolge.",
-      "bounds": "Pro Knoten: min xyz, max xyz.",
-      "links": "Pro Knoten: das erste Dreieck eines Blatts, oder das rechte Kind eines inneren Knotens (das linke folgt seinem Elternknoten).",
-      "counts": "Pro Knoten: Dreieckszahl eines Blatts, 0 für einen inneren Knoten.",
-      "bytes": "Bytes, die der Baum belegt.",
-      "triangleCount": "Dreiecke, die der Baum hält."
     }
   },
   "CanvasPoint": {

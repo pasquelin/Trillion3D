@@ -83,7 +83,7 @@ test('under node --test, only a GPU proof may open the GPU', () => {
 })
 
 test('any explicit script but a unit test may open the GPU, wherever it lives', () => {
-  for (const run of [at(listProofFiles()[0]), at('bench/runner/waterCost.ts')])
+  for (const run of [at(listProofFiles()[0]), at('bench/dawn/waterCost.ts')])
     assert.doesNotThrow(() => assertProofEntryPoint(run, false), run)
   for (const entry of ['', fileURLToPath(import.meta.url), at('absent-script.ts')])
     assert.throws(() => assertProofEntryPoint(entry, false), new RegExp(DAWN_REFUSED), entry)

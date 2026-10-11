@@ -1,6 +1,6 @@
-import type { CharacterBody } from '../../../sdk-core/src/collision/characterBody.ts'
 import {
   HUMAN_BODY,
+  type CharacterBody,
   type CharacterEvents,
   type CharacterInput,
   type CharacterSettings,

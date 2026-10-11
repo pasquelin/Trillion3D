@@ -7,7 +7,7 @@ import { wgslF32 } from './number.ts'
  * Where two shaders write one term in two operation orders — the diffuse albedo divided by π or
  * multiplied by 1/π, α² as `(r·r)·(r·r)` or `((r·r)·r)·r`, N·V floored or clamped — each order
  * rounds its own way and is its own declaration. The paired α² `(r·r)·(r·r)` stays in its shaders
- * (`standardLighting.ts`, `ggxSampleWgsl.ts`, `coneShader.ts`): each one sums its last product
+ * (`standardLighting.ts`, `reflections/field.ts`, `reflections/footprint.ts`): each one sums its last product
  * there (`1 − α²`, `α² − 1`, `1 + α²`), a sum the compiler may fuse with it, and a call returning
  * α² would round it apart.
  */

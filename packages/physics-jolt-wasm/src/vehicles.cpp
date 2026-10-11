@@ -28,7 +28,6 @@ namespace {
 
 enum Kind : uint32_t { CAR, MOTORCYCLE, TRACKED };
 enum Role : uint32_t { STEERS = 1, DRIVEN = 2, HANDBRAKE = 4, SPROCKET = 8 };
-constexpr uint32_t TORQUE_POINTS = 5, MAX_GEARS = 6, WHEEL_WORDS = 6;
 /// The engine's objects face −z, up +y: so do its vehicles, in their body's frame.
 const Vec3 FORWARD(0, 0, -1), UP(0, 1, 0), RIGHT(1, 0, 0);
 /// Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES), m/s².

@@ -7,7 +7,6 @@ export function rapport(side: Partial<Row>): Report {
   return {
     startedAt: 't0',
     provenance: { machine: null, browser: null, displayCapHz: null },
-    campaignIdentity: null,
     engine: 'engine-test',
     scene: 'scene-test',
     command: 'pnpm run measure',
@@ -45,9 +44,6 @@ export function rapport(side: Partial<Row>): Report {
 
 export const baseSide: Partial<Row> = {
   engine: undefined,
-  cpuFrameMs: null,
-  gpuFrameMs: null,
-  stageProfile: null,
   selectedTriangles: null,
   uncoveredTriangles: null,
   drawnTriangles: null,
@@ -70,7 +66,6 @@ export const baseSide: Partial<Row> = {
     budgetLimitedCoverage: null,
   },
   geometryBytes: null,
-  load: { start: [], end: [] },
 }
 
 /** The first data row of the table under `## ${section}` in a `resume()` text, keyed by header. */

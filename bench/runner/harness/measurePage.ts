@@ -9,7 +9,6 @@ import type { LiveTuning, NetworkBytes } from '../report/types.ts'
 import type { LivePools } from './benchSettings.ts'
 import { residentBudget } from './poolFill.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
-export { gpuReadings } from './gpuReadings.ts'
 
 interface MovingLight {
   origin: readonly number[]

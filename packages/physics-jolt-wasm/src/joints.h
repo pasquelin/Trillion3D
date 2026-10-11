@@ -1,5 +1,5 @@
-// What the joint files share: the kinds and motor modes of the JOINT command (layout.ts JOINT),
-// a joint end's frame, and the advanced kinds' settings, motors and pull (`advancedJoints.cpp`).
+// What the joint files share: a joint end's frame (the kinds and motor modes of the JOINT command are layout.h's),
+// and the advanced kinds' settings, motors and pull (`advancedJoints.cpp`).
 #pragma once
 
 #include <Jolt/Jolt.h>
@@ -7,25 +7,11 @@
 #include <Jolt/Physics/Constraints/MotorSettings.h>
 #include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 
+#include "layout.h"
+
 #include <cstdint>
 
 namespace trillion {
-
-enum JointKind : uint32_t {
-  FIXED,
-  POINT,
-  HINGE,
-  SLIDER,
-  DISTANCE,
-  CONE,
-  SWING_TWIST,
-  SIX_DOF,
-  PATH,
-  PULLEY,
-  GEAR,
-  RACK_AND_PINION,
-};
-enum MotorMode : uint32_t { OFF, VELOCITY, POSITION };
 
 /// A joint end's `point, axis, normal`, in its body's centre-of-mass frame (the world's for none).
 struct Frame {

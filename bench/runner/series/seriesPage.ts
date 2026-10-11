@@ -45,7 +45,6 @@ export function measurePayload(
     width: settings.width,
     height: settings.height,
     pixelRatio: settings.dpr,
-    stageProfile: settings.stageProfile,
     // This side's diagnostic variant: it is what makes two sides two variants.
     variant: side.variant ?? null,
     // This side's screen-error metric (EXPERIMENT): `null` leaves ours.
@@ -53,7 +52,6 @@ export function measurePayload(
     trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,
-    profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
     // Textures read from the cache: only for an engine that reads the atlas, never the witness.

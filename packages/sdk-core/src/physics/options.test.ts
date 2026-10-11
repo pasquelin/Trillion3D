@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { refuses } from '../contracts/cache.fixture.ts'
 import {
   checkPhysicsBudget,
@@ -8,7 +9,6 @@ import {
   physicsBudgetOf,
   type PhysicsBudget,
 } from './options.ts'
-import { MODULE_MEMORY } from './wire.fixture.ts'
 
 const declared = { bodies: 7, decorative: 3, softVertices: 11, memoryBytes: 1001 }
 
@@ -29,7 +29,11 @@ test('a budget keeps what it declares over the defaults, sealed against a key th
 })
 
 test('the default budget opens the physics module', () => {
-  assert.ok(DEFAULT_PHYSICS_BUDGET.memoryBytes >= MODULE_MEMORY)
+  const build = readFileSync(
+    new URL('../../../physics-jolt-wasm/CMakeLists.txt', import.meta.url),
+    'utf8',
+  )
+  assert.ok(DEFAULT_PHYSICS_BUDGET.memoryBytes >= Number(build.match(/-sINITIAL_MEMORY=(\d+)/)![1]))
 })
 
 test('the static collision holds a share of the memory, never more than all of it', () => {

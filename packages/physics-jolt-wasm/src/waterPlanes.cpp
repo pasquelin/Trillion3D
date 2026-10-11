@@ -11,7 +11,7 @@
 #include <vector>
 
 using trillion::f32;
-using trillion::PIECE_WORDS;
+using trillion::WATER_PIECE_WORDS;
 using trillion::PLANE_WORDS;
 using trillion::Wave;
 using trillion::WAVE_DOUBLES;
@@ -108,7 +108,7 @@ uint32_t *jolt_water_planes(const uint32_t *pieces, uint32_t count, double level
   planes.resize(size_t(count) * PLANE_WORDS);
   double corner[12];
   for (uint32_t i = 0; i < count; i++) {
-    const uint32_t *from = pieces + i * PIECE_WORDS;
+    const uint32_t *from = pieces + i * WATER_PIECE_WORDS;
     uint32_t *to = planes.data() + i * PLANE_WORDS;
     double x = f32(from + 2), z = f32(from + 3);
     double hx = atLeast(f32(from + 4), sample), hz = atLeast(f32(from + 5), sample);

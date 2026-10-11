@@ -2,13 +2,8 @@
 // `measure.json`, and everything under `bench/runner/` (`summary/summary.ts`, `summary/summaryCompute.ts`,
 // `summary/summaryMemory.ts`, `summary/summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
-import type {
-  CameraPose,
-  FrameMetrics,
-  StageProfile,
-} from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts'
-import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts'
 import type { BenchSettings } from '../harness/options.ts'
 import type { Bounds } from '../trajectory/poses.ts'
 import type { LightsPlan } from '../lighting/lamps.ts'
@@ -102,14 +97,7 @@ export type ImageDiff =
 
 /** One row of the series table: one side, one view, one threshold (`series/series.ts::runSeries`). */
 export interface Row {
-  cpuFrameMs: Distribution
   engine: string
-  gpuFrameMs: Distribution
-  imageSyncMs: Distribution
-  rafIntervalMs: Distribution
-  stageProfile: StageProfile | null
-  passesGpu: PassesGpu | null
-  preparationMs: number | null
   settleFrames: number | null
   liveTuning: LiveTuning | null
   network: NetworkBytes | null
@@ -134,12 +122,10 @@ export interface Row {
    *  which draws its own light store. */
   witnessLights: unknown
   movingNode: MovingNode
-  load: { start: number[]; end: number[] }
   png: string | null
   captureStatus: number
   gpuIncidents: string[] | null
   dagWarnings: unknown
-  cpuBounds: unknown
   canvas: { width: number; height: number; dpr?: number }
   metrics: Partial<FrameMetrics> & Record<string, unknown>
   cutAnalysis?: unknown
@@ -176,7 +162,6 @@ interface SideIdentity {
 export interface Report {
   startedAt: string
   provenance: { machine: unknown; browser: unknown; displayCapHz: number | null }
-  campaignIdentity: string | null
   command: string
   head: string
   scene: string
