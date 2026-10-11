@@ -137,6 +137,14 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*INVERSE_PI;
 }
+/** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
+ *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
+ *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order. A pass
+ *  with no bounce gives zero. A thin two-sided surface adds its back, \`bounce+environment\` lit
+ *  from \`-N\`, after. */
+fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f)->vec3f{
+ return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive;
+}
 `,
   )
 }

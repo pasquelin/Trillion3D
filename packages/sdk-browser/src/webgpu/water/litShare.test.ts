@@ -54,6 +54,8 @@ function runner(text: string) {
       'waterColor',
       'waterLobes',
       'lobeThrough',
+      'litSurface',
+      'lobeRoughness',
       'reflectionTrace',
       'reflectionShare',
       'f0Of',

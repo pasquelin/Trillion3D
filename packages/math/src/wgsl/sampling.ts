@@ -8,6 +8,22 @@ import { wgslFn } from './decl.ts'
  * `mix` is common, one declaration per type.
  */
 
+/**
+ * One word of integer hash, the engine's one: an odd golden multiply, an xor-shift, a second
+ * multiply, a last xor-shift (`mixWord` in `../scalar/integers.ts` on the processor, tested word for
+ * word). Every hash that keys a table or settles a value reads it; a second word of one input is
+ * `mixWord(x ^ GOLDEN_U32)`.
+ */
+export const mixWord = wgslFn(
+  'mixWord',
+  [],
+  `fn mixWord(x:u32)->u32{
+ var h=x*0x9e3779b1u;
+ h^=h>>15u;h*=0x85ebca77u;h^=h>>13u;
+ return h;
+}`,
+)
+
 export const hashUnit = wgslFn(
   'hashUnit',
   [],

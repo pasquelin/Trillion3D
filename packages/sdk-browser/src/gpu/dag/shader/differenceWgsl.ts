@@ -4,6 +4,7 @@ import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 
 /**
@@ -39,7 +40,7 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
 
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
-  [FLAT_INDEX_WGSL],
+  [FLAT_INDEX_WGSL, mixWord],
   `const RANK_NONE:u32=${SELECTION_NONE}u;
 /** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
  *  burst (\`levelCountsWord\`). */
@@ -70,7 +71,7 @@ const KEPT_NEXT:u32=1u;
 const KEPT_HEAD:u32=${KEPT_RANK_HEAD}u;
 /** Slots of a list's table: twice the cap, rounded up to a power of two (\`keptRankSlots\`). */
 fn keptSlots()->u32{return 1u<<(32u-countLeadingZeros(2u*max(views[0u].listCap,1u)-1u));}
-fn keptHome(i:u32)->u32{var h=i*0x9e3779b1u;h^=h>>15u;return h&(keptSlots()-1u);}
+fn keptHome(i:u32)->u32{return mixWord(i)&(keptSlots()-1u);}
 /** The rank page \`i\` holds in kept list \`l\`, or none: probed in the list's table, bound as
  *  \`work\`, from the page's home to the first slot no keep of this generation wrote. A page
  *  repeated in the list is found at one of its ranks. */

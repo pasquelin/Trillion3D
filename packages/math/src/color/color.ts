@@ -9,14 +9,27 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { wrap, clamp, saturate } from '../scalar/reals.ts'
 
+/** The transfer curve's constants, which the WGSL twins read (`../wgsl/color.ts`): the decode's and
+ *  the encode's thresholds, the slope of the linear part, the power's scale, offset and exponent. */
+export const SRGB_DECODE_THRESHOLD = 0.04045
+export const SRGB_ENCODE_THRESHOLD = 0.0031308
+export const SRGB_SLOPE = 12.92
+export const SRGB_SCALE = 1.055
+export const SRGB_OFFSET = 0.055
+export const SRGB_GAMMA = 2.4
+
 /** Encoded sRGB value in `[0, 1]` to its linear value. */
 export function srgbToLinear(c: number) {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  return c <= SRGB_DECODE_THRESHOLD
+    ? c / SRGB_SLOPE
+    : Math.pow((c + SRGB_OFFSET) / SRGB_SCALE, SRGB_GAMMA)
 }
 
 /** Linear value to its encoded sRGB value, negative numbers clamped to zero before exponent. */
 export function linearToSrgb(c: number) {
-  return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055
+  return c <= SRGB_ENCODE_THRESHOLD
+    ? SRGB_SLOPE * c
+    : SRGB_SCALE * Math.pow(Math.max(c, 0), 1 / SRGB_GAMMA) - SRGB_OFFSET
 }
 
 /** A unit value to its byte: `clamp(Math.round(x · 255), 0, 255)`, the unorm8 encoding. */

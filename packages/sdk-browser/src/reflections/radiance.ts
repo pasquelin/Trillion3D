@@ -6,6 +6,8 @@ import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { sameEntries } from '../gpu/core/sameEntries.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
+import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { storageEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
@@ -86,15 +88,10 @@ fn radianceSum(lid:vec2u,wg:vec2u){
  let c=vec2i(wg*${SIDE}u+lid);
  if(all(c<vec2i(textureDimensions(coarsest)))){textureStore(coarsest,c,sum/64.0);}
 }
-fn radianceMix(x:u32)->u32{
- var h=x*0x9e3779b1u;
- h^=h>>15u;h*=0x85ebca77u;h^=h>>13u;
- return h;
-}
 fn radianceHash(p:vec2i,texel:vec4f)->vec2u{
  let bits=bitcast<vec4u>(texel);
- let lo=radianceMix(bits.x^radianceMix(bits.y^radianceMix(bits.z^radianceMix(bits.w^(u32(p.x)*0x27d4eb2fu+u32(p.y)*0x165667b1u)))));
- return vec2u(lo,radianceMix(lo^0x2545f491u));
+ let lo=mixWord(bits.x^mixWord(bits.y^mixWord(bits.z^mixWord(bits.w^(u32(p.x)*0x27d4eb2fu+u32(p.y)*0x165667b1u)))));
+ return vec2u(lo,mixWord(lo^GOLDEN_U32));
 }
 fn radianceCopy(c:vec2i)->vec2u{
  let size=vec2i(textureDimensions(copy));
@@ -141,7 +138,7 @@ fn radianceDown(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) li
  workgroupBarrier();
  radianceSum(lid.xy,wg.xy);
 }`,
-  [VIEW_WGSL],
+  [VIEW_WGSL, mixWord, GOLDEN_U32],
 )
 
 /** The radiance pyramid's three layouts (`RADIANCE_SHADER`): a level read through its sampler, the

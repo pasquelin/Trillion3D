@@ -27,6 +27,7 @@ function composed(source: string, value: object, read: object, view: object) {
     linearToSrgb: (c: number) =>
       c < 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 0.41666) - 0.055,
     toneMap: (c: number, curve: number) => (curve ? c / (1 + c) : Math.min(c, 1)),
+    displayValue: (c: number, curve: number) => scope.linearToSrgb(scope.toneMap(c, curve)),
   }
   return shaderFunctions<Compose>(source, ['composeColor'], scope).composeColor({ xy: 0 })
 }

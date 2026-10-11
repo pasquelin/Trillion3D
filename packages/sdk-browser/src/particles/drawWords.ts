@@ -3,6 +3,7 @@ import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { usedSlots } from './poolStates.ts'
+import { OVER } from '../webgpu/blend/equations.ts'
 
 /** The words the particle draw gives a pool: clip matrix from its origin and inverse, made
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
@@ -11,7 +12,6 @@ export const DRAW_FLOATS = 48
 
 /** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
  *  adds light and leaves the coverage. */
-const OVER = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const
 export const BLENDS: Record<ParticlePool['blend'], GPUBlendState> = {
   additive: {
     color: { srcFactor: 'one', dstFactor: 'one' },

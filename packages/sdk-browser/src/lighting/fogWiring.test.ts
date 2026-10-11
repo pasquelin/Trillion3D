@@ -21,7 +21,7 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
       shader,
-      /var rgb=lit\+ambient\+resolvedReflection\([^)]*\)\+emissive\.rgb[^;]*;\s*if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
+      /var rgb=litSurface\(lit,[^\n]*resolvedReflection\([^)]*\),emissive\.rgb\);[^]*?if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
     )
   // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal or depth one (flag 3) is not.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
@@ -45,7 +45,7 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   // the branch that skips the unlit view.
   assert.match(
     BLEND_SHADER,
-    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^]*?environmentLighting\(thinSubsurface,[^;]+\);\}\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
+    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?s\.emissive\);[^]*?environmentLighting\(thinSubsurface,[^;]+\);\}\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
   )
   assert.match(
     WATER_COMPOSITE_SHADER,

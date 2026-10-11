@@ -1,7 +1,8 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
+import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { maxChannel, minChannel } from '../../../math/src/wgsl/sampling.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
@@ -35,7 +36,7 @@ export const TONE_MAPPING_WGSL = wgslBlock(
   [ACES_WGSL, maxChannel, minChannel],
   `fn cineonCurve(color:vec3f)->vec3f{
  let x=max(vec3f(0.0),color-${CINEON.offset});
- return pow(${CINEON.curve},vec3f(2.2));
+ return pow(${CINEON.curve},vec3f(${GAMMA}));
 }
 fn agxCurve(color:vec3f)->vec3f{
  let toWide=${AGX.toWide};
@@ -47,7 +48,7 @@ fn agxCurve(color:vec3f)->vec3f{
  c=clamp((log2(max(c,vec3f(1e-10)))-low)/(high-low),vec3f(0.0),vec3f(1.0));
  let c2=c*c;let c4=c2*c2;
  c=${AGX.contrast};
- c=pow(max(vec3f(0.0),outset*c),vec3f(2.2));
+ c=pow(max(vec3f(0.0),outset*c),vec3f(${GAMMA}));
  return clamp(toNarrow*c,vec3f(0.0),vec3f(1.0));
 }
 fn neutralCurve(color:vec3f)->vec3f{
@@ -72,7 +73,17 @@ fn toneMap(color:vec3f,curve:u32)->vec3f{
 }`,
 )
 
-const F = ACES.fit
+/** The display value of linear radiance `exposed` (its exposure applied by the caller): the scene's
+ *  curve, then the sRGB transfer. The one chain of every composition and of the display layers. */
+export const DISPLAY_VALUE_WGSL = wgslBlock(
+  'DISPLAY_VALUE_WGSL',
+  [TONE_MAPPING_WGSL, linearToSrgb],
+  'fn displayValue(exposed:vec3f,curve:u32)->vec3f{return linearToSrgb(toneMap(exposed,curve));}',
+)
+
+const F = ACES.fit,
+  C = CINEON.fit,
+  M = NEUTRAL.fit
 
 /**
  * Each display curve's inverse, by the rank `toneMap` reads: the exposed radiance `toneMap` turns
@@ -92,14 +103,14 @@ export const TONE_UNMAPPING_WGSL = wgslBlock(
  return max(${ACES.exposure}*(${ACES.inputInverse}*((sqrt(b*b+4.0*a*c)-b)/(2.0*a))),vec3f(0.0));
 }
 fn cineonInverse(y:vec3f)->vec3f{
- let v=pow(y,vec3f(1.0/2.2));
- let a=6.2*(1.0-v);let b=0.5-1.7*v;let c=0.06*v;
+ let v=pow(y,vec3f(1.0/${GAMMA}));
+ let a=${C.a}*(1.0-v);let b=${C.b}-${C.c}*v;let c=${C.d}*v;
  return (sqrt(b*b+4.0*a*c)-b)/(2.0*a)+${CINEON.offset};
 }
 fn agxInverse(y:vec3f)->vec3f{
  let toNarrow=${AGX.toNarrowInverse};
  let outset=${AGX.outsetInverse};
- let w=outset*pow(max(toNarrow*y,vec3f(0.0)),vec3f(1.0/2.2));
+ let w=outset*pow(max(toNarrow*y,vec3f(0.0)),vec3f(1.0/${GAMMA}));
  var low=vec3f(0.0);var high=vec3f(1.0);
  for(var k=0;k<24;k++){
   let c=0.5*(low+high);let c2=c*c;let c4=c2*c2;
@@ -113,13 +124,13 @@ fn neutralInverse(y:vec3f)->vec3f{
  let top=maxChannel(y);
  var c=y;
  if(top>=${NEUTRAL.knee}){
-  let peak=0.52+0.0576/(1.0-top);
-  let g=1.0-1.0/(0.15*(peak-top)+1.0);
+  let peak=${M.shoulder}+${M.shoulderRange}/(1.0-top);
+  let g=1.0-1.0/(${M.slope}*(peak-top)+1.0);
   c=(y-g*top)/(1.0-g)*(peak/top);
  }
  let m=minChannel(c);
- let low=sqrt(max(m,0.0)/6.25);
- return c+select(${NEUTRAL.offset},low-m,m<0.04);
+ let low=sqrt(max(m,0.0)/${M.toeScale});
+ return c+select(${NEUTRAL.offset},low-m,m<${M.offset});
 }
 fn toneUnmap(y:vec3f,curve:u32)->vec3f{
  if(curve==${R.none}u||curve==${R.linear}u){return y;}

@@ -1,3 +1,4 @@
+import { DEFAULT_EXPOSURE } from '../../../sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts'
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_SAMPLES } from './jitter.ts'
@@ -59,7 +60,7 @@ export function writeTaaView(
   moved: boolean,
   layers = false,
   deformed = false,
-  exposure = 1,
+  exposure = DEFAULT_EXPOSURE,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly

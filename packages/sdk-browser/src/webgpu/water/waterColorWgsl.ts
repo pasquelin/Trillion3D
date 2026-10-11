@@ -1,4 +1,4 @@
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
+import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
 import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
@@ -19,7 +19,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
   [
     fresnelScalar,
     f0Of,
-    ROUGHNESS_FLOOR,
+    LOBE_AXIS_WGSL,
     WATER_UNPACK_WGSL,
     WORLD_AT_WGSL,
     WATER_SHADOW_READ_WGSL,
@@ -45,7 +45,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
  shadowSetView(view.camera.xyz,view.viewport.x,shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
  let V=viewToEye(P);
  let Nv=waterFacing(normal.xyz,V);
- let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
+ let rough=lobeRoughness(normal.a);
  let metal=clamp(base.a,0.0,1.0);
  let ao=emissiveAo.a;
  // A transmissive material is a physical one, hence lit; only the unlit view keeps raw albedo.
@@ -62,7 +62,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
   // What the surface reflects, its lobes traced once: weighed on its colour for the lit share, on
   // the volume's reflectance for the specular share, as the Fresnel term above is.
   let traced=reflectionTrace(P,Nv,V,rough);
-  if(t<1.0){lit=declared.lit+bounceLighting(base.rgb,metal,Nv,P,ao)*lobeThrough()+environmentLighting(base.rgb,metal,Nv,ao)*lobeThrough()+reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V)+emissiveAo.rgb;}
+  if(t<1.0){lit=litSurface(declared.lit,bounceLighting(base.rgb,metal,Nv,P,ao),environmentLighting(base.rgb,metal,Nv,ao),reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V),emissiveAo.rgb);}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the specular
   // lobe stays.
   specular=declared.specular+reflectionShare(traced,vec3f(vol.f0),rough,Nv,V);

@@ -56,3 +56,13 @@ export function uniqueSortedInPlace(values: number[] | Int32Array | Uint32Array)
   if (Array.isArray(values)) values.length = count
   return count
 }
+
+/** The twin of the shader's `mixWord` (`../wgsl/sampling.ts`): the 32-bit word hash, every product
+ *  wrapped, every shift unsigned. */
+export function mixWord(x: number) {
+  let h = Math.imul(x, 0x9e3779b1)
+  h ^= h >>> 15
+  h = Math.imul(h, 0x85ebca77)
+  h ^= h >>> 13
+  return h >>> 0
+}

@@ -38,6 +38,8 @@ export const TONE_MAPPING_RANK = {
 export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK
 /** The display curve of a scene that names none, or declares no environment at all. */
 export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces'
+/** The exposure of a scene that declares no environment: radiance reaches the curve as it is. */
+export const DEFAULT_EXPOSURE = 1
 
 /** The light around a scene: exposure, display curve and light from every direction. */
 export interface SceneEnvironment {

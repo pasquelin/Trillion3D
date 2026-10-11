@@ -5,7 +5,11 @@
  * array, written once per image; its words are those of `VIEW_LAYOUT`, which makes the shader's
  * struct.
  */
-import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
+import {
+  DEFAULT_EXPOSURE,
+  DEFAULT_TONE_MAPPING,
+  TONE_MAPPING_RANK,
+} from '../../../../sdk-core/src/scene/core/environment.ts'
 import { shadowJitterWords } from './jitterWords.ts'
 import { VIEW_LAYOUT } from './worldAtWgsl.ts'
 
@@ -14,8 +18,17 @@ const AT = VIEW_LAYOUT.at
 /** The background, as `clearValueOf` reads a packed colour. */
 export type ClearColor = { r: number; g: number; b: number; a: number }
 
-/** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve, the eye unread. */
-export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as const
+/** With no declared light: zero lights, zero tiles, the default exposure and curve, the eye unread. */
+export const ZERO_DIRECT = [
+  0,
+  0,
+  0,
+  DEFAULT_EXPOSURE,
+  TONE_MAPPING_RANK[DEFAULT_TONE_MAPPING],
+  0,
+  0,
+  0,
+] as const
 
 export function createDeferredView(device: GPUDevice) {
   const buffer = device.createBuffer({
