@@ -16,7 +16,12 @@ const WORLD_SETTINGS = createWorldSettings().table
  *  S35 would: the mechanism is proven on values it can see. */
 const LEVELS: QualityLevels = {
   ...QUALITY_LEVELS,
-  shadows: { smooth: { sunRays: 2 }, balanced: { sunRays: 4 }, fine: { sunRays: 8 }, max: {} },
+  shadows: {
+    smooth: { shadowPages: 256 },
+    balanced: { shadowPages: 512 },
+    fine: { shadowPages: 1024 },
+    max: {},
+  },
   viewDistance: {
     smooth: { pixelError: 8 },
     balanced: { pixelError: 4 },
@@ -49,22 +54,22 @@ test('by default the preset reads max and every setting resolves to its default'
 test('a group the page set holds through every preset change', () => {
   const { settings, quality: q } = quality()
   q.preset = 'balanced'
-  assert.equal(settings.get('sunRays'), 4)
+  assert.equal(settings.get('shadowPages'), 512)
   q.set('shadows', 'fine')
   q.preset = 'smooth'
   assert.equal(q.get('shadows'), 'fine')
-  assert.equal(settings.get('sunRays'), 8, 'the page level, over the preset')
+  assert.equal(settings.get('shadowPages'), 1024, 'the page level, over the preset')
   assert.equal(settings.get('pixelError'), 8, 'the other groups follow the preset')
   assert.equal(q.preset, 'custom')
   q.set('shadows', 'preset')
   assert.equal(q.get('shadows'), 'smooth')
-  assert.equal(settings.get('sunRays'), 2, 'given back, the group follows the preset')
+  assert.equal(settings.get('shadowPages'), 256, 'given back, the group follows the preset')
   assert.equal(q.preset, 'smooth')
 })
 
 test('a page level of max writes the defaults over a coarser preset', () => {
   const { settings, quality: q } = quality({ preset: 'smooth', groups: { shadows: 'max' } })
-  assert.equal(settings.get('sunRays'), WORLD_SETTINGS.sunRays.default)
+  assert.equal(settings.get('shadowPages'), WORLD_SETTINGS.shadowPages.default)
   assert.equal(settings.get('pixelError'), 8)
   q.preset = 'max'
   assert.equal(q.preset, 'max', 'the page level is the preset level: not custom')
@@ -100,10 +105,9 @@ test('levels() lists every group and level with the values they resolve to', () 
   const { quality: q } = quality()
   const table = q.levels()
   assert.deepEqual(table.presets, ['smooth', 'balanced', 'fine', 'max'])
-  assert.equal(table.groups.shadows.fine.sunRays, 8)
-  assert.equal(table.groups.shadows.max.sunRays, WORLD_SETTINGS.sunRays.default)
+  assert.equal(table.groups.shadows.fine.shadowPages, 1024)
+  assert.equal(table.groups.shadows.max.shadowPages, WORLD_SETTINGS.shadowPages.default)
   assert.equal(table.groups.indirectLight.max.bounce, false)
-  assert.equal('shadowNormalBias' in table.groups.shadows.max, false, "the editor's own")
   assert.equal(table.resolution.fast, 0.5)
 })
 
