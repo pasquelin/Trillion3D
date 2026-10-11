@@ -2,7 +2,7 @@ import { boxEmpty } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
 import { mobilityRows } from './rowBuffers.ts'
 import type { RowRunVisitor } from '../row/dirty.ts'
@@ -15,8 +15,6 @@ import {
 } from '../../page/selection/placements.ts'
 
 export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
-
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /**
  * What `mobility.writeRows` reads of the table, built once per runtime: the table, its roots and its

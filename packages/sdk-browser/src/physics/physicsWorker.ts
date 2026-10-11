@@ -21,11 +21,13 @@ import { createTickResults } from './tickResults.ts'
 import { createCharacterDriver } from './characterDriver.ts'
 import { createWaterStep } from './water.ts'
 import { createThreadTuner } from './threadTuner.ts'
+import { type WorkerScope } from '../host/workerScope.ts'
 
-const scope = globalThis as unknown as {
+const scope = globalThis as unknown as WorkerScope<
+  ToPhysics,
+  FromPhysics | typeof JOLT_THREAD_LOADED
+> & {
   location: { href: string }
-  onmessage: ((event: MessageEvent<ToPhysics>) => void) | null
-  postMessage(message: FromPhysics | typeof JOLT_THREAD_LOADED, transfer?: Transferable[]): void
 }
 
 let jolt: JoltModule | null = null,

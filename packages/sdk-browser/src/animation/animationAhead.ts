@@ -1,4 +1,5 @@
 import type { Track } from '../../../sdk-core/src/world/animation/clip.ts'
+import { type WorkerScope } from '../host/workerScope.ts'
 
 /**
  * THE ANIMATION SAMPLES TAKEN AHEAD ON A WORKER (`animationWorker.ts`). While the world's loop
@@ -19,10 +20,7 @@ import type { Track } from '../../../sdk-core/src/world/animation/clip.ts'
  */
 
 /** The worker as the main thread speaks to it: a DOM `Worker`, or a test's thread behind one. */
-export interface AheadPort {
-  postMessage(message: unknown, transfer: ArrayBuffer[]): void
-  onmessage: ((event: { data: unknown }) => void) | null
-}
+export type AheadPort = WorkerScope
 
 /** What the worker receives besides the frames' buffers. */
 export type AheadMessage =

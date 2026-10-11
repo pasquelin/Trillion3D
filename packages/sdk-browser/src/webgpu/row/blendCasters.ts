@@ -1,5 +1,4 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts'
 import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, ROW_TRANSMISSION_WORD } from './pageRow.ts'
 import type { createPageRowWriter } from './pageRowWriter.ts'
@@ -7,10 +6,10 @@ import type { createWebgpuRowState } from './state.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 
 type Rows = ReturnType<typeof createWebgpuRowState>
 type Writer = ReturnType<typeof createPageRowWriter>
-const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
