@@ -1,6 +1,6 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts'
-import type { AtlasBindings } from '../core/bindLayout.ts'
+import { VIS_BINDINGS, type AtlasBindings } from '../core/bindLayout.ts'
 import {
   MAX_LEVELS,
   PLACE_AXIS_BITS,
@@ -203,3 +203,10 @@ export const tileDeclarations = (bindings: AtlasBindings, name: string) =>
     )
     .join('\n')}
 @group(0) @binding(${bindings.pages}) var<storage,read> ${name}Pages:array<u32>;`
+
+/** What a pass that reads a page's materials declares in group 0: the uvs, the colour atlas and
+ *  the sampler of the maps, at the visibility layout's bindings. */
+export const materialBindingsWgsl = () =>
+  `@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
+${tileDeclarations(VIS_BINDINGS.color, 'color')}
+@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;`

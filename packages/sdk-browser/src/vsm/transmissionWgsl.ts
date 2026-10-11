@@ -61,12 +61,11 @@ import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BLEND_CASTER, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
-import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
   SHADOW_TILE_POOL_WGSL,
-  tileDeclarations,
+  materialBindingsWgsl,
 } from '../webgpu/tile/wgsl.ts'
 import { blendTransmittanceWgsl } from '../gpu/shadow/transmittanceWgsl.ts'
 import { MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
@@ -482,9 +481,7 @@ export const vsmTransmissionBinWgsl = (layout: VsmLayout) => {
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${tileDeclarations(VIS_BINDINGS.color, 'color')}
-@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
+${materialBindingsWgsl()}
 @group(1) @binding(0) var<storage,read> list:array<u32>;
 @group(1) @binding(1) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
 @group(1) @binding(2) var<uniform> frame:VsmTransmissionFrame;

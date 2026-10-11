@@ -40,12 +40,11 @@ import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
-import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
   SHADOW_TILE_POOL_WGSL,
-  tileDeclarations,
+  materialBindingsWgsl,
 } from '../webgpu/tile/wgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
@@ -68,9 +67,7 @@ export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-${tileDeclarations(VIS_BINDINGS.color, 'color')}
-@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
+${materialBindingsWgsl()}
 @group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
 struct VsmRenderOut{
  @builtin(position) position:vec4f,
