@@ -80,7 +80,7 @@ const rectBranch = (pair: boolean, lobes: boolean) => `
 
 const shadeStatement = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
- // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
+ // taps are skipped, never the page reads and requests (\`vsmShadowRead\`). Toon bands light it.
  let toward=normalize(incidence.xyz);
  let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
  let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;

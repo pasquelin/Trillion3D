@@ -326,7 +326,7 @@ fn vsmFilterTaps${kind}(requested:VsmHandle,sm:VsmMapRead,z:f32,slope:vec4f)->f3
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`).
  * A shadowed light's `params.y` is `firstVsmId · 64 + channel`, −1 without a shadow
- * (`encodeVsm.ts`). The opaque resolve reads the frame's traced shadow mask
+ * (`vsmEncode.ts`). The opaque resolve reads the frame's traced shadow mask
  * (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`, set by its shadow setup),
  * the light's channel, and the located sample (`vsmTransmissionRead`) for the translucent casters'
  * transmission alone. The blend and water passes read the filtered taps (`vsmShadowRead`).
@@ -388,10 +388,10 @@ fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
  if(dot(g,g)==0.0){return n;}
  return select(g,-g,dot(g,n)<0.0);
 }
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
+fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
  shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}
- if(!taps){return 0.0;}${read}
+ if(!facing){return 0.0;}${read}
 }`
 
 /** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
