@@ -50,7 +50,7 @@ fn laneRun(lane:u32,len:u32)->vec2u{
 /** A lane's `sum` of `size`, an expression of the item `g`, over its run `span`. */
 export const laneRunSum = (g: string, span: string, size: string) =>
   `var sum=0u;
- for(var ${g}=${span}.x;${g}<${span}.y;${g}++){sum=sum+${size};}`
+ for(var ${g}=${span}.x;${g}<${span}.y;${g}++){sum=sum+(${size});}`
 
 /** The lane walks its run, `put` (an expression of `g` and `cursor`) writing each item's place and
  *  `cursor` moving on by its `size`, read before `put` writes. */
