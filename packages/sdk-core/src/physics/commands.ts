@@ -3,6 +3,7 @@ import type { BodyRecord } from './bodyRecord.ts'
 import type { JointRecord } from './jointRecord.ts'
 import { SpareBuffers } from './spareBuffers.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
 /**
  * A growable command buffer: the page writes a frame's commands, then hands the words over in one
@@ -18,11 +19,8 @@ export class CommandWriter {
   length = 0
 
   private reserve(count: number) {
-    if (this.length + count <= this.words.length) return
-    let size = this.words.length * 2
-    while (size < this.length + count) size *= 2
-    const grown = new Uint32Array(size)
-    grown.set(this.words.subarray(0, this.length))
+    const grown = resized(this.words, this.length + count)
+    if (grown === this.words) return
     this.words = grown
     this.floats = new Float32Array(grown.buffer)
   }

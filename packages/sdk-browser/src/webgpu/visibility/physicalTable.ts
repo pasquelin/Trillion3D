@@ -5,6 +5,7 @@ import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Words of one record (`physicalTableWgsl`, `../../visibility/shader/physicalWgsl.ts`): the four
  *  factors, the coat normal's two scales, the maps' UV channels, a pad, the four map slots. */
@@ -153,11 +154,7 @@ function write(p: Records, mat: VisMaterial, dataLayer: Layers) {
     p.ranks.set(mat, rank)
     p.reclaim.register(mat, rank)
     // Records held: a power of two, so past one row a whole number of rows.
-    if ((rank + 1) * PHYSICAL_RECORD_WORDS > p.ints.length) {
-      const grown = new Uint32Array(p.ints.length * 2)
-      grown.set(p.ints)
-      p.ints = grown
-    }
+    p.ints = resized(p.ints, (rank + 1) * PHYSICAL_RECORD_WORDS)
   }
   if (writePhysicalRecord(p.ints, rank * PHYSICAL_RECORD_WORDS, mat, dataLayer)) {
     p.low = Math.min(p.low, rank)

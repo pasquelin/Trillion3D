@@ -1,4 +1,5 @@
 import type { DagBufferRow } from './bufferTable.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * EACH KEPT LIST'S TABLE OF RANKS: the rank each page of the kept snapshot holds, open-addressed by
@@ -11,11 +12,7 @@ export const KEPT_RANK_HEAD = 2
 const SLOT_WORDS = 3
 
 /** Slots of a table for a list of `listCap` ranks: the shader's `keptSlots`. */
-function keptRankSlots(listCap: number) {
-  let slots = 1
-  while (slots < 2 * Math.max(1, listCap)) slots *= 2
-  return slots
-}
+const keptRankSlots = (listCap: number) => nextPow2(2 * Math.max(1, listCap))
 
 /** Kept list `l`'s table for a list of `listCap` ranks. */
 export const keptRankRow = (l: number, listCap: number): DagBufferRow => ({
